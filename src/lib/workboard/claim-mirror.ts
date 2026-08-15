@@ -8,7 +8,7 @@
    money, not whether the business's own books stay current. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { SM8_JOB_MONEY_COLUMNS } from "./job-money";
+import { parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
 import { planMirrorClaims, type ClaimJobLink, type ClaimMirrorJob } from "./claim-rules";
 
 export async function ensureMirrorClaims(orgId: string, today: string): Promise<void> {
@@ -39,17 +39,46 @@ export async function ensureMirrorClaims(orgId: string, today: string): Promise<
   if (links.length === 0 && existing.length === 0) return;
 
   const remoteIds = [...new Set(links.map((l) => l.remoteId))];
-  const { data: jobRows } = remoteIds.length
-    ? await supabaseAdmin
-        .from("sm8_jobs")
-        .select(`uuid, generated_job_id, active, ${SM8_JOB_MONEY_COLUMNS}`)
-        .eq("org_id", orgId)
-        .in("uuid", remoteIds)
-    : { data: [] };
+  /* The payment ROWS are the collection truth — `payment_received` is flagged
+     on 45 jobs while 1,819 hold actual payments — so they are read alongside
+     the job rather than inferred from it. */
+  const [{ data: jobRows }, { data: paymentRows }] = remoteIds.length
+    ? await Promise.all([
+        supabaseAdmin
+          .from("sm8_jobs")
+          .select(`uuid, generated_job_id, status, active, ${SM8_JOB_MONEY_COLUMNS}`)
+          .eq("org_id", orgId)
+          .in("uuid", remoteIds),
+        supabaseAdmin
+          .from("sm8_job_payments")
+          .select("job_uuid, amount, timestamp")
+          .eq("org_id", orgId)
+          .eq("active", 1)
+          .in("job_uuid", remoteIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  const paid = new Map<string, { cents: number; lastOn: string | null }>();
+  for (const p of (paymentRows ?? []) as {
+    job_uuid: string;
+    amount: string | null;
+    timestamp: string | null;
+  }[]) {
+    const cents = parseSm8AmountToCents(p.amount);
+    if (cents === null) continue;
+    const day = p.timestamp && p.timestamp.length >= 10 ? p.timestamp.slice(0, 10) : null;
+    const cur = paid.get(p.job_uuid) ?? { cents: 0, lastOn: null };
+    paid.set(p.job_uuid, {
+      cents: cur.cents + cents,
+      // The LAST payment is when the claim actually settled.
+      lastOn: !cur.lastOn || (day && day > cur.lastOn) ? day ?? cur.lastOn : cur.lastOn,
+    });
+  }
 
   type JobRow = {
     uuid: string;
     generated_job_id: string | null;
+    status: string | null;
     active: number | null;
     total_invoice_amount: string | null;
     invoice_sent: number | null;
@@ -60,7 +89,10 @@ export async function ensureMirrorClaims(orgId: string, today: string): Promise<
   const jobs: ClaimMirrorJob[] = ((jobRows ?? []) as unknown as JobRow[]).map((j) => ({
     remoteId: j.uuid,
     jobNumber: j.generated_job_id,
+    status: j.status,
     active: j.active,
+    paidCents: paid.get(j.uuid)?.cents ?? 0,
+    lastPaidOn: paid.get(j.uuid)?.lastOn ?? null,
     totalInvoiceAmount: j.total_invoice_amount,
     invoiceSent: j.invoice_sent,
     invoiceDate: j.invoice_date,

@@ -60,6 +60,7 @@ const mirrorJob = (over: Record<string, unknown> & { remoteId: string }) => ({
   completionDate: null,
   nextBooking: null,
   money: null,
+  paidCents: 0,
   ...over,
 });
 
@@ -337,7 +338,10 @@ describe("completed", () => {
     expect(rows()).toHaveLength(2);
   });
 
-  it("counts what's invoiced and still owed, for a reader who may see money", async () => {
+  /* The chip is COUNTED from payment rows now. Under the old flag read it
+     could never fire at all on this account — `invoice_sent` never arrives —
+     so a finished job with money still out looked identical to a settled one. */
+  it("flags finished work with money still out", async () => {
     mount({
       moneyVisible: true,
       data: data({
@@ -346,7 +350,8 @@ describe("completed", () => {
             remoteId: "c-1",
             status: "Completed",
             completionDate: "2026-08-01 00:00:00",
-            money: jobMoneyOf({ total_invoice_amount: "3960.00", invoice_sent: 1 }),
+            money: jobMoneyOf({ total_invoice_amount: "3960.00" }),
+            paidCents: 0,
           }),
         ],
       }),
@@ -354,6 +359,50 @@ describe("completed", () => {
     await toTab("Completed");
     expect(screen.getByText(/1 of these is invoiced and still awaiting payment/)).toBeInTheDocument();
     expect(screen.getByText("Awaiting payment")).toBeInTheDocument();
+  });
+
+  it("says how much is left on a part-paid job", async () => {
+    mount({
+      moneyVisible: true,
+      data: data({
+        jobs: [
+          mirrorJob({
+            remoteId: "c-1",
+            status: "Completed",
+            completionDate: "2026-08-01 00:00:00",
+            money: jobMoneyOf({ total_invoice_amount: "3960.00" }),
+            paidCents: 100000,
+          }),
+        ],
+      }),
+    });
+    await toTab("Completed");
+    expect(screen.getByText("Part paid — $2,960 to come")).toBeInTheDocument();
+  });
+
+  /* THE MAJORITY CASE, and it must stay quiet. 1,819 completed jobs carry
+     payments against a total ServiceM8 never recorded — chipping those as
+     owing would bury the eleven that genuinely are, and a green "paid" on the
+     few with totals would imply these were unpaid. Silence is the answer. */
+  it("stays quiet on a paid job whose total was never recorded", async () => {
+    mount({
+      moneyVisible: true,
+      data: data({
+        jobs: [
+          mirrorJob({
+            remoteId: "c-1",
+            status: "Completed",
+            completionDate: "2026-08-01 00:00:00",
+            money: jobMoneyOf({}),
+            paidCents: 45000,
+          }),
+        ],
+      }),
+    });
+    await toTab("Completed");
+    expect(screen.queryByText("Awaiting payment")).toBeNull();
+    expect(screen.queryByText(/Part paid/)).toBeNull();
+    expect(screen.queryByText("Paid")).toBeNull();
   });
 });
 

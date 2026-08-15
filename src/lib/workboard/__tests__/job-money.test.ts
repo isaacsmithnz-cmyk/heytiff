@@ -1,5 +1,6 @@
 import {
-  collectionState,
+  collectionFrom,
+  isAwaitingPayment,
   jobMoneyOf,
   MONEY_BASIS,
   parseSm8AmountToCents,
@@ -94,26 +95,38 @@ describe("jobMoneyOf", () => {
   });
 });
 
-describe("collectionState", () => {
-  it("names where a job stands with the customer", () => {
-    expect(collectionState(jobMoneyOf({ payment_received: 1, invoice_sent: 1 }))).toBe("paid");
-    expect(collectionState(jobMoneyOf({ invoice_sent: 1 }))).toBe("awaiting");
-    expect(collectionState(jobMoneyOf({ invoice_sent: 0 }))).toBe("not_invoiced");
+/* Collection is COUNTED from payment rows, not read off a flag. On the live
+   account `payment_received` is set on 45 jobs while 1,819 completed ones hold
+   actual payments — believing the flag would call 1,774 paid jobs unpaid. */
+describe("collectionFrom", () => {
+  it("names where a job stands once both sides are known", () => {
+    expect(collectionFrom(396000, 396000)).toBe("paid");
+    expect(collectionFrom(396000, 500000)).toBe("paid"); // overpaid is still paid
+    expect(collectionFrom(396000, 100000)).toBe("part");
+    expect(collectionFrom(396000, 0)).toBe("awaiting");
   });
 
-  /* The common case on a real account, and it must NOT read as "not
-     invoiced" — the surfaces render unknown as silence. */
-  it("says unknown when ServiceM8 never sent the flag", () => {
-    expect(collectionState(jobMoneyOf({}))).toBe("unknown");
-    expect(collectionState(jobMoneyOf({ total_invoice_amount: "640.00" }))).toBe("unknown");
+  /* THE ASYMMETRY THAT SHAPES THIS. The total is the sparse side — 93 jobs of
+     3,455 carry one — so money routinely arrives against a job whose worth
+     ServiceM8 never recorded. "Paid in full" would be a guess there; "money
+     came in" is the true and weaker statement. */
+  it("won't claim paid-in-full against a total it doesn't know", () => {
+    expect(collectionFrom(null, 250000)).toBe("paid_unknown_total");
+    expect(collectionFrom(0, 250000)).toBe("paid_unknown_total");
   });
 
-  /* Paid outranks invoiced: ServiceM8 can carry a payment against a job whose
-     invoice flag was never flipped, and "awaiting payment" on money already in
-     the bank is the reading that would chase a customer wrongly. */
-  it("believes payment over the invoice flag", () => {
-    expect(collectionState(jobMoneyOf({ payment_received: 1, invoice_sent: 0 }))).toBe("paid");
-    expect(collectionState(jobMoneyOf({ payment_received: 1 }))).toBe("paid");
+  it("says nothing at all when neither side is known", () => {
+    expect(collectionFrom(null, 0)).toBe("unknown");
+  });
+
+  /* Only genuinely outstanding money earns the chip — which is what keeps it
+     to eleven jobs rather than lighting up every completed row. */
+  it("counts as owing only where money is really out", () => {
+    expect(isAwaitingPayment(collectionFrom(396000, 0))).toBe(true);
+    expect(isAwaitingPayment(collectionFrom(396000, 100000))).toBe(true);
+    expect(isAwaitingPayment(collectionFrom(396000, 396000))).toBe(false);
+    expect(isAwaitingPayment(collectionFrom(null, 250000))).toBe(false);
+    expect(isAwaitingPayment(collectionFrom(null, 0))).toBe(false);
   });
 });
 

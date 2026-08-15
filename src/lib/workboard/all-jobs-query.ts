@@ -150,7 +150,7 @@ export async function loadAllJobs(
   const categoryIds = [...new Set(rows.map((r) => r.category_uuid).filter(Boolean) as string[])];
   const jobIds = rows.map((r) => r.uuid);
 
-  const [companies, categories, activities] = await Promise.all([
+  const [companies, categories, activities, payments] = await Promise.all([
     inChunks(companyIds, 200, async (chunk) => {
       const { data } = await supabaseAdmin
         .from("sm8_companies")
@@ -183,6 +183,22 @@ export async function loadAllJobs(
         .order("start_date", { ascending: true });
       return (data ?? []) as { job_uuid: string; start_date: string | null }[];
     }),
+    /* WHAT HAS ACTUALLY BEEN PAID, per job. This is the collection story —
+       the flags are not. `payment_received` is set on 45 jobs while 1,819
+       completed ones carry payment rows, so a flag read would call 1,774 paid
+       jobs unpaid. Deposits count: money in the bank is money in the bank.
+       Skipped entirely without the money grant, like every other money read. */
+    includeMoney
+      ? inChunks(jobIds, 200, async (chunk) => {
+          const { data } = await supabaseAdmin
+            .from("sm8_job_payments")
+            .select("job_uuid, amount")
+            .eq("org_id", orgId)
+            .eq("active", 1)
+            .in("job_uuid", chunk);
+          return (data ?? []) as { job_uuid: string; amount: string | null }[];
+        })
+      : Promise.resolve([] as { job_uuid: string; amount: string | null }[]),
   ]);
 
   const companyName = new Map(companies.map((c) => [c.uuid, c.name]));
@@ -202,6 +218,15 @@ export async function loadAllJobs(
     if (!nextBooking.has(a.job_uuid)) nextBooking.set(a.job_uuid, a.start_date);
   }
 
+  /* Summed here rather than in SQL, through the same parser the rest of the
+     money uses — an amount is a ServiceM8 string, and one place reads them. */
+  const paidByJob = new Map<string, number>();
+  for (const p of payments) {
+    const cents = parseSm8AmountToCents(p.amount);
+    if (cents === null) continue;
+    paidByJob.set(p.job_uuid, (paidByJob.get(p.job_uuid) ?? 0) + cents);
+  }
+
   const jobs: AllJobsMirrorJob[] = rows.map((r) => ({
     remoteId: r.uuid,
     jobNumber: r.generated_job_id,
@@ -216,6 +241,7 @@ export async function loadAllJobs(
     completionDate: r.completion_date,
     nextBooking: nextBooking.get(r.uuid) ?? null,
     money: includeMoney ? jobMoneyOf(r) : null,
+    paidCents: includeMoney ? paidByJob.get(r.uuid) ?? 0 : 0,
   }));
 
   return {
@@ -790,6 +816,23 @@ export async function searchAllMirrorJobs(
     if (a.start_date && !nextBooking.has(a.job_uuid)) nextBooking.set(a.job_uuid, a.start_date);
   }
 
+  /* Payments here too, or the same job would report a different collection
+     state depending on whether it was scrolled to or searched for. */
+  const paidByJob = new Map<string, number>();
+  if (includeMoney) {
+    const { data: payRows } = await supabaseAdmin
+      .from("sm8_job_payments")
+      .select("job_uuid, amount")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .in("job_uuid", found.map((r) => r.uuid));
+    for (const p of (payRows ?? []) as { job_uuid: string; amount: string | null }[]) {
+      const cents = parseSm8AmountToCents(p.amount);
+      if (cents === null) continue;
+      paidByJob.set(p.job_uuid, (paidByJob.get(p.job_uuid) ?? 0) + cents);
+    }
+  }
+
   return found.map((r) => ({
     remoteId: r.uuid,
     jobNumber: r.generated_job_id,
@@ -804,5 +847,6 @@ export async function searchAllMirrorJobs(
     completionDate: r.completion_date,
     nextBooking: nextBooking.get(r.uuid) ?? null,
     money: includeMoney ? jobMoneyOf(r) : null,
+    paidCents: includeMoney ? paidByJob.get(r.uuid) ?? 0 : 0,
   }));
 }

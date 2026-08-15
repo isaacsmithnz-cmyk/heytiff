@@ -21,7 +21,7 @@ import {
   materialsTotalCents,
   paymentsTotalCents,
 } from "@/lib/workboard/job-ledger";
-import { MONEY_BASIS } from "@/lib/workboard/job-money";
+import { collectionFrom, MONEY_BASIS } from "@/lib/workboard/job-money";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
@@ -321,38 +321,64 @@ export function JobSheet({
                   Job value ({MONEY_BASIS})
                 </span>
                 <b>{money?.valueCents != null ? fmtAud(money.valueCents) : "—"}</b>
-                {/* Rendered only when there is something TRUE to say. When
-                    the invoice flag never arrived — every job on the live
-                    account — this line is absent, because "Not invoiced" was
-                    us announcing a fact nobody had told us. What has been
-                    paid is answered properly by the payments ledger below. */}
+                {/* Rendered only when there is something TRUE to say, and the
+                    collection half is counted from PAYMENT ROWS rather than
+                    the flags. `payment_received` is set on 45 jobs while 1,819
+                    completed ones carry payments, so the flag alone called
+                    paid jobs unpaid; `invoice_sent` never arrives at all, and
+                    reading its absence as "no" announced a fact about three
+                    thousand jobs nobody had told us. */}
                 {(() => {
-                  if (money?.paid) {
-                    return (
-                      <em>
-                        Paid{money.paidOn ? ` ${fmtAuWeekdayDayMonth(money.paidOn)}` : ""}
-                      </em>
-                    );
+                  /* ORDER IS THE MEANING HERE, so it is spelt out:
+
+                     1. A QUOTE hasn't been accepted, let alone billed —
+                        "nothing paid yet" would be nonsense on one.
+                     2. "Not invoiced", when ServiceM8 actually says so, beats
+                        any payment reading: the action is to bill it, and
+                        chasing payment on an unbilled job is the wrong move.
+                     3. Otherwise collection, counted from payment rows.
+                     4. Otherwise nothing — see above. */
+                  if (row.statusLabel === "Quote") {
+                    if (money?.quoteSent === true) {
+                      return (
+                        <em>
+                          Quote sent
+                          {money.quoteSentOn ? ` ${fmtAuWeekdayDayMonth(money.quoteSentOn)}` : ""}
+                        </em>
+                      );
+                    }
+                    return money?.quoteSent === false ? <em>Not sent yet</em> : null;
                   }
-                  if (money?.invoiced === true) {
-                    return (
-                      <em>
-                        Invoiced
-                        {money.invoicedOn ? ` ${fmtAuWeekdayDayMonth(money.invoicedOn)}` : ""} —
-                        awaiting payment
-                      </em>
-                    );
-                  }
-                  if (money?.quoteSent === true) {
-                    return (
-                      <em>
-                        Quote sent
-                        {money.quoteSentOn ? ` ${fmtAuWeekdayDayMonth(money.quoteSentOn)}` : ""}
-                      </em>
-                    );
-                  }
+
                   if (money?.invoiced === false) return <em>Not invoiced</em>;
-                  return null;
+
+                  const paidCents = record?.ledger
+                    ? paymentsTotalCents(record.ledger.payments)
+                    : 0;
+                  switch (collectionFrom(money?.valueCents ?? null, paidCents)) {
+                    case "paid":
+                      return <em>Paid in full</em>;
+                    case "part":
+                      return (
+                        <em>Part paid — {fmtAud(money!.valueCents! - paidCents)} still out</em>
+                      );
+                    case "awaiting":
+                      return <em>Nothing paid yet</em>;
+                    /* Money in, but ServiceM8 never said what the job was
+                       worth — the common case here, and "paid in full" would
+                       be a guess. The ledger below shows the amounts. */
+                    case "paid_unknown_total":
+                      return <em>Part or all paid</em>;
+                    default:
+                      /* The flag is the last resort and only when it says
+                         yes: on this account it is set on 45 jobs, so it adds
+                         a little and can't take anything away. */
+                      return money?.paid ? (
+                        <em>
+                          Paid{money.paidOn ? ` ${fmtAuWeekdayDayMonth(money.paidOn)}` : ""}
+                        </em>
+                      ) : null;
+                  }
                 })()}
               </div>
             )}

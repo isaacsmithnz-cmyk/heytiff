@@ -188,9 +188,13 @@ describe("the sheet renders what the mirror already held", () => {
 });
 
 describe("money stays behind its grant", () => {
+  /* On a QUOTE the money line is about the quote, not about collection — a
+     quote nobody has accepted can't be "awaiting payment", and saying so
+     would send somebody chasing money that was never billed. */
   it("says when the quote went out, for a reader who holds money", async () => {
     readMirrorJob.mockResolvedValueOnce(
       detail({
+        status: "Quote",
         money: {
           valueCents: 685000,
           invoiced: false,
@@ -202,10 +206,11 @@ describe("money stays behind its grant", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
 
     expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
     expect(screen.getByText("$6,850")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing paid yet")).toBeNull();
   });
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {

@@ -118,10 +118,25 @@ function Row({
             {row.money.quoteSent ? "Quote sent" : "Not sent yet"}
           </i>
         )}
-        {/* Done but not paid is the question a finished list is really asked. */}
+        {/* Done but not paid is the question a finished list is really asked —
+            and it is answered from payment ROWS, so it fires on the eleven
+            jobs genuinely outstanding rather than on everything (the invoice
+            flag never arrives, and a flag read lit the chip nowhere at all).
+            A part payment says so, because "some of it came in" is a
+            different conversation from "none of it did". */}
         {moneyVisible && row.money?.collection === "awaiting" && (
           <i className="wb2-chip warn">Awaiting payment</i>
         )}
+        {moneyVisible && row.money?.collection === "part" && (
+          <i className="wb2-chip warn">
+            Part paid — {fmtAud(row.money.valueCents! - row.money.paidCents)} to come
+          </i>
+        )}
+        {/* NO chip for a paid job, deliberately. Only 39 completed jobs carry
+            a total at all, while 1,819 have payments against no total — so a
+            green "Paid" on the few would imply the many were unpaid, which is
+            the same false inference in a happier colour. A chip here means
+            money is OUT; its absence means nothing to chase. */}
       </span>
 
       {/* The column has no header to hang the basis off, and repeating it on

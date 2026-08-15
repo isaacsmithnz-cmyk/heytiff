@@ -136,14 +136,42 @@ export const SM8_JOB_MONEY_COLUMNS =
   "total_invoice_amount, invoice_sent, invoice_date, quote_sent, " +
   "quote_sent_stamp, payment_received, payment_received_stamp";
 
-/** Where a job stands with the customer. `unknown` is a real answer and the
-    common one on an account whose invoice flag never arrives — the surfaces
-    render it as SILENCE, never as "not invoiced", which would be us inventing
-    a fact. Only meaningful once the job is done: an open job isn't late. */
-export function collectionState(
-  m: JobMoney
-): "paid" | "awaiting" | "not_invoiced" | "unknown" {
-  if (m.paid) return "paid";
-  if (m.invoiced === null) return "unknown";
-  return m.invoiced ? "awaiting" : "not_invoiced";
+/* COLLECTION IS COUNTED FROM MONEY RECEIVED, NOT FROM A FLAG.
+
+   The flags lost this job on the evidence. `invoice_sent` never arrives at
+   all, and `payment_received` is set on 45 jobs while 1,819 completed ones
+   carry actual payment rows — so believing it would call 1,774 paid jobs
+   unpaid. The payment ledger is dense where the flags are sparse, and it is
+   money in the bank rather than somebody's tick.
+
+   THE TOTAL IS THE SPARSE SIDE HERE. `total_invoice_amount` is populated on
+   93 of 3,455 jobs, so most jobs that were paid can't be compared against
+   what they were worth. That asymmetry is why `paid_unknown_total` exists:
+   "money came in, we can't say whether it's all of it" is a true sentence and
+   a different one from "paid in full". */
+export type CollectionState =
+  | "paid"
+  | "part"
+  | "awaiting"
+  | "paid_unknown_total"
+  | "unknown";
+
+export function collectionFrom(
+  totalCents: number | null,
+  paidCents: number
+): CollectionState {
+  const paid = paidCents > 0;
+  if (totalCents === null || totalCents <= 0) {
+    return paid ? "paid_unknown_total" : "unknown";
+  }
+  if (!paid) return "awaiting";
+  return paidCents >= totalCents ? "paid" : "part";
+}
+
+/** True only where the money is genuinely outstanding: the job is worth a
+    known amount and none of it has arrived. On the live account that is
+    eleven completed jobs — a list somebody can act on, which is the whole
+    point of a chip. */
+export function isAwaitingPayment(state: CollectionState): boolean {
+  return state === "awaiting" || state === "part";
 }

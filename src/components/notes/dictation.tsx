@@ -128,7 +128,7 @@ export function transportChoice(): boolean {
 export const saidSomething = (text: string) =>
   text.replace(/[[(][^\])]*[\])]/g, "").trim() !== "";
 
-type DictationState = {
+export type DictationState = {
   recording: boolean;
   /** Sending the audio off and waiting for words back. */
   transcribing: boolean;

@@ -1546,6 +1546,42 @@
    the phase names in research-viz.ts never carry punctuation. */
 .fg .tk-work b::after { content:"…"; }
 
+/* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
+   The ask bar hands its space to the shared recording card while the mic is
+   open (notes/recording-card), so the sequence you get here is the sequence
+   the Tiff button's sheet and the debrief card give you. Isaac: "the input
+   section should be identical throughout the software — they just appear in
+   different places."
+
+   THIS RULE IS ONLY ABOUT WHERE IT STANDS, exactly as `.hm-cap` is for the
+   debrief. Nothing here says anything about material: the dusk skin, the
+   button fills, the type sizes and the 68px orb all arrive from
+   `.wb2-capcard` and `.wb2-capcard.wb2-dusk`, and a background declared here
+   would beat them on source order and quietly undo the point. The debrief
+   learned that the expensive way — its first version restated forty rules
+   under `.fg .hm-cap` and had already drifted from the sheet by the time
+   anyone compared them side by side. */
+.fg .tk-rec {
+  /* out of the overlay and into the composer's column */
+  position:static; transform:none; z-index:auto;
+  width:auto; max-width:none; min-width:0;
+  /* the sheet is a scroll container because it floats; in the page the page
+     scrolls */
+  max-height:none; overflow:visible;
+  /* a 30px drop shadow belongs under something floating, not in a column */
+  box-shadow:0 10px 30px -18px rgba(10,12,20,.5);
+  /* `wb2DropIn` carries `translateX(-50%)` for the centred sheet and would
+     shove this one half its width to the left */
+  animation:tkRecIn .2s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes tkRecIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { .fg .tk-rec { animation:none; } }
+/* NO CHIP IN THIS RIBBON, so the close × takes the margin the chip would have
+   pushed it with. The note card's chip says where the words are going, and
+   here that is the live "Answer from" row two inches below — the same fact
+   twice is the pair that eventually disagrees. */
+.fg .tk-rec .wb2-capribbon .wb2-ico { margin-left:auto; }
+
 /* UNDER THE ASK BAR IT IS THE SMALLER SISTER. `.tvsay` was the plain grey
    line that said "Reading it back…" in this slot, and the chip inherits its
    margin so nothing around the composer moves; only the type size and the

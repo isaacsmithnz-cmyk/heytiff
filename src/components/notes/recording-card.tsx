@@ -1,0 +1,167 @@
+"use client";
+
+import { Icon } from "@/components/shell/icon";
+import { DictClock, LevelOrb, appendSpoken, type DictationState } from "./dictation";
+
+/* THE RECORDING STAGE, ONCE.
+
+   Every door into the microphone shows this: the Tiff button's sheet, the
+   debrief card in Home's journal, and Tiff's own ask bar. Isaac's rule, and
+   the reason this file exists — "the input section should be identical
+   throughout the software; they just appear in different places."
+
+   IT IS THE CONTENT, NOT THE CONTAINER, and that split is what lets the same
+   card stand in three places that are shaped differently. The sheet portals
+   itself over a scrim, the debrief and Tiff's composer grow in the page, and
+   none of that is decided here. What IS decided here is everything you look
+   at while you are talking: what you have said so far, the sphere, the clock,
+   whether anything is reaching the microphone, and the three ways out.
+
+   THE THREE WAYS OUT ARE ALL THE ENGINE'S, so this needs no callbacks and
+   no flow. `handOver` stops and keeps the words for the box, `restart` bins
+   this take and opens a fresh mic, `stop` ends it for real — all three come
+   off `useDictation`, which every door already holds. That is the whole
+   reason a shared card was possible at all: the postures differed, the
+   engine never did.
+
+   EVERY BUTTON IS `type="button"`, AND THAT IS LOAD-BEARING. Tiff's composer
+   is a `<form>`, and a bare `<button>` inside one defaults to `submit` — so
+   the moment this card was reused there, "Start again" would have asked
+   Tiff the half-finished question instead of binning the take. The note
+   postures never sat in a form and never needed it, which is exactly how a
+   shared component inherits a bug from the one place it did not have to
+   think about.
+
+   WHAT HAPPENS TO THE WORDS AFTERWARDS IS NOT THIS CARD'S BUSINESS, and it
+   genuinely differs. The note flow sorts them and asks you to check what was
+   made of them; Tiff drops them in the ask box and waits for you to press
+   send, because a question already knows what it is. Identical up to `Done`,
+   and deliberately not past it. */
+
+/** What the meter is doing, in words.
+
+    The meter has always carried this and nobody could read it — five bars at
+    6px are the same picture whether the room is quiet or the microphone is
+    dead. `hearing` is false when the meter could not start at all, so this
+    never claims deafness it cannot prove: the silent line says only that
+    nothing is arriving, which is true either way. */
+export function HeardLine({ hearing }: { hearing: boolean }) {
+  return (
+    <span className={"wb2-heard" + (hearing ? " on" : "")} aria-live="polite">
+      {hearing ? "Hearing you" : "Not hearing anything"}
+    </span>
+  );
+}
+
+export type RecordingCardProps = {
+  dict: DictationState;
+  /** What is already captured — the box's value, whatever box that is. The
+      live words are joined onto it here rather than by the caller, so every
+      door performs the same join. */
+  text: string;
+};
+
+export function RecordingCard({ dict, text }: RecordingCardProps) {
+  /* WHAT YOU HAVE ALREADY SAID STAYS ON SCREEN (Isaac, 2026-08-10, walking a
+     second leg): "if I click talk, it looks like you're starting again
+     because it doesn't show you what text it's already got on there."
+
+     It was never starting again — every leg appends, and the words were safe
+     the whole time. But this stage REPLACED the box with the meter, so a
+     second leg looked exactly like a first one. The card was hiding the only
+     evidence that it had kept anything.
+
+     GUARDED, not just called. `appendSpoken` joins with a space and does not
+     care that the second half is empty, so calling it with no interim leaves
+     a trailing space on every batch recording. */
+  const sofar = dict.interim ? appendSpoken(text, dict.interim) : text;
+  const words = Boolean(sofar.trim());
+
+  return (
+    <div className="wb2-caprec">
+      {words && (
+        <textarea
+          className="wb2-notes wb2-recsofar"
+          value={sofar}
+          readOnly
+          rows={3}
+          aria-label="What you have said so far"
+        />
+      )}
+      {/* THE INSTRUMENT, NOT AN ORNAMENT (audited 2026-08-10). This stage used
+          to be a 680px card that was 86% empty with a 36px meter marooned in
+          the middle of it, and the middle was empty because it is reserved
+          for words that only the live transport ever delivers.
+
+          Now the reserved space IS the meter until there are words to put in
+          it: the orb takes the middle at a size worth looking at, the clock
+          sits beside it at a size worth reading, and a line under that says
+          in words what the sphere is doing — which is the question Isaac
+          actually had ("is this thing hearing me?") and the one thing five
+          6px dots could never answer. */}
+      <div className={"wb2-recwave" + (words ? " with-words" : "")}>
+        <div className="wb2-recmeta">
+          <DictClock seconds={dict.seconds} big />
+          <HeardLine hearing={dict.hearing} />
+        </div>
+        <LevelOrb innerRef={dict.barsRef} />
+      </div>
+      <div className="wb2-capact">
+        {/* THE WAY OUT TO THE KEYBOARD, and during a recording it is the only
+            thing this slot does. Audited 2026-08-10: the strongest position on
+            the row went to a Default switch — a control about what the Tiff
+            button does NEXT time, with its Talk half already pressed, half of
+            it inert and all of it about later. The preference returns the
+            moment the mic closes, which is the only place you can act on it.
+
+            It keeps every word: `handOver` puts what you have said in the box
+            rather than routing it, so changing your mind mid-sentence costs
+            nothing. */}
+        <button type="button" className="pbtn ghost wb2-modeone" onClick={dict.handOver}>
+          <Icon name="keyboard" size={15} />
+          Type instead
+        </button>
+        {/* START THAT ONE AGAIN (Isaac, 2026-08-10). The way to redo a fluffed
+            recording was to close the card — losing the tag it came with — and
+            open it again. It BINS what you have said, on purpose and without
+            asking: a confirm step would make the fast path slower than
+            starting over by hand, and the two chimes (thrown away, then
+            listening) are the receipt.
+
+            Ghost, not primary. It is the recovery, and the card must not offer
+            two bright buttons to a person mid-sentence. */}
+        <button
+          type="button"
+          className="pbtn ghost"
+          onClick={dict.restart}
+          title="Bin this one and start the recording again"
+        >
+          <Icon name="rotate" size={14} sw={1.9} />
+          Start again
+        </button>
+        {/* DONE, NOT GO (Isaac, 2026-08-10, after walking it on prod:
+            "annoyingly you have to push go twice").
+
+            It was Go for half a day, on the argument that both presses are
+            simply the way onward. Walking it says otherwise: you press a
+            button called Go, and nothing goes — it stops the mic and hands you
+            a box to check. Two presses is the design and it is the right one,
+            but only ONE of them commits anything, and that is the one allowed
+            to be called Go. So this stage ends with `Done` and the next one
+            commits. A chat composer works the same way: the mic button stops,
+            the send button sends, and nobody confuses them.
+
+            AND THE SQUARE IS GONE. It survived two rounds of argument — "that
+            black square next to go is weird", answered by making it smaller,
+            thinner and paler — and Isaac's verdict on the third look was that
+            it is still stupid. He is right, and the reason is that the
+            original defence stopped being true: the glyph was there because
+            the word "Go" did not say the microphone was closing. "Done" does.
+            A stop mark beside it is the same thing said twice. */}
+        <button type="button" className="pbtn wb2-prim" onClick={dict.stop}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}

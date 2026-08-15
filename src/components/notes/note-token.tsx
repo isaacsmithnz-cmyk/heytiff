@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
 import { DictClock, LevelOrb, appendSpoken, useDictation } from "./dictation";
+import { RecordingCard } from "./recording-card";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -186,22 +187,15 @@ function DefaultSwitch({ flow }: { flow: NoteFlow }) {
     "default" would be a setting that governs a different screen. */
 function ModeControl({ flow }: { flow: NoteFlow }) {
   if (!flow.scope.voiceEnabled) return null;
-  /* WHILE THE MIC IS OPEN THE SWITCH STEPS BACK, and this check has to come
-     before the `governsDefault` one or the sheet that owns the default keeps
-     wearing it mid-recording. Audited 2026-08-10: the strongest position on
-     the action row went to a control about what the Tiff button does NEXT
-     time, with its Talk half already pressed — half of it inert, all of it
-     about later. The only live-useful thing there is the way out to the
-     keyboard, so during a recording that is all it is. The default returns
-     the moment the mic closes, which is the only place you can act on it. */
-  if (flow.dict.recording)
-    return (
-      <button className="pbtn ghost wb2-modeone" onClick={flow.dict.handOver}>
-        <Icon name="keyboard" size={15} />
-        Type instead
-      </button>
-    );
-  /* AND IT STEPS BACK AGAIN ONCE THERE ARE WORDS. Isaac, 2026-08-10: "when
+  /* THE MID-RECORDING BRANCH IS NOT HERE ANY MORE. While the mic was open
+     this rendered the one live-useful thing on that row — "Type instead" —
+     and it has moved into the shared recording card (./recording-card),
+     which is the only stage that ever reached it. Leaving a copy behind
+     would be the same button in two files, differing eventually.
+
+     What is left is what this control is actually for: the choice offered
+     around an idle box. */
+  /* IT STEPS BACK ONCE THERE ARE WORDS. Isaac, 2026-08-10: "when
      you record a message in Claude, you can hit enter, then tap the mic again
      to keep adding."
 
@@ -244,21 +238,6 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
   );
 }
 
-/** What the bars are doing, in words.
-
-    The meter has always carried this and nobody could read it — five bars at
-    6px are the same picture whether the room is quiet or the microphone is
-    dead. `hearing` is false when the meter could not start at all, so this
-    never claims deafness it cannot prove: the silent line says only that
-    nothing is arriving, which is true either way. */
-function HeardLine({ hearing }: { hearing: boolean }) {
-  return (
-    <span className={"wb2-heard" + (hearing ? " on" : "")} aria-live="polite">
-      {hearing ? "Hearing you" : "Not hearing anything"}
-    </span>
-  );
-}
-
 function Body({ flow }: { flow: NoteFlow }) {
   const stage = flow.stage;
   const textRef = useRef<HTMLTextAreaElement | null>(null);
@@ -291,118 +270,14 @@ function Body({ flow }: { flow: NoteFlow }) {
   }
 
   if (stage === "recording") {
-    /* WHAT YOU HAVE ALREADY SAID STAYS ON SCREEN (Isaac, 2026-08-10, walking
-       a second leg): "if I click talk, it looks like you're starting again
-       because it doesn't show you what text it's already got on there."
-
-       It was never starting again — every leg appends, and the words were
-       safe in `flow.text` the whole time. But this stage REPLACED the box
-       with the trace, so a second leg looked exactly like a first one. The
-       card was hiding the only evidence that it had kept anything.
-
-       The field posture has always got this right (`shown` in `FieldMic`
-       below): the box keeps showing what is there, with the live words joined
-       on by `appendSpoken` — the same join the committed transcript uses, so
-       nothing jumps when the recording ends. This is that, on the card.
-
-       It appears only once there is something to show, so a first leg on the
-       batch transport is still the trace alone rather than an empty box. */
-    /* GUARDED, the same way `FieldMic` guards it. `appendSpoken` joins with a
-       space and does not care that the second half is empty, so calling it
-       with no interim leaves a trailing space on every batch recording — the
-       reason the field posture has always written this as a conditional
-       rather than a call. */
-    const sofar = flow.dict.interim ? appendSpoken(flow.text, flow.dict.interim) : flow.text;
-    const words = Boolean(sofar.trim());
-    return (
-      <div className="wb2-caprec">
-        {words && (
-          <textarea
-            className="wb2-notes wb2-recsofar"
-            value={sofar}
-            readOnly
-            rows={3}
-            aria-label="What you have said so far"
-          />
-        )}
-        {/* THE INSTRUMENT, NOT AN ORNAMENT (audited 2026-08-10). This stage
-            used to be a 680px card that was 86% empty with a 36px meter
-            marooned in the middle of it, and the middle was empty because it
-            is reserved for words that only the live transport ever delivers.
-
-            Now the reserved space IS the meter until there are words to put
-            in it: the orb takes the middle at a size worth looking at, the
-            clock sits beside it at a size worth reading, and a line under
-            that says in words what the sphere is doing — which is the
-            question Isaac actually had ("is this thing hearing me?") and the
-            one thing five 6px dots could never answer.
-
-            IT IS THE SAME COMPONENT THE ASK BAR USES, and that is the point
-            of it being here rather than a second meter built for this card.
-            The 48-bar trace that used to hold this slot existed because a
-            bar's only channel is its height, so the resting state had to be
-            made large to survive being read as dead. The sphere turns as well
-            as grows, so the card asks for a bigger one and gets it from the
-            stylesheet — no second component, and nothing to drift. */}
-        <div className={"wb2-recwave" + (words ? " with-words" : "")}>
-          <div className="wb2-recmeta">
-            <DictClock seconds={flow.dict.seconds} big />
-            <HeardLine hearing={flow.dict.hearing} />
-          </div>
-          <LevelOrb innerRef={flow.dict.barsRef} />
-        </div>
-        <div className="wb2-capact">
-          {/* Flipping this to Type is the way out of the mic, and it keeps
-              every word — `handOver` puts what you have said in the box
-              rather than routing it, so changing your mind mid-sentence
-              costs nothing. */}
-          <ModeControl flow={flow} />
-          {/* START THAT ONE AGAIN (Isaac, 2026-08-10). The way to redo a
-              fluffed recording was to close the card — losing the tag it
-              came with — and open it again. It BINS what you have said, on
-              purpose and without asking: a confirm step would make the fast
-              path slower than starting over by hand, and the two chimes
-              (thrown away, then listening) are the receipt.
-
-              Ghost, not primary. It is the recovery, and the card must not
-              offer two bright buttons to a person mid-sentence. */}
-          <button
-            className="pbtn ghost"
-            onClick={flow.dict.restart}
-            title="Bin this one and start the recording again"
-          >
-            <Icon name="rotate" size={14} sw={1.9} />
-            Start again
-          </button>
-          {/* DONE, NOT GO (Isaac, 2026-08-10, after walking it on prod:
-              "annoyingly you have to push go twice").
-
-              It was Go for half a day, on the argument that both presses are
-              simply the way onward. Walking it says otherwise: you press a
-              button called Go, and nothing goes — it stops the mic and hands
-              you a box to check. Two presses is the design and it is the
-              right one (nothing routes off a transcript; see note-flow), but
-              only ONE of them commits anything, and that is the one allowed
-              to be called Go.
-
-              So this stage ends with `Done` and the next one commits with
-              `Go`. A chat composer works the same way: the mic button stops,
-              the send button sends, and nobody confuses them.
-
-              AND THE SQUARE IS GONE. It survived two rounds of argument —
-              "that black square next to go is weird", answered by making it
-              smaller, thinner and paler — and Isaac's verdict on the third
-              look was that it is still stupid. He is right, and the reason is
-              that the original defence stopped being true: the glyph was
-              there because the word "Go" did not say the microphone was
-              closing. "Done" does. A stop mark beside it is the same thing
-              said twice, in the fussiest possible way. */}
-          <button className="pbtn wb2-prim" onClick={flow.dict.stop}>
-            Done
-          </button>
-        </div>
-      </div>
-    );
+    /* THE SAME CARD EVERY DOOR SHOWS. It used to be written out here, which
+       made this the only place it existed and the reason Tiff's ask bar grew
+       a different one: a second mic in a different file had nothing to reuse.
+       It lives in ./recording-card now — content, not container — so the
+       sheet, the debrief and Tiff's composer render one component and cannot
+       drift apart. Isaac's rule: the input section is identical throughout;
+       only where it stands changes. */
+    return <RecordingCard dict={flow.dict} text={flow.text} />;
   }
 
   if (stage === "transcribing") return <p className="wb2-hint">Reading it back…</p>;

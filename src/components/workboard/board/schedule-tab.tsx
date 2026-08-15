@@ -15,6 +15,7 @@ import {
   type ScheduleBlock,
   type ScheduleTracked,
 } from "@/lib/workboard/schedule";
+import { Sm8Gap, sm8Gap } from "./sm8-gap";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
    answered from the mirror this account already syncs: one lane per staff
@@ -64,6 +65,9 @@ export type ScheduleShelfItem = {
 type Props = {
   today: string;
   connected: boolean;
+  /** Connected, but the `job_activities` backfill is still on its first walk. */
+  syncing: boolean;
+  manage: boolean;
   /** ServiceM8 job uuid → the board that owns it. Ownership recolours. */
   tracked: Map<string, ScheduleTracked>;
   shelfItems: ScheduleShelfItem[];
@@ -109,6 +113,8 @@ function blockTitle(b: ScheduleBlock): string {
 export function ScheduleTab({
   today,
   connected,
+  syncing,
+  manage,
   tracked,
   shelfItems,
   waitingCount,
@@ -143,7 +149,11 @@ export function ScheduleTab({
      lands. StrictMode double-invoking the effect costs one duplicate read,
      which the cache then absorbs for the session. */
   useEffect(() => {
-    if (connected) load(today);
+    /* Mid-backfill the read is not just wasted, it's WRONG to show: a day
+       drawn from half a walk is a diary with people missing from it, which
+       reads as "nobody is on" rather than "not here yet". The gap below says
+       so instead, and nothing is fetched to contradict it. */
+    if (connected && !syncing) load(today);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- first open only
   }, []);
 
@@ -292,15 +302,17 @@ export function ScheduleTab({
     </div>
   );
 
-  if (!connected) {
+  /* THE FIRST THING A DISCONNECTED ACCOUNT SEES. Schedule is the landing tab
+     of the landing side, and it is the one surface with no native half to
+     fall back on — so the gap is explained here or it isn't explained before
+     somebody gives up. The day picker stays above it: the shape of the screen
+     is part of the answer to "what would this look like connected?". */
+  const gap = sm8Gap({ connected, syncing });
+  if (gap) {
     return (
       <>
         {head}
-        <div className="wb2-empty">
-          <Icon name="plug" size={20} />
-          <b>The diary lives in ServiceM8</b>
-          <em>Connect it and every dispatched booking lands here, laid out by person and day.</em>
-        </div>
+        <Sm8Gap kind={gap} surface="diary" manage={manage} />
       </>
     );
   }

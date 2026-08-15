@@ -3503,7 +3503,6 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .wb-chip { font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:rgba(5,5,5,.06); color:var(--gray700); white-space:nowrap; }
 .wb-chip.on { background:rgba(0,163,137,.12); color:#00A389; }
 .wb-chip.bad { background:rgba(224,38,79,.12); color:#e0264f; }
-.wb-stamp { font-size:12px; color:var(--gray500); margin:2px 4px 0; }
 
 /* the overdue breathe — used by the maintenance radar */
 @keyframes wbPulse {
@@ -3921,6 +3920,24 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-empty svg { color:#9ca3af; }
 .wb2-empty b { font-size:13.5px; color:var(--ink); }
 .wb2-empty em { font-style:normal; font-size:12.5px; font-weight:500; text-wrap:pretty; }
+/* The integration gaps are the only empty states that explain a CAUSE rather
+   than name an absence, so they run two sentences where the rest run five
+   words — and two centred sentences at full card width is a 140-character
+   measure. Capped here rather than on `.wb2-empty em`, which would re-wrap a
+   dozen one-liners that were never too wide.
+
+   WRITTEN AS `em.wb2-emptybody` ON PURPOSE. `.wb2-empty em` above is (0,1,1)
+   and outranks any bare class, so a lone `.wb2-emptybody` would take the
+   max-width (nothing above declares it) but silently LOSE text-wrap back to
+   the inherited `pretty` — half a rule landing, which is the worst of the
+   three outcomes because it looks like it worked. `balance` is what a capped
+   two-line measure wants: `pretty` only protects the last line, and left this
+   one reading "…as / it goes." */
+.wb2-empty em.wb2-emptybody { max-width:46ch; text-wrap:balance; }
+/* The one empty state that offers an ACTION rather than just a reason. Spaced
+   off the sentence above it so it reads as the next thing to do, not as the
+   end of the paragraph. */
+.wb2-emptylink { margin-top:6px; font-size:12.5px; }
 .can-open { cursor:pointer; }
 /* A div that SAYS role="button" has to feel like one. Real <button>s get
    cursor:pointer from the reset at the top of this file; a div doesn't, so

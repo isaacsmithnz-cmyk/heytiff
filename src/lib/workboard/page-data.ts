@@ -11,7 +11,11 @@ import { after } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { getConnectionView } from "@/lib/integrations/store";
-import { kickSm8SyncIfStale, listSm8SyncStatus } from "@/lib/integrations/sm8-sync";
+import {
+  kickSm8SyncIfStale,
+  listSm8SyncStatus,
+  type Sm8SyncStatusView,
+} from "@/lib/integrations/sm8-sync";
 import { todayInZone } from "./dates";
 import { listFlags, type BoardFlag } from "./notes-query";
 import { loadMaintenanceBoard, type MaintenanceBoardData } from "./board-query";
@@ -47,6 +51,17 @@ export type WorkboardData = {
   /** ANTHROPIC_API_KEY is set — Tiff's analyse-a-job offer renders. */
   aiEnabled: boolean;
   synced: { finishedAt: string | null; running: boolean } | null;
+  /* Whether a mirror is still on its FIRST walk, per surface. Not one flag:
+     `jobs` finishes long before `job_activities`, and a board that kept
+     saying "still syncing" until the slowest object landed would be lying to
+     an account whose job list is already complete.
+
+     Only `backfill_done` can answer this. A row count can't — zero rows is
+     what "not started" and "genuinely empty" both look like — and neither can
+     `running`, which says a sweep is in flight, not that the account has
+     never been fully read. Both false when standalone: nothing is syncing
+     because nothing is connected, and the empty boards say THAT instead. */
+  backfilling: { jobs: boolean; schedule: boolean };
 };
 
 export async function loadWorkboardPage(): Promise<WorkboardData | null> {
@@ -85,6 +100,7 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
       allJobs: EMPTY_ALL_JOBS,
       aiEnabled: !!process.env.ANTHROPIC_API_KEY,
       synced: null,
+      backfilling: { jobs: false, schedule: false },
     };
   }
 
@@ -135,5 +151,17 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
     synced: sync.lastRun
       ? { finishedAt: sync.lastRun.finishedAt, running: sync.lastRun.running }
       : { finishedAt: null, running: false },
+    backfilling: {
+      jobs: !backfillDone(sync, "jobs"),
+      schedule: !backfillDone(sync, "job_activities"),
+    },
   };
+}
+
+/** Has this object finished its first full walk? A MISSING state row counts
+    as unfinished, not as done: the row is written by the first run that
+    touches the object, so its absence means the object has never been walked
+    at all — exactly the account this flag exists to speak for. */
+function backfillDone(sync: Sm8SyncStatusView, object: string): boolean {
+  return sync.objects.find((o) => o.object === object)?.backfillDone ?? false;
 }

@@ -633,51 +633,31 @@ export function useDictation({
   };
 }
 
-/* THE TRACE — the recording card's meter, and the reason it is not the
-   five-bar one below.
+/* THERE WAS A SECOND METER HERE, AND THERE IS ONE INSTRUMENT NOW.
 
-   Measured on the card as it shipped: the meter was 36 × 34px, five percent
-   of the card's width, nine tenths of one percent of its area — and at
-   silence `scaleY(.18)` collapsed each bar to 6.1px. So the one element that
-   proves the microphone is working was the smallest thing on the screen, and
-   its resting state was indistinguishable from a mic that had died. Isaac hit
-   exactly that on prod: "Nothing was said in that one" over a row of dots he
-   had no way to read.
+   `WaveMeter` was a 48-bar trace built for the capture card alone, because
+   the five-bar meter was wrong there in a way that reached prod: 36 × 34px,
+   five percent of the card's width, and at silence a `scaleY(.18)` that
+   collapsed each bar to 6.1px — the one element proving the microphone works
+   was the smallest thing on the screen, and its resting state was
+   indistinguishable from a dead mic. Isaac hit it: "Nothing was said in that
+   one", over a row of dots he had no way to read.
 
-   Wide, so it is the first thing the eye lands on. A resting floor of 6% of
-   56px rather than 18% of 34px, so a quiet room draws a live flat LINE — the
-   difference between "listening, hearing nothing" and "dead" is now visible
-   rather than inferred. The envelope tapers the ends so it reads as one
-   shape instead of a fence. */
-const WAVE_BARS = 48;
+   The trace answered that with WIDTH, which was the only axis a bar meter had
+   left. The whole of it — the 56px height, the 6% resting floor, the sine
+   envelope tapering the ends so it read as one shape rather than a fence —
+   was a one-channel instrument being made large enough to survive its own
+   resting state.
 
-export function WaveMeter({
-  innerRef,
-  small,
-}: {
-  innerRef: React.RefObject<HTMLSpanElement | null>;
-  /** Words have arrived and taken the space — the trace drops to a baseline. */
-  small?: boolean;
-}) {
-  return (
-    <span
-      className={"wb2-wave" + (small ? " thin" : "")}
-      role="status"
-      aria-label="Listening"
-      ref={innerRef}
-    >
-      {Array.from({ length: WAVE_BARS }, (_, i) => {
-        const t = i / (WAVE_BARS - 1);
-        return (
-          <i
-            key={i}
-            style={{ "--g": (0.45 + 0.55 * Math.sin(Math.PI * t)).toFixed(3) } as React.CSSProperties}
-          />
-        );
-      })}
-    </span>
-  );
-}
+   The orb does not need any of it, because size stopped being the only thing
+   the meter could say. It turns because the microphone is open and grows
+   because you are loud, so a silent room is a small sphere still turning, at
+   34px or at 68. That leaves nothing for a second component to do: the
+   capture card asks `LevelOrb` for a bigger one and the stylesheet gives it
+   one, which is the same answer the ask bar and the dictation bar get.
+
+   Deleted rather than converted, deliberately. Two meters that render the
+   same object are two places for it to drift. */
 
 /* The real-sample meter — bind `ref` to a dictation's `barsRef`.
 

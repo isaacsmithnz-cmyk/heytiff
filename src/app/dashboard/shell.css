@@ -5375,9 +5375,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-capjob.on { background:rgba(0,163,137,.07); border-color:rgba(0,163,137,.3); }
 .wb2-capjob.on svg { color:var(--wb2-ok, #00A389); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
-.wb2-caprec .wb-lvl { --orb:34px; }
 
-/* ── THE TRACE ──
+/* ── THE INSTRUMENT ──
    Audited 2026-08-10: this stage was a 680 × 201px card, 86% of it empty,
    with a 36 × 34px meter marooned in the middle — five percent of the width,
    nine tenths of one percent of the area — and at silence `scaleY(.18)` on a
@@ -5385,23 +5384,31 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    was the smallest thing on the screen and its resting state was
    indistinguishable from a dead mic. Isaac hit precisely that.
 
-   The reserved space IS the meter now, until there are words to put in it.
-   Full width, clock alongside at a size worth reading, and the state said in
-   words underneath — see `.wb2-heard`. */
-.wb2-recwave { display:flex; align-items:center; gap:16px; align-self:stretch; padding:8px 0 14px; }
-.wb2-recmeta { flex:none; display:flex; flex-direction:column; gap:1px; min-width:78px; }
-.wb2-wave { --lvl:0; display:flex; align-items:center; gap:3px; flex:1; min-width:0; height:56px; }
-.wb2-wave i { flex:1 1 0; min-width:2px; height:56px; border-radius:999px; transform-origin:center;
-  /* A FLOOR OF 6%, NOT 18%. At 56px that is a 3.4px line a quiet room still
-     draws — "listening, hearing nothing" made visibly different from "dead",
-     which is the entire point of the redesign. */
-  transform:scaleY(calc(.06 + var(--lvl) * var(--g, 1)));
-  background:linear-gradient(180deg, rgba(0,229,192,.95), rgba(0,163,137,.75)); }
-/* Words have arrived and taken the room; the trace drops to a baseline
-   rather than competing with what it is there to produce. */
-.wb2-recwave.with-words { padding-bottom:8px; }
-.wb2-wave.thin, .wb2-wave.thin i { height:20px; }
-@media (prefers-reduced-motion:reduce) { .wb2-wave i { transform:scaleY(.5); } }
+   The answer then was a 48-bar trace running the full width, because width
+   was the only axis a bar meter had left to answer with. The orb answers on
+   two axes instead — it turns because the mic is open and grows because you
+   are loud — so this slot goes back to being ONE component at a size, the
+   same one the ask bar and the dictation bar mount. There is no `.wb2-wave`
+   any more, and no second meter to drift.
+
+   The clock leads it at a size worth reading and the state is said in words
+   under that — see `.wb2-heard`. Those were never the trace's doing and they
+   stay exactly as they were. */
+.wb2-recwave { display:flex; align-items:center; justify-content:center; gap:20px;
+  align-self:stretch; padding:8px 0 14px; }
+.wb2-recmeta { flex:none; display:flex; flex-direction:column; gap:1px; min-width:78px; text-align:right; }
+/* 68px: the sphere is the thing you look at on this card, and at the meter's
+   own resting scale that still draws a 34px ball in a silent room — five
+   times the 6.1px the audit found and legible across a van. */
+/* The ink is the dusk skin's, not restated here: this stage is dusk in both
+   doors it appears in (the sheet's `duskClass` and the debrief's hardcoded
+   one), and a second declaration of the same colour is a second place for it
+   to drift. See `.wb2-dusk .wb-lvl`. */
+.wb2-caprec .wb-lvl { --orb:68px; padding-left:0; }
+/* Words have arrived and taken the room; the sphere drops back rather than
+   competing with what it is there to produce. */
+.wb2-recwave.with-words { padding-bottom:8px; gap:14px; }
+.wb2-recwave.with-words .wb-lvl { --orb:30px; }
 
 /* THE METER, IN WORDS. The bars have always carried this and nobody could
    read them. Colour alone would not do it either — the two states have to

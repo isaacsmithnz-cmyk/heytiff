@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
-import { DictClock, LevelOrb, WaveMeter, appendSpoken, useDictation } from "./dictation";
+import { DictClock, LevelOrb, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -331,17 +331,25 @@ function Body({ flow }: { flow: NoteFlow }) {
             is reserved for words that only the live transport ever delivers.
 
             Now the reserved space IS the meter until there are words to put
-            in it: the trace runs the width of the card, the clock sits beside
-            it at a size worth reading, and a line underneath says in words
-            what the bars are doing — which is the question Isaac actually had
-            ("is this thing hearing me?") and the one thing five 6px dots
-            could never answer. */}
+            in it: the orb takes the middle at a size worth looking at, the
+            clock sits beside it at a size worth reading, and a line under
+            that says in words what the sphere is doing — which is the
+            question Isaac actually had ("is this thing hearing me?") and the
+            one thing five 6px dots could never answer.
+
+            IT IS THE SAME COMPONENT THE ASK BAR USES, and that is the point
+            of it being here rather than a second meter built for this card.
+            The 48-bar trace that used to hold this slot existed because a
+            bar's only channel is its height, so the resting state had to be
+            made large to survive being read as dead. The sphere turns as well
+            as grows, so the card asks for a bigger one and gets it from the
+            stylesheet — no second component, and nothing to drift. */}
         <div className={"wb2-recwave" + (words ? " with-words" : "")}>
           <div className="wb2-recmeta">
             <DictClock seconds={flow.dict.seconds} big />
             <HeardLine hearing={flow.dict.hearing} />
           </div>
-          <WaveMeter innerRef={flow.dict.barsRef} small={words} />
+          <LevelOrb innerRef={flow.dict.barsRef} />
         </div>
         <div className="wb2-capact">
           {/* Flipping this to Type is the way out of the mic, and it keeps

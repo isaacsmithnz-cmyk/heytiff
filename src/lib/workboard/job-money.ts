@@ -15,9 +15,25 @@
    yet — that is an absence, not a $0 job, and the row must render a dash
    rather than a number that looks decided.
 
-   GST: the number is ServiceM8's own job total, displayed with ServiceM8's own
-   meaning. Nothing here derives, adds or removes tax — see the money label
-   helpers below and the house rule that GST is never derived. */
+   GST: `total_invoice_amount` IS INCLUSIVE OF GST — settled by Isaac against
+   the live account on 2026-08-15, because ServiceM8's own docs never say.
+   Nothing here derives, adds or removes tax; the number is displayed as sent
+   and LABELLED, which is the whole discipline. That label matters most where
+   this number meets one of ours: a project's claims are mirrored from these
+   invoices, so a budget typed ex-GST beside them would misstate progress by
+   ten per cent — the classic one-number-computed-twice. `MONEY_BASIS` below is
+   the single place the words live.
+
+   THE TWO SENT FLAGS DO NOT ARRIVE, and pretending otherwise was a bug. On the
+   live account every one of 3,455 jobs has `invoice_sent` and `quote_sent`
+   NULL — not 0, null, meaning the key is absent from the response — while
+   `payment_received` comes through on 45. So a boolean read of those flags
+   said "not invoiced" about three thousand jobs when the truth was that nobody
+   told us. `invoiced`/`quoteSent` are therefore TRISTATE: true, false, or null
+   for "ServiceM8 didn't say", and every surface renders the null as silence
+   rather than as a fact. Paid-ness is the one collection signal this account
+   actually supplies; per-payment rows now mirror too (`sm8_job_payments`) and
+   are the richer answer where a screen needs one. */
 
 /** A ServiceM8 money string → cents. Null for absent, zero, or unreadable. */
 export function parseSm8AmountToCents(raw: string | null | undefined): number | null {
@@ -35,20 +51,33 @@ export function parseSm8AmountToCents(raw: string | null | undefined): number | 
   return cents;
 }
 
+/** The words for what basis a figure is on, said once so two screens can't
+    disagree. ServiceM8's job total is tax-inclusive (see the header). */
+export const MONEY_BASIS = "inc GST";
+
 /** ServiceM8's integer flags are 0/1 but arrive typed loosely. */
 export function isSm8Flag(v: number | null | undefined): boolean {
   return typeof v === "number" && v === 1;
 }
 
+/** The tristate read: true, false, or NULL for "the field never arrived".
+    Collapsing null into false is what let the board announce "Not invoiced"
+    about jobs it knew nothing about. */
+export function sm8Flag(v: number | null | undefined): boolean | null {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  return v === 1;
+}
+
 /** The money facts of one mirrored job, read once and shared by every surface
     that shows the job (row, sheet, claim mirror). */
 export type JobMoney = {
-  /** ServiceM8's job total in cents; null when unpriced. */
+  /** ServiceM8's job total in cents, INC GST; null when unpriced. */
   valueCents: number | null;
-  invoiced: boolean;
+  /** True, false, or null for "ServiceM8 never sent the flag" — see header. */
+  invoiced: boolean | null;
   /** Naive local date part, or null. */
   invoicedOn: string | null;
-  quoteSent: boolean;
+  quoteSent: boolean | null;
   quoteSentOn: string | null;
   paid: boolean;
   paidOn: string | null;
@@ -72,10 +101,13 @@ const dayOf = (stamp: string | null | undefined): string | null =>
 export function jobMoneyOf(row: JobMoneyRow): JobMoney {
   return {
     valueCents: parseSm8AmountToCents(row.total_invoice_amount),
-    invoiced: isSm8Flag(row.invoice_sent),
+    invoiced: sm8Flag(row.invoice_sent),
     invoicedOn: dayOf(row.invoice_date),
-    quoteSent: isSm8Flag(row.quote_sent),
+    quoteSent: sm8Flag(row.quote_sent),
     quoteSentOn: dayOf(row.quote_sent_stamp),
+    // Paid stays a plain boolean: this flag DOES arrive, and "not paid" is a
+    // safe thing to believe — it prompts a look, where a wrong "invoiced"
+    // would stop one.
     paid: isSm8Flag(row.payment_received),
     paidOn: dayOf(row.payment_received_stamp),
   };
@@ -87,9 +119,14 @@ export const SM8_JOB_MONEY_COLUMNS =
   "total_invoice_amount, invoice_sent, invoice_date, quote_sent, " +
   "quote_sent_stamp, payment_received, payment_received_stamp";
 
-/** Where a completed job stands with the customer, in one word each. Only
-    meaningful once the job is done — an open job isn't late to be paid. */
-export function collectionState(m: JobMoney): "paid" | "awaiting" | "not_invoiced" {
+/** Where a job stands with the customer. `unknown` is a real answer and the
+    common one on an account whose invoice flag never arrives — the surfaces
+    render it as SILENCE, never as "not invoiced", which would be us inventing
+    a fact. Only meaningful once the job is done: an open job isn't late. */
+export function collectionState(
+  m: JobMoney
+): "paid" | "awaiting" | "not_invoiced" | "unknown" {
   if (m.paid) return "paid";
+  if (m.invoiced === null) return "unknown";
   return m.invoiced ? "awaiting" : "not_invoiced";
 }

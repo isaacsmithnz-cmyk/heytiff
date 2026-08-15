@@ -12,6 +12,7 @@ import {
   fmtAud,
   parseAudToCents,
 } from "@/lib/workboard/project-money";
+import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import type { ProjectDetail } from "@/lib/workboard/projects-query";
 import {
   addClaim,
@@ -104,10 +105,14 @@ export function MoneyCard({
         )}
       </div>
 
-      {/* the target line */}
+      {/* The target line. THE BASIS IS ON THE LABEL and it is load-bearing:
+          claims mirrored from ServiceM8 carry that system's job total, which
+          is tax-INCLUSIVE, so a total typed ex-GST beside them would report
+          progress ten per cent wrong in a line that looks precise. Both
+          numbers on one basis, said where the number is typed. */}
       <div className="wb2-moneyrow head">
         <div className="wb2-trt">
-          <b>Job total</b>
+          <b>Job total ({MONEY_BASIS})</b>
           <em>
             {money.baseCents !== null
               ? `${fmtAud(money.baseCents)} base` +
@@ -290,7 +295,7 @@ function AddClaimModal({
         </label>
         <label className="fl-f">
           <span>
-            Amount<i>*</i>
+            Amount ({MONEY_BASIS})<i>*</i>
           </span>
           <input
             inputMode="decimal"

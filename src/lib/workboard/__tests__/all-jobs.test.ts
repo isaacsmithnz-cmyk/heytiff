@@ -297,7 +297,7 @@ describe("money on a row", () => {
     expect(v.completed[0].money).toEqual({
       valueCents: 396000,
       collection: "awaiting",
-      quoteSent: false,
+      quoteSent: null,
       quoteSentOn: null,
     });
   });

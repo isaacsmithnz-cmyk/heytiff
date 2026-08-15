@@ -32,7 +32,7 @@
    raised. The asymmetry is deliberate — speculation is horizoned, fact is
    not. */
 
-import { jobMoneyOf, collectionState, type JobMoney } from "./job-money";
+import { jobMoneyOf, collectionState, MONEY_BASIS, type JobMoney } from "./job-money";
 
 /** How far ahead a NOT-YET-RAISED maintenance visit is worth listing. Matches
     the board's own history window so the tab's two directions are symmetrical. */
@@ -127,7 +127,8 @@ export type AllJobRow = {
   money: {
     valueCents: number | null;
     collection: ReturnType<typeof collectionState>;
-    quoteSent: boolean;
+    /** Null = ServiceM8 never sent the flag; the chip stays off. */
+    quoteSent: boolean | null;
     quoteSentOn: string | null;
   } | null;
   /** Sort key within its section — a naive date string or "". */
@@ -516,4 +517,4 @@ export function awaitingPaymentCount(view: AllJobsView): number | null {
 }
 
 /** Re-export so the sheet and rows read one job's money the same way. */
-export { jobMoneyOf };
+export { jobMoneyOf, MONEY_BASIS };

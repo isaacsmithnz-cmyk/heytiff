@@ -21,6 +21,7 @@ import {
   materialsTotalCents,
   paymentsTotalCents,
 } from "@/lib/workboard/job-ledger";
+import { MONEY_BASIS } from "@/lib/workboard/job-money";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
@@ -313,17 +314,46 @@ export function JobSheet({
             )}
             {moneyVisible && (
               <div className="wb2-money">
-                <span className="wb2-sect">Job value</span>
+                {/* The basis is on the LABEL, not the figure: it belongs to
+                    every number in this column, and repeating it beside each
+                    one turns a fact into noise. */}
+                <span className="wb2-sect">
+                  Job value ({MONEY_BASIS})
+                </span>
                 <b>{money?.valueCents != null ? fmtAud(money.valueCents) : "—"}</b>
-                <em>
-                  {money?.paid
-                    ? `Paid${money.paidOn ? ` ${fmtAuWeekdayDayMonth(money.paidOn)}` : ""}`
-                    : money?.invoiced
-                      ? `Invoiced${money.invoicedOn ? ` ${fmtAuWeekdayDayMonth(money.invoicedOn)}` : ""} — awaiting payment`
-                      : money?.quoteSent
-                        ? `Quote sent${money.quoteSentOn ? ` ${fmtAuWeekdayDayMonth(money.quoteSentOn)}` : ""}`
-                        : "Not invoiced"}
-                </em>
+                {/* Rendered only when there is something TRUE to say. When
+                    the invoice flag never arrived — every job on the live
+                    account — this line is absent, because "Not invoiced" was
+                    us announcing a fact nobody had told us. What has been
+                    paid is answered properly by the payments ledger below. */}
+                {(() => {
+                  if (money?.paid) {
+                    return (
+                      <em>
+                        Paid{money.paidOn ? ` ${fmtAuWeekdayDayMonth(money.paidOn)}` : ""}
+                      </em>
+                    );
+                  }
+                  if (money?.invoiced === true) {
+                    return (
+                      <em>
+                        Invoiced
+                        {money.invoicedOn ? ` ${fmtAuWeekdayDayMonth(money.invoicedOn)}` : ""} —
+                        awaiting payment
+                      </em>
+                    );
+                  }
+                  if (money?.quoteSent === true) {
+                    return (
+                      <em>
+                        Quote sent
+                        {money.quoteSentOn ? ` ${fmtAuWeekdayDayMonth(money.quoteSentOn)}` : ""}
+                      </em>
+                    );
+                  }
+                  if (money?.invoiced === false) return <em>Not invoiced</em>;
+                  return null;
+                })()}
               </div>
             )}
             {detail?.purchaseOrder && (

@@ -6,6 +6,7 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
   awaitingPaymentCount,
+  MONEY_BASIS,
   completedCountLine,
   filterView,
   quotesCountLine,
@@ -106,8 +107,13 @@ function Row({
         {row.tone !== "" && <i className={`wb2-chip ${row.tone}`}>{row.statusLabel}</i>}
         {/* A quote that was never emailed is an action gap, not a wait — the
             chip says which of the two this row is. Rides the money grant like
-            every other fact from the money columns. */}
-        {moneyVisible && row.money && row.statusLabel === "Quote" && (
+            every other fact from the money columns.
+
+            ONLY when ServiceM8 actually said. The flag is absent on every job
+            in the live account, and a null read as false put "Not sent yet"
+            on 304 quotes that may well have gone out — an action gap invented
+            out of silence. */}
+        {moneyVisible && row.money && row.statusLabel === "Quote" && row.money.quoteSent !== null && (
           <i className={`wb2-chip${row.money.quoteSent ? "" : " warn"}`}>
             {row.money.quoteSent ? "Quote sent" : "Not sent yet"}
           </i>
@@ -118,8 +124,14 @@ function Row({
         )}
       </span>
 
+      {/* The column has no header to hang the basis off, and repeating it on
+          every row would drown the figures — so it rides as the cell's title
+          and is stated plainly on the sheet this row opens. */}
       {moneyVisible && (
-        <span className="wb2-money wb2-ajmoney">
+        <span
+          className="wb2-money wb2-ajmoney"
+          title={`ServiceM8's job total — ${MONEY_BASIS}`}
+        >
           {row.money?.valueCents != null ? <b>{fmtAud(row.money.valueCents)}</b> : <em>—</em>}
         </span>
       )}

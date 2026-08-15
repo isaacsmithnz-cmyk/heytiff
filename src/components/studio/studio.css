@@ -9020,12 +9020,20 @@ html[data-ds-display] .dstudio.editing {
     0 1px 2px rgba(10, 12, 20, 0.04), 0 18px 40px -26px rgba(10, 12, 20, 0.3);
 }
 
-/* ── the hero: opaque ink, floating on the page ──
+/* ── the cover: opaque ink, floating on the page ──
       Opaque on purpose. Translucent ink over white paper goes grey and muddy;
       the studio's glass primitive belongs on the dark frame, not here. The
       glow is the frame's own teal/blue, carried INSIDE the panel so it does
-      not depend on what happens to be behind it. */
-.dstudio .ds-hero {
+      not depend on what happens to be behind it.
+
+      `ds-cover`, NOT `ds-hero`: the New design landing owns `.dstudio .ds-hero`
+      (a transparent flex column on the black frame, further up this file) at
+      the identical specificity, so styling the sheet's cover as `.ds-hero`
+      re-laid the LANDING out as this grid — badge and pitch in one column, the
+      38–58px display title squeezed into the other 340px — and painted this
+      panel's ink and shadow behind it. Exactly the `.ds-job` collision this
+      sheet's rewrite set out to fix, one class along. */
+.dstudio .ds-cover {
   background-color: var(--ds-ink-hero);
   background-image: radial-gradient(
       340px 300px at 88% -20%,
@@ -9042,10 +9050,10 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.14), 0 26px 54px -28px rgba(10, 12, 20, 0.6);
 }
-.dstudio .ds-hero-lead { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
+.dstudio .ds-cover-lead { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
 /* job number holds the top of the sheet, with where it came from beneath */
-.dstudio .ds-hero-job { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
-.dstudio .ds-hero-jn {
+.dstudio .ds-cover-job { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
+.dstudio .ds-cover-jn {
   font: inherit;
   width: 9.5rem;
   font-size: 12px;
@@ -9057,14 +9065,14 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 999px;
   padding: 4px 12px;
 }
-.dstudio .ds-hero-jn::placeholder { color: rgba(255, 255, 255, 0.42); }
-.dstudio .ds-hero-jn:hover { border-color: rgba(255, 255, 255, 0.3); }
-.dstudio .ds-hero-jn:focus {
+.dstudio .ds-cover-jn::placeholder { color: rgba(255, 255, 255, 0.42); }
+.dstudio .ds-cover-jn:hover { border-color: rgba(255, 255, 255, 0.3); }
+.dstudio .ds-cover-jn:focus {
   outline: none;
   border-color: rgba(0, 229, 192, 0.6);
   box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
 }
-.dstudio .ds-hero-src {
+.dstudio .ds-cover-src {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -9072,16 +9080,16 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: rgba(255, 255, 255, 0.6);
 }
-.dstudio .ds-hero-src svg { flex: 0 0 auto; }
-.dstudio .ds-hero-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.dstudio .ds-hero-title h2 {
+.dstudio .ds-cover-src svg { flex: 0 0 auto; }
+.dstudio .ds-cover-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dstudio .ds-cover-title h2 {
   margin: 0;
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #fff;
 }
-.dstudio .ds-hero-variant {
+.dstudio .ds-cover-variant {
   flex: 0 0 auto;
   font-size: 11px;
   font-weight: 800;
@@ -9092,15 +9100,15 @@ html[data-ds-display] .dstudio.editing {
   padding: 2px 10px;
 }
 /* the letter block: who it's for, then where */
-.dstudio .ds-hero-letter { display: flex; flex-direction: column; gap: 5px; max-width: 30rem; }
-.dstudio .ds-hero-lab {
+.dstudio .ds-cover-letter { display: flex; flex-direction: column; gap: 5px; max-width: 30rem; }
+.dstudio .ds-cover-lab {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.6);
 }
-.dstudio .ds-hero-field {
+.dstudio .ds-cover-field {
   font: inherit;
   font-size: 13.5px;
   font-weight: 600;
@@ -9113,14 +9121,14 @@ html[data-ds-display] .dstudio.editing {
   max-width: 22rem;
   text-overflow: ellipsis;
 }
-.dstudio .ds-hero-field:hover { border-color: rgba(255, 255, 255, 0.3); }
-.dstudio .ds-hero-field:focus {
+.dstudio .ds-cover-field:hover { border-color: rgba(255, 255, 255, 0.3); }
+.dstudio .ds-cover-field:focus {
   outline: none;
   border-color: rgba(0, 229, 192, 0.6);
   box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
 }
 /* the site sits UNDER the client like a letterhead, not in a box beside it */
-.dstudio .ds-hero-site {
+.dstudio .ds-cover-site {
   font: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -9135,10 +9143,10 @@ html[data-ds-display] .dstudio.editing {
   max-width: 22rem;
   resize: none;
 }
-.dstudio .ds-hero-site:hover { border-left-color: rgba(255, 255, 255, 0.36); }
-.dstudio .ds-hero-site:focus { outline: none; border-left-color: var(--teal); }
-.dstudio .ds-hero-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.dstudio .ds-hero-chip {
+.dstudio .ds-cover-site:hover { border-left-color: rgba(255, 255, 255, 0.36); }
+.dstudio .ds-cover-site:focus { outline: none; border-left-color: var(--teal); }
+.dstudio .ds-cover-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.dstudio .ds-cover-chip {
   display: inline-flex;
   align-items: center;
   height: 26px;
@@ -9151,15 +9159,15 @@ html[data-ds-display] .dstudio.editing {
   color: rgba(255, 255, 255, 0.88);
 }
 /* right column: the figures, then the actions, then the check bar */
-.dstudio .ds-hero-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.dstudio .ds-hero-figs {
+.dstudio .ds-cover-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.dstudio .ds-cover-figs {
   display: grid;
   grid-template-columns: 1fr 1fr;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
   overflow: hidden;
 }
-.dstudio .ds-hero-fig {
+.dstudio .ds-cover-fig {
   padding: 11px 13px;
   display: flex;
   flex-direction: column;
@@ -9167,9 +9175,9 @@ html[data-ds-display] .dstudio.editing {
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   min-width: 0;
 }
-.dstudio .ds-hero-fig:nth-child(2n) { border-right: 0; }
-.dstudio .ds-hero-fig:nth-last-child(-n + 2) { border-bottom: 0; }
-.dstudio .ds-hero-fig b {
+.dstudio .ds-cover-fig:nth-child(2n) { border-right: 0; }
+.dstudio .ds-cover-fig:nth-last-child(-n + 2) { border-bottom: 0; }
+.dstudio .ds-cover-fig b {
   font-size: 21px;
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -9178,15 +9186,15 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
   white-space: nowrap;
 }
-.dstudio .ds-hero-fig span {
+.dstudio .ds-cover-fig span {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.6);
 }
-.dstudio .ds-hero-fig.load b { color: var(--teal); }
-.dstudio .ds-hero-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.dstudio .ds-cover-fig.load b { color: var(--teal); }
+.dstudio .ds-cover-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 /* on the ink, the glass primitive is finally on the ground it was drawn for */
 .dstudio .ds-hbtn {
   display: inline-flex;
@@ -9339,7 +9347,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-rrow.shared { background: color-mix(in srgb, var(--sys) 6%, transparent); }
 
 @media (max-width: 1100px) {
-  .dstudio .ds-hero { grid-template-columns: 1fr; }
+  .dstudio .ds-cover { grid-template-columns: 1fr; }
   .dstudio .ds-rrow { grid-template-columns: 1fr; }
   .dstudio .ds-rcol + .ds-rcol { border-left: 0; border-top: 1px solid rgba(10, 12, 20, 0.08); }
 }

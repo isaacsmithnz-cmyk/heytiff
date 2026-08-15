@@ -101,11 +101,11 @@ export function SummaryView({
   return (
     <div className="ds-panel-card ds-summary">
       {/* ── the cover: opaque ink, floating on the white page ── */}
-      <header className="ds-hero">
-        <div className="ds-hero-lead">
-          <div className="ds-hero-job">
+      <header className="ds-cover">
+        <div className="ds-cover-lead">
+          <div className="ds-cover-job">
             <input
-              className="ds-hero-jn"
+              className="ds-cover-jn"
               aria-label="Job number"
               autoComplete="off"
               value={doc.meta.jobNumber}
@@ -116,7 +116,7 @@ export function SummaryView({
                 from, and it is the only thing here that still means anything
                 once somebody retypes it. */}
             {doc.jobLink && (
-              <span className="ds-hero-src">
+              <span className="ds-cover-src">
                 <Icon name="tag" size={11} />
                 Added from ServiceM8
                 {doc.jobLink.jobNumber ? ` ${doc.jobLink.jobNumber}` : ""}
@@ -124,18 +124,18 @@ export function SummaryView({
             )}
           </div>
 
-          <div className="ds-hero-title">
+          <div className="ds-cover-title">
             <h2>{doc.meta.name || "Design"}</h2>
             {doc.meta.variantLabel && (
-              <span className="ds-hero-variant">{doc.meta.variantLabel}</span>
+              <span className="ds-cover-variant">{doc.meta.variantLabel}</span>
             )}
           </div>
 
           {/* who it is for, then where — a letterhead, not four boxes */}
-          <div className="ds-hero-letter">
-            <span className="ds-hero-lab">Client</span>
+          <div className="ds-cover-letter">
+            <span className="ds-cover-lab">Client</span>
             <input
-              className="ds-hero-field"
+              className="ds-cover-field"
               aria-label="Client"
               autoComplete="off"
               value={doc.meta.client}
@@ -143,7 +143,7 @@ export function SummaryView({
               placeholder="Client name"
             />
             <textarea
-              className="ds-hero-site"
+              className="ds-cover-site"
               rows={2}
               spellCheck={false}
               value={doc.meta.site}
@@ -154,40 +154,40 @@ export function SummaryView({
           </div>
 
           {/* the loads were computed FROM these — edited in the studio menu */}
-          <span className="ds-hero-lab">Design basis</span>
+          <span className="ds-cover-lab">Design basis</span>
           <div
-            className="ds-hero-chips"
+            className="ds-cover-chips"
             title="Set in the studio menu (top left) — changing them re-loads every room"
           >
-            <span className="ds-hero-chip">
+            <span className="ds-cover-chip">
               Zone {basis.zone} · {basis.zoneCity}
             </span>
-            <span className="ds-hero-chip">{basis.buildingLabel}</span>
-            <span className="ds-hero-chip">{basis.basisLabel}</span>
+            <span className="ds-cover-chip">{basis.buildingLabel}</span>
+            <span className="ds-cover-chip">{basis.basisLabel}</span>
           </div>
         </div>
 
-        <div className="ds-hero-side">
-          <div className="ds-hero-figs" role="group" aria-label="Design snapshot">
-            <div className="ds-hero-fig">
+        <div className="ds-cover-side">
+          <div className="ds-cover-figs" role="group" aria-label="Design snapshot">
+            <div className="ds-cover-fig">
               <b>{snapshot.roomCount}</b>
               <span>{snapshot.roomCount === 1 ? "Room" : "Rooms"}</span>
             </div>
-            <div className="ds-hero-fig">
+            <div className="ds-cover-fig">
               <b>{fmt(snapshot.areaM2, "m²")}</b>
               <span>Floor area</span>
             </div>
-            <div className="ds-hero-fig load">
+            <div className="ds-cover-fig load">
               <b>{fmt(snapshot.totalLoadKw, "kW")}</b>
               <span>Design load</span>
             </div>
-            <div className="ds-hero-fig">
+            <div className="ds-cover-fig">
               <b>{snapshot.systemCount}</b>
               <span>{snapshot.systemCount === 1 ? "System" : "Systems"}</span>
             </div>
           </div>
 
-          <div className="ds-hero-acts">
+          <div className="ds-cover-acts">
             {simFlag && (
               <button
                 className="ds-hbtn cta"

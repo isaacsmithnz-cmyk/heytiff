@@ -5,9 +5,12 @@ import {
   FADE_MS,
   FOUND_HERE_NOTE,
   IDLE_VIZ,
+  LOOKING_NOTE,
   NOTHING_NOTE,
   PULSE_MS,
+  READING_NOTE,
   SEARCHING_NOTE,
+  THINKING_NOTE,
   cardNote,
   cardState,
   lanePulse,
@@ -15,6 +18,7 @@ import {
   overlayVisible,
   reduceViz,
   topDocFor,
+  workingNote,
   type ResearchViz,
   type VizEvent,
 } from "../research-viz";
@@ -511,5 +515,50 @@ describe("timings", () => {
   it("lets a line finish drawing before it can be faded out", () => {
     expect(DRAW_MS).toBeLessThan(FADE_MS + DRAW_MS);
     expect(CARD_MS).toBeLessThan(DRAW_MS);
+  });
+});
+
+/* ── what the wait is called ─────────────────────────────────────────────── */
+
+/* The orb in the transcript reads this and nothing else, so the sheet and the
+   rail cannot tell two different stories about the same moment. What these
+   pin is that the label is a FUNCTION OF THE PHASE — there is no timer here
+   and no sequence to walk, which is why a general question and a fallen-
+   through miss both land on the same honest word. */
+
+describe("the word under the orb", () => {
+  it("says it is looking only while retrieval is actually out", () => {
+    expect(workingNote(run({ t: "submit" }))).toBe(LOOKING_NOTE);
+  });
+
+  it("switches to reading the moment the trace lands", () => {
+    expect(workingNote(run({ t: "submit" }, trace(["faults"], { faults: 4 })))).toBe(READING_NOTE);
+  });
+
+  /* A general question never leaves `idle`; it has no library to name. */
+  it("just thinks when there was nowhere to look", () => {
+    expect(workingNote(IDLE_VIZ)).toBe(THINKING_NOTE);
+  });
+
+  /* A miss falls through to general knowledge, so the shelves stop being
+     part of the story before the answer is even written. */
+  it("stops naming the library once the search came back empty", () => {
+    expect(workingNote(run({ t: "submit" }, { t: "miss" }))).toBe(THINKING_NOTE);
+  });
+
+  /* By `answering` the first word has already replaced the orb — but a phase
+     that can be reached must still have an answer, and it is not "searching". */
+  it("never claims to be searching once the words have started", () => {
+    const answering = run({ t: "submit" }, trace(["faults"], { faults: 4 }), { t: "firstDelta" });
+    expect(workingNote(answering)).toBe(THINKING_NOTE);
+    expect(workingNote(run({ t: "submit" }, trace(["faults"], { faults: 4 }), { t: "done" }))).toBe(
+      THINKING_NOTE
+    );
+  });
+
+  it("carries no punctuation — the ellipsis is the stylesheet's", () => {
+    for (const note of [THINKING_NOTE, LOOKING_NOTE, READING_NOTE]) {
+      expect(note).not.toMatch(/[….]/);
+    }
   });
 });

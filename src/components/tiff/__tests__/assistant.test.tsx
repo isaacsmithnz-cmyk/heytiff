@@ -2,6 +2,7 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event";
 import { answerBlocks, TiffAssistant } from "../assistant";
 import { navHref } from "@/components/shell/nav";
+import { LOOKING_NOTE, READING_NOTE, THINKING_NOTE } from "@/lib/tiff/research-viz";
 import type { AskEvent, AskInput, AskSourceItem } from "@/lib/tiff/ask-client";
 
 /* The assistant screen.
@@ -147,7 +148,10 @@ describe("rendering an answer", () => {
 /* ── the answer arrives as it is written ─────────────────────────────────── */
 
 describe("asking in general mode", () => {
-  it("shows a typing indicator until the first delta, then the answer", async () => {
+  /* A general question never leaves the library's `idle` phase, so the orb
+     says the one thing that is true of it throughout. The researched wait,
+     which has three words to get through, is pinned further down. */
+  it("shows the orb until the first delta, then the answer", async () => {
     let push: (e: AskEvent) => void = () => {};
     script = (emit) => {
       push = emit;
@@ -156,11 +160,11 @@ describe("asking in general mode", () => {
     render(<TiffAssistant />);
     await ask("why P8?");
 
-    expect(screen.getByLabelText("Tiff is thinking")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(THINKING_NOTE);
 
     await act(async () => push({ t: "delta", text: "P8 is " }));
     expect(screen.getByText(/P8 is/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("Tiff is thinking")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
     await act(async () => push({ t: "delta", text: "a piping fault." }));
     expect(screen.getByText("P8 is a piping fault.")).toBeInTheDocument();
@@ -1352,6 +1356,55 @@ describe("watching Tiff search", () => {
 
     await user.click(screen.getByRole("button", { name: /New chat/ }));
     expect(state("faults")).toBe("");
+  });
+
+  /* THE ORB AND THE RAIL READ THE SAME MACHINE, which is the whole reason
+     the label is allowed to change: every word below is a phase the server
+     put us in, not a step on a timer. The corridor is saying "Searching…"
+     under all five shelves at the same moment the sheet says it in words.
+
+     THE FOLLOW-UP IS THE ONLY PLACE THE ORB IS ON SCREEN MID-SEARCH. A
+     thread's FIRST research question is held on the landing until there is
+     something to read, so its wait is told by the rail and the send button
+     and there is no transcript to put an orb in. From the second question
+     on, the conversation is already open and the sheet does the talking —
+     which is what these ask for. */
+  const followUp = async () => {
+    const first = await research();
+    await first.push(TRACE);
+    await first.push({ t: "delta", text: "Check the thermistor." });
+    await first.push({ t: "done" });
+
+    let push: (e: AskEvent) => void = () => {};
+    script = (emit) => {
+      push = emit;
+    };
+    await ask("and U4?");
+    return async (e: AskEvent) => act(async () => push(e));
+  };
+
+  it("names the phase the wait is actually in, and stops when the words start", async () => {
+    const push = await followUp();
+    const orb = () => screen.queryByRole("status");
+
+    expect(orb()).toHaveTextContent(LOOKING_NOTE);
+
+    // retrieval is back; the shelves are being read, and the answer hasn't
+    // started — the one moment `traced` exists to make visible
+    await push(TRACE);
+    expect(orb()).toHaveTextContent(READING_NOTE);
+
+    await push({ t: "delta", text: "U4 is a comms fault." });
+    expect(orb()).toBeNull();
+  });
+
+  /* A miss falls through to general knowledge, and that is genuinely
+     thinking — there is no library left in the answer to name. */
+  it("goes back to plain thinking when the search found nothing", async () => {
+    const push = await followUp();
+    await push({ t: "miss" });
+
+    expect(screen.getByRole("status")).toHaveTextContent(THINKING_NOTE);
   });
 
   /* jsdom has no matchMedia at all, so the overlay stays hidden for every test

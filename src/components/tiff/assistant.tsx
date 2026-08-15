@@ -15,11 +15,13 @@ import {
   cardNote,
   cardState,
   reduceViz,
+  workingNote,
   IDLE_VIZ,
   type ResearchViz,
   type VizEvent,
 } from "@/lib/tiff/research-viz";
 import { ResearchLines } from "./research-lines";
+import { TiffWorking } from "./orb";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 import { DictClock, LevelBars, appendSpoken, useDictation } from "@/components/notes/dictation";
 
@@ -964,11 +966,17 @@ export function TiffAssistant({
                         {live.text ? (
                           <AnswerText text={live.text} />
                         ) : (
-                          <span className="ttyping" aria-label="Tiff is thinking">
-                            <i></i>
-                            <i></i>
-                            <i></i>
-                          </span>
+                          /* THE WAIT NAMES ITSELF NOW. This was three bouncing
+                             dots under an `aria-label` reading "Tiff is
+                             thinking" — a sentence written for screen readers
+                             about a state no sighted reader could name, and
+                             wrong besides: through most of that wait Tiff is
+                             not thinking, it is out at the shelves. The word
+                             comes off the same machine the rail draws from
+                             (`workingNote`), so the corridor and the sheet
+                             cannot tell two different stories about the same
+                             moment. */
+                          <TiffWorking note={workingNote(viz)} />
                         )}
                       </div>
                     </div>

@@ -1424,27 +1424,116 @@
 .fg .tmsg .tmb { padding:14px 18px; border-radius:20px; font-size:14.5px; font-weight:500; line-height:1.55; }
 .fg .tmsg.user .tmb { background:var(--ink); color:#fff; border-bottom-right-radius:8px; box-shadow:0 8px 18px -8px rgba(0,0,0,.35); }
 .fg .tmsg.bot .tmb { background:#fff; border:1px solid #f0f0f2; color:#1f2937; border-bottom-left-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.04); }
-/* THE DOTS WERE NEVER VISIBLE. This read `.fg .tmb.ttyping` — the class ON
-   the sheet — from when the indicator WAS the sheet. It has been a <span>
-   INSIDE the sheet since the two were merged into one container, so the
-   flex rule matched nothing, the span stayed `display:inline`, and three
-   inline <i> elements ignored their own width and height. What shipped was a
-   tall empty white box, which is exactly what it looked like.
+/* ══════════════════ TIFF — THE ORB (.tk-work / .tk-orb) ══════════════════
+   The waiting indicator inside the answer sheet: a spinning shell of dots
+   with the name of the phase beside it. Replaces three bouncing dots, which
+   meant "someone is typing" — a sentence that was never true here.
 
-   Sized for the sheet it now sits in rather than for a bubble: 9px dots on a
-   fixed 22px line, so the box while thinking is the same height as the first
-   line of the answer that replaces it, and the sheet doesn't jump when the
-   words arrive. */
-.fg .tmb .ttyping { display:inline-flex; align-items:center; gap:6px; height:22px; }
-.fg .ttyping i { display:block; width:9px; height:9px; border-radius:50%; background:#c3cad6;
-  animation:fgTyping 1.2s ease-in-out infinite; }
-.fg .ttyping i:nth-child(2) { animation-delay:.15s; }
-.fg .ttyping i:nth-child(3) { animation-delay:.3s; }
-@keyframes fgTyping { 0%,60%,100%{transform:none;opacity:.45} 30%{transform:translateY(-5px);opacity:1} }
+   IT IS EXACTLY AS TALL AS THE LINE IT BECOMES. 30px of orb on a 30px row,
+   and the sheet's own line-height for the word, so the box while working is
+   the height of the first line of the answer that replaces it and nothing
+   below jumps when the words arrive. This is the same reason the dots were
+   pinned to a 22px line before them; the number moved, the rule did not.
+
+   PARK THE PERSPECTIVE ON THE FRAME, THE SPIN ON THE SHELL. `perspective`
+   only applies to an element's CHILDREN, so the two cannot live together: the
+   frame holds the camera, the shell inside it holds `preserve-3d` and the one
+   animation, and the dots are positioned in the space that creates. A
+   `preserve-3d` on the same element as the animation would flatten every dot
+   into the shell's own plane before the camera ever saw them. */
+.fg .tmb .tk-work { display:inline-flex; align-items:center; gap:11px; min-height:30px; }
+/* Teal, not grey. The old dots were `#c3cad6` — the colour of a disabled
+   control — for a thing that is the single most alive moment on the screen.
+   The accent is what every other "working" state in the shell already uses.
+
+   IT WRAPS RATHER THAN CLIPS. `nowrap` shipped here for one draft and lost
+   the back half of "Reading what it found…" the first time the sheet was
+   narrower than the phrase — a label that silently truncates is worse than
+   one that takes a second line, and `min-height` above lets the row grow to
+   meet it. `flex:0 1 auto` is the pair to that: the word may shrink, the orb
+   beside it may not. */
+.fg .tk-work b { flex:0 1 auto; font-size:14.5px; font-weight:650; letter-spacing:-.01em;
+  line-height:1.4; color:var(--teal-d); }
+/* The ellipsis belongs to the stylesheet so the label stays a plain string —
+   a test matches "Searching the library", not a particular run of dots, and
+   the phase names in research-viz.ts never carry punctuation. */
+.fg .tk-work b::after { content:"…"; }
+
+.fg .tk-orb { position:relative; flex:0 0 auto; display:block;
+  width:var(--tk-orb,30px); height:var(--tk-orb,30px);
+  /* THE DOT SCALES WITH THE BALL. A fixed 2.4px shipped here for one draft
+     and it was invisible above about 40px: the shell grew, the dots didn't,
+     and an 80px orb rendered as a sparse scatter of specks with no surface
+     between them. The floor keeps it from disappearing under a hairline at
+     small sizes, where a sub-2px dot is a grey smudge on a HiDPI screen. */
+  --tk-dot:max(2.4px, calc(var(--tk-orb,30px) / 11));
+  /* Roughly 4× the radius: enough foreshortening to read as a ball, not so
+     much that the near dots balloon and the far ones vanish. */
+  perspective:calc(var(--tk-orb,30px) * 2); }
+.fg .tk-orb-shell { position:absolute; inset:0; transform-style:preserve-3d;
+  animation:tkOrbSpin 5.5s linear infinite; }
+/* Every dot is placed by ONE transform, and the stylesheet keeps the
+   arithmetic: rotateY to its longitude, rotateX to its latitude, then pushed
+   out to the surface by half the diameter. `--lat` and `--lon` are the only
+   things the component writes per dot.
+
+   The dot is NOT counter-rotated to face the camera, deliberately: left
+   facing outward it squashes to a sliver as it crosses the silhouette, which
+   is what a disc on a sphere does and what makes the edge read as curved
+   rather than as a ring of beads. */
+.fg .tk-orb-shell i { position:absolute; top:50%; left:50%; display:block;
+  width:var(--tk-dot); height:var(--tk-dot);
+  margin:calc(var(--tk-dot) / -2) 0 0 calc(var(--tk-dot) / -2);
+  border-radius:50%; background:var(--teal-d); opacity:.92;
+  /* The hidden-surface pass, for free: a dot on the far side is a disc
+     pointing away from the camera and never draws. At 30px, painting both
+     hemispheres stops reading as a sphere and starts reading as a smudge. */
+  backface-visibility:hidden;
+  transform:rotateY(var(--lon)) rotateX(calc(var(--lat) * -1)) translateZ(calc(var(--tk-orb,30px) / 2)); }
+@keyframes tkOrbSpin {
+  /* Tilted off the vertical so the poles are visible and the rings read as
+     rings. The tilt is constant; only the Y term turns. */
+  from { transform:rotateX(-16deg) rotateY(0deg); }
+  to   { transform:rotateX(-16deg) rotateY(360deg); }
+}
+
+/* The sweep is clipped to the glyphs, so it reads as the word being lit. A
+   bar sliding behind the text would read as a skeleton — and a skeleton
+   promises "this box becomes content", when this box is replaced outright.
+
+   ⚠ THE PAINT IS THE TEXT. Once the glyphs are `color:transparent`, any
+   moment the gradient does not cover the element is a moment the label is
+   INVISIBLE — not dim, gone. A first draft here scrolled a `no-repeat`
+   gradient from 180% to -80% and lost most of every phrase for most of every
+   cycle; on screen it read as text being clipped by the sheet, which sent
+   the search for the bug to entirely the wrong place.
+
+   Two things hold the invariant. The tile REPEATS, so there is no position
+   at which nothing is painted — and because the gradient is base colour at
+   both 0% and 100%, the seam between tiles is a colour meeting itself and
+   cannot be seen. And `background-position` stays inside 0–100%, which for a
+   tile four times the element's width means the lit band travels the full
+   width and then sits off-stage for the rest of the turn: the pause between
+   sweeps is the gradient's own margin, not a gap in the animation. */
+@supports ((background-clip:text) or (-webkit-background-clip:text)) {
+  .fg .tk-work b { background-image:linear-gradient(100deg,
+      var(--teal-d) 0%, var(--teal-d) 46%, var(--ink) 50%, var(--teal-d) 54%, var(--teal-d) 100%);
+    background-size:400% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:tkWorkSweep 2.6s linear infinite; }
+}
+/* 100%→0% runs the band left to right. The reverse would read as the word
+   being un-written, which is the opposite of what is happening. */
+@keyframes tkWorkSweep { from { background-position:100% 0; } to { background-position:0% 0; } }
+
 @media (prefers-reduced-motion:reduce) {
-  /* the global `.fg * { animation-duration:.001s }` would strobe an infinite
-     loop — the dots stay, still, at their resting weight */
-  .fg .ttyping i { animation:none; opacity:.6; }
+  /* The global `.fg * { animation-duration:.001s }` turns an infinite loop
+     into a strobe, so both loops are dropped rather than sped up. The orb
+     keeps its tilt and stands still — a sphere of dots is a legible object
+     at rest, which is the whole reason it survives this setting where three
+     bouncing dots only survived as three dots. */
+  .fg .tk-orb-shell { animation:none; transform:rotateX(-16deg) rotateY(24deg); }
+  .fg .tk-work b { animation:none; background-image:none; color:var(--teal-d); }
 }
 
 /* Knowledge Base page */

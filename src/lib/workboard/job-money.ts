@@ -15,14 +15,31 @@
    yet — that is an absence, not a $0 job, and the row must render a dash
    rather than a number that looks decided.
 
-   GST: `total_invoice_amount` IS INCLUSIVE OF GST — settled by Isaac against
-   the live account on 2026-08-15, because ServiceM8's own docs never say.
+   GST: `total_invoice_amount` IS INCLUSIVE OF GST. ServiceM8's docs never say,
+   so this was settled against the live mirror by ARITHMETIC rather than by
+   reading a screen — and it had to be, because ServiceM8's own UI shows BOTH
+   bases and it is easy to read the wrong one:
+
+     the work-order LIST column  →  this field         →  inc GST
+     inside the job card         →  the material lines →  ex GST
+
+   Different numbers from different endpoints, and both are correct. The proof,
+   across the 56 jobs whose material lines are all tax-EXCLUSIVE
+   (`displayed_amount_is_tax_inclusive = 0`): 37 have
+   total_invoice_amount / sum(displayed_amount) = EXACTLY 1.1000, and ZERO sit
+   at 1.0000. Independently, on jobs flagged paid, the payments recorded
+   against them equal this field to the cent — a customer pays the
+   tax-inclusive figure. (Jobs landing on neither ratio are ones whose
+   materials aren't the whole invoice; noise, not counter-evidence.)
+
    Nothing here derives, adds or removes tax; the number is displayed as sent
-   and LABELLED, which is the whole discipline. That label matters most where
-   this number meets one of ours: a project's claims are mirrored from these
-   invoices, so a budget typed ex-GST beside them would misstate progress by
-   ten per cent — the classic one-number-computed-twice. `MONEY_BASIS` below is
-   the single place the words live.
+   and LABELLED, which is the whole discipline — and the material lines keep
+   their own ex-GST label from the ledger work, so one sheet can honestly show
+   both. That label matters most where this number meets one of ours: a
+   project's claims are mirrored from these invoices, so a budget typed ex-GST
+   beside them would misstate progress by ten per cent — the classic
+   one-number-computed-twice. `MONEY_BASIS` below is the single place the words
+   live.
 
    THE TWO SENT FLAGS DO NOT ARRIVE, and pretending otherwise was a bug. On the
    live account every one of 3,455 jobs has `invoice_sent` and `quote_sent`

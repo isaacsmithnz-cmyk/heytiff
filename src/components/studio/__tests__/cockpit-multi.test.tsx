@@ -211,7 +211,7 @@ describe("Shared-outdoor section", () => {
     expect(row("Ports")).toHaveTextContent("2 / 2");
     expect(row("Combination")).toHaveTextContent("77%");
     expect(within(sec).getByTestId("unit-card-odu")).toBeInTheDocument();
-    expect(within(sec).getByText("To place")).toBeInTheDocument();
+    expect(within(sec).getByText("Drag to place")).toBeInTheDocument();
     expect(within(sec).getByRole("button", { name: /Change/ })).toBeInTheDocument();
   });
 
@@ -320,7 +320,7 @@ describe("Per-room Unit tab", () => {
     const card = within(sub).getByTestId("unit-card-idu");
     expect(card).toHaveTextContent("MSZ-AP20VGD");
     expect(card).toHaveTextContent("2.0 kW");
-    expect(card).toHaveTextContent("To place");
+    expect(card).toHaveTextContent("Drag to place");
   });
 
   it("recall takes THIS room's unit + its runs off the plan, nothing else", () => {

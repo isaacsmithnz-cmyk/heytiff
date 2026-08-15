@@ -25,7 +25,7 @@ describe("SystemMap", () => {
 
   it("starts with the legend and the standalone list", () => {
     render(<SystemMap />);
-    expect(screen.getByText("How to read this")).toBeInTheDocument();
+    expect(screen.getByText("Key")).toBeInTheDocument();
     expect(screen.getByText("Standalone pieces")).toBeInTheDocument();
     // Fault Finder shows on the board and in the standalone list
     expect(screen.getAllByText("Fault Finder").length).toBe(2);

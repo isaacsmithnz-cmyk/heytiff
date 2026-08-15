@@ -1146,7 +1146,6 @@ export function AhuSection({
     pack?.pair_tables.find((p) => p.idu_model === iduModel && p.odu_model === oduModel) ?? null;
   const pairKw = hasPair && pack ? systemPairKw(doc, pack, system.id, basis) : null;
   const airflowLs = iduSpec?.airflow_ls ?? null;
-  const allPlaced = Boolean(placedIdu && placedOdu);
 
   // recalling the AHU takes its plenums with it (they're its plenums, §10.3)
   const recall = (unitId: string) =>
@@ -1281,9 +1280,6 @@ export function AhuSection({
             onArmPlace={onArmPlace}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
           />
-          {!allPlaced && (
-            <div className="ds-ck-placenote">Drag each card onto the plan to place it.</div>
-          )}
         </>
       )}
 
@@ -1484,9 +1480,6 @@ export function OutdoorSection({
             onArmPlace={onArmPlace}
             onRecall={conn.placedOduId ? () => recall(conn.placedOduId!) : undefined}
           />
-          {!conn.oduPlaced && (
-            <div className="ds-ck-placenote">Drag the card onto the plan to place it.</div>
-          )}
         </>
       )}
 
@@ -1628,11 +1621,6 @@ export function MultiUnitsSub({
             onArmPlace={onArmPlace}
             onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
           />
-          {!placedIdu && (
-            <div className="ds-ck-placenote">
-              Drag the card onto the plan to place it in this room.
-            </div>
-          )}
         </>
       )}
 
@@ -2321,9 +2309,6 @@ export function UnitsSub({
             onArmPlace={onArmPlace}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
           />
-          {!allPlaced && (
-            <div className="ds-ck-placenote">Drag each card onto the plan to place it.</div>
-          )}
           {/* Same slot as the first-run button above — the action for this
               section sits UNDER what it acts on, so it reads as "these units,
               change them" rather than as a header control. It stays offered
@@ -2401,7 +2386,7 @@ function UnitRow({
         {placed ? (
           sub && <div className="ds-ck-usub">{sub}</div>
         ) : (
-          <span className="ds-ck-utotag">To place</span>
+          <span className="ds-ck-utotag">Drag to place</span>
         )}
       </div>
       {kw != null && (

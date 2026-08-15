@@ -158,7 +158,7 @@ describe("Cockpit ducted body", () => {
     // the two drag-to-plan cards, unplaced → armed via the UnitRow mechanics
     expect(within(ahu).getByTestId("unit-card-idu")).toBeInTheDocument();
     expect(within(ahu).getByTestId("unit-card-odu")).toBeInTheDocument();
-    expect(within(ahu).getAllByText("To place")).toHaveLength(2);
+    expect(within(ahu).getAllByText("Drag to place")).toHaveLength(2);
     // hero follows the pair: 10.0 kW selected over ~7.5 required → ok, Spare
     expect(heroState(container)).toBe("ok");
     expect(screen.getByText("10.0 kW", { selector: ".ds-ck-ledger-row.sel .v" })).toBeInTheDocument();

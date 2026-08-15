@@ -454,7 +454,7 @@ export function TimePaySettings({
     },
     {
       t: "Auto-submit",
-      s: "Open timesheets submit themselves at this moment each cycle. Scroll to pick.",
+      s: "Open timesheets submit themselves at this moment each cycle.",
       body: (
         <>
           {submitPicker}

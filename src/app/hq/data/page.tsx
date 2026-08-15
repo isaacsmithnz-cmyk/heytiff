@@ -46,8 +46,8 @@ export default async function HqDataPage() {
     <main className="hq-main">
       <h1 className="hq-h1">Universal data table</h1>
       <p className="hq-lede">
-        Pick a brand pack to browse its catalog by system type and series — and
-        fill the gaps the engine is waiting on.
+        Every brand pack&rsquo;s catalog by system type and series — and the
+        gaps the engine is still waiting on.
       </p>
       <HqBrandCards brands={brands} />
     </main>

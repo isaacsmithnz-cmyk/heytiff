@@ -491,10 +491,6 @@ export function PlansPanel({
             <div className="ds-pstep-empty">Add floor plans to get started.</div>
           ) : stage === "select" ? (
             <div className="ds-pagepick">
-              <div className="ds-pstep-hint">
-                Click the pages you want to upload — the magnifier opens a
-                close-up.
-              </div>
               <PageGrid
                 pages={pages}
                 selected={selected}
@@ -599,8 +595,7 @@ export function PlansPanel({
                 <span className="ds-cardt">Rearrange floors</span>
               </div>
               <div className="ds-alloc-hint">
-                Move floors up or down to re-order the stack — the level tags
-                re-assign top-to-bottom.
+                Level tags re-assign top-to-bottom as the stack changes.
               </div>
               <div className="ds-restack">
                 {ordered.map((f, i) => (
@@ -1064,9 +1059,8 @@ function FloorStackBuilder({
     <div className="ds-build">
       {/* the step header (title + tray count) lives on the page above */}
       <div className="ds-alloc-hint">
-        Drag each plan from the left into the building — <b>where you drop it
-        sets its level</b>. Drop it in a slot to make a new floor, or onto a
-        floor to add it there as a second plan (an east/west split).
+        <b>Where a plan lands sets its level.</b> A slot makes a new floor; a
+        floor that already has one takes the second as an east/west split.
       </div>
 
       <div className="ds-yard-wrap">

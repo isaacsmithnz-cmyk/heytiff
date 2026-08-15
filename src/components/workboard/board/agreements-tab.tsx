@@ -109,7 +109,7 @@ export function AgreementsTab({
         </span>
         <div>
           <b>Service agreements</b>
-          <em>The standing work, grouped by how it&apos;s billed. Open a row to edit anything.</em>
+          <em>The standing work, grouped by how it&apos;s billed.</em>
         </div>
         {agreements.length > 0 && (
           <label className="wb2-agsearch">

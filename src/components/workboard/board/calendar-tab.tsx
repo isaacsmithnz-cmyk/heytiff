@@ -123,7 +123,6 @@ export function CalendarTab({
               </button>
             )}
           </div>
-          <em>Colour says how ready each day is. Green is the goal, red is the queue.</em>
         </div>
         {/* The status slot, same as every other tab's — and it says what it
             counted. A bare "2 services" sat mid-header naming neither the

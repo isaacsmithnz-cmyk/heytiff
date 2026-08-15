@@ -32,7 +32,14 @@
    raised. The asymmetry is deliberate — speculation is horizoned, fact is
    not. */
 
-import { jobMoneyOf, collectionState, type JobMoney } from "./job-money";
+import {
+  jobMoneyOf,
+  collectionFrom,
+  isAwaitingPayment,
+  MONEY_BASIS,
+  type CollectionState,
+  type JobMoney,
+} from "./job-money";
 
 /** How far ahead a NOT-YET-RAISED maintenance visit is worth listing. Matches
     the board's own history window so the tab's two directions are symmetrical. */
@@ -59,6 +66,10 @@ export type AllJobsMirrorJob = {
   /** Next diary block from job_activities, naive local, or null. */
   nextBooking: string | null;
   money: JobMoney | null;
+  /** Summed from this job's payment rows — the collection truth. Zero both
+      when nothing was paid and when the reader holds no money grant; the
+      grant case is already distinguished by `money` being null. */
+  paidCents: number;
 };
 
 /** A maintenance visit, slimmed from BoardVisit. */
@@ -126,8 +137,11 @@ export type AllJobRow = {
   /** Null when the reader has no money access, or the row carries none. */
   money: {
     valueCents: number | null;
-    collection: ReturnType<typeof collectionState>;
-    quoteSent: boolean;
+    /** Counted from payment rows, never from a flag — see collectionFrom. */
+    paidCents: number;
+    collection: CollectionState;
+    /** Null = ServiceM8 never sent the flag; the chip stays off. */
+    quoteSent: boolean | null;
     quoteSentOn: string | null;
   } | null;
   /** Sort key within its section — a naive date string or "". */
@@ -236,7 +250,8 @@ function sm8Row(
     money: job.money
       ? {
           valueCents: job.money.valueCents,
-          collection: collectionState(job.money),
+          paidCents: job.paidCents,
+          collection: collectionFrom(job.money.valueCents, job.paidCents),
           quoteSent: job.money.quoteSent,
           quoteSentOn: job.money.quoteSentOn,
         }
@@ -508,12 +523,24 @@ export function completedCountLine(view: AllJobsView, showUnsuccessful: boolean)
 }
 
 /** Money owed on finished work — the question a completed list is really
-    asked. Null when the reader has no money access. */
+    asked. Counts jobs worth a KNOWN amount with some of it still out, so it
+    can't be inflated by the many jobs whose total ServiceM8 never filled in.
+    Null when the reader has no money access. */
 export function awaitingPaymentCount(view: AllJobsView): number | null {
   const withMoney = view.completed.filter((r) => r.money !== null);
   if (withMoney.length === 0) return null;
-  return withMoney.filter((r) => r.money!.collection === "awaiting").length;
+  return withMoney.filter((r) => isAwaitingPayment(r.money!.collection)).length;
+}
+
+/** What's still out on finished work, in cents — the figure behind the count.
+    Only jobs with a known total contribute, so this never guesses. */
+export function awaitingPaymentCents(view: AllJobsView): number {
+  return view.completed.reduce((sum, r) => {
+    const m = r.money;
+    if (!m || !isAwaitingPayment(m.collection) || m.valueCents === null) return sum;
+    return sum + Math.max(0, m.valueCents - m.paidCents);
+  }, 0);
 }
 
 /** Re-export so the sheet and rows read one job's money the same way. */
-export { jobMoneyOf };
+export { jobMoneyOf, MONEY_BASIS };

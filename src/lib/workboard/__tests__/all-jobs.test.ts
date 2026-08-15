@@ -1,6 +1,7 @@
 import {
   ALL_JOBS_HORIZON_DAYS,
   allJobsRows,
+  awaitingPaymentCents,
   awaitingPaymentCount,
   completedCountLine,
   filterView,
@@ -33,6 +34,7 @@ const job = (over: Partial<AllJobsMirrorJob> & { remoteId: string }): AllJobsMir
   completionDate: null,
   nextBooking: null,
   money: null,
+  paidCents: 0,
   ...over,
 });
 
@@ -283,6 +285,9 @@ describe("what each row says", () => {
 });
 
 describe("money on a row", () => {
+  /* Collection is COUNTED from the job's payments, not read off a flag — the
+     flags are absent or sparse on the live account. Nothing paid against a
+     known total is money genuinely out. */
   it("carries the value and where collection stands", () => {
     const v = view({
       jobs: [
@@ -290,14 +295,16 @@ describe("money on a row", () => {
           remoteId: "j-1",
           status: "Completed",
           completionDate: "2026-08-01 00:00:00",
-          money: jobMoneyOf({ total_invoice_amount: "3960.00", invoice_sent: 1 }),
+          money: jobMoneyOf({ total_invoice_amount: "3960.00" }),
+          paidCents: 0,
         }),
       ],
     });
     expect(v.completed[0].money).toEqual({
       valueCents: 396000,
+      paidCents: 0,
       collection: "awaiting",
-      quoteSent: false,
+      quoteSent: null,
       quoteSentOn: null,
     });
   });
@@ -308,28 +315,58 @@ describe("money on a row", () => {
     expect(awaitingPaymentCount(v)).toBeNull();
   });
 
-  it("counts what finished work is still owed", () => {
+  it("counts what finished work is still owed, and totals it", () => {
+    const v = view({
+      jobs: [
+        // Nothing paid — fully out.
+        job({
+          remoteId: "a",
+          status: "Completed",
+          completionDate: "2026-08-01 00:00:00",
+          money: jobMoneyOf({ total_invoice_amount: "100.00" }),
+          paidCents: 0,
+        }),
+        // Settled — nothing to chase.
+        job({
+          remoteId: "b",
+          status: "Completed",
+          completionDate: "2026-08-02 00:00:00",
+          money: jobMoneyOf({ total_invoice_amount: "200.00" }),
+          paidCents: 20000,
+        }),
+        // Part paid — still owing the balance, and it counts.
+        job({
+          remoteId: "c",
+          status: "Completed",
+          completionDate: "2026-08-03 00:00:00",
+          money: jobMoneyOf({ total_invoice_amount: "500.00" }),
+          paidCents: 20000,
+        }),
+      ],
+    });
+    expect(awaitingPaymentCount(v)).toBe(2);
+    expect(awaitingPaymentCents(v)).toBe(10000 + 30000);
+  });
+
+  /* THE ASYMMETRY THAT WOULD OTHERWISE INFLATE THIS. 1,819 completed jobs
+     carry payments against no total at all — counting them as owing would
+     turn an eleven-job list into a wall, and every one of those has already
+     had money come in. */
+  it("never counts a job whose worth ServiceM8 never recorded", () => {
     const v = view({
       jobs: [
         job({
           remoteId: "a",
           status: "Completed",
           completionDate: "2026-08-01 00:00:00",
-          money: jobMoneyOf({ total_invoice_amount: "100.00", invoice_sent: 1 }),
-        }),
-        job({
-          remoteId: "b",
-          status: "Completed",
-          completionDate: "2026-08-02 00:00:00",
-          money: jobMoneyOf({
-            total_invoice_amount: "200.00",
-            invoice_sent: 1,
-            payment_received: 1,
-          }),
+          money: jobMoneyOf({}),
+          paidCents: 45000,
         }),
       ],
     });
-    expect(awaitingPaymentCount(v)).toBe(1);
+    expect(awaitingPaymentCount(v)).toBe(0);
+    expect(awaitingPaymentCents(v)).toBe(0);
+    expect(v.completed[0].money?.collection).toBe("paid_unknown_total");
   });
 });
 

@@ -202,9 +202,12 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
       quoteDate: j.quote_date,
       completionDate: j.completion_date,
       /* The booking being drawn IS this job's diary presence — the sheet
-         re-reads the full picture on open, so nothing is guessed here. */
+         re-reads the full picture on open, so nothing is guessed here. The
+         diary carries no money either: `money: null` already says the reader
+         gets none, and nothing on this surface shows a figure. */
       nextBooking: null,
       money: null,
+      paidCents: 0,
     })),
   };
 }

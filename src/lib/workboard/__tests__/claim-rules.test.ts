@@ -18,6 +18,9 @@ const link = (
 const job = (over: Partial<ClaimMirrorJob> & { remoteId: string }): ClaimMirrorJob => ({
   jobNumber: "1234",
   active: 1,
+  status: "Completed",
+  paidCents: 0,
+  lastPaidOn: null,
   totalInvoiceAmount: null,
   invoiceSent: null,
   invoiceDate: null,
@@ -73,31 +76,38 @@ describe("an invoice becomes a claim", () => {
     ]);
   });
 
-  it("carries ServiceM8's paid status and the day it landed", () => {
+  /* Settled from the PAYMENT ROWS, never the flag: `payment_received` is set
+     on 45 jobs while 1,819 carry actual payments. */
+  it("settles a claim when the payments cover it, and stamps the last one", () => {
     const { upserts } = plan({
       links: [link(P1, "j-1")],
-      jobs: [
-        invoiced("j-1", {
-          paymentReceived: 1,
-          paymentReceivedStamp: "2026-08-06 14:22:31",
-        }),
-      ],
+      jobs: [invoiced("j-1", { paidCents: 396000, lastPaidOn: "2026-08-06" })],
     });
     expect(upserts[0]).toMatchObject({ status: "paid", paidOn: "2026-08-06" });
   });
 
-  /* A job can be paid without its invoice flag ever being flipped. Ignoring it
-     would leave money in the bank showing as nothing claimed at all. */
-  it("counts a paid job even when the invoice flag was never set", () => {
+  /* A PART payment leaves the claim awaiting: project_claims is binary, and
+     the honest read of "some of it came in" is that this one isn't collected
+     — otherwise the money card's paid strip calls a half-paid claim settled. */
+  it("leaves a part-paid claim awaiting", () => {
+    const { upserts } = plan({
+      links: [link(P1, "j-1")],
+      jobs: [invoiced("j-1", { paidCents: 100000, lastPaidOn: "2026-08-06" })],
+    });
+    expect(upserts[0]).toMatchObject({ status: "awaiting", paidOn: null });
+  });
+
+  it("counts a paid job even when no invoice flag ever arrived", () => {
     const { upserts } = plan({
       links: [link(P1, "j-1")],
       jobs: [
         job({
           remoteId: "j-1",
+          status: "Work Order",
           totalInvoiceAmount: "1200.00",
-          invoiceSent: 0,
-          paymentReceived: 1,
-          paymentReceivedStamp: "2026-08-06 09:00:00",
+          invoiceSent: null,
+          paidCents: 120000,
+          lastPaidOn: "2026-08-06",
         }),
       ],
     });
@@ -127,12 +137,34 @@ describe("an invoice becomes a claim", () => {
 });
 
 describe("what does NOT earn a claim", () => {
-  it("an uninvoiced job", () => {
+  /* Work still in progress with nothing paid against it. Waiting for the
+     invoice flag meant waiting forever — it never arrives — so the trigger is
+     the job being FINISHED or money having come in. An open work order is
+     neither. */
+  it("an unfinished job nobody has paid anything on", () => {
     const { upserts } = plan({
       links: [link(P1, "j-1")],
-      jobs: [job({ remoteId: "j-1", totalInvoiceAmount: "3960.00" })],
+      jobs: [job({ remoteId: "j-1", status: "Work Order", totalInvoiceAmount: "3960.00" })],
     });
     expect(upserts).toEqual([]);
+  });
+
+  /* …but a deposit on that same open job DOES claim: money has moved, and a
+     project whose deposit is invisible understates what's been claimed. */
+  it("unless a deposit has landed against it", () => {
+    const { upserts } = plan({
+      links: [link(P1, "j-1")],
+      jobs: [
+        job({
+          remoteId: "j-1",
+          status: "Work Order",
+          totalInvoiceAmount: "3960.00",
+          paidCents: 50000,
+          lastPaidOn: "2026-08-02",
+        }),
+      ],
+    });
+    expect(upserts[0]).toMatchObject({ amountCents: 396000, status: "awaiting" });
   });
 
   /* A $0 claim row reads "claimed nothing", which is a different statement
@@ -155,14 +187,36 @@ describe("what does NOT earn a claim", () => {
 });
 
 describe("clearing itself", () => {
-  it("drops the claim when the invoice is withdrawn over there", () => {
+  /* Reopened over there and nothing paid: the work isn't finished after all,
+     so the claim it earned goes with it. */
+  it("drops the claim when a finished job is reopened", () => {
     const { upserts, deleteIds } = plan({
       links: [link(P1, "j-1")],
-      jobs: [job({ remoteId: "j-1", invoiceSent: 0, totalInvoiceAmount: "3960.00" })],
+      jobs: [job({ remoteId: "j-1", status: "Work Order", totalInvoiceAmount: "3960.00" })],
       existing: [existing("c-1", P1, "j-1")],
     });
     expect(upserts).toEqual([]);
     expect(deleteIds).toEqual(["c-1"]);
+  });
+
+  /* But not if money has already changed hands on it — a payment is a fact
+     about the customer, and reopening the job doesn't unspend it. */
+  it("keeps it when the reopened job has been paid against", () => {
+    const { upserts, deleteIds } = plan({
+      links: [link(P1, "j-1")],
+      jobs: [
+        job({
+          remoteId: "j-1",
+          status: "Work Order",
+          totalInvoiceAmount: "3960.00",
+          paidCents: 396000,
+          lastPaidOn: "2026-08-06",
+        }),
+      ],
+      existing: [existing("c-1", P1, "j-1")],
+    });
+    expect(deleteIds).toEqual([]);
+    expect(upserts[0]).toMatchObject({ status: "paid" });
   });
 
   it("drops the claim when the job is unlinked from the project", () => {

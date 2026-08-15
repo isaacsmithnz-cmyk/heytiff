@@ -188,9 +188,13 @@ describe("the sheet renders what the mirror already held", () => {
 });
 
 describe("money stays behind its grant", () => {
+  /* On a QUOTE the money line is about the quote, not about collection — a
+     quote nobody has accepted can't be "awaiting payment", and saying so
+     would send somebody chasing money that was never billed. */
   it("says when the quote went out, for a reader who holds money", async () => {
     readMirrorJob.mockResolvedValueOnce(
       detail({
+        status: "Quote",
         money: {
           valueCents: 685000,
           invoiced: false,
@@ -202,10 +206,11 @@ describe("money stays behind its grant", () => {
         },
       })
     );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
+    render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
 
     expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
     expect(screen.getByText("$6,850")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing paid yet")).toBeNull();
   });
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {
@@ -213,7 +218,77 @@ describe("money stays behind its grant", () => {
     render(<JobSheet row={row()} {...props} />);
 
     await screen.findByText("18h 30m");
-    expect(screen.queryByText("Job value")).toBeNull();
+    expect(screen.queryByText(/Job value/)).toBeNull();
+  });
+
+  /* Settled against the live account 2026-08-15: ServiceM8's job total is
+     tax-INCLUSIVE. The basis rides the label, because the same figure feeds a
+     project's claims and a budget typed on the other basis would misreport
+     progress by ten per cent. */
+  it("says which basis the figure is on", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        money: {
+          valueCents: 148500,
+          invoiced: null,
+          invoicedOn: null,
+          quoteSent: null,
+          quoteSentOn: null,
+          paid: false,
+          paidOn: null,
+        },
+      })
+    );
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    /* Await the FIGURE, not the label: the label renders on the first paint
+       (it's gated only on the money grant) while the amount arrives with the
+       detail fetch a beat later. */
+    expect(await screen.findByText("$1,485")).toBeInTheDocument();
+    expect(screen.getByText(/Job value \(inc GST\)/)).toBeInTheDocument();
+  });
+
+  /* THE LIE THIS REPLACED. ServiceM8 sends no invoice_sent key on this
+     account — every one of 3,455 jobs null — and reading that as `false` put
+     "Not invoiced" under a figure nobody had told us anything about. Silence
+     is the honest answer; the payments ledger answers properly when it can. */
+  it("stays silent about invoicing when ServiceM8 never said", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        money: {
+          valueCents: 148500,
+          invoiced: null,
+          invoicedOn: null,
+          quoteSent: null,
+          quoteSentOn: null,
+          paid: false,
+          paidOn: null,
+        },
+      })
+    );
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("$1,485");
+    expect(screen.queryByText("Not invoiced")).toBeNull();
+    expect(screen.queryByText(/awaiting payment/i)).toBeNull();
+  });
+
+  it("still says Not invoiced when ServiceM8 actually says so", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        money: {
+          valueCents: 148500,
+          invoiced: false,
+          invoicedOn: null,
+          quoteSent: null,
+          quoteSentOn: null,
+          paid: false,
+          paidOn: null,
+        },
+      })
+    );
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    expect(await screen.findByText("Not invoiced")).toBeInTheDocument();
   });
 });
 

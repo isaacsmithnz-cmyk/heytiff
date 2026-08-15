@@ -42,6 +42,12 @@ export type ClaimMirrorJob = {
   remoteId: string;
   jobNumber: string | null;
   active: number | null;
+  /** ServiceM8's own status — 'Completed' is what says the work is done. */
+  status: string | null;
+  /** Summed from this job's payment rows; 0 when none. */
+  paidCents: number;
+  /** The latest payment's day, for stamping a settled claim. */
+  lastPaidOn: string | null;
   totalInvoiceAmount: string | null;
   invoiceSent: number | null;
   invoiceDate: string | null;
@@ -107,13 +113,26 @@ export function planMirrorClaims(input: {
       payment_received_stamp: job.paymentReceivedStamp,
     });
 
-    /* A deleted job's invoice is not a claim. An invoice with no readable
-       amount is not one either — a $0 claim row says "claimed nothing" where
-       "nothing claimed yet" is the truth. Paid counts even without the invoice
-       flag: money in the bank is the stronger fact. */
+    /* WHAT EARNS A CLAIM, now that the invoice flag is known never to arrive.
+       Waiting for `invoice_sent` meant waiting forever, and `payment_received`
+       is set on 45 jobs against 1,819 that actually hold payments — so both
+       flags are out and the two REAL facts decide it:
+
+         the job is finished (ServiceM8's own status), or money has come in
+         against it — and it is worth a readable amount.
+
+       A deleted job earns nothing. Nor does one with no readable total: a $0
+       claim says "claimed nothing" where "nothing claimed yet" is the truth,
+       and the amount is the whole point of the row. */
     const alive = job.active !== 0;
-    const invoiced = money.invoiced || money.paid;
-    if (!alive || !invoiced || money.valueCents === null) continue;
+    const worked = job.status === "Completed" || job.paidCents > 0;
+    if (!alive || !worked || money.valueCents === null) continue;
+
+    /* Collection is counted, not flagged. A PART payment stays `awaiting`:
+       project_claims is binary, and the honest read of "some of it came in"
+       is that this claim is not yet collected — the money card's paid/awaiting
+       strip would otherwise call a half-paid claim settled. */
+    const settled = job.paidCents >= money.valueCents;
 
     earned.add(key);
     upserts.push({
@@ -121,11 +140,10 @@ export function planMirrorClaims(input: {
       remoteRef: link.remoteId,
       label: mirrorClaimLabel(job.jobNumber ?? link.jobNumber),
       amountCents: money.valueCents,
-      // A paid-but-undated invoice is real; the day the money moved beats
-      // today as the second guess.
-      claimedOn: money.invoicedOn ?? money.paidOn ?? input.today,
-      status: money.paid ? "paid" : "awaiting",
-      paidOn: money.paid ? money.paidOn : null,
+      // The day it was invoiced, else the day money moved, else today.
+      claimedOn: money.invoicedOn ?? job.lastPaidOn ?? money.paidOn ?? input.today,
+      status: settled ? "paid" : "awaiting",
+      paidOn: settled ? job.lastPaidOn ?? money.paidOn : null,
     });
   }
 

@@ -34,6 +34,7 @@ const job = (over: Partial<AllJobsMirrorJob> & { remoteId: string }): AllJobsMir
   completionDate: null,
   nextBooking: null,
   money: null,
+  paidCents: 0,
   ...over,
 });
 

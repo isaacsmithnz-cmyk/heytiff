@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { urgentRows } from "@/lib/workboard/urgent-rules";
@@ -52,8 +51,9 @@ import { AllJobsBoard } from "./board/all-jobs-board";
    Esc; refreshes every minute while it's up. No new route, no token — the
    person at the TV signed in like anyone else.
 
-   Standalone-first: with no ServiceM8 connection the board says exactly that
-   and keeps working — the SM8-derived strips are absent, not broken. */
+   Standalone-first: with no ServiceM8 connection the board keeps working —
+   the SM8-derived strips are absent, not broken. WHERE it says so is the
+   empty list, not this page: see board/sm8-gap. */
 
 const REFRESH_MS = 60_000;
 
@@ -490,29 +490,23 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 manage={data.manage}
                 moneyVisible={data.moneyVisible}
                 connected={connected}
+                backfilling={data.backfilling}
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
                 onOpenTracked={followTracked}
               />
             )}
 
-            {/* One line, not a card: standalone is a fact about the board, not
-                a thing to read every morning. */}
-            {data.connection === "none" && (
-              <p className="wb-stamp">
-                Running standalone — projects and maintenance are tracked here without any
-                integration.
-                {data.manage && (
-                  <>
-                    {" "}
-                    <Link href="/dashboard/admin/integrations/servicem8" className="ro-link">
-                      Connect ServiceM8
-                    </Link>{" "}
-                    to fill it with live jobs, clients and bookings.
-                  </>
-                )}
-              </p>
-            )}
+            {/* THE STANDALONE STAMP USED TO LIVE HERE. It ran under whichever
+                board was open, which meant it was mostly read under a board
+                that was working — a caption explaining an absence you weren't
+                looking at, on every tab, every morning.
+
+                The offer belongs where the absence actually shows: the empty
+                list itself (board/sm8-gap). And because All jobs is the UNION
+                of the mirror and the native rows, an empty All jobs is an
+                empty everything — so the one empty state that matters is
+                reached by anyone this message was ever for. */}
           </div>
         </div>
       </div>

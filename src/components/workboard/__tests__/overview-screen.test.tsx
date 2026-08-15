@@ -59,10 +59,16 @@ jest.mock("../board/projects-board", () => ({
   ProjectsBoard: (p: BoardStub) => stubBody("pboard", p),
 }));
 jest.mock("../board/all-jobs-board", () => ({
-  AllJobsBoard: (p: BoardStub & { moneyVisible: boolean }) => (
+  AllJobsBoard: (
+    p: BoardStub & { moneyVisible: boolean; backfilling: { jobs: boolean; schedule: boolean } }
+  ) => (
     <div data-testid="jboard">
       board · manage:{String(p.manage)} · connected:{String(p.connected)} · money:
-      {String(p.moneyVisible)} · sm8:{p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"}
+      {String(p.moneyVisible)} · sm8:{p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"} ·
+      backfilling:
+      {[p.backfilling.jobs && "jobs", p.backfilling.schedule && "schedule"]
+        .filter(Boolean)
+        .join("+") || "none"}
     </div>
   ),
 }));
@@ -81,6 +87,7 @@ const base: WorkboardData = {
   allJobs: { jobs: [], truncated: false, projectLinks: [] },
   aiEnabled: false,
   synced: null,
+  backfilling: { jobs: false, schedule: false },
 };
 
 const tripStub = (over: Partial<ProjectBoardVisit> & { id: string }): ProjectBoardVisit => ({
@@ -162,18 +169,24 @@ const toMaintenance = () => userEvent.click(screen.getByRole("tab", { name: /Mai
 const seg = () => screen.getByRole("tablist", { name: "Which work" });
 
 describe("standalone", () => {
-  it("says it runs without an integration, and only routes managers to connect", () => {
-    render(<OverviewScreen data={base} />);
-    expect(screen.getByText(/Running standalone/)).toBeInTheDocument();
+  /* The page itself says NOTHING about being standalone — the offer lives in
+     the empty list that the absence actually produces (board/sm8-gap), and a
+     caption repeating it under a working board is the hint text the design
+     rule bans. Asserted for a manager, who is the one the old stamp addressed
+     and so the one who would get it back first. */
+  it("carries no standalone caption under the board", () => {
+    render(<OverviewScreen data={{ ...base, manage: true }} />);
+    expect(screen.queryByText(/Running standalone/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Connect ServiceM8/)).not.toBeInTheDocument();
   });
 
-  it("offers the connect path to someone who can act on it", () => {
-    render(<OverviewScreen data={{ ...base, manage: true }} />);
-    expect(screen.getByText(/Connect ServiceM8/).closest("a")).toHaveAttribute(
-      "href",
-      "/dashboard/admin/integrations/servicem8"
+  it("hands the board the backfill state, so it can tell empty from not-yet", () => {
+    render(
+      <OverviewScreen
+        data={{ ...base, connection: "connected", backfilling: { jobs: true, schedule: true } }}
+      />
     );
+    expect(screen.getByTestId("jboard")).toHaveTextContent("backfilling:jobs+schedule");
   });
 
   it("gives neither board a mirror-health chip when there is no mirror", async () => {

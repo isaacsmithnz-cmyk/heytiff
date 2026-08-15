@@ -94,6 +94,8 @@ function tab(over: Partial<Parameters<typeof ScheduleTab>[0]> = {}) {
     <ScheduleTab
       today={TODAY}
       connected
+      syncing={false}
+      manage
       tracked={new Map()}
       shelfItems={[]}
       waitingCount={0}
@@ -163,6 +165,21 @@ it("says why a clear day is clear", async () => {
 it("says the diary lives in ServiceM8 when nothing is connected — and never fetches", () => {
   render(tab({ connected: false }));
   expect(screen.getByText("The diary lives in ServiceM8")).toBeInTheDocument();
+  expect(screen.getByText("Connect ServiceM8").closest("a")).toHaveAttribute(
+    "href",
+    "/dashboard/admin/integrations/servicem8"
+  );
+  expect(scheduleDay).not.toHaveBeenCalled();
+});
+
+/* Half a walk of job_activities is a diary with people MISSING from it, which
+   reads as "nobody is on today" — a worse lie than saying nothing yet. So the
+   day is not fetched at all while the backfill runs, and the tab says which
+   of the two silences this is. */
+it("waits out the first backfill instead of drawing a half-built day", () => {
+  render(tab({ syncing: true }));
+  expect(screen.getByText("Still bringing the diary across")).toBeInTheDocument();
+  expect(screen.queryByText("Connect ServiceM8")).not.toBeInTheDocument();
   expect(scheduleDay).not.toHaveBeenCalled();
 });
 

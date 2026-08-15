@@ -54,6 +54,35 @@ describe("Summary sheet cascade", () => {
     expect(bare).toEqual([]);
   });
 
+  it("the New design landing owns .ds-hero alone", () => {
+    /* The same collision as `.ds-job`, one class along, and it shipped: the
+       sheet's cover was written as `.ds-hero`, which the landing already owns
+       at the identical specificity (0,2,0). The later rule won, so the LANDING
+       — not the sheet — became a `1fr 340px` grid wearing the sheet's ink and
+       shadow: badge and pitch in one column, the clamp(38px,4.4vw,58px) title
+       wrapped into the other. The sheet's cover is `.ds-cover`.
+
+       Only rules that TARGET the hero itself count: `.ds-hero h2` and
+       `.ds-hero p` style its children and cannot collide with another root.
+       `ds-hero-badge` and the rest are excluded by the word boundary. */
+    const targeted = selectors.filter((sel) =>
+      sel.split(",").some((s) => /\.ds-hero(?![\w-])[^ >+~]*$/.test(s.trim()))
+    );
+    expect(targeted).toEqual([".dstudio .ds-hero"]);
+  });
+
+  it("the Summary cover is a grid, and the landing hero is not", () => {
+    /* States the shape the collision inverted, so a future re-merge of the two
+       fails here rather than on the landing page in production. */
+    expect(css).toMatch(
+      /\.dstudio \.ds-cover \{[^}]*grid-template-columns:\s*1fr 340px/
+    );
+    const hero = css.match(/\.dstudio \.ds-hero \{[^}]*\}/);
+    expect(hero).not.toBeNull();
+    expect(hero![0]).not.toMatch(/grid-template-columns/);
+    expect(hero![0]).toMatch(/display:\s*flex/);
+  });
+
   it("the Summary root is styled by its own class", () => {
     const root = selectors.filter((s) => /\.ds-summary(?![\w-])/.test(s));
     expect(root.length).toBeGreaterThan(0);

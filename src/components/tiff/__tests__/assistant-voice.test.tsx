@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TiffAssistant } from "../assistant";
+import { READING_BACK_NOTE, TiffAssistant } from "../assistant";
 import type { AskEvent, AskInput } from "@/lib/tiff/ask-client";
 
 /* THE ASK BAR'S MICROPHONE.
@@ -34,7 +34,7 @@ jest.mock("@/app/actions/kb", () => ({
   kbDocUrl: async () => ({ ok: true as const, url: "https://signed.example/doc.pdf" }),
 }));
 
-/* The engine is replaced, but only the engine. `LevelBars`, `clockOf` and
+/* The engine is replaced, but only the engine. `LevelOrb`, `clockOf` and
    `appendSpoken` stay real — `appendSpoken` in particular IS the behaviour
    under test here, and a test that reimplements the join can't fail when the
    join changes. */
@@ -235,5 +235,62 @@ describe("running out of time", () => {
 
     await user.click(screen.getByLabelText("Send"));
     expect(asks[0]?.question).toBe("what is the minimum clearance above an FTXM71?");
+  });
+});
+
+/* ── the three states of the bar, and the two orbs in them ───────────────── */
+
+/* THE MICROPHONE'S OWN WAIT USED TO SAY NOTHING FOR ITSELF. While a finished
+   recording was being turned into words the bar showed one line of flat grey
+   text — the same treatment the two-minute notice and the failure line use,
+   which put a passing state in the typeface of bad news. It gets the chip the
+   transcript's waits get, and the pair reads as one object handing over: the
+   orb in the bar BREATHES with your voice while the mic is open, then the
+   same sphere carries on turning under the bar until the words land. */
+
+describe("the bar while a recording is read back", () => {
+  it("meters the voice while the mic is open, and names the wait after it closes", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant voiceEnabled />);
+
+    // nothing is listening yet, so there is no meter and nothing to read back
+    expect(screen.queryByLabelText("Listening")).not.toBeInTheDocument();
+    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
+
+    await speak(user);
+    expect(screen.getByLabelText("Listening")).toBeInTheDocument();
+    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
+
+    // the mic closes and the engine takes over: the meter goes, the chip comes
+    act(() => {
+      mockCtl.setRecording?.(false);
+      mockCtl.setTranscribing?.(true);
+    });
+    expect(screen.queryByLabelText("Listening")).not.toBeInTheDocument();
+    expect(screen.getByText(READING_BACK_NOTE)).toBeInTheDocument();
+
+    // …and the whole thing is gone once the words are in the box
+    act(() => {
+      mockCbs.current?.onTranscript("what is the clearance", { capped: false });
+      mockCtl.setTranscribing?.(false);
+    });
+    expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
+    expect(box()).toHaveValue("what is the clearance");
+  });
+
+  /* The word is on the page, in a live region, rather than in an `aria-label`
+     nobody can see — and it carries no punctuation, because the ellipsis is
+     the stylesheet's. */
+  it("announces the wait as text, unpunctuated", async () => {
+    const user = userEvent.setup();
+    render(<TiffAssistant voiceEnabled />);
+    await speak(user);
+    act(() => {
+      mockCtl.setRecording?.(false);
+      mockCtl.setTranscribing?.(true);
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent(READING_BACK_NOTE);
+    expect(READING_BACK_NOTE).not.toMatch(/[….]/);
   });
 });

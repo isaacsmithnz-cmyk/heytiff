@@ -4,6 +4,7 @@ import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
+import { Orb } from "@/components/ui/orb";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -678,13 +679,31 @@ export function WaveMeter({
   );
 }
 
-/** The five-bar real-sample meter — bind `ref` to a dictation's `barsRef`. */
-export function LevelBars({ innerRef }: { innerRef: React.RefObject<HTMLSpanElement | null> }) {
+/* The real-sample meter — bind `ref` to a dictation's `barsRef`.
+
+   IT WAS FIVE BARS, AND THE NAME OUTLIVED THEM BY ONE COMMIT. `LevelBars`
+   scaled five heights from one `--lvl` with a fixed gain each, which means it
+   was never five readings — it was one reading drawn five times. Nothing is
+   lost by drawing it once, as a sphere, and something is gained: a bar has
+   only its height to speak with, so "the microphone is alive" and "you are
+   this loud" had to share it, and in a quiet room they became the same
+   picture. That is the failure Isaac hit on prod — "Nothing was said in that
+   one", read off a row of dots that looked identical to a dead mic.
+
+   The orb separates them. It TURNS because the microphone is open and it
+   GROWS because you are loud; silence is a small sphere still turning, which
+   no longer resembles anything broken.
+
+   NOTHING ABOUT THE SIGNAL CHANGED. `--lvl` is still written to this element
+   and nowhere else, straight to the DOM every animation frame by the meter
+   loop in `startMeter`, still with no transition anywhere between the samples
+   and the screen. The size is the stylesheet's (`--orb` per row), so the orb
+   is deliberately rendered WITHOUT a size prop — an inline style here would
+   win over all four of the rows that set it. */
+export function LevelOrb({ innerRef }: { innerRef: React.RefObject<HTMLSpanElement | null> }) {
   return (
     <span className="wb-lvl" role="status" aria-label="Listening" ref={innerRef}>
-      {[0.5, 0.8, 1, 0.8, 0.5].map((g, i) => (
-        <i key={i} style={{ "--g": g } as React.CSSProperties} />
-      ))}
+      <Orb />
     </span>
   );
 }

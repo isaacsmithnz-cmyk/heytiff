@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
-import { DictClock, LevelBars, WaveMeter, appendSpoken, useDictation } from "./dictation";
+import { DictClock, LevelOrb, WaveMeter, appendSpoken, useDictation } from "./dictation";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -904,7 +904,7 @@ function Strip({
         />
         {mic.voiceEnabled && dict.recording ? (
           <>
-            <LevelBars innerRef={dict.barsRef} />
+            <LevelOrb innerRef={dict.barsRef} />
             <DictClock seconds={dict.seconds} />
             <button
               type="button"
@@ -1178,7 +1178,7 @@ function FieldPosture({
           />
           {mic.voiceEnabled && dict.recording ? (
             <>
-              <LevelBars innerRef={dict.barsRef} />
+              <LevelOrb innerRef={dict.barsRef} />
               <DictClock seconds={dict.seconds} />
               <button
                 type="button"
@@ -1257,7 +1257,7 @@ function FieldPosture({
               >
                 <Icon name="square" size={13} />
               </button>
-              <LevelBars innerRef={dict.barsRef} />
+              <LevelOrb innerRef={dict.barsRef} />
               <DictClock seconds={dict.seconds} />
               <button
                 type="button"

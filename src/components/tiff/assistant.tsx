@@ -23,7 +23,7 @@ import {
 import { ResearchLines } from "./research-lines";
 import { TiffWorking } from "./orb";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
-import { DictClock, LevelBars, appendSpoken, useDictation } from "@/components/notes/dictation";
+import { DictClock, LevelOrb, appendSpoken, useDictation } from "@/components/notes/dictation";
 
 /* The Library's asking surface, connected.
 
@@ -85,6 +85,13 @@ const HISTORY_TURNS = 8;
 /** A thread title somebody typed. Long enough to describe a job, short enough
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
+
+/** What the composer's chip says while a finished recording is being turned
+    into words. The library's three phase names live with the machine that
+    produces them (`workingNote`, lib/tiff/research-viz.ts); this wait belongs
+    to the microphone, not to retrieval, so it is named here instead. No
+    punctuation — the ellipsis is the stylesheet's, same as the others. */
+export const READING_BACK_NOTE = "Reading it back";
 
 /* THE QUICK-START PILLS ARE GONE, not restyled. Four canned questions — "R32
    running pressures at 35°C", "Size a VRF for a 3-storey office" — sat under
@@ -1062,7 +1069,7 @@ export function TiffAssistant({
                      reads as a thing that ought to work. Stop takes its place
                      and lands on the same pixels. */
                   <>
-                    <LevelBars innerRef={dict.barsRef} />
+                    <LevelOrb innerRef={dict.barsRef} />
                     <DictClock seconds={dict.seconds} />
                     <button
                       type="button"
@@ -1123,7 +1130,19 @@ export function TiffAssistant({
               </div>
             </div>
 
-            {dict.transcribing && <p className="tvsay">Reading it back…</p>}
+            {/* THE THIRD WAIT, AND IT GETS THE SAME OBJECT AS THE OTHER TWO.
+                Reading a recording back is a wait with nothing to show for
+                itself — no partial words, no shelves to light — and it said so
+                in the same flat grey the two-minute notice and the error line
+                use, which put a passing state in the typeface of bad news.
+                The chip that names the wait in the transcript names this one
+                too, keeping `tvsay` so the slot under the bar is unchanged.
+
+                It is also the far side of a pair. While the mic is open the
+                orb sits in the bar BREATHING with your voice; the moment it
+                closes the same sphere carries on turning here, under its own
+                power, until the words land. */}
+            {dict.transcribing && <TiffWorking note={READING_BACK_NOTE} className="tvsay" />}
             {ranOut && !listening && (
               <p className="tvsay" role="status">
                 Two minutes — that&apos;s the limit for one recording. Press the mic to carry on.

@@ -128,6 +128,19 @@ describe("derive — demo staff on default settings", () => {
     expect(d.issueTitle).toBe("Double time · Overtime");
   });
 
+  /* THE BULLETS SAY WHICH DAY AND WHY. There used to be a closing
+     "Overtime total — 3h @1.5× + 2h @2×", printed beside a bucket list already
+     reading "Time and a half 1.5× 3h" and "Double time 2× 2h" — the same two
+     figures, in the same card, in two notations. Totals are the panel's job,
+     and it adds them up under `Payroll hrs`. */
+  it("never restates the totals the pay panel beside it is already showing", () => {
+    for (const d of Object.values(byName)) {
+      expect(d.bullets.some((b) => b.startsWith("Overtime total"))).toBe(false);
+    }
+    // the day-level lines that say where the overtime came from are untouched
+    expect(byName["Jordan Mills"].bullets.some((b) => /Sat 4 Jul/.test(b))).toBe(true);
+  });
+
   it("Marcus and Dylan: clean 40h weeks are ready with no bullets", () => {
     for (const name of ["Marcus Webb", "Dylan Reyes"]) {
       expect(byName[name].status).toBe("ready");

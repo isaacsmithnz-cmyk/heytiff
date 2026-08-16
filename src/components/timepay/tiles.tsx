@@ -119,11 +119,25 @@ export function MiniTile({
       (weekendRate
         ? " · weekend rates"
         : cls === "std" ? " · standard" : cls === "over" ? " · overtime" : " · under standard");
+  /* THE DAY IT IS, ABOVE THE COLOUR RATHER THAN INSIDE IT.
+
+     This rendered as a bare coloured span — seven unlabelled bars, readable
+     only by hovering them one at a time, on the row an approver taps Approve
+     from. The initial is the least that makes the strip readable.
+
+     It sits OUTSIDE the fill because inside it there is no ink that works:
+     white on `--red` (a sick day) measures 3.55:1, and the dark end that would
+     clear 4.5 on that red is near-black. Above the bar it is quiet grey on the
+     row's own white, the fills stay exactly the colours they are everywhere
+     else on the screen, and the strip reads as the seven-day calendar it is. */
   return (
-    <span
-      className={`mt ${cls}${i === ctx.today ? " today" : ""}`}
-      title={`${ctx.week[i][0]} ${ctx.week[i][1]} — ${label}`}
-    ></span>
+    <span className="mtc">
+      <i className="mtd">{ctx.week[i][0].charAt(0)}</i>
+      <span
+        className={`mt ${cls}${i === ctx.today ? " today" : ""}`}
+        title={`${ctx.week[i][0]} ${ctx.week[i][1]} — ${label}`}
+      ></span>
+    </span>
   );
 }
 
@@ -148,6 +162,21 @@ export const DAY_LEGEND: readonly LegendItem[] = LEGEND_ORDER.map(
   (k) => [k, DAY_WORD[k]] as LegendItem,
 );
 
+/** The legend for a specific set of days — every colour that is actually
+    drawn, in `LEGEND_ORDER`, and nothing else.
+
+    A key is for reading what is on the screen. Listing all nine states over a
+    week that used four of them put five swatches on both screens explaining
+    colours nobody could see, which is the same failure as the one this list
+    was built to fix (a colour on screen with no entry in the key) taken from
+    the other end. Pass `classes` and the key follows the data; omit it and
+    every state is listed, which is what a legend with no week to describe has
+    to do. */
+export function legendFor(classes: Iterable<DayClass>): readonly LegendItem[] {
+  const present = new Set(classes);
+  return DAY_LEGEND.filter(([k]) => present.has(k));
+}
+
 export function DayLegend({
   items = DAY_LEGEND,
   label = "Day colour",
@@ -155,6 +184,7 @@ export function DayLegend({
   items?: readonly LegendItem[];
   label?: string;
 }) {
+  if (items.length === 0) return null;
   return (
     <div className="legend">
       <span className="llbl">{label}</span>

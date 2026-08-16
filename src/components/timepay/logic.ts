@@ -731,14 +731,12 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     normal -= ex;
     ot += ex;
   }
-  if (ot || ot2) {
-    bullets.push(
-      "Overtime total — " +
-        (ot ? fmt(ot) + "h @1.5×" : "") +
-        (ot && ot2 ? " + " : "") +
-        (ot2 ? fmt(ot2) + "h @2×" : "")
-    );
-  }
+  /* THERE IS NO "OVERTIME TOTAL" BULLET, and the reason is the panel eighteen
+     pixels to its right. It read "Overtime total — 3h @1.5× + 2h @2×" beside
+     a bucket list already reading "Time and a half 1.5× 3h / Double time 2× 2h"
+     — the same two figures, in the same card, in two notations. The bullets
+     exist to say WHICH DAY and WHY; the totals are the panel's job, and the
+     panel adds them up under `Payroll hrs`. */
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
   /* AN ABSENT WEEK REACHES A PERSON. `sick` and `leave` put the week in

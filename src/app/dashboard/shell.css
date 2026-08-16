@@ -5456,12 +5456,11 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    same one the ask bar and the dictation bar mount. There is no `.wb2-wave`
    any more, and no second meter to drift.
 
-   The clock leads it at a size worth reading and the state is said in words
-   under that — see `.wb2-heard`. Those were never the trace's doing and they
-   stay exactly as they were. */
+   The clock leads it at a size worth reading. A line under that used to say
+   the state in words as well; it is gone, and `RecordingMeter` carries the
+   reason. */
 .wb2-recwave { display:flex; align-items:center; justify-content:center; gap:20px;
   align-self:stretch; padding:8px 0 14px; }
-.wb2-recmeta { flex:none; display:flex; flex-direction:column; gap:1px; min-width:78px; text-align:right; }
 /* 68px: the sphere is the thing you look at on this card, and at the meter's
    own resting scale that still draws a 34px ball in a silent room — five
    times the 6.1px the audit found and legible across a van. */
@@ -5490,28 +5489,13 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    ("gate code is 44…"), which is the one thing a note row must not do. Two
    short lines are ~90px wide, so the row grows by about six pixels in height
    while it records and keeps every character of the note. */
-/* A FIXED WIDTH, AND IT IS NOT FUSSINESS — IT IS THE JIGGLE. The two states
-   are eleven characters and twenty ("Hearing you" / "Not hearing anything"),
-   so a meta sized to its content is seventy pixels wider in one than the
-   other. In a row, that width comes out of the note's own box: every time you
-   paused for breath the words you were watching would jump left and then back
-   again. Sized once, to the longer of the two, so the row is still while you
-   talk. 104px is that string wrapped to two lines at the size below.
-
-   AND THE TRACKING COMES IN. 11px at .13em uppercase is set for a hero card
-   where the line is the only thing on it; in a row those letter-spaces are
-   about forty pixels of a note's preview. Same words at the same weight, set
-   for a line — 10.4:1 on white, so the silent state is still the readable one
-   it has to be. */
-.wb2-recwave.compact .wb2-recmeta { flex:none; width:104px; text-align:left; }
-.wb2-recwave.compact .wb2-heard { font-size:10px; letter-spacing:.05em;
-  white-space:normal; line-height:1.25;
-  /* Two lines' worth whichever state it is in, for the same reason the width
-     is fixed: the short state on one line and the long one on two would move
-     the row's HEIGHT instead of its width, and a note row that grows and
-     shrinks as you pause for breath is the same fault wearing a different
-     axis. */
-  min-height:2.5em; }
+/* NOTHING HERE NEEDS PINNING ANY MORE, and that is worth saying because it
+   took three drafts to earn. While a two-state sentence sat under the clock,
+   this block had to be frozen on both axes — a fixed 104px so the words did
+   not shove the note sideways when the room went quiet, and two lines' worth
+   of height so they did not shove it downward instead. The sentence is gone
+   (see the note against `RecordingMeter`), the meta is a clock, and a clock
+   is four characters wide in every state a recording has.
 
 /* Words have arrived and taken the room; the sphere drops back rather than
    competing with what it is there to produce. */
@@ -5526,22 +5510,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    4.09:1 — the same AA failure as the Default label above, on the one line
    whose whole job is to be legible when something is wrong. The quiet state
    here is not decoration to be dimmed; it is the warning. */
-/* IT LIVES ON BOTH SURFACES NOW. This was written for the dusk capture card
-   and hard-coded white, which is invisible on the light rows the postures
-   stand in. Light is the default and dusk re-points the two colours, the same
-   arrangement `.orb-say` uses.
-
-   `#00806c` rather than `--teal-d` for the lit state: the accent is 3.3:1 on
-   white, and this is 11px bold uppercase — small text, so AA wants 4.5:1.
-   The darker green is already the shell's on-light teal and measures 4.6:1.
-   The silent state is `--gray700` at 10.4:1, which is the right way round —
-   it is the warning, and the note below is about the last time it was
-   dimmed. */
-.wb2-heard { --heard-off:var(--gray700, #374151); --heard-on:#00806c;
-  font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase;
-  color:var(--heard-off); white-space:nowrap; }
-.wb2-heard.on { color:var(--heard-on); }
-.wb2-dusk .wb2-heard { --heard-off:rgba(255,255,255,.62); --heard-on:#57e8cf; }
 /* The hint stays centred under the meter — it is a status line and belongs
    with the bars. The transcript is not, which is why it stretches instead. */
 .wb2-caprec .wb2-hint { text-align:center; max-width:44ch; }

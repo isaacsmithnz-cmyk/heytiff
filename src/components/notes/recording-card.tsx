@@ -15,7 +15,7 @@ import { DictClock, LevelOrb, appendSpoken, type DictationState } from "./dictat
    itself over a scrim, the debrief and Tiff's composer grow in the page, and
    none of that is decided here. What IS decided here is everything you look
    at while you are talking: what you have said so far, the sphere, the clock,
-   whether anything is reaching the microphone, and the three ways out.
+   and the three ways out.
 
    THE THREE WAYS OUT ARE ALL THE ENGINE'S, so this needs no callbacks and
    no flow. `handOver` stops and keeps the words for the box, `restart` bins
@@ -38,22 +38,6 @@ import { DictClock, LevelOrb, appendSpoken, type DictationState } from "./dictat
    send, because a question already knows what it is. Identical up to `Done`,
    and deliberately not past it. */
 
-/** What the meter is doing, in words.
-
-    The meter has always carried this and nobody could read it — five bars at
-    6px are the same picture whether the room is quiet or the microphone is
-    dead. `hearing` is false when the meter could not start at all, so this
-    never claims deafness it cannot prove: the silent line says only that
-    nothing is arriving, which is true either way. */
-export function HeardLine({ hearing }: { hearing: boolean }) {
-  return (
-    <span className={"wb2-heard" + (hearing ? " on" : "")} aria-live="polite">
-      {hearing ? "Hearing you" : "Not hearing anything"}
-    </span>
-  );
-}
-
-
 export type RecordingMeterProps = {
   dict: DictationState;
   /* WHERE THE MIC IS A ROW, NOT A CARD. The three note postures put their
@@ -67,26 +51,31 @@ export type RecordingMeterProps = {
      What compact DROPS is what the row already has. There is no "what you
      have said so far" box because the posture's own box is right there with
      the live words joined into it, and no Type/Start again/Done row because
-     the bar carries its own stop and discard. What it does NOT drop is the
-     third reading — "Hearing you" — which is the one none of these rows had
-     and the entire reason the meter was rebuilt. */
+     the bar carries its own stop and discard. */
   compact?: boolean;
   /** The card's `with-words` state; nothing else passes one. */
   className?: string;
 };
 
-/* THE INSTRUMENT — three readings off one recording.
+/* THE INSTRUMENT — the sphere, and the clock beside it.
 
    Audited 2026-08-10: the capture card was 680 × 201px, 86% of it empty, with
    a 36 × 34px meter marooned in the middle. The one element proving the
    microphone works was the smallest thing on the screen, and at silence its
    resting state was indistinguishable from a dead mic.
 
-   All three readings answer the same question — "is this thing hearing me?" —
-   in three registers, because no single one of them was enough. The sphere
-   turns because the mic is open and grows because you are loud. The clock
-   proves time is passing at all. And the line underneath says it in words,
-   which is how people actually ask and answer it. */
+   THERE WAS A THIRD THING HERE AND IT IS GONE. A line under the clock read
+   "HEARING YOU" or "NOT HEARING ANYTHING", written for the five-bar meter
+   because six pixels of bar could not say either — the words had to carry
+   both halves. The orb carries them now: it turns because the mic is open and
+   swells as you speak, continuously, which is more than a binary label ever
+   said.
+
+   And it read badly (Isaac): "it just looks like it's not a reliable product
+   if it has to suggest it". He is right. A meter that keeps offering to
+   explain that it might not be working is hedging in the one moment the
+   product should be confident, and the hedge was redundant besides — an orb
+   sitting still IS the bad news, demonstrated rather than disclaimed. */
 export function RecordingMeter({ dict, compact, className }: RecordingMeterProps) {
   return (
     <div
@@ -94,10 +83,7 @@ export function RecordingMeter({ dict, compact, className }: RecordingMeterProps
         "wb2-recwave" + (compact ? " compact" : "") + (className ? ` ${className}` : "")
       }
     >
-      <div className="wb2-recmeta">
-        <DictClock seconds={dict.seconds} big={!compact} />
-        <HeardLine hearing={dict.hearing} />
-      </div>
+      <DictClock seconds={dict.seconds} big={!compact} />
       <LevelOrb innerRef={dict.barsRef} />
     </div>
   );

@@ -71,15 +71,9 @@ const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
    outcome nobody would forgive. */
 export const MAX_RECORDING_SECONDS = 120;
 
-/* WHAT COUNTS AS BEING HEARD. The same threshold the "was anything said"
-   count has always used — one number, so the label on screen and the
-   decision to bin a silent clip can never disagree. */
+/* WHAT COUNTS AS A VOICE, for the "was anything said" count that decides
+   whether `handOver` may bin a take unheard. */
 const LOUD_ENOUGH = 0.07;
-
-/** How long a silence has to run before the card stops claiming to hear you.
-    Long enough to cover the gap between two sentences, short enough that a
-    mic which has actually died is called out while you are still talking. */
-const QUIET_MS = 1_200;
 
 /** When the clock stops counting up and starts counting down. Long enough to
     finish a sentence and press stop yourself. */
@@ -137,12 +131,6 @@ export type DictationState = {
       batch transport — a caller that shows it simply shows nothing until
       the live path is switched on. */
   interim: string;
-  /** Is a voice reaching the microphone right now? The bars have always
-      carried this; this is the same fact in a form you can put in words,
-      and it settles slowly enough to read. False whenever the meter could
-      not start, so a caller must treat it as "cannot tell", never as
-      "definitely deaf". */
-  hearing: boolean;
   /** Bind to the level-meter element; the meter writes to it every frame. */
   barsRef: React.RefObject<HTMLSpanElement | null>;
   start: () => void;
@@ -222,24 +210,10 @@ export function useDictation({
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
-  /* IS IT HEARING ANYTHING RIGHT NOW — the same samples the bars are drawn
-     from, but as a fact a caller can put into words. The bars have always
-     carried this and nobody could read them: at silence they collapse to
-     6px, which is indistinguishable from a mic that died. Isaac hit exactly
-     that on prod and had no way to tell.
-
-     It is deliberately SLOW where the bars are fast. The meter runs every
-     frame and writes straight to the DOM to stay out of React; this flips at
-     most a few times a recording, because a label that flickers between
-     "hearing you" and "not hearing anything" between syllables is worse than
-     no label. `QUIET_MS` is the pause you are allowed inside a sentence. */
-  const [hearing, setHearing] = useState(false);
-  /* Both read and written only inside the animation frame — a clock touched
-     during render tears hydration for the whole tree. The mirror ref is what
-     keeps `setHearing` off the per-frame path: state changes on a crossing,
-     not on a sample. */
+  /* When a voice was last above `LOUD_ENOUGH`. Read only inside the animation
+     frame — a clock touched during render tears hydration for the whole
+     tree. */
   const lastLoud = useRef(0);
-  const hearingNow = useRef(false);
 
   /* The callbacks live in a ref so the recorder's own handlers always see the
      current ones without the effect below re-running and dropping the mic.
@@ -317,17 +291,16 @@ export function useDictation({
         }
         // straight to the DOM, never through React — this runs every frame
         barsRef.current?.style.setProperty("--lvl", level.toFixed(3));
-        /* The only line here allowed to reach React, and only on a crossing. */
-        const heard = now - lastLoud.current < QUIET_MS;
-        if (heard !== hearingNow.current) {
-          hearingNow.current = heard;
-          setHearing(heard);
-        }
+        /* NOTHING HERE REACHES REACT. A crossing of a quiet threshold used
+           to flip a `hearing` flag for a label under the clock — a state
+           update, and a re-render of the whole recording surface, every time
+           you paused mid-sentence. The label is gone (see the note against
+           `RecordingMeter`), so this loop is now purely one custom property
+           written to one element, which is what it always wanted to be. */
         if (meter.current) meter.current.raf = requestAnimationFrame(tick);
       };
 
       lastLoud.current = 0;
-      hearingNow.current = false;
       meter.current = { ctx, raf: requestAnimationFrame(tick) };
       meterRan.current = true;
     } catch {
@@ -623,7 +596,6 @@ export function useDictation({
     transcribing,
     seconds,
     interim,
-    hearing,
     barsRef,
     start,
     stop,

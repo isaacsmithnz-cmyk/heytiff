@@ -67,12 +67,20 @@ function setup(
 
    A tab owning missing fields carries a count badge, and both the number and
    its screen-reader clause ride along in textContent. Strip them here; the
-   count is asserted on its own further down. */
+   count is asserted on its own further down.
+
+   The padlock's " — admin only" is stripped the same way and for the same
+   reason. It is screen-reader text added because the lock was a bare <svg>
+   that announced as nothing, so what this helper wants — WHICH sections have a
+   tab — is still the label in front of it. Asserted on its own below. */
 const navLabels = () =>
   screen
     .queryAllByRole("tab")
     .map((b) =>
-      (b.textContent ?? "").replace(/\d+ — \d+ details? missing$/, "").trim()
+      (b.textContent ?? "")
+        .replace(/\d+ — \d+ details? missing$/, "")
+        .replace(/ — admin only$/, "")
+        .trim()
     );
 
 describe("self mode — My profile", () => {
@@ -154,6 +162,35 @@ describe("admin mode — Team", () => {
     setup({ mode: "admin" });
     expect(screen.getAllByRole("link", { name: /Team|Staff/ }).length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Jordan Mills");
+  });
+
+  /* It read `Team / Staff / name` with BOTH crumbs pointing at /dashboard/team.
+     A breadcrumb claims depth, so a step that doesn't step misdescribes where
+     you are — and the second was the same click as the first. */
+  it("has one crumb per level, not two links to the same place", () => {
+    setup({ mode: "admin" });
+    const hrefs = [...document.querySelectorAll<HTMLAnchorElement>(".crumb a")].map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(hrefs).toEqual(["/dashboard/team"]);
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
+  /* The padlock was a bare <svg>: no title, no aria-hidden, no label on the
+     tab, so "Payroll 🔒" announced as "Payroll" and the gate existed only as a
+     glyph. */
+  it("says the admin-only tabs are restricted, rather than only drawing a lock", () => {
+    setup({ mode: "admin", adminExtras: { permissions: ownerCtx, notes: {} } });
+    for (const label of ["Permissions", "Notes"]) {
+      const tab = screen.getByRole("tab", { name: new RegExp(`^${label} — admin only$`) });
+      expect(tab.querySelector(".lock")).toHaveAttribute("aria-hidden", "true");
+    }
+    // and an ungated tab says nothing extra — the clause is not decoration
+    expect(navLabels()).toContain("Summary");
+    for (const tab of screen.getAllByRole("tab")) {
+      const gated = !!tab.querySelector(".lock");
+      expect(/— admin only/.test(tab.textContent ?? "")).toBe(gated);
+    }
   });
 });
 

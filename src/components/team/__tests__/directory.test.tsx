@@ -169,9 +169,29 @@ describe("TeamDirectory", () => {
     expect(link).toHaveAttribute("href", expect.stringContaining("/dashboard/team/"));
   });
 
-  it("navigates to the card when the row itself is clicked", async () => {
+  /* The row used to BE the link — a div with role="link" and tabIndex=0 around
+     the actions button. The name carries it now, so the two halves are asserted
+     apart: the name is a real anchor (keyboard, ⌘-click, "open in new tab"), and
+     the rest of the row still navigates for the mouse. */
+  it("makes the name a real link to the card", () => {
     setup();
-    await userEvent.click(screen.getByText("Jordan Mills"));
+    const link = screen.getByText("Jordan Mills").closest("a");
+    expect(link).toHaveAttribute("href", expect.stringContaining("/dashboard/team/"));
+  });
+
+  it("no longer wraps the row in a link role, which contained the actions button", () => {
+    setup();
+    const row = screen.getByText("Jordan Mills").closest(".dirrow")!;
+    expect(row).not.toHaveAttribute("role", "link");
+    expect(row).not.toHaveAttribute("tabindex");
+    // one tab stop for the destination, not the row AND the name
+    expect(row.querySelectorAll('a[href^="/dashboard/team/"]')).toHaveLength(1);
+  });
+
+  it("still navigates when the row itself is clicked, away from the name", async () => {
+    setup();
+    const row = screen.getByText("Jordan Mills").closest(".dirrow")!;
+    await userEvent.click(row.querySelector(".drole")!);
     expect(push).toHaveBeenCalledWith(expect.stringContaining("/dashboard/team/"));
   });
 

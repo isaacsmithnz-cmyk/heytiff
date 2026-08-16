@@ -313,18 +313,25 @@ export function TeamDirectory({
               // on its invite; greyed until the person claims it
               const unclaimed = !s.userId;
               return (
+                /* THE NAME IS THE LINK; THE ROW IS A CONVENIENCE.
+
+                   This was a div with role="link" and tabIndex=0 wrapping the
+                   actions button — interactive content inside a link, which is
+                   invalid, and it gave the row an accessible name of everything
+                   it contained glued together: "MCMarcus Chenmarcus@diamondair
+                   .com.auLead InstallerCompliant, link". It also cost two tab
+                   stops per row for one destination.
+
+                   Now the name is a real anchor: it announces as "Marcus Chen,
+                   link", it is the only tab stop besides the actions button, it
+                   has a real href so ⌘-click and "open in new tab" work, and
+                   Enter comes free from the browser. The row keeps its click
+                   for the mouse — a big target is worth having — but it is no
+                   longer pretending to be a control. */
                 <div
                   key={s.id}
                   className={`dirrow${inactive ? " off" : ""}${unclaimed ? " unclaimed" : ""}`}
-                  role="link"
-                  tabIndex={0}
                   onClick={() => router.push(`/dashboard/team/${s.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/dashboard/team/${s.id}`);
-                    }
-                  }}
                 >
                   <span className="dname">
                     {/* the hue rides in as a custom property, never as
@@ -332,12 +339,22 @@ export function TeamDirectory({
                         shorthand did to the ring */}
                     <span
                       className="dav"
+                      aria-hidden="true"
                       style={{ "--av": `hsl(${hue(s.name)} 72% 56%)` } as React.CSSProperties}
                     >
                       {s.initials}
                     </span>
                     <span>
-                      <b>{s.name}</b>
+                      <b>
+                        {/* stopPropagation so the row's own click doesn't push
+                            the same route a second time behind the anchor */}
+                        <Link
+                          href={`/dashboard/team/${s.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {s.name}
+                        </Link>
+                      </b>
                       <em>{s.email}</em>
                     </span>
                     {inactive && <span className="dofftag">Inactive</span>}

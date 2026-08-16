@@ -514,6 +514,14 @@
    the hue still identifies the person because it is the ring now. */
 .fg .dav { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:#0A0B10; border:2px solid transparent; background-image:linear-gradient(#0A0B10,#0A0B10), linear-gradient(45deg,var(--av,#2E68FF),#00E5C0); background-origin:border-box; background-clip:padding-box, border-box; }
 .fg .dname b { font-size:14.5px; font-weight:700; color:var(--ink); display:block; }
+/* The name is an anchor now (the row used to be a role="link" wrapping the
+   actions button). It inherits rather than taking link styling, because the row
+   already reads as clickable and a blue underline in a table of names would be
+   noise — but it IS the row's tab stop, so it keeps a visible ring of its own
+   and widens its hit area to the text it sits on. */
+.fg .dname b a { color:inherit; font:inherit; text-decoration:none; display:inline-block; }
+.fg .dname b a:hover { text-decoration:underline; text-underline-offset:2px; }
+.fg .dname b a:focus-visible { outline:2px solid #2E68FF; outline-offset:2px; border-radius:4px; }
 .fg .dname em { font-style:normal; font-size:12px; color:var(--q); display:block; }
 .fg .drole { font-size:13.5px; color:var(--gray500); font-weight:600; }
 .fg .dstatus { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#374151; }
@@ -1198,6 +1206,33 @@
   .fg .pcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
   .fg .pcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
   .fg .pcard2 .wb2-vt { flex:none; }
+  /* THE SCROLLBAR IS HIDDEN, SO SAY IT SCROLLS SOME OTHER WAY.
+
+     Nine tabs measure 925px; a narrow window gives the strip 295px. The two
+     rules above take the scrollbar away and put nothing back, so Payroll,
+     Permissions and Notes simply were not there as far as anyone could tell.
+     `data-ovl`/`data-ovr` are set by ViewTabs from a real measurement and
+     follow the scroll, so the fade appears only on a side that actually has
+     tabs behind it. `sticky` rather than `fixed`/absolute because the strip is
+     the scroll container itself — an absolutely-positioned overlay would scroll
+     away with the content it is meant to be masking. */
+  .fg .pcard2 .wb2-vtabs::before,
+  .fg .pcard2 .wb2-vtabs::after {
+    content:""; position:sticky; z-index:4; align-self:stretch;
+    flex:0 0 0; width:0; overflow:visible; pointer-events:none;
+  }
+  .fg .pcard2 .wb2-vtabs::before { left:0; }
+  .fg .pcard2 .wb2-vtabs::after { right:0; }
+  .fg .pcard2 .wb2-vtabs[data-ovl]::before,
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
+    width:0; box-shadow:none;
+  }
+  .fg .pcard2 .wb2-vtabs[data-ovl]::before {
+    box-shadow:18px 0 18px -12px rgba(10,12,20,.28);
+  }
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
+    box-shadow:-18px 0 18px -12px rgba(10,12,20,.28);
+  }
 }
 @media (max-width:920px){
   .fg .pbar { align-items:flex-start; }

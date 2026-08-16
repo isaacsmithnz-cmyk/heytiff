@@ -1096,7 +1096,11 @@ export function MyTimesheet({
                             : ""
                         }`
                       : casual && sheet.status === "draft"
-                        ? "Add the days you worked, then submit. Nothing is filled in for you."
+                        /* "Nothing is filled in for you" closed this — the
+                           app describing its own non-behaviour to somebody
+                           looking at a sheet that is visibly empty. The
+                           instruction is the whole message. */
+                        ? "Add the days you worked, then submit."
                         : status.sub}
                 </div>
                 {!sent && period.live && (

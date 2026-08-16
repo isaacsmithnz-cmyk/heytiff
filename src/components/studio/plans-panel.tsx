@@ -466,19 +466,19 @@ export function PlansPanel({
                 <span className="ds-pagepick-n">
                   {selected.size} of {pages.length} selected
                 </span>
-                {/* "AI screening" was the badge written out as a label — it
-                    named the technique and left the person guessing what the
-                    button would DO. The title already said it: read the
-                    drawings, name each floor. So does the button now. */}
-                <button
-                  className="ds-ai-btn"
-                  disabled
-                  title="Coming soon — reads your drawings and names each floor for you"
-                >
-                  <Icon name="search" size={14} />
-                  Name the floors
-                  <span className="ds-ai-soon">Soon</span>
-                </button>
+                {/* THERE WAS A DEAD BUTTON HERE. "Name the floors", wearing a
+                    Soon badge and a tooltip promising it would read your
+                    drawings — permanently disabled, because the thing does not
+                    exist. Two rounds went into its LABEL without anyone asking
+                    whether a control you cannot press belongs on the step at
+                    all.
+
+                    The admin index settled this already: a planned tool is a
+                    name in the Coming line, "not a row wearing a Planned tag —
+                    which read as a menu item you could not open". Same fault,
+                    smaller, in a step where you are picking pages. Naming a
+                    floor is one tap on the row below; the button offered
+                    nothing and advertised an absence. */}
               </div>
             )}
             {stage === "stack" && (

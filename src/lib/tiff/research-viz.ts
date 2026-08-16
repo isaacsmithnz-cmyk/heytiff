@@ -333,3 +333,38 @@ export function cardNote(state: ResearchViz, cat: KbCategory): string | null {
     }
   }
 }
+
+/* ── what the wait is called ─────────────────────────────────────────────── */
+
+/** The word under the orb while the question is still out. */
+export const THINKING_NOTE = "Thinking";
+
+/** …and while retrieval is still sweeping the shelves. */
+export const LOOKING_NOTE = "Searching the library";
+
+/** …and once it has come back and the shelves are being read. */
+export const READING_NOTE = "Reading what it found";
+
+/* THE SAME MACHINE THE RAIL READS, SO THE TWO CANNOT DISAGREE. The waiting
+   indicator in the transcript names the phase it is actually in, out of the
+   one state that already knows: `searching` is retrieval still out, `traced`
+   is retrieval back with the answer not yet started. Everything else — a
+   general question (which never leaves `idle`), a miss that fell through to
+   general knowledge (`settled`), the gap between the first delta and the
+   first paint (`answering`) — is a model with a question and no library, and
+   "Thinking" is the honest name for that.
+
+   A THREE-WORD VOCABULARY, NOT A SCRIPT. The temptation with a label that
+   changes is to write a sequence and time it out — "Consulting the manuals…",
+   "Almost there…" — which is theatre, and this file holds no clock for
+   exactly that reason. Every word below is a phase the server put us in. */
+export function workingNote(state: ResearchViz): string {
+  switch (state.phase) {
+    case "searching":
+      return LOOKING_NOTE;
+    case "traced":
+      return READING_NOTE;
+    default:
+      return THINKING_NOTE;
+  }
+}

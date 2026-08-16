@@ -1424,28 +1424,236 @@
 .fg .tmsg .tmb { padding:14px 18px; border-radius:20px; font-size:14.5px; font-weight:500; line-height:1.55; }
 .fg .tmsg.user .tmb { background:var(--ink); color:#fff; border-bottom-right-radius:8px; box-shadow:0 8px 18px -8px rgba(0,0,0,.35); }
 .fg .tmsg.bot .tmb { background:#fff; border:1px solid #f0f0f2; color:#1f2937; border-bottom-left-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.04); }
-/* THE DOTS WERE NEVER VISIBLE. This read `.fg .tmb.ttyping` — the class ON
-   the sheet — from when the indicator WAS the sheet. It has been a <span>
-   INSIDE the sheet since the two were merged into one container, so the
-   flex rule matched nothing, the span stayed `display:inline`, and three
-   inline <i> elements ignored their own width and height. What shipped was a
-   tall empty white box, which is exactly what it looked like.
+/* ══════════════════════ THE ORB (.orb) — SHARED ══════════════════════
+   One sphere of dots, two instruments. Unscoped on purpose: Tiff's waiting
+   chip is inside `.fg`, the dictation meter is rendered from the notes token
+   in surfaces that are not, and this is the same object in both.
 
-   Sized for the sheet it now sits in rather than for a bubble: 9px dots on a
-   fixed 22px line, so the box while thinking is the same height as the first
-   line of the answer that replaces it, and the sheet doesn't jump when the
-   words arrive. */
-.fg .tmb .ttyping { display:inline-flex; align-items:center; gap:6px; height:22px; }
-.fg .ttyping i { display:block; width:9px; height:9px; border-radius:50%; background:#c3cad6;
-  animation:fgTyping 1.2s ease-in-out infinite; }
-.fg .ttyping i:nth-child(2) { animation-delay:.15s; }
-.fg .ttyping i:nth-child(3) { animation-delay:.3s; }
-@keyframes fgTyping { 0%,60%,100%{transform:none;opacity:.45} 30%{transform:translateY(-5px);opacity:1} }
-@media (prefers-reduced-motion:reduce) {
-  /* the global `.fg * { animation-duration:.001s }` would strobe an infinite
-     loop — the dots stay, still, at their resting weight */
-  .fg .ttyping i { animation:none; opacity:.6; }
+   `--lvl` IS THE WHOLE DIFFERENCE. Left unset the ball sits at full size and
+   simply turns, which is a loader. Set every frame from real microphone
+   samples it BREATHES, and the turning becomes a separate statement — that
+   the microphone is open at all. See components/ui/orb.tsx for why those two
+   channels had to come apart.
+
+   PARK THE PERSPECTIVE ON THE FRAME, THE SPIN ON THE SHELL. `perspective`
+   only applies to an element's CHILDREN, so the two cannot live together: the
+   frame holds the camera, the shell inside it holds `preserve-3d` and the one
+   animation, and the dots are positioned in the space that creates. A
+   `preserve-3d` on the same element as the animation would flatten every dot
+   into the shell's own plane before the camera ever saw them. */
+.orb { position:relative; flex:0 0 auto; display:block;
+  width:var(--orb,30px); height:var(--orb,30px);
+  /* THE DOT SCALES WITH THE BALL. A fixed 2.4px shipped here for one draft
+     and it was invisible above about 40px: the shell grew, the dots didn't,
+     and an 80px orb rendered as a sparse scatter of specks with no surface
+     between them. The floor keeps it from disappearing under a hairline at
+     small sizes, where a sub-2px dot is a grey smudge on a HiDPI screen. */
+  --orb-dot:max(2.2px, calc(var(--orb,30px) / 11));
+  /* Roughly 4× the radius: enough foreshortening to read as a ball, not so
+     much that the near dots balloon and the far ones vanish. */
+  perspective:calc(var(--orb,30px) * 2); }
+.orb-spin { position:absolute; inset:0; transform-style:preserve-3d;
+  animation:orbSpin 5.5s linear infinite; }
+/* THE ONLY ELEMENT THAT MOVES WITH THE VOICE, and the reason it exists. The
+   level could scale each dot's own `translateZ` — the first draft did, and
+   that is 54 style recalculations per animation frame on the one screen
+   already running an AudioContext and a speech socket. One wrapper between
+   the spin and the dots costs one recalculation instead, and scaling it grows
+   the dots along with the radius, which is the behaviour we wanted anyway:
+   loud should be heavier, not the same specks further apart.
+
+   NO TRANSITION, DELIBERATELY — the same rule the five bars were written
+   under. This has to read as instant response to a voice, and easing would
+   smooth exactly the signal it exists to show.
+
+   A LOADER IS FIXED AT 1 AND SAYS SO. The scale could be one expression with
+   `var(--lvl, 1)` doing double duty, but then the loader's size would be a
+   side effect of the meter's curve and re-tuning one would silently move the
+   other. The default is the plain number; the meter overrides it with the
+   curve it needs, down beside the row heights it belongs to. */
+.orb-ball { position:absolute; inset:0; transform-style:preserve-3d;
+  --orb-k:1;
+  transform:scale3d(var(--orb-k), var(--orb-k), var(--orb-k)); }
+/* Every dot is placed by ONE transform, and the stylesheet keeps the
+   arithmetic: rotateY to its longitude, rotateX to its latitude, then pushed
+   out to the surface by half the diameter. `--lat` and `--lon` are the only
+   things the component writes per dot, and they never change again.
+
+   The dot is NOT counter-rotated to face the camera, deliberately: left
+   facing outward it squashes to a sliver as it crosses the silhouette, which
+   is what a disc on a sphere does and what makes the edge read as curved
+   rather than as a ring of beads. */
+.orb-ball i { position:absolute; top:50%; left:50%; display:block;
+  width:var(--orb-dot); height:var(--orb-dot);
+  margin:calc(var(--orb-dot) / -2) 0 0 calc(var(--orb-dot) / -2);
+  /* `currentColor`, so the sphere has no opinion: the meter is recording red,
+     Tiff's wait is teal, and the dark capture surface is brand green. */
+  border-radius:50%; background:currentColor; opacity:.92;
+  /* The hidden-surface pass, for free: a dot on the far side is a disc
+     pointing away from the camera and never draws. At these sizes, painting
+     both hemispheres stops reading as a sphere and starts reading as a
+     smudge. */
+  backface-visibility:hidden;
+  transform:rotateY(var(--lon)) rotateX(calc(var(--lat) * -1)) translateZ(calc(var(--orb,30px) / 2)); }
+@keyframes orbSpin {
+  /* Tilted off the vertical so the poles are visible and the rings read as
+     rings. The tilt is constant; only the Y term turns. */
+  from { transform:rotateX(-16deg) rotateY(0deg); }
+  to   { transform:rotateX(-16deg) rotateY(360deg); }
 }
+@media (prefers-reduced-motion:reduce) {
+  /* The global `.fg * { animation-duration:.001s }` turns an infinite loop
+     into a strobe, so the spin is dropped rather than sped up. The orb keeps
+     its tilt and stands still — a sphere of dots is a legible object at rest,
+     which is the whole reason it survives this setting where three bouncing
+     dots only survived as three dots.
+
+     THE LEVEL SURVIVES, and must: it is feedback about hardware, not
+     decoration, and the five bars it replaced were kept live here for exactly
+     that reason. It survives for free — the ball's scale is driven by a
+     custom property, not by an animation, so there is no loop here to stop. */
+  .orb-spin { animation:none; transform:rotateX(-16deg) rotateY(24deg); }
+}
+
+/* ══════════════════ THE WAIT, NAMED (.orb-say) — SHARED ══════════════════
+   The orb with a word beside it, wherever something is happening that has
+   nothing to show for itself: Tiff's transcript while a question is out,
+   Tiff's composer while a recording is read back, and every note posture
+   doing the same. It replaced three flavours of nothing — three bouncing
+   dots that meant "someone is typing" when nobody was, and two sizes of flat
+   grey sentence.
+
+   UNSCOPED, and it has to be: the capture sheet PORTALS to document.body, so
+   anything declared under `.fg` is simply absent out there. The capture card
+   shipped once with colourless primary buttons for exactly this reason.
+
+   IT TAKES ITS INK FROM THE SURFACE. `--say-ink` is the resting colour and
+   `--say-lit` is what the sweep lights it to; the light surfaces below leave
+   the defaults and the dusk card re-points both. A colour baked into the chip
+   would be wrong on at least one of the four places it now stands.
+
+   IT IS EXACTLY AS TALL AS THE LINE IT BECOMES, in the transcript: 30px of
+   orb on a 30px row, and the sheet's own line-height for the word, so the box
+   while working is the height of the first line of the answer that replaces
+   it and nothing below jumps when the words arrive. */
+.orb-say { --say-ink:var(--teal-d, #00A389); --say-lit:var(--ink, #050505);
+  display:inline-flex; align-items:center; gap:11px; min-height:30px; color:var(--say-ink); }
+/* Teal, not grey. The transcript's old dots were `#c3cad6` — the colour of a
+   disabled control — for the single most alive moment on the screen, and the
+   notes hints were `--gray500`, the colour of a caption. The accent is what
+   every other "working" state in the shell already uses, and it is set on the
+   chip rather than the word so the orb inherits it.
+
+   IT WRAPS RATHER THAN CLIPS. `nowrap` shipped here for one draft and lost
+   the back half of "Reading what it found…" the first time the sheet was
+   narrower than the phrase — a label that silently truncates is worse than
+   one that takes a second line, and `min-height` above lets the row grow to
+   meet it. `flex:0 1 auto` is the pair to that: the word may shrink, the orb
+   beside it may not. */
+.orb-say b { flex:0 1 auto; font-size:14.5px; font-weight:650; letter-spacing:-.01em;
+  line-height:1.4; color:inherit; }
+/* The ellipsis belongs to the stylesheet so the label stays a plain string —
+   a test matches "Searching the library", not a particular run of dots, and
+   the vocabulary in research-viz.ts and the postures never carries
+   punctuation. */
+.orb-say b::after { content:"…"; }
+
+/* The sweep is clipped to the glyphs, so it reads as the word being lit. A
+   bar sliding behind the text would read as a skeleton — and a skeleton
+   promises "this box becomes content", when this box is replaced outright.
+
+   ⚠ THE PAINT IS THE TEXT. Once the glyphs are `color:transparent`, any
+   moment the gradient does not cover the element is a moment the label is
+   INVISIBLE — not dim, gone. A first draft here scrolled a `no-repeat`
+   gradient from 180% to -80% and lost most of every phrase for most of every
+   cycle; on screen it read as text being clipped by the sheet, which sent
+   the search for the bug to entirely the wrong place.
+
+   Two things hold the invariant. The tile REPEATS, so there is no position
+   at which nothing is painted — and because the gradient is base colour at
+   both 0% and 100%, the seam between tiles is a colour meeting itself and
+   cannot be seen. And `background-position` stays inside 0–100%, which for a
+   tile four times the element's width means the lit band travels the full
+   width and then sits off-stage for the rest of the turn: the pause between
+   sweeps is the gradient's own margin, not a gap in the animation. */
+@supports ((background-clip:text) or (-webkit-background-clip:text)) {
+  .orb-say b { background-image:linear-gradient(100deg,
+      var(--say-ink) 0%, var(--say-ink) 46%, var(--say-lit) 50%, var(--say-ink) 54%, var(--say-ink) 100%);
+    background-size:400% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:orbSaySweep 2.6s linear infinite; }
+}
+/* 100%→0% runs the band left to right. The reverse would read as the word
+   being un-written, which is the opposite of what is happening. */
+@keyframes orbSaySweep { from { background-position:100% 0; } to { background-position:0% 0; } }
+
+@media (prefers-reduced-motion:reduce) {
+  /* The sweep is dropped rather than sped up, for the reason spelled out
+     against `.orb-spin` above — the global duration override would strobe it.
+     The word stays, flat, in the colour it was always going to end on. */
+  .orb-say b { animation:none; background-image:none; color:inherit; }
+}
+
+/* ── the smaller sister ──
+   Beneath a control rather than inside a sheet: under Tiff's ask bar, and on
+   the notes postures' own rows. `.tvsay` and `.wb2-dicthint` are the slots
+   the plain grey lines used to occupy, so the chip inherits their margins and
+   nothing around those controls moves. */
+.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; }
+.orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:12.5px; font-weight:700; }
+
+/* ── the wait with no words of its own ──
+   The capture card's transcribing stage. Its ribbon already names the stage,
+   so the body shows the instrument and nothing else — the same division the
+   recording stage uses, where the ribbon says "Recording" and the body shows
+   the clock and the meter. Sized between the two: bigger than the chip's
+   30px because it is alone in a 680px card, smaller than the recording orb
+   because nothing is being measured. */
+.wb2-waiting { display:flex; justify-content:center; padding:26px 0 18px;
+  --orb:44px; color:var(--teal-d, #00A389); }
+.wb2-dusk .wb2-waiting { color:#00E5C0; }
+
+/* ── on ink ──
+   The dusk capture surface, where the resting teal is too dark to read and
+   the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
+   else about the chip is restated. */
+.wb2-dusk .orb-say { --say-ink:#00E5C0; --say-lit:#ffffff; }
+
+/* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
+   The ask bar hands its space to the shared recording card while the mic is
+   open (notes/recording-card), so the sequence you get here is the sequence
+   the Tiff button's sheet and the debrief card give you. Isaac: "the input
+   section should be identical throughout the software — they just appear in
+   different places."
+
+   THIS RULE IS ONLY ABOUT WHERE IT STANDS, exactly as `.hm-cap` is for the
+   debrief. Nothing here says anything about material: the dusk skin, the
+   button fills, the type sizes and the 68px orb all arrive from
+   `.wb2-capcard` and `.wb2-capcard.wb2-dusk`, and a background declared here
+   would beat them on source order and quietly undo the point. The debrief
+   learned that the expensive way — its first version restated forty rules
+   under `.fg .hm-cap` and had already drifted from the sheet by the time
+   anyone compared them side by side. */
+.fg .tk-rec {
+  /* out of the overlay and into the composer's column */
+  position:static; transform:none; z-index:auto;
+  width:auto; max-width:none; min-width:0;
+  /* the sheet is a scroll container because it floats; in the page the page
+     scrolls */
+  max-height:none; overflow:visible;
+  /* a 30px drop shadow belongs under something floating, not in a column */
+  box-shadow:0 10px 30px -18px rgba(10,12,20,.5);
+  /* `wb2DropIn` carries `translateX(-50%)` for the centred sheet and would
+     shove this one half its width to the left */
+  animation:tkRecIn .2s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes tkRecIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { .fg .tk-rec { animation:none; } }
+/* NO CHIP IN THIS RIBBON, so the close × takes the margin the chip would have
+   pushed it with. The note card's chip says where the words are going, and
+   here that is the live "Answer from" row two inches below — the same fact
+   twice is the pair that eventually disagrees. */
+.fg .tk-rec .wb2-capribbon .wb2-ico { margin-left:auto; }
 
 /* Knowledge Base page */
 .fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color .2s; }
@@ -3565,14 +3773,41 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
 .wb-strip { display:flex; flex-direction:column; gap:2px; }
 .wb-strip .wb-bar { width:120px; flex:none; }
 
-/* smart notes — the live input meter. Driven by real samples, so bars that
-   don't move mean nothing is being captured. No transition on the bars: this
-   has to read as instant response to a voice, and easing would smooth exactly
-   the signal it exists to show. Reduced motion keeps it — it is feedback about
-   hardware, not decoration — but rests it at a visible height. */
-.wb-lvl { --lvl:0; display:inline-flex; align-items:center; gap:3px; height:22px; padding-left:4px; }
-.wb-lvl i { display:block; width:3px; height:22px; border-radius:2px; background:#e0264f; transform-origin:center; transform:scaleY(calc(.18 + var(--lvl) * var(--g, 1))); }
-@media (prefers-reduced-motion:reduce) { .wb-lvl i { transform:scaleY(.5); } }
+/* smart notes — the live input meter. Driven by real samples, so a meter that
+   doesn't move means nothing is being captured.
+
+   IT IS AN ORB NOW, AND THE TWO FACTS CAME APART. Five bars scaling from one
+   `--lvl` had to say both "the hardware is alive" and "this is how loud you
+   are" through a single channel — height — and in a quiet room they collapsed
+   toward a flat line that was indistinguishable from a dead microphone. That
+   reached prod: "Nothing was said in that one", over a row of dots nobody
+   could read. The bars answered it with a resting floor, which is the best a
+   one-channel instrument can do.
+
+   The sphere has two channels. It TURNS because the microphone is open, and
+   it GROWS because you are loud, and neither one can be mistaken for the
+   other. A silent room draws a small sphere still turning. The level itself
+   is unchanged — same `--lvl` on this element, written straight to the DOM
+   every frame by the same meter loop, no transition, no easing, nothing
+   between the samples and the screen.
+
+   The size is a custom property, not a height: the orb reads it as a
+   diameter, and the four rows below re-declare it rather than restating the
+   geometry. `color` carries the ink, because the sphere has no opinion. */
+.wb-lvl { --lvl:0; --orb:22px; display:inline-flex; align-items:center; padding-left:4px;
+  color:#e0264f; }
+/* THE CURVE, AND WHY IT IS NOT WIDER. Three were rendered against the real
+   row sizes and levels. `.6 + .4` moves too little to read as a response at
+   18px; `.42 + .62` is the most responsive and collapses the resting sphere
+   into a speck at the two smallest rows, which is precisely the failure the
+   bars were given a resting floor to avoid. This one swings a little over 2×
+   and still draws a legible ball in a silent room.
+
+   It overshoots 1 at the top on purpose: the frame is sized for the resting
+   sphere plus headroom, and a shout that fills it completely is a better top
+   end than one that stops politely short. Nothing clips — the frame has no
+   overflow rule and the neighbours in every row are spaced for it. */
+.wb-lvl .orb-ball { --orb-k:calc(.5 + .55 * var(--lvl)); }
 
 /* smart notes — the review card */
 .wb-review { border-top:1px solid rgba(5,5,5,.07); margin-top:12px; padding-top:12px; }
@@ -4691,8 +4926,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   50% { box-shadow:0 0 0 5px rgba(224,38,79,0); }
 }
 @media (prefers-reduced-motion:reduce) { .wb2-micgo.on { animation:none; } }
-.wb2-addrow .wb-lvl { flex:none; height:20px; }
-.wb2-addrow .wb-lvl i { height:20px; }
+.wb2-addrow .wb-lvl { flex:none; --orb:20px; }
 .wb2-addrow .wb2-dictx { flex:none; margin-left:0; }
 .wb2-shft { display:flex; align-items:center; gap:9px; padding:18px 22px; margin-top:auto; position:sticky; bottom:0;
   background:#fff; border-top:1px solid var(--wb2-line2); flex-wrap:wrap; }
@@ -4748,8 +4982,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-dictmic:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.28); }
 .wb2-dictmic.on { width:28px; padding:0; justify-content:center; background:#e0264f; border-color:#e0264f; color:#fff; }
 .wb2-dictmic.on:hover { background:#c8203f; border-color:#c8203f; color:#fff; }
-.wb2-dictbar .wb-lvl { height:18px; }
-.wb2-dictbar .wb-lvl i { height:18px; width:3px; }
+.wb2-dictbar .wb-lvl { --orb:18px; }
 .wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:7px; border:0; background:none; color:#9ca3af;
   display:grid; place-items:center; cursor:pointer; transition:background .16s, color .16s; }
 .wb2-dictx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
@@ -5224,10 +5457,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-capjob.on { background:rgba(0,163,137,.07); border-color:rgba(0,163,137,.3); }
 .wb2-capjob.on svg { color:var(--wb2-ok, #00A389); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
-.wb2-caprec .wb-lvl { height:34px; }
-.wb2-caprec .wb-lvl i { height:34px; width:4px; }
 
-/* ── THE TRACE ──
+/* ── THE INSTRUMENT ──
    Audited 2026-08-10: this stage was a 680 × 201px card, 86% of it empty,
    with a 36 × 34px meter marooned in the middle — five percent of the width,
    nine tenths of one percent of the area — and at silence `scaleY(.18)` on a
@@ -5235,23 +5466,58 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    was the smallest thing on the screen and its resting state was
    indistinguishable from a dead mic. Isaac hit precisely that.
 
-   The reserved space IS the meter now, until there are words to put in it.
-   Full width, clock alongside at a size worth reading, and the state said in
-   words underneath — see `.wb2-heard`. */
-.wb2-recwave { display:flex; align-items:center; gap:16px; align-self:stretch; padding:8px 0 14px; }
-.wb2-recmeta { flex:none; display:flex; flex-direction:column; gap:1px; min-width:78px; }
-.wb2-wave { --lvl:0; display:flex; align-items:center; gap:3px; flex:1; min-width:0; height:56px; }
-.wb2-wave i { flex:1 1 0; min-width:2px; height:56px; border-radius:999px; transform-origin:center;
-  /* A FLOOR OF 6%, NOT 18%. At 56px that is a 3.4px line a quiet room still
-     draws — "listening, hearing nothing" made visibly different from "dead",
-     which is the entire point of the redesign. */
-  transform:scaleY(calc(.06 + var(--lvl) * var(--g, 1)));
-  background:linear-gradient(180deg, rgba(0,229,192,.95), rgba(0,163,137,.75)); }
-/* Words have arrived and taken the room; the trace drops to a baseline
-   rather than competing with what it is there to produce. */
-.wb2-recwave.with-words { padding-bottom:8px; }
-.wb2-wave.thin, .wb2-wave.thin i { height:20px; }
-@media (prefers-reduced-motion:reduce) { .wb2-wave i { transform:scaleY(.5); } }
+   The answer then was a 48-bar trace running the full width, because width
+   was the only axis a bar meter had left to answer with. The orb answers on
+   two axes instead — it turns because the mic is open and grows because you
+   are loud — so this slot goes back to being ONE component at a size, the
+   same one the ask bar and the dictation bar mount. There is no `.wb2-wave`
+   any more, and no second meter to drift.
+
+   The clock leads it at a size worth reading. A line under that used to say
+   the state in words as well; it is gone, and `RecordingMeter` carries the
+   reason. */
+.wb2-recwave { display:flex; align-items:center; justify-content:center; gap:20px;
+  align-self:stretch; padding:8px 0 14px; }
+/* 68px: the sphere is the thing you look at on this card, and at the meter's
+   own resting scale that still draws a 34px ball in a silent room — five
+   times the 6.1px the audit found and legible across a van. */
+/* The ink is the dusk skin's, not restated here: this stage is dusk in both
+   doors it appears in (the sheet's `duskClass` and the debrief's hardcoded
+   one), and a second declaration of the same colour is a second place for it
+   to drift. See `.wb2-dusk .wb-lvl`. */
+.wb2-caprec .wb-lvl { --orb:68px; padding-left:0; }
+/* ── the same instrument, laid along a line ──
+   The three note postures put their microphone in a row — a strip beside a
+   job, a dictation bar, an add row — and each of them showed an orb and a
+   clock and stopped there. The third reading, the one that says whether
+   anything is actually reaching the microphone, existed only on the card, and
+   it is the reading the whole rebuild was for.
+
+   So the block comes to the row rather than the row growing into a card:
+   the meta unstacks, the clock drops to its inline size, and the orb keeps
+   whatever diameter that row already set. Nothing is centred and nothing
+   stretches — in a bar this is one item among several, not the subject. */
+.wb2-recwave.compact { padding:0; gap:9px; align-self:auto; flex:0 0 auto;
+  justify-content:flex-start; }
+/* THE META STAYS STACKED, which is both the card's layout and — the part that
+   is not obvious — the NARROW one. Laying the clock and the state along a
+   line was the first draft and it ate about 200px of a row; on a strip in a
+   narrow column that pushed the words you are watching out of their own box
+   ("gate code is 44…"), which is the one thing a note row must not do. Two
+   short lines are ~90px wide, so the row grows by about six pixels in height
+   while it records and keeps every character of the note. */
+/* NOTHING HERE NEEDS PINNING ANY MORE, and that is worth saying because it
+   took three drafts to earn. While a two-state sentence sat under the clock,
+   this block had to be frozen on both axes — a fixed 104px so the words did
+   not shove the note sideways when the room went quiet, and two lines' worth
+   of height so they did not shove it downward instead. The sentence is gone
+   (see the note against `RecordingMeter`), the meta is a clock, and a clock
+   is four characters wide in every state a recording has.
+
+/* Words have arrived and taken the room; the sphere drops back rather than
+   competing with what it is there to produce. */
+.wb2-recwave.with-words { padding-bottom:8px; gap:14px; }
+.wb2-recwave.with-words .wb-lvl { --orb:30px; }
 
 /* THE METER, IN WORDS. The bars have always carried this and nobody could
    read them. Colour alone would not do it either — the two states have to
@@ -5261,9 +5527,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    4.09:1 — the same AA failure as the Default label above, on the one line
    whose whole job is to be legible when something is wrong. The quiet state
    here is not decoration to be dimmed; it is the warning. */
-.wb2-heard { font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase;
-  color:rgba(255,255,255,.62); white-space:nowrap; }
-.wb2-heard.on { color:#57e8cf; }
 /* The hint stays centred under the meter — it is a status line and belongs
    with the bars. The transcript is not, which is why it stretches instead. */
 .wb2-caprec .wb2-hint { text-align:center; max-width:44ch; }
@@ -6968,8 +7231,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    is what made an 11px outlined square read as a dark blob. */
 .wb2-capcard .pbtn.wb2-prim svg { opacity:.72; }
 
-/* listening — the bars go brand, the dot stays the one honest red */
-.wb2-dusk .wb-lvl i { background:linear-gradient(180deg,#00E5C0,#2E68FF); }
+/* listening — the orb goes brand, the dot stays the one honest red.
+   The bars carried a teal→blue gradient down their height; a 3px sphere dot
+   has no height to run one down, and fifty-four of them at the same origin
+   would each paint an identical smear. The teal end of that gradient, flat,
+   is the same statement without the pretence. */
+.wb2-dusk .wb-lvl { color:#00E5C0; }
 .wb2-dusk .wb2-livetext { color:#E8EAED; }
 
 /* sorting — the same honest skeletons, cut for ink */

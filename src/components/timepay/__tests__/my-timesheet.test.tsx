@@ -555,12 +555,16 @@ describe("a casual", () => {
     expect(tabs[0]).toContain("std");
   });
 
-  it("says its week is entered by hand, not filled in", () => {
+  /* The rules line carries this; the heading used to say it a second time as
+     "Nothing is filled in for you", which is the app describing its own
+     non-behaviour to somebody looking at a visibly empty sheet. */
+  it("says its week is entered by hand", () => {
     const { container } = renderSheet(CASUAL);
-    expect(screen.getByText(/Nothing is filled in for you/)).toBeInTheDocument();
     expect(container.querySelector(".mts2-rules")?.textContent).toContain(
       "every day entered by hand",
     );
+    expect(screen.getByText(/Add the days you worked, then submit\./)).toBeInTheDocument();
+    expect(screen.queryByText(/filled in for you/)).not.toBeInTheDocument();
   });
 
   it("is never told a short day is short — they were rostered for what they did", async () => {

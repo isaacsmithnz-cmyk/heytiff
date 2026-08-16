@@ -15,13 +15,17 @@ import {
   cardNote,
   cardState,
   reduceViz,
+  workingNote,
   IDLE_VIZ,
   type ResearchViz,
   type VizEvent,
 } from "@/lib/tiff/research-viz";
 import { ResearchLines } from "./research-lines";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
-import { DictClock, LevelBars, appendSpoken, useDictation } from "@/components/notes/dictation";
+import { appendSpoken, useDictation } from "@/components/notes/dictation";
+import { RecordingCard } from "@/components/notes/recording-card";
+import { READING_BACK_NOTE } from "@/components/notes/waits";
+import { Waiting } from "@/components/ui/orb";
 
 /* The Library's asking surface, connected.
 
@@ -83,6 +87,7 @@ const HISTORY_TURNS = 8;
 /** A thread title somebody typed. Long enough to describe a job, short enough
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
+
 
 /* THE QUICK-START PILLS ARE GONE, not restyled. Four canned questions — "R32
    running pressures at 35°C", "Size a VRF for a 3-storey office" — sat under
@@ -449,11 +454,14 @@ export function TiffAssistant({
      not an accident — so this is a statement, never a lock. */
   const working = Boolean(live) && !listening;
 
-  /* What the box SHOWS while the live transport is still hearing the sentence,
-     never what it HOLDS. Committing interim words would race the transcript
-     that replaces them, and leave the tail of a half-heard sentence behind if
-     the recording were thrown away. */
-  const shownInput = dict.interim ? appendSpoken(input, dict.interim) : input;
+  /* THE LIVE WORDS ARE NOT SHOWN IN THIS BOX ANY MORE, because the box is not
+     on screen while the mic is open — the shared recording card has the space,
+     and it joins the interim words onto what is already captured exactly the
+     way this did (`sofar`, in notes/recording-card). The rule the join exists
+     to keep is unchanged and now kept in one place: interim words are SHOWN,
+     never HELD. Committing them would race the transcript that replaces them
+     and leave the tail of a half-heard sentence behind if the recording were
+     thrown away. */
 
   /* The caret comes back when the mic lets go. Focusing inside `onTranscript`
      misses every time: the box is still disabled at that moment, because the
@@ -964,11 +972,17 @@ export function TiffAssistant({
                         {live.text ? (
                           <AnswerText text={live.text} />
                         ) : (
-                          <span className="ttyping" aria-label="Tiff is thinking">
-                            <i></i>
-                            <i></i>
-                            <i></i>
-                          </span>
+                          /* THE WAIT NAMES ITSELF NOW. This was three bouncing
+                             dots under an `aria-label` reading "Tiff is
+                             thinking" — a sentence written for screen readers
+                             about a state no sighted reader could name, and
+                             wrong besides: through most of that wait Tiff is
+                             not thinking, it is out at the shelves. The word
+                             comes off the same machine the rail draws from
+                             (`workingNote`), so the corridor and the sheet
+                             cannot tell two different stories about the same
+                             moment. */
+                          <Waiting note={workingNote(viz)} />
                         )}
                       </div>
                     </div>
@@ -1023,9 +1037,61 @@ export function TiffAssistant({
               send(input);
             }}
           >
+            {dict.recording ? (
+              /* THE SAME CARD EVERY OTHER DOOR SHOWS (Isaac: "the input
+                 section should be identical throughout the software — they
+                 just appear in different places").
+
+                 The ask bar used to grow its own recording UI: a 22px orb, a
+                 small clock, a discard × and a stop ■, all crammed into the
+                 bar itself. Nothing was wrong with any of it except that it
+                 was a SECOND one — and on this very screen the topbar's Tiff
+                 button opened a completely different card for the same act of
+                 talking. Two mics, two answers to "is it hearing me", one
+                 page.
+
+                 So the bar hands its space to `RecordingCard` and gets it
+                 back when the mic closes. What arrives is what the sheet and
+                 the debrief show: what you have said so far, the 68px sphere,
+                 the clock at a size worth reading, whether anything is
+                 reaching the microphone, and Type instead / Start again /
+                 Done.
+
+                 IN THE PAGE, NOT OVER IT — the debrief's precedent (Isaac,
+                 2026-08-13: "match how the global one does it but in line").
+                 A scrim to dictate a question would put the conversation you
+                 are asking about behind a dim sheet. `tk-rec` does the same
+                 job `hm-cap` does for the debrief: it changes where the card
+                 stands and nothing about what it is made of.
+
+                 WHAT COMES AFTER `Done` IS STILL TIFF'S. The words land in
+                 the ask box and you press Send — no sorting, no review,
+                 because a question already knows what it is. Identical up to
+                 Done, deliberately not past it. */
+              <div className="wb2-capcard tk-rec wb2-dusk" role="group" aria-label="Recording">
+                <div className="wb2-capribbon">
+                  <span className="wb2-recdot" aria-hidden="true" />
+                  <b>Recording</b>
+                  {/* No chip. The note card's chip says where the words are
+                      going, and here that is the "Answer from" row still live
+                      directly underneath — saying it twice, two inches apart,
+                      is how the two of them come to disagree. */}
+                  <button
+                    type="button"
+                    className="wb2-ico"
+                    onClick={dict.cancel}
+                    title="Throw it away"
+                    aria-label="Discard the recording"
+                  >
+                    <Icon name="x" size={14} />
+                  </button>
+                </div>
+                <RecordingCard dict={dict} text={input} />
+              </div>
+            ) : (
             <div className="tinput">
               <div className="tib"></div>
-              <div className={`tin${dict.recording ? " live" : ""}${working ? " working" : ""}`}>
+              <div className={`tin${working ? " working" : ""}`}>
                 {/* the mark, not a sparkle: the sparkle was the generic AI
                     badge AND the Field-notes icon two inches away — the bar
                     is HeyTiff's own voice and wears its own mark (Isaac's
@@ -1035,87 +1101,62 @@ export function TiffAssistant({
                 </div>
                 <input
                   ref={inputRef}
-                  value={shownInput}
+                  value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder={
-                    dict.recording
-                      ? "Listening…"
-                      : active
-                        ? "Ask a follow-up…"
-                        : "Ask Tiff anything…"
-                  }
+                  placeholder={active ? "Ask a follow-up…" : "Ask Tiff anything…"}
                   aria-label="Ask Tiff"
                   disabled={listening}
                 />
-                {dict.recording ? (
-                  /* Send is GONE rather than disabled while the mic is open.
-                     There is nothing to send yet — the sentence is still being
-                     said — and a dead primary sitting under a live recording
-                     reads as a thing that ought to work. Stop takes its place
-                     and lands on the same pixels. */
-                  <>
-                    <LevelBars innerRef={dict.barsRef} />
-                    <DictClock seconds={dict.seconds} />
-                    <button
-                      type="button"
-                      className="tmicx"
-                      onClick={dict.cancel}
-                      title="Throw it away"
-                      aria-label="Discard the recording"
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="tsend live"
-                      onClick={dict.stop}
-                      title="Stop and read it back"
-                      aria-label="Stop dictating and read it back"
-                    >
-                      <Icon name="square" size={16} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {voiceEnabled && (
-                      <button
-                        type="button"
-                        className="tmic"
-                        onClick={dict.start}
-                        disabled={dict.transcribing}
-                        title="Ask it out loud"
-                        aria-label="Ask by voice"
-                      >
-                        <Icon name="mic" size={19} />
-                      </button>
-                    )}
-                    {/* The spinner REPLACES the arrow rather than sitting
-                        beside it: one control, and what it shows is what the
-                        page is doing. Still submits — a new question mid-answer
-                        drops the old one, which is the behaviour. */}
-                    {/* `aria-busy`, NOT a changed label: the button is the
-                        send button whether or not an answer is in flight, and
-                        renaming a control for a passing state is how a screen
-                        reader loses track of what it is. */}
-                    <button
-                      className={`tsend${working ? " busy" : ""}`}
-                      type="submit"
-                      aria-label="Send"
-                      aria-busy={working}
-                      disabled={listening}
-                    >
-                      {working ? (
-                        <span className="tsend-spin" aria-hidden="true" />
-                      ) : (
-                        <Icon name="send" size={18} />
-                      )}
-                    </button>
-                  </>
+                {voiceEnabled && (
+                  <button
+                    type="button"
+                    className="tmic"
+                    onClick={dict.start}
+                    disabled={dict.transcribing}
+                    title="Ask it out loud"
+                    aria-label="Ask by voice"
+                  >
+                    <Icon name="mic" size={19} />
+                  </button>
                 )}
+                {/* The spinner REPLACES the arrow rather than sitting
+                    beside it: one control, and what it shows is what the
+                    page is doing. Still submits — a new question mid-answer
+                    drops the old one, which is the behaviour. */}
+                {/* `aria-busy`, NOT a changed label: the button is the
+                    send button whether or not an answer is in flight, and
+                    renaming a control for a passing state is how a screen
+                    reader loses track of what it is. */}
+                <button
+                  className={`tsend${working ? " busy" : ""}`}
+                  type="submit"
+                  aria-label="Send"
+                  aria-busy={working}
+                  disabled={listening}
+                >
+                  {working ? (
+                    <span className="tsend-spin" aria-hidden="true" />
+                  ) : (
+                    <Icon name="send" size={18} />
+                  )}
+                </button>
               </div>
             </div>
+            )}
 
-            {dict.transcribing && <p className="tvsay">Reading it back…</p>}
+            {/* THE THIRD WAIT, AND IT GETS THE SAME OBJECT AS THE OTHER TWO.
+                Reading a recording back is a wait with nothing to show for
+                itself — no partial words, no shelves to light — and it said so
+                in the same flat grey the two-minute notice and the error line
+                use, which put a passing state in the typeface of bad news.
+                The chip that names the wait in the transcript names this one
+                too, keeping `tvsay` so the slot under the bar is unchanged.
+
+                It is also the far side of a pair. While the mic is open the
+                orb sits in the bar BREATHING with your voice; the moment it
+                closes the same sphere carries on turning here, under its own
+                power, until the words land. */}
+            {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="tvsay" />}
             {ranOut && !listening && (
               <p className="tvsay" role="status">
                 Two minutes — that&apos;s the limit for one recording. Press the mic to carry on.
@@ -1160,13 +1201,21 @@ export function TiffAssistant({
                   General knowledge
                 </button>
               </div>
-              <span className="tk-chint">
-                {!canResearch
-                  ? "Add documents and Tiff can answer from those too"
-                  : research
-                    ? "Your documents only, with the page it came from"
-                    : "What Tiff already knows — nothing is looked up"}
-              </span>
+              {/* IT ONLY SPEAKS WHEN A CONTROL CANNOT. Two of the three
+                  branches here restated the buttons an inch to the left —
+                  "Your documents only, with the page it came from" under a
+                  segment labelled Your library, and "What Tiff already knows
+                  — nothing is looked up" under one labelled General
+                  knowledge. A caption that says the label again in a longer
+                  sentence is the app talking rather than the control working.
+
+                  The third one earns its place and is all that is left: Your
+                  library is DISABLED until something is in it, and a dead
+                  segment with no reason given is the one thing on this row a
+                  person cannot work out by reading it. */}
+              {!canResearch && (
+                <span className="tk-chint">Add documents and Tiff can answer from those too</span>
+              )}
             </div>
           </form>
         </div>
@@ -1190,7 +1239,18 @@ export function TiffAssistant({
           cardRefs={cardRefs}
           viz={viz}
           idle={!active && readyCount > 0}
-          measureKey={active?.messages.length ?? 0}
+          /* THE MIC IS THE SECOND THING THAT MOVES THE COMPOSER. The lanes
+             leave from the composer's own edge, and the observer that catches
+             layout changes watches the STAGE — which does not change size when
+             a child of it does. That is why the transcript's length is here at
+             all; the recording card is now the other way the composer's height
+             changes under a drawn rail (ask, then press the mic while the
+             answer is still streaming), so it has to bump this too or the
+             lanes stay pinned to where the bar used to be.
+
+             Any changing number does: the overlay only reads it as "something
+             the observers cannot see has moved — measure again". */
+          measureKey={(active?.messages.length ?? 0) * 2 + (dict.recording ? 1 : 0)}
         />
       </div>
 

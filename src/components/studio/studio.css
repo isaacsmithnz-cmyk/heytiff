@@ -3433,35 +3433,6 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: var(--gray500);
 }
-.dstudio .ds-ai-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, rgba(138, 43, 226, 0.1), rgba(46, 104, 255, 0.1));
-  border: 1px solid rgba(138, 43, 226, 0.28);
-  color: var(--violet);
-  font-size: 12px;
-  font-weight: 800;
-}
-.dstudio .ds-ai-btn svg {
-  color: var(--violet);
-}
-.dstudio .ds-ai-btn:disabled {
-  cursor: default;
-  opacity: 0.85;
-}
-.dstudio .ds-ai-soon {
-  font: 800 8.5px var(--mono);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--violet);
-  background: rgba(138, 43, 226, 0.14);
-  border-radius: 999px;
-  padding: 2px 6px;
-}
 .dstudio .ds-pages {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

@@ -151,23 +151,22 @@ it("is absent until there is something to sort, once the mic is closed", async (
    The stage used to be a 680 × 201px card that was 86% empty, with a 36px
    meter marooned in the middle of it and the clock hidden in a corner at
    12.5px. What replaced it is pinned here as behaviour rather than pixels:
-   the state is said in WORDS, the recovery exists, and the preference
-   control is gone while the mic is open. */
+   the recovery exists, and the preference control is gone while the mic is
+   open. */
 
-it("says whether it is hearing you, in words", async () => {
+/* THE CARD DOES NOT NARRATE ITS OWN SENSES. A line under the clock used to
+   read "HEARING YOU" / "NOT HEARING ANYTHING" — written for the five-bar
+   meter, which could not show either. The orb shows both by turning and
+   swelling, and the words read as a product hedging about whether it works
+   (Isaac: "it just looks like it's not a reliable product if it has to
+   suggest it"). This is the only place that claim is pinned, because it is
+   the one worth keeping: the instrument demonstrates, it does not disclaim. */
+it("shows the meter without commentary on whether it can hear", async () => {
   mic.recording = true;
-  mic.hearing = true;
   await openSheet();
-  expect(screen.getByText("Hearing you")).toBeInTheDocument();
-});
 
-/* The silent line is the one that matters — it is the answer to the question
-   Isaac could not get off a row of 6px dots. */
-it("says so when nothing is arriving", async () => {
-  mic.recording = true;
-  mic.hearing = false;
-  await openSheet();
-  expect(screen.getByText("Not hearing anything")).toBeInTheDocument();
+  expect(screen.getByLabelText("Listening")).toBeInTheDocument();
+  expect(screen.queryByText(/hearing/i)).not.toBeInTheDocument();
 });
 
 it("offers a way to bin the take and start over", async () => {

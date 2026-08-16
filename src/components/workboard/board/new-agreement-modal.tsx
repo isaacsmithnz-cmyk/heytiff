@@ -75,7 +75,6 @@ export function NewAgreementModal({
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<JobSearchHit | null>(null);
   const [analysing, setAnalysing] = useState(false);
-  const [analysed, setAnalysed] = useState<string | null>(null);
 
   // the form — one review surface for both legs
   const [label, setLabel] = useState("");
@@ -136,7 +135,6 @@ export function NewAgreementModal({
     setQ(hit.jobNumber ? `#${hit.jobNumber}` : hit.clientName ?? "");
     if (hit.clientName) setClientName(hit.clientName);
     if (hit.suburb) setSiteLabel(hit.suburb);
-    setAnalysed(null);
   };
 
   /* Arriving FROM a job (the All jobs side): run the picker's own `pick`
@@ -161,6 +159,12 @@ export function NewAgreementModal({
     setBringItems(p.bringItems);
   };
 
+  /* IT SAYS NOTHING WHEN IT WORKS. This used to leave a line behind reading
+     "Tiff read the job — every field below is editable before anything is
+     created", which is the app defending itself against a worry nobody had
+     until it raised one. The fields ARE editable and the button below says
+     Create; the proposal landing in them is the whole message. The failure
+     path still speaks, because that is a fact you cannot see. */
   const analyse = () => {
     if (!picked) return;
     setAnalysing(true);
@@ -169,12 +173,10 @@ export function NewAgreementModal({
       const res = await analyseSm8JobForAgreement(picked.remoteId);
       setAnalysing(false);
       if (!res.ok) {
-        setAnalysed(null);
         setErr(res.reason === "no-key" ? "Tiff is offline — fill the rest in yourself." : res.reason);
         return;
       }
       applyProposal(res.proposal);
-      setAnalysed("Tiff read the job — every field below is editable before anything is created.");
     });
   };
 
@@ -298,7 +300,6 @@ export function NewAgreementModal({
                   )}
                 </div>
               )}
-              {analysed && <p className="wb2-hint">{analysed}</p>}
             </div>
           )}
 

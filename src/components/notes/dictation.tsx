@@ -4,6 +4,7 @@ import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
+import { Orb } from "@/components/ui/orb";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -70,15 +71,9 @@ const REALTIME = process.env.NEXT_PUBLIC_VOICE_REALTIME === "1";
    outcome nobody would forgive. */
 export const MAX_RECORDING_SECONDS = 120;
 
-/* WHAT COUNTS AS BEING HEARD. The same threshold the "was anything said"
-   count has always used — one number, so the label on screen and the
-   decision to bin a silent clip can never disagree. */
+/* WHAT COUNTS AS A VOICE, for the "was anything said" count that decides
+   whether `handOver` may bin a take unheard. */
 const LOUD_ENOUGH = 0.07;
-
-/** How long a silence has to run before the card stops claiming to hear you.
-    Long enough to cover the gap between two sentences, short enough that a
-    mic which has actually died is called out while you are still talking. */
-const QUIET_MS = 1_200;
 
 /** When the clock stops counting up and starts counting down. Long enough to
     finish a sentence and press stop yourself. */
@@ -127,7 +122,7 @@ export function transportChoice(): boolean {
 export const saidSomething = (text: string) =>
   text.replace(/[[(][^\])]*[\])]/g, "").trim() !== "";
 
-type DictationState = {
+export type DictationState = {
   recording: boolean;
   /** Sending the audio off and waiting for words back. */
   transcribing: boolean;
@@ -136,12 +131,6 @@ type DictationState = {
       batch transport — a caller that shows it simply shows nothing until
       the live path is switched on. */
   interim: string;
-  /** Is a voice reaching the microphone right now? The bars have always
-      carried this; this is the same fact in a form you can put in words,
-      and it settles slowly enough to read. False whenever the meter could
-      not start, so a caller must treat it as "cannot tell", never as
-      "definitely deaf". */
-  hearing: boolean;
   /** Bind to the level-meter element; the meter writes to it every frame. */
   barsRef: React.RefObject<HTMLSpanElement | null>;
   start: () => void;
@@ -221,24 +210,10 @@ export function useDictation({
   const barsRef = useRef<HTMLSpanElement | null>(null);
   const meter = useRef<{ ctx: AudioContext; raf: number } | null>(null);
   const live = useRef<RealtimeHandle | null>(null);
-  /* IS IT HEARING ANYTHING RIGHT NOW — the same samples the bars are drawn
-     from, but as a fact a caller can put into words. The bars have always
-     carried this and nobody could read them: at silence they collapse to
-     6px, which is indistinguishable from a mic that died. Isaac hit exactly
-     that on prod and had no way to tell.
-
-     It is deliberately SLOW where the bars are fast. The meter runs every
-     frame and writes straight to the DOM to stay out of React; this flips at
-     most a few times a recording, because a label that flickers between
-     "hearing you" and "not hearing anything" between syllables is worse than
-     no label. `QUIET_MS` is the pause you are allowed inside a sentence. */
-  const [hearing, setHearing] = useState(false);
-  /* Both read and written only inside the animation frame — a clock touched
-     during render tears hydration for the whole tree. The mirror ref is what
-     keeps `setHearing` off the per-frame path: state changes on a crossing,
-     not on a sample. */
+  /* When a voice was last above `LOUD_ENOUGH`. Read only inside the animation
+     frame — a clock touched during render tears hydration for the whole
+     tree. */
   const lastLoud = useRef(0);
-  const hearingNow = useRef(false);
 
   /* The callbacks live in a ref so the recorder's own handlers always see the
      current ones without the effect below re-running and dropping the mic.
@@ -316,17 +291,16 @@ export function useDictation({
         }
         // straight to the DOM, never through React — this runs every frame
         barsRef.current?.style.setProperty("--lvl", level.toFixed(3));
-        /* The only line here allowed to reach React, and only on a crossing. */
-        const heard = now - lastLoud.current < QUIET_MS;
-        if (heard !== hearingNow.current) {
-          hearingNow.current = heard;
-          setHearing(heard);
-        }
+        /* NOTHING HERE REACHES REACT. A crossing of a quiet threshold used
+           to flip a `hearing` flag for a label under the clock — a state
+           update, and a re-render of the whole recording surface, every time
+           you paused mid-sentence. The label is gone (see the note against
+           `RecordingMeter`), so this loop is now purely one custom property
+           written to one element, which is what it always wanted to be. */
         if (meter.current) meter.current.raf = requestAnimationFrame(tick);
       };
 
       lastLoud.current = 0;
-      hearingNow.current = false;
       meter.current = { ctx, raf: requestAnimationFrame(tick) };
       meterRan.current = true;
     } catch {
@@ -622,7 +596,6 @@ export function useDictation({
     transcribing,
     seconds,
     interim,
-    hearing,
     barsRef,
     start,
     stop,
@@ -632,59 +605,57 @@ export function useDictation({
   };
 }
 
-/* THE TRACE — the recording card's meter, and the reason it is not the
-   five-bar one below.
+/* THERE WAS A SECOND METER HERE, AND THERE IS ONE INSTRUMENT NOW.
 
-   Measured on the card as it shipped: the meter was 36 × 34px, five percent
-   of the card's width, nine tenths of one percent of its area — and at
-   silence `scaleY(.18)` collapsed each bar to 6.1px. So the one element that
-   proves the microphone is working was the smallest thing on the screen, and
-   its resting state was indistinguishable from a mic that had died. Isaac hit
-   exactly that on prod: "Nothing was said in that one" over a row of dots he
-   had no way to read.
+   `WaveMeter` was a 48-bar trace built for the capture card alone, because
+   the five-bar meter was wrong there in a way that reached prod: 36 × 34px,
+   five percent of the card's width, and at silence a `scaleY(.18)` that
+   collapsed each bar to 6.1px — the one element proving the microphone works
+   was the smallest thing on the screen, and its resting state was
+   indistinguishable from a dead mic. Isaac hit it: "Nothing was said in that
+   one", over a row of dots he had no way to read.
 
-   Wide, so it is the first thing the eye lands on. A resting floor of 6% of
-   56px rather than 18% of 34px, so a quiet room draws a live flat LINE — the
-   difference between "listening, hearing nothing" and "dead" is now visible
-   rather than inferred. The envelope tapers the ends so it reads as one
-   shape instead of a fence. */
-const WAVE_BARS = 48;
+   The trace answered that with WIDTH, which was the only axis a bar meter had
+   left. The whole of it — the 56px height, the 6% resting floor, the sine
+   envelope tapering the ends so it read as one shape rather than a fence —
+   was a one-channel instrument being made large enough to survive its own
+   resting state.
 
-export function WaveMeter({
-  innerRef,
-  small,
-}: {
-  innerRef: React.RefObject<HTMLSpanElement | null>;
-  /** Words have arrived and taken the space — the trace drops to a baseline. */
-  small?: boolean;
-}) {
-  return (
-    <span
-      className={"wb2-wave" + (small ? " thin" : "")}
-      role="status"
-      aria-label="Listening"
-      ref={innerRef}
-    >
-      {Array.from({ length: WAVE_BARS }, (_, i) => {
-        const t = i / (WAVE_BARS - 1);
-        return (
-          <i
-            key={i}
-            style={{ "--g": (0.45 + 0.55 * Math.sin(Math.PI * t)).toFixed(3) } as React.CSSProperties}
-          />
-        );
-      })}
-    </span>
-  );
-}
+   The orb does not need any of it, because size stopped being the only thing
+   the meter could say. It turns because the microphone is open and grows
+   because you are loud, so a silent room is a small sphere still turning, at
+   34px or at 68. That leaves nothing for a second component to do: the
+   capture card asks `LevelOrb` for a bigger one and the stylesheet gives it
+   one, which is the same answer the ask bar and the dictation bar get.
 
-/** The five-bar real-sample meter — bind `ref` to a dictation's `barsRef`. */
-export function LevelBars({ innerRef }: { innerRef: React.RefObject<HTMLSpanElement | null> }) {
+   Deleted rather than converted, deliberately. Two meters that render the
+   same object are two places for it to drift. */
+
+/* The real-sample meter — bind `ref` to a dictation's `barsRef`.
+
+   IT WAS FIVE BARS, AND THE NAME OUTLIVED THEM BY ONE COMMIT. `LevelBars`
+   scaled five heights from one `--lvl` with a fixed gain each, which means it
+   was never five readings — it was one reading drawn five times. Nothing is
+   lost by drawing it once, as a sphere, and something is gained: a bar has
+   only its height to speak with, so "the microphone is alive" and "you are
+   this loud" had to share it, and in a quiet room they became the same
+   picture. That is the failure Isaac hit on prod — "Nothing was said in that
+   one", read off a row of dots that looked identical to a dead mic.
+
+   The orb separates them. It TURNS because the microphone is open and it
+   GROWS because you are loud; silence is a small sphere still turning, which
+   no longer resembles anything broken.
+
+   NOTHING ABOUT THE SIGNAL CHANGED. `--lvl` is still written to this element
+   and nowhere else, straight to the DOM every animation frame by the meter
+   loop in `startMeter`, still with no transition anywhere between the samples
+   and the screen. The size is the stylesheet's (`--orb` per row), so the orb
+   is deliberately rendered WITHOUT a size prop — an inline style here would
+   win over all four of the rows that set it. */
+export function LevelOrb({ innerRef }: { innerRef: React.RefObject<HTMLSpanElement | null> }) {
   return (
     <span className="wb-lvl" role="status" aria-label="Listening" ref={innerRef}>
-      {[0.5, 0.8, 1, 0.8, 0.5].map((g, i) => (
-        <i key={i} style={{ "--g": g } as React.CSSProperties} />
-      ))}
+      <Orb />
     </span>
   );
 }

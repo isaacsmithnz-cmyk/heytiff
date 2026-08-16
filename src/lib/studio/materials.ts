@@ -83,7 +83,10 @@ export interface MaterialsSchedule {
   systems: SystemSchedule[];
 }
 
-const describeUnit = (pack: DataPack, model: string): string => {
+/** "cassette-4way indoor unit · 3.2/3.6 kW" — shared with the summary sheet's
+    Material picklist, which counts units for EVERY system type (this module
+    still schedules splits only). */
+export const describeUnit = (pack: DataPack, model: string): string => {
   const idu = pack.indoor_units.find((u) => u.model === model);
   if (idu)
     return `${idu.form_factor} indoor unit · ${idu.capacity_cool_kw}/${idu.capacity_heat_kw} kW`;

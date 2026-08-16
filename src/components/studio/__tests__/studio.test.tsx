@@ -107,12 +107,13 @@ describe("Design Studio shell", () => {
     );
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Summary" }));
-    expect(screen.getByText("Design basis")).toBeInTheDocument();
+    // the basis chips carry the settings the loads were computed from
+    expect(screen.getByText(/^Zone \d/)).toBeInTheDocument();
     expect(
       screen.getByRole("group", { name: "Design snapshot" })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("An empty design is an empty schedule")
+      screen.getByText("An empty design is an empty sheet")
     ).toBeInTheDocument();
   });
 

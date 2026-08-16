@@ -1,36 +1,32 @@
 "use client";
 
-import type { SummaryRoomRow, SummarySystem } from "@/lib/studio/summary";
+import { useState } from "react";
+import { Icon } from "@/components/shell/icon";
+import type { PicklistRow, SummaryRoomRow, SummarySystem } from "@/lib/studio/summary";
+import { fmt, pct, tone, LinesTable, OutdoorBlock, RoomsTable } from "./sheet-tables";
 
-/* One card per system: the verdict up top, then a row per room.
+/* One card per system, read top to bottom as a hierarchy:
 
-   The room is the row because that is how the document stores it — an indoor
-   unit carries `props.roomId`, while the outdoor, the pipe and the components
-   carry only a systemId. A multi therefore reads as three heads on one
-   outdoor rather than one unit serving three rooms, which is what a single
-   equipment list beside three room names used to imply.
+     band      — what the system IS (name, kind, verdict)
+     outdoor   — the parent machine, stated once, with the brand's presence
+     rooms     — its children: the indoors that hang off it, one row per room
+     materials — what it takes to fit them (consumables only)
 
-   So: a split keeps its outdoor in Equipment and has no shared section at
-   all. A multi says "Shared" against each head's outdoor and adds a final
-   row — on the SAME three columns — carrying what those rooms have in
-   common. This file renders; summary.ts computes. */
+   Nothing is said twice: units never appear in materials (the indoors are the
+   rooms table, the outdoor is its block), pipe size lives only on its coil
+   line, and the brand appears exactly once. The whole-job combined list is
+   the Material picklist card at the sheet's foot. */
 
-const fmt = (n: number | null, unit: string): string =>
-  n == null ? "—" : `${n % 1 === 0 ? n : n.toFixed(1)} ${unit}`;
-const pct = (n: number | null): string => (n == null ? "—" : `${n}%`);
-
-/** covered / short / unknown → the figure block's state class. Semantic, and
-    deliberately not the page accent (see the design-system note in memory). */
-const tone = (status: SummaryRoomRow["status"], value: number | null): string =>
-  value == null ? "na" : status === "covered" ? "ok" : "under";
-
-function Figures({
+function VerdictChip({
   cells,
 }: {
   cells: { value: string; label: string; tone?: string }[];
 }) {
+  /* the verdict rides its own WHITE chip on the tinted band: every state
+     colour and label measured 4.1–4.4 on the six system tints; on white
+     they clear 4.8 whatever colour the band carries */
   return (
-    <div className="ds-rmfigs">
+    <div className="ds-band-v">
       {cells.map((c) => (
         <div key={c.label} className={c.tone ?? ""}>
           <b>{c.value}</b>
@@ -41,282 +37,152 @@ function Figures({
   );
 }
 
-function Pairs({
-  rows,
-}: {
-  rows: { role: string; value: React.ReactNode; note?: string; qty?: string }[];
-}) {
-  return (
-    <div className="ds-eqlist">
-      {rows.map((r) => (
-        <div key={r.role} className="ds-eq">
-          <span className="ds-eq-role">{r.role}</span>
-          <b>
-            {r.value}
-            {r.note && <em>{r.note}</em>}
-          </b>
-          <span className="ds-eq-q">{r.qty ?? ""}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RoomRow({
-  room,
-  sys,
-}: {
-  room: SummaryRoomRow;
-  sys: SummarySystem | null;
-}) {
-  const pipe =
-    sys && sys.pipeLiquidMm != null && sys.pipeGasMm != null
-      ? `ø${sys.pipeLiquidMm} / ø${sys.pipeGasMm}`
-      : null;
-
-  return (
-    <div className="ds-rrow">
-      <div className="ds-rcol">
-        <span className="ds-rcap">Room</span>
-        <div className="ds-rm">
-          <div className="ds-rm-top">
-            <b>{room.name}</b>
-            {room.level && <span className="ds-lvl">{room.level}</span>}
-          </div>
-          <Figures
-            cells={[
-              { value: fmt(room.areaM2, "m²"), label: "Area" },
-              { value: fmt(room.loadKw, "kW"), label: "Load" },
-              {
-                value: fmt(room.capacityKw, "kW"),
-                label: "Capacity",
-                tone: room.capacityKw == null ? "na" : undefined,
-              },
-              {
-                value: pct(room.pct),
-                label: "Covered",
-                tone: tone(room.status, room.pct),
-              },
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="ds-rcol">
-        <div className="ds-rcaprow">
-          <span className="ds-rcap">Equipment</span>
-        </div>
-        {sys ? (
-          <Pairs
-            rows={[
-              { role: "Brand", value: sys.brandLabel },
-              ...(sys.styleLabel
-                ? [{ role: "Style", value: sys.styleLabel }]
-                : []),
-              {
-                role: "Indoor",
-                value: room.indoorModel ?? "—",
-              },
-              {
-                role: "Outdoor",
-                /* a shared outdoor names itself once, in the row below —
-                   repeating it per head would say every room has its own */
-                value: sys.sharedOutdoor ? (
-                  <span className="ds-pill">Shared</span>
-                ) : (
-                  sys.outdoorModel ?? "—"
-                ),
-              },
-              ...(pipe ? [{ role: "Pipe size", value: pipe }] : []),
-              ...(sys.refrigerant
-                ? [{ role: "Refrigerant", value: sys.refrigerant }]
-                : []),
-            ]}
-          />
-        ) : (
-          <Pairs rows={[{ role: "—", value: "Nothing chosen" }]} />
-        )}
-      </div>
-
-      <div className="ds-rcol">
-        <span className="ds-rcap">Components</span>
-        {sys ? (
-          <Pairs
-            rows={[
-              ...(sys.totalPipeM != null && !sys.sharedOutdoor
-                ? [
-                    {
-                      role: "Pipe length",
-                      value: pipe ?? "Run",
-                      qty: `${sys.totalPipeM} m`,
-                    },
-                  ]
-                : []),
-              ...sys.components.map((c) => ({
-                role: c.role,
-                value: c.name,
-                note: c.sub || undefined,
-                qty: c.value,
-              })),
-            ]}
-          />
-        ) : (
-          <Pairs rows={[{ role: "—", value: "Nothing chosen" }]} />
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function SystemCard({ sys }: { sys: SummarySystem }) {
-  const pipe =
-    sys.pipeLiquidMm != null && sys.pipeGasMm != null
-      ? `ø${sys.pipeLiquidMm} / ø${sys.pipeGasMm}`
-      : null;
-
   return (
     <section
-      className="ds-glass ds-sysc sys"
+      className="ds-sysc sys"
       style={{ ["--sys" as string]: sys.colour }}
     >
-      <div className="ds-sysc-h">
-        <span className="ds-sysdot2" />
-        <h3>{sys.name}</h3>
-        <span className="ds-sysc-kind">{sys.brandLabel}</span>
-        <div className="ds-figs3">
-          <div>
-            <b>{fmt(sys.loadKw, "kW")}</b>
-            <span>Load</span>
-          </div>
-          <div>
-            <b>{fmt(sys.capacityKw, "kW")}</b>
-            <span>Capacity</span>
-          </div>
-          <div className={tone(sys.status, sys.pct)}>
-            <b>{pct(sys.pct)}</b>
-            <span>Covered</span>
-          </div>
+      <header className="ds-band">
+        <div className="ds-band-id">
+          <h3>{sys.name}</h3>
+          <span>{sys.kindLabel}</span>
         </div>
+        <VerdictChip
+          cells={[
+            { value: fmt(sys.loadKw, "kW"), label: "Load" },
+            { value: fmt(sys.capacityKw, "kW"), label: "Capacity" },
+            {
+              value: pct(sys.pct),
+              label: "Covered",
+              tone: tone(sys.status, sys.pct),
+            },
+          ]}
+        />
+      </header>
+
+      <div className="ds-sysc-b">
+        <OutdoorBlock sys={sys} />
+
+        <span className="ds-tcap">
+          {sys.rooms.length === 1 ? "Room served" : "Rooms served"}
+        </span>
+        <RoomsTable rooms={sys.rooms} />
+
+        {sys.lines.length > 0 && (
+          <>
+            <span className="ds-tcap">Materials</span>
+            <LinesTable lines={sys.lines} />
+          </>
+        )}
       </div>
-
-      {sys.rooms.map((r) => (
-        <RoomRow key={r.roomId} room={r} sys={sys} />
-      ))}
-
-      {/* only a multi or VRF earns this: a split's one outdoor lives in its
-          Equipment list, and a Shared section there would be a section of one */}
-      {sys.sharedOutdoor && (
-        <div className="ds-rrow shared">
-          <div className="ds-rcol">
-            <span className="ds-rcap">Shared</span>
-            <div className="ds-rm">
-              <div className="ds-rm-top">
-                <b>Outdoor</b>
-                <span className="ds-pill">
-                  Shared by {sys.rooms.length} rooms
-                </span>
-              </div>
-              <Figures
-                cells={[
-                  { value: fmt(sys.capacityKw, "kW"), label: "Capacity" },
-                  { value: String(sys.rooms.length), label: "Heads" },
-                  {
-                    value: sys.totalPipeM == null ? "—" : `${sys.totalPipeM} m`,
-                    label: "Total pipe",
-                    tone: sys.totalPipeM == null ? "na" : undefined,
-                  },
-                  {
-                    value: pct(sys.pct),
-                    label: "Covered",
-                    tone: tone(sys.status, sys.pct),
-                  },
-                ]}
-              />
-            </div>
-          </div>
-          <div className="ds-rcol">
-            <span className="ds-rcap">Equipment</span>
-            <Pairs
-              rows={[
-                { role: "Brand", value: sys.brandLabel },
-                { role: "Outdoor", value: sys.outdoorModel ?? "—" },
-                ...(pipe ? [{ role: "Pipe size", value: pipe }] : []),
-                ...(sys.refrigerant
-                  ? [
-                      {
-                        role: "Refrigerant",
-                        value: sys.refrigerant,
-                        note:
-                          sys.prechargedKg != null
-                            ? `${sys.prechargedKg} kg pre-charged`
-                            : undefined,
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-          </div>
-          <div className="ds-rcol">
-            <span className="ds-rcap">Components</span>
-            <Pairs
-              rows={[
-                ...(sys.totalPipeM != null
-                  ? [
-                      {
-                        role: "Pipe length",
-                        value: pipe ?? "Run",
-                        qty: `${sys.totalPipeM} m`,
-                      },
-                    ]
-                  : []),
-                ...sys.components.map((c) => ({
-                  role: c.role,
-                  value: c.name,
-                  note: c.sub || undefined,
-                  qty: c.value,
-                })),
-              ]}
-            />
-          </div>
-        </div>
-      )}
     </section>
   );
 }
 
-/** Rooms no system serves. Their own card, on the same grid, so a gap in the
-    design states its own size instead of hiding as blanks in a table. */
+/** Rooms no system serves. The same rooms table, so a gap in the design
+    states its own size instead of hiding as blanks elsewhere. */
 export function UnservedCard({ rooms }: { rooms: SummaryRoomRow[] }) {
-  const area = rooms.reduce<number | null>(
-    (a, r) => (r.areaM2 == null ? a : (a ?? 0) + r.areaM2),
-    null
-  );
   const load = rooms.reduce<number | null>(
     (a, r) => (r.loadKw == null ? a : (a ?? 0) + r.loadKw),
     null
   );
   return (
-    <section className="ds-glass ds-sysc none">
-      <div className="ds-sysc-h">
-        <h3>Not served yet</h3>
-        <div className="ds-figs3">
-          <div>
-            <b>{rooms.length}</b>
-            <span>{rooms.length === 1 ? "Room" : "Rooms"}</span>
-          </div>
-          <div>
-            <b>{fmt(area == null ? null : Math.round(area * 10) / 10, "m²")}</b>
-            <span>Area</span>
-          </div>
-          <div className="under">
-            <b>{fmt(load == null ? null : Math.round(load * 10) / 10, "kW")}</b>
-            <span>Load</span>
-          </div>
+    <section className="ds-sysc none">
+      <header className="ds-band">
+        <div className="ds-band-id">
+          <h3>Not served yet</h3>
+          <span>
+            {rooms.length === 1 ? "1 room has" : `${rooms.length} rooms have`} no
+            unit
+          </span>
         </div>
+        <VerdictChip
+          cells={[
+            { value: String(rooms.length), label: rooms.length === 1 ? "Room" : "Rooms" },
+            {
+              value: fmt(load == null ? null : Math.round(load * 10) / 10, "kW"),
+              label: "Load",
+              tone: "under",
+            },
+          ]}
+        />
+      </header>
+      <div className="ds-sysc-b">
+        <RoomsTable rooms={rooms} />
       </div>
-      {rooms.map((r) => (
-        <RoomRow key={r.roomId} room={r} sys={null} />
-      ))}
+    </section>
+  );
+}
+
+/** The whole job's combined pick — every system, units and consumables.
+    Plain rows on purpose: ticking happens on the JOB CARD, one item per line,
+    not on the sheet. The sheet states the list; the warehouse works it. */
+export function PicklistCard({
+  rows,
+  jobLink,
+  designId,
+}: {
+  rows: PicklistRow[];
+  /** the linked ServiceM8 job, when there is one — the push has nowhere to go
+      without it, so the button is absent rather than dead */
+  jobLink: { remoteId: string; jobNumber: string | null } | null;
+  designId: string;
+}) {
+  const [state, setState] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "done"; msg: string } | { kind: "err"; msg: string }
+  >({ kind: "idle" });
+
+  const push = async () => {
+    if (!jobLink) return;
+    setState({ kind: "busy" });
+    try {
+      const { pushPicklistToJob } = await import("@/app/actions/job-picklist");
+      const r = await pushPicklistToJob(jobLink.remoteId, designId, rows);
+      setState({
+        kind: "done",
+        msg:
+          r.added === 0
+            ? "Already on the job"
+            : `${r.added} added${r.alreadyThere > 0 ? `, ${r.alreadyThere} already there` : ""}`,
+      });
+    } catch (e) {
+      /* a server action with no catch returns a bare 503 the UI can neither
+         explain nor stop retrying */
+      setState({
+        kind: "err",
+        msg: e instanceof Error ? e.message : "Could not add to the job",
+      });
+    }
+  };
+
+  return (
+    <section className="ds-sysc pick">
+      <header className="ds-band">
+        <div className="ds-band-id">
+          <h3>Material picklist</h3>
+          <span>every system combined</span>
+        </div>
+        {jobLink && (
+          <div className="ds-pick-act">
+            {state.kind === "done" && <em className="ok">{state.msg}</em>}
+            {state.kind === "err" && <em className="err">{state.msg}</em>}
+            <button
+              className="ds-chrome-btn"
+              onClick={push}
+              disabled={state.kind === "busy" || rows.length === 0}
+            >
+              <Icon name="check" size={13} />
+              {state.kind === "busy"
+                ? "Adding…"
+                : `Add to job${jobLink.jobNumber ? ` ${jobLink.jobNumber}` : ""}`}
+            </button>
+          </div>
+        )}
+      </header>
+      <div className="ds-sysc-b">
+        <LinesTable lines={rows} />
+      </div>
     </section>
   );
 }

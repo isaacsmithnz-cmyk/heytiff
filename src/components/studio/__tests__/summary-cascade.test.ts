@@ -71,16 +71,31 @@ describe("Summary sheet cascade", () => {
     expect(targeted).toEqual([".dstudio .ds-hero"]);
   });
 
-  it("the Summary cover is a grid, and the landing hero is not", () => {
-    /* States the shape the collision inverted, so a future re-merge of the two
-       fails here rather than on the landing page in production. */
-    expect(css).toMatch(
-      /\.dstudio \.ds-cover \{[^}]*grid-template-columns:\s*1fr 340px/
+  it("the landing hero stays a flex column, and the ink cover stays dead", () => {
+    /* The 2026-08-16 document redesign DELETED the ink cover — the sheet's
+       header is the ds-letter family now. A returning `.ds-cover` rule means
+       someone resurrected the old sheet (or its name), which is exactly how
+       the .ds-hero collision shipped. The landing hero must also stay a flex
+       column — the collision's symptom was it becoming the cover's grid. */
+    const coverish = selectors.filter((sel) =>
+      sel.split(",").some((s) => /\.ds-cover(?![\w-])/.test(s))
     );
+    expect(coverish).toEqual([]);
     const hero = css.match(/\.dstudio \.ds-hero \{[^}]*\}/);
     expect(hero).not.toBeNull();
     expect(hero![0]).not.toMatch(/grid-template-columns/);
     expect(hero![0]).toMatch(/display:\s*flex/);
+  });
+
+  it("the sheet's state colours outrank the table's number weight", () => {
+    /* `.dstudio .ds-mat-table td.num` is (0,3,1); a bare `td.num.ok` pair
+       written one level down would silently lose — the covered column rendered
+       plain black in the mock until the selectors carried the full chain. */
+    for (const state of ["ok", "under", "na"]) {
+      expect(css).toMatch(
+        new RegExp(`\\.dstudio \\.ds-mat-table td\\.num\\.${state}(?![\\w-])`)
+      );
+    }
   });
 
   it("the Summary root is styled by its own class", () => {

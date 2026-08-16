@@ -58,6 +58,10 @@ export interface ComponentRow {
     selectedId: string;
     options: ComponentChoiceOption[];
   };
+  /** present on the charge row: the numbers behind the formatted value, so
+      the summary sheet can decide (top-up > 0 → a picklist line) without
+      parsing display text */
+  charge?: { prechargeKg: number | null; topupKg: number | null };
 }
 
 /* ─────────────────────────── choice catalogue ───────────────────────────
@@ -199,6 +203,7 @@ function chargeRow(
     sub,
     value,
     icon: "droplet",
+    charge: { prechargeKg: precharge, topupKg },
   };
 }
 

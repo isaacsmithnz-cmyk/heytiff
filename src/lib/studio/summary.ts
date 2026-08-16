@@ -12,6 +12,7 @@ import type { DataPack } from "./packs/schema";
 import {
   CLIMATE_ZONES,
   DEFAULT_CLIMATE_ZONE,
+  sizingCapacityKw,
   type BuildingType,
   type SizingBasis,
 } from "./loads";
@@ -19,6 +20,7 @@ import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
 import { roomCoverage, type CoverageStatus } from "./coverage";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemComponents } from "./components";
+import { describeUnit } from "./materials";
 
 /** The zone number the engine actually uses — settings store a stringified
     zone ("5") or null; anything unparsable falls back like loads-room.ts.
@@ -210,16 +212,33 @@ export interface SummaryRoomRow {
   indoorModel: string | null;
 }
 
+/** One takeoff line — a pipe coil, a component choice, a refrigerant top-up.
+    Never a unit: units live in the rooms table (indoors) and the outdoor
+    block, and repeating them here would double-handle the sheet. */
+export interface SheetLine {
+  /** what it is, e.g. "ø6.35 / ø9.52 pair coil", "Isolator · 20 A" */
+  name: string;
+  /** qualifier, e.g. "liquid / gas mm", "Weatherproof IP66" */
+  sub: string;
+  /** the takeoff quantity as shown, e.g. "18 m", "1 set", "820 g", "—" */
+  qty: string;
+}
+
 export interface SummarySystem {
   systemId: string;
   name: string;
   colour: string;
   type: DesignSystem["type"];
+  /** what the system IS, e.g. "Multi-split · 4 heads on one outdoor" */
+  kindLabel: string;
   /** the brand's display name from the pack, never the slug */
   brandLabel: string;
   /** indoor form factor, e.g. "cassette-4way" → "Cassette (4 way)" */
   styleLabel: string | null;
   outdoorModel: string | null;
+  /** the outdoor machine's own sizing capacity — NOT the summed placed
+      capacity below; this is what the nameplate says, that is the verdict */
+  outdoorCapacityKw: number | null;
   /** true when more than one room shares the outdoor — multi and VRF */
   sharedOutdoor: boolean;
   pipeLiquidMm: number | null;
@@ -234,13 +253,27 @@ export interface SummarySystem {
   capacityKw: number | null;
   pct: number | null;
   status: CoverageStatus;
-  components: { role: string; name: string; sub: string; value: string }[];
+  /** the system's consumables/accessories takeoff — see SheetLine */
+  lines: SheetLine[];
+}
+
+/** One Material picklist row — the combined pick for the whole job. */
+export interface PicklistRow {
+  name: string;
+  sub: string;
+  qty: string;
 }
 
 export interface SummaryModel {
   systems: SummarySystem[];
   /** rooms no system serves — the gap in the design, stated plainly */
   unserved: SummaryRoomRow[];
+  /** the whole job's combined pick: units for EVERY system type (the split-
+      only materials schedule under-counted a multi), pipe summed by size,
+      components summed where countable, refrigerant top-ups per system.
+      "Supplied by others" rows are excluded — not in this takeoff is not
+      in this pick. */
+  picklist: PicklistRow[];
 }
 
 const FORM_LABELS: Record<string, string> = {
@@ -259,6 +292,36 @@ export function formFactorLabel(form: string | null | undefined): string | null 
   if (!form) return null;
   return FORM_LABELS[form] ?? form;
 }
+
+/* `satisfies`, not `Record<SystemType, …>` as an annotation — the annotation
+   widens keyof and a typo'd lookup would type-check into the fallback. */
+const KIND_BASE = {
+  split: "Split",
+  "multi-split": "Multi-split",
+  ducted: "Ducted",
+  vrf: "VRF",
+  ventilation: "Ventilation",
+  "sheet-metal": "Sheet metal",
+} satisfies Record<DesignSystem["type"], string>;
+
+/** "Multi-split · 4 heads on one outdoor" — the head count is stated only
+    when the outdoor is genuinely shared, which is what the count is FOR. */
+export function systemKindLabel(
+  type: DesignSystem["type"],
+  headCount: number
+): string {
+  const base = KIND_BASE[type];
+  return headCount > 1 && (type === "multi-split" || type === "vrf")
+    ? `${base} · ${headCount} heads on one outdoor`
+    : base;
+}
+
+/** "1", "1 set", "18 m" → the number and its unit, separately — so counts
+    can be summed across systems without parsing display text twice. */
+const parseQty = (q: string): { n: number; unit: string } | null => {
+  const m = /^(\d+(?:\.\d+)?)\s*(.*)$/.exec(q.trim());
+  return m ? { n: Number(m[1]), unit: m[2] } : null;
+};
 
 export function buildSummaryModel(
   doc: DesignDocument,
@@ -322,39 +385,82 @@ export function buildSummaryModel(
         ? Math.round((cap / load) * 100)
         : null;
 
+    const compRows = systemComponents(doc, pack, sys, basis);
+    const chargeRow = compRows.find((c) => c.kind === "charge") ?? null;
+    const topupKg = chargeRow?.charge?.topupKg ?? null;
+
+    const pipeLiquidMm = oduRow?.conn_liquid_mm ?? null;
+    const pipeGasMm = oduRow?.conn_gas_mm ?? null;
+    const totalPipeM = totalPipeLengthM(
+      buildSystemGraph(doc.objects, doc.floors, sys.id)
+    );
+    const hasRuns = doc.objects.some(
+      (o) => o.systemId === sys.id && o.type === "pipe-run"
+    );
+
+    /* the takeoff: pipe, then the component choices, then any top-up. Units
+       are NOT lines — indoors live in the rooms table, the outdoor in its
+       block; a unit repeated here would double-handle the sheet. */
+    const lines: SheetLine[] = [
+      ...(totalPipeM != null && totalPipeM > 0 && pipeLiquidMm != null && pipeGasMm != null
+        ? [
+            {
+              name: `ø${pipeLiquidMm} / ø${pipeGasMm} pair coil`,
+              sub: "liquid / gas mm",
+              qty: `${totalPipeM} m`,
+            },
+          ]
+        : hasRuns
+          ? [
+              /* a drawn run the sheet can't measure is stated, not omitted —
+                 silence would read as "no pipe on this job" */
+              {
+                name: "Pair coil",
+                sub: "run drawn — calibrate the floor to quantify",
+                qty: "—",
+              },
+            ]
+          : []),
+      ...compRows
+        .filter((c) => c.kind === "choice")
+        .map((c) => ({ name: c.name, sub: c.sub ?? "", qty: c.value })),
+      ...(topupKg != null && topupKg > 0
+        ? [
+            {
+              name: "Additional refrigerant",
+              sub: "beyond pre-charge",
+              qty: `${Math.round(topupKg * 1000)} g`,
+            },
+          ]
+        : []),
+    ];
+
     return {
       systemId: sys.id,
       name: sys.name,
       colour: sys.colour,
       type: sys.type,
+      kindLabel: systemKindLabel(sys.type, mine.length),
       brandLabel:
         pack?.brands.find((b) => b.id === sys.brand)?.name ?? sys.brand,
       styleLabel: formFactorLabel(iduRow?.form_factor),
       outdoorModel,
+      outdoorCapacityKw: oduRow ? sizingCapacityKw(oduRow, basis) : null,
       /* the outdoor is SHARED when more than one room hangs off it — that is
          what makes a multi read as three heads rather than one unit doing
          three rooms */
       sharedOutdoor: mine.length > 1,
-      pipeLiquidMm: oduRow?.conn_liquid_mm ?? null,
-      pipeGasMm: oduRow?.conn_gas_mm ?? null,
+      pipeLiquidMm,
+      pipeGasMm,
       refrigerant: oduRow?.refrigerant ?? null,
       prechargedKg: oduRow?.precharged_kg ?? null,
-      totalPipeM: totalPipeLengthM(
-        buildSystemGraph(doc.objects, doc.floors, sys.id)
-      ),
+      totalPipeM,
       rooms: mine.map(strip),
       loadKw: load == null ? null : Math.round(load * 10) / 10,
       capacityKw: cap == null ? null : Math.round(cap * 10) / 10,
       pct,
       status: load == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under",
-      components: systemComponents(doc, pack, sys, basis)
-        .filter((c) => c.kind === "choice")
-        .map((c) => ({
-          role: c.role,
-          name: c.name,
-          sub: c.sub ?? "",
-          value: c.value ?? "",
-        })),
+      lines,
     };
   });
 
@@ -363,5 +469,86 @@ export function buildSummaryModel(
     unserved: [...rows.values()]
       .filter((r) => r.systemIds.length === 0)
       .map(strip),
+    picklist: buildPicklist(doc, pack, systems),
   };
+}
+
+/* ── the Material picklist — the whole job's combined pick ──
+      Units are counted from what is PLACED, for every system type: the
+      materials schedule is still split-only, and the old print rollup fed
+      from it silently omitted a multi's units. Pipe sums by size; countable
+      components sum by name; a refrigerant top-up stays per system (you pick
+      a bottle against a system, not a job-wide sum of grams). */
+function buildPicklist(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  systems: SummarySystem[]
+): PicklistRow[] {
+  // units, whole job, counted from the placed objects
+  const unitCounts = new Map<string, number>();
+  for (const o of doc.objects) {
+    if (o.type !== "unit") continue;
+    const m = String(o.props.model ?? "");
+    if (m) unitCounts.set(m, (unitCounts.get(m) ?? 0) + 1);
+  }
+  const units: PicklistRow[] = [...unitCounts]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([model, qty]) => ({
+      name: model,
+      sub: pack ? describeUnit(pack, model) : "unit",
+      qty: String(qty),
+    }));
+
+  // pipe, summed by size pair
+  const pipe = new Map<string, { name: string; m: number }>();
+  for (const s of systems) {
+    if (s.totalPipeM == null || s.totalPipeM <= 0) continue;
+    if (s.pipeLiquidMm == null || s.pipeGasMm == null) continue;
+    const key = `${s.pipeLiquidMm}/${s.pipeGasMm}`;
+    const cur = pipe.get(key);
+    if (cur) cur.m += s.totalPipeM;
+    else
+      pipe.set(key, {
+        name: `ø${s.pipeLiquidMm} / ø${s.pipeGasMm} pair coil`,
+        m: s.totalPipeM,
+      });
+  }
+  const pipes: PicklistRow[] = [...pipe.values()].map((p) => ({
+    name: p.name,
+    sub: "liquid / gas mm",
+    qty: `${Math.round(p.m * 10) / 10} m`,
+  }));
+
+  /* components summed by name where the quantity counts; "—" rows excluded —
+     "not in this takeoff" is not in this pick. An unparseable quantity keeps
+     its own row rather than silently dropping. */
+  const comps = new Map<string, { name: string; sub: string; n: number; unit: string }>();
+  const oddComps: PicklistRow[] = [];
+  const topups: PicklistRow[] = [];
+  for (const s of systems) {
+    for (const l of s.lines) {
+      if (l.qty === "—" || l.name.endsWith("pair coil") || l.name === "Pair coil")
+        continue;
+      if (l.name === "Additional refrigerant") {
+        topups.push({ name: l.name, sub: `${s.name} · ${l.sub}`, qty: l.qty });
+        continue;
+      }
+      const parsed = parseQty(l.qty);
+      if (!parsed) {
+        oddComps.push({ name: l.name, sub: l.sub, qty: l.qty });
+        continue;
+      }
+      const key = `${l.name}|${parsed.unit}`;
+      const cur = comps.get(key);
+      if (cur) cur.n += parsed.n;
+      else comps.set(key, { name: l.name, sub: l.sub, n: parsed.n, unit: parsed.unit });
+    }
+  }
+  const summed: PicklistRow[] = [...comps.values()].map((c) => ({
+    name: c.name,
+    sub: c.sub,
+    qty: c.unit ? `${c.n} ${c.unit}` : String(c.n),
+  }));
+
+  return [...units, ...pipes, ...summed, ...oddComps, ...topups];
 }

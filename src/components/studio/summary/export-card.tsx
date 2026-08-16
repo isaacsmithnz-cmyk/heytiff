@@ -428,7 +428,6 @@ export function ExportCard({
       {printing && (
         <PrintDoc
           model={printing.model}
-          pack={pack}
           urls={printing.urls}
           onReady={() => window.print()}
         />

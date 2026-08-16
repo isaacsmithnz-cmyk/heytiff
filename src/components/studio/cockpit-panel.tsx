@@ -1046,7 +1046,11 @@ function SimpleHero({ label, systemSelector }: { label: string; systemSelector?:
       requiredKw={null}
       selectedKw={null}
       systemSelector={systemSelector}
-      sumLabel="Coming soon"
+      /* NAMES THE MISSING PRECONDITION, like every other empty hero on this
+         panel ("Not sized", "Calibrate", "Select units"). It read "Coming
+         soon", which is a release promise in a ledger row — and the panel
+         directly beneath already says what is and is not there. */
+      sumLabel="Not covered"
       sumValue="—"
       donut={<Donut state="empty" pct={null} dash={DONUT_CIRC} over={false} />}
     />

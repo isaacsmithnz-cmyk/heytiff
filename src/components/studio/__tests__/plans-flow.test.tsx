@@ -539,13 +539,23 @@ describe("installer scenarios: upload → floors", () => {
     expect(fake.uploads).toBe(2);
   });
 
-  it("picker shows the floor-naming slot (disabled placeholder for now)", async () => {
+  /* THE SLOT IS GONE, AND THIS PINS THAT IT STAYS GONE. It held a permanently
+     disabled "Name the floors" button wearing a Soon badge — a control you
+     could not press, advertising a thing that does not exist. The admin index
+     had already ruled on the shape: a planned tool is a name in the Coming
+     line, "not a row wearing a Planned tag — which read as a menu item you
+     could not open." When the floor-naming actually ships it arrives as a
+     button that works, and this test is the one that has to change. */
+  it("offers no control it cannot honour on the page picker", async () => {
     pdfToPages.mockResolvedValue([page("a", 1), page("b", 2)]);
     const user = await openPlanJob(new CountingPlanImages());
     uploadPdf();
     await screen.findByRole("button", { name: "Page 1" });
-    const ai = screen.getByRole("button", { name: /Name the floors/ });
-    expect(ai).toBeDisabled();
+
+    expect(screen.queryByRole("button", { name: /Name the floors/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Soon/)).not.toBeInTheDocument();
+    // the step still says where you are in it
+    expect(screen.getByText(/of 2 selected/)).toBeInTheDocument();
     expect(user).toBeTruthy();
   });
 });

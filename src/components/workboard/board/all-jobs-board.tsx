@@ -55,6 +55,7 @@ export function AllJobsBoard({
   manage,
   moneyVisible,
   connected,
+  backfilling,
   aiEnabled = false,
   sm8,
   onOpenTracked,
@@ -72,6 +73,9 @@ export function AllJobsBoard({
   manage: boolean;
   moneyVisible: boolean;
   connected: boolean;
+  /* Which mirrors are still on their first walk — the difference between
+     "nothing here" and "not here YET", which only this board can say. */
+  backfilling: { jobs: boolean; schedule: boolean };
   aiEnabled?: boolean;
   sm8?: Sm8Health | null;
   /* Hands a row back to the page, which flips to the side that owns it and
@@ -277,6 +281,8 @@ export function AllJobsBoard({
     moneyVisible,
     truncated: data.truncated,
     connected,
+    syncing: backfilling.jobs,
+    manage,
     query,
     onQuery: runQuery,
     onOpen: (row: AllJobRow) => {
@@ -328,6 +334,8 @@ export function AllJobsBoard({
             <ScheduleTab
               today={today}
               connected={connected}
+              syncing={backfilling.schedule}
+              manage={manage}
               tracked={trackedByJob}
               shelfItems={shelfItems}
               waitingCount={view.work.unbooked.length}

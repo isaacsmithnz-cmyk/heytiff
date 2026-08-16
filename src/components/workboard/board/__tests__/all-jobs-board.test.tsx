@@ -146,6 +146,7 @@ function mount(over: {
   manage?: boolean;
   moneyVisible?: boolean;
   connected?: boolean;
+  backfilling?: { jobs: boolean; schedule: boolean };
 } = {}) {
   return render(
     <AllJobsBoard
@@ -159,6 +160,7 @@ function mount(over: {
       manage={over.manage ?? true}
       moneyVisible={over.moneyVisible ?? false}
       connected={over.connected ?? true}
+      backfilling={over.backfilling ?? { jobs: false, schedule: false }}
       onOpenTracked={onOpenTracked}
     />
   );
@@ -429,9 +431,35 @@ describe("money obeys the grant", () => {
 });
 
 describe("empty says WHY", () => {
-  it("invites connecting ServiceM8 when standalone", async () => {
-    await mountWork({ connected: false });
-    expect(screen.getByText("Showing the work tracked here")).toBeInTheDocument();
+  /* All jobs is the UNION of the mirror and the native rows, so an empty one
+     is an empty board — which makes this the one empty state that has to
+     carry the offer. Three ways to be empty, three different answers. */
+  it("invites connecting ServiceM8 when standalone, and links a manager to it", async () => {
+    await mountWork({ connected: false, manage: true });
+    expect(screen.getByText("No work to show yet")).toBeInTheDocument();
+    expect(screen.getByText("Connect ServiceM8").closest("a")).toHaveAttribute(
+      "href",
+      "/dashboard/admin/integrations/servicem8"
+    );
+  });
+
+  it("explains the gap to a tech without a door they can't open", async () => {
+    await mountWork({ connected: false, manage: false });
+    expect(screen.getByText("No work to show yet")).toBeInTheDocument();
+    expect(screen.queryByText("Connect ServiceM8")).not.toBeInTheDocument();
+  });
+
+  /* The one this exists for: a fresh grant reads empty for minutes, and
+     telling that person to connect ServiceM8 tells them to redo what they
+     just did. Only backfill_done separates the two — a row count can't. */
+  it("says the first sync is still running rather than inviting a second connect", async () => {
+    await mountWork({
+      connected: true,
+      manage: true,
+      backfilling: { jobs: true, schedule: true },
+    });
+    expect(screen.getByText("Still bringing the jobs across")).toBeInTheDocument();
+    expect(screen.queryByText("Connect ServiceM8")).not.toBeInTheDocument();
   });
 
   it("says nothing is on when connected and genuinely empty", async () => {

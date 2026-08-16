@@ -14,6 +14,7 @@ import {
   type AllJobRow,
   type AllJobsView,
 } from "@/lib/workboard/all-jobs";
+import { Sm8Gap, sm8Gap } from "./sm8-gap";
 
 /* The three panels of the All jobs side. Rows, not cards: at 500-plus open
    jobs a card per job is a wall, and this list is read by scanning down one
@@ -31,6 +32,9 @@ type Props = {
   moneyVisible: boolean;
   truncated: boolean;
   connected: boolean;
+  /** Connected, but the `jobs` backfill hasn't finished its first walk. */
+  syncing: boolean;
+  manage: boolean;
   query: string;
   onQuery: (q: string) => void;
   onOpen: (row: AllJobRow) => void;
@@ -208,17 +212,23 @@ function Head({
   );
 }
 
-/** What an empty panel says depends on WHY it's empty — no integration, no
-    match, or genuinely nothing on. Those are three different situations and
-    one sentence for all three helps nobody. */
+/** What an empty panel says depends on WHY it's empty — no match, no
+    integration, a first sync still running, or genuinely nothing on. Those are
+    four different situations and one sentence for all of them helps nobody.
+    The search miss is decided here because only this panel knows the query;
+    the two integration answers come from sm8-gap, which the diary shares. */
 function Empty({
   connected,
+  syncing,
+  manage,
   query,
   icon,
   nothing,
   hint,
 }: {
   connected: boolean;
+  syncing: boolean;
+  manage: boolean;
   query: string;
   icon: string;
   nothing: string;
@@ -233,18 +243,12 @@ function Empty({
       </div>
     );
   }
-  if (!connected) {
-    return (
-      <div className="wb2-empty">
-        <Icon name="plug" size={20} />
-        <b>Showing the work tracked here</b>
-        <em>
-          Connect ServiceM8 and every job in the account joins this list — service calls and
-          installs included.
-        </em>
-      </div>
-    );
-  }
+  /* An empty list that can be EXPLAINED explains itself, and the explanation
+     outranks the panel's own "nothing on" copy: told there is no work when
+     nothing has been connected, you learn nothing about why. */
+  const gap = sm8Gap({ connected, syncing });
+  if (gap) return <Sm8Gap kind={gap} surface="jobs" manage={manage} />;
+
   return (
     <div className="wb2-empty">
       <Icon name={icon} size={20} />
@@ -305,6 +309,8 @@ export function WorkOrdersTab(props: Props) {
       {total === 0 && extra.length === 0 ? (
         <Empty
           connected={props.connected}
+          syncing={props.syncing}
+          manage={props.manage}
           query={props.query}
           icon="wrench"
           nothing="Nothing on"
@@ -355,6 +361,8 @@ export function QuotesTab(props: Props) {
       {v.quotes.length === 0 && extra.length === 0 ? (
         <Empty
           connected={props.connected}
+          syncing={props.syncing}
+          manage={props.manage}
           query={props.query}
           icon="file"
           nothing="No quotes out"
@@ -399,6 +407,8 @@ export function CompletedJobsTab(props: Props) {
       {v.completed.length === 0 && extra.length === 0 ? (
         <Empty
           connected={props.connected}
+          syncing={props.syncing}
+          manage={props.manage}
           query={props.query}
           icon="check"
           nothing="Nothing finished recently"

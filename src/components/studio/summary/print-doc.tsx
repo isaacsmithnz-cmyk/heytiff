@@ -2,51 +2,41 @@
 
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import type { DataPack } from "@/lib/studio/packs/schema";
 import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
-import { systemBadge, type BadgeStatus } from "@/lib/studio/split";
+import { fmt, LinesTable, OutdoorBlock, RoomsTable } from "./sheet-tables";
 import { PlanFigure } from "./plan-figure";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
    stylesheet reveals only #ds-printdoc; the .fg.dstudio wrapper resolves the
-   design tokens and Jakarta (same trick as present mode). Per variant: a
-   cover of tables (job meta, design basis, systems, materials, rollup),
-   then one page per selected floor with a static PlanFigure. The @page rule
-   (paper size + orientation) is injected while mounted, and `onReady` fires
-   once every plan raster is decoded so the caller can window.print()
-   without racing the images. */
+   design tokens and Jakarta (same trick as present mode).
 
-const BADGE_WORD: Record<BadgeStatus, string> = {
-  green: "OK",
-  amber: "Check",
-  red: "Issues",
-  empty: "Empty",
-};
+   The cover renders the SAME merged sheet model as the screen, through the
+   SAME table components (sheet-tables.tsx) — issuer eyebrow, letterhead,
+   snapshot, one section per system (outdoor → rooms served → materials),
+   the unserved rooms, then the Material picklist. Then one page per selected
+   floor with a static PlanFigure. The @page rule (paper size + orientation)
+   is injected while mounted, and `onReady` fires once every plan raster is
+   decoded so the caller can window.print() without racing the images. */
 
-function VariantCover({
-  v,
-  pack,
-}: {
-  v: PrintVariant;
-  pack: DataPack | null;
-}) {
+function VariantCover({ v }: { v: PrintVariant }) {
   const doc = v.doc;
-  const empty = v.schedule.systems.length === 0;
+  const empty = v.sheet.systems.length === 0 && v.sheet.unserved.length === 0;
   return (
     <section className="ds-print-cover">
       <header className="ds-jobpack-head">
         <div>
+          {/* the issuer is an eyebrow: the top-right corner belongs to the
+              addressee, as on any document that gets sent to someone */}
+          <div className="ds-jobpack-brand">HeyTiff Design Studio</div>
           <h1>
             {doc.meta.name || "Design"}
-            {v.label && <span className="ds-print-variant">{v.label}</span>}
+            {doc.meta.jobNumber && (
+              <span className="ds-print-job">Job {doc.meta.jobNumber}</span>
+            )}
           </h1>
-          <div className="ds-jobpack-meta">
-            {doc.meta.jobNumber && <span>Job {doc.meta.jobNumber}</span>}
-            {doc.meta.client && <span>{doc.meta.client}</span>}
-            {doc.meta.site && <span>{doc.meta.site}</span>}
-          </div>
+          {v.label && <span className="ds-letter-variant">{v.label}</span>}
           <div className="ds-jobpack-meta ds-print-basis">
             <span>
               Zone {v.basis.zone} · {v.basis.zoneCity}
@@ -55,7 +45,14 @@ function VariantCover({
             <span>{v.basis.basisLabel}</span>
           </div>
         </div>
-        <div className="ds-jobpack-brand">HeyTiff Design Studio</div>
+        {(doc.meta.client || doc.meta.site) && (
+          <div className="ds-letter-to print">
+            {doc.meta.client && <b>{doc.meta.client}</b>}
+            {doc.meta.site.split("\n").map(
+              (line) => line.trim() && <span key={line}>{line}</span>
+            )}
+          </div>
+        )}
       </header>
 
       {empty ? (
@@ -63,98 +60,69 @@ function VariantCover({
       ) : (
         <>
           <section className="ds-jobpack-sec">
-            <h2>Systems overview</h2>
-            <table className="ds-mat-table auto">
-              <thead>
-                <tr>
-                  <th>System</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {doc.systems.map((s) => {
-                  const b = systemBadge(doc, pack, s);
-                  return (
-                    <tr key={s.id}>
-                      <td className="ds-mat-model">{s.name}</td>
-                      <td>{s.type}</td>
-                      <td>{BADGE_WORD[b.status]}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <dl className="ds-letter-snap">
+              <div className="lead">
+                <dt>Design load</dt>
+                <dd>{fmt(v.snapshot.totalLoadKw, "kW")}</dd>
+              </div>
+              <div>
+                <dt>{v.snapshot.roomCount === 1 ? "Room" : "Rooms"}</dt>
+                <dd>{v.snapshot.roomCount}</dd>
+              </div>
+              <div>
+                <dt>Floor area</dt>
+                <dd>{fmt(v.snapshot.areaM2, "m²")}</dd>
+              </div>
+              <div>
+                <dt>{v.snapshot.systemCount === 1 ? "System" : "Systems"}</dt>
+                <dd>{v.snapshot.systemCount}</dd>
+              </div>
+            </dl>
           </section>
 
-          {v.schedule.systems.map((s) => (
-            <section key={s.systemId} className="ds-jobpack-sec">
-              <h2>{s.name} — materials</h2>
-              {(s.units.length > 0 || s.pipe.length > 0) && (
-                <table className="ds-mat-table take">
-                  <thead>
-                    <tr>
-                      <th>Model</th>
-                      <th>Description</th>
-                      <th className="num">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {s.units.map((u) => (
-                      <tr key={u.model}>
-                        <td className="ds-mat-model">{u.model}</td>
-                        <td>{u.description}</td>
-                        <td className="num">{u.qty}</td>
-                      </tr>
-                    ))}
-                    {s.pipe.map((p, i) => (
-                      <tr key={`p${i}`}>
-                        <td className="ds-mat-model">
-                          ø{p.liquid_mm} / ø{p.gas_mm} pair coil
-                        </td>
-                        <td>liquid / gas mm</td>
-                        <td>{p.lengthM} m</td>
-                      </tr>
-                    ))}
-                    {s.charge && s.charge.grams > 0 && (
-                      <tr>
-                        <td className="ds-mat-model">Additional refrigerant</td>
-                        <td>{s.charge.note}</td>
-                        <td>{s.charge.grams} g</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-              {s.notes.map((n, i) => (
-                <div key={i} className="ds-mat-note">
-                  {n}
+          {v.sheet.systems.map((s) => (
+            <section key={s.systemId} className="ds-jobpack-sec ds-print-sys">
+              <div className="ds-print-sys-h">
+                <h2>
+                  {s.name} <span>{s.kindLabel}</span>
+                </h2>
+                <div className="ds-print-verdict">
+                  <span>
+                    <b>{fmt(s.loadKw, "kW")}</b> load
+                  </span>
+                  <span>
+                    <b>{fmt(s.capacityKw, "kW")}</b> capacity
+                  </span>
+                  <span className={s.status === "covered" ? "ok" : "under"}>
+                    <b>{s.pct == null ? "—" : `${s.pct}%`}</b> covered
+                  </span>
                 </div>
-              ))}
+              </div>
+              <OutdoorBlock sys={s} />
+              <span className="ds-tcap">
+                {s.rooms.length === 1 ? "Room served" : "Rooms served"}
+              </span>
+              <RoomsTable rooms={s.rooms} />
+              {s.lines.length > 0 && (
+                <>
+                  <span className="ds-tcap">Materials</span>
+                  <LinesTable lines={s.lines} />
+                </>
+              )}
             </section>
           ))}
 
-          {v.rollup.length > 0 && (
+          {v.sheet.unserved.length > 0 && (
             <section className="ds-jobpack-sec">
-              <h2>Whole-job unit schedule</h2>
-              <table className="ds-mat-table take">
-                <thead>
-                  <tr>
-                    <th>Model</th>
-                    <th>Description</th>
-                    <th className="num">Qty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {v.rollup.map((r) => (
-                    <tr key={r.model}>
-                      <td className="ds-mat-model">{r.model}</td>
-                      <td>{r.description}</td>
-                      <td className="num">{r.qty}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <h2>Not served yet</h2>
+              <RoomsTable rooms={v.sheet.unserved} />
+            </section>
+          )}
+
+          {v.sheet.picklist.length > 0 && (
+            <section className="ds-jobpack-sec">
+              <h2>Material picklist</h2>
+              <LinesTable lines={v.sheet.picklist} />
             </section>
           )}
 
@@ -170,13 +138,10 @@ function VariantCover({
 
 export function PrintDoc({
   model,
-  pack,
   urls,
   onReady,
 }: {
   model: PrintModel;
-  /** for the systems-overview status badges (schedules are already built) */
-  pack: DataPack | null;
   urls: Record<string, string>;
   /** every plan raster is decoded — safe to window.print() */
   onReady: () => void;
@@ -245,7 +210,7 @@ export function PrintDoc({
     >
       {model.variants.map((v) => (
         <div key={v.doc.id} className="ds-print-variant-block">
-          {options.content !== "plans" && <VariantCover v={v} pack={pack} />}
+          {options.content !== "plans" && <VariantCover v={v} />}
           {v.floors.map((floor) => (
             <section key={floor.id} className="ds-print-page">
               <div className="ds-print-cap">

@@ -5525,20 +5525,29 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-jobpack-sec { margin-bottom: 22px; }
 .dstudio .ds-jobpack-sec h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray500); margin: 0 0 8px; }
 .dstudio .ds-jobpack-foot { margin-top: 8px; font-size: 11px; color: var(--gray400); border-top: 1px solid var(--ds-border); padding-top: 12px; }
+/* ── the printed cover's document furniture (2026-08-16 sheet) ──
+      Shares ds-letter-to / ds-letter-snap / ds-odu / ds-tcap / the tables
+      with the screen — the print-only bits are just these. */
+.dstudio .ds-print-job { margin-left: 12px; font-size: 12.5px; font-weight: 600; color: var(--gray500); white-space: nowrap; }
+.dstudio .ds-letter-to.print b { font-size: 14px; font-weight: 800; color: var(--ink); }
+.dstudio .ds-letter-to.print span { font-size: 12.5px; font-weight: 500; line-height: 1.5; color: var(--gray700); }
+.dstudio .ds-print-sys { border-top: 1px solid var(--ds-border); padding-top: 14px; }
+.dstudio .ds-print-sys-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 20px;
+  flex-wrap: wrap;
+}
+.dstudio .ds-print-sys-h h2 { text-transform: none; letter-spacing: -0.01em; font-size: 14px; color: var(--ink); }
+.dstudio .ds-print-sys-h h2 span { font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--gray500); margin-left: 8px; }
+.dstudio .ds-print-verdict { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11.5px; color: var(--gray500); }
+.dstudio .ds-print-verdict b { font-size: 13px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dstudio .ds-print-verdict .ok b { color: #00806c; }
+.dstudio .ds-print-verdict .under b { color: var(--ds-amber-d); }
 
 #ds-printdoc { display: none; }
-#ds-printdoc .ds-print-variant { /* label chip beside the h1 */
-  display: inline-block;
-  margin-left: 10px;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--teal-d);
-  border: 1px solid rgba(0, 229, 192, 0.4);
-  border-radius: 999px;
-  padding: 2px 10px;
-  vertical-align: middle;
-}
-#ds-printdoc .ds-print-basis { margin-top: 6px; font-weight: 700; }
+#ds-printdoc .ds-print-basis { margin-top: 8px; font-weight: 700; }
 #ds-printdoc .ds-print-cap {
   display: flex;
   align-items: baseline;
@@ -8979,334 +8988,335 @@ html[data-ds-display] .dstudio.editing {
     0 1px 2px rgba(10, 12, 20, 0.04), 0 18px 40px -26px rgba(10, 12, 20, 0.3);
 }
 
-/* ── the cover: opaque ink, floating on the page ──
-      Opaque on purpose. Translucent ink over white paper goes grey and muddy;
-      the studio's glass primitive belongs on the dark frame, not here. The
-      glow is the frame's own teal/blue, carried INSIDE the panel so it does
-      not depend on what happens to be behind it.
+/* ═══════════════════════════════════════════════════════════════════════
+   THE SHEET AS A DOCUMENT (2026-08-16 redesign, direction approved on a
+   live mock). Chrome above, paper below; the print document renders the
+   SAME merged model with the same shared tables.
 
-      `ds-cover`, NOT `ds-hero`: the New design landing owns `.dstudio .ds-hero`
-      (a transparent flex column on the black frame, further up this file) at
-      the identical specificity, so styling the sheet's cover as `.ds-hero`
-      re-laid the LANDING out as this grid — badge and pitch in one column, the
-      38–58px display title squeezed into the other 340px — and painted this
-      panel's ink and shadow behind it. Exactly the `.ds-job` collision this
-      sheet's rewrite set out to fix, one class along. */
-.dstudio .ds-cover {
-  background-color: var(--ds-ink-hero);
-  background-image: radial-gradient(
-      340px 300px at 88% -20%,
-      rgba(0, 229, 192, 0.18),
-      transparent 68%
-    ),
-    radial-gradient(300px 280px at -4% 118%, rgba(46, 104, 255, 0.15), transparent 68%);
-  border-radius: 20px;
-  padding: 24px 26px;
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 26px;
-  align-items: start;
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.14), 0 26px 54px -28px rgba(10, 12, 20, 0.6);
+   Class families here are grep-verified unique in this file (the .ds-hero
+   lesson): ds-chrome*, ds-letter*, ds-band*, ds-odu*, ds-tcap, and the
+   ds-sysc card is REBUILT in place (its old internals ds-rrow/ds-rcol/
+   ds-eqlist/ds-rmfigs are gone with the three-column room row).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── chrome: everything that is NOT the document. Sticks to the panel's
+      scrollport (.ds-panel.scroll) so Export never scrolls away from the
+      sheet it acts on. ── */
+.dstudio .ds-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  margin: -8px -8px 0;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
 }
-.dstudio .ds-cover-lead { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
-/* job number holds the top of the sheet, with where it came from beneath */
-.dstudio .ds-cover-job { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
-.dstudio .ds-cover-jn {
-  font: inherit;
-  width: 9.5rem;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+.dstudio .ds-chrome-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #7c4a03;
+  background: #fff5e6;
+  border: 1px solid #f0cf9a;
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 6px 14px;
 }
-.dstudio .ds-cover-jn::placeholder { color: rgba(255, 255, 255, 0.42); }
-.dstudio .ds-cover-jn:hover { border-color: rgba(255, 255, 255, 0.3); }
-.dstudio .ds-cover-jn:focus {
-  outline: none;
-  border-color: rgba(0, 229, 192, 0.6);
-  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+.dstudio .ds-chrome-warn b {
+  font-weight: 800;
+  background: #f0a431;
+  color: #2b1a02;
+  border-radius: 999px;
+  padding: 0 7px;
 }
-.dstudio .ds-cover-src {
+.dstudio .ds-chrome-warn:hover { background: #ffefd6; }
+.dstudio .ds-chrome-warn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(240, 164, 49, 0.4); }
+.dstudio .ds-chrome-warn svg { color: #b45309; }
+.dstudio .ds-chrome-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #00806c;
+}
+.dstudio .ds-chrome-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.dstudio .ds-chrome-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 15px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid rgba(10, 12, 20, 0.14);
+  transition: background 0.15s, border-color 0.15s;
+}
+.dstudio .ds-chrome-btn:hover { background: #f6f7f9; }
+.dstudio .ds-chrome-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.35); }
+.dstudio .ds-chrome-btn.on { background: #eef0f3; border-color: rgba(10, 12, 20, 0.24); }
+.dstudio .ds-chrome-btn:disabled { opacity: 0.45; cursor: default; }
+.dstudio .ds-chrome-btn:disabled:hover { background: #fff; }
+/* the app's CTA convention: teal ground, ink text (10.25:1) — white on
+   --teal-d measured 3.18 and is banned as a pair */
+.dstudio .ds-chrome-btn.cta { background: var(--teal); border-color: var(--teal); color: #04231f; }
+.dstudio .ds-chrome-btn.cta:hover { background: #2ee9c9; border-color: #2ee9c9; }
+.dstudio .ds-chrome-list {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  background: #fff8ec;
+  border: 1px solid #f0cf9a;
+  border-radius: 12px;
+}
+.dstudio .ds-chrome-list li { display: flex; flex-direction: column; gap: 1px; }
+.dstudio .ds-chrome-list b { font-size: 12.5px; font-weight: 700; color: #5c3a06; }
+.dstudio .ds-chrome-list span { font-size: 12.5px; font-weight: 500; line-height: 1.45; color: #7c4a03; }
+
+/* ── the letterhead ── */
+.dstudio .ds-letter {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px 40px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.dstudio .ds-letter-lead { min-width: 0; flex: 1 1 22rem; }
+.dstudio .ds-letter-titlerow { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.dstudio .ds-letter-titlerow h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.dstudio .ds-letter-job { font-size: 12.5px; font-weight: 600; color: var(--gray500); white-space: nowrap; }
+.dstudio .ds-letter-src {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--gray500);
 }
-.dstudio .ds-cover-src svg { flex: 0 0 auto; }
-.dstudio .ds-cover-title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.dstudio .ds-cover-title h2 {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: #fff;
-}
-.dstudio .ds-cover-variant {
-  flex: 0 0 auto;
+.dstudio .ds-letter-src svg { flex: 0 0 auto; }
+/* the option chip sits under the title, flush with its left edge */
+.dstudio .ds-letter-variant {
+  display: inline-block;
+  margin: 8px 0 0;
   font-size: 11px;
   font-weight: 800;
-  color: var(--teal);
-  border: 1px solid rgba(0, 229, 192, 0.45);
-  background: rgba(0, 229, 192, 0.08);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--teal-d);
+  border: 1px solid rgba(0, 163, 137, 0.4);
+  background: rgba(0, 163, 137, 0.07);
   border-radius: 999px;
   padding: 2px 10px;
 }
-/* the letter block: who it's for, then where */
-.dstudio .ds-cover-letter { display: flex; flex-direction: column; gap: 5px; max-width: 30rem; }
-.dstudio .ds-cover-lab {
-  font-size: 11px;
+.dstudio .ds-letter-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+.dstudio .ds-letter-chips span {
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--gray700);
+  background: #fff;
+  border: 1px solid rgba(10, 12, 20, 0.12);
+  border-radius: 999px;
+  padding: 3px 11px;
 }
-.dstudio .ds-cover-field {
+/* edit in place: a value that reads as the document's own text until touched */
+.dstudio .ds-letter-inp {
   font: inherit;
-  font-size: 13.5px;
+  color: var(--ink);
   font-weight: 600;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 9px;
-  padding: 8px 11px;
-  width: 100%;
-  max-width: 22rem;
-  text-overflow: ellipsis;
-}
-.dstudio .ds-cover-field:hover { border-color: rgba(255, 255, 255, 0.3); }
-.dstudio .ds-cover-field:focus {
-  outline: none;
-  border-color: rgba(0, 229, 192, 0.6);
-  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
-}
-/* the site sits UNDER the client like a letterhead, not in a box beside it */
-.dstudio .ds-cover-site {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.88);
   background: transparent;
   border: 0;
-  border-left: 2px solid rgba(255, 255, 255, 0.18);
-  border-radius: 0;
-  padding: 2px 0 2px 11px;
-  width: 100%;
-  max-width: 22rem;
-  resize: none;
+  border-bottom: 1px dashed rgba(10, 12, 20, 0.22);
+  padding: 1px 2px;
+  border-radius: 2px;
 }
-.dstudio .ds-cover-site:hover { border-left-color: rgba(255, 255, 255, 0.36); }
-.dstudio .ds-cover-site:focus { outline: none; border-left-color: var(--teal); }
-.dstudio .ds-cover-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.dstudio .ds-cover-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 26px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.88);
+.dstudio .ds-letter-inp:hover { background: #f4f6f8; border-bottom-color: rgba(10, 12, 20, 0.4); }
+.dstudio .ds-letter-inp:focus {
+  outline: none;
+  background: #fff;
+  border-bottom-color: var(--teal-d);
+  box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.16);
 }
-/* right column: the figures, then the actions, then the check bar */
-.dstudio .ds-cover-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.dstudio .ds-cover-figs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 14px;
-  overflow: hidden;
-}
-.dstudio .ds-cover-fig {
-  padding: 11px 13px;
+.dstudio .ds-letter-inp.jn { width: 6.5rem; font-variant-numeric: tabular-nums; }
+/* the addressee: a letterhead block — ranged LEFT inside a block set to the
+   right, with its own rule; right-ragged lines read as a caption, not an
+   address */
+.dstudio .ds-letter-to {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  gap: 1px;
   min-width: 0;
+  flex: 0 1 20rem;
+  padding-left: 13px;
+  border-left: 2px solid rgba(10, 12, 20, 0.16);
 }
-.dstudio .ds-cover-fig:nth-child(2n) { border-right: 0; }
-.dstudio .ds-cover-fig:nth-last-child(-n + 2) { border-bottom: 0; }
-.dstudio .ds-cover-fig b {
-  font-size: 21px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.25;
-  color: #fff;
-  white-space: nowrap;
-}
-.dstudio .ds-cover-fig span {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
-}
-.dstudio .ds-cover-fig.load b { color: var(--teal); }
-.dstudio .ds-cover-acts { display: flex; flex-wrap: wrap; gap: 8px; }
-/* on the ink, the glass primitive is finally on the ground it was drawn for */
-.dstudio .ds-hbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  height: 40px;
-  padding: 0 15px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #fff;
+.dstudio .ds-letter-to .ds-letter-inp { border-bottom-color: transparent; width: 100%; }
+.dstudio .ds-letter-to .ds-letter-inp:hover { border-bottom-color: rgba(10, 12, 20, 0.3); }
+.dstudio .ds-letter-to .name { font-size: 15px; font-weight: 800; }
+.dstudio .ds-letter-to .addr {
   font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--gray700);
+  resize: none;          /* field-sizing grows it — no grip on the letterhead */
+  field-sizing: content;
+  min-height: 3em;
+}
+/* the snapshot: the design load leads — the number the sheet argues about */
+.dstudio .ds-letter-snap { display: flex; flex-wrap: wrap; gap: 10px 30px; margin: 2px 0 0; }
+.dstudio .ds-letter-snap div { display: flex; flex-direction: column-reverse; }
+.dstudio .ds-letter-snap dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray500);
+}
+.dstudio .ds-letter-snap dd {
+  margin: 0;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
-.dstudio .ds-hbtn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.26);
-  transform: translateY(-1px);
-}
-.dstudio .ds-hbtn:disabled { opacity: 0.45; cursor: default; }
-.dstudio .ds-hbtn:disabled:hover { transform: none; background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.16); }
-.dstudio .ds-hbtn.cta { background: var(--teal); border-color: var(--teal); color: #04231f; }
-.dstudio .ds-hbtn.cta:hover { background: #2ee9c9; border-color: #2ee9c9; }
-.dstudio .ds-hbtn.on { background: rgba(255, 255, 255, 0.18); border-color: rgba(255, 255, 255, 0.3); }
-/* the check bar — a line until you open it */
-.dstudio .ds-check {
-  border: 1px solid rgba(240, 164, 49, 0.34);
-  background: rgba(240, 164, 49, 0.1);
-  border-radius: 12px;
+.dstudio .ds-letter-snap .lead dd { font-size: 27px; color: var(--teal-d); letter-spacing: -0.02em; }
+
+/* ── one card per system: band → outdoor → rooms → materials ── */
+.dstudio .ds-sysc {
+  --sys: #8b95a1;
+  background: #fff;
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04), 0 20px 44px -32px rgba(10, 12, 20, 0.45);
 }
-.dstudio .ds-check-h {
+/* the separation between systems is the BAND: the system colour as a
+   full-width tinted header with a 2px rule, not a 4px sliver — two systems
+   can no longer read as one long list */
+.dstudio .ds-band {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  font-size: 12px;
-  font-weight: 800;
-  color: #fde68a;
-  padding: 10px 13px;
-  text-align: left;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  background: color-mix(in srgb, var(--sys) 12%, #fff);
+  border-bottom: 2px solid var(--sys);
 }
-.dstudio .ds-check-h:hover { background: rgba(240, 164, 49, 0.07); }
-.dstudio .ds-check-h svg { flex: 0 0 auto; color: #f0a431; }
-.dstudio .ds-check-n {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 800;
-  color: #fde68a;
-  background: rgba(240, 164, 49, 0.22);
-  border-radius: 999px;
-  padding: 1px 8px;
+.dstudio .ds-sysc.none .ds-band,
+.dstudio .ds-sysc.pick .ds-band {
+  background: #f4f5f7;
+  border-bottom-color: rgba(10, 12, 20, 0.18);
 }
-.dstudio .ds-check-list { list-style: none; margin: 0; padding: 0 13px 12px; display: flex; flex-direction: column; gap: 8px; }
-.dstudio .ds-check-list li { display: flex; flex-direction: column; gap: 1px; }
-.dstudio .ds-check-list b { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.92); }
-.dstudio .ds-check-list span { font-size: 12px; font-weight: 500; line-height: 1.4; color: rgba(255, 255, 255, 0.64); }
-
-/* ── the systems column ── */
-.dstudio .ds-syshead {
-  margin: 2px 0 -4px 2px;
-  font-size: 11px;
+.dstudio .ds-band-id { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.dstudio .ds-band-id h3 {
+  margin: 0;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: -0.01em;
+  /* 55, not 62: at 62 the amber system colour landed at 4.44 on the tint;
+     55 puts the worst of the six palette colours at 4.9+ */
+  color: color-mix(in srgb, var(--sys) 55%, #0a0c14);
+}
+.dstudio .ds-sysc.none .ds-band-id h3,
+.dstudio .ds-sysc.pick .ds-band-id h3 { color: var(--ink); }
+.dstudio .ds-band-id > span { font-size: 12px; font-weight: 600; color: var(--gray700); }
+/* the verdict rides its own WHITE chip on the band — on the 12% tint every
+   state colour and label measured 4.1–4.4 across the six system colours; on
+   white they clear 4.8 whatever the band carries */
+.dstudio .ds-band-v {
+  display: flex;
+  background: #fff;
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.dstudio .ds-band-v div {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 14px;
+  border-right: 1px solid rgba(10, 12, 20, 0.08);
+  min-width: 74px;
+}
+.dstudio .ds-band-v div:last-child { border-right: 0; }
+.dstudio .ds-band-v b {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.dstudio .ds-band-v span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--gray500);
 }
-.dstudio .ds-sysc { --sys: #8b95a1; display: flex; flex-direction: column; overflow: hidden; }
-.dstudio .ds-sysc.sys { box-shadow: inset 4px 0 0 var(--sys), inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 2px rgba(10, 12, 20, 0.04), 0 18px 40px -26px rgba(10, 12, 20, 0.3); }
-.dstudio .ds-sysc-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 13px 18px 12px; }
-.dstudio .ds-sysc.sys .ds-sysc-h { padding-left: 16px; }
-.dstudio .ds-sysc-h h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 800;
-  color: color-mix(in srgb, var(--sys) 62%, #0a0c14);
-}
-.dstudio .ds-sysc.none .ds-sysc-h h3 { color: var(--ink); }
-.dstudio .ds-sysdot2 { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--sys); }
-.dstudio .ds-sysc-kind { font-size: 11px; font-weight: 500; color: #4b5563; }
-/* the verdict block — the hero's device at card scale */
-.dstudio .ds-figs3 { margin-left: auto; display: flex; border: 1px solid rgba(10, 12, 20, 0.1); border-radius: 11px; overflow: hidden; background: #fff; }
-.dstudio .ds-figs3 div { padding: 6px 14px; display: flex; flex-direction: column; border-right: 1px solid rgba(10, 12, 20, 0.08); min-width: 76px; }
-.dstudio .ds-figs3 div:last-child { border-right: 0; }
-.dstudio .ds-figs3 b { font-size: 14px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.3; }
-.dstudio .ds-figs3 span { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
-/* measured on the glass tint, not assumed on white: --ds-teal-ink lands
-   at 4.37:1 there. #00806C clears 4.5 on both grounds. */
-.dstudio .ds-figs3 .ok b { color: #00806c; }
-.dstudio .ds-figs3 .under b { color: var(--ds-amber-d); }
-.dstudio .ds-figs3 .na b { font-weight: 500; color: var(--gray500); }
+/* measured on the tinted grounds, not assumed: #00806C / --ds-amber-d */
+.dstudio .ds-band-v .ok b { color: #00806c; }
+.dstudio .ds-band-v .under b { color: var(--ds-amber-d); }
+.dstudio .ds-band-v .na b { font-weight: 500; color: var(--gray500); }
 
-/* one row per room: Room | Equipment | Components */
-.dstudio .ds-rrow { display: grid; grid-template-columns: 1fr 1.25fr 0.95fr; border-top: 1px solid rgba(10, 12, 20, 0.08); }
-.dstudio .ds-rcol { padding: 12px 18px 14px; display: flex; flex-direction: column; min-width: 0; }
-.dstudio .ds-rcol + .ds-rcol { border-left: 1px solid rgba(10, 12, 20, 0.08); }
-.dstudio .ds-rcap { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--gray500); margin-bottom: 7px; }
-.dstudio .ds-rcaprow { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; flex-wrap: wrap; }
-.dstudio .ds-rcaprow .ds-rcap { margin: 0; }
-.dstudio .ds-capchip {
-  font-size: 11px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--sys) 62%, #0a0c14);
-  background: color-mix(in srgb, var(--sys) 14%, #fff);
-  border: 1px solid color-mix(in srgb, var(--sys) 32%, #fff);
-  border-radius: 999px;
-  padding: 2px 10px;
-  white-space: nowrap;
-}
-.dstudio .ds-rm { display: flex; flex-direction: column; gap: 7px; }
-.dstudio .ds-rm-top { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.dstudio .ds-rm-top b { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
-.dstudio .ds-lvl { font-size: 11px; font-weight: 700; color: var(--gray500); border: 1px solid rgba(10, 12, 20, 0.12); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
-.dstudio .ds-rmfigs { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(10, 12, 20, 0.1); border-radius: 10px; overflow: hidden; background: #fff; }
-.dstudio .ds-rmfigs div { padding: 6px 10px; display: flex; flex-direction: column; border-right: 1px solid rgba(10, 12, 20, 0.08); min-width: 0; }
-.dstudio .ds-rmfigs div:last-child { border-right: 0; }
-.dstudio .ds-rmfigs b { font-size: 13px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--ink); line-height: 1.35; white-space: nowrap; }
-.dstudio .ds-rmfigs span { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
-.dstudio .ds-rmfigs .ok b { color: #00806c; }
-.dstudio .ds-rmfigs .under b { color: var(--ds-amber-d); }
-.dstudio .ds-rmfigs .na b { font-weight: 500; color: var(--gray500); }
+.dstudio .ds-sysc-b { padding: 4px 18px 16px; }
 
-/* label / value pairs. ONE grid per list, with a max-content value track, so
-   the numbers land beside what they count instead of at the card's edge. */
-.dstudio .ds-eqlist { display: grid; grid-template-columns: 78px max-content max-content; column-gap: 14px; align-items: baseline; justify-content: start; }
-.dstudio .ds-eq { display: contents; }
-.dstudio .ds-eq > * { padding: 3px 0; }
-.dstudio .ds-eq-role { font-size: 12px; font-weight: 500; color: var(--gray500); }
-.dstudio .ds-eq b { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; }
-.dstudio .ds-eq em { font-style: normal; font-size: 12px; font-weight: 500; color: var(--gray500); margin-left: 7px; }
-.dstudio .ds-eq-q { font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
-.dstudio .ds-pill {
-  font-size: 11px;
-  font-weight: 800;
-  color: color-mix(in srgb, var(--sys) 62%, #0a0c14);
-  background: color-mix(in srgb, var(--sys) 16%, #fff);
-  border: 1px solid color-mix(in srgb, var(--sys) 36%, #fff);
-  border-radius: 999px;
-  padding: 2px 9px;
-  white-space: nowrap;
-}
-/* the shared row uses the SAME three columns, so Equipment lines up with
-   Equipment and Components with Components all the way down the card */
-.dstudio .ds-rrow.shared { background: color-mix(in srgb, var(--sys) 6%, transparent); }
+/* the parent machine — the one line that is genuinely the brand's */
+.dstudio .ds-odu { margin: 12px 0 2px; }
+.dstudio .ds-odu-m { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.dstudio .ds-odu-m b { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
+.dstudio .ds-odu-m span { font-size: 13.5px; font-weight: 700; color: var(--gray700); font-variant-numeric: tabular-nums; }
+.dstudio .ds-odu-m span.none { font-weight: 500; font-style: italic; color: var(--gray500); }
+.dstudio .ds-odu-d { font-size: 12px; font-weight: 500; color: var(--gray500); margin-top: 2px; }
 
-@media (max-width: 1100px) {
-  .dstudio .ds-cover { grid-template-columns: 1fr; }
-  .dstudio .ds-rrow { grid-template-columns: 1fr; }
-  .dstudio .ds-rcol + .ds-rcol { border-left: 0; border-top: 1px solid rgba(10, 12, 20, 0.08); }
+/* section captions inside a card */
+.dstudio .ds-tcap {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  margin: 15px 0 3px;
 }
+.dstudio .ds-odu .ds-tcap { margin: 0 0 2px; color: var(--gray500); }
+
+/* ── the sheet's tables, on the shared .ds-mat-table plumbing ──
+      `serve` is FIXED layout with one set of widths, so every rooms table on
+      the sheet (and on the printed pack) shares one grid — auto layout sized
+      each table to its own content and nothing lined up down the page. */
+.dstudio .ds-mat-table.serve { table-layout: fixed; }
+.dstudio .ds-mat-table.serve th:nth-child(1) { width: 15%; }
+.dstudio .ds-mat-table.serve th:nth-child(2) { width: 10%; }
+.dstudio .ds-mat-table.serve th:nth-child(3) { width: 23%; }
+.dstudio .ds-mat-table.serve td.num,
+.dstudio .ds-mat-table.serve th.num { white-space: nowrap; }
+/* a model number is one token — wrapping it mid-code makes it unreadable */
+.dstudio .ds-mat-table.serve td.mono { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dstudio .ds-mat-table td.none { font-style: italic; color: var(--gray500); }
+/* state colours — (0,4,1), because the td.num body rule is (0,3,1) and a
+   bare class pair loses (the td.ds-mat-model trap, one row down the file) */
+.dstudio .ds-mat-table td.num.ok { color: #00806c; }
+.dstudio .ds-mat-table td.num.under { color: var(--ds-amber-d); }
+.dstudio .ds-mat-table td.num.na { font-weight: 500; color: var(--gray500); }
+/* on the card, the last row's rule would double the card edge */
+.dstudio .ds-sysc-b .ds-mat-table tr:last-child td { border-bottom: 0; }

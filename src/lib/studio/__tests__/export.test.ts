@@ -104,8 +104,8 @@ describe("buildPrintModel", () => {
     const d = fixtureDoc();
     const m = buildPrintModel([d], pack, defaultExportOptions(d));
     expect(m.variants).toHaveLength(1);
-    expect(m.variants[0].schedule.systems).toHaveLength(1);
-    expect(m.variants[0].rollup.length).toBeGreaterThan(0);
+    expect(m.variants[0].sheet.systems).toHaveLength(1);
+    expect(m.variants[0].sheet.picklist.length).toBeGreaterThan(0);
     expect(m.variants[0].floors.map((f) => f.id)).toEqual(["f1", "f2"]);
     expect(m.variants[0].basis.zone).toBe(5);
   });
@@ -117,7 +117,7 @@ describe("buildPrintModel", () => {
       content: "schedule",
     });
     expect(m.variants[0].floors).toEqual([]);
-    expect(m.variants[0].schedule.systems).toHaveLength(1);
+    expect(m.variants[0].sheet.systems).toHaveLength(1);
   });
 
   it("plans-only: no schedule, floor pages remain", () => {
@@ -126,8 +126,8 @@ describe("buildPrintModel", () => {
       ...defaultExportOptions(d),
       content: "plans",
     });
-    expect(m.variants[0].schedule.systems).toEqual([]);
-    expect(m.variants[0].rollup).toEqual([]);
+    expect(m.variants[0].sheet.systems).toEqual([]);
+    expect(m.variants[0].sheet.picklist).toEqual([]);
     expect(m.variants[0].floors).toHaveLength(2);
   });
 

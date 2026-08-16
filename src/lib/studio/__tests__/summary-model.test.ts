@@ -212,8 +212,63 @@ describe("buildSummaryModel — no pack", () => {
     const s = model.systems[0];
     expect(s.refrigerant).toBeNull();
     expect(s.pipeLiquidMm).toBeNull();
-    expect(s.components).toEqual([]);
+    expect(s.lines).toEqual([]);
     // the rooms are still there — a pack-less sheet is thin, not blank
     expect(model.unserved.map((r) => r.name)).toContain("Kitchen");
+  });
+});
+
+describe("buildSummaryModel — the merged sheet", () => {
+  it("says what a system is, in words", () => {
+    expect(buildSummaryModel(splitDoc(), pack).systems[0].kindLabel).toBe("Split");
+    expect(buildSummaryModel(multiDoc(), pack).systems[0].kindLabel).toBe(
+      "Multi-split · 3 heads on one outdoor"
+    );
+  });
+
+  it("carries the outdoor machine's own capacity, not the summed heads", () => {
+    const sys = buildSummaryModel(multiDoc(), pack).systems[0];
+    expect(sys.outdoorModel).toBe("MXZ-3F54VGD");
+    expect(sys.outdoorCapacityKw).toBeGreaterThan(0);
+  });
+
+  it("never lists a unit as a takeoff line", () => {
+    /* units live in the rooms table and the outdoor block — a unit repeated
+       in materials is the double-handling this redesign exists to kill */
+    for (const doc of [splitDoc(), multiDoc()]) {
+      for (const s of buildSummaryModel(doc, pack).systems)
+        for (const l of s.lines) {
+          expect(l.name).not.toMatch(/^[A-Z]{2,4}Z?-/); // model-number shapes
+        }
+    }
+  });
+
+  it("picklist counts a multi's units — the split-only rollup missed them", () => {
+    const rows = buildSummaryModel(multiDoc(), pack).picklist;
+    const heads = rows.find((r) => r.name === "MSZ-LN25VG2V");
+    const odu = rows.find((r) => r.name === "MXZ-3F54VGD");
+    expect(heads?.qty).toBe("3");
+    expect(odu?.qty).toBe("1");
+  });
+
+  it("picklist excludes what is supplied by others", () => {
+    const d = splitDoc();
+    d.systems[0].settings.components = { electrical: "none" };
+    const model = buildSummaryModel(d, pack);
+    // stated on the system's own materials…
+    expect(
+      model.systems[0].lines.some((l) => l.name === "Supplied by others")
+    ).toBe(true);
+    // …but never picked
+    expect(
+      model.picklist.some((r) => r.name === "Supplied by others")
+    ).toBe(false);
+  });
+
+  it("picklist sums countable components across systems", () => {
+    const rows = buildSummaryModel(multiDoc(), pack).picklist;
+    const isolator = rows.find((r) => r.name.startsWith("Isolator"));
+    expect(isolator).toBeDefined();
+    expect(isolator?.qty).toBe("1");
   });
 });

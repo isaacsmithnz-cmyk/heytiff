@@ -7,12 +7,13 @@
 import type { DesignDocument, Floor } from "./document";
 import type { DataPack } from "./packs/schema";
 import {
-  buildMaterials,
-  rollupUnits,
-  type MaterialsSchedule,
-  type RollupRow,
-} from "./materials";
-import { designBasis, type DesignBasis } from "./summary";
+  buildSummaryModel,
+  buildDesignSnapshot,
+  designBasis,
+  type DesignBasis,
+  type DesignSnapshot,
+  type SummaryModel,
+} from "./summary";
 
 /* structurally identical to the canvas's LayerFlags — declared here so lib
    code never imports a component module */
@@ -55,13 +56,16 @@ export function defaultExportOptions(doc: DesignDocument): ExportOptions {
   };
 }
 
-/* ── the print model — one entry per included variant document ── */
+/* ── the print model — one entry per included variant document ──
+      The variant carries the SAME merged sheet model the screen renders
+      (coverage AND takeoff per system, plus the Material picklist), so the
+      paper can never disagree with the screen — one derivation, two faces. */
 export interface PrintVariant {
   doc: DesignDocument;
   /** the variant's label ("Option 2"), null when not part of a set */
   label: string | null;
-  schedule: MaterialsSchedule;
-  rollup: RollupRow[];
+  sheet: SummaryModel;
+  snapshot: DesignSnapshot;
   /** the floors that get plan pages, already filtered + ordered by level */
   floors: Floor[];
   basis: DesignBasis;
@@ -80,10 +84,10 @@ export function buildPrintModel(
   options: ExportOptions
 ): PrintModel {
   const variants: PrintVariant[] = docs.map((doc, i) => {
-    const schedule =
+    const sheet =
       options.content === "plans"
-        ? { systems: [] }
-        : buildMaterials(doc, pack);
+        ? { systems: [], unserved: [], picklist: [] }
+        : buildSummaryModel(doc, pack);
     const floors =
       options.content === "schedule"
         ? []
@@ -93,8 +97,8 @@ export function buildPrintModel(
     return {
       doc,
       label: doc.meta.variantLabel,
-      schedule,
-      rollup: rollupUnits(schedule),
+      sheet,
+      snapshot: buildDesignSnapshot(doc),
       floors,
       basis: designBasis(doc),
     };

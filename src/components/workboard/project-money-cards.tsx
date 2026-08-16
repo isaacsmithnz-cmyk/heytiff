@@ -808,7 +808,11 @@ export function DatesCard({
         </span>
         <div>
           <b>Committed dates</b>
-          <em>The promises with consequences — the board counts them down out loud.</em>
+          {/* "— the board counts them down out loud" came off. The countdown
+              is right there in the rows; a caption announcing that the screen
+              does the thing the screen is visibly doing is the app admiring
+              its own work. */}
+          <em>The promises with consequences.</em>
         </div>
       </div>
 

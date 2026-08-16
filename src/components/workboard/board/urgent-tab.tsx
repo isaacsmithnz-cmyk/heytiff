@@ -119,7 +119,12 @@ export function UrgentTab({
               anyone walking past can act on a row — the queue belongs to
               whoever picks it up (Isaac, 2026-08-02). */}
           <b>Needs attention</b>
-          <em>Overdue first, then before the week turns. Rows clear themselves as facts change.</em>
+          {/* THE SORT ORDER IS A FACT ABOUT THE LIST; how the list maintains
+              itself is not. This closed with "Rows clear themselves as facts
+              change", which is the app describing its own bookkeeping to
+              somebody who came here to see what needs doing — and describing
+              it in the one place a row disappearing is self-evident. */}
+          <em>Overdue first, then before the week turns.</em>
         </div>
         <div className="wb2-filters">
           {filterChip("all", "Everything", "")}

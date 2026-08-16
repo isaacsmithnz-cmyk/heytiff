@@ -235,7 +235,12 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
               </span>
               <div className="xc-startk">
                 <b>Claim something you paid for</b>
-                <em>Photograph the receipt and Tiff fills the form in — you check it before it goes.</em>
+                {/* "— you check it before it goes" came off: the same hedge
+                    the agreement modal wore ("every field below is editable
+                    before anything is created"). The form appears filled and
+                    editable with a Send button under it; the sentence only
+                    taught you to distrust the fill. */}
+                <em>Photograph the receipt and Tiff fills the form in.</em>
               </div>
               <div className="xc-startb">
                 <button className="pbtn primary" onClick={() => fileRef.current?.click()} disabled={scanning}>

@@ -109,7 +109,7 @@ export function ProjectUrgentTab({
         </span>
         <div>
           <b>Needs attention</b>
-          <em>Late trips first, then what&apos;s stuck. Rows clear themselves as facts change.</em>
+          <em>Late trips first, then what&apos;s stuck.</em>
         </div>
         <div className="wb2-filters">
           {filterChip("all", "everything", "")}

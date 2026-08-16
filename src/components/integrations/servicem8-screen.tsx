@@ -269,8 +269,13 @@ export function Servicem8Screen({
                 <Icon name="sync" size={19} />
               </span>
               <div>
+                {/* NO SUBTITLE. It read "Connecting is step one — each of
+                    these lands as it's built", which is a roadmap in a
+                    settings screen: it told an owner deciding whether to
+                    connect that some of the list below does not exist yet,
+                    without saying which. The heading names the card and the
+                    list is the answer. */}
                 <b>What ServiceM8 powers here</b>
-                <em>Connecting is step one — each of these lands as it&apos;s built.</em>
               </div>
             </div>
             <div className="int-uses">

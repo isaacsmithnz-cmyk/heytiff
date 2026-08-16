@@ -290,8 +290,10 @@ export function XeroScreen({
                 <Icon name="sync" size={19} />
               </span>
               <div>
+                {/* No subtitle — see the same card in ./servicem8-screen:
+                    "each of these lands as it's built" is a roadmap in a
+                    settings screen, and vague about which half is real. */}
                 <b>What Xero powers here</b>
-                <em>Connecting is step one — each of these lands as it&apos;s built.</em>
               </div>
             </div>
             <div className="int-uses">

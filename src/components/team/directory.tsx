@@ -14,6 +14,10 @@ type View = "active" | "warn" | "pending";
 type Sort = "name" | "role" | "exp";
 
 
+/* A stable hue per person, for the avatar's ring. It is decoration and
+   identity, never state — nothing is read from the colour, so it carries no
+   contrast requirement of its own. It must NOT be used to fill the avatar: see
+   `.fg .dav`. */
 function hue(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
@@ -130,23 +134,59 @@ export function TeamDirectory({
   }, [staff, warnStaff, view, query, sort]);
 
   const tabIdx = view === "active" ? 0 : view === "warn" ? 1 : 2;
-  const tab = (idx: number, key: View, val: number, label: string, sub: string) => (
-    <button
-      key={key}
-      className={`dirtab${view === key ? " on" : ""}`}
-      onClick={() => setView(key)}
-    >
-      <span className="dtval">{val}</span>
-      <span className="dtlab">{label}</span>
-      <span className="dtsub">{sub}</span>
-    </button>
-  );
+
+  /* Which view you are on was carried by opacity and a sliding white pill and
+     nothing else — three plain buttons, no roles, no aria-selected. It is a
+     tablist, so it says so: roving tabindex and the arrow walk included,
+     because a tablist that puts every tab in the tab order is a worse tablist
+     than none. Same contract the staff card's strip already keeps. */
+  const moveTab = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    const tabs = [...(e.currentTarget.closest(".dirtabs")?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
+    const i = tabs.indexOf(e.currentTarget);
+    if (i < 0) return;
+    e.preventDefault();
+    const next =
+      e.key === "Home"
+        ? 0
+        : e.key === "End"
+          ? tabs.length - 1
+          : (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[next]?.focus();
+  };
+
+  const tab = (key: View, val: number, label: string, sub: string) => {
+    const on = view === key;
+    return (
+      <button
+        key={key}
+        type="button"
+        role="tab"
+        id={`dirtab-${key}`}
+        aria-selected={on}
+        aria-controls="dirpanel"
+        tabIndex={on ? 0 : -1}
+        className={`dirtab${on ? " on" : ""}`}
+        onClick={() => setView(key)}
+        onKeyDown={moveTab}
+      >
+        <span className="dtval">{val}</span>
+        <span className="dtlab">{label}</span>
+        <span className="dtsub">{sub}</span>
+      </button>
+    );
+  };
 
   return (
     <div ref={rootRef}>
-      <div className="dirtabs" data-view={view} style={{ "--idx": tabIdx } as React.CSSProperties}>
-        <span className="dirtab-slide" style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 3)` }} />
-        {tab(0, "active", activeCount, "Active staff", "Currently working")}
+      <div className="dirtabs" role="tablist" aria-label="Directory view" data-view={view}>
+        <span
+          className="dirtab-slide"
+          aria-hidden="true"
+          style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 3)` }}
+        />
+        {tab("active", activeCount, "Active staff", "Currently working")}
         {/* NOT "Need attention". Home's card has a tab called "Needs
             attention" one rail row away, and the two count different things in
             different units: Home counts ITEMS inside a 30-day warning window
@@ -154,8 +194,8 @@ export function TeamDirectory({
             compliance isn't clear, expired and expiring together. Two numbers
             that will rarely agree under two labels a letter apart. This one
             says what it counts. */}
-        {tab(1, "warn", warnStaff.length, "Compliance gaps", "Expired, expiring or unverified")}
-        {tab(2, "pending", pending.length, "Pending invites", "Awaiting acceptance")}
+        {tab("warn", warnStaff.length, "Compliance gaps", "Expired, expiring or unverified")}
+        {tab("pending", pending.length, "Pending invites", "Awaiting acceptance")}
       </div>
 
       {view !== "pending" && (
@@ -164,14 +204,24 @@ export function TeamDirectory({
             <Icon name="search" size={17} />
             <input
               className="dsearchin"
+              aria-label="Search staff by name or role"
               placeholder="Search name or role..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+          {/* The wrapper holds an icon and no text, so without a name of its
+              own the select announced as its whole option list — "Name
+              (A–Z)RoleCompliance expiry". A <label> that wraps a control still
+              has to say something. */}
           <label className="dsortwrap">
             <Icon name="arrowDown" size={14} />
-            <select className="dsort" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <select
+              className="dsort"
+              aria-label="Sort by"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as Sort)}
+            >
               <option value="name">Name (A–Z)</option>
               <option value="role">Role</option>
               <option value="exp">Compliance expiry</option>
@@ -181,7 +231,7 @@ export function TeamDirectory({
       )}
 
       {view === "pending" ? (
-        <div className="dir">
+        <div className="dir" id="dirpanel" role="tabpanel" aria-labelledby={`dirtab-${view}`}>
           {inviteError && <div className="invmsg">{inviteError}</div>}
           {pending.length === 0 && <div className="direm on">No invites waiting.</div>}
           {pending.map((p) => (
@@ -238,7 +288,7 @@ export function TeamDirectory({
           ))}
         </div>
       ) : (
-        <div className="dir">
+        <div className="dir" id="dirpanel" role="tabpanel" aria-labelledby={`dirtab-${view}`}>
           {/* Deactivate writes from THIS view, so its failure has to be
               readable from this view — the message used to live only in the
               pending-invites branch. */}
@@ -263,25 +313,48 @@ export function TeamDirectory({
               // on its invite; greyed until the person claims it
               const unclaimed = !s.userId;
               return (
+                /* THE NAME IS THE LINK; THE ROW IS A CONVENIENCE.
+
+                   This was a div with role="link" and tabIndex=0 wrapping the
+                   actions button — interactive content inside a link, which is
+                   invalid, and it gave the row an accessible name of everything
+                   it contained glued together: "MCMarcus Chenmarcus@diamondair
+                   .com.auLead InstallerCompliant, link". It also cost two tab
+                   stops per row for one destination.
+
+                   Now the name is a real anchor: it announces as "Marcus Chen,
+                   link", it is the only tab stop besides the actions button, it
+                   has a real href so ⌘-click and "open in new tab" work, and
+                   Enter comes free from the browser. The row keeps its click
+                   for the mouse — a big target is worth having — but it is no
+                   longer pretending to be a control. */
                 <div
                   key={s.id}
                   className={`dirrow${inactive ? " off" : ""}${unclaimed ? " unclaimed" : ""}`}
-                  role="link"
-                  tabIndex={0}
                   onClick={() => router.push(`/dashboard/team/${s.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/dashboard/team/${s.id}`);
-                    }
-                  }}
                 >
                   <span className="dname">
-                    <span className="dav" style={{ background: `hsl(${hue(s.name)} 64% 42%)` }}>
+                    {/* the hue rides in as a custom property, never as
+                        `background` — see .fg .dav in shell.css for what the
+                        shorthand did to the ring */}
+                    <span
+                      className="dav"
+                      aria-hidden="true"
+                      style={{ "--av": `hsl(${hue(s.name)} 72% 56%)` } as React.CSSProperties}
+                    >
                       {s.initials}
                     </span>
                     <span>
-                      <b>{s.name}</b>
+                      <b>
+                        {/* stopPropagation so the row's own click doesn't push
+                            the same route a second time behind the anchor */}
+                        <Link
+                          href={`/dashboard/team/${s.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {s.name}
+                        </Link>
+                      </b>
                       <em>{s.email}</em>
                     </span>
                     {inactive && <span className="dofftag">Inactive</span>}

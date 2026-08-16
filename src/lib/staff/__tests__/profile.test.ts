@@ -43,6 +43,27 @@ describe("allowlist contents", () => {
     ];
     for (const col of forbidden) expect(all).not.toContain(col);
   });
+
+  /* The columns that say what the BUSINESS has decided about someone, as
+     opposed to what they know about themselves. `status` is the one that bites:
+     it reads as cosmetic but it is the filter on the Time & Pay staff list, the
+     leave page, dashboard tasks and the drift sweep — so a self-service
+     Inactive drops you out of your own pay run. Team's Deactivate is gated on
+     `team` and arms before it fires; this is the same write. */
+  it("lets nobody set their own employment state", () => {
+    const all = Object.values(SELF_EDITABLE_SECTIONS).flat() as string[];
+    for (const col of ["status", "state"]) expect(all).not.toContain(col);
+  });
+
+  it("drops a status a self save tries to carry, rather than writing it", () => {
+    const { patch, invalid } = buildPatch("personal", [
+      ["first_name", "Priya"],
+      ["status", "Inactive"],
+    ]);
+    expect(patch).toEqual({ first_name: "Priya" });
+    expect(patch).not.toHaveProperty("status");
+    expect(invalid).toEqual([]);
+  });
 });
 
 describe("parseAuDate", () => {
@@ -212,13 +233,11 @@ describe("buildPatch", () => {
     expect(patch).toEqual({ last_name: "van der Berg" });
   });
 
-  it("accepts valid status values and ignores invalid ones", () => {
-    expect(buildPatch("personal", [["status", "Active"]]).patch).toEqual({ status: "Active" });
-    expect(buildPatch("personal", [["status", "Inactive"]]).patch).toEqual({ status: "Inactive" });
-    // would violate the CHECK constraint — dropped rather than sent
-    expect(buildPatch("personal", [["status", "Deleted"]]).patch).toEqual({});
-    expect(buildPatch("personal", [["status", ""]]).patch).toEqual({});
-  });
+  /* This case used to run `status` through the SELF builder, because that was
+     the only enum column the self allowlist could reach. Its subject was always
+     enum validation, not who may set a status — so it moved to the admin
+     builder with `status` rather than being deleted with it. See
+     admin-sections.test.ts. */
 
   it("returns an empty patch when nothing is allowed through", () => {
     const { patch } = buildPatch("workrights", [["first_name", "x"]]);

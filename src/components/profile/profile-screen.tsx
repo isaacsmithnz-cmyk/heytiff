@@ -198,10 +198,12 @@ export function ProfileScreen({
             {mode === "self" ? (
               <b>My profile</b>
             ) : (
+              /* Two crumbs, one destination: this read `Team / Staff / name`
+                 and BOTH links went to /dashboard/team. A breadcrumb is a claim
+                 about depth, so a step that doesn't step is a lie about where
+                 you are — and the second one was the same click as the first. */
               <>
                 <Link href="/dashboard/team">Team</Link>
-                <span className="sep">/</span>
-                <Link href="/dashboard/team">Staff</Link>
                 <span className="sep">/</span>
                 <b>{header.name}</b>
               </>

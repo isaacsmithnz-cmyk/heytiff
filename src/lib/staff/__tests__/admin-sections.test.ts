@@ -4,7 +4,7 @@ import {
   capabilityFor,
   isAdminSection,
 } from "../admin-sections";
-import { SELF_EDITABLE_SECTIONS } from "../profile";
+import { SELF_EDITABLE_SECTIONS, buildPatch } from "../profile";
 
 describe("isAdminSection", () => {
   it("accepts the six admin-editable sections", () => {
@@ -80,6 +80,25 @@ describe("buildAdminPatch — columns", () => {
   it("lets an admin set job_title, which self-edit cannot", () => {
     const { patch } = buildAdminPatch("personal", [["job_title", "Lead Installer"]]);
     expect(patch).toEqual({ job_title: "Lead Installer" });
+  });
+
+  /* Moved here from profile.test.ts when `status` left the self allowlist. The
+     case is about the enum gate, and this is the builder that still has one. */
+  it("accepts valid status values and ignores invalid ones", () => {
+    expect(buildAdminPatch("personal", [["status", "Active"]]).patch).toEqual({ status: "Active" });
+    expect(buildAdminPatch("personal", [["status", "Inactive"]]).patch).toEqual({
+      status: "Inactive",
+    });
+    // would violate the CHECK constraint — dropped rather than sent
+    expect(buildAdminPatch("personal", [["status", "Deleted"]]).patch).toEqual({});
+    expect(buildAdminPatch("personal", [["status", ""]]).patch).toEqual({});
+  });
+
+  it("lets an admin set status, which self-edit cannot", () => {
+    expect(buildAdminPatch("personal", [["status", "Inactive"]]).patch).toEqual({
+      status: "Inactive",
+    });
+    expect(buildPatch("personal", [["status", "Inactive"]]).patch).toEqual({});
   });
 
   it("converts dd/mm/yyyy dates", () => {

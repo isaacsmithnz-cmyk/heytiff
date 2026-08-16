@@ -207,9 +207,13 @@ export function PersonalCard({
             />
           }
         />
+        {/* Shown to everyone, editable only by an admin — you should be able to
+            see whether your card is active without being able to switch it off.
+            The server agrees: `status` is absent from SELF_EDITABLE_SECTIONS,
+            so a self save that carries it is dropped rather than refused. */}
         <Detail
           label="Status"
-          editing={editing}
+          editing={editing && mode === "admin"}
           value={
             <span className={values.status === "Active" ? "ro-state ok" : "ro-state"}>
               {values.status}

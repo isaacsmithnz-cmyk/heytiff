@@ -30,6 +30,11 @@ export type ViewTab = {
   locked?: boolean;
   /** Appended to the accessible name so the badge is not a number alone. */
   countLabel?: (n: number) => string;
+  /* Why the padlock needs words. It was a bare <svg> with no title, no
+     aria-hidden and no label on the tab, so "Payroll 🔒" announced as
+     "Payroll" — the gate existed only as a glyph. Same shape as `countLabel`:
+     the icon goes aria-hidden and the meaning is said in text. */
+  lockLabel?: string;
 };
 
 export function ViewTabs({
@@ -54,28 +59,77 @@ export function ViewTabs({
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
+  /* Which sides have tabs hidden past the edge. The strip scrolls below its fit
+     width and the stylesheet HIDES the scrollbar (scrollbar-width:none plus the
+     webkit twin), so the one affordance it had was deliberately removed and
+     nothing put back: nine tabs, 925px of them, inside 295px on a narrow
+     window, with no sign that Payroll, Permissions and Notes exist. These drive
+     an edge fade in CSS. Measured rather than assumed, for the same reason the
+     thumb is — it depends on the font. */
+  const [edges, setEdges] = useState({ l: false, r: false });
 
   /* The thumb is measured, not computed: label widths depend on the font, and
      the font arrives after first paint. Re-measuring on resize covers the
      scrolling case below the fit width too. */
   useLayoutEffect(() => {
-    const measure = () => {
-      const row = rowRef.current;
-      const on = row?.querySelector<HTMLButtonElement>(`[data-vtab="${active}"]`);
-      if (!row || !on) return;
-      setThumb({ x: on.offsetLeft, w: on.offsetWidth });
-      /* Below the fit width the row scrolls; a tab you just chose from a
-         keyboard walk must not stay off the end of it. Feature-checked: jsdom
-         has no scrollIntoView, and this is a nicety, not the navigation. */
-      on.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    const row = rowRef.current;
+
+    /* WHICH SIDES ARE CUT OFF. Cheap, and safe to run on every scroll frame —
+       it only reads and sets state. */
+    const readEdges = () => {
+      if (!row) return;
+      // 1px of slack: sub-pixel widths otherwise leave a fade on forever
+      const max = row.scrollWidth - row.clientWidth;
+      setEdges({ l: row.scrollLeft > 1, r: row.scrollLeft < max - 1 });
     };
+
+    /* THE THUMB, AND REVEALING THE CHOSEN TAB. Separate from readEdges, and it
+       must STAY separate: this calls scrollIntoView, so wiring it to the scroll
+       event makes the strip drag itself back to the active tab the instant you
+       scroll it by hand. That is exactly what happened when the edge-fade
+       listener first shared this function — a scroll to the far end snapped
+       back to 24px. Reveal on the things that should reveal (a new active tab,
+       a resize), never on the user's own scrolling. */
+    const measure = () => {
+      if (!row) return;
+      const on = row.querySelector<HTMLButtonElement>(`[data-vtab="${active}"]`);
+      if (on) {
+        setThumb({ x: on.offsetLeft, w: on.offsetWidth });
+        /* Below the fit width the row scrolls; a tab you just chose from a
+           keyboard walk must not stay off the end of it. Feature-checked: jsdom
+           has no scrollIntoView, and this is a nicety, not the navigation. */
+        on.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      }
+      readEdges();
+    };
+
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    row?.addEventListener("scroll", readEdges, { passive: true });
+    /* A window resize is not the only thing that changes this row's width — the
+       card reflows under it, and on first paint the strip can be measured at
+       zero before layout settles, which would leave the fades wrong with
+       nothing to re-trigger them. Observing the row itself covers both.
+       Feature-checked: jsdom has no ResizeObserver. */
+    const ro =
+      typeof ResizeObserver === "function" && row ? new ResizeObserver(readEdges) : null;
+    if (row) ro?.observe(row);
+    return () => {
+      window.removeEventListener("resize", measure);
+      row?.removeEventListener("scroll", readEdges);
+      ro?.disconnect();
+    };
   }, [active, items.length]);
 
   return (
-    <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label={ariaLabel}>
+    <div
+      className="wb2-vtabs"
+      ref={rowRef}
+      role="tablist"
+      aria-label={ariaLabel}
+      data-ovl={edges.l ? "" : undefined}
+      data-ovr={edges.r ? "" : undefined}
+    >
       {thumb && (
         <span
           className="wb2-vslide"
@@ -129,9 +183,12 @@ function Tab({
     >
       {tab.label}
       {tab.locked && (
-        <span className="lock">
-          <Icon name="lock" size={13} />
-        </span>
+        <>
+          <span className="lock" aria-hidden="true">
+            <Icon name="lock" size={13} />
+          </span>
+          <span className="sr-only"> — {tab.lockLabel ?? "restricted"}</span>
+        </>
       )}
       {count > 0 && (
         <>

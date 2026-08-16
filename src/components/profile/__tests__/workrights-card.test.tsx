@@ -50,7 +50,7 @@ describe("choosing a no-visa status", () => {
 
     expect(screen.queryByDisplayValue("482 TSS")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Expiry")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/VEVO checked/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Right to work checked/)).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("unlimited")).not.toBeInTheDocument();
     // the edit-only "No visa required" banner is gone: both modes now say it
     // as a row, so there is one presentation of the fact instead of two
@@ -95,7 +95,7 @@ describe("choosing a no-visa status", () => {
     const user = userEvent.setup();
     setup(onVisa);
     await user.click(edit());
-    for (const label of ["Expiry", /VEVO checked/]) {
+    for (const label of ["Expiry", /Right to work checked/]) {
       const field = screen.getByLabelText(label);
       expect(field.tagName).toBe("BUTTON");
       expect(field).toHaveAttribute("aria-haspopup", "dialog");
@@ -103,7 +103,7 @@ describe("choosing a no-visa status", () => {
 
     // a check you already did can't be in the future: it opens on the month it
     // holds (June 2026), and the days past TODAY aren't there to be clicked
-    await user.click(screen.getByLabelText(/VEVO checked/));
+    await user.click(screen.getByLabelText(/Right to work checked/));
     const pop = () => within(screen.getByRole("dialog"));
     await user.click(pop().getByRole("button", { name: "Next month" }));
     expect(pop().getByRole("button", { name: "Friday 24 July 2026" })).toBeEnabled(); // TODAY
@@ -135,7 +135,7 @@ describe("the read view", () => {
     // the whole panel is unmounted, not dimmed — same rule the edit form applies
     expect(screen.queryByText("Visa")).not.toBeInTheDocument();
     expect(screen.queryByText("Expiry")).not.toBeInTheDocument();
-    expect(screen.queryByText("VEVO checked")).not.toBeInTheDocument();
+    expect(screen.queryByText("Right to work checked")).not.toBeInTheDocument();
   });
 
   it("shows the visa panel for a visa holder, and tints an expiry that is close", () => {

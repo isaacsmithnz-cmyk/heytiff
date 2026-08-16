@@ -10,18 +10,11 @@ import { Detail, DetailPanel, DetailPanels } from "./detail";
 import { DateField, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 
-export const WORK_RIGHTS = [
-  "Australian citizen",
-  "Permanent resident",
-  "Full working rights (visa)",
-  "Conditional working rights (visa)",
-  "No working rights",
-] as const;
-
-/** The two statuses that make every visa field meaningless. */
-export const NO_VISA_STATUSES: readonly string[] = ["Australian citizen", "Permanent resident"];
-
-export const isNoVisa = (status: string) => NO_VISA_STATUSES.includes(status);
+/* Moved to lib/staff/work-rights.ts — a pure module, because the compliance
+   chip on the server needs `isNoVisa` and this file is "use client".
+   Re-exported so existing importers are untouched. */
+export { WORK_RIGHTS, NO_VISA_STATUSES, isNoVisa } from "@/lib/staff/work-rights";
+import { WORK_RIGHTS, isNoVisa } from "@/lib/staff/work-rights";
 
 export function workRightsValues(p: StaffProfile | null): Record<string, string> {
   return {
@@ -181,8 +174,14 @@ export function WorkRightsCard({
                 />
               }
             />
+            {/* "VEVO checked" until now. VEVO is the government's visa
+                register, and the acronym is what a compliance consultant calls
+                it, not what the person filling this in calls it — the field
+                records the day somebody confirmed this person may work, so it
+                says that. The COLUMN stays `vevo_checked_at`: renaming it is a
+                migration, and the name is accurate where it lives. */}
             <Detail
-              label="VEVO checked"
+              label="Right to work checked"
               editing={editing}
               value={vevoChecked}
               onAdd={edit}

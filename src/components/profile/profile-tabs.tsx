@@ -50,6 +50,8 @@ export function ProfileTabs({
         key: n.key,
         label: n.label,
         locked: n.admin,
+        // the padlock's meaning, in the words the card's own copy uses
+        lockLabel: "admin only",
         count: attention.get(n.key) ?? 0,
         // the checklist's own words, so the badge and the list agree
         countLabel: (c) => `${c} detail${c === 1 ? "" : "s"} missing`,

@@ -53,6 +53,56 @@ export function HeardLine({ hearing }: { hearing: boolean }) {
   );
 }
 
+
+export type RecordingMeterProps = {
+  dict: DictationState;
+  /* WHERE THE MIC IS A ROW, NOT A CARD. The three note postures put their
+     microphone in a strip, a dictation bar or an add row — one line each,
+     alongside a box you can still see your words in — and growing those into
+     a 680px card mid-sentence would break the promise the strip is built on
+     (a job card's note row must not make somebody wait to write down a gate
+     code). So the instrument comes to them instead of the other way round:
+     same three readings, laid out along a line rather than stacked.
+
+     What compact DROPS is what the row already has. There is no "what you
+     have said so far" box because the posture's own box is right there with
+     the live words joined into it, and no Type/Start again/Done row because
+     the bar carries its own stop and discard. What it does NOT drop is the
+     third reading — "Hearing you" — which is the one none of these rows had
+     and the entire reason the meter was rebuilt. */
+  compact?: boolean;
+  /** The card's `with-words` state; nothing else passes one. */
+  className?: string;
+};
+
+/* THE INSTRUMENT — three readings off one recording.
+
+   Audited 2026-08-10: the capture card was 680 × 201px, 86% of it empty, with
+   a 36 × 34px meter marooned in the middle. The one element proving the
+   microphone works was the smallest thing on the screen, and at silence its
+   resting state was indistinguishable from a dead mic.
+
+   All three readings answer the same question — "is this thing hearing me?" —
+   in three registers, because no single one of them was enough. The sphere
+   turns because the mic is open and grows because you are loud. The clock
+   proves time is passing at all. And the line underneath says it in words,
+   which is how people actually ask and answer it. */
+export function RecordingMeter({ dict, compact, className }: RecordingMeterProps) {
+  return (
+    <div
+      className={
+        "wb2-recwave" + (compact ? " compact" : "") + (className ? ` ${className}` : "")
+      }
+    >
+      <div className="wb2-recmeta">
+        <DictClock seconds={dict.seconds} big={!compact} />
+        <HeardLine hearing={dict.hearing} />
+      </div>
+      <LevelOrb innerRef={dict.barsRef} />
+    </div>
+  );
+}
+
 export type RecordingCardProps = {
   dict: DictationState;
   /** What is already captured — the box's value, whatever box that is. The
@@ -88,24 +138,7 @@ export function RecordingCard({ dict, text }: RecordingCardProps) {
           aria-label="What you have said so far"
         />
       )}
-      {/* THE INSTRUMENT, NOT AN ORNAMENT (audited 2026-08-10). This stage used
-          to be a 680px card that was 86% empty with a 36px meter marooned in
-          the middle of it, and the middle was empty because it is reserved
-          for words that only the live transport ever delivers.
-
-          Now the reserved space IS the meter until there are words to put in
-          it: the orb takes the middle at a size worth looking at, the clock
-          sits beside it at a size worth reading, and a line under that says
-          in words what the sphere is doing — which is the question Isaac
-          actually had ("is this thing hearing me?") and the one thing five
-          6px dots could never answer. */}
-      <div className={"wb2-recwave" + (words ? " with-words" : "")}>
-        <div className="wb2-recmeta">
-          <DictClock seconds={dict.seconds} big />
-          <HeardLine hearing={dict.hearing} />
-        </div>
-        <LevelOrb innerRef={dict.barsRef} />
-      </div>
+      <RecordingMeter dict={dict} className={words ? "with-words" : undefined} />
       <div className="wb2-capact">
         {/* THE WAY OUT TO THE KEYBOARD, and during a recording it is the only
             thing this slot does. Audited 2026-08-10: the strongest position on

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
-import { DictClock, LevelOrb, appendSpoken, useDictation } from "./dictation";
-import { RecordingCard } from "./recording-card";
+import { appendSpoken, useDictation } from "./dictation";
+import { RecordingCard, RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
 import { Orb, Waiting } from "@/components/ui/orb";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
@@ -805,8 +805,14 @@ function Strip({
         />
         {mic.voiceEnabled && dict.recording ? (
           <>
-            <LevelOrb innerRef={dict.barsRef} />
-            <DictClock seconds={dict.seconds} />
+            {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
+                clock and nothing else — the two readings a bar has room for
+                — while the capture card three doors away showed a third:
+                whether anything is actually reaching the microphone. That
+                third one is the whole reason the meter was rebuilt, and it
+                was missing from every posture that lives on a page. Same
+                component, laid along the line instead of stacked. */}
+            <RecordingMeter dict={dict} compact />
             <button
               type="button"
               className="wb2-striprnd stop"
@@ -1079,8 +1085,14 @@ function FieldPosture({
           />
           {mic.voiceEnabled && dict.recording ? (
             <>
-              <LevelOrb innerRef={dict.barsRef} />
-              <DictClock seconds={dict.seconds} />
+              {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
+                clock and nothing else — the two readings a bar has room for
+                — while the capture card three doors away showed a third:
+                whether anything is actually reaching the microphone. That
+                third one is the whole reason the meter was rebuilt, and it
+                was missing from every posture that lives on a page. Same
+                component, laid along the line instead of stacked. */}
+              <RecordingMeter dict={dict} compact />
               <button
                 type="button"
                 className="wb2-micgo on"
@@ -1158,8 +1170,14 @@ function FieldPosture({
               >
                 <Icon name="square" size={13} />
               </button>
-              <LevelOrb innerRef={dict.barsRef} />
-              <DictClock seconds={dict.seconds} />
+              {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
+                clock and nothing else — the two readings a bar has room for
+                — while the capture card three doors away showed a third:
+                whether anything is actually reaching the microphone. That
+                third one is the whole reason the meter was rebuilt, and it
+                was missing from every posture that lives on a page. Same
+                component, laid along the line instead of stacked. */}
+              <RecordingMeter dict={dict} compact />
               <button
                 type="button"
                 className="wb2-dictx"

@@ -60,7 +60,14 @@ export const SELF_EDITABLE_SECTIONS = {
     "address",
     "start_date",
     "employment_type",
-    "status",
+    /* `status` is NOT here, for the same reason `job_title` and `state` aren't:
+       whether someone is on staff is a thing the business sets, not a thing
+       they type about themselves. It also isn't cosmetic — `status="Active"`
+       is the filter on the Time & Pay staff list, the leave page, dashboard
+       tasks and the integrations drift sweep, so setting yourself Inactive
+       drops you out of pay runs and task assignment. Team's own Deactivate
+       arms before it fires and is gated on `team`; the same write reached
+       through here as an unguarded toggle on your own card. */
   ],
   emergency: [
     "emergency_name",

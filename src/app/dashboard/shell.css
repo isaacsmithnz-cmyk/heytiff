@@ -9,7 +9,50 @@
 .fg {
   --teal:#00E5C0; --teal-d:#00A389; --blue:#2E68FF; --violet:#8A2BE2;
   --ink:#050505; --ink2:#0A0B10; --bg:#F0F2F5; --red:#FF3366;
-  --gray400:#9ca3af; --gray500:#6b7280; --gray700:#374151;
+  /* --gray400 and --gray500 were #9ca3af and #6b7280, and between them carried
+     352 `color:` declarations — they are the two most-used text colours in the
+     app and neither cleared AA. 400 measured 2.54 on white; 500 looks safe at
+     4.83 on white but drops to 4.32 on the tab strip and 4.22 on the red tint,
+     which is where it is most often actually used. Both are re-pointed at
+     measured values below. Nothing else about them changed: they are still the
+     two quiet tiers, still used the same way, and --gray700 is untouched. */
+  --gray400:var(--q); --gray500:#57616f; --gray700:#374151;
+
+  /* QUIET TEXT ON A LIGHT GROUND, and the reason it is one token and not four.
+
+     The sheet had #9ca3af, #aeb4c0, #b6bcc7 and #c7ccd6 all doing this job at
+     2.54, 2.08, 1.91 and 1.61 against white. They read as a ramp, but there is
+     no ramp available below 4.5:1 — measured on the six grounds this text
+     actually lands on (white, #fafbfc, #f9fafb, #f1f2f4, #f6f7f9 and the three
+     state tints) the lightest value that clears AA everywhere is this one. Even
+     --gray500 misses it, at 4.32 on the tab strip and 4.22 on the red tint.
+     Hierarchy below body text is carried by size and weight now; the tiers ABOVE
+     it (--gray700 at 9.4, --ink at 19) are real and still there.
+
+     Borders keep their own light greys — 4.5:1 is a text rule.
+
+     The grounds list includes #f7f8fa and #f2f4f7, the tint an inactive or
+     unclaimed directory row now carries instead of `opacity:.62`. Adding them
+     is what moved this from #646d7d to here: over that slightly darker ground
+     #646d7d falls to 4.30. */
+  --q:#5f6a79;
+
+  /* Semantic state AS TEXT, for a light ground — the `-t` convention the
+     workboard already uses. The fills stay exactly as they were: --teal-d and
+     --red are the brand's state colours and are correct as chips, dots and
+     icons; they were simply never dark enough to be read AS WORDS on their own
+     10-13% tints, where they measured 2.98, 4.02 and 4.58. These are the same
+     hues taken down until they clear 4.5 on the tint, on white, and on the grey
+     strip. --info-t is the same for the blue, which is a background 11 times and
+     text 3 times — only the text moves.
+
+     --warn-t was already in the sheet at #b45309 and had been treated as
+     passing, on the strength of 4.58 against the 13% amber tint. It sits on a
+     16% tint too (the staff card's missing-field badge), where it is 4.48, and
+     over an inactive row it is 4.14. Same hue, taken down until every ground
+     clears. */
+  --ok-t:#00735f; --warn-t:#a44b08; --bad-t:#c81a41; --info-t:#2554d8;
+
   --font:var(--font-jakarta), sans-serif; --mono:var(--font-jakarta), sans-serif;
   position:fixed; inset:0; display:flex; overflow:hidden; background:var(--bg);
   font-family:var(--font); color:var(--ink); -webkit-font-smoothing:antialiased;
@@ -153,7 +196,7 @@
 .fg .searchbtn .sf { width:100%; padding:13px 48px; background:rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.08); border-radius:16px; font-size:14px; font-weight:500; color:var(--gray400); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .3s; }
 .fg .searchbtn:hover .sf { border-color:rgba(0,229,192,.5); background:#fff; }
 .fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:rgba(0,0,0,.05); padding:4px 8px; border-radius:6px; transition:all .3s; }
-.fg .searchbtn:hover .kbd { background:rgba(0,229,192,.1); color:var(--teal-d); }
+.fg .searchbtn:hover .kbd { background:rgba(0,229,192,.1); color:var(--ok-t); }
 .fg .tbr { display:flex; align-items:center; gap:24px; }
 /* THE FRAME'S CLOCK — the date that used to be a pill inside the home hero,
    now ambient chrome with a time beside it. Mirrors `.me-top .mk` at the other
@@ -289,15 +332,15 @@
 .fg .dash-tile { display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid #f0f0f2; border-radius:14px; text-decoration:none; color:inherit; transition:border-color .15s, background .15s; }
 .fg .dash-tile:hover { border-color:#e2e4ea; background:#fafbfc; }
 .fg .dash-tile .dt-ic { width:32px; height:32px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .dash-tile.bad .dt-ic { background:rgba(255,51,102,.1); color:#e0264f; }
-.fg .dash-tile.warn .dt-ic { background:rgba(240,164,49,.13); color:#b45309; }
+.fg .dash-tile.bad .dt-ic { background:rgba(255,51,102,.1); color:var(--bad-t); }
+.fg .dash-tile.warn .dt-ic { background:rgba(240,164,49,.13); color:var(--warn-t); }
 .fg .dash-tile .dt-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
 .fg .dash-tile .dt-label { font-size:13.5px; font-weight:800; letter-spacing:-0.01em; }
-.fg .dash-tile.bad .dt-label { color:#e0264f; }
-.fg .dash-tile.warn .dt-label { color:#b45309; }
+.fg .dash-tile.bad .dt-label { color:var(--bad-t); }
+.fg .dash-tile.warn .dt-label { color:var(--warn-t); }
 .fg .dash-tile .dt-sub { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .dash-tile .dt-chev { color:#c3c8d2; flex:0 0 auto; display:flex; }
-.fg .dash-tile:hover .dt-chev { color:#6b7280; }
+.fg .dash-tile:hover .dt-chev { color:var(--gray500); }
 
 /* noticeboard page items */
 .fg .nb-item { padding:22px 26px; }
@@ -309,7 +352,7 @@
 .fg .nb-footnote { font-size:12px; font-weight:600; color:var(--gray400); }
 /* the archived drawer: a quiet divider you open, not a second board */
 .fg .nb-archtoggle { display:flex; align-items:center; gap:8px; margin:26px 2px 14px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); transition:color .15s; }
-.fg .nb-archtoggle:hover { color:#6b7280; }
+.fg .nb-archtoggle:hover { color:var(--gray500); }
 
 /* polls: the bar lives BEHIND the answer, so the row reads as a label with a
    fill rather than a chart with a caption */
@@ -338,7 +381,7 @@
 .fg .nb-file.img { width:132px; height:132px; }
 .fg .nb-file.img img { width:100%; height:100%; object-fit:cover; display:block; }
 .fg .nb-file.doc { align-items:center; gap:11px; padding:11px 15px; background:#fafbfc; }
-.fg .nb-file.doc svg { color:#9ca3af; flex:0 0 auto; }
+.fg .nb-file.doc svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-file.doc span { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .nb-file.doc b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .nb-file.doc em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
@@ -356,7 +399,7 @@
 /* the composer's copy, which also has a remove control */
 .fg .nb-pending { display:flex; align-items:center; gap:11px; padding:8px 8px 8px 10px; border:1px solid #eceef3; border-radius:14px; background:#fff; }
 .fg .nb-pending img { width:40px; height:40px; border-radius:9px; object-fit:cover; flex:0 0 auto; }
-.fg .nb-pendingdoc { width:40px; height:40px; border-radius:9px; background:#f3f4f7; color:#aeb4c0; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.fg .nb-pendingdoc { width:40px; height:40px; border-radius:9px; background:#f3f4f7; color:var(--q); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .nb-pendingname { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .nb-pendingname b { font-size:12.5px; font-weight:700; color:var(--ink); }
 .fg .nb-pendingname em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); }
@@ -387,13 +430,13 @@
 .fg .nb-react:hover:not(:disabled) { border-color:#d8dbe4; background:#fafbfc; }
 .fg .nb-react.on { border-color:rgba(46,104,255,.4); background:rgba(46,104,255,.07); color:#1f4bd8; }
 .fg .nb-react.add { width:28px; padding:0; justify-content:center; color:#c3c8d2; }
-.fg .nb-react.add:hover { color:#6b7280; }
+.fg .nb-react.add:hover { color:var(--gray500); }
 .fg .nb-react.pick { font-size:14px; padding:0 9px; }
 
 /* events: the when and where sit above the RSVP, which IS the poll control */
 .fg .nb-when { display:flex; flex-direction:column; gap:7px; margin-top:14px; padding:13px 15px; border-radius:14px; background:#fafbfc; border:1px solid #f0f0f2; }
 .fg .nb-whenline { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:var(--ink); }
-.fg .nb-whenline svg { color:#9ca3af; flex:0 0 auto; }
+.fg .nb-whenline svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-whensum { font-size:12.5px; font-weight:600; color:var(--gray400); padding-left:22px; }
 
 /* composer: what am I posting, and (for a poll) the answers */
@@ -405,7 +448,7 @@
 .fg .nb-optrow { display:flex; align-items:center; gap:8px; width:100%; }
 .fg .nb-optrow input { flex:1; height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); }
 .fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:none; cursor:pointer; color:#c3c8d2; transition:background .15s, color .15s; }
-.fg .nb-optdrop:hover { background:#f3f4f7; color:#6b7280; }
+.fg .nb-optdrop:hover { background:#f3f4f7; color:var(--gray500); }
 
 /* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
    screen rendered that markup after the hero became a greeting plus an action
@@ -453,20 +496,32 @@
    track list from before the actions column arrived. Dead CSS at equal
    specificity has shadowed live rules in this file twice; the live one is in
    the Team directory section. */
-.fg .dirhead { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#aeb4c0; border-bottom:1px solid #f0f0f2; }
+.fg .dirhead { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--q); border-bottom:1px solid #f0f0f2; }
 .fg .dirrow { border-top:1px solid #f5f6f8; cursor:pointer; transition:background .18s; }
 .fg .dirrow:hover { background:#fafbfc; }
 .fg .dname { display:flex; align-items:center; gap:13px; min-width:0; }
-.fg .dav { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:#0A0B10; border:2px solid transparent; background-image:linear-gradient(#0A0B10,#0A0B10), linear-gradient(45deg,#2E68FF,#00E5C0); background-origin:border-box; background-clip:padding-box, border-box; }
+/* Gradient ring over a dark fill: layer one is the inner face clipped to
+   padding-box, layer two is the ring showing through the transparent border.
+   `--av` is the per-person hue the directory sets; unset, it falls back to the
+   brand pair this always drew.
+
+   THE FILL MUST STAY DARK, and the row must set `--av` rather than
+   `background`. It used to pass `style={{background: hsl(...)}}`, and the
+   shorthand resets `background-image` to none — so BOTH gradients died and the
+   ring has never once rendered. What you saw instead was white initials on a
+   generated hue, which fails 4.5:1 on 175 of the 360 hues that function can
+   produce (worst 2.32 at hue 60). Against this fill they measure ~19:1, and
+   the hue still identifies the person because it is the ring now. */
+.fg .dav { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:#0A0B10; border:2px solid transparent; background-image:linear-gradient(#0A0B10,#0A0B10), linear-gradient(45deg,var(--av,#2E68FF),#00E5C0); background-origin:border-box; background-clip:padding-box, border-box; }
 .fg .dname b { font-size:14.5px; font-weight:700; color:var(--ink); display:block; }
-.fg .dname em { font-style:normal; font-size:12px; color:#9ca3af; display:block; }
-.fg .drole { font-size:13.5px; color:#6b7280; font-weight:600; }
+.fg .dname em { font-style:normal; font-size:12px; color:var(--q); display:block; }
+.fg .drole { font-size:13.5px; color:var(--gray500); font-weight:600; }
 .fg .dstatus { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:#374151; }
 .fg .dstatus .sd { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
 .fg .dchip { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; width:fit-content; }
-.fg .dchip.ok { background:rgba(0,229,192,.1); color:#00A389; }
-.fg .dchip.warn { background:rgba(240,164,49,.13); color:#b45309; }
-.fg .dchip.bad { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .dchip.ok { background:rgba(0,229,192,.1); color:var(--ok-t); }
+.fg .dchip.warn { background:rgba(240,164,49,.13); color:var(--warn-t); }
+.fg .dchip.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
 
 /* user moved to top-right of header — the whole block is the menu trigger */
 .fg .topbar .me-top { position:relative; display:flex; align-items:center; }
@@ -505,9 +560,9 @@
 .fg .ptabpanel { display:none; }
 .fg .ptabpanel.on { display:block; animation:fgUp .4s cubic-bezier(.22,1,.36,1) backwards; }
 .fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 20px; border:1.5px dashed #e6e8ee; border-radius:24px; background:linear-gradient(180deg,#fafbfc,#fff); }
-.fg .emptybox .ei { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:#aeb4c0; }
+.fg .emptybox .ei { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:var(--q); }
 .fg .emptybox b { font-size:16px; font-weight:800; letter-spacing:-0.01em; color:#374151; }
-.fg .emptybox em { font-style:normal; font-size:13px; font-weight:500; color:#9ca3af; max-width:380px; line-height:1.55; }
+.fg .emptybox em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); max-width:380px; line-height:1.55; }
 
 
 /* ===== HeyTiff · FIGMA REPLICA — Tiff / Toolbox / Ductr screens ===== */
@@ -587,7 +642,7 @@
   display:flex; align-items:center; justify-content:center;
   border:1px solid #e5e7eb; background:#fff; color:var(--gray500);
   transition:border-color .2s, color .2s, background .2s; }
-.fg .tinput .tmic:hover:not(:disabled) { border-color:var(--teal-d); color:var(--teal-d); background:#f9fefd; }
+.fg .tinput .tmic:hover:not(:disabled) { border-color:var(--teal-d); color:var(--ok-t); background:#f9fefd; }
 .fg .tinput .tmic:disabled { opacity:.45; cursor:not-allowed; }
 .fg .tinput .tmic:focus-visible, .fg .tinput .tmicx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,163,137,.35); }
 
@@ -599,13 +654,13 @@
 .fg .tinput .tmicx { width:32px; height:32px; border-radius:50%; flex:0 0 auto;
   display:flex; align-items:center; justify-content:center;
   border:1px solid #e5e7eb; background:#fff; color:var(--gray500); transition:all .2s; }
-.fg .tinput .tmicx:hover { border-color:#e0264f; color:#e0264f; }
+.fg .tinput .tmicx:hover { border-color:#e0264f; color:var(--bad-t); }
 /* The gap is 16px so the row can breathe; the recording cluster is four things
    and needs to read as one, so it closes up while the mic is open. */
 .fg .tinput .tin.live { gap:10px; }
 .fg .tinput input:disabled { background:none; color:#1f2937; -webkit-text-fill-color:#1f2937; opacity:1; }
 .fg .tvsay { margin:10px 4px 0; font-size:12.5px; font-weight:600; color:var(--gray500); }
-.fg .tvsay.err { color:#e0264f; }
+.fg .tvsay.err { color:var(--bad-t); }
 /* On a phone the clock is the first thing to go: the bars already say it is
    listening, and a stop button that has been pushed off the row is worse than
    no timer. */
@@ -627,7 +682,7 @@
 
 /* ---------------- TOOLBOX ---------------- */
 .fg .tbx-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; gap:24px; flex-wrap:wrap; }
-.fg .tbx-eb { display:inline-flex; align-items:center; gap:8px; color:var(--teal-d); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); margin-bottom:14px; }
+.fg .tbx-eb { display:inline-flex; align-items:center; gap:8px; color:var(--ok-t); font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); margin-bottom:14px; }
 /* 38/-.035em, like every other page title. #350 swept THIRTEEN inline 44s into
    `.v2head h1` and missed this one and the tool pages' 40 — both were CSS
    rules rather than style objects, so a sweep looking for the copied object
@@ -661,7 +716,7 @@
 .fg .toolrow .tnm em { font-style:normal; font-size:13px; color:var(--gray400); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 @media (max-width:640px){ .fg .toolrow .tnm em{display:none} }
 .fg .toolrow .tbg { font-size:10px; font-weight:800; padding:4px 12px; border-radius:8px; font-family:var(--mono); flex:0 0 auto; border:1px solid; }
-.fg .toolrow .tch { color:#d1d5db; opacity:0; transition:all .2s; flex:0 0 auto; }
+.fg .toolrow .tch { color:var(--q); opacity:0; transition:all .2s; flex:0 0 auto; }
 .fg .toolrow:hover .tch { opacity:1; transform:translateX(4px); }
 
 /* ---------------- DUCTR ---------------- */
@@ -674,12 +729,12 @@
 .fg .dstep { display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; font-size:13px; font-weight:700; color:var(--gray500); transition:all .3s; }
 .fg .dstep:hover { color:#111; }
 .fg .dstep .dn { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; background:rgba(229,231,235,.5); color:var(--gray500); }
-.fg .dstep.done { color:var(--teal-d); } .fg .dstep.done .dn { background:rgba(0,229,192,.2); color:var(--teal-d); }
+.fg .dstep.done { color:var(--ok-t); } .fg .dstep.done .dn { background:rgba(0,229,192,.2); color:var(--ok-t); }
 .fg .dstep.active { background:var(--ink); color:#fff; box-shadow:0 4px 12px rgba(0,0,0,.15); } .fg .dstep.active .dn { background:rgba(255,255,255,.2); color:#fff; }
 .fg .dhr { display:flex; align-items:center; gap:16px; }
 .fg .dlay { display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:12px; font-size:13px; font-weight:700; color:var(--gray500); transition:all .2s; }
 .fg .dlay:hover { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-.fg .dscale { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:12px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.3); color:var(--teal-d); font-size:12px; font-weight:700; }
+.fg .dscale { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:12px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.3); color:var(--ok-t); font-size:12px; font-weight:700; }
 .fg .ping { position:relative; display:flex; width:8px; height:8px; }
 .fg .ping .p1 { position:absolute; inset:0; border-radius:50%; background:var(--teal); opacity:.75; animation:fgPingFull 1.4s cubic-bezier(0,0,.2,1) infinite; }
 .fg .ping .p2 { position:relative; width:8px; height:8px; border-radius:50%; background:var(--teal-d); }
@@ -707,13 +762,13 @@
 @keyframes fgSlideR { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:none} }
 .fg .dprops .ph { padding:24px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.5); }
 .fg .dprops .ph h3 { font-size:18px; font-weight:800; color:var(--ink); margin:0; }
-.fg .dprops .ph button { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:rgba(0,229,192,.1); color:var(--teal-d); font-size:18px; font-weight:700; transition:background .2s; }
+.fg .dprops .ph button { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:rgba(0,229,192,.1); color:var(--ok-t); font-size:18px; font-weight:700; transition:background .2s; }
 .fg .dprops .ph button:hover { background:rgba(0,229,192,.2); }
 .fg .dpbody { padding:24px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:24px; }
 .fg .odu { padding:24px; border-radius:24px; background:#f9fafb; border:1px solid #f3f4f6; box-shadow:inset 0 2px 4px rgba(0,0,0,.03); }
 .fg .odu .or { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .fg .odu .ol { font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gray500); }
-.fg .odu .okw { padding:4px 12px; border-radius:8px; background:rgba(0,229,192,.1); color:var(--teal-d); font-size:12px; font-weight:800; font-family:var(--mono); border:1px solid rgba(0,229,192,.2); }
+.fg .odu .okw { padding:4px 12px; border-radius:8px; background:rgba(0,229,192,.1); color:var(--ok-t); font-size:12px; font-weight:800; font-family:var(--mono); border:1px solid rgba(0,229,192,.2); }
 .fg .odu .ld { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
 .fg .odu .ld b { font-size:14px; font-weight:700; color:var(--gray700); }
 .fg .odu .ld em { font-style:normal; font-size:14px; font-weight:800; color:var(--ink); font-family:var(--mono); }
@@ -721,22 +776,22 @@
 .fg .odu .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--teal),var(--blue)); transition:width 1.6s cubic-bezier(.22,1,.36,1) .3s; }
 .fg .odu .of { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
 .fg .odu .of .a { font-size:11px; font-weight:700; color:var(--gray400); }
-.fg .odu .of .b { font-size:11px; font-weight:800; color:var(--teal-d); font-family:var(--mono); }
+.fg .odu .of .b { font-size:11px; font-weight:800; color:var(--ok-t); font-family:var(--mono); }
 .fg .dtabs { display:flex; padding:6px; background:#f3f4f6; border-radius:16px; margin-bottom:24px; box-shadow:inset 0 1px 2px rgba(0,0,0,.05); }
 .fg .dtab { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border-radius:12px; font-size:13px; font-weight:800; color:var(--gray500); text-transform:capitalize; transition:all .3s; }
 .fg .dtab.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
 .fg .dtab .dc { font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; font-family:var(--mono); background:#e5e7eb; color:var(--gray400); }
-.fg .dtab.on .dc { background:rgba(0,229,192,.15); color:var(--teal-d); }
+.fg .dtab.on .dc { background:rgba(0,229,192,.15); color:var(--ok-t); }
 .fg .droom { display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; background:#f9fafb; border:1px solid #f3f4f6; cursor:pointer; transition:all .2s; }
 .fg .droom + .droom { margin-top:8px; }
 .fg .droom:hover { border-color:rgba(0,229,192,.4); background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); }
 .fg .droom .ri { width:36px; height:36px; border-radius:12px; background:rgba(0,229,192,.1); display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .2s; }
 .fg .droom:hover .ri { transform:scale(1.05); }
-.fg .droom .ri svg { color:var(--teal-d); }
+.fg .droom .ri svg { color:var(--ok-t); }
 .fg .droom .rk { flex:1; min-width:0; }
 .fg .droom .rk b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .droom .rk em { font-style:normal; font-size:11px; font-weight:700; color:var(--gray400); font-family:var(--mono); }
-.fg .droom .rkw { font-size:13px; font-weight:800; color:var(--teal-d); font-family:var(--mono); flex:0 0 auto; }
+.fg .droom .rkw { font-size:13px; font-weight:800; color:var(--ok-t); font-family:var(--mono); flex:0 0 auto; }
 .fg .dview { position:absolute; bottom:24px; left:100px; display:flex; border-radius:12px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,.05); overflow:hidden; z-index:20; animation:fgUp .5s .3s both; }
 .fg .dview button { width:48px; height:48px; display:flex; align-items:center; justify-content:center; color:var(--gray700); transition:all .2s; }
 .fg .dview button:hover { background:#fff; color:var(--teal); }
@@ -837,7 +892,7 @@
 .fg .pbar { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-bottom:24px; flex-wrap:wrap; }
 .fg .crumb { display:flex; align-items:center; gap:9px; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .crumb a { color:var(--gray500); }
-.fg .crumb .sep { color:#d1d5db; }
+.fg .crumb .sep { color:var(--q); }
 .fg .crumb b { color:var(--ink); font-weight:800; }
 .fg .pactions { display:flex; align-items:center; gap:12px; }
 .fg .pbtn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 18px; border-radius:13px; font-size:13.5px; font-weight:700; transition:all .25s; }
@@ -900,11 +955,11 @@
 /* the lock is the only thing saying an admin section is not the person's own
    to see. The "Admin only" group label went with the wrapping: one row has no
    group to label, and the divider `.wb2-vt` already draws does the separating */
-.fg .wb2-vt .lock { display:flex; color:#c7ccd6; }
+.fg .wb2-vt .lock { display:flex; color:var(--q); }
 .fg .wb2-vt.on .lock { color:var(--wb2-cy); }
 /* the completeness model's half of the tab: a COUNT, in the board's warn
    colour — never the page accent, which means "selected" here */
-.fg .pcard2 .wb2-vtn.warn { background:rgba(240,164,49,.16); color:#b45309; }
+.fg .pcard2 .wb2-vtn.warn { background:rgba(240,164,49,.16); color:var(--warn-t); }
 
 /* ── the panel ── */
 .fg .ppanel2 { min-width:0; padding:22px 24px 26px; }
@@ -945,9 +1000,9 @@
 .fg .pident .pphoto .cam:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
 .fg .pident .pphoto .camdel { position:absolute; right:-6px; top:-6px; width:22px; height:22px;
   border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:#fff; color:#aeb4c0; border:1px solid #ecedf1;
+  background:#fff; color:var(--q); border:1px solid #ecedf1;
   box-shadow:0 4px 12px -6px rgba(10,12,20,.3); transition:all .2s; }
-.fg .pident .pphoto .camdel:hover:not(:disabled) { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .pident .pphoto .camdel:hover:not(:disabled) { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
 /* ON HOVER, NOT ALWAYS. Two controls parked permanently on a 68px tile read as
    damage to the photo rather than as things you can press — the × especially,
    which looks like the image failed to load. The tile is the affordance; the
@@ -982,7 +1037,7 @@
 .fg .pident .badge { display:inline-flex; align-items:center; gap:7px; padding:5px 12px;
   border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
 .fg .pident .badge .d { width:7px; height:7px; border-radius:50%; }
-.fg .pident .badge.active { background:rgba(0,229,192,.12); color:var(--teal-d); border:1px solid rgba(0,163,137,.26); }
+.fg .pident .badge.active { background:rgba(0,229,192,.12); color:var(--ok-t); border:1px solid rgba(0,163,137,.26); }
 .fg .pident .badge.active .d { background:var(--teal-d); }
 .fg .pident .badge.off { background:#f3f4f7; color:var(--gray500); border:1px solid #e6e8ee; }
 .fg .pident .badge.off .d { background:#b6bcc7; }
@@ -995,7 +1050,7 @@
 .fg .pfs:first-child { border-left:0; padding-left:0; }
 .fg .pfs dt { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); }
 .fg .pfs dd { margin:4px 0 0; font-size:15px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
-.fg .pfs dd.muted { color:#b6bcc7; font-weight:600; }
+.fg .pfs dd.muted { color:var(--q); font-weight:600; }
 
 /* ── a section, with the card chrome taken off ──
    Each section used to render as a `.card2` with an icon, a title and a
@@ -1021,14 +1076,14 @@
   letter-spacing:.04em; text-transform:none; color:var(--gray400); transition:color .2s; }
 .fg .pdlh .jumpb:hover { color:var(--wb2-cy); }
 /* where a panel's facts come from, when the panel isn't a tab */
-.fg .pdlh-q { margin-left:8px; font-weight:600; letter-spacing:.02em; text-transform:none; color:#c7ccd6; }
+.fg .pdlh-q { margin-left:8px; font-weight:600; letter-spacing:.02em; text-transform:none; color:var(--q); }
 /* An empty value on Summary is a DASH, not the words "Not set". Nothing there
    is editable, so a blank has no button behind it and nothing to say beyond
    "nothing" — and eight "Not set"s down one column read as an error state
    rather than as a card someone hasn't finished. The facts strip and the
    licence cards already used the dash; this is the screen agreeing with
    itself. Inside a SECTION the blank stays a button, and keeps its own look. */
-.fg .psec2 .pdnone { font-style:normal; font-size:15px; font-weight:600; color:#c7ccd6; }
+.fg .psec2 .pdnone { font-style:normal; font-size:15px; font-weight:600; color:var(--q); }
 /* ── EDITING IN PLACE ──
    A section used to declare its read view and its edit view separately, and
    separate is how they drifted into different screens: grouped panels of tight
@@ -1050,7 +1105,7 @@
 .fg .pdrow.live dd > .inpd { padding:0 11px; }
 .fg .pdrow.live dd .inp:focus, .fg .pdrow.live dd .inpd:focus-visible {
   border-color:var(--wb2-cy); background:#fff; box-shadow:0 0 0 3px rgba(0,168,224,.14); }
-.fg .pdrow.live dd .inp::placeholder { color:#c7ccd6; font-weight:500; }
+.fg .pdrow.live dd .inp::placeholder { color:var(--q); font-weight:500; }
 /* the select's chevron follows the shorter box in */
 .fg .pdrow.live dd .selwrap .chev { right:9px; }
 /* rows breathe a little more once they hold controls — 34px boxes at the old
@@ -1060,7 +1115,7 @@
 /* required is marked on the label, where the eye already is, rather than in a
    legend under a form that no longer exists */
 .fg .pdrow dt .req { color:var(--wb2-cy); margin-left:3px; font-weight:800; }
-.fg .pderr { display:block; margin-top:4px; font-size:11.5px; font-weight:700; color:#e0264f; }
+.fg .pderr { display:block; margin-top:4px; font-size:11.5px; font-weight:700; color:var(--bad-t); }
 /* a segmented control is already the right height; it only needs to stop
    filling the row */
 .fg .pdrow.live dd > .seg { width:fit-content; }
@@ -1074,7 +1129,7 @@
 .fg .pslider .track { position:relative; flex:1; min-width:80px; height:6px; border-radius:99px; background:#eceef2; }
 .fg .pslider .fill { position:absolute; inset:0 auto 0 0; border-radius:99px; background:var(--wb2-cy); transition:width .12s; }
 .fg .pslider .num { flex:0 0 auto; font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); font-variant-numeric:tabular-nums; }
-.fg .pslider .num.none { color:#c7ccd6; font-weight:600; }
+.fg .pslider .num.none { color:var(--q); font-weight:600; }
 /* the range itself is invisible and oversized — it is the hit area, and the
    thumb below is what you actually see */
 .fg .pslider input[type="range"] { position:absolute; inset:-9px 0; width:100%; height:24px; margin:0; padding:0; opacity:0; cursor:pointer; }
@@ -1106,8 +1161,8 @@
 .fg .pdnone { font-size:14px; font-style:italic; font-weight:500; color:#bcc2cd; }
 .fg .padd { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color .2s; }
 .fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:6px; flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:all .2s; }
-.fg .padd:hover { color:var(--teal-d); }
-.fg .padd:hover span { border-color:var(--teal); color:var(--teal-d); }
+.fg .padd:hover { color:var(--ok-t); }
+.fg .padd:hover span { border-color:var(--teal); color:var(--ok-t); }
 
 /* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
    (that grid still serves the company credentials on the Organisation screen).
@@ -1125,9 +1180,9 @@
 .fg .idc.faceless .idc-id { margin-block:auto; }
 .fg .idc.faceless .idc-who b { font-size:21px; letter-spacing:-.02em; }
 .fg .idc-action { position:absolute; top:10px; right:10px; z-index:3; }
-.fg .idc-del { width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; background:rgba(255,255,255,.85); border:1px solid #ecedf1; opacity:0; transition:all .2s; }
+.fg .idc-del { width:28px; height:28px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--q); background:rgba(255,255,255,.85); border:1px solid #ecedf1; opacity:0; transition:all .2s; }
 .fg .idc:hover .idc-del, .fg .idc-del:focus-visible { opacity:1; }
-.fg .idc-del:hover { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
+.fg .idc-del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
 .fg .idc-del:disabled { opacity:.5; cursor:default; }
 /* the badge would sit under the × — shift it clear when there is one */
 .fg .idc-action ~ .idc-in .idc-badge { margin-right:34px; }
@@ -1174,11 +1229,11 @@
 .fg .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 .fg .card2 { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:26px; margin-bottom:20px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
-.fg .card2 .c2h .ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.1); color:var(--teal-d); }
+.fg .card2 .c2h .ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.1); color:var(--ok-t); }
 .fg .card2 .c2h b { font-size:17px; font-weight:800; letter-spacing:-0.01em; }
 .fg .card2 .c2h em { font-style:normal; display:block; font-size:12.5px; font-weight:500; color:var(--gray400); margin-top:2px; }
 .fg .card2 .c2h .pill2 { margin-left:auto; }
-.fg .adminpill { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; background:rgba(255,51,102,.1); color:#e0264f; border:1px solid rgba(255,51,102,.25); }
+.fg .adminpill { display:inline-flex; align-items:center; gap:7px; padding:5px 12px; border-radius:999px; font-family:var(--mono); font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; background:rgba(255,51,102,.1); color:var(--bad-t); border:1px solid rgba(255,51,102,.25); }
 
 /* form fields */
 .fg .frow { display:grid; gap:18px; }
@@ -1188,17 +1243,17 @@
 @media (max-width:680px){ .fg .frow.c2,.fg .frow.c3{grid-template-columns:1fr} }
 .fg .field { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .fg .field > label { font-size:12px; font-weight:800; letter-spacing:.02em; color:var(--gray700); display:flex; align-items:center; gap:7px; }
-.fg .field > label .req { color:var(--teal-d); }
+.fg .field > label .req { color:var(--ok-t); }
 .fg .inp { height:46px; padding:0 15px; border-radius:13px; border:1px solid #e5e7eb; background:#fafbfc; font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); outline:none; transition:all .2s; width:100%; }
-.fg .inp::placeholder { color:#b6bcc7; font-weight:500; }
+.fg .inp::placeholder { color:var(--q); font-weight:500; }
 .fg .inp:focus { background:#fff; border-color:rgba(0,229,192,.6); box-shadow:0 0 0 4px rgba(0,229,192,.14); }
 .fg textarea.inp { height:auto; padding:13px 15px; resize:vertical; min-height:84px; line-height:1.5; }
 .fg .selwrap { position:relative; }
-.fg .selwrap .chev { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:#aeb4c0; pointer-events:none; }
+.fg .selwrap .chev { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--q); pointer-events:none; }
 .fg select.inp { appearance:none; -webkit-appearance:none; padding-right:40px; cursor:pointer; }
 .fg .inp.with-suffix { padding-right:42px; }
 .fg .field .suffixwrap { position:relative; }
-.fg .field .suffixwrap .sfx { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:13px; font-weight:700; color:#aeb4c0; }
+.fg .field .suffixwrap .sfx { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:13px; font-weight:700; color:var(--q); }
 .fg .help { font-size:11.5px; color:var(--gray400); font-weight:500; }
 
 /* read-only profile mode */
@@ -1206,7 +1261,7 @@
 .fg .card2.saving { pointer-events:none; }
 .fg .card2.saving .inp { opacity:.55; }
 .fg .card2 [data-save][disabled] { opacity:.6; cursor:default; }
-.fg .carderr { margin-top:14px; padding:10px 13px; border-radius:11px; font-size:12.5px; font-weight:600; color:#e0264f; background:rgba(255,51,102,.08); border:1px solid rgba(255,51,102,.2); }
+.fg .carderr { margin-top:14px; padding:10px 13px; border-radius:11px; font-size:12.5px; font-weight:600; color:var(--bad-t); background:rgba(255,51,102,.08); border:1px solid rgba(255,51,102,.2); }
 .fg .card2.readonly .carderr { display:none; }
 
 .fg .card2:not(.readonly) [data-edit] { display:none; }
@@ -1218,12 +1273,12 @@
 .fg .card2.readonly .seg, .fg .card2.readonly .toggle { pointer-events:none; }
 .fg .card2.readonly .seg { background:transparent; padding:0; }
 .fg .card2.readonly .seg button:not(.on) { display:none; }
-.fg .card2.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--teal-d); font-weight:700; }
+.fg .card2.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--ok-t); font-weight:700; }
 .fg .card2.readonly .docrow { background:transparent; border-color:#f0f0f2; }
 
 /* per-card actions (edit / cancel / save) inline on the card header */
 .fg .cardactions { margin-left:auto; display:flex; gap:8px; align-items:center; flex:0 0 auto; }
-.fg .cardedit { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; color:var(--teal-d); background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.28); transition:all .2s; }
+.fg .cardedit { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; color:var(--ok-t); background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.28); transition:all .2s; }
 .fg .cardedit:hover { background:rgba(0,229,192,.18); }
 .fg .cardbtn { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; transition:all .2s; }
 .fg .cardbtn.ghost { background:#fff; border:1px solid #e5e7eb; color:var(--gray700); }
@@ -1235,12 +1290,12 @@
 /* evident empty state */
 .fg .card2.readonly .inp.is-empty::placeholder { color:#bcc2cd; font-style:italic; opacity:1; }
 .fg .card2.readonly .inp:not(.is-empty) { color:var(--ink); }
-.fg select.inp.is-empty { color:#aeb4c0; font-weight:500; }
+.fg select.inp.is-empty { color:var(--q); font-weight:500; }
 .fg .field > label { position:relative; }
 
 /* info button + tooltip */
-.fg .infobtn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:#aeb4c0; cursor:help; vertical-align:middle; margin-left:5px; }
-.fg .infobtn:hover, .fg .infobtn:focus { color:var(--teal-d); outline:none; }
+.fg .infobtn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--q); cursor:help; vertical-align:middle; margin-left:5px; }
+.fg .infobtn:hover, .fg .infobtn:focus { color:var(--ok-t); outline:none; }
 .fg .infobtn .tip { position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%) translateY(4px); width:260px; padding:12px 14px; border-radius:12px; background:#0A0B10; color:rgba(255,255,255,.92); font-size:12px; font-weight:500; line-height:1.5; letter-spacing:-0.005em; text-transform:none; box-shadow:0 16px 40px -12px rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity .2s, transform .2s; z-index:50; pointer-events:none; }
 .fg .infobtn .tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:#0A0B10; }
 .fg .infobtn:hover .tip, .fg .infobtn:focus .tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
@@ -1249,7 +1304,7 @@
 .fg .seg { display:inline-flex; align-self:flex-start; width:fit-content; background:#f3f4f6; border-radius:12px; padding:4px; gap:4px; }
 .fg .seg button { padding:9px 18px; border-radius:9px; font-size:13px; font-weight:700; color:var(--gray500); transition:all .2s; }
 .fg .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.1); }
-.fg .seg button.on.green { color:var(--teal-d); }
+.fg .seg button.on.green { color:var(--ok-t); }
 
 /* toggle */
 .fg .togrow { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
@@ -1263,7 +1318,7 @@
 /* photo upload dropzone */
 .fg .drop { display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px; border:1.5px dashed #d8dde6; background:#fafbfc; cursor:pointer; transition:all .2s; }
 .fg .drop:hover { border-color:var(--teal); background:rgba(0,229,192,.04); }
-.fg .drop .di { width:42px; height:42px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--teal-d); border:1px solid #eef0f4; }
+.fg .drop .di { width:42px; height:42px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ok-t); border:1px solid #eef0f4; }
 .fg .drop .dk b { font-size:13px; font-weight:700; }
 .fg .drop .dk em { font-style:normal; display:block; font-size:11.5px; color:var(--gray400); margin-top:2px; }
 
@@ -1271,25 +1326,25 @@
 
 /* verified document row (work rights) */
 .fg .docrow { display:flex; align-items:center; gap:13px; padding:13px 15px; border-radius:14px; border:1px solid #e5e7eb; background:#fafbfc; }
-.fg .docrow .docic { width:40px; height:40px; border-radius:11px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--teal-d); border:1px solid #eef0f4; }
+.fg .docrow .docic { width:40px; height:40px; border-radius:11px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ok-t); border:1px solid #eef0f4; }
 .fg .docrow .dock { flex:1; min-width:0; }
 .fg .docrow .dock b { font-size:13.5px; font-weight:700; color:var(--ink); display:block; }
 .fg .docrow .dock em { font-style:normal; font-size:11.5px; color:var(--gray400); }
-.fg .docrow.verified .dock em { color:var(--teal-d); font-weight:700; }
+.fg .docrow.verified .dock em { color:var(--ok-t); font-weight:700; }
 .fg .docrow .docact { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fg .docbtn { display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; transition:all .2s; }
-.fg .docbtn.verify { background:rgba(0,229,192,.1); color:var(--teal-d); border:1px solid rgba(0,229,192,.3); }
+.fg .docbtn.verify { background:rgba(0,229,192,.1); color:var(--ok-t); border:1px solid rgba(0,229,192,.3); }
 .fg .docbtn.verify:hover { background:rgba(0,229,192,.18); }
 .fg .docbtn.verify.done { background:var(--teal); color:var(--ink); border-color:var(--teal); }
-.fg .docbtn.del { width:34px; padding:0; justify-content:center; color:#aeb4c0; background:#f3f4f6; }
-.fg .docbtn.del:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .docbtn.del { width:34px; padding:0; justify-content:center; color:var(--q); background:#f3f4f6; }
+.fg .docbtn.del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .docbtn.ghostbtn { background:#fff; border:1px solid #e5e7eb; color:var(--gray700); }
 .fg .docbtn.ghostbtn:hover { background:#f9fafb; }
 .fg .docrow.verified .docbtn.ghostbtn { display:none; }
 .fg .docrow.removed { display:none; }
 @media (max-width:560px){ .fg .licadd{flex-wrap:wrap} .fg .licadd .pbtn{width:100%; justify-content:center} }
-.fg .licdel { margin-left:10px; width:30px; height:30px; border-radius:9px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:#aeb4c0; background:#f6f7f9; transition:all .2s; }
-.fg .licdel:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .licdel { margin-left:10px; width:30px; height:30px; border-radius:9px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--q); background:#f6f7f9; transition:all .2s; }
+.fg .licdel:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
 
 /* licence cards */
 
@@ -1354,11 +1409,11 @@
 .fg .cstot { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .fg .cstot b { font-family:var(--mono); font-size:26px; font-weight:800; color:var(--ink); line-height:1; }
 .fg .cstot em { font-style:normal; font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); margin-top:3px; }
-.fg .cstot.over b { color:#e0264f; }
+.fg .cstot.over b { color:var(--bad-t); }
 
 /* read-only empty (training/notes) */
 .fg .ro-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:11px; padding:44px 16px; border:1.5px dashed #e6e8ee; border-radius:18px; background:linear-gradient(180deg,#fafbfc,#fff); }
-.fg .ro-empty .ei { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:#aeb4c0; }
+.fg .ro-empty .ei { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:var(--q); }
 .fg .ro-empty b { font-size:14px; font-weight:700; color:var(--gray500); }
 .fg .ro-empty em { font-style:normal; font-size:12.5px; color:var(--gray400); max-width:280px; line-height:1.5; }
 
@@ -1377,30 +1432,30 @@
   @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
   .fg-cmd .box .glow { position:absolute; top:-80px; left:50%; transform:translateX(-50%); width:300px; height:160px; background:#00E5C0; filter:blur(100px); opacity:.2; pointer-events:none; }
   .fg-cmd .cin { position:relative; display:flex; align-items:center; gap:16px; padding:20px 24px; border-bottom:1px solid #f3f4f6; }
-  .fg-cmd .cin .ci { color:#9ca3af; display:flex; }
+  .fg-cmd .cin .ci { color:var(--q); display:flex; }
   .fg-cmd .cin input { flex:1; background:none; border:none; outline:none; font-size:17px; font-weight:500; color:#1f2937; font-family:inherit; }
-  .fg-cmd .cin input::placeholder { color:#9ca3af; }
-  .fg-cmd .esc { font-family:var(--font-jakarta), sans-serif; font-size:10px; font-weight:700; color:#9ca3af; background:#f3f4f6; padding:4px 8px; border-radius:6px; }
+  .fg-cmd .cin input::placeholder { color:var(--q); }
+  .fg-cmd .esc { font-family:var(--font-jakarta), sans-serif; font-size:10px; font-weight:700; color:var(--q); background:#f3f4f6; padding:4px 8px; border-radius:6px; }
   .fg-cmd .clist { max-height:380px; overflow-y:auto; padding:12px; }
-  .fg-cmd .cgl { padding:8px 16px; font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:#9ca3af; }
+  .fg-cmd .cgl { padding:8px 16px; font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--q); }
   .fg-cmd .crow { position:relative; width:100%; display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:16px; cursor:pointer; text-align:left; }
   .fg-cmd .crow.on { background:rgba(243,244,246,.8); }
   .fg-cmd .crow .ci2 { width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .3s; }
   .fg-cmd .crow.on .ci2 { transform:scale(1.05); }
   .fg-cmd .crow .ck { flex:1; min-width:0; }
   .fg-cmd .crow .ck b { display:block; font-size:15px; font-weight:700; color:#050505; }
-  .fg-cmd .crow .ck em { font-style:normal; display:block; font-size:12px; font-weight:500; color:#9ca3af; }
-  .fg-cmd .crow .cen { color:#9ca3af; opacity:0; }
+  .fg-cmd .crow .ck em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
+  .fg-cmd .crow .cen { color:var(--q); opacity:0; }
   .fg-cmd .crow.on .cen { opacity:1; }
   .fg-cmd .cempty { padding:48px 16px; text-align:center; }
-  .fg-cmd .cempty b { display:block; font-size:15px; font-weight:700; color:#9ca3af; }
+  .fg-cmd .cempty b { display:block; font-size:15px; font-weight:700; color:var(--q); }
   /* `display:block` so the 4px actually lands — an inline <em> drops vertical
      margins on the floor, so this line has always sat hard against the one
      above it. Only visible once the copy grew past a few words. */
-  .fg-cmd .cempty em { display:block; font-style:normal; font-size:13px; color:#d1d5db; margin-top:4px; }
+  .fg-cmd .cempty em { display:block; font-style:normal; font-size:13px; color:var(--q); margin-top:4px; }
   .fg-cmd .cfoot { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid #f3f4f6; background:rgba(249,250,251,.5); }
-  .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:#9ca3af; }
-  .fg-cmd .cf-r { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#9ca3af; }
+  .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; color:var(--q); }
+  .fg-cmd .cf-r { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--q); }
 
 
 /* ===== TIFF AI · stage 1 additions (chat thread + Knowledge Base page) =====
@@ -1412,7 +1467,7 @@
 
 /* active conversation */
 .fg .tchathead { display:flex; align-items:center; gap:14px; margin-bottom:20px; flex:0 0 auto; }
-.fg .tchathead .tb2 { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:linear-gradient(135deg,rgba(0,229,192,.18),transparent); border:1px solid rgba(0,229,192,.35); color:var(--teal-d); }
+.fg .tchathead .tb2 { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:linear-gradient(135deg,rgba(0,229,192,.18),transparent); border:1px solid rgba(0,229,192,.35); color:var(--ok-t); }
 .fg .tchathead .tcht { flex:1; min-width:0; }
 /* the title outranks the buttons beside it — it is the name of the thing
    being read, and at 16px it lost to its own "New chat" ghost */
@@ -1610,7 +1665,7 @@
    30px because it is alone in a 680px card, smaller than the recording orb
    because nothing is being measured. */
 .wb2-waiting { display:flex; justify-content:center; padding:26px 0 18px;
-  --orb:44px; color:var(--teal-d, #00A389); }
+  --orb:44px; color:var(--ok-t); }
 .wb2-dusk .wb2-waiting { color:#00E5C0; }
 
 /* ── on ink ──
@@ -1657,8 +1712,8 @@
 
 /* Knowledge Base page */
 .fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color .2s; }
-.fg .kbcrumb:hover { color:var(--teal-d); }
-.fg .kbhint { padding:22px; text-align:center; color:#9ca3af; font-size:13px; font-weight:600; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
+.fg .kbcrumb:hover { color:var(--ok-t); }
+.fg .kbhint { padding:22px; text-align:center; color:var(--q); font-size:13px; font-weight:600; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
 
 /* ===== Time & Pay — weekly payroll review (ported from design_handoff_time_and_pay) ===== */
 
@@ -1694,7 +1749,7 @@
 
 /* ---------- header ---------- */
 .fg .tpr .rhead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:26px; }
-.fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal-d); margin-bottom:14px; }
+.fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--ok-t); margin-bottom:14px; }
 .fg .tpr .rhead h1 { font-size:38px; font-weight:800; letter-spacing:-.035em; margin:0; line-height:1; }
 .fg .tpr .wknav { display:flex; align-items:center; gap:12px; margin-top:16px; }
 /* THE CARD THE TABS SIT ON — the board's surface, doing the board's job. The
@@ -1711,7 +1766,7 @@
 .fg .tpr .wknav .range { font-size:20px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
 .fg .tpr .wknav .range em { font-style:normal; color:var(--gray400); font-weight:700; }
 .fg .tpr .wknav .pstatus { display:inline-flex; align-items:center; gap:7px; height:30px; padding:0 13px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:.04em; }
-.fg .tpr .wknav .pstatus.live { background:rgba(34,197,94,.14); color:var(--teal-d); }
+.fg .tpr .wknav .pstatus.live { background:rgba(34,197,94,.14); color:var(--ok-t); }
 .fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:tprPulse 2s infinite; }
 .fg .tpr .wknav .pstatus.hist { background:#eceef1; color:var(--gray500); }
 .fg .tpr .wknav .arw:disabled { opacity:.4; cursor:not-allowed; transform:none; border-color:rgba(0,0,0,.07); }
@@ -2030,7 +2085,7 @@
 /* ---------- setup wizard ---------- */
 .fg .tpr .tset-panel.wz { width:620px; padding:0; }
 .fg .tpr .wz-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:26px 28px 0; }
-.fg .tpr .wz-head .wz-k { font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--teal-d); margin-bottom:8px; }
+.fg .tpr .wz-head .wz-k { font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--ok-t); margin-bottom:8px; }
 .fg .tpr .wz-head h3 { font-size:24px; font-weight:800; letter-spacing:-.02em; margin:0; }
 .fg .tpr .wz-head p { font-size:13.5px; font-weight:600; color:var(--gray500); margin:7px 0 0; line-height:1.5; max-width:420px; text-wrap:pretty; }
 .fg .tpr .wz-dots { display:flex; gap:7px; padding:18px 28px 4px; }
@@ -2048,7 +2103,7 @@
 .fg .tpr .wz-card.on { border-color:var(--teal); background:rgba(34,197,94,.06); }
 .fg .tpr .wz-card b { display:block; font-size:16px; font-weight:800; }
 .fg .tpr .wz-card em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:3px; }
-.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--teal-d); background:rgba(34,197,94,.14); padding:5px 11px; border-radius:999px; }
+.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--ok-t); background:rgba(34,197,94,.14); padding:5px 11px; border-radius:999px; }
 
 .fg .tpr .wz-pills { display:flex; gap:8px; flex-wrap:wrap; }
 .fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 18px; border-radius:14px; border:2px solid #eceef1; background:#fff; font-size:14.5px; font-weight:800; color:var(--gray600); transition:all .15s; }
@@ -2081,7 +2136,7 @@
 .fg .tpr .wz-rev:first-child { border-top:none; }
 .fg .tpr .wz-rev > span { color:var(--gray500); font-weight:700; width:150px; flex:0 0 auto; }
 .fg .tpr .wz-rev b { font-weight:800; flex:1; min-width:0; }
-.fg .tpr .wz-edit { font-size:12.5px; font-weight:800; color:var(--teal-d); background:rgba(34,197,94,.1); padding:8px 15px; border-radius:999px; transition:background .15s; }
+.fg .tpr .wz-edit { font-size:12.5px; font-weight:800; color:var(--ok-t); background:rgba(34,197,94,.1); padding:8px 15px; border-radius:999px; transition:background .15s; }
 .fg .tpr .wz-edit:hover { background:rgba(34,197,94,.18); }
 
 /* settings menu (post-setup) */
@@ -2122,7 +2177,7 @@
    with the match state — it is a second, separate question about the same
    person, and squeezing it inline made both unreadable. */
 .fg .tpr .xp-note { font-size:12.5px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; }
-.fg .tpr .xp-note.bad { color:#e0264f; }
+.fg .tpr .xp-note.bad { color:var(--bad-t); }
 .fg .tpr .xp-note b { color:var(--ink); }
 /* Advisory, not error: pay_settings is the record, and a business legitimately
    running Xero on another calendar is not a fault to correct. Amber says
@@ -2184,7 +2239,7 @@
 .fg .tpr .rl-head { display:flex; width:100%; align-items:center; gap:12px; padding:14px 16px; text-align:left; }
 .fg .tpr .rl-nm { font-size:14.5px; font-weight:800; color:var(--ink); white-space:nowrap; }
 .fg .tpr .rl-nm em { font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray400); margin-left:7px; }
-.fg .tpr .rl-sum { margin-left:auto; font-size:12px; font-weight:800; color:var(--teal-d); background:rgba(34,197,94,.1); padding:5px 11px; border-radius:999px; white-space:nowrap; }
+.fg .tpr .rl-sum { margin-left:auto; font-size:12px; font-weight:800; color:var(--ok-t); background:rgba(34,197,94,.1); padding:5px 11px; border-radius:999px; white-space:nowrap; }
 .fg .tpr .rl:not(.on) .rl-sum { color:var(--gray400); background:#f2f3f6; }
 .fg .tpr .rl-head .wz-sw { flex:0 0 auto; }
 .fg .tpr .rl-ctl { display:flex; align-items:center; flex-wrap:wrap; gap:10px 12px; padding:0 16px 14px; }
@@ -2210,6 +2265,49 @@
 .fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.6fr 1.4fr 1.9fr 44px; gap:16px; align-items:center; padding:15px 24px; width:100%; text-align:left;}
 .fg .dname > span:not(.dav):not(.dofftag) {min-width:0; flex:1;}
 .fg .dofftag {flex:0 0 auto;}
+
+/* THE ROW BECOMES TWO ROWS BEFORE THE NAME RUNS OUT OF ROOM.
+
+   The four tracks above are `fr` against three neighbours with real min-content
+   floors (role, chip, menu), so the name — the only one carrying min-width:0 —
+   is what collapses. Measured in the directory's own content box it was 49px of
+   204px at 480px wide, and 0px at 375: the row kept the job title and the
+   licence chip and dropped who the person was. There was no media query for the
+   directory anywhere in this file.
+
+   THE BREAKPOINT IS IN VIEWPORT UNITS BUT THE PRESSURE IS ON THE CONTENT BOX,
+   and the two differ by a constant here: `.fg .side` is a fixed 224px that
+   never collapses (this is a desktop surface — the phone is its own app), plus
+   the main padding and the card's own. So the content box runs ~290px behind
+   the viewport, and a 768px window is already down to the 480px case above.
+   900 gives it room to change shape a little early rather than a little late,
+   and is a breakpoint this file already uses.
+
+   Two columns, two rows: identity and menu up top, role and compliance beneath.
+   The head row goes with the columns it was labelling.
+
+   `:not(.flrow)` / `:not(.flhead)` BECAUSE THE FLEET REGISTER WEARS THESE TWO
+   CLASSES TOO, over a six-column grid of its own (`.fg .flhead, .fg .flrow`,
+   further down this file). Its grid-template-columns would have survived on
+   specificity — it is declared later at the same weight — but the placements
+   below name `.dname`, `.dchip` and `.dmorewrap`, which Fleet also uses, so
+   they would have landed on its rows and pulled them apart while the head
+   vanished. Fleet gets its own treatment when someone measures it; this one is
+   about the four tracks above. */
+@media (max-width:900px){
+  .fg .dirhead:not(.flhead) {display:none;}
+  .fg .dirrow:not(.flrow) {grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; padding:14px 18px;}
+  .fg .dirrow:not(.flrow) .dname {grid-column:1; grid-row:1;}
+  .fg .dirrow:not(.flrow) .dmorewrap {grid-column:2; grid-row:1;}
+  .fg .dirrow:not(.flrow) .drole {grid-column:1; grid-row:2; font-size:12.5px;}
+  .fg .dirrow:not(.flrow) .dchip {grid-column:2; grid-row:2; justify-self:end;}
+  /* the invite rows have the same shape and the same failure, and are Team's
+     alone — `.invrow` has exactly one call site */
+  .fg .invrow {grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; padding:14px 18px;}
+  .fg .invrow .invwho {grid-column:1; grid-row:1;}
+  .fg .invrow .invrole {grid-column:2; grid-row:1; justify-self:end;}
+  .fg .invrow .invexp {grid-column:1/-1; grid-row:2;}
+}
 /* directory — sliding tab switcher */
 .fg .dirtabs {position:relative; display:grid; grid-template-columns:repeat(3,1fr); background:#f1f2f4; border:1px solid #e9eaee; border-radius:18px; padding:6px; margin-bottom:18px;}
 .fg .dirtabs.t4 {grid-template-columns:repeat(4,1fr);}
@@ -2218,35 +2316,69 @@
 .fg .dirtabs[data-view="archived"] .dirtab-slide {background:linear-gradient(180deg,#f7f8fa,#fff);}
 .fg .dirtabs[data-view="warn"] .dirtab-slide {background:linear-gradient(180deg,#fffdf8,#fff);}
 .fg .dirtabs[data-view="pending"] .dirtab-slide {background:linear-gradient(180deg,#f8fbff,#fff);}
-.fg .dirtab {position:relative; z-index:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; padding:15px 18px; border-radius:13px; cursor:pointer; opacity:.5; transition:opacity .2s;}
-.fg .dirtab:hover {opacity:.8;}
-.fg .dirtab.on {opacity:1;}
-.fg .dtval {font-size:28px; font-weight:800; letter-spacing:-.02em; color:var(--ink); line-height:1.05;}
-.fg .dtlab {font-size:13.5px; font-weight:700; color:#374151; margin-top:4px;}
-.fg .dtsub {font-size:12px; font-weight:600; color:#9ca3af;}
-.fg .dirtab[data-dquick="warn"] .dtval {color:#b45309;}
-.fg .dirtab[data-dquick="pending"] .dtval {color:#2E68FF;}
+/* THE UNSELECTED TABS ARE NOT FADED, THEY ARE QUIETER.
+
+   This was `opacity:.5`, and the whole tab went with it: the sub-line measured
+   1.46, the label 2.54. Against `.dirtabs`' own #f1f2f4 ground even pure black
+   at .5 only reaches 3.75, so this could never have been fixed by choosing a
+   darker grey — the multiply is the bug. The selected tab is already marked by
+   the white pill sliding under it and by aria-selected; what the other two owe
+   is legibility, not a second signal. Colour carries the difference now, and
+   only the big figure — 28px, so 3:1 is its bar — is allowed to go light. */
+.fg .dirtab {position:relative; z-index:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; padding:15px 18px; border-radius:13px; cursor:pointer; transition:color .2s;}
+.fg .dirtab .dtval {color:#59606e;}
+.fg .dirtab.on .dtval {color:var(--ink);}
+.fg .dirtab:hover .dtval {color:var(--ink);}
+.fg .dtval {font-size:28px; font-weight:800; letter-spacing:-.02em; line-height:1.05;}
+.fg .dtlab {font-size:13.5px; font-weight:700; color:var(--gray700); margin-top:4px;}
+.fg .dtsub {font-size:12px; font-weight:600; color:var(--q);}
+/* `[data-dquick]` was here, tinting the warn tab's figure amber and the pending
+   tab's blue. NOTHING HAS EVER SET THAT ATTRIBUTE — not Team, not the Fleet
+   register that wears these same classes — so both rules matched nothing and
+   those figures have always been plain ink. Deleted rather than wired up: the
+   count already sits under a label that says what it counts, and the tab beside
+   it is not a severity. */
 /* directory — toolbar */
 .fg .dirtools {display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
-.fg .dsearch {display:flex; align-items:center; gap:9px; flex:1; min-width:220px; height:44px; padding:0 16px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:#9ca3af; box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.fg .dsearch {display:flex; align-items:center; gap:9px; flex:1; min-width:220px; height:44px; padding:0 16px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
 .fg .dsearch:focus-within {border-color:#2E68FF; box-shadow:0 0 0 3px rgba(46,104,255,.12);}
 .fg .dsearch input {flex:1; border:none; outline:none; background:none; font-size:14px; font-weight:600; color:var(--ink);}
-.fg .dsearch input::placeholder {color:#aeb4c0; font-weight:500;}
-.fg .dsortwrap {display:flex; align-items:center; gap:8px; height:44px; padding:0 14px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:#9ca3af; box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.fg .dsearch input::placeholder {color:var(--q); font-weight:500;}
+.fg .dsortwrap {display:flex; align-items:center; gap:8px; height:44px; padding:0 14px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
 .fg .dsort {border:none; outline:none; background:none; font-size:13.5px; font-weight:700; color:var(--ink); cursor:pointer; appearance:none; padding-right:2px;}
+/* `.dsort` zeroes its own outline and put nothing back, so this was the one
+   control on the page that took keyboard focus and showed nothing at all —
+   everything else still paints the browser's default ring. The wrapper carries
+   it, as the search box does, because the select fills only 15px of the 44. */
+.fg .dsortwrap:focus-within {border-color:#2E68FF; box-shadow:0 0 0 3px rgba(46,104,255,.12);}
 /* directory — rows */
 .fg .dirrows {display:block;}
 .fg .dir:has(.dmenu.open) {overflow:visible;}
 .fg .dirrows > .dirrow:last-child {border-radius:0 0 24px 24px;}
-.fg .dirrow.off {opacity:.62;}
+/* DE-EMPHASIS BY GROUND, NOT BY OPACITY.
+
+   Both of these were `opacity:.62`, which multiplies every colour inside the
+   row against the page: the email fell to 1.72, the compliance chip to 1.99,
+   the initials to 2.02 — and the ACTIONS MENU, which is a child of the row,
+   came out at 2.73 on Deactivate and 3.51 on Invite to join. The menu on an
+   unclaimed card is the one carrying Invite to join, so the control you most
+   needed was the least readable thing on screen, and it read as disabled.
+
+   Opacity cannot be tuned out of this. Against the tab strip's own ground,
+   pure black at .5 measures 3.75 — there is no text colour that survives the
+   multiply. So the row says "not active" with a tinted ground and its own
+   `.dofftag` chip, both of which leave the text alone. */
+.fg .dirrow.off {background:#f7f8fa;}
+.fg .dirrow.off:hover {background:#f2f4f7;}
 /* Imported/pre-seeded, no login yet — present but visibly not arrived. Same
-   dimming as archived, its own class so the two states can ever diverge. */
-.fg .dirrow.unclaimed {opacity:.62;}
-.fg .dofftag {font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; background:#f1f2f4; padding:3px 9px; border-radius:999px; margin-left:6px;}
-.fg .direm {display:none; padding:40px 24px; text-align:center; font-size:13.5px; font-weight:600; color:#9ca3af; border-top:1px solid #f5f6f8;}
+   treatment as archived, its own class so the two states can ever diverge. */
+.fg .dirrow.unclaimed {background:#f7f8fa;}
+.fg .dirrow.unclaimed:hover {background:#f2f4f7;}
+.fg .dofftag {font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--q); background:#f1f2f4; padding:3px 9px; border-radius:999px; margin-left:6px;}
+.fg .direm {display:none; padding:40px 24px; text-align:center; font-size:13.5px; font-weight:600; color:var(--q); border-top:1px solid #f5f6f8;}
 /* directory — per-row actions menu */
 .fg .dmorewrap {position:relative; display:flex; justify-content:flex-end;}
-.fg .dmore {width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; transition:all .18s;}
+.fg .dmore {width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--q); transition:all .18s;}
 .fg .dmore:hover {background:#f1f2f4; color:var(--ink);}
 /* .dir clips its corners, so a menu on the last row used to be cut off — the
    rows own the bottom radius now and the card lets the menu escape. */
@@ -2256,9 +2388,9 @@
 .fg .dmenu.up {top:auto; bottom:38px;}
 .fg .dmenu button {display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; transition:background .15s;}
 .fg .dmenu button:hover {background:#f6f7f9;}
-.fg .dmenu button .i {color:#9ca3af;}
-.fg .dmenu button.danger {color:#e0264f;}
-.fg .dmenu button.danger .i {color:#e0264f;}
+.fg .dmenu button .i {color:var(--q);}
+.fg .dmenu button.danger {color:var(--bad-t);}
+.fg .dmenu button.danger .i {color:var(--bad-t);}
 /* Deactivate asks twice — press once to arm, again to confirm, close the menu
    to forget it. Same filled red the other two-step confirms in the app wear
    (.fl-btn.danger.arm, .lv-cancel.arm), because it is the same gesture; it has
@@ -2268,17 +2400,17 @@
 .fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:14px 24px; border-top:1px solid #f5f6f8;}
 .fg .invrow:first-child {border-top:none;}
 .fg .invwho {display:flex; align-items:center; gap:13px; min-width:0;}
-.fg .invav {width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:#2E68FF; background:rgba(46,104,255,.1);}
-.fg .invrow.expired .invav {color:#e0264f; background:rgba(255,51,102,.1);}
+.fg .invav {width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:rgba(46,104,255,.1);}
+.fg .invrow.expired .invav {color:var(--bad-t); background:rgba(255,51,102,.1);}
 .fg .invwho b {font-size:14px; font-weight:700; color:var(--ink); display:block;}
-.fg .invwho em {font-style:normal; font-size:12px; color:#9ca3af; display:block;}
-.fg .invrole {font-size:13.5px; color:#6b7280; font-weight:600;}
-.fg .invexp {display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#b45309;}
-.fg .invrow.expired .invexp {color:#e0264f;}
+.fg .invwho em {font-style:normal; font-size:12px; color:var(--q); display:block;}
+.fg .invrole {font-size:13.5px; color:var(--gray500); font-weight:600;}
+.fg .invexp {display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--warn-t);}
+.fg .invrow.expired .invexp {color:var(--bad-t);}
 /* directory port shims — anchor items in the row menu + toggled empty state */
 .fg .dmenu a { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; font-size:13.5px; font-weight:600; color:var(--gray700); text-align:left; transition:background .15s; }
 .fg .dmenu a:hover { background:#f6f7f9; }
-.fg .dmenu a .i { color:#9ca3af; }
+.fg .dmenu a .i { color:var(--q); }
 .fg .direm.on { display:block; }
 
 /* ============================ FLEET (Assets) ============================ */
@@ -2287,15 +2419,15 @@
 .fg .fl-emptyadd { display:flex; justify-content:center; margin-top:18px; }
 .fg .flhead, .fg .flrow { grid-template-columns:2.1fr .9fr 1.5fr 1.7fr .9fr 40px; }
 .fg .fl-av { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.12); color:#d97706; }
-.fg .fl-av.warn { background:rgba(240,164,49,.14); color:#b45309; }
-.fg .fl-av.bad { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .fl-av.warn { background:rgba(240,164,49,.14); color:var(--warn-t); }
+.fg .fl-av.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .fl-driver { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:600; color:#374151; min-width:0; }
 .fg .fl-dav { width:26px; height:26px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; color:#fff; }
-.fg .fl-pool { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9ca3af; border:1.5px dashed #d7dae0; padding:4px 11px; border-radius:999px; }
+.fg .fl-pool { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--q); border:1.5px dashed #d7dae0; padding:4px 11px; border-radius:999px; }
 .fg .fl-more { font-style:normal; font-weight:800; opacity:.65; margin-left:2px; }
 .fg .flhead .flval, .fg .fl-value { text-align:right; }
 .fg .fl-value { font-size:13.5px; font-weight:800; color:var(--ink); }
-.fg .fl-total { display:flex; align-items:center; justify-content:space-between; padding:13px 24px; border-top:1px solid #f0f0f2; background:#fafbfc; font-size:12.5px; font-weight:600; color:#9ca3af; }
+.fg .fl-total { display:flex; align-items:center; justify-content:space-between; padding:13px 24px; border-top:1px solid #f0f0f2; background:#fafbfc; font-size:12.5px; font-weight:600; color:var(--q); }
 .fg .fl-total b { color:var(--ink); font-weight:800; }
 
 /* my vehicle — staff lens */
@@ -2303,31 +2435,31 @@
 .fg .fl-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; background:linear-gradient(135deg,#fff 62%,#fff8f0); border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:28px 30px; }
 .fg .fl-htag { display:inline-flex; align-items:center; gap:6px; font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#d97706; background:rgba(255,138,0,.1); border:1px solid rgba(255,138,0,.25); padding:6px 12px; border-radius:999px; }
 .fg .fl-hero h2 { font-size:38px; font-weight:800; letter-spacing:-0.03em; margin:12px 0 4px; color:var(--ink); }
-.fg .fl-hsub { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:#6b7280; }
+.fg .fl-hsub { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; color:var(--gray500); }
 .fg .fl-hchips { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
 .fg .fl-odo { text-align:right; flex:0 0 auto; }
 .fg .fl-odo b { display:block; font-size:36px; font-weight:800; letter-spacing:-0.02em; color:var(--ink); line-height:1.1; }
-.fg .fl-odo em { font-style:normal; display:block; font-size:12px; font-weight:600; color:#9ca3af; margin-top:4px; }
+.fg .fl-odo em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:4px; }
 .fg .fl-quick { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .fg .fl-qa { display:flex; align-items:center; gap:14px; text-align:left; background:#fff; border:1px solid #f0f0f2; border-radius:18px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:18px; transition:all .22s; }
 .fg .fl-qa:hover { transform:translateY(-2px); border-color:#e2e5ea; box-shadow:0 14px 34px rgba(0,0,0,.07); }
 .fg .fl-qi { width:42px; height:42px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .fl-qi.fuel { background:rgba(0,229,192,.12); color:var(--teal-d); }
-.fg .fl-qi.odo { background:rgba(46,104,255,.1); color:var(--blue); }
-.fg .fl-qi.issue { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .fl-qi.fuel { background:rgba(0,229,192,.12); color:var(--ok-t); }
+.fg .fl-qi.odo { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fg .fl-qi.issue { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .fl-qa b { display:block; font-size:14.5px; font-weight:800; color:var(--ink); }
-.fg .fl-qa em { font-style:normal; display:block; font-size:12px; font-weight:600; color:#9ca3af; margin-top:2px; }
+.fg .fl-qa em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:2px; }
 .fg .fl-up { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
 .fg .fl-ut { background:#fff; border:1px solid #f0f0f2; border-radius:16px; padding:15px 18px; }
-.fg .fl-ut em { font-style:normal; display:block; font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#9ca3af; }
+.fg .fl-ut em { font-style:normal; display:block; font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
 .fg .fl-ut b { display:block; font-size:15px; font-weight:800; color:var(--ink); margin-top:5px; }
-.fg .fl-ut.warn b { color:#b45309; }
-.fg .fl-ut.bad b { color:#e0264f; }
+.fg .fl-ut.warn b { color:var(--warn-t); }
+.fg .fl-ut.bad b { color:var(--bad-t); }
 .fg .fl-card { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:24px 26px; }
 .fg .fl-ch { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
 .fg .fl-ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.1); color:#d97706; }
 .fg .fl-ch b { display:block; font-size:16px; font-weight:800; color:var(--ink); }
-.fg .fl-ch em { font-style:normal; display:block; font-size:12.5px; font-weight:500; color:#9ca3af; margin-top:2px; }
+.fg .fl-ch em { font-style:normal; display:block; font-size:12.5px; font-weight:500; color:var(--q); margin-top:2px; }
 
 /* profile — assigned-vehicle card */
 .fg .pvchips { display:flex; flex-wrap:wrap; gap:8px; }
@@ -2344,7 +2476,7 @@
 .fl-modal svg.i { display:block; flex:0 0 auto; }
 .fl-mh { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 26px 14px; background:#fff; border-bottom:1px solid #f5f6f8; }
 .fl-mh b { display:block; font-size:19px; font-weight:800; letter-spacing:-0.01em; color:#050505; }
-.fl-mh em { font-style:normal; display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:600; color:#9ca3af; margin-top:4px; }
+.fl-mh em { font-style:normal; display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:600; color:var(--q); margin-top:4px; }
 /* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
    ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
    was easy to miss on a card. */
@@ -2359,10 +2491,10 @@ button.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-i
 .fl-f { display:flex; flex-direction:column; gap:6px; min-width:0; }
 .fl-f.span { grid-column:1/-1; }
 .fl-f > span { font-size:12px; font-weight:700; color:#374151; }
-.fl-f > span i { font-style:normal; color:#e0264f; margin-left:2px; }
+.fl-f > span i { font-style:normal; color:var(--bad-t); margin-left:2px; }
 .fl-i { height:44px; width:100%; border:1.5px solid #e5e7eb; border-radius:12px; padding:0 14px; font:inherit; font-size:13.5px; font-weight:600; color:#050505; background:#fff; outline:none; transition:border .2s, box-shadow .2s; }
 .fl-i:focus { border-color:#00E5C0; box-shadow:0 0 0 3px rgba(0,229,192,.15); }
-.fl-i::placeholder { color:#aeb4c0; font-weight:500; }
+.fl-i::placeholder { color:var(--q); font-weight:500; }
 textarea.fl-i { min-height:86px; padding:12px 14px; resize:vertical; }
 select.fl-i { cursor:pointer; }
 
@@ -2409,7 +2541,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-btn.primary { background:#00E5C0; color:#050505; box-shadow:0 8px 18px -6px rgba(0,163,137,.45); }
 .fl-btn.primary:hover { background:#00A389; color:#fff; }
 .fl-btn:disabled { opacity:.4; pointer-events:none; }
-.fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:#e0264f; }
+.fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); }
 .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
 .fl-btn.tiny { height:28px; padding:0 11px; font-size:12px; border-radius:9px; background:#fff; border:1px solid #e5e7eb; color:#374151; }
 .fl-btn.tiny:hover { background:#f9fafb; }
@@ -2421,92 +2553,92 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-btn.tiny.primary:hover { background:#00A389; color:#fff; }
 .fl-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
 .dchip2 { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; width:fit-content; }
-.dchip2.ok { background:rgba(0,229,192,.1); color:#00A389; }
-.dchip2.warn { background:rgba(240,164,49,.13); color:#b45309; }
-.dchip2.bad { background:rgba(255,51,102,.1); color:#e0264f; }
+.dchip2.ok { background:rgba(0,229,192,.1); color:var(--ok-t); }
+.dchip2.warn { background:rgba(240,164,49,.13); color:var(--warn-t); }
+.dchip2.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
 /* unpaid leave — KIND_TONE has named this since the leave screen shipped, but
    the rule was never written, so an unpaid chip rendered bare */
-.dchip2.mute { background:#f1f2f5; color:#6b7280; }
+.dchip2.mute { background:#f1f2f5; color:var(--gray500); }
 /* A CASUAL WHO CAN'T BE ROSTERED, not somebody on leave. Deliberately the
    quietest chip on the screen and outlined rather than filled: it sits in the
    same list as approved leave and must not read as an arrangement anybody
    agreed to. */
-.dchip2.unavail { background:#fff; color:#6b7280; box-shadow:inset 0 0 0 1px rgba(10,11,16,.14); }
-.dchip2.unavail em { font-style:normal; font-size:10px; font-weight:700; color:#9ca3af; letter-spacing:.02em; }
+.dchip2.unavail { background:#fff; color:var(--gray500); box-shadow:inset 0 0 0 1px rgba(10,11,16,.14); }
+.dchip2.unavail em { font-style:normal; font-size:10px; font-weight:700; color:var(--q); letter-spacing:.02em; }
 .fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
 .fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:14px; padding:12px 14px; min-width:0; }
-.fl-fact em { font-style:normal; display:block; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#9ca3af; }
+.fl-fact em { font-style:normal; display:block; font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--q); }
 .fl-fact b { display:block; font-size:14px; font-weight:800; color:#050505; margin-top:4px; }
-.fl-note { background:#fafbfc; border:1px solid #f0f0f2; border-radius:12px; padding:12px 14px; font-size:13px; font-weight:600; color:#6b7280; margin-bottom:16px; }
+.fl-note { background:#fafbfc; border:1px solid #f0f0f2; border-radius:12px; padding:12px 14px; font-size:13px; font-weight:600; color:var(--gray500); margin-bottom:16px; }
 .fl-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:20px; }
 .fl-gap { flex:1; }
 .fl-hist { border-top:1px solid #f0f0f2; padding-top:16px; }
-.fl-hh { font-size:11px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; color:#9ca3af; margin-bottom:8px; }
-.fl-hempty { padding:22px 16px; text-align:center; font-size:12.5px; font-weight:600; color:#9ca3af; border:1.5px dashed #e6e8ee; border-radius:14px; }
+.fl-hh { font-size:11px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; color:var(--q); margin-bottom:8px; }
+.fl-hempty { padding:22px 16px; text-align:center; font-size:12.5px; font-weight:600; color:var(--q); border:1.5px dashed #e6e8ee; border-radius:14px; }
 .fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:10px 12px; border-radius:14px; transition:background .15s; }
 .fl-log:hover { background:#fafbfc; }
 .fl-log.open { background:rgba(240,164,49,.07); }
 .fl-li { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fl-li.fuel { background:rgba(0,229,192,.12); color:#00A389; }
-.fl-li.odo { background:rgba(46,104,255,.1); color:#2E68FF; }
-.fl-li.issue { background:rgba(240,164,49,.14); color:#b45309; }
+.fl-li.fuel { background:rgba(0,229,192,.12); color:var(--ok-t); }
+.fl-li.odo { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fl-li.issue { background:rgba(240,164,49,.14); color:var(--warn-t); }
 .fl-li.service { background:rgba(138,43,226,.1); color:#8A2BE2; }
 .fl-lk { min-width:0; }
 .fl-lk b { display:block; font-size:13.5px; font-weight:700; color:#050505; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.fl-lk em { font-style:normal; display:block; font-size:11.5px; font-weight:600; color:#9ca3af; margin-top:1px; }
+.fl-lk em { font-style:normal; display:block; font-size:11.5px; font-weight:600; color:var(--q); margin-top:1px; }
 .fl-lr { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fl-lo { font-size:12.5px; font-weight:800; color:#374151; flex:0 0 auto; }
 
 /* ---- fleet v2: Tiff estimate, lifecycle status, off-road pause ---- */
-.fg .fl-tiff { display:flex; align-items:center; justify-content:flex-end; gap:4px; font-style:normal; font-size:11.5px; font-weight:800; color:var(--teal-d); margin-top:2px; }
+.fg .fl-tiff { display:flex; align-items:center; justify-content:flex-end; gap:4px; font-style:normal; font-size:11.5px; font-weight:800; color:var(--ok-t); margin-top:2px; }
 .fg .fl-total .fl-tiff { display:inline-flex; margin:0 0 0 12px; }
 .fg .fl-value b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
-.fg .dchip.mute { background:#f1f2f4; color:#9ca3af; }
+.fg .dchip.mute { background:#f1f2f4; color:var(--q); }
 .fg .fl-qa.paused { opacity:.55; cursor:not-allowed; }
 .fg .fl-qa.paused:hover { transform:none; box-shadow:0 8px 30px rgba(0,0,0,.03); border-color:#f0f0f2; }
-.fg .fl-offnote { display:flex; align-items:center; gap:10px; background:rgba(240,164,49,.09); border:1px solid rgba(240,164,49,.28); border-radius:14px; padding:12px 16px; font-size:13px; font-weight:600; color:#b45309; }
-.dchip2.mute { background:#f1f2f4; color:#9ca3af; }
+.fg .fl-offnote { display:flex; align-items:center; gap:10px; background:rgba(240,164,49,.09); border:1px solid rgba(240,164,49,.28); border-radius:14px; padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
+.dchip2.mute { background:#f1f2f4; color:var(--q); }
 .fl-fact.tiff { background:rgba(0,229,192,.07); border-color:rgba(0,229,192,.3); }
-.fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:#00A389; }
+.fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ok-t); }
 .fl-manage { display:flex; justify-content:flex-end; gap:10px; margin:-8px 0 20px; }
-.fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:#b45309; }
+.fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 /* neutral sibling of fl-warnhint — explains a field rather than cautioning about
    it. Literal colour, not a var: these modals portal to body, outside .fg. */
-.fl-hint { font-style:normal; font-size:12px; font-weight:600; color:#6b7280; }
+.fl-hint { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 
 /* ---- fleet r3: live Tiff valuations + receipt scanner ---- */
-.fg .fl-valuebtn { color:var(--teal-d); }
+.fg .fl-valuebtn { color:var(--ok-t); }
 .fg .fl-valuebtn.busy { opacity:.6; pointer-events:none; }
 .fg .fl-valuebtn .i { animation:none; }
 .fg .fl-valuebtn.busy .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
-.fg .fl-aierr { font-size:12.5px; font-weight:600; color:#b45309; margin:-6px 0 12px; }
+.fg .fl-aierr { font-size:12.5px; font-weight:600; color:var(--warn-t); margin:-6px 0 12px; }
 .fg .fl-tiff.stale { opacity:.45; }
 @keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
 .fl-fact.tiff.stale { opacity:.55; }
-.fl-fact .fl-range { display:block; font-size:11px; font-weight:600; color:#6b7280; margin-top:2px; }
+.fl-fact .fl-range { display:block; font-size:11px; font-weight:600; color:var(--gray500); margin-top:2px; }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:34px 20px; border:1.5px dashed #d7dae0; border-radius:18px; background:#fafbfc; cursor:pointer; transition:all .2s; }
 .fl-scan:hover, .fl-scan.over { border-color:#00E5C0; background:rgba(0,229,192,.05); }
 .fl-scan input { display:none; }
-.fl-scan .fl-scanic { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.12); color:#00A389; }
+.fl-scan .fl-scanic { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.12); color:var(--ok-t); }
 .fl-scan b { font-size:14.5px; font-weight:800; color:#050505; }
-.fl-scan em { font-style:normal; font-size:12.5px; font-weight:600; color:#9ca3af; }
-.fl-modeline { display:block; margin:12px auto 0; font-size:12.5px; font-weight:700; color:#00A389; }
+.fl-scan em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--q); }
+.fl-modeline { display:block; margin:12px auto 0; font-size:12.5px; font-weight:700; color:var(--ok-t); }
 .fl-modeline:hover { text-decoration:underline; }
 .fl-modeline.inline { margin:0 0 0 auto; }
 .fl-readingwrap { display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 0 8px; }
 .fl-scanthumb { max-height:120px; max-width:100%; border-radius:14px; border:1px solid #ebecef; box-shadow:0 8px 24px rgba(0,0,0,.1); }
 .fl-scanthumb.small { max-height:44px; border-radius:9px; }
-.fl-reading { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:#00A389; }
+.fl-reading { display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:700; color:var(--ok-t); }
 .fl-reading .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
 .fl-scanhead { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
 /* "Receipt saved" / "saving without it" — unscoped like the rest of this
    block, because the log modal portals to <body> and never sees `.fg`. */
-.fl-keptline { display:flex; align-items:center; gap:7px; margin:-4px 0 14px; font-size:12.5px; font-weight:700; color:#00A389; }
-.fl-keptline.warn { color:#b45309; }
+.fl-keptline { display:flex; align-items:center; gap:7px; margin:-4px 0 14px; font-size:12.5px; font-weight:700; color:var(--ok-t); }
+.fl-keptline.warn { color:var(--warn-t); }
 
 /* ---- fleet r4: rego picker for borrowed vehicles ---- */
 .fg .fl-offnote { flex-wrap:wrap; }
-.fg .fl-offbtn { display:inline-flex; align-items:center; gap:6px; margin-left:auto; height:30px; padding:0 12px; border-radius:10px; background:#fff; border:1px solid rgba(240,164,49,.4); font-size:12px; font-weight:700; color:#b45309; transition:all .18s; }
+.fg .fl-offbtn { display:inline-flex; align-items:center; gap:6px; margin-left:auto; height:30px; padding:0 12px; border-radius:10px; background:#fff; border:1px solid rgba(240,164,49,.4); font-size:12px; font-weight:700; color:var(--warn-t); transition:all .18s; }
 .fg .fl-offbtn:hover { background:rgba(240,164,49,.12); }
 
 /* ---- Time & Pay: My timesheet ----
@@ -2579,7 +2711,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-balbar i.bk { background:var(--lvk); opacity:.3; }
 .fg .lv-balsub { font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .lv-src { display:flex; align-items:center; gap:5px; margin-top:8px; font-size:11px; font-weight:700; color:var(--gray400); }
-.fg .lv-src.synced { color:var(--teal-d); }
+.fg .lv-src.synced { color:var(--ok-t); }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
 .fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
@@ -2625,7 +2757,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    press once to ask, again to confirm, anywhere else to forget it. `.arm`
    borrows the filled-red confirm state .fl-btn.danger.arm already uses. */
 .fg .lv-cancel { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 10px; border-radius:9px; font-size:12px; font-weight:700; color:var(--gray500); border:1px solid rgba(10,11,16,.1); background:#fff; white-space:nowrap; transition:all .16s; }
-.fg .lv-cancel:hover { color:#e0264f; border-color:rgba(224,38,79,.35); background:rgba(255,51,102,.05); }
+.fg .lv-cancel:hover { color:var(--bad-t); border-color:rgba(224,38,79,.35); background:rgba(255,51,102,.05); }
 .fg .lv-cancel.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
 .fg .lv-hist { border-top:2px solid #eef0f3; }
 .fg .lv-pacts { display:flex; gap:8px; }
@@ -2644,18 +2776,18 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts-hol.next { background:rgba(0,163,137,.06); }
 .fg .mts-hol b { font-size:13px; font-weight:800; color:var(--ink); min-width:120px; }
 .fg .mts-hol em { flex:1; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); }
-.fg .mts-holnext { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--teal-d); background:rgba(0,163,137,.12); padding:3px 9px; border-radius:7px; }
+.fg .mts-holnext { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ok-t); background:rgba(0,163,137,.12); padding:3px 9px; border-radius:7px; }
 .fg .hol-year { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; margin-top:16px; }
 .fg .hol-row { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
 .fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .hol-name { flex:1; font-size:13.5px; font-weight:600; color:var(--gray700); }
 .fg .hol-src { font-size:11px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
-.fg .hol-src.synced { color:var(--teal-d); }
+.fg .hol-src.synced { color:var(--ok-t); }
 
 /* removed (suppressed) holidays — tombstones an admin can restore */
 .fg .hol-year.removed { opacity:.75; }
-.fg .hol-year.removed .lv-ch { color:#9ca3af; }
-.fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:#9ca3af; text-decoration:line-through; text-decoration-thickness:1px; }
+.fg .hol-year.removed .lv-ch { color:var(--q); }
+.fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:var(--q); text-decoration:line-through; text-decoration-thickness:1px; }
 
 /* "worth confirming" — proclamation-dependent days the rules can't date.
    Deliberately quiet: a hint, not a task list. */
@@ -2668,7 +2800,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .hol-sugmain b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
 .fg .hol-sugadd { display:flex; align-items:center; gap:5px; height:30px; padding:0 11px; border-radius:9px; border:1px solid rgba(10,11,16,.12); background:#fff; font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .hol-sugadd:hover { border-color:rgba(0,163,137,.4); color:var(--teal-d); }
+.fg .hol-sugadd:hover { border-color:rgba(0,163,137,.4); color:var(--ok-t); }
 
 /* ---- pending invites: link + renew/revoke (Team page, `invites` only) ----
    The tools sit on their own line of the row's grid: CopyLink is a full-width
@@ -2679,18 +2811,18 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .invbtns { display:flex; gap:8px; flex:0 0 auto; margin-top:12px; }
 /* .fl-btn.tiny is declared after .fl-btn.danger, so on its own it would repaint
    a revoke button neutral — the destructive one stays red until it's armed. */
-.fg .invbtns .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:#e0264f; }
+.fg .invbtns .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); }
 .fg .invbtns .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
-.fg .invmsg { padding:12px 24px; font-size:12.5px; font-weight:600; color:#e0264f; border-bottom:1px solid #f5f6f8; }
+.fg .invmsg { padding:12px 24px; font-size:12.5px; font-weight:600; color:var(--bad-t); border-bottom:1px solid #f5f6f8; }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
-.fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; font-weight:600; color:#e0264f; }
+.fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; font-weight:600; color:var(--bad-t); }
 
 /* ---- adaptive durations (lib/format/duration.ts) ----
    The number does the work; the unit only has to be legible. Muting it keeps a
    fact tile scannable at a glance without the label growing louder as the
    wording gets longer ("6 weeks" is wider than "45d" — this is the rent). */
-.fg .dur-u { margin-left:3px; font-size:.86em; font-weight:500; color:#9ca3af; }
+.fg .dur-u { margin-left:3px; font-size:.86em; font-weight:500; color:var(--q); }
 
 /* ---- AU rego plate (components/fleet/plate.tsx) ----
    UNSCOPED — no `.fg` prefix. The fleet modals portal to document.body, which
@@ -2704,7 +2836,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    inherited — Jakarta, never mono; a plate reads as a plate because of the
    slab and the tracking, not because of a typeface that isn't in the app. */
 .au-plate { display:inline-flex; align-items:center; gap:7px; width:fit-content; padding:5px 10px; border-radius:8px; background:#f8f9fb; border:1.5px solid #d7dae0; box-shadow:inset 0 -2px 0 rgba(10,11,16,.06); font-size:12.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#374151; white-space:nowrap; }
-.au-plate .st { padding-left:7px; border-left:1px solid #d7dae0; font-size:8.5px; font-weight:800; letter-spacing:.1em; color:#9ca3af; }
+.au-plate .st { padding-left:7px; border-left:1px solid #d7dae0; font-size:8.5px; font-weight:800; letter-spacing:.1em; color:var(--q); }
 .au-plate.sm { padding:4px 10px; font-size:11px; }
 .au-plate.sm .st { font-size:8px; }
 
@@ -2735,8 +2867,17 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc .idc-in { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; gap:12px; }
 .fg .idc .idc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .fg .idc .idc-org { font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
-.fg .idc.light .idc-org { color:#9ca3af; }
-.fg .idc .idc-badge { flex:0 0 auto; padding:4px 10px; border-radius:999px; border:1px solid transparent; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap; }
+.fg .idc.light .idc-org { color:var(--q); }
+/* `--acc` is the licence type's own colour, set inline by id-card.tsx. The tint
+   and the border are that colour; the TEXT is that colour mixed 45% into black.
+   45 is measured, not chosen for looks: across every accent in use — and the
+   awkward ones a future licence type could carry, pale yellow and lime — the
+   worst case at 45% is 5.37 against the 13% tint, where the accent used neat
+   was 2.75 for the teal and 3.87 for the blue. 55% already fails on yellow. */
+.fg .idc .idc-badge { flex:0 0 auto; padding:4px 10px; border-radius:999px; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap;
+  background:color-mix(in srgb, var(--acc,#2E68FF) 13%, #fff);
+  border:1px solid color-mix(in srgb, var(--acc,#2E68FF) 33%, #fff);
+  color:color-mix(in srgb, var(--acc,#2E68FF) 45%, #000); }
 
 /* ── the credential card ──
    A licence or a ticket, and the only `.idc` that sits in a WALL of itself.
@@ -2754,10 +2895,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    card that changes by itself. */
 .fg .idc .idc-state { flex:0 0 auto; padding:4px 11px; border-radius:999px; border:1px solid transparent;
   font-size:10.5px; font-weight:800; letter-spacing:.01em; white-space:nowrap; }
-.fg .idc.light .idc-state.ok { background:rgba(0,229,192,.12); color:var(--teal-d); border-color:rgba(0,163,137,.26); }
-.fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:#b45309; border-color:rgba(240,164,49,.32); }
-.fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:#e0264f; border-color:rgba(255,51,102,.25); }
-.fg .idc.light .idc-state.mute { background:#f3f4f7; color:#9ca3af; border-color:#e9ebef; }
+.fg .idc.light .idc-state.ok { background:rgba(0,229,192,.12); color:var(--ok-t); border-color:rgba(0,163,137,.26); }
+.fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:var(--warn-t); border-color:rgba(240,164,49,.32); }
+.fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
+.fg .idc.light .idc-state.mute { background:#f3f4f7; color:var(--q); border-color:#e9ebef; }
 .fg .idc.dark .idc-state.ok { background:rgba(0,229,192,.14); color:var(--teal); }
 .fg .idc.dark .idc-state.warn { background:rgba(240,164,49,.18); color:#F0A431; }
 .fg .idc.dark .idc-state.bad { background:rgba(255,51,102,.16); color:#FF3366; }
@@ -2783,16 +2924,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc .idc-facts { margin-top:auto; display:flex; gap:22px; flex-wrap:wrap; }
 .fg .idc .idc-facts .f { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .fg .idc .idc-facts em { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.38); }
-.fg .idc.light .idc-facts em { color:#9ca3af; }
+.fg .idc.light .idc-facts em { color:var(--q); }
 .fg .idc .idc-facts b { font-size:13px; font-weight:700; }
 .fg .idc .idc-facts .f.ok b { color:var(--teal); }
-.fg .idc.light .idc-facts .f.ok b { color:var(--teal-d); }
+.fg .idc.light .idc-facts .f.ok b { color:var(--ok-t); }
 .fg .idc .idc-facts .f.warn b { color:#F0A431; }
-.fg .idc.light .idc-facts .f.warn b { color:#b45309; }
+.fg .idc.light .idc-facts .f.warn b { color:var(--warn-t); }
 .fg .idc .idc-facts .f.bad b { color:#FF3366; }
-.fg .idc.light .idc-facts .f.bad b { color:#e0264f; }
+.fg .idc.light .idc-facts .f.bad b { color:var(--bad-t); }
 .fg .idc .idc-facts .f.mute b { color:rgba(255,255,255,.45); }
-.fg .idc.light .idc-facts .f.mute b { color:#9ca3af; }
+.fg .idc.light .idc-facts .f.mute b { color:var(--q); }
 .fg .idc .idc-tel { color:inherit; text-decoration:none; border-bottom:1px solid currentColor; }
 @media (max-width:480px){ .fg .idc { aspect-ratio:auto; min-height:220px; } .fg .idc .idc-facts { margin-top:16px; } }
 
@@ -2807,13 +2948,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cred-foot { margin-top:14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .fg .cred-exp { font-size:11.5px; font-weight:600; color:var(--gray400); }
 .fg .lstat { flex:0 0 auto; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:7px; }
-.fg .lstat.ok { background:rgba(0,229,192,.12); color:#00A389; }
-.fg .lstat.warn { background:rgba(240,164,49,.16); color:#b45309; }
-.fg .lstat.bad { background:rgba(255,51,102,.12); color:#e0264f; }
-.fg .lstat.mute { background:#f3f4f6; color:#9ca3af; }
-.fg .cred-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#aeb4c0; background:#f6f7f9; opacity:0; transition:all .2s; }
+.fg .lstat.ok { background:rgba(0,229,192,.12); color:var(--ok-t); }
+.fg .lstat.warn { background:rgba(240,164,49,.16); color:var(--warn-t); }
+.fg .lstat.bad { background:rgba(255,51,102,.12); color:var(--bad-t); }
+.fg .lstat.mute { background:#f3f4f6; color:var(--q); }
+.fg .cred-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--q); background:#f6f7f9; opacity:0; transition:all .2s; }
 .fg .cred:hover .cred-del, .fg .cred-del:focus-visible { opacity:1; }
-.fg .cred-del:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .cred-del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .cred-del:disabled { opacity:.5; cursor:default; }
 /* a hover-revealed control is an unreachable control on a phone, and this
    screen is used on one — on a touch pointer the × is simply always there */
@@ -2822,7 +2963,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* ---- field-level validation ---- */
 .fg .inp.err { border-color:rgba(255,51,102,.55); background:rgba(255,51,102,.04); }
 .fg .inp.err:focus { border-color:#e0264f; box-shadow:0 0 0 4px rgba(255,51,102,.13); }
-.fg .ferr { font-size:11.5px; font-weight:700; color:#e0264f; }
+.fg .ferr { font-size:11.5px; font-weight:700; color:var(--bad-t); }
 
 /* ---- read-mode fact rows (values that don't belong on the plastic) ---- */
 .fg .ro-rows { display:flex; flex-direction:column; }
@@ -2833,9 +2974,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .ro-row .num { font-variant-numeric:tabular-nums; }
 .fg .ro-none { font-style:italic; font-weight:500; color:#bcc2cd; }
 .fg .ro-state { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
-.fg .ro-state.ok { color:var(--teal-d); }
-.fg .ro-state.warn { color:#b45309; }
-.fg .ro-state.bad { color:#e0264f; }
+.fg .ro-state.ok { color:var(--ok-t); }
+.fg .ro-state.warn { color:var(--warn-t); }
+.fg .ro-state.bad { color:var(--bad-t); }
 .fg .ro-state.mute { color:var(--gray400); font-weight:600; }
 /* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
 .fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
@@ -2848,7 +2989,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .qual { padding:7px 13px; border-radius:11px; background:#f6f7f9; border:1px solid #f0f0f2; font-size:13px; font-weight:700; color:var(--gray700); }
 
 /* work rights: the no-visa answer, in edit mode */
-.fg .wr-nov { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:rgba(0,229,192,.07); border:1px solid rgba(0,229,192,.28); color:var(--teal-d); }
+.fg .wr-nov { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:rgba(0,229,192,.07); border:1px solid rgba(0,229,192,.28); color:var(--ok-t); }
 .fg .wr-nov b { display:block; font-size:13.5px; font-weight:800; }
 .fg .wr-nov em { font-style:normal; display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--gray500); }
 
@@ -2986,7 +3127,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* TODAY is named by its weekday going ink, not by a ring the selected tab
    also uses — two rings on one card is a puzzle, not a signal */
 .fg .mts2-tab.today .cw { color:var(--ink); }
-.fg .mts2-tab.today .cw::after { content:" ·"; color:var(--teal-d); }
+.fg .mts2-tab.today .cw::after { content:" ·"; color:var(--ok-t); }
 
 /* THE OPEN DAY IS THE PILL — the board switcher's thumb, wearing the day's own
    tint. Still composited over an opaque white rather than laid on as a
@@ -3021,9 +3162,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#b45309); }
 .fg .mts2-pill.under { background:rgba(244,114,182,.16); color:#9d174d; }
 .fg .mts2-pill.leave { background:rgba(46,104,255,.12); color:#1d4ed8; }
-.fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:#e0264f; }
+.fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:var(--bad-t); }
 .fg .mts2-pill.ph { background:rgba(138,43,226,.12); color:var(--violet-d,#7322c4); }
-.fg .mts2-pill.miss { background:rgba(255,51,102,.1); color:#e0264f; box-shadow:inset 0 0 0 1px rgba(255,51,102,.45); }
+.fg .mts2-pill.miss { background:rgba(255,51,102,.1); color:var(--bad-t); box-shadow:inset 0 0 0 1px rgba(255,51,102,.45); }
 .fg .mts2-pill.off { background:#eceef1; color:var(--gray700); }
 .fg .mts2-pill.empty { background:#f1f2f5; color:var(--gray500); }
 
@@ -3035,8 +3176,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    one you logged — if it's wrong, you need to know before you submit it. */
 .fg .mts2-esrc { display:flex; align-items:center; gap:7px; margin-top:12px; font-size:11.5px; font-weight:700; color:var(--gray500); }
 .fg .mts2-esrc svg { color:var(--gray400); flex:none; }
-.fg .mts2-esrc.presumed { color:var(--teal-d); }
-.fg .mts2-esrc.presumed svg { color:var(--teal-d); }
+.fg .mts2-esrc.presumed { color:var(--ok-t); }
+.fg .mts2-esrc.presumed svg { color:var(--ok-t); }
 
 /* a day owned by another module — read it here, change it where it was booked */
 .fg .mts2-elock { display:flex; align-items:flex-start; gap:10px; margin-top:13px; padding:13px 14px; border-radius:13px; background:#f7f8fa; }
@@ -3074,9 +3215,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* the derived hours — this line IS the hours field */
 .fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:13px; padding:10px 13px; border-radius:13px; background:rgba(34,197,94,.07); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .mts2-derv b { font-size:14px; font-weight:800; color:var(--ink); }
-.fg .mts2-derv svg { color:var(--teal-d); }
-.fg .mts2-derv.bad { background:rgba(255,51,102,.07); color:#e0264f; }
-.fg .mts2-derv.bad svg { color:#e0264f; }
+.fg .mts2-derv svg { color:var(--ok-t); }
+.fg .mts2-derv.bad { background:rgba(255,51,102,.07); color:var(--bad-t); }
+.fg .mts2-derv.bad svg { color:var(--bad-t); }
 /* a short day is not an error — it's a real day that the approver will look
    at, so it's amber-flavoured rather than red */
 .fg .mts2-derv.short { background:rgba(244,114,182,.12); color:#9d174d; }
@@ -3113,11 +3254,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-u b { display:block; font-size:13px; font-weight:800; color:var(--ink); }
 .fg .mts2-u em { display:block; margin-top:1px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .fg .mts2-ux { margin-left:auto; display:flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:8px; color:var(--gray400); flex:none; }
-.fg .mts2-ux:hover { background:rgba(255,51,102,.1); color:#e0264f; }
+.fg .mts2-ux:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .mts2-udates { display:flex; gap:10px; margin-top:12px; }
 .fg .mts2-udates .mts-f { flex:1 1 0; min-width:0; }
 .fg .mts2-unote { margin-top:10px; }
-.fg .mts2-uerr { margin-top:10px; padding:8px 11px; border-radius:11px; background:rgba(255,51,102,.08); color:#e0264f; font-size:12px; font-weight:700; }
+.fg .mts2-uerr { margin-top:10px; padding:8px 11px; border-radius:11px; background:rgba(255,51,102,.08); color:var(--bad-t); font-size:12px; font-weight:700; }
 .fg .mts2-unote-p { margin:12px 0 0; font-size:11px; font-weight:600; line-height:1.5; color:var(--gray400); }
 .fg .mts2-pay { display:flex; align-items:center; gap:10px; margin-top:9px; padding:0 2px; }
 .fg .mts2-payl { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); }
@@ -3156,7 +3297,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-h:last-child { border-bottom:none; }
 .fg .mts2-h b { min-width:22px; font-size:13px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .mts2-h em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray700); }
-.fg .mts2-hlink { display:inline-flex; align-items:center; gap:5px; margin-top:11px; font-size:12px; font-weight:800; color:var(--teal-d); }
+.fg .mts2-hlink { display:inline-flex; align-items:center; gap:5px; margin-top:11px; font-size:12px; font-weight:800; color:var(--ok-t); }
 .fg .mts2-hlink:hover { text-decoration:underline; }
 .fg .mts2-card .mts-hols { margin-top:12px; }
 .fg .mts2-rules { margin:0; padding:0 4px; font-size:11.5px; font-weight:600; line-height:1.6; color:var(--gray400); }
@@ -3213,8 +3354,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:#00E5C0; box-shadow:0 0 0 3px rgba(0,229,192,.15); }
 .datef:disabled { opacity:.5; cursor:not-allowed; }
 .datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
-.datef.empty .datef-v { color:#aeb4c0; font-weight:500; }
-.datef .datef-ic { display:flex; flex:0 0 auto; color:#9ca3af; }
+.datef.empty .datef-v { color:var(--q); font-weight:500; }
+.datef .datef-ic { display:flex; flex:0 0 auto; color:var(--q); }
 .datef svg { display:block; }
 /* fleet modals run taller controls (.fl-i) — match them or the row steps */
 .datef.lg { width:100%; height:44px; padding:0 14px; border:1.5px solid #e5e7eb; border-radius:12px; }
@@ -3256,8 +3397,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cal-fbtn { height:30px; padding:0 11px; border-radius:9px; font-size:12px; font-weight:700; color:var(--gray700); background:#f4f5f7; transition:background .16s, color .16s; }
 .fg .cal-fbtn:hover:not(:disabled) { background:#eceef1; color:var(--ink); }
 .fg .cal-fbtn:disabled { opacity:.4; cursor:not-allowed; }
-.fg .cal-fbtn.clear { margin-left:auto; color:#e0264f; background:rgba(255,51,102,.07); }
-.fg .cal-fbtn.clear:hover { background:rgba(255,51,102,.13); color:#e0264f; }
+.fg .cal-fbtn.clear { margin-left:auto; color:var(--bad-t); background:rgba(255,51,102,.07); }
+.fg .cal-fbtn.clear:hover { background:rgba(255,51,102,.13); color:var(--bad-t); }
 
 /* ---- Admin settings index (components/admin/admin-index.tsx) ----
    A settings landing is a menu, so it is rows, not cards: one white card per
@@ -3310,7 +3451,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    ok #00A389 / warn amber / off grey (see the design-system note). */
 .fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; max-width:210px; padding:5px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
-.fg .int-pill.on { background:rgba(0,163,137,.1); color:#00A389; }
+.fg .int-pill.on { background:rgba(0,163,137,.1); color:var(--ok-t); }
 .fg .int-pill.on .int-dot { background:#00A389; }
 .fg .int-pill.warn { background:rgba(240,164,49,.14); color:#a56a05; }
 .fg .int-pill.warn .int-dot { background:#F0A431; }
@@ -3321,7 +3462,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Outcome of a round trip that just finished — the OAuth redirect's one line. */
 .fg .int-note { padding:12px 15px; margin-bottom:18px; border-radius:14px; font-size:13.5px; font-weight:600; line-height:1.45; }
 .fg .int-note.ok { background:rgba(0,163,137,.09); color:#00806c; }
-.fg .int-note.bad { background:rgba(255,51,102,.08); color:#e0264f; }
+.fg .int-note.bad { background:rgba(255,51,102,.08); color:var(--bad-t); }
 
 .fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 34px; margin:0 0 20px; }
 .fg .int-facts dt { font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
@@ -3425,7 +3566,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .int-consent p { margin:0; font-size:12.5px; font-weight:600; line-height:1.55; }
 .fg .int-consent b { font-weight:800; color:var(--gray700); }
 .fg .int-danger { margin:0 0 4px; padding:15px 16px; border-radius:14px; border:1.5px solid rgba(224,38,79,.28); background:rgba(255,51,102,.05); }
-.fg .int-danger > b { display:block; font-size:14px; font-weight:800; letter-spacing:-0.01em; color:#e0264f; }
+.fg .int-danger > b { display:block; font-size:14px; font-weight:800; letter-spacing:-0.01em; color:var(--bad-t); }
 .fg .int-danger ul { margin:9px 0 0; padding-left:18px; }
 .fg .int-danger li { margin-top:5px; font-size:12.5px; font-weight:600; line-height:1.55; color:var(--gray600, var(--gray500)); }
 .fg .int-danger .int-hint { margin:10px 0 0; }
@@ -3441,7 +3582,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    only these six things are new — a clickable credential card, the add tile,
    the issuer line, the logo uploader, the colour swatches, and a link inside a
    read-mode fact row. */
-.fg .ro-link { color:var(--teal-d); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); font-weight:700; }
+.fg .ro-link { color:var(--ok-t); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); font-weight:700; }
 .fg .ro-link:hover { border-bottom-color:var(--teal-d); }
 
 /* A card you click to edit, rather than an × you click to destroy. The button
@@ -3457,13 +3598,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    things it joins. */
 .fg .cred-add { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:7px; min-height:132px; padding:16px; border-radius:16px; border:1.5px dashed #d8dde6; background:#fafbfc; text-align:left; transition:all .2s; }
 .fg .cred-add:hover { border-color:var(--teal); background:rgba(0,229,192,.04); }
-.fg .cred-add .ci { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--teal-d); border:1px solid #eef0f4; }
+.fg .cred-add .ci { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ok-t); border:1px solid #eef0f4; }
 .fg .cred-add b { font-size:13.5px; font-weight:800; color:var(--gray700); }
 .fg .cred-add em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
 
 /* Logo uploader — the drop tile, with something in it now. */
 .fg .orglogo-row { display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px; border:1.5px dashed #d8dde6; background:#fafbfc; }
-.fg .orglogo-prev { width:54px; height:54px; flex:0 0 auto; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #eef0f4; color:#aeb4c0; overflow:hidden; }
+.fg .orglogo-prev { width:54px; height:54px; flex:0 0 auto; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #eef0f4; color:var(--q); overflow:hidden; }
 .fg .orglogo-prev img { width:100%; height:100%; object-fit:contain; padding:5px; }
 .fg .orglogo-k { min-width:0; flex:1; }
 .fg .orglogo-k b { font-size:13px; font-weight:700; }
@@ -3500,7 +3641,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-cert { display:flex; align-items:center; gap:10px; margin-top:12px; padding:11px 13px; border-radius:13px; background:#fff; border:1px dashed rgba(10,11,16,.18); }
 .fg .lv-cert.on { border-style:solid; border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.05); }
 .fg .lv-cert svg { flex:0 0 auto; color:var(--gray400); }
-.fg .lv-cert.on svg { color:var(--teal-d); }
+.fg .lv-cert.on svg { color:var(--ok-t); }
 .fg .lv-cert > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .fg .lv-cert b { font-size:13px; font-weight:800; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fg .lv-cert em { font-size:11.5px; font-weight:600; font-style:normal; color:var(--gray500); line-height:1.45; }
@@ -3555,14 +3696,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Hover and keyboard land on the SAME class: arrowing down and moving the
    mouse must not be able to highlight two different rows at once. */
 .fg .adr-opt:hover, .fg .adr-opt.on { background:#fafbfc; }
-.fg .adr-opt.on { box-shadow:inset 0 0 0 1px rgba(0,163,137,.35); color:var(--teal-d); }
+.fg .adr-opt.on { box-shadow:inset 0 0 0 1px rgba(0,163,137,.35); color:var(--ok-t); }
 
 /* ---- My expenses (components/expenses/my-expenses.tsx) ----
    Receipt-first: the primary action is a camera, because a claim almost always
    starts as a photo in someone's hand at the end of a job. The form arrives
    pre-filled and every field stays editable — Tiff does the typing, the person
    does the deciding. */
-.fg .xc-err { padding:12px 15px; margin-bottom:18px; border-radius:14px; background:rgba(255,51,102,.08); color:#e0264f; font-size:13.5px; font-weight:600; line-height:1.45; }
+.fg .xc-err { padding:12px 15px; margin-bottom:18px; border-radius:14px; background:rgba(255,51,102,.08); color:var(--bad-t); font-size:13.5px; font-weight:600; line-height:1.45; }
 
 .fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:22px; margin-bottom:22px; border-radius:24px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,rgba(138,43,226,.04),#fff); }
 .fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:rgba(138,43,226,.11); color:var(--violet); }
@@ -3610,9 +3751,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xc-pill { padding:5px 11px; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; background:#f4f5f7; color:var(--gray500); }
 /* semantic state, never the page accent */
 .fg .xc-pill.pending { background:rgba(240,164,49,.15); color:#a56a05; }
-.fg .xc-pill.approved { background:rgba(46,104,255,.1); color:#2E68FF; }
-.fg .xc-pill.reimbursed { background:rgba(0,163,137,.1); color:#00A389; }
-.fg .xc-pill.declined { background:rgba(255,51,102,.09); color:#e0264f; }
+.fg .xc-pill.approved { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fg .xc-pill.reimbursed { background:rgba(0,163,137,.1); color:var(--ok-t); }
+.fg .xc-pill.declined { background:rgba(255,51,102,.09); color:var(--bad-t); }
 /* WHAT YOU ARE OWED, on the claimant's own screen. The approver's queue and
    the Time & Pay stat tile have carried this figure all along; the person out
    of pocket got a list and was left to add it up. */
@@ -3623,9 +3764,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Why Send is dark — the form saying what it wants rather than the server. */
 .fg .xc-need { align-self:center; font-size:12.5px; font-weight:600; color:var(--gray500); }
 
-.fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--teal-d); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); }
+.fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--ok-t); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); }
 .fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:8px; transition:all .16s; }
-.fg .xc-cancel:hover:not(:disabled) { color:#e0264f; }
+.fg .xc-cancel:hover:not(:disabled) { color:var(--bad-t); }
 .fg .xc-cancel:disabled { opacity:.5; cursor:default; }
 /* ARMED. The second press is the one that fires — same treatment `.lv-cancel`
    gets on My leave, because this discards a claim for money you are owed. */
@@ -3709,8 +3850,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .wb-who em { font-style:normal; color:var(--gray500); }
 .wb-tech { font-size:12.5px; color:var(--gray700); font-weight:600; }
 .wb-chip { font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:rgba(5,5,5,.06); color:var(--gray700); white-space:nowrap; }
-.wb-chip.on { background:rgba(0,163,137,.12); color:#00A389; }
-.wb-chip.bad { background:rgba(224,38,79,.12); color:#e0264f; }
+.wb-chip.on { background:rgba(0,163,137,.12); color:var(--ok-t); }
+.wb-chip.bad { background:rgba(224,38,79,.12); color:var(--bad-t); }
 
 /* the overdue breathe — used by the maintenance radar */
 @keyframes wbPulse {
@@ -3738,7 +3879,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .wb-stepper { display:flex; flex-wrap:wrap; gap:6px; }
 button.wb-step { font-size:12px; font-weight:700; padding:7px 12px; border-radius:999px; border:1px solid rgba(5,5,5,.1); background:#fff; color:var(--gray500); cursor:pointer; }
 .wb-step:disabled { cursor:default; }
-.wb-step.past { background:rgba(0,163,137,.1); border-color:transparent; color:#00A389; }
+.wb-step.past { background:rgba(0,163,137,.1); border-color:transparent; color:var(--ok-t); }
 .wb-step.now { background:var(--ink); border-color:var(--ink); color:#fff; }
 .wb-step.todo:hover:not(:disabled) { border-color:rgba(0,168,224,.5); color:var(--gray700); }
 
@@ -3795,7 +3936,7 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
    diameter, and the four rows below re-declare it rather than restating the
    geometry. `color` carries the ink, because the sphere has no opinion. */
 .wb-lvl { --lvl:0; --orb:22px; display:inline-flex; align-items:center; padding-left:4px;
-  color:#e0264f; }
+  color:var(--bad-t); }
 /* THE CURVE, AND WHY IT IS NOT WIDER. Three were rendered against the real
    row sizes and levels. `.6 + .4` moves too little to read as a response at
    18px; `.42 + .62` is the most responsive and collapses the resting sphere
@@ -3893,7 +4034,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   font-size:11px; font-weight:800; font-style:normal; font-variant-numeric:tabular-nums;
   transition:background .2s, color .2s; }
 .wb2-segb i.dan { background:rgba(224,38,79,.12); color:#b31038; }
-.wb2-segb i.wrn { background:rgba(255,138,0,.16); color:#B45309; }
+.wb2-segb i.wrn { background:rgba(255,138,0,.16); color:var(--warn-t); }
 .wb2-segb i.clr { background:rgba(0,163,137,.12); color:#00806b; }
 /* on the filled side the badge sits on colour — one translucent well, so a
    count never fights the fill it lives on */
@@ -3929,9 +4070,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    workshop you read the block of colour long before you read the 40px number,
    and a red tile beside two white ones is the whole point of the row. */
 .wb-vital.urgent { background:rgba(224,38,79,.06); border-color:rgba(224,38,79,.3); }
-.wb-vital.urgent b { color:#e0264f; }
+.wb-vital.urgent b { color:var(--bad-t); }
 .wb-vital.attention { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.32); }
-.wb-vital.attention b { color:#B45309; }
+.wb-vital.attention b { color:var(--warn-t); }
 /* pressed = "this is what you're looking at". Kept neutral on the calm tile
    so the default state doesn't shout louder than an actual problem. */
 .wb-vital.on { border-color:rgba(5,5,5,.3); box-shadow:0 0 0 3px rgba(5,5,5,.07); }
@@ -3976,7 +4117,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    findable in a grid of cards without reading any of them */
 .wb-sdot.now { height:8px; background:linear-gradient(90deg,#00A8E0,#00E5C0); }
 
-.wb-chip.warn { background:rgba(255,138,0,.14); color:#B45309; }
+.wb-chip.warn { background:rgba(255,138,0,.14); color:var(--warn-t); }
 .wb-chip.ghost { background:transparent; border:1px dashed rgba(5,5,5,.2); color:var(--gray400); }
 .wb-dayhead i { font-style:normal; color:var(--gray400); margin-left:4px; }
 .wb-runcounts { margin-left:auto; font-size:12px; font-weight:600; color:var(--gray500); white-space:nowrap; }
@@ -4143,7 +4284,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    wrapper stayed parked against the subtitle, leaving "2 services" adrift in
    the middle of the header with nothing either side of it. */
 .wb2-chd > .wb2-chip, .wb2-chd > .pbtn, .wb2-chd > .wb2-mcnav, .wb2-chd > .wb2-mcsum { margin-left:auto; flex:none; }
-.wb2-sect { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:#9ca3af; }
+.wb2-sect { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:var(--q); }
 .wb2-hint { font-size:12.5px; color:var(--gray500); font-weight:500; margin:8px 0 0; }
 .wb2-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; padding:4px 9px; border-radius:8px;
   background:rgba(5,5,5,.055); color:var(--gray700); white-space:nowrap; }
@@ -4152,7 +4293,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-chip.ok { background:rgba(0,163,137,.11); color:#00806b; }
 .wb2-chip.blue { background:rgba(0,168,224,.1); color:#0089b8; }
 .wb2-empty { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:38px 20px; color:var(--gray500); }
-.wb2-empty svg { color:#9ca3af; }
+.wb2-empty svg { color:var(--q); }
 .wb2-empty b { font-size:13.5px; color:var(--ink); }
 .wb2-empty em { font-style:normal; font-size:12.5px; font-weight:500; text-wrap:pretty; }
 /* The integration gaps are the only empty states that explain a CAUSE rather
@@ -4188,7 +4329,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    days" under a heading that said "Frequency" and left the row's one
    two-line cell straddling every single-line cell beside it. */
 .wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:14px; align-items:end; padding:9px 20px;
-  border-bottom:1px solid var(--wb2-line); font-size:10.5px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:#9ca3af; }
+  border-bottom:1px solid var(--wb2-line); font-size:10.5px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--q); }
 .wb2-trhd-ck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
 .wb2-trhd-ck em { display:block; font-style:normal; font-size:9px; font-weight:800; letter-spacing:0; color:var(--gray500);
   text-transform:none; text-align:center; padding-bottom:3px; border-bottom:2px solid var(--as, rgba(5,5,5,.2));
@@ -4196,7 +4337,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 20px 6px; font-size:11.5px; font-weight:800;
   text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); }
 .wb2-wkhd.dan { color:var(--wb2-dan-t); }
-.wb2-wkhd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:#9ca3af; }
+.wb2-wkhd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--q); }
 /* BASELINE, not centre. A row mixes one-line cells with two-line ones, and
    centring made the one-liners float in the gap BETWEEN the two lines beside
    them — "Not placed" sat halfway between "Quarterly" and the due chip, which
@@ -4301,7 +4442,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-mckey span { display:inline-flex; align-items:center; gap:6px; }
 .wb2-mckey i { width:9px; height:9px; border-radius:3px; flex:none; }
 .wb2-mcdow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; padding:10px 16px 4px;
-  font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#9ca3af; }
+  font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
 .wb2-mcdow span { text-align:left; padding-left:6px; }
 .wb2-mc { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; padding:4px 16px 16px; }
 /* Taller than the content needs. A day cell is a place you put work, so it
@@ -4397,7 +4538,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* TODAY is named by its weekday going ink plus the dot — the timesheet
    strip's signal, so the two strips can never contradict each other */
 .wb2-schday.today .cw { color:var(--ink); }
-.wb2-schday.today .cw::after { content:" ·"; color:var(--teal-d); }
+.wb2-schday.today .cw::after { content:" ·"; color:var(--ok-t); }
 .wb2-schday.on { background-color:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28), inset 0 0 0 1px var(--wb2-line); }
 .wb2-schday.on .cd { color:var(--ink); }
 .wb2-schday.past .cd, .wb2-schday.past .cw { opacity:.55; }
@@ -4541,7 +4682,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   font-size:12.5px; font-weight:500; color:var(--gray700); line-height:1.55; text-wrap:pretty; }
 .wb2-dnnote span { display:block; margin-top:5px; font-size:10.5px; font-weight:800; letter-spacing:.04em;
   text-transform:uppercase; color:var(--gray400); }
-.wb2-dnnote.none { padding:0; background:none; color:#9ca3af; }
+.wb2-dnnote.none { padding:0; background:none; color:var(--q); }
 
 /* ── agreements ── */
 .wb2-agrp { padding-bottom:8px; }
@@ -4552,13 +4693,13 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-agrp[data-accent="blue"] .wb2-aghd i { background:#2E68FF; }
 .wb2-agrp[data-accent="pink"] .wb2-aghd i { background:#C4419B; }
 .wb2-agrp[data-accent="slate"] .wb2-aghd i { background:#64748B; }
-.wb2-aghd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:#9ca3af; }
+.wb2-aghd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--q); }
 /* Six columns: who and what, how often, when it last ran, when it's next,
    what follows, and how it's labelled. Last-done and Then are what turn a
    cadence word into an actual rhythm. */
 .wb2-agcols { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
   gap:14px; padding:2px 20px 6px; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
-  color:#9ca3af; }
+  color:var(--q); }
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
    from the first tag under it (Isaac). */
@@ -4567,7 +4708,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-agsearch:focus-within { border-color:rgba(0,168,224,.5); box-shadow:0 0 0 3px rgba(0,168,224,.14); }
 .wb2-agsearch input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:12.5px; font-weight:600;
   color:var(--ink); outline:none; }
-.wb2-agsearch input::placeholder { color:#9ca3af; font-weight:500; }
+.wb2-agsearch input::placeholder { color:var(--q); font-weight:500; }
 .wb2-trd.quiet b { color:var(--gray500); font-weight:700; }
 /* hours first on the booked line — the load, then who is carrying it */
 .wb2-trhrs { font-weight:800; color:var(--gray700); }
@@ -4588,7 +4729,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-tag.t-blue { background:rgba(46,104,255,.09); border-color:rgba(46,104,255,.26); color:#2e56d6; }
 .wb2-tag.t-cyan { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.28); color:#0075a0; }
 .wb2-tag.t-pink { background:rgba(196,65,155,.09); border-color:rgba(196,65,155,.28); color:#b0338a; }
-.wb2-tag.t-amber { background:rgba(255,138,0,.12); border-color:rgba(255,138,0,.3); color:#B45309; }
+.wb2-tag.t-amber { background:rgba(255,138,0,.12); border-color:rgba(255,138,0,.3); color:var(--warn-t); }
 .wb2-tag.t-slate { background:rgba(100,116,139,.12); border-color:rgba(100,116,139,.3); color:#475569; }
 .wb2-tag.on button { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; border:0; background:none;
   color:inherit; opacity:.55; cursor:pointer; transition:opacity .16s; }
@@ -4862,9 +5003,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-gckl { flex:1; min-width:0; text-align:left; font:inherit; font-size:13.5px; font-weight:700; color:var(--ink);
   background:none; border:0; padding:2px 0; cursor:pointer; }
 .wb2-gckl:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:6px; }
-.wb2-gck > em { margin-left:auto; font-style:normal; font-size:11.5px; font-weight:700; color:#9ca3af; flex:none; }
+.wb2-gck > em { margin-left:auto; font-style:normal; font-size:11.5px; font-weight:700; color:var(--q); flex:none; }
 .wb2-gate.on .wb2-gck > em { color:#00806b; }
-.wb2-chev { color:#9ca3af; flex:none; transition:transform .26s; }
+.wb2-chev { color:var(--q); flex:none; transition:transform .26s; }
 .wb2-chev.up { transform:rotate(180deg); color:var(--ink); }
 .wb2-gbody { padding:2px 13px 13px 46px; border-top:1px solid var(--wb2-line2); margin:0 0 0 0; padding-top:11px; }
 .wb2-ul { list-style:none; display:grid; gap:4px; margin:0; padding:0; }
@@ -4877,7 +5018,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-pkl { flex:1; min-width:0; text-align:left; }
 .wb2-pk.on { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.3); color:var(--ink); }
 .wb2-pk.on .wb2-pkl { text-decoration:line-through; text-decoration-color:rgba(5,5,5,.32); }
-.wb2-pkx { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; color:#9ca3af; opacity:0; flex:none;
+.wb2-pkx { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; color:var(--q); opacity:0; flex:none;
   border:0; background:none; cursor:pointer; transition:opacity .16s, color .16s, background .16s; }
 .wb2-pk:hover .wb2-pkx, .wb2-pkx:focus-visible, .wb2-pkx.show { opacity:1; }
 .wb2-pkx:hover { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
@@ -4932,13 +5073,13 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-addgo { flex:none; width:32px; height:32px; border-radius:9px; border:0; display:grid; place-items:center;
   background:#007fa8; color:#fff; cursor:pointer; transition:background .18s, color .18s; }
 .wb2-addgo:hover:not(:disabled) { background:#0089b8; }
-.wb2-addgo:disabled { background:rgba(5,5,5,.07); color:#9ca3af; cursor:not-allowed; }
+.wb2-addgo:disabled { background:rgba(5,5,5,.07); color:var(--q); cursor:not-allowed; }
 .wb2-addgo:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 /* the pill's red mic at row size — same colour, because it's the same act */
 .wb2-micgo { flex:none; width:32px; height:32px; border-radius:9px; border:0; display:grid; place-items:center;
   background:#e0264f; color:#fff; cursor:pointer; transition:background .18s, transform .18s; }
 .wb2-micgo:hover:not(:disabled) { background:#c8203f; }
-.wb2-micgo:disabled { background:rgba(5,5,5,.07); color:#9ca3af; cursor:not-allowed; }
+.wb2-micgo:disabled { background:rgba(5,5,5,.07); color:var(--q); cursor:not-allowed; }
 .wb2-micgo:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.35); }
 /* listening: a soft pulse, so a row that's recording never looks like a row
    that's merely disabled */
@@ -5005,7 +5146,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-dictmic.on { width:28px; padding:0; justify-content:center; background:#e0264f; border-color:#e0264f; color:#fff; }
 .wb2-dictmic.on:hover { background:#c8203f; border-color:#c8203f; color:#fff; }
 .wb2-dictbar .wb-lvl { --orb:18px; }
-.wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:7px; border:0; background:none; color:#9ca3af;
+.wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:7px; border:0; background:none; color:var(--q);
   display:grid; place-items:center; cursor:pointer; transition:background .16s, color .16s; }
 .wb2-dictx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
 .wb2-dicthint, .wb2-dicterr { font-size:11.5px; font-weight:700; margin:0; }
@@ -5430,7 +5571,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    what it heard, so this is a heads-up and not a warning — it earns the red
    because the clock is the only thing on screen that can give it, but it does
    not flash, pulse or otherwise ask to be dealt with. */
-.wb2-capclock.closing { color:#e0264f; }
+.wb2-capclock.closing { color:var(--bad-t); }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:9px; margin-top:12px; flex-wrap:wrap; }
 /* the ribbon's target, when the note has to be told where it belongs */
@@ -5792,7 +5933,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tx-statlab { font-size:11px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--gray400); }
 .fg .tx-statval { font-size:25px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
 .fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tx-stat.ok .tx-statval { color:#00A389; }
+.fg .tx-stat.ok .tx-statval { color:var(--ok-t); }
 .fg .tx-stat.warn { border-color:rgba(240,164,49,.4); background:rgba(240,164,49,.05); }
 .fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:#a56a05; }
 
@@ -5813,7 +5954,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tx-item { display:flex; align-items:center; gap:13px; padding:14px 20px; border-top:1px solid #f5f6f8; }
 .fg .tx-item:first-child { border-top:0; }
 .fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:12px; }
-.fg .tx-ic.fuel { background:rgba(46,104,255,.1); color:#2E68FF; }
+.fg .tx-ic.fuel { background:rgba(46,104,255,.1); color:var(--info-t); }
 .fg .tx-ic.expense { background:rgba(138,43,226,.1); color:#8A2BE2; }
 .fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--ink); }
@@ -5825,7 +5966,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* The row's verdict. An anchor when there is something to open, a span when
    there is not — so the amber one is deliberately not clickable. */
-.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:5px; min-width:96px; padding:6px 11px; border-radius:999px; background:rgba(0,163,137,.1); font-size:11.5px; font-weight:700; color:#00A389; text-decoration:none; transition:background .15s; }
+.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:5px; min-width:96px; padding:6px 11px; border-radius:999px; background:rgba(0,163,137,.1); font-size:11.5px; font-weight:700; color:var(--ok-t); text-decoration:none; transition:background .15s; }
 .fg a.tx-rcpt:hover { background:rgba(0,163,137,.18); }
 .fg .tx-rcpt.none { background:rgba(240,164,49,.12); color:#a56a05; }
 
@@ -5859,7 +6000,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* The remove confirmation. Says what happens rather than asking twice. */
 .fl-danger { display:flex; flex-direction:column; gap:8px; padding:18px 20px; border-radius:18px; background:rgba(255,51,102,.05); border:1px solid rgba(255,51,102,.16); }
 .fl-danger b { font-size:15px; font-weight:800; color:#050505; }
-.fl-danger em { font-style:normal; font-size:13px; font-weight:500; line-height:1.55; color:#6b7280; }
+.fl-danger em { font-style:normal; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fl-danger .fl-foot { margin-top:6px; }
 
 /* A footer with a destructive action on the left and the commit pair right. */
@@ -5901,7 +6042,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-gapb { padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
   font-size:12.5px; font-weight:700; color:#1d4ed8; text-decoration:underline; text-underline-offset:3px;
   cursor:pointer; transition:color .18s; }
-.fg .tk-gapb:hover:not(:disabled) { color:#2E68FF; }
+.fg .tk-gapb:hover:not(:disabled) { color:var(--info-t); }
 .fg .tk-gapb:disabled { opacity:.45; pointer-events:none; }
 .fg .tk-gapb:focus-visible { outline:none; border-radius:6px; box-shadow:0 0 0 3px rgba(46,104,255,.32); }
 
@@ -5940,7 +6081,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-tools { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:22px; }
 .fg .tk-search { position:relative; flex:1 1 280px; max-width:400px; }
 .fg .tk-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color .3s; }
-.fg .tk-search:focus-within svg { color:var(--blue); }
+.fg .tk-search:focus-within svg { color:var(--info-t); }
 .fg .tk-search input { width:100%; height:46px; padding:0 16px 0 46px; background:#fff; border:1px solid #e5e7eb; border-radius:16px;
   font-size:14.5px; font-weight:500; color:var(--ink); outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03);
   transition:border-color .2s, box-shadow .2s; }
@@ -5992,8 +6133,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   cursor:pointer; transition:color .2s; }
 .fg .tk-rt svg { flex:none; opacity:0; transition:opacity .2s, transform .2s; }
 .fg .tk-row:hover .tk-rt svg { opacity:.45; transform:translate(2px,-2px); }
-.fg .tk-rt:hover { color:var(--blue); }
-.fg .tk-rt:focus-visible { outline:none; color:var(--blue); text-decoration:underline; }
+.fg .tk-rt:hover { color:var(--info-t); }
+.fg .tk-rt:focus-visible { outline:none; color:var(--info-t); text-decoration:underline; }
 .fg .tk-rt.flat { cursor:default; color:var(--gray700); }
 .fg .tk-rmeta { display:block; margin-top:4px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray400);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -6031,7 +6172,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fl-modal .tk-dsbar { display:flex; align-items:center; gap:10px; }
 .fl-modal .tk-dsbar .fl-i { flex:1 1 auto; min-width:0; }
 .fl-modal .tk-dscount { margin:16px 0 10px; font-size:12.5px; font-weight:700; color:var(--gray400, #6b7280); }
-.fl-modal .tk-dsnone { margin:14px 0 0; font-size:13px; font-weight:600; line-height:1.6; color:#6b7280; }
+.fl-modal .tk-dsnone { margin:14px 0 0; font-size:13px; font-weight:600; line-height:1.6; color:var(--gray500); }
 
 /* Capped so a hundred hits scroll inside the panel rather than growing it
    past the viewport — `.fl-modal` already caps at 88vh, and a list that
@@ -6055,7 +6196,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-pill svg { flex:none; }
 .fg .tk-pill.ok { background:rgba(0,163,137,.09); color:#00806c; }
 .fg .tk-pill.work { background:rgba(46,104,255,.08); color:#1d4ed8; }
-.fg .tk-pill.warn { background:rgba(255,138,0,.1); color:#b45309; }
+.fg .tk-pill.warn { background:rgba(255,138,0,.1); color:var(--warn-t); }
 .fg .tk-pill.dan { background:rgba(224,38,79,.08); color:#b31038; }
 .fg .tk-prog { display:block; width:60px; height:4px; flex:none; border-radius:99px; background:rgba(46,104,255,.2); overflow:hidden; }
 .fg .tk-prog i { display:block; width:0; height:100%; border-radius:99px; background:#2E68FF; transition:width .4s ease; }
@@ -6067,7 +6208,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   box-shadow:0 8px 30px rgba(0,0,0,.04); }
 .fg .tk-empty.small { padding:44px 32px; border-radius:28px; }
 .fg .tk-eic { width:64px; height:64px; margin:0 auto 20px; border-radius:20px; display:grid; place-items:center;
-  background:rgba(46,104,255,.09); color:#2E68FF; }
+  background:rgba(46,104,255,.09); color:var(--info-t); }
 .fg .tk-empty h2 { margin:0; font-size:26px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
 .fg .tk-empty p { margin:12px auto 0; max-width:580px; font-size:14.5px; font-weight:500; line-height:1.65; color:var(--gray500); }
 .fg .tk-empty .tk-btn { margin-top:22px; }
@@ -6112,7 +6253,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border:1.5px dashed #d9dce4; border-radius:22px; background:linear-gradient(180deg,#fafbfc,#fff);
   transition:border-color .2s, background .2s; }
 .tk-drop.over { border-color:#2E68FF; background:rgba(46,104,255,.05); }
-.tk-drop svg { color:#2E68FF; }
+.tk-drop svg { color:var(--info-t); }
 .tk-drop b { font-size:14.5px; font-weight:800; color:var(--ink); }
 .tk-drop span { font-size:12.5px; font-weight:600; color:var(--gray400); }
 .tk-drop .tk-btn { margin-top:9px; height:38px; }
@@ -6134,7 +6275,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .tk-fst { display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:12.5px; font-weight:700; }
 .tk-fst.ok { color:#00806c; }
 .tk-fst.work { color:#1d4ed8; }
-.tk-fst.warn { color:#b45309; }
+.tk-fst.warn { color:var(--warn-t); }
 .tk-fst.dan { color:#b31038; }
 .tk-shft { position:sticky; bottom:0; margin-top:auto; display:flex; justify-content:flex-end; gap:10px;
   padding:16px 24px; background:#fff; border-top:1px solid #f1f2f4; }
@@ -6179,7 +6320,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
   font-size:11.5px; font-weight:700; color:#1d4ed8; cursor:pointer;
   text-decoration:underline; text-underline-offset:3px; }
-.fg .tgp-clear:hover, .tk-sheet .tgp-clear:hover, .fl-modal .tgp-clear:hover { color:#2E68FF; }
+.fg .tgp-clear:hover, .tk-sheet .tgp-clear:hover, .fl-modal .tgp-clear:hover { color:var(--info-t); }
 
 /* the find/create box — one control, because typing a name that doesn't exist
    IS the create gesture and a separate "new tag" button would be a second
@@ -6284,7 +6425,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-tclr { align-self:center; padding:0 4px; border:none; background:none;
   font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:#1d4ed8;
   text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.fg .tk-tclr:hover { color:#2E68FF; }
+.fg .tk-tclr:hover { color:var(--info-t); }
 
 /* ── the manage sheet ── */
 .tk-sheet .tgm { display:flex; flex-direction:column; gap:16px; padding:20px 24px; }
@@ -6603,7 +6744,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.28); color:#92400e; }
 .fg .tk-miss svg { flex:none; margin-top:1px; }
 .fg .tk-miss b { display:block; font-size:13px; font-weight:800; line-height:1.4; }
-.fg .tk-miss em { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:#b45309; }
+.fg .tk-miss em { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:var(--warn-t); }
 
 .fg .tk-trunc { margin:0; font-size:12.5px; font-weight:700; color:var(--gray400); }
 
@@ -6751,7 +6892,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fl-modal.tk-sm { width:min(440px, 100%); }
 
 .tk-pkdot { display:inline-block; width:8px; height:8px; border-radius:50%; }
-.tk-pklead { margin:0 0 10px; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#9ca3af; }
+.tk-pklead { margin:0 0 10px; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--q); }
 /* The SCROLL moved off the quote and onto `.tk-pks`: a document can cite
    several passages now, and they scroll as one column of quote wells. The
    fade under them is the well admitting there is more — macOS overlay
@@ -6770,7 +6911,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   font-size:13.5px; font-weight:500; line-height:1.6; color:#1f2937; white-space:pre-wrap; }
 /* the page a passage came from, when the peek is showing more than one */
 .tk-pkqp { display:block; margin-bottom:6px; font-size:10.5px; font-weight:800;
-  letter-spacing:.12em; text-transform:uppercase; color:#9ca3af; }
+  letter-spacing:.12em; text-transform:uppercase; color:var(--q); }
 
 /* ══════════════════ TIFF — THE SEARCH LINES (.tk-lines) ══════════════════
    The signature move: four lines fan out from the composer to the four

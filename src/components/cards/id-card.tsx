@@ -87,11 +87,14 @@ export function IdCard({
       <div className="idc-in">
         <div className="idc-top">
           {!credential && <span className="idc-org">{org || "HeyTiff"}</span>}
+          {/* The accent paints the tint and the border; the LABEL is derived
+              from it in CSS rather than being set to it. `color: accent` over
+              `accent + "22"` is the same hue at full strength on a 13% wash of
+              itself, which lands between 2.7 and 3.9 for the accents in use —
+              and this is 9.5px text, the smallest on the card. See
+              `.fg .idc .idc-badge`. */}
           {badge && (
-            <span
-              className="idc-badge"
-              style={{ background: `${accent}22`, color: accent, borderColor: `${accent}55` }}
-            >
+            <span className="idc-badge" style={{ "--acc": accent } as React.CSSProperties}>
               {badge.label}
             </span>
           )}

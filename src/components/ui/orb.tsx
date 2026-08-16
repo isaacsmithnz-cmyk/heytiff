@@ -2,13 +2,13 @@ import type { CSSProperties } from "react";
 
 /* The orb: one sphere of dots, spun by the browser.
 
-   IT IS TWO INSTRUMENTS, NOT ONE. The same shell serves the wait in Tiff's
-   transcript (`TiffWorking`, components/tiff/orb.tsx) and the microphone
-   meter in dictation (`LevelOrb`, components/notes/dictation.tsx). Which one
-   it is depends on a single inherited custom property: `--lvl`. Left unset it
-   sits at full size and simply turns, which is a loader. Driven every frame
-   from real audio it BREATHES, and the turning becomes the second, separate
-   statement that the microphone is open at all.
+   IT IS TWO INSTRUMENTS, NOT ONE. The same shell serves every wait in the app
+   (`Waiting`, below) and the microphone meter in dictation (`LevelOrb`,
+   components/notes/dictation.tsx). Which one it is depends on a single
+   inherited custom property: `--lvl`. Left unset it sits at full size and
+   simply turns, which is a loader. Driven every frame from real audio it
+   BREATHES, and the turning becomes the second, separate statement that the
+   microphone is open at all.
 
    That pairing is the point. The meter it replaced was five bars that
    collapsed toward a flat line in a quiet room, and the whole difficulty with
@@ -103,6 +103,44 @@ export function Orb({ size, className }: OrbProps) {
           ))}
         </span>
       </span>
+    </span>
+  );
+}
+
+export type WaitingProps = {
+  /** What the wait is called. Rendered verbatim; the ellipsis is the
+      stylesheet's, so the label stays a plain string a test can match and
+      the vocabulary carries no punctuation. */
+  note: string;
+  /** Extra class on the chip, for a caller that needs it to sit in a slot
+      some other line used to hold. */
+  className?: string;
+};
+
+/* THE WAIT, NAMED — the orb with a word beside it.
+
+   It stands wherever something is happening that has nothing to show for
+   itself: Tiff searching the library, Tiff reading a recording back, and
+   every note posture doing the same. All of those used to be flat grey text
+   — or, in the transcript, three bouncing dots meaning "someone is typing"
+   when nobody was.
+
+   THE WORD IS THE LABEL, AND THE LABEL IS THE WORD. The indicator this
+   replaced carried its meaning in an `aria-label` on a decorative span: a
+   sentence written for screen readers about a state no sighted reader could
+   name. Now there is one string, on the page, inside the live region, so
+   `role="status"` announces what is actually there.
+
+   IT TAKES ITS INK FROM THE SURFACE, like the sphere does. The same chip
+   appears on Tiff's white sheet, under its ask bar, on the notes postures'
+   light rows and on the capture sheet's dusk card — and a colour baked in
+   here would be wrong on at least one of them. The stylesheet's `--say-ink`
+   and `--say-lit` are what each surface sets. */
+export function Waiting({ note, className }: WaitingProps) {
+  return (
+    <span className={className ? `orb-say ${className}` : "orb-say"} role="status">
+      <Orb />
+      <b>{note}</b>
     </span>
   );
 }

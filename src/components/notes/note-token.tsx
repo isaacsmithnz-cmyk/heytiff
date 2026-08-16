@@ -6,6 +6,8 @@ import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
 import { DictClock, LevelOrb, appendSpoken, useDictation } from "./dictation";
 import { RecordingCard } from "./recording-card";
+import { READING_BACK_NOTE } from "./waits";
+import { Orb, Waiting } from "@/components/ui/orb";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -280,7 +282,23 @@ function Body({ flow }: { flow: NoteFlow }) {
     return <RecordingCard dict={flow.dict} text={flow.text} />;
   }
 
-  if (stage === "transcribing") return <p className="wb2-hint">Reading it back…</p>;
+  /* THE INSTRUMENT, AND THE RIBBON KEEPS THE WORDS — the same division the
+     recording stage above already uses, where the ribbon says "Recording"
+     and the body shows the clock and the meter without repeating it.
+
+     This was a line of flat grey (`.wb2-hint`, the colour of a caption) for
+     the longest silence in a capture: the gap between the mic closing and
+     the words arriving. Giving it the postures' full chip was the obvious
+     move and it was wrong — rendered, the card read "Reading it back" in the
+     ribbon and "Reading it back…" again two lines below it, with a spinner
+     beside one and a sphere beside the other. The postures have no ribbon,
+     which is exactly why they carry the sentence and this does not. */
+  if (stage === "transcribing")
+    return (
+      <div className="wb2-waiting">
+        <Orb />
+      </div>
+    );
 
   if (stage === "answer") {
     return (
@@ -831,7 +849,7 @@ function Strip({
           </>
         )}
       </div>
-      {dict.transcribing && <p className="wb2-dicthint">Reading it back…</p>}
+      {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />}
       {mic.err && <p className="wb2-dicterr">{mic.err}</p>}
       {mic.found && (
         <Nudge
@@ -1109,7 +1127,7 @@ function FieldPosture({
             </>
           )}
         </div>
-        {dict.transcribing && <p className="wb2-dicthint">Reading it back…</p>}
+        {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />}
         {mic.err && <p className="wb2-dicterr">{mic.err}</p>}
         {offer}
         {surface}
@@ -1153,7 +1171,7 @@ function FieldPosture({
               </button>
             </>
           ) : dict.transcribing ? (
-            <span className="wb2-dicthint">Reading it back…</span>
+            <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />
           ) : (
             <button
               type="button"

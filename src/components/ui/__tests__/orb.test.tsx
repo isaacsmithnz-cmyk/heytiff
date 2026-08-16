@@ -1,5 +1,5 @@
-import { render } from "@testing-library/react";
-import { DOTS, Orb } from "../orb";
+import { render, screen } from "@testing-library/react";
+import { DOTS, Orb, Waiting } from "../orb";
 
 /* The orb.
 
@@ -111,5 +111,42 @@ describe("rendering it", () => {
   it("says nothing at all to a screen reader", () => {
     const { container } = render(<Orb />);
     expect(container.querySelector(".orb")).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
+/* THE WAIT, NAMED. The indicator this replaced carried its meaning in an
+   `aria-label` on a decorative span — a sentence written for screen readers
+   about a state no sighted reader could name. Now there is one string, on the
+   page, inside the live region. */
+
+describe("the wait, named", () => {
+  it("announces the phase as text rather than as a hidden label", () => {
+    render(<Waiting note="Searching the library" />);
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Searching the library");
+    expect(status).not.toHaveAttribute("aria-label");
+  });
+
+  /* The vocabulary carries no punctuation; `.orb-say b::after` supplies the
+     ellipsis, so a test matches the sentence and not a run of dots. */
+  it("renders the wait verbatim", () => {
+    render(<Waiting note="Reading it back" />);
+    expect(screen.getByRole("status").textContent).toBe("Reading it back");
+  });
+
+  it("keeps the orb decorative — the sphere is not a second announcement", () => {
+    const { container } = render(<Waiting note="Thinking" />);
+    expect(container.querySelectorAll("[aria-hidden='true'] .orb-ball")).toHaveLength(1);
+  });
+
+  /* Callers pass the class of the slot the plain grey line used to hold —
+     `tvsay` under Tiff's ask bar, `wb2-dicthint` on the note postures — so
+     the chip inherits those margins and nothing around the control moves. */
+  it("takes the caller's slot class without losing its own", () => {
+    const { container } = render(<Waiting note="Reading it back" className="wb2-dicthint" />);
+    const chip = container.querySelector(".orb-say");
+    expect(chip).toHaveClass("orb-say");
+    expect(chip).toHaveClass("wb2-dicthint");
   });
 });

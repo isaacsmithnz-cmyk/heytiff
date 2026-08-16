@@ -21,10 +21,11 @@ import {
   type VizEvent,
 } from "@/lib/tiff/research-viz";
 import { ResearchLines } from "./research-lines";
-import { TiffWorking } from "./orb";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { RecordingCard } from "@/components/notes/recording-card";
+import { READING_BACK_NOTE } from "@/components/notes/waits";
+import { Waiting } from "@/components/ui/orb";
 
 /* The Library's asking surface, connected.
 
@@ -87,12 +88,6 @@ const HISTORY_TURNS = 8;
     to read in the two-column list without wrapping. */
 const TITLE_MAX = 60;
 
-/** What the composer's chip says while a finished recording is being turned
-    into words. The library's three phase names live with the machine that
-    produces them (`workingNote`, lib/tiff/research-viz.ts); this wait belongs
-    to the microphone, not to retrieval, so it is named here instead. No
-    punctuation — the ellipsis is the stylesheet's, same as the others. */
-export const READING_BACK_NOTE = "Reading it back";
 
 /* THE QUICK-START PILLS ARE GONE, not restyled. Four canned questions — "R32
    running pressures at 35°C", "Size a VRF for a 3-storey office" — sat under
@@ -987,7 +982,7 @@ export function TiffAssistant({
                              (`workingNote`), so the corridor and the sheet
                              cannot tell two different stories about the same
                              moment. */
-                          <TiffWorking note={workingNote(viz)} />
+                          <Waiting note={workingNote(viz)} />
                         )}
                       </div>
                     </div>
@@ -1161,7 +1156,7 @@ export function TiffAssistant({
                 orb sits in the bar BREATHING with your voice; the moment it
                 closes the same sphere carries on turning here, under its own
                 power, until the words land. */}
-            {dict.transcribing && <TiffWorking note={READING_BACK_NOTE} className="tvsay" />}
+            {dict.transcribing && <Waiting note={READING_BACK_NOTE} className="tvsay" />}
             {ranOut && !listening && (
               <p className="tvsay" role="status">
                 Two minutes — that&apos;s the limit for one recording. Press the mic to carry on.

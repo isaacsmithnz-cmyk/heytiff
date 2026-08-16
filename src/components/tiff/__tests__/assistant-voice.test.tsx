@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { READING_BACK_NOTE, TiffAssistant } from "../assistant";
+import { TiffAssistant } from "../assistant";
+import { READING_BACK_NOTE } from "@/components/notes/waits";
 import type { AskEvent, AskInput } from "@/lib/tiff/ask-client";
 
 /* THE ASK BAR'S MICROPHONE.

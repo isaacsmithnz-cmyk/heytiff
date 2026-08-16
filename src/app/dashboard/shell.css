@@ -1515,23 +1515,34 @@
   .orb-spin { animation:none; transform:rotateX(-16deg) rotateY(24deg); }
 }
 
-/* ══════════════════ TIFF — THE WAITING CHIP (.tk-work) ══════════════════
-   The orb with the name of the wait beside it: in the answer sheet while a
-   question is out, and under the ask bar while a recording is read back.
-   Replaces three bouncing dots, which meant "someone is typing" — a sentence
-   that was never true here.
+/* ══════════════════ THE WAIT, NAMED (.orb-say) — SHARED ══════════════════
+   The orb with a word beside it, wherever something is happening that has
+   nothing to show for itself: Tiff's transcript while a question is out,
+   Tiff's composer while a recording is read back, and every note posture
+   doing the same. It replaced three flavours of nothing — three bouncing
+   dots that meant "someone is typing" when nobody was, and two sizes of flat
+   grey sentence.
 
-   IT IS EXACTLY AS TALL AS THE LINE IT BECOMES. 30px of orb on a 30px row,
-   and the sheet's own line-height for the word, so the box while working is
-   the height of the first line of the answer that replaces it and nothing
-   below jumps when the words arrive. This is the same reason the dots were
-   pinned to a 22px line before them; the number moved, the rule did not. */
-.fg .tk-work { display:inline-flex; align-items:center; gap:11px; min-height:30px;
-  color:var(--teal-d); }
-/* Teal, not grey. The old dots were `#c3cad6` — the colour of a disabled
-   control — for a thing that is the single most alive moment on the screen.
-   The accent is what every other "working" state in the shell already uses,
-   and it is set on the chip rather than the word so the orb inherits it.
+   UNSCOPED, and it has to be: the capture sheet PORTALS to document.body, so
+   anything declared under `.fg` is simply absent out there. The capture card
+   shipped once with colourless primary buttons for exactly this reason.
+
+   IT TAKES ITS INK FROM THE SURFACE. `--say-ink` is the resting colour and
+   `--say-lit` is what the sweep lights it to; the light surfaces below leave
+   the defaults and the dusk card re-points both. A colour baked into the chip
+   would be wrong on at least one of the four places it now stands.
+
+   IT IS EXACTLY AS TALL AS THE LINE IT BECOMES, in the transcript: 30px of
+   orb on a 30px row, and the sheet's own line-height for the word, so the box
+   while working is the height of the first line of the answer that replaces
+   it and nothing below jumps when the words arrive. */
+.orb-say { --say-ink:var(--teal-d, #00A389); --say-lit:var(--ink, #050505);
+  display:inline-flex; align-items:center; gap:11px; min-height:30px; color:var(--say-ink); }
+/* Teal, not grey. The transcript's old dots were `#c3cad6` — the colour of a
+   disabled control — for the single most alive moment on the screen, and the
+   notes hints were `--gray500`, the colour of a caption. The accent is what
+   every other "working" state in the shell already uses, and it is set on the
+   chip rather than the word so the orb inherits it.
 
    IT WRAPS RATHER THAN CLIPS. `nowrap` shipped here for one draft and lost
    the back half of "Reading what it found…" the first time the sheet was
@@ -1539,12 +1550,74 @@
    one that takes a second line, and `min-height` above lets the row grow to
    meet it. `flex:0 1 auto` is the pair to that: the word may shrink, the orb
    beside it may not. */
-.fg .tk-work b { flex:0 1 auto; font-size:14.5px; font-weight:650; letter-spacing:-.01em;
+.orb-say b { flex:0 1 auto; font-size:14.5px; font-weight:650; letter-spacing:-.01em;
   line-height:1.4; color:inherit; }
 /* The ellipsis belongs to the stylesheet so the label stays a plain string —
    a test matches "Searching the library", not a particular run of dots, and
-   the phase names in research-viz.ts never carry punctuation. */
-.fg .tk-work b::after { content:"…"; }
+   the vocabulary in research-viz.ts and the postures never carries
+   punctuation. */
+.orb-say b::after { content:"…"; }
+
+/* The sweep is clipped to the glyphs, so it reads as the word being lit. A
+   bar sliding behind the text would read as a skeleton — and a skeleton
+   promises "this box becomes content", when this box is replaced outright.
+
+   ⚠ THE PAINT IS THE TEXT. Once the glyphs are `color:transparent`, any
+   moment the gradient does not cover the element is a moment the label is
+   INVISIBLE — not dim, gone. A first draft here scrolled a `no-repeat`
+   gradient from 180% to -80% and lost most of every phrase for most of every
+   cycle; on screen it read as text being clipped by the sheet, which sent
+   the search for the bug to entirely the wrong place.
+
+   Two things hold the invariant. The tile REPEATS, so there is no position
+   at which nothing is painted — and because the gradient is base colour at
+   both 0% and 100%, the seam between tiles is a colour meeting itself and
+   cannot be seen. And `background-position` stays inside 0–100%, which for a
+   tile four times the element's width means the lit band travels the full
+   width and then sits off-stage for the rest of the turn: the pause between
+   sweeps is the gradient's own margin, not a gap in the animation. */
+@supports ((background-clip:text) or (-webkit-background-clip:text)) {
+  .orb-say b { background-image:linear-gradient(100deg,
+      var(--say-ink) 0%, var(--say-ink) 46%, var(--say-lit) 50%, var(--say-ink) 54%, var(--say-ink) 100%);
+    background-size:400% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:orbSaySweep 2.6s linear infinite; }
+}
+/* 100%→0% runs the band left to right. The reverse would read as the word
+   being un-written, which is the opposite of what is happening. */
+@keyframes orbSaySweep { from { background-position:100% 0; } to { background-position:0% 0; } }
+
+@media (prefers-reduced-motion:reduce) {
+  /* The sweep is dropped rather than sped up, for the reason spelled out
+     against `.orb-spin` above — the global duration override would strobe it.
+     The word stays, flat, in the colour it was always going to end on. */
+  .orb-say b { animation:none; background-image:none; color:inherit; }
+}
+
+/* ── the smaller sister ──
+   Beneath a control rather than inside a sheet: under Tiff's ask bar, and on
+   the notes postures' own rows. `.tvsay` and `.wb2-dicthint` are the slots
+   the plain grey lines used to occupy, so the chip inherits their margins and
+   nothing around those controls moves. */
+.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; }
+.orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:12.5px; font-weight:700; }
+
+/* ── the wait with no words of its own ──
+   The capture card's transcribing stage. Its ribbon already names the stage,
+   so the body shows the instrument and nothing else — the same division the
+   recording stage uses, where the ribbon says "Recording" and the body shows
+   the clock and the meter. Sized between the two: bigger than the chip's
+   30px because it is alone in a 680px card, smaller than the recording orb
+   because nothing is being measured. */
+.wb2-waiting { display:flex; justify-content:center; padding:26px 0 18px;
+  --orb:44px; color:var(--teal-d, #00A389); }
+.wb2-dusk .wb2-waiting { color:#00E5C0; }
+
+/* ── on ink ──
+   The dusk capture surface, where the resting teal is too dark to read and
+   the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
+   else about the chip is restated. */
+.wb2-dusk .orb-say { --say-ink:#00E5C0; --say-lit:#ffffff; }
 
 /* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
    The ask bar hands its space to the shared recording card while the mic is
@@ -1581,50 +1654,6 @@
    here that is the live "Answer from" row two inches below — the same fact
    twice is the pair that eventually disagrees. */
 .fg .tk-rec .wb2-capribbon .wb2-ico { margin-left:auto; }
-
-/* UNDER THE ASK BAR IT IS THE SMALLER SISTER. `.tvsay` was the plain grey
-   line that said "Reading it back…" in this slot, and the chip inherits its
-   margin so nothing around the composer moves; only the type size and the
-   orb come down to match a line that sits beneath a control rather than
-   inside a sheet. */
-.fg .tk-work.tvsay { --orb:20px; gap:8px; min-height:20px; }
-.fg .tk-work.tvsay b { font-size:12.5px; font-weight:700; }
-
-/* The sweep is clipped to the glyphs, so it reads as the word being lit. A
-   bar sliding behind the text would read as a skeleton — and a skeleton
-   promises "this box becomes content", when this box is replaced outright.
-
-   ⚠ THE PAINT IS THE TEXT. Once the glyphs are `color:transparent`, any
-   moment the gradient does not cover the element is a moment the label is
-   INVISIBLE — not dim, gone. A first draft here scrolled a `no-repeat`
-   gradient from 180% to -80% and lost most of every phrase for most of every
-   cycle; on screen it read as text being clipped by the sheet, which sent
-   the search for the bug to entirely the wrong place.
-
-   Two things hold the invariant. The tile REPEATS, so there is no position
-   at which nothing is painted — and because the gradient is base colour at
-   both 0% and 100%, the seam between tiles is a colour meeting itself and
-   cannot be seen. And `background-position` stays inside 0–100%, which for a
-   tile four times the element's width means the lit band travels the full
-   width and then sits off-stage for the rest of the turn: the pause between
-   sweeps is the gradient's own margin, not a gap in the animation. */
-@supports ((background-clip:text) or (-webkit-background-clip:text)) {
-  .fg .tk-work b { background-image:linear-gradient(100deg,
-      var(--teal-d) 0%, var(--teal-d) 46%, var(--ink) 50%, var(--teal-d) 54%, var(--teal-d) 100%);
-    background-size:400% 100%;
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    animation:tkWorkSweep 2.6s linear infinite; }
-}
-/* 100%→0% runs the band left to right. The reverse would read as the word
-   being un-written, which is the opposite of what is happening. */
-@keyframes tkWorkSweep { from { background-position:100% 0; } to { background-position:0% 0; } }
-
-@media (prefers-reduced-motion:reduce) {
-  /* The sweep is dropped rather than sped up, for the reason spelled out
-     against `.orb-spin` above — the global duration override would strobe it.
-     The word stays, flat, in the colour it was always going to end on. */
-  .fg .tk-work b { animation:none; background-image:none; color:inherit; }
-}
 
 /* Knowledge Base page */
 .fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color .2s; }

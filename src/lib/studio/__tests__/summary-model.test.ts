@@ -265,6 +265,38 @@ describe("buildSummaryModel — the merged sheet", () => {
     ).toBe(false);
   });
 
+  it("states ONE pipe figure — the line and the picklist cannot disagree", () => {
+    /* Caught walking prod: the graph returns the raw drawn length (a real run
+       measured 3.1494563728466076 m). The picklist rounded it and the system's
+       own materials line interpolated the float, so the SAME pipe printed two
+       ways on one page. A diagonal run gives an irrational length, which is
+       the case that exposes it. */
+    const d = splitDoc();
+    d.objects.push({
+      id: "run1",
+      type: "pipe-run",
+      systemId: "sys1",
+      floorId: "f1",
+      geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 200, y: 250 }] },
+      plane: "room",
+      props: {
+        startAttach: { kind: "unit", id: "i1" },
+        endAttach: { kind: "unit", id: "o1" },
+      },
+    } as DesignObject);
+
+    const model = buildSummaryModel(d, pack);
+    const line = model.systems[0].lines.find((l) => l.name.includes("pair coil"));
+    const pick = model.picklist.find((r) => r.name.includes("pair coil"));
+
+    expect(line).toBeDefined();
+    expect(pick).toBeDefined();
+    // no raw float reaches the sheet — at most one decimal place
+    expect(line!.qty).toMatch(/^\d+(\.\d)? m$/);
+    // and both faces of the sheet say the same thing
+    expect(line!.qty).toBe(pick!.qty);
+  });
+
   it("picklist sums countable components across systems", () => {
     const rows = buildSummaryModel(multiDoc(), pack).picklist;
     const isolator = rows.find((r) => r.name.startsWith("Isolator"));

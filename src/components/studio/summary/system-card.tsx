@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { Icon } from "@/components/shell/icon";
 import type { PicklistRow, SummaryRoomRow, SummarySystem } from "@/lib/studio/summary";
 import { fmt, pct, tone, LinesTable, OutdoorBlock, RoomsTable } from "./sheet-tables";
 
@@ -114,9 +116,46 @@ export function UnservedCard({ rooms }: { rooms: SummaryRoomRow[] }) {
 }
 
 /** The whole job's combined pick — every system, units and consumables.
-    Plain rows on purpose: ticking happens on the ServiceM8 job card (one
-    checklist item per line) once the push exists, not on the sheet. */
-export function PicklistCard({ rows }: { rows: PicklistRow[] }) {
+    Plain rows on purpose: ticking happens on the JOB CARD, one item per line,
+    not on the sheet. The sheet states the list; the warehouse works it. */
+export function PicklistCard({
+  rows,
+  jobLink,
+  designId,
+}: {
+  rows: PicklistRow[];
+  /** the linked ServiceM8 job, when there is one — the push has nowhere to go
+      without it, so the button is absent rather than dead */
+  jobLink: { remoteId: string; jobNumber: string | null } | null;
+  designId: string;
+}) {
+  const [state, setState] = useState<
+    { kind: "idle" } | { kind: "busy" } | { kind: "done"; msg: string } | { kind: "err"; msg: string }
+  >({ kind: "idle" });
+
+  const push = async () => {
+    if (!jobLink) return;
+    setState({ kind: "busy" });
+    try {
+      const { pushPicklistToJob } = await import("@/app/actions/job-picklist");
+      const r = await pushPicklistToJob(jobLink.remoteId, designId, rows);
+      setState({
+        kind: "done",
+        msg:
+          r.added === 0
+            ? "Already on the job"
+            : `${r.added} added${r.alreadyThere > 0 ? `, ${r.alreadyThere} already there` : ""}`,
+      });
+    } catch (e) {
+      /* a server action with no catch returns a bare 503 the UI can neither
+         explain nor stop retrying */
+      setState({
+        kind: "err",
+        msg: e instanceof Error ? e.message : "Could not add to the job",
+      });
+    }
+  };
+
   return (
     <section className="ds-sysc pick">
       <header className="ds-band">
@@ -124,6 +163,22 @@ export function PicklistCard({ rows }: { rows: PicklistRow[] }) {
           <h3>Material picklist</h3>
           <span>every system combined</span>
         </div>
+        {jobLink && (
+          <div className="ds-pick-act">
+            {state.kind === "done" && <em className="ok">{state.msg}</em>}
+            {state.kind === "err" && <em className="err">{state.msg}</em>}
+            <button
+              className="ds-chrome-btn"
+              onClick={push}
+              disabled={state.kind === "busy" || rows.length === 0}
+            >
+              <Icon name="check" size={13} />
+              {state.kind === "busy"
+                ? "Adding…"
+                : `Add to job${jobLink.jobNumber ? ` ${jobLink.jobNumber}` : ""}`}
+            </button>
+          </div>
+        )}
       </header>
       <div className="ds-sysc-b">
         <LinesTable lines={rows} />

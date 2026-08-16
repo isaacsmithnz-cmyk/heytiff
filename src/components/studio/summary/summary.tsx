@@ -259,7 +259,20 @@ export function SummaryView({
         <SystemCard key={s.systemId} sys={s} />
       ))}
       {model.unserved.length > 0 && <UnservedCard rooms={model.unserved} />}
-      {model.picklist.length > 0 && <PicklistCard rows={model.picklist} />}
+      {model.picklist.length > 0 && (
+        <PicklistCard
+          rows={model.picklist}
+          designId={doc.id}
+          jobLink={
+            doc.jobLink
+              ? {
+                  remoteId: doc.jobLink.remoteId,
+                  jobNumber: doc.jobLink.jobNumber,
+                }
+              : null
+          }
+        />
+      )}
 
       {empty && (
         <div className="ds-empty">

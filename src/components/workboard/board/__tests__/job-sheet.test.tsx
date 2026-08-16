@@ -4,6 +4,7 @@
    colour. The sheet is where "we sync it" has to become "you can see it". */
 
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
@@ -38,6 +39,16 @@ const cacheJobFiles = jest.fn(
 );
 jest.mock("@/app/actions/workboard-media", () => ({
   cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...(a as [])),
+}));
+/* OUR picklist, pushed from a Studio design — the one list on this sheet we
+   can actually write. Empty by default, like the files. */
+const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
+const setPicklistItemPicked = jest.fn(async () => {});
+const removePicklistItem = jest.fn(async () => {});
+jest.mock("@/app/actions/job-picklist", () => ({
+  listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
+  setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),
+  removePicklistItem: (...a: unknown[]) => removePicklistItem(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
@@ -115,6 +126,12 @@ beforeEach(() => {
   readJobFiles.mockResolvedValue(null);
   readJobRecord.mockResolvedValue(null);
   cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+  listJobPicklist.mockReset();
+  setPicklistItemPicked.mockReset();
+  removePicklistItem.mockReset();
+  listJobPicklist.mockResolvedValue([]);
+  setPicklistItemPicked.mockResolvedValue(undefined);
+  removePicklistItem.mockResolvedValue(undefined);
 });
 
 const noop = () => {};
@@ -701,5 +718,92 @@ describe("the ledger obeys the money grant", () => {
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
     expect(await screen.findByText(/aren't priced, so there's no total/)).toBeInTheDocument();
+  });
+});
+
+/* ── OUR material picklist ──
+   The sheet already shows "Their checklist" straight out of the ServiceM8
+   mirror, which is READ-ONLY. This list is the HeyTiff side — pushed here
+   from a Studio design — and it is the one that can actually be ticked. The
+   distinction is the whole point, so these tests pin it. */
+describe("the material picklist", () => {
+  const item = (over: Record<string, unknown> = {}) => ({
+    id: "p1",
+    name: "MSZ-AP25VGD",
+    sub: "wall mounted indoor",
+    qty: "3",
+    picked: false,
+    pickedAt: null,
+    pickedBy: null,
+    designId: "dsn_1",
+    addedAt: "2026-08-16T00:00:00.000Z",
+    ...over,
+  });
+
+  it("says nothing at all when the job has no picklist", async () => {
+    render(<JobSheet row={row()} {...props} />);
+    await waitFor(() => expect(listJobPicklist).toHaveBeenCalledWith("j-1"));
+    expect(screen.queryByText(/Material picklist/)).not.toBeInTheDocument();
+  });
+
+  it("lists what was pushed, and counts what is picked", async () => {
+    listJobPicklist.mockResolvedValue([
+      item(),
+      item({ id: "p2", name: "PUHY-P200YNW-A1", qty: "1", picked: true }),
+    ]);
+    render(<JobSheet row={row()} {...props} />);
+    expect(await screen.findByText(/1 of 2 picked/)).toBeInTheDocument();
+    expect(screen.getByText("MSZ-AP25VGD")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("ticking saves, and shows immediately rather than waiting on the server", async () => {
+    const user = userEvent.setup();
+    /* a promise that never settles: whatever the box looks like after the
+       click is the OPTIMISTIC state, not the server's */
+    setPicklistItemPicked.mockReturnValue(new Promise(() => {}));
+    listJobPicklist.mockResolvedValue([item()]);
+    render(<JobSheet row={row()} {...props} />);
+
+    const box = await screen.findByLabelText("Picked: MSZ-AP25VGD");
+    await user.click(box);
+    expect(setPicklistItemPicked).toHaveBeenCalledWith("p1", true);
+    expect(box).toBeChecked();
+  });
+
+  it("puts the tick back when the save fails, and says so", async () => {
+    const user = userEvent.setup();
+    const onToast = jest.fn();
+    setPicklistItemPicked.mockRejectedValue(new Error("nope"));
+    listJobPicklist.mockResolvedValue([item()]);
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+
+    const box = await screen.findByLabelText("Picked: MSZ-AP25VGD");
+    await user.click(box);
+    await waitFor(() => expect(box).not.toBeChecked());
+    expect(onToast).toHaveBeenCalledWith("Could not save that tick");
+  });
+
+  it("only a manager can remove a line", async () => {
+    listJobPicklist.mockResolvedValue([item()]);
+    const { unmount } = render(<JobSheet row={row()} {...props} />);
+    expect(await screen.findByText("MSZ-AP25VGD")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Remove MSZ-AP25VGD")
+    ).not.toBeInTheDocument();
+    unmount();
+
+    render(<JobSheet row={row()} {...props} manage />);
+    expect(
+      await screen.findByLabelText("Remove MSZ-AP25VGD")
+    ).toBeInTheDocument();
+  });
+
+  it("a picklist that will not load never takes the sheet down", async () => {
+    listJobPicklist.mockRejectedValue(new Error("offline"));
+    render(<JobSheet row={row()} {...props} />);
+    // the rest of the sheet still arrives
+    expect(await screen.findByText("The job")).toBeInTheDocument();
+    expect(screen.queryByText(/Material picklist/)).not.toBeInTheDocument();
   });
 });

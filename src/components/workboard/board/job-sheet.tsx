@@ -23,6 +23,12 @@ import {
 } from "@/lib/workboard/job-ledger";
 import { collectionFrom, MONEY_BASIS } from "@/lib/workboard/job-money";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
+import {
+  listJobPicklist,
+  removePicklistItem,
+  setPicklistItemPicked,
+  type JobPicklistItem,
+} from "@/app/actions/job-picklist";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JOB_MEDIA_CAP, mediaCountLine } from "@/lib/workboard/job-media";
@@ -120,6 +126,7 @@ export function JobSheet({
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
   const [record, setRecord] = useState<JobRecordRead | null>(null);
+  const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
@@ -165,6 +172,24 @@ export function JobSheet({
     void readJobFiles(row.id).then((m) => {
       if (live) setMedia(m);
     });
+    return () => {
+      live = false;
+    };
+  }, [row.id]);
+
+  /* Our OWN material picklist — pushed here from a Studio design. Distinct
+     from "Their checklist" above it, which is ServiceM8's and read-only. On
+     its own clock like the files; a job with none renders nothing. */
+  useEffect(() => {
+    let live = true;
+    void listJobPicklist(row.id)
+      .then((p) => {
+        if (live) setPicklist(p);
+      })
+      .catch(() => {
+        /* a picklist that won't load must not take the sheet down with it */
+        if (live) setPicklist([]);
+      });
     return () => {
       live = false;
     };
@@ -629,6 +654,69 @@ export function JobSheet({
                   </>
                 ) : null}
               </p>
+            ))}
+          </div>
+        )}
+
+        {/* OUR picklist, pushed from a Studio design — distinct from "Their
+            checklist" above, which is ServiceM8's and read-only. This is the
+            one we can write, so this is the one that ticks. */}
+        {picklist && picklist.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">
+              Material picklist —{" "}
+              {`${picklist.filter((p) => p.picked).length} of ${picklist.length} picked`}
+            </span>
+            {picklist.map((item) => (
+              <div
+                key={item.id}
+                className={`wb2-pkrow${item.picked ? " done" : ""}`}
+              >
+                <label className="wb2-pkbox">
+                  <input
+                    type="checkbox"
+                    checked={item.picked}
+                    aria-label={`Picked: ${item.name}`}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      /* optimistic: a warehouse ticking down a list must not
+                         wait on a round trip per line */
+                      setPicklist((cur) =>
+                        (cur ?? []).map((p) =>
+                          p.id === item.id ? { ...p, picked: next } : p
+                        )
+                      );
+                      void setPicklistItemPicked(item.id, next).catch(() => {
+                        setPicklist((cur) =>
+                          (cur ?? []).map((p) =>
+                            p.id === item.id ? { ...p, picked: !next } : p
+                          )
+                        );
+                        onToast("Could not save that tick");
+                      });
+                    }}
+                  />
+                </label>
+                <span className="wb2-pkname">{item.name}</span>
+                {item.sub && <em className="wb2-pksub">{item.sub}</em>}
+                <span className="wb2-pkqty">{item.qty}</span>
+                {manage && (
+                  <button
+                    className="wb2-pkdel"
+                    aria-label={`Remove ${item.name}`}
+                    onClick={() => {
+                      setPicklist((cur) =>
+                        (cur ?? []).filter((p) => p.id !== item.id)
+                      );
+                      void removePicklistItem(item.id).catch(() =>
+                        onToast("Could not remove that line")
+                      );
+                    }}
+                  >
+                    <Icon name="x" size={13} />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}

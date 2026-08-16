@@ -36,6 +36,11 @@ jest.mock("@/app/actions/workboard", () => ({
 jest.mock("@/app/actions/workboard-media", () => ({
   cacheJobFiles: jest.fn(async () => ({ ok: true, cached: 0, remaining: 0, media: null, note: null })),
 }));
+jest.mock("@/app/actions/job-picklist", () => ({
+  listJobPicklist: jest.fn(async () => []),
+  setPicklistItemPicked: jest.fn(async () => {}),
+  removePicklistItem: jest.fn(async () => {}),
+}));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 jest.mock("../new-agreement-modal", () => ({
   NewAgreementModal: (p: { initialJob?: { jobNumber: string | null } | null }) => (

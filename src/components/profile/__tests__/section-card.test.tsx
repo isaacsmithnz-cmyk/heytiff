@@ -274,7 +274,7 @@ describe("dates are picked, never typed", () => {
 
     await user.click(screen.getByRole("tab", { name: /Work rights/ }));
     await user.click(editButtons()[0]);
-    for (const label of ["Expiry", /VEVO checked/]) {
+    for (const label of ["Expiry", /Right to work checked/]) {
       expect(screen.getByLabelText(label)).toHaveAttribute("aria-haspopup", "dialog");
     }
     // the format argument is designed out: there is no date input left to lose it in

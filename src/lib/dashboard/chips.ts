@@ -29,6 +29,7 @@ import {
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { expiryClause } from "@/lib/format/duration";
 import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
+import { isNoVisa } from "@/lib/staff/work-rights";
 
 export type ChipKind =
   | "licence"
@@ -192,7 +193,12 @@ export function workRightsChips(
     }
   }
 
-  if (wr.status && !wr.vevoCheckedAt) {
+  /* Same exemption as deriveCompliance, and it has to be — Home and the bell
+     count this rule for the same people the directory chip does, so the two
+     disagreeing means one of them is telling somebody about a problem the other
+     says they don't have. A citizen or permanent resident has no visa in the
+     entitlement register, so there is no check to have done. */
+  if (wr.status && !isNoVisa(wr.status) && !wr.vevoCheckedAt) {
     // No date to count down — an unverified record is a standing warn until
     // someone checks it, so it sits mid-warn (0-day urgency within the bucket).
     chips.push({

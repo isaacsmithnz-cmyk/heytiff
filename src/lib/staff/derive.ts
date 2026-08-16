@@ -3,6 +3,7 @@
 
 import { daysUntil as daysBetween, todayInAu } from "@/lib/au-dates";
 import { expiryClause } from "@/lib/format/duration";
+import { isNoVisa } from "./work-rights";
 import type { ComplianceState, StaffLicence } from "./types";
 
 /** Whole-ish years of service, one decimal. "—" when there's no start date. */
@@ -64,12 +65,16 @@ export type Compliance = { label: string; state: ComplianceState; expiresDays: n
 /* What the compliance chip is told about someone's right to work.
 
    `vevoCheckedAt` is the column every form in the app actually WRITES — the
-   profile card's "VEVO checked" date, in `SELF_EDITABLE_SECTIONS.workrights`
-   and `ADMIN_SECTIONS.workrights` alike. This used to read
-   `work_rights_verified_at`, which nothing has ever written, so the unverified
-   warning could not be cleared by any action a person could take: recording
-   the VEVO check saved one column and the chip read another. Guarded by
-   __tests__/verified-column.test.ts. */
+   profile card's "Right to work checked" date, in
+   `SELF_EDITABLE_SECTIONS.workrights` and `ADMIN_SECTIONS.workrights` alike.
+   This used to read `work_rights_verified_at`, which nothing has ever written,
+   so the unverified warning could not be cleared by any action a person could
+   take: recording the check saved one column and the chip read another.
+   Guarded by __tests__/verified-column.test.ts.
+
+   The column keeps the VEVO name because that is what it holds — a check
+   against the visa entitlement register. The FIELD stopped saying it, because
+   the acronym is the compliance industry's word and not the office's. */
 export type WorkRightsFacts = {
   status: string | null;
   visaType: string | null;
@@ -131,7 +136,19 @@ export function deriveCompliance(
     };
   }
 
-  if (workRights.status && !workRights.vevoCheckedAt) {
+  /* A CITIZEN HAS NOTHING TO CHECK, so not having checked it is not a finding.
+
+     This asked for a check date from everyone who had a status at all. The
+     check is against the visa entitlement register, and "Australian citizen"
+     and "Permanent resident" have no visa in it — so the chip sat on
+     "Work rights unverified" for those people forever, and no action available
+     to anyone in the app could clear it. Isaac's own card was doing exactly
+     that in production while its Work rights tab read "Australian citizen".
+
+     `isNoVisa` is the list the FORM already uses to hide the visa fields for
+     these two statuses. The form and the chip disagreeing about whether a visa
+     exists is what produced the warning; they read the one list now. */
+  if (workRights.status && !isNoVisa(workRights.status) && !workRights.vevoCheckedAt) {
     return { label: "Work rights unverified", state: "warn", expiresDays: 0 };
   }
 

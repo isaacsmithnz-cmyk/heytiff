@@ -391,9 +391,16 @@ export function buildSummaryModel(
 
     const pipeLiquidMm = oduRow?.conn_liquid_mm ?? null;
     const pipeGasMm = oduRow?.conn_gas_mm ?? null;
-    const totalPipeM = totalPipeLengthM(
+    /* ROUNDED HERE, once. The graph returns the raw drawn length — a real run
+       measured 3.1494563728466076 m — and the model must expose ONE canonical
+       figure or the sheet prints the same pipe two ways: the picklist rounded
+       it while the system's own materials line interpolated the float, both
+       visible on one page. Same discipline as the old materials.ts, which
+       rounded at exactly this point. */
+    const rawPipeM = totalPipeLengthM(
       buildSystemGraph(doc.objects, doc.floors, sys.id)
     );
+    const totalPipeM = rawPipeM == null ? null : Math.round(rawPipeM * 10) / 10;
     const hasRuns = doc.objects.some(
       (o) => o.systemId === sys.id && o.type === "pipe-run"
     );

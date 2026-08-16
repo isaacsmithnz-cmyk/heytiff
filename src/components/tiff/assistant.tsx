@@ -1201,13 +1201,21 @@ export function TiffAssistant({
                   General knowledge
                 </button>
               </div>
-              <span className="tk-chint">
-                {!canResearch
-                  ? "Add documents and Tiff can answer from those too"
-                  : research
-                    ? "Your documents only, with the page it came from"
-                    : "What Tiff already knows — nothing is looked up"}
-              </span>
+              {/* IT ONLY SPEAKS WHEN A CONTROL CANNOT. Two of the three
+                  branches here restated the buttons an inch to the left —
+                  "Your documents only, with the page it came from" under a
+                  segment labelled Your library, and "What Tiff already knows
+                  — nothing is looked up" under one labelled General
+                  knowledge. A caption that says the label again in a longer
+                  sentence is the app talking rather than the control working.
+
+                  The third one earns its place and is all that is left: Your
+                  library is DISABLED until something is in it, and a dead
+                  segment with no reason given is the one thing on this row a
+                  person cannot work out by reading it. */}
+              {!canResearch && (
+                <span className="tk-chint">Add documents and Tiff can answer from those too</span>
+              )}
             </div>
           </form>
         </div>

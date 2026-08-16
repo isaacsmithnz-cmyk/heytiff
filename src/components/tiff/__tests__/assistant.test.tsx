@@ -230,19 +230,26 @@ describe("where the answer comes from", () => {
 
     expect(libraryMode()).toBeDisabled();
     expect(libraryMode()).toHaveAttribute("title", "Add documents to the library first");
-    /* and the hint says what to do about it rather than repeating the label of
-       the option that is still pressable */
+    /* The one hint left on this row, and the only one that ever earned its
+       place: a dead segment with no reason given is the single thing here a
+       person cannot work out by reading the control. */
     expect(screen.getByText("Add documents and Tiff can answer from those too")).toBeInTheDocument();
   });
 
-  it("flips the hint and both pressed states, and asks the library", async () => {
+  /* THE CONTROL SAYS IT, NOT A CAPTION UNDER THE CONTROL. Two hints used to
+     restate the segments an inch to their left — "Your documents only, with
+     the page it came from" beneath a button labelled Your library. The
+     pressed states and where the question actually goes are the claim worth
+     pinning; a sentence repeating a label was never one. */
+  it("flips both pressed states, and asks the library", async () => {
     const user = userEvent.setup();
     render(<TiffAssistant readyCount={4} counts={{ install: 4, faults: 0, specs: 0, sops: 0, field: 0 }} />);
 
     await user.click(libraryMode());
     expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
     expect(generalMode()).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByText("Your documents only, with the page it came from")).toBeInTheDocument();
+    // …and no caption saying the label again
+    expect(screen.queryByText(/documents only/i)).not.toBeInTheDocument();
 
     await ask("why P8?");
     expect(asks[0]).toMatchObject({ research: true });
@@ -736,7 +743,6 @@ describe("asked about a document", () => {
     expect(box).toHaveValue("In “City Multi fault codes”, ");
     expect(box).toHaveFocus();
     expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Your documents only, with the page it came from")).toBeInTheDocument();
   });
 
   /* The prefill is scaffolding. Sending it would spend a question nobody

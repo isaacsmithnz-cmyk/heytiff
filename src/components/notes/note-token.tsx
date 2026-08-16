@@ -257,7 +257,14 @@ function Body({ flow }: { flow: NoteFlow }) {
        next screen asks you to confirm what was made of it. The skeleton rows
        hold the space the review is about to occupy. They do NOT count up,
        name steps, or claim to know what was found: there is a standing rule
-       here against interfaces that pretend to be further along than they are. */
+       here against interfaces that pretend to be further along than they are.
+
+       AND THEY DO NOT EXPLAIN THEMSELVES EITHER. A line under them read
+       "Working out what this becomes — tasks, flags, or just a note", which
+       is the machinery described to somebody who did not ask. Three rows
+       filling the space the review is about to take already say a review is
+       coming, and the ribbon above says "Sorting it out"; a third telling of
+       the same thing is the app narrating rather than working. */
     return (
       <div className="wb2-sorting" role="status" aria-live="polite">
         <p className="wb2-sortnote">{flow.text}</p>
@@ -266,7 +273,6 @@ function Body({ flow }: { flow: NoteFlow }) {
           <span className="wb2-skel wb2-skel-b" />
           <span className="wb2-skel wb2-skel-c" />
         </div>
-        <p className="wb2-hint">Working out what this becomes — tasks, flags, or just a note.</p>
       </div>
     );
   }
@@ -344,7 +350,12 @@ function Body({ flow }: { flow: NoteFlow }) {
           onChange={(e) => flow.setText(e.target.value)}
           placeholder={
             flow.debrief
-              ? "Everything on your mind, in any order — jobs, people, things to chase, things you learned. It gets sorted; nothing is lost."
+              /* "It gets sorted; nothing is lost" used to close this. The
+                 first half is the machinery and the second is a promise
+                 nobody had asked for a reason to doubt — the same sales
+                 voice Isaac cut from the button above ("tag line is
+                 cheesy"). What is left is the invitation. */
+              ? "Everything on your mind, in any order — jobs, people, things to chase, things you learned."
               : "Tell Luke he needs to order the grilles… or ask: what's outstanding here?"
           }
           disabled={flow.busy}

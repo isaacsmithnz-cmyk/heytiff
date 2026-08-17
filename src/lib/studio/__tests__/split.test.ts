@@ -16,7 +16,8 @@ import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import { proposePairs, validateSplitSystem, systemBadge } from "../split";
 import { buildSystemGraph, findPath } from "../graph";
-import { buildMaterials, evaluateAdditionalCharge } from "../materials";
+import { evaluateAdditionalCharge } from "../materials";
+import { buildSummaryModel } from "../summary";
 
 /* ── the shipped pack, straight off disk ── */
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -152,24 +153,32 @@ describe("A1 — single-floor split", () => {
     expect(v.lengthM).toBeCloseTo(30, 5);
   });
 
-  it("materials: full document→schedule golden output", () => {
-    expect(buildMaterials(doc, pack)).toEqual({
-      systems: [
-        {
-          systemId: "sys_split",
-          name: "Lounge split",
-          type: "split",
-          brand: "mitsubishi-electric",
-          colour: "#2E68FF",
-          units: [
-            { model: "PLA-M100EA2-A", qty: 1, description: "cassette-4way indoor unit · 10/11.2 kW" },
-            { model: "PUZ-M100VKA-A", qty: 1, description: "outdoor unit · 10/11.2 kW" },
-          ],
-          pipe: [{ liquid_mm: 9.52, gas_mm: 15.88, lengthM: 30 }],
-          charge: { grams: 0, note: "No additional refrigerant required at this run length" },
-          notes: [],
-        },
-      ],
+  it("takeoff: full document→sheet golden output", () => {
+    /* the schedule this used to assert was buildMaterials, retired once the
+       sheet took over: units are the picklist and the rooms table now, the
+       pipe is a takeoff line. Same engine underneath, one home. */
+    const m = buildSummaryModel(doc, pack);
+    const sys = m.systems[0];
+    expect(sys.systemId).toBe("sys_split");
+    expect(sys.outdoorModel).toBe("PUZ-M100VKA-A");
+    expect(sys.totalPipeM).toBe(30);
+    expect(sys.lines).toContainEqual({
+      name: "ø9.52 / ø15.88 pair coil",
+      sub: "liquid / gas mm",
+      qty: "30 m",
+    });
+    // no top-up at this run length, so no refrigerant line at all
+    expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
+    // and the units reach the whole-job pick, counted from what is placed
+    expect(m.picklist).toContainEqual({
+      name: "PLA-M100EA2-A",
+      sub: "cassette-4way indoor unit · 10/11.2 kW",
+      qty: "1",
+    });
+    expect(m.picklist).toContainEqual({
+      name: "PUZ-M100VKA-A",
+      sub: "outdoor unit · 10/11.2 kW",
+      qty: "1",
     });
   });
 });
@@ -203,9 +212,9 @@ describe("A2 — two-floor split via riser", () => {
   it("validates green and materials count the vertical", () => {
     const v = validateSplitSystem(doc, pack, "sys_split");
     expect(v.status).toBe("green");
-    const m = buildMaterials(doc, pack);
-    expect(m.systems[0].pipe).toEqual([{ liquid_mm: 9.52, gas_mm: 15.88, lengthM: 23 }]);
-    expect(m.systems[0].charge).toEqual({ grams: 0, note: "No additional refrigerant required at this run length" });
+    const sys = buildSummaryModel(doc, pack).systems[0];
+    expect(sys.totalPipeM).toBe(23); // the riser's 3 m is in there
+    expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
   });
 });
 
@@ -227,10 +236,11 @@ describe("A3 — over-length warning", () => {
   });
 
   it("charge kicks in beyond the 30 m free length: (56−30)×40 g", () => {
-    const m = buildMaterials(doc, pack);
-    expect(m.systems[0].charge).toEqual({
-      grams: 1040,
-      note: "Additional refrigerant beyond the pre-charge",
+    const sys = buildSummaryModel(doc, pack).systems[0];
+    expect(sys.lines).toContainEqual({
+      name: "Additional refrigerant",
+      sub: "beyond pre-charge",
+      qty: "1040 g",
     });
   });
 });
@@ -280,7 +290,7 @@ describe("A4 — connectivity is graph-checked, not assumed", () => {
 describe("A5 — empty design = empty schedule", () => {
   it("no systems → empty schedule; system with no objects → empty badge", () => {
     const d = createDesign({ name: "Empty", mode: "blank", now: "2026-07-07T00:00:00.000Z" });
-    expect(buildMaterials(d, pack)).toEqual({ systems: [] });
+    expect(buildSummaryModel(d, pack)).toEqual({ systems: [], unserved: [], picklist: [] });
 
     const withSys = baseDoc(); // system exists, only a room drawn
     expect(systemBadge(withSys, pack, withSys.systems[0]).status).toBe("empty");
@@ -297,11 +307,18 @@ describe("A5 — empty design = empty schedule", () => {
     const v = validateSplitSystem(doc, pack, "sys_split");
     expect(v.status).toBe("amber");
     expect(v.findings.map((f) => f.code)).toEqual(["uncalibrated"]);
-    const m = buildMaterials(doc, pack);
-    expect(m.systems[0].pipe).toEqual([]);
-    expect(m.systems[0].notes).toEqual([
-      "Pipe lengths unknown — calibrate the floor to quantify the run",
-    ]);
+    const sys = buildSummaryModel(doc, pack).systems[0];
+    expect(sys.totalPipeM).toBeNull();
+    /* a drawn run the sheet cannot measure is STATED, not omitted — silence
+       would read as "no pipe on this job" */
+    expect(sys.lines).toContainEqual({
+      name: "Pair coil",
+      sub: "run drawn — calibrate the floor to quantify",
+      qty: "—",
+    });
+    // and an unmeasurable run is never picked
+    expect(sys.lines.length).toBeGreaterThan(0);
+    expect(buildSummaryModel(doc, pack).picklist.some((r) => r.name === "Pair coil")).toBe(false);
   });
 });
 

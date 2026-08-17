@@ -10,12 +10,12 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { DEFAULT_CLIMATE_ZONE } from "../loads";
 import {
   buildDesignSnapshot,
+  buildSummaryModel,
   designBasis,
   effectiveBuildingType,
   effectiveClimateZone,
   roomsByFloor,
 } from "../summary";
-import { buildMaterials, rollupUnits } from "../materials";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
 function loadPack(): DataPack {
@@ -186,8 +186,8 @@ describe("roomsByFloor", () => {
   });
 });
 
-describe("rollupUnits", () => {
-  it("sums the same model across systems, sorted by model", () => {
+describe("the picklist across systems", () => {
+  it("sums the same model wherever it is placed, sorted by name", () => {
     const d = fixtureDoc();
     d.systems.push({
       id: "sys2",
@@ -202,11 +202,15 @@ describe("rollupUnits", () => {
       unit("i2", "sys2", "idu", "MSZ-AP25VGD", "room3"),
       unit("o2", "sys2", "odu", "MUZ-AP25VGD")
     );
-    const rows = rollupUnits(buildMaterials(d, pack));
-    const idus = rows.find((r) => r.model === "MSZ-AP25VGD");
-    const odus = rows.find((r) => r.model === "MUZ-AP25VGD");
-    expect(idus?.qty).toBe(2);
-    expect(odus?.qty).toBe(2);
-    expect(rows.map((r) => r.model)).toEqual([...rows.map((r) => r.model)].sort());
+    /* was rollupUnits(buildMaterials(...)), which only ever saw SPLIT systems
+       — the reason a multi's units never reached the printed schedule. The
+       picklist counts what is placed, whatever the system type. */
+    const rows = buildSummaryModel(d, pack).picklist;
+    const idus = rows.find((r) => r.name === "MSZ-AP25VGD");
+    const odus = rows.find((r) => r.name === "MUZ-AP25VGD");
+    expect(idus?.qty).toBe("2");
+    expect(odus?.qty).toBe("2");
+    const units = rows.filter((r) => /^[A-Z]/.test(r.name)).map((r) => r.name);
+    expect(units).toEqual([...units].sort());
   });
 });

@@ -2146,7 +2146,10 @@
 @media (max-width:900px){ .fg .tpr .stats { grid-template-columns:repeat(2,1fr); } }
 
 /* day-colour legend */
-.fg .tpr .legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin-bottom:26px; padding:0 2px; }
+/* No horizontal padding: it is a direct child of the card like the period row,
+   the stat strip and the sections, so it starts where they start. The 2px it
+   used to carry put "DAY COLOUR" alone on its own left edge. */
+.fg .tpr .legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin-bottom:26px; }
 .fg .tpr .legend .llbl { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-right:2px; }
 .fg .tpr .legend .lg { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--gray600); }
 .fg .tpr .legend .sw { width:12px; height:12px; border-radius:4px; flex:0 0 auto; }
@@ -2170,7 +2173,19 @@
 .fg .tpr .legend .sw.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; }
 
 /* ---------- section heading ---------- */
-.fg .tpr .sect { display:flex; align-items:center; gap:12px; margin:0 0 16px; }
+/* THE HEADING SITS ON ITS OWN LIST'S AXIS, NOT ON THE CARD'S.
+
+   A section is a heading over a stack of row surfaces, and both row surfaces
+   inset their contents by their own padding — 24px plus a 1px border. So a
+   header flush with the card column put "Ready to approve" 25px left of every
+   name under it and, worse, put `Approve all` 25px RIGHT of every `Approve`
+   below it: two spellings of one action, fifty pixels apart, on different
+   edges. `.dirhead`/`.dirrow` on the team list already work this way — the
+   header carries the row's padding so the columns line up.
+
+   The 25px is `.card`/`.crow`'s padding plus their border, and the three have
+   to move together. */
+.fg .tpr .sect { display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:0 25px; }
 .fg .tpr .sect .st { font-size:14px; font-weight:800; letter-spacing:.02em; }
 .fg .tpr .sect.attn .st { color:var(--red-d); }
 .fg .tpr .sect .ct { font-family:var(--font); font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; background:#eceef1; color:var(--gray500); }
@@ -2185,7 +2200,12 @@
 .fg .tpr .card + .card { margin-top:14px; }
 .fg .tpr .card.flag { border-color:rgba(240,164,49,.4); box-shadow:0 1px 2px rgba(10,12,20,.04), 0 22px 52px -28px rgba(240,164,49,.4); }
 
-.fg .tpr .chead { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+/* 10px, so 46 + 10 lands the name on the same column as the compact row's
+   40 + 16 four rows down. The two avatars are deliberately different sizes —
+   this is the hero of the list and that is a line in it — but the NAMES read
+   as one column and were 4px apart. Change either avatar and this gap moves
+   with it. */
+.fg .tpr .chead { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
 .fg .tpr .chead .av { width:46px; height:46px; border-radius:15px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#fff; }
 .fg .tpr .chead .who .nm { font-size:17px; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:11px; white-space:nowrap; }
 .fg .tpr .chead .who .rl { font-size:12.5px; font-weight:600; color:var(--gray400); margin-top:2px; }
@@ -2389,7 +2409,11 @@
    hundred pixels above. The sixth is `.bkt.total` in the panel now. */
 
 /* ---------- compact rows (ready / approved) ---------- */
-.fg .tpr .crow { display:flex; align-items:center; gap:16px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:18px; padding:15px 20px; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow .18s, transform .18s; }
+/* 24px across, the review card's padding and not 20px: the two row surfaces
+   stand in one stack under one heading, so a name and an Approve on this row
+   have to land on the same edges as the name and the Approve on that one. See
+   the axis note on `.sect` — the third value in it is this one. */
+.fg .tpr .crow { display:flex; align-items:center; gap:16px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:18px; padding:15px 24px; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow .18s, transform .18s; }
 .fg .tpr .crow + .crow { margin-top:10px; }
 .fg .tpr .crow:hover { transform:translateY(-1px); box-shadow:0 12px 26px -16px rgba(10,12,20,.24); }
 /* `opacity:.9` on the whole approved row took its role line to 4.42 and the

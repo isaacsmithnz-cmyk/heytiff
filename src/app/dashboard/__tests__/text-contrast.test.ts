@@ -368,6 +368,140 @@ describe("the orb-say chip is readable on every surface it stands on", () => {
   });
 });
 
+/* ===== THE DARK CHROME — de-emphasis written as ALPHA =====
+
+   Everything above is ink on a light ground. The sidebar and the topbar are the
+   other polarity, and they express their quiet tiers a third way again: not a
+   grey literal, not `opacity`, but `rgba(255,255,255,α)`. Every one of those is
+   the SAME literal — white — so a scan for failing colours sees nothing to
+   object to, and the whole ramp lives in the alpha.
+
+   Both surfaces composite to an opaque #050505, measured in the live app, so
+   the threshold is not a judgement call: it is the alpha at which white hits
+   4.5:1, and that is what this derives rather than hard-codes. `.45` is the
+   value that looks safe and is not — the topbar's date and role line both sat
+   there at 4.46, and the sidebar's section labels sat at .3 for 2.53. */
+describe("quiet text on the dark chrome", () => {
+  const CHROME = hex("#050505");
+  const white = (a: number) => over(WHITE, a, CHROME);
+
+  /** The alpha at which white text clears a threshold on the chrome. */
+  const alphaFor = (target: number) => {
+    for (let a = 0; a <= 1; a += 0.001) if (ratio(white(a), CHROME) >= target) return a;
+    return 1;
+  };
+  const TEXT_FLOOR = alphaFor(4.5);
+  const GRAPHIC_FLOOR = alphaFor(3);
+
+  it("derives the floors rather than trusting a value that looks quiet enough", () => {
+    expect(TEXT_FLOOR).toBeGreaterThan(0.45); // the alpha that shipped, and failed
+    expect(TEXT_FLOOR).toBeLessThan(0.46);
+    expect(GRAPHIC_FLOOR).toBeGreaterThan(0.34);
+    expect(GRAPHIC_FLOOR).toBeLessThan(0.35);
+  });
+
+  it("--on-ink-q clears the text floor with room to spare", () => {
+    const m = CSS.match(/--on-ink-q: *rgba\(255,255,255,([\d.]+)\)/);
+    expect(m).not.toBeNull();
+    const a = Number(m![1]);
+    expect(a).toBeGreaterThanOrEqual(TEXT_FLOOR);
+    expect(ratio(white(a), CHROME)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* THE SWEEP. Every white-alpha `color:` under a shell selector, held to the
+     text floor — scoped to the chrome, because `.wb2-dusk` (rgba(11,14,21,.96)),
+     `.hm-card` (a backdrop-filter over several washes) and `.idc` are dark
+     surfaces with DIFFERENT grounds and would be measured against the wrong one
+     here. Those are named so the omission is a decision, not an oversight. */
+  const OTHER_DARK = /wb2-dusk|wb2-capcard|wb2-caprec|wb2-toast|hm-|idc|nb-lb-open/;
+  const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const shellText = [...code.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+    .flatMap(([, sel, body]) =>
+      [...body!.matchAll(/(?<!-)color: *rgba\(255, *255, *255, *([\d.]+)\)/g)].map((c) => ({
+        sel: sel!.trim().replace(/\s+/g, " "),
+        alpha: Number(c[1]),
+      })),
+    )
+    .filter((r) => /\.fg (\.side|\.topbar|\.nav|\.navlbl|\.ni |\.brand|\.me |\.pro|\.searchbtn|\.bell)/.test(r.sel))
+    .filter((r) => !OTHER_DARK.test(r.sel));
+
+  it("finds the shell rules at all — a filter that matches nothing passes vacuously", () => {
+    expect(shellText.length).toBeGreaterThanOrEqual(3);
+  });
+
+  /* Icons are held to 3:1, not 4.5 — `.nicon` and `.si` are glyphs, and
+     lifting them to the text floor would flatten the one hierarchy the sidebar
+     has left. They are listed by name so that exemption is explicit. */
+  const ICONS = /\.nicon|\.si\b|\.mg\b/;
+
+  it("no word on the chrome is quieter than the floor", () => {
+    const short = shellText
+      .filter((r) => !ICONS.test(r.sel))
+      .map((r) => ({ ...r, r: +ratio(white(r.alpha), CHROME).toFixed(2) }))
+      .filter((r) => r.r < 4.5);
+    expect(short).toEqual([]);
+  });
+
+  it("and no glyph on it is under the graphic bar", () => {
+    const short = shellText
+      .filter((r) => ICONS.test(r.sel))
+      .map((r) => ({ ...r, r: +ratio(white(r.alpha), CHROME).toFixed(2) }))
+      .filter((r) => r.r < 3);
+    expect(short).toEqual([]);
+  });
+
+  /* THE HOVER THAT MADE IT WORSE — the one a resting scan can never see.
+
+     The dark-frame block restyles five things on the search button: `.sf`,
+     `:hover .sf`, `.si`, `:hover .si` and `.kbd`. It missed `:hover .kbd`, so
+     the light-shell rule — `color:var(--ok-t)`, a green picked to be read on
+     WHITE — survived at (0,4,0) against the dark override's (0,3,0), which it
+     beats whatever the source order. And hovering LIFTS the ground, so the
+     state meant to clarify the control took the ⌘K chip from 5.67 to 2.42.
+
+     Asserted structurally as well as numerically: a `:hover` twin must EXIST
+     in the dark block, because the failure was an absence, and an absence is
+     what a colour check cannot see. */
+  it("gives the search chip a dark-frame hover, and it clears on the lifted ground", () => {
+    const dark = CSS.slice(CSS.indexOf("/* topbar controls restyled to read on black */"));
+    const rule = dark.match(/\.fg \.searchbtn:hover \.kbd \{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+
+    const bg = rule![1]!.match(/background: *rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)/);
+    const fg = rule![1]!.match(/color: *(#[0-9a-f]{3,6}|rgba?\([^)]+\))/i);
+    expect(bg).not.toBeNull();
+    expect(fg).not.toBeNull();
+
+    // the hovered field lifts the ground before the chip's own tint lands on it
+    const lifted = over(WHITE, 0.09, CHROME);
+    const chip = over([+bg![1]!, +bg![2]!, +bg![3]!], Number(bg![4]), lifted);
+    /* `hex()` wants six digits and the sheet writes `#fff` — expanded here
+       rather than in the sheet, because three-digit hex is idiomatic
+       throughout it and a test should read what is actually written. */
+    const long = (h: string) =>
+      h.length === 4 ? "#" + [...h.slice(1)].map((c) => c + c).join("") : h;
+    const ink = fg![1]!.startsWith("#") ? hex(long(fg![1]!)) : WHITE;
+    expect(ratio(ink, chip)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("proves the light-shell green could not survive being reused on black", () => {
+    const lifted = over(WHITE, 0.09, CHROME);
+    const teal = over(hex("#00E5C0"), 0.1, lifted);
+    expect(ratio(hex(token("ok-t")), teal)).toBeLessThan(3);
+  });
+
+  /* The three that were live, pinned as arithmetic so the numbers in the sheet's
+     comment cannot drift away from the sheet. */
+  it.each([
+    ["the sidebar's section labels", 0.3, 2.53],
+    ["the topbar's date and role", 0.45, 4.46],
+    ["the user menu's role line", 0.4, 3.71],
+  ])("%s could not have worked at the alpha they shipped with", (_n, alpha, was) => {
+    expect(+ratio(white(alpha), CHROME).toFixed(2)).toBe(was);
+    expect(was).toBeLessThan(4.5);
+  });
+});
+
 describe("de-emphasis never multiplies text contrast", () => {
   /* `opacity` on a container multiplies every colour inside it against the page,
      which no colour choice survives: against the tab strip's own ground, pure

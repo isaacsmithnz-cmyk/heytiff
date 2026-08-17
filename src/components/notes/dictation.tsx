@@ -124,6 +124,20 @@ export const saidSomething = (text: string) =>
 
 export type DictationState = {
   recording: boolean;
+  /* THE MIC IS OPENING. `start()` awaits `getUserMedia`, opens a tap, plays
+     the chime and builds a MediaRecorder before `recording` can go true —
+     a gap that is short and is NEVER zero, and every surface that branches
+     on `recording` alone rendered its idle self across it.
+
+     On the Tiff button that was visible and Isaac hit it: press the button
+     and a small card flashes up — the box, the Default switch, the words
+     "Ask or tell Tiff" — before the recording card replaces it. The sheet
+     is opened and the mic asked for in the same click handler, so the flash
+     is the whole distance between those two lines.
+
+     A surface that shows a recording shows it from HERE. There is no audio
+     yet, which is exactly what the clock reading 0:00 says. */
+  arming: boolean;
   /** Sending the audio off and waiting for words back. */
   transcribing: boolean;
   seconds: number;
@@ -165,6 +179,7 @@ export function useDictation({
   onError?: (message: string) => void;
 }): DictationState {
   const [recording, setRecording] = useState(false);
+  const [arming, setArming] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [interim, setInterim] = useState("");
@@ -192,6 +207,13 @@ export function useDictation({
      let go of the meter, the tracks and the recording flag first — all three
      live in refs this hook shares between runs. */
   const restarting = useRef(false);
+  /* CHANGED YOUR MIND WHILE IT WAS OPENING. The three ways out all check
+     `recorder.state === "recording"` and do nothing before that is true, so
+     while the mic is arming they were dead controls — and now that the card
+     shows them from the first frame, that is a button you can press. Set
+     here, read by `start` at the two points where it can still stand down:
+     nothing is recorded, so there is nothing to keep or throw away. */
+  const abandon = useRef(false);
   /* Set by the ceiling effect, cleared by every fresh `start`. Read when
      the words are handed over, which is always after the stop it caused. */
   const capped = useRef(false);
@@ -402,12 +424,27 @@ export function useDictation({
   };
 
   const start = () => {
+    /* SYNCHRONOUS, and that is the point — it is read in the same render as
+       the click that asked for it, so the surface never shows its idle self
+       between the press and the microphone. Everything below is a wait. */
+    abandon.current = false;
+    setArming(true);
     void (async () => {
       /* Declared out here so the failure path below can let go of a tap that
          opened moments before something else in this block threw. */
       let tapping: Promise<MicTap | null> | null = null;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        /* STOOD DOWN WHILE THE MIC WAS OPENING. Nothing has been recorded and
+           nothing has chimed yet, so this is not a discard — the tracks close
+           and the card goes back to the box it came from. This is the only
+           check the arming window needs: `getUserMedia` is the one await in
+           it, and everything after it runs in a single go. */
+        if (abandon.current) {
+          stream.getTracks().forEach((t) => t.stop());
+          setArming(false);
+          return;
+        }
         /* THE TAP OPENS FIRST, in parallel with everything below it. Not
            tidiness: the beep is a promise that the app is listening, and the
            live transport used to start listening a second or more after it
@@ -510,17 +547,34 @@ export function useDictation({
         recorder.current = rec;
         rec.start();
         setSeconds(0);
+        setArming(false);
         setRecording(true);
         if (tapping) void goLive(tapping, rec);
       } catch {
         void tapping?.then((tap) => tap?.close());
+        setArming(false);
         // graceful floor: whatever asked for this stays usable by typing
         cbs.current.onError?.("No microphone available — type it instead.");
       }
     })();
   };
 
+  /* PRESSED BEFORE THE MIC OPENED. All four ways out below share this: there
+     is no recorder yet, so there is nothing to stop, keep or bin — the only
+     honest thing to do is not open it. It is silent, because a chime reports
+     what happened to a recording and there was never one.
+
+     Returns whether it handled the press, so each way out can carry on with
+     its own ending when it did not. */
+  const standDown = () => {
+    if (!arming || recorder.current?.state === "recording") return false;
+    abandon.current = true;
+    setArming(false);
+    return true;
+  };
+
   const stop = () => {
+    if (standDown()) return;
     if (recorder.current?.state !== "recording") return;
     playChime("stop");
     recorder.current.stop();
@@ -546,6 +600,7 @@ export function useDictation({
      kept or thrown away, and from where the person is standing they simply
      changed their mind about how to start. */
   const handOver = () => {
+    if (standDown()) return;
     const rec = recorder.current;
     if (rec?.state !== "recording") return;
     /* Discard ONLY where we are confident: the meter ran, it never rose
@@ -561,6 +616,7 @@ export function useDictation({
   };
 
   const cancel = () => {
+    if (standDown()) return;
     if (recorder.current?.state !== "recording") return;
     /* Its own note. Stopping and discarding are both endings, and if they
        sounded alike you could not tell by ear whether the note was kept. */
@@ -583,6 +639,9 @@ export function useDictation({
      new mic is genuinely open. From a roof with the phone in your pocket
      that pair is the only way to know it both let go and came back. */
   const restart = () => {
+    /* Nothing to start again — the run you would be redoing has not begun.
+       Standing down and reopening would be the same mic, one flicker later. */
+    if (arming && recorder.current?.state !== "recording") return;
     const rec = recorder.current;
     if (rec?.state !== "recording") return;
     playChime("discard");
@@ -593,6 +652,7 @@ export function useDictation({
 
   return {
     recording,
+    arming,
     transcribing,
     seconds,
     interim,

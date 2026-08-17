@@ -116,6 +116,13 @@ describe("the failing literals do not come back", () => {
   const BANNED = [
     "#9ca3af", "#aeb4c0", "#b6bcc7", "#c7ccd6", "#6b7280",
     "#00A389", "#e0264f", "#b45309", "#2E68FF",
+    /* The Time & Pay stragglers, measured on the rendered screens. The first
+       three are greys nobody would defend once they were measured — a zero
+       bucket's figure, a "No entry" row and the empty tile's hours, at 1.64,
+       1.69 and 1.86. #05887a is the one that hid longest: it was `--teal-ink`
+       for `.tpr` only, so the "Approved" tag on the compact row read 3.37 on
+       its own green tint while every other screen's green ink was fine. */
+    "#c3c7cf", "#a7adb8", "#8f96a3", "#05887a",
   ];
 
   it.each(BANNED)("%s is never a text colour again", (lit) => {
@@ -127,6 +134,123 @@ describe("the failing literals do not come back", () => {
   it("still allows them as fills and borders — this is a text rule, not a ban", () => {
     expect(code).toMatch(/background[^;]*#(00A389|e0264f|2E68FF)/i);
     expect(code).toMatch(/border-color: *#(9ca3af|aeb4c0|b6bcc7|c7ccd6|d1d5db)/i);
+  });
+});
+
+/* ===== Time & Pay: a private palette, and ink that sits ON a fill =====
+
+   Everything above checks ink on a LIGHT ground. Two whole categories were out
+   of its reach, and both were failing:
+
+   1. `.fg .tpr` redeclares its own `--red-d`, `--amber-d` and `--teal-ink` with
+      the pre-sweep values. The literal scan looks for `color: #e0264f`; every
+      site here writes `color: var(--red-d)`. Valid CSS, the banned value, four
+      steps out of reach of the test written to catch it.
+
+   2. The day vocabulary — tiles, rate chips, mini tiles — puts text ON a solid
+      brand fill, which no "token on a light ground" case describes. White is
+      right on blue, violet and the grey and WRONG on red (3.55), and the four
+      light fills take a darkened same-hue ink instead.
+
+   Both are computed from the sheet, like everything else in this file: the
+   pairs are read out of the `:root`-ish blocks and multiplied, so retuning
+   either half re-checks it. */
+
+/** A custom property read from ONE rule block rather than the first match in
+    the file — `--teal` is #00E5C0 on `.fg` and #22c55e on these screens, and
+    the whole point is which one this surface gets. */
+function scoped(selectorStart: string, name: string): string {
+  const at = CSS.indexOf(selectorStart);
+  if (at < 0) throw new Error(`no rule starting "${selectorStart}" in shell.css`);
+  const body = CSS.slice(at, CSS.indexOf("}", at));
+  const m = body.match(new RegExp(`--${name}: *([^;]+);`));
+  if (!m) throw new Error(`--${name} is not declared on "${selectorStart}"`);
+  const raw = m[1]!.trim();
+  const alias = raw.match(/^var\(--([a-z0-9-]+)(?:, *[^)]+)?\)$/i);
+  return alias ? token(alias[1]!) : raw;
+}
+
+const TP_VARS = ".fg .tpr, .fg .mts2, .fg .lv-cols";
+const TP_PRIVATE = ".fg .tpr { font-variant-numeric";
+
+describe("Time & Pay ink on a solid brand fill", () => {
+  /* Every pair the day vocabulary draws — the day tile, the rate chip and the
+     bucket swatch are the same nine colours at three sizes. A tenth state
+     cannot reach one and miss the others, because they all read these. */
+  const pairs: [string, string, string][] = [
+    ["normal", scoped(TP_VARS, "on-teal"), scoped(TP_VARS, "teal")],
+    ["overtime", "#4a2e05", scoped(TP_PRIVATE, "amber")],
+    ["short", scoped(TP_VARS, "on-pink"), scoped(TP_VARS, "pink")],
+    ["sick", scoped(TP_VARS, "on-red"), scoped(TP_PRIVATE, "red")],
+    ["leave", "#ffffff", scoped(TP_PRIVATE, "blue")],
+    ["public holiday", "#ffffff", scoped(TP_PRIVATE, "violet")],
+    ["not worked", "#ffffff", token("gray400")],
+  ];
+
+  it.each(pairs)("%s: its ink is readable on its own fill", (_state, ink, fill) => {
+    expect(ink).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(fill).toMatch(/^#[0-9a-f]{6}$/i);
+    const r = ratio(hex(ink), hex(fill));
+    if (r < 4.5) throw new Error(`${ink} on ${fill} is ${r.toFixed(2)}:1`);
+  });
+
+  /* THE ONE THAT WAS WRONG, pinned in both directions so the fix cannot be
+     quietly reverted to "it looks fine". --red is a LIGHT red; the tile, the
+     chip and the mini tile all carried white on it. */
+  it("proves why sick cannot be white — the fill is too light to carry it", () => {
+    expect(ratio(WHITE, hex(scoped(TP_PRIVATE, "red")))).toBeLessThan(4.5);
+  });
+
+  /* …and that the fill itself did NOT move. The legend swatch, the mini tile
+     and the missing-day dash are all `--red`; darkening it to rescue the ink
+     would have made one colour mean two things. */
+  it("keeps the brand fills exactly where they were", () => {
+    expect(scoped(TP_PRIVATE, "red")).toBe("#FF3366");
+    expect(scoped(TP_PRIVATE, "blue")).toBe("#2E68FF");
+    expect(scoped(TP_PRIVATE, "violet")).toBe("#8A2BE2");
+    expect(scoped(TP_VARS, "teal")).toBe("#22c55e");
+  });
+});
+
+describe("the private .tpr palette resolves to readable text", () => {
+  /* These three are TEXT at every one of their ~20 sites — not one is a fill, a
+     border or a dot — so they are checked as text, on the tints they land on. */
+  const cases: [string, string, Record<string, number[]>][] = [
+    ["--red-d (section counts, the miss tile, the bad issue banner)",
+      scoped(TP_PRIVATE, "red-d"),
+      { ...GROUNDS, ...tintGrounds(RED, 0.12), "bad issue banner #fdedf0": hex("#fdedf0") }],
+    ["--amber-d (the overtime pill, send-back, review badges)",
+      scoped(TP_PRIVATE, "amber-d"),
+      { ...GROUNDS, ...tintGrounds(AMBER, 0.18), ...tintGrounds(AMBER, 0.16), ...tintGrounds(AMBER, 0.12) }],
+    ["--violet-d (the public-holiday pill)",
+      scoped(TP_PRIVATE, "violet-d"),
+      { ...GROUNDS, ...tintGrounds("#8A2BE2", 0.12) }],
+    ["--teal-ink (the approved tag and badge)",
+      scoped(TP_VARS, "teal-ink"),
+      { ...GROUNDS, ...tintGrounds("#22c55e", 0.15), ...tintGrounds("#22c55e", 0.13) }],
+    ["--gray600 (issue bullets, the breakdown toggle, day rows)",
+      scoped(TP_PRIVATE, "gray600"), GROUNDS],
+  ];
+
+  it.each(cases)("%s", (_label, value, grounds) => {
+    expect(value).toMatch(/^#[0-9a-f]{6}$/i);
+    const short = Object.entries(grounds)
+      .map(([name, bg]) => ({ name, r: +ratio(hex(value), bg).toFixed(2) }))
+      .filter((x) => x.r < 4.5);
+    expect(short).toEqual([]);
+  });
+
+  /* The FALLBACK half of a var() fires wherever the element escapes `.tpr`, and
+     it held the banned literal at every one of those sites — so the value that
+     applied when the token was missing was the value the token was changed to
+     stop using. */
+  it.each([
+    ["--red-d", "#e0264f"],
+    ["--amber-d", "#b45309"],
+    ["--teal-ink", "#05887a"],
+  ])("%s never falls back to the value it was moved off", (tok, bad) => {
+    const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(code).not.toMatch(new RegExp(`var\\(${tok}, *${bad}\\)`, "i"));
   });
 });
 
@@ -142,6 +266,35 @@ describe("de-emphasis never multiplies text contrast", () => {
     const rule = code.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`));
     expect(rule).not.toBeNull();
     expect(rule![1]).not.toMatch(/(^|[^-])opacity: *0?\.\d/);
+  });
+
+  /* THE SAME BUG, FOUR MORE TIMES, ON TIME & PAY — found by scanning the
+     rendered pages rather than the sheet, because the multiply only shows up
+     once you composite the real ancestor chain.
+
+       .tile .wd            .85  → every weekday label on every tile: 2.10 on an
+                                   empty day, 2.89 on a sick one, and 4.17/4.45/
+                                   4.47 on the three otherwise clear
+       .mts2-tab.* .cd      .45  → 1.87 / 1.96 / 3.22, on a TAB you click
+       .bkt.zero .rchip     .3   → 1.72, on the chip naming the rate
+       .crow.done           .9   → 4.42 and 3.37, for a 10% dim nobody reads as
+                                   a signal anyway
+
+     `:disabled` is deliberately NOT in this list: WCAG exempts inactive
+     components, and `.mts2-btn:disabled` (4.46 on the primary) is the one pair
+     on either screen still under 4.5. Left as a decision, not an oversight. */
+  it.each([
+    [".tile .wd", /\.tile \.wd\s*\{([^}]*)\}/],
+    [".mts2-tab.offroster / .ahead labels", /\.mts2-tab\.offroster\.empty \.cd[^{]*\{([^}]*)\}/],
+    [".bkt.zero .rchip", /\.bkt\.zero \.rchip\s*\{([^}]*)\}/],
+  ])("%s dims by colour, not by multiply", (_name, re) => {
+    const rule = code.match(re);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).not.toMatch(/(^|[^-])opacity: *0?\.\d/);
+  });
+
+  it(".crow.done no longer dims the whole approved row", () => {
+    expect(code).not.toMatch(/\.crow\.done\s*\{[^}]*opacity/);
   });
 
   it("proves the arithmetic — even ink cannot survive the multiply", () => {

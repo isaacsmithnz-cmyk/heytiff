@@ -6,12 +6,12 @@ import {
   type Settings,
   type WeekCtx,
   DAY_WORD,
+  avatarFill,
   dayClass,
   dowOf,
   isWeekendRate,
   fmt,
   initials,
-  nameHue,
 } from "./logic";
 
 /* `DAY_WORD` lives in logic.ts — beside the `DayClass` it is keyed on, and
@@ -28,13 +28,13 @@ export { DAY_WORD } from "./logic";
    same classes, so the staff screen can select a day without inventing a
    second visual vocabulary for the same seven squares. */
 
+/* The initials are WHITE at a constant ratio on every hue — see `avatarFill`
+   in logic.ts. The gradient used to be a fixed HSL lightness, which is not a
+   fixed perceived lightness: a yellow name carried its initials at 1.52:1 and
+   a blue one at 6.9, decided by nothing but how the surname hashed. */
 export function Avatar({ name }: { name: string }) {
-  const h = nameHue(name);
   return (
-    <span
-      className="av"
-      style={{ background: `linear-gradient(135deg,hsl(${h} 68% 52%),hsl(${(h + 38) % 360} 64% 44%))` }}
-    >
+    <span className="av" style={{ background: avatarFill(name) }}>
       {initials(name)}
     </span>
   );

@@ -16,6 +16,7 @@ import { PicklistCard, SystemCard, UnservedCard } from "./system-card";
 import { ShareCard } from "./share-card";
 import { ContributorsCard } from "./contributors-card";
 import { ExportCard } from "./export-card";
+import { JobAttach } from "./job-attach";
 
 /* Summary view (Design Studio step 2) — the design as a DOCUMENT.
 
@@ -184,15 +185,11 @@ export function SummaryView({
                 onChange={(e) => setMeta("jobNumber", e.target.value)}
               />
             </span>
-            {/* PROVENANCE, not a field: where the number came from, and the
-                only thing here that still means anything once retyped */}
-            {doc.jobLink && (
-              <span className="ds-letter-src">
-                <Icon name="tag" size={11} />
-                Added from ServiceM8
-                {doc.jobLink.jobNumber ? ` ${doc.jobLink.jobNumber}` : ""}
-              </span>
-            )}
+            {/* PROVENANCE, and the place to change it. The link is what the
+                Material picklist pushes along, so a design that was never
+                started from a job could not reach one at all until this
+                existed — see the note on JobAttach. */}
+            <JobAttach doc={doc} onMutate={onMutate} />
           </div>
           {doc.meta.variantLabel && (
             <span className="ds-letter-variant">{doc.meta.variantLabel}</span>

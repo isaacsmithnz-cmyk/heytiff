@@ -3,10 +3,11 @@
    org scope, and the one rule that decides whether the feature is usable in a
    warehouse: a SECOND push must not double the list.
 
-   The idempotency is by NAME, not by name+qty, on purpose. If the design has
-   changed since the first push, the line somebody has already picked against
-   stays as it was ordered — re-pushing adds what is MISSING, it never
-   rewrites a number under the picker. */
+   Idempotency is by NAME, so a second push never doubles the list. What a
+   re-push then does with a CHANGED figure is the whole design of this thing:
+   a row nobody has touched is corrected (a stale 3.1 m where the run is now
+   18 m is a wrong number, not caution), a row already picked is left exactly
+   as it was and REPORTED, and nothing is ever deleted. */
 
 const inserts: Record<string, unknown>[] = [];
 const updates: Record<string, unknown>[] = [];
@@ -90,6 +91,23 @@ const rows = [
   { name: "ø9.52 / ø15.88 pair coil", sub: "liquid / gas mm", qty: "52 m" },
 ];
 
+/** a row already on the job, as the push's own select sees it */
+const onJob = (
+  r: { name: string; sub?: string; qty?: string },
+  over: { position?: number; picked?: boolean; design_id?: string | null } = {}
+) => ({
+  id: `id-${r.name}`,
+  name: r.name,
+  sub: r.sub ?? "",
+  qty: r.qty ?? "1",
+  picked: false,
+  design_id: "dsn_1",
+  position: 0,
+  ...over,
+});
+
+const NIL = { added: 0, updated: 0, heldBack: 0, orphaned: 0, unchanged: 0 };
+
 beforeEach(() => {
   inserts.length = 0;
   updates.length = 0;
@@ -101,7 +119,7 @@ beforeEach(() => {
 describe("pushPicklistToJob", () => {
   it("writes every line, org-scoped and positioned in order", async () => {
     const r = await pushPicklistToJob("job-uuid", "dsn_1", rows);
-    expect(r).toEqual({ added: 3, alreadyThere: 0 });
+    expect(r).toEqual({ ...NIL, added: 3 });
     const written = inserts[0].rows as Record<string, unknown>[];
     expect(written).toHaveLength(3);
     expect(written.map((w) => w.name)).toEqual(rows.map((x) => x.name));
@@ -115,30 +133,66 @@ describe("pushPicklistToJob", () => {
   });
 
   it("a second push adds nothing — the list does not double", async () => {
-    existingRows = rows.map((r, i) => ({ name: r.name, position: i }));
+    existingRows = rows.map((r, i) => onJob(r, { position: i }));
     const r = await pushPicklistToJob("job-uuid", "dsn_1", rows);
-    expect(r).toEqual({ added: 0, alreadyThere: 3 });
+    expect(r).toEqual({ ...NIL, unchanged: 3 });
     expect(inserts).toHaveLength(0);
+    expect(updates).toHaveLength(0);
   });
 
   it("a re-push adds only what is missing, after what is there", async () => {
-    existingRows = [{ name: "PUHY-P200YNW-A1", position: 0 }];
+    existingRows = [onJob(rows[0], { position: 0 })];
     const r = await pushPicklistToJob("job-uuid", "dsn_1", rows);
-    expect(r).toEqual({ added: 2, alreadyThere: 1 });
+    expect(r).toEqual({ ...NIL, added: 2, unchanged: 1 });
     const written = inserts[0].rows as Record<string, unknown>[];
     // appended AFTER the existing line, never interleaved through a list
     // somebody is working down
     expect(written.map((w) => w.position)).toEqual([1, 2]);
   });
 
-  it("keeps the ordered quantity when the design has since changed", async () => {
-    existingRows = [{ name: "MSZ-AP25VGD", position: 0 }];
-    await pushPicklistToJob("job-uuid", "dsn_1", [
-      { name: "MSZ-AP25VGD", sub: "wall mounted indoor", qty: "9" },
+  it("corrects a changed quantity on a row NOBODY has picked", async () => {
+    /* the whole reason re-push exists: the run grew, and leaving 3.1 m on the
+       job card is a wrong number rather than caution */
+    existingRows = [onJob({ name: "coil", sub: "liquid / gas mm", qty: "3.1 m" })];
+    const r = await pushPicklistToJob("job-uuid", "dsn_1", [
+      { name: "coil", sub: "liquid / gas mm", qty: "18 m" },
     ]);
-    // the qty differs, but the line is already picked against — untouched
-    expect(inserts).toHaveLength(0);
+    expect(r).toEqual({ ...NIL, updated: 1 });
+    expect(updates).toHaveLength(1);
+    expect(updates[0].patch).toMatchObject({ qty: "18 m" });
+    expect(updates[0].eqs).toMatchObject({ org_id: "org-1", id: "id-coil" });
+  });
+
+  it("NEVER rewrites a figure under a row already picked — it reports it", async () => {
+    existingRows = [
+      onJob({ name: "coil", sub: "liquid / gas mm", qty: "3.1 m" }, { picked: true }),
+    ];
+    const r = await pushPicklistToJob("job-uuid", "dsn_1", [
+      { name: "coil", sub: "liquid / gas mm", qty: "18 m" },
+    ]);
+    expect(r).toEqual({ ...NIL, heldBack: 1 });
+    expect(updates).toHaveLength(0); // somebody stood in a warehouse and acted on 3.1
+  });
+
+  it("never rewrites a line another design put on the job", async () => {
+    existingRows = [
+      onJob({ name: "coil", qty: "3.1 m" }, { design_id: "dsn_OTHER" }),
+    ];
+    const r = await pushPicklistToJob("job-uuid", "dsn_1", [
+      { name: "coil", sub: "", qty: "18 m" },
+    ]);
+    expect(r).toEqual({ ...NIL, heldBack: 1 });
     expect(updates).toHaveLength(0);
+  });
+
+  it("reports a line the design has dropped, and deletes nothing", async () => {
+    existingRows = [
+      onJob(rows[0], { position: 0 }),
+      onJob({ name: "Isolator · 20 A", qty: "1" }, { position: 1 }),
+    ];
+    const r = await pushPicklistToJob("job-uuid", "dsn_1", [rows[0]]);
+    expect(r).toEqual({ ...NIL, orphaned: 1, unchanged: 1 });
+    expect(deletes).toHaveLength(0); // it may already be picked, ordered, or on a van
   });
 
   it("needs BOTH studio and workboard", async () => {
@@ -156,10 +210,7 @@ describe("pushPicklistToJob", () => {
     await expect(pushPicklistToJob("  ", "dsn_1", rows)).rejects.toThrow(
       /No job/
     );
-    expect(await pushPicklistToJob("job-uuid", "dsn_1", [])).toEqual({
-      added: 0,
-      alreadyThere: 0,
-    });
+    expect(await pushPicklistToJob("job-uuid", "dsn_1", [])).toEqual(NIL);
     expect(inserts).toHaveLength(0);
   });
 });

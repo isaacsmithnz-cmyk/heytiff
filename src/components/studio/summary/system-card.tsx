@@ -130,7 +130,12 @@ export function PicklistCard({
   designId: string;
 }) {
   const [state, setState] = useState<
-    { kind: "idle" } | { kind: "busy" } | { kind: "done"; msg: string } | { kind: "err"; msg: string }
+    | { kind: "idle" }
+    | { kind: "busy" }
+    | { kind: "done"; msg: string }
+    /** pushed, but something needs a person — see the message */
+    | { kind: "warn"; msg: string }
+    | { kind: "err"; msg: string }
   >({ kind: "idle" });
 
   const push = async () => {
@@ -139,12 +144,22 @@ export function PicklistCard({
     try {
       const { pushPicklistToJob } = await import("@/app/actions/job-picklist");
       const r = await pushPicklistToJob(jobLink.remoteId, designId, rows);
+      /* Say what actually happened, in the order a person cares about. The
+         two that need a person — a figure that changed under something
+         already picked, and a line the design has dropped — are named
+         plainly and carry the warning tone; "Already on the job" would have
+         been a lie the moment either existed. */
+      const parts = [
+        r.added > 0 ? `${r.added} added` : null,
+        r.updated > 0 ? `${r.updated} updated` : null,
+        r.heldBack > 0
+          ? `${r.heldBack} changed since ${r.heldBack === 1 ? "it was" : "they were"} picked`
+          : null,
+        r.orphaned > 0 ? `${r.orphaned} no longer in the design` : null,
+      ].filter(Boolean);
       setState({
-        kind: "done",
-        msg:
-          r.added === 0
-            ? "Already on the job"
-            : `${r.added} added${r.alreadyThere > 0 ? `, ${r.alreadyThere} already there` : ""}`,
+        kind: r.heldBack > 0 || r.orphaned > 0 ? "warn" : "done",
+        msg: parts.length > 0 ? parts.join(" · ") : "Already on the job",
       });
     } catch (e) {
       /* a server action with no catch returns a bare 503 the UI can neither
@@ -166,6 +181,7 @@ export function PicklistCard({
         {jobLink && (
           <div className="ds-pick-act">
             {state.kind === "done" && <em className="ok">{state.msg}</em>}
+            {state.kind === "warn" && <em className="warn">{state.msg}</em>}
             {state.kind === "err" && <em className="err">{state.msg}</em>}
             <button
               className="ds-chrome-btn"
@@ -175,7 +191,11 @@ export function PicklistCard({
               <Icon name="check" size={13} />
               {state.kind === "busy"
                 ? "Adding…"
-                : `Add to job${jobLink.jobNumber ? ` ${jobLink.jobNumber}` : ""}`}
+                : /* after a push it is a RE-push: the same button, saying what
+                     pressing it would do now rather than what it did once */
+                  `${state.kind === "idle" ? "Add to" : "Update"} job${
+                    jobLink.jobNumber ? ` ${jobLink.jobNumber}` : ""
+                  }`}
             </button>
           </div>
         )}

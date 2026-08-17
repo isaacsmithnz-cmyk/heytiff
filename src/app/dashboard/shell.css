@@ -53,6 +53,27 @@
      clears. */
   --ok-t:#00735f; --warn-t:#a44b08; --bad-t:#c81a41; --info-t:#2554d8;
 
+  /* QUIET TEXT ON THE DARK CHROME — the shell's own floor, and the mirror of
+     `--q` above.
+
+     Everything on the sidebar and the topbar is written as
+     `rgba(255,255,255,α)`, which is de-emphasis by ALPHA: the same arithmetic
+     as `opacity`, and just as invisible to a scan that reads colour literals,
+     because every one of these IS a literal — white — and only the alpha
+     differs. Both surfaces composite down to an opaque #050505, so the whole
+     ramp can be stated exactly:
+
+       α .2  → 1.71    .3  → 2.53    .35 → 3.07    .4  → 3.71
+       α .45 → 4.46    .5  → 5.30    .55 → 6.26    .6  → 7.33
+
+     TEXT needs 4.5, so it needs α ≥ .452 — which is why .45 is the value that
+     looks safe and is not (the topbar's date and role line both sat there).
+     A GRAPHIC needs 3, so α ≥ .345, and the nav icons at .4 are correctly
+     fine. This token is the text floor with a little margin; the icons keep
+     their own value because they are held to the other bar, and the tiers
+     above it are carried by size and weight exactly as on the light side. */
+  --on-ink-q: rgba(255,255,255,.5);
+
   --font:var(--font-jakarta), sans-serif; --mono:var(--font-jakarta), sans-serif;
   position:fixed; inset:0; display:flex; overflow:hidden; background:var(--bg);
   font-family:var(--font); color:var(--ink); -webkit-font-smoothing:antialiased;
@@ -130,18 +151,30 @@
   57.14% { stroke-dashoffset:0; }
   100% { stroke-dashoffset:0; }
 }
-.fg .brand .logo { position:relative; display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:16px;
-  background:#11141b; box-shadow:0 0 30px rgba(0,229,192,.18); }
-.fg .brand .logo svg { position:relative; z-index:2; transition:transform .5s cubic-bezier(.22,1,.36,1); }
-.fg .brand .logo:hover svg { transform:scale(1.1); }
-.fg .brand .logo::after { content:''; position:absolute; inset:0; border-radius:16px; border:1px solid rgba(255,255,255,.1); }
-.fg .brand .bt { font-size:18px; font-weight:800; letter-spacing:-0.03em; color:#fff; display:flex; align-items:center; gap:8px; }
-.fg .brand .bt i { color:var(--teal); font-style:normal; font-size:16px; }
-.fg .brand .bs { font-size:10px; font-weight:800; letter-spacing:.3em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-top:4px; }
+/* THE OLD SIDEBAR FOOTER IS GONE — `.sfoot`, `.pro*`, `.me*` — and so is the
+   brand lockup it sat under (`.brand .logo/.bt/.bs`). The user chip moved to
+   the topbar (`.me-top`, `.me-item`) and the brand row is `.ht-logo` +
+   `.ht-orgx` now; not one of those classes is rendered by anything in src.
+
+   THEY WERE NOT HARMLESS. `.fg .me` (0,2,0) matched `<span class="nb-at me">`
+   — the notices board's chip for a mention OF YOU — and gave an inline word
+   inside a paragraph `display:flex`, `gap:16px` and `cursor:pointer`. Only its
+   `padding` was overridden, by `.fg .nb-at.me` (0,3,0) at the mention rule.
+   This is the second time this sheet has been bitten by exactly that; see the
+   `.ni .pdot` note above, which says so in as many words.
+
+   They were also four of the seventeen white-alpha values the contrast sweep
+   below had to reason about, on a surface where only three were real. */
 .fg .nav { flex:1; overflow-y:auto; padding:16px 20px; position:relative; z-index:10; }
 .fg .navgrp + .navgrp { margin-top:40px; }
-.fg .navlbl { display:flex; align-items:center; gap:8px; padding:0 16px; margin-bottom:16px; font-size:10px; font-weight:800; letter-spacing:.25em; text-transform:uppercase; color:rgba(255,255,255,.3); }
-.fg .navlbl span { width:8px; height:1px; background:rgba(255,255,255,.3); }
+/* WORKSPACE / PERSONAL / OPERATIONS — the three words that say what the list
+   below them is, at **2.53:1**. They were the least readable text in the app,
+   on the one surface that is on screen on every single page. 10px at .25em
+   tracking is already as quiet as type gets; the alpha was doing the job a
+   second time and taking it past legible. The dash beside them moves with the
+   label — a 1px rule at .3 next to a .5 word reads as a different element. */
+.fg .navlbl { display:flex; align-items:center; gap:8px; padding:0 16px; margin-bottom:16px; font-size:10px; font-weight:800; letter-spacing:.25em; text-transform:uppercase; color:var(--on-ink-q); }
+.fg .navlbl span { width:8px; height:1px; background:var(--on-ink-q); }
 .fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:16px; overflow:hidden; transition:background .5s; margin-bottom:6px; }
 .fg .ni:hover { background:rgba(255,255,255,.05); }
 .fg .ni .nibg { position:absolute; inset:0; background:linear-gradient(90deg,rgba(255,255,255,.1),transparent); border-left:2px solid var(--teal); opacity:0; transition:opacity .4s; }
@@ -159,27 +192,6 @@
    the honest kind — it stops when the recording does. */
 @keyframes fgPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-.fg .sfoot { padding:20px; padding-top:40px; position:relative; z-index:10; background:linear-gradient(to top,var(--ink) 60%,transparent); }
-.fg .pro { position:relative; padding:20px; border-radius:16px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); margin-bottom:20px; overflow:hidden; transition:background .5s; cursor:pointer; }
-.fg .pro:hover { background:rgba(255,255,255,.06); }
-.fg .pro .pg { position:absolute; top:-50px; right:-50px; width:100px; height:100px; background:var(--teal); filter:blur(50px); opacity:.3; transition:opacity .5s; }
-.fg .pro:hover .pg { opacity:.6; }
-.fg .pro .pt { position:relative; z-index:10; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:800; color:#fff; margin-bottom:6px; }
-.fg .pro .pt svg { color:var(--teal); }
-.fg .pro .pd { position:relative; z-index:10; font-size:11px; color:rgba(255,255,255,.4); line-height:1.55; margin-bottom:16px; }
-.fg .pro .pb { position:relative; z-index:10; width:100%; padding:10px; border-radius:12px; background:rgba(255,255,255,.1); color:#fff; font-size:12px; font-weight:700; border:1px solid rgba(255,255,255,.1); transition:all .3s; }
-.fg .pro .pb:hover { background:var(--teal); color:var(--ink); border-color:var(--teal); box-shadow:0 0 20px rgba(0,229,192,.4); }
-.fg .me { display:flex; align-items:center; gap:16px; padding:8px; cursor:pointer; }
-.fg .me .av { position:relative; flex:0 0 auto; }
-.fg .me .av .ring { width:40px; height:40px; border-radius:50%; background:linear-gradient(45deg,var(--blue),var(--teal)); padding:2px; }
-.fg .me .av .inner { width:100%; height:100%; border-radius:50%; background:var(--ink); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; transition:background .3s; }
-.fg .me:hover .av .inner { background:transparent; }
-.fg .me .av .st { position:absolute; bottom:0; right:0; width:12px; height:12px; border-radius:50%; background:var(--teal); border:2px solid var(--ink); }
-.fg .me .mk { flex:1; min-width:0; }
-.fg .me .mk b { display:block; font-size:14px; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .me .mk em { font-style:normal; font-size:11px; color:rgba(255,255,255,.4); font-family:var(--mono); }
-.fg .me .mg { color:rgba(255,255,255,.2); transition:all .5s; }
-.fg .me:hover .mg { color:rgba(255,255,255,.9); transform:rotate(90deg); }
 
 /* ============================ MAIN + TOPBAR ============================ */
 .fg .main { flex:1; min-width:0; display:flex; flex-direction:column; position:relative; z-index:10; }
@@ -212,7 +224,8 @@
    minute after that. */
 .fg .topbar .tbclock { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:0 0 auto; text-align:right; }
 .fg .topbar .tbclock b { min-width:66px; min-height:16px; font-size:13.5px; font-weight:700; line-height:1.15; color:#fff; font-variant-numeric:tabular-nums; }
-.fg .topbar .tbclock em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.45); }
+/* the date under the clock — .45 is the alpha that LOOKS safe and is 4.46 */
+.fg .topbar .tbclock em { font-style:normal; font-size:11px; font-weight:600; color:var(--on-ink-q); }
 /* The bell is an <a> now, not a button, so it needs the two things the button
    reset was giving it for free — no underline, and a box that wraps the glyph
    rather than a line of text. */
@@ -536,7 +549,8 @@
 .fg .topbar .me-trigger { display:flex; align-items:center; gap:11px; padding:0; background:none; border:0; text-align:left; cursor:pointer; }
 .fg .topbar .me-top .mk { min-width:0; }
 .fg .topbar .me-top .mk b { display:block; font-size:13.5px; font-weight:700; color:#fff; line-height:1.1; }
-.fg .topbar .me-top .mk em { display:block; font-style:normal; font-size:11px; color:rgba(255,255,255,.45); font-family:var(--mono); }
+/* the signed-in role — "Owner" — at 4.46 */
+.fg .topbar .me-top .mk em { display:block; font-style:normal; font-size:11px; color:var(--on-ink-q); font-family:var(--mono); }
 .fg .topbar .me-top .av { position:relative; display:block; width:38px; height:38px; flex:0 0 auto; }
 .fg .topbar .me-top .av .ring { display:block; width:38px; height:38px; border-radius:50%; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
 .fg .topbar .me-top .av .inner { width:100%; height:100%; border-radius:50%; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
@@ -554,7 +568,8 @@
 .fg .topbar .me-item .mi { display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex:0 0 auto; border-radius:10px; background:rgba(255,255,255,.06); }
 .fg .topbar .me-item .mk2 { min-width:0; }
 .fg .topbar .me-item .mk2 b { display:block; font-size:13px; font-weight:700; line-height:1.2; }
-.fg .topbar .me-item .mk2 em { display:block; font-style:normal; font-size:11px; color:rgba(255,255,255,.4); }
+/* the same role, inside the open user menu — 3.71 */
+.fg .topbar .me-item .mk2 em { display:block; font-style:normal; font-size:11px; color:var(--on-ink-q); }
 .fg .topbar .me-item.danger:hover { background:rgba(255,51,102,.14); color:#ff6b8a; }
 .fg .topbar .me-item.danger:hover .mi { background:rgba(255,51,102,.16); }
 .fg .topbar .me-div { height:1px; margin:6px 8px; background:rgba(255,255,255,.09); }
@@ -876,6 +891,21 @@
 .fg .searchbtn .si { color:rgba(255,255,255,.4); }
 .fg .searchbtn:hover .si { color:var(--teal); }
 .fg .searchbtn .kbd { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
+/* THE ONE PAIR IN THIS BLOCK THAT WAS NEVER GIVEN ITS DARK TWIN, and the miss
+   only shows on hover — so it is invisible to a screenshot, and to any scan of
+   the resting page.
+
+   `.fg .searchbtn:hover .kbd` up in the light-shell section is (0,4,0) and
+   sets `color:var(--ok-t)` — a green chosen to be read on WHITE. The dark
+   override on the line above is (0,3,0), so it loses on hover no matter what
+   order the rules are in, and the ⌘K chip reverts to light-ground ink on a
+   near-black tint. Worse, hovering LIFTS the ground (`.sf` goes .05 → .09
+   white), so the state that is supposed to make the control clearer takes it
+   from 5.67 at rest to **2.42**.
+
+   Every other control here got its twin — `.sf`, `:hover .sf`, `.si`,
+   `:hover .si`, `.kbd`. This is the fifth of five, added late. */
+.fg .searchbtn:hover .kbd { background:rgba(0,229,192,.18); color:#fff; }
 .fg .bell { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.6); }
 .fg .bell:hover { background:rgba(255,255,255,.12); color:#fff; box-shadow:none; }
 .fg .bell .d { border-color:#050505; }

@@ -131,11 +131,17 @@ export type WaitingProps = {
    name. Now there is one string, on the page, inside the live region, so
    `role="status"` announces what is actually there.
 
-   IT TAKES ITS INK FROM THE SURFACE, like the sphere does. The same chip
-   appears on Tiff's white sheet, under its ask bar, on the notes postures'
-   light rows and on the capture sheet's dusk card — and a colour baked in
-   here would be wrong on at least one of them. The stylesheet's `--say-ink`
-   and `--say-lit` are what each surface sets. */
+   IT TAKES ITS INK FROM THE SURFACE, like the sphere does. The stylesheet's
+   `--say-ink` and `--say-lit` are what each surface sets, so a colour baked in
+   here would be wrong somewhere.
+
+   The five places it actually stands, traced: Tiff's transcript bubble and
+   under its ask bar, and the notes postures' three rows — the strip on the
+   notes board, the line in a visit sheet, and the field in every sheet and
+   modal that takes a note. All five are light. The dusk capture card is NOT
+   one of them, whatever the older wording here said: its transcribing stage
+   shows a bare `.wb2-waiting` sphere with no word at all. `.wb2-dusk .orb-say`
+   in the sheet is a guard for a surface this chip does not yet reach. */
 export function Waiting({ note, className }: WaitingProps) {
   return (
     <span className={className ? `orb-say ${className}` : "orb-say"} role="status">

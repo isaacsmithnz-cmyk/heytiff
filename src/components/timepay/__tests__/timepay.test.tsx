@@ -132,18 +132,46 @@ describe("TimePay screen", () => {
      `ready + approved` under "Normal · No action needed", so people still
      waiting on one tap from this very screen were filed as needing nothing —
      directly above a section headed "Ready to approve" with an Approve all
-     button in it. */
-  it("counts what is actually approved, and names what is still waiting", () => {
+     button in it.
+
+     IT IS A RATIO NOW, and its sub-line is finally rendered. `.stat .ss` was
+     `display:none` from the port onward, so the fix that made this tile name
+     what was still waiting had shipped invisible; and a bare count of the
+     approved was the same word and the same number as the section heading
+     forty pixels below it. "1 of 4" is the thing neither the heading nor the
+     card can say. */
+  it("reads approval as progress, and names what is still waiting", () => {
     /* Nobody approved, one person ready. The old tile read "1 · Normal · No
        action needed" for exactly this data — while the section below it
        offered an Approve button for that same person. */
     const { container } = renderTimePay();
     const tile = container.querySelector(".stat.normal") as HTMLElement;
     expect(within(tile).getByText("Approved")).toBeInTheDocument();
-    expect(within(tile).getByText("0")).toBeInTheDocument();
-    expect(within(tile).getByText("1 ready to approve")).toBeInTheDocument();
+    expect(tile.querySelector(".sv")?.textContent).toBe("0 of 2");
+    expect(within(tile).getByText("1 to review · 1 ready")).toBeInTheDocument();
     expect(within(tile).queryByText("No action needed")).toBeNull();
     expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
+  });
+
+  /* THE STRIP STOPPED COUNTING THE SECTIONS UNDERNEATH IT. Two of its four
+     tiles read "2 · NEED REVIEW" and "1 · APPROVED" directly above two section
+     headings reading the same word and the same number — and the headings are
+     the ones that have to stay, because they group the cards. */
+  it("says nothing in the strip that a section heading below it already says", () => {
+    const { container } = renderTimePay();
+    const strip = container.querySelector(".stats") as HTMLElement;
+    expect(within(strip).queryByText("Need review")).toBeNull();
+    // the labels it does carry are the figures no card or heading states
+    expect(within(strip).getByText("Payroll hours")).toBeInTheDocument();
+    expect(within(strip).getByText("Overtime")).toBeInTheDocument();
+  });
+
+  it("totals the period's payroll hours across everyone", () => {
+    // Boston 40 + 3×1.5 = 44.5;  Marcus a clean 40
+    const { container } = renderTimePay();
+    const tile = container.querySelector(".stat.hrs") as HTMLElement;
+    expect(within(tile).getByText("84.5h")).toBeInTheDocument();
+    expect(within(tile).getByText("2 people")).toBeInTheDocument();
   });
 
   /* A MONEY BUG, found while threading certificates through this same line.
@@ -193,6 +221,54 @@ describe("TimePay screen", () => {
       "aria-expanded",
       "true",
     );
+  });
+
+  /* THE BREAKDOWN IS THE DAYS, AND ONLY THE DAYS.
+
+     It used to end with a "category totals" band — Weighted hours, Regular,
+     Time and a half, Double time, Sick, Leave — every one of which but the
+     first is a row of `.cs-buckets` in the panel above, same label, same rate
+     chip, same figure, 250px apart. The one figure it carried alone has moved
+     to the foot of the buckets it is the sum of. */
+  it("the breakdown adds the times, not the buckets a second time", async () => {
+    const user = userEvent.setup();
+    const { container } = renderTimePay();
+    await user.click(screen.getAllByText("View daily breakdown")[0]);
+    const detail = container.querySelector(".detail") as HTMLElement;
+    expect(within(detail).getByText("07:00 – 18:00")).toBeInTheDocument(); // the new fact
+    expect(detail.querySelector(".totals")).toBeNull();
+    expect(within(detail).queryByText("Time and a half")).toBeNull();
+    expect(within(detail).queryByText("Weighted hours")).toBeNull();
+  });
+
+  /* ONE NAME FOR ONE FIGURE, across the screen and the screen it reviews. The
+     weighted total was "Weighted hours" here and "Payroll hrs" on the person's
+     own sheet — and here it was behind a fold, which is a strange place for
+     the number being signed off. */
+  it("totals the buckets under the same name the person's own sheet uses", () => {
+    const { container } = renderTimePay();
+    const panel = container.querySelector(".card.flag .cside") as HTMLElement;
+    // Boston: 40 regular + 3 at 1.5 = 44.5
+    expect(within(panel).getByText("Actual worked")).toBeInTheDocument();
+    expect(within(panel).getByText("Payroll hrs")).toBeInTheDocument();
+    expect(panel.querySelector(".bkt.total .bv")?.textContent).toBe("44.5h");
+  });
+
+  /* SEVEN ANONYMOUS COLOUR BARS. `MiniTile` rendered an empty span, so the row
+     an approver taps Approve from said which days were unusual only by hue,
+     readable one at a time by hovering.
+
+     The initial goes ABOVE the fill rather than in it — white on `--red` is
+     3.55:1, and nothing legible clears 4.5 inside that square. So the label is
+     `.mtd` on the row's white and `.mt` stays a pure swatch. */
+  it("names the days on a compact row instead of drawing bare colour", () => {
+    const { container } = renderTimePay();
+    const mini = container.querySelector(".crow .mini") as HTMLElement;
+    expect([...mini.querySelectorAll(".mtd")].map((c) => c.textContent)).toEqual([
+      "M", "T", "W", "T", "F", "S", "S",
+    ]);
+    // the swatch itself carries no text, so no ink lands on a brand fill
+    for (const sw of mini.querySelectorAll(".mt")) expect(sw.textContent).toBe("");
   });
 
   it("approving calls the action with the staff id and the period", async () => {

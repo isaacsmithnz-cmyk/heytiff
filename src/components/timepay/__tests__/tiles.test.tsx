@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DAY_LEGEND, DayLegend, Tile } from "../tiles";
+import { DAY_LEGEND, DayLegend, Tile, legendFor } from "../tiles";
 import { DAY_WORD } from "../logic";
 import { DEFAULT_SETTINGS, type DayEntry, type WeekCtx, type WeekDay } from "../logic";
 
@@ -97,6 +97,32 @@ describe("DayLegend", () => {
     for (const [cls, caption] of DAY_LEGEND) {
       expect(caption).toBe(DAY_WORD[cls]);
       expect(screen.getByText(caption)).toBeInTheDocument();
+    }
+  });
+});
+
+/* A KEY IS FOR THE COLOURS ON THE SCREEN. Listing all nine states over a week
+   that used four put five swatches on both screens explaining colours nobody
+   could see — the same failure as a colour with no entry in the key, taken
+   from the other end. */
+describe("legendFor", () => {
+  it("keeps only the states present, in the shared order", () => {
+    expect(legendFor(["sick", "std", "over", "std"])).toEqual([
+      ["std", DAY_WORD.std],
+      ["over", DAY_WORD.over],
+      ["sick", DAY_WORD.sick],
+    ]);
+  });
+
+  it("is empty for no days, and DayLegend then draws nothing at all", () => {
+    expect(legendFor([])).toEqual([]);
+    const { container } = render(<DayLegend items={legendFor([])} />);
+    expect(container.querySelector(".legend")).toBeNull();
+  });
+
+  it("never invents a caption — every one comes from DAY_WORD", () => {
+    for (const [cls, caption] of legendFor(["miss", "off", "empty"])) {
+      expect(caption).toBe(DAY_WORD[cls]);
     }
   });
 });

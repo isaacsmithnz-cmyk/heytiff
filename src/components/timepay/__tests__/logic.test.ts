@@ -12,6 +12,9 @@ import {
   fmt,
   fmtH,
   initials,
+  avatarFill,
+  hslLuminance,
+  nameHue,
   nightHours,
   parseClock,
   rosteredWeekHours,
@@ -126,6 +129,19 @@ describe("derive — demo staff on default settings", () => {
     /* Two kinds of issue, so the heading names both and drops the verb — see
        `issueHeading`. Double time leads: it is the more expensive one. */
     expect(d.issueTitle).toBe("Double time · Overtime");
+  });
+
+  /* THE BULLETS SAY WHICH DAY AND WHY. There used to be a closing
+     "Overtime total — 3h @1.5× + 2h @2×", printed beside a bucket list already
+     reading "Time and a half 1.5× 3h" and "Double time 2× 2h" — the same two
+     figures, in the same card, in two notations. Totals are the panel's job,
+     and it adds them up under `Payroll hrs`. */
+  it("never restates the totals the pay panel beside it is already showing", () => {
+    for (const d of Object.values(byName)) {
+      expect(d.bullets.some((b) => b.startsWith("Overtime total"))).toBe(false);
+    }
+    // the day-level lines that say where the overtime came from are untouched
+    expect(byName["Jordan Mills"].bullets.some((b) => /Sat 4 Jul/.test(b))).toBe(true);
   });
 
   it("Marcus and Dylan: clean 40h weeks are ready with no bullets", () => {
@@ -304,6 +320,66 @@ describe("formatting helpers", () => {
   it("builds the live-period note from settings", () => {
     expect(submitNote(DEFAULT_SETTINGS)).toBe("Open · auto-submits Sun 3:00 PM, then locks");
     expect(submitNote({ ...DEFAULT_SETTINGS, lock: false })).toBe("Open · auto-submits Sun 3:00 PM");
+  });
+});
+
+/* THE AVATAR'S INITIALS ARE WHITE, ON WHATEVER COLOUR THE NAME HASHES TO — so
+   the colour is what has to be constrained, and it is constrained by
+   MEASUREMENT rather than by a lightness that looked about right.
+
+   The bug: `hsl(H 68% 52%)` is a fixed HSL lightness, which is not a fixed
+   perceived one. At 52% a yellow hue lands at a relative luminance of 0.64 and
+   a blue at 0.078 — an eight-fold spread — so white initials measured 1.52:1
+   on some names and 6.9:1 on others, decided by the surname's hash. On the
+   real roster it was measured at 1.86 and 2.19.
+
+   The assertion is EVERY hue the hash can emit, not a sample: `nameHue` is
+   mod 360, so 360 is the whole space and there is no name that can dodge it. */
+describe("the avatar carries its initials at the same ratio on every name", () => {
+  const whiteOn = (y: number) => 1.05 / (y + 0.05);
+  const stops = (css: string) =>
+    [...css.matchAll(/hsl\((\d+(?:\.\d+)?) (\d+)% (\d+(?:\.\d+)?)%\)/g)].map((m) => ({
+      h: Number(m[1]),
+      s: Number(m[2]) / 100,
+      l: Number(m[3]) / 100,
+    }));
+
+  it("clears AA on both gradient stops for all 360 hues", () => {
+    const worst = { ratio: Infinity, hue: -1, stop: -1 };
+    for (let hue = 0; hue < 360; hue++) {
+      // drive the real function through a name that hashes to this hue
+      const css = avatarFill(String.fromCharCode(65 + (hue % 26)).repeat(1 + hue));
+      const parsed = stops(css);
+      expect(parsed).toHaveLength(2);
+      parsed.forEach((st, i) => {
+        const r = whiteOn(hslLuminance(st.h, st.s, st.l));
+        if (r < worst.ratio) Object.assign(worst, { ratio: r, hue: st.h, stop: i });
+      });
+    }
+    if (worst.ratio < 4.5) {
+      throw new Error(`white is ${worst.ratio.toFixed(2)}:1 on hue ${worst.hue}, stop ${worst.stop}`);
+    }
+  });
+
+  /* …and the failure mode it replaced, stated as arithmetic so nobody restores
+     the old constant thinking it was fine. A yellow at the old lightness is
+     the worst case and it is not close. */
+  it("proves the old fixed lightness could not have worked", () => {
+    expect(whiteOn(hslLuminance(60, 0.68, 0.52))).toBeLessThan(2);
+    expect(whiteOn(hslLuminance(240, 0.68, 0.52))).toBeGreaterThan(6);
+  });
+
+  it("keeps the hue — the identity half of the avatar is untouched", () => {
+    for (const name of ["Boston Hayes", "Marcus Webb", "Ana De Souza"]) {
+      expect(stops(avatarFill(name))[0]!.h).toBe(nameHue(name));
+    }
+  });
+
+  it("is a real luminance, checked against a hand-computed value", () => {
+    // hsl(0 100% 50%) is pure red #ff0000, whose relative luminance is 0.2126
+    expect(hslLuminance(0, 1, 0.5)).toBeCloseTo(0.2126, 6);
+    // hsl(0 0% 100%) is white
+    expect(hslLuminance(0, 0, 1)).toBeCloseTo(1, 6);
   });
 });
 

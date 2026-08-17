@@ -1626,7 +1626,33 @@
    orb on a 30px row, and the sheet's own line-height for the word, so the box
    while working is the height of the first line of the answer that replaces
    it and nothing below jumps when the words arrive. */
-.orb-say { --say-ink:var(--teal-d, #00A389); --say-lit:var(--ink, #050505);
+/* `--ok-t`, NOT `--teal-d`, AND FOR THE REASON THE REST OF THE SHEET ALREADY
+   GIVES: use the `-t` twin the moment the colour is a word.
+
+   `--teal-d` #00A389 is the brand's teal for fills, dots and icons; as text it
+   measures **3.18:1** on white and **2.77** on the light well, and EVERY
+   surface this chip actually stands on is a light one — see the note on the
+   dusk rule below, which turns out to guard a surface it never reaches.
+   `--ok-t` #00735f is the same hue taken down until it clears: **5.81** on the
+   white card (Tiff's transcript, all three note postures) and **5.05** on
+   `.fg .outlet` #EDEFF4, the darkest of them, under the ask bar. It is also
+   already what `.wb2-waiting` forty lines below uses for the identical idea —
+   two "working" states in one block were reading two different teals.
+
+   `--ok-t` defuses a second trap for free: `--teal-d` is repointed to #16a34a
+   inside `.tpr`/`.mts2`/`.lv-*`/`.tw`, and that value is 3.30 on white — still
+   failing. `--ok-t` is declared once, on `.fg`.
+
+   ⚠ THE FALLBACK IS LOAD-BEARING HERE, more than anywhere else in the sheet.
+   The capture sheet portals to document.body, so `--ok-t` — declared on `.fg`
+   — does not reach it and the literal is what actually paints. It has to be
+   the readable value, not the brand one.
+
+   The GRADIENT reads these vars directly rather than through `color`, so it
+   is unaffected by the two rules below that outrank the chip's own colour —
+   which is why the light-surface failure survived: the word was painted teal
+   by the sweep no matter what `color` said. */
+.orb-say { --say-ink:var(--ok-t, #00735f); --say-lit:var(--ink, #050505);
   display:inline-flex; align-items:center; gap:11px; min-height:30px; color:var(--say-ink); }
 /* Teal, not grey. The transcript's old dots were `#c3cad6` — the colour of a
    disabled control — for the single most alive moment on the screen, and the
@@ -1689,7 +1715,22 @@
    the notes postures' own rows. `.tvsay` and `.wb2-dicthint` are the slots
    the plain grey lines used to occupy, so the chip inherits their margins and
    nothing around those controls moves. */
-.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; }
+/* THE CHIP'S OWN COLOUR BACK, in the two slots that were quietly taking it
+   away. The block above says the accent replaced the flat greys these hints
+   used to be — and in four of the five places the chip stands, it hadn't:
+   `.fg .tvsay` (0,2,0, line 670) and `.wb2-dicthint` (0,1,0 but declared 3,700
+   lines LATER) both set `color:var(--gray500)` on the very element `.orb-say`
+   (0,1,0, here) was setting the accent on, and both win.
+
+   Nothing looked wrong, because the WORD is painted by the gradient, which
+   reads `--say-ink` directly. What was actually grey was the ORB — the sphere
+   inherits `color` — and the word too, but only for a reader with
+   prefers-reduced-motion, where the sweep is dropped and `b` falls back to
+   `color:inherit`. A state visible to the readers least likely to be looked at.
+
+   Scoped to `.orb-say.tvsay`, not to `.fg .tvsay`: the two-minute notice and
+   the error line are plain `<p class="tvsay">` and are meant to be grey. */
+.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; color:var(--say-ink); }
 .orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:12.5px; font-weight:700; }
 
 /* ── the wait with no words of its own ──
@@ -1704,9 +1745,23 @@
 .wb2-dusk .wb2-waiting { color:#00E5C0; }
 
 /* ── on ink ──
-   The dusk capture surface, where the resting teal is too dark to read and
-   the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
-   else about the chip is restated. */
+   The dusk capture surface, where the resting teal would be too dark to read
+   and the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
+   else about the chip is restated.
+
+   ⚠ THIS RULE CURRENTLY MATCHES NOTHING, and it is kept deliberately. Traced
+   in full: `.wb2-dusk` has four mount points, and none of them contains a
+   `<Waiting>` — the capture sheet's transcribing stage shows `.wb2-waiting`,
+   a bare sphere with no word, and the recording card is the SIBLING branch of
+   the ternary that emits the chip, so the card has unmounted by the time the
+   chip appears. Every one of the five live sites is on white or on the light
+   well.
+
+   It stays because the chip is one branch change from a dusk surface and this
+   is the only thing standing between that and a 3:1 word — and because the
+   both-literal values are what would paint out there anyway: the capture sheet
+   portals to document.body, where nothing declared on `.fg` reaches. Do not
+   "clean it up" as unused. */
 .wb2-dusk .orb-say { --say-ink:#00E5C0; --say-lit:#ffffff; }
 
 /* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════
@@ -1768,19 +1823,66 @@
   --teal: #22c55e;
   --teal-d: #16a34a;
   --teal-ink: #0b5c2e;
+
+  /* INK FOR A SOLID BRAND FILL — the day vocabulary's other half.
+
+     A day tile, a rate chip and a mini tile are the same nine colours worn at
+     three sizes, and each one carries text ON the fill. Which ink works is
+     decided by the fill's own lightness, not by taste: white clears 4.5:1 on
+     blue (4.63), violet (5.96) and the grey (5.49), and fails on teal, amber,
+     pink and red, which take a darkened same-hue ink instead. Red is the one
+     that had it wrong — white on #FF3366 measures **3.55**, and it was the
+     ink on the sick tile, the sick chip and (until it moved out of the fill)
+     the mini tile.
+
+     They are tokens rather than four repeated literals because the pairs are
+     what the guard test reads: `text-contrast.test.ts` pulls both sides out of
+     this sheet and computes the ratio, so retuning either half re-checks it.
+     A hex written three times is three chances to retune two of them. */
+  --on-teal: #053b34;   /* on --teal   #22c55e — 5.48:1 */
+  --on-amber: #4a2e05;  /* on --amber  #F0A431 — 5.97:1 */
+  --on-pink: #4d0929;   /* on --pink   #f472b6 — 5.72:1 */
+  --on-red: #450012;    /* on --red    #FF3366 — 4.69:1 */
+  --pink: #f472b6;      /* `under` — the one day colour that had no token */
 }
 
 /* The two shared chip primitives hard-code the teal rather than reading the
    variable, and both appear here — `.dchip.ok` is the timesheet's Submitted /
    Approved badge, `.dchip2.ok` is annual leave on the team calendar. Restated
    in green for these screens only; every other screen keeps the app accent. */
+/* #16a34a IS `--teal-d` — the fill green, not the word green — and on its own
+   12% tint it measures **2.80**. So "Submitted" and "Approved", the two chips
+   a person looks for to know their timesheet is done with, and every annual
+   leave chip on the team calendar, were the least readable text on the screen.
+   `--ok-t` is the same hue taken down until it clears: 5.01 on this tint. The
+   FILL is unchanged — this is a text rule. */
 .fg .tpr .dchip.ok, .fg .mts2 .dchip.ok,
 .fg .tpr .dchip2.ok, .fg .mts2 .dchip2.ok, .fg .lv-col .dchip2.ok {
   background: rgba(34,197,94,.12);
-  color: #16a34a;
+  color: var(--ok-t);
 }
-.fg .tpr { font-variant-numeric:tabular-nums; --gray600:#4b5563; --amber:#F0A431; --amber-d:#b45309; --violet:#8A2BE2; --violet-d:#7322c4;
-  --red:#FF3366; --red-d:#e0264f; --blue:#2E68FF; --blue-d:#2554d8; --teal-ink:#05887a; }
+/* THE PRIVATE PALETTE, AND THE THREE VALUES IN IT THAT WERE NEVER READABLE.
+
+   `.fg .tpr` redeclares its own copy of the state colours, which is why the
+   app-wide text pass never reached this screen: that pass moved every semantic
+   colour used AS A WORD onto a `-t` twin and banned the old literals, but it
+   banned them by scanning for `color: #e0264f` — and every site here writes
+   `color: var(--red-d)`, with `--red-d` set to #e0264f right here. Valid CSS,
+   the intended value, four steps out of reach of the test that exists to catch
+   it.
+
+   Measured on the grounds they actually land on:
+     --red-d   #e0264f  3.88 on the miss tile, 3.91 on the section count,
+                        4.07 on the red issue banner   → --bad-t  (5.0-5.7)
+     --amber-d #b45309  4.18 on the overtime pill       → --warn-t (4.8-4.9)
+     --teal-ink #05887a 3.92 on the approved tag        → the #0b5c2e above
+   Every one of the ~20 sites reading these three is a `color:` — not one is a
+   fill, a border or a dot — so repointing them changes no fill anywhere.
+
+   `--violet-d` #7322c4 stays: 5.94 on its own tint, measured, and it is the
+   one that was already right. `--blue-d` #2554d8 IS `--info-t`, same value. */
+.fg .tpr { font-variant-numeric:tabular-nums; --gray600:#4b5563; --amber:#F0A431; --amber-d:var(--warn-t); --violet:#8A2BE2; --violet-d:#7322c4;
+  --red:#FF3366; --red-d:var(--bad-t); --blue:#2E68FF; --blue-d:var(--info-t); }
 
 /* ---------- header ---------- */
 .fg .tpr .rhead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:26px; }
@@ -1852,22 +1954,39 @@
 .fg .tpr .stat { position:relative; display:flex; align-items:center; gap:14px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:15px 18px; overflow:hidden; }
 .fg .tpr .stat .si { position:static; width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .tpr .stat .sv { font-family:var(--font); font-size:26px; font-weight:700; letter-spacing:-.03em; line-height:1; margin:0; }
+/* the denominator on the Approved tile — "1 of 4" is a ratio, and the half of
+   it that isn't the answer is quiet */
+.fg .tpr .stat .sv em { font-style:normal; font-size:15px; font-weight:700; color:var(--gray500); letter-spacing:-.01em; }
 .fg .tpr .stat .stk { min-width:0; }
 .fg .tpr .stat .sl { font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-top:5px; }
-.fg .tpr .stat .ss { display:none; }
-.fg .tpr .stat.review { background:rgba(255,51,102,.045); border-color:rgba(255,51,102,.26); }
+/* THE SUB-LINE WAS `display:none` FROM THE PORT ONWARD. Every tile computed
+   one — "1 ready to approve", "This month", "3 to review" — and the sheet threw
+   all of them away, so the fix that made the Approved tile name what was still
+   waiting shipped invisibly. It is the only line on a tile that isn't a bare
+   figure, and now that the tiles no longer repeat the section headings it is
+   where the detail lives. */
+.fg .tpr .stat .ss { display:block; font-size:11.5px; font-weight:600; color:var(--gray500); margin-top:4px; line-height:1.35; }
 .fg .tpr .stat .sv { color:var(--ink); } .fg .tpr .stat .sl { color:var(--gray500); }
-.fg .tpr .stat.review .si { background:var(--red); color:#fff; } .fg .tpr .stat.review .sv { color:var(--red-d); }
+.fg .tpr .stat.hrs .si { background:var(--ink); color:var(--teal); }
 .fg .tpr .stat.normal .si { background:var(--teal); color:#053b34; }
+.fg .tpr .stat.ot { background:rgba(240,164,49,.06); border-color:rgba(240,164,49,.26); }
 .fg .tpr .stat.ot .si { background:var(--amber); color:#4a2e05; }
 .fg .tpr .stat.exp .si { background:var(--violet); color:#fff; }
+/* the strip is four figures of different lengths; below the card's two-column
+   width they stack two-up rather than crushing to 140px each */
+@media (max-width:900px){ .fg .tpr .stats { grid-template-columns:repeat(2,1fr); } }
 
 /* day-colour legend */
 .fg .tpr .legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin-bottom:26px; padding:0 2px; }
 .fg .tpr .legend .llbl { font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-right:2px; }
 .fg .tpr .legend .lg { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--gray600); }
 .fg .tpr .legend .sw { width:12px; height:12px; border-radius:4px; flex:0 0 auto; }
-.fg .tpr .legend .sw.std { background:rgba(34,197,94,.85); }
+/* THE SWATCH IS THE TILE, AT 12px. Two had drifted: `std` was 85% of the green
+   it explains, and `empty` was a white box with a dashed edge while the tile it
+   keys is a solid grey one — so the only entry in the key that could not be
+   matched to anything on screen was the one for the state that means nothing is
+   there. Both now restate the tile exactly. */
+.fg .tpr .legend .sw.std { background:var(--teal); }
 .fg .tpr .legend .sw.over { background:var(--amber); }
 /* PINK, not the yellow this used to be. `under` sat at #FFDD57 next to `over`
    at #F0A431 — two yellows a shade apart for "worked too long" and "worked too
@@ -1879,7 +1998,7 @@
 .fg .tpr .legend .sw.sick { background:var(--red); }
 .fg .tpr .legend .sw.ph { background:var(--violet); }
 .fg .tpr .legend .sw.off { background:var(--gray400); }
-.fg .tpr .legend .sw.empty { background:#fff; border:1.5px dashed #cfd4dc; }
+.fg .tpr .legend .sw.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; }
 
 /* ---------- section heading ---------- */
 .fg .tpr .sect { display:flex; align-items:center; gap:12px; margin:0 0 16px; }
@@ -1929,9 +2048,27 @@
 /* two-column card body: banner + tiles left (stacked), summary right — equal height */
 .fg .tpr .cbody { display:grid; grid-template-columns:1fr 288px; gap:20px; align-items:stretch; }
 .fg .tpr .cbody .cleft { min-width:0; display:flex; flex-direction:column; gap:16px; }
-.fg .tpr .cbody .cleft .obar { margin-bottom:0; flex:1; }
+/* THE BANNER SIZES TO WHAT IT SAYS, AND THE DAYS TAKE THE SLACK.
+
+   `flex:1` on the banner stretched it to whatever height the pay panel
+   opposite happened to be, so a card raising one issue drew a 140px amber box
+   with two lines at the top of it and eighty pixels of empty tint underneath —
+   the loudest element on the card, mostly nothing.
+
+   Sizing it to its content only MOVES that slack, so the day strip absorbs it
+   instead, up to a cap: seven 96px squares grow toward 128 when the panel
+   opposite is taller, and stop there. Two things this rules out — pushing the
+   tiles to the bottom edge leaves the hole in the middle of the card, which
+   reads worse than one under the content, and letting them grow uncapped puts
+   a date and an hours figure at opposite ends of a 190px box. */
+.fg .tpr .cbody .cleft .obar { margin-bottom:0; }
+.fg .tpr .cbody .cleft .tiles { flex:1 1 auto; min-height:96px; max-height:128px; }
 .fg .tpr .cbody .tiles { margin-bottom:0; min-width:0; display:grid; grid-template-columns:repeat(7,1fr); }
-.fg .tpr .cbody .tile { height:96px; }
+/* `height:auto`, not the 96px this used to pin: the squares are a grid row
+   that stretches to whatever `.tiles` was given, and the flex line above is
+   what gives it — pinning the height here would have left the container
+   growing and the tiles rattling around inside it. */
+.fg .tpr .cbody .tile { height:auto; }
 .fg .tpr .cside { background:#fafbfc; border:1px solid #eef0f3; border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; }
 .fg .tpr .cs-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:2px solid var(--ink); }
 .fg .tpr .cs-head .l { font-size:10.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
@@ -1947,25 +2084,40 @@
 .fg .tpr .cs-buckets { display:flex; flex-direction:column; padding:4px 0 2px; }
 .fg .tpr .bkt { display:grid; grid-template-columns:1fr auto 52px; align-items:center; gap:11px; padding:9px 0; }
 .fg .tpr .rchip { display:inline-flex; align-items:center; justify-content:center; min-width:46px; height:25px; padding:0 10px; border-radius:8px; font-size:12px; font-weight:800; letter-spacing:.01em; }
-.fg .tpr .rchip.std { background:var(--teal); color:#053b34; }
-.fg .tpr .rchip.ot15 { background:var(--amber); color:#4a2e05; }
+/* The rate chip is the day palette at 25px — same fills, so the same inks, and
+   `.sk` had the same white-on-#FF3366 3.55 the sick tile did. */
+.fg .tpr .rchip.std { background:var(--teal); color:var(--on-teal); }
+.fg .tpr .rchip.ot15 { background:var(--amber); color:var(--on-amber); }
 .fg .tpr .rchip.ot2 { background:var(--violet); color:#fff; }
-.fg .tpr .rchip.sk { background:var(--red); color:#fff; }
+.fg .tpr .rchip.sk { background:var(--red); color:var(--on-red); }
 .fg .tpr .rchip.lv { background:var(--blue); color:#fff; }
-.fg .tpr .bkt.zero .rchip { opacity:.3; }
-.fg .tpr .bkt .sw { width:11px; height:11px; border-radius:3px; }
+.fg .tpr .rchip.ph { background:var(--violet); color:#fff; }
+/* THE SUM OF THE BUCKETS, in the panel with them. It was "Weighted hours" at
+   the far end of the daily-breakdown fold, in a band that also restated every
+   bucket above it — so the figure being signed off was behind a button and
+   under a different name from the one the person's own sheet gives it. Two
+   columns, not the bucket's three: there is no rate chip on a total. */
+.fg .tpr .bkt.total { grid-template-columns:1fr auto; margin-top:4px; padding-top:12px; border-top:1px solid #e6e9ee; }
+.fg .tpr .bkt.total .bl { font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
+.fg .tpr .bkt.total .bv { font-size:20px; }
+/* A ZERO BUCKET IS QUIET, NOT FADED. `opacity:.3` took the chip's own ink to
+   1.72:1 against its fill — a rate a person cannot read, on the row that says
+   there is none of it. It drops the brand fill for the neutral one instead, so
+   the row recedes by COLOUR rather than by being half-erased. */
+.fg .tpr .bkt.zero .rchip { background:#eceef1; color:var(--gray500); }
 .fg .tpr .bkt .bl { font-size:13.5px; font-weight:700; color:var(--gray700); }
 .fg .tpr .bkt .br { font-family:var(--font); font-size:11px; font-weight:700; color:var(--gray400); letter-spacing:-.01em; }
 .fg .tpr .bkt .bv { display:flex; align-items:baseline; justify-content:flex-end; gap:1px; font-family:var(--font); font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); white-space:nowrap; }
 .fg .tpr .bkt .bv em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray400); margin-left:1px; }
+/* `.bkt .sw` and its six colour rules are GONE — `Bucket` renders a label, a
+   rate chip and a figure, and never a swatch, so they matched nothing. The
+   `.bkt.zero .sw { opacity:.35 }` among them is why they had to go rather than
+   simply be left: it sat one line under the zero chip and read as a live
+   de-emphasis defect that had been walked past. */
 .fg .tpr .bkt.zero .bl, .fg .tpr .bkt.zero .br { color:var(--gray400); }
-.fg .tpr .bkt.zero .sw { opacity:.35; }
-.fg .tpr .bkt.zero .bv { color:#c3c7cf; }
-.fg .tpr .bkt .sw.std { background:var(--teal); }
-.fg .tpr .bkt .sw.ot15 { background:var(--amber); }
-.fg .tpr .bkt .sw.ot2 { background:var(--violet); }
-.fg .tpr .bkt .sw.sk { background:var(--red); }
-.fg .tpr .bkt .sw.lv { background:var(--blue); }
+/* #c3c7cf on #fafbfc is 1.64:1 — the zero itself, the one character on the row
+   carrying its whole meaning, was the least readable thing in the panel. */
+.fg .tpr .bkt.zero .bv { color:var(--gray500); }
 .fg .tpr .cs-expand { margin-top:8px; padding-top:14px; border-top:1px solid #eef0f3; display:flex; align-items:center; justify-content:center; gap:7px; font-size:12.5px; font-weight:800; color:var(--gray600); transition:color .16s; }
 .fg .tpr .cs-expand:hover { color:var(--ink); }
 .fg .tpr .card.open .cs-expand svg { transform:rotate(180deg); }
@@ -1975,24 +2127,44 @@
 .fg .tpr .cbody .tiles { display:grid; gap:11px; }
 .fg .tpr .tile { position:relative; flex:1 1 0; min-width:0; height:96px; border-radius:14px; padding:10px 8px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; border:1.5px solid transparent; transition:transform .16s, box-shadow .16s; }
 .fg .tpr .tile:hover { transform:translateY(-2px); box-shadow:0 12px 24px -12px rgba(10,12,20,.3); z-index:2; }
-.fg .tpr .tile .wd { font-family:var(--font); font-size:9px; font-weight:800; letter-spacing:.06em; opacity:.85; }
+/* NO `opacity:.85` ON THE WEEKDAY. It was the single widest contrast defect on
+   either screen: the three-letter day label is the one part of a tile that is
+   on EVERY tile, and dimming it multiplied every one of the nine inks against
+   its own fill — 2.10 on an empty day, 2.89 on a sick one, and 4.17 / 4.45 /
+   4.47 on the three that were otherwise comfortably clear. `opacity` is never
+   de-emphasis for text; see the note on `.dirtab` and the arithmetic pinned in
+   text-contrast.test.ts. The label is already three sizes down from the date
+   and tracked wide — that is the hierarchy, and it costs nothing. */
+.fg .tpr .tile .wd { font-family:var(--font); font-size:9px; font-weight:800; letter-spacing:.06em; }
 .fg .tpr .tile .dn { font-size:18px; font-weight:800; line-height:1; }
 .fg .tpr .tile .hh { font-family:var(--font); font-size:11px; font-weight:700; }
-.fg .tpr .tile.std { background:var(--teal); border-color:var(--teal); color:#053b34; }
-.fg .tpr .tile.over { background:var(--amber); border-color:var(--amber); color:#4a2e05; }
-.fg .tpr .tile.under { background:#f472b6; border-color:#f472b6; color:#4d0929; }
+.fg .tpr .tile.std { background:var(--teal); border-color:var(--teal); color:var(--on-teal); }
+.fg .tpr .tile.over { background:var(--amber); border-color:var(--amber); color:var(--on-amber); }
+.fg .tpr .tile.under { background:var(--pink); border-color:var(--pink); color:var(--on-pink); }
 .fg .tpr .tile.leave { background:var(--blue); border-color:var(--blue); color:#fff; }
-.fg .tpr .tile.sick { background:var(--red); border-color:var(--red); color:#fff; }
+/* THE ONE FILL WHITE CANNOT SIT ON. `--red` #FF3366 is a light red — white
+   measures 3.55:1 on it, so "Sick", the date and the weekday all failed on the
+   day state most worth seeing. The fill does NOT move: it is the same red as
+   the legend swatch, the mini tile and the missing-day dash, and a colour that
+   means one thing has to keep meaning it. The INK moves, to the same darkened
+   same-hue treatment teal, amber and pink already use. */
+.fg .tpr .tile.sick { background:var(--red); border-color:var(--red); color:var(--on-red); }
 .fg .tpr .tile.ph { background:var(--violet); border-color:var(--violet); color:#fff; }
 /* A day someone said they did NOT work. It had no rule at all, so it drew as
    a transparent tile with a "—h" where its hours would be — the one state on
    this screen that most needs to be seen, rendered as an absence of one. */
 .fg .tpr .tile.off { background:var(--gray400); border-color:var(--gray400); color:#fff; }
-.fg .tpr .tile.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; color:#8f96a3; }
+/* #8f96a3 measured 2.10 on this fill and the hours line under it, at #a7adb8,
+   measured 1.86 — two greys picked to say "nothing here" that ended up saying
+   nothing at all. There is no accessible ramp below --gray500 on a #e7e9ef
+   ground, so the two tiers are carried by size and weight, as everywhere else
+   in this sheet. */
+.fg .tpr .tile.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; color:var(--gray500); }
 .fg .tpr .tile.miss { background:#fff; border:2px dashed var(--red); color:var(--red-d); }
-.fg .tpr .tile.miss .hh { color:var(--red-d); font-weight:800; }
+.fg .tpr .tile.miss .hh { font-weight:800; }
 .fg .tpr .crow .mt.miss { background:#fff; box-shadow:inset 0 0 0 2px var(--red); }
-.fg .tpr .tile.empty .hh { color:#a7adb8; }
+/* `.tile.empty .hh`'s own #a7adb8 (1.86:1) is gone — it inherits the tile's
+   --gray500 and stays quieter by being 11px against the date's 18. */
 .fg .tpr .tile.today { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--ink); }
 .fg .tpr .tile.today::after { content:"TODAY"; position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-family:var(--font); font-size:8px; font-weight:800; letter-spacing:.1em; color:#fff; background:var(--ink); padding:2px 7px; border-radius:6px; }
 .fg .tpr .tile .otf { position:absolute; top:8px; right:9px; font-size:9px; font-weight:800; }
@@ -2025,7 +2197,9 @@
 .fg .tpr .card.open .detail { display:block; animation:tprUp .3s ease backwards; }
 @keyframes tprUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
 .fg .tpr .drows { margin-top:18px; border:1px solid #eef0f3; border-radius:14px; overflow:hidden; }
-.fg .tpr .drow { display:grid; grid-template-columns:56px 96px 1fr auto 64px; align-items:center; gap:14px; padding:12px 18px; border-top:1px solid #f2f3f6; font-size:13px; }
+/* four columns, not five — the fifth was an empty span held open for a `.tag`
+   nothing has ever rendered */
+.fg .tpr .drow { display:grid; grid-template-columns:56px 96px 1fr 64px; align-items:center; gap:14px; padding:12px 18px; border-top:1px solid #f2f3f6; font-size:13px; }
 .fg .tpr .drow:first-child { border-top:none; }
 .fg .tpr .drow:nth-child(even) { background:#fafbfc; }
 .fg .tpr .drow .wd { font-family:var(--font); font-size:10px; font-weight:800; letter-spacing:.06em; color:var(--gray400); }
@@ -2034,30 +2208,41 @@
 .fg .tpr .drow .tag { justify-self:start; font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:6px; }
 .fg .tpr .drow .tag.ot { background:rgba(240,164,49,.16); color:var(--amber-d); }
 .fg .tpr .drow .hh { font-family:var(--font); font-size:13.5px; font-weight:800; text-align:right; }
-.fg .tpr .drow.none .sh, .fg .tpr .drow.none .hh { color:#c3c7cf; font-weight:600; }
+/* "No entry" and its em-dash were #c3c7cf — 1.69 on the row, 1.64 on the
+   striped one. A row that says nothing was logged is a row an approver has to
+   be able to read. */
+.fg .tpr .drow.none .sh, .fg .tpr .drow.none .hh { color:var(--gray500); font-weight:600; }
 
-/* category totals band — chip-led, matches the pay panel */
-.fg .tpr .totals { display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
-.fg .tpr .tcell { flex:1 1 0; min-width:130px; display:flex; align-items:center; gap:11px; background:#fafbfc; border:1px solid #eef0f3; border-radius:14px; padding:13px 15px; }
-.fg .tpr .tcell .tl { font-size:9.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-bottom:3px; }
-.fg .tpr .tcell .tv { font-family:var(--font); font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
-.fg .tpr .tcell.w { background:var(--ink); border-color:var(--ink); }
-.fg .tpr .tcell.w .tl { color:rgba(255,255,255,.55); }
-.fg .tpr .tcell.w .tv { color:#fff; }
-.fg .tpr .tcell.zero { opacity:.45; }
-.fg .tpr .tcell .rchip { flex:0 0 auto; }
+/* The category totals band is GONE, and its rules with it. `.totals`/`.tcell`
+   drew Weighted hours, Regular, Time and a half, Double time, Sick and Leave
+   as a second row of cells under the daily rows — five of the six already
+   printed, with the same labels and the same figures, in `.cs-buckets` two
+   hundred pixels above. The sixth is `.bkt.total` in the panel now. */
 
 /* ---------- compact rows (ready / approved) ---------- */
 .fg .tpr .crow { display:flex; align-items:center; gap:16px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:18px; padding:15px 20px; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow .18s, transform .18s; }
 .fg .tpr .crow + .crow { margin-top:10px; }
 .fg .tpr .crow:hover { transform:translateY(-1px); box-shadow:0 12px 26px -16px rgba(10,12,20,.24); }
-.fg .tpr .crow.done { opacity:.9; }
+/* `opacity:.9` on the whole approved row took its role line to 4.42 and the
+   green "Approved" tag to 3.37 — a 10% dim nobody would notice as a signal,
+   costing the two quietest things on the row their legibility. The tag IS the
+   signal; the row needs no second one. */
 .fg .tpr .crow .av { width:40px; height:40px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; color:#fff; }
 .fg .tpr .crow .who { flex:0 1 170px; width:170px; min-width:0; }
 .fg .tpr .crow .who .nm { font-size:14px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tpr .crow .who .rl { font-size:11.5px; font-weight:600; color:var(--gray400); white-space:nowrap; }
 .fg .tpr .crow .mini { display:flex; gap:5px; flex:1 1 auto; min-width:90px; overflow:hidden; }
-.fg .tpr .crow .mt { flex:1 1 0; min-width:0; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-family:var(--font); font-size:11.5px; font-weight:700; }
+/* WHICH DAY IS WHICH. A ready-to-approve row was seven anonymous colour bars —
+   `MiniTile` rendered an empty span — so the only way to tell Wednesday from
+   Saturday was to hover them one at a time, on the row Approve is tapped from.
+
+   The initial sits ABOVE the fill, not in it: white on `--red` (a sick day)
+   measures 3.55:1, and the dark end that would clear 4.5 on that red is
+   near-black. Over the row's own white it is ordinary quiet text, and the fills
+   keep the exact colours they carry everywhere else on the screen. */
+.fg .tpr .crow .mtc { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:3px; }
+.fg .tpr .crow .mtd { font-style:normal; text-align:center; font-family:var(--font); font-size:9.5px; font-weight:800; letter-spacing:.07em; color:var(--gray500); }
+.fg .tpr .crow .mt { min-width:0; height:26px; border-radius:8px; }
 .fg .tpr .crow .mt.std { background:var(--teal); }
 .fg .tpr .crow .mt.over { background:var(--amber); }
 .fg .tpr .crow .mt.under { background:#f472b6; }
@@ -2680,13 +2865,20 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    Shared entry chrome. The screen's own layout is the `.mts2-*` block further
    down; the period nav and status chip still come from `.tpr`. No money rules,
    because there is no money on the screen. */
-.fg .tp-err { font-size:12.5px; font-weight:600; color:var(--red-d,#e0264f); margin:-6px 0 14px; }
-.fg .mts-back { display:flex; gap:10px; align-items:flex-start; padding:13px 15px; border-radius:14px; background:rgba(255,51,102,.06); border:1px solid rgba(255,51,102,.2); color:var(--red-d,#e0264f); margin-bottom:18px; }
+.fg .tp-err { font-size:12.5px; font-weight:600; color:var(--red-d,#c81a41); margin:-6px 0 14px; }
+.fg .mts-back { display:flex; gap:10px; align-items:flex-start; padding:13px 15px; border-radius:14px; background:rgba(255,51,102,.06); border:1px solid rgba(255,51,102,.2); color:var(--red-d,#c81a41); margin-bottom:18px; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:800; }
 .fg .mts-back em { display:block; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray700); margin-top:3px; }
 .fg .mts-f { display:flex; flex-direction:column; gap:5px; }
 .fg .mts-f span { font-size:11.5px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.04em; }
 .fg .mts-f input, .fg .mts-f select { height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:13.5px; font-weight:600; color:var(--ink); min-width:120px; }
+/* THE PLACEHOLDER IS LOAD-BEARING HERE, and had no rule at all. My leave puts
+   the SUGGESTED hours in it — `placeholder={String(suggested)}`, with a comment
+   saying leave it alone and the span's own working days get booked — so it is
+   the number a person reads to decide whether to type one. With no declaration
+   it fell to Chrome's UA rule (currentColor at 54%), which resolves to ~#787878
+   on white: 4.42:1, for the one placeholder in the app that carries a value. */
+.fg .mts-f input::placeholder { color:var(--q); font-weight:600; }
 .fg .mts-facts { display:flex; gap:8px; margin-left:auto; }
 
 /* A fortnight reads as two week-rows and a month as four-plus, which is how
@@ -2748,7 +2940,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-src { display:flex; align-items:center; gap:5px; margin-top:8px; font-size:11px; font-weight:700; color:var(--gray400); }
 .fg .lv-src.synced { color:var(--ok-t); }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:12.5px; font-weight:600; color:var(--gray500); }
-.fg .lv-declined { display:block; color:var(--red-d,#e0264f); margin-top:3px; }
+.fg .lv-declined { display:block; color:var(--red-d,#c81a41); margin-top:3px; }
 .fg .lv-form { padding:16px 18px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:22px; }
 /* IN THE COLUMN IT BELONGS TO. The form lives inside the requests card now,
    directly under the button that opens it, so it squares its own corners into
@@ -2783,7 +2975,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    a chip, so the row's only pill stays the status. */
 .fg .lv-req { padding-left:19px; box-shadow:inset 3px 0 0 var(--lvk); }
 .fg .lv-pend { align-items:flex-start; }
-.fg .lv-req.muted { opacity:.6; }
+/* A CANCELLED OR DECLINED REQUEST IS SETTLED, NOT ERASED. `opacity:.6` took
+   every colour in the row down against the card: the dates to 2.63, the
+   "Cancelled" chip to 2.31, "Declined" to 2.74 and an approved-then-cancelled
+   green chip to 1.90 — and the whole point of the row is that somebody can
+   still read what was asked for and what happened to it. It recedes by GROUND
+   instead, the same move the directory rows made. */
+.fg .lv-req.muted { background:#f7f8fa; }
 .fg .lv-reqmain, .fg .lv-pmain { flex:1; min-width:0; }
 .fg .lv-reqmain b, .fg .lv-pmain b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
 .fg .lv-reqmain em, .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:3px; }
@@ -2819,9 +3017,12 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .hol-src { font-size:11px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
 .fg .hol-src.synced { color:var(--ok-t); }
 
-/* removed (suppressed) holidays — tombstones an admin can restore */
-.fg .hol-year.removed { opacity:.75; }
-.fg .hol-year.removed .lv-ch { color:var(--q); }
+/* removed (suppressed) holidays — tombstones an admin can restore, so they
+   have to stay readable enough to restore the right one. `opacity:.75` on the
+   block took the year heading to 3.11, the state code to 2.99 and the struck
+   dates to 3.26; the strike-through and the ground already say "removed". */
+.fg .hol-year.removed { background:#f7f8fa; }
+.fg .hol-year.removed .lv-ch { color:var(--gray500); }
 .fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:var(--q); text-decoration:line-through; text-decoration-thickness:1px; }
 
 /* "worth confirming" — proclamation-dependent days the rules can't date.
@@ -3058,11 +3259,42 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    this one renders the shared `<DayLegend/>` too. */
 .fg .tpr .legend .sw.miss { background:#fff; border:2px dashed var(--red); }
 
-/* two columns, main + rail; one column on a phone */
-.fg .mts2-cols { display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); gap:22px; align-items:start; }
-@media (max-width:960px){ .fg .mts2-cols { grid-template-columns:minmax(0,1fr); } }
-.fg .mts2-main { min-width:0; }
+/* TWO COLUMNS AND TWO ROWS, and the second row is what fixed the shape.
+
+   The rail used to carry the whole right-hand side of this screen: the totals,
+   the submit button, the normal week, the month's public holidays and the
+   footnote of rules. That is five blocks in a 280px column, against a wide
+   column holding a strip of seven day tabs and one open day — so the narrow
+   side ran about twice the height of the wide one, and the bottom two thirds
+   of the main column was blank card.
+
+   The blocks are split by what they are FOR instead: the rail keeps the period
+   and the decision you make about it (what it comes to, and Submit), and the
+   reference material you only consult — the colour key, the holiday calendar,
+   the rules behind the figures — sits in `ref`, under the days it refers to.
+
+   `grid-template-areas` rather than a third column, because the DOM order is
+   main → rail → ref: that is exactly the order the one-column phone layout
+   wants (the week, then what it comes to, then the reference), so the stacked
+   case needs no `order` and no second source of truth about sequence. */
+.fg .mts2-cols { display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); gap:22px 22px;
+  align-items:start; grid-template-areas:"main rail" "ref rail"; }
+.fg .mts2-main { grid-area:main; min-width:0; }
+.fg .mts2-rail { grid-area:rail; }
+.fg .mts2-ref  { grid-area:ref; min-width:0; }
+@media (max-width:960px){
+  .fg .mts2-cols { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "rail" "ref"; }
+}
 .fg .mts2-wk { margin-bottom:26px; }
+
+/* The reference row: the key across the top, then the holiday calendar beside
+   the fine print. Both are things you read, neither is a control, so they get
+   the quiet end of the card and none of the rail's width pressure — which is
+   also what stopped "Mon, Tue, Wed, Thu, Fri" wrapping in a 240px column. */
+.fg .mts2-ref { display:grid; grid-template-columns:minmax(240px,1fr) minmax(0,1.5fr); gap:14px 18px; align-items:start; }
+.fg .mts2-ref > .legend { grid-column:1 / -1; margin:0; }
+.fg .mts2-ref > .mts2-rules { align-self:start; margin:0; }
+@media (max-width:720px){ .fg .mts2-ref { grid-template-columns:minmax(0,1fr); } }
 
 /* ---- the week: day tabs ----
 
@@ -3157,8 +3389,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* nothing to draw: an undrawn seat in a tinted track already recedes, and the
    dimmed labels below carry the rest. A darker fill here would have made the
    days you can ignore the heaviest things in the strip. */
-.fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.offroster.empty .cw, .fg .mts2-tab.offroster.empty .cs,
-.fg .mts2-tab.ahead .cd, .fg .mts2-tab.ahead .cw, .fg .mts2-tab.ahead .cs { opacity:.45; }
+/* DIMMED BY COLOUR, NOT BY MULTIPLY. `opacity:.45` on these three took the
+   weekday to 1.87, the summary to 1.96 and the date itself to 3.22 — on a TAB,
+   which is a control a person clicks to add a weekend shift, not decoration.
+   The date is where the hierarchy drop belongs (it is the only one of the
+   three that rests at full ink), and --gray500 is the quietest value that
+   still clears AA on the strip's own ground at 5.86. */
+.fg .mts2-tab.offroster.empty .cd, .fg .mts2-tab.ahead .cd { color:var(--gray500); font-weight:700; }
 /* TODAY is named by its weekday going ink, not by a ring the selected tab
    also uses — two rings on one card is a puzzle, not a signal */
 .fg .mts2-tab.today .cw { color:var(--ink); }
@@ -3169,7 +3406,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    translucent fill, for the reason in the note above: the strip sits on a
    white card here and on the dark shell frame elsewhere. */
 .fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); box-shadow:0 3px 8px -3px rgba(10,12,20,.28); z-index:2; }
-.fg .mts2-tab.on .cd, .fg .mts2-tab.on .cw, .fg .mts2-tab.on .cs { opacity:1; }
+/* the `opacity:1` counterweight here is gone with the `.45` it undid */
 .fg .mts2-tab.on .cbar { height:4px; }
 
 /* the panel the tabs open onto */
@@ -3187,14 +3424,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    under `.fg .tpr` above — and this screen's root carries `tpr`. The private
    block that used to live here was a second set of swatches for the same nine
    states, which is how `under` ended up pink here and yellow there. It sits at
-   the FOOT of this screen rather than the head of the approver's, so only the
-   spacing is restated. */
-.fg .mts2 .mts2-main > .legend { margin:18px 0 0; }
+   the FOOT of this screen rather than the head of the approver's — in the
+   reference row, whose grid places it, so there is no spacing to restate. */
 
 /* the kind pill — the `.tpr` day palette, restated as a tinted pill */
 .fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:-.01em; white-space:nowrap; }
 .fg .mts2-pill.std { background:rgba(34,197,94,.16); color:#04564a; }
-.fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#b45309); }
+.fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#a44b08); }
 .fg .mts2-pill.under { background:rgba(244,114,182,.16); color:#9d174d; }
 .fg .mts2-pill.leave { background:rgba(46,104,255,.12); color:#1d4ed8; }
 .fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:var(--bad-t); }
@@ -3219,10 +3455,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-elock svg { color:var(--gray500); margin-top:1px; flex:none; }
 .fg .mts2-elock b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
 .fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-/* the one way out of a read-only holiday: only the person knows they worked it */
-/* Why Save is dark: an empty day opens with neither answer chosen, and the
-   button that would write it has to say what it is waiting for. */
-.fg .mts2-ehint { align-self:center; font-size:12px; font-weight:600; color:var(--gray500); }
+/* `.mts2-ehint` is GONE. It set "Say what this day was first." beside the
+   disabled Save — a sentence whose whole job was to explain a control four
+   pixels away, which is the screen admitting the control didn't read as
+   unanswered. `.mts2-kinds.ask` below says it where it is true. */
 /* The salaried "this day ran long" button sits directly in the panel, which
    carries no padding of its own — `.mts2-elock` and `.mts2-edit` bring their
    own insets, so a bare child lands flush against both edges. */
@@ -3236,6 +3472,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-kind { height:31px; padding:0 14px; border-radius:9px; font-size:12.5px; font-weight:800; color:var(--gray500); transition:all .16s; }
 .fg .mts2-kind:hover { color:var(--ink); }
 .fg .mts2-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,12,20,.1); }
+/* NOTHING CHOSEN YET — the state that used to be described in a sentence next
+   to the dead Save button. A ring on the control, and a slow pulse the first
+   time it is drawn, so the one thing the panel is waiting for is the one thing
+   moving on it. `outline` rather than a border: the strip is 37px of packed
+   pills and a border would resize them. */
+.fg .mts2-kinds.ask { outline:1.5px solid rgba(240,164,49,.55); outline-offset:0;
+  background:rgba(240,164,49,.1); animation:mtsAsk 1.6s ease-out 2; }
+.fg .mts2-kinds.ask .mts2-kind { color:var(--warn-t); }
+@keyframes mtsAsk { 0%,100%{ box-shadow:0 0 0 0 rgba(240,164,49,0) } 40%{ box-shadow:0 0 0 5px rgba(240,164,49,.16) } }
+@media (prefers-reduced-motion:reduce){ .fg .mts2-kinds.ask { animation:none; } }
 .fg .mts2-brk { display:flex; align-items:center; gap:10px; margin-top:13px; }
 .fg .mts2-brkl { font-size:12.5px; font-weight:700; color:var(--gray700); }
 .fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:11px; padding:2px; }
@@ -3243,10 +3489,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-brkstep button:hover { background:#f4f5f7; color:var(--ink); }
 .fg .mts2-brkstep b { min-width:48px; text-align:center; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; }
 .fg .mts2-brkstep b em { font-style:normal; font-weight:700; color:var(--gray400); }
-/* Why the two totals above it disagree — see the rail in my-timesheet.tsx. */
-.fg .mts2-gap { display:flex; align-items:flex-start; gap:7px; margin-top:10px; font-size:12px; font-weight:600; line-height:1.5; color:var(--gray500); }
-.fg .mts2-gap svg { flex:0 0 auto; margin-top:2px; color:var(--gray400); }
-.fg .mts2-gap b { font-weight:800; color:var(--gray700); }
+/* `.mts2-gap` is GONE — it was a paragraph explaining why the two totals above
+   it disagreed, which the chips between them now do by splitting paid absence
+   out of the ×1.0 bucket. See the rail in my-timesheet.tsx. */
 /* the derived hours — this line IS the hours field */
 .fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:13px; padding:10px 13px; border-radius:13px; background:rgba(34,197,94,.07); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .mts2-derv b { font-size:14px; font-weight:800; color:var(--ink); }
@@ -3307,15 +3552,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-btn:disabled { opacity:.45; pointer-events:none; }
 
 /* ---- the rail ---- */
-.fg .mts2-rail { display:flex; flex-direction:column; gap:14px; position:sticky; top:0; }
+.fg .mts2-rail { display:flex; flex-direction:column; gap:14px; position:sticky; top:0; align-self:start; }
 @media (max-width:960px){ .fg .mts2-rail { position:static; } }
 /* Rail cards are BLOCKS IN A CARD now — see the .tpr .stat note for the
    reasoning. White tiles lifted off a grey page; on the board's white card a
    white tile is its own 1px border and a shadow with nothing to fall on. */
 .fg .mts2-card { background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:20px; padding:18px; }
 .fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
-.fg .mts2-range { margin-top:6px; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
-.fg .mts2-range em { font-style:normal; color:var(--gray400); }
+/* `.mts2-range` is gone with the line it styled — the period is named once,
+   in `.wknav`, beside the arrows that change it. This card printed it a second
+   time, next to nothing that could act on it. */
 .fg .mts2-tot { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
 .fg .mts2-t { padding:12px 13px; border-radius:15px; background:#fafbfc; border:1px solid #f0f0f2; }
 .fg .mts2-t b { display:block; font-size:22px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
@@ -3323,6 +3569,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-t.pay { background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.22); }
 .fg .mts2-bk { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
 .fg .mts2-bkc { font-size:11px; font-weight:800; padding:4px 9px; border-radius:999px; background:#f4f5f7; color:var(--gray700); font-variant-numeric:tabular-nums; }
+/* The bucket that pays but wasn't worked — the gap between the two tiles
+   above, which used to be a sentence. Tinted so the eye can see WHICH chip is
+   the one that only lands on the right-hand total. */
+.fg .mts2-bkc.absence { background:rgba(46,104,255,.1); color:var(--info-t); }
 .fg .mts2-sub { margin-top:13px; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.45; }
 .fg .tpr .mts2-submit { width:100%; justify-content:center; height:46px; margin-top:13px; }
 .fg .tpr .mts2-submit:disabled { opacity:.45; pointer-events:none; }
@@ -3413,10 +3663,17 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cal-d { position:relative; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); background:transparent; transition:background .14s, color .14s; }
 .fg .cal-d:hover:not(:disabled) { background:#f2f4f7; }
 .fg .cal-d.wknd { background:#fafbfc; }
-.fg .cal-d.out { color:#c3c7cf; font-weight:600; }
+/* An out-of-month date is context, not decoration — it is still the number you
+   read to know which week you are looking at, and #c3c7cf put it at 1.69:1.
+   The tier below `--ink` is carried by weight, as everywhere else in this
+   sheet; there is no accessible grey below --gray500 on white. */
+.fg .cal-d.out { color:var(--gray500); font-weight:600; }
 .fg .cal-d:disabled { color:#d8dbe1; background:transparent; cursor:not-allowed; }
 /* range: solid ends, tinted band between — the middle is context, not a choice */
-.fg .cal-d.rng { background:rgba(0,229,192,.12); border-radius:0; }
+/* the last app-cyan tint inside the green-repointed scope — its own two ends
+   (.rng-s/.rng-e) read var(--teal), so a selected range drew green ends with a
+   cyan band between them */
+.fg .cal-d.rng { background:rgba(34,197,94,.12); border-radius:0; }
 .fg .cal-d.rng-s { border-radius:10px 0 0 10px; }
 .fg .cal-d.rng-e { border-radius:0 10px 10px 0; }
 .fg .cal-d.rng-s.rng-e { border-radius:10px; }
@@ -3683,15 +3940,15 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-cert label { flex:0 0 auto; cursor:pointer; }
 
 /* the same fact on a booked row, one line rather than a card */
-.fg .lv-reqcert { display:inline-flex; align-items:center; gap:6px; margin-top:4px; font-size:11.5px; font-weight:700; color:var(--amber-d,#b45309); }
-.fg .lv-reqcert.on { color:var(--teal-ink,#05887a); }
+.fg .lv-reqcert { display:inline-flex; align-items:center; gap:6px; margin-top:4px; font-size:11.5px; font-weight:700; color:var(--amber-d,#a44b08); }
+.fg .lv-reqcert.on { color:var(--teal-ink,#0b5c2e); }
 .fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
 .fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:8px; background:rgba(10,11,16,.06); color:var(--gray700); cursor:pointer; }
 .fg .lv-certadd:hover { background:rgba(10,11,16,.1); }
 
 /* the approver's copy, on the pending card where the decision is made */
-.fg .lv-pcert { display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; font-weight:700; color:var(--amber-d,#b45309); }
-.fg .lv-pcert.on { color:var(--teal-ink,#05887a); }
+.fg .lv-pcert { display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; font-weight:700; color:var(--amber-d,#a44b08); }
+.fg .lv-pcert.on { color:var(--teal-ink,#0b5c2e); }
 .fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
 
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
@@ -3779,13 +4036,15 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    note — that is somebody talking to you, this is provenance — and it sits
    above it so the order reads origin, then conversation. */
 .fg .xc-from { display:flex; align-items:center; gap:6px; margin:7px 0 0; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.4; }
-.fg .xc-from .i { flex:0 0 auto; color:#8b93a3; }
+.fg .xc-from .i { flex:0 0 auto; color:var(--gray500); }
 .fg .xc-amt { flex:0 0 auto; text-align:right; font-size:17px; font-weight:800; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
 .fg .xc-amt span { display:block; font-size:11px; font-weight:600; color:var(--gray400); margin-top:2px; letter-spacing:0; }
 .fg .xc-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:7px; }
 .fg .xc-pill { padding:5px 11px; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; background:#f4f5f7; color:var(--gray500); }
 /* semantic state, never the page accent */
-.fg .xc-pill.pending { background:rgba(240,164,49,.15); color:#a56a05; }
+/* the odd one out of five: its three siblings read a `-t` token and this one
+   held a literal, at 4.05 on its own tint */
+.fg .xc-pill.pending { background:rgba(240,164,49,.15); color:var(--warn-t); }
 .fg .xc-pill.approved { background:rgba(46,104,255,.1); color:var(--info-t); }
 .fg .xc-pill.reimbursed { background:rgba(0,163,137,.1); color:var(--ok-t); }
 .fg .xc-pill.declined { background:rgba(255,51,102,.09); color:var(--bad-t); }
@@ -3832,7 +4091,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
 /* A claim with no receipt is a judgement call, and the approver should know
    that's what they're making. */
-.fg .xr-noreceipt { font-size:11.5px; font-weight:700; color:#a56a05; }
+/* the sixth site of the same literal, at 4.35 on a settled claim's grey row */
+.fg .xr-noreceipt { font-size:11.5px; font-weight:700; color:var(--warn-t); }
 .fg .xr-foot { display:flex; align-items:center; gap:7px; margin-top:18px; font-size:12.5px; font-weight:600; color:var(--gray400); }
 
 /* The stat tile is a link now that expenses are real. */

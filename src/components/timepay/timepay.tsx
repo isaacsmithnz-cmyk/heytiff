@@ -9,12 +9,13 @@ import {
   type StaffWeek,
   type WeekCtx,
   cycleNoun,
+  dayClass,
   derive,
   fmt,
   submitNote,
   weekGroups,
 } from "./logic";
-import { Avatar, DayLegend, MiniTile, Tile } from "./tiles";
+import { Avatar, DayLegend, MiniTile, Tile, legendFor } from "./tiles";
 import { TimePaySettings } from "./settings";
 import { HolidaySection } from "./holiday-section";
 import { useRouter } from "next/navigation";
@@ -83,18 +84,17 @@ function Bucket({ cls, label, rate, h }: { cls: string; label: string; rate: str
   );
 }
 
-/* expanded per-day breakdown + category totals band */
-function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
-  const cell = (cls: string, rate: string, label: string, h: number, always?: boolean) =>
-    h || always ? (
-      <div className={`tcell${h ? "" : " zero"}`} key={label}>
-        <span className={`rchip ${cls}`}>{rate}</span>
-        <div className="tk">
-          <div className="tl">{label}</div>
-          <div className="tv">{fmt(h || 0)}h</div>
-        </div>
-      </div>
-    ) : null;
+/* The expanded per-day breakdown, and ONLY that.
+
+   It used to end with a "category totals" band — Weighted hours, then Regular,
+   Time and a half, Double time, Sick, Leave as chip-led cells. Every one of
+   those but the first is already a row in `.cs-buckets` in the panel above,
+   with the same label, the same rate chip and the same figure; the band was
+   the bucket list a second time, in a second treatment, 250px lower. The one
+   number it carried alone — the weighted total — has moved up to sit under the
+   buckets it is the sum of, which is where a total belongs and where the
+   person's own screen already puts it. */
+function PerDay({ s, ctx }: { s: StaffWeek; ctx: WeekCtx }) {
   const groups = weekGroups(s.days);
   const multiWeek = groups.length > 1; // a fortnight/month gets week dividers
   const dayRow = (day: (typeof s.days)[number], i: number) => {
@@ -105,7 +105,6 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
           <span className="wd">{w[0]}</span>
           <span className="dt">{w[1]} {w[2]}</span>
           <span className="sh">No entry</span>
-          <span></span>
           <span className="hh">—</span>
         </div>
       );
@@ -127,7 +126,6 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
         <span className="wd">{w[0]}</span>
         <span className="dt">{w[1]} {w[2]}</span>
         <span className="sh">{label}</span>
-        <span></span>
         <span className="hh">{day.t === "off" ? "—" : `${fmt(day.h)}h`}</span>
       </div>
     );
@@ -146,19 +144,6 @@ function PerDay({ s, d, ctx }: { s: StaffWeek; d: Derived; ctx: WeekCtx }) {
             {g.days.map(({ entry, index }) => dayRow(entry, index))}
           </div>
         ))}
-      </div>
-      <div className="totals">
-        <div className="tcell w">
-          <div className="tk">
-            <div className="tl">Weighted hours</div>
-            <div className="tv">{fmt(d.weighted)}h</div>
-          </div>
-        </div>
-        {cell("std", "1×", "Regular", d.normal, true)}
-        {cell("ot15", "1.5×", "Time and a half", d.ot, true)}
-        {cell("ot2", "2×", "Double time", d.ot2, true)}
-        {cell("sk", "paid", "Sick", d.sick)}
-        {cell("lv", "paid", "Leave", d.leave)}
       </div>
     </div>
   );
@@ -289,6 +274,21 @@ function ReviewCard({
             <Bucket cls="ot2" label="Double time" rate="2×" h={d.ot2} />
             {d.sick ? <Bucket cls="sk" label="Sick" rate="paid" h={d.sick} /> : null}
             {d.leave ? <Bucket cls="lv" label="Leave" rate="paid" h={d.leave} /> : null}
+            {d.ph ? <Bucket cls="ph" label="Public holiday" rate="paid" h={d.ph} /> : null}
+            {/* THE SUM OF THE ROWS ABOVE IT, and the figure this whole card is
+                for. It used to be called "Weighted hours" and live at the far
+                end of a fold, in a band that repeated every bucket beside it —
+                so the one number an approver is signing off was the one thing
+                on the card you had to press a button to see, under a name the
+                person's own timesheet doesn't use for it. Same name both
+                sides now: `Payroll hrs`. */}
+            <div className="bkt total">
+              <span className="bl">Payroll hrs</span>
+              <span className="bv">
+                {fmt(d.weighted)}
+                <em>h</em>
+              </span>
+            </div>
           </div>
           <button className="cs-expand" aria-expanded={open} onClick={() => setOpen(!open)}>
             {open ? "Hide daily breakdown" : "View daily breakdown"}
@@ -296,7 +296,7 @@ function ReviewCard({
           </button>
         </div>
       </div>
-      {open && <PerDay s={s} d={d} ctx={ctx} />}
+      {open && <PerDay s={s} ctx={ctx} />}
     </div>
   );
 }
@@ -453,6 +453,21 @@ export function TimePay({
   const ready = rows.filter((r) => r.status === "ready");
   const approved = rows.filter((r) => r.status === "approved");
   const otTot = rows.reduce((a, r) => a + r.d.ot + r.d.ot2, 0);
+  /* What the period comes to, across everyone — the one figure on this screen
+     that no card, section or heading states, and the number the pay run is
+     going to be built from. */
+  const payrollTot = rows.reduce((a, r) => a + r.d.weighted, 0);
+
+  /* Every day drawn on this screen, through each person's OWN context — a
+     public holiday is one person's state calendar, so the key has to be built
+     from the same `rowCtx` the tiles are. */
+  const legend = useMemo(
+    () =>
+      legendFor(
+        rows.flatMap((r) => r.s.days.map((entry, i) => dayClass(entry, i, settings, r.ctx))),
+      ),
+    [rows, settings],
+  );
 
   const period = periods[periodIndex];
   const note = period.live ? submitNote(settings) : period.note;
@@ -517,39 +532,62 @@ export function TimePay({
             <div className="autosub">{note}</div>
             {error && <div className="tp-err">{error}</div>}
 
+          {/* THE STRIP STOPPED COUNTING THE SECTIONS UNDERNEATH IT.
+
+              Two of its four tiles read "2 · NEED REVIEW" and "1 · APPROVED"
+              forty pixels above two section headings reading "Need review 2"
+              and "Approved 1" — the same word and the same number, twice, and
+              the headings are the ones you can't remove because they group the
+              cards. So the tiles say what no heading can: what the period
+              comes to, how far through it you are, and the two figures that
+              live on other screens entirely.
+
+              `Approved` survives as a RATIO. "1 of 4" is progress; the heading
+              below counts one section, and the arithmetic between them was
+              being done in the reader's head. Its sub-line names what is left
+              — which is where "Approved is not the same as finished with"
+              belongs, and it is finally visible: `.ss` had been
+              `display:none` since this strip was ported, so every sub-line
+              here was computed and thrown away. */}
           <div className="stats">
-            <div className="stat review">
-              <span className="si"><Icon name="alert" size={18} /></span>
+            <div className="stat hrs">
+              <span className="si"><Icon name="clock" size={18} /></span>
               <div className="stk">
-                <div className="sv">{review.length}</div>
-                <div className="sl">Need review</div>
-                <div className="ss">Action required</div>
-              </div>
-            </div>
-            {/* APPROVED IS NOT THE SAME AS FINISHED WITH. This tile counted
-                `ready + approved` under "Normal · No action needed", so the
-                people still waiting on one tap from this very screen were
-                filed as needing nothing — while the section below them said
-                "Ready to approve" and offered an Approve all button. It counts
-                what is actually done, and names what isn't underneath. */}
-            <div className="stat normal">
-              <span className="si"><Icon name="check" size={18} /></span>
-              <div className="stk">
-                <div className="sv">{approved.length}</div>
-                <div className="sl">Approved</div>
+                <div className="sv">{fmt(payrollTot)}h</div>
+                <div className="sl">Payroll hours</div>
                 <div className="ss">
-                  {ready.length > 0 ? `${ready.length} ready to approve` : "Nothing waiting"}
+                  {rows.length === 1 ? "1 person" : `${rows.length} people`}
                 </div>
               </div>
             </div>
             <div className="stat ot">
-              <span className="si"><Icon name="clock" size={18} /></span>
+              <span className="si"><Icon name="alert" size={18} /></span>
               <div className="stk">
                 <div className="sv">{fmt(otTot)}h</div>
                 <div className="sl">Overtime</div>
                 {/* the period's own noun — a monthly workspace was told its
                     month's overtime was "This week" */}
                 <div className="ss">This {cycleNoun(settings.cycle)}</div>
+              </div>
+            </div>
+            <div className="stat normal">
+              <span className="si"><Icon name="check" size={18} /></span>
+              <div className="stk">
+                <div className="sv">
+                  {approved.length} <em>of {rows.length}</em>
+                </div>
+                <div className="sl">Approved</div>
+                <div className="ss">
+                  {review.length + ready.length + sentBack.length === 0
+                    ? "Nothing waiting"
+                    : [
+                        review.length > 0 ? `${review.length} to review` : null,
+                        ready.length > 0 ? `${ready.length} ready` : null,
+                        sentBack.length > 0 ? `${sentBack.length} sent back` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                </div>
               </div>
             </div>
             {/* Money, so it rides with `financials` like every other dollar
@@ -575,7 +613,10 @@ export function TimePay({
             )}
           </div>
 
-          <DayLegend />
+          {/* Keyed to the colours this period actually contains. All nine
+              states, always, put five swatches across the top of a screen
+              whose tiles used four of them. */}
+          <DayLegend items={legend} />
 
           {review.length > 0 && (
             <div className="sectwrap">

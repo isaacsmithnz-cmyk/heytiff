@@ -321,19 +321,44 @@ describe("the week is ONE strip of day tabs", () => {
     expect(screen.getByRole("group", { name: "Start" })).toBeInTheDocument();
   });
 
-  it("legends the colours, so a week's shape can be read without opening it", () => {
+  /* EVERY COLOUR DRAWN IS EXPLAINED, AND NOTHING ELSE IS — the invariant, in
+     both directions, rather than a fixed list of nine.
+
+     The first half is the original bug: `miss` was in neither legend that
+     shipped, so a missing day drew a colour the key underneath didn't explain.
+     The second half is the same failure from the other end — all nine states
+     listed over a week that used four put five swatches across the screen for
+     colours nobody could see. Asserting the property means a tenth state can't
+     reach one side and miss the other, which a hand-written list can't say. */
+  const captions = (el: HTMLElement) =>
+    [...el.querySelectorAll(".lg")].map((l) => l.textContent ?? "");
+
+  it("legends every colour the week draws, in DAY_LEGEND's order", () => {
     const { container } = renderSheet();
-    /* The SHARED legend, not a private copy — `.legend` is the component both
-       screens render. The list it draws is `DAY_LEGEND`, which is derived from
-       `DAY_WORD`, so this asserts the words a person actually reads rather
-       than a second list that could quietly disagree with them. */
     const legend = container.querySelector(".legend") as HTMLElement;
-    for (const [, caption] of DAY_LEGEND) {
-      expect(within(legend).getByText(caption)).toBeInTheDocument();
-    }
-    // the two that used to be missing from every legend that shipped
+    // Mon/Tue presumed normal, Wed 11h, Thu sick, Fri/Sat/Sun with no entry
+    expect(captions(legend)).toEqual(["Normal", "Overtime", "Sick", "No entry"]);
+    // …and the states this week has none of are not listed
+    expect(within(legend).queryByText("Public holiday")).toBeNull();
+    expect(within(legend).queryByText("Leave")).toBeNull();
+  });
+
+  it("still explains the two that used to be in no shipped legend", () => {
+    /* `miss` and `off` were the original bug — the admin list left `miss` out
+       and the list that had it was imported by nothing. A week containing them
+       has to name them. */
+    const { container } = renderSheet({
+      me: { ...ME, days: [{ t: "empty" }, { t: "off" }, w8, EM, EM, EM, EM] },
+      sources: ["expected", "entered", "entered", "expected", "expected", "none", "none"],
+      today: 6,
+      through: 5,
+    });
+    const legend = container.querySelector(".legend") as HTMLElement;
     expect(within(legend).getByText("Missing")).toBeInTheDocument();
     expect(within(legend).getByText("Not worked")).toBeInTheDocument();
+    // and every caption it draws is one of the shared list's, never a new word
+    const known = DAY_LEGEND.map(([, c]) => c);
+    for (const c of captions(legend)) expect(known).toContain(c);
   });
 });
 
@@ -398,6 +423,32 @@ describe("a normal week takes no input", () => {
     /* "Not worked", not "Didn't work" — the button that SETS a day and the
        pill that then NAMES it read the same word now. See DAY_WORD. */
     expect(within(p).getByRole("button", { name: "Not worked" })).toBeInTheDocument();
+  });
+
+  /* THE UNANSWERED STATE IS ON THE CONTROL. An empty day opens with neither
+     answer chosen and a dead Save, and the panel used to print "Say what this
+     day was first." beside that button — a sentence explaining a control four
+     pixels away, which is the screen admitting the control didn't read as
+     unanswered. The ring says it where it is true, and it comes off the moment
+     either answer is given. */
+  it("marks the unanswered choice rather than captioning the dead button", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Sat 4 Jul/)); // empty, nothing presumed onto it
+    expect(container.querySelector(".mts2-kinds")?.className).toContain("ask");
+    expect(screen.getByText("Save day").closest("button")).toBeDisabled();
+    expect(screen.queryByText(/Say what this day was/)).toBeNull();
+
+    await user.click(within(panel()).getByText("Worked"));
+    expect(container.querySelector(".mts2-kinds")?.className).not.toContain("ask");
+    expect(screen.getByText("Save day").closest("button")).toBeEnabled();
+  });
+
+  it("an answered day never wears the ring", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Mon 29 Jun/)); // presumed, so "Worked" is already on
+    expect(container.querySelector(".mts2-kinds")?.className).not.toContain("ask");
   });
 });
 
@@ -644,6 +695,23 @@ describe("my normal hours", () => {
     expect(screen.getByText(/workspace default/)).toBeInTheDocument();
   });
 
+  /* WHOSE IT IS, NOT WHAT IT IS AGAIN. The provenance line printed the default
+     in full \u2014 "The workspace default (7:00 AM \u2013 3:00 PM, Mon, Tue, Wed, Thu,
+     Fri)" \u2014 directly under the two lines showing exactly those values, because
+     when the setting is not yours the values above ARE the default. Both
+     figures appear once each on the card. */
+  it("states the hours and the days once each, not twice", () => {
+    const { container } = renderSheet();
+    const card = screen.getByText("My normal week").closest(".mts2-card") as HTMLElement;
+    expect(within(card).getAllByText("7:00 AM \u2013 3:00 PM")).toHaveLength(1);
+    expect(within(card).getAllByText("Mon, Tue, Wed, Thu, Fri")).toHaveLength(1);
+    /* and the footnote below it no longer opens by repeating the same pair \u2014
+       it carries only rules that are stated nowhere else on the screen */
+    const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
+    expect(rules).not.toContain("7:00 AM \u2013 3:00 PM");
+    expect(rules).not.toContain("Mon, Tue, Wed, Thu, Fri");
+  });
+
   it("sets which DAYS are normal, so a part-timer isn\u2019t presumed onto their day off", async () => {
     const user = userEvent.setup();
     renderSheet();
@@ -670,7 +738,7 @@ describe("my normal hours", () => {
   it("an override can be handed back to the org's hours", async () => {
     const user = userEvent.setup();
     renderSheet({ ownNormal: true, normal: { start: "6:30 AM", end: "2:30 PM" } });
-    expect(screen.getByText(/Yours\./)).toBeInTheDocument();
+    expect(screen.getByText(/^Yours —/)).toBeInTheDocument();
     await user.click(screen.getByText("Change my normal week"));
     await user.click(screen.getByText("Use the default"));
     expect(saveMyHours).toHaveBeenCalledWith(null, null, null);
@@ -739,11 +807,27 @@ describe("the break", () => {
 });
 
 describe("the payroll line", () => {
-  it("states a plain day as hours × one", async () => {
+  /* IT SAYS SOMETHING OR IT ISN'T THERE. A flat day priced itself: the panel
+     read "8h on this day", then "PAYROLL 8h ×1.0 = 8h" underneath, under a tab
+     already reading 8h — one number three times, twice with arithmetic that
+     does nothing to it. The line is for the days where the hours and what they
+     are worth are different numbers. */
+  it("says nothing about a plain day, whose hours ARE its payroll hours", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
     await user.click(tab(/Mon 29 Jun/));
-    expect(container.querySelector(".mts2-paych")?.textContent).toBe("8h ×1.0 = 8h");
+    expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
+    expect(container.querySelector(".mts2-paych")).toBeNull();
+  });
+
+  /* Nor on a booked absence, where the hours are already in bold on the line
+     above it and the multiplier is one. */
+  it("says nothing on a leave or sick day either", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet();
+    await user.click(tab(/Thu 2 Jul/));
+    expect(within(panel()).getByText(/Sick leave/)).toBeInTheDocument();
+    expect(container.querySelector(".mts2-paych")).toBeNull();
   });
 
   it("splits an overtime day the way the pay run does — never a dollar", async () => {
@@ -768,32 +852,37 @@ describe("the rail", () => {
     expect(within(card).getByText("Payroll hrs")).toBeInTheDocument();
   });
 
-  /* WHY THE TWO TILES DISAGREE. 27 worked against 36.5 payroll is a nine-and-a-
-     half-hour gap, and nothing on the card accounted for it: the chips
-     reconcile the RIGHT tile (32 + 3×1.5 = 36.5) and contradict the left
-     (32 + 3 ≠ 27), because `derive` weights paid absence into the ×1.0 bucket
-     while "Actual worked" is hours on the clock and rightly excludes it. Both
-     numbers were right; the pair was unreadable. */
-  it("accounts for the gap between what you worked and what it pays", () => {
+  /* WHY THE TWO TILES DISAGREE, ANSWERED BY THE CHIPS RATHER THAN BESIDE THEM.
+
+     27 worked against 36.5 payroll is a nine-and-a-half-hour gap, and the chips
+     used to contradict the left tile while reconciling the right: paid absence
+     was folded into the ×1.0 bucket, so they read "32h ×1.0 · 3h ×1.5" —
+     32 + 3×1.5 = 36.5 ✓, 32 + 3 ≠ 27 ✗. A paragraph was bolted underneath to
+     explain the difference. Splitting the bucket is what that paragraph was
+     standing in for, so BOTH tiles now come off the chips, and there is no
+     prose to keep in step with the arithmetic.
+
+     The assertion is the arithmetic itself, in both directions — a chip list
+     that stops adding up is the bug this replaced. */
+  it("chips the buckets so both tiles add up, and omits the empty ones", () => {
     const { container } = renderSheet(); // Thursday is a booked sick day
-    const gap = container.querySelector(".mts2-gap")?.textContent ?? "";
-    expect(gap).toContain("8h");
-    expect(gap).toMatch(/paid leave, sick or a public holiday/);
-    expect(gap).toMatch(/isn’t time you worked/);
+    const chips = [...container.querySelectorAll(".mts2-bkc")].map((c) => c.textContent);
+    expect(chips).toEqual(["24h ×1.0", "3h ×1.5", "8h paid, not worked"]); // no 2× this week
+    // 24 + 3 = 27 worked;  24 + 3×1.5 + 8 = 36.5 payroll
+    expect(24 + 3).toBe(27);
+    expect(24 + 3 * 1.5 + 8).toBe(36.5);
+    // and the paragraph that used to explain the gap is gone with it
+    expect(container.querySelector(".mts2-gap")).toBeNull();
+    expect(container.textContent).not.toMatch(/isn’t time you worked/);
   });
 
-  it("says nothing when there is no gap to explain", () => {
+  it("has no absence chip in a week nobody was away", () => {
     const { container } = renderSheet({
       me: { ...ME, days: [w8, w8, w8, w8, EM, EM, EM] },
       sources: ["presumed", "presumed", "presumed", "presumed", "expected", "none", "none"],
     });
-    expect(container.querySelector(".mts2-gap")).toBeNull();
-  });
-
-  it("chips the multiplier buckets and omits the empty ones", () => {
-    const { container } = renderSheet();
     const chips = [...container.querySelectorAll(".mts2-bkc")].map((c) => c.textContent);
-    expect(chips).toEqual(["32h ×1.0", "3h ×1.5"]); // no 2× hours this week
+    expect(chips).toEqual(["32h ×1.0"]);
   });
 
   it("names the cycle it is totalling", () => {
@@ -830,15 +919,40 @@ describe("the rail", () => {
     ).toBeInTheDocument();
   });
 
-  it("footnotes the rules that produced those numbers, normal hours first", () => {
+  /* FINE PRINT IS PRINT THAT ISN'T ANYWHERE ELSE. Three of the footnote's ten
+     items were already on the screen: it opened by restating the normal hours
+     and working days printed in full in the card directly above it, and closed
+     by restating `submitNote` — which is the `.autosub` line at the top of the
+     same card, and was ALSO the tail of the held-submit note, so the
+     auto-submit rule appeared three times on one screen. */
+  it("footnotes only the rules stated nowhere else on the screen", () => {
     const { container } = renderSheet({ settings: withBreak(30, false) });
     const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
-    expect(rules).toContain("Normal 7:00 AM – 3:00 PM");
     expect(rules).toContain("Standard 8h day");
     expect(rules).toContain("OT after 8h/day");
     expect(rules).toContain("30 min unpaid break");
-    expect(rules).toContain("auto-submits Sun 3:00 PM");
+    expect(rules).toContain("Sat 1.5× first 2h, then 2×");
     expect(rules).not.toContain("$");
+    // the normal week is the card above; the auto-submit rule is the line at
+    // the top of this one
+    expect(rules).not.toContain("Normal 7:00 AM – 3:00 PM");
+    expect(rules).not.toContain("auto-submits");
+  });
+
+  it("states the auto-submit rule exactly once, in the period bar", () => {
+    const { container } = renderSheet();
+    const said = (container.textContent ?? "").match(/auto-submits Sun 3:00 PM/g) ?? [];
+    expect(said).toHaveLength(1);
+    expect(container.querySelector(".autosub")?.textContent).toBe(
+      "Open · auto-submits Sun 3:00 PM, then locks",
+    );
+  });
+
+  it("names the period once — the switcher has it, so the rail doesn't", () => {
+    const { container } = renderSheet();
+    const said = (container.textContent ?? "").match(/29 Jun – 5 Jul/g) ?? [];
+    expect(said).toHaveLength(1);
+    expect(container.querySelector(".wknav .range")?.textContent).toContain("29 Jun – 5 Jul");
   });
 
   /* THE SEPARATOR MEANS ONE THING. This line joins its items with " · ", and
@@ -851,8 +965,6 @@ describe("the rail", () => {
     const { container } = renderSheet({ settings: withBreak(30, false) });
     const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
     expect(rules).toContain("Sat 1.5× first 2h, then 2×");
-    expect(rules).toContain("auto-submits Sun 3:00 PM, then locks");
-    // nine items on the default settings + a break = eight dividers
     expect(rules.split(" · ")).toHaveLength(rules.split(" · ").filter(Boolean).length);
     expect(rules).not.toMatch(/· (then|unpaid|paid)\b/);
   });
@@ -929,11 +1041,15 @@ describe("submitting", () => {
      a manager to send the week back: a conversation, for a mistake that took
      one tap to make and gave no sign it had been made. */
   it("will not send a period that still has a working day ahead of it", () => {
-    renderSheet(); // Friday is today, and today is not over
+    const { container } = renderSheet(); // Friday is today, and today is not over
     expect(screen.getByText("Submit week").closest("button")).toBeDisabled();
     expect(screen.getByText(/1 still to come/)).toBeInTheDocument();
-    // and it says what happens if you simply do nothing
-    expect(screen.getByText(/submits itself Sun 3:00 PM/)).toBeInTheDocument();
+    /* WHY THE BUTTON IS HELD, AND NOTHING ELSE. This note used to close with
+       "It submits itself Sun 3:00 PM if you don't" — `submitNote` again, third
+       of three copies on one screen. What happens if you do nothing is said in
+       the period bar, which is where the period's state is described. */
+    expect(screen.queryByText(/submits itself/)).toBeNull();
+    expect(container.querySelector(".autosub")?.textContent).toContain("auto-submits Sun 3:00 PM");
   });
 
   it("does not count a weekend nobody was rostered for", () => {

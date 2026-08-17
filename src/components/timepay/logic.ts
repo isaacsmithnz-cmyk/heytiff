@@ -731,14 +731,12 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
     normal -= ex;
     ot += ex;
   }
-  if (ot || ot2) {
-    bullets.push(
-      "Overtime total — " +
-        (ot ? fmt(ot) + "h @1.5×" : "") +
-        (ot && ot2 ? " + " : "") +
-        (ot2 ? fmt(ot2) + "h @2×" : "")
-    );
-  }
+  /* THERE IS NO "OVERTIME TOTAL" BULLET, and the reason is the panel eighteen
+     pixels to its right. It read "Overtime total — 3h @1.5× + 2h @2×" beside
+     a bucket list already reading "Time and a half 1.5× 3h / Double time 2× 2h"
+     — the same two figures, in the same card, in two notations. The bullets
+     exist to say WHICH DAY and WHY; the totals are the panel's job, and the
+     panel adds them up under `Payroll hrs`. */
 
   const weighted = normal + ot * 1.5 + ot2 * 2 + sick + leave + ph;
   /* AN ABSENT WEEK REACHES A PERSON. `sick` and `leave` put the week in
@@ -1038,6 +1036,66 @@ export const nameHue = (n: string): number => {
   for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) % 360;
   return h;
 };
+
+/* ---------------- the avatar's two stops ----------------
+
+   THE HUE IS THE IDENTITY; THE LIGHTNESS IS NOT NEGOTIABLE.
+
+   The avatar was `hsl(H 68% 52%)` → `hsl(H+38 64% 44%)` with white initials,
+   and HSL lightness is not perceived lightness: at a fixed 52%, yellow lands
+   at a relative luminance of 0.64 and blue at 0.078 — an eight-fold spread.
+   So white initials measured 1.52:1 on a yellow name and 6.9:1 on a blue one,
+   and which one you got depended on how your surname hashed. Measured on the
+   real roster: 1.86 and 2.19.
+
+   Picking a per-hue INK doesn't fix it — the crossover where white and black
+   are equally bad is 4.58:1, which is the best a two-ink scheme can promise.
+   So the FILL is normalised instead: same hue, same saturation, and the
+   lightness solved per hue for a target luminance. Every avatar then carries
+   white at the same ratio, whatever the name.
+
+   `Y_TARGET` 0.10 puts white at 1.05/0.15 = 7:1 on the light stop, which
+   leaves room for the darker second stop and for the 3:1 a non-text boundary
+   would want. It is a binary search rather than a formula because there is no
+   closed form for "the HSL lightness whose sRGB luminance is Y" — 24
+   iterations is exact to the bit and costs nothing at render time. */
+const Y_TARGET = 0.1;
+
+const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+
+/** sRGB relative luminance of an hsl() triple, h in degrees, s/l in 0..1. */
+export function hslLuminance(h: number, s: number, l: number): number {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] =
+    hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x]
+    : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
+  return 0.2126 * lin(r + m) + 0.7152 * lin(g + m) + 0.0722 * lin(b + m);
+}
+
+/** The HSL lightness at this hue and saturation whose luminance is `y`. */
+function lightnessFor(h: number, s: number, y: number): number {
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (hslLuminance(h, s, mid) < y) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** The avatar's background, as a CSS gradient — see the note above. */
+export function avatarFill(name: string): string {
+  const h = nameHue(name);
+  const a = lightnessFor(h, 0.68, Y_TARGET);
+  /* the second stop is the same construction at 60% of the luminance, so the
+     sheen reads the same on every hue instead of being a fixed −8% of an HSL
+     lightness that means something different at each one */
+  const b = lightnessFor((h + 38) % 360, 0.64, Y_TARGET * 0.6);
+  return `linear-gradient(135deg,hsl(${h} 68% ${(a * 100).toFixed(1)}%),hsl(${(h + 38) % 360} 64% ${(b * 100).toFixed(1)}%))`;
+}
 
 /* "1.5× first 2h, then 2×" — a COMMA inside the rule, because the caller that
    lists rules joins them with " · ". With a dot in both places the footnote

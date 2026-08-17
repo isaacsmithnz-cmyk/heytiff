@@ -53,7 +53,7 @@ import {
   workDaysLabel,
   weekGroups,
 } from "./logic";
-import { DayLegend } from "./tiles";
+import { DayLegend, legendFor } from "./tiles";
 
 /* My timesheet — everyone, always. The hours-ENTRY surface.
 
@@ -114,12 +114,20 @@ function pillLabel(entry: DayEntry, cls: DayClass, dow: number, s: Settings): st
 
 /* Why a day says what it says. A presumed day must never read as though the
    person logged it — they didn't, and if it's wrong they need to know it was
-   filled in for them before they submit it. */
+   filled in for them before they submit it.
+
+   FACTS, NOT INSTRUCTIONS. Three of these used to end by telling you what to
+   do about them — "change it only if it was different", "Nothing to do" —
+   directly above the controls that do it, and the rail already carries that
+   instruction once, at period level, where it is true of the whole sheet
+   rather than repeated on every day you open. What is left is the only thing
+   these lines can say that nothing else on the screen can: where the day came
+   from. */
 const SOURCE_NOTE: Record<DaySource, string> = {
   entered: "You logged this day.",
-  holiday: "Public holiday — the business is closed. Nothing to do.",
+  holiday: "Public holiday — the business is closed.",
   leave: "Booked leave — this came from your leave, not from here.",
-  presumed: "Your normal day. Nobody had to enter it — change it only if it was different.",
+  presumed: "Your normal day, filled in for you.",
   expected: "Not yet. This day is marked as worked once the day is over.",
   none: "Weekends aren't counted unless you add them.",
 };
@@ -147,20 +155,26 @@ const BREAK_STEP = 5;
 const BREAK_MAX = 120;
 
 /** What a day is worth in payroll hours, split by multiplier — read off the
-    real engine so this line and the pay run can never disagree. */
+    real engine so this line and the pay run can never disagree.
+
+    `plain` is the whole day at ×1.0, which is most days: the line then reads
+    "8h ×1.0 = 8h" under a line already reading "8h on this day", under a tab
+    already reading 8h. Three statements of one number, two of them adding
+    nothing. The caller draws the split only when there IS one. */
 function payrollChip(
   h: number,
   dow: number,
   s: Settings,
   day: { publicHoliday?: boolean; in?: string; out?: string } = {},
-): { parts: string[]; total: number } {
+): { parts: string[]; total: number; plain: boolean } {
   const sp = splitDay(h, dow, s, day);
   const parts: string[] = [];
   if (sp.n) parts.push(`${fmtH(sp.n)}h ×1.0`);
   if (sp.o15) parts.push(`${fmtH(sp.o15)}h ×1.5`);
   if (sp.o2) parts.push(`${fmtH(sp.o2)}h ×2.0`);
   if (parts.length === 0) parts.push("0h ×1.0");
-  return { parts, total: sp.n + sp.o15 * 1.5 + sp.o2 * 2 };
+  const total = sp.n + sp.o15 * 1.5 + sp.o2 * 2;
+  return { parts, total, plain: !sp.o15 && !sp.o2 };
 }
 
 /** A day's stored content as one string — the editor's remount key. Anything
@@ -290,12 +304,10 @@ function DayEditor({
             <em>{SOURCE_NOTE[source]}</em>
           </span>
         </div>
-        <div className="mts2-pay">
-          <span className="mts2-payl">Payroll</span>
-          <span className="mts2-paych">
-            {fmtH(entry.h)}h ×1.0 = <b>{fmtH(entry.h)}h</b>
-          </span>
-        </div>
+        {/* No payroll line: a booked absence is its hours at ×1.0, and the
+            hours are in bold on the line above. "8h ×1.0 = 8h" under
+            "Annual leave — 8h" is the same number twice with arithmetic
+            between it. */}
         {entry.t === "ph" && (
           <button
             type="button"
@@ -317,7 +329,17 @@ function DayEditor({
         {SOURCE_NOTE[source]}
       </div>
 
-      <div className="mts2-kinds" role="group" aria-label="What this day was">
+      {/* THE UNANSWERED STATE IS ON THE CONTROL, not in a sentence beside the
+          button it disables. An empty day used to open with neither answer
+          chosen, a dead Save, and "Say what this day was first." printed next
+          to it — a caption explaining a control four pixels away, which is the
+          screen admitting the control didn't read as unanswered. `ask` gives
+          it the ring instead, and the sentence is gone. */}
+      <div
+        className={`mts2-kinds${kind === null ? " ask" : ""}`}
+        role="group"
+        aria-label="What this day was"
+      >
         {KINDS.map((k) => (
           <button
             key={k.t}
@@ -397,8 +419,11 @@ function DayEditor({
       )}
 
       {/* the same split the pay run uses — hours and multipliers, never money.
-          Nothing to price until the day has been answered. */}
-      {kind !== null && (
+          Nothing to price until the day has been answered, and nothing to SAY
+          until the day is worth more than its hours: a flat ×1.0 day prices
+          itself, and printing the identity beside the figure it starts from is
+          how one number came to be stated three times in six inches. */}
+      {kind === "work" && !chip.plain && (
         <div className="mts2-pay">
           <span className="mts2-payl">Payroll</span>
           <span className="mts2-paych">
@@ -418,7 +443,6 @@ function DayEditor({
           <Icon name={busy ? "clock" : "check"} size={14} />
           {busy ? "Saving…" : "Save day"}
         </button>
-        {kind === null && <span className="mts2-ehint">Say what this day was first.</span>}
         {source === "entered" && (
           <button
             className="mts2-btn"
@@ -447,12 +471,14 @@ function DayEditor({
 const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DOW_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+/* No `settings` prop any more: it was here only to print the workspace default
+   in full on the provenance line, under the two lines already showing exactly
+   those values. */
 function NormalHoursCard({
   normal,
   own,
   workDays,
   ownDays,
-  settings,
   busy,
   onSave,
 }: {
@@ -460,7 +486,6 @@ function NormalHoursCard({
   own: boolean;
   workDays: number[];
   ownDays: boolean;
-  settings: Settings;
   busy: boolean;
   onSave: (start: string | null, end: string | null, days?: number[] | null) => void;
 }) {
@@ -478,15 +503,20 @@ function NormalHoursCard({
       <div className="mts2-ch">
         <span>My normal week</span>
       </div>
+      {/* WHOSE IT IS, not what it is again. The provenance line used to print
+          the workspace default in full — "The workspace default (7:00 AM –
+          3:00 PM, Mon, Tue, Wed, Thu, Fri)" — directly under the two lines
+          already showing exactly those values, because when the setting is not
+          yours the numbers above ARE the default. One word of provenance, and
+          then the rule the pair is actually for. */}
       <div className="mts2-nh">
         <b>
           {normal.start} – {normal.end}
         </b>
         <em>{workDaysLabel(workDays)}</em>
         <em>
-          {mine
-            ? "Yours. These are the days that get filled in for you."
-            : `The workspace default (${settings.defaultStart} – ${settings.defaultEnd}, ${workDaysLabel(settings.workDays)}).`}
+          {mine ? "Yours" : "The workspace default"} — these are the days that get filled in for
+          you.
         </em>
       </div>
       {open ? (
@@ -789,6 +819,12 @@ export function MyTimesheet({
   // in-period holidays name themselves in the panel; the rail lists the month
   const holidayByDate = useMemo(() => new Map(holidays.map((h) => [h.date, h.name])), [holidays]);
 
+  /* The key explains THIS period's colours. All nine states listed over a week
+     that used four put five swatches on the screen for colours nobody could
+     see — "Sick", "Public holiday", "Missing" and the rest, in a row eating
+     the width, none of them on any day above. */
+  const legend = legendFor(me.days.map((entry, i) => dayClass(entry, i, settings, ctx)));
+
   /* Which month the rail's holiday module is about: the one the middle of the
      period falls in, so a week straddling a month boundary belongs to the
      month it mostly lives in rather than to whichever day it happens to start
@@ -813,23 +849,37 @@ export function MyTimesheet({
 
   const cycleTitle = `My ${noun}`;
 
-  /* hours × multiplier, the buckets that make up the payroll total. Paid
-     absence sits in the ×1.0 bucket because that is how derive() weights it,
-     so the chips add up to the number above them. */
-  /* Paid absence, the whole of the gap between the two tiles below. */
+  /* THE CHIPS RECONCILE BOTH TILES, and that is what killed the sentence that
+     used to sit under them.
+
+     Paid absence was folded into the ×1.0 chip, because that is how `derive`
+     weights it — so a week of 27 worked hours paying 36.5 showed "32h ×1.0 ·
+     3h ×1.5", which adds up to the RIGHT tile (32 + 3×1.5 = 36.5) and
+     contradicts the left (32 + 3 ≠ 27). Both numbers were right and the pair
+     was unreadable, so a line of prose was bolted underneath explaining the
+     nine-and-a-half-hour gap. Splitting the bucket is the fix the prose was
+     standing in for: 24 + 3 is the hours worked, 24 + 3×1.5 + 8 is what it
+     pays, and every figure on the card now comes off the chips. */
   const paidAbsence = d.leave + d.sick + d.ph;
 
   const buckets: [number, string][] = [
-    [d.normal + d.leave + d.sick + d.ph, "×1.0"],
+    [d.normal, "×1.0"],
     [d.ot, "×1.5"],
     [d.ot2, "×2.0"],
+    [paidAbsence, "paid, not worked"],
   ];
 
+  /* The fine print, and ONLY the print that is fine — a rule this screen
+     applies and states nowhere else.
+
+     It used to open by restating the normal hours and working days printed in
+     full in the card directly above it, and close by restating the auto-submit
+     line printed at the top of the same card. Three of its ten items were
+     already on the screen, one of them twice. */
   const rules = [
     /* A casual has no normal week, so stating one would be a lie about how
        their timesheet behaves — theirs says what it actually is instead. */
-    casual ? "Casual · every day entered by hand" : `Normal ${normal.start} – ${normal.end}`,
-    casual ? null : workDaysLabel(workDays),
+    casual ? "Casual · every day entered by hand" : null,
     `Standard ${fmtHval(settings.standard)} day`,
     `OT after ${fmtHval(settings.otAfter)}/${settings.otUnit}`,
     /* `breakLine`, not a second phrasing of it — this read
@@ -840,7 +890,6 @@ export function MyTimesheet({
     settings.rules.sun.on ? `Sun ${ruleSummary(settings.rules.sun)}` : null,
     settings.rules.ph.on ? `Public holidays ${ruleSummary(settings.rules.ph)}` : null,
     settings.rules.night.on ? `Night 10 PM – 6 AM ${ruleSummary(settings.rules.night)}` : null,
-    submitNote(settings).replace(/^Open · /, ""),
   ].filter(Boolean);
 
   /* THE FRAME IS THE LAYOUT'S. `.page`, `.wrap`, `.stg tpr wb2`, the heading
@@ -1027,19 +1076,18 @@ export function MyTimesheet({
                 );
               })}
 
-              {/* THE SAME LEGEND THE APPROVER READS — the shared component,
-                  not a private copy of its list. See tiles.tsx. */}
-              <DayLegend />
             </div>
 
             <aside className="mts2-rail">
               <section className="mts2-card">
+                {/* THE PERIOD IS NAMED ONCE, at the top of the card, beside the
+                    arrows that change it. This card restated it — "29 Jun – 5
+                    Jul 2026" in the header row and again here, six inches
+                    apart, one of them next to a control and one next to
+                    nothing. */}
                 <div className="mts2-ch">
                   <span>{cycleTitle}</span>
                   <span className={`dchip ${status.tone}`}>{status.label}</span>
-                </div>
-                <div className="mts2-range">
-                  {period.range} <em>{period.year}</em>
                 </div>
                 <div className="mts2-tot">
                   <div className="mts2-t">
@@ -1055,32 +1103,14 @@ export function MyTimesheet({
                   {buckets
                     .filter(([h]) => h > 0)
                     .map(([h, mult]) => (
-                      <span className="mts2-bkc" key={mult}>
+                      <span
+                        className={`mts2-bkc${mult.startsWith("paid") ? " absence" : ""}`}
+                        key={mult}
+                      >
                         {fmtH(h)}h {mult}
                       </span>
                     ))}
                 </div>
-                {/* WHY THE TWO NUMBERS ABOVE DISAGREE. A week of 27 worked
-                    hours that pays 36.5 has a nine-and-a-half-hour gap in it,
-                    and nothing on this card accounted for it: the chips
-                    reconcile the RIGHT tile (32 + 3×1.5 = 36.5) and contradict
-                    the left (32 + 3 ≠ 27), because paid absence sits in the
-                    ×1.0 bucket — that is how `derive` weights it — while
-                    "Actual worked" is hours on the clock and rightly excludes
-                    it. Both numbers were correct and the pair was unreadable.
-
-                    Only shown when there IS a gap, which is most weeks nobody
-                    was away. */}
-                {paidAbsence > 0 && (
-                  <div className="mts2-gap">
-                    <Icon name="info" size={12} />
-                    <span>
-                      <b>{fmtH(paidAbsence)}h</b>{" "}
-                      of that is paid leave, sick or a public holiday — it pays, but it
-                      isn&rsquo;t time you worked.
-                    </span>
-                  </div>
-                )}
                 <div className="mts2-sub">
                   {!period.live && !sent
                     ? "This period is closed."
@@ -1114,15 +1144,15 @@ export function MyTimesheet({
                   </button>
                 )}
                 {holdForDays && !sent && period.live && (
+                  /* WHY THE BUTTON ABOVE IS HELD, and nothing else. It used to
+                     end "It submits itself Sun 3:00 PM if you don't" — which is
+                     `submitNote`, printed verbatim at the top of this same card
+                     and, until this pass, a third time in the footnote below.
+                     One statement of the auto-submit rule, in the period bar
+                     where the period's own state is described. */
                   <div className="mts2-sub">
-                    {/* `{" "}` before "if": this block runs over several lines
-                        and ends on an entity, which costs the text node its
-                        leading space — it read "itself Monday 9amif you
-                        don't". See lib/format/__tests__/jsx-entity-spacing. */}
                     You can send this {noun} once your last working day is over — there
-                    {toCome === 1 ? " is 1 still to come" : ` are ${toCome} still to come`}. It
-                    submits itself {settings.submitDay} {settings.submitTime}{" "}
-                    if you don&rsquo;t.
+                    {toCome === 1 ? " is 1 still to come" : ` are ${toCome} still to come`}.
                   </div>
                 )}
               </section>
@@ -1143,11 +1173,35 @@ export function MyTimesheet({
                   own={ownNormal}
                   workDays={workDays}
                   ownDays={ownWorkDays}
-                  settings={settings}
                   busy={pending}
                   onSave={(s, e, days) => run(() => saveMyHours(s, e, days))}
                 />
               )}
+
+              </aside>
+
+            {/* REFERENCE, UNDER THE WEEK IT REFERS TO — and the reason is the
+                shape of the two columns.
+
+                The rail carried everything: the totals, the submit button, the
+                normal week, the holiday calendar and the footnote. So a column
+                a quarter of the card wide ran twice the height of the one
+                beside it, and the wide column — the strip and one open day,
+                which is all this screen is — ended two thirds of the way up
+                with nothing under it. The split now follows what the blocks are
+                FOR: the rail holds the period and the decision you make about
+                it, and the material you only consult (which colour means what,
+                which days the business is closed, the rules behind the
+                figures) sits below the days, in the space they left.
+
+                It is a grid AREA rather than a third column, so the one-column
+                layout under 960px still reads week → decision → reference in
+                DOM order, with no `order` juggling. */}
+            <div className="mts2-ref">
+              {/* THE SAME LEGEND THE APPROVER READS — the shared component,
+                  not a private copy of its list, and keyed to the colours this
+                  period actually contains. See tiles.tsx. */}
+              <DayLegend items={legend} />
 
               <section className="mts2-card">
                 <div className="mts2-ch">
@@ -1177,7 +1231,7 @@ export function MyTimesheet({
               </section>
 
               <p className="mts2-rules">{rules.join(" · ")}</p>
-              </aside>
+            </div>
             </div>
           </div>
     </div>

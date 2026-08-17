@@ -9114,6 +9114,38 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
 }
 .dstudio .ds-letter-src svg { flex: 0 0 auto; }
+/* ── attaching a job to a design that already exists (#414) ──
+      Three states in one slot, so the letterhead never jumps: the provenance
+      tag with an Unlink beside it, the search field while picking, or the
+      invitation when there is no link at all. */
+.dstudio .ds-letter-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--gray700);
+  background: #fff;
+  border: 1px dashed rgba(10, 12, 20, 0.28);
+  border-radius: 999px;
+  padding: 3px 11px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dstudio .ds-letter-attach:hover { border-color: var(--teal-d); color: var(--teal-d); background: #f0fdf9; }
+.dstudio .ds-letter-attach:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.35); }
+.dstudio .ds-letter-unlink {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray500);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dstudio .ds-letter-unlink:hover { color: var(--ds-amber-d); }
+.dstudio .ds-letter-unlink:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.35); border-radius: 4px; }
+/* the picker overlays the sheet rather than pushing the title row apart */
+.dstudio .ds-letter-pick { display: inline-flex; align-items: center; gap: 10px; position: relative; }
+.dstudio .ds-letter-pick .ds-sm8-field { min-width: 19rem; }
 /* the option chip sits under the title, flush with its left edge */
 .dstudio .ds-letter-variant {
   display: inline-block;

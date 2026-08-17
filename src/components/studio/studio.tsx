@@ -10,6 +10,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import { JobSearchField, type JobSearch } from "./job-search";
+export type { JobSearch };
 import { agoLabel } from "@/lib/format/duration";
 import {
   createDesign,
@@ -63,9 +65,7 @@ import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
 import { SimRuntime } from "@/lib/studio/sim-runtime";
 import {
-  jobSubtitle,
   prefillFromJob,
-  streetLine,
   type JobPrefill,
   type StudioJobHit,
 } from "@/lib/studio/job-link";
@@ -146,7 +146,7 @@ export type PackLoader = () => Promise<{
 } | null>;
 
 /** test/harness seam — defaults to the auth-gated server action */
-export type JobSearch = (query: string) => Promise<StudioJobHit[]>;
+
 
 export function Studio({
   store,
@@ -611,87 +611,29 @@ function Home({
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  /* ── the ServiceM8 job behind this design, if it came from one ── */
-  const [jobQuery, setJobQuery] = useState("");
-  const [hits, setHits] = useState<StudioJobHit[]>([]);
-  const [searching, setSearching] = useState(false);
+  /* ── the ServiceM8 job behind this design, if it came from one.
+        The field itself is JobSearchField — shared with the Summary sheet's
+        attach control, which picks a job for a design that already exists. ── */
   const [picked, setPicked] = useState<StudioJobHit | null>(null);
-  /* Open is its OWN state, not "is there a query": the panel covers the name
-     field beneath it, so clicking away has to put that field back within
-     reach without throwing away what was typed to find the job. */
-  const [dropOpen, setDropOpen] = useState(false);
-  const dropRef = useRef<HTMLDivElement>(null);
-  /* Every keystroke fires a search and answers arrive out of order — a slow
-     "26" landing after a fast "26 East" would replace the right list with a
-     stale one. Only the newest request may write. */
-  const searchSeq = useRef(0);
-
-  /* Click away to close — the same listener the studio menu uses, and for the
-     same reason: `mousedown` against the container's own subtree, never a
-     blur, because a <button> that doesn't take focus on click (Safari) would
-     close the panel out from under the click it was about to receive. */
-  useEffect(() => {
-    if (!dropOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node))
-        setDropOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [dropOpen]);
-
-  const runJobSearch = useCallback(
-    async (q: string) => {
-      setJobQuery(q);
-      const seq = ++searchSeq.current;
-      if (q.trim().length < 2) {
-        setHits([]);
-        setSearching(false);
-        setDropOpen(false);
-        return;
-      }
-      setSearching(true);
-      setDropOpen(true);
-      const search =
-        jobSearch ?? ((s: string) => studioActions().then((a) => a.searchStudioJobs(s)));
-      try {
-        const found = await search(q);
-        if (seq !== searchSeq.current) return;
-        setHits(found);
-      } catch {
-        /* offline, or the action is unreachable — an empty list and "nothing
-           matches" is the honest reading, and the name field still works. */
-        if (seq !== searchSeq.current) return;
-        setHits([]);
-      } finally {
-        if (seq === searchSeq.current) setSearching(false);
-      }
-    },
-    [jobSearch]
-  );
 
   /* Picking a job names the design and remembers the three fields the Summary
      sheet prints. The name stays EDITABLE afterwards — the street is a good
      first answer, not the last word — and editing it doesn't unpick the job,
      because the job is what the client and site came from. */
+  /* the injected search in tests, the real action in the app */
+  const jobSearchFn = useCallback(
+    (q: string) =>
+      (jobSearch ?? ((s: string) => studioActions().then((a) => a.searchStudioJobs(s))))(q),
+    [jobSearch]
+  );
+
   const pickJob = (hit: StudioJobHit) => {
     const fill = prefillFromJob(hit);
     setPicked(hit);
-    setJobQuery("");
-    setHits([]);
-    setSearching(false);
-    setDropOpen(false);
-    searchSeq.current++;
     if (fill.name) setName(fill.name);
   };
 
-  const unpickJob = () => {
-    setPicked(null);
-    setJobQuery("");
-    setHits([]);
-    setDropOpen(false);
-    searchSeq.current++;
-  };
+  const unpickJob = () => setPicked(null);
 
   const visible = recents.filter((r) =>
     r.name.toLowerCase().includes(query.trim().toLowerCase())
@@ -765,73 +707,7 @@ function Home({
                       </button>
                     </div>
                   ) : (
-                    <div className="ds-sm8-field" ref={dropRef}>
-                      <label className="ds-sm8-search">
-                        <Icon name="search" size={15} />
-                        <input
-                          type="search"
-                          value={jobQuery}
-                          onChange={(e) => void runJobSearch(e.target.value)}
-                          onFocus={() => {
-                            if (jobQuery.trim().length >= 2) setDropOpen(true);
-                          }}
-                          onKeyDown={(e) => {
-                            /* Escape puts the results away; it does NOT cancel
-                               the wizard, which is what the name field below
-                               does with the same key. */
-                            if (e.key === "Escape" && dropOpen) {
-                              e.stopPropagation();
-                              setDropOpen(false);
-                            }
-                          }}
-                          placeholder="Find the ServiceM8 job — number, client or address"
-                          aria-label="Find the ServiceM8 job"
-                        />
-                      </label>
-                      {/* A DROPDOWN, not a list that pushes the page: it
-                          overlays what's beneath so Continue never travels
-                          out from under the cursor while you're reading. */}
-                      {dropOpen && jobQuery.trim().length >= 2 && (
-                        <div
-                          className="ds-sm8-drop"
-                          role="listbox"
-                          aria-label="ServiceM8 jobs"
-                        >
-                          {hits.map((h) => (
-                            <button
-                              type="button"
-                              role="option"
-                              aria-selected={false}
-                              key={h.remoteId}
-                              className="ds-sm8-opt"
-                              onClick={() => pickJob(h)}
-                            >
-                              <span className="ds-sm8-no">
-                                {h.jobNumber ? `#${h.jobNumber}` : "—"}
-                              </span>
-                              <span className="ds-sm8-b">
-                                <span className="ds-sm8-t">
-                                  {streetLine(h.address) ||
-                                    h.clientName ||
-                                    "Job with no address"}
-                                </span>
-                                <span className="ds-sm8-s">{jobSubtitle(h)}</span>
-                                {h.description && (
-                                  <span className="ds-sm8-d">{h.description}</span>
-                                )}
-                              </span>
-                            </button>
-                          ))}
-                          {hits.length === 0 && (
-                            <p className="ds-sm8-none">
-                              {searching
-                                ? "Searching ServiceM8…"
-                                : `No ServiceM8 job matches “${jobQuery.trim()}”.`}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <JobSearchField onPick={pickJob} search={jobSearchFn} />
                   )}
                 </div>
               )}

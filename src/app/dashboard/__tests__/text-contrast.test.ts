@@ -254,6 +254,120 @@ describe("the private .tpr palette resolves to readable text", () => {
   });
 });
 
+/* ===== `.orb-say` — the wait, named, on four surfaces and one portal =====
+
+   The chip that says what is happening when there is nothing to show for it:
+   Tiff's transcript, under its ask bar, and the three note postures — plus the
+   dusk capture card, which re-points both inks.
+
+   It is checked apart from everything above because it is the one text in the
+   sheet whose GLYPHS ARE A GRADIENT. `background-clip:text` + `color:transparent`
+   means a glyph is somewhere between `--say-ink` and `--say-lit` at any instant,
+   so BOTH ends have to clear, and `color:` is not what paints it. That last part
+   is why the failure lasted: two later rules set `color:var(--gray500)` on this
+   element and win, but the word came out teal anyway, because the sweep reads
+   the custom property directly. */
+describe("the orb-say chip is readable on every surface it stands on", () => {
+  const SAY_INK = scoped(".orb-say {", "say-ink");
+  const SAY_LIT = scoped(".orb-say {", "say-lit");
+  /* `.wb2-capcard.wb2-dusk` is an alpha over whatever is behind it; composited
+     onto white, its own lightest possible backdrop, which is the worst case. */
+  const DUSK = over(hex("#0b0e15"), 0.96, WHITE);
+
+  /* THE GROUNDS IT ACTUALLY STANDS ON, traced site by site — not the shared
+     list, which bottoms out at #f1f2f4 and would have passed this by luck.
+     That is the #390 shape exactly: an audit that walks the wrong surfaces
+     reports a clean bill for a screen it never measured.
+
+     The light well is the darkest of the five, and its dot grid is the darkest
+     PIXEL anywhere under the chip — 1px dots on a 26px pitch, under the ask
+     bar, which a scan of `background-color` alone never sees. */
+  const WELL = hex("#EDEFF4"); // .fg .outlet — under Tiff's ask bar
+  const SAY_GROUNDS: Record<string, number[]> = {
+    "the transcript bubble #fff (.fg .tmsg.bot .tmb)": WHITE,
+    "the notes card #fff (.fg .card2)": WHITE,
+    "the portalled sheet #fff (.wb2-sheet)": WHITE,
+    "the light well #EDEFF4 (.fg .outlet)": WELL,
+    "the light well's dot grid": over(hex("#282646"), 0.05, WELL),
+    ...GROUNDS,
+  };
+
+  it.each(Object.entries(SAY_GROUNDS))("the resting ink clears on %s", (_name, bg) => {
+    const r = ratio(hex(SAY_INK), bg);
+    if (r < 4.5) throw new Error(`--say-ink ${SAY_INK} is ${r.toFixed(2)}:1`);
+  });
+
+  it("the lit end of the sweep clears too — a glyph is either at any moment", () => {
+    for (const [name, bg] of Object.entries(SAY_GROUNDS)) {
+      const r = ratio(hex(SAY_LIT), bg);
+      if (r < 4.5) throw new Error(`--say-lit ${SAY_LIT} is ${r.toFixed(2)}:1 on ${name}`);
+    }
+  });
+
+  /* The brand teal failed on the well by MORE than on white — 2.77 — so the
+     surface that would have been reached last by a white-only check is the one
+     it was worst on. */
+  it("names the darkest ground, not just the lightest", () => {
+    expect(ratio(hex("#00A389"), WELL)).toBeLessThan(3);
+    expect(ratio(hex(SAY_INK), WELL)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* #00A389 IS THE BRAND TEAL, AND IT IS NOT A WORD. It read 3.18 here for as
+     long as the chip existed. Pinned as arithmetic so the "accent, not grey"
+     note above the rule can never be read as a licence to put it back. */
+  it("proves the brand teal could not have carried it", () => {
+    expect(ratio(hex("#00A389"), WHITE)).toBeLessThan(4.5);
+  });
+
+  /* THE FALLBACK IS WHAT ACTUALLY PAINTS ON THE PORTALLED SURFACE. The capture
+     sheet portals to document.body, so `--ok-t` — declared on `.fg` — is simply
+     absent out there and `var(--ok-t, X)` resolves to X. If X and the token ever
+     disagree, the portal renders a colour nothing else on the screen uses, and
+     no ground-based test would see it because the token side still passes. */
+  it.each([
+    ["--say-ink", /--say-ink: *var\(--ok-t, *(#[0-9a-f]{6})\)/i, () => SAY_INK],
+    ["--say-lit", /--say-lit: *var\(--ink, *(#[0-9a-f]{6})\)/i, () => SAY_LIT],
+  ])("%s's fallback is the same colour the token resolves to", (_n, re, resolved) => {
+    const m = CSS.match(re);
+    expect(m).not.toBeNull();
+    expect(m![1]!.toLowerCase()).toBe(resolved().toLowerCase());
+  });
+
+  it("the dusk card re-points both, and both clear on ink", () => {
+    const body = CSS.slice(CSS.indexOf(".wb2-dusk .orb-say {"));
+    const ink = body.match(/--say-ink: *(#[0-9a-f]{6})/i)![1]!;
+    const lit = body.match(/--say-lit: *(#[0-9a-f]{6})/i)![1]!;
+    expect(ratio(hex(ink), DUSK)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(hex(lit), DUSK)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /* WHY THE DUSK RULE STAYS THOUGH IT MATCHES NOTHING TODAY.
+
+     Traced in full: `.wb2-dusk` has four mount points and none contains a
+     `<Waiting>` — the capture sheet's transcribing stage shows a bare
+     `.wb2-waiting` sphere, and the recording card is the sibling branch of the
+     ternary that emits the chip. So this chip has never stood on ink.
+
+     The assertion is the arithmetic that makes the rule load-bearing the
+     moment it does: the light value is BELOW 4.5 on that surface, so a dusk
+     mount without the re-point is a 3:1 word. Deleting the rule as unused is
+     the mistake this pins. */
+  it("keeps the dusk re-point, because the light value cannot serve on ink", () => {
+    expect(ratio(hex(SAY_INK), DUSK)).toBeLessThan(4.5);
+    expect(CSS).toMatch(/\.wb2-dusk \.orb-say \{[^}]*--say-ink/);
+  });
+
+  /* The two rules that outranked the chip. `.fg .tvsay` is (0,2,0) and
+     `.wb2-dicthint` is (0,1,0) declared 3,700 lines later — both beat
+     `.orb-say` (0,1,0), so the sphere was grey in four of the five slots and
+     so was the word under prefers-reduced-motion. */
+  it("keeps its own colour in the slots that set a grey on the same element", () => {
+    const rule = CSS.match(/\.orb-say\.tvsay, \.orb-say\.wb2-dicthint \{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/color: *var\(--say-ink\)/);
+  });
+});
+
 describe("de-emphasis never multiplies text contrast", () => {
   /* `opacity` on a container multiplies every colour inside it against the page,
      which no colour choice survives: against the tab strip's own ground, pure

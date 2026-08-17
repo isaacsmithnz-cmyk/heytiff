@@ -1626,7 +1626,33 @@
    orb on a 30px row, and the sheet's own line-height for the word, so the box
    while working is the height of the first line of the answer that replaces
    it and nothing below jumps when the words arrive. */
-.orb-say { --say-ink:var(--teal-d, #00A389); --say-lit:var(--ink, #050505);
+/* `--ok-t`, NOT `--teal-d`, AND FOR THE REASON THE REST OF THE SHEET ALREADY
+   GIVES: use the `-t` twin the moment the colour is a word.
+
+   `--teal-d` #00A389 is the brand's teal for fills, dots and icons; as text it
+   measures **3.18:1** on white and **2.77** on the light well, and EVERY
+   surface this chip actually stands on is a light one — see the note on the
+   dusk rule below, which turns out to guard a surface it never reaches.
+   `--ok-t` #00735f is the same hue taken down until it clears: **5.81** on the
+   white card (Tiff's transcript, all three note postures) and **5.05** on
+   `.fg .outlet` #EDEFF4, the darkest of them, under the ask bar. It is also
+   already what `.wb2-waiting` forty lines below uses for the identical idea —
+   two "working" states in one block were reading two different teals.
+
+   `--ok-t` defuses a second trap for free: `--teal-d` is repointed to #16a34a
+   inside `.tpr`/`.mts2`/`.lv-*`/`.tw`, and that value is 3.30 on white — still
+   failing. `--ok-t` is declared once, on `.fg`.
+
+   ⚠ THE FALLBACK IS LOAD-BEARING HERE, more than anywhere else in the sheet.
+   The capture sheet portals to document.body, so `--ok-t` — declared on `.fg`
+   — does not reach it and the literal is what actually paints. It has to be
+   the readable value, not the brand one.
+
+   The GRADIENT reads these vars directly rather than through `color`, so it
+   is unaffected by the two rules below that outrank the chip's own colour —
+   which is why the light-surface failure survived: the word was painted teal
+   by the sweep no matter what `color` said. */
+.orb-say { --say-ink:var(--ok-t, #00735f); --say-lit:var(--ink, #050505);
   display:inline-flex; align-items:center; gap:11px; min-height:30px; color:var(--say-ink); }
 /* Teal, not grey. The transcript's old dots were `#c3cad6` — the colour of a
    disabled control — for the single most alive moment on the screen, and the
@@ -1689,7 +1715,22 @@
    the notes postures' own rows. `.tvsay` and `.wb2-dicthint` are the slots
    the plain grey lines used to occupy, so the chip inherits their margins and
    nothing around those controls moves. */
-.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; }
+/* THE CHIP'S OWN COLOUR BACK, in the two slots that were quietly taking it
+   away. The block above says the accent replaced the flat greys these hints
+   used to be — and in four of the five places the chip stands, it hadn't:
+   `.fg .tvsay` (0,2,0, line 670) and `.wb2-dicthint` (0,1,0 but declared 3,700
+   lines LATER) both set `color:var(--gray500)` on the very element `.orb-say`
+   (0,1,0, here) was setting the accent on, and both win.
+
+   Nothing looked wrong, because the WORD is painted by the gradient, which
+   reads `--say-ink` directly. What was actually grey was the ORB — the sphere
+   inherits `color` — and the word too, but only for a reader with
+   prefers-reduced-motion, where the sweep is dropped and `b` falls back to
+   `color:inherit`. A state visible to the readers least likely to be looked at.
+
+   Scoped to `.orb-say.tvsay`, not to `.fg .tvsay`: the two-minute notice and
+   the error line are plain `<p class="tvsay">` and are meant to be grey. */
+.orb-say.tvsay, .orb-say.wb2-dicthint { --orb:20px; gap:8px; min-height:20px; color:var(--say-ink); }
 .orb-say.tvsay b, .orb-say.wb2-dicthint b { font-size:12.5px; font-weight:700; }
 
 /* ── the wait with no words of its own ──
@@ -1704,9 +1745,23 @@
 .wb2-dusk .wb2-waiting { color:#00E5C0; }
 
 /* ── on ink ──
-   The dusk capture surface, where the resting teal is too dark to read and
-   the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
-   else about the chip is restated. */
+   The dusk capture surface, where the resting teal would be too dark to read
+   and the lit end cannot be `--ink`. Same two properties, re-pointed; nothing
+   else about the chip is restated.
+
+   ⚠ THIS RULE CURRENTLY MATCHES NOTHING, and it is kept deliberately. Traced
+   in full: `.wb2-dusk` has four mount points, and none of them contains a
+   `<Waiting>` — the capture sheet's transcribing stage shows `.wb2-waiting`,
+   a bare sphere with no word, and the recording card is the SIBLING branch of
+   the ternary that emits the chip, so the card has unmounted by the time the
+   chip appears. Every one of the five live sites is on white or on the light
+   well.
+
+   It stays because the chip is one branch change from a dusk surface and this
+   is the only thing standing between that and a 3:1 word — and because the
+   both-literal values are what would paint out there anyway: the capture sheet
+   portals to document.body, where nothing declared on `.fg` reaches. Do not
+   "clean it up" as unused. */
 .wb2-dusk .orb-say { --say-ink:#00E5C0; --say-lit:#ffffff; }
 
 /* ══════════ TIFF — THE RECORDING CARD, IN THE COMPOSER (.tk-rec) ══════════

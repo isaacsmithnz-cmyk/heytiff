@@ -9315,6 +9315,9 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-pick-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dstudio .ds-pick-act em { font-style: normal; font-size: 12px; font-weight: 600; }
 .dstudio .ds-pick-act em.ok { color: #00806c; }
+/* pushed, but something needs a person: a figure that moved under a picked
+   row, or a line the design has dropped. Amber, not red — nothing failed. */
+.dstudio .ds-pick-act em.warn { color: var(--ds-amber-d); }
 /* the danger TEXT tone the workboard already uses (#e0264f is the
    fill, not a text colour) */
 .dstudio .ds-pick-act em.err { color: #b31038; }

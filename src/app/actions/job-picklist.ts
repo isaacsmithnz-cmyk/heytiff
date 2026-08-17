@@ -72,17 +72,38 @@ export async function listJobPicklist(
 
 export interface PushResult {
   added: number;
-  /** already on the job from this design — a second click adds nothing */
-  alreadyThere: number;
+  /** quantity corrected on rows NOBODY has picked yet */
+  updated: number;
+  /** the design now says something different, but it is already picked — left
+      exactly as it was, and reported so it is not a silent disagreement */
+  heldBack: number;
+  /** on the job from this design, but the design no longer lists it */
+  orphaned: number;
+  /** already there and still identical */
+  unchanged: number;
 }
 
-/** Push a design's Material picklist onto its linked job.
+/** Push a design's Material picklist onto its linked job — and re-push it
+    after the design changes.
 
-    IDEMPOTENT BY (design, name): pushing twice does not double the list. The
-    quantity is deliberately NOT compared — if the design changed and a row is
-    already on the job, the picked list stays as it was ordered. Re-pushing is
-    for what is MISSING, never for silently rewriting a number somebody has
-    already picked against. */
+    THE RULE IS "never rewrite a number somebody has already picked against",
+    and the fix here is to apply it only where it actually bites. A row nobody
+    has touched can be corrected freely: leaving a stale 3.1 m on the job card
+    because the pipe run grew to 18 m is not caution, it is a wrong number
+    nobody asked for. A row already ticked is different — somebody has stood in
+    the warehouse and acted on that figure — so it is left alone and REPORTED
+    (`heldBack`) rather than quietly changed underneath them.
+
+    Scoping matters twice over:
+
+    - dedupe is by NAME across the whole job, so two designs pushing the same
+      model do not put two lines on one list;
+    - updates are scoped to THIS design's rows, so re-pushing one design never
+      rewrites a figure another design put there.
+
+    Nothing is ever deleted. A row the design has dropped is reported
+    (`orphaned`), because it may already be picked, ordered or on a van — that
+    is a decision for a person, not for a push. */
 export async function pushPicklistToJob(
   jobUuid: string,
   designId: string,
@@ -96,24 +117,48 @@ export async function pushPicklistToJob(
 
   const job = jobUuid.trim();
   if (!job) throw new Error("No job to add to");
-  if (rows.length === 0) return { added: 0, alreadyThere: 0 };
+
+  const nil: PushResult = {
+    added: 0,
+    updated: 0,
+    heldBack: 0,
+    orphaned: 0,
+    unchanged: 0,
+  };
 
   const { data: existing, error: readErr } = await supabaseAdmin
     .from("job_picklist_items")
-    .select("name, position")
+    .select("id, name, sub, qty, picked, design_id, position")
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", job);
   if (readErr) throw new Error(readErr.message);
 
-  const have = new Set((existing ?? []).map((r) => (r as { name: string }).name));
+  type Have = {
+    id: string;
+    name: string;
+    sub: string;
+    qty: string;
+    picked: boolean;
+    design_id: string | null;
+    position: number;
+  };
+  const onJob = (existing ?? []) as Have[];
+  const byName = new Map(onJob.map((r) => [r.name, r]));
+
+  /* an EMPTY push still reports what the design has dropped — a design
+     emptied of systems is exactly when the job card is most stale */
+  const wanted = new Map(rows.map((r) => [r.name, r]));
+  const orphaned = onJob.filter(
+    (r) => r.design_id === designId && !wanted.has(r.name)
+  ).length;
+
+  if (rows.length === 0) return { ...nil, orphaned };
+
   /* append after whatever is already there, so a second push doesn't
      interleave itself through a list somebody is working down */
-  const base = (existing ?? []).reduce(
-    (m, r) => Math.max(m, (r as { position: number }).position),
-    -1
-  );
+  const base = onJob.reduce((m, r) => Math.max(m, r.position), -1);
 
-  const fresh = rows.filter((r) => !have.has(r.name));
+  const fresh = rows.filter((r) => !byName.has(r.name));
   if (fresh.length > 0) {
     const { error } = await supabaseAdmin.from("job_picklist_items").insert(
       fresh.map((r, i) => ({
@@ -129,7 +174,32 @@ export async function pushPicklistToJob(
     );
     if (error) throw new Error(error.message);
   }
-  return { added: fresh.length, alreadyThere: rows.length - fresh.length };
+
+  let updated = 0;
+  let heldBack = 0;
+  let unchanged = 0;
+  for (const r of rows) {
+    const cur = byName.get(r.name);
+    if (!cur) continue; // just inserted above
+    if (cur.qty === r.qty && cur.sub === r.sub) {
+      unchanged++;
+      continue;
+    }
+    /* another design's row, or one already picked — say so, change nothing */
+    if (cur.design_id !== designId || cur.picked) {
+      heldBack++;
+      continue;
+    }
+    const { error } = await supabaseAdmin
+      .from("job_picklist_items")
+      .update({ qty: r.qty, sub: r.sub })
+      .eq("org_id", orgId)
+      .eq("id", cur.id);
+    if (error) throw new Error(error.message);
+    updated++;
+  }
+
+  return { added: fresh.length, updated, heldBack, orphaned, unchanged };
 }
 
 /** Tick or untick one item. Picking is intrinsic to anyone who can read the

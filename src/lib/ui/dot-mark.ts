@@ -102,7 +102,6 @@ const ZIP_REACH = 34;
  * @param cols  grid resolution across the mark; 26 is the shipped density
  */
 export function buildDotField(size: number, cols = 26): DotFieldGeometry {
-  const half = (cols - 1) / 2;
   const cell = (size * 0.76) / cols;
 
   /* Pass one: which cells the stroke covers, and the mark's own bounds. The

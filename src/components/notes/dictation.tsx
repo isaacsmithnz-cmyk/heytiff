@@ -210,10 +210,15 @@ export function useDictation({
   /* CHANGED YOUR MIND WHILE IT WAS OPENING. The three ways out all check
      `recorder.state === "recording"` and do nothing before that is true, so
      while the mic is arming they were dead controls — and now that the card
-     shows them from the first frame, that is a button you can press. Set
-     here, read by `start` at the two points where it can still stand down:
-     nothing is recorded, so there is nothing to keep or throw away. */
-  const abandon = useRef(false);
+     shows them from the first frame, that is a button you can press.
+
+     ONE OBJECT PER ATTEMPT, for the same reason `run` below is one per
+     recording: a shared boolean is answered by whichever attempt reads it
+     last. Stand down, press Talk again, and a plain flag would be cleared by
+     the second press before the FIRST attempt's `getUserMedia` resolved —
+     which would then open a second recorder and a second live socket on the
+     same voice, and file every word twice. */
+  const arm = useRef<{ off: boolean } | null>(null);
   /* Set by the ceiling effect, cleared by every fresh `start`. Read when
      the words are handed over, which is always after the stop it caused. */
   const capped = useRef(false);
@@ -348,13 +353,18 @@ export function useDictation({
     []
   );
 
-  /** The batch transport, unchanged — and now also the live one's floor. */
-  const upload = async (blob: Blob) => {
+  /** The batch transport, unchanged — and now also the live one's floor.
+      `mine` is the run that asked for it: words that arrive for a run somebody
+      has already walked away from go in the bin, not in a box. */
+  const upload = async (blob: Blob, mine: { discard: boolean }) => {
     try {
       const form = new FormData();
       form.append("audio", blob, "note.webm");
       const res = await fetch("/api/workboard/transcribe", { method: "POST", body: form });
       const body = (await res.json()) as { text?: string; error?: string };
+      /* Walked away while this was in the air. Nothing to say and nowhere to
+         say it — the surface that asked is gone. */
+      if (mine.discard) return void clearRun();
       if (!res.ok || !body.text || !saidSomething(body.text)) {
         /* A run that never reaches a proposal has to be dropped, or the
            NEXT note — quite possibly a typed one — prints its `routed`
@@ -426,8 +436,15 @@ export function useDictation({
   const start = () => {
     /* SYNCHRONOUS, and that is the point — it is read in the same render as
        the click that asked for it, so the surface never shows its idle self
-       between the press and the microphone. Everything below is a wait. */
-    abandon.current = false;
+       between the press and the microphone. Everything below is a wait.
+
+       THE LAST RECORDING'S WORDS GO NOW, not after `getUserMedia` comes back.
+       There is one microphone, so an attempt that was still opening stands
+       down here rather than racing this one. */
+    if (arm.current) arm.current.off = true;
+    const mineArm = { off: false };
+    arm.current = mineArm;
+    setInterim("");
     setArming(true);
     void (async () => {
       /* Declared out here so the failure path below can let go of a tap that
@@ -440,9 +457,12 @@ export function useDictation({
            and the card goes back to the box it came from. This is the only
            check the arming window needs: `getUserMedia` is the one await in
            it, and everything after it runs in a single go. */
-        if (abandon.current) {
+        if (mineArm.off) {
           stream.getTracks().forEach((t) => t.stop());
-          setArming(false);
+          /* Only if nothing else has taken over since — a second press is
+             arming its own microphone and this one must not switch its light
+             off on the way out. */
+          if (arm.current === mineArm) setArming(false);
           return;
         }
         /* THE TAP OPENS FIRST, in parallel with everything below it. Not
@@ -506,6 +526,11 @@ export function useDictation({
                difference between this path and the one below it. */
             if (handle) {
               const text = (await handle.stop()).trim();
+              /* Same check the upload does, and it has to be HERE rather than
+                 at the top of this block: the walking away happens while the
+                 socket is flushing its last utterance, which is exactly the
+                 line above. */
+              if (mine.discard) return void clearRun();
               if (saidSomething(text)) {
                 markTranscript("live");
                 cbs.current.onTranscript(text, { capped: capped.current });
@@ -535,7 +560,7 @@ export function useDictation({
               cbs.current.onError?.("Nothing was recorded. Try again, or type it.");
               return;
             }
-            await upload(blob);
+            await upload(blob, mine);
           } finally {
             /* The tracks are held until here so the live path can flush the
                last sentence off a stream that is still open. */
@@ -568,7 +593,7 @@ export function useDictation({
      its own ending when it did not. */
   const standDown = () => {
     if (!arming || recorder.current?.state === "recording") return false;
-    abandon.current = true;
+    if (arm.current) arm.current.off = true;
     setArming(false);
     return true;
   };
@@ -617,7 +642,25 @@ export function useDictation({
 
   const cancel = () => {
     if (standDown()) return;
-    if (recorder.current?.state !== "recording") return;
+    /* WALKING AWAY DURING THE READ-BACK IS STILL WALKING AWAY, and this used
+       to return here and do nothing — the recorder had already stopped, so
+       there was nothing left to cancel. The transcription was still in the
+       air, though, and when it landed it went to `onTranscript` exactly as if
+       somebody were waiting for it.
+
+       That is the bug Isaac hit on 2026-08-17: close the card while it is
+       reading back, open it again later, and the words from the LAST note are
+       sitting in the box — or worse, they arrive mid-sentence while you are
+       recording a new one, because the flow appends them to whatever is
+       there. Marking the run discarded is enough: both delivery points check
+       it, the fetch is allowed to finish and its answer goes in the bin.
+
+       No chime. The recording already ended with one; this is not a second
+       ending, it is the person leaving. */
+    if (recorder.current?.state !== "recording") {
+      if (run.current) run.current.discard = true;
+      return;
+    }
     /* Its own note. Stopping and discarding are both endings, and if they
        sounded alike you could not tell by ear whether the note was kept. */
     playChime("discard");

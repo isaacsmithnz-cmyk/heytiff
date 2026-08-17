@@ -241,7 +241,16 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
          THE WHOLE THING, NOT THE LAST LEG: a note spoken across three
          recordings is one note. `text` is current — the callbacks are
          re-stashed every render, so each leg sees what the one before it
-         appended. */
+         appended.
+
+         AND NOT AFTER YOU HAVE GONE. `cancel()` marks a run discarded when
+         the card closes mid-read-back, so this should never fire for a
+         capture nobody is looking at — but the cost of being wrong is the
+         worst bug this card has had: words from the LAST note appearing in
+         the box of the NEXT one, or arriving mid-sentence while you record.
+         The engine is a shared component with four callers; the sheet's own
+         answer to "is anybody here" is one line, and it is this one. */
+      if (!open) return;
       setText(appendSpoken(text, transcript));
       setSpoke(true);
       setRanOut(capped);

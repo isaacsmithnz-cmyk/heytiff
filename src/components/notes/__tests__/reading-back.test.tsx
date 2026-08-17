@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteToken } from "../note-token";
 import { NoteScopeProvider } from "../note-context";
@@ -124,6 +124,23 @@ describe("the capture sheet", () => {
     await open();
     expect(document.querySelector(".wb2-waiting")).toBeNull();
     expect(chip()).toBeNull();
+  });
+
+  /* AND THE WORDS DO NOT FOLLOW YOU TO THE NEXT ONE. The engine bins a
+     transcription you walked away from (see dictation-walkaway), so this
+     should never fire — but the flow appends whatever it is handed, and being
+     wrong about that put the last note's words in the next note's box.
+     `useDictation` is shared by four callers; this is the sheet saying, in
+     one line, that nobody is here. */
+  it("ignores a transcript that lands after the card was closed", async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.click(screen.getByTitle("Discard"));
+
+    act(() => mockCbs.current!.onTranscript("Hi Chloe, thanks for sharing", { capped: false }));
+
+    await user.click(screen.getByRole("button", { name: /Ask or tell Tiff/i }));
+    expect(screen.getByRole("textbox")).toHaveValue("");
   });
 });
 

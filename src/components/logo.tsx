@@ -2,6 +2,25 @@
    otherwise it inherits `currentColor` (use white on dark, ink on light).
    Source: public/brand/heytiff-*.svg */
 
+/* THE MARK'S GEOMETRY, AS DATA. The two strokes used to be typed into the JSX
+   below and nowhere else, which was fine while the SVG was the only thing that
+   drew them. The capture card now renders the same chevron as a field of dots
+   (lib/ui/dot-mark), and a second copy of these numbers is a second logo that
+   drifts the first time this one is touched — the same argument `TiffMark` was
+   extracted for one level up. One array, two renderers.
+
+   `viewBox` is 100 × 100 and the coordinates are in that space. */
+export const CHEVRON_STROKES = [
+  {
+    d: "M22 24 L40 24 L62 50 L40 76 L22 76 L44 50 Z",
+    width: 7,
+    /** The tail is drawn at 55%, and anything rendering the mark owes it that. */
+    opacity: 1,
+    cap: "butt",
+  },
+  { d: "M54 24 L72 24 L90 46", width: 7, opacity: 0.55, cap: "round" },
+] as const;
+
 export function Chevron({
   size = 24,
   gradient = false,
@@ -44,26 +63,20 @@ export function Chevron({
           </linearGradient>
         </defs>
       )}
-      <path
-        className="htmk-p1"
-        pathLength={1}
-        d="M22 24 L40 24 L62 50 L40 76 L22 76 L44 50 Z"
-        fill="none"
-        stroke={stroke}
-        strokeWidth={7}
-        strokeLinejoin="round"
-      />
-      <path
-        className="htmk-p2"
-        pathLength={1}
-        d="M54 24 L72 24 L90 46"
-        fill="none"
-        stroke={stroke}
-        strokeWidth={7}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity={0.55}
-      />
+      {CHEVRON_STROKES.map((s, i) => (
+        <path
+          key={i}
+          className={`htmk-p${i + 1}`}
+          pathLength={1}
+          d={s.d}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={s.width}
+          strokeLinecap={s.cap}
+          strokeLinejoin="round"
+          opacity={s.opacity === 1 ? undefined : s.opacity}
+        />
+      ))}
     </svg>
   );
 }

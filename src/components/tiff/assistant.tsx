@@ -24,6 +24,7 @@ import { ResearchLines } from "./research-lines";
 import { KB_CATEGORIES, type KbCategoryKey } from "./kb";
 import { appendSpoken, useDictation } from "@/components/notes/dictation";
 import { RecordingCard } from "@/components/notes/recording-card";
+import { DotField } from "@/components/ui/dot-field";
 import { READING_BACK_NOTE } from "@/components/notes/waits";
 import { Waiting } from "@/components/ui/orb";
 
@@ -1085,6 +1086,23 @@ export function TiffAssistant({
                   >
                     <Icon name="x" size={14} />
                   </button>
+                </div>
+                {/* THE SAME INSTRUMENT THIS BAR ALWAYS HAD, mounted the way
+                    the capture sheet mounts it: above the card rather than
+                    inside it. The field is the mark while the mic is open and
+                    the cloud while the words are read back, and those are the
+                    same dots making the journey — inside the card it would be
+                    unmounted and rebuilt between the two, and the flight would
+                    become a cut.
+
+                    IT IS THE MARK ONLY, HERE. This bar shows the recording and
+                    the read-back in two different branches, so a field spanning
+                    them would be remounted between the two anyway; giving it
+                    the cloud would buy the cut it is meant to avoid. The bar
+                    keeps its named wait, and the journey ships on the capture
+                    sheet, where one body holds both stages. */}
+                <div className="wb2-capfield">
+                  <DotField stage="mark" size={252} />
                 </div>
                 <RecordingCard dict={dict} text={input} />
               </div>

@@ -89,14 +89,35 @@ describe("the capture sheet", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: /Ask or tell Tiff/i }));
   };
 
-  it("shows the instrument in the body and names the wait once, in the ribbon", async () => {
+  /* THE INSTRUMENT IS THE FIELD NOW, and the sentence went with the change:
+     nothing on the card names the read-back, because the mark coming apart
+     into a cloud is the whole statement. What must NOT go with it is the
+     announcement — a field of dots says nothing to a screen reader, so the
+     words moved into a live region rather than being deleted. That is the
+     distinction this file was written to hold, and it is worth more now than
+     it was when the text was visible. */
+  it("shows the field in the body and keeps the wait announced, once", async () => {
     transcribing = true;
     await open();
 
-    expect(document.querySelectorAll(".wb2-waiting .orb-ball")).toHaveLength(1);
-    // once on the card, and it is the ribbon's — not a second copy underneath
+    // the same dots that were the mark, now told to be the cloud
+    expect(document.querySelectorAll('.wb2-capfield .dotf[data-stage="cloud"]')).toHaveLength(1);
+    // no second instrument underneath it
+    expect(document.querySelector(".wb2-waiting")).toBeNull();
+
+    // said once, in a live region, as text on the page — never as a label on
+    // something decorative
     expect(screen.getAllByText(READING_BACK_NOTE)).toHaveLength(1);
+    expect(chip()!.closest("[role='status']")).not.toBeNull();
     expect(chip()!.closest(".wb2-capribbon")).not.toBeNull();
+  });
+
+  it("says nothing about the wait where a sighted reader can see it", async () => {
+    transcribing = true;
+    await open();
+    // the announcement is real, and it is the only copy — so it must be the
+    // hidden one, or the sentence is back on the card by another route
+    expect(chip()).toHaveClass("wb2-sr");
   });
 
   it("shows neither while the microphone is not busy", async () => {

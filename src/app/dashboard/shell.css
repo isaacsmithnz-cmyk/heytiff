@@ -1515,6 +1515,145 @@
   .orb-spin { animation:none; transform:rotateX(-16deg) rotateY(24deg); }
 }
 
+/* ══════════════════ THE DOT FIELD (.dotf) — THE CAPTURE CARD ══════════════
+   The mark itself, as the instrument. While you talk it is the HeyTiff
+   chevron with a wave swelling through it; when Tiff takes the words away
+   every dot flies out into a turning cloud and darts about until the answer
+   comes back; then the whole thing drops out of the card.
+
+   ONE SET OF ELEMENTS THROUGHOUT — see components/ui/dot-field for why, and
+   for what the four nested wrappers each do. Unscoped, like the orb: the
+   capture sheet portals to document.body, where anything under `.fg` is
+   absent rather than merely outranked.
+
+   THE ORB IS NOT REPLACED BY THIS. The three note rows still mount the sphere
+   at 18–30px, because a chevron of dots needs room the size of a card and a
+   sphere is legible at any size. One shape for the card, another for the row,
+   which is a real cost and deliberately paid. */
+.dotf { position:relative; flex:none;
+  width:var(--dotf,268px); height:var(--dotf,268px);
+  perspective:calc(var(--dotf,268px) * 3.6); }
+.dotf-tilt { position:absolute; inset:0; transform-style:preserve-3d;
+  /* flat while it is the mark — a logo viewed at an angle is a logo you
+     cannot read — and leaned over once it is a ball */
+  transform:rotateX(0deg); transition:transform 1.25s cubic-bezier(.45,0,.2,1); }
+.dotf-orbit { position:absolute; inset:0; transform-style:preserve-3d; }
+.dotf-cell { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
+.dotf-wander { position:absolute; transform-style:preserve-3d; }
+.dotf-cell i { position:absolute; display:block;
+  width:var(--dotf-dot,5px); height:var(--dotf-dot,5px);
+  margin:calc(var(--dotf-dot,5px) / -2) 0 0 calc(var(--dotf-dot,5px) / -2);
+  border-radius:50%; background:currentColor; opacity:var(--lit,.9); }
+
+/* ── the mark ──
+   The chevron, held still, with a wave that MOVES the dots rather than dimming
+   them: back to 62%, out past 175% as the crest arrives. Scale rather than
+   opacity because the mark has to survive every frame of its own animation —
+   a dot at 62% is still a dot in the right place, where a dot at 8% opacity is
+   a hole in the logo. */
+.dotf[data-stage="mark"] .dotf-cell {
+  transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0); }
+@keyframes dotfSwell {
+  0%,100% { transform:scale(.62);  opacity:calc(var(--lit,.9) * .5) }
+  38%     { transform:scale(1.75); opacity:var(--lit,.9) }
+}
+.dotf[data-stage="mark"] .dotf-cell i {
+  animation:dotfSwell 4.2s ease-in-out infinite;
+  animation-delay:calc(var(--w,0) * -4.2s); }
+
+/* ── out into the cloud ──
+   Past where it is going and then back in, so it reads as coming APART and
+   re-gathering rather than as one shape sliding into another. */
+@keyframes dotfOut {
+  0%   { transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0) }
+  46%  { transform:translate3d(calc(var(--fx) * 1px), calc(var(--fy) * 1px), calc(var(--fz) * 1px)) }
+  100% { transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px)) }
+}
+.dotf[data-stage="cloud"] .dotf-tilt,
+.dotf[data-stage="fall"]  .dotf-tilt { transform:rotateX(-12deg) scale(.66); }
+@keyframes dotfTurn { from { transform:rotateY(0deg) } to { transform:rotateY(360deg) } }
+.dotf[data-stage="cloud"] .dotf-orbit,
+.dotf[data-stage="fall"]  .dotf-orbit { animation:dotfTurn 52s linear infinite; will-change:transform; }
+.dotf[data-stage="cloud"] .dotf-cell {
+  animation:dotfOut 1.4s cubic-bezier(.5,0,.2,1) both;
+  animation-delay:calc(var(--sd,0) * .4s); }
+
+/* ── the zip, and the flare ──
+   A dot never rests while it waits. It darts between four points around its
+   own patch and flares on a clock unrelated to its movement, both at a length
+   of its own, so no two are ever in step: shared timing makes a hundred dots
+   read as one object breathing, separate timing makes them read as a hundred
+   things.
+
+   THE EASING IS WHAT MAKES IT NEURAL. Linear between the same four points is
+   a dot drifting on a current; snapping across and holding is a dot firing.
+   The path is identical — only the timing changed.
+
+   The waypoints are OFFSETS from home, which is what lets one keyframe serve
+   every dot: a dot's own transform is its position, and positions would need
+   a keyframe each. */
+@keyframes dotfZip {
+  0%   { transform:translate3d(calc(var(--z0x) * 1px), calc(var(--z0y) * 1px), calc(var(--z0z) * 1px)) }
+  25%  { transform:translate3d(calc(var(--z1x) * 1px), calc(var(--z1y) * 1px), calc(var(--z1z) * 1px)) }
+  50%  { transform:translate3d(calc(var(--z2x) * 1px), calc(var(--z2y) * 1px), calc(var(--z2z) * 1px)) }
+  75%  { transform:translate3d(calc(var(--z3x) * 1px), calc(var(--z3y) * 1px), calc(var(--z3z) * 1px)) }
+  100% { transform:translate3d(calc(var(--z0x) * 1px), calc(var(--z0y) * 1px), calc(var(--z0z) * 1px)) }
+}
+@keyframes dotfFire {
+  0%,58%,100% { opacity:calc(var(--lit,.9) * .34); transform:scale(.62) }
+  68%         { opacity:1; transform:scale(2) }
+  80%         { opacity:calc(var(--lit,.9) * .5); transform:scale(.85) }
+}
+/* Both run through the FALL as well as the wait. Scoped to the cloud alone,
+   the moment the drop began the selectors would stop matching, the animations
+   would be removed, and a hundred dots would slide back to their homes before
+   falling — which reads as the screen reloading and then playing a different
+   animation. They fall from where they actually are because they never stop. */
+.dotf[data-stage="cloud"] .dotf-wander,
+.dotf[data-stage="fall"]  .dotf-wander {
+  animation:dotfZip var(--zd,5s) cubic-bezier(.65,0,.3,1) infinite;
+  animation-delay:calc(var(--zp,0) * -1s); }
+.dotf[data-stage="cloud"] .dotf-cell i,
+.dotf[data-stage="fall"]  .dotf-cell i {
+  animation:dotfFire var(--fd,4s) ease-in-out infinite;
+  animation-delay:calc(var(--fp,0) * -1s); }
+
+/* ── the end of the wait ──
+   IT GATHERS BEFORE IT DROPS, and that is the fix rather than the flourish.
+   Measured, a plain accelerating ease left a mid-stagger dot motionless for
+   320ms — the stagger delay, and then a curve leaving at zero velocity — so
+   pressing on took visible effect a third of a second later and the cloud
+   appeared to lurch. A 16px lift over the first 15% puts motion on the very
+   first frame and reads as the thing gathering itself.
+
+   The keyframe starts at the dot's OWN home, so nothing snaps to the middle
+   before falling. The tilt, the turn, the zip and the flare all keep running
+   underneath it. */
+@keyframes dotfFall {
+  0%   { transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px));
+         opacity:1; animation-timing-function:cubic-bezier(.18,.85,.4,1) }
+  15%  { transform:translate3d(calc(var(--hx) * 1px), calc((var(--hy) - 16) * 1px), calc(var(--hz) * 1px));
+         opacity:1; animation-timing-function:cubic-bezier(.45,0,.95,.5) }
+  100% { transform:translate3d(calc((var(--hx) + var(--gx)) * 1px), 360px, 0); opacity:0 }
+}
+.dotf[data-stage="fall"] .dotf-cell {
+  animation:dotfFall .95s linear both;
+  animation-delay:calc(var(--sd,0) * .14s); }
+
+@media (prefers-reduced-motion:reduce) {
+  /* Dropped rather than shortened: the frame's global
+     `animation-duration:.001s` turns an infinite loop into a strobe. */
+  .dotf-tilt, .dotf-orbit, .dotf-wander, .dotf-cell, .dotf-cell i {
+    animation:none; transition:none; }
+  .dotf-cell i { transform:none; opacity:var(--lit,.9); }
+  .dotf[data-stage="cloud"] .dotf-cell {
+    transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px)); }
+  /* With `dotfFall` gone there is nothing to hold the dots out of the middle,
+     and they would pile there for the length of the exit. There is no motion
+     to reduce in a departure, so they simply go. */
+  .dotf[data-stage="fall"] .dotf-cell { opacity:0; }
+}
+
 /* ══════════════════ THE WAIT, NAMED (.orb-say) — SHARED ══════════════════
    The orb with a word beside it, wherever something is happening that has
    nothing to show for itself: Tiff's transcript while a question is out,
@@ -5457,6 +5596,33 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-capjob.on { background:rgba(0,163,137,.07); border-color:rgba(0,163,137,.3); }
 .wb2-capjob.on svg { color:var(--wb2-ok, #00A389); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
+
+/* THE WAIT, SAID WHERE ONLY A SCREEN READER HEARS IT. Nothing on the card
+   names the read-back any more — the field is the whole statement — and a
+   field of dots announces exactly nothing, so the sentence moves here rather
+   than being deleted. That is the same bug the three bouncing dots had, in
+   reverse: meaning that lived only in a decorative element's label.
+
+   UNSCOPED, and it has to be. `.fg .sr-only` exists a thousand lines up and
+   would have been the obvious thing to reuse — but the capture sheet portals
+   to document.body, where anything under `.fg` is absent rather than merely
+   outranked, so it would have hidden nothing and printed the words on the
+   card. Same reason the orb and the field are unscoped. */
+.wb2-sr { position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+  overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+
+/* ── where the field stands ──
+   Above the stage's own body and outside it, because the mark and the cloud
+   are the same dots and a branch each would make the flight a cut. `overflow`
+   is what stops the drop: dots are pushed toward the camera, and an element
+   with depth paints by that depth rather than by document order — left
+   unclipped the falling cloud comes down THROUGH whatever has risen beneath
+   it. Clipped, a dot that leaves the field is gone. */
+.wb2-capfield { display:flex; justify-content:center; overflow:hidden;
+  height:268px; margin:2px 0 4px; }
+/* The clock leads the actions row; the row is flush right, so one auto margin
+   pushes every button across. */
+.wb2-capact .wb2-capclock { margin-right:auto; }
 
 /* ── THE INSTRUMENT ──
    Audited 2026-08-10: this stage was a 680 × 201px card, 86% of it empty,

@@ -145,8 +145,10 @@ describe("dictating a question", () => {
     expect(screen.queryByLabelText("Send")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Ask Tiff")).not.toBeInTheDocument();
 
-    // …and what replaced it is the card every other door opens
-    expect(screen.getByLabelText("Listening")).toBeInTheDocument();
+    // …and what replaced it is the card every other door opens, with the mark
+    // standing over it — the instrument this bar has always had, now the logo
+    // itself rather than a sphere
+    expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Start again/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Type instead/ })).toBeInTheDocument();
@@ -308,20 +310,24 @@ describe("the bar while a recording is read back", () => {
     const user = userEvent.setup();
     render(<TiffAssistant voiceEnabled />);
 
-    // nothing is listening yet, so there is no meter and nothing to read back
-    expect(screen.queryByLabelText("Listening")).not.toBeInTheDocument();
+    // nothing is listening yet, so there is no instrument and nothing to read back
+    expect(document.querySelector(".dotf")).toBeNull();
     expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
 
     await speak(user);
-    expect(screen.getByLabelText("Listening")).toBeInTheDocument();
+    expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
     expect(screen.queryByText(READING_BACK_NOTE)).not.toBeInTheDocument();
 
-    // the mic closes and the engine takes over: the meter goes, the chip comes
+    /* The mic closes and the engine takes over: the field goes and the chip
+       comes. This bar shows the two in separate branches, so the mark does NOT
+       fly out into a cloud here — it leaves and the named wait takes its place.
+       The capture sheet is where one body holds both stages and the journey
+       actually happens; pinning that difference is the point of this line. */
     act(() => {
       mockCtl.setRecording?.(false);
       mockCtl.setTranscribing?.(true);
     });
-    expect(screen.queryByLabelText("Listening")).not.toBeInTheDocument();
+    expect(document.querySelector(".dotf")).toBeNull();
     expect(screen.getByText(READING_BACK_NOTE)).toBeInTheDocument();
 
     // …and the whole thing is gone once the words are in the box

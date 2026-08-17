@@ -7,7 +7,8 @@ import { Chevron } from "@/components/logo";
 import { appendSpoken, useDictation } from "./dictation";
 import { RecordingCard, RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
-import { Orb, Waiting } from "@/components/ui/orb";
+import { Waiting } from "@/components/ui/orb";
+import { DotField, useDotFieldExit } from "@/components/ui/dot-field";
 import { useNoteFlow, type NoteFlow } from "./note-flow";
 import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
@@ -54,7 +55,7 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
     <div className="wb2-capribbon">
       {stage === "recording" ? (
         <span className="wb2-recdot" aria-hidden="true" />
-      ) : stage === "sorting" || stage === "transcribing" || (stage === "answer" && flow.asking) ? (
+      ) : stage === "transcribing" ? null : stage === "sorting" || (stage === "answer" && flow.asking) ? (
         <span className="wb2-spin" aria-hidden="true" />
       ) : stage === "answer" ? (
         /* the mark, not a sparkle — the ribbon says "Answer" and the thing
@@ -63,11 +64,17 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       ) : (
         <Icon name="note" size={16} />
       )}
-      <b>
+      {/* NOTHING NAMES THE WAIT. "Reading it back" was the last thing on this
+          card describing itself while the field below was already saying it —
+          the same doubling the sheet has been cut back for twice. The stage is
+          the animation; what is left up here is the tag and the way out.
+          `CaptureSheet` keeps announcing it to a screen reader, which gets
+          nothing at all from a field of dots. */}
+      <b hidden={stage === "transcribing"}>
         {stage === "recording"
           ? "Recording"
           : stage === "transcribing"
-            ? "Reading it back"
+            ? ""
             : stage === "answer"
               ? flow.asking
                 ? "Looking it up"
@@ -114,6 +121,14 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
       <button className="wb2-ico" onClick={flow.close} title="Discard" aria-label="Discard">
         <Icon name="x" size={14} />
       </button>
+      {/* The read-back has no visible name — see the title above — so it says
+          itself here instead. Kept inside the ribbon rather than beside the
+          field so there is still exactly one of it on the card. */}
+      {stage === "transcribing" && (
+        <span className="wb2-sr" role="status">
+          {READING_BACK_NOTE}
+        </span>
+      )}
     </div>
   );
 }
@@ -240,7 +255,43 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
   );
 }
 
+/* THE INSTRUMENT SPANS THE STAGES, so it cannot live inside one.
+
+   The field is the mark while you talk and the cloud while Tiff reads it back,
+   and the whole point is that it is the SAME dots making that journey. Rendered
+   inside each stage's own branch it would be a different element on either side
+   — React would unmount one and mount the other, and the flight would become a
+   cut. So it is mounted once, above the branch, and told which it is.
+
+   `useDotFieldExit` is what lets it leave. The wait ending unmounts everything
+   below, and an unmounted element cannot animate; the hook holds the field for
+   the length of the drop and then lets go. */
+function stageField(stage: NoteFlow["stage"]): "mark" | "cloud" | null {
+  if (stage === "recording") return "mark";
+  /* `sorting` deliberately does NOT keep the cloud. It has its own honest
+     indicator — the skeleton rows standing in the space the review is about to
+     occupy — and two things saying "working" at once is the doubling this card
+     has already been cut back for twice. The cloud falls as the skeletons
+     arrive, which hands over rather than overlapping. */
+  if (stage === "transcribing") return "cloud";
+  return null;
+}
+
 function Body({ flow }: { flow: NoteFlow }) {
+  const field = useDotFieldExit(stageField(flow.stage));
+  return (
+    <>
+      {field && (
+        <div className="wb2-capfield">
+          <DotField stage={field} size={252} />
+        </div>
+      )}
+      <StageBody flow={flow} />
+    </>
+  );
+}
+
+function StageBody({ flow }: { flow: NoteFlow }) {
   const stage = flow.stage;
   const textRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -299,12 +350,11 @@ function Body({ flow }: { flow: NoteFlow }) {
      ribbon and "Reading it back…" again two lines below it, with a spinner
      beside one and a sphere beside the other. The postures have no ribbon,
      which is exactly why they carry the sentence and this does not. */
-  if (stage === "transcribing")
-    return (
-      <div className="wb2-waiting">
-        <Orb />
-      </div>
-    );
+  /* Nothing here any more: the field above IS this stage. It was an orb in a
+     `.wb2-waiting` box, which was a second instrument mounted at the exact
+     moment the first one unmounted — the two never met, so the mark could not
+     become the cloud. */
+  if (stage === "transcribing") return null;
 
   if (stage === "answer") {
     return (

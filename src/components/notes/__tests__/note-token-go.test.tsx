@@ -161,11 +161,16 @@ it("is absent until there is something to sort, once the mic is closed", async (
    (Isaac: "it just looks like it's not a reliable product if it has to
    suggest it"). This is the only place that claim is pinned, because it is
    the one worth keeping: the instrument demonstrates, it does not disclaim. */
-it("shows the meter without commentary on whether it can hear", async () => {
+it("shows the instrument without commentary on whether it can hear", async () => {
   mic.recording = true;
   await openSheet();
 
-  expect(screen.getByLabelText("Listening")).toBeInTheDocument();
+  /* The instrument is the mark itself now rather than the sphere, and it is
+     decorative — the stage is named by the ribbon above it, so the field has
+     no label of its own to find. What has not changed, and is the whole point
+     of this test, is that nothing anywhere says a word about whether the
+     microphone is working. */
+  expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
   expect(screen.queryByText(/hearing/i)).not.toBeInTheDocument();
 });
 

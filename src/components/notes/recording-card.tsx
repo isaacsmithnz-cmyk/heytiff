@@ -124,8 +124,17 @@ export function RecordingCard({ dict, text }: RecordingCardProps) {
           aria-label="What you have said so far"
         />
       )}
-      <RecordingMeter dict={dict} className={words ? "with-words" : undefined} />
+      {/* THE CLOCK HOLDS THE BOTTOM LEFT. It used to stand beside the meter,
+          above the words; with the instrument lifted out of this card (the
+          field spans stages, so it is mounted by the door — see `Body` in
+          ./note-token) there is nothing for it to stand beside. On the actions
+          row it needs no wrapper: `.wb2-capact` is flush right, and one auto
+          margin pushes everything else across.
+
+          Tabular figures are load-bearing at this size — proportional digits
+          make the whole row twitch on every tick. */}
       <div className="wb2-capact">
+        <DictClock seconds={dict.seconds} big />
         {/* THE WAY OUT TO THE KEYBOARD, and during a recording it is the only
             thing this slot does. Audited 2026-08-10: the strongest position on
             the row went to a Default switch — a control about what the Tiff

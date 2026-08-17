@@ -51,13 +51,18 @@ export type Posture = "strip" | "field" | "line" | "debrief";
 
 function Ribbon({ flow }: { flow: NoteFlow }) {
   const { stage, chosenJob } = flow;
+  /* NO SECOND INDICATOR WHILE THE CLOUD IS UP. The crescent was the sort's
+     spinner, from when the wait below it was three static-looking bars; now
+     that the mark is in flight for the whole of it, a spinner beside the
+     word is the same fact told twice — the thing this ribbon has already
+     dropped a title and a caption for. The words stay: they are what names
+     the wait, and what a screen reader gets. */
+  const thinking = stageField(flow) === "cloud";
   return (
     <div className="wb2-capribbon">
       {stage === "recording" ? (
         <span className="wb2-recdot" aria-hidden="true" />
-      ) : stage === "transcribing" ? null : stage === "sorting" || (stage === "answer" && flow.asking) ? (
-        <span className="wb2-spin" aria-hidden="true" />
-      ) : stage === "answer" ? (
+      ) : thinking ? null : stage === "answer" ? (
         /* the mark, not a sparkle — the ribbon says "Answer" and the thing
            that answered is HeyTiff */
         <Chevron size={19} gradient decorative />
@@ -266,23 +271,51 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
    `useDotFieldExit` is what lets it leave. The wait ending unmounts everything
    below, and an unmounted element cannot animate; the hook holds the field for
    the length of the drop and then lets go. */
-function stageField(stage: NoteFlow["stage"]): "mark" | "cloud" | null {
-  if (stage === "recording") return "mark";
-  /* `sorting` deliberately does NOT keep the cloud. It has its own honest
-     indicator — the skeleton rows standing in the space the review is about to
-     occupy — and two things saying "working" at once is the doubling this card
-     has already been cut back for twice. The cloud falls as the skeletons
-     arrive, which hands over rather than overlapping. */
-  if (stage === "transcribing") return "cloud";
+function stageField(flow: NoteFlow): "mark" | "cloud" | null {
+  if (flow.stage === "recording") return "mark";
+  /* THE CLOUD IS THE WHOLE WAIT, not the read-back (Isaac, 2026-08-17): "it
+     brings up our nice animation, but it's so short because it's only
+     confirming the words. The animation should really be used when it's
+     thinking about how to sort the tasks out."
+
+     He is describing the shape of the two waits. Reading a recording back is
+     a second or two, and it used to own the mark's whole flight — the dots
+     barely reached the cloud before the field was pulled and the skeleton
+     rows took over. Sorting is the LONG one: about seven seconds, measured,
+     of Tiff working out what the words become. The animation was ending
+     precisely where the thinking began.
+
+     So the cloud now spans every wait where Tiff has the words and there is
+     nothing yet to show: the read-back, the sort, and the gap before an
+     answer starts streaming. One flight, mic to result — which is also the
+     only version where the mark leaving the chevron reads as a journey
+     rather than a flourish.
+
+     The skeleton rows went with it. They were the sort's own indicator, and
+     two things saying "working" at once is the doubling this card has been
+     cut back for twice; the honest one is the one that started when the mic
+     closed and is still going. */
+  if (flow.stage === "transcribing" || flow.stage === "sorting") return "cloud";
+  /* An answer that has begun arriving is its own progress — the words are
+     the thing, and a cloud over them would be the card still claiming to be
+     thinking while it talks. */
+  if (flow.stage === "answer" && flow.asking && !flow.askText) return "cloud";
   return null;
 }
 
 function Body({ flow }: { flow: NoteFlow }) {
-  const field = useDotFieldExit(stageField(flow.stage));
+  const field = useDotFieldExit(stageField(flow));
   return (
     <>
+      {/* THE BOX CLOSES BEHIND THE DOTS. The field is 268px of the card, and
+          it used to vanish in one frame when `useDotFieldExit` let go — which
+          was survivable while the thing underneath was an empty stage and is
+          not now that the review lands there, because a dense card would jump
+          268px up the moment the last dot went. `go` closes the gap over the
+          back half of the drop, so the review rises into the space rather
+          than being thrown into it. */}
       {field && (
-        <div className="wb2-capfield">
+        <div className={"wb2-capfield" + (field === "fall" ? " go" : "")}>
           <DotField stage={field} size={252} />
         </div>
       )}
@@ -304,26 +337,20 @@ function StageBody({ flow }: { flow: NoteFlow }) {
 
   if (stage === "sorting") {
     /* Something has to MOVE, or seven seconds is indistinguishable from a
-       hang — and the note is worth re-reading while you wait, because the
-       next screen asks you to confirm what was made of it. The skeleton rows
-       hold the space the review is about to occupy. They do NOT count up,
-       name steps, or claim to know what was found: there is a standing rule
-       here against interfaces that pretend to be further along than they are.
+       hang — and the moving thing is now the cloud above, which has been in
+       flight since the mic closed. The skeleton rows that used to stand here
+       were the other half of the doubling that comment warns about: three
+       bars claiming the shape of a review, under a mark that was already
+       saying "working" and had just been cut short to make room for them.
 
-       AND THEY DO NOT EXPLAIN THEMSELVES EITHER. A line under them read
-       "Working out what this becomes — tasks, flags, or just a note", which
-       is the machinery described to somebody who did not ask. Three rows
-       filling the space the review is about to take already say a review is
-       coming, and the ribbon above says "Sorting it out"; a third telling of
-       the same thing is the app narrating rather than working. */
+       WHAT IS LEFT IS THE NOTE, and it is the reason this stage has a body
+       at all: the next screen asks you to confirm what was made of your
+       words, and this is the only quiet moment you get to re-read them.
+       `role="status"` is what a screen reader gets from the wait — a field
+       of dots has nothing to say to one. */
     return (
       <div className="wb2-sorting" role="status" aria-live="polite">
         <p className="wb2-sortnote">{flow.text}</p>
-        <div className="wb2-sortrows" aria-hidden="true">
-          <span className="wb2-skel wb2-skel-a" />
-          <span className="wb2-skel wb2-skel-b" />
-          <span className="wb2-skel wb2-skel-c" />
-        </div>
       </div>
     );
   }
@@ -746,15 +773,26 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
 
 /* ── posture: capsule ── */
 
-/* THE DUSK SKIN. Until the review arrives the card wears the frame's own
-   material — ink glass, gradient edge, white type — and the moment the
-   review lands it hands over to the light work surface it has always been.
-   The split is deliberate, not unfinished: capture is Tiff's moment and
-   reads at a glance; the review is dense reading with a dozen tuned light
-   components (ticks, selects, state colours) that a dark pass would have to
-   re-earn one by one. Deriving it from the stage keeps every posture and the
-   debrief consistent for free. */
-const duskClass = (flow: NoteFlow) => (flow.stage === "review" ? "" : " wb2-dusk");
+/* THE DUSK SKIN, ALL THE WAY DOWN.
+
+   It used to come off at the review: capture was Tiff's moment, checking was
+   dense reading, and the review's dozen tuned light components would each
+   have to re-earn themselves on ink. They since did — the debrief card in
+   Home's journal is the same review on the same dusk skin, and every rule it
+   needs already lives with the skin as `.wb2-capcard.wb2-dusk …` in
+   shell.css rather than with that posture.
+
+   So the split was costing what it was always going to cost: you press one
+   button, watch a dark card listen and think, and it hands you a white one
+   (Isaac, 2026-08-17: "it's also still got a white card instead of the dark
+   glass"). Isaac already ruled on this shape once for the debrief — "All
+   sections should have the same background. No white." — and the sheet is
+   the same flow through the same stages.
+
+   It stays a named thing rather than being inlined at the three mount
+   points, because the argument above is the kind that gets re-litigated and
+   it should be re-litigated in one place. */
+const DUSK = " wb2-dusk";
 
 /** The capture surface, portalled. One copy: the Tiff button and the field
     postures open the SAME sheet, which is the whole argument of the
@@ -782,7 +820,7 @@ export function CaptureSheet({
           buttons for exactly this reason. `wb2-caps` only moves it. */}
       <div
         className={
-          "wb2-capcard wb2-caps" + duskClass(flow) + (entrance === "blossom" ? " wb2-blossom" : "")
+          "wb2-capcard wb2-caps" + DUSK + (entrance === "blossom" ? " wb2-blossom" : "")
         }
         /* The keyframe reads these; with no measurement it falls back to 0,0
            and simply grows from the middle rather than breaking. */
@@ -1112,7 +1150,7 @@ function FieldPosture({
       <>
         <div className="wb2-capdim" onClick={flow.close} />
         <div
-          className={"wb2-capcard wb2-caps" + duskClass(flow)}
+          className={"wb2-capcard wb2-caps" + DUSK}
           role="dialog"
           aria-modal="true"
           aria-label="Add a note"

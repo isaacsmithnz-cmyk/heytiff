@@ -6108,6 +6108,25 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    it. Clipped, a dot that leaves the field is gone. */
 .wb2-capfield { display:flex; justify-content:center; overflow:hidden;
   height:268px; margin:2px 0 4px; }
+/* AND CLOSES BEHIND THEM. 268px disappearing in one frame was fine while the
+   next stage was another wait; the review lands here now, and a dense card
+   arriving with a 268px jump under it undoes the whole point of one
+   continuous flight. The close starts LATE — the dots have most of `dotfFall`
+   to themselves — and finishes with them, so what you see is the cloud
+   draining out of the bottom of the card while the review rises. Clipping is
+   already this element's job (see above), so shrinking it simply eats the
+   field from the top. */
+@keyframes wb2CapFieldGo {
+  from { height:268px; margin-top:2px; margin-bottom:4px; }
+  to   { height:0; margin-top:0; margin-bottom:0; }
+}
+.wb2-capfield.go { animation:wb2CapFieldGo .5s cubic-bezier(.4,0,.2,1) .55s both; }
+/* Motion off: the field has nothing to perform, so it simply is not there —
+   `dotfFall` is already off, which would otherwise leave a 268px hole for a
+   second with a frozen cloud in it. */
+@media (prefers-reduced-motion:reduce) {
+  .wb2-capfield.go { animation:none; height:0; margin:0; }
+}
 /* The clock leads the actions row; the row is flush right, so one auto margin
    pushes every button across. */
 .wb2-capact .wb2-capclock { margin-right:auto; }
@@ -6264,25 +6283,18 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   margin:0; font-size:14.5px; line-height:1.55; font-weight:500;
   color:var(--gray800, #1f2937);
 }
-.wb2-sortrows { display:flex; flex-direction:column; gap:9px; }
-.wb2-skel {
-  display:block; height:12px; border-radius:6px;
-  background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
-  background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite;
-}
-/* Uneven on purpose — three identical bars read as a loading BAR, which
-   would be a progress claim. These are the shape of a card, not a measure
-   of how far along it is. */
-.wb2-skel-a { width:72%; height:14px; }
-.wb2-skel-b { width:88%; }
-.wb2-skel-c { width:54%; }
+/* THE SKELETON ROWS ARE GONE (2026-08-17), and so are their rules. Three
+   sweeping bars stood here for the seven seconds of the sort, which was one
+   working-indicator too many the moment the dot field learned to span the
+   whole wait — and the one that had to be cut short to make room for them
+   was the honest one. Their CSS goes with the markup: a sheet that keeps
+   styling elements nobody renders is how `.fg .me` ended up quietly skinning
+   a mention chip nobody could find. */
 .wb2-sorting .wb2-hint { margin:0; }
-/* Motion off, signal kept: the crescent freezes rather than vanishing, and
-   the state still says "Sorting it out" in words either way — the animation
-   was always the enhancement, not the message. */
+/* Motion off, signal kept: the state still says "Sorting it out" in words
+   either way — the animation was always the enhancement, not the message. */
 @media (prefers-reduced-motion:reduce) {
   .wb2-spin { animation:none; }
-  .wb2-skel { animation:none; background:rgba(10,12,20,.06); }
 }
 .wb2-capcard .wb2-sherr { margin:0 0 10px; }
 .wb2-capcard .wb2-notes { margin-bottom:0; }
@@ -7703,11 +7715,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* ═══════════ THE CAPTURE SHEET'S DUSK SKIN — Isaac, 2026-08-08 ═══════════
 
-   Until the review arrives the card wears the frame's own material: ink
-   glass, white type, the halo pooled beneath it on the dim. The moment the
-   review lands, `wb2-dusk` comes off and the card CROSSFADES back to the
-   light work surface — capture is Tiff's moment, checking is dense reading,
-   and the review's dozen tuned light components stay exactly as they are.
+   The card wears the frame's own material, start to finish: ink glass, white
+   type, the halo pooled beneath it on the dim.
+
+   IT USED TO HAND BACK TO WHITE AT THE REVIEW, and that split lasted as long
+   as the review had no dark clothes. It has them now — see THE REVIEW, IN
+   THE DARK below — so `wb2-dusk` stays on for every stage and the card you
+   press a button to open is the card you save from (Isaac, 2026-08-17).
 
    EVERY COLOUR IN HERE IS A LITERAL. This card portals to <body>, where
    `.fg`'s custom properties are ABSENT, not outranked — a var() reference
@@ -7719,7 +7733,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    a breathing gradient hairline in the mockup and Isaac called it hectic:
    the box you type into is where the colour stops. */
 
-/* the card itself, and the dawn crossfade back to the light review */
+/* the card itself. The transition is what is left of the dawn crossfade —
+   nothing swaps ground mid-flow any more, and it costs nothing to leave a
+   colour change eased rather than cut. */
 .wb2-capcard.wb2-caps { transition:background-color .5s ease, border-color .5s ease, color .5s ease; }
 .wb2-capcard.wb2-dusk { background:rgba(11,14,21,.96); border-color:rgba(255,255,255,.12);
   color:#E8EAED;
@@ -7893,10 +7909,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-dusk .wb-lvl { color:#00E5C0; }
 .wb2-dusk .wb2-livetext { color:#E8EAED; }
 
-/* sorting — the same honest skeletons, cut for ink */
+/* sorting — the words you just said, held while Tiff works out what they
+   become. The skeleton rows that used to need an ink cut of their own are
+   gone; the field of dots above is the wait now. */
 .wb2-dusk .wb2-sortnote { color:#E8EAED; }
-.wb2-dusk .wb2-skel { background:linear-gradient(100deg, rgba(255,255,255,.07) 30%, rgba(255,255,255,.13) 50%, rgba(255,255,255,.07) 70%);
-  background-size:200% 100%; }
 
 /* the answer — Tiff speaking is peak dusk */
 .wb2-dusk .wb2-ansq { background:rgba(255,255,255,.06); color:#D8DCE3; }
@@ -7969,16 +7985,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .wb2-capcard.wb2-dusk :is(.wb2-notes, .wb2-caprec, .wb2-sorting, .wb2-ans) { animation:none; }
   .tiffbtn.lit .tiffbtn-burst { animation:none; }
   .wb2-capdim::after { animation:none; }
-  .wb2-dusk .wb2-skel { background:rgba(255,255,255,.08); }
 }
 
 /* ── THE REVIEW, IN THE DARK ──────────────────────────────────────────────
    Every `.wb-*` and `.wb2-casc*` component was written for a white sheet
    floating over a white page, in light values: grey headings, a white tick,
-   white fields, a near-white cascade panel. The debrief stays dusk THROUGH
-   the review — one ground for the whole card, all the way down (Isaac,
+   white fields, a near-white cascade panel. The card stays dusk THROUGH the
+   review — one ground for the whole card, all the way down (Isaac,
    2026-08-13: "All sections of the debrief part should have the same
    background. No white.") — so the review family needs dark clothes.
+
+   THAT RULING NOW COVERS THE SHEET TOO (Isaac, 2026-08-17: "it's also still
+   got a white card instead of the dark glass"). The debrief card was the
+   first to stay dark all the way down and these rules were written for it;
+   the sheet went on handing back to white at the review, so the same flow
+   through the same stages ended on a different surface depending on which
+   door opened it. It doesn't any more — and because this block was scoped
+   to the SKIN rather than to that one posture, it cost nothing to say so.
 
    SCOPED TO THE SKIN, NOT THE POSTURE. These used to be `.fg .hm-cap …`,
    which tied them to the one card that happened to want them and left them
@@ -8013,7 +8036,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* a native <option> list is drawn by the OS, so the dark field needs a dark
    option too or the menu opens as white text on white */
 .wb2-capcard.wb2-dusk .wb-select option { background:#171C26; color:#fff; }
-.wb2-capcard.wb2-dusk .wb2-capsaid { color:rgba(255,255,255,.45); }
+/* WHAT WAS SAID ABOUT WHEN — "said: before Monday". Measured on the card
+   rather than assumed: `.45` reads 4.49 against this ground at 11px/700,
+   which is not large text and so is the wrong side of AA by a hair. The one
+   piece of a task that explains its urgency does not get to be the thing
+   nobody can read. */
+.wb2-capcard.wb2-dusk .wb2-capsaid { color:rgba(255,255,255,.6); }
 /* THE KNOWLEDGE BODY GETS ITS BOX BACK. It is a `.wb2-notes`, and the dusk
    skin deliberately strips that class to bare words on the card — right for
    the capture box, which is the one thing you are writing in, wrong for a
@@ -8027,7 +8055,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* the cascade — where the note is going, in three numbered lines */
 .wb2-capcard.wb2-dusk .wb2-casc { background:rgba(255,255,255,.04);
   border-color:rgba(255,255,255,.09); }
-.wb2-capcard.wb2-dusk .wb2-cascrow { color:rgba(255,255,255,.4); }
+/* A row that is NOT carrying anything is still a sentence you have to read —
+   "No job named" is the one that tells you where the note is about to land.
+   `.4` measured 3.74 here, which is de-emphasis written as an alpha, the
+   fourth way past the `-t` guard and the one this app keeps re-learning. The
+   step down to the `.on` rows below stays; it just starts above the floor. */
+.wb2-capcard.wb2-dusk .wb2-cascrow { color:rgba(255,255,255,.58); }
 .wb2-capcard.wb2-dusk .wb2-cascrow.on { color:rgba(255,255,255,.92); }
 .wb2-capcard.wb2-dusk .wb2-cascn { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
 .wb2-capcard.wb2-dusk .wb2-cascrow.on .wb2-cascn { background:#00E5C0; color:#04262B; }

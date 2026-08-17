@@ -275,7 +275,18 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
      the save has its own place on the review card. */
   const sorting = busy && !note;
 
-  const stage: Stage = dict.recording
+  /* THE MIC OPENING IS PART OF THE RECORDING, as far as this card is
+     concerned. `arming` covers the gap between the press and the microphone
+     — `getUserMedia`, the tap, the chime — and branching on `recording`
+     alone made the sheet render its IDLE self across it: press the Tiff
+     button and a small card flashed up, box, Default switch and all, before
+     the recording card replaced it. The button opens the sheet and asks for
+     the mic in the same click, so the flash was exactly that gap.
+
+     Nothing is being recorded yet and the card does not pretend otherwise —
+     the clock reads 0:00 and the trace is flat, which is what an open card
+     with no audio in it looks like anyway for the first tick. */
+  const stage: Stage = dict.recording || dict.arming
     ? "recording"
     : dict.transcribing
       ? "transcribing"

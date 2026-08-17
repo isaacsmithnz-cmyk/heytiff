@@ -17,7 +17,7 @@
        somebody wait seven seconds to write down a gate code. */
 
 import { useRef, useState } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteToken } from "../note-token";
 import { NoteScopeProvider, NoteScopeScreen } from "../note-context";
@@ -80,6 +80,28 @@ const task = (over = {}) => ({
   dueDate: "",
   ...over,
 });
+
+/* THE REVIEW ARRIVING AND THE ROUTING FINISHING ARE TWO COMMITS, and every
+   test below that acts on the review card has to wait for the second one.
+
+   One `useTransition` covers both the routing call and the save, and while it
+   is pending the card's buttons are disabled — so "Check it before it saves"
+   in the ribbon can land a beat before the buttons under it wake up. A click
+   in that beat lands on a disabled button and does nothing, which is the
+   quietest possible test failure.
+
+   It was always a race. It became a reliable one when the card grew a field
+   of two hundred dots to fly through the wait, because rendering them is real
+   work inside that same transition. The ghost button is the signal: `busy` is
+   the only thing that ever disables it, where `Save these` is also refused by
+   the cascade's own rules. */
+const reviewIsUp = async () => {
+  await screen.findByText("Check it before it saves");
+  await waitFor(() => {
+    const ghost = screen.queryByRole("button", { name: /Keep it in my notes|on the job's notes/i });
+    if (ghost) expect(ghost).toBeEnabled();
+  });
+};
 
 /* The app's real shape: the layout provides the scope once, and the screen
    underneath REPORTS UP into it. Tests go through the same path, because the
@@ -204,7 +226,7 @@ describe("the capsule", () => {
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "something");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
     await userEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(dismissNote).toHaveBeenCalledWith("n-1");
   });
@@ -216,7 +238,7 @@ describe("the engine's contract, unchanged", () => {
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "note text");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
   };
 
   it("applies what came back from the card, edits included — never the raw proposal", async () => {
@@ -269,7 +291,7 @@ describe("the cascade", () => {
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "note text");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
   };
 
   it("A TASK NEEDS NO JOB — this is the whole change, and it must not regress", async () => {
@@ -445,7 +467,7 @@ describe("the debrief", () => {
     await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
     await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
   };
 
   /* IT HAPPENS IN THE PAGE (Isaac, 2026-08-12). The debrief was a floating
@@ -530,7 +552,7 @@ describe("the debrief", () => {
     await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
     await userEvent.type(screen.getByRole("textbox"), said);
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
   };
 
   /* THE HEADLINE FIX IS THE DATA. Naming the job always worked — `matchJob`
@@ -603,7 +625,7 @@ describe("the debrief", () => {
 
     await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
     expect(document.querySelector(".hm-cap")).toHaveClass("wb2-dusk"); // and review
   });
 
@@ -739,7 +761,7 @@ describe("the LEARN lane on the review card", () => {
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "learned a trick");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
   };
 
   it("shows the entry under 'Worth teaching everyone' with title and method editable", async () => {
@@ -801,7 +823,7 @@ describe("ask-mode — the same token answers questions", () => {
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
     expect(askBrain).not.toHaveBeenCalled();
   });
 
@@ -810,7 +832,7 @@ describe("ask-mode — the same token answers questions", () => {
     await userEvent.click(screen.getByRole("button", { name: /Debrief the day/ }));
     await userEvent.type(screen.getByRole("textbox"), "what's left at Meridian");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
-    await screen.findByText("Check it before it saves");
+    await reviewIsUp();
     expect(askBrain).not.toHaveBeenCalled();
     expect(routeNote).toHaveBeenCalled();
   });

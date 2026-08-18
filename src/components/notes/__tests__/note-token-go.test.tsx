@@ -110,6 +110,21 @@ const openToBox = async () => {
   return user;
 };
 
+/** The OTHER way to the box: through the door's second button, without ever
+    opening the microphone. This is the path Isaac walked on 2026-08-18, and
+    the only one where "Keep talking" is a lie. */
+const openTyping = async () => {
+  const user = userEvent.setup();
+  render(
+    <NoteScopeProvider voiceEnabled>
+      <TiffButton />
+    </NoteScopeProvider>
+  );
+  await user.click(screen.getByLabelText(/Ask or tell Tiff/));
+  await user.click(screen.getByRole("button", { name: /^type$/i }));
+  return user;
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
   mic.recording = false;
@@ -180,6 +195,27 @@ it("shows the instrument without commentary on whether it can hear", async () =>
   expect(screen.queryByText(/hearing/i)).not.toBeInTheDocument();
 });
 
+/* AND IT WAS ALREADY THERE BEFORE THE PRESS. The door stands on the same
+   mark (pinned at the door end in tiff-button), so `Talk` swaps the row of
+   buttons for the recording card and leaves the instrument exactly where it
+   was. Getting this wrong is not just a missing animation — the field is
+   268px, so building it on the press means the card grows under your thumb at
+   the moment the microphone opens. */
+it("carries the same mark from the door into the recording", async () => {
+  const user = userEvent.setup();
+  render(
+    <NoteScopeProvider voiceEnabled>
+      <TiffButton />
+    </NoteScopeProvider>
+  );
+  await user.click(screen.getByLabelText(/Ask or tell Tiff/));
+  expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Talk" }));
+  expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+});
+
 it("offers a way to bin the take and start over", async () => {
   mic.recording = true;
   const user = await openSheet();
@@ -233,26 +269,49 @@ it("keeps a plain mic on an empty box", async () => {
   expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
 });
 
-it("says Keep talking once there are words to add to", async () => {
-  const user = await openToBox();
+/* KEEP TALKING IS ABOUT THE VOICE, NOT THE BOX (Isaac, 2026-08-18, first walk
+   of the door): "if I hit Type instead, when I'm on the typing screen it says
+   Keep talking, which isn't correct."
+
+   The label used to read the box, which was the whole truth while every
+   capture began at the microphone. With a door on the front a full box is
+   just as likely to be one you typed, and the button was inviting people to
+   carry on with something they had never started. What is spoken is pinned in
+   note-token-cap, where transcripts actually arrive; what is pinned here is
+   the half that was wrong. */
+it("says Switch to talk over a box that was only ever typed", async () => {
+  const user = await openTyping();
   await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
 
-  expect(screen.getByRole("button", { name: /keep talking/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Switch to talk" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /keep talking/i })).not.toBeInTheDocument();
 });
 
-/* THE WORD AND THE PLACE both change with the box (Isaac: "just says TALK on
-   the left which is not very helpful — change to keep talking and be on the
-   right"). "Talk" is right for an empty box; over a sentence the only
-   question is whether you are adding to it, so the button says so and stands
-   with the actions instead of on the settings edge. The position is pinned
-   via the class that drops the left anchor — jsdom cannot measure where flex
-   puts it, but it can prove which rule applies. */
-it("says Keep talking over a box with words, and moves off the settings edge", async () => {
+/* A RECORDING THAT SAID NOTHING IS STILL NOTHING SAID. Pressing Talk and then
+   Done without a word reaching the box leaves the capture with no voice in
+   it, and the mic must not claim otherwise just because the microphone was
+   once open. (The fake engine delivers no transcript, which is exactly that
+   case.) */
+it("says Switch to talk after a recording that produced no words", async () => {
   const user = await openToBox();
   await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
 
-  const mic = screen.getByRole("button", { name: "Keep talking" });
-  expect(mic).toHaveClass("wb2-keeptalk");
+  expect(screen.getByRole("button", { name: "Switch to talk" })).toBeInTheDocument();
+});
+
+/* THE PLACE STILL CHANGES WITH THE BOX (Isaac, 2026-08-10: "just says TALK on
+   the left which is not very helpful — change to keep talking and be on the
+   right"). The left edge is where this row keeps its settings; once there are
+   words the mic is an action and belongs beside Go, whichever of the two
+   words it is showing. Pinned via the class that drops the left anchor —
+   jsdom cannot measure where flex puts it, but it can prove which rule
+   applies. */
+it("moves the mic off the settings edge once there are words", async () => {
+  const user = await openTyping();
+  expect(screen.getByRole("button", { name: "Talk" })).not.toHaveClass("wb2-keeptalk");
+
+  await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
+  expect(screen.getByRole("button", { name: "Switch to talk" })).toHaveClass("wb2-keeptalk");
 });
 
 /* The point of the whole thing: pressing it starts another leg, and the leg

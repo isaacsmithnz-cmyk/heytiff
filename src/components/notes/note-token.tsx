@@ -169,6 +169,29 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
      there is something to add to. Every capture opens empty, so the
      preference is still one press from reachable at the start of each one. */
   const words = Boolean(flow.text.trim());
+  /* AND IT ONLY SAYS "KEEP" IF YOU HAVE (Isaac, 2026-08-18, walking the new
+     door): "if I hit Type instead, when I'm on the typing screen it says Keep
+     talking, which isn't correct — that should change to Switch to talk."
+
+     The label was reading the BOX, which was the whole truth back when every
+     capture started at the microphone: words in it meant words you had said.
+     A door on the front breaks that — a full box is now just as likely to be
+     a box you typed — and what is left is a control inviting you to carry on
+     doing something you never started. That is the stop-and-read bug the
+     ceiling hint below is so careful about, in reverse: a button naming a
+     thing that did not happen.
+
+     `flow.spoke` is the honest question. It is already the flag the router
+     files the note's SOURCE from, and it is sticky for the whole capture, so
+     talk-then-tidy-by-keyboard still reads "Keep talking" — the same rule in
+     both places, which is why this reuses it rather than growing a second
+     one. Typed from the door reads "Switch to talk": what the press does,
+     rather than what you were supposedly already doing.
+
+     THE PLACE STILL FOLLOWS THE BOX, not the voice. Standing right is about
+     being an action beside Go instead of a setting on the left edge, and that
+     is equally true of either word — see `.wb2-keeptalk`. */
+  const label = flow.spoke ? "Keep talking" : words ? "Switch to talk" : "Talk";
   /* KEEP TALKING, AND ON THE RIGHT (Isaac, 2026-08-10): "the screen to add
      more text just says TALK on the left, which is not very helpful."
 
@@ -190,7 +213,7 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
       disabled={flow.busy || flow.dict.transcribing}
     >
       <Icon name="mic" size={15} />
-      {words ? "Keep talking" : "Talk"}
+      {label}
     </button>
   );
 }
@@ -207,7 +230,25 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
    below, and an unmounted element cannot animate; the hook holds the field for
    the length of the drop and then lets go. */
 function stageField(flow: NoteFlow): "mark" | "cloud" | null {
-  if (flow.stage === "recording") return "mark";
+  /* THE MARK IS UP BEFORE YOU HAVE CHOSEN (Isaac, 2026-08-18, first walk of
+     the door): "I've clicked the global button, it comes up as talk or type,
+     but I've got no animation in there — we should have the chevron
+     animation, like we do on the talking screen."
+
+     The door shipped as two buttons over nothing, and the gap was more than
+     a missing flourish: the instrument was BUILT by the press, so choosing
+     Talk grew 268px of card under your thumb at the same moment the
+     microphone opened. The one stage that is supposed to be calm ended in a
+     jump.
+
+     Standing the mark on the door fixes both halves. The chevron is already
+     there and already swelling, Talk changes only what is underneath it, and
+     it is the same element on either side of the press — which is the rule
+     this whole field exists to keep (see the note above). A door with the
+     mark on it is also the only place in the app where the logo is simply
+     itself, waiting, which is what a stage with nothing running should look
+     like. */
+  if (flow.stage === "door" || flow.stage === "recording") return "mark";
   /* THE CLOUD IS THE WHOLE WAIT, not the read-back (Isaac, 2026-08-17): "it
      brings up our nice animation, but it's so short because it's only
      confirming the words. The animation should really be used when it's
@@ -293,9 +334,12 @@ function StageBody({ flow }: { flow: NoteFlow }) {
   if (stage === "door") {
     /* TWO BUTTONS AND NOTHING RUNNING. The card opens here now: no microphone
        listening, no caret blinking, no preference deciding on your behalf
-       (Isaac, 2026-08-18). It is the whole content of the stage on purpose —
-       a choice you have to hunt for on a card doing three other things is the
-       switch this replaced.
+       (Isaac, 2026-08-18). It is the whole of the stage's CONTROLS on purpose
+       — a choice you have to hunt for on a card doing three other things is
+       the switch this replaced. The mark above it is not a fourth thing to
+       read: it is the same instrument the recording stage stands on, mounted
+       one stage earlier so the press changes nothing but the row (see
+       `stageField`).
 
        TALK LEADS because talking is the case the button was built for, and it
        opens the microphone in the same press: a "Talk" that only sets a mode
@@ -401,10 +445,12 @@ function StageBody({ flow }: { flow: NoteFlow }) {
         {/* The ceiling, explained where it happened. Nothing was lost and
             nothing was filed — this is a pause, so it says what to do next
             rather than apologising. */}
-        {/* After the ceiling there are ALWAYS words in the box, so the button
-            this points at reads "Keep talking" — the hint has to say the name
-            that is actually on the row, or it is the stop-and-read bug again:
-            an instruction naming a control that is not there. */}
+        {/* A ceiling only ever follows a recording that produced words, so
+            `spoke` and the box are both true here and the button this points
+            at reads "Keep talking" — never "Switch to talk". The hint has to
+            say the name that is actually on the row, or it is the
+            stop-and-read bug again: an instruction naming a control that is
+            not there. */}
         {flow.ranOut && (
           <p className="wb2-hint" role="status">
             Two minutes — that&apos;s the limit for one recording. It&apos;s all in the box; press

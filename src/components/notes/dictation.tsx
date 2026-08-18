@@ -96,6 +96,35 @@ export const COUNTDOWN_FROM = 30;
    broken. Past it the card hands back the box and says so. */
 const ARMING_CEILING_MS = 4_000;
 
+/* AND WHAT TO SAY WHEN IT DOES NOT OPEN, which is the half that matters —
+   Isaac, 2026-08-17: "now it's not listening at all", against a card sitting
+   on the mark with a clock at 0:00.
+
+   The three reasons a microphone stays shut want three different things from
+   the person, and only one of them is "give up and type": a prompt that is
+   still up needs an answer, and a site that is blocked needs a browser
+   setting. Guessing between them would be worse than the silence — so this
+   asks. `permissions.query` is not everywhere (Firefox has no `microphone`
+   descriptor) and it is not allowed to matter: anything it cannot answer
+   falls back to the floor this file has always used.
+
+   Only ever called once a wait has already failed, so its own cost is
+   irrelevant — it must never sit in front of opening the microphone. */
+async function micStuck(): Promise<string> {
+  try {
+    const perms = navigator.permissions as Permissions | undefined;
+    const state = (await perms?.query({ name: "microphone" as PermissionName }))?.state;
+    if (state === "prompt")
+      return "Your browser is asking for the microphone — allow it, then press Talk.";
+    if (state === "denied")
+      return "The microphone is blocked for this site — allow it in your browser settings, or type it instead.";
+  } catch {
+    /* No permissions API, or no microphone descriptor. The floor below says
+       the true thing either way. */
+  }
+  return "The microphone didn't open — type it instead.";
+}
+
 /* A build-time flag can't be A/B'd: every swap is a redeploy of production,
    which is no way to find out whether the live path is actually faster. So
    `?voice=live` / `?voice=batch` beats the flag — enough to measure both
@@ -483,7 +512,7 @@ export function useDictation({
       if (arm.current !== mineArm || mineArm.off) return;
       mineArm.off = true;
       setArming(false);
-      cbs.current.onError?.("The microphone didn't open — type it instead.");
+      void micStuck().then((why) => cbs.current.onError?.(why));
     }, ARMING_CEILING_MS);
     void (async () => {
       /* Declared out here so the failure path below can let go of a tap that

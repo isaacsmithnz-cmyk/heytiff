@@ -56,6 +56,7 @@ function Probe() {
 
 beforeEach(() => {
   jest.useFakeTimers();
+  Object.defineProperty(navigator, "permissions", { configurable: true, value: undefined });
   FakeRecorder.made = 0;
   track.stop.mockClear();
   (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = FakeRecorder;
@@ -73,6 +74,40 @@ beforeEach(() => {
 afterEach(() => {
   jest.useRealTimers();
   cleanup();
+});
+
+it("says to allow it when the browser is still asking", async () => {
+  Object.defineProperty(navigator, "permissions", {
+    configurable: true,
+    value: { query: async () => ({ state: "prompt" }) },
+  });
+  render(<Probe />);
+  act(() => {
+    screen.getByText("start").click();
+  });
+  await act(async () => {
+    jest.advanceTimersByTime(4_000);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(screen.getByTestId("err")).toHaveTextContent(/allow it, then press Talk/i);
+});
+
+it("names the block when the site is blocked, because typing is not the fix", async () => {
+  Object.defineProperty(navigator, "permissions", {
+    configurable: true,
+    value: { query: async () => ({ state: "denied" }) },
+  });
+  render(<Probe />);
+  act(() => {
+    screen.getByText("start").click();
+  });
+  await act(async () => {
+    jest.advanceTimersByTime(4_000);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(screen.getByTestId("err")).toHaveTextContent(/blocked for this site/i);
 });
 
 it("stops claiming to listen when the microphone never opens", async () => {

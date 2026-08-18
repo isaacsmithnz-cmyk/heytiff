@@ -279,7 +279,7 @@ function stageField(flow: NoteFlow): "mark" | "cloud" | null {
   return null;
 }
 
-function Body({ flow }: { flow: NoteFlow }) {
+function Body({ flow, from }: { flow: NoteFlow; from?: { dx: number; dy: number } | null }) {
   const field = useDotFieldExit(stageField(flow));
   return (
     <>
@@ -292,7 +292,10 @@ function Body({ flow }: { flow: NoteFlow }) {
           than being thrown into it. */}
       {field && (
         <div className={"wb2-capfield" + (field === "fall" ? " go" : "")}>
-          <DotField stage={field} size={252} />
+          {/* `from` is what makes the mark ARRIVE rather than appear — it is
+              the button's own offset, handed down from the sheet, and it is
+              absent everywhere there is no button to have flown out of. */}
+          <DotField stage={field} size={252} from={from} />
         </div>
       )}
       <StageBody flow={flow} />
@@ -859,7 +862,7 @@ export function CaptureSheet({
         <Ribbon flow={flow} />
         {flow.error && <p className="wb2-sherr">{flow.error}</p>}
         <JobLine flow={flow} />
-        <Body flow={flow} />
+        <Body flow={flow} from={entrance === "blossom" ? from : null} />
       </div>
     </>,
     document.body

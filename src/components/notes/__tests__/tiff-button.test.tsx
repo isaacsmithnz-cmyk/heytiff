@@ -140,7 +140,29 @@ describe("the button itself", () => {
     mount();
     await user.click(btn());
 
-    expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+    /* AND IT ARRIVES RATHER THAN APPEARS (Isaac, 2026-08-18): the dots come
+       out of the button you just pressed and fly to their seats, which is the
+       `gather` stage. It becomes the resting `mark` when the last one lands —
+       see dot-field-gather for the hand-over. */
+    expect(document.querySelector('.dotf[data-stage="gather"]')).not.toBeNull();
+  });
+
+  /* THE BUTTON HANDS ITS MARK OVER, and cannot still be wearing one while the
+     card holds it — two chevrons on screen at once turns a journey into a
+     copy. The drain itself is CSS, keyed on `aria-expanded`, which is the
+     structural fact jsdom can hold: the attribute is true for exactly as long
+     as the sheet is open, so the button empties and refills with it and there
+     is no second piece of state to fall out of step. */
+  it("reports itself expanded while the sheet has its mark", async () => {
+    const user = userEvent.setup();
+    mount();
+    expect(btn()).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(btn());
+    expect(btn()).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(screen.getByTitle("Discard"));
+    expect(btn()).toHaveAttribute("aria-expanded", "false");
   });
 
   it("Talk opens the microphone in the same press", async () => {

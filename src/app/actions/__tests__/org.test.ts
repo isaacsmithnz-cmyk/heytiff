@@ -29,6 +29,9 @@ const from = jest.fn((table: string) => {
 });
 
 let dbRole: string | null = "owner";
+/* getOrgBrand is gated on `studio`, not on ownership — see the note on the
+   action. Every other test in this file leaves it alone. */
+let studioAllowed = true;
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: { from: (...a: unknown[]) => from(...(a as [string])) },
@@ -46,10 +49,21 @@ jest.mock("@/lib/auth0", () => ({
 }));
 jest.mock("@/lib/permissions-server", () => ({
   getDbRole: jest.fn(() => Promise.resolve(dbRole)),
+  can: jest.fn(() => Promise.resolve(studioAllowed)),
+}));
+jest.mock("@/lib/org/query", () => ({
+  orgBrand: jest.fn(async (orgId: string) => ({
+    name: `brand for ${orgId}`,
+    logoUrl: "https://signed.example/logo.png",
+    abn: null,
+    phone: null,
+    email: null,
+    website: null,
+  })),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { clearOrgLogo, saveOrgSection, setOrgLogo } from "../org";
+import { clearOrgLogo, getOrgBrand, saveOrgSection, setOrgLogo } from "../org";
 
 const LOGO_REF = "org/org-1/org_logo/doc-1.png";
 
@@ -58,6 +72,7 @@ beforeEach(() => {
   from.mockClear();
   deleteDocument.mockClear();
   dbRole = "owner";
+  studioAllowed = true;
   updateError = null;
   docRow = null;
   orgRow = null;
@@ -232,5 +247,31 @@ describe("clearOrgLogo", () => {
     updateError = { message: "nope" };
     expect(await clearOrgLogo()).toEqual({ ok: false, error: "Couldn't remove that logo." });
     expect(deleteDocument).not.toHaveBeenCalled();
+  });
+});
+
+
+/* The letterhead read — the only thing in actions/org.ts that is not a write,
+   and the only one not gated on ownership. It is asked by whoever is printing
+   a job pack, which is a studio act, not an owner's. */
+describe("getOrgBrand", () => {
+  it("answers for the active org when the caller may use the studio", async () => {
+    expect(await getOrgBrand()).toMatchObject({ name: "brand for org-1" });
+  });
+
+  /* Server Functions are reachable by direct POST, so the gate is here and not
+     only on the screen that calls it. NO_BRAND, not a throw: every caller
+     falls back to its own platform wording, so a refusal reads as "this
+     workspace has no logo" rather than breaking a print. */
+  it("returns nothing at all when the caller may not use the studio", async () => {
+    studioAllowed = false;
+    expect(await getOrgBrand()).toEqual({
+      name: "",
+      logoUrl: null,
+      abn: null,
+      phone: null,
+      email: null,
+      website: null,
+    });
   });
 });

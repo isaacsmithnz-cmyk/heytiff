@@ -81,11 +81,19 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
    Same rule as everything else here: the ref is what's stored, the URL is
    minted per render and expires. Null when the object is gone, so a caller
    renders its fallback (initials) rather than a broken image. */
-export async function signOne(ref: string | null | undefined): Promise<string | null> {
+/* `seconds` is an override, not a new default: the live design link signs its
+   plan rasters for six hours because a customer reads that page for as long as
+   they like, and a logo that outlives the drawings beside it — or dies before
+   them — is the wrong kind of surprise. Everything else keeps the one-page-view
+   clock. */
+export async function signOne(
+  ref: string | null | undefined,
+  seconds: number = SIGNED_URL_SECONDS
+): Promise<string | null> {
   if (!ref) return null;
   const { data } = await supabaseAdmin.storage
     .from(DOCUMENTS_BUCKET)
-    .createSignedUrl(ref, SIGNED_URL_SECONDS);
+    .createSignedUrl(ref, seconds);
   return data?.signedUrl ?? null;
 }
 

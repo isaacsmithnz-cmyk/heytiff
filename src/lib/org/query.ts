@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { signOne } from "@/lib/documents/query";
 import { isCredKind, sortOrgCredentials, type OrgCredential } from "./credentials";
+import { NO_BRAND, type OrgBrand } from "./brand";
 import type { OrgAccount } from "./account";
 
 /* Reading the organisation's own credentials. Org-scoped, like every other
@@ -72,5 +74,41 @@ export async function orgAccount(orgId: string, viewerUserId: string): Promise<O
     totalStaff: total.count ?? 0,
     createdAt: (org?.created_at as string | undefined) ?? null,
     plan: (org?.plan as string | undefined) ?? "",
+  };
+}
+
+/* The company's face, for a surface a customer receives — see lib/org/brand.ts.
+
+   One row, six columns, and the logo signed on the way out. Callers that hold
+   a page open for a long time (the live design link) pass their own clock;
+   everything else takes the one-page-view default.
+
+   Fails SOFT. A surface that could not read the org must still render — a
+   handover sheet that 500s because a logo link could not be minted is worse
+   than one that prints without it — so a missing row resolves to NO_BRAND and
+   the caller falls back to its own wording. */
+export async function orgBrand(
+  orgId: string,
+  opts: { seconds?: number } = {}
+): Promise<OrgBrand> {
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("trading_name, legal_name, abn, phone, email, website, logo_url")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (!data) return NO_BRAND;
+
+  const str = (v: unknown) => {
+    const s = typeof v === "string" ? v.trim() : "";
+    return s || null;
+  };
+
+  return {
+    name: str(data.trading_name) ?? str(data.legal_name) ?? "",
+    logoUrl: await signOne(data.logo_url as string | null, opts.seconds),
+    abn: str(data.abn),
+    phone: str(data.phone),
+    email: str(data.email),
+    website: str(data.website),
   };
 }

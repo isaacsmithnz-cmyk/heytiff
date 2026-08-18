@@ -9,6 +9,8 @@ import { SimRuntime } from "@/lib/studio/sim-runtime";
 import { StudioCanvas, ALL_LAYERS_ON } from "@/components/studio/canvas";
 import { SimControllerCard } from "@/components/studio/sim-controller";
 import { SimHeaderStatus } from "@/components/studio/sim-info";
+import { BrandMark } from "@/components/org/letterhead";
+import type { OrgBrand } from "@/lib/org/brand";
 import "@/components/studio/studio.css";
 
 /* The customer-facing viewer — present mode as a whole page. Same canvas,
@@ -42,10 +44,17 @@ export function LiveViewer({
   doc,
   pack,
   planUrls,
+  brand,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   planUrls: Record<string, string>;
+  /* WHO SENT THE LINK. This corner said "HeyTiff" — the name of the software,
+     to a customer who is here because a particular business sent them a
+     drawing of their own house. It is that business now, with HeyTiff as the
+     fallback for a workspace that has set neither a name nor a logo, so
+     nothing regresses for an org that has not filled the page in. */
+  brand: OrgBrand;
 }) {
   /* open on the first floor that actually simulates; fall back to the first */
   const startFloorId = useMemo(() => {
@@ -70,7 +79,9 @@ export function LiveViewer({
   if (!floor || !runtime)
     return (
       <div className="ds-live-404">
-        <span className="ds-live-brand">HeyTiff</span>
+        <span className="ds-live-brand">
+          <BrandMark brand={brand} fallback="HeyTiff" />
+        </span>
         <h1>Nothing to show yet</h1>
         <p>This design has no floors — check back once it has been drawn.</p>
       </div>
@@ -84,7 +95,9 @@ export function LiveViewer({
     >
       <div className="ds-present-bar">
         <div className="ds-present-title">
-          <span className="ds-live-brand">HeyTiff</span>
+          <span className="ds-live-brand">
+            <BrandMark brand={brand} fallback="HeyTiff" />
+          </span>
           <span className="ds-present-name">{doc.meta.name || "Design"}</span>
         </div>
         <SimHeaderStatus runtime={runtime} activeSystemId={activeSystemId} />

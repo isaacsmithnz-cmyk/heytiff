@@ -5,6 +5,7 @@
    simply not offered. The `missing` lists double as the extraction to-do list
    and the generated gap questionnaire ("airflow missing for this range"). */
 
+import { hasDuctAirway } from "../form-factors";
 import {
   isSpigotOpening,
   spigotDiametersMm,
@@ -27,8 +28,6 @@ export interface Readiness {
   /** per role → the required fields/links still missing (empty when ready) */
   missing: Partial<Record<ReadyRole, string[]>>;
 }
-
-const DUCTED_FORMS = new Set(["ducted", "bulkhead"]);
 
 /** Is a numeric field present and positive? (0/NaN/undefined all fail.) */
 function has(n: number | undefined): boolean {
@@ -105,7 +104,7 @@ export function indoorReadiness(pack: DataPack, idu: IndoorUnit): Readiness {
   // Ducted-ready: placeable + airflow + supply/return airway openings (they
   // size the plenum base — ducted spec §1b). Static stays optional in v1 (no
   // ESP check yet).
-  if (DUCTED_FORMS.has(idu.form_factor)) {
+  if (hasDuctAirway(idu.form_factor)) {
     const m = [...placeM];
     if (!has(idu.airflow_ls)) m.push("airflow_ls");
     if (!hasOpening(idu.supply_opening)) m.push("supply_opening");
@@ -120,7 +119,7 @@ export function indoorReadiness(pack: DataPack, idu: IndoorUnit): Readiness {
       multi: idu.system_roles?.includes("multi") ? !missing.multi : false,
       "vrf-idu": idu.system_roles?.includes("vrf") ? !missing["vrf-idu"] : false,
       "vrf-odu": false,
-      ducted: DUCTED_FORMS.has(idu.form_factor) ? !missing.ducted : false,
+      ducted: hasDuctAirway(idu.form_factor) ? !missing.ducted : false,
     },
     missing,
   };
@@ -225,7 +224,7 @@ export function completenessByRange(pack: DataPack): RangeCompleteness[] {
         // only count roles the unit claims (placeable + ducted always relevant)
         const claims =
           role === "placeable" ||
-          (role === "ducted" && DUCTED_FORMS.has(idu.form_factor)) ||
+          (role === "ducted" && hasDuctAirway(idu.form_factor)) ||
           (role === "split" && idu.system_roles?.includes("split-pair")) ||
           (role === "multi" && idu.system_roles?.includes("multi")) ||
           (role === "vrf-idu" && idu.system_roles?.includes("vrf"));

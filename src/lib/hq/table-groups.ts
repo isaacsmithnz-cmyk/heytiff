@@ -5,15 +5,16 @@
    and partitions a series' columns into mapped groups vs a trailing amber
    "To add" set (fields no row in the series has yet).
 
-   Pure and client-safe: value-imports fields.ts only (catalog.ts is
-   server-side — type imports are erased). A drift-guard test keeps every
-   section's group map in sync with EDITABLE_FIELDS. */
+   Pure and client-safe: value-imports fields.ts and form-factors.ts, both
+   leaves (catalog.ts is server-side — type imports are erased). A drift-guard
+   test keeps every section's group map in sync with EDITABLE_FIELDS. */
 
 import {
   EDITABLE_FIELDS,
   fieldSpec,
   type EditableSection,
 } from "@/lib/studio/packs/fields";
+import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import type { FormFactor } from "@/lib/studio/packs/schema";
 import type { HqRow } from "./catalog";
 
@@ -25,7 +26,7 @@ export interface HqColumn {
       when ANY of its rows matches (real series are single-form). Filtered
       columns leave groups, toAdd AND totalFields for that series. Unset =
       applies everywhere. */
-  only?: FormFactor[];
+  only?: readonly FormFactor[];
 }
 
 export interface HqColumnGroup {
@@ -38,18 +39,19 @@ export interface HqColumnGroup {
   columns: HqColumn[];
 }
 
-const col = (field: string, sub: string, only?: FormFactor[]): HqColumn =>
+const col = (
+  field: string,
+  sub: string,
+  only?: readonly FormFactor[],
+): HqColumn =>
   only ? { field, sub, only } : { field, sub };
-
-/** forms with duct airways — mirrors DUCTED_FORMS in catalog.ts/ready.ts */
-const DUCTED_ONLY: FormFactor[] = ["ducted", "bulkhead"];
 
 export const TABLE_GROUPS: Record<EditableSection, HqColumnGroup[]> = {
   indoor_units: [
     { key: "capacity", label: "Capacity", unit: "kW", columns: [col("capacity_cool_kw", "Cooling"), col("capacity_heat_kw", "Heating")] },
     { key: "index", label: "Index", columns: [col("capacity_index", "Cap. index")] },
     { key: "air", label: "Air", columns: [col("airflow_ls", "Airflow L/s"), col("static_pressure_pa", "Static Pa"), col("filter", "Filter")] },
-    { key: "airways", label: "Airways", unit: "mm", columns: [col("supply_opening", "Supply", DUCTED_ONLY), col("return_opening", "Return", DUCTED_ONLY)] },
+    { key: "airways", label: "Airways", unit: "mm", columns: [col("supply_opening", "Supply", DUCT_AIRWAY_FORMS), col("return_opening", "Return", DUCT_AIRWAY_FORMS)] },
     { key: "drain", label: "Drain", columns: [col("drain_pressure", "Pressure"), col("drain_pump", "Pump")] },
     { key: "dims", label: "Dimensions", unit: "mm", columns: [col("width_mm", "W"), col("depth_mm", "D"), col("height_mm", "H")] },
     { key: "mass", label: "Mass", columns: [col("weight_kg", "kg")] },

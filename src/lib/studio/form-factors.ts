@@ -51,12 +51,26 @@ export function hasFormFactorLabel(ff: string): boolean {
 }
 
 /** Forms whose air side runs through ductwork — the ones that own an airflow
-    figure, airway openings and an external static. Presentation-side twin of
-    DUCTED_FORMS (ready.ts, catalog.ts, table-groups.ts) and AIR_CAPABLE_FORMS
-    (modules.ts), which all already read `["ducted", "bulkhead"]`. Kept here so
-    the unit browser doesn't reach into the engine for it.
+    figure, airway openings and an external static.
 
-    NB there are now five copies of this same pair across the codebase. They
-    agree today; a sixth form factor with a duct airway would have to be added
-    to all five. Worth collapsing — out of scope for the reclassification. */
+    THE definition, not a copy of one. It was five: DUCT_AIRWAY_FORMS here,
+    AIR_CAPABLE_FORMS (modules.ts), and a DUCTED_FORMS/DUCTED_ONLY apiece in
+    packs/ready.ts, hq/catalog.ts and hq/table-groups.ts. They agreed, which is
+    the only reason nothing was broken — but a sixth ducted-airway form would
+    have had to be added in five places, and missing one fails silently in the
+    same way `bulkhead` did: a unit keeps its airflow on one surface and loses
+    it on another, with no test red.
+
+    This file stays a leaf (a type import and nothing else), so the engine, HQ
+    and the browser can all reach it without dragging anything behind them. */
 export const DUCT_AIRWAY_FORMS: readonly FormFactor[] = ["ducted", "bulkhead"];
+
+const DUCT_AIRWAY_SET: ReadonlySet<string> = new Set(DUCT_AIRWAY_FORMS);
+
+/** Does this form factor take a duct? Predicate form of DUCT_AIRWAY_FORMS,
+    for the call sites that test a pack row's raw `form_factor` string rather
+    than a typed tab. Set-backed, so it costs the same as the four Sets it
+    replaced. */
+export function hasDuctAirway(ff: string | null | undefined): boolean {
+  return ff != null && DUCT_AIRWAY_SET.has(ff);
+}

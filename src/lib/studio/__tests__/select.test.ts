@@ -110,7 +110,7 @@ describe("form factors", () => {
     }
   });
 
-  /* Bulkhead is an air-capable form (AIR_CAPABLE_FORMS), so the ducted design
+  /* Bulkhead is a duct-airway form (DUCT_AIRWAY_FORMS), so the ducted design
      flow will offer these units and then ask them for a duct. Airflow is what
      makes that legal — assert it here, or a reclassification could quietly
      move a range into the ducted flow without the data the flow needs. */

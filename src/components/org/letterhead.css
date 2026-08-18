@@ -1,0 +1,101 @@
+/* The company's face on a customer-facing surface — see letterhead.tsx.
+
+   Colours are literals rather than the app's tokens, and that is not an
+   oversight: two of the three surfaces this lands on render OUTSIDE `.fg`
+   (the handover sheet and the live link are their own documents), so
+   `var(--ink)` and friends do not resolve there. They are the same values.
+
+   Sized in absolute units for the same reason — one of these gets printed, and
+   a rem that inherits from a page it was not designed against prints wrong. */
+
+.org-lh {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+/* A BOX, NOT A SQUARE. Most real company logos are wordmarks — three or four
+   times wider than tall — and a wordmark dropped into a 52px square renders
+   about 17px tall with 35px of nothing above and below it, which reads as a
+   broken image rather than a letterhead. The image is given a height to fill
+   and a width to stop at, so a wordmark uses the width and a round or square
+   badge stays the size it was drawn. */
+.org-lh-logo {
+  height: 52px;
+  width: auto;
+  max-width: 150px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  object-position: left center;
+}
+/* the initials stand-in is not an image and has no ratio to keep — it is the
+   square the logo box would have been at its narrowest */
+.org-lh-logo.org-initials { width: 52px; }
+.org-lh-k {
+  min-width: 0;
+}
+.org-lh-k b {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #16181d;
+}
+.org-lh-contact {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #4b5563;
+  overflow-wrap: anywhere;
+}
+
+.org-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.org-mark-logo {
+  height: 26px;
+  width: auto;
+  max-width: 92px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+.org-mark-logo.org-initials { width: 26px; }
+.org-mark b {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* No logo yet — the initials wear the shape the logo would have had, so the
+   row does not change height the moment one is uploaded. */
+.org-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #eef0f4;
+  color: #16181d;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.org-lh-logo.org-initials { font-size: 17px; }
+.org-mark-logo.org-initials { font-size: 11px; border-radius: 7px; }
+
+/* Printing. The logo is the one thing on a handover sheet that must not be
+   dropped by a browser saving ink — it is the reason the sheet is recognisably
+   from this business. */
+@media print {
+  .org-lh-logo,
+  .org-initials {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

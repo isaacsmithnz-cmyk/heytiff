@@ -9,6 +9,8 @@ import { latestInstalledPack } from "@/lib/studio/packs/server";
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { trimPackForLive } from "@/lib/studio/packs/live-trim";
 import type { DataPack } from "@/lib/studio/packs/schema";
+import { orgBrand } from "@/lib/org/query";
+import { NO_BRAND } from "@/lib/org/brand";
 import { LiveViewer } from "./live-viewer";
 import { isShareExpired, SHARE_TTL_DAYS } from "@/lib/studio/share";
 
@@ -62,7 +64,7 @@ export default async function LivePage({
 
   const { data, error } = await supabaseAdmin
     .from("studio_designs")
-    .select("doc, share_created_at")
+    .select("doc, share_created_at, org_id")
     .eq("share_token", token)
     .maybeSingle();
   if (error || !data?.doc) notFound();
@@ -90,6 +92,25 @@ export default async function LivePage({
     /* no pack — the plan still renders; the sim just has no handlers */
   }
 
+  /* WHOSE DESIGN THIS IS.
+
+     The page said "HeyTiff" in its top-left corner — the name of the software,
+     on a link a customer opens because a particular business sent it to them.
+     The org comes off the same row the token found, so this costs one read and
+     no new trust: the token already proved the right to see this design, and
+     the business that owns it is the business that sent the link.
+
+     Signed on the SIX-HOUR clock the plan rasters below use, not the
+     one-page-view default. A customer keeps this tab open; a letterhead that
+     dies an hour in, above drawings that are still there, looks like a broken
+     page rather than an expired link.
+
+     Fails soft — orgBrand returns NO_BRAND for a missing row, and the viewer
+     falls back to the wording it had before. */
+  const brand = data.org_id
+    ? await orgBrand(data.org_id as string, { seconds: 21600 })
+    : NO_BRAND;
+
   /* plan rasters: sign every referenced sheet for the visit (6 h) */
   const refs = new Set<string>();
   for (const f of doc.floors)
@@ -104,5 +125,5 @@ export default async function LivePage({
     })
   );
 
-  return <LiveViewer doc={doc} pack={pack} planUrls={planUrls} />;
+  return <LiveViewer doc={doc} pack={pack} planUrls={planUrls} brand={brand} />;
 }

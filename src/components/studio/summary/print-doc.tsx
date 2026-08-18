@@ -6,6 +6,8 @@ import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
 import { fmt, LinesTable, OutdoorBlock, RoomsTable } from "./sheet-tables";
 import { PlanFigure } from "./plan-figure";
+import { Letterhead } from "@/components/org/letterhead";
+import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
@@ -20,16 +22,25 @@ import { PlanFigure } from "./plan-figure";
    is injected while mounted, and `onReady` fires once every plan raster is
    decoded so the caller can window.print() without racing the images. */
 
-function VariantCover({ v }: { v: PrintVariant }) {
+function VariantCover({ v, brand }: { v: PrintVariant; brand: OrgBrand }) {
   const doc = v.doc;
   const empty = v.sheet.systems.length === 0 && v.sheet.unserved.length === 0;
   return (
     <section className="ds-print-cover">
       <header className="ds-jobpack-head">
         <div>
-          {/* the issuer is an eyebrow: the top-right corner belongs to the
-              addressee, as on any document that gets sent to someone */}
-          <div className="ds-jobpack-brand">HeyTiff Design Studio</div>
+          {/* THE ISSUER IS AN EYEBROW: the top-right corner belongs to the
+              addressee, as on any document that gets sent to someone. What
+              changed is WHOSE name is in it — this said "HeyTiff Design
+              Studio", which named the software on a pack a customer receives
+              from an installer. It is the installer's letterhead now, and the
+              old eyebrow is the fallback for a workspace that has set neither
+              a name nor a logo. */}
+          {hasBrand(brand) ? (
+            <Letterhead brand={brand} />
+          ) : (
+            <div className="ds-jobpack-brand">HeyTiff Design Studio</div>
+          )}
           <h1>
             {doc.meta.name || "Design"}
             {doc.meta.jobNumber && (
@@ -139,11 +150,15 @@ function VariantCover({ v }: { v: PrintVariant }) {
 export function PrintDoc({
   model,
   urls,
+  brand = NO_BRAND,
   onReady,
 }: {
   model: PrintModel;
   urls: Record<string, string>;
-  /** every plan raster is decoded — safe to window.print() */
+  /** signed minutes ago by the Export card, not at page render — see the note
+      on getOrgBrand */
+  brand?: OrgBrand;
+  /** every plan raster AND the logo is decoded — safe to window.print() */
   onReady: () => void;
 }) {
   const { options } = model;
@@ -177,9 +192,14 @@ export function PrintDoc({
      browser cache, so decoding here means they render). Next paint via rAF,
      with a timeout fallback — a hidden/throttled document never paints, and
      print readiness must not hang on one. */
+  /* The LOGO joins the rasters in this wait, and it has to: print fires the
+     moment this resolves, and an <img> that has not decoded yet prints as
+     nothing. The pack would come out with a hole where the letterhead is —
+     intermittently, and only for people whose logo was slow. */
+  const logoUrl = brand.logoUrl;
   useEffect(() => {
     if (readyFired.current) return;
-    const jobs = Object.values(urls).map(
+    const jobs = [...Object.values(urls), ...(logoUrl ? [logoUrl] : [])].map(
       (u) =>
         new Promise<void>((resolve) => {
           const img = new Image();
@@ -201,7 +221,7 @@ export function PrintDoc({
         fire();
       });
     });
-  }, [urls]);
+  }, [urls, logoUrl]);
 
   return createPortal(
     <div
@@ -210,7 +230,7 @@ export function PrintDoc({
     >
       {model.variants.map((v) => (
         <div key={v.doc.id} className="ds-print-variant-block">
-          {options.content !== "plans" && <VariantCover v={v} />}
+          {options.content !== "plans" && <VariantCover v={v} brand={brand} />}
           {v.floors.map((floor) => (
             <section key={floor.id} className="ds-print-page">
               <div className="ds-print-cap">

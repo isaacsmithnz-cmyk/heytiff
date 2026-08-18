@@ -21,6 +21,15 @@ import {
 } from "@/lib/studio/export-png";
 import { PlanFigure } from "./plan-figure";
 import { PrintDoc } from "./print-doc";
+import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+
+/* LAZY, like every other server action this screen reaches (share-card,
+   job-attach, system-card). A static import of an "use server" module pulls
+   next/cache into the client module graph, and a jsdom suite that renders this
+   component then dies on `Request is not defined` before its first assertion —
+   nine studio suites at once, none of which touch printing. The type above is
+   erased and costs nothing. */
+const orgActions = () => import("@/app/actions/org");
 
 /* Export action card — the customizer. Content (full pack / plan drawings /
    materials schedule), floors, sibling variants (lazy-loaded through the
@@ -65,6 +74,7 @@ export function ExportCard({
   const [printing, setPrinting] = useState<{
     model: PrintModel;
     urls: Record<string, string>;
+    brand: OrgBrand;
   } | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [pnging, setPnging] = useState(false);
@@ -154,17 +164,33 @@ export function ExportCard({
       const model = buildPrintModel(resolveDocs(), pack, opts);
       const refs = collectSheetRefs(model);
       const urls: Record<string, string> = {};
-      await Promise.all(
-        refs.map(async (ref) => {
+      /* The letterhead is fetched HERE, alongside the rasters, and not when
+         the page rendered: the logo is a private object behind a link that
+         lives an hour, and this tab is open all afternoon. Minted at print
+         time it is always minutes old.
+
+         Its own catch, because a pack that prints without a logo is a pack;
+         a pack that does not print because a logo could not be signed is
+         not. */
+      let brand: OrgBrand = NO_BRAND;
+      await Promise.all([
+        ...refs.map(async (ref) => {
           try {
             urls[ref] = await planImages.url(ref);
           } catch {
             /* a missing raster prints as white — never blocks the pack */
           }
-        })
-      );
+        }),
+        (async () => {
+          try {
+            brand = await (await orgActions()).getOrgBrand();
+          } catch {
+            /* prints under the platform eyebrow, exactly as it used to */
+          }
+        })(),
+      ]);
       cleanupArmed.current = true;
-      setPrinting({ model, urls });
+      setPrinting({ model, urls, brand });
     } catch (err) {
       /* Cleared on both paths by hand rather than in a `finally`, which React
          Compiler 1.0 cannot lower at all — it refuses the whole component
@@ -429,6 +455,7 @@ export function ExportCard({
         <PrintDoc
           model={printing.model}
           urls={printing.urls}
+          brand={printing.brand}
           onReady={() => window.print()}
         />
       )}

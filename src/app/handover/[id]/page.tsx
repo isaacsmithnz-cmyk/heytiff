@@ -5,6 +5,9 @@ import { getProjectDetail } from "@/lib/workboard/projects-query";
 import { listProjectEntries } from "@/lib/workboard/notes-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { deriveProjectMoney, fmtAud } from "@/lib/workboard/project-money";
+import { orgBrand } from "@/lib/org/query";
+import { hasBrand } from "@/lib/org/brand";
+import { Letterhead } from "@/components/org/letterhead";
 import { PrintButton } from "./print-button";
 
 /* The handover sheet — the generated deliverable the whole projects feature
@@ -42,8 +45,29 @@ const CSS = `
   .ho-print { position: fixed; top: 16px; right: 16px; border: 1px solid #d1d5db; background: #fff;
     border-radius: 10px; padding: 9px 14px; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
   .ho-note { color: #6b7280; font-size: 12px; }
+  /* The letterhead band. A rule under it rather than a box around it: this is
+     the top of a document, and the sheet already has enough frames. */
+  .ho-head { display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; flex-wrap: wrap; padding-bottom: 14px; margin-bottom: 22px;
+    border-bottom: 2px solid #16181d; }
+  /* The letterhead is the part that gives, and the kicker is the part that
+     does not: a long contact line wraps inside the letterhead rather than
+     pushing "Handover sheet" onto a line of its own, where it would sit at
+     the wrong end of the band with nothing to align against.
+
+     The basis is 0 and not auto, which is the whole trick. The band wraps,
+     and a flex item measured at auto is sized to its MAX-CONTENT before
+     wrapping is decided — so a long business name plus a full contact line
+     was taken as one unbreakable lump and pushed onto its own line. At a zero
+     basis the two always share the line, and min-width:0 is what lets the
+     contact wrap inside the letterhead instead. */
+  .ho-head .org-lh { flex: 1 1 0; min-width: 0; }
+  .ho-head .ho-kicker { flex: 0 0 auto; text-align: right; }
+  .ho-foot { margin-top: 26px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
   @media print {
     .ho-print { display: none; }
+    /* the band must not be orphaned at the foot of a page from its own sheet */
+    .ho-head { break-after: avoid; }
     .ho { padding: 0; max-width: none; }
     @page { margin: 16mm; }
   }
@@ -60,9 +84,10 @@ export default async function HandoverSheetPage({
   if (!orgId) redirect("/dashboard");
 
   const { id } = await params;
-  const [project, entries] = await Promise.all([
+  const [project, entries, brand] = await Promise.all([
     getProjectDetail(orgId, id),
     listProjectEntries(orgId, id),
+    orgBrand(orgId),
   ]);
   if (!project) notFound();
 
@@ -82,7 +107,17 @@ export default async function HandoverSheetPage({
       <style>{CSS}</style>
       <PrintButton />
 
-      <p className="ho-kicker">Handover sheet</p>
+      {/* WHO SENT THIS. The sheet is the deliverable a customer is handed at
+          the end of a job, and until now it carried no business name at all —
+          not the installer's, not anyone's. The kicker moves to the other end
+          of the same band so the letterhead gets the corner a letterhead
+          gets; with no brand set the band collapses to the kicker alone,
+          exactly as the sheet read before. */}
+      <div className="ho-head">
+        <Letterhead brand={brand} />
+        <p className="ho-kicker">Handover sheet</p>
+      </div>
+
       <h1>{project.name}</h1>
       <p className="ho-sub">
         {[project.clientName, project.siteLabel, project.siteAddress].filter(Boolean).join(" · ")}
@@ -215,6 +250,18 @@ export default async function HandoverSheetPage({
         <div>Handed over by — name, signature, date</div>
         <div>Received for the client — name, signature, date</div>
       </div>
+
+      {/* The sheet outlives the visit — it goes in a drawer and comes back out
+          when something stops working. The name at the top says who did the
+          work; this says who to ring about it, at the end, where a reader
+          looks for it. Only when there is a business to name. */}
+      {hasBrand(brand) && (
+        <p className="ho-note ho-foot">
+          Installed by {brand.name || "us"}
+          {brand.phone ? ` — ${brand.phone}` : ""}
+          {brand.email ? ` · ${brand.email}` : ""}
+        </p>
+      )}
     </main>
   );
 }

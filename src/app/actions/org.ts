@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
-import { getDbRole } from "@/lib/permissions-server";
+import { can, getDbRole } from "@/lib/permissions-server";
 import { refIsOrgs } from "@/lib/documents/files";
 import { deleteDocument } from "./documents";
+import { orgBrand } from "@/lib/org/query";
+import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import {
   buildOrgPatch,
   isOrgSection,
@@ -171,4 +173,30 @@ export async function clearOrgLogo(): Promise<SaveResult> {
   revalidatePath("/dashboard/admin/organization");
   revalidatePath("/dashboard", "layout");
   return { ok: true };
+}
+
+/* THE COMPANY'S FACE, READ — the one thing in this file that is not a write
+   and not owner-only.
+
+   The gate is different because the question is different. Everything above
+   changes the company profile, which is an owner's act. This only ASKS what
+   the letterhead says, and it is asked by whoever is printing a job pack —
+   the design studio's Export card, where the answer has to be minted fresh.
+
+   FRESH IS THE POINT. The logo is a private object behind a signed link that
+   lives an hour, and a studio tab is open all afternoon. Signing it when the
+   page rendered would mean the logo on a pack printed after lunch was a dead
+   URL and a broken image in the middle of a customer document. This is called
+   at print time instead, so the link is always minutes old.
+
+   `studio` is the gate because that is the screen that prints. It is on by
+   default for every role and revocable, which is the same bar as reaching the
+   design being printed in the first place — this adds no reach. Nothing here
+   is secret in any case: it is the name and number the same person is about
+   to put in front of a customer. */
+export async function getOrgBrand(): Promise<OrgBrand> {
+  const session = await auth0.getSession();
+  const orgId = session?.orgId as string | undefined;
+  if (!orgId || !(await can("studio"))) return NO_BRAND;
+  return orgBrand(orgId);
 }

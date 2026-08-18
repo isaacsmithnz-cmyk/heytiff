@@ -126,7 +126,7 @@ export function prepareKeyterms(
 
    The body is read defensively and truncated: it is a vendor's error text, so
    it goes to the server log and nowhere near a page. */
-async function logUpstreamFailure(res: Response): Promise<void> {
+async function logUpstreamFailure(res: Response): Promise<string> {
   let detail = "";
   try {
     detail = (await res.text()).slice(0, 500);
@@ -134,12 +134,43 @@ async function logUpstreamFailure(res: Response): Promise<void> {
     detail = "<unreadable body>";
   }
   console.error(`[transcribe] ElevenLabs ${res.status} ${res.statusText}: ${detail}`);
+  return detail;
 }
 
 /** The only sentences either transport is allowed to hand to a person. */
 const UNAVAILABLE = "Voice notes aren't switched on yet — type it instead.";
 const FAILED = "That recording couldn't be transcribed. Try again, or type it.";
 const EMPTY = "Nothing was said in that recording.";
+/* The account has run dry. Named for what it is, because "couldn't be
+   transcribed" sent Isaac hunting a bug in the microphone for an afternoon —
+   and the one person who can clear it is the one who pays the bill. */
+const OUT_OF_CREDIT = "Voice notes have run out of credit — type it instead, and tell the office.";
+
+/* WHICH FAILURE IT WAS, in the one dimension a person can act on: is trying
+   again worth anything?
+
+   Live on 2026-08-17, with Isaac walking the card: every recording came back
+   "That recording couldn't be transcribed. Try again, or type it." The mic
+   was fine, the upload was fine, and the vendor was answering 401
+   `quota_exceeded` — one credit left of ten thousand. So the card spent an
+   afternoon inviting a retry that could not succeed, for a reason no amount
+   of retrying could reach, and the diagnosis was sitting in a server log
+   nobody had cause to open.
+
+   RUNNING OUT IS NOT AN ERROR, IT IS A BILL. It says so plainly, and it does
+   not say "try again" — the person holding the phone cannot fix it and must
+   not be sent round the loop discovering that. A rejected key is the same
+   shape of dead end and takes the sentence this file already has for a
+   deployment that cannot hear. Everything else keeps the retry, because
+   everything else might work next time — a 429 genuinely does.
+
+   The vendor's own words never reach the page. This reads the body only to
+   tell the two kinds apart; the sentence handed back is always ours. */
+function upstreamMessage(status: number, detail: string): string {
+  if (/quota_exceeded|insufficient[_ ]?credit|out of credits/i.test(detail)) return OUT_OF_CREDIT;
+  if (status === 401 || status === 403) return UNAVAILABLE;
+  return FAILED;
+}
 
 /* ── the live transport's key ──
 
@@ -167,8 +198,7 @@ export async function mintRealtimeToken(): Promise<TokenResult> {
       signal: AbortSignal.timeout(TOKEN_TIMEOUT_MS),
     });
     if (!res.ok) {
-      await logUpstreamFailure(res);
-      return { ok: false, error: FAILED };
+      return { ok: false, error: upstreamMessage(res.status, await logUpstreamFailure(res)) };
     }
     const body: unknown = await res.json();
     const token =
@@ -219,8 +249,7 @@ export async function transcribeAudio(
       signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
     });
     if (!res.ok) {
-      await logUpstreamFailure(res);
-      return { ok: false, error: FAILED };
+      return { ok: false, error: upstreamMessage(res.status, await logUpstreamFailure(res)) };
     }
 
     const body: unknown = await res.json();

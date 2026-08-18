@@ -180,7 +180,10 @@ function DefaultSwitch({ flow }: { flow: NoteFlow }) {
           aria-pressed={talk}
           onClick={() => {
             flow.chooseMode("talk");
-            if (!flow.dict.recording) flow.dict.start();
+            /* Not on top of a read-back that is still running: its words are
+               in the air, and they would land in the box halfway through the
+               recording this press just started. */
+            if (!flow.dict.recording && !flow.dict.transcribing) flow.dict.start();
           }}
         >
           <Icon name="mic" size={13} />
@@ -252,7 +255,7 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
     <button
       className={"pbtn ghost wb2-talk" + (words ? " wb2-keeptalk" : "")}
       onClick={flow.dict.start}
-      disabled={flow.busy}
+      disabled={flow.busy || flow.dict.transcribing}
     >
       <Icon name="mic" size={15} />
       {words ? "Keep talking" : "Talk"}
@@ -450,6 +453,17 @@ function StageBody({ flow }: { flow: NoteFlow }) {
             Keep talking to carry on where you left off.
           </p>
         )}
+        {/* THE WORDS ARE STILL COMING, and you are already typing. This is the
+            read-back after "Type instead": the box is yours now, and what you
+            said joins it when the transcriber answers (`appendSpoken`, same as
+            a second leg). The card owes you one thing here — the fact that
+            something is still on its way — and it is the same chip the field
+            postures have always used for this exact wait, which is also the
+            live region a screen reader hears. The ribbon's hidden copy belongs
+            to the OTHER read-back, the one with the cloud and no box. */}
+        {flow.dict.transcribing && (
+          <Waiting note={READING_BACK_NOTE} className="wb2-dicthint" />
+        )}
         {/* DISCARD IS GONE FROM BOTH STAGES. It called `flow.close`, which is
             exactly what the ribbon's × does — two controls, one behaviour,
             and the × is present in every stage while Discard never was. */}
@@ -472,7 +486,11 @@ function StageBody({ flow }: { flow: NoteFlow }) {
               className="pbtn wb2-prim"
               aria-label="Go"
               onClick={() => flow.submit(flow.text)}
-              disabled={flow.busy}
+              /* NOT WHILE WORDS ARE IN THE AIR. The box is live during a
+                 handed-over read-back, so Go is reachable a second before the
+                 spoken half of the note arrives — and filing then would send
+                 what you typed and silently drop what you said. */
+              disabled={flow.busy || flow.dict.transcribing}
             >
               {flow.busy ? "Reading…" : "Go"}
             </button>

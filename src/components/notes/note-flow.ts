@@ -297,7 +297,13 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
      with no audio in it looks like anyway for the first tick. */
   const stage: Stage = dict.recording || dict.arming
     ? "recording"
-    : dict.transcribing
+    /* `handing` is the read-back somebody asked to TYPE through, and it stays
+       on the idle stage — the box, with the words joining it when they land.
+       Pressing "Type instead" and being shown a full-card animation is the
+       card answering a request for the keyboard with a performance (Isaac,
+       2026-08-17). The wait is identical; only who asked for it differs, and
+       that decides what they should be looking at. */
+    : dict.transcribing && !dict.handing
       ? "transcribing"
       : asking || askText
         ? "answer"

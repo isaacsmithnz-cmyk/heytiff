@@ -249,7 +249,26 @@
 .fg .newbtn span { position:relative; z-index:10; }
 .fg .newbtn .pl { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,.1); font-size:16px; line-height:1; }
 
-.fg .outlet { flex:1; overflow:auto; position:relative; scrollbar-gutter:stable; scrollbar-width:thin; scrollbar-color:transparent transparent; transition:scrollbar-color .3s; }
+/* BOTH EDGES, OR EVERY SCREEN IN THE APP SITS OFF ITS OWN CENTRE.
+
+   `stable` reserves the scrollbar's width on the inline-end edge only. Every
+   page inside is `.wrap`, `max-width:1500px; margin:0 auto` — and auto margins
+   centre inside the CONTENT box, which that reservation has already taken a
+   scrollbar's width out of on the right. So the whole app was drawn a
+   scrollbar's width left of the well it sits in: 40px of gutter on the left
+   against 51px on the right, on every route.
+
+   `both-edges` reserves it on both, so the two gutters match and nothing moves
+   when a page grows long enough to scroll. The plain `stable` stays as the line
+   before it: where `both-edges` is not understood the whole declaration would
+   be dropped, and the fallback is worth more than the centring — an unreserved
+   gutter reflows the page the moment content passes the fold.
+
+   YOU WILL NOT SEE THIS ON A DEFAULT MAC. Overlay scrollbars take no layout
+   width, so the gutter reserves nothing and both values look identical; it is
+   real wherever scrollbars are classic (Windows, macOS "Always show
+   scrollbars"). Measured, not eyeballed — see outlet-gutter.test.ts. */
+.fg .outlet { flex:1; overflow:auto; position:relative; scrollbar-gutter:stable; scrollbar-gutter:stable both-edges; scrollbar-width:thin; scrollbar-color:transparent transparent; transition:scrollbar-color .3s; }
 .fg .outlet:hover { scrollbar-color:rgba(120,128,150,.45) transparent; }
 .fg .outlet::-webkit-scrollbar { width:8px; height:8px; }
 .fg .outlet::-webkit-scrollbar-track { background:transparent; }

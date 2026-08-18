@@ -1,12 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { allJobsRows, type AllJobRow, type AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { AllJobsData } from "@/lib/workboard/all-jobs-query";
 import type { BoardVisit, BoardAgreement, BoardCategory } from "@/lib/workboard/board-query";
 import type { BoardProject, ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
-import { searchAllJobs } from "@/app/actions/workboard";
 import { WorkOrdersTab, QuotesTab, CompletedJobsTab } from "./all-jobs-tab";
 import { ScheduleTab, type ScheduleShelfItem } from "./schedule-tab";
 import { JobSheet } from "./job-sheet";
@@ -59,6 +58,10 @@ export function AllJobsBoard({
   aiEnabled = false,
   sm8,
   onOpenTracked,
+  tools,
+  searchPanel = null,
+  onExitSearch,
+  openTarget = null,
 }: {
   data: AllJobsData;
   /** Maintenance visits — the native half of the union. */
@@ -82,17 +85,27 @@ export function AllJobsBoard({
      opens the right sheet. The KIND matters: a visit, an agreement and a
      project are three different destinations with three different ids. */
   onOpenTracked: (target: { kind: "visit" | "agreement" | "project"; id: string }) => void;
+  /** The page-owned universal search, docked at the tab row's right end. */
+  tools?: ReactNode;
+  /** Its answers — see the maintenance board's note. */
+  searchPanel?: ReactNode;
+  /* Picking a tab leaves the search. The tab row stays lit behind the results
+     panel so you can see where you'd land back — a control you can see and
+     click has to actually take you there, and it can't while the panel is
+     still covering the card. */
+  onExitSearch?: () => void;
+  /* A ServiceM8 job named from outside this board. It arrives as the JOB, not
+     as an id: the row a search found may be older than this board's loaded
+     window, so there would be nothing here to look the id up in. */
+  openTarget?: { kind: "job"; job: AllJobsMirrorJob } | null;
 }) {
   /* Lands on Schedule — the first tab is the landing tab on every board
      (Maintenance opens on Urgent the same way). The diary's fetch-on-open
      therefore fires when this SIDE opens, which is still nothing on the
      Workboard page load: the board only mounts when the side is chosen. */
   const [tab, setTab] = useState<AllJobsTabKey>("schedule");
-  const [query, setQuery] = useState("");
   const [sheetRow, setSheetRow] = useState<AllJobRow | null>(null);
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
-  const [remote, setRemote] = useState<AllJobsMirrorJob[]>([]);
-  const [searching, startSearch] = useTransition();
   const { toasts, toast, dismiss } = useBoardToasts();
 
   /* THE UNION. Native rows are slimmed here rather than in the loader,
@@ -193,10 +206,10 @@ export function AllJobsBoard({
     return out;
   }, [visits, projectVisits]);
 
-  /* A schedule block opens THE SAME SHEET the list rows open, on the same
-     row shape — one job, one law. The payload's job is already in the mirror
-     shape, so the row builder that feeds the list feeds this too. */
-  const openScheduleJob = (job: AllJobsMirrorJob) => {
+  /* A schedule block — or a search result — opens THE SAME SHEET the list rows
+     open, on the same row shape: one job, one law. Both arrive already in the
+     mirror shape, so the row builder that feeds the list feeds them too. */
+  const openJob = (job: AllJobsMirrorJob) => {
     const found = allJobsRows({ jobs: [job], visits: [], projects: [], today });
     const row = [
       ...found.work.booked,
@@ -210,40 +223,17 @@ export function AllJobsBoard({
     setSheetRow(t ? { ...row, tracked: t } : row);
   };
 
-  /* The loaded window is the recent past and the open present. Anything older
-     lives in the mirror and is reached by ASKING — which is why typing runs a
-     server search alongside the local filter rather than instead of it. */
-  const runQuery = (q: string) => {
-    setQuery(q);
-    if (q.trim().length < 2) {
-      setRemote([]);
-      return;
-    }
-    startSearch(async () => setRemote(await searchAllJobs(q)));
-  };
+  /* TAKEN DURING RENDER, never in an effect — see the maintenance board for
+     why, and why IDENTITY rather than value is the signal.
 
-  /** Server hits, minus anything already on screen — a row found twice is a
-      row that looks like two jobs. */
-  const extra = useMemo(() => {
-    if (remote.length === 0) return [];
-    const onScreen = new Set(
-      [
-        ...view.work.booked,
-        ...view.work.unbooked,
-        ...view.quotes,
-        ...view.completed,
-        ...view.unsuccessful,
-      ].map((r) => r.key)
-    );
-    const found = allJobsRows({ jobs: remote, visits: [], projects: [], today });
-    return [
-      ...found.work.booked,
-      ...found.work.unbooked,
-      ...found.quotes,
-      ...found.completed,
-      ...found.unsuccessful,
-    ].filter((r) => !onScreen.has(r.key));
-  }, [remote, view, today]);
+     THE SERVER SEARCH LEFT THIS BOARD WITH THE BOX. It used to run its own
+     half of the mirror query here and fold the hits in under the lists; one
+     box above all three boards means one caller, and that is the page. */
+  const [taken, setTaken] = useState<typeof openTarget>(null);
+  if (openTarget && openTarget !== taken) {
+    setTaken(openTarget);
+    openJob(openTarget.job);
+  }
 
   /* ── the sliding tab thumb — measured, like both boards ── */
   const rowRef = useRef<HTMLDivElement>(null);
@@ -263,6 +253,7 @@ export function AllJobsBoard({
   /* ── the E7 switch: information swaps, the surface stays ── */
   const [fallbackSwap, setFallbackSwap] = useState(0);
   const showTab = (next: AllJobsTabKey) => {
+    onExitSearch?.();
     if (next === tab) return;
     const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
     if (typeof doc.startViewTransition === "function") {
@@ -283,8 +274,6 @@ export function AllJobsBoard({
     connected,
     syncing: backfilling.jobs,
     manage,
-    query,
-    onQuery: runQuery,
     onOpen: (row: AllJobRow) => {
       // Only ServiceM8 rows have a sheet to open. A native row already has a
       // home on another board, so it goes there instead of into a second
@@ -292,8 +281,6 @@ export function AllJobsBoard({
       if (row.kind === "sm8") setSheetRow(row);
       else onOpenTracked({ kind: row.kind === "visit" ? "visit" : "project", id: row.id });
     },
-    extra,
-    searching,
   };
 
   return (
@@ -320,9 +307,11 @@ export function AllJobsBoard({
           </button>
         ))}
         <Sm8Chip sm8={sm8} />
+        {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>
 
       <div className="wb2-card">
+        {searchPanel ?? (
         <div
           key={`${tab}-${fallbackSwap}`}
           className={"wb2-panel" + (fallbackSwap ? " wb2-swap" : "")}
@@ -339,12 +328,13 @@ export function AllJobsBoard({
               tracked={trackedByJob}
               shelfItems={shelfItems}
               waitingCount={view.work.unbooked.length}
-              onOpenJob={openScheduleJob}
+              onOpenJob={openJob}
               onOpenTracked={onOpenTracked}
               onGoWork={() => showTab("work")}
             />
           )}
         </div>
+        )}
       </div>
 
       {sheetRow && (

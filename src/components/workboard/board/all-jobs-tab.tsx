@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -8,7 +8,6 @@ import {
   awaitingPaymentCount,
   MONEY_BASIS,
   completedCountLine,
-  filterView,
   quotesCountLine,
   workCountLine,
   type AllJobRow,
@@ -35,12 +34,7 @@ type Props = {
   /** Connected, but the `jobs` backfill hasn't finished its first walk. */
   syncing: boolean;
   manage: boolean;
-  query: string;
-  onQuery: (q: string) => void;
   onOpen: (row: AllJobRow) => void;
-  /** Rows found by the server search, past the loaded window. */
-  extra?: AllJobRow[];
-  searching?: boolean;
 };
 
 const dayOf = (naive: string | null) => (naive ? naive.slice(0, 10) : null);
@@ -176,19 +170,13 @@ function Rows({
   );
 }
 
-function Head({
-  icon,
-  title,
-  sub,
-  query,
-  onQuery,
-}: {
-  icon: string;
-  title: string;
-  sub: string;
-  query: string;
-  onQuery: (q: string) => void;
-}) {
+/* THE HEAD NO LONGER CARRIES A SEARCH BOX. It carried one on all three of
+   these panels — the same field, three times, reachable only from a list tab
+   and only able to find what that list already held. The board's one box
+   lives above the card now (see board/work-search), which is why nothing here
+   knows about a query any more: while somebody is searching, this panel isn't
+   on screen at all. */
+function Head({ icon, title, sub }: { icon: string; title: string; sub: string }) {
   return (
     <div className="wb2-chd">
       <span className="wb2-ci">
@@ -198,30 +186,19 @@ function Head({
         <b>{title}</b>
         <em>{sub}</em>
       </div>
-      <label className="wb2-agsearch">
-        <Icon name="search" size={14} />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => onQuery(e.target.value)}
-          placeholder="Job number, client, suburb or words in the job"
-          aria-label="Search all jobs"
-        />
-      </label>
     </div>
   );
 }
 
-/** What an empty panel says depends on WHY it's empty — no match, no
-    integration, a first sync still running, or genuinely nothing on. Those are
-    four different situations and one sentence for all of them helps nobody.
-    The search miss is decided here because only this panel knows the query;
-    the two integration answers come from sm8-gap, which the diary shares. */
+/** What an empty panel says depends on WHY it's empty — no integration, a
+    first sync still running, or genuinely nothing on. Those are three
+    different situations and one sentence for all of them helps nobody. The
+    two integration answers come from sm8-gap, which the diary shares; the
+    search miss moved to the search panel, with the box that causes it. */
 function Empty({
   connected,
   syncing,
   manage,
-  query,
   icon,
   nothing,
   hint,
@@ -229,20 +206,10 @@ function Empty({
   connected: boolean;
   syncing: boolean;
   manage: boolean;
-  query: string;
   icon: string;
   nothing: string;
   hint: string;
 }) {
-  if (query.trim()) {
-    return (
-      <div className="wb2-empty">
-        <Icon name="search" size={20} />
-        <b>Nothing matches “{query.trim()}”</b>
-        <em>Search reads the job number, the client, the suburb and the job&apos;s own words.</em>
-      </div>
-    );
-  }
   /* An empty list that can be EXPLAINED explains itself, and the explanation
      outranks the panel's own "nothing on" copy: told there is no work when
      nothing has been connected, you learn nothing about why. */
@@ -258,60 +225,25 @@ function Empty({
   );
 }
 
-function Extra({
-  rows,
-  moneyVisible,
-  searching,
-  query,
-  onOpen,
-}: {
-  rows: AllJobRow[];
-  moneyVisible: boolean;
-  searching: boolean;
-  query: string;
-  onOpen: (row: AllJobRow) => void;
-}) {
-  if (!query.trim()) return null;
-  if (searching) return <p className="int-hint">Looking through the rest of ServiceM8…</p>;
-  if (rows.length === 0) return null;
-  return (
-    <>
-      <div className="wb2-sect">
-        Found elsewhere in ServiceM8
-        <em>Older than this board&apos;s window, or on another tab</em>
-      </div>
-      <Rows rows={rows} moneyVisible={moneyVisible} onOpen={onOpen} />
-    </>
-  );
-}
-
 export function WorkOrdersTab(props: Props) {
-  const v = useMemo(() => filterView(props.view, props.query), [props.view, props.query]);
+  const v = props.view;
   const total = v.work.booked.length + v.work.unbooked.length;
-  const extra = props.extra ?? [];
 
   return (
     <>
-      <Head
-        icon="wrench"
-        title="Work orders"
-        sub={workCountLine(v)}
-        query={props.query}
-        onQuery={props.onQuery}
-      />
-      {props.truncated && !props.query.trim() && (
+      <Head icon="wrench" title="Work orders" sub={workCountLine(v)} />
+      {props.truncated && (
         <p className="int-hint">
           Showing the newest jobs — this account has more open than one screen carries. Search
           reaches all of them.
         </p>
       )}
 
-      {total === 0 && extra.length === 0 ? (
+      {total === 0 ? (
         <Empty
           connected={props.connected}
           syncing={props.syncing}
           manage={props.manage}
-          query={props.query}
           icon="wrench"
           nothing="Nothing on"
           hint="Every open job in ServiceM8 lands here, plus the work tracked only in HeyTiff."
@@ -333,37 +265,21 @@ export function WorkOrdersTab(props: Props) {
           <Rows rows={v.work.unbooked} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
         </>
       )}
-
-      <Extra
-        rows={extra}
-        moneyVisible={props.moneyVisible}
-        searching={!!props.searching}
-        query={props.query}
-        onOpen={props.onOpen}
-      />
     </>
   );
 }
 
 export function QuotesTab(props: Props) {
-  const v = useMemo(() => filterView(props.view, props.query), [props.view, props.query]);
-  const extra = props.extra ?? [];
+  const v = props.view;
 
   return (
     <>
-      <Head
-        icon="file"
-        title="Quotes"
-        sub={quotesCountLine(v)}
-        query={props.query}
-        onQuery={props.onQuery}
-      />
-      {v.quotes.length === 0 && extra.length === 0 ? (
+      <Head icon="file" title="Quotes" sub={quotesCountLine(v)} />
+      {v.quotes.length === 0 ? (
         <Empty
           connected={props.connected}
           syncing={props.syncing}
           manage={props.manage}
-          query={props.query}
           icon="file"
           nothing="No quotes out"
           hint="Quotes live in ServiceM8 — anything quoted and unanswered shows here."
@@ -371,32 +287,18 @@ export function QuotesTab(props: Props) {
       ) : (
         <Rows rows={v.quotes} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
       )}
-      <Extra
-        rows={extra}
-        moneyVisible={props.moneyVisible}
-        searching={!!props.searching}
-        query={props.query}
-        onOpen={props.onOpen}
-      />
     </>
   );
 }
 
 export function CompletedJobsTab(props: Props) {
   const [showUnsuccessful, setShowUnsuccessful] = useState(false);
-  const v = useMemo(() => filterView(props.view, props.query), [props.view, props.query]);
+  const v = props.view;
   const owed = props.moneyVisible ? awaitingPaymentCount(v) : null;
-  const extra = props.extra ?? [];
 
   return (
     <>
-      <Head
-        icon="check"
-        title="Completed"
-        sub={completedCountLine(v, showUnsuccessful)}
-        query={props.query}
-        onQuery={props.onQuery}
-      />
+      <Head icon="check" title="Completed" sub={completedCountLine(v, showUnsuccessful)} />
 
       {owed !== null && owed > 0 && (
         <p className="int-hint">
@@ -404,12 +306,11 @@ export function CompletedJobsTab(props: Props) {
         </p>
       )}
 
-      {v.completed.length === 0 && extra.length === 0 ? (
+      {v.completed.length === 0 ? (
         <Empty
           connected={props.connected}
           syncing={props.syncing}
           manage={props.manage}
-          query={props.query}
           icon="check"
           nothing="Nothing finished recently"
           hint="The last eight weeks of finished work shows here; search reaches further back."
@@ -439,14 +340,6 @@ export function CompletedJobsTab(props: Props) {
           )}
         </>
       )}
-
-      <Extra
-        rows={extra}
-        moneyVisible={props.moneyVisible}
-        searching={!!props.searching}
-        query={props.query}
-        onOpen={props.onOpen}
-      />
     </>
   );
 }

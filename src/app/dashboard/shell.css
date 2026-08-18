@@ -4690,6 +4690,50 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    the tab baseline so it reads as a tool, not a sixth tab */
 .wb2-vtcap { margin-left:auto; display:flex; align-items:center; gap:9px; padding-bottom:7px; flex:none; }
 .wb2-sm8 + .wb2-vtcap { margin-left:12px; }
+/* THE UNIVERSAL SEARCH FIELD lives in that slot on all three boards, beside
+   the ServiceM8 health chip — which puts it just above the white card on
+   every side and every tab, and is the whole argument for it. It sits proud
+   of the tab baseline the way the capture pill did, so it reads as a tool
+   rather than as one more tab.
+
+   It is not caught by the `.fg button` / `.fg input` resets: both exclude
+   anything carrying a `wb2-` class outright (see the top of this file), which
+   is what keeps a (0,1,1) reset off a (0,1,0) component rule here. */
+.wb2-find { display:flex; align-items:center; gap:8px; height:36px; padding:0 5px 0 12px; border-radius:999px;
+  border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); flex:0 1 320px; min-width:210px; }
+.wb2-find:focus-within { border-color:rgba(0,168,224,.5); box-shadow:0 0 0 3px rgba(0,168,224,.14); }
+.wb2-find input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:12.5px; font-weight:600;
+  color:var(--ink); outline:none; }
+.wb2-find input::placeholder { color:var(--q); font-weight:500; }
+/* Chrome draws its own clear cross on type=search. Ours is the one that also
+   empties the results and lets go of the mirror's answer, so the native one
+   comes off rather than sitting beside it doing half the job. */
+.wb2-find input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
+.wb2-findx { width:24px; height:24px; flex:none; display:grid; place-items:center; border:0; border-radius:999px;
+  padding:0; background:rgba(5,5,5,.06); color:var(--gray700); cursor:pointer; transition:background .16s, color .16s; }
+.wb2-findx:hover { background:rgba(5,5,5,.12); color:var(--ink); }
+.wb2-findx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* THE TAB ROW RUNS OUT OF ROOM BEFORE THE SEARCH DOES. Four tabs, the mirror
+   chip and a usable field want about 900px of card between them; under that
+   the field held its 210px floor and hung 37px past the card's right edge.
+
+   So the row WRAPS here and the field takes the line above the tabs — still
+   just above the white card, which is the whole point of where it sits, and
+   now full width, which is more field than it had. `wrap-reverse` is what
+   puts the new line ABOVE rather than below: below would sit between the tabs
+   and the card and break the join the thumb makes with the card's top edge.
+   Wrapping the TABS is not an option for the same reason — the thumb IS that
+   edge, measured off one `offsetLeft`.
+
+   This block sits after the rules it overrides, not up with the header's own
+   900px breakpoint: every pair here is equal specificity, so the later rule
+   is the one that lands. Placed with the header, all of it lost silently. */
+@media (max-width:900px) {
+  .wb2-vtabs { flex-wrap:wrap-reverse; padding-left:0; }
+  .wb2-vtabs .wb2-vt:first-of-type { margin-left:36px; }
+  .wb2-vtcap, .wb2-sm8 + .wb2-vtcap { flex:1 0 100%; margin:0 0 9px; padding-bottom:0; }
+  .wb2-find { flex:1 1 auto; }
+}
 .wb2-vt { position:relative; z-index:1; height:44px; padding:0 21px; border:0; background:transparent; border-radius:12px 12px 0 0;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
   transition:background .18s, color .18s; }
@@ -5191,12 +5235,6 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
    from the first tag under it (Isaac). */
-.wb2-agsearch { display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border-radius:999px;
-  border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); flex:0 1 300px; min-width:200px; margin-left:auto; }
-.wb2-agsearch:focus-within { border-color:rgba(0,168,224,.5); box-shadow:0 0 0 3px rgba(0,168,224,.14); }
-.wb2-agsearch input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:12.5px; font-weight:600;
-  color:var(--ink); outline:none; }
-.wb2-agsearch input::placeholder { color:var(--q); font-weight:500; }
 .wb2-trd.quiet b { color:var(--gray500); font-weight:700; }
 /* hours first on the booked line — the load, then who is carrying it */
 .wb2-trhrs { font-weight:800; color:var(--gray700); }
@@ -5811,6 +5849,15 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 /* The section rule doubles as a header when it carries a subtitle. */
 .wb2-sect em { display:block; font-style:normal; letter-spacing:0; text-transform:none;
   font-size:11px; font-weight:600; color:var(--gray400); margin-top:2px; }
+/* ── the universal search's answers ──
+   Rows are the All jobs ledger row verbatim, so a result reads as the same
+   software as the list it came from. What this adds is the group heading: it
+   lines up with the rows under it (the shared `.wb2-sect` sits at 2px, right
+   when it heads a strip and wrong when it heads a ledger). */
+.wb2-fgrp > .wb2-sect { padding:10px 20px 6px; }
+/* Air BETWEEN groups, not above the first — `:first-of-type` can't say that
+   here, because the card head is a div too and would take the match. */
+.wb2-fgrp + .wb2-fgrp > .wb2-sect { padding-top:18px; }
 .wb2-shtext { font-size:13px; line-height:1.55; color:var(--gray700); margin:4px 0 0; white-space:pre-wrap; }
 
 @media (max-width:1100px) {

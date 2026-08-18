@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { daysBetween } from "@/lib/workboard/board-status";
@@ -23,9 +23,13 @@ import { cadenceLabel, untilLabel } from "./derive";
    August, then November" is the actual rhythm — and the last-done column is
    the one people check before ringing a client back.
 
-   Search matches client, service, site and tag, because that's the four ways
-   anyone names an agreement out loud. It filters WITHIN the groups so the
-   category structure never shifts underneath you mid-type. */
+   THE LEDGER'S OWN SEARCH BOX IS GONE. It matched client, service, site and
+   tag and filtered within the groups, which was right — but it could only
+   ever be reached by standing on this one tab, and the same four words are
+   how somebody names a VISIT out loud too. The board carries one box above
+   the card now, and it reads agreements by exactly these fields (see
+   lib/workboard/work-search); what's lost is a filter of this list, what's
+   gained is that the question can be asked from anywhere on the board. */
 
 /** "6 weeks ago" — how long since, said the way a person would. */
 function agoLabel(iso: string, today: string): string {
@@ -67,24 +71,12 @@ export function AgreementsTab({
   onOpen: (agreementId: string) => void;
   onNew: () => void;
 }) {
-  const [q, setQ] = useState("");
-
-  const matching = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return agreements;
-    return agreements.filter((a) =>
-      [a.clientName, a.label, a.siteLabel, a.siteAddress, ...a.tags.map((t) => t.name)]
-        .filter(Boolean)
-        .some((s) => (s as string).toLowerCase().includes(needle))
-    );
-  }, [agreements, q]);
-
   const groups = useMemo(() => {
     const byKey = new Map<
       string,
       { name: string; accent: string | null; list: BoardAgreement[] }
     >();
-    for (const a of matching) {
+    for (const a of agreements) {
       const key = a.category?.id ?? "";
       const cur =
         byKey.get(key) ??
@@ -99,7 +91,7 @@ export function AgreementsTab({
     return [...byKey.entries()]
       .sort((x, y) => (x[0] === "" ? 1 : y[0] === "" ? -1 : x[1].name.localeCompare(y[1].name)))
       .map(([key, g]) => ({ key, ...g }));
-  }, [matching]);
+  }, [agreements]);
 
   return (
     <>
@@ -111,18 +103,6 @@ export function AgreementsTab({
           <b>Service agreements</b>
           <em>The standing work, grouped by how it&apos;s billed.</em>
         </div>
-        {agreements.length > 0 && (
-          <label className="wb2-agsearch">
-            <Icon name="search" size={14} />
-            <input
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search client, service, site or tag"
-              aria-label="Search agreements"
-            />
-          </label>
-        )}
         {manage && (
           <button className="pbtn" onClick={onNew}>
             <Icon name="plus" size={15} />
@@ -136,12 +116,6 @@ export function AgreementsTab({
           <Icon name="file" size={20} />
           <b>No agreements yet</b>
           <em>Set one up and its visits generate on their own — no other software needed.</em>
-        </div>
-      ) : matching.length === 0 ? (
-        <div className="wb2-empty">
-          <Icon name="search" size={20} />
-          <b>Nothing matches “{q.trim()}”</b>
-          <em>Search reads the client, the service, the site and the tags.</em>
         </div>
       ) : (
         groups.map((g) => (

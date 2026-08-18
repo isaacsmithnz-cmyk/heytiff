@@ -1,15 +1,27 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { urgentRows } from "@/lib/workboard/urgent-rules";
 import { projectUrgentRows } from "@/lib/workboard/project-rules";
 import type { WorkboardData } from "@/lib/workboard/page-data";
+import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import { SEARCH_MIN, searchWorkboard, type WorkHit } from "@/lib/workboard/work-search";
+import { searchAllJobs } from "@/app/actions/workboard";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 import { AllJobsBoard } from "./board/all-jobs-board";
+import { WorkSearchField, WorkSearchPanel } from "./board/work-search";
 
 /* The Workboard — a command centre, not a menu.
 
@@ -85,17 +97,36 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
   const [tab, setTab] = useState<SideKey>("jobs");
-  /* Following a tracked job off the All jobs side: the switcher changes side
-     AND the destination board opens the right sheet. Held here because the
-     boards are siblings — neither can reach into the other — and cleared once
-     handed over, so switching back later doesn't reopen a stale sheet. */
-  const [handoff, setHandoff] = useState<{ kind: "visit" | "agreement"; id: string } | null>(null);
+  /* THE HANDOFF. Following a tracked job off the All jobs side, or choosing
+     anything the universal search found: the switcher changes side AND the
+     destination board opens the right sheet. Held here because the boards are
+     siblings — neither can reach into the other.
+
+     A ServiceM8 job travels as the JOB, not as an id: search reaches past the
+     board's loaded window, so the destination may have nothing to look an id
+     up in.
+
+     A FRESH OBJECT PER HANDOFF is the contract: the boards take a target by
+     identity, so the same visit named twice opens twice while a re-render
+     opens nothing. It is dropped when you move the switcher yourself — which
+     is the moment "I'm done with that" is unambiguous, and what stops coming
+     back to a side reopening a sheet you already closed. */
+  type Handoff =
+    | { side: "maintenance"; kind: "visit" | "agreement"; id: string }
+    | { side: "projects"; kind: "trip"; id: string }
+    | { side: "jobs"; kind: "job"; job: AllJobsMirrorJob };
+  const [handoff, setHandoff] = useState<Handoff | null>(null);
+  const pickSide = (side: SideKey) => {
+    setHandoff(null);
+    setTab(side);
+  };
+
   const followTracked = (target: { kind: "visit" | "agreement" | "project"; id: string }) => {
     if (target.kind === "project") {
       router.push(`/dashboard/workboard/projects/${target.id}`);
       return;
     }
-    setHandoff({ kind: target.kind, id: target.id });
+    setHandoff({ side: "maintenance", kind: target.kind, id: target.id });
     setTab("maintenance");
   };
 
@@ -139,6 +170,113 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   };
 
   const connected = data.connection === "connected";
+
+  /* ── THE UNIVERSAL SEARCH ──
+
+     One box, owned by the page rather than by any board, for two reasons.
+     The boards unmount each other when you switch sides, so a search living
+     inside one would empty itself the moment you crossed to the side holding
+     the answer. And only this level can see all three datasets at once, which
+     is the whole point of the box: not to filter the tab you're on, but to
+     find the work without first having to know which side owns it.
+
+     It replaced two — one in the agreements ledger's header, one repeated
+     across the three All jobs lists — both of which sat INSIDE the card and
+     so could only be reached from the tab that drew them. Five tabs had no
+     search at all.
+
+     THE LOCAL HALF answers on the keystroke, off data already on this page.
+     THE MIRROR'S OLDER HALF is a round trip: the same server search the All
+     jobs side used to run for itself, kept because a job finished last year
+     is findable no other way. Both feed one panel. */
+  const [query, setQuery] = useState("");
+  const [remote, setRemote] = useState<AllJobsMirrorJob[]>([]);
+  const [searching, startSearch] = useTransition();
+
+  const runQuery = (q: string) => {
+    setQuery(q);
+    // One character is not a search — it's a keystroke on the way to one, and
+    // asking the mirror on every one of them is a query per letter.
+    if (q.trim().length < SEARCH_MIN) {
+      setRemote([]);
+      return;
+    }
+    startSearch(async () => setRemote(await searchAllJobs(q)));
+  };
+  const clearQuery = useCallback(() => {
+    setQuery("");
+    setRemote([]);
+  }, []);
+
+  const results = useMemo(
+    () =>
+      searchWorkboard(
+        {
+          today: data.today,
+          jobs: data.allJobs.jobs,
+          visits: data.board.visits,
+          agreements: data.board.agreements,
+          projects: data.projectsBoard.projects,
+          trips: data.projectsBoard.visits,
+          projectLinks: data.allJobs.projectLinks,
+          elsewhere: remote,
+        },
+        query
+      ),
+    [data, remote, query]
+  );
+
+  /** The mirror job behind a job hit, from either half of the search — the
+      All jobs board is handed the ROW's job, not its id, because a hit from
+      past the loaded window has nothing on that board to be looked up in. */
+  const jobByRemoteId = useMemo(() => {
+    const map = new Map<string, AllJobsMirrorJob>();
+    for (const j of data.allJobs.jobs) map.set(j.remoteId, j);
+    for (const j of remote) if (!map.has(j.remoteId)) map.set(j.remoteId, j);
+    return map;
+  }, [data.allJobs.jobs, remote]);
+
+  /* Choosing an answer lands you ON the work: the side switches and the sheet
+     opens. A project is the one hit that isn't a sheet — it has a page of its
+     own — so it routes instead. The search closes either way; leaving it open
+     behind a sheet would put you back in results on close, having already
+     gone where you asked. */
+  const openHit = (hit: WorkHit) => {
+    const go = hit.go;
+    if (go.kind === "project") {
+      clearQuery();
+      router.push(`/dashboard/workboard/projects/${go.id}`);
+      return;
+    }
+    if (go.kind === "job") {
+      const job = jobByRemoteId.get(go.remoteId);
+      if (!job) return;
+      setHandoff({ side: "jobs", kind: "job", job });
+    } else if (go.kind === "trip") {
+      setHandoff({ side: "projects", kind: "trip", id: go.id });
+    } else {
+      setHandoff({ side: "maintenance", kind: go.kind, id: go.id });
+    }
+    setTab(go.side);
+    clearQuery();
+  };
+
+  const searchField = (
+    <WorkSearchField query={query} onQuery={runQuery} onClear={clearQuery} />
+  );
+  /* Present from the first character, not from the second: told nothing while
+     a single letter sits in the box, you can't tell a search that hasn't
+     started from one that found nothing. */
+  const searchPanel = query.trim() ? (
+    <WorkSearchPanel
+      query={query}
+      result={results}
+      searching={searching}
+      connected={connected}
+      onOpen={openHit}
+      onClear={clearQuery}
+    />
+  ) : null;
 
   /* Flags route to the board whose work they point at (the one rule: nothing
      appears twice). A flag on a project or a project's trip belongs to the
@@ -417,7 +555,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                     aria-selected={tab === s.key}
                     data-side={s.key}
                     className={"wb2-segb" + (tab === s.key ? " on" : "")}
-                    onClick={() => setTab(s.key)}
+                    onClick={() => pickSide(s.key)}
                   >
                     {s.label}
                     {b && (
@@ -465,7 +603,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 connected={connected}
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
-                initialSheet={handoff}
+                tools={searchField}
+                searchPanel={searchPanel}
+                onExitSearch={clearQuery}
+                openTarget={handoff?.side === "maintenance" ? handoff : null}
               />
             )}
             {tab === "projects" && (
@@ -476,6 +617,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 manage={data.manage}
                 connected={connected}
                 sm8={sm8}
+                tools={searchField}
+                searchPanel={searchPanel}
+                onExitSearch={clearQuery}
+                openTarget={handoff?.side === "projects" ? handoff : null}
               />
             )}
             {tab === "jobs" && (
@@ -494,6 +639,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
                 aiEnabled={data.aiEnabled}
                 sm8={sm8}
                 onOpenTracked={followTracked}
+                tools={searchField}
+                searchPanel={searchPanel}
+                onExitSearch={clearQuery}
+                openTarget={handoff?.side === "jobs" ? handoff : null}
               />
             )}
 

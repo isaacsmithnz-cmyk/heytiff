@@ -55,7 +55,9 @@ export function MaintenanceBoard({
   aiEnabled = false,
   sm8,
   tools,
-  initialSheet = null,
+  searchPanel = null,
+  onExitSearch,
+  openTarget = null,
 }: {
   data: MaintenanceBoardData;
   flags: BoardFlag[];
@@ -73,24 +75,52 @@ export function MaintenanceBoard({
       handoff's spot. Present in Display mode too: that mode mirrors this page
       rather than replacing it, so everything on it stays usable. */
   tools?: ReactNode;
+  /* The universal search's answers, which replace this card's content while a
+     query is live. Handed in rather than raised here because one box above
+     three boards can only have one panel, and it must look the same from
+     whichever side you typed on. */
+  searchPanel?: ReactNode;
+  /* Picking a tab leaves the search. The tab row stays lit behind the results
+     panel so you can see where you'd land back — a control you can see and
+     click has to actually take you there, and it can't while the panel is
+     still covering the card. */
+  onExitSearch?: () => void;
   /* Arriving from somewhere else with a job already in mind — following a
-     tracked row off the All jobs side, or opening the agreement a duplicate
-     guard pointed at. A visit and an agreement are DIFFERENT sheets and
-     different ids; carrying the kind is what stops one being opened as the
-     other. Read ONCE, as this board's opening state: a prop that kept
-     reopening would fight every close. */
-  initialSheet?: { kind: "visit" | "agreement"; id: string } | null;
+     tracked row off the All jobs side, picking a search result, or opening the
+     agreement a duplicate guard pointed at. A visit and an agreement are
+     DIFFERENT sheets and different ids; carrying the kind is what stops one
+     being opened as the other. */
+  openTarget?: { kind: "visit" | "agreement"; id: string } | null;
 }) {
   const [tab, setTab] = useState<BoardTab>("urgent");
-  const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(
-    initialSheet?.kind === "visit" ? { visitId: initialSheet.id, closeOut: false } : null
-  );
+  const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
   const [dayISO, setDayISO] = useState<string | null>(null);
-  const [agreementId, setAgreementId] = useState<string | null>(
-    initialSheet?.kind === "agreement" ? initialSheet.id : null
-  );
+  const [agreementId, setAgreementId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const { toasts, toast, dismiss } = useBoardToasts();
+
+  /* TAKEN DURING RENDER, never in an effect. A prop consumed by an effect that
+     setState's is a cascading render, and the compiler's own lint refuses it;
+     React's answer for "a prop changed, adjust state" is to compare against
+     the last one you saw, here.
+
+     It used to be read ONCE, as this board's opening state, which worked only
+     because arriving here always meant a side switch and so a fresh mount —
+     and stopped being true the day search could name a visit while you were
+     already standing on this side.
+
+     IDENTITY is the signal, because the same visit may be asked for twice.
+     The page hands over a FRESH object per pick, so choosing the same row
+     again opens it again, while a plain re-render (display mode refreshes
+     every minute) does nothing at all. The page drops the target when you
+     move the switcher yourself, which is what stops a remount later reopening
+     a sheet you already closed. */
+  const [taken, setTaken] = useState<typeof openTarget>(null);
+  if (openTarget && openTarget !== taken) {
+    setTaken(openTarget);
+    if (openTarget.kind === "visit") setSheet({ visitId: openTarget.id, closeOut: false });
+    else setAgreementId(openTarget.id);
+  }
 
   const openVisits = useMemo(
     () => data.visits.filter((v) => v.status === "upcoming" || v.status === "booked"),
@@ -169,6 +199,7 @@ export function MaintenanceBoard({
   /* ── the E7 switch: information swaps, the surface stays ── */
   const [fallbackSwap, setFallbackSwap] = useState(0);
   const showTab = (next: BoardTab) => {
+    onExitSearch?.();
     if (next === tab) return;
     const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
     if (typeof doc.startViewTransition === "function") {
@@ -216,6 +247,7 @@ export function MaintenanceBoard({
       </div>
 
       <div className="wb2-card">
+        {searchPanel ?? (
         <div key={`${tab}-${fallbackSwap}`} className={"wb2-panel" + (fallbackSwap ? " wb2-swap" : "")}>
           {tab === "urgent" && (
             <UrgentTab
@@ -263,6 +295,7 @@ export function MaintenanceBoard({
             />
           )}
         </div>
+        )}
       </div>
 
       {dayISO && (

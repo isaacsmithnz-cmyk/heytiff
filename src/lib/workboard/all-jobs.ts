@@ -469,33 +469,14 @@ export function groupChecklist(
   return groups;
 }
 
-/* ── search ── */
+/* ── search LIVED HERE ──
 
-/** Typed words, taken literally — the opposite of note-match's token guessing.
-    Someone typing "medical" means medical. Matches number, client, title,
-    suburb and category so one box answers every way a job is remembered. */
-export function matchesJobSearch(row: AllJobRow, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return true;
-  const hay = [row.number, row.clientName, row.title, row.suburb, row.categoryName]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  // Every word must appear somewhere — "ardex cool" finds the cool room job
-  // at Ardex without finding every job at Ardex.
-  return needle.split(/\s+/).every((word) => hay.includes(word));
-}
-
-export function filterView(view: AllJobsView, query: string): AllJobsView {
-  if (!query.trim()) return view;
-  const keep = (rows: AllJobRow[]) => rows.filter((r) => matchesJobSearch(r, query));
-  return {
-    work: { booked: keep(view.work.booked), unbooked: keep(view.work.unbooked) },
-    quotes: keep(view.quotes),
-    completed: keep(view.completed),
-    unsuccessful: keep(view.unsuccessful),
-  };
-}
+   `matchesJobSearch` and `filterView` filtered these three lists against the
+   box in their own card header. Both are gone with that box: the board's one
+   search sits above the card and reaches every side, so a query never narrows
+   this view any more — it replaces it. The rule they carried is the part
+   worth keeping and it moved intact, to `matchesWords` in work-search: typed
+   words taken literally, every one of them having to land. */
 
 /* ── the count lines under each tab's title ── */
 

@@ -87,6 +87,12 @@ jest.mock("../dictation", () => {
    Everything below is about what happens once you have chosen to talk, so
    the helper presses it. A fake that ignored the auto-start hid the old
    shape from this file for a day; the same rule applies to the new one.  */
+/* THE MARK, ARRIVING OR ARRIVED. Opened from the button the field spends its
+   first 1.4s as `gather` — the dots flying out of the button and into their
+   seats — and settles to `mark`. Both are the instrument standing there; only
+   one of them is still moving, and no test in this file is about which. */
+const MARK_UP = '.dotf[data-stage="gather"], .dotf[data-stage="mark"]';
+
 const openSheet = async () => {
   const user = userEvent.setup();
   render(
@@ -190,8 +196,12 @@ it("shows the instrument without commentary on whether it can hear", async () =>
      decorative — the stage is named by the ribbon above it, so the field has
      no label of its own to find. What has not changed, and is the whole point
      of this test, is that nothing anywhere says a word about whether the
-     microphone is working. */
-  expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+     microphone is working.
+
+     `gather` because the sheet was opened from the button and the mark is
+     still flying in from it; it becomes `mark` when the last dot lands. Either
+     way it is the same element and the same instrument — see MARK_UP. */
+  expect(document.querySelector(MARK_UP)).not.toBeNull();
   expect(screen.queryByText(/hearing/i)).not.toBeInTheDocument();
 });
 
@@ -200,7 +210,12 @@ it("shows the instrument without commentary on whether it can hear", async () =>
    buttons for the recording card and leaves the instrument exactly where it
    was. Getting this wrong is not just a missing animation — the field is
    268px, so building it on the press means the card grows under your thumb at
-   the moment the microphone opens. */
+   the moment the microphone opens.
+
+   THE SAME NODE, not merely the same selector. A field re-mounted by the
+   stage change would restart the arrival from the button halfway through it,
+   which is exactly the cut this arrangement exists to prevent, and no
+   assertion about markup can see the difference. */
 it("carries the same mark from the door into the recording", async () => {
   const user = userEvent.setup();
   render(
@@ -209,11 +224,12 @@ it("carries the same mark from the door into the recording", async () => {
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));
-  expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+  const field = document.querySelector(MARK_UP);
+  expect(field).not.toBeNull();
 
   await user.click(screen.getByRole("button", { name: "Talk" }));
   expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
-  expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+  expect(document.querySelector(MARK_UP)).toBe(field);
 });
 
 it("offers a way to bin the take and start over", async () => {

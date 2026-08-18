@@ -96,6 +96,49 @@ describe("the mark, as dots", () => {
     }
   });
 
+  /* ── THE WAY IN ──
+     The dots fly out of the Tiff button and land in the mark, and the ORDER is
+     the whole readable idea: the button sits up and right of the card, `t` runs
+     up the mark's own diagonal the same way, so filling from the top down lays
+     the chevron out away from the corner it arrived from. Get the sort
+     backwards and the animation still plays — it just builds back toward the
+     button, which reads as the mark being sucked in rather than delivered. */
+  it("arrives from the top of the mark down", () => {
+    const gd = dots.map((d) => d.gd);
+    expect(Math.min(...gd)).toBe(0);
+    expect(Math.max(...gd)).toBe(1);
+
+    const first = dots.reduce((a, b) => (a.gd < b.gd ? a : b));
+    const last = dots.reduce((a, b) => (a.gd > b.gd ? a : b));
+    expect(first.t).toBeGreaterThan(last.t);
+    // and it is the extreme of the mark either end, not merely a high one
+    expect(first.t).toBe(Math.max(...dots.map((d) => d.t)));
+    expect(last.t).toBe(Math.min(...dots.map((d) => d.t)));
+  });
+
+  /* RANKED, NOT TAKEN RAW. `t` is not evenly spread — the tail is a third of
+     the dots over a fifth of the range — so using it directly as the delay
+     bunches those departures into a lump and leaves gaps elsewhere. Ranking
+     spreads them, and this is the property that says so: every step between
+     consecutive arrivals is the same. */
+  it("spreads the departures evenly, however `t` is bunched", () => {
+    const sorted = [...dots].map((d) => d.gd).sort((a, b) => a - b);
+    const step = 1 / (sorted.length - 1);
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i] - sorted[i - 1]).toBeCloseTo(step, 6);
+    }
+  });
+
+  it("bows the flight, and keeps the bow off the straight line", () => {
+    for (const d of dots) {
+      expect(Math.abs(d.bx)).toBeLessThanOrEqual(38);
+      expect(Math.abs(d.by)).toBeLessThanOrEqual(38);
+    }
+    // no two dots share a bow, or 200 of them fly as one object
+    const seen = new Set(dots.map((d) => `${d.bx.toFixed(2)},${d.by.toFixed(2)}`));
+    expect(seen.size).toBe(dots.length);
+  });
+
   /* If the mark ever gains a curve, this parser would sample it as a straight
      line and the dots would quietly draw a slightly different logo. It refuses
      instead, which is the one failure mode worth being loud about. */

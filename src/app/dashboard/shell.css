@@ -1700,6 +1700,76 @@
   animation:dotfSwell 4.2s ease-in-out infinite;
   animation-delay:calc(var(--w,0) * -4.2s); }
 
+/* ── the way in ──
+   THE MARK ARRIVES FROM THE BUTTON (Isaac, 2026-08-18). Pressing the Tiff
+   button used to produce a chevron that was simply THERE — two hundred dots
+   materialised in formation the instant the card drew. Now they come from the
+   thing you pressed: each one starts on the button, bows across the screen and
+   lands in its seat, and the swell picks up from the last arrival.
+
+   IT FILLS AS THE CARD GROWS, not after. The blossom is .44s and the travel is
+   1.42s, deliberately on different clocks — the card lands early and the mark
+   keeps coming, which is what the length buys. (The travel ran at 1.0 for
+   half an hour and was cut to .7 on sight: at full speed the arrival is over
+   before the card has finished growing, so it reads as a flicker.)
+
+   `--gox/--goy` is the button in the FIELD's coordinates, set once per open by
+   the component. Everything else is per-dot and built with the geometry — see
+   `gd`, `bx` and `by` in lib/ui/dot-mark, and the note there on why the bow is
+   not a true perpendicular.
+
+   THE MIDPOINT IS ARITHMETIC, not a third address. `origin + (home - origin) *
+   .55` is the halfway house, and `bx/by` push it off the straight line; doing
+   it in `calc` is what keeps this to one keyframe for every dot, which is the
+   same trick `dotfZip` plays with its offsets. */
+@keyframes dotfGather {
+  0%   { transform:translate3d(calc(var(--gox,0) * 1px), calc(var(--goy,0) * 1px), 0);
+         animation-timing-function:cubic-bezier(.3,0,.5,1) }
+  50%  { transform:translate3d(
+           calc((var(--gox,0) + (var(--lx) - var(--gox,0)) * .55 + var(--bx)) * 1px),
+           calc((var(--goy,0) + (var(--ly) - var(--goy,0)) * .55 + var(--by)) * 1px), 0);
+         animation-timing-function:cubic-bezier(.22,1,.36,1) }
+  100% { transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0) }
+}
+/* The dot's own half: it comes in small and dark and is at full weight by the
+   time it is halfway, so the stream reads as lit rather than as it fading up
+   on arrival. Separate from the flight above for the reason the whole file is
+   split four ways — position and appearance run on different clocks. */
+@keyframes dotfArrive {
+  0%   { opacity:0; transform:scale(.34) }
+  50%  { opacity:var(--lit,.9); transform:scale(.86) }
+  100% { opacity:var(--lit,.9); transform:scale(1) }
+}
+/* WITHOUT THE ANIMATIONS THIS IS SIMPLY THE MARK, and that is load-bearing
+   twice over: below 760px there is no blossom for the dots to travel with (the
+   sheet comes up from the bottom edge), and under reduced motion there is no
+   travel at all. Both fall through to here rather than to an empty field. */
+.dotf[data-stage="gather"] .dotf-cell {
+  transform:translate3d(calc(var(--lx) * 1px), calc(var(--ly) * 1px), 0); }
+.dotf[data-stage="gather"] .dotf-cell i { opacity:var(--lit,.9); }
+@media (min-width:760px) {
+  .dotf[data-stage="gather"] .dotf-cell {
+    animation:dotfGather 800ms both;
+    animation-delay:calc(var(--gd,0) * 614ms); }
+  .dotf[data-stage="gather"] .dotf-cell i {
+    animation:dotfArrive 800ms both;
+    animation-delay:calc(var(--gd,0) * 614ms); }
+  /* AND THE CARD HAS TO LET THEM IN. Both boxes above the field clip by
+     default — `.wb2-capfield` so the collapse at the END of a wait can eat the
+     field from the top, and the card so a long review can scroll — and the
+     dots start hundreds of pixels outside BOTH. Built without this, the whole
+     journey happens off-screen and the mark simply fades up inside its own
+     box: the first cut of this shipped exactly that, and it looked like the
+     animation had not been added at all.
+
+     Opened for the gather alone, and put back the moment it ends. The stage
+     only ever exists on a short card (the door, or a recording), so there is
+     no scroll position to lose in the swap; and the field's own `overflow` is
+     wanted again by the time anything collapses it. */
+  .wb2-capcard:has(.dotf[data-stage="gather"]) { overflow:visible; }
+  .wb2-capfield:has(.dotf[data-stage="gather"]) { overflow:visible; }
+}
+
 /* ── out into the cloud ──
    Past where it is going and then back in, so it reads as coming APART and
    re-gathering rather than as one shape sliding into another. */
@@ -1784,6 +1854,13 @@
      `animation-duration:.001s` turns an infinite loop into a strobe. */
   .dotf-tilt, .dotf-orbit, .dotf-wander, .dotf-cell, .dotf-cell i {
     animation:none; transition:none; }
+  /* The gather needs saying again at its own weight. `.dotf-cell` above is
+     (0,1,0) and the gather's rules are (0,2,1), so they win on specificity no
+     matter where they sit in the file — order cannot switch them off. What is
+     left underneath is the mark, standing still, which is the whole of what a
+     reduced-motion entrance should be. */
+  .dotf[data-stage="gather"] .dotf-cell,
+  .dotf[data-stage="gather"] .dotf-cell i { animation:none; }
   .dotf-cell i { transform:none; opacity:var(--lit,.9); }
   .dotf[data-stage="cloud"] .dotf-cell {
     transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px)); }
@@ -6135,6 +6212,34 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    reduced-motion block at the end of this section now pins the resting
    glow to the breath's own peak — otherwise hovering DIMS it. */
 .tiffbtn-topbar:hover .tiffbtn-halo { animation:none; opacity:.40; }
+
+/* ── THE BUTTON EMPTIES WHILE THE SHEET HAS IT (Isaac, 2026-08-18) ──
+   The dots that build the chevron on the card come out of this button, so the
+   button cannot still be wearing one — two marks on screen at once turns a
+   journey into a copy. It goes as they leave and comes back when the sheet
+   closes, and the halo stays lit the whole time: the control is still there
+   and still active, it has just handed its mark over.
+
+   `aria-expanded` is already on the button and is true for exactly as long as
+   the sheet is open, so this needs no state and cannot drift from it.
+
+   Held to the same width as the travel. Below 760px the sheet comes up from
+   the bottom edge with no blossom and no gather, so there is nothing for the
+   mark to have left FOR, and draining it would just be the logo vanishing. */
+@media (min-width:760px) {
+  .tiffbtn-topbar :is(.tiffbtn-mk, .tiffbtn-spark) {
+    transition:opacity .2s linear, transform .34s cubic-bezier(.22,1,.36,1); }
+  /* The chevron KEEPS ITS NUDGE. `.tiffbtn-topbar .tiffbtn-mk` carries a
+     `translate(-2px,-2px)` that optically centres the mark in the disc, and a
+     bare `scale()` here would replace it — so the logo would slide to the
+     middle on its way out. Restated, not overridden. */
+  .tiffbtn-topbar[aria-expanded="true"] .tiffbtn-mk {
+    opacity:0; transform:translate(-2px,-2px) scale(.5); }
+  .tiffbtn-topbar[aria-expanded="true"] .tiffbtn-spark { opacity:0; transform:scale(.5); }
+  @media (prefers-reduced-motion:reduce) {
+    .tiffbtn-topbar :is(.tiffbtn-mk, .tiffbtn-spark) { transition:none; }
+  }
+}
 
 /* ── in a sheet header: white ground, so the SKIN INVERTS ──
    Nothing outside a sheet's scrim can be clicked, which is why the topbar

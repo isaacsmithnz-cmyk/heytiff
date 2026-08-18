@@ -109,8 +109,18 @@ describe("the press, and the gap after it", () => {
     await open();
 
     /* What the recording stage is: the mark in flight, and the three ways
-       out. `Done` is the one that only ever exists here. */
-    expect(document.querySelector('.wb2-capfield .dotf[data-stage="mark"]')).not.toBeNull();
+       out. `Done` is the one that only ever exists here.
+
+       `gather` is the mark still arriving out of the button — opened from
+       there it spends its first 1.4s flying in, and it is the same element
+       either side of that. This test is about the card not flashing its idle
+       self, so it asks whether the instrument is up, not which second of it
+       we are in. */
+    expect(
+      document.querySelector(
+        '.wb2-capfield .dotf[data-stage="gather"], .wb2-capfield .dotf[data-stage="mark"]'
+      )
+    ).not.toBeNull();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
 
     /* And what the flash WAS. Either of these on screen means the card spent

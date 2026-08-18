@@ -79,6 +79,23 @@ const LOUD_ENOUGH = 0.07;
     finish a sentence and press stop yourself. */
 export const COUNTDOWN_FROM = 30;
 
+/* HOW LONG THE MICROPHONE GETS TO OPEN before the card stops claiming to be
+   listening.
+
+   `getUserMedia` is not guaranteed to settle. A permission prompt nobody
+   answers, a device another app is holding, an OS panel behind the window —
+   all of them leave the promise pending for as long as you care to wait, and
+   until 2026-08-17 that was invisible: the surface showed its idle box, so
+   the mic simply never arrived and you pressed the button again.
+
+   The card now opens ON the recording stage (`arming`), which is what makes
+   this worth a ceiling: a pending prompt renders as a recording that is not
+   happening — a red dot, a clock at 0:00, and a Done button for audio that
+   does not exist. Four seconds is well past a granted permission (instant,
+   after the first time) and well short of a person deciding the app is
+   broken. Past it the card hands back the box and says so. */
+const ARMING_CEILING_MS = 4_000;
+
 /* A build-time flag can't be A/B'd: every swap is a redeploy of production,
    which is no way to find out whether the live path is actually faster. So
    `?voice=live` / `?voice=batch` beats the flag — enough to measure both
@@ -459,6 +476,15 @@ export function useDictation({
     setInterim("");
     setHanding(false);
     setArming(true);
+    /* Cleared the moment the recorder starts, and by every way out below. If
+       it fires, this attempt is over: the flag is what stops a microphone
+       that arrives late from opening into a card nobody is recording on. */
+    const ceiling = setTimeout(() => {
+      if (arm.current !== mineArm || mineArm.off) return;
+      mineArm.off = true;
+      setArming(false);
+      cbs.current.onError?.("The microphone didn't open — type it instead.");
+    }, ARMING_CEILING_MS);
     void (async () => {
       /* Declared out here so the failure path below can let go of a tap that
          opened moments before something else in this block threw. */
@@ -471,6 +497,7 @@ export function useDictation({
            check the arming window needs: `getUserMedia` is the one await in
            it, and everything after it runs in a single go. */
         if (mineArm.off) {
+          clearTimeout(ceiling);
           stream.getTracks().forEach((t) => t.stop());
           /* Only if nothing else has taken over since — a second press is
              arming its own microphone and this one must not switch its light
@@ -585,11 +612,13 @@ export function useDictation({
         };
         recorder.current = rec;
         rec.start();
+        clearTimeout(ceiling);
         setSeconds(0);
         setArming(false);
         setRecording(true);
         if (tapping) void goLive(tapping, rec);
       } catch {
+        clearTimeout(ceiling);
         void tapping?.then((tap) => tap?.close());
         setArming(false);
         // graceful floor: whatever asked for this stays usable by typing
@@ -607,6 +636,9 @@ export function useDictation({
      its own ending when it did not. */
   const standDown = () => {
     if (!arming || recorder.current?.state === "recording") return false;
+    /* `off` is also what retires the ceiling — it checks the flag before it
+       says anything, so a mic you stood down from never gets complained
+       about four seconds later. */
     if (arm.current) arm.current.off = true;
     setArming(false);
     return true;

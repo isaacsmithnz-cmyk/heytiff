@@ -49,3 +49,14 @@ export function formFactorLabel(ff: string | null | undefined): string | null {
 export function hasFormFactorLabel(ff: string): boolean {
   return Object.hasOwn(FORM_FACTOR_LABELS, ff);
 }
+
+/** Forms whose air side runs through ductwork — the ones that own an airflow
+    figure, airway openings and an external static. Presentation-side twin of
+    DUCTED_FORMS (ready.ts, catalog.ts, table-groups.ts) and AIR_CAPABLE_FORMS
+    (modules.ts), which all already read `["ducted", "bulkhead"]`. Kept here so
+    the unit browser doesn't reach into the engine for it.
+
+    NB there are now five copies of this same pair across the codebase. They
+    agree today; a sixth form factor with a duct airway would have to be added
+    to all five. Worth collapsing — out of scope for the reclassification. */
+export const DUCT_AIRWAY_FORMS: readonly FormFactor[] = ["ducted", "bulkhead"];

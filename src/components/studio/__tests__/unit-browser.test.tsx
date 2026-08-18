@@ -7,6 +7,7 @@
 
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { UnitBrowser } from "../unit-browser";
+import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 import {
   emptyPack,
   type DataPack,
@@ -32,8 +33,8 @@ function idu(
     ...(airflow ? { airflow_ls: airflow } : {}),
     ...(sound ? { sound_low_dba: sound[0], sound_high_dba: sound[1] } : {}),
     conn_liquid_mm: 6.35, conn_gas_mm: 12.7,
-    default_plane: ff === "ducted" ? "ceiling-cavity" : "room",
-    allowed_planes: [ff === "ducted" ? "ceiling-cavity" : "room"],
+    default_plane: DUCT_AIRWAY_FORMS.includes(ff) ? "ceiling-cavity" : "room",
+    allowed_planes: [DUCT_AIRWAY_FORMS.includes(ff) ? "ceiling-cavity" : "room"],
     system_roles: ["split-pair"], refrigerant: "R32",
     width_mm: dims[0], depth_mm: dims[1], height_mm: dims[2],
     provenance: prov,
@@ -68,7 +69,10 @@ function fixturePack(): DataPack {
     idu("WALL-25", "wall", 2.5, [800, 230, 300]),
     idu("WALL-35", "wall", 3.5, [900, 230, 305]),
     idu("DUCT-LOW", "ducted", 3.5, [900, 700, 200], 160, [30, 38]),
-    idu("DUCT-TALL", "ducted", 3.6, [1100, 700, 380], 300)
+    idu("DUCT-TALL", "ducted", 3.6, [1100, 700, 380], 300),
+    /* a bulkhead unit — air-capable like a ducted one, and the reason the
+       airflow column/filter can't key off the "ducted" tab alone */
+    idu("BULK-50", "bulkhead", 5.0, [990, 700, 200], 200)
   );
   p.outdoor_units.push(odu("OD-25", 2.5), odu("OD-35", 3.5, "1", 58), odu("OD-35B", 3.5, "3"));
   p.pair_tables.push(
@@ -76,7 +80,8 @@ function fixturePack(): DataPack {
     pair("WALL-35", "OD-35", 3.5, 20),
     pair("WALL-35", "OD-35B", 3.5, 30), // multi-ODU row, three-phase partner
     pair("DUCT-LOW", "OD-35", 3.5, 25),
-    pair("DUCT-TALL", "OD-35", 3.6, 25)
+    pair("DUCT-TALL", "OD-35", 3.6, 25),
+    pair("BULK-50", "OD-35", 3.5, 25)
   );
   return p;
 }
@@ -494,5 +499,30 @@ describe("UnitBrowser", () => {
     // Escape again closes the browser
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
+  });
+  /* Airflow belongs to every form with a duct airway, not to the tab literally
+     named "Ducted". `only` was a single FormFactor and `isDucted` was an
+     equality check, so reclassifying SEZ/PEFY-VMX/VMS1 ducted → bulkhead took
+     the Airflow column, its Columns-menu entry and the "Airflow ≥" filter away
+     from 19 air-capable units — silently, since a missing column looks like a
+     column you turned off. */
+  it("keeps the airflow column and filter on the bulkhead tab", () => {
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Bulkhead\s*1/ }));
+    expect(screen.getByRole("columnheader", { name: /Airflow/ })).toBeInTheDocument();
+    expect(within(tbl()).getByText("200 L/s")).toBeInTheDocument();
+    expect(screen.getByText(/Airflow ≥/)).toBeInTheDocument();
+  });
+
+  /* the flip side: a form with no duct airway must NOT show it */
+  it("still hides the airflow column on a wall tab", () => {
+    render(
+      <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Wall-mounted/ }));
+    expect(screen.queryByRole("columnheader", { name: /Airflow/ })).toBeNull();
+    expect(screen.queryByText(/Airflow ≥/)).toBeNull();
   });
 });

@@ -26,6 +26,7 @@ export const SPEC_GROUP_LABELS: Record<SpecGroup, string> = {
    file AND in select.ts AND in summary.ts, worded three ways; a unit must not
    be called one thing in the inspector and another on the sheet. */
 export { formFactorLabel } from "./form-factors";
+import { DUCT_AIRWAY_FORMS } from "./form-factors";
 
 /** "30–38 dBA" (range) · "38 dBA" (single figure or low==high) · "—" */
 export function formatSoundRange(low?: number, high?: number): string {
@@ -48,8 +49,13 @@ export interface UnitSpec {
   sortKey?: SelectSort;
   /** shown by default (the rest are opt-in via the Columns menu) */
   defaultOn: boolean;
-  /** column only relevant for this form factor (e.g. airflow → ducted) */
-  only?: FormFactor;
+  /** column only relevant for these form factors (e.g. airflow → the ducted
+      forms). A LIST, not a single factor: airflow belongs to every form with a
+      duct airway, and when SEZ/PEFY-VMX/VMS1 were reclassified ducted →
+      bulkhead a single-value `only` silently dropped the Airflow column (and
+      its Columns-menu entry) from 19 units that are air-capable and whose
+      whole job is ducted work. */
+  only?: readonly FormFactor[];
   // ── comparer/detail metadata ──
   /** human label, e.g. "Sound" (the header is the terse table form; the
       group heading carries the indoor/outdoor attribution) */
@@ -121,7 +127,7 @@ export const UNIT_SPECS: UnitSpec[] = [
     better: "higher",
     sortKey: "airflow",
     defaultOn: true,
-    only: "ducted",
+    only: DUCT_AIRWAY_FORMS,
   },
   {
     /* id kept from the pre-range single figure — saved column choices with

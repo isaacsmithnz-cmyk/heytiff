@@ -114,9 +114,40 @@ describe("an upstream refusal", () => {
     const res = await transcribeAudio(new Blob(["x"]), {});
     expect(res.ok).toBe(false);
     if (!res.ok) {
-      expect(res.error).toBe("That recording couldn't be transcribed. Try again, or type it.");
+      /* A rejected key is a dead end, so it takes the sentence for a
+         deployment that cannot hear rather than one inviting a retry — and
+         either way it carries none of the vendor's words. */
+      expect(res.error).toBe("Voice notes aren't switched on yet — type it instead.");
       expect(res.error).not.toMatch(/403|scope|detail/i);
     }
+  });
+
+  /* RUNNING OUT IS NOT AN ERROR, IT IS A BILL — and it cost an afternoon on
+     2026-08-17. Every recording came back "Try again, or type it"; the mic
+     was fine, the upload was fine, and ElevenLabs was answering 401
+     `quota_exceeded` with one credit left of ten thousand. The card was
+     inviting a retry that could not succeed, for a reason no retry could
+     reach, and only a server log said so. */
+  it("says the account is out of credit, and does NOT invite a retry", async () => {
+    respond(
+      401,
+      '{"detail":{"status":"quota_exceeded","message":"This request exceeds your quota of 10000. You have 1 credits remaining, while 8 credits are required for this request."}}'
+    );
+    const res = await transcribeAudio(new Blob(["x"]), {});
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toBe("Voice notes have run out of credit — type it instead, and tell the office.");
+      expect(res.error).not.toMatch(/try again/i);
+      // still ours: no quota figures, no vendor phrasing
+      expect(res.error).not.toMatch(/10000|quota|credits remaining/i);
+    }
+  });
+
+  it("keeps the retry for a failure that might work next time", async () => {
+    respond(429, '{"detail":"rate limited"}');
+    const res = await transcribeAudio(new Blob(["x"]), {});
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe("That recording couldn't be transcribed. Try again, or type it.");
   });
 
   it("sends keyterms as REPEATED form fields, never one JSON blob", async () => {

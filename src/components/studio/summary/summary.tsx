@@ -10,6 +10,7 @@ import {
   buildSummaryModel,
   designBasis,
 } from "@/lib/studio/summary";
+import type { SimApprovalState } from "@/lib/studio/sim-approval";
 import type { SimReady } from "./sim-card";
 import { fmt } from "./sheet-tables";
 import { PicklistCard, SystemCard, UnservedCard } from "./system-card";
@@ -29,6 +30,14 @@ import { JobAttach } from "./job-attach";
    ONE derivation: buildSummaryModel carries coverage AND takeoff, and the
    print document renders the same model — this file renders, never computes. */
 
+/** "Ground floor", "Ground floor and First floor", "A, B and C" — floors read
+    as a sentence, because the checks list is sentences. */
+function listFloors(floors: { name: string }[]): string {
+  const names = floors.map((f) => f.name);
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 export function SummaryView({
   doc,
   pack,
@@ -36,6 +45,7 @@ export function SummaryView({
   onExportJson,
   simFlag,
   simReady,
+  simApproval,
   onSimulate,
   planImages,
   loadVariant,
@@ -47,6 +57,9 @@ export function SummaryView({
   onExportJson: () => void;
   simFlag: boolean;
   simReady: SimReady;
+  /** whether the simulation has been ticked as fit to show a customer, and
+      what is holding it back if not — see sim-approval.ts */
+  simApproval: SimApprovalState;
   onSimulate: () => void;
   /** resolves plan-sheet refs for the print/PNG export */
   planImages: PlanImages;
@@ -86,8 +99,32 @@ export function SummaryView({
         } no unit`,
         detail: "Listed under Not served yet.",
       });
+    /* THE SIMULATION WENT AWAY, AND YOU ARE THE ONLY ONE WHO CAN BE TOLD.
+       An approved simulation pins to the design it was approved against, so
+       editing the design withdraws it — including from a link a customer is
+       already holding, where the option simply disappears. That is correct,
+       but it must not be something you discover later. */
+    if (simApproval.lapsed.length > 0)
+      out.push({
+        title: `The simulation is no longer offered on the share link`,
+        detail: `${listFloors(simApproval.lapsed)} ${
+          simApproval.lapsed.length === 1 ? "was" : "were"
+        } ticked as ready to share, then the design changed. Run the simulation again and re-tick to put it back.`,
+      });
+    /* PART-APPROVED READS AS A BUG. The option is all-or-nothing: a customer
+       cannot tell which floors they are missing, so an unticked floor hides
+       the simulation entirely. If some floors ARE ticked, the absence needs a
+       name or it looks broken. */
+    else if (simApproval.approved.length > 0 && simApproval.pending.length > 0)
+      out.push({
+        title: `${listFloors(simApproval.pending)} ${
+          simApproval.pending.length === 1 ? "is" : "are"
+        } holding the simulation back`,
+        detail:
+          "The share link offers the simulation only once every floor that can run one is ticked as ready to share.",
+      });
     return out;
-  }, [model, snapshot]);
+  }, [model, snapshot, simApproval]);
 
   const setMeta = (k: "jobNumber" | "client" | "site", v: string) =>
     onMutate((d) => ({ ...d, meta: { ...d.meta, [k]: v } }));
@@ -118,7 +155,12 @@ export function SummaryView({
           </span>
         )}
         <div className="ds-chrome-acts">
-          {simFlag && (
+          {/* ABSENT, not disabled. The sheet must never advertise a
+              simulation the person reading it cannot open — and once the
+              simulation is a thing you SEND, "cannot open" includes "has not
+              been ticked as fit to show anyone". The way IN to tick it is the
+              Simulate pill on the Design step, which is not this sheet. */}
+          {simFlag && simApproval.offered && (
             <button
               className="ds-chrome-btn cta"
               onClick={onSimulate}

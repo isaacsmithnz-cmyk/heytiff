@@ -171,6 +171,16 @@ const MIGRATIONS: Record<number, Migration> = {
      text, two jobs a year apart can wear the same digits, and this migration
      has no mirror to ask anyway. Unlinked is the honest answer. */
   7: (doc) => ({ ...doc, jobLink: null, schemaVersion: 8 }),
+
+  /* v8 → v9: a design can now carry per-floor "ready to share" ticks for its
+     simulation (`simApprovals`).
+
+     Every pre-v9 document opens with NONE, and that is the only honest answer
+     rather than a conservative one. The tick means somebody watched this floor
+     run and said it was fit to show a customer; no such person exists for a
+     document saved before the control did. Approving is a deliberate act, and
+     a migration cannot perform one. */
+  8: (doc) => ({ ...doc, simApprovals: [], schemaVersion: 9 }),
 };
 
 export class DesignDocumentError extends Error {

@@ -9,6 +9,8 @@ import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { StudioCanvas, ALL_LAYERS_ON } from "./canvas";
 import { SimControllerCard } from "./sim-controller";
 import { SimHeaderStatus } from "./sim-info";
+import { SimApproveSwitch } from "./sim-approve";
+import { floorDisplayName } from "@/lib/studio/plans";
 
 /* Present mode — a near-full-screen, PowerPoint-style takeover that runs the
    simulation on just the plan, with none of the editing chrome. Portalled to
@@ -31,6 +33,7 @@ export function SimPresentMode({
   planImages,
   activeSystemId,
   runtime,
+  approval,
   onExit,
 }: {
   doc: DesignDocument;
@@ -39,6 +42,14 @@ export function SimPresentMode({
   planImages?: PlanImages;
   activeSystemId: string | null;
   runtime: SimRuntime;
+  /* the "ready to share" tick for THIS floor. Absent on any mount that has
+     nothing to approve — the customer's live link renders its own viewer and
+     never gets this at all. */
+  approval?: {
+    on: boolean;
+    nameTheFloor: boolean;
+    onChange: (on: boolean) => void;
+  };
   onExit: () => void;
 }) {
   useEffect(() => {
@@ -67,6 +78,15 @@ export function SimPresentMode({
         </div>
         {/* operation status lives in the header, in line with the design/system */}
         <SimHeaderStatus runtime={runtime} activeSystemId={activeSystemId} />
+        {/* the tick sits beside what it is judging — see sim-approve.tsx */}
+        {approval && (
+          <SimApproveSwitch
+            on={approval.on}
+            floorName={floorDisplayName(floor)}
+            nameTheFloor={approval.nameTheFloor}
+            onChange={approval.onChange}
+          />
+        )}
         <button className="ds-present-exit" onClick={onExit} title="Exit presentation (Esc)">
           Exit
           <span aria-hidden>✕</span>

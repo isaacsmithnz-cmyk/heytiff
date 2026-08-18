@@ -8025,6 +8025,66 @@ html[data-ds-display] .dstudio.editing {
   font-size: 11px;
   opacity: 0.7;
 }
+/* "Ready to share" — the tick that lets this simulation leave the building.
+   Sits beside the operation status because that is what it is judging.
+
+   Measured on the present stage's own ground (#0b0d12), not on white: the
+   teal ink reads 8.8:1 on its wash and the ticked border 3.7:1 on the bar,
+   both above their floors. The unticked box carries a 3.7:1 edge so an
+   EMPTY switch is still visibly a switch — an off state you cannot see is
+   how a control reads as decoration. */
+.dstudio .ds-simok {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 14px 7px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(236, 238, 244, 0.78);
+  font: 700 12px var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.dstudio .ds-simok:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+  color: #eceef4;
+}
+.dstudio .ds-simok:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.4);
+}
+.dstudio .ds-simok-box {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  color: transparent;
+}
+.dstudio .ds-simok-t { display: inline-flex; align-items: baseline; gap: 7px; }
+/* the floor name rides the label ONLY when there is more than one floor that
+   can simulate — see SimApproveSwitch */
+.dstudio .ds-simok-t b { font-weight: 600; opacity: 0.72; }
+.dstudio .ds-simok.on {
+  border-color: rgba(0, 229, 192, 0.5);
+  background: rgba(0, 229, 192, 0.16);
+  color: var(--teal, #00e5c0);
+}
+.dstudio .ds-simok.on:hover { background: rgba(0, 229, 192, 0.24); }
+.dstudio .ds-simok.on .ds-simok-box {
+  border-color: var(--teal, #00e5c0);
+  background: var(--teal, #00e5c0);
+  color: #04231f;
+}
 .dstudio .ds-present-stage {
   flex: 1 1 0;
   min-height: 0;

@@ -33,7 +33,11 @@ const COLUMNS =
 // primary_owner_user_id and the legacy `name` are deliberately not selected —
 // this screen edits the company profile, not ownership or the signup seed.
 
-export default async function OrganizationPage() {
+export default async function OrganizationPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const session = await auth0.getSession();
   if (!session) redirect("/auth/login");
   if (!hasMinRole(await getDbRole(), "owner")) redirect("/dashboard");
@@ -47,7 +51,7 @@ export default async function OrganizationPage() {
   if (!data) redirect("/dashboard");
 
   const org = data as unknown as OrgSettings;
-  const [credentials, account, logoUrl] = await Promise.all([
+  const [credentials, account, logoUrl, params] = await Promise.all([
     listOrgCredentials(orgId),
     // whose account this is — owner, size, age, plan. The viewer's sub goes in
     // so the card can say "You" rather than printing a co-owner their own
@@ -56,6 +60,9 @@ export default async function OrganizationPage() {
     // the column holds a storage ref; the bucket is private, so the link is
     // minted here and expires
     signOne(org.logo_url),
+    // which tab a shared link asks for — read here rather than with
+    // useSearchParams, so the screen needs no Suspense boundary around it
+    searchParams,
   ]);
 
   return (
@@ -65,6 +72,7 @@ export default async function OrganizationPage() {
       account={account}
       logoUrl={logoUrl}
       today={todayInAu()}
+      initialSec={typeof params.sec === "string" ? params.sec : undefined}
       // Configured or not — the boolean crosses to the client, the key never
       // does (no NEXT_PUBLIC_ prefix, so Next cannot inline it either).
       addressLookup={Boolean(process.env.GOOGLE_MAPS_API_KEY)}

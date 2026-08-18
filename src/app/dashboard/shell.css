@@ -1252,9 +1252,19 @@
    is survivable here in a way it was not for the old wrapping strip: Summary
    links to every section it lists, so the strip is never the only way in. */
 @media (max-width:1400px){
-  .fg .pcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
-  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
-  .fg .pcard2 .wb2-vt { flex:none; }
+  .fg .pcard2 .wb2-vtabs, .fg .orgcard2 .wb2-vtabs { overflow-x:auto; scrollbar-width:none; padding-left:24px; }
+  /* THE ORG CARD SCROLLS, IT DOES NOT WRAP. `.wb2-vtabs` picks up
+     `flex-wrap:wrap-reverse` from the Workboard's own 900px rule — which is
+     right there, where the row shares its line with the universal search field
+     and the field takes the line above. This strip has no field on it, so
+     wrapping only breaks the one thing the row cannot survive losing: the thumb
+     is `translateX` off a single `offsetLeft`, so a tab on a second line gets
+     the card's top edge drawn under the tab ABOVE it. Restated at (0,3,0) so it
+     wins wherever that rule lands. */
+  .fg .orgcard2 .wb2-vtabs { flex-wrap:nowrap; }
+  .fg .pcard2 .wb2-vtabs::-webkit-scrollbar,
+  .fg .orgcard2 .wb2-vtabs::-webkit-scrollbar { display:none; }
+  .fg .pcard2 .wb2-vt, .fg .orgcard2 .wb2-vt { flex:none; }
   /* THE SCROLLBAR IS HIDDEN, SO SAY IT SCROLLS SOME OTHER WAY.
 
      Nine tabs measure 925px; a narrow window gives the strip 295px. The two
@@ -1266,20 +1276,26 @@
      the scroll container itself — an absolutely-positioned overlay would scroll
      away with the content it is meant to be masking. */
   .fg .pcard2 .wb2-vtabs::before,
-  .fg .pcard2 .wb2-vtabs::after {
+  .fg .pcard2 .wb2-vtabs::after,
+  .fg .orgcard2 .wb2-vtabs::before,
+  .fg .orgcard2 .wb2-vtabs::after {
     content:""; position:sticky; z-index:4; align-self:stretch;
     flex:0 0 0; width:0; overflow:visible; pointer-events:none;
   }
-  .fg .pcard2 .wb2-vtabs::before { left:0; }
-  .fg .pcard2 .wb2-vtabs::after { right:0; }
+  .fg .pcard2 .wb2-vtabs::before, .fg .orgcard2 .wb2-vtabs::before { left:0; }
+  .fg .pcard2 .wb2-vtabs::after, .fg .orgcard2 .wb2-vtabs::after { right:0; }
   .fg .pcard2 .wb2-vtabs[data-ovl]::before,
-  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after,
+  .fg .orgcard2 .wb2-vtabs[data-ovl]::before,
+  .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
     width:0; box-shadow:none;
   }
-  .fg .pcard2 .wb2-vtabs[data-ovl]::before {
+  .fg .pcard2 .wb2-vtabs[data-ovl]::before,
+  .fg .orgcard2 .wb2-vtabs[data-ovl]::before {
     box-shadow:18px 0 18px -12px rgba(10,12,20,.28);
   }
-  .fg .pcard2 .wb2-vtabs[data-ovr]::after {
+  .fg .pcard2 .wb2-vtabs[data-ovr]::after,
+  .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
     box-shadow:-18px 0 18px -12px rgba(10,12,20,.28);
   }
 }
@@ -4300,7 +4316,52 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    grid of credentials, where Tax and the integrations have lists. Below 1060 —
    which is where a 224px sidebar plus 80px of wrap padding leaves less than 920
    — it is simply the width available. */
-.fg .org-stg { max-width:920px; }
+/* THE STAGE IS WIDER THAN 920 NOW, and the tab row is why. Six labels —
+   Overview, Your business, Company identity, Contact & address, Licences &
+   insurance, Account — measure close to 900 at the strip's own 13px/700, and a
+   row that has to scroll on a 1440 laptop is the one thing this layout exists
+   to avoid. 1040 clears it with room, and the panels underneath read better
+   two-up at that width. */
+.fg .org-stg { max-width:1040px; }
+
+/* ── THE ORGANISATION CARD — the Workboard's surface, holding a business ──
+   It was five stacked `.card2`s down one scroll. It is one row of tabs joined
+   to ONE persistent white card now, which is what the Workboard, the staff card
+   and Home already are.
+
+   IT BORROWS `.wb2-vtabs / .wb2-vt / .wb2-vslide / .wb2-card` VERBATIM through
+   `shell/view-tabs`, exactly as the staff card does — including the 36px
+   first-tab offset that keeps all four corners round through a switch, and the
+   view transition that swaps the information while the surface stays. What it
+   needs declaring is the tokens those rules read, since this screen is inside
+   neither `.wb2` nor `.pcard2`.
+
+   The panel chrome (`.ppanel2`, `.psec2`, `.psechd`, `.pdl*`) is already
+   declared against `.fg` alone, so it reaches here with nothing restated. */
+.fg .orgcard2 { --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
+  --wb2-cy:#007fa8; --wb2-cy2:#0089b8; }
+
+/* Save wears the board's cyan here for the same reason it does on the staff
+   card: it is the SAME white surface, and a black button on it would read as a
+   different screen. */
+.fg .orgcard2 .pbtn.primary {
+  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:#fff;
+  box-shadow:0 8px 18px -8px rgba(0,127,168,.75); }
+.fg .orgcard2 .pbtn.primary:hover:not(:disabled) {
+  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:#fff; }
+
+/* Overview's lockup — the logo, the trading name, the legal name. The staff
+   card's `.pident` verbatim, with two differences a business has and a person
+   does not: the page already owns the <h1> ("Organisation"), so the name is an
+   h2 at the same size; and a logo is artwork with its own margins, so it is
+   CONTAINED in the tile rather than cropped to fill it the way a face is. */
+.fg .phid h2 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; line-height:1.05; overflow-wrap:anywhere; }
+.fg .orgident .pphoto { cursor:default; }
+.fg .orgident .pphoto .inn.logo { object-fit:contain; padding:7px; }
+
+/* the credential wall inside an Overview panel — the panel body already
+   carries the gap above it */
+.fg .pdlbody > .credgrid { margin-top:0; }
 
 /* Your business: the logo tile, and the card the logo lands on.
 
@@ -4308,7 +4369,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    so the card is never stretched past the aspect ratio it is drawn at; the tile
    column takes what is left. They swap to one column early — at 780 the pair
    would each be under 300px and the card's facts row starts wrapping. */
-.fg .orgbrand { display:grid; grid-template-columns:260px minmax(0,460px); justify-content:space-between; gap:26px; align-items:start; }
+/* Left, not spread: `space-between` was right when the stage was 920 and the
+   pair nearly filled it. At 1040 it would push 300px of nothing between the
+   tile and the card it is a preview of, and two halves of one subject have to
+   read as a pair. */
+.fg .orgbrand { display:grid; grid-template-columns:260px minmax(0,460px); justify-content:start; gap:34px; align-items:start; }
 /* 1040, not 900, and the 224px sidebar is the whole reason. `.idc` is drawn at
    a fixed 856/540 with overflow:hidden, so a narrow card does not reflow — it
    loses its own bottom row. Measured in the real shell it reads down to ~360px

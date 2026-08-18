@@ -1,0 +1,91 @@
+#!/bin/sh
+# HeyTiff pre-push — run the suite before anything leaves the machine.
+#
+# THREE THINGS THIS HAD TO LEARN, all from one evening that cost about an hour:
+#
+#   1. A DELETION IS NOT A CHANGE. `git push --delete <branch>` ran all 5,900
+#      tests before removing a ref, and so did pushing a branch that was already
+#      up to date. Git says what is being pushed on stdin; if none of it is new
+#      commits, there is nothing the tests could have an opinion about.
+#
+#   2. A KILLED RUN IS NOT A FAILED RUN. This box routinely carries ten jest
+#      processes from sibling worktrees, and jest gets SIGTERMed or OOM-killed
+#      under that load. The old hook printed "Tests failed. Push aborted." for
+#      every non-zero exit, so a machine problem was indistinguishable from a
+#      broken branch — which is the reading that tempts somebody into
+#      --no-verify. Signals are named as signals now, and the run is retried
+#      once, single-worker, before giving up.
+#
+#   3. IT HAS TO SAY WHY. On a real failure the suite names are repeated at the
+#      end, so the reason is the last thing on screen rather than something you
+#      scroll back through thousands of lines to find.
+#
+# The full suite still runs on every real push, deliberately. Scoping it to
+# `--findRelatedTests` was considered and rejected: this repo's guard tests read
+# their input with fs.readFileSync — the contrast sweep reads shell.css, the
+# font guard reads the sheet — so they sit in NO import graph and would be
+# silently skipped by exactly the changes they exist to catch.
+#
+# POSIX sh only: no PIPESTATUS, no arrays. The status of a piped command is
+# carried out in a file, because `cmd | tee` reports tee's exit code.
+export PATH="$HOME/.local/bin:$PATH"
+
+LOG=${TMPDIR:-/tmp}/heytiff-prepush.log
+RC=${TMPDIR:-/tmp}/heytiff-prepush.rc
+
+# ------------------------------------------------ is anything actually being pushed?
+# one line per ref: <local ref> <local sha> <remote ref> <remote sha>
+work=0
+while read -r lref lsha rref rsha; do
+  [ -z "$lref" ] && continue
+  case "$lsha" in *[!0]*) : ;; *) continue ;; esac   # all-zero local sha = deletion
+  [ "$lsha" = "$rsha" ] && continue                  # nothing new on this ref
+  work=1
+done
+
+if [ "$work" -eq 0 ]; then
+  echo "pre-push: no new commits (deletion, or already up to date) — skipping the suite."
+  exit 0
+fi
+
+run() {  # $1 = extra jest args; leaves the real exit code in $RC
+  { npm test -- --passWithNoTests $1 2>&1; echo $? > "$RC"; } | tee "$LOG"
+  return "$(cat "$RC" 2>/dev/null || echo 1)"
+}
+
+is_killed() {  # 128+N for a signal: 134 ABRT, 137 KILL, 139 SEGV, 143 TERM
+  case "$1" in 134|137|139|143) return 0 ;; *) return 1 ;; esac
+}
+
+echo "pre-push: running the suite…"
+run ""
+code=$?
+
+if is_killed "$code"; then
+  busy=$(ps ax | grep -c '[j]est')
+  echo ""
+  echo "pre-push: the run was KILLED (exit $code) — that is not a test failure."
+  echo "          Almost always memory pressure; $busy jest process(es) on this box."
+  echo "          Retrying once, single-worker."
+  echo ""
+  sleep 20
+  run "--runInBand"
+  code=$?
+  if is_killed "$code"; then
+    echo ""
+    echo "pre-push: killed again (exit $code). This is the MACHINE, not your branch."
+    echo "          Let the other runs finish, then push again."
+    exit 1
+  fi
+fi
+
+if [ "$code" -ne 0 ]; then
+  echo ""
+  echo "pre-push: tests FAILED (exit $code). Push aborted. The suites were:"
+  # jest prints FAIL once as it runs and again in the summary — say each once
+  grep -E "^(FAIL|Tests:)" "$LOG" | sed 's/ ([0-9.]* s)$//' | sort -u | sed 's/^/          /'
+  exit 1
+fi
+
+echo "pre-push: suite green."
+exit 0

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "prepare": "sh .githooks/install.sh",
     "test:watch": "jest --watch",
     "validate:packs": "PACK_REPORT=1 jest installed-packs",
     "bakeoff": "BAKEOFF=1 jest src/lib/voice/bakeoff/__tests__/bakeoff.test.ts --verbose --silent=false",

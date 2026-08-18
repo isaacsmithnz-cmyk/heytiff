@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { buildDotField, markInk } from "@/lib/ui/dot-mark";
 
 /* THE FIELD — the capture card's instrument, and the mark itself.
@@ -37,7 +37,12 @@ import { buildDotField, markInk } from "@/lib/ui/dot-mark";
    IT SAYS NOTHING TO A SCREEN READER. The stage it sits in is already named by
    the ribbon above it, and a field of dots has nothing to add to "Recording". */
 
-export type DotFieldStage = "mark" | "cloud" | "fall";
+export type DotFieldStage = "gather" | "mark" | "cloud" | "fall";
+
+/** How long the mark takes to arrive, first dot leaving to last dot seated.
+    The stylesheet's `dotfGather` has to agree with it; nothing else needs to
+    know, because the field lets go of the stage on its own. */
+export const GATHER_MS = 1420;
 
 /** How long the drop takes, start to last dot gone. The caller needs this to
     know how long to keep the field mounted after the wait ends — see
@@ -49,6 +54,7 @@ export function DotField({
   size = 268,
   cols = 26,
   className,
+  from,
 }: {
   stage: DotFieldStage;
   /** The field's width in px; everything scales off it. */
@@ -56,7 +62,38 @@ export function DotField({
   /** Grid resolution across the mark. */
   cols?: number;
   className?: string;
+  /** Where the mark is arriving FROM — the pressed button's offset from the
+      card's centre, which is the same pair the card's own entrance rides on
+      (`--cap-dx/--cap-dy`, see tiff-button). Absent on every surface that has
+      no button to fly out of: the debrief, a field's nudge, the postures. */
+  from?: { dx: number; dy: number } | null;
 }) {
+  const shown = useGather(from ? stage : null) ?? stage;
+  const root = useRef<HTMLDivElement | null>(null);
+
+  /* THE BUTTON, IN THE FIELD'S OWN COORDINATES. `from` is measured against the
+     CARD's centre and the dots are placed from the FIELD's, so the difference
+     between those two centres is the whole of this effect.
+
+     `offsetLeft/offsetTop` rather than a rect, and that is the point: the card
+     is mid-blossom when this runs — scaled to a third of itself and sitting on
+     the button — so every rect in the subtree is a rect of the animation
+     rather than of the layout. Offsets ignore transforms, so they describe
+     where the field is GOING to be, which is what the dots need.
+
+     An effect, not a layout effect, and a frame of slack is free: `dotfGather`
+     opens at `opacity:0`, so the frame that runs before these land has nothing
+     on screen to be wrong. */
+  useEffect(() => {
+    const el = root.current;
+    const card = el?.offsetParent as HTMLElement | null;
+    if (!el || !card || !from) return;
+    const fx = el.offsetLeft + el.offsetWidth / 2 - card.offsetWidth / 2;
+    const fy = el.offsetTop + el.offsetHeight / 2 - card.offsetHeight / 2;
+    el.style.setProperty("--gox", (from.dx - fx).toFixed(1));
+    el.style.setProperty("--goy", (from.dy - fy).toFixed(1));
+  }, [from]);
+
   /* Built once per size, not per render and not per mount of a card that opens
      dozens of times a day. Pure arithmetic over the mark's own path data — see
      lib/ui/dot-mark for why this is not asked of the browser. */
@@ -64,8 +101,9 @@ export function DotField({
 
   return (
     <div
+      ref={root}
       className={className ? `dotf ${className}` : "dotf"}
-      data-stage={stage}
+      data-stage={shown}
       style={{ "--dotf": `${size}px`, "--dotf-dot": `${dotPx.toFixed(2)}px` } as CSSProperties}
       aria-hidden="true"
     >
@@ -87,6 +125,9 @@ export function DotField({
                   "--fz": d.fz.toFixed(1),
                   "--gx": d.gx.toFixed(1),
                   "--sd": d.delay.toFixed(3),
+                  "--gd": d.gd.toFixed(3),
+                  "--bx": d.bx.toFixed(1),
+                  "--by": d.by.toFixed(1),
                 } as CSSProperties
               }
             >
@@ -121,6 +162,37 @@ export function DotField({
       </div>
     </div>
   );
+}
+
+/**
+ * Holds the first `mark` open long enough for the dots to arrive in it.
+ *
+ * The mark is the field's RESTING state, so nothing about it moves — which is
+ * right once it is there and wrong for the moment it appears, where two
+ * hundred dots simply materialised in formation. `gather` is that moment given
+ * a stage of its own: the dots start on the button and fly to their seats,
+ * and the whole thing hands over to the swell when the last one is down.
+ *
+ * ONE-SHOT, AND ONLY ON THE WAY IN. It fires for the first `mark` this field
+ * ever shows and never again, so choosing Talk mid-flight carries the same
+ * arrival on rather than restarting it, and a mark coming BACK from anywhere
+ * (there is no such path today) would not replay an entrance.
+ *
+ * @param live  what the field is being asked to show, or null where there is
+ *              no button to have flown out of — the caller passes that, and
+ *              this returns null in kind so the stage passes straight through
+ */
+function useGather(live: DotFieldStage | null): DotFieldStage | null {
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (done || live !== "mark") return;
+    const t = setTimeout(() => setDone(true), GATHER_MS);
+    return () => clearTimeout(t);
+  }, [done, live]);
+
+  if (!live || done) return null;
+  return live === "mark" ? "gather" : null;
 }
 
 /**

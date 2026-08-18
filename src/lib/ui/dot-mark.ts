@@ -82,6 +82,10 @@ export type MarkDot = {
   zipMs: number; zipPhase: number; fireMs: number; firePhase: number;
   /** How late it leaves on the way down, and its sideways drift. */
   delay: number; gx: number;
+  /** THE WAY IN. `gd` is 0-1 across the mark and orders the arrival; `bx/by`
+      bow the flight so two hundred dots are not two hundred straight lines.
+      See `dotfGather` in the stylesheet for what reads them. */
+  gd: number; bx: number; by: number;
 };
 
 export type DotFieldGeometry = {
@@ -176,8 +180,31 @@ export function buildDotField(size: number, cols = 26): DotFieldGeometry {
       firePhase: hash(i + 6947) * 7,
       delay: hash(i + 3517),
       gx: (hash(i + 7723) - 0.5) * 74,
+      /* Filled in below — the order needs every dot's `t` to exist first. */
+      gd: 0,
+      /* NOT PERPENDICULAR TO THE FLIGHT, and that is a deliberate cheapness.
+         A true bow needs the travel vector normalised, which needs a square
+         root, which CSS `calc` cannot do — and the alternative is writing two
+         properties onto two hundred elements every time the sheet opens,
+         which is exactly the per-mount arithmetic this file exists to avoid.
+         Every dot flies the same broad direction (one button, one small
+         target), so a fixed offset at the midpoint splays the stream the same
+         way a perpendicular one would. */
+      bx: (hash(i + 8837) - 0.5) * 76,
+      by: (hash(i + 9491) - 0.5) * 76,
     };
   });
+
+  /* THE ARRIVAL ORDER, HIGHEST `t` FIRST. The dots come from the button, the
+     button is up and to the right of the card, and `t` runs up the mark's own
+     diagonal the same way — so filling from the top down lays the chevron out
+     AWAY from the corner it arrived from, rather than building back toward
+     it. Ranked rather than taken raw because `t` is not evenly spread: the
+     tail is a third of the dots over a fifth of the range, and using it
+     directly bunches their departures into a lump. */
+  const order = dots.map((_, i) => i).sort((a, b) => dots[b].t - dots[a].t);
+  const last = Math.max(1, order.length - 1);
+  order.forEach((i, rank) => { dots[i].gd = rank / last; });
 
   return { dots, dotPx: cell * 0.62 };
 }

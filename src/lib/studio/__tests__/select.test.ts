@@ -83,12 +83,17 @@ describe("capacity ranking", () => {
 });
 
 describe("form factors", () => {
-  it("summary counts the full catalogue correctly (69 across 6 factors)", () => {
+  /* 69 units, 7 factors since the SEZ-M-DA range was reclassified ducted →
+     bulkhead: the split catalogue's ducted tab drops 21 → 16 and the five SEZ
+     rows become a tab of their own. (VMX/VMS1 also moved but are vrf-only, so
+     they never appeared in this split-pair catalogue.) */
+  it("summary counts the full catalogue correctly (69 across 7 factors)", () => {
     const sum = formFactorSummary(pack, null, "worst-of-both");
     const byF = Object.fromEntries(sum.map((s) => [s.formFactor, s.count]));
     expect(byF).toEqual({
       wall: 25,
-      ducted: 21,
+      ducted: 16,
+      bulkhead: 5,
       "cassette-4way": 8,
       "cassette-1way": 3,
       "under-ceiling": 7,
@@ -98,9 +103,22 @@ describe("form factors", () => {
 
   it("tab filter returns only that factor; every ducted option has airflow", () => {
     const ducted = unitOptions(pack, { loadKw: null, basis: "worst-of-both", formFactor: "ducted" });
-    expect(ducted).toHaveLength(21);
+    expect(ducted).toHaveLength(16);
     for (const o of ducted) {
       expect(o.idu.form_factor).toBe("ducted");
+      expect(o.idu.airflow_ls).toBeGreaterThan(0);
+    }
+  });
+
+  /* Bulkhead is an air-capable form (AIR_CAPABLE_FORMS), so the ducted design
+     flow will offer these units and then ask them for a duct. Airflow is what
+     makes that legal — assert it here, or a reclassification could quietly
+     move a range into the ducted flow without the data the flow needs. */
+  it("every bulkhead option carries airflow, same as ducted", () => {
+    const bulk = unitOptions(pack, { loadKw: null, basis: "worst-of-both", formFactor: "bulkhead" });
+    expect(bulk).toHaveLength(5);
+    for (const o of bulk) {
+      expect(o.idu.form_factor).toBe("bulkhead");
       expect(o.idu.airflow_ls).toBeGreaterThan(0);
     }
   });

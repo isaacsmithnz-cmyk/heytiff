@@ -136,7 +136,7 @@ describe("groupBrandCatalog", () => {
   it("orders indoor form groups canonically (wall before ducted before cassette)", () => {
     const g = groupsOf();
     expect(g.systems[0].iduForms.map((f) => f.formFactor)).toEqual(["wall", "ducted"]);
-    expect(g.systems[0].iduForms[0].label).toBe("Wall");
+    expect(g.systems[0].iduForms[0].label).toBe("Wall-mounted");
     const vrfForms = g.systems[2].iduForms.map((f) => f.formFactor);
     expect(vrfForms).toContain("cassette-4way");
   });

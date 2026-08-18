@@ -20,6 +20,7 @@
 
 import { installedPacks, loadInstalledPack } from "../server";
 import type { RangeCompleteness } from "../ready";
+import { formFactorLabel, hasFormFactorLabel } from "../../form-factors";
 
 const REPORT = process.env.PACK_REPORT === "1";
 const log = (s: string) => {
@@ -81,5 +82,43 @@ describe("installed packs (data/packs)", () => {
       for (const r of incomplete) log(reportRange(r));
       expect(completeness.length).toBeGreaterThan(0);
     }
+  });
+  /* Every form factor a shipped pack actually uses must have a NAME. This is
+     the gate on a silent failure mode, not a hypothetical one: `bulkhead` was
+     a valid FormFactor and was labelled by the canvas and the cockpit, but the
+     Summary sheet kept its own map and had no key for it. An unmapped form
+     factor doesn't throw and doesn't render blank — it degrades to its raw
+     slug on ONE surface and reads correctly on the others, so the plan said
+     "Bulkhead" and the sheet said "bulkhead", and nothing failed. The pack
+     data was corrected the same day the label map was, because splitting them
+     is exactly what ships that bug.
+
+     Deliberately scoped to form factors PRESENT IN THE DATA, not to the whole
+     FormFactor enum: an enum member no pack uses yet is a gap, not a defect,
+     and `satisfies` in form-factors.ts already makes an unlabelled enum member
+     a compile error. */
+  it("names every form factor the installed packs actually use", async () => {
+    const refs = await installedPacks();
+    const unnamed: string[] = [];
+    for (const ref of refs) {
+      const { pack } = await loadInstalledPack(ref.brand, ref.version);
+      const forms = new Set(pack.indoor_units.map((u) => u.form_factor));
+      for (const f of [...forms].sort()) {
+        if (!hasFormFactorLabel(f)) {
+          const eg = pack.indoor_units.find((u) => u.form_factor === f)?.model;
+          unnamed.push(`${ref.brand}@${ref.version} "${f}" (e.g. ${eg})`);
+        }
+      }
+    }
+    // the message names the pack, the slug and a model, so the fix is obvious
+    expect(unnamed).toEqual([]);
+  });
+
+  /* The fallback still has to work — a pack from the future must SHOW an
+     unknown form factor rather than swallow it. Keeping this next to the gate
+     above stops someone "fixing" a failure there by deleting the fallback. */
+  it("shows an unknown form factor rather than swallowing it", () => {
+    expect(formFactorLabel("ceiling-suspended-mk7")).toBe("ceiling-suspended-mk7");
+    expect(formFactorLabel(null)).toBeNull();
   });
 });

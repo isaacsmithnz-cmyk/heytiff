@@ -24,6 +24,7 @@ import {
   type UnitSpec,
 } from "@/lib/studio/unit-specs";
 import type { PairProposal } from "@/lib/studio/split";
+import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
 
 /* one unit staged for comparison — self-contained (brand + option + chosen
    pair) so the comparison survives brand switches and never re-reads a pack */
@@ -166,14 +167,21 @@ export function UnitBrowser({
     [pack, loadKw, basis, activeTab, phase, filters, sort]
   );
 
-  const isDucted = activeTab === "ducted";
+  /* the airflow filter belongs to every ducted-airway form, not the "ducted"
+     tab alone — bulkhead units are air-capable and carry the same figure */
+  const isDucted =
+    activeTab != null && DUCT_AIRWAY_FORMS.includes(activeTab);
   /* spec columns to show: the enabled set, in registry order, minus any that
      don't apply to this form factor (e.g. airflow off the ducted tab) */
   const activeSpecs = COLUMN_SPECS.filter(
-    (s) => columnIds.includes(s.id) && (!s.only || s.only === activeTab)
+    (s) =>
+      columnIds.includes(s.id) &&
+      (!s.only || (activeTab != null && s.only.includes(activeTab)))
   );
   /* the specs offered in the Columns menu for THIS tab (hide inapplicable ones) */
-  const menuSpecs = COLUMN_SPECS.filter((s) => !s.only || s.only === activeTab);
+  const menuSpecs = COLUMN_SPECS.filter(
+    (s) => !s.only || (activeTab != null && s.only.includes(activeTab))
+  );
   // compare + Model + spec columns + Outdoor
   const colSpan = 1 + 1 + activeSpecs.length + 1;
 

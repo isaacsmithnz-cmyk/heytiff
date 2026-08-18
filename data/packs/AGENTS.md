@@ -142,9 +142,62 @@ Numbers are numbers: never `"high static"` or `"~600"` in a numeric field. If a
 figure is conditional (e.g. at a stated ESP), take the nominal/high value the
 schema asks for and note the condition in the report.
 
+## 4b. Form factor — copy the book's type column, don't judge the casing
+
+`form_factor` is Tier-1 and it is **transcribed, not decided**. Nearly every
+data book types its own ranges, in a lineup or combination table near the front
+of each section. Find that table, read the row, and write what it says. Height,
+depth, external static and how the outline drawing looks are all *consequences*
+of the type — none of them is the answer, and a rule of thumb built from them
+("under 250 mm is a bulkhead") will be wrong at the next range.
+
+Books do not share a vocabulary, so the mapping onto our enum is per-book and
+belongs in your report. Worked example, the two Mitsubishi books behind
+`mitsubishi-electric@2026.1`:
+
+| Book | Its word | Our `form_factor` |
+|---|---|---|
+| M-P0922 (2024) p.B-2, S-series table | **Compact Bulkhead** (SEZ-M·DA) | `bulkhead` |
+| M-P0922 (2024) p.A-2, P-series table | **Ceiling-concealed** (PEAD-M·JAA, PEA-M·GAA/HAA/LAA) | `ducted` |
+| City Multi Brochure 2019, folio 110 + model pages | **Compact Depth Type** (PEFY-P·VMX-E, PEFY-P·VMS1-E) | `bulkhead` |
+| City Multi Brochure 2019, folio 110 | **Medium / High Static Pressure Type** (PEFY-P·VMA, ·VMA3, ·VMHS) | `ducted` |
+| City Multi Brochure 2019, folio 110 | **Low Noise Type** (PEFY-P·VMR-E) | `ducted` |
+
+Two things that example is there to teach:
+
+- **The books disagree with each other, and sometimes with themselves.** City
+  Multi never prints "bulkhead" for any PEFY — its word for that tier is
+  "Compact Depth Type" — and folio 128 files VMS1 under "Low Static Pressure
+  Type" while folio 110 and the model page file it under "Compact Depth Type".
+  Transcribe what the majority of pages say, cite them, and put the dissenting
+  page in the watch-list (§9.3). Do not average, and do not pick the reading
+  that tidies the range.
+- **Where a book's vocabulary genuinely has no home in the enum, stop and
+  report it** as a schema-extension request (§3). Do not force it into the
+  nearest existing form factor.
+
+**A row is not evidence for another row.** Matching casing, opening sizes and
+static pressure between two series proves they were transcribed the same way,
+not that they are the same type — if the first extraction carried figures
+sideways, the check confirms a copy against its own copy and reads as several
+independent agreements. This is §1c and §1 in a specific costly shape: it
+happened, VMS1 was classified on it, and it had to be retracted and redone off
+the pages. Only a page settles a type.
+
+**Why this one hides.** `ducted` and `bulkhead` are treated identically by
+everything downstream — both require `airflow_ls` and both airway openings,
+both are air-capable, both take an external static (`DUCTED_FORMS` /
+`AIR_CAPABLE_FORMS` in the engine read `["ducted", "bulkhead"]`). So a wrong
+choice between them fails no validation, lowers no readiness figure and throws
+no error. It surfaces only as the wrong word on a customer-facing sheet, months
+later. Getting it right is a transcription discipline, not something the
+validator will catch for you.
+
 ## 5. Airway openings (ducted + AHU)
 
-An AHU here is just the ducted fan coil — same form factor, same rules.
+An AHU here is just the ducted fan coil — same form factor, same rules. So is
+a `bulkhead` unit: it is a different TYPE (§4b) but an identical set of airway
+questions, and the engine requires both openings of it just the same.
 
 Each ducted unit has a `supply_opening` and a `return_opening`, and each is
 independently one of:
@@ -178,10 +231,11 @@ staff member supplied directly.
 ## 7. Priorities — what blocks, what doesn't
 
 **Tier 1 (do first; these gate engine-readiness):** model/brand/series ·
-form factor · footprint W×D×H · capacities · connection sizes · system roles ·
-refrigerant · `capacity_index` for multi/VRF · `airflow_ls` and both airway
-openings for ducted · and the rule-block rows (`pair_tables`, `multi_rules`,
-`vrf_pipe_tables` + the `parts` their refs point to).
+form factor (**§4b** — off the book's type column) · footprint W×D×H ·
+capacities · connection sizes · system roles · refrigerant · `capacity_index`
+for multi/VRF · `airflow_ls` and both airway openings for the ducted forms
+(`ducted` AND `bulkhead`) · and the rule-block rows (`pair_tables`,
+`multi_rules`, `vrf_pipe_tables` + the `parts` their refs point to).
 
 A unit row without its table row is inert — a fully specified IDU with no
 `pair_tables` entry is never offered as a split. The table sections are where
@@ -220,6 +274,10 @@ Write it in the PR description:
    precedent: a PEFY liquid/gas swap). Flag, transcribe as printed, never
    silently "fix".
 5. **Schema-extension requests** — any method from §3 that didn't fit.
+6. **Form-factor vocabulary** — the book's own type names and what you mapped
+   each onto (§4b), with the table and page you read them from. The next pass
+   on the same brand should not have to rediscover that "Compact Depth Type"
+   means `bulkhead`, and a reviewer cannot check a mapping you didn't state.
 
 Before you write it, **re-verify your own citations against the PDF** — open
 each page you cited and confirm its title block names the models you wrote to.

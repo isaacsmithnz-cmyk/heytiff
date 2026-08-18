@@ -13,6 +13,7 @@ import type { DataPack, FormFactor, IndoorUnit, Phase } from "./packs/schema";
 import type { SizingBasis } from "./loads";
 import { proposePairs, type PairProposal } from "./split";
 import { capacityFit, FIT_RANK, type UnitFit } from "./fit";
+import { FORM_FACTOR_LABELS } from "./form-factors";
 
 /* the ranking vocabulary is shared with the multi picker — re-exported here
    so the split browser has one import, not two */
@@ -22,18 +23,9 @@ export { FIT_RANK, type UnitFit };
     multiple of it. Past the cap it's still offered, flagged oversized. */
 export const OVERSIZE_CAP = 1.5;
 
-export const FORM_FACTOR_LABELS: Record<FormFactor, string> = {
-  wall: "Wall",
-  ducted: "Ducted",
-  "cassette-4way": "Cassette 4-way",
-  "cassette-2way": "Cassette 2-way",
-  "cassette-1way": "Cassette 1-way",
-  "cassette-compact": "Cassette compact",
-  "under-ceiling": "Under ceiling",
-  "floor-console": "Floor console",
-  "floor-concealed": "Floor concealed",
-  bulkhead: "Bulkhead",
-};
+/* re-exported, not redefined — form-factors.ts is the one place a form factor
+   is put into words (it was three maps, worded three ways). */
+export { FORM_FACTOR_LABELS };
 
 export interface UnitOption {
   idu: IndoorUnit;

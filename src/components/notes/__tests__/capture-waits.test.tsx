@@ -10,11 +10,10 @@ import { READING_BACK_NOTE } from "../waits";
    faults in a row, and they are three different bugs with one shape: the card
    showing you something that is not what is happening.
 
-     1. A SMALL CARD FLASHED FIRST. The button opens the sheet and asks for
-        the microphone in the same click, and `recording` cannot be true until
-        `getUserMedia` comes back — so the sheet rendered its idle self (box,
-        Default switch, "Ask or tell Tiff") across that gap and then replaced
-        it. `arming` closes it.
+     1. A SMALL CARD FLASHED FIRST. Pressing Talk asks for the microphone,
+        and `recording` cannot be true until `getUserMedia` comes back — so
+        the card rendered its idle self (the box, "Ask or tell Tiff") across
+        that gap and then replaced it. `arming` closes it.
 
      2. THE ANIMATION RAN IN THE WRONG PLACE. The dot field flew for the
         read-back — a second or two — and was pulled precisely when the long
@@ -90,6 +89,9 @@ beforeEach(() => {
   });
 });
 
+/* The sheet opens on the door now (Talk or Type — see `choice` in
+   ../note-flow), and everything below is about what happens AFTER Talk, so
+   the press is part of opening here. */
 const open = async () => {
   render(
     <NoteScopeProvider voiceEnabled>
@@ -97,12 +99,13 @@ const open = async () => {
     </NoteScopeProvider>
   );
   await userEvent.click(screen.getByRole("button", { name: /Ask or tell Tiff/i }));
+  await userEvent.click(screen.getByRole("button", { name: "Talk" }));
 };
 
 const card = () => document.querySelector(".wb2-capcard")!;
 
 describe("the press, and the gap after it", () => {
-  it("opens straight into the recording card — the idle box never flashes up", async () => {
+  it("goes straight into the recording card — the idle box never flashes up", async () => {
     await open();
 
     /* What the recording stage is: the mark in flight, and the three ways
@@ -113,7 +116,6 @@ describe("the press, and the gap after it", () => {
     /* And what the flash WAS. Either of these on screen means the card spent
        the gap pretending nobody had pressed anything. */
     expect(screen.queryByRole("textbox", { name: /^$/ })).toBeNull();
-    expect(screen.queryByText("Default")).toBeNull();
     expect(screen.queryByRole("button", { name: "Go" })).toBeNull();
   });
 

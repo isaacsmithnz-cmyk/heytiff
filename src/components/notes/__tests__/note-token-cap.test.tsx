@@ -79,6 +79,8 @@ const openSheet = async () => {
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));
+  const door = document.querySelector<HTMLElement>(".wb2-capdoor .pbtn");
+  if (door) await user.click(door);
   return user;
 };
 

@@ -17,7 +17,6 @@ import {
   keepNoteOnJob,
   routeNote,
 } from "@/app/actions/workboard-notes";
-import { useCaptureMode } from "./capture-default";
 import { useNoteScope } from "./note-context";
 import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-card";
 
@@ -30,25 +29,46 @@ import { blockers, toConfirmed, toDraft, targetOf, type Draft } from "./review-c
    carry text from the second to the first. There is nothing posture-specific
    in this file, which is the test of whether the split was real. */
 
-export type Stage = "idle" | "recording" | "transcribing" | "sorting" | "review" | "answer";
+/* `door` is where a capture starts: Talk or Type, and nothing running until
+   you say which. See `choice` below. */
+export type Stage =
+  | "door"
+  | "idle"
+  | "recording"
+  | "transcribing"
+  | "sorting"
+  | "review"
+  | "answer";
 
-export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean } = {}) {
+export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const debrief = opts.debrief === true;
-  /* WHOSE DEFAULT IS IT? Only the Tiff button opens according to the stored
-     mode, so only its sheet may show a control labelled "Default" or write
-     one. The debrief has its own two doors on its own button and the field
-     postures are opened by a nudge — a preference offered there would be
-     claiming authority over a surface that never consults it. */
-  const governsDefault = opts.governsDefault === true;
   const router = useRouter();
   const scope = useNoteScope();
   const [busy, start] = useTransition();
-  /* How the sheet opens — your last choice, remembered. Lives on the flow so
-     the button that honours it and the buttons that change it read one
-     value; see ./capture-default for why it is stored at all. */
-  const { mode, choose: chooseMode } = useCaptureMode();
 
   const [open, setOpen] = useState(false);
+  /* TALK OR TYPE, ASKED EVERY TIME (Isaac, 2026-08-18: "I think it might be
+     better to have it open into a talk or type button instead of straight to
+     record").
+
+     THIS IS THE FOURTH SHAPE and it is the first one that does not decide for
+     you. The button always started the mic; then it never did and opened with
+     a caret in the box; then it opened the way you left it, remembered in
+     localStorage behind a switch labelled DEFAULT. What the remembered
+     version cost is what this fixes: pressing the button was a recording
+     before you had decided anything, so a mis-tap was a live microphone, and
+     the one control that could change it was a PREFERENCE — a setting sitting
+     in the middle of a capture, governing the next one.
+
+     A door is two buttons and no state. Nothing is listening and nothing is
+     focused until you say which, the choice is the same two words every time,
+     and there is nothing stored to be surprised by later. `heytiff.capture.mode`
+     and its switch are deleted, not disabled — see ./capture-default's grave
+     in the git log.
+
+     `null` is "not chosen yet" and only `reset` puts it back, so a capture
+     asks exactly once. */
+  const [choice, setChoice] = useState<"talk" | "type" | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<{
@@ -111,6 +131,7 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
 
   const reset = useCallback(() => {
     setNote(null);
+    setChoice(null);
     setRanOut(false);
     setSpoke(false);
     setAimDropped(false);
@@ -165,6 +186,9 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
     (source: "text" | "voice", transcript: string) => {
       setError(null);
       setDone(null);
+      /* Words are already here, so there is nothing to ask — this is the
+         field postures' nudge, which opens the sheet mid-thought. */
+      setChoice("type");
       markRouting();
       start(async () => {
         const res = await routeNote({ transcript, target, source, debrief });
@@ -311,7 +335,17 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
           ? "review"
           : sorting
             ? "sorting"
-            : "idle";
+            /* THE DOOR IS ONLY EVER THE FIRST THING. Once you have chosen, a
+               capture never goes back to it — a silent mis-tap handed over to
+               the keyboard lands on the BOX, not on the question again.
+
+               Three surfaces skip it, and for the same reason each time: there
+               is nothing to ask. A deployment that cannot hear has one way in;
+               a debrief is typed at its own button; and a field's nudge opens
+               this sheet with the words already in it. */
+            : choice === null && scope.voiceEnabled && !debrief
+              ? "door"
+              : "idle";
 
   const close = useCallback(() => {
     dict.cancel();
@@ -429,9 +463,6 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
   return {
     scope,
     dict,
-    mode,
-    chooseMode,
-    governsDefault,
     stage,
     busy,
     debrief,
@@ -472,6 +503,15 @@ export function useNoteFlow(opts: { debrief?: boolean; governsDefault?: boolean 
       setAttachTo(value);
       setPicking(false);
     },
+    /* THE DOOR'S TWO BUTTONS. `talk` opens the microphone as well as
+       answering the question, because "Talk" that only changes a mode and
+       waits for a second press is the tax the remembered default was
+       invented to avoid. */
+    talk: () => {
+      setChoice("talk");
+      dict.start();
+    },
+    type: () => setChoice("type"),
     read,
     submit,
     ask,

@@ -95,46 +95,73 @@ describe("the button itself", () => {
 
      v1 always started the mic ("no mode to choose first"), which made typing
      second-class. v2 never did, and made talking — the common case — cost an
-     extra press every time. v3 is neither: your last choice, remembered, so
-     nobody's default is imposed on anybody. Ships listening.
+     extra press every time. v3 was your last choice, remembered behind a
+     DEFAULT switch. v4 ASKS, every time (Isaac, 2026-08-18): pressing the
+     button was a recording before anybody had decided anything, so a mis-tap
+     was a live microphone, and the control that could change it was a
+     preference sitting in the middle of a capture.
 
-     What still MUST hold, and what this guards, is that the mic only ever
-     opens because of a choice that is recorded and visible on the sheet.
-     A tap that starts listening for some other reason — or when the
-     deployment cannot hear at all — is a privacy bug wearing a UX
-     decision's clothes. */
-  it("opens listening, because talk is the shipped default", async () => {
+     What still MUST hold, and what these guard, is that the mic only ever
+     opens because somebody pressed a button that says Talk. A tap that
+     starts listening for any other reason — or when the deployment cannot
+     hear at all — is a privacy bug wearing a UX decision's clothes. */
+  it("opens on the choice — pressing the button never starts the mic", async () => {
     const user = userEvent.setup();
-    mount();
-    await user.click(btn());
-
-    expect(start).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-  });
-
-  it("opens in the box once Type has been chosen, and remembers it", async () => {
-    const user = userEvent.setup();
-    localStorage.setItem("heytiff.capture.mode", "type");
     mount();
     await user.click(btn());
 
     expect(start).not.toHaveBeenCalled();
-    /* Both doors are still on the sheet — the preference decides which one
-       you land on, never which ones exist. */
-    expect(screen.getByPlaceholderText(/Tell Luke/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Talk" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Type" })).toBeInTheDocument();
+    /* Nothing else is on the card yet: no box to type in, nothing to send. */
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Go" })).not.toBeInTheDocument();
   });
 
-  it("never opens the mic where the deployment cannot hear, whatever is stored", async () => {
+  it("Talk opens the microphone in the same press", async () => {
     const user = userEvent.setup();
-    /* The stored preference says talk; there is no microphone to honour it
-       with. Voice loses, every time — the flag is the floor, not the pref. */
-    localStorage.setItem("heytiff.capture.mode", "talk");
+    mount();
+    await user.click(btn());
+    await user.click(screen.getByRole("button", { name: "Talk" }));
+
+    /* One press, not two. A Talk that only sets a mode and waits is the tax
+       the remembered default was invented to avoid. */
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it("Type hands over the box, and nothing listens", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(btn());
+    await user.click(screen.getByRole("button", { name: "Type" }));
+
+    expect(start).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText(/Tell Luke/)).toBeInTheDocument();
+    /* The way back to the microphone stays on the row — changing your mind
+       must not cost a close and a re-open. */
+    expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
+  });
+
+  it("asks again next time — there is nothing stored to be surprised by", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(btn());
+    await user.click(screen.getByRole("button", { name: "Type" }));
+    await user.click(screen.getByTitle("Discard"));
+    await user.click(btn());
+
+    expect(screen.getByRole("button", { name: "Talk" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("skips the door where the deployment cannot hear — a choice with one option is furniture", async () => {
+    const user = userEvent.setup();
     mount(undefined, false);
     await user.click(btn());
 
     expect(start).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Tell Luke/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Talk" })).not.toBeInTheDocument();
   });
 
@@ -251,9 +278,9 @@ describe("the sheet's actions", () => {
      actions row. */
   it("offers exactly one discard, and it is the ribbon's ×", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("heytiff.capture.mode", "type");
     mount();
     await user.click(btn());
+    await user.click(screen.getByRole("button", { name: "Type" }));
 
     const discards = screen.getAllByRole("button", { name: "Discard" });
     expect(discards).toHaveLength(1);
@@ -261,49 +288,11 @@ describe("the sheet's actions", () => {
     expect(discards[0]).not.toHaveClass("pbtn");
   });
 
-  /* THE DEFAULT, SAID OUT LOUD. Isaac asked for the preference to be a
-     labelled switch rather than something inferred from the last button you
-     pressed — what the Tiff button will do next time should never be a
-     thing you have to remember. The label is also what makes storing the
-     preference defensible at all (see ./capture-default). */
-  it("says which mode it will open in, and both halves are reachable", async () => {
-    const user = userEvent.setup();
-    mount();
-    await user.click(btn());
-
-    const talk = screen.getByRole("button", { name: /talk/i });
-    const type = screen.getByRole("button", { name: /type/i });
-    expect(screen.getByText("Default")).toBeInTheDocument();
-    // shipped default
-    expect(talk).toHaveAttribute("aria-pressed", "true");
-    expect(type).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("flips the stored default, and the switch says so", async () => {
-    const user = userEvent.setup();
-    mount();
-    await user.click(btn());
-    await user.click(screen.getByRole("button", { name: /type/i }));
-
-    expect(localStorage.getItem("heytiff.capture.mode")).toBe("type");
-    expect(screen.getByRole("button", { name: /type/i })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /talk/i })).toHaveAttribute("aria-pressed", "false");
-  });
-
-  /* A choice with one option is furniture, not a choice. */
-  it("is absent where the deployment cannot hear", async () => {
-    const user = userEvent.setup();
-    mount(undefined, false);
-    await user.click(btn());
-
-    expect(screen.queryByText("Default")).not.toBeInTheDocument();
-  });
-
   it("holds Go back until there is something to sort", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("heytiff.capture.mode", "type");
     mount();
     await user.click(btn());
+    await user.click(screen.getByRole("button", { name: "Type" }));
 
     /* Absent, not disabled: a dead control is a question you answer every
        time you look at it. */
@@ -315,9 +304,9 @@ describe("the sheet's actions", () => {
 
   it("does not count whitespace as something to sort", async () => {
     const user = userEvent.setup();
-    localStorage.setItem("heytiff.capture.mode", "type");
     mount();
     await user.click(btn());
+    await user.click(screen.getByRole("button", { name: "Type" }));
 
     await user.type(screen.getByRole("textbox"), "   ");
     expect(screen.queryByRole("button", { name: "Go" })).not.toBeInTheDocument();

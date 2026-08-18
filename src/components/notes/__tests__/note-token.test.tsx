@@ -71,6 +71,15 @@ const proposal = (over: Partial<NoteProposal> = {}): NoteProposal => ({
   ...over,
 });
 
+/* THE DOOR IS THE FIRST THING NOW. The sheet opens on Talk-or-Type (see
+   `choice` in ../note-flow), so every flow that types has to say so first.
+   Kept as one helper rather than a line in twenty tests: when the opening
+   shape changes for the fifth time, it changes here. */
+const openToType = async () => {
+  await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+  await userEvent.click(screen.getByRole("button", { name: "Type" }));
+};
+
 const task = (over = {}) => ({
   title: "Order the grilles",
   detail: "",
@@ -171,7 +180,7 @@ describe("the capsule", () => {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian Data",
     });
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     expect(routeNote).toHaveBeenCalledWith(
@@ -195,6 +204,10 @@ describe("the capsule", () => {
     expect(screen.queryByText("Meridian Data · CRACs")).not.toBeInTheDocument();
     expect(screen.getByText("General note")).toBeInTheDocument();
 
+    /* The tag comes off AT THE DOOR — it belongs to the capture, not to the
+       mode, so it is droppable before you have said which way you are going
+       in. */
+    await userEvent.click(screen.getByRole("button", { name: "Type" }));
     await userEvent.type(screen.getByRole("textbox"), "chase the supplier about the grilles");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     /* The half that is easy to miss: the chip can come off the ribbon while
@@ -223,7 +236,7 @@ describe("the capsule", () => {
 
   it("walking away from a parsed note dismisses it rather than stranding it", async () => {
     mount(<TiffButton />, { target: { kind: "visit", id: "v-1" } });
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "something");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
@@ -235,7 +248,7 @@ describe("the capsule", () => {
 describe("the engine's contract, unchanged", () => {
   const open = async (scope = {}) => {
     mount(<TiffButton />, scope);
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "note text");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
@@ -288,7 +301,7 @@ describe("the cascade", () => {
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
     });
     mount(<TiffButton />, scope);
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "note text");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
@@ -758,7 +771,7 @@ describe("the LEARN lane on the review card", () => {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian",
     });
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "learned a trick");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
@@ -801,7 +814,7 @@ describe("ask-mode — the same token answers questions", () => {
       target: { kind: "visit", id: "v-1" },
       targetLabel: "Meridian Data",
     });
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "what's outstanding here");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
 
@@ -820,7 +833,7 @@ describe("ask-mode — the same token answers questions", () => {
 
   it("a note is still a note — no question, no ask", async () => {
     mount(<TiffButton />, { target: { kind: "visit", id: "v-1" } });
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "the middle unit tripped again");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await reviewIsUp();
@@ -842,7 +855,7 @@ describe("ask-mode — the same token answers questions", () => {
       h.onError("Too busy right now — try again in a minute.");
     });
     mount(<TiffButton />);
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "what's open?");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     expect(
@@ -852,7 +865,7 @@ describe("ask-mode — the same token answers questions", () => {
 
   it("Ask another clears the answer and returns to the box", async () => {
     mount(<TiffButton />);
-    await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
+    await openToType();
     await userEvent.type(screen.getByRole("textbox"), "what's open?");
     await userEvent.click(screen.getByRole("button", { name: "Go" }));
     await screen.findByText(/oldest from Monday/);

@@ -138,78 +138,11 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
   );
 }
 
-/* ── THE DEFAULT SWITCH ──
-
-   Isaac wanted the preference SAID OUT LOUD rather than inferred from which
-   button you last pressed: a switch that reads "Default", with Talk and Type
-   on it, so what the Tiff button will do next time is never a thing you have
-   to remember. That label is also what makes storing the preference safe at
-   all — see ./capture-default.
-
-   IT IS ONE CONTROL DOING ONE THING, not two. Flipping it sets the default
-   AND puts you in that mode now, because the alternative is a row carrying
-   both a "Talk" button and a Talk segment that don't do the same thing.
-   Switching to Talk starts listening; switching to Type hands the words over
-   to the box (never discarding them — see `handOver` in ./dictation).
-
-   IT ONLY APPEARS WHERE THE DEFAULT APPLIES. Spotted live 2026-08-10: the
-   switch was in the shared body, so the DEBRIEF sheet wore it too — a sheet
-   that opens from its own two-door capsule and never consults the stored
-   mode. It sat there reading "DEFAULT · Talk" above a text box, promising
-   something that surface does not do, and pressing it would have silently
-   rewritten the Tiff button's default from a screen with no authority over
-   it. Everywhere but the Tiff button's sheet, the same choice is offered as
-   what it actually is there: a one-off, in `ModeControl` below.
-
-   Absent where the deployment cannot hear: a choice with one option is not a
-   choice, it is furniture. */
-function DefaultSwitch({ flow }: { flow: NoteFlow }) {
-  const talk = flow.mode === "talk";
-  return (
-    <span className="wb2-modesw">
-      <span className="wb2-modelbl" id="wb2-modelbl">
-        Default
-      </span>
-      <span className={"wb2-modeseg" + (talk ? "" : " type")} role="group" aria-labelledby="wb2-modelbl">
-        {/* The thumb is decoration over the two real buttons — it slides,
-            they stay hit-targets. */}
-        <span className="wb2-modethumb" aria-hidden="true" />
-        <button
-          type="button"
-          className="wb2-modeopt"
-          aria-pressed={talk}
-          onClick={() => {
-            flow.chooseMode("talk");
-            /* Not on top of a read-back that is still running: its words are
-               in the air, and they would land in the box halfway through the
-               recording this press just started. */
-            if (!flow.dict.recording && !flow.dict.transcribing) flow.dict.start();
-          }}
-        >
-          <Icon name="mic" size={13} />
-          Talk
-        </button>
-        <button
-          type="button"
-          className="wb2-modeopt"
-          aria-pressed={!talk}
-          onClick={() => {
-            flow.chooseMode("type");
-            if (flow.dict.recording) flow.dict.handOver();
-          }}
-        >
-          <Icon name="keyboard" size={13} />
-          Type
-        </button>
-      </span>
-    </span>
-  );
-}
-
-/** The row's mode control. The labelled switch where the stored default is
-    actually in play; a plain one-off button everywhere else — the debrief
-    and the field postures already chose their way in, and offering them a
-    "default" would be a setting that governs a different screen. */
+/** The row's way back to the microphone. It used to be TWO controls — a
+    labelled DEFAULT switch on the surface that owned the stored preference,
+    a plain button everywhere else — and the switch went with the preference
+    when the card learned to ask (see `choice` in ./note-flow). What is left
+    is the button that was always the useful half. */
 function ModeControl({ flow }: { flow: NoteFlow }) {
   if (!flow.scope.voiceEnabled) return null;
   /* THE MID-RECORDING BRANCH IS NOT HERE ANY MORE. While the mic was open
@@ -236,7 +169,6 @@ function ModeControl({ flow }: { flow: NoteFlow }) {
      there is something to add to. Every capture opens empty, so the
      preference is still one press from reachable at the start of each one. */
   const words = Boolean(flow.text.trim());
-  if (flow.governsDefault && !words) return <DefaultSwitch flow={flow} />;
   /* KEEP TALKING, AND ON THE RIGHT (Isaac, 2026-08-10): "the screen to add
      more text just says TALK on the left, which is not very helpful."
 
@@ -354,6 +286,32 @@ function StageBody({ flow }: { flow: NoteFlow }) {
     return (
       <div className="wb2-sorting" role="status" aria-live="polite">
         <p className="wb2-sortnote">{flow.text}</p>
+      </div>
+    );
+  }
+
+  if (stage === "door") {
+    /* TWO BUTTONS AND NOTHING RUNNING. The card opens here now: no microphone
+       listening, no caret blinking, no preference deciding on your behalf
+       (Isaac, 2026-08-18). It is the whole content of the stage on purpose —
+       a choice you have to hunt for on a card doing three other things is the
+       switch this replaced.
+
+       TALK LEADS because talking is the case the button was built for, and it
+       opens the microphone in the same press: a "Talk" that only sets a mode
+       and waits for a second press is the tax the remembered default existed
+       to avoid. Type is the ghost beside it, same size, same row — a second
+       choice, not a fallback. */
+    return (
+      <div className="wb2-capdoor">
+        <button type="button" className="pbtn wb2-prim" onClick={flow.talk}>
+          <Icon name="mic" size={17} />
+          Talk
+        </button>
+        <button type="button" className="pbtn ghost" onClick={flow.type}>
+          <Icon name="keyboard" size={17} />
+          Type
+        </button>
       </div>
     );
   }

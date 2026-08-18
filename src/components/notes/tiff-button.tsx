@@ -20,19 +20,19 @@ import { useNoteScope } from "./note-context";
    by a single button here: it opens a sheet with a textarea in it, so typing
    is one tap away and visible the moment you arrive.
 
-   TAPPING IT OPENS THE SHEET THE WAY YOU LEFT IT, and the road here is the
-   argument for that. It began by always starting the mic ("no mode to choose
-   first"), which made typing second-class: you arrived recording and had to
-   stop a recording you never asked for. So it stopped presuming and opened
-   with the caret in the box, Talk beside it (2026-08-08). Isaac, using it
-   daily: talking IS the common case, and pressing Talk every time is a tax
-   on it.
+   TAPPING IT ASKS: TALK OR TYPE. The road here is four shapes long and each
+   one was tried in production. It began by always starting the mic ("no mode
+   to choose first"), which made typing second-class: you arrived recording
+   and had to stop a recording you never asked for. So it stopped presuming
+   and opened with the caret in the box, Talk beside it (2026-08-08) — and
+   talking IS the common case, so pressing Talk every time became a tax. Then
+   it opened the way you left it, remembered behind a DEFAULT switch.
 
-   Neither default suits everyone, so nobody decides for you — the sheet
-   opens on your last choice, shipped as `talk`. Press Type on the sheet and
-   it opens in the box from then on. See ./capture-default for why that is
-   safe to store, and why the control being permanently on the sheet is the
-   condition that makes it so. The mic stays an enhancement — no
+   What that cost is why it now asks (Isaac, 2026-08-18): pressing the button
+   was a recording before you had decided anything, so a mis-tap was a live
+   microphone — and the control that could change it was a PREFERENCE sitting
+   in the middle of a capture, governing the next one. Two buttons, asked
+   every time, nothing stored. The mic stays an enhancement — no
    ELEVENLABS_API_KEY and the box is simply the only door.
 
    ── TWO PLACES, AND THE GROUND DECIDES THE SKIN ──
@@ -69,9 +69,7 @@ const SIZES: Record<Where, { chevron: number; spark: number }> = {
 
 export function TiffButton({ where = "topbar" }: { where?: Where }) {
   const scope = useNoteScope();
-  /* The one surface the stored default governs — and so the only one
-     allowed to show it or change it. See `governsDefault` in ./note-flow. */
-  const flow = useNoteFlow({ governsDefault: true });
+  const flow = useNoteFlow();
   const size = SIZES[where];
 
   /* The press, made visible: the halo flares and a wash of it BURSTS out of
@@ -121,11 +119,12 @@ export function TiffButton({ where = "topbar" }: { where?: Where }) {
           });
           setLit(true);
           flow.setOpen(true);
-          /* IT OPENS THE WAY YOU LEFT IT. Ships listening, because talking
-             is the case this button was built for; press Type on the sheet
-             once and it opens in the box from then on. Voice off means
-             there is nothing to honour — the box is the only door. */
-          if (scope.voiceEnabled && flow.mode === "talk") flow.dict.start();
+          /* IT OPENS ON THE CHOICE, and the press stops here (Isaac,
+             2026-08-18). This line used to start the microphone, honouring a
+             remembered default — so pressing the button WAS a recording
+             before anybody had decided anything, and a mis-tap was a live
+             mic. The sheet asks now; see `choice` in ./note-flow, and the
+             history of the three shapes this has already been. */
         }}
       >
         <span className="tiffbtn-burst" aria-hidden="true" />

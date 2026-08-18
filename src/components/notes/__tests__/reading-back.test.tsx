@@ -140,6 +140,9 @@ describe("the capture sheet", () => {
     act(() => mockCbs.current!.onTranscript("Hi Chloe, thanks for sharing", { capped: false }));
 
     await user.click(screen.getByRole("button", { name: /Ask or tell Tiff/i }));
+    /* Straight back to the door — the capture asks again, and the box behind
+       it is empty. */
+    await user.click(screen.getByRole("button", { name: "Type" }));
     expect(screen.getByRole("textbox")).toHaveValue("");
   });
 });

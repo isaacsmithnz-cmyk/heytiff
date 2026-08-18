@@ -82,10 +82,11 @@ jest.mock("../dictation", () => {
   };
 });
 
-/* OPENING THE SHEET STARTS RECORDING. `DEFAULT_CAPTURE_MODE` is `talk` and
-   `tiff-button` acts on it, so the card opens listening — "you click the
-   button, it starts hearing you" (Isaac). There is no idle box on open, and
-   a fake that ignored the auto-start hid that from this file for a day. */
+/* THE SHEET OPENS ON THE DOOR, and Talk is what starts the recording —
+   pressing the button itself no longer does (see `choice` in ../note-flow).
+   Everything below is about what happens once you have chosen to talk, so
+   the helper presses it. A fake that ignored the auto-start hid the old
+   shape from this file for a day; the same rule applies to the new one.  */
 const openSheet = async () => {
   const user = userEvent.setup();
   render(
@@ -94,6 +95,11 @@ const openSheet = async () => {
     </NoteScopeProvider>
   );
   await user.click(screen.getByLabelText(/Ask or tell Tiff/));
+  /* Tests that seed `mic.recording` open past the door; the rest have to
+     walk through it. Matched on the door's own row rather than the word,
+     because an idle box carries a Talk button too. */
+  const door = document.querySelector<HTMLElement>(".wb2-capdoor .pbtn");
+  if (door) await user.click(door);
   return user;
 };
 
@@ -186,21 +192,25 @@ it("offers a way to bin the take and start over", async () => {
   expect(routeNote).not.toHaveBeenCalled();
 });
 
-/* The Default switch is about what the Tiff button does NEXT time, and its
-   Talk half is already pressed while you are talking. Mid-recording the only
-   live-useful half is the way out to the keyboard. */
-it("drops the Default switch while the mic is open, keeping the way out", async () => {
+/* Mid-recording the only live-useful control on that row is the way out to
+   the keyboard. It used to have to share the row with a DEFAULT switch whose
+   Talk half was already pressed while you were talking; the switch is gone
+   with the stored preference (the card asks at the door now), and what it was
+   competing with is what is left. */
+it("keeps the way out to the keyboard while the mic is open", async () => {
   mic.recording = true;
   const user = await openSheet();
 
-  expect(screen.queryByText("Default")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /type instead/i }));
   expect(mockHandOver).toHaveBeenCalledTimes(1);
 });
 
-it("brings the switch back the moment the mic closes", async () => {
+it("comes back to a box with the mic one press away", async () => {
   await openToBox();
-  expect(screen.getByText("Default")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
+  /* And nothing about a stored default: the choice is asked at the door and
+     never remembered. */
+  expect(screen.queryByText("Default")).not.toBeInTheDocument();
 });
 
 /* ── KEEP TALKING ──
@@ -211,25 +221,23 @@ it("brings the switch back the moment the mic closes", async () => {
    The behaviour was already there — every leg appends. What was missing was
    an affordance that said so: with words in the box, the way back to the mic
    was the left half of a switch labelled DEFAULT. A preference control, in
-   the strongest position on the row, that happens to start recording.
+   the strongest position on the row, that happens to start recording. (That
+   switch is gone entirely now — the card asks Talk or Type at the door and
+   stores nothing.)
 
-   So the switch owns the empty box and steps aside once there is something to
-   add to. What is pinned here is that the mic never becomes HARDER to reach
-   than it was — whichever control is showing, one press starts a leg. */
+   What is pinned here is that the mic never becomes HARDER to reach than it
+   was: whichever control is showing, one press starts a leg. */
 
-it("offers the switch on an empty box, where the preference is a fair question", async () => {
+it("keeps a plain mic on an empty box", async () => {
   await openToBox();
-
-  expect(screen.getByText("Default")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
 });
 
-it("drops the preference for a plain mic once there are words to add to", async () => {
+it("says Keep talking once there are words to add to", async () => {
   const user = await openToBox();
   await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
 
-  expect(screen.queryByText("Default")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /talk/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /keep talking/i })).toBeInTheDocument();
 });
 
 /* THE WORD AND THE PLACE both change with the box (Isaac: "just says TALK on

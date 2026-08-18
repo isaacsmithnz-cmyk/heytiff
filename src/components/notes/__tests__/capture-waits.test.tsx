@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NoteScopeProvider } from "../note-context";
 import { TiffButton } from "../tiff-button";
+import { READING_BACK_NOTE } from "../waits";
 
 /* THE THREE THINGS YOU SEE BETWEEN PRESSING THE BUTTON AND SAVING.
 
@@ -41,6 +42,27 @@ jest.mock("@/app/actions/workboard-notes", () => ({
   answerClarify: jest.fn(),
 }));
 
+/* A recorder that does what jsdom has none of. The tests above never resolve
+   `getUserMedia`, so nothing constructs one; the Type-instead ones do. */
+class FakeRecorder {
+  state: "inactive" | "recording" = "inactive";
+  mimeType = "audio/webm";
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  constructor(public stream: MediaStream) {}
+  start() {
+    this.state = "recording";
+  }
+  stop() {
+    this.state = "inactive";
+    this.ondataavailable?.({ data: new Blob(["x"], { type: "audio/webm" }) });
+    this.onstop?.();
+  }
+}
+
+/** The transcription, held open, so the read-back can be looked at. */
+let land: (text: string) => void = () => {};
+
 /** A microphone that never opens, and the switch to let it. */
 let openMic: (stream: MediaStream) => void = () => {};
 const tracks = { stop: jest.fn() };
@@ -49,6 +71,14 @@ const fakeStream = { getTracks: () => [tracks] } as unknown as MediaStream;
 beforeEach(() => {
   jest.clearAllMocks();
   localStorage.clear();
+  (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = FakeRecorder;
+  global.fetch = jest.fn(
+    async () =>
+      ({
+        ok: true,
+        json: () => new Promise((resolve) => (land = (text) => resolve({ text }))),
+      }) as unknown as Response
+  ) as unknown as typeof fetch;
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
     value: {
@@ -151,5 +181,69 @@ describe("the wait, and what is moving during it", () => {
        card — the same flow, handing you a different surface to finish on. */
     expect(await screen.findByText("Check it before it saves")).toBeInTheDocument();
     expect(card()).toHaveClass("wb2-dusk");
+  });
+});
+
+/* ── "Type instead" hands you the keyboard, not a performance ──
+
+   Isaac, 2026-08-17: "if I hit Type instead, it does the animation and
+   doesn't just go straight to the text input."
+
+   He is right about what it should do and the engine was right about what it
+   must not do. `handOver` KEEPS the recording — pressing Type mid-sentence
+   has never been allowed to throw away what you already said — so there is a
+   real wait for the transcriber. What was wrong was the surface: the card
+   answered a request for the keyboard with the same full-card animation the
+   read-back wears when there is nothing else to show.
+
+   `handing` splits those. The wait is identical; the box is there now, and
+   the words join it when they land, exactly as a second recording's words
+   join the first's. */
+describe("type instead, mid-sentence", () => {
+  const talkThenType = async () => {
+    await open();
+    /* Said something, so this is the keep-the-words path rather than the
+       silent mis-tap that bins the take. */
+    await act(async () => {
+      openMic(fakeStream);
+      await Promise.resolve();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Type instead/i }));
+  };
+
+  it("shows the box straight away, with no animation over it", async () => {
+    await talkThenType();
+
+    expect(await screen.findByPlaceholderText(/Tell Luke/)).toBeInTheDocument();
+    expect(document.querySelector(".wb2-capfield")).toBeNull();
+    expect(document.querySelector(".dotf")).toBeNull();
+  });
+
+  it("still says the words are coming, once", async () => {
+    await talkThenType();
+    const said = screen.getAllByText(READING_BACK_NOTE);
+    expect(said).toHaveLength(1);
+    expect(said[0].closest("[role='status']")).not.toBeNull();
+  });
+
+  /* THE WHOLE POINT OF KEEPING THE RECORDING. Pressing Type mid-sentence must
+     never throw away what you already said — so the words are still coming,
+     and they join whatever is in the box exactly as a second recording's
+     words join the first's. Go waits for them: filing in that gap would send
+     what you typed and drop what you said. */
+  it("lets you type while they come, then joins them on", async () => {
+    await talkThenType();
+    const box = await screen.findByPlaceholderText(/Tell Luke/);
+    await userEvent.type(box, "and chase the supplier");
+    expect(screen.getByRole("button", { name: "Go" })).toBeDisabled();
+
+    await act(async () => {
+      land("Luke needs the grilles");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(box).toHaveValue("and chase the supplier Luke needs the grilles"));
+    expect(screen.getByRole("button", { name: "Go" })).toBeEnabled();
   });
 });

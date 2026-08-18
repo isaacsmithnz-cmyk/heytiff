@@ -140,6 +140,17 @@ export type DictationState = {
   arming: boolean;
   /** Sending the audio off and waiting for words back. */
   transcribing: boolean;
+  /* THE READ-BACK YOU ASKED TO TYPE THROUGH. `handOver` keeps the words and
+     waits for them, which is right — but the person has just said "give me
+     the keyboard", and a surface that answers with a full-card animation has
+     ignored them (Isaac, 2026-08-17: "if I hit Type instead, it does the
+     animation and doesn't just go straight to the text input").
+
+     So the wait is the same wait and the SURFACE is not: with this true, the
+     caller shows the box now and lets the words join it when they land.
+     `transcribing` still says what the engine is doing; this says who asked
+     and therefore what they should be looking at. */
+  handing: boolean;
   seconds: number;
   /** Words heard SO FAR, while they're still being said. Always "" on the
       batch transport — a caller that shows it simply shows nothing until
@@ -181,6 +192,7 @@ export function useDictation({
   const [recording, setRecording] = useState(false);
   const [arming, setArming] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [handing, setHanding] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [interim, setInterim] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
@@ -445,6 +457,7 @@ export function useDictation({
     const mineArm = { off: false };
     arm.current = mineArm;
     setInterim("");
+    setHanding(false);
     setArming(true);
     void (async () => {
       /* Declared out here so the failure path below can let go of a tap that
@@ -566,6 +579,7 @@ export function useDictation({
                last sentence off a stream that is still open. */
             stream.getTracks().forEach((t) => t.stop());
             setTranscribing(false);
+            setHanding(false);
             setInterim("");
           }
         };
@@ -636,6 +650,9 @@ export function useDictation({
       rec.stop();
       return;
     }
+    /* Said BEFORE the stop, because `onstop` runs on a later task and the
+       card must not spend even one frame on the read-back's animation. */
+    setHanding(true);
     playChime("stop");
     rec.stop();
   };
@@ -697,6 +714,7 @@ export function useDictation({
     recording,
     arming,
     transcribing,
+    handing,
     seconds,
     interim,
     barsRef,

@@ -2226,10 +2226,33 @@
    with it. */
 .fg .tpr .chead { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
 .fg .tpr .chead .av { width:46px; height:46px; border-radius:15px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; color:#fff; }
-.fg .tpr .chead .who .nm { font-size:17px; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:11px; white-space:nowrap; }
+.fg .tpr .chead .who .nm { font-size:17px; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:11px; }
 .fg .tpr .chead .who .rl { font-size:12.5px; font-weight:600; color:var(--gray400); margin-top:2px; }
 .fg .tpr .chead .sp { flex:1; }
 .fg .tpr .chead .cacts { display:flex; align-items:center; gap:10px; }
+/* THE HEADER ROW WRAPS, THE WAY THE PAGE HEADER ABOVE IT ALREADY DOES.
+
+   `.chead` is avatar + name + spacer + actions on a flex line that could not
+   wrap and could not shrink: the name was `white-space:nowrap` and both buttons
+   carry nowrap labels of their own, so the row's width was simply the sum of
+   its parts, whatever the card had to give it. At an 800px window the row has
+   380px and Approve + Send back want 432 — 52px straight out through the card.
+   A long name is worse and starts far earlier: "Alexandra Featherstonehaugh"
+   wants 566px, so that card spilled below a 990px window, two columns and all.
+
+   TWO THINGS HAD TO GIVE, AND ONLY BOTH TOGETHER HOLD — each alone measures
+   clean at 800px and neither is. Wrapping the row still leaves a long name on
+   one unbreakable line (27px over at 640px). Letting the name wrap still leaves
+   the buttons on the line, and merely moves the overflow INSIDE `.who`, where
+   the text spills out of its own box instead of the card's — quieter, no less
+   broken, and the kind of half-fix a `.chead`-level measurement calls fixed.
+
+   So the row wraps, the actions hold the right edge on whichever line they land
+   on, and the name takes a second LINE rather than a second column. `.rhead`
+   and `.racts` up the page are the same pattern for the same reason. */
+.fg .tpr .chead { flex-wrap:wrap; }
+.fg .tpr .chead .who { min-width:0; }
+.fg .tpr .chead .cacts { margin-left:auto; flex-wrap:wrap; justify-content:flex-end; }
 .fg .tpr .badge { display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 11px; border-radius:999px; font-size:11px; font-weight:800; white-space:nowrap; }
 .fg .tpr .badge.review { background:rgba(240,164,49,.16); color:var(--amber-d); }
 .fg .tpr .badge.review .d { width:6px; height:6px; border-radius:50%; background:var(--amber); }
@@ -2240,6 +2263,24 @@
 .fg .tpr .capprove:hover { transform:translateY(-1px); }
 .fg .tpr .cedit { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 18px; border-radius:14px; font-size:13.5px; font-weight:800; color:var(--gray700); background:#fff; border:1px solid rgba(10,12,20,.1); transition:all .18s; }
 .fg .tpr .cedit:hover { border-color:rgba(34,197,94,.5); transform:translateY(-1px); }
+/* THE STATUS PILL, WHERE THE BUTTONS WOULD BE. `.cacts` holds Approve and Send
+   back until a week has been decided, and this instead — so it is a control's
+   twin and has to be built like one.
+
+   IT WAS SCOPED `.fg .tpr .crow .apprtag`, and the rich review card is not
+   inside a `.crow`. So the compact row got the pill and the card got nothing:
+   the same span rendered as a bare `display:block` at the browser's own
+   16px/400, no height, no padding, no radius and no `nowrap`, which wrapped the
+   send icon onto its own line above the words with a flat orange tint behind
+   the pair. Only `.apprtag.sent` below reached it, and that rule is colours —
+   so it looked deliberate enough to walk past. Valid CSS matching nothing; see
+   the note on `.tpr` in timepay/layout.tsx for the last one of these.
+
+   Sized to `.cedit` beside it (46px, 0 18px, 14px) rather than to the compact
+   row's 42px, for the same reason `.crow` shrinks `.capprove` on the line
+   below: the pill matches the controls it stands among, whichever row it is
+   on. `.crow` keeps its own smaller figures, unchanged. */
+.fg .tpr .apprtag { display:inline-flex; align-items:center; gap:7px; height:46px; padding:0 18px; border-radius:14px; font-size:13px; font-weight:800; color:var(--teal-ink); background:rgba(34,197,94,.13); white-space:nowrap; }
 
 /* issue / overtime banner */
 .fg .tpr .obar { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:12px; background:#fbf3e2; margin-bottom:20px; }
@@ -2278,6 +2319,28 @@
    growing and the tiles rattling around inside it. */
 .fg .tpr .cbody .tile { height:auto; }
 .fg .tpr .cside { background:#fafbfc; border:1px solid #eef0f3; border-radius:16px; padding:16px 18px; display:flex; flex-direction:column; }
+/* THE DAY STRIP IS A GRID HERE, SO THE WRAP FLOOR IS NOT ITS RULE.
+
+   `.fg .tpr .tiles > *` pins every tile at `min-width:74px`, which is right for
+   the flex line it was written for further down: there a fortnight WRAPS at
+   seven rather than squeezing fourteen days into one row, and the floor is what
+   makes it wrap. In this card `.tiles` is `repeat(7,1fr)` instead — the seven
+   columns are already guaranteed by the template — so all the floor does is set
+   a hard 584px the card has no way to honour. At a 900px window `.cleft` is
+   172px and the strip ran 412px past it, out through `.cbody` (104px) and the
+   card itself (80px). Nothing clips it, so the last days of the week slid under
+   the pay panel and the card scrolled sideways.
+
+   Zero lets the seven columns scale with the card, which is what a `1fr` track
+   was asked for. Scoped to `.cbody` — the wrapping strip keeps its floor. */
+.fg .tpr .cbody .tiles > * { min-width:0; }
+/* AND UNDER 1180px THE TWO COLUMNS STOP FITTING AT ALL. The pay panel is a
+   fixed 288px whatever happens, so the day strip lives on what is left: at
+   1181px that is 453px, seven tiles of 55px, and a tile's own content bottoms
+   out at 43px. Below that the body stacks — the week takes the card's full
+   width and the panel sits under it, where seven tiles have 100px each again.
+   Same reason the stat strip drops to two-up, one breakpoint earlier. */
+@media (max-width:1180px){ .fg .tpr .cbody { grid-template-columns:minmax(0,1fr); } }
 .fg .tpr .cs-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:2px solid var(--ink); }
 .fg .tpr .cs-head .l { font-size:10.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
 .fg .tpr .cs-head .tot { display:flex; align-items:baseline; justify-content:flex-end; gap:1px; font-family:var(--font); font-size:30px; font-weight:800; letter-spacing:-.03em; line-height:1; color:var(--ink); white-space:nowrap; }
@@ -2468,7 +2531,8 @@
 .fg .tpr .crow .rt b { font-size:16px; font-weight:700; letter-spacing:-.02em; }
 .fg .tpr .crow .rt em { font-style:normal; font-size:10.5px; color:var(--gray400); }
 .fg .tpr .crow .capprove { height:42px; padding:0 18px; }
-.fg .tpr .crow .apprtag { display:inline-flex; align-items:center; gap:7px; height:42px; padding:0 16px; border-radius:13px; font-size:13px; font-weight:800; color:var(--teal-ink); background:rgba(34,197,94,.13); white-space:nowrap; }
+/* the compact row runs one size down, exactly as `.crow .capprove` does above */
+.fg .tpr .crow .apprtag { height:42px; padding:0 16px; border-radius:13px; }
 
 .fg .tpr .cedit.sendback { color:var(--amber-d); background:rgba(240,164,49,.12); border-color:transparent; }
 .fg .tpr .cedit.sendback:hover { background:rgba(240,164,49,.2); }

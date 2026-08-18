@@ -8,8 +8,8 @@ import { shareExpiresAt, isShareExpired, shareDaysLeft } from "@/lib/studio/shar
 /* Design Studio — the customer live link. One token per design, riding the
    studio_designs row itself (share_token unique, nullable): create rotates a
    fresh UUID, revoke nulls it, and /live/[token] serves whatever the row
-   holds RIGHT NOW — the link is live, not a snapshot. Org-scoped AND
-   `studio`-gated like every studio action — creating one mints a PUBLIC
+   holds RIGHT NOW — the design summary off the latest save, not a snapshot.
+   Org-scoped AND `studio`-gated like every studio action — creating one mints a PUBLIC
    unauthenticated URL, so this file least of all can rely on the page gate.
    The public read lives in the /live route, not here. */
 

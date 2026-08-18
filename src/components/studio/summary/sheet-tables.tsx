@@ -5,7 +5,9 @@
    Everything here renders; summary.ts computes. */
 
 import type {
+  DesignSnapshot,
   PicklistRow,
+  SheetGroup,
   SheetLine,
   SummaryRoomRow,
   SummarySystem,
@@ -21,6 +23,46 @@ export const tone = (
   status: SummaryRoomRow["status"],
   value: number | null
 ): string => (value == null ? "na" : status === "covered" ? "ok" : "under");
+
+/** The four figures under the letterhead — the design load leads, because it
+    is the number the whole sheet is an argument about.
+
+    Lifted here because it was written out TWICE, verbatim, in summary.tsx and
+    print-doc.tsx. Two copies survive by luck; three do not, and the customer's
+    sheet was about to be the third. */
+export function SnapshotList({ snapshot }: { snapshot: DesignSnapshot }) {
+  return (
+    <dl className="ds-letter-snap" role="group" aria-label="Design snapshot">
+      <div className="lead">
+        <dt>Design load</dt>
+        <dd>{fmt(snapshot.totalLoadKw, "kW")}</dd>
+      </div>
+      <div>
+        <dt>{snapshot.roomCount === 1 ? "Room" : "Rooms"}</dt>
+        <dd>{snapshot.roomCount}</dd>
+      </div>
+      <div>
+        <dt>Floor area</dt>
+        <dd>{fmt(snapshot.areaM2, "m²")}</dd>
+      </div>
+      <div>
+        <dt>{snapshot.systemCount === 1 ? "System" : "Systems"}</dt>
+        <dd>{snapshot.systemCount}</dd>
+      </div>
+    </dl>
+  );
+}
+
+/** Consumables split by shelf, in the order somebody works down a van: pipe,
+    electrical, then everything that bolts on. The GROUPING is derived
+    (summary.ts) — this only decides the order the shelves appear in and what
+    they are called. An empty shelf renders nothing rather than an empty card:
+    "Electrical — nothing" is not a fact about this job. */
+export const SHEET_GROUPS: { key: SheetGroup; label: string }[] = [
+  { key: "pipe", label: "Pipe" },
+  { key: "electrical", label: "Electrical" },
+  { key: "components", label: "Components" },
+];
 
 /** One row per room: where it is, what stands in it, how it measures.
     The room is the row because that is what the document stores — an indoor

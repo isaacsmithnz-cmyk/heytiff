@@ -95,9 +95,9 @@ export function ShareCard({ designId }: { designId: string }) {
       {(state.kind === "none" || state.kind === "busy") && (
         <>
           <span className="ds-act-s">
-            Give the customer a live, read-only link: the latest saved design
-            with the simulation running — they can try setpoints, nothing can
-            be changed. The link works for {SHARE_TTL_DAYS} days.
+            Give the customer a live, read-only link: the design summary off
+            the latest save, with the simulation to open if you have ticked it
+            as ready to share. The link works for {SHARE_TTL_DAYS} days.
           </span>
           <div className="ds-act-row">
             <button

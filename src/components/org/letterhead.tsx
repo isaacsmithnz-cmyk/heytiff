@@ -66,12 +66,22 @@ export function BrandMark({
 
 /* The logo, or the initials standing in for one.
 
+   Exported because the studio's design sheet builds its own masthead — the
+   business's name runs at 34px there, above a contact line, and `Letterhead`'s
+   own arrangement would print the name a second time right under it.
+
    `alt` is empty on purpose. The business name is rendered as TEXT immediately
    beside it in both shapes above, so a described logo makes a screen reader
    say the same name twice — the image is decoration for a label that is
    already there. The one case where it is not is a business with a logo and no
    name, and that one gets the name it does not have from nowhere anyway. */
-function BrandLogo({ brand, className }: { brand: OrgBrand; className: string }) {
+export function BrandLogo({
+  brand,
+  className,
+}: {
+  brand: OrgBrand;
+  className: string;
+}) {
   if (brand.logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img className={className} src={brand.logoUrl} alt="" />;

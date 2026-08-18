@@ -86,10 +86,33 @@ describe("trimPackForLive", () => {
   it("everything else ships empty", () => {
     const t = trimPackForLive(pack, fixtureDoc());
     expect(t.parts).toEqual([]);
-    expect(t.multi_rules).toEqual([]);
     expect(t.grilles).toEqual([]);
     expect(t.consumables).toEqual([]);
     expect(t.zoning_controllers).toEqual([]);
+    expect(t.accessories).toEqual([]);
+    expect(t.vrf_pipe_tables).toEqual([]);
+  });
+
+  /* THE CUSTOMER READS THE SAME DOCUMENT THE OWNER DOES. A section dropped
+     here does not simplify their copy — it makes the two copies disagree. */
+  it("keeps the brand's NAME — the sheet said `mitsubishi-electric` without it", () => {
+    const t = trimPackForLive(pack, fixtureDoc());
+    expect(t.brands.map((b) => b.name)).toEqual(["Mitsubishi Electric"]);
+  });
+
+  it("keeps a shared outdoor's charge rule, and only that outdoor's", () => {
+    /* without it a multi's refrigerant top-up vanished from the customer's
+       materials list while staying on the owner's */
+    const d = fixtureDoc();
+    const shared = pack.multi_rules[0].odu_model_ref;
+    d.systems[1].settings.multiOdu = shared;
+    const t = trimPackForLive(pack, d);
+    expect(t.multi_rules.map((r) => r.odu_model_ref)).toEqual([shared]);
+    expect(t.multi_rules.length).toBeLessThan(pack.multi_rules.length);
+  });
+
+  it("a design that shares no outdoor carries no multi rules", () => {
+    expect(trimPackForLive(pack, fixtureDoc()).multi_rules).toEqual([]);
   });
 
   it("an empty design trims to an empty pack", () => {
@@ -98,5 +121,7 @@ describe("trimPackForLive", () => {
     expect(t.indoor_units).toEqual([]);
     expect(t.outdoor_units).toEqual([]);
     expect(t.pair_tables).toEqual([]);
+    expect(t.brands).toEqual([]);
+    expect(t.multi_rules).toEqual([]);
   });
 });

@@ -1696,7 +1696,23 @@
   0%,100% { transform:scale(.62);  opacity:calc(var(--lit,.9) * .5) }
   38%     { transform:scale(1.75); opacity:var(--lit,.9) }
 }
-.dotf[data-stage="mark"] .dotf-cell i {
+/* IT RUNS THROUGH THE ARRIVAL TOO, and that is a fix rather than a tidy-up
+   (Isaac, 2026-08-18, watching it live: "when the trail lands on the page,
+   everything then readjusts to start the next part of the animation — it looks
+   like a glitch").
+
+   The delay is NEGATIVE and per-dot, which is what staggers the wave along the
+   mark — so a dot handed the swell only once it was seated started partway up
+   the curve, at anything from 62% to 175% of its size. Two hundred dots each
+   jumping to their own phase in the same frame is the readjustment he saw: the
+   flight ended, and the mark visibly resized to begin breathing.
+
+   Started at the top of the gather instead, it is simply already running when
+   the dot lands, and the seam has nothing left to do. What the dot does on the
+   way in — fading up and growing from a speck — moved down to `.dotf-wander`,
+   which is the wrapper that exists for exactly this: one job each, so two
+   animations never have to share a property. */
+.dotf:is([data-stage="gather"], [data-stage="mark"]) .dotf-cell i {
   animation:dotfSwell 4.2s ease-in-out infinite;
   animation-delay:calc(var(--w,0) * -4.2s); }
 
@@ -1734,11 +1750,21 @@
 /* The dot's own half: it comes in small and dark and is at full weight by the
    time it is halfway, so the stream reads as lit rather than as it fading up
    on arrival. Separate from the flight above for the reason the whole file is
-   split four ways — position and appearance run on different clocks. */
+   split four ways — position and appearance run on different clocks.
+
+   IT ENDS AT NOTHING AT ALL, on purpose. `scale(1)` and full opacity are what
+   this wrapper is when no animation is on it, so when the gather ends and the
+   rule stops matching there is no value to snap back from — the element simply
+   stops being animated. An arrival that finished anywhere else would trade the
+   swell's jump for its own.
+
+   Opacity here is a MULTIPLIER over the dot's own, which is why this can fade
+   the dot up while `dotfSwell` is independently pulsing it underneath. Nesting
+   is doing the composition; neither animation knows about the other. */
 @keyframes dotfArrive {
   0%   { opacity:0; transform:scale(.34) }
-  50%  { opacity:var(--lit,.9); transform:scale(.86) }
-  100% { opacity:var(--lit,.9); transform:scale(1) }
+  50%  { opacity:1; transform:scale(.86) }
+  100% { opacity:1; transform:scale(1) }
 }
 /* WITHOUT THE ANIMATIONS THIS IS SIMPLY THE MARK, and that is load-bearing
    twice over: below 760px there is no blossom for the dots to travel with (the
@@ -1751,7 +1777,7 @@
   .dotf[data-stage="gather"] .dotf-cell {
     animation:dotfGather 800ms both;
     animation-delay:calc(var(--gd,0) * 614ms); }
-  .dotf[data-stage="gather"] .dotf-cell i {
+  .dotf[data-stage="gather"] .dotf-wander {
     animation:dotfArrive 800ms both;
     animation-delay:calc(var(--gd,0) * 614ms); }
   /* AND THE CARD HAS TO LET THEM IN. Both boxes above the field clip by
@@ -1860,7 +1886,14 @@
      left underneath is the mark, standing still, which is the whole of what a
      reduced-motion entrance should be. */
   .dotf[data-stage="gather"] .dotf-cell,
-  .dotf[data-stage="gather"] .dotf-cell i { animation:none; }
+  .dotf[data-stage="gather"] .dotf-wander { animation:none; }
+  /* AND THE SWELL, WHICH THIS BLOCK NEVER ACTUALLY REACHED. `.dotf-cell i`
+     above is (0,1,1) and the swell is written at (0,3,1), so specificity —
+     not source order — has been keeping the mark breathing through every
+     reduced-motion session since it shipped. Restated at the weight it takes
+     to win. */
+  .dotf:is([data-stage="gather"], [data-stage="mark"]) .dotf-cell i {
+    animation:none; }
   .dotf-cell i { transform:none; opacity:var(--lit,.9); }
   .dotf[data-stage="cloud"] .dotf-cell {
     transform:translate3d(calc(var(--hx) * 1px), calc(var(--hy) * 1px), calc(var(--hz) * 1px)); }

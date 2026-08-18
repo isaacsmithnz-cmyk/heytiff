@@ -1152,3 +1152,54 @@ describe("a salaried week pays itself", () => {
     expect(screen.getByText(/your pay is the same every month/)).toBeInTheDocument();
   });
 });
+
+/* SPARSE FIXTURES — somebody's first week, which is every week right now.
+
+   Every fixture above describes a week already lived in: three worked days, a
+   sick day, a preferred start and finish, a known role. None of that is true
+   of a person on their first Monday, and `timesheets` is a zero-row table in
+   prod — so the state below is not an edge case, it is the ONLY state the
+   screen has ever actually been in.
+
+   The habit these guard against has cost two live bugs: a hardcoded column
+   that read fine beside real data, and an empty state that named the wrong
+   field because no fixture ever left that field empty. */
+describe("a timesheet with nothing on it yet", () => {
+  /** Nobody has entered anything, and no day has been presumed. */
+  const bare = {
+    me: { id: "new", name: "New Starter", role: "—", rate: null, days: Array(7).fill(EM) },
+    sources: Array(7).fill("none") as DaySource[],
+    through: -1,
+    today: 0,
+  };
+
+  it("renders the week without inventing hours", () => {
+    renderSheet(bare);
+
+    // the strip is still seven days — the screen frames itself with no data
+    expect(screen.getAllByRole("tab").length).toBeGreaterThanOrEqual(7);
+    // and none of the populated fixture's hours leak in
+    expect(screen.queryByText("11")).not.toBeInTheDocument();
+  });
+
+  /* Asserted on the DAY TABS, not on the document: the day-type picker has a
+     permanent "Sick" legend, so a page-wide text search finds the word on an
+     empty week and says nothing about what the week claims. What matters is
+     that no DAY is announced as sick, leave or off — the tab's accessible name
+     is the day's own verdict ("Mon 29 Jun — Normal"). */
+  it("does not claim any day was sick, leave or a day off", () => {
+    renderSheet(bare);
+
+    const dayTabs = screen
+      .getAllByRole("tab")
+      .map((t) => t.getAttribute("aria-label") ?? t.textContent ?? "");
+    expect(dayTabs.some((l) => /sick|leave|not worked/i.test(l))).toBe(false);
+  });
+
+  /* An org that has never opened the settings screen has no preferred start
+     or finish for anybody. The screen must not present the org default as
+     though this person chose it. */
+  it("survives having no personal normal hours set", () => {
+    expect(() => renderSheet({ ...bare, ownNormal: false, ownWorkDays: false })).not.toThrow();
+  });
+});

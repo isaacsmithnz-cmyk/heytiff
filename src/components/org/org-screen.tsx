@@ -133,7 +133,14 @@ function IdentitySection({
         photoUrl={logoUrl}
         initials={orgInitials(trading || org.legal_name || "")}
         name={trading || "Name your business"}
-        sub={values.legal_name || "Trading name not set"}
+        /* The sub-line is the LEGAL name — the edit form's own "Legal name"
+           field writes it. Its empty state named the trading name instead, so
+           a business with a trading name and no legal one printed the trading
+           name in the heading and "Trading name not set" directly underneath
+           it: the card contradicting itself about the one field it was
+           actually showing. Diamond Air Solutions has looked like that since
+           the screen shipped. */
+        sub={values.legal_name || "Legal name not set"}
         facts={[
           { em: "ABN", b: formatAbn(values.abn) || "—" },
           { em: "ACN", b: formatAcn(values.acn) || "—" },

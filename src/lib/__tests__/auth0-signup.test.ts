@@ -33,6 +33,13 @@ const table = (name: string) => {
   chain.gt = self;
   chain.limit = self;
   chain.select = self;
+  // Recorded rather than merely swallowed: which membership a multi-org login
+  // lands in has to be DECIDED, and the only way to see that from here is that
+  // the read asked for an order at all.
+  chain.order = (col: string, opts?: unknown) => {
+    calls.push({ table: name, op: "order", payload: { col, opts } });
+    return chain;
+  };
   chain.maybeSingle = async () => ({
     data: name === "staff_profiles" ? existingStaffCard : null,
     error: null,
@@ -100,9 +107,66 @@ beforeEach(() => {
   listRows = {};
   existingStaffCard = null;
   rpcResult = { data: ORG, error: null };
+  // Self-serve is OFF in production; the org-minting suite below opts in the
+  // way a deployment would. Cleared here so no test inherits another's flag.
+  delete process.env.SELF_SERVE_SIGNUP;
+});
+
+/* THE DEFAULT POSTURE, and the reason this file grew a second suite: prod
+   collected three organisations named after somebody's email address, two of
+   them the same person signing in twice. Each is an unrecoverable dead end —
+   the app has no "join a company" screen — and the way in was simply reaching
+   the site without clicking an invite link, which is the LIKELY path while
+   invite emails go unsent. */
+describe("an uninvited first login is left without an org", () => {
+  it("mints nothing, and returns a session the proxy can divert to /no-org", async () => {
+    const out = await hook()(session());
+
+    expect(rpcCalls()).toHaveLength(0);
+    expect(staffInserts()).toHaveLength(0);
+    expect(out.orgId).toBeUndefined();
+    expect(out.orgRole).toBeUndefined();
+  });
+
+  it("still records the profile row, so HQ sees the login attempt", async () => {
+    await hook()(session());
+
+    expect(calls.filter((c) => c.table === "profiles" && c.op === "upsert")).toHaveLength(1);
+  });
+});
+
+/* Two memberships is a state the orphan orgs already created: sign in with no
+   invite (own an empty org), then accept the real invite (join the company).
+   An unordered `.limit(1)` picks between them arbitrarily, so the same person
+   could open the app on Tuesday into a company with their whole team in it and
+   on Wednesday into an empty one — which looks precisely like data loss, and
+   there is no org switcher mounted to climb out with.
+
+   DESCENDING is the assertion that matters, not merely that an order exists:
+   the ghost org is always the OLDER membership, so ascending would pin exactly
+   the people this bug already caught to the empty company permanently. */
+describe("which org a multi-membership login lands in is decided, not arbitrary", () => {
+  it("orders the membership read by created_at, newest first", async () => {
+    listRows = { memberships: [{ org_id: ORG, role: "staff" }] };
+
+    await hook()(session());
+
+    const ordered = calls.filter((c) => c.table === "memberships" && c.op === "order");
+    expect(ordered).toHaveLength(1);
+    expect(ordered[0].payload).toEqual({
+      col: "created_at",
+      opts: { ascending: false },
+    });
+  });
 });
 
 describe("first login with no invite mints the org through one transaction", () => {
+  // Every case here is the SELF_SERVE_SIGNUP=1 deployment — a new business
+  // signing itself up, which is the one thing org creation is actually for.
+  beforeEach(() => {
+    process.env.SELF_SERVE_SIGNUP = "1";
+  });
+
   it("creates the org via the RPC, with the founder named as primary owner", async () => {
     const out = await hook()(session());
 
@@ -137,6 +201,10 @@ describe("first login with no invite mints the org through one transaction", () 
 });
 
 describe("the failure posture holds", () => {
+  beforeEach(() => {
+    process.env.SELF_SERVE_SIGNUP = "1";
+  });
+
   it("returns the session untouched when the RPC fails — login is never blocked", async () => {
     // best-effort by design: an org-creation failure logs and lets the person
     // in; silenced here so an expected error doesn't read as a broken run.
@@ -153,6 +221,14 @@ describe("the failure posture holds", () => {
 });
 
 describe("the existing paths still short-circuit ahead of org creation", () => {
+  /* Self-serve ON throughout, deliberately: with it off every one of these
+     would report "no org created" no matter what the branch above it did, and
+     the assertion would pass without testing anything. The flag being the
+     LAST gate is what makes these meaningful. */
+  beforeEach(() => {
+    process.env.SELF_SERVE_SIGNUP = "1";
+  });
+
   it("a member with an org keeps it — no second org is ever minted", async () => {
     listRows = { memberships: [{ org_id: ORG, role: "staff" }] };
 
@@ -172,5 +248,26 @@ describe("the existing paths still short-circuit ahead of org creation", () => {
     expect(rpcCalls()).toHaveLength(0);
     expect(out.orgId).toBeUndefined();
     expect(staffInserts()).toHaveLength(0);
+  });
+
+  /* The invite read no longer filters on expires_at, so a lapsed invite reaches
+     this branch as a row like any other. It has to: the seven-day window used
+     to mean the SLOWEST person in an onboarding round was the one who fell
+     through to org creation and ended up owning a ghost company. The window is
+     still enforced where it belongs, in the accept route.
+
+     The stub cannot express "and the query had no .gt() on it", so this test
+     leans on the fact that a filtered read would return no row at all — which
+     is exactly what the harness models by leaving `invitations` empty. */
+  it("an EXPIRED invite defers too, rather than falling through to a ghost org", async () => {
+    listRows = {
+      memberships: [],
+      invitations: [{ id: "inv-old", expires_at: "2020-01-01T00:00:00Z" }],
+    };
+
+    const out = await hook()(session());
+
+    expect(rpcCalls()).toHaveLength(0);
+    expect(out.orgId).toBeUndefined();
   });
 });

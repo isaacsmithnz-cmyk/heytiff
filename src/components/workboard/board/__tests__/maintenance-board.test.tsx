@@ -815,25 +815,56 @@ describe("Agreements — named clients, honest dates (B22/B10)", () => {
     ).toBeInTheDocument();
   });
 
-  it("searches client, service, site and tag — and says when nothing matches", async () => {
-    mount(
-      data({
-        agreements: [
-          agreementFix({ id: "a-1", clientName: "Halston Freight" }),
-          agreementFix({ id: "a-2", clientName: "Meridian Data", label: "Server room CRACs" }),
-        ],
-      })
-    );
+  /* THE LEDGER'S OWN SEARCH BOX IS GONE — one box above the card reaches
+     agreements by the same four fields now, from any tab on any side. Its
+     rules are pinned in lib/workboard/__tests__/work-search, its wiring in
+     components/workboard/__tests__/overview-screen. All that's left to hold
+     here is that the ledger no longer draws one. */
+  it("draws no search box of its own", async () => {
+    mount(data({ agreements: [agreementFix({ id: "a-1" })] }));
     await toTab(/Service agreements/);
-    const box = screen.getByRole("searchbox", { name: "Search agreements" });
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+});
 
-    await userEvent.type(box, "crac");
-    expect(screen.getByText("Meridian Data")).toBeInTheDocument();
-    expect(screen.queryByText("Halston Freight")).not.toBeInTheDocument();
+describe("the page's search slots", () => {
+  const mountWith = (over: Partial<React.ComponentProps<typeof MaintenanceBoard>>) =>
+    render(
+      <MaintenanceBoard
+        data={data({ agreements: [agreementFix({ id: "a-1" })] })}
+        flags={[]}
+        today={TODAY}
+        manage
+        connected={false}
+        sm8={null}
+        {...over}
+      />
+    );
 
-    await userEvent.clear(box);
-    await userEvent.type(box, "zzz");
-    expect(screen.getByText(/Nothing matches/)).toBeInTheDocument();
+  it("docks the field in the tab row and lets the panel take the card", () => {
+    mountWith({
+      tools: <input aria-label="The one box" />,
+      searchPanel: <p>Results panel</p>,
+    });
+    expect(screen.getByLabelText("The one box")).toBeInTheDocument();
+    expect(screen.getByText("Results panel")).toBeInTheDocument();
+    // The urgent tab's own content must be off — the card is the panel's.
+    expect(screen.queryByText("Needs attention")).not.toBeInTheDocument();
+  });
+
+  it("leaves the search when a tab is picked", async () => {
+    const onExitSearch = jest.fn();
+    mountWith({ searchPanel: <p>Results panel</p>, onExitSearch });
+    await toTab(/Service agreements/);
+    expect(onExitSearch).toHaveBeenCalled();
+  });
+
+  /* Named from outside while ALREADY standing here — which is what search can
+     do and following a tracked row never could. Read as opening state this
+     would do nothing at all, because no remount happens. */
+  it("opens an agreement handed in without a side switch", async () => {
+    mountWith({ openTarget: { kind: "agreement", id: "a-1" } });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 });
 

@@ -39,6 +39,9 @@ export function ProjectsBoard({
   connected,
   tools,
   sm8,
+  searchPanel = null,
+  onExitSearch,
+  openTarget = null,
 }: {
   data: ProjectsBoardData;
   /** Already routed by the page: only flags targeting projects or their trips. */
@@ -51,11 +54,31 @@ export function ProjectsBoard({
   tools?: ReactNode;
   /** Mirror health — the same chip the maintenance row carries (D8). */
   sm8?: Sm8Health | null;
+  /** The universal search's answers — see the maintenance board's note. */
+  searchPanel?: ReactNode;
+  /* Picking a tab leaves the search. The tab row stays lit behind the results
+     panel so you can see where you'd land back — a control you can see and
+     click has to actually take you there, and it can't while the panel is
+     still covering the card. */
+  onExitSearch?: () => void;
+  /* A trip named from somewhere else — today that means a search result, which
+     is the first thing on the board able to point at this side from outside
+     it. It therefore has to work with NO remount to hang off, which is why
+     it's consumed during render rather than read as opening state. */
+  openTarget?: { kind: "trip"; id: string } | null;
 }) {
   const [tab, setTab] = useState<ProjectsTab>("urgent");
   const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
   const [dayISO, setDayISO] = useState<string | null>(null);
   const { toasts, toast, dismiss } = useBoardToasts();
+
+  /* TAKEN DURING RENDER, never in an effect — see the maintenance board for
+     why, and why IDENTITY rather than value is the signal. */
+  const [taken, setTaken] = useState<typeof openTarget>(null);
+  if (openTarget && openTarget !== taken) {
+    setTaken(openTarget);
+    setSheet({ visitId: openTarget.id, closeOut: false });
+  }
 
   const openVisits = useMemo(
     () => data.visits.filter((v) => v.status === "upcoming" || v.status === "booked"),
@@ -122,6 +145,7 @@ export function ProjectsBoard({
   /* ── the E7 switch: information swaps, the surface stays ── */
   const [fallbackSwap, setFallbackSwap] = useState(0);
   const showTab = (next: ProjectsTab) => {
+    onExitSearch?.();
     if (next === tab) return;
     const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
     if (typeof doc.startViewTransition === "function") {
@@ -173,6 +197,7 @@ export function ProjectsBoard({
       </div>
 
       <div className="wb2-card">
+        {searchPanel ?? (
         <div key={`${tab}-${fallbackSwap}`} className={"wb2-panel" + (fallbackSwap ? " wb2-swap" : "")}>
           {tab === "urgent" && (
             <ProjectUrgentTab
@@ -203,6 +228,7 @@ export function ProjectsBoard({
             />
           )}
         </div>
+        )}
       </div>
 
       {dayISO && (

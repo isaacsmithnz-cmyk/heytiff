@@ -498,3 +498,34 @@ describe("the trip sheet", () => {
     expect(pact.deleteProjectVisit).toHaveBeenCalledWith("v-1");
   });
 });
+
+/* This side never had a search box of its own — which was the problem the one
+   above the card fixes. What it owes the page is the two slots and the trip
+   handoff, which is the first thing on the board able to point at this side
+   from outside it. */
+describe("the page's search slots", () => {
+  it("docks the field in the tab row and lets the panel take the card", () => {
+    mount(data(), {
+      tools: <input aria-label="The one box" />,
+      searchPanel: <p>Results panel</p>,
+    });
+    expect(screen.getByLabelText("The one box")).toBeInTheDocument();
+    expect(screen.getByText("Results panel")).toBeInTheDocument();
+    // The urgent tab's own content must be off — the card is the panel's.
+    expect(screen.queryByText("Needs attention")).not.toBeInTheDocument();
+  });
+
+  it("leaves the search when a tab is picked", async () => {
+    const onExitSearch = jest.fn();
+    mount(data(), { searchPanel: <p>Results panel</p>, onExitSearch });
+    await toTab("Pipeline");
+    expect(onExitSearch).toHaveBeenCalled();
+  });
+
+  it("opens a trip named from outside, with no side switch to remount it", async () => {
+    mount(data({ visits: [trip({ id: "v-1" })] }), {
+      openTarget: { kind: "trip", id: "v-1" },
+    });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});

@@ -13,8 +13,16 @@ import type { ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import type { BoardVisit } from "@/lib/workboard/board-query";
 import type { BoardFlag } from "@/lib/workboard/notes-query";
 
+const push = jest.fn();
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: jest.fn() }),
+  useRouter: () => ({ refresh: jest.fn(), push: (...a: unknown[]) => push(...(a as [])) }),
+}));
+
+/* The mirror's older half, which the page asks for on the page's behalf now —
+   the All jobs board used to own this call. */
+const searchAllJobs = jest.fn(async () => [] as unknown[]);
+jest.mock("@/app/actions/workboard", () => ({
+  searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
 }));
 
 /* Both boards are stubbed — here we only pin that the switcher mounts each
@@ -40,16 +48,24 @@ type BoardStub = {
   connected: boolean;
   flags: unknown[];
   tools?: React.ReactNode;
+  searchPanel?: React.ReactNode;
+  openTarget?: { kind: string; id?: string; job?: { remoteId: string } } | null;
   sm8?: { attention: boolean } | null;
 };
+/* The stubs print the HANDOFF they were given as well as their data: with the
+   real boards mocked out, "the search took me there" is only observable as
+   the right side mounting with the right target on it. */
+const handoffOf = (p: BoardStub) =>
+  p.openTarget ? `${p.openTarget.kind}:${p.openTarget.id ?? p.openTarget.job?.remoteId}` : "none";
 /* jest.mock is hoisted above every const, so each factory builds its own
    stub rather than closing over a shared helper. */
 const stubBody = (testid: string, p: BoardStub) => (
   <div data-testid={testid}>
     board · manage:{String(p.manage)} · connected:{String(p.connected)} · flags:{p.flags.length} ·
     sm8:
-    {p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"}
+    {p.sm8 ? (p.sm8.attention ? "attention" : "ok") : "none"} · open:{handoffOf(p)}
     {p.tools}
+    {p.searchPanel}
   </div>
 );
 jest.mock("../board/maintenance-board", () => ({
@@ -69,6 +85,10 @@ jest.mock("../board/all-jobs-board", () => ({
       {[p.backfilling.jobs && "jobs", p.backfilling.schedule && "schedule"]
         .filter(Boolean)
         .join("+") || "none"}
+      {" · open:"}
+      {handoffOf(p)}
+      {p.tools}
+      {p.searchPanel}
     </div>
   ),
 }));
@@ -487,6 +507,175 @@ describe("connected", () => {
   it("drops the standalone line once a mirror exists", () => {
     render(<OverviewScreen data={connected} />);
     expect(screen.queryByText(/Running standalone/)).not.toBeInTheDocument();
+  });
+});
+
+/* ONE BOX, ABOVE ALL THREE CARDS.
+
+   The board used to carry two search fields, both inside the white card: the
+   agreements ledger's, and the one repeated across the three All jobs lists.
+   Which one you could reach depended on the tab you were standing on, and
+   five tabs had none at all. This is the page's half of the replacement — the
+   field docked in every tab row, the answers taking the card, and choosing
+   one landing you on the work wherever it lives. The RULES it searches by are
+   pinned in lib/workboard/__tests__/work-search. */
+describe("the universal search", () => {
+  const loaded: WorkboardData = {
+    ...base,
+    connection: "connected",
+    board: {
+      ...base.board,
+      visits: [visitStub({ id: "v-1", clientName: "Kingsford Medical Centre" })],
+    },
+    projectsBoard: {
+      ...base.projectsBoard,
+      visits: [tripStub({ id: "t-1", projectName: "Kingsford fitout" })],
+    },
+    allJobs: {
+      truncated: false,
+      projectLinks: [],
+      jobs: [
+        {
+          remoteId: "j-1",
+          jobNumber: "2214",
+          status: "Work Order",
+          clientName: "Kingsford Bakery",
+          description: "Cool room down",
+          suburb: "Kingsford",
+          categoryName: null,
+          categoryColour: null,
+          date: "2026-07-20 09:00:00",
+          quoteDate: null,
+          completionDate: null,
+          nextBooking: null,
+          money: null,
+          paidCents: 0,
+        },
+      ],
+    },
+  };
+  const box = () => screen.getByRole("searchbox", { name: "Search the whole workboard" });
+
+  beforeEach(() => {
+    searchAllJobs.mockClear();
+    push.mockClear();
+  });
+
+  /* The reason it moved out of the card: a board you can't reach the search
+     from is a board where the search doesn't exist. */
+  it("rides the tab row on every side", async () => {
+    render(<OverviewScreen data={base} />);
+    expect(box()).toBeInTheDocument();
+    await toProjects();
+    expect(box()).toBeInTheDocument();
+    await toMaintenance();
+    expect(box()).toBeInTheDocument();
+  });
+
+  it("answers from every side at once, whichever side you typed on", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await toMaintenance();
+    await userEvent.type(box(), "kingsford");
+
+    expect(screen.getByText(/3 matches for/)).toBeInTheDocument();
+    expect(screen.getByText("Kingsford Medical Centre")).toBeInTheDocument();
+    expect(screen.getByText("Kingsford fitout")).toBeInTheDocument();
+    expect(screen.getByText("Kingsford Bakery")).toBeInTheDocument();
+  });
+
+  /* One character is not a search — it's a keystroke on the way to one, and
+     firing the whole mirror at each of them is a query per letter. */
+  it("asks the mirror from two characters, never from one", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "k");
+    expect(searchAllJobs).not.toHaveBeenCalled();
+    await userEvent.type(box(), "i");
+    expect(searchAllJobs).toHaveBeenCalledWith("ki");
+  });
+
+  /* The whole point of the box: the answer is on a side you weren't standing
+     on, and choosing it takes you there with the right sheet named. */
+  it("crosses sides to land you on the work", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "kingsford medical");
+    await userEvent.click(screen.getByRole("button", { name: /Open Kingsford Medical Centre/ }));
+
+    expect(screen.getByTestId("mboard")).toHaveTextContent("open:visit:v-1");
+    expect(screen.queryByTestId("jboard")).not.toBeInTheDocument();
+  });
+
+  it("hands a ServiceM8 job to the All jobs side as the job, not as an id", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await toMaintenance();
+    await userEvent.type(box(), "bakery");
+    await userEvent.click(screen.getByRole("button", { name: /Open Kingsford Bakery/ }));
+
+    expect(screen.getByTestId("jboard")).toHaveTextContent("open:job:j-1");
+  });
+
+  /* A project is the one answer that isn't a sheet — it has a page of its
+     own, so it routes rather than opening over the board. */
+  it("routes to a project's own page instead of opening a sheet", async () => {
+    const withProject: WorkboardData = {
+      ...loaded,
+      projectsBoard: {
+        ...loaded.projectsBoard,
+        projects: [
+          {
+            id: "p-9",
+            name: "Randwick tower fitout",
+            clientName: "Randwick Holdings",
+            status: "active",
+            stage: "Pre-install",
+            updatedAt: "2026-07-20T00:00:00.000Z",
+          },
+        ] as unknown as WorkboardData["projectsBoard"]["projects"],
+      },
+    };
+    render(<OverviewScreen data={withProject} />);
+    await userEvent.type(box(), "randwick tower");
+    await userEvent.click(screen.getByRole("button", { name: /Open Randwick tower fitout/ }));
+    expect(push).toHaveBeenCalledWith("/dashboard/workboard/projects/p-9");
+  });
+
+  it("gives the card back when the search is cleared", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "kingsford");
+    expect(screen.getByText(/3 matches for/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.queryByText(/matches for/)).not.toBeInTheDocument();
+    expect(box()).toHaveValue("");
+  });
+
+  /* Told nothing while a single letter sits in the box, you can't tell a
+     search that hasn't started from one that found nothing. */
+  it("says a single character is not yet a search, rather than saying nothing matched", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "k");
+    expect(screen.getByText("Keep typing")).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing matches/)).not.toBeInTheDocument();
+  });
+
+  /* The boards take a target by identity and hold it for as long as it's
+     handed to them, so something has to say "done with that". Moving the
+     switcher yourself is that moment — without it, coming back to a side
+     would reopen the sheet you'd already closed. */
+  it("drops the handoff when you move the switcher yourself", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "kingsford medical");
+    await userEvent.click(screen.getByRole("button", { name: /Open Kingsford Medical Centre/ }));
+    expect(screen.getByTestId("mboard")).toHaveTextContent("open:visit:v-1");
+
+    await toProjects();
+    await toMaintenance();
+    expect(screen.getByTestId("mboard")).toHaveTextContent("open:none");
+  });
+
+  it("says when nothing matched, and what it read", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "zzzz");
+    expect(await screen.findByText(/Nothing matches/)).toBeInTheDocument();
   });
 });
 

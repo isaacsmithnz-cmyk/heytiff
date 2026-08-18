@@ -152,6 +152,10 @@ function mount(over: {
   moneyVisible?: boolean;
   connected?: boolean;
   backfilling?: { jobs: boolean; schedule: boolean };
+  tools?: React.ReactNode;
+  searchPanel?: React.ReactNode;
+  onExitSearch?: () => void;
+  openTarget?: React.ComponentProps<typeof AllJobsBoard>["openTarget"];
 } = {}) {
   return render(
     <AllJobsBoard
@@ -167,6 +171,10 @@ function mount(over: {
       connected={over.connected ?? true}
       backfilling={over.backfilling ?? { jobs: false, schedule: false }}
       onOpenTracked={onOpenTracked}
+      tools={over.tools}
+      searchPanel={over.searchPanel}
+      onExitSearch={over.onExitSearch}
+      openTarget={over.openTarget ?? null}
     />
   );
 }
@@ -472,34 +480,43 @@ describe("empty says WHY", () => {
     expect(screen.getByText("Nothing on")).toBeInTheDocument();
   });
 
-  it("says nothing matches when a search found nothing", async () => {
-    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
-    await userEvent.type(screen.getByLabelText("Search all jobs"), "zzzz");
-    expect(screen.getByText(/Nothing matches/)).toBeInTheDocument();
-  });
 });
 
-describe("search", () => {
-  it("filters what's loaded and asks the server for the rest", async () => {
+/* THE SEARCH LEFT THIS BOARD. It used to own a box per list panel and its own
+   half of the mirror query; the page owns one box above all three boards now,
+   and its tests live with it (components/workboard/__tests__/overview-screen
+   for the wiring, lib/workboard/__tests__/work-search for the rules). What
+   stays this board's job is honouring the two slots the page fills. */
+describe("the page's search slots", () => {
+  it("docks the field in the tab row and lets the panel take the card", async () => {
     await mountWork({
-      data: data({
-        jobs: [
-          mirrorJob({ remoteId: "a", clientName: "Ardex Logistics" }),
-          mirrorJob({ remoteId: "b", clientName: "Hearth Cafe" }),
-        ],
-      }),
+      data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }),
+      tools: <input aria-label="The one box" />,
+      searchPanel: <p>Results panel</p>,
     });
-    await userEvent.type(screen.getByLabelText("Search all jobs"), "ardex");
-    expect(rows()).toHaveLength(1);
-    expect(searchAllJobs).toHaveBeenCalledWith("ardex");
+    expect(screen.getByLabelText("The one box")).toBeInTheDocument();
+    expect(screen.getByText("Results panel")).toBeInTheDocument();
+    // The card is the panel's now — the list underneath must not still be on.
+    expect(rows()).toHaveLength(0);
   });
 
-  /* One character is not a search — it's a keystroke on the way to one, and
-     firing the whole mirror at it would be a query per letter. */
-  it("doesn't ask the server for a single character", async () => {
-    await mountWork();
-    await userEvent.type(screen.getByLabelText("Search all jobs"), "a");
-    expect(searchAllJobs).not.toHaveBeenCalled();
+  /* The tab row stays lit behind the results, so its tabs have to actually
+     take you there — which they can't while the panel covers the card. */
+  it("leaves the search when a tab is picked", async () => {
+    const onExitSearch = jest.fn();
+    await mountWork({ searchPanel: <p>Results panel</p>, onExitSearch });
+    await userEvent.click(screen.getByRole("tab", { name: "Quotes" }));
+    expect(onExitSearch).toHaveBeenCalled();
+  });
+
+  /* A hit from past the loaded window has no row here to be looked up in, so
+     the job travels whole rather than as an id. */
+  it("opens a job handed in from outside, even one this board never loaded", async () => {
+    await mountWork({
+      openTarget: { kind: "job", job: mirrorJob({ remoteId: "j-old" }) },
+    });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(readMirrorJob).toHaveBeenCalledWith("j-old");
   });
 });
 

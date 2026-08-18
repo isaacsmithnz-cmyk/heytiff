@@ -4,10 +4,8 @@ import {
   awaitingPaymentCents,
   awaitingPaymentCount,
   completedCountLine,
-  filterView,
   fmtMinutesAsHours,
   groupChecklist,
-  matchesJobSearch,
   quotesCountLine,
   sm8CategoryColour,
   sm8MinutesBetween,
@@ -367,46 +365,6 @@ describe("money on a row", () => {
     expect(awaitingPaymentCount(v)).toBe(0);
     expect(awaitingPaymentCents(v)).toBe(0);
     expect(v.completed[0].money?.collection).toBe("paid_unknown_total");
-  });
-});
-
-describe("search", () => {
-  const v = () =>
-    view({
-      jobs: [
-        job({ remoteId: "a", jobNumber: "2214", clientName: "Ardex Logistics", suburb: "Mascot" }),
-        job({
-          remoteId: "b",
-          jobNumber: "2240",
-          clientName: "Strathfield Dental",
-          description: "Replace rooftop package unit",
-          suburb: "Strathfield",
-          status: "Quote",
-          quoteDate: "2026-08-05 00:00:00",
-        }),
-      ],
-    });
-
-  it("finds a job by its number, its client or its suburb", () => {
-    expect(filterView(v(), "2214").work.unbooked).toHaveLength(1);
-    expect(filterView(v(), "strathfield").quotes).toHaveLength(1);
-    expect(filterView(v(), "mascot").work.unbooked).toHaveLength(1);
-  });
-
-  /* Every word must land — otherwise "ardex cool" returns every job at Ardex
-     and the second word was decoration. */
-  it("requires every typed word, so two words narrow rather than widen", () => {
-    const rows = v();
-    expect(matchesJobSearch(rows.work.unbooked[0], "ardex cool")).toBe(true);
-    expect(matchesJobSearch(rows.work.unbooked[0], "ardex rooftop")).toBe(false);
-  });
-
-  it("takes typed words literally — a generic word is still a word", () => {
-    expect(filterView(v(), "dental").quotes).toHaveLength(1);
-  });
-
-  it("an empty search changes nothing", () => {
-    expect(filterView(v(), "   ")).toEqual(v());
   });
 });
 

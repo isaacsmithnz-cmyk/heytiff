@@ -9,6 +9,7 @@
    Pure: the server page computes the effective pack here and ships this VM to
    the client instead of the whole DataPack (rule blocks stripped, smaller). */
 
+import { hasDuctAirway } from "@/lib/studio/form-factors";
 import type {
   DataPack,
   FormFactor,
@@ -100,8 +101,6 @@ export interface HqCatalogView {
       cleaning up (e.g. after a pack re-issue renamed a model) */
   orphans: FieldOverride[];
 }
-
-const DUCTED_FORMS = new Set(["ducted", "bulkhead"]);
 
 /** IDU system_roles → system types, deduped, order preserved (fan-out: a unit
     tagged for several systems belongs to all of them). Defensive default:
@@ -261,7 +260,7 @@ function buildIduRow(
   const readiness = indoorReadiness(effPack, effIdu);
   const blocking = blockingGaps("indoor_units", readiness);
   const nice = [...IDU_NICE];
-  if (DUCTED_FORMS.has(effIdu.form_factor)) nice.push("static_pressure_pa");
+  if (hasDuctAirway(effIdu.form_factor)) nice.push("static_pressure_pa");
   const eff = effIdu as unknown as Record<string, unknown>;
   const gaps = [...blocking.values(), ...niceGaps("indoor_units", eff, nice, blocking)];
 

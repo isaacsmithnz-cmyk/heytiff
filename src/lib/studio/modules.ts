@@ -7,6 +7,7 @@
    their stages without touching the framework. */
 
 import type { SystemType } from "./document";
+import { hasDuctAirway } from "./form-factors";
 
 /** Stage-7 dev flag — ducted is choosable only when the build was made with
     NEXT_PUBLIC_STUDIO_DUCTED=1 (inlined at build time; flipping means a
@@ -129,11 +130,9 @@ export const availableModules = (): SystemModule[] =>
    tools for its system. Keyed to unit DATA, not system type, so
    multi-split / VRF / ventilation reuse it untouched. */
 
-export const AIR_CAPABLE_FORMS: ReadonlySet<string> = new Set(["ducted", "bulkhead"]);
-
 export function isAirCapable(unit: {
   form_factor: string;
   airflow_ls?: number;
 }): boolean {
-  return AIR_CAPABLE_FORMS.has(unit.form_factor) && unit.airflow_ls != null;
+  return hasDuctAirway(unit.form_factor) && unit.airflow_ls != null;
 }

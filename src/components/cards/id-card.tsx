@@ -34,6 +34,7 @@ export type IdCardState = { label: string; tone: IdCardTone };
 export function IdCard({
   variant = "dark",
   org,
+  showIssuer = true,
   badge,
   state,
   credential = false,
@@ -48,6 +49,15 @@ export function IdCard({
   variant?: "dark" | "light";
   /** the org's trading name — the issuer line, top left */
   org?: string | null;
+  /* Set false on a card that IS the issuer.
+
+     The line answers "who gave you this", which is worth a corner on a staff
+     card and on a licence. On the COMPANY's own card there is no third party:
+     the issuer and the subject are the same business, so the line printed the
+     trading name in 10px small-caps directly above the same trading name in
+     21px — or, left unset, printed "HeyTiff" on a card whose whole job is to
+     show a customer whose business this is. */
+  showIssuer?: boolean;
   badge?: IdCardBadge;
   state?: IdCardState;
   /* A CREDENTIAL — a licence or a ticket — rather than a card identifying
@@ -85,8 +95,11 @@ export function IdCard({
       </span>
       {action ? <div className="idc-action">{action}</div> : null}
       <div className="idc-in">
-        <div className="idc-top">
-          {!credential && <span className="idc-org">{org || "HeyTiff"}</span>}
+        {/* `.idc-top` is space-between, so with the issuer line suppressed the
+            badge fell to the LEFT corner and left the right one empty. It is a
+            corner stamp either way — pin it right when it is alone. */}
+        <div className={`idc-top${!credential && !showIssuer ? " noissuer" : ""}`}>
+          {!credential && showIssuer && <span className="idc-org">{org || "HeyTiff"}</span>}
           {/* The accent paints the tint and the border; the LABEL is derived
               from it in CSS rather than being set to it. `color: accent` over
               `accent + "22"` is the same hue at full strength on a 13% wash of

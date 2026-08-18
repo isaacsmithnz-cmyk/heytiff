@@ -1,5 +1,6 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { OrgAccount } from "@/lib/org/account";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { OrgSettings } from "@/lib/org/settings";
 
@@ -49,6 +50,18 @@ const ORG: OrgSettings = {
   logo_url: null,
 };
 
+const ACCOUNT: OrgAccount = {
+  ownerName: "Isaac Smith",
+  ownerEmail: "isaac@smithair.com.au",
+  ownerIsYou: false,
+  activeStaff: 7,
+  totalStaff: 9,
+  // an EVENING signup, AU time — 11 March there, still 10 March in UTC. The
+  // card must print the 11th (see the auDayOf note in org-screen).
+  createdAt: "2025-03-10T14:30:00Z",
+  plan: "standard",
+};
+
 const CREDENTIALS: OrgCredential[] = [
   {
     id: "C1",
@@ -76,6 +89,7 @@ function setup(
     credentials?: OrgCredential[];
     logoUrl?: string;
     addressLookup?: boolean;
+    account?: OrgAccount | null;
   } = {}
 ) {
   const actions = {
@@ -90,6 +104,7 @@ function setup(
     <OrgScreen
       org={{ ...ORG, ...(over.org ?? {}) }}
       credentials={over.credentials ?? CREDENTIALS}
+      account={over.account === undefined ? ACCOUNT : over.account}
       logoUrl={over.logoUrl ?? null}
       today={TODAY}
       addressLookup={over.addressLookup ?? false}
@@ -99,7 +114,7 @@ function setup(
   return { ...view, actions };
 }
 
-describe("the company card", () => {
+describe("the brand row", () => {
   it("reads as a card, not a form — name, ABN and GST on the plastic", () => {
     const { container } = setup();
     expect(screen.getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
@@ -114,6 +129,15 @@ describe("the company card", () => {
     expect(within(card as HTMLElement).getByText("Registered")).toBeInTheDocument();
   });
 
+  /* The card used to carry an issuer line reading "HeyTiff" — IdCard's default,
+     left unset. On a card whose job is to show a customer whose business this
+     is, that named the platform. There is no third party to name here. */
+  it("carries no issuer line, and never says HeyTiff", () => {
+    const { container } = setup();
+    expect(container.querySelector(".idc.light .idc-org")).toBeNull();
+    expect(within(container.querySelector(".idc.light")!).queryByText(/HeyTiff/)).toBeNull();
+  });
+
   it("falls back to initials when there is no logo, and shows the logo when there is", () => {
     const { container, rerender } = setup();
     expect(container.querySelector(".idc-photo .inn")).toHaveTextContent("SA");
@@ -122,6 +146,7 @@ describe("the company card", () => {
       <OrgScreen
         org={ORG}
         credentials={CREDENTIALS}
+        account={ACCOUNT}
         logoUrl="https://signed.example/logo.png"
         today={TODAY}
         actions={{
@@ -140,6 +165,33 @@ describe("the company card", () => {
     );
   });
 
+  /* Read and edit name the same six things in the same order. They did not
+     before: read was a piece of plastic, edit was these boxes, so pressing Edit
+     replaced the object you were reading with an unrelated form. */
+  it("identity reads back the same fields it edits", async () => {
+    const user = userEvent.setup();
+    const { container } = setup();
+    const identity = container.querySelectorAll(".card2")[1] as HTMLElement;
+
+    const labels = () =>
+      Array.from(identity.querySelectorAll(".ro-row em, .field label")).map((l) =>
+        (l.textContent ?? "").replace("*", "").trim()
+      );
+    const inRead = labels();
+    expect(inRead).toEqual([
+      "Trading name",
+      "Legal name",
+      "ABN",
+      "ACN",
+      "GST",
+      "Website",
+    ]);
+
+    await user.click(within(identity).getByRole("button", { name: /Edit/ }));
+    // GST is "GST registered" on its own control; the rest are word-for-word
+    expect(labels().map((l) => (l === "GST registered" ? "GST" : l))).toEqual(inRead);
+  });
+
   /* The hints the redesign deleted. They explained the software to itself; the
      ABN one is now an ERROR on the field, which is what it was really promising. */
   it("carries none of the old explanatory hints", async () => {
@@ -155,7 +207,7 @@ describe("the company card", () => {
   it("keeps the one help line that says something the label doesn't", async () => {
     const user = userEvent.setup();
     setup();
-    // the second card is Contact & address
+    // the third card is Contact & address — brand, identity, contact
     await user.click(screen.getAllByRole("button", { name: /Edit/ })[1]);
     expect(screen.getByText("Also sets your public-holiday calendar")).toBeInTheDocument();
   });
@@ -498,12 +550,22 @@ describe("the logo", () => {
 
   beforeEach(() => uploadFile.mockReset());
 
+  /* THE BUG THIS SCREEN SHIPPED WITH. The uploader was the last field of the
+     Company identity EDIT form, so reading the page showed no logo, no tile and
+     no control — the feature was indistinguishable from missing. Nothing here
+     may press Edit first. */
+  it("is on the screen in read mode, with no Edit pressed", () => {
+    const { container } = setup();
+    expect(container.querySelector(".orglogo-tile")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Upload/ })).toBeInTheDocument();
+    expect(screen.getByLabelText("Company logo")).toBeInTheDocument();
+  });
+
   it("uploads as an org_logo and points the org at what came back", async () => {
     const user = userEvent.setup();
     uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
     const { actions } = setup();
 
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
     await user.upload(screen.getByLabelText("Company logo"), file());
 
     expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "org_logo");
@@ -515,7 +577,6 @@ describe("the logo", () => {
     uploadFile.mockResolvedValue({ ok: false, error: "That file is too big — 10 MB is the limit." });
     const { actions } = setup();
 
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
     await user.upload(screen.getByLabelText("Company logo"), file());
 
     expect(
@@ -527,13 +588,78 @@ describe("the logo", () => {
   it("offers Remove only once there is a logo", async () => {
     const user = userEvent.setup();
     const plain = setup();
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     plain.unmount();
 
     const withLogo = setup({ logoUrl: "https://signed.example/logo.png" });
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(withLogo.actions.onClearLogo).toHaveBeenCalled();
+  });
+
+  /* A drop bypasses the input's `accept` entirely, so the tile re-checks the
+     type itself and answers without a round trip. */
+  it("refuses a dropped non-image without uploading it", () => {
+    const { container } = setup();
+    const tile = container.querySelector(".orglogo-tile")!;
+    const pdf = new File(["x"], "quote.pdf", { type: "application/pdf" });
+
+    fireEvent.drop(tile, { dataTransfer: { files: [pdf] } });
+
+    expect(screen.getByText("That's not an image — PNG, JPG, WEBP or SVG.")).toBeInTheDocument();
+    expect(uploadFile).not.toHaveBeenCalled();
+  });
+
+  it("uploads an image that was dropped on the tile", async () => {
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-4" } });
+    const { container, actions } = setup();
+    const tile = container.querySelector(".orglogo-tile")!;
+
+    fireEvent.drop(tile, { dataTransfer: { files: [file()] } });
+
+    await waitFor(() => expect(actions.onSetLogo).toHaveBeenCalledWith("doc-4"));
+    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "org_logo");
+  });
+});
+
+describe("the account card", () => {
+  it("states who holds the account, how big it is, and since when", () => {
+    setup();
+    expect(screen.getByText("Isaac Smith")).toBeInTheDocument();
+    expect(screen.getByText("isaac@smithair.com.au")).toBeInTheDocument();
+    expect(screen.getByText("7 active")).toBeInTheDocument();
+    expect(screen.getByText(/of 9 on the books/)).toBeInTheDocument();
+    expect(screen.getByText("Standard")).toBeInTheDocument();
+  });
+
+  /* created_at is a TIMESTAMPTZ and every AU state is ahead of UTC, so an
+     evening signup sliced in UTC reads a day early. 2025-03-10T14:30Z is the
+     11th in Melbourne. */
+  it("dates the signup on the AU calendar, not UTC's", () => {
+    setup();
+    expect(screen.getByText("11/03/2025")).toBeInTheDocument();
+    expect(screen.queryByText("10/03/2025")).not.toBeInTheDocument();
+  });
+
+  it("says so when the owner is the person reading it", () => {
+    const { unmount } = setup();
+    expect(screen.queryByText("You")).not.toBeInTheDocument();
+    unmount();
+
+    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
+    expect(screen.getByText("You")).toBeInTheDocument();
+  });
+
+  /* A staff member has a login before they have a name on their profile. The
+     card falls back to the address rather than printing a dash for a real
+     person. */
+  it("falls back to the email's local part when there is no name", () => {
+    setup({ account: { ...ACCOUNT, ownerName: null } });
+    expect(screen.getByText("isaac")).toBeInTheDocument();
+  });
+
+  it("is absent entirely when the caller had no session to resolve it", () => {
+    const { container } = setup({ account: null });
+    expect(container.querySelectorAll(".card2")).toHaveLength(4);
+    expect(screen.queryByText("Primary owner")).not.toBeInTheDocument();
   });
 });

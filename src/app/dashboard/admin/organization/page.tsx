@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { OrgScreen } from "@/components/org/org-screen";
-import { listOrgCredentials } from "@/lib/org/query";
+import { listOrgCredentials, orgAccount } from "@/lib/org/query";
 import { signOne } from "@/lib/documents/query";
 import { todayInAu } from "@/lib/au-dates";
 import { clearOrgLogo, saveOrgSection, setOrgLogo } from "@/app/actions/org";
@@ -47,8 +47,12 @@ export default async function OrganizationPage() {
   if (!data) redirect("/dashboard");
 
   const org = data as unknown as OrgSettings;
-  const [credentials, logoUrl] = await Promise.all([
+  const [credentials, account, logoUrl] = await Promise.all([
     listOrgCredentials(orgId),
+    // whose account this is — owner, size, age, plan. The viewer's sub goes in
+    // so the card can say "You" rather than printing a co-owner their own
+    // name as if it were someone else's.
+    orgAccount(orgId, session.user.sub as string),
     // the column holds a storage ref; the bucket is private, so the link is
     // minted here and expires
     signOne(org.logo_url),
@@ -58,6 +62,7 @@ export default async function OrganizationPage() {
     <OrgScreen
       org={org}
       credentials={credentials}
+      account={account}
       logoUrl={logoUrl}
       today={todayInAu()}
       // Configured or not — the boolean crosses to the client, the key never

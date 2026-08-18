@@ -154,6 +154,23 @@ it("routes the edit, not the transcript", async () => {
   );
 });
 
+/* THE OTHER HALF OF "SWITCH TO TALK" (pinned typed-side in note-token-go).
+   Once a word has arrived by voice the capture has a voice in it for good —
+   tidying the transcript by keyboard is still adding to something you said,
+   so the invitation stays "Keep talking". The flag is the same one the router
+   files `source: "voice"` from, which is why the two can never disagree. */
+it("keeps saying Keep talking after a spoken note is tidied by keyboard", async () => {
+  const user = await openSheet();
+  await deliver("order the grills", false);
+
+  const box = screen.getByRole("textbox");
+  await user.clear(box);
+  await user.type(box, "order the grilles for the roof");
+
+  expect(screen.getByRole("button", { name: "Keep talking" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /switch to talk/i })).not.toBeInTheDocument();
+});
+
 it("does NOT route when the ceiling stopped it — the note is not finished", async () => {
   await openSheet();
   await deliver("middle rooftop unit tripped again and the compressor", true);

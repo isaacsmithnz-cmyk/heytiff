@@ -473,6 +473,9 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     /** The last recording stopped at the ceiling — say so, and invite more. */
     ranOut,
     setRanOut,
+    /** Any of these words arrived by voice. Read by the mic button, which
+        cannot say "Keep talking" to somebody who has only ever typed. */
+    spoke,
     /** The tag is showing and the note will land on it. */
     aimed,
     /** What the ribbon should name — absent once the tag is dropped. */

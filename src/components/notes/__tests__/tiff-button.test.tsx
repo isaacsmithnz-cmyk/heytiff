@@ -119,6 +119,30 @@ describe("the button itself", () => {
     expect(screen.queryByRole("button", { name: "Go" })).not.toBeInTheDocument();
   });
 
+  /* THE MARK STANDS ON THE DOOR (Isaac, 2026-08-18, first walk of it): "I've
+     got no animation in there — we should have the chevron animation, like we
+     do on the talking screen."
+
+     Two buttons over an empty card was half the fault; the other half was
+     that the instrument got BUILT by the press, so choosing Talk grew 268px
+     of card under your thumb at the same moment the microphone opened. What
+     this pins is the fix for both: the same element, in the same stage, on
+     either side of the press — which is the rule the whole field is built on
+     (see `stageField` in ../note-token). If a later tidy-up scopes the mark
+     back to `recording`, the door goes blank and the press starts jumping
+     again.
+
+     THE OTHER SIDE OF THE PRESS IS PINNED IN note-token-go, because it needs
+     an engine that actually opens: this file's fake reports `recording:false`
+     forever, so a Talk here lands on the box rather than the microphone. */
+  it("stands the mark on the door", async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(btn());
+
+    expect(document.querySelector('.dotf[data-stage="mark"]')).not.toBeNull();
+  });
+
   it("Talk opens the microphone in the same press", async () => {
     const user = userEvent.setup();
     mount();

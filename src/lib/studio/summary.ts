@@ -21,6 +21,7 @@ import { roomCoverage, type CoverageStatus } from "./coverage";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemComponents } from "./components";
 import { describeUnit } from "./materials";
+import { formFactorLabel } from "./form-factors";
 
 /** The zone number the engine actually uses — settings store a stringified
     zone ("5") or null; anything unparsable falls back like loads-room.ts.
@@ -233,7 +234,7 @@ export interface SummarySystem {
   kindLabel: string;
   /** the brand's display name from the pack, never the slug */
   brandLabel: string;
-  /** indoor form factor, e.g. "cassette-4way" → "Cassette (4 way)" */
+  /** indoor form factor, e.g. "cassette-4way" → "4-way cassette" */
   styleLabel: string | null;
   outdoorModel: string | null;
   /** the outdoor machine's own sizing capacity — NOT the summed placed
@@ -276,22 +277,10 @@ export interface SummaryModel {
   picklist: PicklistRow[];
 }
 
-const FORM_LABELS: Record<string, string> = {
-  "cassette-4way": "Cassette (4 way)",
-  "cassette-1way": "Cassette (1 way)",
-  ducted: "Ducted",
-  "under-ceiling": "Under ceiling",
-  wall: "Wall mounted",
-  "floor-console": "Floor console",
-  "floor-concealed": "Floor concealed",
-};
-
-/** "Cassette (4 way)" for a known form factor; the raw value otherwise, so a
-    new one in a future pack shows up rather than vanishing. */
-export function formFactorLabel(form: string | null | undefined): string | null {
-  if (!form) return null;
-  return FORM_LABELS[form] ?? form;
-}
+/* The Summary sheet used to keep its OWN form-factor wording, and it was
+   missing three of the ten keys — `bulkhead` among them, so a bulkhead unit
+   printed the raw slug here while the canvas said "Bulkhead". One map now. */
+export { formFactorLabel };
 
 /* `satisfies`, not `Record<SystemType, …>` as an annotation — the annotation
    widens keyof and a typo'd lookup would type-check into the fallback. */

@@ -96,7 +96,7 @@ describe("UnitBrowser", () => {
     );
     const dialog = screen.getByRole("dialog", { name: "Choose a unit" });
     expect(document.body.contains(dialog)).toBe(true);
-    expect(screen.getByRole("button", { name: /Wall\s*2/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Wall-mounted\s*2/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Ducted\s*2/ })).toBeInTheDocument();
   });
 
@@ -328,7 +328,7 @@ describe("UnitBrowser", () => {
     expect(within(row).getByText("3φ")).toBeInTheDocument();
     // tab counts follow: Wall 1; Ducted (1φ-only pairings) drops off the tab
     // row entirely — same behaviour as the capacity gate
-    expect(screen.getByRole("button", { name: /Wall\s*1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Wall-mounted\s*1/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Ducted/ })).toBeNull();
 
     // back to Any restores everything

@@ -120,8 +120,11 @@ function multiDoc(): DesignDocument {
 
 describe("formFactorLabel", () => {
   it("reads the pack's form factors as words", () => {
-    expect(formFactorLabel("cassette-1way")).toBe("Cassette (1 way)");
-    expect(formFactorLabel("wall")).toBe("Wall mounted");
+    expect(formFactorLabel("cassette-1way")).toBe("1-way cassette");
+    expect(formFactorLabel("wall")).toBe("Wall-mounted");
+    /* the key this sheet never had: it printed the raw slug "bulkhead" while
+       the canvas said "Bulkhead" (see form-factors.ts) */
+    expect(formFactorLabel("bulkhead")).toBe("Bulkhead");
   });
 
   it("shows an unknown form rather than swallowing it", () => {

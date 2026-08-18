@@ -3488,6 +3488,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc .idc-mesh .m2 { bottom:-70%; right:-8%; width:52%; height:190%; background:var(--blue); opacity:.11; }
 .fg .idc .idc-in { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; gap:12px; }
 .fg .idc .idc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.fg .idc .idc-top.noissuer { justify-content:flex-end; }
 .fg .idc .idc-org { font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
 .fg .idc.light .idc-org { color:var(--q); }
 /* `--acc` is the licence type's own colour, set inline by id-card.tsx. The tint
@@ -3594,7 +3595,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:800; letter-spacing:.02em; color:var(--gray700); }
 .fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .ro-row .num { font-variant-numeric:tabular-nums; }
-.fg .ro-none { font-style:italic; font-weight:500; color:#bcc2cd; }
+/* "Not set" — a fourth way past the -t text guard, and one this screen made
+   impossible to ignore. #bcc2cd is 1.86:1 on white: below the 3:1 a GRAPHIC
+   needs, let alone text. It was survivable while identity's read view was one
+   fact row; it is six now, so a fresh org rendered six lines of it. --q is the
+   quiet floor that actually clears AA on every ground this lands on. Still
+   italic and still light, because it is a placeholder — it just has to be
+   readable to work as one. */
+.fg .ro-none { font-style:italic; font-weight:500; color:var(--q); }
 .fg .ro-state { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
 .fg .ro-state.ok { color:var(--ok-t); }
 .fg .ro-state.warn { color:var(--warn-t); }
@@ -4280,16 +4288,93 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cred-add b { font-size:13.5px; font-weight:800; color:var(--gray700); }
 .fg .cred-add em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
 
-/* Logo uploader — the drop tile, with something in it now. */
-.fg .orglogo-row { display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px; border:1.5px dashed #d8dde6; background:#fafbfc; }
-.fg .orglogo-prev { width:54px; height:54px; flex:0 0 auto; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #eef0f4; color:var(--q); overflow:hidden; }
-.fg .orglogo-prev img { width:100%; height:100%; object-fit:contain; padding:5px; }
-.fg .orglogo-k { min-width:0; flex:1; }
-.fg .orglogo-k b { font-size:13px; font-weight:700; }
-.fg .orglogo-k em { font-style:normal; display:block; font-size:11.5px; color:var(--gray400); margin-top:2px; }
-.fg .orglogo-act { display:flex; gap:8px; flex:0 0 auto; }
+/* ===== ORGANISATION — the company profile =================================
+
+   THE STAGE. This screen used to nest `.prof` (the staff card's frame) inside
+   `.wrap` (the page frame), so its cards were centred inside a centred box
+   while the h1 stayed at the left edge of the outer one — 282px of offset at
+   1440px wide, which is the whole reason the page did not look like the rest of
+   the app. It is `.wrap > .stg` like every other /dashboard/admin screen now.
+
+   Wider than `.adm-stg`'s 760 because this one has a two-column brand row and a
+   grid of credentials, where Tax and the integrations have lists. Below 1060 —
+   which is where a 224px sidebar plus 80px of wrap padding leaves less than 920
+   — it is simply the width available. */
+.fg .org-stg { max-width:920px; }
+
+/* Your business: the logo tile, and the card the logo lands on.
+
+   The preview column is sized to `.idc`'s own max-width rather than a fraction,
+   so the card is never stretched past the aspect ratio it is drawn at; the tile
+   column takes what is left. They swap to one column early — at 780 the pair
+   would each be under 300px and the card's facts row starts wrapping. */
+.fg .orgbrand { display:grid; grid-template-columns:260px minmax(0,460px); justify-content:space-between; gap:26px; align-items:start; }
+/* 1040, not 900, and the 224px sidebar is the whole reason. `.idc` is drawn at
+   a fixed 856/540 with overflow:hidden, so a narrow card does not reflow — it
+   loses its own bottom row. Measured in the real shell it reads down to ~360px
+   wide and clips the ABN/ACN/GST line below that, and the card column here is
+   `viewport − 658` once the sidebar, the page padding and the card padding are
+   taken out. 1040 is the first round number that keeps it above 360. */
+@media (max-width:1040px){
+  .fg .orgbrand { grid-template-columns:minmax(0,1fr); justify-content:stretch; gap:22px; }
+  /* Stacked, the tile has nothing beside it, so a 260px square left half a row
+     empty. It lays out against its OWN controls instead — the tile is smaller
+     because it no longer has to hold its end of a two-up. */
+  .fg .orgbrand .orglogo { display:grid; grid-template-columns:150px minmax(0,1fr);
+    grid-template-areas:"tile act" "tile where"; align-content:center; gap:10px 20px; }
+  .fg .orgbrand .orglogo-tile { grid-area:tile; max-width:150px; align-self:center; }
+  .fg .orgbrand .orglogo-act { grid-area:act; margin-top:0; align-self:end; }
+  .fg .orgbrand .orglogo-where { grid-area:where; margin:0; max-width:none; align-self:start; }
+  /* not in the areas map — a refusal spans the whole thing rather than being
+     auto-placed into a cell that was drawn for something else */
+  .fg .orgbrand .orglogo .carderr { grid-column:1 / -1; }
+}
+@media (max-width:520px){
+  .fg .orgbrand .orglogo { grid-template-columns:minmax(0,1fr); grid-template-areas:"tile" "act" "where"; }
+  .fg .orgbrand .orglogo-tile { justify-self:start; }
+}
+
+/* Logo uploader — a tile in READ mode, not a row inside an edit form. */
+.fg .orglogo { min-width:0; }
+.fg .orglogo-tile { position:relative; aspect-ratio:1; width:100%; max-width:260px; border-radius:20px;
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  border:1.5px dashed #d3d9e2; background:#fafbfc; transition:border-color .2s, background .2s; }
+/* Filled, it is no longer a target to aim at — it is the artwork, so the dashed
+   edge becomes a plain one and the ground goes white to show the logo honestly
+   against what it will actually be printed on. */
+.fg .orglogo-tile.has { border-style:solid; border-color:#ecedf1; background:#fff; }
+.fg .orglogo-tile.over { border-color:var(--teal-d); background:rgba(0,229,192,.06); }
+.fg .orglogo-tile.busy { opacity:.6; }
+.fg .orglogo-tile img { width:100%; height:100%; object-fit:contain; padding:18px; }
+.fg .orglogo-empty { display:flex; flex-direction:column; align-items:center; gap:5px; padding:16px; text-align:center; color:var(--q); }
+.fg .orglogo-empty b { font-size:13px; font-weight:800; color:var(--gray700); margin-top:3px; }
+.fg .orglogo-empty em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--q); }
+/* A sweep rather than a spinner: the tile is square and already the subject, so
+   the busy state is the surface reacting instead of an icon landing on top of
+   whatever is being replaced. */
+.fg .orglogo-busy { position:absolute; inset:0; background:linear-gradient(100deg, transparent 20%, rgba(0,229,192,.16) 50%, transparent 80%);
+  background-size:220% 100%; animation:orgLogoSweep 1.1s linear infinite; }
+@keyframes orgLogoSweep { from { background-position:120% 0; } to { background-position:-120% 0; } }
+@media (prefers-reduced-motion:reduce){ .fg .orglogo-busy { animation:none; background:rgba(0,229,192,.1); } }
+
+.fg .orglogo-act { display:flex; gap:8px; margin-top:14px; }
 .fg .orglogo-act .pbtn { height:38px; padding:0 14px; font-size:12.5px; }
-@media (max-width:560px){ .fg .orglogo-row { flex-wrap:wrap; } .fg .orglogo-act { width:100%; } }
+/* The one line allowed to exist: it says where the logo goes, which the tile
+   cannot. Capped to the tile's own column so it wraps as a caption rather than
+   running the full width of the card. */
+.fg .orglogo-where { max-width:260px; margin:12px 0 0; font-size:12px; font-weight:600; line-height:1.5; color:var(--q); }
+
+/* Account — four read-only facts about the account itself, two up. */
+.fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:20px 26px; }
+@media (max-width:640px){ .fg .orgacct { grid-template-columns:1fr; gap:18px; } }
+.fg .orgacct-f { display:block; min-width:0; }
+.fg .orgacct-f em { font-style:normal; display:block; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+.fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; font-size:16px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .orgacct-f i { font-style:normal; display:block; margin-top:3px; font-size:12.5px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
+/* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
+.fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:7px;
+  font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  background:rgba(46,104,255,.1); color:var(--info-t); }
 
 /* Colour swatches in the credential modal. Scoped like every field beside
    them: the modal portals to <body> inside a display:contents `.fg`, so the

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { AddressField } from "@/components/address/address-field";
@@ -7,9 +8,10 @@ import { IdCard } from "@/components/cards/id-card";
 import { CredentialCard } from "@/components/cards/credential-card";
 import { SectionCard } from "@/components/profile/section-card";
 import { Field, FactRow, Seg, SelectInput, TextInput } from "@/components/profile/fields";
-import { formatAuDate } from "@/lib/au-dates";
+import { auDayOf, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { orgCredBadge, type OrgCredential, type OrgCredentialInput } from "@/lib/org/credentials";
+import { ownerLabel, planLabel, type OrgAccount } from "@/lib/org/account";
 import {
   AU_STATES,
   formatAbn,
@@ -21,21 +23,47 @@ import { OrgCredentialModal } from "./org-credential-modal";
 import { LogoUploader } from "./logo-uploader";
 import type { OrgActions } from "./types";
 
-/* The Organisation screen — the company profile, on the staff card's machinery.
+/* The Organisation screen — the company profile.
 
-   WHAT CHANGED, BEYOND BEING REACT. The old screen was an HTML string with
-   three cards, and the third one ("Licences & insurance") was five text boxes:
-   one ARC authorisation, one contractor licence, one insurance policy. A
-   business with two policies had nowhere to put the second. Those are rows now,
-   and the section below is a wall of credential cards you click to edit —
-   the same plastic the staff card carries, for the company's own papers.
+   THE PAGE HAD TWO SHELLS INSIDE EACH OTHER. `.wrap` is the dashboard's page
+   frame (40px of padding, centred at 1500) and `.prof` is the STAFF CARD's
+   frame (another 32/40, centred at its own max-width). This screen nested one
+   in the other, so the cards were centred inside a box that was itself centred,
+   while the `<h1>` stayed at the left edge of the outer one: measured at
+   1440px, the heading sat at x=40 and the cards it headed began at x=322, with
+   282px of dead page to their right. That is the whole reason the screen did
+   not look like the rest of the app — nothing was wrong with the cards.
 
-   The hints went with it. "Shown across HeyTiff — including under the logo" and
-   "Checked against the ATO checksum on save" described the software to itself;
-   the one help line that survives is the State field's, because it says
-   something the field does NOT otherwise say: it picks your holiday calendar.
-   A rejected ABN now marks the ABN box, which is what the removed sentence was
-   really trying to promise. */
+   It is one shell now, the one its siblings under /dashboard/admin use:
+   `.wrap > .stg`, with the Admin breadcrumb those pages all carry and this one
+   was missing. `.org-stg` is a little wider than `.adm-stg` because this screen
+   has a two-column brand row and a grid of credentials where Tax and the
+   integrations have lists.
+
+   WHAT ELSE MOVED.
+
+     THE LOGO IS ON THE SCREEN. It was the last field of the Company identity
+     EDIT form — invisible unless you pressed Edit on a card named after
+     something else. It is the first card now, beside a live preview of the
+     company card it feeds, and it saves on drop.
+
+     THE COMPANY CARD LEFT THE IDENTITY CARD. It was the read view of a section
+     whose edit view was six text boxes, so pressing Edit replaced the object
+     you were reading with an unrelated form — and it was a 460px card sitting
+     in a 780px one with the rest of the row empty. It is the preview in the
+     brand row now, next to the logo that changes it, and identity reads as the
+     same labelled rows it edits.
+
+     WEBSITE STOPPED BEING AN ORPHAN. It was one lone fact row under the card,
+     the only survivor of identity's read view. It is a field among its own.
+
+   The compliance COLUMNS are still gone from this screen: the ARC
+   authorisation, the contractor licence and the insurance policy are rows in
+   org_credentials (docs/migrations/org_credentials.sql).
+
+   The hints are still gone too. Two lines are allowed to exist and both say
+   something their control does not: the State field picks your holiday
+   calendar, and the logo goes to customers. */
 
 function identityValues(o: OrgSettings): Record<string, string> {
   return {
@@ -69,9 +97,15 @@ function orgInitials(name: string): string {
     .join("");
 }
 
+/** A website as typed, made clickable — people write it without the scheme. */
+function href(site: string): string {
+  return site.startsWith("http") ? site : `https://${site}`;
+}
+
 export function OrgScreen({
   org,
   credentials,
+  account,
   logoUrl,
   today,
   addressLookup = false,
@@ -79,6 +113,9 @@ export function OrgScreen({
 }: {
   org: OrgSettings;
   credentials: OrgCredential[];
+  /** whose account this is — owner, size, age, plan. Optional so a caller that
+      has no session to resolve "is that you" against can leave it out. */
+  account?: OrgAccount | null;
   /** signed at render — the bucket is private, so this expires */
   logoUrl: string | null;
   /** AU calendar date, so expiries agree with the dashboard chips */
@@ -90,27 +127,39 @@ export function OrgScreen({
   return (
     <div className="page in">
       <div className="wrap">
-        <div className="stg">
-          <div className="v2head" style={{ marginBottom: 22 }}>
+        <div className="stg org-stg">
+          <div className="v2head" style={{ marginBottom: 26 }}>
             <div>
-              <h1>
-                Organisation
-              </h1>
+              <Link href="/dashboard/admin" className="int-back">
+                <Icon name="chevL" size={15} />
+                Admin
+              </Link>
+              <h1 style={{ margin: "10px 0 0" }}>Organisation</h1>
             </div>
           </div>
 
-          <div className="prof" style={{ maxWidth: 860 }}>
-            <IdentitySection org={org} logoUrl={logoUrl} actions={actions} />
-            <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
-            <CredentialsSection credentials={credentials} today={today} actions={actions} />
-          </div>
+          <BrandSection org={org} logoUrl={logoUrl} actions={actions} />
+          <IdentitySection org={org} actions={actions} />
+          <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
+          <CredentialsSection credentials={credentials} today={today} actions={actions} />
+          {account && <AccountSection account={account} />}
         </div>
       </div>
     </div>
   );
 }
 
-function IdentitySection({
+/* Your business — the logo, and the thing the logo lands on.
+
+   The two halves are one subject: the tile is the only control on the screen
+   that changes what a customer sees, and the card beside it is what they see.
+   Uploading and then hunting for the result on another card was the arrangement
+   this replaces.
+
+   No Edit button, because there is nothing here to hold in a draft — the logo
+   writes on drop, and the names it prints are edited on the card below. Same
+   bargain the credentials card makes. */
+function BrandSection({
   org,
   logoUrl,
   actions,
@@ -119,56 +168,98 @@ function IdentitySection({
   logoUrl: string | null;
   actions: OrgActions;
 }) {
-  const values = identityValues(org);
-  const trading = values.trading_name;
+  const trading = org.trading_name ?? "";
   const gst = org.gst_registered;
 
-  const read = (
-    <>
-      {/* LIGHT plastic, where a staff card is dark: same object, other side of
-          the relationship — the business that issues the cards. */}
-      <IdCard
-        variant="light"
-        badge={{ label: "Company", color: "#2E68FF" }}
-        photoUrl={logoUrl}
-        initials={orgInitials(trading || org.legal_name || "")}
-        name={trading || "Name your business"}
-        sub={values.legal_name || "Trading name not set"}
-        facts={[
-          { em: "ABN", b: formatAbn(values.abn) || "—" },
-          { em: "ACN", b: formatAcn(values.acn) || "—" },
-          {
-            em: "GST",
-            b: gst === true ? "Registered" : gst === false ? "Not registered" : "—",
-            tone: gst === true ? "ok" : undefined,
-          },
-        ]}
-      />
-      <div className="ro-rows">
-        <FactRow
-          label="Website"
-          value={
-            values.website ? (
-              <a
-                className="ro-link"
-                href={values.website.startsWith("http") ? values.website : `https://${values.website}`}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                {values.website}
-              </a>
-            ) : (
-              ""
-            )
-          }
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name="hexagon" size={18} />
+        </span>
+        <span>
+          <b>Your business</b>
+          <em>How the company appears to a customer</em>
+        </span>
+      </div>
+
+      <div className="orgbrand">
+        <LogoUploader logoUrl={logoUrl} onSet={actions.onSetLogo} onClear={actions.onClearLogo} />
+
+        {/* LIGHT plastic, where a staff card is dark: same object, other side
+            of the relationship — the business that issues the cards. And the
+            one card with NO issuer line: unset it read "HeyTiff", which on a
+            card meant to show a customer whose business this is named the
+            platform instead; set to the trading name it printed that name
+            twice, once in 10px caps directly above itself in 21px. */}
+        <IdCard
+          variant="light"
+          showIssuer={false}
+          badge={{ label: "Company", color: "#2E68FF" }}
+          photoUrl={logoUrl}
+          initials={orgInitials(trading || org.legal_name || "")}
+          name={trading || "Name your business"}
+          sub={org.legal_name || "Legal name not set"}
+          facts={[
+            { em: "ABN", b: formatAbn(org.abn) || "—" },
+            { em: "ACN", b: formatAcn(org.acn) || "—" },
+            {
+              em: "GST",
+              b: gst === true ? "Registered" : gst === false ? "Not registered" : "—",
+              tone: gst === true ? "ok" : undefined,
+            },
+          ]}
         />
       </div>
-    </>
+    </div>
+  );
+}
+
+function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
+  const values = identityValues(org);
+
+  /* Read and edit name the same six things in the same order, which is what
+     they did not do before: the read view was a piece of plastic and the edit
+     view was these boxes, so pressing Edit moved everything. */
+  const read = (
+    <div className="ro-rows">
+      <FactRow label="Trading name" value={values.trading_name} />
+      <FactRow label="Legal name" value={values.legal_name} />
+      <FactRow label="ABN" value={formatAbn(values.abn)} />
+      <FactRow label="ACN" value={formatAcn(values.acn)} />
+      <FactRow
+        label="GST"
+        value={
+          org.gst_registered === true
+            ? "Registered"
+            : org.gst_registered === false
+              ? "Not registered"
+              : ""
+        }
+      />
+      <FactRow
+        label="Website"
+        value={
+          values.website ? (
+            <a
+              className="ro-link"
+              href={href(values.website)}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {values.website}
+            </a>
+          ) : (
+            ""
+          )
+        }
+      />
+    </div>
   );
 
   return (
     <SectionCard
-      icon="hexagon"
+      icon="fingerprint"
       title="Company identity"
       sub="Who the business is on paper"
       values={values}
@@ -233,15 +324,6 @@ function IdentitySection({
                 placeholder="e.g. smithair.com.au"
                 value={draft.website}
                 onChange={(v) => set("website", v)}
-              />
-            </Field>
-          </div>
-          <div className="frow">
-            <Field label="Logo">
-              <LogoUploader
-                logoUrl={logoUrl}
-                onSet={actions.onSetLogo}
-                onClear={actions.onClearLogo}
               />
             </Field>
           </div>
@@ -410,10 +492,7 @@ function CredentialsSection({
         </span>
         <span>
           <b>Licences &amp; insurance</b>
-          <em>
-            What lets the business trade — each one tracks its number and expiry, and warns on the
-            dashboard before it lapses
-          </em>
+          <em>What lets the business trade</em>
         </span>
       </div>
 
@@ -448,6 +527,71 @@ function CredentialsSection({
           today={today}
         />
       )}
+    </div>
+  );
+}
+
+/* The account — whose it is, how big, how old, what tier.
+
+   Read-only on purpose, and each fact points at whatever DOES own it rather
+   than growing a control here: the team count links to Team, and ownership
+   moves through the handover flow. See lib/org/account.ts.
+
+   Last on the page because it is the only card that isn't about the company as
+   a customer sees it. */
+function AccountSection({ account }: { account: OrgAccount }) {
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name="usershield" size={18} />
+        </span>
+        <span>
+          <b>Account</b>
+          <em>Who holds this HeyTiff account</em>
+        </span>
+      </div>
+
+      <div className="orgacct">
+        <span className="orgacct-f">
+          <em>Primary owner</em>
+          <b>
+            {ownerLabel(account)}
+            {account.ownerIsYou && <span className="orgacct-you">You</span>}
+          </b>
+          {account.ownerEmail && <i>{account.ownerEmail}</i>}
+        </span>
+
+        <span className="orgacct-f">
+          <em>Team</em>
+          <b>
+            {account.activeStaff} active
+          </b>
+          <i>
+            {account.totalStaff === account.activeStaff
+              ? "on the books"
+              : `of ${account.totalStaff} on the books`}
+            {" · "}
+            <Link className="ro-link" href="/dashboard/team">
+              Team
+            </Link>
+          </i>
+        </span>
+
+        <span className="orgacct-f">
+          <em>With HeyTiff since</em>
+          {/* created_at is a TIMESTAMPTZ, so it goes through auDayOf rather than
+              being sliced: every AU state is ahead of UTC, and an evening
+              signup sliced in UTC reads a day early. Numeric, to match the
+              expiry dates on the card above it. */}
+          <b>{account.createdAt ? formatAuDate(auDayOf(account.createdAt)) : "—"}</b>
+        </span>
+
+        <span className="orgacct-f">
+          <em>Plan</em>
+          <b>{planLabel(account.plan)}</b>
+        </span>
+      </div>
     </div>
   );
 }

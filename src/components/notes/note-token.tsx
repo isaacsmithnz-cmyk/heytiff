@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
-import { appendSpoken, useDictation } from "./dictation";
+import { LiveWords, appendSpoken, useDictation } from "./dictation";
 import { RecordingCard, RecordingMeter } from "./recording-card";
 import { READING_BACK_NOTE } from "./waits";
 import { Waiting } from "@/components/ui/orb";
@@ -888,8 +888,17 @@ function Strip({
 }) {
   const mic = useFieldMic(value, onChange);
   const { dict } = mic;
-  const shown = dict.interim ? appendSpoken(value, dict.interim) : value;
   const busy = disabled || dict.recording || dict.transcribing;
+  /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
+     and from the start of a recording that already has something to show —
+     but NOT on an empty field with nothing heard yet, because "Listening…" is
+     the only thing saying so until the first word lands, and a placeholder
+     needs the field it belongs to.
+
+     `dict.interim` on its own, not `recording &&`: the words are still on
+     screen through the read-back, and swapping back to the field for that
+     second and then forward again is two moves where the design has none. */
+  const river = Boolean(dict.interim) || (dict.recording && value.trim() !== "");
 
   if (flow.open && flow.stage !== "idle") {
     return (
@@ -914,19 +923,33 @@ function Strip({
     <>
       <div className={"wb2-strip" + (dict.recording ? " live" : "")}>
         {dict.recording && <span className="wb2-recdot" aria-hidden="true" />}
-        <input
-          className="wb2-stripin"
-          value={shown}
-          placeholder={dict.recording ? "Listening…" : (placeholder ?? "Add a note, or say it…")}
-          aria-label={label}
-          disabled={busy}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            commit();
-          }}
-        />
+        {/* THE WORDS ARRIVE IN THE FIELD'S OWN BOX, not in the field. An
+            <input> can only take the sentence as one string, so every partial
+            swapped the lot — and worse here than on the card: a disabled input
+            never scrolls, so on one line the words being spoken sat off the
+            right-hand edge where nobody could read them. The river carries
+            `.wb2-stripin` so it is the same 30px box, and it rides SIDEWAYS.
+
+            Only once there is something to show: the field keeps the frame
+            while the box is empty, because "Listening…" is the only thing
+            saying so before the first word lands. */}
+        {river ? (
+          <LiveWords line className="wb2-stripin" label={label} said={value} text={dict.interim} />
+        ) : (
+          <input
+            className="wb2-stripin"
+            value={value}
+            placeholder={dict.recording ? "Listening…" : (placeholder ?? "Add a note, or say it…")}
+            aria-label={label}
+            disabled={busy}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              commit();
+            }}
+          />
+        )}
         {mic.voiceEnabled && dict.recording ? (
           <>
             {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
@@ -1150,8 +1173,17 @@ function FieldPosture({
 }) {
   const mic = useFieldMic(value, onChange);
   const { dict } = mic;
-  const shown = dict.interim ? appendSpoken(value, dict.interim) : value;
   const busy = disabled || dict.recording || dict.transcribing;
+  /* WHEN THE FIELD HANDS ITS BOX TO THE RIVER. Any time there are live words,
+     and from the start of a recording that already has something to show —
+     but NOT on an empty field with nothing heard yet, because "Listening…" is
+     the only thing saying so until the first word lands, and a placeholder
+     needs the field it belongs to.
+
+     `dict.interim` on its own, not `recording &&`: the words are still on
+     screen through the read-back, and swapping back to the field for that
+     second and then forward again is two moves where the design has none. */
+  const river = Boolean(dict.interim) || (dict.recording && value.trim() !== "");
 
   const offer = mic.found && (
     <Nudge
@@ -1194,19 +1226,25 @@ function FieldPosture({
     return (
       <div className="wb2-dictline">
         <div className="wb2-addrow">
-          <input
-            className="wb2-fi"
-            placeholder={dict.recording ? "Listening…" : placeholder}
-            value={shown}
-            disabled={busy}
-            aria-label={label}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              onCommit?.();
-            }}
-          />
+          {/* Same swap as the strip, in the other one-line posture — see the
+              note there. `.wb2-fi` is a 34px box either way. */}
+          {river ? (
+            <LiveWords line className="wb2-fi" label={label} said={value} text={dict.interim} />
+          ) : (
+            <input
+              className="wb2-fi"
+              placeholder={dict.recording ? "Listening…" : placeholder}
+              value={value}
+              disabled={busy}
+              aria-label={label}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                onCommit?.();
+              }}
+            />
+          )}
           {mic.voiceEnabled && dict.recording ? (
             <>
               {/* THE CARD'S INSTRUMENT, COMPACT. This row showed an orb and a
@@ -1273,14 +1311,28 @@ function FieldPosture({
 
   return (
     <div className={"wb2-dict" + (className ? ` ${className}` : "")}>
-      <textarea
-        className="wb2-notes"
-        rows={rows}
-        placeholder={dict.recording ? "Listening…" : placeholder}
-        value={shown}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={busy}
-      />
+      {/* And the same again in the posture closest to the capture card. A
+          paragraph has no `rows`, so it is handed the number and the sheet
+          works out the height the textarea would have had — measured, 74px
+          either way at rows=3. */}
+      {river ? (
+        <LiveWords
+          className="wb2-notes"
+          rows={rows}
+          label={label}
+          said={value}
+          text={dict.interim}
+        />
+      ) : (
+        <textarea
+          className="wb2-notes"
+          rows={rows}
+          placeholder={dict.recording ? "Listening…" : placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={busy}
+        />
+      )}
       {mic.voiceEnabled && (
         <div className="wb2-dictbar">
           {dict.recording ? (

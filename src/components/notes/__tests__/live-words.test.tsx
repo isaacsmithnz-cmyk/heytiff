@@ -138,7 +138,7 @@ it("caps the step so a long burst still keeps up with the voice", () => {
    and the ride has to happen in a LAYOUT effect, before the frame is painted,
    or it is a visible snap on every partial. */
 it("scrolls to the newest word", () => {
-  const el = () => document.querySelector(".wb2-livetext") as HTMLElement;
+  const el = () => document.querySelector(".wb2-lwbox") as HTMLElement;
   const { rerender } = render(<LiveWords text="tell" />);
   /* jsdom lays nothing out, so the heights are stated here — the assertion is
      that the component acts on them, not that jsdom can wrap text. */
@@ -151,4 +151,58 @@ it("scrolls to the newest word", () => {
   /* …and once something has gone out of sight above, the top fades rather
      than being sliced. */
   expect(el().className).toContain("over");
+});
+
+/* ── THE SAME RIVER, IN A FIELD'S BOX ──
+
+   The field mics hand their box over rather than shoving the sentence into
+   the field, and what makes that swap invisible is that the river wears the
+   FIELD'S own class. The height parity is measured in a browser against the
+   real sheet — 30px, 34px and 74px, either way — but which classes end up on
+   the element is jsdom's to check. */
+it("wears the box it was handed", () => {
+  render(<LiveWords className="wb2-stripin" line text="tell Luke" />);
+  const box = document.querySelector(".wb2-lwbox")!;
+
+  expect(box.className).toContain("wb2-stripin");
+  expect(box.className).toContain("one");
+});
+
+/* A paragraph has no `rows`, so the block posture hands the number down and
+   the sheet works out the height the textarea would have had. */
+it("carries the row count the textarea was sized to", () => {
+  render(<LiveWords className="wb2-notes" rows={3} text="tell Luke" />);
+  expect(document.querySelector<HTMLElement>(".wb2-lwbox")!.style.getPropertyValue("--lwrows")).toBe(
+    "3"
+  );
+});
+
+/* ON ONE LINE THE WORDS RIDE SIDEWAYS, and this is the half that was not
+   merely jumpy but unreadable: a disabled <input> never scrolls when its
+   value is replaced, so everything past the width of the field was off the
+   right-hand edge for the whole recording. */
+it("rides sideways on one line, and fades what has gone off the left", () => {
+  const el = () => document.querySelector(".wb2-lwbox") as HTMLElement;
+  const { rerender } = render(<LiveWords line text="tell" />);
+  Object.defineProperty(el(), "scrollWidth", { value: 900, configurable: true });
+  Object.defineProperty(el(), "clientWidth", { value: 151, configurable: true });
+
+  rerender(<LiveWords line text="tell Luke" />);
+
+  expect(el().scrollLeft).toBe(900);
+  expect(el().className).toContain("over");
+});
+
+/* …and it is the WIDTH that decides, not the height. A one-line box is never
+   taller than its content, so measuring the wrong axis leaves the fade off
+   for the whole recording. */
+it("does not read the vertical axis on a one-line box", () => {
+  const el = () => document.querySelector(".wb2-lwbox") as HTMLElement;
+  const { rerender } = render(<LiveWords line text="tell" />);
+  Object.defineProperty(el(), "scrollHeight", { value: 900, configurable: true });
+  Object.defineProperty(el(), "clientHeight", { value: 30, configurable: true });
+
+  rerender(<LiveWords line text="tell Luke" />);
+
+  expect(el().className).not.toContain("over");
 });

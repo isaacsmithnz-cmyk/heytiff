@@ -107,11 +107,11 @@ describe("Design Studio shell", () => {
     );
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Summary" }));
-    // the basis chips carry the settings the loads were computed from
+    /* the row of six: three measurements, then the three assumptions every
+       one of them rests on — the same document the customer's link renders */
+    expect(screen.getByText("Calculated heat load")).toBeInTheDocument();
+    expect(screen.getByText("Climate zone")).toBeInTheDocument();
     expect(screen.getByText(/^Zone \d/)).toBeInTheDocument();
-    expect(
-      screen.getByRole("group", { name: "Design snapshot" })
-    ).toBeInTheDocument();
     expect(
       screen.getByText("An empty design is an empty sheet")
     ).toBeInTheDocument();

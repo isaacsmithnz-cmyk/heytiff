@@ -27,6 +27,19 @@
   --dsd-ok: var(--ds-ok-d, #00806c);
   --dsd-warn: var(--ds-amber-d, #b45309);
 
+  /* THE SHEET RESPONDS TO ITS OWN WIDTH, NOT THE WINDOW'S.
+
+     The three chromes hand this document wildly different amounts of room
+     from the same viewport: the customer's link gives it the page, and the
+     Summary step gives it what is left after the app's 224px sidebar and the
+     panel's padding — about 976px on a 1280 laptop, which is BELOW the width
+     the rooms table needs. A viewport media query would have left the owner
+     reading a block list on a screen wide enough for the table, or worse,
+     reading a table with its model numbers cut off.
+
+     Paper is the third case and has no viewport worth the name at all. */
+  container-type: inline-size;
+
   display: block;
   color: var(--dsd-ink);
   font-variant-numeric: tabular-nums;
@@ -122,6 +135,60 @@
   color: var(--dsd-ink-3);
 }
 .dsd-job b { font-size: 17px; font-weight: 800; letter-spacing: -0.025em; line-height: 1; }
+/* provenance, not a field: WHICH ROW the number came from. Owner-only. */
+.dsd-src {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--dsd-ink-3);
+}
+
+/* ── typing INTO the letterhead ──
+   The owner's three fields wear the document's own type and show nothing but
+   a dashed rule on hover: the sheet reads as a document until you reach for
+   it. `.dsd-f` is only ever rendered by the owner's copy — the customer's
+   passes no fields at all, so none of this can reach a client. */
+.dsd-f {
+  font: inherit;
+  width: 100%;
+  min-width: 0;
+  color: var(--dsd-ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed transparent;
+  border-radius: 2px;
+  padding: 1px 2px;
+  margin-left: -2px;
+}
+.dsd-f:hover { border-bottom-color: rgba(10, 12, 20, 0.3); background: #f4f6f8; }
+.dsd-f:focus {
+  outline: none;
+  background: #fff;
+  border-bottom-color: var(--teal-d, #00a389);
+  box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.16);
+}
+.dsd-f::placeholder { color: var(--dsd-ink-3); font-weight: 500; }
+.dsd-f.n { font-size: 15px; font-weight: 800; line-height: 1.45; }
+.dsd-f.a {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--dsd-ink-2);
+  resize: none; /* field-sizing grows it — no drag grip on a letterhead */
+  field-sizing: content;
+}
+.dsd-f.j {
+  width: 6.5rem;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── the row of six ──
    Equal columns and one gap, so nothing is nudged out of line. Items stretch
@@ -253,33 +320,46 @@
 .dsd-rt td.num { text-align: right; white-space: nowrap; }
 .dsd-rt td.num { font-weight: 700; color: var(--dsd-ink); }
 .dsd-rt td.rm { font-weight: 700; color: var(--dsd-ink); font-size: 14px; letter-spacing: -0.012em; }
-/* a model number is ONE token; wrapping it mid-code makes it unreadable */
-.dsd-rt td.mdl {
+/* A MODEL NUMBER WRAPS RATHER THAN CLIPS.
+
+   It was `nowrap` + an ellipsis, on the reasoning that a model is one token
+   and breaking it mid-code makes it unreadable. That is true, and it is still
+   the wrong trade: `PUMY-SP112VKM` / `D2-A` is ugly and complete, while
+   `PUMY-SP112VK…` has lost the characters a customer needs to look the unit
+   up. Ugliness is recoverable; information loss is not — and the ellipsis
+   failed SILENTLY, which is how it got shipped in the first place.
+
+   The column shares below are sized so neither model column ever reaches
+   this, against the longest names the shipped catalogue actually holds. */
+.dsd-rt td.mdl,
+.dsd-rt td.odu {
   font-weight: 600;
   color: var(--dsd-ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .dsd-rt td.mdl.none { font-weight: 500; font-style: italic; color: var(--dsd-ink-3); }
 /* the style is a property of the unit, not another identifier, so it sits
    quieter than the model beside it */
 .dsd-rt td.sty.none { color: var(--dsd-ink-3); }
-/* MEASURED, not guessed. Rendered against the real pack in the real face, the
-   widest cell in each column plus its 14px gutter needs 825px across the nine
-   — so the shares below are that need as a percentage, with the slack spread
-   over the columns that can wrap. Getting this wrong is not a wobble in the
-   layout: `td.mdl` clips with an ellipsis, and half a model number is the one
-   thing on a customer's row they cannot look up. */
-.dsd-rt col.c-room { width: 15%; }
+/* MEASURED AGAINST THE SHIPPED PACK, not guessed and not measured against a
+   convenient fixture. Rendered in the real face, the worst string each column
+   can actually hold — `PEFY-P125VMHS-E-F` and `PUMY-SP112VKMD2-A` are the
+   longest models in the ME catalogue, `Compact cassette` the longest form
+   factor — needs 933px across the nine including gutters. These shares are
+   that need at a 1024px container, with the ~9% slack spread onto the two
+   model columns, because a wrap hurts them most.
+
+   So every column clears its worst REAL case before the container query below
+   hands the table over to the block form. */
+.dsd-rt col.c-room { width: 14%; }
 .dsd-rt col.c-floor { width: 10%; }
-.dsd-rt col.c-area { width: 8%; }
-.dsd-rt col.c-load { width: 8%; }
-.dsd-rt col.c-cap { width: 9%; }
-.dsd-rt col.c-mdl { width: 14%; }
-.dsd-rt col.c-style { width: 12%; }
-.dsd-rt col.c-odu { width: 13%; }
-.dsd-rt col.c-cov { width: 11%; }
+.dsd-rt col.c-area { width: 7%; }
+.dsd-rt col.c-load { width: 7%; }
+.dsd-rt col.c-cap { width: 7%; }
+.dsd-rt col.c-mdl { width: 16%; }
+.dsd-rt col.c-style { width: 14%; }
+.dsd-rt col.c-odu { width: 17%; }
+.dsd-rt col.c-cov { width: 8%; }
 /* a shared outdoor is a fact about the system, not a model number */
 .dsd-shared {
   display: inline-block;
@@ -343,6 +423,62 @@
 .dsd-grp li b { font-weight: 700; color: var(--dsd-ink); white-space: nowrap; }
 .dsd-grp li i { display: block; font-style: normal; font-size: 12px; color: var(--dsd-ink-3); margin-top: 2px; }
 
+/* ── the Material picklist ──
+   Four faint cards rather than one long table: it is a list somebody works
+   DOWN, in the order they load a van, and a shelf you have finished with
+   should be visibly finished with. The cards hug their content — Units runs
+   to seven lines where Electrical runs to three, and stretching them to match
+   would only add dead space. */
+.dsd-pick {
+  margin-top: clamp(44px, 6vw, 88px);
+  padding-top: clamp(28px, 3.6vw, 46px);
+  border-top: 1px solid var(--dsd-rule-2);
+  break-inside: avoid;
+}
+.dsd-pick-h {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: clamp(20px, 2.6vw, 32px);
+}
+.dsd-pick-h h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.028em;
+  line-height: 1.2;
+}
+.dsd-pick-ct { margin-left: auto; font-size: 12.5px; font-weight: 600; color: var(--dsd-ink-3); }
+/* the owner's push, and whatever it has to report about the last one. Never
+   printed — see the print block at the foot of this file. */
+.dsd-pick-act { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dsd-pick-act em {
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dsd-ink-3);
+}
+.dsd-pick-act em.ok { color: var(--dsd-ok); }
+.dsd-pick-act em.warn { color: var(--dsd-warn); }
+.dsd-pick-act em.err { color: var(--ds-red-d, #e0264f); }
+.dsd-pick-g {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: clamp(14px, 1.8vw, 22px);
+  align-items: start;
+}
+/* scoped to the picklist: the per-system consumables stay uncarded, because
+   there they are a footnote to the system above them rather than the thing */
+.dsd-grp.card {
+  background: var(--dsd-panel);
+  border: 1px solid var(--dsd-rule);
+  border-radius: 14px;
+  padding: 16px 18px 8px;
+}
+.dsd-grp.card h3 { border-bottom-color: var(--dsd-rule-2); }
+.dsd-grp.card li span { min-width: 0; }
+
 .dsd-empty {
   margin: clamp(34px, 4.4vw, 58px) 0 0;
   font-size: 14px;
@@ -363,9 +499,14 @@
 /* ── responsive ──
    Three breakpoints, each moving ONE thing, because they move at different
    widths: the band loses its side-by-side outdoor first, then the table gives
-   way, then the masthead stacks. */
-@media (max-width: 1100px) {
+   way, then the masthead stacks.
+
+   All three are CONTAINER queries — see the note on `container-type` above.
+   The number in each is how much room the DOCUMENT has, which is the only
+   width any of these decisions actually depends on. */
+@container (max-width: 1100px) {
   .dsd-figs { grid-template-columns: repeat(3, 1fr); gap: 26px 22px; }
+  .dsd-pick-g { grid-template-columns: repeat(2, 1fr); }
   .dsd-band { grid-template-columns: minmax(0, 1fr); }
   .dsd-odu {
     padding-left: 0;
@@ -377,11 +518,10 @@
 
 /* THE TABLE STOPS BEING A TABLE AT 1024, NOT AT 768.
 
-   Nine columns need about 825px of content width to show every cell whole.
-   Below roughly a 1024px viewport they do not get it, and `td.mdl` responds by
-   ellipsising — silently, and only for the people whose model names are long.
-   A row that reads "MSZ-AP25V…" has lost the one thing on it a customer can
-   look up, so the table gives way to the block form well before that.
+   Nine columns need 933px to show every cell of the shipped catalogue whole
+   (see the column shares above). Below a 1024px container they do not get it
+   and the model columns start wrapping mid-code, so the table gives way to
+   the block form rather than degrading into one.
 
    Each row becomes a block with its column name in front of the value, off the
    `data-l` attribute every cell carries.
@@ -389,7 +529,7 @@
    This also decides PRINT: A4 portrait is about 700px of content, so a printed
    sheet takes the block form and landscape keeps the table. That is the right
    way round — the block form is longer, and a portrait page has the room. */
-@media (max-width: 1023px) {
+@container (max-width: 1023px) {
   .dsd-rt thead { display: none; }
   .dsd-rt,
   .dsd-rt tbody,
@@ -407,18 +547,41 @@
     color: var(--dsd-ink-3);
   }
   .dsd-rt td.num { text-align: left; }
-  /* the model is the row's headline once the columns are gone, so it stops
-     being the thing that gets cut */
-  .dsd-rt td.mdl { white-space: normal; overflow: visible; }
   .dsd-rt .dsd-cv i { display: none; }
   .dsd-rt .dsd-cv { min-width: 0; }
 }
 
-@media (max-width: 767px) {
+@container (max-width: 767px) {
   .dsd-mast { grid-template-columns: 1fr; gap: 26px; }
   /* one column stacked: centred text under a left-ranged headline reads
      broken, so the figures range left too */
   .dsd-figs { grid-template-columns: repeat(2, 1fr); gap: 22px 18px; }
   .dsd-figs > div { justify-content: flex-start; text-align: left; }
-  .dsd-consum { grid-template-columns: 1fr; gap: 22px; }
+  .dsd-consum,
+  .dsd-pick-g { grid-template-columns: 1fr; gap: 22px; }
+}
+
+/* ── print ──
+   The document is already a document; printing takes the furniture away
+   rather than building a second layout.
+
+   ANYTHING THAT LIVES ONLY IN A BAR VANISHES FROM THE PDF, which is why the
+   business's identity sits in the masthead and not in the chrome above it.
+   The two controls that DO appear inside the document — the owner's letterhead
+   fields and the Add-to-job push — cannot be pressed on paper, so the fields
+   print as the text they contain and the push does not print at all. */
+@media print {
+  .dsd-pick-act { display: none !important; }
+  /* an input on paper is a box drawn around a value; the value is the point */
+  .dsd-f {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+  }
+  .dsd-sys,
+  .dsd-pick,
+  .dsd-mast { break-inside: avoid; }
+  .dsd-rt tr { break-inside: avoid; }
 }

@@ -4,7 +4,14 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
-import { fmt, LinesTable, OutdoorBlock, RoomsTable } from "./sheet-tables";
+import {
+  fmt,
+  LinesTable,
+  OutdoorBlock,
+  RoomsTable,
+  SnapshotList,
+  tone,
+} from "./sheet-tables";
 import { PlanFigure } from "./plan-figure";
 import { Letterhead } from "@/components/org/letterhead";
 import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
@@ -71,24 +78,7 @@ function VariantCover({ v, brand }: { v: PrintVariant; brand: OrgBrand }) {
       ) : (
         <>
           <section className="ds-jobpack-sec">
-            <dl className="ds-letter-snap">
-              <div className="lead">
-                <dt>Design load</dt>
-                <dd>{fmt(v.snapshot.totalLoadKw, "kW")}</dd>
-              </div>
-              <div>
-                <dt>{v.snapshot.roomCount === 1 ? "Room" : "Rooms"}</dt>
-                <dd>{v.snapshot.roomCount}</dd>
-              </div>
-              <div>
-                <dt>Floor area</dt>
-                <dd>{fmt(v.snapshot.areaM2, "m²")}</dd>
-              </div>
-              <div>
-                <dt>{v.snapshot.systemCount === 1 ? "System" : "Systems"}</dt>
-                <dd>{v.snapshot.systemCount}</dd>
-              </div>
-            </dl>
+            <SnapshotList snapshot={v.snapshot} />
           </section>
 
           {v.sheet.systems.map((s) => (
@@ -104,7 +94,11 @@ function VariantCover({ v, brand }: { v: PrintVariant; brand: OrgBrand }) {
                   <span>
                     <b>{fmt(s.capacityKw, "kW")}</b> capacity
                   </span>
-                  <span className={s.status === "covered" ? "ok" : "under"}>
+                  {/* the SHARED verdict, not a local re-derivation: this line
+                      inlined `covered ? ok : under`, so a system with no
+                      measurable coverage printed amber on paper while the
+                      screen greyed the same figure out. */}
+                  <span className={tone(s.status, s.pct)}>
                     <b>{s.pct == null ? "—" : `${s.pct}%`}</b> covered
                   </span>
                 </div>

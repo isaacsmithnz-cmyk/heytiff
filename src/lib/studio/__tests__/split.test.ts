@@ -163,6 +163,9 @@ describe("A1 — single-floor split", () => {
     expect(sys.outdoorModel).toBe("PUZ-M100VKA-A");
     expect(sys.totalPipeM).toBe(30);
     expect(sys.lines).toContainEqual({
+      /* the shelf is part of the line — the sheet groups consumables and the
+         grouping is derived, never decided at a use site */
+      group: "pipe",
       name: "ø9.52 / ø15.88 pair coil",
       sub: "liquid / gas mm",
       qty: "30 m",
@@ -171,11 +174,15 @@ describe("A1 — single-floor split", () => {
     expect(sys.lines.some((l) => l.name === "Additional refrigerant")).toBe(false);
     // and the units reach the whole-job pick, counted from what is placed
     expect(m.picklist).toContainEqual({
+      /* units get a shelf of their own, and only on the whole-job pick: the
+         per-system consumables never list them */
+      group: "units",
       name: "PLA-M100EA2-A",
       sub: "cassette-4way indoor unit · 10/11.2 kW",
       qty: "1",
     });
     expect(m.picklist).toContainEqual({
+      group: "units",
       name: "PUZ-M100VKA-A",
       sub: "outdoor unit · 10/11.2 kW",
       qty: "1",
@@ -238,6 +245,8 @@ describe("A3 — over-length warning", () => {
   it("charge kicks in beyond the 30 m free length: (56−30)×40 g", () => {
     const sys = buildSummaryModel(doc, pack).systems[0];
     expect(sys.lines).toContainEqual({
+      /* refrigerant sits with Pipe: you buy it against the run */
+      group: "pipe",
       name: "Additional refrigerant",
       sub: "beyond pre-charge",
       qty: "1040 g",
@@ -312,6 +321,7 @@ describe("A5 — empty design = empty schedule", () => {
     /* a drawn run the sheet cannot measure is STATED, not omitted — silence
        would read as "no pipe on this job" */
     expect(sys.lines).toContainEqual({
+      group: "pipe",
       name: "Pair coil",
       sub: "run drawn — calibrate the floor to quantify",
       qty: "—",

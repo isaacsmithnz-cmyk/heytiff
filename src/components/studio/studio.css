@@ -27,6 +27,13 @@
   --ds-ok-bg: rgba(0, 229, 192, 0.13);
   --ds-amber: #f0a431;
   --ds-amber-d: #b45309;
+  /* COVERAGE INK, and the one green that is allowed to carry meaning.
+     `--ds-ok` (#00a389) is the accent teal and measures 2.97 on the panel
+     grey — under the 3:1 graphic floor — so it cannot say "covered". This
+     darker green is what every "covered" figure has actually been painted
+     in, written out as a literal in five places before it had a name. Its
+     bright twin lands in the dark-chrome block below with --ds-amber-d. */
+  --ds-ok-d: #00806c;
   --ds-amber-bg: rgba(240, 164, 49, 0.14);
   --ds-teal-ink: #05887a;
   --ds-teal-bg: rgba(0, 229, 192, 0.15);
@@ -5548,7 +5555,10 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-print-sys-h h2 span { font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--gray500); margin-left: 8px; }
 .dstudio .ds-print-verdict { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11.5px; color: var(--gray500); }
 .dstudio .ds-print-verdict b { font-size: 13px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.dstudio .ds-print-verdict .ok b { color: #00806c; }
+.dstudio .ds-print-verdict .ok b { color: var(--ds-ok-d); }
+/* a system with no measurable coverage: the shared tone() greys it, and paper
+   has to agree with the screen about that as much as about the figure */
+.dstudio .ds-print-verdict .na b { color: var(--gray500); }
 .dstudio .ds-print-verdict .under b { color: var(--ds-amber-d); }
 
 #ds-printdoc { display: none; }
@@ -8537,6 +8547,7 @@ html[data-ds-display] .dstudio.editing {
   --ds-teal-ink: var(--teal);
   --ds-amber-d: #fbbf24;
   --ds-ok: #2ee9c9;
+  --ds-ok-d: #2ee9c9;
 }
 
 /* ── glass primitives ──
@@ -8944,6 +8955,19 @@ html[data-ds-display] .dstudio.editing {
 .ds-live-404 .ds-live-brand { font-size: 15px; margin-bottom: 6px; color: var(--teal, #00e5c0); }
 .ds-live-404 h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
 .ds-live-404 p { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.55; color: rgba(236, 238, 244, 0.65); }
+/* the dead-end branch reached FROM the sheet needs a way back to it; the
+   token-level 404 and the expired page are still dead ends, and rightly so */
+.ds-live-404 .ds-live-back {
+  margin-top: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: #eceef4;
+  font: 700 12px var(--font, var(--font-jakarta), sans-serif);
+  cursor: pointer;
+}
+.ds-live-404 .ds-live-back:hover { background: rgba(255, 255, 255, 0.14); }
 
 /* share card — the live-link URL row + armed revoke */
 .dstudio .ds-share-url {
@@ -9122,7 +9146,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 7px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #00806c;
+  color: var(--ds-ok-d);
 }
 .dstudio .ds-chrome-acts { display: flex; gap: 8px; flex-wrap: wrap; }
 .dstudio .ds-chrome-btn {
@@ -9383,7 +9407,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
 }
 /* measured on the tinted grounds, not assumed: #00806C / --ds-amber-d */
-.dstudio .ds-band-v .ok b { color: #00806c; }
+.dstudio .ds-band-v .ok b { color: var(--ds-ok-d); }
 .dstudio .ds-band-v .under b { color: var(--ds-amber-d); }
 .dstudio .ds-band-v .na b { font-weight: 500; color: var(--gray500); }
 
@@ -9391,7 +9415,7 @@ html[data-ds-display] .dstudio.editing {
 /* the picklist's push-to-job control, on the band beside the title */
 .dstudio .ds-pick-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dstudio .ds-pick-act em { font-style: normal; font-size: 12px; font-weight: 600; }
-.dstudio .ds-pick-act em.ok { color: #00806c; }
+.dstudio .ds-pick-act em.ok { color: var(--ds-ok-d); }
 /* pushed, but something needs a person: a figure that moved under a picked
    row, or a line the design has dropped. Amber, not red — nothing failed. */
 .dstudio .ds-pick-act em.warn { color: var(--ds-amber-d); }
@@ -9434,7 +9458,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-mat-table td.none { font-style: italic; color: var(--gray500); }
 /* state colours — (0,4,1), because the td.num body rule is (0,3,1) and a
    bare class pair loses (the td.ds-mat-model trap, one row down the file) */
-.dstudio .ds-mat-table td.num.ok { color: #00806c; }
+.dstudio .ds-mat-table td.num.ok { color: var(--ds-ok-d); }
 .dstudio .ds-mat-table td.num.under { color: var(--ds-amber-d); }
 .dstudio .ds-mat-table td.num.na { font-weight: 500; color: var(--gray500); }
 /* on the card, the last row's rule would double the card edge */

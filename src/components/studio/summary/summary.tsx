@@ -12,7 +12,7 @@ import {
 } from "@/lib/studio/summary";
 import type { SimApprovalState } from "@/lib/studio/sim-approval";
 import type { SimReady } from "./sim-card";
-import { fmt } from "./sheet-tables";
+import { fmt, SnapshotList } from "./sheet-tables";
 import { PicklistCard, SystemCard, UnservedCard } from "./system-card";
 import { ShareCard } from "./share-card";
 import { ContributorsCard } from "./contributors-card";
@@ -275,24 +275,7 @@ export function SummaryView({
 
       {/* ── the snapshot: the design load leads — it is the number the whole
             sheet is an argument about ── */}
-      <dl className="ds-letter-snap" role="group" aria-label="Design snapshot">
-        <div className="lead">
-          <dt>Design load</dt>
-          <dd>{fmt(snapshot.totalLoadKw, "kW")}</dd>
-        </div>
-        <div>
-          <dt>{snapshot.roomCount === 1 ? "Room" : "Rooms"}</dt>
-          <dd>{snapshot.roomCount}</dd>
-        </div>
-        <div>
-          <dt>Floor area</dt>
-          <dd>{fmt(snapshot.areaM2, "m²")}</dd>
-        </div>
-        <div>
-          <dt>{snapshot.systemCount === 1 ? "System" : "Systems"}</dt>
-          <dd>{snapshot.systemCount}</dd>
-        </div>
-      </dl>
+      <SnapshotList snapshot={snapshot} />
 
       {model.systems.map((s) => (
         <SystemCard key={s.systemId} sys={s} />

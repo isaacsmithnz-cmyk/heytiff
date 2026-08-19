@@ -11,8 +11,18 @@ import { trimPackForLive } from "@/lib/studio/packs/live-trim";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import { orgBrand } from "@/lib/org/query";
 import { NO_BRAND } from "@/lib/org/brand";
-import { LiveViewer } from "./live-viewer";
-import { isShareExpired, SHARE_TTL_DAYS } from "@/lib/studio/share";
+import {
+  buildDesignSnapshot,
+  buildSummaryModel,
+  designBasis,
+} from "@/lib/studio/summary";
+import { simApprovalState } from "@/lib/studio/sim-approval";
+import { LiveSheet } from "./live-sheet";
+import {
+  isShareExpired,
+  SHARE_TTL_DAYS,
+  shareExpiresAt,
+} from "@/lib/studio/share";
 
 /** A link that has aged out. Wears the same dead-link dress as not-found and
     says nothing about the design — an expired token shouldn't confirm what it
@@ -37,6 +47,17 @@ function ExpiredLink() {
    models the design references (the full catalogue is licensed data), and
    signed plan-image URLs minted here because the customer has no session to
    mint their own. Revoking nulls the token and this page 404s.
+
+   WHAT IT SERVES IS THE DESIGN. This route used to mount the simulator, and
+   a customer who opened the link their installer sent got a simulation rather
+   than a drawing of their own house. It now serves the design SHEET — the
+   same document, off the same derivation, as the Summary screen and the
+   printed pack (buildSummaryModel; #411 existed to delete a parallel model of
+   this artifact and there must not be a third).
+
+   The simulation is still here, as a way IN from the sheet rather than the
+   destination, and only where somebody has ticked it as fit to show — see
+   sim-approval.ts.
 
    Links also age out on their own (SHARE_TTL_DAYS): the token is the only
    thing protecting a design that anyone can read without signing in, so it
@@ -125,5 +146,43 @@ export default async function LivePage({
     })
   );
 
-  return <LiveViewer doc={doc} pack={pack} planUrls={planUrls} brand={brand} />;
+  /* THE DOCUMENT, derived once on the server. Pure functions over the doc and
+     the trimmed pack — the same three the Summary screen calls, so a figure
+     the customer reads cannot disagree with the one the owner is looking at.
+
+     Both dates are formatted HERE and shipped as strings: a date built in a
+     render body is a hydration failure waiting for midnight. en-AU because
+     the reader is the installer's customer, not the server's locale. */
+  const model = buildSummaryModel(doc, pack);
+  const snapshot = buildDesignSnapshot(doc);
+  const basis = designBasis(doc);
+  const day: Intl.DateTimeFormatOptions = {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  };
+  /* "prepared" is when the design was last SAVED, because the link is a live
+     window on it — dating it from when the link was made would put a date on
+     the sheet that the numbers under it have since moved past. */
+  const preparedOn = new Date(doc.meta.updatedAt).toLocaleDateString("en-AU", day);
+  const expiresOn = shareExpiresAt(
+    data.share_created_at as string
+  ).toLocaleDateString("en-AU", { day: "numeric", month: "long" });
+
+  return (
+    <LiveSheet
+      doc={doc}
+      pack={pack}
+      planUrls={planUrls}
+      brand={brand}
+      model={model}
+      snapshot={snapshot}
+      basis={basis}
+      preparedOn={preparedOn}
+      expiresOn={expiresOn}
+      /* absent, not disabled: nothing on this sheet advertises a simulation
+         the customer cannot open */
+      simOffered={simApprovalState(doc, pack).offered}
+    />
+  );
 }

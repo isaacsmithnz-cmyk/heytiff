@@ -13,12 +13,16 @@ import { BrandMark } from "@/components/org/letterhead";
 import type { OrgBrand } from "@/lib/org/brand";
 import "@/components/studio/studio.css";
 
-/* The customer-facing viewer — present mode as a whole page. Same canvas,
+/* The customer-facing simulation — present mode as a whole page. Same canvas,
    same controller, same header status as the studio's presentation, minus
-   every way out or in: onMutate is a noop, the controller has no exit, and
-   the PlanImages adapter can only READ the URLs the server signed. The
-   customer can drive the simulation (setpoints, mode, outdoor temperature) —
-   the model itself never changes, so there is nothing to break. */
+   every way in: onMutate is a noop and the PlanImages adapter can only READ
+   the URLs the server signed. The customer can drive the simulation
+   (setpoints, mode, outdoor temperature) — the model itself never changes, so
+   there is nothing to break.
+
+   IT IS NO LONGER THE DESTINATION. The link lands on the design sheet, and
+   this opens from it — and only where the design has been ticked as fit to
+   show (sim-approval.ts). So it has a way back, which it never used to need. */
 
 const noop = () => {};
 /* pipes stay hidden like present mode — the plan, tinted rooms and units
@@ -45,6 +49,7 @@ export function LiveViewer({
   pack,
   planUrls,
   brand,
+  onExit,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -55,6 +60,8 @@ export function LiveViewer({
      fallback for a workspace that has set neither a name nor a logo, so
      nothing regresses for an org that has not filled the page in. */
   brand: OrgBrand;
+  /** back to the sheet this opened from */
+  onExit: () => void;
 }) {
   /* open on the first floor that actually simulates; fall back to the first */
   const startFloorId = useMemo(() => {
@@ -76,6 +83,16 @@ export function LiveViewer({
   const planImages = useMemo(() => staticPlanImages(planUrls), [planUrls]);
   const activeSystemId = doc.systems[0]?.id ?? null;
 
+  /* Esc goes back, as it does in the studio's own present mode — the same
+     gesture on the same screen should not mean two different things */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onExit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onExit]);
+
   if (!floor || !runtime)
     return (
       <div className="ds-live-404">
@@ -84,6 +101,9 @@ export function LiveViewer({
         </span>
         <h1>Nothing to show yet</h1>
         <p>This design has no floors — check back once it has been drawn.</p>
+        <button className="ds-live-back" onClick={onExit}>
+          Back to the design
+        </button>
       </div>
     );
 
@@ -115,6 +135,16 @@ export function LiveViewer({
             ))}
           </div>
         )}
+        {/* the way back sits where present mode's Exit does, and says where it
+            goes: the customer came from the design, not from nowhere */}
+        <button
+          className="ds-present-exit"
+          onClick={onExit}
+          title="Back to the design (Esc)"
+        >
+          Back to the design
+          <span aria-hidden>✕</span>
+        </button>
       </div>
 
       <div className="ds-present-stage">
@@ -133,7 +163,8 @@ export function LiveViewer({
           sim={runtime}
           bare
         />
-        {/* interactive controller, no exit — this page IS the destination */}
+        {/* interactive controller. No exit ON THE CARD: the way back lives in
+            the bar, where the customer's eye already is for the floor tabs. */}
         <SimControllerCard runtime={runtime} />
       </div>
     </div>

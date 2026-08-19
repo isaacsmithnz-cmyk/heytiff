@@ -107,7 +107,10 @@ export interface PushResult {
 export async function pushPicklistToJob(
   jobUuid: string,
   designId: string,
-  rows: PicklistRow[]
+  /* the three fields a job-card line IS, not the whole sheet row. The picklist
+     also carries which shelf a line comes off, and that is a fact about how the
+     SHEET groups its consumables — a job card has one list. */
+  rows: Pick<PicklistRow, "name" | "sub" | "qty">[]
 ): Promise<PushResult> {
   /* BOTH capabilities, deliberately: `studio` is the surface doing the
      pushing, `workboard` is what makes the job card writable at all. Same

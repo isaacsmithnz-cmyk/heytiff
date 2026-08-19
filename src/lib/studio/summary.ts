@@ -48,6 +48,16 @@ const BASIS_LABELS: Record<SizingBasis, string> = {
   "worst-of-both": "Sized on worst of both",
 };
 
+/* The same fact under a column already headed "Sized on", where repeating the
+   words would read as a stutter. A view that trimmed the prefix off the label
+   above got a lower-case value in a row of capitalised ones, so the wording
+   for both shapes is written here rather than derived at a use site. */
+const BASIS_SHORT: Record<SizingBasis, string> = {
+  cooling: "Cooling",
+  heating: "Heating",
+  "worst-of-both": "Worst of both",
+};
+
 /* ── Design basis — what the loads were computed FROM, for the summary chips
       and the printed pack header. One object so screen and print agree. ── */
 export interface DesignBasis {
@@ -60,6 +70,9 @@ export interface DesignBasis {
   buildingLabel: string;
   basis: SizingBasis;
   basisLabel: string;
+  /** the label without the "Sized on" prefix, for a column that already
+      carries it — see BASIS_SHORT */
+  basisShort: string;
 }
 
 export function designBasis(doc: DesignDocument): DesignBasis {
@@ -74,6 +87,7 @@ export function designBasis(doc: DesignDocument): DesignBasis {
     buildingLabel: BUILDING_LABELS[buildingType],
     basis: doc.settings.sizingBasis,
     basisLabel: BASIS_LABELS[doc.settings.sizingBasis],
+    basisShort: BASIS_SHORT[doc.settings.sizingBasis],
   };
 }
 
@@ -211,12 +225,24 @@ export interface SummaryRoomRow {
   status: CoverageStatus;
   /** the indoor unit in THIS room (multi/VRF give one per room) */
   indoorModel: string | null;
+  /** THAT unit's form factor, e.g. "Bulkhead", "4-way cassette". Per ROOM,
+      not per system: a multi can carry a bulkhead in the living room and
+      hi-walls everywhere else, and the system-level styleLabel below reports
+      only the first one it finds. */
+  styleLabel: string | null;
 }
+
+/** Which shelf a takeoff line comes off. The sheet groups consumables rather
+    than running one long list, and the grouping is DERIVED here so the screen,
+    the paper and the customer's sheet can never disagree about which pile a
+    line belongs to. Refrigerant sits with Pipe: you buy it against the run. */
+export type SheetGroup = "pipe" | "electrical" | "components";
 
 /** One takeoff line — a pipe coil, a component choice, a refrigerant top-up.
     Never a unit: units live in the rooms table (indoors) and the outdoor
     block, and repeating them here would double-handle the sheet. */
 export interface SheetLine {
+  group: SheetGroup;
   /** what it is, e.g. "ø6.35 / ø9.52 pair coil", "Isolator · 20 A" */
   name: string;
   /** qualifier, e.g. "liquid / gas mm", "Weatherproof IP66" */
@@ -258,8 +284,12 @@ export interface SummarySystem {
   lines: SheetLine[];
 }
 
-/** One Material picklist row — the combined pick for the whole job. */
+/** One Material picklist row — the combined pick for the whole job. Units get
+    a group of their own here and only here: the per-system consumables never
+    list units (they are the rooms table and the outdoor block), but the pick
+    is what somebody loads onto a van. */
 export interface PicklistRow {
+  group: SheetGroup | "units";
   name: string;
   sub: string;
   qty: string;
@@ -327,6 +357,9 @@ export function buildSummaryModel(
     if (!isRoom(o)) continue;
     const cov = roomCoverage(doc, pack, o, basis);
     const first = cov.contributors[0] ?? null;
+    const firstRow = first
+      ? pack?.indoor_units.find((u) => u.model === first.model) ?? null
+      : null;
     rows.set(o.id, {
       roomId: o.id,
       name: String(o.props.name ?? "Room"),
@@ -337,6 +370,7 @@ export function buildSummaryModel(
       pct: cov.pct,
       status: cov.status,
       indoorModel: first ? first.model : null,
+      styleLabel: formFactorLabel(firstRow?.form_factor),
       systemIds: [...new Set(cov.contributors.map((c) => c.systemId))],
     });
   }
@@ -401,6 +435,7 @@ export function buildSummaryModel(
       ...(totalPipeM != null && totalPipeM > 0 && pipeLiquidMm != null && pipeGasMm != null
         ? [
             {
+              group: "pipe" as const,
               name: `ø${pipeLiquidMm} / ø${pipeGasMm} pair coil`,
               sub: "liquid / gas mm",
               qty: `${totalPipeM} m`,
@@ -411,6 +446,7 @@ export function buildSummaryModel(
               /* a drawn run the sheet can't measure is stated, not omitted —
                  silence would read as "no pipe on this job" */
               {
+                group: "pipe" as const,
                 name: "Pair coil",
                 sub: "run drawn — calibrate the floor to quantify",
                 qty: "—",
@@ -419,10 +455,21 @@ export function buildSummaryModel(
           : []),
       ...compRows
         .filter((c) => c.kind === "choice")
-        .map((c) => ({ name: c.name, sub: c.sub ?? "", qty: c.value })),
+        .map((c) => ({
+          /* the choice catalogue's own key decides the shelf — an isolator is
+             electrical, a bracket is not, and neither this file nor the sheet
+             gets to re-decide that from the row's wording */
+          group: (c.choice?.key === "electrical"
+            ? "electrical"
+            : "components") as SheetGroup,
+          name: c.name,
+          sub: c.sub ?? "",
+          qty: c.value,
+        })),
       ...(topupKg != null && topupKg > 0
         ? [
             {
+              group: "pipe" as const,
               name: "Additional refrigerant",
               sub: "beyond pre-charge",
               qty: `${Math.round(topupKg * 1000)} g`,
@@ -490,6 +537,7 @@ function buildPicklist(
   const units: PicklistRow[] = [...unitCounts]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([model, qty]) => ({
+      group: "units",
       name: model,
       sub: pack ? describeUnit(pack, model) : "unit",
       qty: String(qty),
@@ -510,6 +558,7 @@ function buildPicklist(
       });
   }
   const pipes: PicklistRow[] = [...pipe.values()].map((p) => ({
+    group: "pipe",
     name: p.name,
     sub: "liquid / gas mm",
     qty: `${Math.round(p.m * 10) / 10} m`,
@@ -518,7 +567,10 @@ function buildPicklist(
   /* components summed by name where the quantity counts; "—" rows excluded —
      "not in this takeoff" is not in this pick. An unparseable quantity keeps
      its own row rather than silently dropping. */
-  const comps = new Map<string, { name: string; sub: string; n: number; unit: string }>();
+  const comps = new Map<
+    string,
+    { group: SheetGroup; name: string; sub: string; n: number; unit: string }
+  >();
   const oddComps: PicklistRow[] = [];
   const topups: PicklistRow[] = [];
   for (const s of systems) {
@@ -526,21 +578,36 @@ function buildPicklist(
       if (l.qty === "—" || l.name.endsWith("pair coil") || l.name === "Pair coil")
         continue;
       if (l.name === "Additional refrigerant") {
-        topups.push({ name: l.name, sub: `${s.name} · ${l.sub}`, qty: l.qty });
+        topups.push({
+          group: l.group,
+          name: l.name,
+          sub: `${s.name} · ${l.sub}`,
+          qty: l.qty,
+        });
         continue;
       }
       const parsed = parseQty(l.qty);
       if (!parsed) {
-        oddComps.push({ name: l.name, sub: l.sub, qty: l.qty });
+        oddComps.push({ group: l.group, name: l.name, sub: l.sub, qty: l.qty });
         continue;
       }
-      const key = `${l.name}|${parsed.unit}`;
+      /* the shelf is part of the identity: two lines that share a name across
+         groups would otherwise sum into whichever group came first */
+      const key = `${l.group}|${l.name}|${parsed.unit}`;
       const cur = comps.get(key);
       if (cur) cur.n += parsed.n;
-      else comps.set(key, { name: l.name, sub: l.sub, n: parsed.n, unit: parsed.unit });
+      else
+        comps.set(key, {
+          group: l.group,
+          name: l.name,
+          sub: l.sub,
+          n: parsed.n,
+          unit: parsed.unit,
+        });
     }
   }
   const summed: PicklistRow[] = [...comps.values()].map((c) => ({
+    group: c.group,
     name: c.name,
     sub: c.sub,
     qty: c.unit ? `${c.n} ${c.unit}` : String(c.n),

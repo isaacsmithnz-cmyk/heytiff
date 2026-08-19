@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useInsertionEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useInsertionEffect, useLayoutEffect, useRef, useState } from "react";
 import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/lib/voice/realtime-stream";
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
@@ -842,7 +842,25 @@ export function LevelOrb({ innerRef }: { innerRef: React.RefObject<HTMLSpanEleme
   );
 }
 
-/** The live transcript, one word at a time — bind to a dictation's `interim`.
+/** How far apart two words that arrived IN THE SAME MESSAGE start to glide.
+
+    Scribe does not speak evenly — three words land on one partial, then a
+    pause, then two more. Gliding a burst as a block is the pop this
+    component exists to remove: the animation was already per word, but with
+    every word in the burst starting on the same frame it read as a block
+    appearing, not as speech arriving. Stepping them is what turns the burst
+    back into a flow. */
+const WORD_STEP_MS = 42;
+
+/** …and the ceiling on that step, because a burst is not always three
+    words. The buffered pre-roll can land a whole sentence at once, and a
+    flat step would leave its tail drifting in a second behind the voice
+    that said it — smooth, and no longer live. */
+const WORD_STEP_MAX_MS = 210;
+
+/** The live transcript, one word at a time — bind to a dictation's `interim`,
+    with `said` holding whatever is already captured (an earlier leg, or
+    typed words) so the two read as one sentence.
 
     THE ENGINE DOES NOT SPEAK EVENLY. Scribe sends partials in bursts and
     REVISES them: three words land at once, then a pause, then "grills"
@@ -854,8 +872,12 @@ export function LevelOrb({ innerRef }: { innerRef: React.RefObject<HTMLSpanEleme
     Words keyed by POSITION is what buys that. React mounts only the spans
     just appended, so the glide runs on those alone; a revised word updates
     its text in place and stays put, which is exactly right — re-flashing a
-    word you already read is the jitter, not the fix. */
-export function LiveWords({ text }: { text: string }) {
+    word you already read is the jitter, not the fix.
+
+    `said` is NOT split into words. It is the record, not the arrival — it
+    has already been read, it never animates, and splitting it would put
+    hundreds of spans in front of the handful that matter. */
+export function LiveWords({ said = "", text }: { said?: string; text: string }) {
   const ref = useRef<HTMLParagraphElement | null>(null);
   /* Whether anything has actually scrolled out of sight above. The top of
      the box is faded so old words dissolve instead of being sliced, and
@@ -864,28 +886,85 @@ export function LiveWords({ text }: { text: string }) {
      most dictations are short. Measured after layout rather than guessed
      from length, because wrapping depends on the width it got. */
   const [scrolled, setScrolled] = useState(false);
+  /** How many word spans were on screen last time round, which is the only
+      way to tell the words that just landed from the ones being read. */
+  const shown = useRef(0);
   const words = text.split(/\s+/).filter(Boolean);
 
-  /* Ride the newest word. The box is height-capped rather than growing,
-     because a card that resizes under a two-minute dictation is its own
-     kind of erratic — and the words you want are the last ones. */
+  /* A LAYOUT EFFECT, NOT AN EFFECT, and both halves need it to be:
+
+     the scroll runs before the frame is painted, so the box is already at
+     the newest word the first time you see it — after paint it is a visible
+     snap on every single partial, which is the jump this is meant to cure;
+
+     and the delays have to be set before anything READS layout. `scrollHeight`
+     forces a style flush, and that flush starts the animation on every span
+     React has just mounted — after which setting a delay is retiming a
+     running animation instead of arranging one. The order of these two
+     blocks looks like nothing and is the whole trick. */
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const spans = el.querySelectorAll<HTMLElement>(".wb2-lw");
+    for (let i = shown.current; i < spans.length; i++) {
+      const step = Math.min((i - shown.current) * WORD_STEP_MS, WORD_STEP_MAX_MS);
+      spans[i]!.style.animationDelay = `${step}ms`;
+    }
+    shown.current = spans.length;
+
+    el.scrollTop = el.scrollHeight;
+    setScrolled(el.scrollHeight > el.clientHeight + 1);
+  }, [said, text]);
+
+  /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING. The window eases
+     three lines open over 300 ms the first time there is anything to show,
+     and for that 300 ms it is shorter than its content — so the measurement
+     above says "scrolled" for a one-word transcript and the first word you
+     say arrives already dissolving into the fade. Nothing else corrects it
+     until the next partial lands, which is up to half a second of the wrong
+     picture at the exact moment you are checking whether it heard you.
+
+     The word glides bubble their own `animationend` through here; only the
+     box's own counts, or this re-renders once per word for nothing. */
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-    setScrolled(el.scrollHeight > el.clientHeight + 1);
-  }, [text]);
+    const settle = (e: AnimationEvent) => {
+      if (e.target === el) setScrolled(el.scrollHeight > el.clientHeight + 1);
+    };
+    el.addEventListener("animationend", settle);
+    return () => el.removeEventListener("animationend", settle);
+  }, []);
 
   return (
     <p
       className={"wb2-livetext" + (scrolled ? " over" : "")}
       ref={ref}
+      /* NAMED, because it is no longer a labelled textarea. `log` is the
+         role a running transcript actually has, and it carries the polite
+         live region on its own — the explicit attribute stays because the
+         card is checked for having exactly one of them. */
+      role="log"
       aria-live="polite"
+      aria-label="What you have said so far"
     >
+      {/* THE SPACES ARE REAL, not a margin between the spans. The gap could
+          be drawn either way and only one of them is still there when the
+          words leave the screen: `textContent` concatenates, so a margin
+          gives a screen reader and anything copied out of here
+          "theatthreehundred". The join is `appendSpoken`'s, kept by
+          construction rather than by calling it — the record, one space,
+          then the words in the air. */}
+      {said.trim() && (
+        <>
+          <span className="wb2-lwsaid">{said.trim()}</span>{" "}
+        </>
+      )}
       {words.map((word, i) => (
-        <span className="wb2-lw" key={i}>
-          {word}
-        </span>
+        <Fragment key={i}>
+          <span className="wb2-lw">{word}</span>{" "}
+        </Fragment>
       ))}
     </p>
   );

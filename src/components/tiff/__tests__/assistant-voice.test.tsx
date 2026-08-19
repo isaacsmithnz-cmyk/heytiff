@@ -184,7 +184,7 @@ describe("dictating a question", () => {
     await speak(user);
 
     act(() => mockCtl.setInterim?.("minimum clearance above"));
-    expect(screen.getByLabelText("What you have said so far")).toHaveValue(
+    expect(screen.getByLabelText("What you have said so far")).toHaveTextContent(
       "minimum clearance above"
     );
 
@@ -214,7 +214,7 @@ describe("dictating a question", () => {
 
     await speak(user);
     act(() => mockCtl.setInterim?.("above an FTXM71?"));
-    expect(screen.getByLabelText("What you have said so far")).toHaveValue(
+    expect(screen.getByLabelText("What you have said so far")).toHaveTextContent(
       "what is the minimum clearance above an FTXM71?"
     );
   });

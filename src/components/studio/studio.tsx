@@ -59,6 +59,11 @@ import {
 import { SummaryView } from "./summary/summary";
 import type { SimReady } from "./summary/sim-card";
 import { buildSimModel } from "@/lib/studio/sim";
+import {
+  isFloorApproved,
+  setFloorApproval,
+  simApprovalState,
+} from "@/lib/studio/sim-approval";
 import { SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
@@ -1241,6 +1246,30 @@ function Editor({
     };
   }, [doc, pack, activeFloor]);
 
+  /* Has the simulation been ticked as fit to show a customer? Derived from the
+     document, so the Summary chrome, the checks list and the customer's live
+     link all read one verdict. See sim-approval.ts for why the tick pins to
+     the design and why the option is all-or-nothing. */
+  const simApproval = useMemo(
+    () => simApprovalState(doc, pack),
+    [doc, pack]
+  );
+
+  /* the switch in the simulation view. Reads through the same helper the
+     verdict does, and writes through `mutate` so the tick autosaves and
+     undoes like any other change to the document. */
+  const activeFloorApproved = activeFloorId
+    ? isFloorApproved(doc, activeFloorId)
+    : false;
+  const approveActiveFloor = useCallback(
+    (on: boolean) => {
+      const id = activeFloorId;
+      if (!id) return;
+      mutate((d) => setFloorApproval(d, id, on));
+    },
+    [activeFloorId, mutate]
+  );
+
   const addFloor = useCallback(() => {
     mutate((d) => {
       const maxLevel = d.floors.reduce((m, f) => Math.max(m, f.level), -1);
@@ -1533,6 +1562,7 @@ function Editor({
             onExportJson={() => downloadDesign(doc)}
             simFlag={simFlag}
             simReady={simReady}
+            simApproval={simApproval}
             onSimulate={toggleSim}
             planImages={planImages}
             loadVariant={loadVariant}
@@ -1590,6 +1620,11 @@ function Editor({
           planImages={planImages}
           activeSystemId={effectiveSystemId}
           runtime={simRt}
+          approval={{
+            on: activeFloorApproved,
+            nameTheFloor: simApproval.simulatable.length > 1,
+            onChange: approveActiveFloor,
+          }}
           onExit={toggleSim}
         />
       )}

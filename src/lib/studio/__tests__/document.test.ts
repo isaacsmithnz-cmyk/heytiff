@@ -289,6 +289,19 @@ describe("schema versioning + migrations", () => {
     expect(doc.meta.jobNumber).toBe("3151");
     expect(doc.jobLink).toBeNull();
   });
+
+  /* The tick says a person watched this simulation run and judged it fit to
+     show a customer. No such person exists for a document saved before the
+     control did, and a migration cannot stand in for one. */
+  it("migrates v8→v9: nothing arrives pre-approved for sharing", () => {
+    const base = createDesign({ name: "x", mode: "blank" });
+    const v8 = { ...JSON.parse(JSON.stringify(base)), schemaVersion: 8 };
+    delete v8.simApprovals; // v8 documents never had it
+    const { doc, migratedFrom } = migrateDesign(v8);
+    expect(migratedFrom).toBe(8);
+    expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(doc.simApprovals).toEqual([]);
+  });
 });
 
 describe("createDesign — the job it came from", () => {

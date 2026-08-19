@@ -6,7 +6,7 @@
    fixtures serialise exactly this shape, so changes require a schema bump and
    a migration (see migrations.ts). */
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /* ── Vertical planes (Layer 1 — placement plane) ── */
 export type Plane =
@@ -176,6 +176,25 @@ export interface DesignJobLink {
   linkedAt: string;
 }
 
+/* ── "this simulation is ready to show a customer" (schema v9).
+
+      The share link can offer a way into the simulation, and a simulation is a
+      MODEL — it can be wrong in ways the design itself is not. So the option
+      exists only where somebody has watched a floor run and ticked it.
+
+      The tick carries a FINGERPRINT of the design it was made against, not a
+      boolean. That is the whole mechanism: any edit to the design leaves every
+      stored tick unmatched, so there is no such thing as an approval that
+      survived an edit — only "approved for this exact state", or nothing. See
+      sim-approval.ts, which is the only thing that reads or writes these. ── */
+export interface SimApproval {
+  floorId: string;
+  /** designFingerprint(doc) at the moment of the tick */
+  fingerprint: string;
+  /** ISO. When it was ticked. */
+  at: string;
+}
+
 export interface DesignDocument {
   schemaVersion: number;
   id: string;
@@ -195,6 +214,10 @@ export interface DesignDocument {
       which is every design made before v8 and every one made without the
       mirror. */
   jobLink: DesignJobLink | null;
+  /** per-floor "ready to share" ticks, each pinned to the design it was made
+      against. Empty = nothing approved, which is where every design starts and
+      where every design returns the moment it is edited. */
+  simApprovals: SimApproval[];
 }
 
 /* ── Construction ── */
@@ -270,6 +293,7 @@ export function createDesign(opts: {
           linkedAt: now,
         }
       : null,
+    simApprovals: [],
   };
 }
 

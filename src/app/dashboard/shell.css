@@ -6670,9 +6670,37 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   /* `.wb2-caprec` centres its column, which with left-aligned text would
      indent the words a third of the way across and read as a mistake.
      Stretched, they start exactly where the typed words start. */
-  margin:8px 0 0; text-align:left; align-self:stretch; min-height:2.2em;
-  max-height:6em; overflow-y:auto; scrollbar-width:none;
+  margin:8px 0 0; text-align:left; align-self:stretch;
+  /* A FIXED WINDOW, not a box that grows to fit. `min-height` under a
+     `max-height` still grew twice — once at the first word and again at the
+     fourth — and each growth pushed the meter and the whole action row down
+     mid-sentence. Three lines exactly (`line-height:1.5`), held from the
+     first frame of the recording to the last, so the ONLY thing that moves
+     on this card while you talk is the words. */
+  height:4.5em; overflow-y:auto; scrollbar-width:none;
+  /* The scroll is ridden by LiveWords, and a trackpad flick that ran off the
+     end of it would scroll the sheet behind instead. */
+  overscroll-behavior:contain;
+  /* IT OPENS ONCE, SOFTLY. There is nothing to show until the first word
+     lands (an empty window in that space is the hole #367 closed), so the
+     box does arrive mid-recording — it used to arrive by SNAPPING three
+     lines open under the words being spoken and shoving the meter and the
+     whole action row down with them. Eased, it reads as the card making
+     room; and because the height is fixed from then on, it is the only time
+     anything on this card moves. */
+  animation:wb2LiveIn .3s cubic-bezier(.22,1,.36,1) both;
 }
+@keyframes wb2LiveIn {
+  from { height:0; margin-top:0; opacity:0; }
+  to   { height:4.5em; margin-top:8px; opacity:1; }
+}
+/* WHAT YOU HAD ALREADY SAID — an earlier leg, or words you typed before
+   pressing the mic. One step back in the ink because it is the RECORD and
+   not the arrival: it never glides, it is what the new words are joining.
+   `pre-wrap` because typed text can carry its own line breaks and a `<p>`
+   would eat them; the space that joins it to the live words is a real one,
+   in the markup. */
+.wb2-lwsaid { white-space:pre-wrap; color:#4b5563; }
 /* ONLY ONCE THERE IS SOMETHING ABOVE. The fade dims the top of the BOX, not
    of the text, so applied unconditionally it greys out the first line of
    every dictation short enough not to scroll — which is most of them. The
@@ -6686,10 +6714,16 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    than stops — and a hair of blur on the way in, which is what makes a
    burst of three words read as arriving instead of appearing. */
 @keyframes wb2WordIn {
-  from { opacity:0; transform:translateY(5px); filter:blur(3px); }
+  from { opacity:0; transform:translateY(4px); filter:blur(2px); }
   to   { opacity:1; transform:none; filter:blur(0); }
 }
-.wb2-lw { display:inline-block; margin-right:.28em;
+/* A WORD IS AN INLINE-BLOCK, because `transform` and `filter` do nothing to a
+   plain inline box — the glide needs it. The space between words is a real
+   space in the markup and NOT a margin here: a margin draws the same gap and
+   vanishes the moment the words are read out or copied. `animation-delay` is
+   set per span in LiveWords, so words that arrived in the same message step
+   in one after another instead of landing as a block. */
+.wb2-lw { display:inline-block;
   animation:wb2WordIn .26s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion:reduce) { .wb2-lw { animation:none; } }
 /* ── the router is thinking ──
@@ -8207,16 +8241,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   /* no box means the resize grip would float on nothing */ resize:none; }
 .wb2-dusk .wb2-notes::placeholder { color:rgba(255,255,255,.38); }
 .wb2-dusk .wb2-notes:focus { border-color:transparent; }
-/* WHAT YOU HAVE ALREADY SAID, while you say more. Isaac, walking a second
-   leg: "it looks like you're starting again because it doesn't show you what
-   text it's already got on there." It is the SAME box as the idle stage —
-   same class, same type, same left edge — because the whole point is that
-   the card did not start over. Read-only and one step back in the ink, so it
-   reads as the record rather than the thing you are editing; the trace below
-   it is where the live attention belongs. */
-.wb2-caprec .wb2-recsofar { color:rgba(255,255,255,.72); cursor:default;
-  max-height:96px; overflow-y:auto; }
-.wb2-caprec .wb2-recsofar:focus { outline:none; }
 .wb2-dusk .wb2-hint { color:rgba(255,255,255,.45); }
 
 /* the actions — glass ghosts, one gradient primary, and Talk tinted just
@@ -8322,6 +8346,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    is the same statement without the pretence. */
 .wb2-dusk .wb-lvl { color:#00E5C0; }
 .wb2-dusk .wb2-livetext { color:#E8EAED; }
+/* The record, in the dark. Not `opacity` — a dimmed white on this ground is
+   a contrast figure nobody can read off the sheet, and this is the one the
+   textarea it replaced was already carrying. */
+.wb2-dusk .wb2-lwsaid { color:rgba(255,255,255,.72); }
 
 /* sorting — the words you just said, held while Tiff works out what they
    become. The skeleton rows that used to need an ink cut of their own are
@@ -8397,6 +8425,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .wb2-capcard.wb2-caps.wb2-blossom { animation:none; }
   .wb2-capcard.wb2-dusk .wb2-capribbon, .wb2-capcard.wb2-dusk .wb2-capact,
   .wb2-capcard.wb2-dusk :is(.wb2-notes, .wb2-caprec, .wb2-sorting, .wb2-ans) { animation:none; }
+  /* …and the live window opens with them. `animation:none` here is the whole
+     rule: without it the box keeps easing three lines open under the words,
+     which is the one movement on this card motion-off has to stop. */
+  .wb2-livetext { animation:none; }
   .tiffbtn.lit .tiffbtn-burst { animation:none; }
   .wb2-capdim::after { animation:none; }
 }

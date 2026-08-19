@@ -93,6 +93,28 @@ describe("Summary sheet cascade", () => {
     expect(root.length).toBeGreaterThan(0);
   });
 
+  it("PRINT HIDES THE PAGE ONLY WHEN THERE IS A PRINT DOCUMENT TO REVEAL", () => {
+    /* FOUND IN PRODUCTION, on the customer's own link.
+
+       The print block hides everything and reveals `#ds-printdoc`, which is
+       right for the studio's Export. But this stylesheet is imported by more
+       than the studio — `/live/[token]` pulls it in for the dead-link dress
+       and the simulation viewer — and that page never mounts a print
+       document. A bare `body *` therefore hid every element on the customer's
+       sheet and revealed nothing: THE PRINT BUTTON PRODUCED A BLANK PAGE.
+
+       Invisible to every other check. jsdom has no print medium, the rule is
+       valid CSS, and no screen rendering of any page shows it. */
+    const hide = css.match(/@media print \{[\s\S]*?visibility:\s*hidden[^;]*;/);
+    expect(hide).not.toBeNull();
+    expect(hide![0]).toMatch(/body:has\(#ds-printdoc\) \*/);
+    /* and the bare form must not come back under any selector */
+    const bare = selectors.filter((sel) =>
+      sel.split(",").some((one) => /^body \*$/.test(one.trim()))
+    );
+    expect(bare).toEqual([]);
+  });
+
   it("the dark glass primitives never reach .ds-tbbtn", () => {
     /* .ds-tbbtn renders on the WHITE page plate — Summary's action cards and
        the Design step's "no floors yet" empty state. Any `.dstudio.editing`

@@ -5434,9 +5434,20 @@ html[data-ds-display] .dstudio.editing {
 
 /* print: reveal only the print document. The studio grid children are
    display:none'd outright — visibility:hidden alone keeps their layout and
-   inflates the page count (the old jobpack learned this the hard way). */
+   inflates the page count (the old jobpack learned this the hard way).
+
+   SCOPED TO A BODY THAT HAS ONE. This was a bare `body *`, and this
+   stylesheet is imported by more than the studio: `/live/[token]` pulls it in
+   for the dead-link dress and the simulation viewer. That page never mounts a
+   print document, so printing it hid every element on it and revealed
+   nothing — THE CUSTOMER'S PRINT BUTTON PRODUCED A BLANK PAGE. Found by
+   walking the real link in production, because the rule is invisible in every
+   other medium.
+
+   The `:has()` says what the rule always meant: hide everything else only
+   when there is something to reveal. */
 @media print {
-  body * { visibility: hidden !important; }
+  body:has(#ds-printdoc) * { visibility: hidden !important; }
   #ds-printdoc, #ds-printdoc * { visibility: visible !important; }
   #ds-printdoc {
     display: block;

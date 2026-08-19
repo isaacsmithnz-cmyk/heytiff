@@ -250,6 +250,11 @@ describe("the customer's chrome", () => {
     expect(text).not.toMatch(/Contributors/);
     // and provenance the customer has no use for
     expect(text).not.toMatch(/ServiceM8/);
+    /* THE LETTERHEAD IS TEXT HERE, NOT FIELDS. The owner types into the same
+       frame; the customer's copy passes no fields, so there is nothing to
+       type into rather than something disabled. */
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+    expect(container.querySelectorAll("input, textarea")).toHaveLength(0);
   });
 });
 

@@ -189,14 +189,20 @@ export async function clearOrgLogo(): Promise<SaveResult> {
    URL and a broken image in the middle of a customer document. This is called
    at print time instead, so the link is always minutes old.
 
+   THE SUMMARY SHEET ASKS FOR LONGER. Printing happens seconds after the
+   press, so the default hour is generous there; the sheet on screen is the
+   same document sitting in a tab somebody leaves open, and its letterhead
+   would go to a broken image mid-afternoon. It signs for six hours and
+   re-signs when the tab is looked at again — see useOrgBrand.
+
    `studio` is the gate because that is the screen that prints. It is on by
    default for every role and revocable, which is the same bar as reaching the
    design being printed in the first place — this adds no reach. Nothing here
    is secret in any case: it is the name and number the same person is about
    to put in front of a customer. */
-export async function getOrgBrand(): Promise<OrgBrand> {
+export async function getOrgBrand(opts: { seconds?: number } = {}): Promise<OrgBrand> {
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
   if (!orgId || !(await can("studio"))) return NO_BRAND;
-  return orgBrand(orgId);
+  return orgBrand(orgId, opts);
 }

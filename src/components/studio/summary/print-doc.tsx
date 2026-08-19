@@ -4,139 +4,61 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
-import {
-  fmt,
-  LinesTable,
-  OutdoorBlock,
-  RoomsTable,
-  SnapshotList,
-  tone,
-} from "./sheet-tables";
+import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
-import { Letterhead } from "@/components/org/letterhead";
-import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
    stylesheet reveals only #ds-printdoc; the .fg.dstudio wrapper resolves the
    design tokens and Jakarta (same trick as present mode).
 
-   The cover renders the SAME merged sheet model as the screen, through the
-   SAME table components (sheet-tables.tsx) — issuer eyebrow, letterhead,
-   snapshot, one section per system (outdoor → rooms served → materials),
-   the unserved rooms, then the Material picklist. Then one page per selected
-   floor with a static PlanFigure. The @page rule (paper size + orientation)
-   is injected while mounted, and `onReady` fires once every plan raster is
-   decoded so the caller can window.print() without racing the images. */
+   THE COVER IS THE DOCUMENT ITSELF — `SheetDoc`, the same component the
+   Summary screen and the customer's live link render, off the same merged
+   model. Paper is the third chrome, and the thinnest: no bar, nothing to
+   press, and none of the owner-only slots (no editable letterhead, no
+   provenance, no Add to job, no Contributors), because a page cannot take an
+   action and a pack a customer receives should not carry staff names.
 
-function VariantCover({ v, brand }: { v: PrintVariant; brand: OrgBrand }) {
-  const doc = v.doc;
-  const empty = v.sheet.systems.length === 0 && v.sheet.unserved.length === 0;
+   Then one page per selected floor with a static PlanFigure. The @page rule
+   (paper size + orientation) is injected while mounted, and `onReady` fires
+   once every plan raster is decoded so the caller can window.print() without
+   racing the images. */
+
+/** the date the document carries — the last save, in the one locale the
+    sheet is written in. Formatted here rather than in SheetDoc because the
+    other two chromes format it on the server. */
+const formatDay = (iso: string): string =>
+  new Date(iso).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+function VariantCover({
+  v,
+  brand,
+  preparedOn,
+}: {
+  v: PrintVariant;
+  brand: OrgBrand;
+  preparedOn: string;
+}) {
   return (
     <section className="ds-print-cover">
-      <header className="ds-jobpack-head">
-        <div>
-          {/* THE ISSUER IS AN EYEBROW: the top-right corner belongs to the
-              addressee, as on any document that gets sent to someone. What
-              changed is WHOSE name is in it — this said "HeyTiff Design
-              Studio", which named the software on a pack a customer receives
-              from an installer. It is the installer's letterhead now, and the
-              old eyebrow is the fallback for a workspace that has set neither
-              a name nor a logo. */}
-          {hasBrand(brand) ? (
-            <Letterhead brand={brand} />
-          ) : (
-            <div className="ds-jobpack-brand">HeyTiff Design Studio</div>
-          )}
-          <h1>
-            {doc.meta.name || "Design"}
-            {doc.meta.jobNumber && (
-              <span className="ds-print-job">Job {doc.meta.jobNumber}</span>
-            )}
-          </h1>
-          {v.label && <span className="ds-letter-variant">{v.label}</span>}
-          <div className="ds-jobpack-meta ds-print-basis">
-            <span>
-              Zone {v.basis.zone} · {v.basis.zoneCity}
-            </span>
-            <span>{v.basis.buildingLabel}</span>
-            <span>{v.basis.basisLabel}</span>
-          </div>
-        </div>
-        {(doc.meta.client || doc.meta.site) && (
-          <div className="ds-letter-to print">
-            {doc.meta.client && <b>{doc.meta.client}</b>}
-            {doc.meta.site.split("\n").map(
-              (line) => line.trim() && <span key={line}>{line}</span>
-            )}
-          </div>
-        )}
-      </header>
-
-      {empty ? (
-        <p className="ds-insp-hint">Nothing designed yet.</p>
-      ) : (
-        <>
-          <section className="ds-jobpack-sec">
-            <SnapshotList snapshot={v.snapshot} />
-          </section>
-
-          {v.sheet.systems.map((s) => (
-            <section key={s.systemId} className="ds-jobpack-sec ds-print-sys">
-              <div className="ds-print-sys-h">
-                <h2>
-                  {s.name} <span>{s.kindLabel}</span>
-                </h2>
-                <div className="ds-print-verdict">
-                  <span>
-                    <b>{fmt(s.loadKw, "kW")}</b> load
-                  </span>
-                  <span>
-                    <b>{fmt(s.capacityKw, "kW")}</b> capacity
-                  </span>
-                  {/* the SHARED verdict, not a local re-derivation: this line
-                      inlined `covered ? ok : under`, so a system with no
-                      measurable coverage printed amber on paper while the
-                      screen greyed the same figure out. */}
-                  <span className={tone(s.status, s.pct)}>
-                    <b>{s.pct == null ? "—" : `${s.pct}%`}</b> covered
-                  </span>
-                </div>
-              </div>
-              <OutdoorBlock sys={s} />
-              <span className="ds-tcap">
-                {s.rooms.length === 1 ? "Room served" : "Rooms served"}
-              </span>
-              <RoomsTable rooms={s.rooms} />
-              {s.lines.length > 0 && (
-                <>
-                  <span className="ds-tcap">Materials</span>
-                  <LinesTable lines={s.lines} />
-                </>
-              )}
-            </section>
-          ))}
-
-          {v.sheet.unserved.length > 0 && (
-            <section className="ds-jobpack-sec">
-              <h2>Not served yet</h2>
-              <RoomsTable rooms={v.sheet.unserved} />
-            </section>
-          )}
-
-          {v.sheet.picklist.length > 0 && (
-            <section className="ds-jobpack-sec">
-              <h2>Material picklist</h2>
-              <LinesTable lines={v.sheet.picklist} />
-            </section>
-          )}
-
-          <footer className="ds-jobpack-foot">
-            Verify all selections against manufacturer documentation. Loads are
-            rule-of-thumb estimates.
-          </footer>
-        </>
-      )}
+      <SheetDoc
+        doc={v.doc}
+        model={v.sheet}
+        snapshot={v.snapshot}
+        basis={v.basis}
+        brand={brand}
+        eyebrow={
+          v.label ? `Design summary, ${v.label.toLowerCase()}` : "Design summary"
+        }
+        preparedOn={preparedOn}
+      >
+        <PicklistSection rows={v.sheet.picklist} />
+      </SheetDoc>
     </section>
   );
 }
@@ -224,7 +146,13 @@ export function PrintDoc({
     >
       {model.variants.map((v) => (
         <div key={v.doc.id} className="ds-print-variant-block">
-          {options.content !== "plans" && <VariantCover v={v} brand={brand} />}
+          {options.content !== "plans" && (
+            <VariantCover
+              v={v}
+              brand={brand}
+              preparedOn={formatDay(v.doc.meta.updatedAt)}
+            />
+          )}
           {v.floors.map((floor) => (
             <section key={floor.id} className="ds-print-page">
               <div className="ds-print-cap">

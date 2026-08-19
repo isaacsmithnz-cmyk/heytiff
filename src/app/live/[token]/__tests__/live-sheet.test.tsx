@@ -140,8 +140,13 @@ describe("the document", () => {
     /* the business is named in the DOCUMENT, not only in the bar: anything
        that lives only in the chrome vanishes from the PDF */
     expect(screen.getByText("Diamond Air", { selector: ".dsd-org" })).toBeInTheDocument();
-    expect(screen.getByText("ABN 51 824 753 556 · 02 4225 1188")).toBeInTheDocument();
     expect(screen.getByText("17 August 2026")).toBeInTheDocument();
+    /* NAME AND DATE, and nothing else. The contact line — ABN, phone, email,
+       website — read as a business card dropped into the middle of a
+       document, four weights under a heading before the reader reached a
+       single figure. */
+    expect(screen.queryByText(/ABN/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/4225 1188/)).not.toBeInTheDocument();
     expect(screen.getByText("Halloran Bros Construction")).toBeInTheDocument();
     expect(screen.getByText("Wollongong")).toBeInTheDocument();
     expect(screen.getByText("2214")).toBeInTheDocument();

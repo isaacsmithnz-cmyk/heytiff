@@ -87,27 +87,45 @@
   letter-spacing: -0.035em;
   line-height: 1.05;
 }
-.dsd-contact { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--dsd-ink-2); }
 .dsd-date { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--dsd-ink-3); }
-/* the mark sits ABOVE the name rather than beside it: at 34px the name is
-   already the loudest thing on the page, and a logo set against it competes
-   with the address in the h1 above */
-.dsd-logo { display: block; margin-top: 12px; max-height: 46px; max-width: 220px; width: auto; }
+
+/* ── the mark ──
+   Top left of whatever is holding the document: a bar on screen, the head of
+   the page on paper (.dsd-mark-head).
+
+   THE ASPECT RATIO IS THE WHOLE RULE. This was `width: auto` with a max on
+   each side, which reads as "fit inside this box" and is not what it did: the
+   mark was a flex item in a COLUMN container, so `align-items: stretch` gave
+   it a definite width, `max-height` then clamped the height, and a 3.55:1
+   logo rendered at 4.78:1 — stretched 35% wide. `align-self` opts out of the
+   stretch, `height: auto` lets the ratio drive, and `object-fit: contain`
+   catches whatever is left. Nobody uploads a logo to have it squashed. */
+.dsd-logo {
+  display: block;
+  align-self: flex-start;
+  width: auto;
+  height: auto;
+  max-height: 40px;
+  max-width: 200px;
+  object-fit: contain;
+}
 /* the initials stand-in for a business with no logo uploaded — a square mark
    rather than a stretched image box */
 .dsd-logo.org-initials {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
   background: var(--dsd-ink);
   color: #fff;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
+/* paper's top left — the document's own corner, since a page has no bar */
+.dsd-mark-head { margin-bottom: 20px; }
 
 .dsd-to {
   font-style: normal;

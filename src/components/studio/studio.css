@@ -8967,13 +8967,14 @@ html[data-ds-display] .dstudio.editing {
 /* ── chrome: everything that is NOT the document. Sticks to the panel's
       scrollport (.ds-panel.scroll) so Export never scrolls away from the
       sheet it acts on. ── */
+/* the mark leads the bar; the checks pill sits next to it */
+.dstudio .ds-chrome .dsd-logo { flex: none; margin-right: 2px; max-height: 28px; max-width: 160px; }
 .dstudio .ds-chrome {
   position: sticky;
   top: 0;
   z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px 14px;
   flex-wrap: wrap;
   margin: -8px -8px 0;
@@ -9012,7 +9013,10 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 600;
   color: var(--ds-ok-d);
 }
-.dstudio .ds-chrome-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+/* the actions keep the right-hand end; everything before them stays grouped
+   at the left, so the checks pill reads as sitting BESIDE the mark rather
+   than floating in the middle of the bar */
+.dstudio .ds-chrome-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .dstudio .ds-chrome-btn {
   display: inline-flex;
   align-items: center;

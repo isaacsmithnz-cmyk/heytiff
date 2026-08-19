@@ -6,7 +6,8 @@ import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
-import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { BrandLogo } from "@/components/org/letterhead";
+import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
@@ -47,6 +48,10 @@ function VariantCover({
   return (
     <section className="ds-print-cover">
       <SheetDoc
+        /* paper's top left. The screen chromes keep their mark in a bar; a
+           page has none, and a pack filed without the installer's mark on it
+           is what #440 existed to fix. */
+        mark={hasBrand(brand) ? <BrandLogo brand={brand} className="dsd-logo" /> : null}
         doc={v.doc}
         model={v.sheet}
         snapshot={v.snapshot}

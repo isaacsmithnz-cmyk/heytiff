@@ -496,11 +496,25 @@ export function SheetDoc({
       {model.systems.map((s) => (
         <section key={s.systemId} className="dsd-sys">
           <SystemBand sys={s} />
-          <RoomsTable
-            rooms={s.rooms}
-            outdoorModel={s.outdoorModel}
-            sharedOutdoor={s.sharedOutdoor}
-          />
+          {/* A SYSTEM THAT SERVES NO ROOMS SAYS SO.
+
+              It used to render the table anyway: nine column headings with
+              nothing underneath, a row of labels floating above the
+              consumables. A system reaches this the moment its outdoor is
+              chosen and its indoor is not yet placed, which is most of the
+              time somebody is mid-design — and the customer's copy of the
+              sheet drew the same hole. */}
+          {s.rooms.length > 0 ? (
+            <RoomsTable
+              rooms={s.rooms}
+              outdoorModel={s.outdoorModel}
+              sharedOutdoor={s.sharedOutdoor}
+            />
+          ) : (
+            <p className="dsd-none">
+              No rooms are on this system yet.
+            </p>
+          )}
           <Consumables lines={s.lines} />
         </section>
       ))}

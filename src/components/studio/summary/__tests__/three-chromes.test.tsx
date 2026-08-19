@@ -178,6 +178,68 @@ describe("the owner's chrome", () => {
   });
 });
 
+describe("a system with nothing on it", () => {
+  /* FOUND IN PRODUCTION. A system whose outdoor is chosen and whose indoor is
+     not yet placed serves no rooms — and the sheet drew the rooms table
+     anyway: nine column headings with nothing under them, on the owner's
+     copy, the customer's and the printed pack alike. */
+  function docWithBareSystem(): DesignDocument {
+    const d = baseDoc();
+    d.floors = [
+      { id: "g", name: "Ground", level: 0, scaleMmPerUnit: 10, northDeg: null, northPos: null, plans: [] },
+    ];
+    d.systems = [
+      { id: "s1", type: "split", brand: "mitsubishi-electric", colour: "#2E68FF", name: "System 1", settings: {} },
+    ];
+    /* an outdoor placed, no indoor, and a room nothing serves — exactly the
+       shape "85 West St" was in */
+    d.objects = [
+      {
+        id: "odu1",
+        type: "unit",
+        systemId: "s1",
+        floorId: "g",
+        geometry: { kind: "point", at: { x: 900, y: 100 } },
+        plane: "external-ground",
+        props: { role: "odu", model: "MUZ-AP25VGD2" },
+      },
+      {
+        id: "r1",
+        type: "room",
+        systemId: null,
+        floorId: "g",
+        geometry: {
+          kind: "polygon",
+          points: [
+            { x: 0, y: 0 },
+            { x: 400, y: 0 },
+            { x: 400, y: 400 },
+            { x: 0, y: 400 },
+          ],
+        },
+        plane: "room",
+        props: { name: "Room 1", hasExternalWalls: true },
+      },
+    ];
+    return d;
+  }
+
+  it("says so, instead of printing a table with no rows in it", () => {
+    renderBare(docWithBareSystem());
+    expect(screen.getByText("No rooms are on this system yet.")).toBeInTheDocument();
+    /* the ONLY table on the sheet is the one under "Not served yet", which
+       has the room in it */
+    const tables = screen.getAllByRole("table");
+    expect(tables).toHaveLength(1);
+    expect(within(tables[0]).getByText("Room 1")).toBeInTheDocument();
+  });
+
+  it("keeps the system's own consumables — they are real either way", () => {
+    renderBare(docWithBareSystem());
+    expect(screen.getByText("System 1")).toBeInTheDocument();
+  });
+});
+
 describe("what the owner's chrome adds is not IN the document", () => {
   it("the bare document has no letterhead fields, provenance or push", () => {
     /* the customer's link renders exactly this — the guarantee is that the

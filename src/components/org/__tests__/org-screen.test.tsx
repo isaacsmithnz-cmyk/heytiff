@@ -15,9 +15,19 @@ jest.mock("@/lib/documents/upload-client", () => ({
 
 import { OrgScreen } from "../org-screen";
 
-/* The Organisation screen, on the staff card's machinery.
+/* The Organisation screen, on the Workboard's card.
 
-   Three things this file is really pinning:
+   THE SHAPE THIS FILE NOW ASSUMES. One row of tabs over one white card, so a
+   section is only in the document while its tab is live. Every test that wants
+   a section names it — through `sec`, which is the page's own `?sec=` — rather
+   than reaching for the second `.card2` on a scroll. That indexing is what made
+   the old file fragile: "the third card is Contact & address" was a comment
+   holding a test together.
+
+   Four things this file is really pinning:
+
+     OVERVIEW READS AND EVERY OTHER TAB EDITS. The landing tab has no Save on it
+     anywhere, and it can reach every tab it summarises.
 
      THE HINTS ARE GONE. "Shown across HeyTiff — including under the logo" and
      "Checked against the ATO checksum on save" described the software to
@@ -90,6 +100,9 @@ function setup(
     logoUrl?: string;
     addressLookup?: boolean;
     account?: OrgAccount | null;
+    /** which tab to land on — the page's own `?sec=`, so a test that wants a
+        section says which one instead of counting cards down a page */
+    sec?: string;
   } = {}
 ) {
   const actions = {
@@ -107,6 +120,7 @@ function setup(
       account={over.account === undefined ? ACCOUNT : over.account}
       logoUrl={over.logoUrl ?? null}
       today={TODAY}
+      initialSec={over.sec}
       addressLookup={over.addressLookup ?? false}
       actions={actions}
     />
@@ -114,9 +128,125 @@ function setup(
   return { ...view, actions };
 }
 
-describe("the brand row", () => {
-  it("reads as a card, not a form — name, ABN and GST on the plastic", () => {
+/* THE CARD SWITCHER — six tabs over one white card, Overview first.
+
+   The order is the screen's argument and is asserted whole: what a customer
+   sees, then the names printed beside it, then how to reach the business, what
+   lets it trade, and whose account it is. */
+describe("the card switcher", () => {
+  const TABS = [
+    "Overview",
+    "Your business",
+    "Company identity",
+    "Contact & address",
+    "Licences & insurance",
+    "Account",
+  ];
+
+  it("runs one row of tabs over one card, in the screen's order", () => {
     const { container } = setup();
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(TABS);
+    expect(container.querySelectorAll(".wb2-card")).toHaveLength(1);
+  });
+
+  it("lands on Overview, and Overview has nothing to save", () => {
+    setup();
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.queryByRole("button", { name: /Edit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Save/ })).not.toBeInTheDocument();
+  });
+
+  /* ONE SECTION IS IN THE DOCUMENT AT A TIME — the point of the card. The old
+     screen stacked all five, so "the ABN field" and "the Edit button" were
+     always ambiguous and every test had to index its way to one. */
+  it("shows one section at a time", async () => {
+    const user = userEvent.setup();
+    setup();
+    expect(screen.queryByText("Who holds this HeyTiff account")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Account" }));
+    expect(screen.getByText("Who holds this HeyTiff account")).toBeInTheDocument();
+    expect(screen.queryByText("How the company appears to a customer")).not.toBeInTheDocument();
+  });
+
+  it("opens on the tab a link names, and writes the one you choose back to the URL", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "contact" });
+    expect(screen.getByRole("tab", { name: "Contact & address" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Licences & insurance" }));
+    expect(new URL(window.location.href).searchParams.get("sec")).toBe("credentials");
+  });
+
+  it("falls back to Overview when the link names nothing on this screen", () => {
+    setup({ sec: "payroll" });
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+  });
+});
+
+/* OVERVIEW — the whole business at a glance, and the way into every tab.
+
+   One panel per tab it summarises, each carrying that tab's own name and its
+   jump. The lockup says the logo and the two names, so no panel repeats them. */
+describe("overview", () => {
+  it("reads the company without opening a single section", () => {
+    setup();
+    expect(screen.getByRole("heading", { level: 2, name: "Smith Air Conditioning" })).toBeInTheDocument();
+    expect(screen.getByText("Smith Air Pty Ltd")).toBeInTheDocument();
+    expect(screen.getByText("51 824 753 556")).toBeInTheDocument();
+    expect(screen.getByText("office@smithair.com.au")).toBeInTheDocument();
+    expect(screen.getByText("Ringwood VIC 3134")).toBeInTheDocument();
+    // the credentials are the same plastic the Licences tab issues them as
+    expect(screen.getByText("Expires 07/08/2026")).toBeInTheDocument();
+    expect(screen.getByText("7 active")).toBeInTheDocument();
+  });
+
+  /* Nothing here is editable, so a blank has no button behind it — a dash, not
+     the "Not set" the edit-mode rows use. */
+  it("prints a dash for what the business hasn't filled in", () => {
+    setup({ org: { acn: null, website: null } });
+    expect(screen.getAllByLabelText("not recorded").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("Not set")).not.toBeInTheDocument();
+  });
+
+  it("drives the card — each panel opens the tab it summarises", async () => {
+    const user = userEvent.setup();
+    setup();
+
+    await user.click(screen.getByRole("button", { name: /Open Contact & address/ }));
+    expect(screen.getByRole("tab", { name: "Contact & address" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: /Edit/ })).toBeInTheDocument();
+  });
+
+  /* The credentials read here; they are EDITED one tab across. A card that
+     opened a modal from the read-only tab would make Overview an editor. */
+  it("shows the credentials without making them clickable", () => {
+    const { container } = setup();
+    expect(container.querySelectorAll(".pdlbody .cred")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Edit Public liability" })).not.toBeInTheDocument();
+  });
+
+  it("says so plainly when there is nothing on file", () => {
+    setup({ credentials: [] });
+    expect(screen.getByText("Nothing on file")).toBeInTheDocument();
+  });
+});
+
+describe("your business", () => {
+  it("reads as a card, not a form — name, ABN and GST on the plastic", () => {
+    const { container } = setup({ sec: "brand" });
     expect(screen.getByRole("heading", { name: "Organisation" })).toBeInTheDocument();
 
     const card = container.querySelector(".idc.light")!;
@@ -133,13 +263,13 @@ describe("the brand row", () => {
      left unset. On a card whose job is to show a customer whose business this
      is, that named the platform. There is no third party to name here. */
   it("carries no issuer line, and never says HeyTiff", () => {
-    const { container } = setup();
+    const { container } = setup({ sec: "brand" });
     expect(container.querySelector(".idc.light .idc-org")).toBeNull();
     expect(within(container.querySelector(".idc.light")!).queryByText(/HeyTiff/)).toBeNull();
   });
 
   it("falls back to initials when there is no logo, and shows the logo when there is", () => {
-    const { container, rerender } = setup();
+    const { container, rerender } = setup({ sec: "brand" });
     expect(container.querySelector(".idc-photo .inn")).toHaveTextContent("SA");
 
     rerender(
@@ -149,6 +279,7 @@ describe("the brand row", () => {
         account={ACCOUNT}
         logoUrl="https://signed.example/logo.png"
         today={TODAY}
+        initialSec="brand"
         actions={{
           onSave: jest.fn(),
           onAddCredential: jest.fn(),
@@ -170,11 +301,11 @@ describe("the brand row", () => {
      replaced the object you were reading with an unrelated form. */
   it("identity reads back the same fields it edits", async () => {
     const user = userEvent.setup();
-    const { container } = setup();
-    const identity = container.querySelectorAll(".card2")[1] as HTMLElement;
+    const { container } = setup({ sec: "identity" });
+    const identity = container.querySelector(".psec-body") as HTMLElement;
 
     const labels = () =>
-      Array.from(identity.querySelectorAll(".ro-row em, .field label")).map((l) =>
+      Array.from(identity.querySelectorAll(".pdrow dt, .field label")).map((l) =>
         (l.textContent ?? "").replace("*", "").trim()
       );
     const inRead = labels();
@@ -196,8 +327,8 @@ describe("the brand row", () => {
      ABN one is now an ERROR on the field, which is what it was really promising. */
   it("carries none of the old explanatory hints", async () => {
     const user = userEvent.setup();
-    setup();
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
+    setup({ sec: "identity" });
+    await user.click(screen.getByRole("button", { name: /Edit/ }));
 
     expect(screen.queryByText(/Shown across HeyTiff/)).not.toBeInTheDocument();
     expect(screen.queryByText(/ATO checksum/)).not.toBeInTheDocument();
@@ -206,9 +337,8 @@ describe("the brand row", () => {
 
   it("keeps the one help line that says something the label doesn't", async () => {
     const user = userEvent.setup();
-    setup();
-    // the third card is Contact & address — brand, identity, contact
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[1]);
+    setup({ sec: "contact" });
+    await user.click(screen.getByRole("button", { name: /Edit/ }));
     expect(screen.getByText("Also sets your public-holiday calendar")).toBeInTheDocument();
   });
 });
@@ -216,12 +346,12 @@ describe("the brand row", () => {
 describe("saving identity", () => {
   it("sends the identity section when the fields are clean", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "identity" });
 
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
+    await user.click(screen.getByRole("button", { name: /Edit/ }));
     await user.clear(screen.getByLabelText(/Trading name/));
     await user.type(screen.getByLabelText(/Trading name/), "Smith Air Co");
-    await user.click(screen.getAllByRole("button", { name: /Save/ })[0]);
+    await user.click(screen.getByRole("button", { name: /Save/ }));
 
     expect(actions.onSave).toHaveBeenCalledWith(
       "identity",
@@ -231,13 +361,13 @@ describe("saving identity", () => {
 
   it("blocks a bad ABN on the field, and never calls the action", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "identity" });
 
-    await user.click(screen.getAllByRole("button", { name: /Edit/ })[0]);
+    await user.click(screen.getByRole("button", { name: /Edit/ }));
     const abn = screen.getByLabelText("ABN");
     await user.clear(abn);
     await user.type(abn, "51824753557"); // one digit out
-    await user.click(screen.getAllByRole("button", { name: /Save/ })[0]);
+    await user.click(screen.getByRole("button", { name: /Save/ }));
 
     expect(await screen.findByText("That ABN doesn't check out")).toBeInTheDocument();
     expect(abn).toHaveAttribute("aria-invalid", "true");
@@ -247,7 +377,7 @@ describe("saving identity", () => {
 
 describe("the credential grid", () => {
   it("renders each row with its badge, number, issuer and status", () => {
-    const { container } = setup();
+    const { container } = setup({ sec: "credentials" });
     const cards = container.querySelectorAll(".credgrid .cred");
     expect(cards).toHaveLength(2);
 
@@ -262,12 +392,12 @@ describe("the credential grid", () => {
   });
 
   it("offers a tile to add one", () => {
-    setup({ credentials: [] });
+    setup({ sec: "credentials", credentials: [] });
     expect(screen.getByRole("button", { name: /Add licence or insurance/ })).toBeInTheDocument();
   });
 
   it("opens no modal until something is clicked", () => {
-    setup();
+    setup({ sec: "credentials" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
@@ -275,7 +405,7 @@ describe("the credential grid", () => {
 describe("the credential modal", () => {
   it("adds one from the tile", async () => {
     const user = userEvent.setup();
-    const { actions } = setup({ credentials: [] });
+    const { actions } = setup({ sec: "credentials", credentials: [] });
 
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
@@ -292,7 +422,7 @@ describe("the credential modal", () => {
 
   it("opens on a card with that credential's values, and updates it by id", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "credentials" });
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
@@ -312,7 +442,7 @@ describe("the credential modal", () => {
 
   it("asks for the expiry with a calendar, never a text box", async () => {
     const user = userEvent.setup();
-    setup();
+    setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
     // the shared popover picker: a button that opens the drawn calendar —
@@ -323,7 +453,7 @@ describe("the credential modal", () => {
 
   it("deletes only after a second, deliberate click", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "credentials" });
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
@@ -336,7 +466,7 @@ describe("the credential modal", () => {
 
   it("has no Delete when there is nothing yet to delete", async () => {
     const user = userEvent.setup();
-    setup();
+    setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     expect(
       within(screen.getByRole("dialog")).queryByRole("button", { name: "Delete" })
@@ -345,7 +475,7 @@ describe("the credential modal", () => {
 
   it("refuses an unnamed credential without calling anything", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /Save/ }));
@@ -356,7 +486,7 @@ describe("the credential modal", () => {
 
   it("keeps the modal open and says why when the action refuses", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "credentials" });
     actions.onAddCredential.mockResolvedValueOnce({ ok: false, error: "Couldn't add that." });
 
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
@@ -370,7 +500,7 @@ describe("the credential modal", () => {
 
   it("closes on Cancel without writing", async () => {
     const user = userEvent.setup();
-    const { actions } = setup();
+    const { actions } = setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" })
@@ -417,12 +547,14 @@ describe("the address", () => {
     });
   });
 
-  // the second card is Contact & address — its own Edit, its own Save
+  // Contact & address is a tab now, so there is exactly one Edit and one Save
+  // on screen — no indexing, and nothing to break when a section moves.
   const openContact = async (user: ReturnType<typeof userEvent.setup>) =>
-    user.click(screen.getAllByRole("button", { name: /Edit/ })[1]);
-  const saveContact = () => screen.getAllByRole("button", { name: /Save/ })[1];
+    user.click(screen.getByRole("button", { name: /Edit/ }));
+  const saveContact = () => screen.getByRole("button", { name: /Save/ });
 
   const blank = {
+    sec: "contact",
     org: { address: null, suburb: null, state: null, postcode: null },
   };
 
@@ -555,7 +687,7 @@ describe("the logo", () => {
      no control — the feature was indistinguishable from missing. Nothing here
      may press Edit first. */
   it("is on the screen in read mode, with no Edit pressed", () => {
-    const { container } = setup();
+    const { container } = setup({ sec: "brand" });
     expect(container.querySelector(".orglogo-tile")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Upload/ })).toBeInTheDocument();
     expect(screen.getByLabelText("Company logo")).toBeInTheDocument();
@@ -564,7 +696,7 @@ describe("the logo", () => {
   it("uploads as an org_logo and points the org at what came back", async () => {
     const user = userEvent.setup();
     uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
-    const { actions } = setup();
+    const { actions } = setup({ sec: "brand" });
 
     await user.upload(screen.getByLabelText("Company logo"), file());
 
@@ -575,7 +707,7 @@ describe("the logo", () => {
   it("says what went wrong instead of pretending it saved", async () => {
     const user = userEvent.setup();
     uploadFile.mockResolvedValue({ ok: false, error: "That file is too big — 10 MB is the limit." });
-    const { actions } = setup();
+    const { actions } = setup({ sec: "brand" });
 
     await user.upload(screen.getByLabelText("Company logo"), file());
 
@@ -587,11 +719,11 @@ describe("the logo", () => {
 
   it("offers Remove only once there is a logo", async () => {
     const user = userEvent.setup();
-    const plain = setup();
+    const plain = setup({ sec: "brand" });
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
     plain.unmount();
 
-    const withLogo = setup({ logoUrl: "https://signed.example/logo.png" });
+    const withLogo = setup({ sec: "brand", logoUrl: "https://signed.example/logo.png" });
     await user.click(screen.getByRole("button", { name: "Remove" }));
     expect(withLogo.actions.onClearLogo).toHaveBeenCalled();
   });
@@ -599,7 +731,7 @@ describe("the logo", () => {
   /* A drop bypasses the input's `accept` entirely, so the tile re-checks the
      type itself and answers without a round trip. */
   it("refuses a dropped non-image without uploading it", () => {
-    const { container } = setup();
+    const { container } = setup({ sec: "brand" });
     const tile = container.querySelector(".orglogo-tile")!;
     const pdf = new File(["x"], "quote.pdf", { type: "application/pdf" });
 
@@ -611,7 +743,7 @@ describe("the logo", () => {
 
   it("uploads an image that was dropped on the tile", async () => {
     uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-4" } });
-    const { container, actions } = setup();
+    const { container, actions } = setup({ sec: "brand" });
     const tile = container.querySelector(".orglogo-tile")!;
 
     fireEvent.drop(tile, { dataTransfer: { files: [file()] } });
@@ -623,7 +755,7 @@ describe("the logo", () => {
 
 describe("the account card", () => {
   it("states who holds the account, how big it is, and since when", () => {
-    setup();
+    setup({ sec: "account" });
     expect(screen.getByText("Isaac Smith")).toBeInTheDocument();
     expect(screen.getByText("isaac@smithair.com.au")).toBeInTheDocument();
     expect(screen.getByText("7 active")).toBeInTheDocument();
@@ -635,17 +767,17 @@ describe("the account card", () => {
      evening signup sliced in UTC reads a day early. 2025-03-10T14:30Z is the
      11th in Melbourne. */
   it("dates the signup on the AU calendar, not UTC's", () => {
-    setup();
+    setup({ sec: "account" });
     expect(screen.getByText("11/03/2025")).toBeInTheDocument();
     expect(screen.queryByText("10/03/2025")).not.toBeInTheDocument();
   });
 
   it("says so when the owner is the person reading it", () => {
-    const { unmount } = setup();
+    const { unmount } = setup({ sec: "account" });
     expect(screen.queryByText("You")).not.toBeInTheDocument();
     unmount();
 
-    setup({ account: { ...ACCOUNT, ownerIsYou: true } });
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
     expect(screen.getByText("You")).toBeInTheDocument();
   });
 
@@ -653,13 +785,20 @@ describe("the account card", () => {
      card falls back to the address rather than printing a dash for a real
      person. */
   it("falls back to the email's local part when there is no name", () => {
-    setup({ account: { ...ACCOUNT, ownerName: null } });
+    setup({ sec: "account", account: { ...ACCOUNT, ownerName: null } });
     expect(screen.getByText("isaac")).toBeInTheDocument();
   });
 
+  /* No account, no tab — never an empty one. Asking for it by link lands on
+     Overview, which does not carry the panel either: the strip and the
+     overview have to agree about what exists. */
   it("is absent entirely when the caller had no session to resolve it", () => {
-    const { container } = setup({ account: null });
-    expect(container.querySelectorAll(".card2")).toHaveLength(4);
+    setup({ sec: "account", account: null });
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).not.toContain("Account");
     expect(screen.queryByText("Primary owner")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
   });
 });

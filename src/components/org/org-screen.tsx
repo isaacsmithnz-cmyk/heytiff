@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import { Icon } from "@/components/shell/icon";
+import { ViewTabs } from "@/components/shell/view-tabs";
 import { AddressField } from "@/components/address/address-field";
 import { IdCard } from "@/components/cards/id-card";
 import { CredentialCard } from "@/components/cards/credential-card";
 import { SectionCard } from "@/components/profile/section-card";
-import { Field, FactRow, Seg, SelectInput, TextInput } from "@/components/profile/fields";
+import { Field, SelectInput, Seg, TextInput } from "@/components/profile/fields";
 import { auDayOf, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { orgCredBadge, type OrgCredential, type OrgCredentialInput } from "@/lib/org/credentials";
@@ -21,41 +23,41 @@ import {
 } from "@/lib/org/settings";
 import { OrgCredentialModal } from "./org-credential-modal";
 import { LogoUploader } from "./logo-uploader";
+import { OverviewTab } from "./overview-tab";
+import { ORG_TABS, orgTabFromParam, type OrgTabKey } from "./tabs";
 import type { OrgActions } from "./types";
 
-/* The Organisation screen — the company profile.
+/* The Organisation screen — the company profile, on the Workboard's card.
 
-   THE PAGE HAD TWO SHELLS INSIDE EACH OTHER. `.wrap` is the dashboard's page
-   frame (40px of padding, centred at 1500) and `.prof` is the STAFF CARD's
-   frame (another 32/40, centred at its own max-width). This screen nested one
-   in the other, so the cards were centred inside a box that was itself centred,
-   while the `<h1>` stayed at the left edge of the outer one: measured at
-   1440px, the heading sat at x=40 and the cards it headed began at x=322, with
-   282px of dead page to their right. That is the whole reason the screen did
-   not look like the rest of the app — nothing was wrong with the cards.
+   WHAT IT IS NOW. One row of tabs joined to ONE persistent white card, exactly
+   the shape the Workboard and the staff card already wear: `.wb2-vtabs` above
+   `.wb2-card`, with the thumb that IS the card's top edge for the width of the
+   live tab. Switching tabs swaps the information; the surface stays put.
 
-   It is one shell now, the one its siblings under /dashboard/admin use:
-   `.wrap > .stg`, with the Admin breadcrumb those pages all carry and this one
-   was missing. `.org-stg` is a little wider than `.adm-stg` because this screen
-   has a two-column brand row and a grid of credentials where Tax and the
-   integrations have lists.
+   It was five stacked `.card2`s — the whole company down one scroll, each
+   section wearing its own frame, its own icon and its own headline. Nothing was
+   wrong with any single card; there was just no altitude anywhere on the page.
+   You could not glance at the business, and you could not get to the one field
+   you came for without reading past four sections that were not it.
 
-   WHAT ELSE MOVED.
+   SO OVERVIEW LEADS AND READS. It is the whole company at a glance and the only
+   tab with nothing to save — one panel per tab below it, each one the tab's own
+   name with the jump into it. Every tab after Overview edits exactly one thing.
 
-     THE LOGO IS ON THE SCREEN. It was the last field of the Company identity
-     EDIT form — invisible unless you pressed Edit on a card named after
-     something else. It is the first card now, beside a live preview of the
-     company card it feeds, and it saves on drop.
+   The strip, the measured thumb, the keyboard walk and the view transition are
+   all `shell/view-tabs` and `.wb2-card` — borrowed, not copied. The staff card
+   made the same borrow and its comment says why: fixing either one twice was
+   the alternative.
 
-     THE COMPANY CARD LEFT THE IDENTITY CARD. It was the read view of a section
-     whose edit view was six text boxes, so pressing Edit replaced the object
-     you were reading with an unrelated form — and it was a 460px card sitting
-     in a 780px one with the rest of the row empty. It is the preview in the
-     brand row now, next to the logo that changes it, and identity reads as the
-     same labelled rows it edits.
+   `?sec=` is written back with history.replaceState (not a router push) so a
+   refresh or a shared link lands on the same tab without a navigation, and the
+   server reads it from its own searchParams — no useSearchParams, so no
+   Suspense boundary around the page.
 
-     WEBSITE STOPPED BEING AN ORPHAN. It was one lone fact row under the card,
-     the only survivor of identity's read view. It is a field among its own.
+   WHAT DID NOT CHANGE. The sections themselves: the same SectionCards saving
+   the same two allowlisted groups, the same credential modal, the same logo
+   uploader writing on drop. They wear `variant="section"` now — no frame, no
+   repeated title, because the TAB is the title (see section-card).
 
    The compliance COLUMNS are still gone from this screen: the ARC
    authorisation, the contractor licence and the insurance policy are rows in
@@ -97,17 +99,13 @@ function orgInitials(name: string): string {
     .join("");
 }
 
-/** A website as typed, made clickable — people write it without the scheme. */
-function href(site: string): string {
-  return site.startsWith("http") ? site : `https://${site}`;
-}
-
 export function OrgScreen({
   org,
   credentials,
   account,
   logoUrl,
   today,
+  initialSec,
   addressLookup = false,
   actions,
 }: {
@@ -120,10 +118,48 @@ export function OrgScreen({
   logoUrl: string | null;
   /** AU calendar date, so expiries agree with the dashboard chips */
   today: string;
+  /** from the page's own searchParams, so a shared link opens the right tab */
+  initialSec?: string;
   /** server-computed Boolean(GOOGLE_MAPS_API_KEY) — the key never comes with it */
   addressLookup?: boolean;
   actions: OrgActions;
 }) {
+  /* An account nobody could resolve gets no tab, never an empty one — same
+     rule the staff card's admin sections follow, and it is what keeps the
+     strip and the Overview panel agreeing about what exists. */
+  const available = ORG_TABS.filter((t) => t.key !== "account" || !!account);
+
+  const [tab, setTab] = useState<OrgTabKey>(() => {
+    const wanted = orgTabFromParam(initialSec);
+    return wanted && available.some((t) => t.key === wanted) ? wanted : "overview";
+  });
+
+  /* The board's switch: the information swaps, the surface stays. `.wb2-card`
+     carries `view-transition-name: wbcard`, so the box morphs while the
+     outgoing panel drifts up and the incoming rises. No View Transitions
+     support and the panel simply re-keys with the same vertical entrance. */
+  const [fallbackSwap, setFallbackSwap] = useState(0);
+
+  const go = (key: OrgTabKey) => {
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
+    if (key !== tab && typeof doc.startViewTransition === "function") {
+      doc.startViewTransition(() => flushSync(() => setTab(key)));
+    } else {
+      setTab(key);
+      if (key !== tab) setFallbackSwap((n) => n + 1);
+    }
+
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("sec", key);
+      // replaceState, not router.push: this is which section you're looking
+      // at, not a navigation — a push would re-run the server render and
+      // remount the very cards this screen exists to keep still.
+      window.history.replaceState(null, "", url.toString());
+    }
+    document.querySelector(".outlet")?.scrollTo({ top: 0 });
+  };
+
   return (
     <div className="page in">
       <div className="wrap">
@@ -138,11 +174,57 @@ export function OrgScreen({
             </div>
           </div>
 
-          <BrandSection org={org} logoUrl={logoUrl} actions={actions} />
-          <IdentitySection org={org} actions={actions} />
-          <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
-          <CredentialsSection credentials={credentials} today={today} actions={actions} />
-          {account && <AccountSection account={account} />}
+          <div className="orgcard2">
+            <ViewTabs
+              ariaLabel="Organisation sections"
+              idPrefix="orgtab"
+              panelPrefix="orgsec"
+              active={tab}
+              onGo={(k) => go(k as OrgTabKey)}
+              items={available.map((t) => ({ key: t.key, label: t.label }))}
+            />
+
+            <div className="wb2-card">
+              <div className="ppanel2">
+                {/* keyed on the tab so the panel's entrance animation replays */}
+                <section
+                  key={`${tab}#${fallbackSwap}`}
+                  id={`orgsec-${tab}`}
+                  role="tabpanel"
+                  aria-labelledby={`orgtab-${tab}`}
+                  tabIndex={-1}
+                  className="psec2"
+                  data-sec={tab}
+                >
+                  {tab === "overview" && (
+                    <OverviewTab
+                      org={org}
+                      credentials={credentials}
+                      account={account}
+                      logoUrl={logoUrl}
+                      today={today}
+                      onGo={go}
+                    />
+                  )}
+                  {tab === "brand" && (
+                    <BrandSection org={org} logoUrl={logoUrl} actions={actions} />
+                  )}
+                  {tab === "identity" && <IdentitySection org={org} actions={actions} />}
+                  {tab === "contact" && (
+                    <ContactSection org={org} addressLookup={addressLookup} actions={actions} />
+                  )}
+                  {tab === "credentials" && (
+                    <CredentialsSection
+                      credentials={credentials}
+                      today={today}
+                      actions={actions}
+                    />
+                  )}
+                  {tab === "account" && account && <AccountSection account={account} />}
+                </section>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -153,12 +235,12 @@ export function OrgScreen({
 
    The two halves are one subject: the tile is the only control on the screen
    that changes what a customer sees, and the card beside it is what they see.
-   Uploading and then hunting for the result on another card was the arrangement
+   Uploading and then hunting for the result on another tab was the arrangement
    this replaces.
 
    No Edit button, because there is nothing here to hold in a draft — the logo
-   writes on drop, and the names it prints are edited on the card below. Same
-   bargain the credentials card makes. */
+   writes on drop, and the names it prints are edited on Company identity. Same
+   bargain the credentials tab makes. */
 function BrandSection({
   org,
   logoUrl,
@@ -172,15 +254,9 @@ function BrandSection({
   const gst = org.gst_registered;
 
   return (
-    <div className="card2">
-      <div className="c2h">
-        <span className="ci">
-          <Icon name="hexagon" size={18} />
-        </span>
-        <span>
-          <b>Your business</b>
-          <em>How the company appears to a customer</em>
-        </span>
+    <div className="psec-body">
+      <div className="psechd">
+        <em>How the company appears to a customer</em>
       </div>
 
       <div className="orgbrand">
@@ -215,19 +291,22 @@ function BrandSection({
   );
 }
 
+/* Company identity — who the business is on paper.
+
+   Read and edit name the same six things in the same order, which is what they
+   did not do before: the read view was a piece of plastic and the edit view was
+   these boxes, so pressing Edit moved everything. The plastic is on Your
+   business now, where the logo that changes it is. */
 function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
   const values = identityValues(org);
 
-  /* Read and edit name the same six things in the same order, which is what
-     they did not do before: the read view was a piece of plastic and the edit
-     view was these boxes, so pressing Edit moved everything. */
   const read = (
-    <div className="ro-rows">
-      <FactRow label="Trading name" value={values.trading_name} />
-      <FactRow label="Legal name" value={values.legal_name} />
-      <FactRow label="ABN" value={formatAbn(values.abn)} />
-      <FactRow label="ACN" value={formatAcn(values.acn)} />
-      <FactRow
+    <dl className="pdl split">
+      <Row label="Trading name" value={values.trading_name} />
+      <Row label="Legal name" value={values.legal_name} />
+      <Row label="ABN" value={formatAbn(values.abn)} />
+      <Row label="ACN" value={formatAcn(values.acn)} />
+      <Row
         label="GST"
         value={
           org.gst_registered === true
@@ -237,13 +316,13 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
               : ""
         }
       />
-      <FactRow
+      <Row
         label="Website"
         value={
           values.website ? (
             <a
               className="ro-link"
-              href={href(values.website)}
+              href={values.website.startsWith("http") ? values.website : `https://${values.website}`}
               target="_blank"
               rel="noreferrer noopener"
             >
@@ -253,12 +332,14 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
             ""
           )
         }
+        small
       />
-    </div>
+    </dl>
   );
 
   return (
     <SectionCard
+      variant="section"
       icon="fingerprint"
       title="Company identity"
       sub="Who the business is on paper"
@@ -346,22 +427,40 @@ function ContactSection({
   const place = [values.suburb, values.state, values.postcode].filter(Boolean).join(" ");
 
   const read = (
-    <div className="ro-rows">
-      <FactRow
+    <dl className="pdl split">
+      <Row
         label="Email"
-        value={values.email ? <a className="ro-link" href={`mailto:${values.email}`}>{values.email}</a> : ""}
+        value={
+          values.email ? (
+            <a className="ro-link" href={`mailto:${values.email}`}>
+              {values.email}
+            </a>
+          ) : (
+            ""
+          )
+        }
+        small
       />
-      <FactRow
+      <Row
         label="Phone"
-        value={values.phone ? <a className="ro-link" href={`tel:${values.phone}`}>{values.phone}</a> : ""}
+        value={
+          values.phone ? (
+            <a className="ro-link" href={`tel:${values.phone}`}>
+              {values.phone}
+            </a>
+          ) : (
+            ""
+          )
+        }
       />
-      <FactRow label="Address" value={values.address} />
-      <FactRow label="Suburb, state & postcode" value={place} />
-    </div>
+      <Row label="Address" value={values.address} small />
+      <Row label="Suburb, state & postcode" value={place} small />
+    </dl>
   );
 
   return (
     <SectionCard
+      variant="section"
       icon="phone"
       title="Contact & address"
       sub="Where the business lives & how to reach it"
@@ -456,9 +555,9 @@ function ContactSection({
 
 /* Licences & insurance — data, not an edit cycle.
 
-   There is no Edit / Save / Cancel on this card because there is nothing on it
+   There is no Edit / Save / Cancel on this tab because there is nothing on it
    to hold in a draft: each card opens its own modal and each write is its own
-   action. That is the same bargain the staff Compliance card makes. */
+   action. That is the same bargain the staff Compliance tab makes. */
 function CredentialsSection({
   credentials,
   today,
@@ -485,15 +584,9 @@ function CredentialsSection({
     !open || open === "new" ? { ok: true as const } : actions.onRemoveCredential(open.id);
 
   return (
-    <div className="card2" data-live>
-      <div className="c2h">
-        <span className="ci">
-          <Icon name="shield" size={18} />
-        </span>
-        <span>
-          <b>Licences &amp; insurance</b>
-          <em>What lets the business trade</em>
-        </span>
+    <div className="psec-body" data-live>
+      <div className="psechd">
+        <em>What lets the business trade</em>
       </div>
 
       <div className="credgrid">
@@ -537,19 +630,13 @@ function CredentialsSection({
    than growing a control here: the team count links to Team, and ownership
    moves through the handover flow. See lib/org/account.ts.
 
-   Last on the page because it is the only card that isn't about the company as
-   a customer sees it. */
+   Last tab because it is the only one that isn't about the company as a
+   customer sees it. */
 function AccountSection({ account }: { account: OrgAccount }) {
   return (
-    <div className="card2">
-      <div className="c2h">
-        <span className="ci">
-          <Icon name="usershield" size={18} />
-        </span>
-        <span>
-          <b>Account</b>
-          <em>Who holds this HeyTiff account</em>
-        </span>
+    <div className="psec-body">
+      <div className="psechd">
+        <em>Who holds this HeyTiff account</em>
       </div>
 
       <div className="orgacct">
@@ -564,9 +651,7 @@ function AccountSection({ account }: { account: OrgAccount }) {
 
         <span className="orgacct-f">
           <em>Team</em>
-          <b>
-            {account.activeStaff} active
-          </b>
+          <b>{account.activeStaff} active</b>
           <i>
             {account.totalStaff === account.activeStaff
               ? "on the books"
@@ -583,7 +668,7 @@ function AccountSection({ account }: { account: OrgAccount }) {
           {/* created_at is a TIMESTAMPTZ, so it goes through auDayOf rather than
               being sliced: every AU state is ahead of UTC, and an evening
               signup sliced in UTC reads a day early. Numeric, to match the
-              expiry dates on the card above it. */}
+              expiry dates on the tab above it. */}
           <b>{account.createdAt ? formatAuDate(auDayOf(account.createdAt)) : "—"}</b>
         </span>
 
@@ -592,6 +677,35 @@ function AccountSection({ account }: { account: OrgAccount }) {
           <b>{planLabel(account.plan)}</b>
         </span>
       </div>
+    </div>
+  );
+}
+
+/* A read row: the same `.pdrow` shape the panels above use, so a section's read
+   view and the Overview panel that summarises it are the same object. Blank is
+   a dash — pressing Edit is what fills it, and it is one button away. */
+function Row({
+  label,
+  value,
+  small,
+}: {
+  label: string;
+  value?: React.ReactNode;
+  small?: boolean;
+}) {
+  const empty = value === null || value === undefined || value === "";
+  return (
+    <div className="pdrow">
+      <dt>{label}</dt>
+      <dd>
+        {empty ? (
+          <span className="pdnone" aria-label="not recorded">
+            —
+          </span>
+        ) : (
+          <span className={small ? "pdv sm" : "pdv"}>{value}</span>
+        )}
+      </dd>
     </div>
   );
 }

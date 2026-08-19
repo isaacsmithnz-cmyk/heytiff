@@ -2,7 +2,9 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { signOne } from "@/lib/documents/query";
 import { isCredKind, sortOrgCredentials, type OrgCredential } from "./credentials";
 import { NO_BRAND, type OrgBrand } from "./brand";
+import { sortCandidates, type OwnerCandidate } from "./ownership";
 import type { OrgAccount } from "./account";
+import type { Role } from "@/lib/roles-shared";
 
 /* Reading the organisation's own credentials. Org-scoped, like every other
    query module here — there is no unscoped select in this file, and the sort is
@@ -75,6 +77,57 @@ export async function orgAccount(orgId: string, viewerUserId: string): Promise<O
     createdAt: (org?.created_at as string | undefined) ?? null,
     plan: (org?.plan as string | undefined) ?? "",
   };
+}
+
+/* WHO THE ACCOUNT COULD BE HANDED TO — every other member with a login.
+
+   MEMBERSHIPS IS THE ROSTER, not staff_profiles. A membership row IS the login;
+   a staff card without one is a person who has been entered but has never
+   signed in, and naming them here would offer a handover the FK refuses
+   (organizations_primary_owner_fkey points at memberships). The name comes off
+   profiles for the same reason the Account card's owner does.
+
+   The current master is excluded rather than disabled — they are the one person
+   this list cannot mean. */
+export async function listOwnerCandidates(
+  orgId: string,
+  currentOwnerUserId: string | null
+): Promise<OwnerCandidate[]> {
+  const { data: members } = await supabaseAdmin
+    .from("memberships")
+    .select("user_id, role")
+    .eq("org_id", orgId);
+
+  const rows = (members ?? []).filter((m) => (m.user_id as string) !== currentOwnerUserId);
+  if (rows.length === 0) return [];
+
+  const { data: profiles } = await supabaseAdmin
+    .from("profiles")
+    .select("user_id, name, email")
+    .in(
+      "user_id",
+      rows.map((m) => m.user_id as string)
+    );
+
+  const byUser = new Map<string, { name: string | null; email: string | null }>();
+  for (const p of profiles ?? []) {
+    byUser.set(p.user_id as string, {
+      name: (p.name as string | undefined) ?? null,
+      email: (p.email as string | undefined) ?? null,
+    });
+  }
+
+  return sortCandidates(
+    rows.map((m) => {
+      const p = byUser.get(m.user_id as string);
+      return {
+        userId: m.user_id as string,
+        name: p?.name ?? null,
+        email: p?.email ?? null,
+        role: (m.role as Role) ?? "staff",
+      };
+    })
+  );
 }
 
 /* The company's face, for a surface a customer receives — see lib/org/brand.ts.

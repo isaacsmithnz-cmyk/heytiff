@@ -4441,6 +4441,38 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
   font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
   background:rgba(46,104,255,.1); color:var(--info-t); }
 
+/* ── Handing the account over (components/org/transfer-owner-modal) ──
+   A list you PICK from, then a panel that says what picking meant, then the
+   button. Not a select: the choice is a person, and a person is a name, an
+   address and a role — three lines a 46px box cannot hold, and the role is the
+   whole difference between a safe handover and a promotion riding along with
+   it. Rows rather than cards for the same reason the credential grid uses
+   cards: these are people in a list, not objects in a wallet. */
+.fg .ownlist { display:flex; flex-direction:column; gap:8px; max-height:290px; overflow-y:auto; }
+.fg .ownrow { display:flex; align-items:center; gap:12px; width:100%; padding:12px 14px; text-align:left;
+  border:1.5px solid #e9ebf0; border-radius:14px; background:#fff; cursor:pointer;
+  transition:border-color .18s, background .18s, box-shadow .18s; }
+.fg .ownrow:hover { border-color:#d7dbe3; background:#fafbfc; }
+/* Selected is a RING plus a tick, never colour alone — the tick is what still
+   says "this one" to a screenshot in greyscale and to anyone who cannot
+   separate the two greys. */
+.fg .ownrow.on { border-color:var(--teal-d); background:rgba(0,229,192,.05); box-shadow:0 0 0 3px rgba(0,229,192,.14); }
+.fg .ownrow:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.fg .ownrow-k { flex:1; min-width:0; display:block; }
+.fg .ownrow-k b { display:block; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .ownrow-k i { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
+.fg .ownrow-r { flex:0 0 auto; height:22px; padding:0 9px; display:inline-flex; align-items:center; border-radius:7px;
+  background:rgba(5,5,5,.06); color:var(--gray700); font-size:11px; font-weight:800; letter-spacing:.02em; }
+.fg .ownrow-t { flex:0 0 auto; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--teal-d); color:#fff; }
+/* What the choice costs, in the neutral panel rather than in a warning tone:
+   nothing here has gone wrong, and spending the status law's amber on a
+   consequence would blunt it where it means "something needs you". */
+.fg .ownwarn { margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(5,5,5,.035);
+  display:flex; flex-direction:column; gap:7px; }
+.fg .ownwarn b { font-size:13.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.fg .ownwarn span { font-size:12.5px; font-weight:600; line-height:1.55; color:var(--gray700); }
+
 /* Colour swatches in the credential modal. Scoped like every field beside
    them: the modal portals to <body> inside a display:contents `.fg`, so the
    design tokens and `.fg .inp` styles still reach it. */

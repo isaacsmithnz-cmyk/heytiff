@@ -20,10 +20,8 @@ type Membership = {
   userId: string;
   /** organizations.primary_owner_user_id — the master owner of the active org */
   primaryOwnerUserId: string;
-  /** organizations.trading_name — drives the sidebar "HeyTiff x ..." line */
+  /** organizations.trading_name — drives the sidebar's business chip */
   orgName: string | null;
-  /** organizations.logo_url — a STORAGE REF, signed by the caller that renders it */
-  orgLogoRef: string | null;
   /** organizations.state — the org's home state, and so the public-holiday
       calendar anyone without their own override is paid against. Rides the
       query that was already being made. */
@@ -38,7 +36,6 @@ const EMPTY: Membership = {
   // match when we failed to load anything.
   primaryOwnerUserId: " none",
   orgName: null,
-  orgLogoRef: null,
   orgState: null,
 };
 
@@ -57,7 +54,7 @@ const getMembership = cache(async (): Promise<Membership> => {
       .maybeSingle(),
     supabaseAdmin
       .from("organizations")
-      .select("primary_owner_user_id, trading_name, logo_url, state")
+      .select("primary_owner_user_id, trading_name, state")
       .eq("id", orgId)
       .maybeSingle(),
   ]);
@@ -71,24 +68,15 @@ const getMembership = cache(async (): Promise<Membership> => {
     primaryOwnerUserId:
       (org.data?.primary_owner_user_id as string | undefined) ?? EMPTY.primaryOwnerUserId,
     orgName: (org.data?.trading_name as string | undefined) ?? null,
-    orgLogoRef: (org.data?.logo_url as string | undefined) ?? null,
     orgState: (org.data?.state as string | undefined) ?? null,
   };
 });
 
-/** Trading name of the active org — the sidebar's "HeyTiff × …" line.
+/** Trading name of the active org — the chip under the sidebar wordmark.
     Null until the owner sets one (the legacy `name` column is a signup-email
     seed and is deliberately never shown). */
 export async function getOrgName(): Promise<string | null> {
   return (await getMembership()).orgName;
-}
-
-/** The org logo's STORAGE REF, for the sidebar lockup. Rides the membership
-    query that was already being made, so it costs no extra round trip; the
-    caller signs it (lib/documents/query.ts::signOne) because a link into a
-    private bucket has to be minted per render. */
-export async function getOrgLogoRef(): Promise<string | null> {
-  return (await getMembership()).orgLogoRef;
 }
 
 /** The org's home state. The staff card resolves an unset holiday state

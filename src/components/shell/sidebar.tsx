@@ -22,14 +22,11 @@ export function Sidebar({
   role,
   caps,
   orgName = null,
-  orgLogoUrl = null,
 }: {
   role: Role | null;
   caps: readonly Capability[];
-  /** trading name from org settings; null (unset) hides the × line */
+  /** trading name from org settings; null (unset) hides the chip */
   orgName?: string | null;
-  /** signed link to the uploaded logo; null keeps the plain × glyph */
-  orgLogoUrl?: string | null;
 }) {
   const pathname = usePathname();
   const groups = navGroupsFor({ caps: new Set(caps), role });
@@ -46,23 +43,22 @@ export function Sidebar({
               Hey<span>Tiff</span>
             </span>
           </div>
-          {/* Stacked lockup: HeyTiff / × / the business — trading name from
-              Organisation settings. The × sits on its own line so the two
-              names read as equals rather than one qualifying the other.
+          {/* Whose account this is — the trading name from Organisation
+              settings, chipped under the wordmark. A chip rather than a line of
+              text because the two names are not the same kind of thing: HeyTiff
+              is the software, this is the business using it, and a bare line
+              underneath reads as a tagline for the word above it.
 
-              Once the business uploads a logo it takes the × line's place: the
-              mark IS the join between the two names, and it says whose account
-              this is faster than the words underneath it. */}
+              The uploaded logo used to render here in place of a × glyph, and
+              could not: what a business uploads is a LETTERHEAD — the one in
+              prod is 3780×1064 — and a 224px rail has nowhere to put a wordmark
+              that wide except a 40px box, where it came out 9px tall in its own
+              dark ink on a near-black rail. The logo belongs on the surfaces a
+              customer receives, which is where it is (org/letterhead.tsx). */}
           {orgName ? (
-            <div className="ht-orgx" title={orgName}>
-              {orgLogoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="ht-orglogo" src={orgLogoUrl} alt="" />
-              ) : (
-                <span className="x">×</span>
-              )}
-              <span className="nm">{orgName}</span>
-            </div>
+            <span className="ht-orgpill" title={orgName}>
+              {orgName}
+            </span>
           ) : null}
         </div>
       </div>

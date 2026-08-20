@@ -129,15 +129,26 @@
 .fg .ht-logo:hover svg { transform:scale(1.08); }
 .fg .ht-wm { font-size:22px; font-weight:800; letter-spacing:-0.035em; line-height:1; color:#fff; }
 .fg .ht-wm span { color:var(--teal); }
-/* HeyTiff × org — trading name from Organisation settings, under the logo.
-   Additive only: the brand row's layout and animations are untouched. */
-/* Centred lockup: the × and the business name sit centred under the logo. */
-.fg .ht-brandcol { display:flex; flex-direction:column; align-items:center; gap:2px; min-width:0; }
-.fg .ht-orgx { display:flex; flex-direction:column; align-items:center; text-align:center; gap:5px; min-width:0; width:100%; }
-.fg .ht-orgx .x { color:var(--teal); font-size:12px; font-weight:700; line-height:1; opacity:.6; }
-/* Wraps rather than truncates: the name has its own line now, so a long
-   business name should use a second one instead of turning into an ellipsis. */
-.fg .ht-orgx .nm { font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; line-height:1.4; color:rgba(255,255,255,.5); overflow-wrap:anywhere; }
+/* The business using HeyTiff — trading name from Organisation settings, as a
+   chip under the wordmark. Additive only: the brand row's layout and
+   animations are untouched.
+
+   Ink is the rail's own de-emphasis, and the fill is quiet enough not to cost
+   it: white at .5 reads 5.30:1 on bare --ink and 5.30:1 again over this fill,
+   because the wash lifts the glyphs and the ground by the same amount. Do not
+   brighten the fill without re-measuring — at .06 there is no headroom being
+   spent, at .12 there is. */
+.fg .ht-brandcol { display:flex; flex-direction:column; align-items:center; gap:10px; min-width:0; }
+/* Wraps rather than truncates: a long trading name uses a second line inside
+   the chip rather than turning into an ellipsis. The padding is wider than a
+   chip this size needs so a wrapped line still clears the stadium — at two
+   lines the radius is ~18px and the top line is inset ~6px by the curve.
+   1px less on the right pays back the trailing letter-spacing, which otherwise
+   parks a single-line chip 1.4px off its own centre. */
+.fg .ht-orgpill { max-width:100%; padding:5px 11px 5px 12px; border-radius:999px;
+  background:rgba(255,255,255,.06); font-size:10px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; line-height:1.35; text-align:center; color:rgba(255,255,255,.5);
+  overflow-wrap:anywhere; }
 .fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
 @media (prefers-reduced-motion: no-preference) {
   .fg .ht-logo .htmk-p1 { animation:htmkDraw 70s ease-in-out infinite; }
@@ -4450,8 +4461,6 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .oc-swb:hover { transform:scale(1.08); }
 .fg .oc-swb.on { border-color:var(--ink); }
 
-/* The sidebar lockup's logo, where the × sits when there isn't one. */
-.fg .ht-orgx .ht-orglogo { width:40px; height:40px; border-radius:11px; object-fit:contain; background:rgba(255,255,255,.06); padding:4px; }
 /* ---- My leave: the request calendar (components/timepay/my-leave.tsx) ----
    The month grid is INLINE here, not a popover: choosing leave is choosing a
    shape on a calendar — which days, how many of them, and which ones the

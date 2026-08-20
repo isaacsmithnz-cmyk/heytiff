@@ -24,7 +24,7 @@ import { JobAttach } from "./job-attach";
 
 /* Summary view (Design Studio step 2) — the design as a DOCUMENT.
 
-   THE SAME DOCUMENT the customer's live link and the printed pack render.
+   THE SAME DOCUMENT the customer's live link and the printed copy render.
    `SheetDoc` is the artifact — masthead, letterhead, the row of six, a block
    per system, the picklist — and this file is one of its three chromes. What
    is owner-only is passed IN rather than living in the shared component, and
@@ -273,7 +273,7 @@ export function SummaryView({
       )}
 
       {/* ── the document. The SAME component the customer's live link and the
-            printed pack render; what differs is the chrome above and what
+            printed copy render; what differs is the chrome above and what
             hangs off the foot. ── */}
       <SheetDoc
         doc={doc}

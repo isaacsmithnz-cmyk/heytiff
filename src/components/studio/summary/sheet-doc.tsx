@@ -472,8 +472,8 @@ export function SheetDoc({
      so the print document renders it at the head of the page instead.
 
      This is why it is a slot rather than part of the masthead. Anything that
-     lives only in a bar vanishes from the PDF, and a pack a builder files
-     without the installer's mark on it is the thing #440 existed to fix. */
+     lives only in a bar vanishes from the PDF, and a document a builder
+     files without the installer's mark is the thing #440 existed to fix. */
   mark?: React.ReactNode;
   /** the owner's editable letterhead — see LetterheadFields */
   fields?: LetterheadFields;

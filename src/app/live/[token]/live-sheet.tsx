@@ -24,7 +24,7 @@ import "./live-sheet.css";
    destination.
 
    ONE DOCUMENT, TWO CHROMES. Everything below the bar is `SheetDoc`, the same
-   component and the same derived model the owner and the printed pack render.
+   component and the same derived model the owner and the paper copy render.
    What differs is only what wraps it, and what the owner's chrome carries is
    ABSENT here rather than hidden:
 

@@ -2,7 +2,7 @@
 
    This file used to own a whole schedule engine: `buildMaterials` walked the
    document into a per-system MaterialsSchedule, and `rollupUnits` summed its
-   units for the printed pack. Both were RETIRED once buildSummaryModel took
+   units for the printed copy. Both were RETIRED once buildSummaryModel took
    over — the sheet and the printed document now derive from one model, and
    the schedule was the second derivation that made them disagree.
 

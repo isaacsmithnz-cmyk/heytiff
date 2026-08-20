@@ -1,7 +1,7 @@
 /* ONE DOCUMENT, THREE CHROMES — and the separation is the point.
 
    `SheetDoc` is the artifact. The Summary screen, the customer's live link and
-   the printed pack all render it, and what differs is what each one passes IN.
+   the printed copy all render it, and what differs is what each one passes IN.
    That is what makes the owner-only material ABSENT from the other two rather
    than hidden in them, and absence is the only version of this that is safe:
    the checks list names what is wrong with a design before anyone has decided
@@ -182,7 +182,7 @@ describe("a system with nothing on it", () => {
   /* FOUND IN PRODUCTION. A system whose outdoor is chosen and whose indoor is
      not yet placed serves no rooms — and the sheet drew the rooms table
      anyway: nine column headings with nothing under them, on the owner's
-     copy, the customer's and the printed pack alike. */
+     copy, the customer's and the printed one alike. */
   function docWithBareSystem(): DesignDocument {
     const d = baseDoc();
     d.floors = [

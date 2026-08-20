@@ -3,7 +3,7 @@
    The logo has been uploadable since org_logo landed, and until now it was
    read by exactly one screen: the Organisation page, which is where you set
    it. Every surface a customer actually receives — the handover sheet, the
-   live design link, the printed job pack — either said "HeyTiff" or said
+   live design link, the printed copy — either said "HeyTiff" or said
    nothing at all, so a document produced by Smith Air Conditioning arrived
    carrying the name of the software that made it.
 

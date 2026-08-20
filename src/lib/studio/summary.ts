@@ -59,7 +59,7 @@ const BASIS_SHORT: Record<SizingBasis, string> = {
 };
 
 /* ── Design basis — what the loads were computed FROM, for the summary chips
-      and the printed pack header. One object so screen and print agree. ── */
+      and the printed header. One object so screen and print agree. ── */
 export interface DesignBasis {
   zone: number;
   /** full table label, e.g. "Zone 5 — Warm temperate" */

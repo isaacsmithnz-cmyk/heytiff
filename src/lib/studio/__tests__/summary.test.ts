@@ -1,5 +1,5 @@
 /* Summary derivations — the design-basis line the summary chips and the
-   printed pack header both render, the snapshot stat strip, and the rooms &
+   printed header both render, the snapshot stat strip, and the rooms &
    loads tables. Serving attribution runs against the REAL shipped pack. */
 
 import { readFileSync, existsSync } from "fs";

@@ -80,7 +80,7 @@ afterEach(() => {
 
 const brandWithLogo: OrgBrand = { ...NO_BRAND, name: "Smith Air", logoUrl: LOGO };
 
-it("waits for the logo before it says the pack is ready to print", async () => {
+it("waits for the logo before it says it is ready to print", async () => {
   const onReady = jest.fn();
   render(<PrintDoc model={EMPTY_MODEL} urls={{}} brand={brandWithLogo} onReady={onReady} />);
 
@@ -105,7 +105,7 @@ it("is ready immediately when there is no logo to wait for", async () => {
   expect(onReady).toHaveBeenCalledTimes(1);
 });
 
-/* A logo whose signed link died is not a reason to refuse to print — the pack
+/* A logo whose signed link died is not a reason to refuse to print — the
    is the deliverable, the letterhead is the nicety. */
 it("prints anyway when the logo fails to load", async () => {
   const onReady = jest.fn();

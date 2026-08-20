@@ -13,7 +13,7 @@ import type { PicklistRow } from "@/lib/studio/summary";
 
    Was the header of a `PicklistCard` that also drew the rows. The rows moved
    into the shared document (sheet-doc.tsx), because the customer's copy and
-   the printed pack list the same materials; only the button is the owner's. */
+   the printed one list the same materials; only the button is the owner's. */
 
 export function PicklistPush({
   rows,

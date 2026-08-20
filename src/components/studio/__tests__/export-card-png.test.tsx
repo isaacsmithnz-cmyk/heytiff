@@ -65,7 +65,13 @@ function renderCard(doc: DesignDocument) {
   );
 }
 
-const pngButton = () => screen.getByRole("button", { name: /PNG per floor|Drawing/ });
+/* the card asks WHAT you are sending first — pick the images, then press the
+   one button, whose label says what it will do */
+const chooseImages = () =>
+  fireEvent.click(screen.getByRole("radio", { name: /The plans as images/ }));
+
+const pngButton = () =>
+  screen.getByRole("button", { name: /Download \d+ images?|Drawing…/ });
 
 let createObjectURL: jest.Mock;
 let clicks: number;
@@ -90,21 +96,23 @@ afterEach(() => jest.restoreAllMocks());
 describe("PNG per floor", () => {
   it("draws one image per selected floor, not just the first", async () => {
     renderCard(mkDoc([mkFloor("f1", 0), mkFloor("f2", 1), mkFloor("f3", 2)]));
+    chooseImages();
 
     fireEvent.click(pngButton());
 
-    await waitFor(() => expect(pngButton()).toHaveTextContent("PNG per floor"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 3 images"));
     expect(svgToPngBlob).toHaveBeenCalledTimes(3);
     expect(clicks).toBe(3);
   });
 
   it("says so while it works, then gives the button back", async () => {
     renderCard(mkDoc([mkFloor("f1", 0)]));
+    chooseImages();
 
     fireEvent.click(pngButton());
     expect(pngButton()).toHaveTextContent("Drawing…");
 
-    await waitFor(() => expect(pngButton()).toHaveTextContent("PNG per floor"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 1 image"));
     expect(pngButton()).not.toBeDisabled();
   });
 
@@ -115,9 +123,10 @@ describe("PNG per floor", () => {
     const logged = jest.spyOn(console, "error").mockImplementation(() => {});
 
     renderCard(mkDoc([mkFloor("f1", 0)]));
+    chooseImages();
     fireEvent.click(pngButton());
 
-    await waitFor(() => expect(pngButton()).toHaveTextContent("PNG per floor"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 1 image"));
     expect(pngButton()).not.toBeDisabled();
     expect(clicks).toBe(0);
     // the failure is reported, not swallowed
@@ -129,8 +138,9 @@ describe("PNG per floor", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
 
     renderCard(mkDoc([mkFloor("f1", 0)]));
+    chooseImages();
     fireEvent.click(pngButton());
-    await waitFor(() => expect(pngButton()).toHaveTextContent("PNG per floor"));
+    await waitFor(() => expect(pngButton()).toHaveTextContent("Download 1 image"));
 
     fireEvent.click(pngButton());
     await waitFor(() => expect(clicks).toBe(1));

@@ -5607,6 +5607,44 @@ html[data-ds-display] .dstudio.editing {
 /* export customizer — collapsed behind Customise (defaults are everything);
    captioned groups of checkbox rows + mini segment pills, all on the light
    card */
+/* WHAT ARE YOU SENDING — the first thing the card asks, and the thing the
+   old card hid behind "Customise" while three mechanism buttons sat in front.
+   One row per artifact: what it is, then what comes out of it. */
+.dstudio .ds-export-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dstudio .ds-export-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  background: #fff;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dstudio .ds-export-pick:hover { background: #f6f7f9; border-color: rgba(10, 12, 20, 0.2); }
+.dstudio .ds-export-pick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.35);
+}
+/* the chosen one carries the teal edge and a tinted ground — the same
+   "selected" language the segment pills below already speak */
+.dstudio .ds-export-pick.on {
+  border-color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.09);
+}
+.dstudio .ds-export-pick-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.dstudio .ds-export-pick-s {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--gray500);
+}
+
 .dstudio .ds-export-toggle {
   display: inline-flex;
   align-items: center;

@@ -249,11 +249,14 @@ describe("Design Studio shell", () => {
         { name: "Summary" }
       )
     );
-    /* the design-file download lives inside Export now — the sheet leads with
-       one Export button and opens its options in place */
+    /* Export asks WHAT you are sending, then does it: pick the design file,
+       then press the button that says it will download one */
     await user.click(await screen.findByRole("button", { name: /^Export/ }));
     await user.click(
-      await screen.findByRole("button", { name: /Design file/ })
+      await screen.findByRole("radio", { name: "The design file" })
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Download the design file" })
     );
     expect(createURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);

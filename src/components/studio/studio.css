@@ -323,11 +323,17 @@ html[data-ds-display] .dstudio.editing {
    wizard's nav buttons share that base and must stay small. */
 .dstudio .ds-cta.ds-start {
   /* Clear of the cloud, under it. It was seated INSIDE the field for a while,
-     with dots passing behind the glass; the field reaches ~180px below its
-     own centre, so this is the margin that clears the last of them. */
+     with dots passing behind the glass.
+
+     THE MARGIN IS SET AGAINST THE CLOUD'S BODY, NOT ITS LAST DOT. The bottom
+     8% of the dots are stragglers spread over ~60px of nothing, so clearing
+     the furthest of them by eye left the button reading as though it had come
+     loose from the field. This clears the body — where 92% of the dots stop —
+     by ~80px, and the last straggler by 10-23px as the cloud turns. Both
+     measured on the rendered dots across a full turn. */
   position: relative;
   z-index: 1;
-  margin-top: 230px;
+  margin-top: 195px;
   height: 68px;
   /* BLACK GLASS. The fill is translucent over the frame's glow field, and the
      rim carries the brand rather than the fill — teal under the text end, blue

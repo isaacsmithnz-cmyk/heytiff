@@ -92,6 +92,8 @@ const payload = (over: Partial<SchedulePayload> = {}): SchedulePayload => ({
     },
   ],
   weekCounts: { [TODAY]: 3, "2026-08-15": 6, "2026-08-16": 0 },
+  // both techs have clocked on against their own bookings — the ordinary day
+  onSite: ["j-3171|s-lorenz", "j-3145|s-hann", "j-3145|s-lorenz"],
   ...over,
 });
 
@@ -242,6 +244,105 @@ it("goes pale when the job is closed, rather than fading out", async () => {
   expect(block.style.opacity).toBe("");
   // and the day's legend says what pale means, in words
   expect(screen.getByText("Done and closed")).toBeInTheDocument();
+});
+
+/* ── filled or hollow ──
+   Three gates guard this, and the wrong hollow block is worse than none. */
+describe("nobody has started it", () => {
+  const idle = () =>
+    screen.getAllByRole("button", { name: /Open job #/ }).filter((b) =>
+      b.classList.contains("idle")
+    );
+
+  it("hollows the booking nobody has clocked on to", async () => {
+    // Hann's booking on #3145 has no recorded time; everything else does
+    scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz", "j-3145|s-lorenz"] });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    expect(idle()).toHaveLength(1);
+    // and it is spoken, not left to the outline — a ring reaches nobody on a
+    // screen reader
+    expect(
+      screen.getByRole("button", { name: /Open job #3145.*not started/ })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Not started")).toBeInTheDocument();
+  });
+
+  it("only calls it late once the start has actually gone", async () => {
+    // lateness is read off the BROWSER's clock, and only when that clock
+    // agrees with the board's date — the same rule the now line follows.
+    // Midday on the fixture's day: the 7am booking should have started.
+    jest.useFakeTimers({ now: new Date(2026, 7, 14, 12, 0, 0) });
+    try {
+      scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz"] });
+      render(tab());
+      await screen.findByText("Alex Lorenz");
+      // the 7am booking should have started hours ago and has nothing on it
+      expect(
+        screen.getByRole("button", { name: /Open job #3145.*7am to 4pm.*nothing recorded yet/ })
+      ).toHaveClass("late");
+      // the 3pm one is simply not due yet — hollow, but not an accusation
+      const later = screen.getByRole("button", { name: /Open job #3145.*3pm to 4pm/ });
+      expect(later).toHaveClass("idle");
+      expect(later).not.toHaveClass("late");
+      expect(later).toHaveAccessibleName(/not started/);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not claim lateness when the viewer's clock is on another date", async () => {
+    // an overseas viewer: no mark beats one that is hours wrong, so the block
+    // is hollow but never accused
+    scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz"] });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    expect(idle().every((b) => !b.classList.contains("late"))).toBe(true);
+  });
+
+  it("stays filled for an account that never clocks on", async () => {
+    // no recorded time anywhere: a crew that marks jobs complete and moves on.
+    // Hollowing every block would be a screenful of alarm about nothing.
+    scheduleDay.mockResolvedValue({ ...payload(), onSite: [] });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    expect(idle()).toHaveLength(0);
+    expect(screen.queryByText("Not started")).not.toBeInTheDocument();
+  });
+
+  it("stays filled on a day that has not begun", async () => {
+    // nothing ahead of us is started yet by definition. The payload is keyed
+    // to the day asked for — the component only draws one that matches.
+    scheduleDay.mockImplementation(async (dayISO: string) => ({
+      ...payload(),
+      dayISO,
+      onSite: dayISO === TODAY ? ["j-3171|s-lorenz"] : [],
+    }));
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    // #3145 is booked twice today and neither booking has recorded time
+    expect(idle()).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "The day after" }));
+    await screen.findByText("Alex Lorenz");
+    expect(idle()).toHaveLength(0); // tomorrow, nothing is "not started" yet
+  });
+
+  it("never hollows work that is already closed off", async () => {
+    const p = payload();
+    scheduleDay.mockResolvedValue({
+      ...p,
+      // one job done, one that didn't go ahead — neither is "not started",
+      // and both would otherwise qualify on having no recorded time
+      jobs: [
+        { ...p.jobs[0], status: "Completed" },
+        { ...p.jobs[1], status: "Unsuccessful" },
+      ],
+      onSite: ["j-3145|s-lorenz"],
+    });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    expect(idle()).toHaveLength(0);
+  });
 });
 
 it("wears the board's word on a tracked block", async () => {

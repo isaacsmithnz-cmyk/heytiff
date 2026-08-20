@@ -164,6 +164,7 @@ export function ScheduleTab({
             staff: current.staff,
             jobs: current.jobs,
             tracked,
+            onSite: new Set(current.onSite),
           })
         : null,
     [current, tracked]
@@ -325,6 +326,11 @@ export function ScheduleTab({
         ).entries(),
       ].sort((a, b) => a[0].localeCompare(b[0]))
     : [];
+  const dayBegun = openDay <= today;
+  const hollowReads = dayBegun && !!day?.tracksTime;
+  const startedGone = (startMin: number) =>
+    openDay < today || (nowMin !== null && startMin < nowMin);
+
   const hasBare = day
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
     : false;
@@ -332,7 +338,35 @@ export function ScheduleTab({
   const hasDone = day
     ? day.lanes.some((l) => l.blocks.some((b) => b.status === "Completed"))
     : false;
+  /* The legend only claims what the day actually shows — on an account that
+     never clocks on, `tracksTime` is false, no block is hollow, and offering
+     a key for a state nothing is in would be its own small lie. */
+  const hasIdle = day
+    ? hollowReads &&
+      day.lanes.some(
+        (l) =>
+          l.blocks.some(
+            (b) => !b.onSite && b.status !== "Completed" && b.status !== "Unsuccessful"
+          )
+      )
+    : false;
 
+  /* FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED.
+     Three gates before a block is allowed to go hollow, because the wrong
+     hollow block is worse than none:
+
+     · the day has to have begun. On a day still ahead, nothing is started
+       yet by definition, and a whole board of outlines would say nothing.
+     · the account has to record time at all. `tracksTime` is false when no
+       booking drawn today carries any, which is a crew that marks jobs
+       complete and never clocks on — for them this reading does not exist.
+     · the job has to still be open. Completed work has plainly happened, and
+       goes pale; Unsuccessful didn't and says so with its own ring.
+
+     LATE is the narrower case on top: hollow AND its start has already gone.
+     On today that needs the browser's clock, which is the same clock the now
+     line is drawn from and is null when it disagrees with the board's date —
+     no mark beats one that is hours wrong, so lateness simply isn't claimed. */
   let bi = 0; // running block index — the entrance stagger reads left to right
 
   return (
@@ -424,12 +458,17 @@ export function ScheduleTab({
                           46
                         );
                         const kin = hoverJob === b.remoteId;
+                        const open = b.status !== "Completed" && b.status !== "Unsuccessful";
+                        const hollow = hollowReads && open && !b.onSite;
+                        const late = hollow && startedGone(b.startMin);
                         const cls =
                           "wb2-schb" +
                           (b.tracked ? " proj" : "") +
                           (b.status === "Completed" ? " done" : "") +
                           (b.status === "Unsuccessful" ? " dan" : "") +
                           (b.status === "Quote" ? " qt" : "") +
+                          (hollow ? " idle" : "") +
+                          (late ? " late" : "") +
                           (w < TIGHT_PX ? " tight" : "") +
                           (kin ? " kin" : "");
                         /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
@@ -458,7 +497,17 @@ export function ScheduleTab({
                             title={blockTitle(b)}
                             aria-label={`Open job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
                               b.clientName ?? ""
-                            }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}`}
+                            }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${
+                              /* the outline and the ring are not available to a
+                                 screen reader, so the state is spoken as well */
+                              late
+                                ? ", nothing recorded yet"
+                                : hollow
+                                  ? ", not started"
+                                  : b.status === "Completed"
+                                    ? ", done"
+                                    : ""
+                            }`}
                             onMouseEnter={() =>
                               setHoverJob(crewJobs.has(b.remoteId) ? b.remoteId : null)
                             }
@@ -544,6 +593,17 @@ export function ScheduleTab({
             )}
             {/* The day's OTHER reading, and the one that needs saying in words:
                 a pale block is finished, not a category we forgot to colour. */}
+            {hasIdle && (
+              <span>
+                <i
+                  style={{
+                    background: "#fff",
+                    boxShadow: `inset 0 0 0 1.5px ${NO_CATEGORY_PAINT.fill}`,
+                  }}
+                />
+                Not started
+              </span>
+            )}
             {hasDone && (
               <span>
                 <i

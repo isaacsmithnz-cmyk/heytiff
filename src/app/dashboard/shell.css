@@ -5543,6 +5543,32 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   width:3.5px; height:7px; border:solid #fff; border-width:0 2px 2px 0;
   transform:rotate(40deg); z-index:1; }
 
+/* NOBODY HAS STARTED IT — hollow, with the category hue surviving on a cap so
+   the block still says what kind of work it is. Filled/hollow is the one
+   distinction ServiceM8's status cannot make: a job sits at `Work Order`
+   whether the tech is on site or still in bed.
+
+   White ground and ink, so a hollow block is the MOST readable thing on the
+   rail — which is right, because it is the one you have to do something
+   about. It only ever appears on a day that has begun, for an account that
+   records time at all; the component owns those gates. */
+.wb2-schb.idle { background:#fff; box-shadow:inset 0 0 0 1.5px var(--fill, #b9bec7);
+  padding-left:16px; }
+.wb2-schb.idle b, .wb2-schb.idle em, .wb2-schb.idle i { color:var(--ink); }
+.wb2-schb.idle em { color:#2b3038; }
+.wb2-schb.idle i { color:#5a616d; }
+.wb2-schb.idle u { color:var(--ink); background:rgba(5,5,5,.09); }
+.wb2-schb.idle::before { content:""; position:absolute; left:5px; top:9px; bottom:9px;
+  width:4px; border-radius:3px; background:var(--fill, #b9bec7); }
+.wb2-schb.idle:hover { box-shadow:inset 0 0 0 1.5px var(--fill, #b9bec7), 0 5px 14px -5px rgba(10,12,20,.45); }
+/* and past its start with still nothing recorded — the one block on the board
+   you want to be looking at. The ring is the danger colour because this IS the
+   exception; the word rides the aria-label so it is never colour alone. */
+.wb2-schb.idle.late { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
+.wb2-schb.idle.late b { color:var(--wb2-dan-t); }
+.wb2-schb.idle.late:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }
+.wb2-schb.idle.tight { padding-left:13px; }
+
 /* didn't go ahead — the one status that is an exception, so it gets the ring */
 .wb2-schb.dan { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
 .wb2-schb.dan:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }

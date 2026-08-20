@@ -14,6 +14,7 @@ import {
   fmtHoursShort,
   layoutScheduleDay,
   minutesOfNaive,
+  onSiteKey,
   railBoundsOf,
   stackLane,
   type ScheduleActivity,
@@ -266,5 +267,69 @@ describe("ownership outranks category", () => {
     const blocks = day.lanes.flatMap((l) => l.blocks);
     expect(blocks.find((b) => b.remoteId === "j-2694")?.tracked?.label).toBe("Enmore install");
     expect(blocks.find((b) => b.remoteId === "j-1")?.tracked).toBeNull();
+  });
+});
+
+/* ── has anyone started it? ──
+   The rail's second reading, and the one thing ServiceM8's status cannot say:
+   a job sits at `Work Order` whether the tech is on site or still in bed. */
+describe("onSite", () => {
+  const day = (onSite?: Set<string>) =>
+    layoutScheduleDay({
+      activities: [
+        act({ uuid: "a-1", jobUuid: "j-1", staffUuid: "s-1" }),
+        act({ uuid: "a-2", jobUuid: "j-2", staffUuid: "s-2" }),
+      ],
+      staff: STAFF,
+      jobs: [job({ remoteId: "j-1" }), job({ remoteId: "j-2" })],
+      onSite,
+    });
+
+  const blockFor = (d: ReturnType<typeof day>, staffUuid: string) =>
+    d.lanes.find((l) => l.staffUuid === staffUuid)!.blocks[0];
+
+  it("marks only the booking whose own job AND person recorded time", () => {
+    const d = day(new Set([onSiteKey("j-1", "s-1")]));
+    expect(blockFor(d, "s-1").onSite).toBe(true);
+    expect(blockFor(d, "s-2").onSite).toBe(false);
+  });
+
+  it("does not let one person's recorded time start another's booking", () => {
+    // the same JOB, clocked by somebody else — says nothing about this booking
+    const d = day(new Set([onSiteKey("j-1", "s-9")]));
+    expect(blockFor(d, "s-1").onSite).toBe(false);
+  });
+
+  it("keys the unassigned lane on itself rather than on nothing", () => {
+    const d = layoutScheduleDay({
+      activities: [act({ uuid: "a-1", jobUuid: "j-1", staffUuid: null })],
+      staff: STAFF,
+      jobs: [job({ remoteId: "j-1" })],
+      onSite: new Set([onSiteKey("j-1", null)]),
+    });
+    expect(d.lanes[0].blocks[0].onSite).toBe(true);
+  });
+
+  it("says a day tracks time only when a drawn booking carries some", () => {
+    expect(day(new Set([onSiteKey("j-1", "s-1")])).tracksTime).toBe(true);
+    // recorded time that belongs to no booking on this rail does not count:
+    // an account that never clocks on must not have its whole day hollowed
+    expect(day(new Set([onSiteKey("j-99", "s-99")])).tracksTime).toBe(false);
+    expect(day(new Set()).tracksTime).toBe(false);
+    expect(day(undefined).tracksTime).toBe(false);
+  });
+
+  it("treats a missing set as nothing recorded, never as everything", () => {
+    const d = day(undefined);
+    expect(d.lanes.every((l) => l.blocks.every((b) => !b.onSite))).toBe(true);
+  });
+});
+
+describe("onSiteKey", () => {
+  it("pairs a job with a person, and keeps the pairs apart", () => {
+    expect(onSiteKey("j-1", "s-1")).toBe("j-1|s-1");
+    expect(onSiteKey("j-1", null)).toBe("j-1|");
+    expect(onSiteKey("j-1", "s-1")).not.toBe(onSiteKey("j-1", "s-2"));
+    expect(onSiteKey("j-1", null)).not.toBe(onSiteKey("j-2", null));
   });
 });

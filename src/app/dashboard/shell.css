@@ -6728,15 +6728,32 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 }
 .wb2-lwbox::-webkit-scrollbar { display:none; }
 /* ONE LINE, for the two field mics that are one line. The words ride sideways
-   instead of down. `line-height:normal` is not a rounding — it is the value
-   an <input> uses, and it is what makes the paragraph exactly as tall as the
-   field it stands in for. */
-.wb2-lwbox.one { white-space:nowrap; overflow-y:hidden; line-height:normal; }
+   instead of down.
+
+   AND THE LINE HEIGHT IS THE PAGE'S, WHICH IS WHY IT IS NOT WRITTEN HERE.
+   This said `line-height:normal` for one release, on the reasoning that
+   `normal` is what an <input> uses — measured on a bare harness page, the
+   boxes agreed to the pixel and it shipped. On the REAL sheet they do not:
+   `line-height` is inherited, `.fg` sets 1.5, and an <input> takes it like
+   anything else — 20.25px in the strip, 19.5px on `.wb2-fi`. Forcing
+   `normal` made the paragraph 3px SHORTER than the field it replaces, so
+   the row it lives in twitched at the first word — the exact jump the river
+   is here to remove, reintroduced by the fix.
+
+   Walked on prod 2026-08-20: field and river now measure 34.25px and 37.5px,
+   both ways. A harness page has no typography to inherit, so this class of
+   mistake CANNOT be caught anywhere but the real sheet. */
+.wb2-lwbox.one { white-space:nowrap; overflow-y:hidden; }
 .wb2-lwbox.one .wb2-lwsaid { white-space:pre; }
 /* And the block field mic stands in for a textarea, whose height comes from
    `rows` — a paragraph has no such thing, so the sheet does the arithmetic.
    `1lh` is the same line box the textarea would have used; 26px is
-   `.wb2-notes`'s own padding and border. Measured at rows=3: 74px either way. */
+   `.wb2-notes`'s own padding and border.
+
+   `1lh` IS WHY THIS POSTURE SURVIVED the line-height mistake above: it asks
+   for whatever line box this element actually has rather than naming one, so
+   it followed the page's inherited 1.5 without being told. Walked on prod at
+   rows=3: 86.75px either way. */
 .wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
   /* TWO THINGS A TEXTAREA HAD FOR FREE and a paragraph does not. The white
      field is the UA's, so `.wb2-notes` never had to write it down — without

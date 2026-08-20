@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { uploadFile } from "@/lib/documents/upload-client";
+import { BrandLogo } from "./letterhead";
+import { NO_BRAND } from "@/lib/org/brand";
 import type { SaveResult } from "./types";
 
 /* The company logo.
@@ -138,11 +140,37 @@ export function LogoUploader({
         )}
       </div>
 
-      {/* The one line that survives the no-hint rule, for the reason the State
-          field's does: it says something the control does NOT otherwise say.
-          A logo box on a settings screen looks like decoration for the settings
-          screen; this is the sentence that makes it worth uploading. */}
-      <p className="orglogo-where">Goes on everything the business sends a customer.</p>
+      {/* WHERE IT ACTUALLY GOES.
+
+          The tile above is the artwork on white at 224px, and on its own that
+          is a preview which cannot fail — every logo looks right that big on
+          that ground. The two places a customer meets this logo are neither:
+          a document, and the dark bar on a share link at 26px tall. The rail
+          shipped a logo 9px tall in black ink on black because nothing on this
+          screen could have told anyone otherwise.
+
+          So the sentence that used to sit here — "Goes on everything the
+          business sends a customer" — is now the picture instead, and only the
+          empty state still says it in words, where there is nothing to draw.
+
+          Built from the same `BrandLogo` and the same classes the real
+          surfaces use, over their real grounds. A preview assembled from a
+          COPY of those rules is one that drifts, and a drifting preview is
+          worse than none: it is confidently wrong. */}
+      {logoUrl ? (
+        <div className="orglogo-uses">
+          <div className="orglogo-use paper">
+            <em>On a document</em>
+            <BrandLogo brand={{ ...NO_BRAND, logoUrl }} className="org-lh-logo" />
+          </div>
+          <div className="orglogo-use dark">
+            <em>On a share link</em>
+            <BrandLogo brand={{ ...NO_BRAND, logoUrl }} className="org-mark-logo org-plate" />
+          </div>
+        </div>
+      ) : (
+        <p className="orglogo-where">Goes on everything the business sends a customer.</p>
+      )}
 
       <input
         ref={fileRef}

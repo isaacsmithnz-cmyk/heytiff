@@ -89,4 +89,30 @@ describe("BrandMark", () => {
     expect(container.querySelector("img")).toBeInTheDocument();
     expect(screen.queryByText("HeyTiff")).not.toBeInTheDocument();
   });
+
+  /* THE PLATE IS NOT DECORATION — it is the only reason a customer can see
+     this logo at all. Every surface asking for this mark is a dark bar
+     (#0b0d12 on the share link), and plenty of businesses ink their logo in
+     black or navy: unplated, Diamond Air's real 3780x1064 artwork is simply
+     not there. It used to be a rule in studio.css scoped to `.ds-live-brand`,
+     which meant any new dark surface adopting BrandMark silently got no plate.
+     The component carries it now, so this asserts the class rather than
+     trusting a stylesheet nobody will read.
+
+     `:not(.org-initials)` in the CSS is why the initials case is checked too —
+     that stand-in brings its own background and must not be double-plated. */
+  it("plates the logo, because every surface that asks for this mark is dark", () => {
+    const { container } = render(
+      <BrandMark brand={{ ...NO_BRAND, logoUrl: "https://x/y.png" }} fallback="HeyTiff" />
+    );
+    expect(container.querySelector("img")).toHaveClass("org-mark-logo", "org-plate");
+  });
+
+  it("still plates by class when the logo is initials, which opt out in CSS", () => {
+    const { container } = render(
+      <BrandMark brand={{ ...NO_BRAND, name: "Smith Air" }} fallback="HeyTiff" />
+    );
+    expect(container.querySelector(".org-initials")).toBeInTheDocument();
+    expect(container.querySelector("img")).toBeNull();
+  });
 });

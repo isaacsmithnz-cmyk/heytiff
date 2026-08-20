@@ -4554,7 +4554,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
     grid-template-areas:"tile act" "tile where"; align-content:center; gap:10px 20px; }
   .fg .orgbrand .orglogo-tile { grid-area:tile; max-width:150px; align-self:center; }
   .fg .orgbrand .orglogo-act { grid-area:act; margin-top:0; align-self:end; }
+  /* `.orglogo-uses` REPLACES `.orglogo-where` when a logo exists, so it takes
+     the same cell. Without a grid-area it was auto-placed into whatever cell
+     came next and drew itself beside the tile. */
   .fg .orgbrand .orglogo-where { grid-area:where; margin:0; max-width:none; align-self:start; }
+  /* Same cell as the sentence it replaces — without a grid-area it was
+     auto-placed into the next free cell and drew itself beside the tile. It
+     keeps a cap where the sentence drops one: a sentence may use the whole
+     1fr, but these rows are a picture of two surfaces, and a 700px row with a
+     108px mark pinned to its right edge is not that picture. */
+  .fg .orgbrand .orglogo-uses { grid-area:where; margin:0; max-width:300px; align-self:start; }
   /* not in the areas map — a refusal spans the whole thing rather than being
      auto-placed into a cell that was drawn for something else */
   .fg .orgbrand .orglogo .carderr { grid-column:1 / -1; }
@@ -4562,6 +4571,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 @media (max-width:520px){
   .fg .orgbrand .orglogo { grid-template-columns:minmax(0,1fr); grid-template-areas:"tile" "act" "where"; }
   .fg .orgbrand .orglogo-tile { justify-self:start; }
+  .fg .orgbrand .orglogo-uses { justify-self:start; max-width:260px; }
 }
 
 /* Logo uploader — a tile in READ mode, not a row inside an edit form. */
@@ -4589,10 +4599,38 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
 .fg .orglogo-act { display:flex; gap:8px; margin-top:14px; }
 .fg .orglogo-act .pbtn { height:38px; padding:0 14px; font-size:12.5px; }
-/* The one line allowed to exist: it says where the logo goes, which the tile
-   cannot. Capped to the tile's own column so it wraps as a caption rather than
-   running the full width of the card. */
+/* EMPTY STATE ONLY. With a logo uploaded this sentence is replaced by the
+   picture of the same claim (`.orglogo-uses`); it survives here because an
+   empty tile has nothing to draw, and this is the line that makes the upload
+   worth doing. Capped to the tile's own column so it wraps as a caption rather
+   than running the full width of the card. */
 .fg .orglogo-where { max-width:260px; margin:12px 0 0; font-size:12px; font-weight:600; line-height:1.5; color:var(--q); }
+
+/* Where the logo actually lands — one row per real surface, each drawn on that
+   surface's own ground so the two failures a logo can have on this app are
+   visible on the screen that owns the logo: too dark for a dark bar, and too
+   wide to read once it is small.
+
+   The marks themselves bring their own sizing from letterhead.css. Nothing
+   here restates it — these rows own the GROUND and the label, nothing else. */
+.fg .orglogo-uses { max-width:260px; margin:14px 0 0; border:1px solid #ecedf1; border-radius:14px; overflow:hidden; }
+.fg .orglogo-use { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 13px; min-height:56px; }
+.fg .orglogo-use em { flex:0 0 auto; font-style:normal; font-size:10.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+/* letterhead.css sizes these `flex:0 0 auto`, which is right on a letterhead
+   band and wrong in a 234px row: refusing to shrink, the document mark ran
+   past the row and the row's own overflow:hidden CLIPPED it. Here they may
+   give — the ratio is kept by object-fit either way. */
+.fg .orglogo-use .org-lh-logo, .fg .orglogo-use .org-mark-logo { flex:0 1 auto; min-width:0; }
+/* the two grounds, quoted from the surfaces: paper is the handover sheet and
+   the print document, #0b0d12 is the share link's bar */
+.fg .orglogo-use.paper { background:#fff; }
+.fg .orglogo-use.paper em { color:var(--q); }
+.fg .orglogo-use.dark { background:#0b0d12; border-top:1px solid #ecedf1; }
+.fg .orglogo-use.dark em { color:rgba(236,238,244,.65); }
+/* the document letterhead runs 52px tall; inside a 260px preview row that is
+   the whole row, so it is scaled to sit in one without changing the ratio the
+   real one keeps */
+.fg .orglogo-use.paper .org-lh-logo { height:34px; max-width:108px; }
 
 /* Account — four read-only facts about the account itself, two up. */
 .fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:20px 26px; }

@@ -65,6 +65,23 @@
   object-fit: contain;
 }
 .org-mark-logo.org-initials { width: 26px; }
+/* THE LIGHT PLATE, and the reason every dark bar needs one: a logo inked in
+   black or navy on a #0b0d12 bar would simply not be there, and which ink a
+   business draws in is not something this app gets to choose. The plate is how
+   any dark site header carries a customer's mark.
+
+   Lives here rather than beside the bar that needed it first (it was in
+   studio.css, scoped to `.ds-live-brand`) because the Organisation page now
+   PREVIEWS that bar — and a preview drawn from a second copy of the rule is a
+   preview that can quietly stop telling the truth.
+
+   The initials stand-in already carries its own background and its own radius,
+   so the plate only reaches a real image. */
+.org-mark-logo.org-plate:not(.org-initials) {
+  background: #fff;
+  border-radius: 7px;
+  padding: 3px;
+}
 .org-mark b {
   font-size: 13px;
   font-weight: 800;

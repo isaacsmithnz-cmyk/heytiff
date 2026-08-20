@@ -46,7 +46,11 @@ export function Letterhead({ brand }: { brand: OrgBrand }) {
 
 /** The compact mark — logo and name, for a bar rather than a document. When
     the business has told us nothing, `fallback` is what the surface says
-    instead (every caller passes its own platform wording). */
+    instead (every caller passes its own platform wording).
+
+    Always plated: every surface that asks for this mark is a DARK bar, and an
+    unplated logo on one is a coin toss on the ink the business happens to draw
+    in. See `.org-plate`. */
 export function BrandMark({
   brand,
   fallback,
@@ -58,7 +62,7 @@ export function BrandMark({
 
   return (
     <span className="org-mark">
-      <BrandLogo brand={brand} className="org-mark-logo" />
+      <BrandLogo brand={brand} className="org-mark-logo org-plate" />
       {brand.name && <b>{brand.name}</b>}
     </span>
   );

@@ -4881,7 +4881,25 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    translucent film and Isaac called it glass); the thumb is a solid colour
    now, so the seat has no job. Resting side is bare track, moving side is
    the colour. Same language as the Urgent filter tray. */
-.wb2-seg { position:relative; justify-self:center; display:flex; gap:2px; padding:3px; border-radius:14px;
+/* THE THREE SIDES ARE ONE WIDTH (Isaac, 2026-08-20: "maintenance is much
+   bigger than projects, and projects is bigger than all jobs. I just wanna
+   have an even spacing"). They were content-sized — 81 / 119 / 149px, because
+   the labels differ in length and two of the three carry a count — so the
+   tray read as three unrelated buttons rather than one switch with three
+   seats.
+
+   Equal columns, not equal padding: a grid whose columns are all `1fr` sizes
+   every seat to the widest of them, which is the only way three different
+   labels come out the same width without clipping one. Measured on prod: all
+   three land on 149.4px and the tray goes 361 → 460.
+
+   `1fr` and NOT `minmax(0,1fr)`: the auto minimum is what stops a squeezed
+   header clipping "Maintenance". Below about 1100px the seats give up being
+   equal one at a time rather than all losing their labels together, which is
+   the right way round — and below 900 the block underneath stretches the
+   tray to the full width, where they are even again. */
+.wb2-seg { position:relative; justify-self:center; display:grid; grid-auto-flow:column;
+  grid-auto-columns:1fr; gap:2px; padding:3px; border-radius:14px;
   background:#e6eaf1; border:1px solid rgba(10,12,20,.06); flex:none; }
 .wb2-segsl { position:absolute; top:3px; bottom:3px; left:0; border-radius:11px; background:#fff;
   box-shadow:0 3px 10px -4px rgba(10,12,20,.4);
@@ -4895,7 +4913,11 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    named. Slate says "the whole book" without competing, and it keeps the
    accent vocabulary at two. */
 .wb2-seg[data-on="jobs"] .wb2-segsl { background:#333d4f; box-shadow:0 6px 16px -7px rgba(51,61,79,.85); }
-.wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; gap:9px; height:42px; padding:0 17px;
+/* Centred, because the seat is now wider than its label — left-aligned text
+   in an equal column puts three labels at three different distances from the
+   thumb that sits under them. */
+.wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; justify-content:center;
+  gap:9px; height:42px; padding:0 17px;
   border:0; background:none; border-radius:11px; font:inherit; font-size:13.5px; font-weight:700; color:var(--gray700);
   cursor:pointer; transition:color .2s, background .2s; }
 /* the resting side is TRACK, not a seat — it lifts only under the pointer */
@@ -4915,8 +4937,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 @media (max-width:900px) {
   .wb2-head { grid-template-columns:1fr; justify-items:start; gap:12px; }
   .wb2-seg, .wb2-headtools { justify-self:stretch; }
+  /* The columns are `1fr` already; all this does is give them the full width
+     to divide instead of the tray's own. The `flex:1` that used to live here
+     went with the flex container it belonged to. */
   .wb2-seg { width:100%; }
-  .wb2-segb { flex:1; justify-content:center; }
 }
 
 /* `.segsw` — the sliding-thumb switcher — lived here and had exactly one user,

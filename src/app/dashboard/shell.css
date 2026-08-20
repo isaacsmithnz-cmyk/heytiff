@@ -961,7 +961,29 @@
    app is used at. */
 .fg .topbar .bell-top { position:relative; display:flex; align-items:center; }
 .fg .bell.on { background:rgba(255,255,255,.14); color:#fff; }
-.fg .topbar .bell-panel { position:absolute; top:calc(100% + 10px); right:0; z-index:60; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:7px; border-radius:16px; background:rgba(14,15,20,.92); border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); backdrop-filter:blur(20px) saturate(140%); animation:meMenuIn .16s ease both; }
+/* THE GROUND IS OPAQUE, AND THAT IS THE WHOLE POINT.
+
+   This was `rgba(14,15,20,.92)` + `backdrop-filter`, copied from the user menu.
+   A translucent ground is not a ground: it is 8% of WHATEVER IS BEHIND IT, and
+   this panel hangs over the content well, which is the LIGHT card. Over the
+   shell's own #050505 it composites to rgb(13,14,19); over Home it composites
+   to rgb(32,33,38) — nineteen levels lighter, on a surface whose quiet ink
+   (`--on-ink-q`, white at .5) is calibrated for the dark chrome and nothing
+   else. On a HOVERED row, where the .08 white tint lifts the ground again, the
+   subject line measured **4.44** on prod. Under AA, on the real screen, while
+   every harness reading said 5.03 — because the harness only ever put it over
+   the dark ground.
+
+   #0d0e13 is exactly what .92 composited to over the shell's own floor, so the
+   panel looks identical where it always looked right and stops changing
+   underneath its own text everywhere else: 5.34 at rest, 5.03 hovered, on
+   every backdrop. The `backdrop-filter` goes with it — at 92% it was already
+   invisible (proved by swapping it out on prod and comparing), and dead CSS in
+   this file has styled things by accident before.
+
+   `.me-menu` has the same construction and the same latent bug; it is spared
+   only because it opens over the topbar and the sidebar rather than the card. */
+.fg .topbar .bell-panel { position:absolute; top:calc(100% + 10px); right:0; z-index:60; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:7px; border-radius:16px; background:#0d0e13; border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); animation:meMenuIn .16s ease both; }
 .fg .topbar .bp-head { display:flex; align-items:center; gap:8px; padding:8px 11px 10px; }
 .fg .topbar .bp-head b { font-size:13px; font-weight:700; color:#fff; }
 .fg .topbar .bp-n { min-width:20px; padding:2px 6px; border-radius:8px; background:rgba(255,255,255,.1); color:#fff; font-size:11px; font-weight:700; text-align:center; }

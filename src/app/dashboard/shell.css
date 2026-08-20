@@ -5440,8 +5440,36 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-schnh { height:34px; border-bottom:1px solid var(--wb2-line2); }
 .wb2-schn { display:flex; flex-direction:column; justify-content:center; gap:1px;
   padding:0 14px 0 20px; border-bottom:1px solid var(--wb2-line2); }
-.wb2-schn b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* The dot made this a flex row, and `text-overflow` does not reach an
+   anonymous flex item — a long name clipped mid-letter with no ellipsis. The
+   name gets its own box to be truncated in. */
+.wb2-schn b { display:flex; align-items:center; gap:7px;
+  font-size:12.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink);
+  overflow:hidden; white-space:nowrap; }
+.wb2-schnn { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── the presence dot ──
+   Who is actually out there, answered in the name column before you look at
+   the rail at all. Three states, and every one of them is a thing the data
+   says rather than a thing it implies:
+
+     on   — something of theirs recorded time. Green is never a fallback here;
+            it only appears where somebody actually clocked on.
+     wait — open work, none of it started, nothing overdue yet.
+     late — an open booking's start has gone with nothing against it.
+
+   "On a break" is deliberately absent. ServiceM8 tells you a tech clocked OFF
+   a job, not whether they are on a break or driving to the next one, and a dot
+   that guesses is worse than a dot that does not exist.
+
+   COLOUR IS NOT THE ONLY CARRIER, and does not need to be: every state here
+   summarises blocks that already say it in words on the rail. The dot is
+   emphasis, and `.wb2-sr` text beside it carries the word for anyone who
+   cannot see the colour. */
+.wb2-schpd { flex:none; width:8px; height:8px; border-radius:50%; }
+.wb2-schpd.on { background:var(--wb2-ok); }
+.wb2-schpd.wait { box-shadow:inset 0 0 0 1.5px #b9bec7; }
+.wb2-schpd.late { background:var(--wb2-dan); }
 .wb2-schn em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
 .wb2-schn.none b { color:var(--gray500); }
 /* the load meter — utilisation against an 8h day, in the neutral family.

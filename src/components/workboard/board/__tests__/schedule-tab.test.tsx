@@ -410,6 +410,40 @@ describe("a job closed before this booking's day", () => {
   });
 });
 
+describe("the presence dot", () => {
+  const dotFor = (name: string) =>
+    screen.getByText(name).closest("b")!.querySelector(".wb2-schpd");
+
+  it("says who has started, in a word as well as a colour", async () => {
+    // Lorenz has recorded time; Hann has not, and his 7am booking has gone
+    jest.useFakeTimers({ now: new Date(2026, 7, 14, 12, 0, 0) });
+    try {
+      scheduleDay.mockResolvedValue({ ...payload(), onSite: ["j-3171|s-lorenz"] });
+      render(tab());
+      await screen.findByText("Alex Lorenz");
+      expect(dotFor("Alex Lorenz")).toHaveClass("on");
+      expect(dotFor("David Hann")).toHaveClass("late");
+      // the colour is never carrying it alone
+      expect(screen.getByText("Alex Lorenz").closest("b")).toHaveTextContent("started");
+      expect(screen.getByText("David Hann").closest("b")).toHaveTextContent(
+        "nothing recorded yet"
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("shows nothing for an account that never clocks on", async () => {
+    // the same gate the hollow blocks use — no recorded time anywhere means
+    // this reading does not exist, not that everybody is idle
+    scheduleDay.mockResolvedValue({ ...payload(), onSite: [] });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    expect(dotFor("Alex Lorenz")).toBeNull();
+    expect(dotFor("David Hann")).toBeNull();
+  });
+});
+
 it("wears the board's word on a tracked block", async () => {
   render(
     tab({

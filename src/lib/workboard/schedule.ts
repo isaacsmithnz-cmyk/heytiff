@@ -135,6 +135,38 @@ function dayOfNaive(stamp: string | null | undefined): string | null {
   return typeof stamp === "string" && stamp.length >= 10 ? stamp.slice(0, 10) : null;
 }
 
+/** What the name column says about one person, before you look at the rail.
+
+    "on"   — something of theirs has recorded time. They are out there, or have
+             been; the day is under way.
+    "wait" — they still have open work and none of it has been started, but
+             nothing is overdue either. Their day has not begun.
+    "late" — an open booking's start has gone with nothing recorded against it.
+             The one that wants doing something about, so it outranks the rest.
+    null   — nothing to claim. Every booking is closed off and none recorded
+             time, which is a person this reading has no opinion about.
+
+    `overdueBefore` is the minute past which an unstarted booking counts as
+    late: the browser's clock on today, the whole day on a day already gone,
+    and NULL when the clock cannot be trusted — a viewer whose own date
+    disagrees with the board's, exactly as the now line handles it. No mark
+    beats one that is hours wrong. */
+export function lanePresence(
+  blocks: Pick<ScheduleBlock, "onSite" | "closure" | "status" | "startMin">[],
+  overdueBefore: number | null
+): "on" | "wait" | "late" | null {
+  const open = blocks.filter((b) => b.closure !== "done" && b.status !== "Unsuccessful");
+  if (
+    overdueBefore !== null &&
+    open.some((b) => !b.onSite && b.startMin < overdueBefore)
+  ) {
+    return "late";
+  }
+  // green only where something actually recorded time — never as a fallback
+  if (blocks.some((b) => b.onSite)) return "on";
+  return open.length > 0 ? "wait" : null;
+}
+
 /**
  * Whether one booking is covered by the job's completion, or is left over
  * after it. See `ScheduleBlock["closure"]`.

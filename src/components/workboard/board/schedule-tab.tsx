@@ -11,6 +11,7 @@ import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import {
   clockLabel,
   fmtHoursShort,
+  lanePresence,
   layoutScheduleDay,
   type ScheduleBlock,
   type ScheduleTracked,
@@ -330,6 +331,11 @@ export function ScheduleTab({
   const hollowReads = dayBegun && !!day?.tracksTime;
   const startedGone = (startMin: number) =>
     openDay < today || (nowMin !== null && startMin < nowMin);
+  /* The minute past which an unstarted booking is late — the same judgement
+     `startedGone` makes per block, in the shape lanePresence wants. A day
+     already gone is late in all of it; today needs the browser's clock, and
+     without a trustworthy one nothing is claimed. */
+  const overdueBefore = openDay < today ? 24 * 60 : openDay === today ? nowMin : null;
 
   const hasBare = day
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
@@ -406,13 +412,39 @@ export function ScheduleTab({
         <div className={"wb2-schboard" + (hoverJob ? " linking" : "")}>
           <div className="wb2-schnames">
             <div className="wb2-schnh" />
-            {day.lanes.map((l) => (
+            {day.lanes.map((l) => {
+              /* The gates are the block treatment's, unchanged: a day that has
+                 begun, and an account that records time at all. An account
+                 that never clocks on gets no dots rather than a column of
+                 empty rings saying nothing. */
+              const presence = hollowReads ? lanePresence(l.blocks, overdueBefore) : null;
+              return (
               <div
                 key={l.staffUuid || "unassigned"}
                 className={"wb2-schn" + (l.staffUuid === "" ? " none" : "")}
                 style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
               >
-                <b>{l.name}</b>
+                <b>
+                  {/* WHO IS ACTUALLY OUT THERE, before you look at the rail.
+                      Colour is not the only carrier and does not need to be:
+                      every state here is already written on the blocks it
+                      summarises — hollow ones say "not started", overdue ones
+                      say so in their own label. The dot is emphasis, and the
+                      word rides with it for anyone who cannot see it. */}
+                  {presence && (
+                    <span className={"wb2-schpd " + presence} aria-hidden="true" />
+                  )}
+                  <span className="wb2-schnn">{l.name}</span>
+                  {presence && (
+                    <span className="wb2-sr">
+                      {presence === "late"
+                        ? " — nothing recorded yet"
+                        : presence === "wait"
+                          ? " — not started"
+                          : " — started"}
+                    </span>
+                  )}
+                </b>
                 <em>
                   {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"} ·{" "}
                   {fmtHoursShort(l.minutes)}
@@ -422,7 +454,8 @@ export function ScheduleTab({
                   <i style={{ width: `${Math.min(100, Math.round((l.minutes / 480) * 100))}%` }} />
                 </span>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className={"wb2-schrailwrap" + (atEnd ? " atend" : "")}>

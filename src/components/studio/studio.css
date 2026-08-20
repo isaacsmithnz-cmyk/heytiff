@@ -8815,16 +8815,10 @@ html[data-ds-display] .dstudio.editing {
   color: var(--teal, #00e5c0);
   white-space: nowrap;
 }
-/* The installer's logo on the bar, which is #0b0d12 — a logo inked in black
-   or navy would simply not be there. It sits on its own light plate, the way
-   one does in any dark site header. The initials chip already carries its
-   own, so this only reaches the image. */
-.dstudio .ds-live-brand .org-mark-logo:not(.org-initials),
-.ds-live-404 .ds-live-brand .org-mark-logo:not(.org-initials) {
-  background: #fff;
-  border-radius: 7px;
-  padding: 3px;
-}
+/* The logo's light plate on this bar USED TO LIVE HERE. It moved to
+   `components/org/letterhead.css` as `.org-plate`, which `BrandMark` now
+   applies itself — the Organisation page previews this bar, and two copies of
+   the rule is how a preview starts lying. */
 /* the mark brings its own weight and size; the bar keeps the colour */
 .dstudio .ds-live-brand .org-mark b { color: inherit; }
 .dstudio .ds-live-floors {

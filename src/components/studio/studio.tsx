@@ -779,19 +779,7 @@ function Home({
             </>
           ) : (
             <>
-              <span className="ds-hero-badge">
-                <Icon name="wind" size={12} />
-                Design Studio
-              </span>
-              <h2>
-                Every system on the job,
-                <br />
-                on one canvas.
-              </h2>
-              <p>
-                Splits, ducted, VRF and ventilation — designed on calibrated
-                plans, validated live, with the materials list built for you.
-              </p>
+              <h2>Design Studio</h2>
               <button className="ds-cta" onClick={() => setStep("name")}>
                 <Icon name="plus" size={18} />
                 New design

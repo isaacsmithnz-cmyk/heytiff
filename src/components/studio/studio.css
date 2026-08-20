@@ -239,27 +239,14 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   justify-content: center;
 }
-.dstudio .ds-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  font: 800 11px var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--teal);
-  background: rgba(0, 229, 192, 0.1);
-  border: 1px solid rgba(0, 229, 192, 0.3);
-  border-radius: 999px;
-  padding: 7px 13px;
-  margin-bottom: 22px;
-}
 .dstudio .ds-hero h2 {
   font-size: clamp(38px, 4.4vw, 58px);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.02;
-  margin: 0 0 18px;
+  /* The landing is now just the name and the one action — nothing sits
+     between them, so the title carries the gap the pitch used to. */
+  margin: 0 0 30px;
 }
 .dstudio .ds-hero p {
   color: rgba(255, 255, 255, 0.6);

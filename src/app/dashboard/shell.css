@@ -590,8 +590,29 @@
 .fg .topbar .me-trigger.on .me-gear { color:#fff; background:rgba(255,255,255,.14); }
 
 /* user dropdown — absolute inside .me-top, NOT fixed (the .page.in will-change
-   trap breaks position:fixed in this shell; the topbar sits outside .page). */
-.fg .topbar .me-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:60; width:250px; padding:7px; border-radius:16px; background:rgba(14,15,20,.92); border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); backdrop-filter:blur(20px) saturate(140%); animation:meMenuIn .16s ease both; }
+   trap breaks position:fixed in this shell; the topbar sits outside .page).
+
+   THE GROUND IS OPAQUE. Same fix, same reason, as the bell panel beside it —
+   and this menu is where the bug was BORN, since the panel copied the glass
+   from here.
+
+   A translucent ground is not a ground: it is 8% of whatever is behind it.
+   The assumption that spared this menu when the panel was fixed — "it opens
+   over the topbar and the sidebar, not the card" — was simply WRONG, and
+   measuring it took thirty seconds where believing it took none. The topbar is
+   80px tall and this menu drops to y=204: **124 of its 133px hang over the
+   light content card**, so the lift applies to the WHOLE menu rather than its
+   bottom edge. Ground rgb(32,33,38) instead of rgb(13,14,19), and "Your staff
+   card & details" — `--on-ink-q`, calibrated for #050505 — measured 5.04 at
+   rest and **4.44 on hover**, where the .08 white tint lifts the ground a
+   second time. Under AA, on prod, on the menu every single person opens.
+
+   #0d0e13 is what .92 composited to over the shell's own floor, so it looks
+   identical where it already looked right: 5.34 at rest, 5.03 hovered, on any
+   backdrop. `backdrop-filter` goes with it — at 92% it was invisible (swapped
+   out on prod and compared) and dead CSS in this file has styled things by
+   accident before. */
+.fg .topbar .me-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:60; width:250px; padding:7px; border-radius:16px; background:#0d0e13; border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); animation:meMenuIn .16s ease both; }
 @keyframes meMenuIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
 .fg .topbar .me-item { display:flex; align-items:center; gap:11px; width:100%; padding:10px 11px; border-radius:11px; color:rgba(255,255,255,.7); transition:background .18s, color .18s; }
 .fg .topbar .me-item:hover { background:rgba(255,255,255,.08); color:#fff; }

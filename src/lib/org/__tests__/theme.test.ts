@@ -21,7 +21,7 @@ import {
    A test carrying its own copy of 4.5 and #16181d can agree with itself
    perfectly while disagreeing with the code it is guarding. */
 
-const { PAPER, DOC_INK, TEXT_FLOOR, GRAPHIC_FLOOR } = THEME_CONTRACT;
+const { PAPER, DOC_INK, TEXT_FLOOR, GRAPHIC_FLOOR, TINT_FLOOR } = THEME_CONTRACT;
 
 /** HSL is fine for GENERATING seeds — the point is to spray the space, not to
     make claims about perceived lightness (which is exactly what HSL cannot
@@ -204,6 +204,44 @@ describe("documentTheme — least change that works", () => {
       const [r, g, b] = rgb(theme(seed).ink);
       expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeGreaterThan(20);
     }
+  });
+
+  /* THE WASH IS A TINT, AND CONTRAST CANNOT TELL YOU THAT.
+
+     This is the assertion the first version of this file did not have, and the
+     bug it would have caught shipped as far as a rendered document before
+     anybody saw it. `wash` followed "least change" like every other role, so a
+     light seed — which already carries DOC_INK, #ffff00 measures 16:1 — moved
+     ZERO. The wash was the raw brand colour, the panel on the mock handover
+     sheet came out as a full sheet of highlighter yellow, and every contrast
+     test passed while it did.
+
+     Legibility is the floor for this role, not the goal. So the claim under
+     test is a distance: the wash must sit at least TINT_FLOOR of the way from
+     the seed to paper, whatever the seed was. */
+  it("mixes the wash into the paper even when the raw colour would already pass", () => {
+    for (const seed of ["#ffff00", "#00e5c0", "#1a2b4c", "#000000", "#ff00ff", ...SWEEP]) {
+      const s = rgb(seed);
+      const w = rgb(theme(seed).wash);
+      for (let i = 0; i < 3; i++) {
+        const gap = 255 - s[i]; // how far this channel could travel
+        if (gap === 0) continue; // already at paper; nothing to measure
+
+        /* THE TOLERANCE IS THE ROUNDING, DERIVED not guessed. Each channel is
+           rounded to 8 bits independently, so the mix can land up to half a
+           step short — which is half a step out of `gap`, and on a narrow gap
+           that is a lot. A pale pink seed with a red gap of 13 travels 0.846
+           against a floor of 0.88, and is correct. A flat tolerance either
+           fails that or is loose enough to miss a real regression; this is
+           tight everywhere and exactly as loose as 8 bits require. */
+        const travelled = (w[i] - s[i]) / gap;
+        expect(travelled).toBeGreaterThanOrEqual(TINT_FLOOR - 0.5 / gap - 1e-9);
+      }
+    }
+  });
+
+  it("holds the tint floor it was written against", () => {
+    expect(TINT_FLOOR).toBe(0.88);
   });
 
   it("is a rule lighter than its own text, never darker", () => {

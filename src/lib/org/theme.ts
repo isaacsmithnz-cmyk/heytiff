@@ -41,6 +41,11 @@ const DOC_INK: RGB = [0x16, 0x18, 0x1d];
 const TEXT_FLOOR = 4.5;
 const GRAPHIC_FLOOR = 3;
 
+/** How far a wash is mixed into the paper before legibility is even asked
+    about — see the note in `documentTheme`. Not a contrast number and not
+    derived from one: it is what makes a tint a tint rather than a fill. */
+const TINT_FLOOR = 0.88;
+
 type RGB = readonly [number, number, number];
 
 /** What a document may paint with. Three roles, because there are only three
@@ -53,8 +58,10 @@ export type DocumentTheme = {
   ink: string;
   /** A tint pale enough to lay the document's own near-black ink on top of. */
   wash: string;
-  /** Hairlines and boundaries — lighter than `ink`, because a rule that
-      matches the text competes with it. */
+  /** Hairlines and boundaries. Never darker than `ink`, and lighter whenever
+      the seed had to travel to reach the text floor — a colour that already
+      cleared both floors is simply itself in both roles, which is right: it is
+      the brand colour, and nothing asked for two of them. */
   rule: string;
 };
 
@@ -175,8 +182,24 @@ export function documentTheme(seed: string): DocumentTheme | null {
     (k) => darken(rgb, 1 - k),
     (c) => contrast(c, PAPER) >= GRAPHIC_FLOOR
   );
+  /* THE WASH STARTS AT THE TINT FLOOR, and does not get to skip it.
+
+     Every other role here follows "least change", because for those, staying
+     close to the chosen colour is the goal and legibility is the constraint.
+     For a wash it is the other way round: a wash IS a pale tint, and 4.5:1 is
+     a floor rather than a target.
+
+     Least change alone got this wrong in a way no contrast test could catch.
+     A light seed already carries DOC_INK — #ffff00 under #16181d measures
+     16:1 — so the search stopped at t=0 and the "wash" was the raw brand
+     colour. Rendered, the panel on a handover sheet was a full sheet of
+     highlighter yellow. Legible, passing, and not something anyone would send
+     a customer. It took drawing the document to see it.
+
+     So the search runs over the range ABOVE the floor: t=0 is a colour already
+     mixed 88% into the paper, and the seed itself is no longer reachable. */
   const wash = leastChange(
-    (t) => lighten(rgb, t),
+    (t) => lighten(rgb, TINT_FLOOR + (1 - TINT_FLOOR) * t),
     (c) => contrast(DOC_INK, c) >= TEXT_FLOOR
   );
 
@@ -191,4 +214,5 @@ export const THEME_CONTRACT = {
   DOC_INK,
   TEXT_FLOOR,
   GRAPHIC_FLOOR,
+  TINT_FLOOR,
 } as const;

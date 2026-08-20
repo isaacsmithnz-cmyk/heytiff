@@ -19,6 +19,9 @@ export type OrgActions = {
   /** points the org at an already-uploaded org_logo document */
   onSetLogo: (documentId: string) => Promise<SaveResult>;
   onClearLogo: () => Promise<SaveResult>;
+  /** the one seed colour; the document roles are derived from it at render */
+  onSetBrandColor: (hex: string) => Promise<SaveResult>;
+  onClearBrandColor: () => Promise<SaveResult>;
   /* Master-only, and absent for everyone else — a co-owner's screen does not
      render the control at all, so the prop is optional rather than a function
      that always refuses. The server refuses too; this is what stops the button

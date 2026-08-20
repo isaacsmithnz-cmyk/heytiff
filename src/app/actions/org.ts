@@ -9,6 +9,7 @@ import { refIsOrgs } from "@/lib/documents/files";
 import { deleteDocument } from "./documents";
 import { orgBrand } from "@/lib/org/query";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { parseHex } from "@/lib/org/theme";
 import {
   buildOrgPatch,
   isOrgSection,
@@ -172,6 +173,63 @@ export async function clearOrgLogo(): Promise<SaveResult> {
 
   revalidatePath("/dashboard/admin/organization");
   revalidatePath("/dashboard", "layout");
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+   The brand colour.
+
+   ONE SEED, STORED; the roles a document paints with are derived at render
+   (lib/org/theme.ts). Storing the derived roles would freeze them against the
+   grounds that existed the day they were computed.
+
+   VALIDATED THROUGH `parseHex`, THE SAME PARSER THE DERIVATION USES, and not
+   through a regex written here. Two parsers for one format is how a value gets
+   accepted by the writer and rejected by the reader — the colour would save
+   cleanly and the document would silently render unthemed, which is the
+   hardest kind of bug to be told about. Normalised on the way in, because the
+   column's CHECK is deliberately narrow (lowercase #rrggbb) and a picker may
+   hand back either case or a shorthand.
+   --------------------------------------------------------------------------- */
+
+export async function setOrgBrandColor(hex: string): Promise<SaveResult> {
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const rgb = parseHex(hex);
+  if (!rgb) {
+    return {
+      ok: false,
+      error: "That isn't a colour — use a hex value like #1a2b4c.",
+      fields: ["brand_color"],
+    };
+  }
+  const normalised =
+    "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
+
+  const { error } = await supabaseAdmin
+    .from("organizations")
+    .update({ brand_color: normalised, updated_at: new Date().toISOString() })
+    .eq("id", ctx.orgId);
+  if (error) return { ok: false, error: "Couldn't save that colour." };
+
+  revalidatePath("/dashboard/admin/organization");
+  return { ok: true };
+}
+
+/** Back to no theme — which is not a degraded state. Every document falls back
+    to exactly the look it has today, and most orgs will never set one. */
+export async function clearOrgBrandColor(): Promise<SaveResult> {
+  const ctx = await ownerOrgId();
+  if ("error" in ctx) return { ok: false, error: ctx.error };
+
+  const { error } = await supabaseAdmin
+    .from("organizations")
+    .update({ brand_color: null, updated_at: new Date().toISOString() })
+    .eq("id", ctx.orgId);
+  if (error) return { ok: false, error: "Couldn't remove that colour." };
+
+  revalidatePath("/dashboard/admin/organization");
   return { ok: true };
 }
 

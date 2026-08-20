@@ -7,7 +7,13 @@ import { OrgScreen } from "@/components/org/org-screen";
 import { listOrgCredentials, listOwnerCandidates, orgAccount } from "@/lib/org/query";
 import { signOne } from "@/lib/documents/query";
 import { todayInAu } from "@/lib/au-dates";
-import { clearOrgLogo, saveOrgSection, setOrgLogo } from "@/app/actions/org";
+import {
+  clearOrgBrandColor,
+  clearOrgLogo,
+  saveOrgSection,
+  setOrgBrandColor,
+  setOrgLogo,
+} from "@/app/actions/org";
 import {
   addOrgCredential,
   removeOrgCredential,
@@ -30,7 +36,7 @@ import type { OrgSettings } from "@/lib/org/settings";
 
 const COLUMNS =
   "id, trading_name, legal_name, abn, acn, gst_registered, email, phone, " +
-  "website, address, suburb, state, postcode, logo_url";
+  "website, address, suburb, state, postcode, logo_url, brand_color";
 // primary_owner_user_id and the legacy `name` are deliberately not selected —
 // this screen edits the company profile, not ownership or the signup seed.
 
@@ -92,6 +98,8 @@ export default async function OrganizationPage({
         onRemoveCredential: removeOrgCredential,
         onSetLogo: setOrgLogo,
         onClearLogo: clearOrgLogo,
+        onSetBrandColor: setOrgBrandColor,
+        onClearBrandColor: clearOrgBrandColor,
         // absent for a co-owner: the control is not rendered rather than
         // rendered-and-refused. The action re-checks anyway.
         onTransferOwnership: master ? transferOwnership : undefined,

@@ -4632,6 +4632,39 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    real one keeps */
 .fg .orglogo-use.paper .org-lh-logo { height:34px; max-width:108px; }
 
+/* ---- The brand colour, and the document it is checked against ----
+   Same lesson as the logo rows above it: a swatch on a settings screen is a
+   preview that cannot fail. What is drawn here are the DERIVED roles
+   (lib/org/theme.ts), painted inline by the component, so the only colours
+   this sheet owns are the unthemed fallbacks. */
+.fg .orgcolrow { margin-top:30px; padding-top:24px; border-top:1px solid #ecedf1; }
+.fg .orgcolrow > em { display:block; font-style:normal; margin-bottom:12px; font-size:11px;
+  font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+.fg .orgcol { display:flex; align-items:flex-start; gap:26px; flex-wrap:wrap; }
+/* the miniature document. Fixed width so the preview does not restyle itself
+   as the card resizes — a preview that reflows is telling you about the card,
+   not about the document. */
+.fg .orgcol-doc { flex:0 0 auto; width:260px; padding:16px 18px 18px; border-radius:14px;
+  background:#fff; border:1px solid #ecedf1; }
+.fg .orgcol-rule { height:3px; border-radius:2px; margin-bottom:12px; }
+.fg .orgcol-doc b { display:block; font-size:17px; font-weight:800; letter-spacing:-.01em; }
+.fg .orgcol-doc > span { display:block; margin-top:3px; font-size:11px; font-weight:600; color:#4b5563; }
+/* #16181d is the documents' own body ink, and the ground under it is the
+   derived wash — the pair `documentTheme` guarantees to 4.5:1 */
+.fg .orgcol-panel { margin-top:12px; padding:9px 11px; border-radius:9px;
+  font-size:11.5px; font-weight:600; line-height:1.45; color:#16181d; }
+.fg .orgcol-pick { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-top:2px; }
+/* A native colour input is a button with a swatch in it and no two browsers
+   dress it alike; the padding/border reset is what makes the swatch fill the
+   control instead of floating in chrome-drawn inset. */
+.fg .orgcol-swatch { width:46px; height:46px; padding:0; border:1px solid #d8dbe2; border-radius:12px;
+  background:none; cursor:pointer; appearance:none; -webkit-appearance:none; }
+.fg .orgcol-swatch::-webkit-color-swatch-wrapper { padding:3px; }
+.fg .orgcol-swatch::-webkit-color-swatch { border:none; border-radius:9px; }
+.fg .orgcol-swatch::-moz-color-swatch { border:none; border-radius:9px; }
+.fg .orgcol-hex { width:130px; height:46px; }
+.fg .orgcol .carderr { flex:1 0 100%; }
+
 /* Account — four read-only facts about the account itself, two up. */
 .fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:20px 26px; }
 @media (max-width:640px){ .fg .orgacct { grid-template-columns:1fr; gap:18px; } }

@@ -59,6 +59,7 @@ const ORG: OrgSettings = {
   state: "VIC",
   postcode: "3134",
   logo_url: null,
+  brand_color: null,
 };
 
 const ACCOUNT: OrgAccount = {
@@ -120,6 +121,8 @@ function setup(
     onRemoveCredential: jest.fn().mockResolvedValue({ ok: true }),
     onSetLogo: jest.fn().mockResolvedValue({ ok: true }),
     onClearLogo: jest.fn().mockResolvedValue({ ok: true }),
+    onSetBrandColor: jest.fn().mockResolvedValue({ ok: true }),
+    onClearBrandColor: jest.fn().mockResolvedValue({ ok: true }),
     /* Present = "you are the master". The page passes it only for the master
        owner, so a test for a co-owner's screen passes `onTransferOwnership:
        undefined` rather than a stub that refuses. */
@@ -303,6 +306,8 @@ describe("your business", () => {
           onRemoveCredential: jest.fn(),
           onSetLogo: jest.fn(),
           onClearLogo: jest.fn(),
+          onSetBrandColor: jest.fn(),
+          onClearBrandColor: jest.fn(),
         }}
       />
     );

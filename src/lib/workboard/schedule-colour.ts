@@ -13,10 +13,11 @@
 
    So take the HUE and rebuild the swatch, rather than pushing the pixel
    around. Floor the saturation (the pale pick carries almost none), then walk
-   lightness outward from a true mid until white or ink measurably clears
-   4.5:1 against the result. The fill comes out at full strength for every
-   category, the text colour is chosen rather than hoped for, and the 4px bar
-   retires because the fill is doing its job.
+   lightness DOWN from a true mid until white measurably clears 4.5:1 against
+   the result. The text colour is not a search result here — it is white on
+   every block, and the fill is what moves to earn it, so the rail reads as one
+   thing instead of a row that disagrees with itself. The 4px bar retires
+   because the fill is doing its job.
 
    AND NOT `opacity` FOR THE CLOSED ONES. A finished block used to be
    `opacity:.58`, which is de-emphasis by arithmetic: over a saturated fill it
@@ -118,11 +119,13 @@ const AA = 4.5;
 export type BlockPaint = {
   /** A booking still in play — the category's hue at full strength. */
   fill: string;
-  /** The label on `fill`: white or ink, whichever measurably clears 4.5:1. */
+  /** The label on `fill`. Always white for a category — the fill is darkened
+      until white clears 4.5:1 rather than the label switching to suit the hue.
+      Named `ink` because it is the block's text colour, not because it is. */
   ink: string;
   /** The job-number chip's own ground. It sits ON the fill and under the same
-      `ink`, so it has to move AWAY from that ink — the obvious tint (a wash of
-      the text colour) walks the chip toward its own words and takes them under
+      label, so it has to move AWAY from it — the obvious tint (a wash of the
+      text colour) walks the chip toward its own words and takes them under
       4.5:1, which is the whole bug this module exists to stop. */
   chip: string;
   /** Finished and closed. Always takes ink, and by a wide margin. */
@@ -141,12 +144,12 @@ export const NO_CATEGORY_PAINT: BlockPaint = {
   paleEdge: "rgb(219, 222, 228)",
 };
 
-/** The lightnesses tried, in order, looking for one where the fill can carry
-    a label. It starts at a true mid and steps outward alternately, so the
-    first hit is the most saturated-looking option that actually passes —
-    mid-tones are the hard case, and for some hues neither white nor ink
-    clears there. */
-const LADDER = [0.55, 0.5, 0.6, 0.45, 0.65, 0.4, 0.7, 0.35];
+/** Where the search for a usable fill starts: a true mid, the most saturated
+    a hue gets. It only ever walks DOWN from here — see `scheduleBlockPaint`. */
+const START_L = 0.55;
+/** How far down it will go. Every real hue clears white long before this;
+    the floor exists so the loop is bounded rather than trusting arithmetic. */
+const FLOOR_L = 0.12;
 /** ServiceM8's washes carry almost no chroma; below this a "colour" is grey. */
 const MIN_SATURATION = 0.55;
 
@@ -168,24 +171,36 @@ export function scheduleBlockPaint(hex: string | null | undefined): BlockPaint {
   const pale = css(toRgb(h, Math.min(s, 0.62), 0.92));
   const paleEdge = css(toRgb(h, Math.min(s, 0.55), 0.82));
 
-  for (const l of LADDER) {
+  /* WHITE ON EVERY BLOCK. The first cut took whichever of white or ink cleared
+     at a true mid, and that made the rail's text colour a property of the hue:
+     purple and blue came out white, mint and yellow came out ink. Both were
+     legible and the board still looked like two designs, because a row of
+     blocks that disagree about their text colour reads as an accident rather
+     than a rule.
+
+     So pick the text first and let the fill move: hold the hue and walk
+     lightness down until WHITE clears 4.5:1 against it. Darkening always gets
+     there, so every category ends up white-on-colour and the rail is one
+     thing. What it costs is lightness on the bright hues — a mint that was
+     #4dcb7b becomes a deep #27864a, and a pale yellow becomes an olive. That
+     is the trade: hue fidelity for a rail that reads as one system. The
+     category is written on the block in words, so the hue was never carrying
+     the meaning on its own. */
+  for (let l = START_L; l >= FLOOR_L; l -= 0.01) {
     const rgb = toRgb(h, s, l);
-    const onWhite = contrastRatio(rgb, WHITE);
-    const onInk = contrastRatio(rgb, INK);
-    if (Math.max(onWhite, onInk) >= AA) {
-      const takesWhite = onWhite >= onInk;
+    if (contrastRatio(rgb, WHITE) >= AA) {
       return {
         fill: css(rgb),
-        ink: css(takesWhite ? WHITE : INK),
-        // away from the label: darker under white text, lighter under ink
-        chip: css(mix(rgb, takesWhite ? INK : WHITE, takesWhite ? 0.24 : 0.34)),
+        ink: css(WHITE),
+        // away from the label, which is now always white — so always darker
+        chip: css(mix(rgb, INK, 0.24)),
         pale,
         paleEdge,
       };
     }
   }
-  /* Unreachable for any real hue — every one of them passes on the first or
-     second rung. Kept so the function is total rather than nearly total. */
-  const last = toRgb(h, s, 0.35);
+  /* Unreachable: at the floor every hue is dark enough for white by a wide
+     margin. Kept so the function is total rather than nearly total. */
+  const last = toRgb(h, s, FLOOR_L);
   return { fill: css(last), ink: css(WHITE), chip: css(mix(last, INK, 0.24)), pale, paleEdge };
 }

@@ -57,22 +57,32 @@ describe("scheduleBlockPaint", () => {
     expect(contrastRatio(channels(chip), channels(ink))).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("moves the chip away from its label, never toward it", () => {
-    const white = scheduleBlockPaint("#CBB8F2"); // white label
-    const dark = scheduleBlockPaint("#F2EFB8"); // ink label
+  it.each(CATEGORY_COLOURS)("gives %s a WHITE label, whatever the hue", (hex) => {
+    // the rail's text colour is a rule, not a property of the category. A row
+    // of blocks that disagree about it reads as an accident.
+    expect(scheduleBlockPaint(hex).ink).toBe("rgb(255, 255, 255)");
+  });
+
+  it.each(CATEGORY_COLOURS)("moves %s's chip away from its label, never toward it", (hex) => {
+    const { chip, fill } = scheduleBlockPaint(hex);
     const lum = ([r, g, b]: [number, number, number]) => r + g + b;
-    // under white text the chip goes darker; under ink text, lighter
-    expect(lum(channels(white.chip))).toBeLessThan(lum(channels(white.fill)));
-    expect(lum(channels(dark.chip))).toBeGreaterThan(lum(channels(dark.fill)));
+    // the label is white, so the chip's ground can only go darker
+    expect(lum(channels(chip))).toBeLessThan(lum(channels(fill)));
   });
 
-  it("picks ink, not white, on a hue too bright for white", () => {
-    // a yellow at any usable lightness is far brighter than white can sit on
-    expect(scheduleBlockPaint("#F2EFB8").ink).toBe("rgb(10, 11, 16)");
+  it("darkens a hue too bright for white until white works", () => {
+    // a pale yellow at a true mid is far brighter than white can sit on, so
+    // the FILL moves rather than the label — it lands an olive, not a lemon
+    const { fill } = scheduleBlockPaint("#F2EFB8");
+    expect(contrastRatio(channels(fill), [255, 255, 255])).toBeGreaterThanOrEqual(4.5);
+    // and it really did have to travel: well below the 0.55 start
+    const [r, g, b] = channels(fill);
+    expect(Math.max(r, g, b)).toBeLessThan(160);
   });
 
-  it("picks white on a hue too dark for ink", () => {
-    expect(scheduleBlockPaint("#CBB8F2").ink).toBe("rgb(255, 255, 255)");
+  it("leaves a hue that already carries white where it is", () => {
+    // lilac clears on the first step, so it keeps its full-strength mid
+    expect(scheduleBlockPaint("#CBB8F2").fill).toBe("rgb(113, 61, 219)");
   });
 
   it("rebuilds the hue rather than passing the wash through", () => {

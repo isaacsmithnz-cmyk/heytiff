@@ -594,11 +594,6 @@ export function VisitSheet({
                       )}
                     </div>
                   ))}
-                  {visit.techs.length === 0 && (
-                    <p className="wb2-hint">
-                      The gate ticks itself when someone is assigned — it is never ticked by hand.
-                    </p>
-                  )}
                   {manage && unassigned.length > 0 && (
                     <select
                       className="wb2-sel"
@@ -622,8 +617,7 @@ export function VisitSheet({
                   )}
                   {visit.techsNeeded > 1 && (
                     <p className="wb2-hint">
-                      The agreement estimates {crewLabel(visit.techsNeeded)} — one assigned still
-                      opens the gate, the count is information.
+                      The agreement estimates {crewLabel(visit.techsNeeded)}.
                     </p>
                   )}
                 </div>
@@ -716,10 +710,7 @@ export function VisitSheet({
                   </button>
                 )}
               </div>
-              <p className="wb2-hint">
-                Comes round {cadencePhrase(visit.intervalMonths)}. Weekends are allowed on purpose —
-                the board just checks you meant it.
-              </p>
+              <p className="wb2-hint">Comes round {cadencePhrase(visit.intervalMonths)}.</p>
             </>
           )}
         </div>

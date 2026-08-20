@@ -469,11 +469,6 @@ export function ProjectTripSheet({
                       )}
                     </div>
                   ))}
-                  {visit.techs.length === 0 && (
-                    <p className="wb2-hint">
-                      The gate ticks itself when someone is assigned — it is never ticked by hand.
-                    </p>
-                  )}
                   {manage && unassigned.length > 0 && (
                     <select
                       className="wb2-sel"
@@ -576,10 +571,6 @@ export function ProjectTripSheet({
                 </button>
               )}
             </div>
-            <p className="wb2-hint">
-              Placing a trip on a day IS the time confirmation. Weekends are allowed on purpose —
-              the board just checks you meant it.
-            </p>
           </div>
         )}
 
@@ -606,8 +597,7 @@ export function ProjectTripSheet({
             {visit.jobNumber ? (
               <p className="wb2-hint">
                 #{visit.jobNumber}
-                {visit.mirrorStatus ? ` · ${visit.mirrorStatus} in ServiceM8` : ""} — the diary and
-                completion flow back as garnish, never as writes.
+                {visit.mirrorStatus ? ` · ${visit.mirrorStatus} in ServiceM8` : ""}
               </p>
             ) : linking ? (
               <div className="wb2-dayrow">
@@ -644,11 +634,9 @@ export function ProjectTripSheet({
                   Link it
                 </button>
               </div>
-            ) : (
+            ) : connected ? null : (
               <p className="wb2-hint">
-                {connected
-                  ? "Linking the raised job pulls its diary and completion through as garnish."
-                  : "Type the job number if one exists — the trip works fine without."}
+                Type the job number if one exists — the trip works fine without.
               </p>
             )}
           </div>

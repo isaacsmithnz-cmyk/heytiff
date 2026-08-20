@@ -11,6 +11,7 @@ import {
 } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
+import { DotField } from "@/components/ui/dot-field";
 import { JobSearchField, type JobSearch } from "./job-search";
 export type { JobSearch };
 import { agoLabel } from "@/lib/format/duration";
@@ -796,6 +797,15 @@ function Home({
           ) : (
             <>
               <h2>Design Studio</h2>
+              {/* The capture card's cloud, standing still on the landing. It
+                  is the same instrument the voice card thinks in — mounted
+                  straight into `cloud`, so its one-time bloom out of the mark
+                  plays on arrival and it then turns and darts on its own
+                  clocks for as long as the screen is open. No `from`: there is
+                  no button here for it to have flown out of. */}
+              <span className="ds-cloud">
+                <DotField stage="cloud" size={380} />
+              </span>
               {/* The landing's one action, so it is sized like one: the mark
                   sits at the far end of a wide button and reads as the arrow
                   it already is, pointing at what happens next. */}

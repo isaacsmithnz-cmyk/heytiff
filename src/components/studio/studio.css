@@ -282,6 +282,22 @@ html[data-ds-display] .dstudio.editing {
   transform: translateY(-2px);
   box-shadow: 0 18px 34px -10px rgba(0, 229, 192, 0.55);
 }
+/* The cloud between the name and the action. The field is a square box with
+   the cloud floating at its centre, so it is pulled back by its own margin to
+   sit under the title rather than indented by half a box of nothing. */
+.dstudio .ds-cloud {
+  display: block;
+  align-self: flex-start;
+  /* The field is a 380px square with the cloud floating at its centre, so it
+     is pulled back by its own margins to sit under the title rather than
+     indented by half a box of nothing. Measured on the rendered dots, not on
+     the box: ~35px of air above and below, left edge on the title's. The
+     cloud turns, so its silhouette drifts ±10px either way — these numbers
+     centre that drift rather than pin an edge that will not hold still. */
+  margin: -70px 0 -57px -83px;
+  pointer-events: none;
+}
+
 /* The landing's single action. Sized on its own class, not on `.ds-cta`: the
    wizard's nav buttons share that base and must stay small. */
 .dstudio .ds-cta.ds-start {

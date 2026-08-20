@@ -6697,29 +6697,71 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    oldest fading out at the top instead of being sliced off. (3) The words
    POPPED, because the paragraph was one swapped string — they glide now,
    per word, in ./dictation. */
+/* THE RIVER'S BOX — the MECHANISM, shared by the capture card and all three
+   field mics. What the box LOOKS like is the CALLER's class: `.wb2-livetext`
+   below on the card, and in a field the field's own `.wb2-stripin` / `.wb2-fi`
+   / `.wb2-notes`. That is the whole trick of the field mics — the words
+   arrive in a box with the same width, font, padding and border as the input
+   that was there a frame earlier, so the swap is invisible. Measured: the
+   strip and the line posture come out at 30px and 34px either way. */
+.wb2-lwbox {
+  overflow:auto; scrollbar-width:none; text-align:left;
+  /* The scroll is ridden by LiveWords, and a trackpad flick that ran off the
+     end of it would scroll the page behind instead. */
+  overscroll-behavior:contain;
+  /* WITHOUT THIS, THE SENTENCE SETS THE WIDTH. A river's max-content width is
+     the whole transcript on one line, and a flex or grid parent sizes itself
+     to that — the note strip grew from 191px to 890px on one dictated
+     sentence, which an <input> never did because it has an intrinsic size.
+     Inline-size containment makes the box measure as if it were empty, which
+     is what a window IS. */
+  contain:inline-size;
+}
+.wb2-lwbox::-webkit-scrollbar { display:none; }
+/* ONE LINE, for the two field mics that are one line. The words ride sideways
+   instead of down. `line-height:normal` is not a rounding — it is the value
+   an <input> uses, and it is what makes the paragraph exactly as tall as the
+   field it stands in for. */
+.wb2-lwbox.one { white-space:nowrap; overflow-y:hidden; line-height:normal; }
+.wb2-lwbox.one .wb2-lwsaid { white-space:pre; }
+/* And the block field mic stands in for a textarea, whose height comes from
+   `rows` — a paragraph has no such thing, so the sheet does the arithmetic.
+   `1lh` is the same line box the textarea would have used; 26px is
+   `.wb2-notes`'s own padding and border. Measured at rows=3: 74px either way. */
+.wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
+  /* TWO THINGS A TEXTAREA HAD FOR FREE and a paragraph does not. The white
+     field is the UA's, so `.wb2-notes` never had to write it down — without
+     it the river is the only one of the four boxes you can see through. And
+     `resize:vertical` is NOT dead here: `resize` applies to anything whose
+     overflow is not visible, so the river inherited a drag grip in its
+     corner that resized a paragraph. */
+  background:#fff; resize:none; }
+
+/* ── and the box the CARD wears ── */
 .wb2-livetext {
   font-size:14.5px; line-height:1.5; color:var(--gray800, #1f2937); font-weight:500;
   /* `.wb2-caprec` centres its column, which with left-aligned text would
      indent the words a third of the way across and read as a mistake.
      Stretched, they start exactly where the typed words start. */
-  margin:8px 0 0; text-align:left; align-self:stretch;
+  margin:8px 0 0; align-self:stretch;
   /* A FIXED WINDOW, not a box that grows to fit. `min-height` under a
      `max-height` still grew twice — once at the first word and again at the
      fourth — and each growth pushed the meter and the whole action row down
      mid-sentence. Three lines exactly (`line-height:1.5`), held from the
      first frame of the recording to the last, so the ONLY thing that moves
      on this card while you talk is the words. */
-  height:4.5em; overflow-y:auto; scrollbar-width:none;
-  /* The scroll is ridden by LiveWords, and a trackpad flick that ran off the
-     end of it would scroll the sheet behind instead. */
-  overscroll-behavior:contain;
+  height:4.5em;
   /* IT OPENS ONCE, SOFTLY. There is nothing to show until the first word
      lands (an empty window in that space is the hole #367 closed), so the
      box does arrive mid-recording — it used to arrive by SNAPPING three
      lines open under the words being spoken and shoving the meter and the
      whole action row down with them. Eased, it reads as the card making
      room; and because the height is fixed from then on, it is the only time
-     anything on this card moves. */
+     anything on this card moves.
+
+     THE FIELD MICS DO NOT GET THIS. A field is already the size it is — the
+     river replaces a box that was standing there, so there is nothing to
+     open. */
   animation:wb2LiveIn .3s cubic-bezier(.22,1,.36,1) both;
 }
 @keyframes wb2LiveIn {
@@ -6737,11 +6779,15 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    of the text, so applied unconditionally it greys out the first line of
    every dictation short enough not to scroll — which is most of them. The
    class is set from a measurement in LiveWords. */
-.wb2-livetext.over {
+.wb2-lwbox.over {
   -webkit-mask:linear-gradient(180deg, transparent 0, #000 1.5em);
   mask:linear-gradient(180deg, transparent 0, #000 1.5em);
 }
-.wb2-livetext::-webkit-scrollbar { display:none; }
+/* …and on one line the words leave to the LEFT, so the fade does too. */
+.wb2-lwbox.one.over {
+  -webkit-mask:linear-gradient(90deg, transparent 0, #000 2.2em);
+  mask:linear-gradient(90deg, transparent 0, #000 2.2em);
+}
 /* The glide. Fast enough to keep up with speech, eased so it lands rather
    than stops — and a hair of blur on the way in, which is what makes a
    burst of three words read as arriving instead of appearing. */

@@ -877,7 +877,28 @@ const WORD_STEP_MAX_MS = 210;
     `said` is NOT split into words. It is the record, not the arrival — it
     has already been read, it never animates, and splitting it would put
     hundreds of spans in front of the handful that matter. */
-export function LiveWords({ said = "", text }: { said?: string; text: string }) {
+export function LiveWords({
+  said = "",
+  text,
+  line = false,
+  rows,
+  className,
+  label = "What you have said so far",
+}: {
+  said?: string;
+  text: string;
+  /** One line, riding sideways — the two field mics that ARE one line. */
+  line?: boolean;
+  /** What the textarea this stands in for was sized to. Block field mic only. */
+  rows?: number;
+  /** THE BOX IT IS STANDING IN. `.wb2-livetext` on the capture card, and in a
+      field the field's OWN class — `.wb2-stripin`, `.wb2-fi`, `.wb2-notes`.
+      That is what makes the swap invisible: same width, font, padding and
+      border as the box that was there a frame earlier. Measured, the strip
+      and the line posture come out identical to the pixel. */
+  className?: string;
+  label?: string;
+}) {
   const ref = useRef<HTMLParagraphElement | null>(null);
   /* Whether anything has actually scrolled out of sight above. The top of
      the box is faded so old words dissolve instead of being sliced, and
@@ -913,9 +934,18 @@ export function LiveWords({ said = "", text }: { said?: string; text: string }) 
     }
     shown.current = spans.length;
 
-    el.scrollTop = el.scrollHeight;
-    setScrolled(el.scrollHeight > el.clientHeight + 1);
-  }, [said, text]);
+    /* Ride the newest word, down the box or along it — the field mics that
+       are one line have the same problem in the other axis, and a disabled
+       input never scrolled at all, so the words being spoken sat off the
+       right-hand edge where nobody could read them. */
+    if (line) {
+      el.scrollLeft = el.scrollWidth;
+      setScrolled(el.scrollWidth > el.clientWidth + 1);
+    } else {
+      el.scrollTop = el.scrollHeight;
+      setScrolled(el.scrollHeight > el.clientHeight + 1);
+    }
+  }, [said, text, line]);
 
   /* AND MEASURED AGAIN WHEN THE BOX HAS FINISHED OPENING. The window eases
      three lines open over 300 ms the first time there is anything to show,
@@ -931,15 +961,26 @@ export function LiveWords({ said = "", text }: { said?: string; text: string }) 
     const el = ref.current;
     if (!el) return;
     const settle = (e: AnimationEvent) => {
-      if (e.target === el) setScrolled(el.scrollHeight > el.clientHeight + 1);
+      if (e.target !== el) return;
+      setScrolled(
+        line ? el.scrollWidth > el.clientWidth + 1 : el.scrollHeight > el.clientHeight + 1
+      );
     };
     el.addEventListener("animationend", settle);
     return () => el.removeEventListener("animationend", settle);
-  }, []);
+  }, [line]);
 
   return (
     <p
-      className={"wb2-livetext" + (scrolled ? " over" : "")}
+      className={
+        (className ? `${className} ` : "") +
+        "wb2-lwbox" +
+        (line ? " one" : "") +
+        (scrolled ? " over" : "")
+      }
+      /* The block field mic stands in for a textarea sized by `rows`, and a
+         paragraph has no such thing — the sheet does that arithmetic. */
+      style={rows ? ({ "--lwrows": rows } as React.CSSProperties) : undefined}
       ref={ref}
       /* NAMED, because it is no longer a labelled textarea. `log` is the
          role a running transcript actually has, and it carries the polite
@@ -947,7 +988,7 @@ export function LiveWords({ said = "", text }: { said?: string; text: string }) 
          card is checked for having exactly one of them. */
       role="log"
       aria-live="polite"
-      aria-label="What you have said so far"
+      aria-label={label}
     >
       {/* THE SPACES ARE REAL, not a margin between the spans. The gap could
           be drawn either way and only one of them is still there when the

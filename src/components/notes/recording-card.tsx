@@ -128,7 +128,7 @@ export function RecordingCard({ dict, text }: RecordingCardProps) {
 
   return (
     <div className="wb2-caprec">
-      {shows && <LiveWords said={text} text={dict.interim} />}
+      {shows && <LiveWords className="wb2-livetext" said={text} text={dict.interim} />}
       {/* THE CLOCK HOLDS THE BOTTOM LEFT. It used to stand beside the meter,
           above the words; with the instrument lifted out of this card (the
           field spans stages, so it is mounted by the door — see `Body` in

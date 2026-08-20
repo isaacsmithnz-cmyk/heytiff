@@ -27,12 +27,14 @@ const CSS = `
      turns its corner. Carries nothing, so no contrast floor and no reversed
      artwork.
 
-     EVERY NUMBER COMES FROM themeVars, and every fallback here is 0 or the
-     value this sheet already had. With no brand colour none of the variables
-     are set, so there is no band AND no padding for one - the padding is the
-     half that got missed the first time, and 22mm of new white space on an
-     unthemed sheet is a change to a document this design promised not to
-     change. */
+     EVERY NUMBER COMES FROM themeVars, which always returns a full set: a
+     business that has chosen no colour gets the band in this sheet's own ink
+     rather than no band. The fallbacks here are the values the sheet had
+     before, so a missing variable degrades to the old document rather than to
+     a broken one.
+
+     The band REPLACES the sheet's old top margin rather than stacking on it -
+     it is occupying that space, not sitting above it. */
   .ho-band { position: absolute; left: 0; right: 0; height: var(--doc-band, 0px);
     background: var(--doc-ink, transparent); pointer-events: none;
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -45,7 +47,7 @@ const CSS = `
   /* scoped to the CONTENT: a '.ho-sheet > *' rule would also match the two
      layers above at equal specificity and strip their position:absolute */
   .ho-sheet > .ho { position: relative; }
-  .ho { max-width: 780px; margin: 0 auto; padding: calc(40px + var(--doc-pad, 0px)) 28px calc(64px + var(--doc-pad, 0px)); color: #16181d;
+  .ho { max-width: 780px; margin: 0 auto; padding: var(--doc-pad, 40px) 28px var(--doc-pad, 64px); color: #16181d;
     font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif); font-size: 13.5px; line-height: 1.5; }
   .ho h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0 4px; }
   .ho h2 { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;

@@ -167,19 +167,21 @@ export function documentTheme(seed: string): DocumentTheme | null {
 /* HOW A DOCUMENT RECEIVES THE THEME, and why it is variables rather than
    inline colours on every element.
 
-   Each themeable declaration is written `var(--doc-ink, <today's value>)`. When
-   a business has no colour this returns an EMPTY object, no variables are set,
-   every fallback fires, and the document is byte-for-byte the one it is today.
-   "Unthemed" is therefore not a code path anybody has to maintain — it is the
-   absence of one, which is the only version of that promise that cannot rot.
+   EVERY DOCUMENT GETS THE BAND. A business that has chosen no colour gets it
+   in the ink the sheet already prints in, so the treatment is part of the
+   document rather than a reward for visiting a settings page. Setting a colour
+   changes what the band is, never whether there is one.
+
+   That is a deliberate reversal. This used to return an EMPTY object with no
+   colour, so an unthemed sheet was byte-for-byte the one it had always been —
+   safe, and it meant most orgs never saw the design at all.
 
    THE GEOMETRY TRAVELS WITH THE COLOUR, and that is not decoration. The band
-   takes space: the sheet has to be padded clear of it. Written into the
-   stylesheets as a constant that padding applied to EVERY document, themed or
-   not, and an org that had set no colour silently gained 22mm of white space
-   at each end — a change to a document this whole design promised not to
-   change. Shipping the depth through the same object as the colour is what
-   makes the two impossible to get out of step: no colour, no band, no padding.
+   takes space: the sheet has to be padded clear of it, and the two must never
+   disagree. Written into the stylesheets as a constant, the padding once
+   applied to every document while the band did not — 22mm of white space at
+   each end of a sheet with nothing at the top of it. Shipping both through
+   this one object is what makes that impossible.
 
    The names are `--doc-*` and not `--brand-*`: these reach documents only. The
    app's own chrome must never resolve them, and a token called `--brand-ink`
@@ -191,9 +193,8 @@ export function documentTheme(seed: string): DocumentTheme | null {
    because React types custom properties as unknown keys. */
 export function themeVars(seed: string | null): CSSProperties {
   const t = seed ? documentTheme(seed) : null;
-  if (!t) return {};
   return {
-    "--doc-ink": t.ink,
+    "--doc-ink": t ? t.ink : BAND.default,
     "--doc-gutter": BAND.gutter,
     "--doc-radius": BAND.radius,
     "--doc-band": `calc(${BAND.gutter} + ${BAND.radius})`,
@@ -223,6 +224,18 @@ const BAND = {
   radius: "7.94mm",
   /** breathing room between the band and the first line of the document */
   clear: "6mm",
+  /* THE DEFAULT BAND, for a business that has chosen no colour.
+
+     Not #000000. This is the ink the letterhead and the handover sheet already
+     print their headings in, so the band reads as part of the document instead
+     of as a black bar laid on top of one. Pure black matches nothing else on
+     these sheets — the design sheet's own body ink is #050505 and the
+     handover sheet's is this — and on a solid 24mm band the difference between
+     black and near-black is the difference between a funeral notice and a
+     letterhead.
+
+     It is also the one value to change if true black is ever wanted. */
+  default: "#16181d",
 } as const;
 
 /** The grounds and floors, exported for the guard that proves the derivation

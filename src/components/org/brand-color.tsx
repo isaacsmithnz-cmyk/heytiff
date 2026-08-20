@@ -40,9 +40,9 @@ export function BrandColorPicker({
   const [typed, setTyped] = useState(value ?? "");
   /* Whether the picker has been TOUCHED, which is not the same as whether a
      colour is saved. The colour input has to open on something, so `draft`
-     carries a default from the first render — and previewing that default as a
-     band would draw a band on a document that has none. No colour means no
-     band until somebody actually picks one. */
+     carries a seed from the first render — previewing THAT would show a band
+     in a colour nobody chose. Until it is touched the preview shows the real
+     default instead. */
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +50,10 @@ export function BrandColorPicker({
   const theme = documentTheme(draft);
   // transparent, not a grey stand-in: no colour means no band, which is what
   // an unthemed document actually does
-  const ink = theme && (value || touched) ? theme.ink : "transparent";
+  /* There is always a band; the colour decides what it is, not whether it
+     exists. With nothing chosen this previews the default the documents
+     actually use, so the control never shows a sheet the app cannot produce. */
+  const ink = theme && (value || touched) ? theme.ink : DEFAULT_BAND;
 
   const commit = async (hex: string) => {
     setError(null);
@@ -162,3 +165,9 @@ export function BrandColorPicker({
    HeyTiff's colour is the default answer, and it is the one colour a customer
    document should never be themed in. */
 const DEFAULT_SEED = "#1a2b4c";
+
+/** What the documents print when no colour is set — the ink they already print
+    their headings in. Mirrors `BAND.default` in lib/org/theme.ts; kept here
+    because this preview has to draw a band for a colour that has not been
+    saved, which is exactly when the `--doc-*` variables are absent. */
+const DEFAULT_BAND = "#16181d";

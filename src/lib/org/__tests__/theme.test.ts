@@ -247,21 +247,28 @@ describe("documentTheme — never state", () => {
 
 /* HOW A DOCUMENT RECEIVES THE THEME.
 
-   The promise this pins is the one that is easiest to break and hardest to
-   notice: a business with no colour must get the document it has today. That
-   works by NOT SETTING THE VARIABLE — every themed declaration is written
-   `var(--doc-ink, <the value it already had>)`, so "unthemed" is the absence
-   of a code path rather than a branch somebody has to keep correct. An empty
-   object here is the whole mechanism. */
+   EVERY DOCUMENT GETS A BAND. Choosing a colour changes what the band is, not
+   whether there is one, so the treatment is part of the document rather than
+   something an owner has to find a settings page to switch on.
+
+   Which makes the interesting case the DEFAULT rather than the absence: a
+   sheet with no colour still has to receive a full, coherent set — the ink and
+   the geometry that pads the page clear of it — or it gets a band with no room
+   made for it, or room made for a band that is not there. */
 describe("themeVars", () => {
-  it("sets nothing at all when there is no colour", () => {
-    expect(themeVars(null)).toEqual({});
-    expect(themeVars("")).toEqual({});
+  it("falls back to the document's own ink when there is no colour", () => {
+    const v = themeVars(null) as Record<string, string>;
+    // the ink the letterhead and handover sheet already print in — NOT #000000,
+    // which matches nothing else on either sheet
+    expect(v["--doc-ink"]).toBe("#16181d");
+    expect(themeVars("")).toEqual(themeVars(null));
   });
 
-  it("sets nothing for a value it cannot read, rather than throwing in a print path", () => {
-    expect(themeVars("rebeccapurple")).toEqual({});
-    expect(themeVars("#gggggg")).toEqual({});
+  it("falls back rather than throwing on a value it cannot read", () => {
+    // these land inside a print path; a bad column must produce the default
+    // document, not a half-rendered handover sheet
+    expect(themeVars("rebeccapurple")).toEqual(themeVars(null));
+    expect(themeVars("#gggggg")).toEqual(themeVars(null));
   });
 
   it("hands the document the derived colour, never the raw seed", () => {
@@ -286,19 +293,16 @@ describe("themeVars", () => {
     }
   });
 
-  /* THE GEOMETRY TRAVELS WITH THE COLOUR, and this is the guard for the half
-     of it that got missed. The band needs the sheet padded clear of it, and
-     that padding was written into the stylesheets as a constant — so it
-     applied to every document, and an org that had set no colour silently
-     gained 22mm of white space at each end. A document this design promised
-     not to touch.
+  /* THE INK AND THE GEOMETRY ARE ONE SET, and this is the guard for the half
+     that once got missed. The band needs the sheet padded clear of it; written
+     into the stylesheets as a constant, that padding applied to documents that
+     had no band — room made for something not there.
 
-     The fix is that the depth ships through the same object as the colour, so
-     the two cannot get out of step. Which makes the claim testable: no colour,
-     no variables of ANY kind. */
-  it("sets no geometry either when there is no colour", () => {
-    expect(themeVars(null)).toEqual({});
-    expect(themeVars("not a colour")).toEqual({});
+     Shipping both through this one object is what makes them impossible to
+     separate, so the claim is: whatever the seed, you get ALL of it or none. */
+  it("hands a document with no colour the same full set as one with", () => {
+    expect(Object.keys(themeVars(null)).sort())
+      .toEqual(Object.keys(themeVars("#004885")).sort());
   });
 
   it("ships the band's depth and its clearance alongside the colour", () => {

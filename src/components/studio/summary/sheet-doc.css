@@ -52,10 +52,11 @@
    across the middle — the sheet sits in the well the way a screen does in the
    dark shell.
 
-   THE NUMBERS COME FROM `themeVars`, not from here. `--doc-gutter`,
-   `--doc-radius` and `--doc-band` are set alongside the colour and are absent
-   without it, so an org that has set no colour gets no band AND no padding for
-   one — see the note in lib/org/theme.ts. Every fallback below is 0.
+   THE NUMBERS COME FROM `themeVars`, not from here, and it always returns a
+   full set: a business that has chosen no colour gets the band in the sheet's
+   own ink rather than no band at all. The fallbacks below are 0 so that a
+   missing variable collapses the band cleanly instead of drawing a bar with no
+   room made for it — see the note in lib/org/theme.ts.
 
    IT CARRIES NOTHING. No logo, no contact line, no page number — which is the
    entire reason this treatment was chosen over a letterhead band. Nothing on
@@ -99,8 +100,9 @@
    specificity and, coming later, would strip their position:absolute. */
 .dsd > *:not(.dsd-bband):not(.dsd-bwell) { position: relative; }
 /* and the content clears the band at both ends */
-/* ZERO WITHOUT A THEME. This padding exists only to clear the band; applied
-   unconditionally it was 22mm of white space added to every unthemed sheet. */
+/* This padding exists only to clear the band, so it ships from the same object
+   the band's depth does. Zero is the fallback rather than a value, because
+   room made for a band that failed to render is worse than neither. */
 .dsd { padding-top: var(--doc-pad, 0px); padding-bottom: var(--doc-pad, 0px); }
 
 /* ── masthead ── */

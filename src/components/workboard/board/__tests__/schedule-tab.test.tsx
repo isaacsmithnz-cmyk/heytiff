@@ -345,6 +345,71 @@ describe("nobody has started it", () => {
   });
 });
 
+/* ── ServiceM8 marks LATER bookings complete too ──
+   Completing a job for the day closes every booking it draws, including ones
+   on days that have not happened. The crew still turn up. */
+describe("a job closed before this booking's day", () => {
+  it("keeps its colour and says so, rather than fading out", async () => {
+    const p = payload();
+    scheduleDay.mockResolvedValue({
+      ...p,
+      jobs: p.jobs.map((j) =>
+        j.remoteId === "j-3145"
+          ? { ...j, status: "Completed", completionDate: `2026-08-11 16:00:00` }
+          : j
+      ),
+    });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    const stale = screen.getAllByRole("button", { name: /Open job #3145/ });
+    for (const b of stale) {
+      // still on somebody's run, so it must not recede like finished work
+      expect(b).toHaveClass("stale");
+      expect(b).not.toHaveClass("done");
+    }
+    // and it is words, not just an amber ring
+    expect(screen.getAllByText(/Job closed/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", { name: /Open job #3145.*7am to 4pm.*job already closed/ })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Job closed, still booked")).toBeInTheDocument();
+  });
+
+  it("still fades a booking the completion actually covers", async () => {
+    const p = payload();
+    scheduleDay.mockResolvedValue({
+      ...p,
+      jobs: p.jobs.map((j) =>
+        j.remoteId === "j-3145"
+          ? { ...j, status: "Completed", completionDate: `${TODAY} 17:00:00` }
+          : j
+      ),
+    });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    for (const b of screen.getAllByRole("button", { name: /Open job #3145/ })) {
+      expect(b).toHaveClass("done");
+      expect(b).not.toHaveClass("stale");
+    }
+    expect(screen.queryByText("Job closed, still booked")).not.toBeInTheDocument();
+  });
+
+  it("does not accuse a job whose completion date never synced", async () => {
+    const p = payload();
+    scheduleDay.mockResolvedValue({
+      ...p,
+      jobs: p.jobs.map((j) =>
+        j.remoteId === "j-3145" ? { ...j, status: "Completed", completionDate: null } : j
+      ),
+    });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    for (const b of screen.getAllByRole("button", { name: /Open job #3145/ })) {
+      expect(b).not.toHaveClass("stale");
+    }
+  });
+});
+
 it("wears the board's word on a tracked block", async () => {
   render(
     tab({

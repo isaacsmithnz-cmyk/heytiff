@@ -72,6 +72,19 @@ export type ScheduleBlock = {
       number, something wants to draw it, and drawing it is what the
       `wasScheduled` filter exists to prevent. */
   onSite: boolean;
+  /** Where this booking sits relative to the job being closed off.
+
+      SERVICEM8 HAS NO PER-BOOKING STATUS — only per-job. Completing a job for
+      the day therefore reads as "complete" on every booking that job draws,
+      including ones still sitting on days that have not happened yet, and the
+      crew turn up to a job the office thinks is finished. The account sees
+      this in ServiceM8 itself; the rail is not going to repeat it.
+
+      `completionDate` is what separates the two. A booking on or before the
+      day the job was closed genuinely happened — "done". One after it did not,
+      and is still on somebody's run — "stale", which is a thing to fix rather
+      than a thing to grey out. */
+  closure: "open" | "done" | "stale";
   /** Minutes past midnight on the rail. endMin is always > startMin: a
       zero or reversed span still has to draw something clickable, so it
       becomes 30 minutes; a booking that crosses midnight is clamped to the
@@ -114,6 +127,33 @@ export type ScheduleDay = {
     unassigned lane keys on an empty staff, so it still matches itself. */
 export function onSiteKey(jobUuid: string, staffUuid: string | null): string {
   return `${jobUuid}|${staffUuid ?? ""}`;
+}
+
+/** '2026-08-14 07:00:00' → '2026-08-14'. Slicing, never a Date — the reason is
+    stamped at the top of this file. */
+function dayOfNaive(stamp: string | null | undefined): string | null {
+  return typeof stamp === "string" && stamp.length >= 10 ? stamp.slice(0, 10) : null;
+}
+
+/**
+ * Whether one booking is covered by the job's completion, or is left over
+ * after it. See `ScheduleBlock["closure"]`.
+ *
+ * NO COMPLETION DATE MEANS "DONE", not "stale". The rail cannot prove a
+ * booking is left over without a day to compare against, and calling live work
+ * stale is the more expensive mistake of the two — it puts a warning on a job
+ * somebody is about to drive to.
+ */
+export function closureOf(
+  status: string | null | undefined,
+  completionDate: string | null | undefined,
+  bookingStart: string
+): "open" | "done" | "stale" {
+  if (status !== "Completed") return "open";
+  const closedOn = dayOfNaive(completionDate);
+  const bookedOn = dayOfNaive(bookingStart);
+  if (!closedOn || !bookedOn) return "done";
+  return bookedOn > closedOn ? "stale" : "done";
 }
 
 /** The default drawn window: 6am to 6pm. */
@@ -225,6 +265,7 @@ export function layoutScheduleDay(input: {
       categoryColour: job?.categoryColour ?? null,
       tracked: tracked.get(a.jobUuid) ?? null,
       onSite: onSite.has(onSiteKey(a.jobUuid, a.staffUuid)),
+      closure: closureOf(job?.status, job?.completionDate, a.start),
       startMin,
       endMin,
       start: a.start,

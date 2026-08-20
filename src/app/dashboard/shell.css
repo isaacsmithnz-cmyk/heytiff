@@ -5569,6 +5569,18 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-schb.idle.late:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }
 .wb2-schb.idle.tight { padding-left:13px; }
 
+/* JOB CLOSED, BOOKING STILL ON THE DAY. ServiceM8 has no per-booking status —
+   completing a job for the day marks its LATER bookings complete too, and the
+   crew turn up to work the office thinks is finished. The rail refuses to
+   repeat that: a booking after the job's completion date keeps its colour,
+   because it is still on somebody's run, and wears a warning instead.
+
+   Amber, not the danger red: red here means "didn't go ahead", and this went
+   ahead — it is a diary that needs tidying, not a job that failed. The words
+   "Job closed" ride the category line, so the ring is never the only carrier. */
+.wb2-schb.stale { box-shadow:inset 0 0 0 2px var(--wb2-warn); }
+.wb2-schb.stale:hover { box-shadow:inset 0 0 0 2px var(--wb2-warn), 0 5px 14px -5px rgba(10,12,20,.45); }
+
 /* didn't go ahead — the one status that is an exception, so it gets the ring */
 .wb2-schb.dan { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
 .wb2-schb.dan:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }

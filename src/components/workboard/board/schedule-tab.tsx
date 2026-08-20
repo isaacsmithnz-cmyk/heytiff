@@ -335,8 +335,9 @@ export function ScheduleTab({
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
     : false;
   const hasTracked = day ? day.lanes.some((l) => l.blocks.some((b) => !!b.tracked)) : false;
-  const hasDone = day
-    ? day.lanes.some((l) => l.blocks.some((b) => b.status === "Completed"))
+  const hasDone = day ? day.lanes.some((l) => l.blocks.some((b) => b.closure === "done")) : false;
+  const hasStale = day
+    ? day.lanes.some((l) => l.blocks.some((b) => b.closure === "stale"))
     : false;
   /* The legend only claims what the day actually shows — on an account that
      never clocks on, `tracksTime` is false, no block is hollow, and offering
@@ -346,7 +347,7 @@ export function ScheduleTab({
       day.lanes.some(
         (l) =>
           l.blocks.some(
-            (b) => !b.onSite && b.status !== "Completed" && b.status !== "Unsuccessful"
+            (b) => !b.onSite && b.closure !== "done" && b.status !== "Unsuccessful"
           )
       )
     : false;
@@ -458,13 +459,17 @@ export function ScheduleTab({
                           46
                         );
                         const kin = hoverJob === b.remoteId;
-                        const open = b.status !== "Completed" && b.status !== "Unsuccessful";
+                        /* A stale booking is NOT closed off — the job is, but
+                           this day's work is still on somebody's run, so it
+                           stays solid and gets a warning rather than fading. */
+                        const open = b.closure !== "done" && b.status !== "Unsuccessful";
                         const hollow = hollowReads && open && !b.onSite;
                         const late = hollow && startedGone(b.startMin);
                         const cls =
                           "wb2-schb" +
                           (b.tracked ? " proj" : "") +
-                          (b.status === "Completed" ? " done" : "") +
+                          (b.closure === "done" ? " done" : "") +
+                          (b.closure === "stale" ? " stale" : "") +
                           (b.status === "Unsuccessful" ? " dan" : "") +
                           (b.status === "Quote" ? " qt" : "") +
                           (hollow ? " idle" : "") +
@@ -500,13 +505,15 @@ export function ScheduleTab({
                             }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${
                               /* the outline and the ring are not available to a
                                  screen reader, so the state is spoken as well */
-                              late
-                                ? ", nothing recorded yet"
-                                : hollow
-                                  ? ", not started"
-                                  : b.status === "Completed"
-                                    ? ", done"
-                                    : ""
+                              b.closure === "stale"
+                                ? ", job already closed"
+                                : late
+                                  ? ", nothing recorded yet"
+                                  : hollow
+                                    ? ", not started"
+                                    : b.closure === "done"
+                                      ? ", done"
+                                      : ""
                             }`}
                             onMouseEnter={() =>
                               setHoverJob(crewJobs.has(b.remoteId) ? b.remoteId : null)
@@ -542,6 +549,9 @@ export function ScheduleTab({
                                   : "Maintenance"
                                 : (b.categoryName ?? "No category")}
                               {b.status === "Quote" ? " · Quote" : ""}
+                              {/* in words, because an amber ring alone would
+                                  leave a screen reader with a normal booking */}
+                              {b.closure === "stale" ? " · Job closed" : ""}
                             </em>
                             {b.suburb && <i>{b.suburb}</i>}
                           </button>
@@ -613,6 +623,17 @@ export function ScheduleTab({
                   }}
                 />
                 Done and closed
+              </span>
+            )}
+            {hasStale && (
+              <span>
+                <i
+                  style={{
+                    background: NO_CATEGORY_PAINT.fill,
+                    boxShadow: "inset 0 0 0 2px var(--wb2-warn)",
+                  }}
+                />
+                Job closed, still booked
               </span>
             )}
           </div>

@@ -11,10 +11,16 @@ import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import {
   clockLabel,
   fmtHoursShort,
+  lanePresence,
   layoutScheduleDay,
   type ScheduleBlock,
   type ScheduleTracked,
 } from "@/lib/workboard/schedule";
+import {
+  NO_CATEGORY_PAINT,
+  scheduleBlockPaint,
+  type BlockPaint,
+} from "@/lib/workboard/schedule-colour";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
@@ -50,6 +56,17 @@ const LANE_PAD_PX = 5;
 const TIGHT_PX = 90;
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+/** A job promoted onto one of our boards leaves the category palette for the
+    tracked blue — the All jobs rows' chip, at block weight. Stated here rather
+    than derived, because this hue is ours and never arrives from ServiceM8. */
+const TRACKED_PAINT: BlockPaint = {
+  fill: "rgb(0, 106, 140)",
+  ink: "rgb(255, 255, 255)",
+  chip: "rgb(0, 83, 110)",
+  pale: "rgb(226, 241, 246)",
+  paleEdge: "rgb(178, 216, 229)",
+};
+
 /** A native day-booking — a project trip or maintenance visit. It has a DAY
     and no clock and mostly no person, so it rides a shelf above the lanes
     rather than being invented onto the rail. */
@@ -78,24 +95,6 @@ type Props = {
   onOpenTracked: (target: { kind: "visit" | "project"; id: string }) => void;
   onGoWork: () => void;
 };
-
-/** rgba() from a sanitised #hex at a given alpha. */
-function tintOf(hex: string, alpha: number): string {
-  const n = parseInt(hex.slice(1, 7), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
-
-/** The category hue driven down to a weight a 4px bar can carry — ServiceM8
-    picks its colours to sit behind black text, so they arrive around 85%
-    lightness and vanish as an accent. One hue, two jobs. */
-function barOf(hex: string): string {
-  const n = parseInt(hex.slice(1, 7), 16);
-  const k = 0.55;
-  const r = Math.round(((n >> 16) & 255) * k);
-  const g = Math.round(((n >> 8) & 255) * k);
-  const b = Math.round((n & 255) * k);
-  return `rgb(${r}, ${g}, ${b})`;
-}
 
 function blockTitle(b: ScheduleBlock): string {
   return [
@@ -166,6 +165,7 @@ export function ScheduleTab({
             staff: current.staff,
             jobs: current.jobs,
             tracked,
+            onSite: new Set(current.onSite),
           })
         : null,
     [current, tracked]
@@ -327,11 +327,53 @@ export function ScheduleTab({
         ).entries(),
       ].sort((a, b) => a[0].localeCompare(b[0]))
     : [];
+  const dayBegun = openDay <= today;
+  const hollowReads = dayBegun && !!day?.tracksTime;
+  const startedGone = (startMin: number) =>
+    openDay < today || (nowMin !== null && startMin < nowMin);
+  /* The minute past which an unstarted booking is late — the same judgement
+     `startedGone` makes per block, in the shape lanePresence wants. A day
+     already gone is late in all of it; today needs the browser's clock, and
+     without a trustworthy one nothing is claimed. */
+  const overdueBefore = openDay < today ? 24 * 60 : openDay === today ? nowMin : null;
+
   const hasBare = day
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
     : false;
   const hasTracked = day ? day.lanes.some((l) => l.blocks.some((b) => !!b.tracked)) : false;
+  const hasDone = day ? day.lanes.some((l) => l.blocks.some((b) => b.closure === "done")) : false;
+  const hasStale = day
+    ? day.lanes.some((l) => l.blocks.some((b) => b.closure === "stale"))
+    : false;
+  /* The legend only claims what the day actually shows — on an account that
+     never clocks on, `tracksTime` is false, no block is hollow, and offering
+     a key for a state nothing is in would be its own small lie. */
+  const hasIdle = day
+    ? hollowReads &&
+      day.lanes.some(
+        (l) =>
+          l.blocks.some(
+            (b) => !b.onSite && b.closure !== "done" && b.status !== "Unsuccessful"
+          )
+      )
+    : false;
 
+  /* FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED.
+     Three gates before a block is allowed to go hollow, because the wrong
+     hollow block is worse than none:
+
+     · the day has to have begun. On a day still ahead, nothing is started
+       yet by definition, and a whole board of outlines would say nothing.
+     · the account has to record time at all. `tracksTime` is false when no
+       booking drawn today carries any, which is a crew that marks jobs
+       complete and never clocks on — for them this reading does not exist.
+     · the job has to still be open. Completed work has plainly happened, and
+       goes pale; Unsuccessful didn't and says so with its own ring.
+
+     LATE is the narrower case on top: hollow AND its start has already gone.
+     On today that needs the browser's clock, which is the same clock the now
+     line is drawn from and is null when it disagrees with the board's date —
+     no mark beats one that is hours wrong, so lateness simply isn't claimed. */
   let bi = 0; // running block index — the entrance stagger reads left to right
 
   return (
@@ -370,13 +412,39 @@ export function ScheduleTab({
         <div className={"wb2-schboard" + (hoverJob ? " linking" : "")}>
           <div className="wb2-schnames">
             <div className="wb2-schnh" />
-            {day.lanes.map((l) => (
+            {day.lanes.map((l) => {
+              /* The gates are the block treatment's, unchanged: a day that has
+                 begun, and an account that records time at all. An account
+                 that never clocks on gets no dots rather than a column of
+                 empty rings saying nothing. */
+              const presence = hollowReads ? lanePresence(l.blocks, overdueBefore) : null;
+              return (
               <div
                 key={l.staffUuid || "unassigned"}
                 className={"wb2-schn" + (l.staffUuid === "" ? " none" : "")}
                 style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
               >
-                <b>{l.name}</b>
+                <b>
+                  {/* WHO IS ACTUALLY OUT THERE, before you look at the rail.
+                      Colour is not the only carrier and does not need to be:
+                      every state here is already written on the blocks it
+                      summarises — hollow ones say "not started", overdue ones
+                      say so in their own label. The dot is emphasis, and the
+                      word rides with it for anyone who cannot see it. */}
+                  {presence && (
+                    <span className={"wb2-schpd " + presence} aria-hidden="true" />
+                  )}
+                  <span className="wb2-schnn">{l.name}</span>
+                  {presence && (
+                    <span className="wb2-sr">
+                      {presence === "late"
+                        ? " — nothing recorded yet"
+                        : presence === "wait"
+                          ? " — not started"
+                          : " — started"}
+                    </span>
+                  )}
+                </b>
                 <em>
                   {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"} ·{" "}
                   {fmtHoursShort(l.minutes)}
@@ -386,7 +454,8 @@ export function ScheduleTab({
                   <i style={{ width: `${Math.min(100, Math.round((l.minutes / 480) * 100))}%` }} />
                 </span>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className={"wb2-schrailwrap" + (atEnd ? " atend" : "")}>
@@ -423,15 +492,29 @@ export function ScheduleTab({
                           46
                         );
                         const kin = hoverJob === b.remoteId;
+                        /* A stale booking is NOT closed off — the job is, but
+                           this day's work is still on somebody's run, so it
+                           stays solid and gets a warning rather than fading. */
+                        const open = b.closure !== "done" && b.status !== "Unsuccessful";
+                        const hollow = hollowReads && open && !b.onSite;
+                        const late = hollow && startedGone(b.startMin);
                         const cls =
                           "wb2-schb" +
                           (b.tracked ? " proj" : "") +
-                          (b.status === "Completed" ? " done" : "") +
+                          (b.closure === "done" ? " done" : "") +
+                          (b.closure === "stale" ? " stale" : "") +
                           (b.status === "Unsuccessful" ? " dan" : "") +
                           (b.status === "Quote" ? " qt" : "") +
+                          (hollow ? " idle" : "") +
+                          (late ? " late" : "") +
                           (w < TIGHT_PX ? " tight" : "") +
                           (kin ? " kin" : "");
-                        const colour = !b.tracked ? b.categoryColour : null;
+                        /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
+                           boards wears the tracked blue, everything else is
+                           painted from its ServiceM8 category. */
+                        const paint = b.tracked
+                          ? TRACKED_PAINT
+                          : scheduleBlockPaint(b.categoryColour);
                         return (
                           <button
                             key={b.key}
@@ -443,18 +526,28 @@ export function ScheduleTab({
                               top: LANE_PAD_PX + ri * LANE_ROW_PX,
                               height: LANE_ROW_PX - 6,
                               animationDelay: `${Math.min(bi++ * 14, 400)}ms`,
-                              ...(colour
-                                ? {
-                                    ["--tint" as string]: tintOf(colour, 0.5),
-                                    ["--bar" as string]: barOf(colour),
-                                    ["--edge" as string]: tintOf(colour, 0.55),
-                                  }
-                                : {}),
+                              ["--fill" as string]: paint.fill,
+                              ["--btext" as string]: paint.ink,
+                              ["--chip" as string]: paint.chip,
+                              ["--pale" as string]: paint.pale,
+                              ["--pale-edge" as string]: paint.paleEdge,
                             }}
                             title={blockTitle(b)}
                             aria-label={`Open job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
                               b.clientName ?? ""
-                            }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}`}
+                            }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${
+                              /* the outline and the ring are not available to a
+                                 screen reader, so the state is spoken as well */
+                              b.closure === "stale"
+                                ? ", job already closed"
+                                : late
+                                  ? ", nothing recorded yet"
+                                  : hollow
+                                    ? ", not started"
+                                    : b.closure === "done"
+                                      ? ", done"
+                                      : ""
+                            }`}
                             onMouseEnter={() =>
                               setHoverJob(crewJobs.has(b.remoteId) ? b.remoteId : null)
                             }
@@ -468,12 +561,31 @@ export function ScheduleTab({
                               if (job) onOpenJob(job);
                             }}
                           >
-                            <b>
-                              {b.jobNumber ? `#${b.jobNumber}` : "Job"}
-                              {b.tracked ? ` · ${b.tracked.kind === "project" ? "Project" : "Maintenance"}` : ""}
+                            {/* THE CLIENT LEADS. The job number is the one
+                                thing on this block that means nothing until
+                                you have looked it up, and it used to be the
+                                biggest word on it. It rides beside the name as
+                                a chip now — still there for cross-referencing
+                                ServiceM8, no longer the headline — and a tight
+                                block drops back to it alone, which is the old
+                                behaviour unchanged. The second line becomes
+                                the category IN WORDS, so the hue is never the
+                                only thing naming one. */}
+                            <span className="wb2-schbh">
+                              <b>{b.clientName ?? "Unnamed client"}</b>
+                              {b.jobNumber && <u>{b.jobNumber}</u>}
+                            </span>
+                            <em>
+                              {b.tracked
+                                ? b.tracked.kind === "project"
+                                  ? "Project"
+                                  : "Maintenance"
+                                : (b.categoryName ?? "No category")}
                               {b.status === "Quote" ? " · Quote" : ""}
-                            </b>
-                            <em>{b.clientName ?? "Unnamed client"}</em>
+                              {/* in words, because an amber ring alone would
+                                  leave a screen reader with a normal booking */}
+                              {b.closure === "stale" ? " · Job closed" : ""}
+                            </em>
                             {b.suburb && <i>{b.suburb}</i>}
                           </button>
                         );
@@ -489,6 +601,9 @@ export function ScheduleTab({
                     <span
                       className="wb2-schnow"
                       style={{ left: ((nowMin - day.railStart) / 60) * PX_PER_HOUR }}
+                      /* the cap's text — the sheet draws it, so the line and
+                         its label can never end up in two different places */
+                      data-now={clockLabel(nowMin)}
                       aria-hidden="true"
                     />
                   )}
@@ -503,25 +618,55 @@ export function ScheduleTab({
           <div className="wb2-schkey">
             {categoriesOnDay.map(([name, colour]) => (
               <span key={name}>
-                <i style={{ background: tintOf(colour, 0.5), boxShadow: `inset 3px 0 0 ${barOf(colour)}` }} />
+                <i style={{ background: scheduleBlockPaint(colour).fill }} />
                 {name}
               </span>
             ))}
             {hasBare && (
               <span>
-                <i style={{ background: "#f2f3f5", boxShadow: "inset 3px 0 0 #b9bec7" }} />
+                <i style={{ background: NO_CATEGORY_PAINT.fill }} />
                 No category
               </span>
             )}
             {hasTracked && (
               <span>
+                <i style={{ background: TRACKED_PAINT.fill }} />
+                On a board here
+              </span>
+            )}
+            {/* The day's OTHER reading, and the one that needs saying in words:
+                a pale block is finished, not a category we forgot to colour. */}
+            {hasIdle && (
+              <span>
                 <i
                   style={{
-                    background: "rgba(0,168,224,.14)",
-                    boxShadow: "inset 3px 0 0 #007fa8",
+                    background: "#fff",
+                    boxShadow: `inset 0 0 0 1.5px ${NO_CATEGORY_PAINT.fill}`,
                   }}
                 />
-                On a board here
+                Not started
+              </span>
+            )}
+            {hasDone && (
+              <span>
+                <i
+                  style={{
+                    background: NO_CATEGORY_PAINT.pale,
+                    boxShadow: `inset 0 0 0 1px ${NO_CATEGORY_PAINT.paleEdge}`,
+                  }}
+                />
+                Done and closed
+              </span>
+            )}
+            {hasStale && (
+              <span>
+                <i
+                  style={{
+                    background: NO_CATEGORY_PAINT.fill,
+                    boxShadow: "inset 0 0 0 2px var(--wb2-warn)",
+                  }}
+                />
+                Job closed, still booked
               </span>
             )}
           </div>

@@ -22,7 +22,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { plusDays } from "./dates";
 import { mondayOf } from "./board-status";
 import { sm8CategoryColour, type AllJobsMirrorJob } from "./all-jobs";
-import type { ScheduleActivity, ScheduleStaff } from "./schedule";
+import { onSiteKey, type ScheduleActivity, type ScheduleStaff } from "./schedule";
 
 export type SchedulePayload = {
   dayISO: string;
@@ -32,6 +32,10 @@ export type SchedulePayload = {
   /** Booking count per day for the Mon–Sun week around dayISO — the strip's
       numbers, one grouped read instead of seven day loads. */
   weekCounts: Record<string, number>;
+  /** `onSiteKey` values for the job+person pairs that recorded time on this
+      day. An ARRAY, not a Set: this payload crosses a server action's
+      serialisation boundary, and the component rebuilds the Set on arrival. */
+  onSite: string[];
 };
 
 export const EMPTY_SCHEDULE: SchedulePayload = {
@@ -40,6 +44,7 @@ export const EMPTY_SCHEDULE: SchedulePayload = {
   staff: [],
   jobs: [],
   weekCounts: {},
+  onSite: [],
 };
 
 /** One line of a description, capped — the block's hover carries a glance,
@@ -58,7 +63,7 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
   const weekFloor = `${monday} 00:00:00`;
   const weekCeil = `${plusDays(monday, 7)} 00:00:00`;
 
-  const [{ data: actRows }, { data: weekRows }] = await Promise.all([
+  const [{ data: actRows }, { data: weekRows }, { data: onSiteRows }] = await Promise.all([
     supabaseAdmin
       .from("sm8_job_activities")
       .select("uuid, job_uuid, staff_uuid, start_date, end_date, activity_was_scheduled")
@@ -76,6 +81,20 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
       .eq("activity_was_scheduled", 1)
       .gte("start_date", weekFloor)
       .lt("start_date", weekCeil),
+    /* THE OTHER HALF OF THE SAME TABLE — the rows the read above excludes.
+       `= 0` is time recorded on site, and it is asked for here ONLY to answer
+       "did anyone start this booking", never to be laid out. Two columns come
+       back, not the stamps: with no duration in the payload there is nothing
+       for a later change to be tempted into drawing, which is what keeps the
+       one-person-one-place rule in schedule.ts true. */
+    supabaseAdmin
+      .from("sm8_job_activities")
+      .select("job_uuid, staff_uuid")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .eq("activity_was_scheduled", 0)
+      .gte("start_date", dayFloor)
+      .lt("start_date", dayCeil),
   ]);
 
   const acts = (actRows ?? []) as {
@@ -92,6 +111,17 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     const d = r.start_date?.slice(0, 10);
     if (d) weekCounts[d] = (weekCounts[d] ?? 0) + 1;
   }
+
+  /* One key per job+person pair. A tech clocking on and off a job four times
+     is four rows and one key — the set says "started", and how many times is
+     not a question this rail asks. */
+  const onSite = [
+    ...new Set(
+      ((onSiteRows ?? []) as { job_uuid: string | null; staff_uuid: string | null }[])
+        .filter((r): r is { job_uuid: string; staff_uuid: string | null } => !!r.job_uuid)
+        .map((r) => onSiteKey(r.job_uuid, r.staff_uuid))
+    ),
+  ];
 
   const activities: ScheduleActivity[] = acts
     .filter((a): a is typeof a & { start_date: string } => !!a.start_date)
@@ -189,6 +219,7 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     activities,
     staff,
     weekCounts,
+    onSite,
     jobs: jobs.map((j) => ({
       remoteId: j.uuid,
       jobNumber: j.generated_job_id,

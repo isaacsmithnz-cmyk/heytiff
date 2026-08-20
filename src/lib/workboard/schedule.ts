@@ -16,7 +16,22 @@
    8:00–9:00 records 8:09–9:25 against the same job — so drawing both would
    show one person in two places at once. This filter is re-applied here even
    though the query also asks for it, because it is the single most important
-   line in the feature and a pure function is where a test can pin it. */
+   line in the feature and a pure function is where a test can pin it.
+
+   RECORDED TIME STILL GETS A VOTE, THOUGH — as a yes/no, never as a shape.
+   `onSite` says whether anyone has clocked on against this exact booking, and
+   the rail draws that as filled-or-hollow. Nothing extra is laid out, so the
+   paragraph above still holds: one person, one place. The distinction it buys
+   is the one the board could not make before — a job nobody has started looks
+   identical to one running perfectly, because ServiceM8's status sits at
+   `Work Order` for both.
+
+   AND IT IS OFF FOR ACCOUNTS THAT DON'T CLOCK ON. Plenty of crews never
+   record time at all; they mark a job complete and move on. For them every
+   block on the day would go hollow, which is a screenful of alarm about
+   nothing. `tracksTime` is false when a day holds no recorded time whatever,
+   and the component leaves every block filled. The signal only exists where
+   there is something to compare against. */
 
 import type { AllJobsMirrorJob } from "./all-jobs";
 
@@ -52,6 +67,24 @@ export type ScheduleBlock = {
   categoryName: string | null;
   categoryColour: string | null;
   tracked: ScheduleTracked | null;
+  /** Has anyone clocked on against this booking — this job, this person —
+      today? A duration is deliberately NOT carried: the moment this becomes a
+      number, something wants to draw it, and drawing it is what the
+      `wasScheduled` filter exists to prevent. */
+  onSite: boolean;
+  /** Where this booking sits relative to the job being closed off.
+
+      SERVICEM8 HAS NO PER-BOOKING STATUS — only per-job. Completing a job for
+      the day therefore reads as "complete" on every booking that job draws,
+      including ones still sitting on days that have not happened yet, and the
+      crew turn up to a job the office thinks is finished. The account sees
+      this in ServiceM8 itself; the rail is not going to repeat it.
+
+      `completionDate` is what separates the two. A booking on or before the
+      day the job was closed genuinely happened — "done". One after it did not,
+      and is still on somebody's run — "stale", which is a thing to fix rather
+      than a thing to grey out. */
+  closure: "open" | "done" | "stale";
   /** Minutes past midnight on the rail. endMin is always > startMin: a
       zero or reversed span still has to draw something clickable, so it
       becomes 30 minutes; a booking that crosses midnight is clamped to the
@@ -83,7 +116,77 @@ export type ScheduleDay = {
   totalBookings: number;
   totalMinutes: number;
   jobCount: number;
+  /** Did anyone record any time at all on this day? False for an account that
+      doesn't clock on, and the filled/hollow reading stays off when it is. */
+  tracksTime: boolean;
 };
+
+/** The key that pairs a booking with recorded time: the same job AND the same
+    person. Time recorded by somebody else against the job says nothing about
+    whether THIS booking was started, which is the question being asked. The
+    unassigned lane keys on an empty staff, so it still matches itself. */
+export function onSiteKey(jobUuid: string, staffUuid: string | null): string {
+  return `${jobUuid}|${staffUuid ?? ""}`;
+}
+
+/** '2026-08-14 07:00:00' → '2026-08-14'. Slicing, never a Date — the reason is
+    stamped at the top of this file. */
+function dayOfNaive(stamp: string | null | undefined): string | null {
+  return typeof stamp === "string" && stamp.length >= 10 ? stamp.slice(0, 10) : null;
+}
+
+/** What the name column says about one person, before you look at the rail.
+
+    "on"   — something of theirs has recorded time. They are out there, or have
+             been; the day is under way.
+    "wait" — they still have open work and none of it has been started, but
+             nothing is overdue either. Their day has not begun.
+    "late" — an open booking's start has gone with nothing recorded against it.
+             The one that wants doing something about, so it outranks the rest.
+    null   — nothing to claim. Every booking is closed off and none recorded
+             time, which is a person this reading has no opinion about.
+
+    `overdueBefore` is the minute past which an unstarted booking counts as
+    late: the browser's clock on today, the whole day on a day already gone,
+    and NULL when the clock cannot be trusted — a viewer whose own date
+    disagrees with the board's, exactly as the now line handles it. No mark
+    beats one that is hours wrong. */
+export function lanePresence(
+  blocks: Pick<ScheduleBlock, "onSite" | "closure" | "status" | "startMin">[],
+  overdueBefore: number | null
+): "on" | "wait" | "late" | null {
+  const open = blocks.filter((b) => b.closure !== "done" && b.status !== "Unsuccessful");
+  if (
+    overdueBefore !== null &&
+    open.some((b) => !b.onSite && b.startMin < overdueBefore)
+  ) {
+    return "late";
+  }
+  // green only where something actually recorded time — never as a fallback
+  if (blocks.some((b) => b.onSite)) return "on";
+  return open.length > 0 ? "wait" : null;
+}
+
+/**
+ * Whether one booking is covered by the job's completion, or is left over
+ * after it. See `ScheduleBlock["closure"]`.
+ *
+ * NO COMPLETION DATE MEANS "DONE", not "stale". The rail cannot prove a
+ * booking is left over without a day to compare against, and calling live work
+ * stale is the more expensive mistake of the two — it puts a warning on a job
+ * somebody is about to drive to.
+ */
+export function closureOf(
+  status: string | null | undefined,
+  completionDate: string | null | undefined,
+  bookingStart: string
+): "open" | "done" | "stale" {
+  if (status !== "Completed") return "open";
+  const closedOn = dayOfNaive(completionDate);
+  const bookedOn = dayOfNaive(bookingStart);
+  if (!closedOn || !bookedOn) return "done";
+  return bookedOn > closedOn ? "stale" : "done";
+}
 
 /** The default drawn window: 6am to 6pm. */
 const RAIL_DEFAULT_START = 6 * 60;
@@ -157,11 +260,14 @@ export function layoutScheduleDay(input: {
   jobs: AllJobsMirrorJob[];
   /** ServiceM8 job uuid → the board that owns it, when one does. */
   tracked?: Map<string, ScheduleTracked>;
+  /** `onSiteKey` values for every job+person pair with recorded time today. */
+  onSite?: ReadonlySet<string>;
 }): ScheduleDay {
   type Placed = ScheduleBlock & { staffUuid: string | null };
   const jobById = new Map(input.jobs.map((j) => [j.remoteId, j]));
   const staffById = new Map(input.staff.map((s) => [s.uuid, s.name]));
   const tracked = input.tracked ?? new Map<string, ScheduleTracked>();
+  const onSite = input.onSite ?? new Set<string>();
 
   const blocks: Placed[] = [];
   for (const a of input.activities) {
@@ -190,6 +296,8 @@ export function layoutScheduleDay(input: {
       categoryName: job?.categoryName ?? null,
       categoryColour: job?.categoryColour ?? null,
       tracked: tracked.get(a.jobUuid) ?? null,
+      onSite: onSite.has(onSiteKey(a.jobUuid, a.staffUuid)),
+      closure: closureOf(job?.status, job?.completionDate, a.start),
       startMin,
       endMin,
       start: a.start,
@@ -246,5 +354,11 @@ export function layoutScheduleDay(input: {
     totalBookings: blocks.length,
     totalMinutes: blocks.reduce((s, b) => s + (b.endMin - b.startMin), 0),
     jobCount: new Set(blocks.map((b) => b.remoteId)).size,
+    /* Not `onSite.size > 0` — that set is the whole day's recorded time, and
+       a booking on ANOTHER day could put entries in it. What matters is
+       whether anything landed on a booking actually drawn here: if none did,
+       either nobody has started yet or this account doesn't clock on, and
+       neither is a reason to hollow out the board. */
+    tracksTime: blocks.some((b) => b.onSite),
   };
 }

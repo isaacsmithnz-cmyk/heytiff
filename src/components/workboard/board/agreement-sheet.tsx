@@ -460,10 +460,6 @@ export function AgreementSheet({
                 </button>
               )}
             </div>
-            <p className="wb2-hint">
-              Creating a category never moves other agreements into it — every move is this
-              dropdown, on purpose.
-            </p>
           </div>
         )}
 
@@ -506,7 +502,7 @@ export function AgreementSheet({
               </div>
             ))}
             {a.packing.length === 0 && (
-              <p className="wb2-hint">Nothing on the packing list — visits tick these off as the van loads.</p>
+              <p className="wb2-hint">Nothing on the packing list yet.</p>
             )}
             {manage && <AddInline placeholder="What needs to come" onAdd={(v) => run(() => addPackingItem(a.id, v))} busy={busy} />}
           </div>
@@ -545,7 +541,7 @@ export function AgreementSheet({
               </div>
             ))}
             {a.equipment.length === 0 && (
-              <p className="wb2-hint">The installed assets on this site — model, serial, where they live.</p>
+              <p className="wb2-hint">No units recorded on this site yet.</p>
             )}
           </div>
           {manage && (

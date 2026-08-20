@@ -449,9 +449,6 @@ export function NewAgreementModal({
             <Icon name="plus" size={15} />
             Create the agreement
           </button>
-          <span className="wb2-hint" style={{ margin: 0, marginLeft: "auto" }}>
-            Visits generate the moment it exists — no last-done is ever invented.
-          </span>
         </div>
       </div>
     </>,

@@ -997,17 +997,32 @@
    THE CARET ties it. A rotated square wearing the panel's own ground and the
    two border edges that face the bell, aligned to the bell's centre: the
    `.bell-top` wrapper is `right:0`-aligned with the panel, and the bell is a
-   20px glyph in 12px padding, so its centre is 22px in from the right on both
-   the wrapper and the panel. `bottom:100%` with a −1px pull sits the caret
-   ON the panel's top border and hides the seam behind its own fill — which
-   only works because that fill is now OPAQUE. At the old .92 the caret and
-   the panel would each composite the backdrop separately and the join would
-   have shown as a brighter wedge.
+   20px glyph in 12px padding INSIDE a 1px border — 46px, not 44 — so its
+   centre is 23px in from the right, which is `right:17px` plus half the
+   caret. MEASURED, not added up: the first attempt reasoned its way to 22 and
+   sat a pixel off on the real chrome.
 
-   THE ORIGIN animates it. `transform-origin` is the caret's tip — 22px in,
-   9px up, which is the bell's lower edge — so the scale runs OUT of the bell
-   rather than down onto the page. The gap shrinks 10px → 9px so the caret
-   spans it exactly.
+   `bottom:100%` with a −1px pull sits the caret ON the panel's top border and
+   hides the seam behind its own fill — which only works because that fill is
+   now OPAQUE. At the old .92 the caret and the panel would each composite the
+   backdrop separately and the join would have shown as a brighter wedge.
+
+   THE ORIGIN animates it. `transform-origin` is the caret's tip, so the scale
+   runs OUT of the bell rather than down onto the page. The caret is a CHILD of
+   the transformed element and scales with it, and a point AT the origin does
+   not move at any scale — measured on a paused animation, the caret's drift is
+   a flat 0.38px from .92 through to 1. Put the origin anywhere else and the
+   caret slides off the bell on the way in, which is the floating window again.
+
+   THE 9px IS NOT THE GAP TO THE BELL, and this is the part that was written
+   down wrong. `top` and the origin's `-9px` resolve against `.bell-top`, which
+   is a flex ITEM in `.tbr` and stretches to the row's height — taller than the
+   46px bell. On prod the real gap measures 11px. It still reads as joined
+   because the caret reaches ~13.5px above the panel's top edge (a 12px square
+   rotated 45° is 16.97 across, positioned 1px into the panel), so it tucks
+   under the bell by ~2.5px rather than the ~4.5px a harness with a
+   bell-height wrapper suggested. Anything that makes `.bell-top` taller eats
+   that 2.5px silently — if the stem ever stops touching, this is why.
 
    Scale-and-fade, not scale-and-slide: a slide re-introduces the travel that
    made it look like a separate window. */

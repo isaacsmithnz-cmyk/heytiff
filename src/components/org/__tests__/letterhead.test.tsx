@@ -6,7 +6,7 @@ import { BrandMark, Letterhead } from "../letterhead";
 
    What these really pin is the FALLBACK, in both directions. Before this, the
    handover sheet carried no business name, the live link said "HeyTiff" and
-   the printed pack said "HeyTiff Design Studio" — the name of the software, on
+   the printed copy said "HeyTiff Design Studio" — the name of the software, on
    documents an installer sends. Now the installer's name displaces those, but
    only when there is one: an org that has never opened the Organisation page
    must read exactly as it did. */

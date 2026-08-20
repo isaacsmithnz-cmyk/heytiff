@@ -119,7 +119,7 @@ export function ExportCard({
   doc: DesignDocument;
   pack: DataPack | null;
   planImages: PlanImages;
-  /** no systems yet — the printed pack would be blank */
+  /** no systems yet — a printed summary would be blank */
   empty: boolean;
   onExportJson: () => void;
   /** sibling variant docs load through the store (org-scoped) */
@@ -226,7 +226,7 @@ export function ExportCard({
      the list it actually carried omitted both, behind an `exhaustive-deps`
      suppression. That is a stale closure, not just a lint complaint: a variant
      that finished loading after this callback was last memoised would be
-     missing from the printed pack. It is also what stopped React Compiler
+     missing from the printed copy. It is also what stopped React Compiler
      compiling this component, since a `react-hooks` suppression makes it skip
      the whole file. Unmemoised, it always sees the current render's docs, and
      the compiler memoises it correctly. */
@@ -248,16 +248,16 @@ export function ExportCard({
          lives an hour, and this tab is open all afternoon. Minted at print
          time it is always minutes old.
 
-         Its own catch, because a pack that prints without a logo is a pack;
-         a pack that does not print because a logo could not be signed is
-         not. */
+         Its own catch, because a document that prints without its logo is
+         still the document; one that does not print at all because a logo
+         could not be signed is not. */
       let brand: OrgBrand = NO_BRAND;
       await Promise.all([
         ...refs.map(async (ref) => {
           try {
             urls[ref] = await planImages.url(ref);
           } catch {
-            /* a missing raster prints as white — never blocks the pack */
+            /* a missing raster prints as white — never blocks the print */
           }
         }),
         (async () => {

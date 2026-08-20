@@ -3,7 +3,7 @@
 
    This file used to hold the table bodies too, and they have moved into
    sheet-doc.tsx along with everything else about the document's shape: the
-   screen, the customer's live link and the printed pack now render one
+   screen, the customer's live link and the printed copy now render one
    component rather than three arrangements of the same rows. What is left is
    what is genuinely shared and genuinely not layout.
 

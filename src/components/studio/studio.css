@@ -5515,7 +5515,7 @@ html[data-ds-display] .dstudio.editing {
   #ds-printdoc .ds-print-page { break-after: page; }
   #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
   /* the document keeps its own page-break rules (sheet-doc.css); what is
-     left here is the pack's own page structure */
+     left here is the print document's own page structure */
 }
 
 /* .ds-cardt is a Home-screen title (white — dark backdrop); on the summary's
@@ -9040,7 +9040,7 @@ html[data-ds-display] .dstudio.editing {
    THE SUMMARY STEP'S CHROME — and only its chrome.
 
    THE DOCUMENT ITSELF MOVED OUT, to sheet-doc.css, when the Summary screen,
-   the customer's live link and the printed pack became three chromes around
+   the customer's live link and the printed copy became three chromes around
    one component. What used to live here — ds-letter*, ds-band*, ds-odu*,
    ds-tcap, ds-mat-table, ds-sysc and the whole ds-jobpack* print cover — was
    the sheet drawn twice, and it is gone rather than left lying about: dead

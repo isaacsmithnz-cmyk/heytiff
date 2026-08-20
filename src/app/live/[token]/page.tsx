@@ -52,7 +52,7 @@ function ExpiredLink() {
    a customer who opened the link their installer sent got a simulation rather
    than a drawing of their own house. It now serves the design SHEET — the
    same document, off the same derivation, as the Summary screen and the
-   printed pack (buildSummaryModel; #411 existed to delete a parallel model of
+   printed copy (buildSummaryModel; #411 existed to delete a parallel model of
    this artifact and there must not be a third).
 
    The simulation is still here, as a way IN from the sheet rather than the

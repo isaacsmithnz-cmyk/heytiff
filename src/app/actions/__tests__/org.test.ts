@@ -253,7 +253,7 @@ describe("clearOrgLogo", () => {
 
 /* The letterhead read — the only thing in actions/org.ts that is not a write,
    and the only one not gated on ownership. It is asked by whoever is printing
-   a job pack, which is a studio act, not an owner's. */
+   a design, which is a studio act, not an owner's. */
 describe("getOrgBrand", () => {
   it("answers for the active org when the caller may use the studio", async () => {
     expect(await getOrgBrand()).toMatchObject({ name: "brand for org-1" });

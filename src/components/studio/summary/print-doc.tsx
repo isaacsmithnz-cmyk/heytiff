@@ -19,7 +19,7 @@ import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
    model. Paper is the third chrome, and the thinnest: no bar, nothing to
    press, and none of the owner-only slots (no editable letterhead, no
    provenance, no Add to job, no Contributors), because a page cannot take an
-   action and a pack a customer receives should not carry staff names.
+   action and a document a customer receives should not carry staff names.
 
    Then one page per selected floor with a static PlanFigure. The @page rule
    (paper size + orientation) is injected while mounted, and `onReady` fires
@@ -115,7 +115,7 @@ export function PrintDoc({
      print readiness must not hang on one. */
   /* The LOGO joins the rasters in this wait, and it has to: print fires the
      moment this resolves, and an <img> that has not decoded yet prints as
-     nothing. The pack would come out with a hole where the letterhead is —
+     nothing. It would come out with a hole where the letterhead is —
      intermittently, and only for people whose logo was slow. */
   const logoUrl = brand.logoUrl;
   useEffect(() => {

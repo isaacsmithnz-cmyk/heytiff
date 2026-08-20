@@ -180,13 +180,13 @@ export async function clearOrgLogo(): Promise<SaveResult> {
 
    The gate is different because the question is different. Everything above
    changes the company profile, which is an owner's act. This only ASKS what
-   the letterhead says, and it is asked by whoever is printing a job pack —
+   the letterhead says, and it is asked by whoever is printing a design —
    the design studio's Export card, where the answer has to be minted fresh.
 
    FRESH IS THE POINT. The logo is a private object behind a signed link that
    lives an hour, and a studio tab is open all afternoon. Signing it when the
-   page rendered would mean the logo on a pack printed after lunch was a dead
-   URL and a broken image in the middle of a customer document. This is called
+   page rendered would mean the logo on anything printed after lunch was a
+   dead URL and a broken image in the middle of a customer document. This is called
    at print time instead, so the link is always minutes old.
 
    THE SUMMARY SHEET ASKS FOR LONGER. Printing happens seconds after the

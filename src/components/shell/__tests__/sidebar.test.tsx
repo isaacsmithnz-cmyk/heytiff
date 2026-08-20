@@ -32,25 +32,25 @@ describe("Sidebar — no standing 'look at me' marks", () => {
   });
 });
 
-describe("Sidebar — HeyTiff × org line", () => {
-  it("shows the trading name under the logo when set", () => {
+describe("Sidebar — the business chip", () => {
+  it("chips the trading name under the wordmark when set", () => {
     const { container } = render(as("owner", "Smith Air Conditioning"));
-    const line = container.querySelector(".ht-orgx");
-    expect(line).not.toBeNull();
-    expect(line?.textContent).toContain("×");
-    expect(line?.textContent).toContain("Smith Air Conditioning");
-    // full name on hover even when the line truncates
-    expect(line?.getAttribute("title")).toBe("Smith Air Conditioning");
+    const chip = container.querySelector(".ht-orgpill");
+    expect(chip).not.toBeNull();
+    expect(chip?.textContent).toBe("Smith Air Conditioning");
+    // the chip wraps rather than truncating, and `overflow-wrap:anywhere` can
+    // wrap mid-word — the hover gives the name back unbroken
+    expect(chip?.getAttribute("title")).toBe("Smith Air Conditioning");
   });
 
-  it("renders no line at all while the org has no trading name", () => {
+  it("renders no chip at all while the org has no trading name", () => {
     const { container } = render(as("owner"));
-    expect(container.querySelector(".ht-orgx")).toBeNull();
+    expect(container.querySelector(".ht-orgpill")).toBeNull();
   });
 
-  it("renders no line when the prop is omitted", () => {
+  it("renders no chip when the prop is omitted", () => {
     const { container } = render(as("owner"));
-    expect(container.querySelector(".ht-orgx")).toBeNull();
+    expect(container.querySelector(".ht-orgpill")).toBeNull();
   });
 
   it("keeps the wordmark regardless", () => {
@@ -59,25 +59,30 @@ describe("Sidebar — HeyTiff × org line", () => {
     expect(screen.getByText("Tiff")).toBeTruthy();
   });
 
-  /* An uploaded logo takes the × line's place — the mark IS the join between
-     the two names. The URL is signed per render, so the sidebar only ever
-     receives a link, never a path it would have to know how to resolve. */
-  it("shows the company logo in place of the × once there is one", () => {
+  /* THE ORG LOGO DOES NOT BELONG IN THE RAIL, and this is the guard.
+
+     It was rendered here once, in a 40×40 box where the × had been. What a
+     business actually uploads is a letterhead — the artwork in prod is
+     3780×1064 — so `object-fit:contain` drew it 9px tall, in the near-black
+     ink a letterhead is drawn in, on a near-black rail. It read as an empty
+     tile with the business name printed underneath it a second time.
+
+     224px of rail has nowhere to put a wordmark that wide. The logo renders on
+     the surfaces a customer receives (components/org/letterhead.tsx), where
+     there is a document's width to give it. */
+  it("never renders the org logo in the rail, however wide the name", () => {
     const { container } = render(
       <Sidebar
         role="owner"
         caps={[...resolve("owner")]}
-        orgName="Smith Air"
-        orgLogoUrl="https://signed.example/logo.png"
+        orgName="Diamond Air Solutions"
       />
     );
-    const line = container.querySelector(".ht-orgx")!;
-    expect(line.querySelector("img.ht-orglogo")).toHaveAttribute(
-      "src",
-      "https://signed.example/logo.png"
+    // the Chevron is an inline <svg>; an <img> here could only be the logo
+    expect(container.querySelector(".brand img")).toBeNull();
+    expect(container.querySelector(".ht-orgpill")?.textContent).toBe(
+      "Diamond Air Solutions"
     );
-    expect(line.textContent).not.toContain("×");
-    expect(line.textContent).toContain("Smith Air");
   });
 });
 

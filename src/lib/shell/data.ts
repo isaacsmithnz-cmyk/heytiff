@@ -1,7 +1,6 @@
 import { cache } from "react";
 import { auth0 } from "@/lib/auth0";
-import { getCapabilities, getOrgLogoRef, getOrgName, getOwnership } from "@/lib/permissions-server";
-import { signOne } from "@/lib/documents/query";
+import { getCapabilities, getOrgName, getOwnership } from "@/lib/permissions-server";
 import { getViewerName } from "@/lib/staff/query";
 import { ownerLabel } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
@@ -35,7 +34,6 @@ function initialsFrom(name: string): string {
 export type ShellData = {
   user: ShellUser;
   orgName: string | null;
-  orgLogoUrl: string | null;
 };
 
 /* React-cached: the sidebar, the topbar and the command palette are three
@@ -50,19 +48,18 @@ export const loadShell = cache(async (): Promise<ShellData> => {
 
   /* The name read and the membership read are independent — one asks
      staff_profiles who this is, the other asks memberships what they may do —
-     so they go out together. getOwnership/getCapabilities/getOrgName/
-     getOrgLogoRef all share ONE request-cached membership query.
+     so they go out together. getOwnership/getCapabilities/getOrgName all share
+     ONE request-cached membership query.
 
      The staff record owns the name: the Auth0 session has no name claim here,
      and trusting it showed people their own email address in the topbar. */
-  const [viewer, ownership, caps, orgName, logoRef] = await Promise.all([
+  const [viewer, ownership, caps, orgName] = await Promise.all([
     orgId && userId
       ? getViewerName(orgId, userId, fallbackName)
       : Promise.resolve({ full: fallbackName, first: "there" }),
     getOwnership(),
     getCapabilities(),
     getOrgName(),
-    getOrgLogoRef(),
   ]);
 
   const displayName = viewer.full;
@@ -79,8 +76,5 @@ export const loadShell = cache(async (): Promise<ShellData> => {
       caps: [...caps],
     },
     orgName,
-    // signed here because the bucket is private and a stored URL would be one
-    // that stops working; skipped entirely when there is no logo
-    orgLogoUrl: await signOne(logoRef),
   };
 });

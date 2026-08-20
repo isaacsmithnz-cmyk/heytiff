@@ -23,8 +23,8 @@ import { todayInAu } from "@/lib/au-dates";
    cannot receive a client function as a prop. */
 
 export async function ShellSidebar() {
-  const { user, orgName, orgLogoUrl } = await loadShell();
-  return <Sidebar role={user.role} caps={user.caps} orgName={orgName} orgLogoUrl={orgLogoUrl} />;
+  const { user, orgName } = await loadShell();
+  return <Sidebar role={user.role} caps={user.caps} orgName={orgName} />;
 }
 
 export async function ShellTopbar() {

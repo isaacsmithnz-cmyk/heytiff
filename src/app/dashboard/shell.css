@@ -4652,17 +4652,17 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    as the page, so what is on screen is the shape that prints. */
 .fg .orgcol-doc { position:relative; flex:0 0 auto; width:186px; aspect-ratio:210/297;
   background:#fff; border:1px solid #ecedf1; border-radius:10px; overflow:hidden; }
-/* THE SAME TWO NUMBERS AS THE REAL SHEETS, scaled: 16mm gutter and 7.94mm
+/* THE SAME TWO NUMBERS AS THE REAL SHEETS, scaled: 8mm gutter and 7.94mm
    radius on a 186px sheet standing for 210mm (x0.886). Written out rather
    than read from --doc-* because this preview must draw the band for a colour
    that has NOT been saved yet, which is exactly when those variables are absent. */
-.fg .orgcol-band { position:absolute; left:0; right:0; height:21.2px; pointer-events:none; }
+.fg .orgcol-band { position:absolute; left:0; right:0; height:14.1px; pointer-events:none; }
 .fg .orgcol-band.top { top:0; }
 .fg .orgcol-band.bot { bottom:0; }
-.fg .orgcol-well { position:absolute; left:0; right:0; top:14.2px; bottom:14.2px;
+.fg .orgcol-well { position:absolute; left:0; right:0; top:7.1px; bottom:7.1px;
   background:#fff; border-radius:7px; pointer-events:none; }
 /* the sheet's own content, above all three */
-.fg .orgcol-page { position:relative; padding:27px 15px 0; display:flex; flex-direction:column; gap:5px; }
+.fg .orgcol-page { position:relative; padding:22px 15px 0; display:flex; flex-direction:column; gap:5px; }
 .fg .orgcol-page b { font-size:11px; font-weight:800; letter-spacing:-.01em; color:#16181d; }
 .fg .orgcol-page span { font-size:7px; font-weight:600; color:#4b5563; }
 .fg .orgcol-page i { display:block; height:3px; border-radius:2px; background:#eef0f3; margin-top:3px; }

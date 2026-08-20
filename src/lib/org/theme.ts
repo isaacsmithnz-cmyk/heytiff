@@ -29,9 +29,10 @@ import type { CSSProperties } from "react";
 
    3. PRINT IS ITS OWN BUDGET, and the band spends it. `ink` is a FILL, which
       a browser drops unless told otherwise, so the surfaces painting it owe a
-      print-color-adjust. Measured on the treatment we shipped it covers 3.29%
-      of an A4 sheet — against 13.3% for the letterhead band that carried the
-      logo, which is the version this one replaced. */
+      print-color-adjust. Measured on a rendered A4, the shipped band inks
+      5.47% of the sheet — against 13.3% for the letterhead band that carried
+      the logo, which is the version this one replaced. Every page of every
+      document for every org, because the band is the default. */
 
 /** The paper every one of these documents is printed on. */
 const PAPER: RGB = [255, 255, 255];
@@ -215,12 +216,18 @@ export function themeVars(seed: string | null): CSSProperties {
    a 210mm page) and that is the intended reading, because a radius is an
    absolute token here and this one has to survive being printed at A5 or A3.
 
-   `gutter` is the band's depth across the middle of the page, and is NOT the
-   shell's 4.23mm (its 16px): at that figure the band read as a hairline on a
-   sheet this size. Its depth at the page edge is gutter + radius, because the
-   well's corner is what carves the middle away. */
+   `gutter` is the band's depth across the middle of the page, and it is the
+   number to move — everything else here is fixed. It is not the shell's own
+   4.23mm (its 16px), which read as a hairline at A4, and it is not the 16mm it
+   briefly was, which read as a header block once seen at full size. Its depth
+   at the page edge is gutter + radius, because the well's corner is what
+   carves the middle away.
+
+   Measured on a rendered A4, since the arithmetic here is easy to get wrong:
+   4.23mm inks 2.93% of the sheet, 8mm inks 5.47%, 12mm 8.17%, 16mm 10.86% and
+   20mm 13.55%. The letterhead band this treatment replaced was 13.3%. */
 const BAND = {
-  gutter: "16mm",
+  gutter: "8mm",
   radius: "7.94mm",
   /** breathing room between the band and the first line of the document */
   clear: "6mm",

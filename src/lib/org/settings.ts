@@ -38,6 +38,11 @@ export type OrgSettings = {
   postcode: string | null;
   /** a storage ref (org/<id>/org_logo/<uuid>.png), signed at render */
   logo_url: string | null;
+  /** the ONE colour a business picks; lowercase #rrggbb or null. Never
+      painted raw — lib/org/theme.ts derives the legible roles from it. Not in
+      ORG_EDITABLE_SECTIONS: it has its own control and saves itself, the way
+      the logo does, rather than riding a card's edit cycle. */
+  brand_color: string | null;
 };
 
 export const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"] as const;

@@ -25,6 +25,7 @@ import {
 import { OrgCredentialModal } from "./org-credential-modal";
 import { TransferOwnerModal } from "./transfer-owner-modal";
 import { LogoUploader } from "./logo-uploader";
+import { BrandColorPicker } from "./brand-color";
 import { OverviewTab } from "./overview-tab";
 import { ORG_TABS, orgTabFromParam, type OrgTabKey } from "./tabs";
 import type { OrgActions, TransferResult } from "./types";
@@ -297,6 +298,18 @@ function BrandSection({
               tone: gst === true ? "ok" : undefined,
             },
           ]}
+        />
+      </div>
+
+      {/* Its own row rather than a third cell: `.orgbrand` is a pair — the
+          artwork and the card it lands on — and the colour is about neither of
+          them. It is about the documents, which is what its preview shows. */}
+      <div className="orgcolrow">
+        <em>Document colour</em>
+        <BrandColorPicker
+          value={org.brand_color}
+          onSet={actions.onSetBrandColor}
+          onClear={actions.onClearBrandColor}
         />
       </div>
     </div>

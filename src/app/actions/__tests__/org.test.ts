@@ -59,6 +59,7 @@ jest.mock("@/lib/org/query", () => ({
     phone: null,
     email: null,
     website: null,
+    color: null,
   })),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
@@ -272,6 +273,9 @@ describe("getOrgBrand", () => {
       phone: null,
       email: null,
       website: null,
+      // no colour either: a refused read must not theme the document it is
+      // refusing to describe
+      color: null,
     });
   });
 });

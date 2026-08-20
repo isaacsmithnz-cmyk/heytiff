@@ -3,7 +3,8 @@ import { renderToString } from "react-dom/server";
 import { Topbar } from "../topbar";
 import { CommandPaletteProvider } from "../command-palette-context";
 import type { ShellUser } from "../sidebar";
-import { actionRequiredCount } from "@/app/actions/action-required";
+import { actionRequiredItems } from "@/app/actions/action-required";
+import type { ActionChip } from "@/lib/dashboard/chips";
 import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
 
 /* The bell.
@@ -11,8 +12,12 @@ import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
    It shipped as a `<button>` with no handler wearing a teal dot that pulsed on
    every screen forever — the CSS drew the dot unconditionally, so it never
    meant anything and could never stop meaning it. These tests pin the two
-   properties that stop that happening again: the badge is DERIVED from a real
-   count, and it is ABSENT when there is nothing to say. */
+   properties that stop that happening again: the badge is DERIVED from real
+   rows, and it is ABSENT when there is nothing to say.
+
+   It then spent a while as a LINK to /dashboard/action-required, which is the
+   other half of what these pin now: glancing at what is waiting must not cost
+   you the screen you were on. The list opens in place. */
 
 /* The topbar now carries the Tiff button, which reaches the note flow and its
    server actions — and "use server" modules cannot be imported into jsdom.
@@ -22,9 +27,24 @@ jest.mock("@/components/notes/tiff-button", () => ({
 }));
 
 jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
-jest.mock("@/app/actions/action-required", () => ({ actionRequiredCount: jest.fn() }));
+jest.mock("@/app/actions/action-required", () => ({ actionRequiredItems: jest.fn() }));
 
-const countMock = actionRequiredCount as jest.MockedFunction<typeof actionRequiredCount>;
+const itemsMock = actionRequiredItems as jest.MockedFunction<typeof actionRequiredItems>;
+
+/* Enough of a chip to render a row. The shapes themselves are pinned by the
+   chips suite; what matters here is how many there are and what a row links to. */
+const chip = (n: number, over: Partial<ActionChip> = {}): ActionChip => ({
+  key: `k${n}`,
+  kind: "rego",
+  state: "bad",
+  label: `Rego expired ${n} days ago`,
+  subject: `Ute ${n}`,
+  href: `/dashboard/fleet/${n}`,
+  urgency: n,
+  ...over,
+});
+
+const chips = (n: number) => Array.from({ length: n }, (_, i) => chip(i + 1));
 
 const user: ShellUser = {
   name: "Jordan Mills",
@@ -42,9 +62,11 @@ const draw = () =>
   );
 
 const bell = () => document.querySelector(".bell") as HTMLElement;
+const panel = () => document.querySelector(".bell-panel") as HTMLElement | null;
+const rows = () => Array.from(document.querySelectorAll(".bp-row")) as HTMLAnchorElement[];
 
 afterEach(cleanup);
-beforeEach(() => countMock.mockReset());
+beforeEach(() => itemsMock.mockReset());
 
 describe("the Tiff button", () => {
   /* It floated bottom-right first and covered the page it sat on. The topbar
@@ -52,7 +74,7 @@ describe("the Tiff button", () => {
      deliberate: the thing you reach for on purpose sits before the thing that
      interrupts you. */
   it("sits in the topbar, immediately left of the bell", async () => {
-    countMock.mockResolvedValue(0);
+    itemsMock.mockResolvedValue([]);
     draw();
 
     const tiff = document.querySelector('[aria-label^="Ask or tell Tiff"]') as HTMLElement;
@@ -65,26 +87,95 @@ describe("the Tiff button", () => {
 });
 
 describe("the bell", () => {
-  it("is a link to the board that lists what's waiting on you", async () => {
-    countMock.mockResolvedValue(0);
+  it("opens the list in place instead of taking you to another screen", async () => {
+    itemsMock.mockResolvedValue(chips(2));
     draw();
-    // a bell that navigates nowhere is the thing this replaced
-    expect(bell().tagName).toBe("A");
-    expect(bell().getAttribute("href")).toBe("/dashboard/action-required");
-    await act(async () => {});
+    await waitFor(() => expect(bell().querySelector(".d")).not.toBeNull());
+    /* A link here means glancing at what is waiting costs you the screen you
+       were on — that is exactly what the panel replaced. */
+    expect(bell().tagName).toBe("BUTTON");
+    expect(bell().getAttribute("href")).toBeNull();
+    expect(panel()).toBeNull();
+
+    await act(async () => { bell().click(); });
+    expect(panel()).not.toBeNull();
+    expect(bell().getAttribute("aria-expanded")).toBe("true");
+    expect(rows()).toHaveLength(2);
   });
 
-  it("wears NO badge while the count is still in flight", async () => {
+  it("sends each row to the thing that needs doing", async () => {
+    itemsMock.mockResolvedValue(chips(1));
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")).not.toBeNull());
+    await act(async () => { bell().click(); });
+    expect(rows()[0].getAttribute("href")).toBe("/dashboard/fleet/1");
+  });
+
+  it("closes on Escape", async () => {
+    itemsMock.mockResolvedValue(chips(1));
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")).not.toBeNull());
+    await act(async () => { bell().click(); });
+    expect(panel()).not.toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(panel()).toBeNull();
+  });
+
+  it("closes when you click outside it", async () => {
+    itemsMock.mockResolvedValue(chips(1));
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")).not.toBeNull());
+    await act(async () => { bell().click(); });
+    await act(async () => {
+      document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    expect(panel()).toBeNull();
+  });
+
+  it("caps the list and says how much it did not draw", async () => {
+    /* The panel scrolls, but an unbounded list is a second copy of the board
+       hanging off the chrome. It stops at 20 and hands the rest over. */
+    itemsMock.mockResolvedValue(chips(26));
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")).not.toBeNull());
+    await act(async () => { bell().click(); });
+    expect(rows()).toHaveLength(20);
+    const more = panel()!.querySelector(".bp-more") as HTMLAnchorElement;
+    expect(more.textContent).toContain("6 more");
+    expect(more.getAttribute("href")).toBe("/dashboard/action-required");
+  });
+
+  it("offers NO way through to the board when it drew everything", async () => {
+    // "see all" under a list that already is all of it is a lie about there being more
+    itemsMock.mockResolvedValue(chips(3));
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")).not.toBeNull());
+    await act(async () => { bell().click(); });
+    expect(panel()!.querySelector(".bp-more")).toBeNull();
+  });
+
+  it("says so when there is nothing, rather than opening an empty box", async () => {
+    itemsMock.mockResolvedValue([]);
+    draw();
+    await waitFor(() => expect(bell().getAttribute("aria-label")).toBe("Nothing needs you"));
+    await act(async () => { bell().click(); });
+    expect(panel()!.textContent).toContain("Nothing needs you");
+    expect(rows()).toHaveLength(0);
+  });
+
+  it("wears NO badge while the rows are still in flight", async () => {
     // never guess a number: silence until the real one lands
-    let settle: (n: number) => void = () => {};
-    countMock.mockReturnValue(new Promise<number>((res) => { settle = res; }));
+    let settle: (rows: ActionChip[]) => void = () => {};
+    itemsMock.mockReturnValue(new Promise<ActionChip[]>((res) => { settle = res; }));
     draw();
     expect(bell().querySelector(".d")).toBeNull();
-    await act(async () => settle(3));
+    await act(async () => settle(chips(3)));
   });
 
   it("wears NO badge at zero", async () => {
-    countMock.mockResolvedValue(0);
+    itemsMock.mockResolvedValue([]);
     draw();
     // and says so, for anyone who can't see the absence of a dot
     await waitFor(() => expect(bell().getAttribute("aria-label")).toBe("Nothing needs you"));
@@ -92,7 +183,7 @@ describe("the bell", () => {
   });
 
   it("shows the real number once it lands, and says what it means", async () => {
-    countMock.mockResolvedValue(3);
+    itemsMock.mockResolvedValue(chips(3));
     draw();
     await waitFor(() => expect(bell().querySelector(".d")?.textContent).toBe("3"));
     expect(bell().getAttribute("aria-label")).toBe("3 things need you");
@@ -100,7 +191,7 @@ describe("the bell", () => {
 
   it("keeps the badge to two characters", async () => {
     // the badge sits on a 44px control; "12" fits and "9+" is how it says more
-    countMock.mockResolvedValue(21);
+    itemsMock.mockResolvedValue(chips(21));
     draw();
     await waitFor(() => expect(bell().querySelector(".d")?.textContent).toBe("9+"));
     // the LABEL still carries the true count — only the pill is abbreviated
@@ -108,15 +199,15 @@ describe("the bell", () => {
   });
 
   it("reads as singular for exactly one", async () => {
-    countMock.mockResolvedValue(1);
+    itemsMock.mockResolvedValue(chips(1));
     draw();
     await waitFor(() => expect(bell().getAttribute("aria-label")).toBe("1 thing needs you"));
   });
 
-  it("stays silent rather than breaking the shell when the count fails", async () => {
-    countMock.mockRejectedValue(new Error("offline"));
+  it("stays silent rather than breaking the shell when the read fails", async () => {
+    itemsMock.mockRejectedValue(new Error("offline"));
     draw();
-    await waitFor(() => expect(countMock).toHaveBeenCalled());
+    await waitFor(() => expect(itemsMock).toHaveBeenCalled());
     expect(bell().querySelector(".d")).toBeNull();
     expect(screen.getByText("Jordan Mills")).toBeInTheDocument();
   });
@@ -130,7 +221,7 @@ describe("the bell", () => {
    is a text mismatch, and a mismatch in a render body fails hydration for the
    whole tree. */
 describe("the clock", () => {
-  beforeEach(() => countMock.mockResolvedValue(0));
+  beforeEach(() => itemsMock.mockResolvedValue([]));
 
   it("takes the day off the LIVE clock once hydrated, not the prop it was given", () => {
     /* The prop here is deliberately ancient. An app left open overnight has to

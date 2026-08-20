@@ -5,59 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
 import { Clock } from "./clock";
+import { Bell } from "./bell";
 import { TiffButton } from "@/components/notes/tiff-button";
 import type { ShellUser } from "./sidebar";
 import { useCommandPalette } from "./command-palette-context";
-import { actionRequiredCount } from "@/app/actions/action-required";
-
-/* THE BELL. It used to be a `<button>` with no handler, wearing a teal dot that
-   pulsed on every screen forever — the CSS drew the dot unconditionally, so it
-   never meant anything and could never stop meaning it. A permanent unread
-   badge on a control that does nothing is worse than no bell at all: it is the
-   first thing a new person clicks and the first thing they learn to ignore,
-   which costs you every real notification afterwards.
-
-   It is now a link to the one screen that lists what's waiting on you, and its
-   badge is the count of exactly those rows — absent at zero, because "checked,
-   nothing there" is what an empty bell has always meant everywhere else.
-
-   The count arrives after mount (see actions/action-required.ts for why the
-   shell can't await it) and the bell is fully usable before it lands: no
-   spinner, no layout jump — the badge just appears if there is something. A
-   failed read leaves it silent rather than guessing a number. */
-function Bell() {
-  const [count, setCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    actionRequiredCount()
-      .then((n) => {
-        if (live) setCount(n);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  const label =
-    count === null
-      ? "What needs you"
-      : count === 0
-        ? "Nothing needs you"
-        : `${count} ${count === 1 ? "thing needs" : "things need"} you`;
-
-  return (
-    <Link className="bell" href="/dashboard/action-required" aria-label={label} title={label}>
-      <Icon name="bell" size={20} />
-      {count !== null && count > 0 && (
-        <span className="d" aria-hidden="true">
-          {count > 9 ? "9+" : count}
-        </span>
-      )}
-    </Link>
-  );
-}
 
 export function Topbar({ user, today }: { user: ShellUser; today: string }) {
   /* The opener comes from context, not a prop: this component is rendered as a

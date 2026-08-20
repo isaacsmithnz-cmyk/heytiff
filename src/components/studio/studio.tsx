@@ -10,7 +10,6 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
-import { Chevron } from "@/components/logo";
 import { DotField } from "@/components/ui/dot-field";
 import { JobSearchField, type JobSearch } from "./job-search";
 export type { JobSearch };
@@ -797,14 +796,19 @@ function Home({
           ) : (
             <>
               <h2>Design Studio</h2>
-              {/* The capture card's cloud, standing still on the landing. It
-                  is the same instrument the voice card thinks in — mounted
-                  straight into `cloud`, so its one-time bloom out of the mark
-                  plays on arrival and it then turns and darts on its own
-                  clocks for as long as the screen is open. No `from`: there is
-                  no button here for it to have flown out of. */}
+              {/* The capture card's cloud, standing still on the landing, with
+                  the button inside it rather than under it. Same instrument the
+                  voice card thinks in — mounted straight into `cloud`, so its
+                  one-time bloom out of the mark plays on arrival and it then
+                  turns and darts on its own clocks for as long as the screen is
+                  open. No `from`: there is no button here for it to have flown
+                  out of.
+
+                  `cols` is the density and `size` the reach — 44 over 760px is
+                  ~300 dots, against the card's ~110. It is the biggest thing on
+                  the screen, so it is drawn like it. */}
               <span className="ds-cloud">
-                <DotField stage="cloud" size={380} />
+                <DotField stage="cloud" size={760} cols={44} />
               </span>
               {/* The landing's one action, so it is sized like one: the mark
                   sits at the far end of a wide button and reads as the arrow
@@ -815,7 +819,7 @@ function Home({
               >
                 New design
                 <span className="ds-start-mk">
-                  <Chevron size={19} decorative />
+                  <Icon name="arrowR" size={20} />
                 </span>
               </button>
             </>

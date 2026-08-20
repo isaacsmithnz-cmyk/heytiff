@@ -940,6 +940,66 @@
 .fg .bell:hover { background:rgba(255,255,255,.12); color:#fff; box-shadow:none; }
 .fg .bell .d { border-color:#050505; }
 
+/* ===== THE BELL'S PANEL — notifications where you already are =============
+
+   The bell used to be a link to /dashboard/action-required: the only way to
+   learn whether the badge was worth caring about was to leave the screen you
+   were on. This is the same list, grown down out of the bell.
+
+   ABSOLUTE, NOT FIXED. `.page.in` sets `will-change`, which makes a containing
+   block out of the page and breaks `position:fixed` anywhere in this shell —
+   the user menu two controls right has the same note. The topbar sits outside
+   `.page`, and `.topbar` / `.tbr` are both overflow:visible (the badge already
+   overhangs by 4px), so an absolutely-positioned panel escapes cleanly.
+
+   NO SCRIM. A body-portalled overlay would sit over `.fg` and trap everything
+   inside it — including this panel. Outside-click and Escape close it instead.
+
+   RIGHT-ANCHORED off the bell, which is not the right-hand edge of the topbar:
+   the panel is 360 wide and the bell is 44, so it hangs left across the Tiff
+   button and the clock and stops well short of the sidebar at every width the
+   app is used at. */
+.fg .topbar .bell-top { position:relative; display:flex; align-items:center; }
+.fg .bell.on { background:rgba(255,255,255,.14); color:#fff; }
+.fg .topbar .bell-panel { position:absolute; top:calc(100% + 10px); right:0; z-index:60; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:7px; border-radius:16px; background:rgba(14,15,20,.92); border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); backdrop-filter:blur(20px) saturate(140%); animation:meMenuIn .16s ease both; }
+.fg .topbar .bp-head { display:flex; align-items:center; gap:8px; padding:8px 11px 10px; }
+.fg .topbar .bp-head b { font-size:13px; font-weight:700; color:#fff; }
+.fg .topbar .bp-n { min-width:20px; padding:2px 6px; border-radius:8px; background:rgba(255,255,255,.1); color:#fff; font-size:11px; font-weight:700; text-align:center; }
+
+/* The scroller, and the reason the panel is a column flexbox: the head and the
+   footer stay put and only this moves. `min-height:0` because a flex child
+   defaults to min-content and would refuse to shrink — without it the panel
+   grows past its own max-height and the list never scrolls. */
+.fg .topbar .bp-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
+.fg .topbar .bp-list::-webkit-scrollbar { width:6px; }
+.fg .topbar .bp-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:99px; }
+
+/* One row. Two channels, same as the board's tiles: the GLYPH is the domain
+   (truck / shield / hexagon, matching the nav) and the COLOUR is the urgency —
+   colour alone made an expiring rego and an expiring licence identical. */
+.fg .topbar .bp-row { display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:11px; color:rgba(255,255,255,.7); text-decoration:none; transition:background .18s, color .18s; }
+.fg .topbar .bp-row:hover { background:rgba(255,255,255,.08); color:#fff; }
+.fg .topbar .bp-ic { display:flex; align-items:center; justify-content:center; width:30px; height:30px; flex:0 0 auto; border-radius:10px; background:rgba(255,255,255,.06); }
+.fg .topbar .bp-row.bad .bp-ic { background:rgba(224,38,79,.16); color:#ff7d99; }
+.fg .topbar .bp-row.warn .bp-ic { background:rgba(245,158,11,.16); color:#f7b955; }
+.fg .topbar .bp-main { flex:1; min-width:0; }
+.fg .topbar .bp-main b { display:block; font-size:12.5px; font-weight:700; line-height:1.25; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* the subject line — the shell's quiet-on-ink token, 4.46 on #050505 */
+.fg .topbar .bp-main em { display:block; font-style:normal; font-size:11px; color:var(--on-ink-q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .topbar .bp-chev { flex:0 0 auto; opacity:0; transition:opacity .18s; }
+.fg .topbar .bp-row:hover .bp-chev { opacity:.6; }
+
+.fg .topbar .bp-quiet { padding:18px 11px; font-size:12px; color:var(--on-ink-q); }
+.fg .topbar .bp-empty { display:flex; flex-direction:column; align-items:center; gap:6px; padding:22px 18px 26px; text-align:center; }
+.fg .topbar .bp-empty .bp-ei { display:flex; align-items:center; justify-content:center; width:38px; height:38px; margin-bottom:2px; border-radius:50%; background:rgba(0,163,137,.16); color:#3fd7b6; }
+.fg .topbar .bp-empty b { font-size:13px; font-weight:700; color:#fff; }
+.fg .topbar .bp-empty em { font-style:normal; font-size:11.5px; line-height:1.45; color:var(--on-ink-q); }
+
+/* Present ONLY when rows were actually cut. A "see all" under a list that is
+   already all of it is a lie about there being more. */
+.fg .topbar .bp-more { display:flex; align-items:center; justify-content:center; gap:6px; flex:0 0 auto; margin-top:6px; padding:10px; border-radius:11px; background:rgba(255,255,255,.05); color:rgba(255,255,255,.72); font-size:12px; font-weight:700; text-decoration:none; transition:background .18s, color .18s; }
+.fg .topbar .bp-more:hover { background:rgba(255,255,255,.1); color:#fff; }
+
 /* the light content well, inset so the dark frame shows across top / right / bottom */
 .fg .main { padding:0 16px 16px 0; }
 .fg .outlet {

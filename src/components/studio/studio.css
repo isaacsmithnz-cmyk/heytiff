@@ -282,10 +282,68 @@ html[data-ds-display] .dstudio.editing {
   transform: translateY(-2px);
   box-shadow: 0 18px 34px -10px rgba(0, 229, 192, 0.55);
 }
+.dstudio .ds-cta.ds-start:hover {
+  background: rgba(8, 11, 16, 0.62);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    -14px 22px 42px -18px rgba(0, 229, 192, 0.6),
+    18px 22px 44px -18px rgba(46, 139, 255, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+/* The cloud between the name and the action. The field is a square box with
+   the cloud floating at its centre, so it is pulled back by its own margin to
+   sit under the title rather than indented by half a box of nothing. */
+.dstudio .ds-cloud {
+  /* A ZERO-SIZED ANCHOR, and the field hangs off it. The field is a 760px
+     square, and a box that wide inside a `1.35fr` grid column sets the
+     column's min-content — it pushed the whole two-column stack past the
+     viewport and cut the Recent card off at the right edge. Nothing about the
+     cloud should influence layout, so the span carries no size at all: its
+     margins place a point, the field centres itself on that point and spills
+     out of flow in every direction.
+
+     The gap between title and button is therefore the anchor's own top margin
+     plus the button's, not the field's box. */
+  position: relative;
+  display: block;
+  width: 0;
+  height: 0;
+  z-index: 0;
+  margin: 190px 0 0 170px;
+  pointer-events: none;
+}
+.dstudio .ds-cloud .dotf {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 /* The landing's single action. Sized on its own class, not on `.ds-cta`: the
    wizard's nav buttons share that base and must stay small. */
 .dstudio .ds-cta.ds-start {
+  /* Clear of the cloud, under it. It was seated INSIDE the field for a while,
+     with dots passing behind the glass; the field reaches ~180px below its
+     own centre, so this is the margin that clears the last of them. */
+  position: relative;
+  z-index: 1;
+  margin-top: 230px;
   height: 68px;
+  /* BLACK GLASS. The fill is translucent over the frame's glow field, and the
+     rim carries the brand rather than the fill — teal under the text end, blue
+     under the arrow's, the same two colours `markInk` paints the dots in.
+
+     No `-webkit-backdrop-filter` twin: the pair collapses to the prefixed
+     property alone in the build and the blur is silently dropped (see
+     .ds-veil). */
+  background: rgba(6, 8, 12, 0.55);
+  backdrop-filter: blur(13px);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: #fff;
+  box-shadow:
+    -12px 16px 34px -18px rgba(0, 229, 192, 0.5),
+    16px 16px 36px -18px rgba(46, 139, 255, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
   /* Wide enough to carry the title's weight, capped so it never outruns the
      column on a big screen. */
   width: min(100%, 360px);
@@ -294,22 +352,36 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 20px;
   font-size: 17px;
 }
-/* The mark as the button's end-cap: ink chip, teal chevron. A tinted-teal
-   chip on a teal button read as a smudge — the mark has to be the second
-   thing the eye lands on, not a texture. */
+/* The button's end-cap: a plain white arrow on the glass, no chip behind it.
+   The HeyTiff chevron stood here while the button was a teal fill, on an ink
+   chip that gave it a ground; on black glass the chip was a second, darker
+   box inside a dark button, and the mark itself was one brand statement too
+   many next to a field of dots that already IS the mark. */
 .dstudio .ds-start-mk {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 15px;
-  background: var(--ink);
-  color: var(--teal);
+  color: #fff;
   transition: transform 0.25s;
 }
 .dstudio .ds-cta.ds-start:hover .ds-start-mk {
   transform: translateX(3px);
+}
+/* HOVERING THE BUTTON GATHERS THE CLOUD. The dots are the mark the chip is
+   wearing, so the button reaching for them is the one gesture that says so:
+   the cloud draws in a little and brightens while the pointer is down there.
+   Reached with `:has()` because the cloud is BEFORE the button in the DOM and
+   a sibling combinator only looks forward. */
+.dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-tilt {
+  transform: rotateX(-12deg) scale(0.605);
+}
+.dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-cell i {
+  opacity: 1;
+}
+.dstudio .ds-cloud .dotf-cell i {
+  transition: opacity 0.45s;
 }
 
 /* new-design wizard */
@@ -646,6 +718,11 @@ html[data-ds-display] .dstudio.editing {
 
 /* Recent designs — glass card on the dark canvas */
 .dstudio .ds-recent {
+  /* Over the cloud. Below 1100px the two columns stack and the cloud's tail
+     reaches the card's top edge; the card is the thing being read, so it
+     covers the stray dots rather than wearing them. */
+  position: relative;
+  z-index: 1;
   background: rgba(255, 255, 255, 0.055);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 26px;

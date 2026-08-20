@@ -489,10 +489,9 @@ export function SheetDoc({
     <article className="dsd" style={themeVars(brand.color)}>
       {/* THE BUSINESS'S BAND, at the head and foot of the sheet.
 
-          Two filled rectangles and a white well on top of them, which is the
-          construction `.fg .outlet` uses against the dark shell: the fill only
-          survives where the well turns its corner, so the colour runs deepest
-          at the page edges and thins across the middle.
+          One filled rectangle behind the whole sheet with a white well inset on
+          all four sides, which is `.fg .outlet` exactly: the colour survives as
+          a frame around the page.
 
           It carries NOTHING — no logo, no contact line, no page number — and
           that is the whole reason it is the treatment we shipped. A band with
@@ -502,8 +501,7 @@ export function SheetDoc({
           Rendered unconditionally: with no brand colour `--doc-ink` is unset,
           the fallback is `transparent`, and the sheet is byte-for-byte the one
           it is today. */}
-      <div className="dsd-bband top" aria-hidden="true" />
-      <div className="dsd-bband bot" aria-hidden="true" />
+      <div className="dsd-bband" aria-hidden="true" />
       <div className="dsd-bwell" aria-hidden="true" />
       {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead

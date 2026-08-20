@@ -308,7 +308,7 @@ describe("themeVars", () => {
   it("ships the band's depth and its clearance alongside the colour", () => {
     const v = themeVars("#004885") as Record<string, string>;
     expect(Object.keys(v).sort()).toEqual(
-      ["--doc-band", "--doc-gutter", "--doc-ink", "--doc-pad", "--doc-radius"]
+      ["--doc-band", "--doc-gutter", "--doc-ink", "--doc-pad", "--doc-radius", "--doc-side"]
     );
     // the shell's own 30px corner at 96dpi, carried across as a measurement
     expect(v["--doc-radius"]).toBe("7.94mm");

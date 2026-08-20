@@ -46,11 +46,13 @@
 }
 
 /* ── the business's band ───────────────────────────────────────────────────
-   THE SHAPE IS `.fg .outlet`'S, and deliberately: two filled rectangles at the
-   head and foot with a white well laid over them, so the colour survives only
-   where the well turns its corner. It runs deepest at the page edges and thins
-   across the middle — the sheet sits in the well the way a screen does in the
-   dark shell.
+   THE SHAPE IS `.fg .outlet`'S, and now literally: one filled rectangle behind
+   the whole sheet, with a white well inset on ALL FOUR sides and rounded at the
+   corners. The colour survives as a frame, exactly the way the dark shell shows
+   around the app's light content well.
+
+   It was a head and a foot only, and it did not read: a band that stops at the
+   left and right edges looks like two bars rather than a frame around a page.
 
    THE NUMBERS COME FROM `themeVars`, not from here, and it always returns a
    full set: a business that has chosen no colour gets the band in the sheet's
@@ -70,9 +72,7 @@
 .dsd { position: relative; }
 .dsd-bband {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: var(--doc-band, 0px);        /* gutter + radius = depth at the edge */
+  inset: 0;
   background: var(--doc-ink, transparent);
   pointer-events: none;
   /* a fill a browser would otherwise drop to save ink — and this one IS the
@@ -80,17 +80,12 @@
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.dsd-bband.top { top: 0; }
-.dsd-bband.bot { bottom: 0; }
 /* The well. White, full width, inset from head and foot by the gutter; its
    four rounded corners are the only places the band survives across the
    middle. */
 .dsd-bwell {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--doc-gutter, 0px);
-  bottom: var(--doc-gutter, 0px);
+  inset: var(--doc-gutter, 0px);
   background: #fff;
   border-radius: var(--doc-radius, 0px);
   pointer-events: none;
@@ -103,7 +98,7 @@
 /* This padding exists only to clear the band, so it ships from the same object
    the band's depth does. Zero is the fallback rather than a value, because
    room made for a band that failed to render is worse than neither. */
-.dsd { padding-top: var(--doc-pad, 0px); padding-bottom: var(--doc-pad, 0px); }
+.dsd { padding: var(--doc-pad, 0px) var(--doc-side, 0px); }
 
 /* ── masthead ── */
 .dsd-mast {

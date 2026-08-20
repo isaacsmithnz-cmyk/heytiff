@@ -29,10 +29,13 @@ import type { CSSProperties } from "react";
 
    3. PRINT IS ITS OWN BUDGET, and the band spends it. `ink` is a FILL, which
       a browser drops unless told otherwise, so the surfaces painting it owe a
-      print-color-adjust. Measured on a rendered A4, the shipped band inks
-      5.47% of the sheet — against 13.3% for the letterhead band that carried
-      the logo, which is the version this one replaced. Every page of every
-      document for every org, because the band is the default. */
+      print-color-adjust. Measured on a rendered A4, the shipped frame inks
+      13.09% of the sheet — the two side strips run its full height, so a frame
+      costs well over twice what the same thickness cost as a head-and-foot
+      band (5.47%). That is on every page of every document for every org,
+      because the frame is the default, and it sits within a whisker of the
+      13.3% letterhead band this treatment replaced partly on cost. 4mm inks
+      6.89%, 5mm 8.46%, 6mm 10.01%. */
 
 /** The paper every one of these documents is printed on. */
 const PAPER: RGB = [255, 255, 255];
@@ -204,6 +207,9 @@ export function themeVars(seed: string | null): CSSProperties {
        is absent, not 0 — and 6mm of new white space on every unthemed document
        is exactly the bug this object exists to prevent. */
     "--doc-pad": `calc(${BAND.gutter} + ${BAND.radius} + ${BAND.clear})`,
+    /* the frame takes width as well as height, so the sheet's own horizontal
+       padding has to move in by the gutter or the first character sits on it */
+    "--doc-side": BAND.gutter,
   } as CSSProperties;
 }
 
@@ -216,16 +222,17 @@ export function themeVars(seed: string | null): CSSProperties {
    a 210mm page) and that is the intended reading, because a radius is an
    absolute token here and this one has to survive being printed at A5 or A3.
 
-   `gutter` is the band's depth across the middle of the page, and it is the
-   number to move — everything else here is fixed. It is not the shell's own
+   `gutter` is the frame's thickness on every edge, and it is the number to
+   move — everything else here is fixed. It is not the shell's own
    4.23mm (its 16px), which read as a hairline at A4, and it is not the 16mm it
    briefly was, which read as a header block once seen at full size. Its depth
    at the page edge is gutter + radius, because the well's corner is what
    carves the middle away.
 
-   Measured on a rendered A4, since the arithmetic here is easy to get wrong:
-   4.23mm inks 2.93% of the sheet, 8mm inks 5.47%, 12mm 8.17%, 16mm 10.86% and
-   20mm 13.55%. The letterhead band this treatment replaced was 13.3%. */
+   Measured on a rendered A4 as a FRAME, since the arithmetic here is easy to
+   get wrong and the sides changed it a lot: 4mm inks 6.89% of the sheet, 5mm
+   8.46%, 6mm 10.01% and 8mm 13.09%. As a head-and-foot band the same 8mm was
+   5.47%. The letterhead band this treatment replaced was 13.3%. */
 const BAND = {
   gutter: "8mm",
   radius: "7.94mm",

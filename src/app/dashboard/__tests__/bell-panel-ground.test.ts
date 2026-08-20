@@ -63,3 +63,44 @@ it("still keeps the quiet subject line on the shared token, not a private one", 
      cannot see it and lets the ground go on moving. The ground was the bug. */
   expect(rule(".fg .topbar .bp-main em")).toMatch(/color:var\(--on-ink-q\)/);
 });
+
+/* ── AND IT HANGS OFF THE BELL RATHER THAN FLOATING NEAR IT ──
+
+   The panel first shipped with a 10px gap and a `translateY` drop — the motion
+   of a thing ARRIVING from elsewhere. There are three controls in that corner
+   of the topbar, so a panel that merely appears beside them does not say which
+   one it belongs to.
+
+   The caret and the transform origin are ONE mechanism, not two decorations,
+   and that is what makes them worth pinning together: the caret is a child of
+   the transformed element, so it scales with the panel, and a point sitting AT
+   the transform origin does not move at any scale. Put the origin on the
+   caret's tip and the caret stays welded to the bell for the whole unfold —
+   measured on a paused animation, the drift is a flat 0.38px from scale .92
+   through to 1. Move the origin and the caret slides off the bell on the way
+   in, which is the floating window all over again. */
+
+it("anchors the caret and the growth origin to the SAME point — the bell's centre", () => {
+  /* 23px, not 22: the bell is a 20px glyph in 12px padding inside a 1px
+     border, so it measures 46 and the arithmetic that says 44 is a pixel out.
+     Both numbers are the same fact and have to move together. */
+  expect(rule(PANEL)).toMatch(/transform-origin:calc\(100% - 23px\) -9px/);
+  expect(rule(`${PANEL}::before`)).toMatch(/right:17px/); // 17 + half of 12 = 23
+});
+
+it("leaves a gap the caret can actually span", () => {
+  /* The caret reaches ~13px above the panel's top edge, so a 9px gap has it
+     tucking under the bell by ~4px — which is what reads as joined. Widen the
+     gap past the caret's reach and the stem stops touching anything. */
+  expect(rule(PANEL)).toMatch(/top:calc\(100% \+ 9px\)/);
+});
+
+it("grows out of the bell instead of sliding down onto the page", () => {
+  const body = rule(PANEL);
+  expect(body).toMatch(/animation:bellPanelIn/);
+  const frames = CSS.slice(CSS.indexOf("@keyframes bellPanelIn"));
+  const decl = frames.slice(0, frames.indexOf("}\n"));
+  expect(decl).toMatch(/scale\(\.92\)/);
+  // a translate here re-introduces the travel that made it read as a separate window
+  expect(decl).not.toMatch(/translate/);
+});

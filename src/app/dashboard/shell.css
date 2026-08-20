@@ -983,7 +983,43 @@
 
    `.me-menu` has the same construction and the same latent bug; it is spared
    only because it opens over the topbar and the sidebar rather than the card. */
-.fg .topbar .bell-panel { position:absolute; top:calc(100% + 10px); right:0; z-index:60; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:7px; border-radius:16px; background:#0d0e13; border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); animation:meMenuIn .16s ease both; }
+.fg .topbar .bell-panel { position:absolute; top:calc(100% + 9px); right:0; z-index:60; transform-origin:calc(100% - 23px) -9px; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:7px; border-radius:16px; background:#0d0e13; border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); animation:bellPanelIn .18s cubic-bezier(.22,1,.36,1) both; }
+
+/* IT GROWS OUT OF THE BELL, AND STAYS TIED TO IT.
+
+   It read as a floating window: a 10px gap to the bell and a `translateY`
+   drop, which is the motion of a thing ARRIVING from somewhere else. Nothing
+   in it said which control it belonged to — the shell has three controls in
+   that corner and a panel that just appears near them is a guess.
+
+   Two changes, and they do different halves of the job.
+
+   THE CARET ties it. A rotated square wearing the panel's own ground and the
+   two border edges that face the bell, aligned to the bell's centre: the
+   `.bell-top` wrapper is `right:0`-aligned with the panel, and the bell is a
+   20px glyph in 12px padding, so its centre is 22px in from the right on both
+   the wrapper and the panel. `bottom:100%` with a −1px pull sits the caret
+   ON the panel's top border and hides the seam behind its own fill — which
+   only works because that fill is now OPAQUE. At the old .92 the caret and
+   the panel would each composite the backdrop separately and the join would
+   have shown as a brighter wedge.
+
+   THE ORIGIN animates it. `transform-origin` is the caret's tip — 22px in,
+   9px up, which is the bell's lower edge — so the scale runs OUT of the bell
+   rather than down onto the page. The gap shrinks 10px → 9px so the caret
+   spans it exactly.
+
+   Scale-and-fade, not scale-and-slide: a slide re-introduces the travel that
+   made it look like a separate window. */
+.fg .topbar .bell-panel::before { content:""; position:absolute; bottom:calc(100% - 1px); right:17px; width:12px; height:12px; transform:rotate(45deg); border-radius:2px 0 0 0; background:#0d0e13; border-top:1px solid rgba(255,255,255,.1); border-left:1px solid rgba(255,255,255,.1); }
+@keyframes bellPanelIn { from { opacity:0; transform:scale(.92); } to { opacity:1; transform:none; } }
+/* The caret is a CHILD of the transformed element, so it scales too — and
+   that is why the origin is its tip rather than the panel's corner. A point
+   at the transform origin does not move at any scale, so the caret stays
+   pinned to the bell for the whole 180ms while the panel unfolds away from
+   it. Put the origin anywhere else and the caret slides off the bell and
+   lands between two controls on the way in. */
+@media (prefers-reduced-motion:reduce) { .fg .topbar .bell-panel { animation:none; } }
 .fg .topbar .bp-head { display:flex; align-items:center; gap:8px; padding:8px 11px 10px; }
 .fg .topbar .bp-head b { font-size:13px; font-weight:700; color:#fff; }
 .fg .topbar .bp-n { min-width:20px; padding:2px 6px; border-radius:8px; background:rgba(255,255,255,.1); color:#fff; font-size:11px; font-weight:700; text-align:center; }

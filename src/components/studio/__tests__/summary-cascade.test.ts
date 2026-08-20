@@ -115,6 +115,20 @@ describe("Summary sheet cascade", () => {
     expect(bare).toEqual([]);
   });
 
+  it("the recents skeleton PAINTS — its block outranks the card it sits in", () => {
+    /* `.ds-rthumb` carries its own fill and border at (0,2,0) and is written
+       LATER in this file, so a lone `.dstudio .ds-skb` loses to it and the
+       thumb animated an empty box: a sweep over nothing. Same shape as the
+       `.fg button` reset trap. The paint is one declaration block written at
+       both specificities rather than restated. */
+    const paint = selectors.filter((sel) =>
+      sel.split(",").some((one) => /\.ds-skb(?![\w-])\s*$/.test(one.trim()))
+    );
+    expect(paint.length).toBeGreaterThan(0);
+    for (const sel of paint)
+      expect(sel).toMatch(/\.ds-rcard\.skel \.ds-rthumb\.ds-skb/);
+  });
+
   it("the dark glass primitives never reach .ds-tbbtn", () => {
     /* .ds-tbbtn renders on the WHITE page plate — Summary's action cards and
        the Design step's "no floors yet" empty state. Any `.dstudio.editing`

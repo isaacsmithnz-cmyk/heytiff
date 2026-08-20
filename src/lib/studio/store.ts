@@ -30,6 +30,9 @@ export interface DesignStore {
   remove(id: string): Promise<void>;
   /** Optional cheap crash-buffer write (local only, no network). */
   stash?(doc: DesignDocument): Promise<void>;
+  /** Optional: what this machine already knows, WITHOUT the network. The home
+      screen paints this first — see SyncedDesignStore.listLocal. */
+  listLocal?(): Promise<DesignSummary[]>;
 }
 
 /* Minimal Storage surface so tests can pass a plain-object fake. */
@@ -115,6 +118,22 @@ export class SyncedDesignStore implements DesignStore {
       debounced server saves never loses work. */
   stash(doc: DesignDocument): Promise<void> {
     return this.local.save(doc);
+  }
+
+  /* WHAT THIS MACHINE ALREADY KNOWS, and knows instantly.
+
+     `list()` below waits on the server before it answers, because the merge
+     needs both halves. That is right for the answer and wrong for the FIRST
+     paint: the local index is a localStorage read, and holding it behind a
+     network round trip left the home screen claiming "No designs yet" for as
+     long as the server took — which in production is over three seconds.
+
+     So the home screen paints this, then replaces it with the merged list.
+     Stale for that moment by exactly the amount the merge already tolerates:
+     a design deleted on another machine lingers for one round trip, which is
+     the same window in which `list()` lets unsynced local edits win. */
+  listLocal(): Promise<DesignSummary[]> {
+    return this.local.list();
   }
 
   async list(): Promise<DesignSummary[]> {

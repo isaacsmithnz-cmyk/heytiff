@@ -5520,19 +5520,28 @@ html[data-ds-display] .dstudio.editing {
    display:none'd outright — visibility:hidden alone keeps their layout and
    inflates the page count (the old jobpack learned this the hard way).
 
-   SCOPED TO A BODY THAT HAS ONE. This was a bare `body *`, and this
-   stylesheet is imported by more than the studio: `/live/[token]` pulls it in
-   for the dead-link dress and the simulation viewer. That page never mounts a
-   print document, so printing it hid every element on it and revealed
-   nothing — THE CUSTOMER'S PRINT BUTTON PRODUCED A BLANK PAGE. Found by
-   walking the real link in production, because the rule is invisible in every
-   other medium.
+   HIDE EVERYTHING EXCEPT IT — stated directly, rather than as a hide-then-
+   reveal pair. Two bugs came out of that pair, and the second was caused by
+   fixing the first:
 
-   The `:has()` says what the rule always meant: hide everything else only
-   when there is something to reveal. */
+   1. It was a bare `body *`, and this stylesheet is imported by more than the
+      studio — `/live/[token]` pulls it in for the dead-link dress and the
+      simulation viewer. That page never mounts a print document, so printing
+      it hid every element and revealed nothing: THE CUSTOMER'S PRINT BUTTON
+      PRODUCED A BLANK PAGE.
+   2. Scoping the hide as `body:has(#ds-printdoc) *` fixed that and broke the
+      studio's own print, because `:has()` CONTRIBUTES ITS ARGUMENT'S
+      SPECIFICITY: the hide became (1,0,1) and out-ranked the (1,0,0) reveal
+      it was paired with. Both carried `!important`, so importance tied and
+      specificity decided — and everything, print document included, stayed
+      hidden. A blank PDF.
+
+   Selecting body's other children directly ends the argument: the print
+   document's subtree is never targeted, so there is nothing to reveal and no
+   specificity race to lose. `visibility` inherits, so hiding the siblings
+   hides their contents with them. */
 @media print {
-  body:has(#ds-printdoc) * { visibility: hidden !important; }
-  #ds-printdoc, #ds-printdoc * { visibility: visible !important; }
+  body:has(#ds-printdoc) > *:not(#ds-printdoc) { visibility: hidden !important; }
   #ds-printdoc {
     display: block;
     position: absolute;

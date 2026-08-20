@@ -107,12 +107,21 @@ describe("Summary sheet cascade", () => {
        valid CSS, and no screen rendering of any page shows it. */
     const hide = css.match(/@media print \{[\s\S]*?visibility:\s*hidden[^;]*;/);
     expect(hide).not.toBeNull();
-    expect(hide![0]).toMatch(/body:has\(#ds-printdoc\) \*/);
-    /* and the bare form must not come back under any selector */
+    /* SELECTS THE SIBLINGS, not everything-then-reveal. Scoping the old bare
+       `body *` as `body:has(#ds-printdoc) *` fixed the customer's blank page
+       and broke the studio's own print, because `:has()` CONTRIBUTES ITS
+       ARGUMENT'S SPECIFICITY — the hide became (1,0,1) and out-ranked the
+       (1,0,0) reveal it was paired with, both `!important`, so the print
+       document hid itself. A blank PDF, found by rendering one. */
+    expect(hide![0]).toMatch(/body:has\(#ds-printdoc\) > \*:not\(#ds-printdoc\)/);
+    /* the bare form must not come back under any selector */
     const bare = selectors.filter((sel) =>
       sel.split(",").some((one) => /^body \*$/.test(one.trim()))
     );
     expect(bare).toEqual([]);
+    /* and there must be no hide/reveal pair to lose a specificity race with:
+       nothing inside the print document is hidden, so nothing needs revealing */
+    expect(css).not.toMatch(/#ds-printdoc \*\s*\{[^}]*visibility:\s*visible/);
   });
 
   it("the recents skeleton PAINTS — its block outranks the card it sits in", () => {

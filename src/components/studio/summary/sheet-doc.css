@@ -600,6 +600,61 @@
    fields and the Add-to-job push — cannot be pressed on paper, so the fields
    print as the text they contain and the push does not print at all. */
 @media print {
+  /* PAPER IS NOT A PHONE.
+
+     A4 portrait gives the document about 703px, which the container query
+     above reads as its narrowest case and answers with the block form — the
+     layout drawn for a hand. On paper that is plainly wrong: four rooms
+     became three pages of stacked labels, and the six figures sat two across
+     over three rows, on a sheet with half of page one empty. Seen by
+     rendering an actual PDF; every screen check said it was fine, because on
+     a screen at 703px it IS fine.
+
+     Print resolution is not screen resolution. 10px of CSS is about 7.5pt on
+     paper, which is ordinary table type in a specification — so the table
+     comes back, one size down, and the nine columns fit the 703px the page
+     has. The block form stays where it belongs, on a narrow screen. */
+  .dsd-rt { display: table; font-size: 10px; }
+  .dsd-rt thead { display: table-header-group; }
+  .dsd-rt tbody { display: table-row-group; }
+  .dsd-rt tr { display: table-row; padding: 0; border-bottom: 0; }
+  .dsd-rt th {
+    display: table-cell;
+    font-size: 8px;
+    padding: 0 8px 7px 0;
+  }
+  .dsd-rt td {
+    display: table-cell;
+    font-size: 10px;
+    padding: 7px 8px 7px 0;
+    border-bottom: 1px solid var(--dsd-rule);
+  }
+  .dsd-rt th:last-child,
+  .dsd-rt td:last-child { padding-right: 0; }
+  .dsd-rt th.num,
+  .dsd-rt td.num { text-align: right; }
+  /* the column names are back in the header, so they stop prefixing values */
+  .dsd-rt td[data-l]::before { content: none; }
+  .dsd-rt td.rm { font-size: 10.5px; }
+  .dsd-rt .dsd-cv { min-width: 0; }
+  .dsd-rt .dsd-cv b { font-size: 10.5px; }
+  .dsd-rt .dsd-cv i { display: block; height: 2px; margin-top: 3px; }
+  .dsd-shared { font-size: 8.5px; padding: 1px 6px; }
+
+  /* six figures across, as on a wide screen — three rows of two wasted a
+     third of the first page */
+  .dsd-figs { grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .dsd-figs > div { text-align: center; justify-content: space-between; }
+  .dsd-figs dt { font-size: 7.5px; letter-spacing: 0.06em; }
+  .dsd-figs dd { font-size: 14px; }
+
+  /* and the consumables keep their three shelves rather than stacking */
+  .dsd-consum { grid-template-columns: repeat(3, 1fr); }
+  /* the picklist drops to two, not four: at 703px four cards are 160px each
+     and "MSZ-AP25VGD2" came out as "MSZ-" over "AP25VGD2" */
+  .dsd-pick-g { grid-template-columns: repeat(2, 1fr); }
+  .dsd-grp li b { white-space: nowrap; }
+
   .dsd-pick-act { display: none !important; }
   /* an input on paper is a box drawn around a value; the value is the point */
   .dsd-f {
@@ -609,8 +664,16 @@
     padding: 0 !important;
     margin-left: 0 !important;
   }
-  .dsd-sys,
+  /* A SYSTEM MAY SPAN A PAGE; ITS HEADER MAY NOT LEAVE ITS TABLE.
+
+     `break-inside: avoid` on the whole system block meant a system that did
+     not fit in what was left of a page moved to the next one entire — half of
+     page one was blank on a two-system job. Rows and the band still hold
+     together, which is the part a reader actually needs. */
+  .dsd-sys { break-inside: auto; }
+  .dsd-band { break-inside: avoid; break-after: avoid; }
   .dsd-pick,
   .dsd-mast { break-inside: avoid; }
   .dsd-rt tr { break-inside: avoid; }
+  .dsd-rt thead { break-after: avoid; }
 }

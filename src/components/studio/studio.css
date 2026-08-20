@@ -721,6 +721,68 @@ html[data-ds-display] .dstudio.editing {
   background: rgba(0, 229, 192, 0.07);
   border-color: rgba(0, 229, 192, 0.45);
 }
+
+/* ── the list still loading ──
+   Shapes only: they hold the space the real cards are about to occupy, so the
+   panel does not jump and a click has somewhere to land.
+
+   The sweep matches the shell's route skeleton — slow and low-contrast on
+   purpose, because a fast shimmer reads as an error state — but carries its
+   OWN keyframe rather than borrowing `pkSweep`. This stylesheet is imported
+   by `/live/[token]`, where shell.css is not loaded and a borrowed animation
+   name would silently resolve to nothing. The card sits on the studio's DARK
+   home, so the gradient is white-on-dark rather than `.pk-b`'s dark-on-white.
+
+   It is a card that cannot be pressed: no hover lift, no pointer. */
+@keyframes dsSweep {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.dstudio .ds-rcard.skel { cursor: default; }
+.dstudio .ds-rcard.skel:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+/* BOTH SPECIFICITIES, one declaration block. `.ds-rthumb` carries its own
+   fill and border at (0,2,0) and is written later in this file, so a lone
+   `.ds-skb` loses to it and the thumb animated an EMPTY box — the same shape
+   as the `.fg button` reset trap, hit here by my own rule. The second
+   selector states the paint where it has to win, rather than restating it. */
+.dstudio .ds-skb,
+.dstudio .ds-rcard.skel .ds-rthumb.ds-skb {
+  display: block;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 70%
+  );
+  background-size: 200% 100%;
+  animation: dsSweep 1.6s ease-in-out infinite;
+}
+/* the thumb keeps its own 46px box; the rest are the real lines' heights */
+.dstudio .ds-rcard.skel .ds-rthumb.ds-skb { border-radius: 13px; }
+.dstudio .ds-skb-nm { width: 46%; height: 12px; margin-bottom: 8px; }
+.dstudio .ds-skb-mt { width: 72%; height: 9px; }
+.dstudio .ds-skb-wh { flex: 0 0 auto; width: 52px; height: 9px; }
+/* a whole panel of pulsing blocks is exactly what this setting exists to stop */
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-skb { animation: none; }
+}
+
+/* visually hidden, for the reader who is not looking at shapes */
+.dstudio .ds-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .dstudio .ds-rthumb {
   flex: 0 0 auto;
   display: flex;

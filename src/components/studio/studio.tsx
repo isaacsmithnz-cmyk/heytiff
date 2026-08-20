@@ -187,7 +187,10 @@ export function Studio({
     [planImages]
   );
 
-  const [recents, setRecents] = useState<DesignSummary[]>([]);
+  /* null = the list has not answered yet. THREE STATES, not two: loading,
+     empty, and no-matches. Collapsing the first into the second is how the
+     home screen came to say "No designs yet" to somebody with three. */
+  const [recents, setRecents] = useState<DesignSummary[] | null>(null);
   const [doc, setDoc] = useState<DesignDocument | null>(null);
   const [step, setStep] = useState(0);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "local">(
@@ -205,7 +208,16 @@ export function Studio({
   const [exiting, setExiting] = useState(false);
 
   const refreshRecents = useCallback(() => {
-    void getStore().list().then(setRecents);
+    const store = getStore();
+    /* paint what this machine already knows FIRST — a localStorage read — and
+       let the merged answer replace it when the server gets back. Only a
+       machine that has never opened a design here sees the loading state at
+       all, and then it is telling the truth. */
+    if (store.listLocal)
+      void store.listLocal().then((local) => {
+        if (local.length > 0) setRecents((cur) => cur ?? local);
+      });
+    void store.list().then(setRecents);
   }, [getStore]);
 
   useEffect(() => {
@@ -588,7 +600,8 @@ function Home({
   onDelete,
   onImport,
 }: {
-  recents: DesignSummary[];
+  /** null while the list is still being fetched — see the three states below */
+  recents: DesignSummary[] | null;
   /** arrive with the new-design wizard already open (menu → New) */
   autoNew?: boolean;
   /** offer "start from a ServiceM8 job" on the naming step */
@@ -640,7 +653,9 @@ function Home({
 
   const unpickJob = () => setPicked(null);
 
-  const visible = recents.filter((r) =>
+  const loading = recents === null;
+  const known = recents ?? [];
+  const visible = known.filter((r) =>
     r.name.toLowerCase().includes(query.trim().toLowerCase())
   );
 
@@ -792,7 +807,7 @@ function Home({
           <div className="ds-recent-head">
             <span className="ds-cardt">Recent designs</span>
             <div className="ds-recent-tools">
-              {recents.length > 0 && (
+              {known.length > 0 && (
                 <label className="ds-search">
                   <Icon name="search" size={16} />
                   <input
@@ -830,7 +845,27 @@ function Home({
             </div>
           )}
           {importError && <div className="ds-ierr">{importError}</div>}
-          {visible.length > 0 ? (
+          {loading ? (
+            /* THE SPACE THE LIST IS ABOUT TO OCCUPY, held so the click has
+               somewhere to land — the shell's own `pk-b` sweep, slow and
+               low-contrast because a fast shimmer reads as an error. The
+               status line is for anyone not looking at shapes. */
+            <div className="ds-rlist" aria-busy="true">
+              <span className="ds-sr" role="status">
+                Loading your designs…
+              </span>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="ds-rcard skel" aria-hidden>
+                  <span className="ds-rthumb ds-skb" />
+                  <span className="ds-rbody">
+                    <div className="ds-skb ds-skb-nm" />
+                    <div className="ds-skb ds-skb-mt" />
+                  </span>
+                  <span className="ds-skb ds-skb-wh" />
+                </div>
+              ))}
+            </div>
+          ) : visible.length > 0 ? (
             <div className="ds-rlist">
               {visible.map((r) => (
                 <div
@@ -882,10 +917,10 @@ function Home({
           ) : (
             <div className="ds-rempty">
               <div className="ds-rempty-t">
-                {recents.length ? "No matches" : "No designs yet"}
+                {known.length ? "No matches" : "No designs yet"}
               </div>
               <div className="ds-rempty-s">
-                {recents.length
+                {known.length
                   ? "Nothing matches that search."
                   : "Your recent work will appear here — start your first design on the left."}
               </div>

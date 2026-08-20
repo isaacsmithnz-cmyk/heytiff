@@ -40,11 +40,59 @@ async function menuPick(
 describe("Design Studio shell", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("renders the home hero with an empty recents list", async () => {
+  it("renders the home hero, and settles on an empty recents list", async () => {
     render(localStudio());
     expect(await screen.findByText("New design")).toBeInTheDocument();
     expect(screen.getByText("Recent designs")).toBeInTheDocument();
-    expect(screen.getByText("No designs yet")).toBeInTheDocument();
+    /* AFTER the list answers. This assertion used to run immediately and pass,
+       which is the bug it now guards: "No designs yet" was the empty state AND
+       the loading state, so the home screen told somebody with three designs
+       that they had none for as long as the server took. */
+    expect(await screen.findByText("No designs yet")).toBeInTheDocument();
+  });
+
+  it("HOLDS THE SPACE while the list is still being fetched", async () => {
+    /* a store that never answers — the loading state on its own */
+    const pending = {
+      list: () => new Promise<never>(() => {}),
+      load: async () => null,
+      save: async () => {},
+      remove: async () => {},
+    };
+    render(<Studio store={pending} />);
+    expect(await screen.findByText("New design")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading your designs");
+    /* and it must NOT claim the answer it does not have */
+    expect(screen.queryByText("No designs yet")).not.toBeInTheDocument();
+  });
+
+  it("PAINTS WHAT THIS MACHINE KNOWS before the server answers", async () => {
+    /* the reason the loading state was on screen for over three seconds in
+       production: the merged list waits on the network, and the local index is
+       a localStorage read that was being held behind it */
+    const local = new LocalDesignStore(window.localStorage);
+    const doc = {
+      ...JSON.parse(
+        JSON.stringify({
+          schemaVersion: 9, id: "dsn_local", meta: { name: "Kembla Street", jobNumber: "", client: "", site: "", mode: "blank", createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z", variantLabel: null },
+          settings: { climateZone: null, buildingType: null, sizingBasis: "worst-of-both", units: "mm" },
+          floors: [], objects: [], systems: [], packPins: {}, variants: [], planImport: null, jobLink: null, simApprovals: [],
+        })
+      ),
+    };
+    await local.save(doc);
+
+    const slow = {
+      /* the server, still thinking */
+      list: () => new Promise<never>(() => {}),
+      listLocal: () => local.list(),
+      load: (id: string) => local.load(id),
+      save: async () => {},
+      remove: async () => {},
+    };
+    render(<Studio store={slow} />);
+    expect(await screen.findByText("Kembla Street")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("the new-design wizard names first, then reveals the mode choice", async () => {

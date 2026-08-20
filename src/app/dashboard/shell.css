@@ -4641,18 +4641,29 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .orgcolrow > em { display:block; font-style:normal; margin-bottom:12px; font-size:11px;
   font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
 .fg .orgcol { display:flex; align-items:flex-start; gap:26px; flex-wrap:wrap; }
-/* the miniature document. Fixed width so the preview does not restyle itself
+/* The miniature document. Fixed width so the preview does not restyle itself
    as the card resizes — a preview that reflows is telling you about the card,
-   not about the document. */
-.fg .orgcol-doc { flex:0 0 auto; width:260px; padding:16px 18px 18px; border-radius:14px;
-  background:#fff; border:1px solid #ecedf1; }
-.fg .orgcol-rule { height:3px; border-radius:2px; margin-bottom:12px; }
-.fg .orgcol-doc b { display:block; font-size:17px; font-weight:800; letter-spacing:-.01em; }
-.fg .orgcol-doc > span { display:block; margin-top:3px; font-size:11px; font-weight:600; color:#4b5563; }
-/* #16181d is the documents' own body ink, and the ground under it is the
-   derived wash — the pair `documentTheme` guarantees to 4.5:1 */
-.fg .orgcol-panel { margin-top:12px; padding:9px 11px; border-radius:9px;
-  font-size:11.5px; font-weight:600; line-height:1.45; color:#16181d; }
+   not about the document. Aspect-locked to A4 so the band sits where it will
+   actually sit.
+
+   The band is the SAME construction the real sheets use (sheet-doc.css and the
+   handover page): two filled ends with a white well over them, so the colour
+   survives only where the well turns its corner. Scaled here by the same ratio
+   as the page, so what is on screen is the shape that prints. */
+.fg .orgcol-doc { position:relative; flex:0 0 auto; width:186px; aspect-ratio:210/297;
+  background:#fff; border:1px solid #ecedf1; border-radius:10px; overflow:hidden; }
+/* 8mm gutter and 7.94mm radius, at 186px = 210mm → x0.886 */
+.fg .orgcol-band { position:absolute; left:0; right:0; height:14.1px; pointer-events:none; }
+.fg .orgcol-band.top { top:0; }
+.fg .orgcol-band.bot { bottom:0; }
+.fg .orgcol-well { position:absolute; left:0; right:0; top:7.1px; bottom:7.1px;
+  background:#fff; border-radius:7px; pointer-events:none; }
+/* the sheet's own content, above all three */
+.fg .orgcol-page { position:relative; padding:22px 15px 0; display:flex; flex-direction:column; gap:5px; }
+.fg .orgcol-page b { font-size:11px; font-weight:800; letter-spacing:-.01em; color:#16181d; }
+.fg .orgcol-page span { font-size:7px; font-weight:600; color:#4b5563; }
+.fg .orgcol-page i { display:block; height:3px; border-radius:2px; background:#eef0f3; margin-top:3px; }
+.fg .orgcol-page i.short { width:58%; }
 .fg .orgcol-pick { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-top:2px; }
 /* A native colour input is a button with a swatch in it and no two browsers
    dress it alike; the padding/border reset is what makes the swatch fill the

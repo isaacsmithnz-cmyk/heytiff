@@ -45,6 +45,67 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── the business's band ───────────────────────────────────────────────────
+   THE SHAPE IS `.fg .outlet`'S, and deliberately: two filled rectangles at the
+   head and foot with a white well laid over them, so the colour survives only
+   where the well turns its corner. It runs deepest at the page edges and thins
+   across the middle — the sheet sits in the well the way a screen does in the
+   dark shell.
+
+   THE RADIUS IS THE SHELL'S OWN 30px, converted rather than guessed: 30px at
+   96dpi is 7.94mm, which is what a printed sheet needs to be told. Note that
+   the same measurement is a BIGGER corner on paper — 30px is 2.08% of a 1440px
+   viewport and 3.78% of a 210mm page — so this is a deliberate literal match,
+   not a proportional one. Circular, as the shell's is, so the sweep across the
+   page and the depth of the dip are one number instead of two.
+
+   The gutter is 8mm rather than the shell's 4.23mm (its 16px). At the shell's
+   own figure the band read as a hairline on a sheet this size.
+
+   IT CARRIES NOTHING. No logo, no contact line, no page number — which is the
+   entire reason this treatment was chosen over a letterhead band. Nothing on
+   it means no contrast floor to clear and no reversed artwork to ask a
+   business for, and it measures 3.29% of an A4 sheet against the letterhead
+   band's 13.3%.
+
+   UNTHEMED IS THE ABSENCE OF A CODE PATH: with no brand colour `--doc-ink` is
+   never set, the fallback below is `transparent`, and the sheet is exactly the
+   one it has always been. */
+.dsd { position: relative; }
+.dsd-bband {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(8mm + 7.94mm);          /* gutter + radius = depth at the edge */
+  background: var(--doc-ink, transparent);
+  pointer-events: none;
+  /* a fill a browser would otherwise drop to save ink — and this one IS the
+     branding, so it is the last thing that should go */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.dsd-bband.top { top: 0; }
+.dsd-bband.bot { bottom: 0; }
+/* The well. White, full width, inset from head and foot by the gutter; its
+   four rounded corners are the only places the band survives across the
+   middle. */
+.dsd-bwell {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 8mm;
+  bottom: 8mm;
+  background: #fff;
+  border-radius: 7.94mm;
+  pointer-events: none;
+}
+/* the document's own content paints above all three. Scoped to the CONTENT:
+   a `.dsd > *` rule would also match the three layers above at equal
+   specificity and, coming later, would strip their position:absolute. */
+.dsd > *:not(.dsd-bband):not(.dsd-bwell) { position: relative; }
+/* and the content clears the band at both ends */
+.dsd { padding-top: calc(8mm + 7.94mm + 6mm); padding-bottom: calc(8mm + 7.94mm + 6mm); }
+
 /* ── masthead ── */
 .dsd-mast {
   display: grid;

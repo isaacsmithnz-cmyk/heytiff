@@ -22,6 +22,11 @@ export type OrgBrand = {
   /** SIGNED at render and short-lived — never a stored URL. Null when there
       is no logo, or when the link could not be minted. */
   logoUrl: string | null;
+  /** The ONE seed colour, lowercase #rrggbb, or null for no theme. Never
+      painted: `documentTheme` in theme.ts derives what a document may use.
+      Deliberately not part of `hasBrand` — a colour with no name and no logo
+      is not a letterhead, and must not displace a surface's own wording. */
+  color: string | null;
   abn: string | null;
   phone: string | null;
   email: string | null;
@@ -33,6 +38,7 @@ export type OrgBrand = {
 export const NO_BRAND: OrgBrand = {
   name: "",
   logoUrl: null,
+  color: null,
   abn: null,
   phone: null,
   email: null,

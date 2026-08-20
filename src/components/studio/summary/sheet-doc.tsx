@@ -11,6 +11,7 @@ import type {
 import { hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { fmt, pct, SHEET_GROUPS, tone } from "./sheet-tables";
 import "./sheet-doc.css";
+import { themeVars } from "@/lib/org/theme";
 
 /* THE DESIGN AS A DOCUMENT — one artifact, rendered wherever it is needed.
 
@@ -485,7 +486,25 @@ export function SheetDoc({
   children?: React.ReactNode;
 }) {
   return (
-    <article className="dsd">
+    <article className="dsd" style={themeVars(brand.color)}>
+      {/* THE BUSINESS'S BAND, at the head and foot of the sheet.
+
+          Two filled rectangles and a white well on top of them, which is the
+          construction `.fg .outlet` uses against the dark shell: the fill only
+          survives where the well turns its corner, so the colour runs deepest
+          at the page edges and thins across the middle.
+
+          It carries NOTHING — no logo, no contact line, no page number — and
+          that is the whole reason it is the treatment we shipped. A band with
+          text on it needs a reversed logo the business may not own and a
+          contrast floor on every word; this needs one colour and nothing else.
+
+          Rendered unconditionally: with no brand colour `--doc-ink` is unset,
+          the fallback is `transparent`, and the sheet is byte-for-byte the one
+          it is today. */}
+      <div className="dsd-bband top" aria-hidden="true" />
+      <div className="dsd-bband bot" aria-hidden="true" />
+      <div className="dsd-bwell" aria-hidden="true" />
       {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}

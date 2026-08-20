@@ -5,6 +5,7 @@ import {
   documentTheme,
   parseHex,
   THEME_CONTRACT,
+  themeVars,
   type DocumentTheme,
 } from "../theme";
 
@@ -15,13 +16,13 @@ import {
    runtime, so there is no literal in any sheet to find. The only thing left to
    assert is the DERIVATION — so this sweeps the colour space instead of
    checking examples, and the claim it makes is total: whatever anyone picks,
-   every role clears the floor for the ground it is declared against.
+   the band clears the floor against the paper it is printed on.
 
-   Floors and grounds come from THEME_CONTRACT rather than being restated here.
-   A test carrying its own copy of 4.5 and #16181d can agree with itself
-   perfectly while disagreeing with the code it is guarding. */
+   The floor comes from THEME_CONTRACT rather than being restated here. A test
+   carrying its own copy of 4.5 can agree with itself perfectly while
+   disagreeing with the code it is guarding. */
 
-const { PAPER, DOC_INK, TEXT_FLOOR, GRAPHIC_FLOOR, TINT_FLOOR } = THEME_CONTRACT;
+const { PAPER, TEXT_FLOOR } = THEME_CONTRACT;
 
 /** HSL is fine for GENERATING seeds — the point is to spray the space, not to
     make claims about perceived lightness (which is exactly what HSL cannot
@@ -81,16 +82,13 @@ const theme = (seed: string): DocumentTheme => {
    much. */
 function breaches(seed: string, t: DocumentTheme): string[] {
   const checks: [string, number, number][] = [
-    // `ink` is one value read two ways: brand text ON paper, and white text
-    // on a brand fill. Both are the same equation, so both are checked.
-    ["ink as text on paper", contrast(rgb(t.ink), PAPER), TEXT_FLOOR],
-    ["white text on the ink fill", contrast(PAPER, rgb(t.ink)), TEXT_FLOOR],
-    ["document ink on the wash", contrast(DOC_INK, rgb(t.wash)), TEXT_FLOOR],
-    ["rule on paper", contrast(rgb(t.rule), PAPER), GRAPHIC_FLOOR],
+    // the band is a fill on white paper; the floor is what keeps a pale brand
+    // colour from printing a band nobody can see
+    ["ink on paper", contrast(rgb(t.ink), PAPER), TEXT_FLOOR],
   ];
   return checks
     .filter(([, got, floor]) => got < floor)
-    .map(([role, got, floor]) => `${seed} → ${role}: ${got.toFixed(2)}:1, needs ${floor}:1`);
+    .map(([role, got, floor]) => seed + " -> " + role + ": " + got.toFixed(2) + ":1, needs " + floor + ":1");
 }
 
 describe("documentTheme — legible whatever anyone picks", () => {
@@ -104,12 +102,11 @@ describe("documentTheme — legible whatever anyone picks", () => {
     expect(breaches(seed, theme(seed))).toEqual([]);
   });
 
-  /* The floors are the POINT, so a mutation that widens them has to fail
-     loudly rather than quietly making every other test in here easier. */
-  it("holds the floors it was written against", () => {
+  /* The floor is the POINT, so widening it has to fail loudly rather than
+     quietly making every other test in here easier — the sweep reads the floor
+     from the contract, so a wider one passes all 540 seeds vacuously. */
+  it("holds the floor it was written against", () => {
     expect(TEXT_FLOOR).toBe(4.5);
-    expect(GRAPHIC_FLOOR).toBe(3);
-    expect(DOC_INK).toEqual([0x16, 0x18, 0x1d]);
   });
 });
 
@@ -206,52 +203,7 @@ describe("documentTheme — least change that works", () => {
     }
   });
 
-  /* THE WASH IS A TINT, AND CONTRAST CANNOT TELL YOU THAT.
 
-     This is the assertion the first version of this file did not have, and the
-     bug it would have caught shipped as far as a rendered document before
-     anybody saw it. `wash` followed "least change" like every other role, so a
-     light seed — which already carries DOC_INK, #ffff00 measures 16:1 — moved
-     ZERO. The wash was the raw brand colour, the panel on the mock handover
-     sheet came out as a full sheet of highlighter yellow, and every contrast
-     test passed while it did.
-
-     Legibility is the floor for this role, not the goal. So the claim under
-     test is a distance: the wash must sit at least TINT_FLOOR of the way from
-     the seed to paper, whatever the seed was. */
-  it("mixes the wash into the paper even when the raw colour would already pass", () => {
-    for (const seed of ["#ffff00", "#00e5c0", "#1a2b4c", "#000000", "#ff00ff", ...SWEEP]) {
-      const s = rgb(seed);
-      const w = rgb(theme(seed).wash);
-      for (let i = 0; i < 3; i++) {
-        const gap = 255 - s[i]; // how far this channel could travel
-        if (gap === 0) continue; // already at paper; nothing to measure
-
-        /* THE TOLERANCE IS THE ROUNDING, DERIVED not guessed. Each channel is
-           rounded to 8 bits independently, so the mix can land up to half a
-           step short — which is half a step out of `gap`, and on a narrow gap
-           that is a lot. A pale pink seed with a red gap of 13 travels 0.846
-           against a floor of 0.88, and is correct. A flat tolerance either
-           fails that or is loose enough to miss a real regression; this is
-           tight everywhere and exactly as loose as 8 bits require. */
-        const travelled = (w[i] - s[i]) / gap;
-        expect(travelled).toBeGreaterThanOrEqual(TINT_FLOOR - 0.5 / gap - 1e-9);
-      }
-    }
-  });
-
-  it("holds the tint floor it was written against", () => {
-    expect(TINT_FLOOR).toBe(0.88);
-  });
-
-  it("is a rule lighter than its own text, never darker", () => {
-    for (const seed of ["#ffff00", "#1a2b4c", "#808080", "#00e5c0"]) {
-      const t = theme(seed);
-      expect(contrast(rgb(t.rule), PAPER)).toBeLessThanOrEqual(
-        contrast(rgb(t.ink), PAPER)
-      );
-    }
-  });
 });
 
 describe("documentTheme — refusing rather than throwing", () => {
@@ -290,5 +242,45 @@ describe("documentTheme — never state", () => {
     for (const state of ["#00A389", "#00a389", "#e0264f", "#E0264F"]) {
       expect(code).not.toContain(state);
     }
+  });
+});
+
+/* HOW A DOCUMENT RECEIVES THE THEME.
+
+   The promise this pins is the one that is easiest to break and hardest to
+   notice: a business with no colour must get the document it has today. That
+   works by NOT SETTING THE VARIABLE — every themed declaration is written
+   `var(--doc-ink, <the value it already had>)`, so "unthemed" is the absence
+   of a code path rather than a branch somebody has to keep correct. An empty
+   object here is the whole mechanism. */
+describe("themeVars", () => {
+  it("sets nothing at all when there is no colour", () => {
+    expect(themeVars(null)).toEqual({});
+    expect(themeVars("")).toEqual({});
+  });
+
+  it("sets nothing for a value it cannot read, rather than throwing in a print path", () => {
+    expect(themeVars("rebeccapurple")).toEqual({});
+    expect(themeVars("#gggggg")).toEqual({});
+  });
+
+  it("hands the document the derived colour, never the raw seed", () => {
+    // yellow cannot be printed as picked; the variable must carry what the
+    // derivation returned, not what the owner chose
+    const v = themeVars("#ffff00") as Record<string, string>;
+    expect(v["--doc-ink"]).toBe(documentTheme("#ffff00")!.ink);
+    expect(v["--doc-ink"]).not.toBe("#ffff00");
+  });
+
+  it("passes a colour that already reads on paper straight through", () => {
+    const v = themeVars("#004885") as Record<string, string>;
+    expect(v["--doc-ink"]).toBe("#004885");
+  });
+
+  /* `--doc-*`, not `--brand-*`: these reach documents only, and a token named
+     for the brand would eventually be reached for inside `.fg`, which is the
+     one place the rules say a customer's colour must never go. */
+  it("names the variable for the document, not for the brand", () => {
+    expect(Object.keys(themeVars("#004885"))).toEqual(["--doc-ink"]);
   });
 });

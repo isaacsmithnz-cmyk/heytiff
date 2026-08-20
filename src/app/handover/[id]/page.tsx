@@ -8,6 +8,7 @@ import { deriveProjectMoney, fmtAud } from "@/lib/workboard/project-money";
 import { orgBrand } from "@/lib/org/query";
 import { hasBrand } from "@/lib/org/brand";
 import { Letterhead } from "@/components/org/letterhead";
+import { themeVars } from "@/lib/org/theme";
 import { PrintButton } from "./print-button";
 
 /* The handover sheet — the generated deliverable the whole projects feature
@@ -20,7 +21,26 @@ import { PrintButton } from "./print-button";
    twice. Print styles ride along in the page: one file, one deliverable. */
 
 const CSS = `
-  .ho { max-width: 780px; margin: 0 auto; padding: 40px 28px 64px; color: #16181d;
+  /* THE BUSINESS BAND — the same construction and the same numbers as the
+     design sheet (components/studio/summary/sheet-doc.css). Two filled ends
+     with a white well over them, so the colour survives only where the well
+     turns its corner. The radius is the app shell's own 30px converted at
+     96dpi (7.94mm); the gutter is 8mm, wider than the shell's 4.23mm, which
+     read as a hairline at this size. Carries nothing, so no contrast floor and
+     no reversed artwork. With no brand colour set the fallback is transparent
+     and this sheet is exactly the one it has always been. */
+  .ho-band { position: absolute; left: 0; right: 0; height: calc(8mm + 7.94mm);
+    background: var(--doc-ink, transparent); pointer-events: none;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ho-band.top { top: 0; }
+  .ho-band.bot { bottom: 0; }
+  .ho-well { position: absolute; left: 0; right: 0; top: 8mm; bottom: 8mm;
+    background: #fff; border-radius: 7.94mm; pointer-events: none; }
+  .ho-sheet { position: relative; min-height: 100vh; }
+  /* scoped to the CONTENT: a '.ho-sheet > *' rule would also match the two
+     layers above at equal specificity and strip their position:absolute */
+  .ho-sheet > .ho { position: relative; }
+  .ho { max-width: 780px; margin: 0 auto; padding: calc(8mm + 7.94mm + 14mm) 28px calc(8mm + 7.94mm + 14mm); color: #16181d;
     font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif); font-size: 13.5px; line-height: 1.5; }
   .ho h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0 4px; }
   .ho h2 { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
@@ -68,7 +88,11 @@ const CSS = `
     .ho-print { display: none; }
     /* the band must not be orphaned at the foot of a page from its own sheet */
     .ho-head { break-after: avoid; }
-    .ho { padding: 0; max-width: none; }
+    .ho { padding: calc(8mm + 7.94mm + 10mm) 0 calc(8mm + 7.94mm + 10mm); max-width: none; }
+    /* fixed, so the band repeats on every printed sheet rather than only the
+       first and last. UNVERIFIED against a real printer - see the PR. */
+    .ho-band, .ho-well { position: fixed; }
+    .ho-sheet { min-height: 0; }
     @page { margin: 16mm; }
   }
 `;
@@ -103,8 +127,15 @@ export default async function HandoverSheetPage({
   });
 
   return (
-    <main className="ho">
+    <div className="ho-sheet" style={themeVars(brand.color)}>
       <style>{CSS}</style>
+      {/* THE BUSINESS'S BAND. Carries nothing and is announced to nobody: it is
+          decoration, and a screen reader reading out a coloured rectangle is
+          reading out something that is not there. */}
+      <div className="ho-band top" aria-hidden="true" />
+      <div className="ho-band bot" aria-hidden="true" />
+      <div className="ho-well" aria-hidden="true" />
+      <main className="ho">
       <PrintButton />
 
       {/* WHO SENT THIS. The sheet is the deliverable a customer is handed at
@@ -263,5 +294,6 @@ export default async function HandoverSheetPage({
         </p>
       )}
     </main>
+    </div>
   );
 }

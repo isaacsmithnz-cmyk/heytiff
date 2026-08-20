@@ -146,7 +146,7 @@ export async function orgBrand(
 ): Promise<OrgBrand> {
   const { data } = await supabaseAdmin
     .from("organizations")
-    .select("trading_name, legal_name, abn, phone, email, website, logo_url")
+    .select("trading_name, legal_name, abn, phone, email, website, logo_url, brand_color")
     .eq("id", orgId)
     .maybeSingle();
   if (!data) return NO_BRAND;
@@ -159,6 +159,7 @@ export async function orgBrand(
   return {
     name: str(data.trading_name) ?? str(data.legal_name) ?? "",
     logoUrl: await signOne(data.logo_url as string | null, opts.seconds),
+    color: str(data.brand_color),
     abn: str(data.abn),
     phone: str(data.phone),
     email: str(data.email),

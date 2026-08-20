@@ -106,6 +106,7 @@ const BRAND: OrgBrand = {
   phone: "02 4225 1188",
   email: null,
   website: null,
+  color: null,
 };
 
 function renderSheet(

@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 /* THE DOCUMENT THEME — a business's brand colour, made safe to print on.
 
    WHY THIS IS A FUNCTION AND NOT A SETTING. Every contrast guard in this repo
@@ -25,44 +27,40 @@
    2. THE BRAND COLOUR NEVER TOUCHES APP CHROME. The dashboard is HeyTiff's
       product; the documents are the business's. Nothing in here is for `.fg`.
 
-   3. PRINT IS ITS OWN BUDGET. `ink` and `rule` are nearly free on paper.
-      `ink` used as a large FILL is not, and a browser drops backgrounds unless
-      told otherwise — a surface using it that way owes a print-color-adjust. */
+   3. PRINT IS ITS OWN BUDGET, and the band spends it. `ink` is a FILL, which
+      a browser drops unless told otherwise, so the surfaces painting it owe a
+      print-color-adjust. Measured on a rendered A4, the shipped frame inks
+      6.89% of the sheet, on every page of every document for every org because
+      the frame is the default. Worth keeping in view: the two side strips run
+      the full height, so a frame costs well over twice what the same thickness
+      costs as a head-and-foot band — 4mm here against 2.9% for a 4mm band. The
+      letterhead band this treatment replaced was 13.3%. */
 
 /** The paper every one of these documents is printed on. */
 const PAPER: RGB = [255, 255, 255];
 
-/** The documents' own body ink — the literal in letterhead.css and in the
-    handover sheet's stylesheet. `wash` is derived to carry THIS, so if that
-    value ever moves, this moves with it or the wash quietly stops passing. */
-const DOC_INK: RGB = [0x16, 0x18, 0x1d];
-
-/** WCAG 2.1 AA: 4.5:1 for body text, 3:1 for a boundary that carries meaning. */
+/** WCAG 2.1 AA body-text contrast. The band is decoration and is not held to
+    this by the standard — it is held to it here so a pale brand colour still
+    produces a band you can see on white paper. */
 const TEXT_FLOOR = 4.5;
-const GRAPHIC_FLOOR = 3;
-
-/** How far a wash is mixed into the paper before legibility is even asked
-    about — see the note in `documentTheme`. Not a contrast number and not
-    derived from one: it is what makes a tint a tint rather than a fill. */
-const TINT_FLOOR = 0.88;
 
 type RGB = readonly [number, number, number];
 
-/** What a document may paint with. Three roles, because there are only three
-    distinct EQUATIONS — see `documentTheme`. */
+/** What a document may paint with. ONE role, because the treatment turned out
+    to need one: the band at the head and foot of the sheet carries nothing —
+    no text, no logo — so `ink` is the only value any surface asks for.
+
+    `wash` and `rule` were here and are gone. They were derived for a design
+    that put the brand colour into panel fills and section rules, which is the
+    design we did not build: the band replaced it precisely to keep the colour
+    away from text and away from every contrast question that follows. Roles
+    kept "in case" are how a palette rots. */
 export type DocumentTheme = {
-  /** The brand colour as text on paper, and as a fill under white text. Both
-      readings are the same equation, so they are deliberately the same value:
-      a heading and a block in "the brand colour" that disagreed would be two
-      brand colours. */
+  /** The brand colour, darkened only as far as it must be to clear 4.5:1 on
+      paper. The band is decorative and WCAG asks nothing of it, but the floor
+      is kept anyway: it is what stops a business that picks pale yellow from
+      printing a band nobody can see. */
   ink: string;
-  /** A tint pale enough to lay the document's own near-black ink on top of. */
-  wash: string;
-  /** Hairlines and boundaries. Never darker than `ink`, and lighter whenever
-      the seed had to travel to reach the text floor — a colour that already
-      cleared both floors is simply itself in both roles, which is right: it is
-      the brand colour, and nothing asked for two of them. */
-  rule: string;
 };
 
 /* ── colour maths ─────────────────────────────────────────────────────────
@@ -120,16 +118,6 @@ const toHex = (c: RGB): string =>
 const darken = (c: RGB, k: number): RGB =>
   [toSrgb(toLinear(c[0]) * k), toSrgb(toLinear(c[1]) * k), toSrgb(toLinear(c[2]) * k)] as const;
 
-/* Lightening mixes toward white in sRGB, deliberately NOT in linear light: a
-   tint is supposed to lose chroma as it approaches paper, and linear-light
-   mixing holds saturation so hard that a pale wash comes out fluorescent. */
-const lighten = (c: RGB, t: number): RGB =>
-  [
-    Math.round(c[0] + (255 - c[0]) * t),
-    Math.round(c[1] + (255 - c[1]) * t),
-    Math.round(c[2] + (255 - c[2]) * t),
-  ] as const;
-
 /* Find the least modification that still clears the floor.
 
    THE SEARCH RUNS ON QUANTISED VALUES, which is the detail that makes this
@@ -144,8 +132,8 @@ const lighten = (c: RGB, t: number): RGB =>
    it changed no test, which is the only reason to believe it did nothing.)
 
    `amount` runs 0 → 1 as "more modification", so both roles search the same
-   direction and termination is provable: at 1 the value is black (for darken)
-   or white (for lighten), and both of those clear every floor used here. */
+   direction and termination is provable: at 1 the value is black, which clears
+   the floor against paper by a mile. */
 function leastChange(
   apply: (amount: number) => RGB,
   passes: (c: RGB) => boolean
@@ -153,8 +141,7 @@ function leastChange(
   if (passes(apply(0))) return apply(0);
 
   let lo = 0; // known to fail
-  let hi = 1; // known to pass: at 1 the value is black (darken) or white
-  //            (lighten), which are 21:1 on paper and ~16:1 under DOC_INK
+  let hi = 1; // known to pass: at 1 the value is black, 21:1 on paper
   for (let i = 0; i < 24; i++) {
     const mid = (lo + hi) / 2;
     if (passes(apply(mid))) hi = mid;
@@ -170,49 +157,105 @@ function leastChange(
 export function documentTheme(seed: string): DocumentTheme | null {
   const rgb = parseHex(seed);
   if (!rgb) return null;
-
-  /* `ink` and `wash` search in opposite directions from the same seed, and
-     `rule` is `ink`'s equation at the graphic floor — which is why it lands
-     lighter, not by being told to. */
-  const ink = leastChange(
-    (k) => darken(rgb, 1 - k),
-    (c) => contrast(c, PAPER) >= TEXT_FLOOR
-  );
-  const rule = leastChange(
-    (k) => darken(rgb, 1 - k),
-    (c) => contrast(c, PAPER) >= GRAPHIC_FLOOR
-  );
-  /* THE WASH STARTS AT THE TINT FLOOR, and does not get to skip it.
-
-     Every other role here follows "least change", because for those, staying
-     close to the chosen colour is the goal and legibility is the constraint.
-     For a wash it is the other way round: a wash IS a pale tint, and 4.5:1 is
-     a floor rather than a target.
-
-     Least change alone got this wrong in a way no contrast test could catch.
-     A light seed already carries DOC_INK — #ffff00 under #16181d measures
-     16:1 — so the search stopped at t=0 and the "wash" was the raw brand
-     colour. Rendered, the panel on a handover sheet was a full sheet of
-     highlighter yellow. Legible, passing, and not something anyone would send
-     a customer. It took drawing the document to see it.
-
-     So the search runs over the range ABOVE the floor: t=0 is a colour already
-     mixed 88% into the paper, and the seed itself is no longer reachable. */
-  const wash = leastChange(
-    (t) => lighten(rgb, TINT_FLOOR + (1 - TINT_FLOOR) * t),
-    (c) => contrast(DOC_INK, c) >= TEXT_FLOOR
-  );
-
-  return { ink: toHex(ink), wash: toHex(wash), rule: toHex(rule) };
+  return {
+    ink: toHex(
+      leastChange(
+        (k) => darken(rgb, 1 - k),
+        (c) => contrast(c, PAPER) >= TEXT_FLOOR
+      )
+    ),
+  };
 }
+
+/* HOW A DOCUMENT RECEIVES THE THEME, and why it is variables rather than
+   inline colours on every element.
+
+   EVERY DOCUMENT GETS THE BAND. A business that has chosen no colour gets it
+   in the ink the sheet already prints in, so the treatment is part of the
+   document rather than a reward for visiting a settings page. Setting a colour
+   changes what the band is, never whether there is one.
+
+   That is a deliberate reversal. This used to return an EMPTY object with no
+   colour, so an unthemed sheet was byte-for-byte the one it had always been —
+   safe, and it meant most orgs never saw the design at all.
+
+   THE GEOMETRY TRAVELS WITH THE COLOUR, and that is not decoration. The band
+   takes space: the sheet has to be padded clear of it, and the two must never
+   disagree. Written into the stylesheets as a constant, the padding once
+   applied to every document while the band did not — 22mm of white space at
+   each end of a sheet with nothing at the top of it. Shipping both through
+   this one object is what makes that impossible.
+
+   The names are `--doc-*` and not `--brand-*`: these reach documents only. The
+   app's own chrome must never resolve them, and a token called `--brand-ink`
+   would eventually be reached for inside `.fg` by someone reading the name
+   rather than this comment.
+
+   A `import type` only — this stays a pure module with no runtime React, so
+   the client components that print can still import it. The cast is needed
+   because React types custom properties as unknown keys. */
+export function themeVars(seed: string | null): CSSProperties {
+  const t = seed ? documentTheme(seed) : null;
+  return {
+    "--doc-ink": t ? t.ink : BAND.default,
+    "--doc-gutter": BAND.gutter,
+    "--doc-radius": BAND.radius,
+    "--doc-band": `calc(${BAND.gutter} + ${BAND.radius})`,
+    /* what the SHEET must pad to clear the band. Computed here rather than in
+       CSS because `calc(var(--doc-band, 0px) + 6mm)` is 6mm when the variable
+       is absent, not 0 — and 6mm of new white space on every unthemed document
+       is exactly the bug this object exists to prevent. */
+    "--doc-pad": `calc(${BAND.gutter} + ${BAND.radius} + ${BAND.clear})`,
+    /* the frame takes width as well as height, so the sheet's own horizontal
+       padding has to move in by the gutter or the first character sits on it */
+    "--doc-side": BAND.gutter,
+  } as CSSProperties;
+}
+
+/* THE BAND'S GEOMETRY, in one place because three stylesheets draw it.
+
+   `radius` is the app shell's own corner, converted rather than guessed:
+   `.fg .outlet` is `border-radius: 40px 30px 30px 30px`, and 30px at 96dpi is
+   7.94mm. It is a LITERAL match, not a proportional one — the same measurement
+   is a bigger corner on paper (30px is 2.08% of a 1440px viewport and 3.78% of
+   a 210mm page) and that is the intended reading, because a radius is an
+   absolute token here and this one has to survive being printed at A5 or A3.
+
+   `gutter` is the frame's thickness on every edge, and it is the number to
+   move — everything else here is fixed. It is not the shell's own
+   4.23mm (its 16px), which read as a hairline at A4, and it is not the 16mm it
+   briefly was, which read as a header block once seen at full size. Its depth
+   at the page edge is gutter + radius, because the well's corner is what
+   carves the middle away.
+
+   Measured on a rendered A4 as a FRAME, since the arithmetic here is easy to
+   get wrong and adding the sides changed it a lot: 4mm inks 6.89% of the
+   sheet, 5mm 8.46%, 6mm 10.01% and 8mm 13.09%. The same 8mm as a head-and-foot
+   band was 5.47%, which is the trap — a frame is not a band with more edges,
+   it is roughly two and a half times the ink. */
+const BAND = {
+  gutter: "4mm",
+  radius: "7.94mm",
+  /** breathing room between the band and the first line of the document */
+  clear: "6mm",
+  /* THE DEFAULT BAND, for a business that has chosen no colour.
+
+     Not #000000. This is the ink the letterhead and the handover sheet already
+     print their headings in, so the band reads as part of the document instead
+     of as a black bar laid on top of one. Pure black matches nothing else on
+     these sheets — the design sheet's own body ink is #050505 and the
+     handover sheet's is this — and on a solid 24mm band the difference between
+     black and near-black is the difference between a funeral notice and a
+     letterhead.
+
+     It is also the one value to change if true black is ever wanted. */
+  default: "#16181d",
+} as const;
 
 /** The grounds and floors, exported for the guard that proves the derivation
     — a test that restated them could agree with itself while disagreeing with
     the code. */
 export const THEME_CONTRACT = {
   PAPER,
-  DOC_INK,
   TEXT_FLOOR,
-  GRAPHIC_FLOOR,
-  TINT_FLOOR,
 } as const;

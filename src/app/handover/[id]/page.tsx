@@ -8,6 +8,7 @@ import { deriveProjectMoney, fmtAud } from "@/lib/workboard/project-money";
 import { orgBrand } from "@/lib/org/query";
 import { hasBrand } from "@/lib/org/brand";
 import { Letterhead } from "@/components/org/letterhead";
+import { themeVars } from "@/lib/org/theme";
 import { PrintButton } from "./print-button";
 
 /* The handover sheet — the generated deliverable the whole projects feature
@@ -20,7 +21,35 @@ import { PrintButton } from "./print-button";
    twice. Print styles ride along in the page: one file, one deliverable. */
 
 const CSS = `
-  .ho { max-width: 780px; margin: 0 auto; padding: 40px 28px 64px; color: #16181d;
+  /* THE BUSINESS FRAME — the same construction and the same numbers as the
+     design sheet (components/studio/summary/sheet-doc.css). One filled
+     rectangle behind the sheet with a white well inset on ALL FOUR sides and
+     rounded at the corners, which is '.fg .outlet' exactly. Carries nothing,
+     so no contrast floor and no reversed artwork.
+
+     It was a head and a foot only and it did not read - a band that stops at
+     the left and right edges looks like two bars rather than a frame around a
+     page. The sides cost: two strips the full height of the sheet, so the same
+     8mm that inked 5.47% as a band inks 13.09% as a frame.
+
+     EVERY NUMBER COMES FROM themeVars, which always returns a full set: a
+     business that has chosen no colour gets the band in this sheet's own ink
+     rather than no band. The fallbacks here are the values the sheet had
+     before, so a missing variable degrades to the old document rather than to
+     a broken one.
+
+     The frame REPLACES the sheet's old margins rather than stacking on them -
+     it is occupying that space, not sitting outside it. */
+  .ho-band { position: absolute; inset: 0;
+    background: var(--doc-ink, transparent); pointer-events: none;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ho-well { position: absolute; inset: var(--doc-gutter, 0px);
+    background: #fff; border-radius: var(--doc-radius, 0px); pointer-events: none; }
+  .ho-sheet { position: relative; min-height: 100vh; }
+  /* scoped to the CONTENT: a '.ho-sheet > *' rule would also match the two
+     layers above at equal specificity and strip their position:absolute */
+  .ho-sheet > .ho { position: relative; }
+  .ho { max-width: 780px; margin: 0 auto; padding: var(--doc-pad, 40px) calc(28px + var(--doc-side, 0px)) var(--doc-pad, 64px); color: #16181d;
     font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif); font-size: 13.5px; line-height: 1.5; }
   .ho h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0 4px; }
   .ho h2 { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
@@ -68,7 +97,11 @@ const CSS = `
     .ho-print { display: none; }
     /* the band must not be orphaned at the foot of a page from its own sheet */
     .ho-head { break-after: avoid; }
-    .ho { padding: 0; max-width: none; }
+    .ho { padding: var(--doc-pad, 0px) var(--doc-side, 0px); max-width: none; }
+    /* fixed, so the band repeats on every printed sheet rather than only the
+       first and last. UNVERIFIED against a real printer - see the PR. */
+    .ho-band, .ho-well { position: fixed; }
+    .ho-sheet { min-height: 0; }
     @page { margin: 16mm; }
   }
 `;
@@ -103,8 +136,14 @@ export default async function HandoverSheetPage({
   });
 
   return (
-    <main className="ho">
+    <div className="ho-sheet" style={themeVars(brand.color)}>
       <style>{CSS}</style>
+      {/* THE BUSINESS'S BAND. Carries nothing and is announced to nobody: it is
+          decoration, and a screen reader reading out a coloured rectangle is
+          reading out something that is not there. */}
+      <div className="ho-band" aria-hidden="true" />
+      <div className="ho-well" aria-hidden="true" />
+      <main className="ho">
       <PrintButton />
 
       {/* WHO SENT THIS. The sheet is the deliverable a customer is handed at
@@ -263,5 +302,6 @@ export default async function HandoverSheetPage({
         </p>
       )}
     </main>
+    </div>
   );
 }

@@ -38,10 +38,22 @@ export function BrandColorPicker({
      commits — see `commit`. */
   const [draft, setDraft] = useState(value ?? DEFAULT_SEED);
   const [typed, setTyped] = useState(value ?? "");
+  /* Whether the picker has been TOUCHED, which is not the same as whether a
+     colour is saved. The colour input has to open on something, so `draft`
+     carries a seed from the first render — previewing THAT would show a band
+     in a colour nobody chose. Until it is touched the preview shows the real
+     default instead. */
+  const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const theme = documentTheme(draft);
+  // transparent, not a grey stand-in: no colour means no band, which is what
+  // an unthemed document actually does
+  /* There is always a band; the colour decides what it is, not whether it
+     exists. With nothing chosen this previews the default the documents
+     actually use, so the control never shows a sheet the app cannot produce. */
+  const ink = theme && (value || touched) ? theme.ink : DEFAULT_BAND;
 
   const commit = async (hex: string) => {
     setError(null);
@@ -75,23 +87,27 @@ export function BrandColorPicker({
 
   return (
     <div className="orgcol">
-      {/* The document. Inert — no role, no labels, nothing to tab to: it is a
-          picture of an outcome, and a screen reader announcing a fake masthead
-          would be reading out something that does not exist yet. The colours
-          it is painted in are the whole message, and they are not information
-          a screen reader can use. */}
+      {/* THE DOCUMENT, and it shows the BAND because the band is what the
+          colour does. This preview and the real sheets are the same shape and
+          the same two numbers — 8mm gutter, 7.94mm radius (the app shell's own
+          30px, converted at 96dpi) — scaled down together.
+
+          Inert: no role, no labels, nothing to tab to. It is a picture of an
+          outcome, and a screen reader announcing a coloured rectangle would be
+          reading out something that is not there.
+
+          What is drawn is never the colour that was picked. `documentTheme`
+          darkens it only as far as it must to stay visible on white, so a
+          business choosing pale yellow sees the gold its band will actually be
+          at the moment it chooses. */}
       <div className="orgcol-doc" aria-hidden="true">
-        <div
-          className="orgcol-rule"
-          style={{ background: theme ? theme.rule : "#d1d5db" }}
-        />
-        <b style={{ color: theme ? theme.ink : "#16181d" }}>Handover sheet</b>
-        <span>Smith Air Conditioning · ABN 51 824 753 556</span>
-        <div
-          className="orgcol-panel"
-          style={{ background: theme ? theme.wash : "#f3f4f6" }}
-        >
-          What was installed, and what it was set to.
+        <div className="orgcol-band" style={{ background: ink }} />
+        <div className="orgcol-well" />
+        <div className="orgcol-page">
+          <b>Handover sheet</b>
+          <span>Smith Air Conditioning &middot; ABN 51 824 753 556</span>
+          <i />
+          <i className="short" />
         </div>
       </div>
 
@@ -105,7 +121,7 @@ export function BrandColorPicker({
           value={draft}
           disabled={busy}
           aria-label="Brand colour"
-          onInput={(e) => setDraft(e.currentTarget.value)}
+          onInput={(e) => { setTouched(true); setDraft(e.currentTarget.value); }}
           onChange={(e) => void commit(e.currentTarget.value)}
         />
         {/* Typed, because a business has its brand hex written down on a style
@@ -121,7 +137,10 @@ export function BrandColorPicker({
           onChange={(e) => {
             setTyped(e.target.value);
             // repaint as they type, but only once it is a colour
-            if (documentTheme(e.target.value)) setDraft(e.target.value);
+            if (documentTheme(e.target.value)) {
+              setTouched(true);
+              setDraft(e.target.value);
+            }
           }}
           onBlur={(e) => e.target.value.trim() && void commit(e.target.value)}
           onKeyDown={(e) => {
@@ -145,3 +164,9 @@ export function BrandColorPicker({
    HeyTiff's colour is the default answer, and it is the one colour a customer
    document should never be themed in. */
 const DEFAULT_SEED = "#1a2b4c";
+
+/** What the documents print when no colour is set — the ink they already print
+    their headings in. Mirrors `BAND.default` in lib/org/theme.ts; kept here
+    because this preview has to draw a band for a colour that has not been
+    saved, which is exactly when the `--doc-*` variables are absent. */
+const DEFAULT_BAND = "#16181d";

@@ -28,6 +28,7 @@ const ROW = {
   email: "office@smithair.com.au",
   website: "smithair.com.au",
   logo_url: "org/org-1/org_logo/doc-1.png",
+  brand_color: "#004885",
 };
 
 beforeEach(() => {
@@ -84,6 +85,7 @@ it("returns an empty brand for a missing row instead of throwing", async () => {
     phone: null,
     email: null,
     website: null,
+    color: null,
   });
   expect(signOne).not.toHaveBeenCalled();
 });
@@ -92,4 +94,19 @@ it("survives an org with no logo", async () => {
   maybeSingle.mockResolvedValue({ data: { ...ROW, logo_url: null } });
   signOne.mockResolvedValue(null);
   expect((await orgBrand("org-1")).logoUrl).toBeNull();
+});
+
+/* THE SEED TRAVELS RAW. `orgBrand` hands the surfaces the colour the owner
+   chose, not a derived one — deriving is `documentTheme`'s job and it happens
+   at render, against the ground the surface actually has. A query that
+   pre-derived would freeze the answer against whatever the grounds were the
+   day it ran. */
+it("carries the brand colour through untouched", async () => {
+  maybeSingle.mockResolvedValue({ data: ROW });
+  expect((await orgBrand("org-1")).color).toBe("#004885");
+});
+
+it("reads an unset brand colour as no theme, not as a colour", async () => {
+  maybeSingle.mockResolvedValue({ data: { ...ROW, brand_color: null } });
+  expect((await orgBrand("org-1")).color).toBeNull();
 });

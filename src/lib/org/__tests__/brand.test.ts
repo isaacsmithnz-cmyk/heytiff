@@ -15,6 +15,7 @@ const FULL: OrgBrand = {
   phone: "(03) 9000 0000",
   email: "office@smithair.com.au",
   website: "smithair.com.au",
+  color: null,
 };
 
 describe("hasBrand", () => {

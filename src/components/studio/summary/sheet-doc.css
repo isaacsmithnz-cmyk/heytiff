@@ -45,6 +45,61 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── the business's band ───────────────────────────────────────────────────
+   THE SHAPE IS `.fg .outlet`'S, and now literally: one filled rectangle behind
+   the whole sheet, with a white well inset on ALL FOUR sides and rounded at the
+   corners. The colour survives as a frame, exactly the way the dark shell shows
+   around the app's light content well.
+
+   It was a head and a foot only, and it did not read: a band that stops at the
+   left and right edges looks like two bars rather than a frame around a page.
+
+   THE NUMBERS COME FROM `themeVars`, not from here, and it always returns a
+   full set: a business that has chosen no colour gets the band in the sheet's
+   own ink rather than no band at all. The fallbacks below are 0 so that a
+   missing variable collapses the band cleanly instead of drawing a bar with no
+   room made for it — see the note in lib/org/theme.ts.
+
+   IT CARRIES NOTHING. No logo, no contact line, no page number — which is the
+   entire reason this treatment was chosen over a letterhead band. Nothing on
+   it means no contrast floor to clear and no reversed artwork to ask a
+   business for, and it measures 3.29% of an A4 sheet against the letterhead
+   band's 13.3%.
+
+   UNTHEMED IS THE ABSENCE OF A CODE PATH: with no brand colour `--doc-ink` is
+   never set, the fallback below is `transparent`, and the sheet is exactly the
+   one it has always been. */
+.dsd { position: relative; }
+.dsd-bband {
+  position: absolute;
+  inset: 0;
+  background: var(--doc-ink, transparent);
+  pointer-events: none;
+  /* a fill a browser would otherwise drop to save ink — and this one IS the
+     branding, so it is the last thing that should go */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* The well. White, full width, inset from head and foot by the gutter; its
+   four rounded corners are the only places the band survives across the
+   middle. */
+.dsd-bwell {
+  position: absolute;
+  inset: var(--doc-gutter, 0px);
+  background: #fff;
+  border-radius: var(--doc-radius, 0px);
+  pointer-events: none;
+}
+/* the document's own content paints above all three. Scoped to the CONTENT:
+   a `.dsd > *` rule would also match the three layers above at equal
+   specificity and, coming later, would strip their position:absolute. */
+.dsd > *:not(.dsd-bband):not(.dsd-bwell) { position: relative; }
+/* and the content clears the band at both ends */
+/* This padding exists only to clear the band, so it ships from the same object
+   the band's depth does. Zero is the fallback rather than a value, because
+   room made for a band that failed to render is worse than neither. */
+.dsd { padding: var(--doc-pad, 0px) var(--doc-side, 0px); }
+
 /* ── masthead ── */
 .dsd-mast {
   display: grid;

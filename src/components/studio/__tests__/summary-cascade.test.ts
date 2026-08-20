@@ -15,11 +15,11 @@
       white 7% fill and a white 12% border are invisible and a 40%-black glass
       shadow drew the entire button — and its hover was invisible too.
 
-   3. `.ds-mat-table td` now states the body weight, which is (0,2,1). A bare
-      `.ds-mat-model` is (0,2,0) and would silently lose to it, so the model
-      column must be selected as `td.ds-mat-model`. This is the same shape as
-      the `.fg button` reset trap: an element in the selector outranks a lone
-      class.
+   The third of these was about the sheet's own table (`.ds-mat-table`), and
+   that table has moved out with the rest of the document — its guards moved
+   with it, to sheet-doc-cascade.test.ts. What is left here is studio.css's:
+   the collisions between the Summary step's chrome and the rest of the
+   editor, which is what this file is now for.
 
    Each assertion was validated by reverting its fix and watching it fail. */
 
@@ -72,11 +72,12 @@ describe("Summary sheet cascade", () => {
   });
 
   it("the landing hero stays a flex column, and the ink cover stays dead", () => {
-    /* The 2026-08-16 document redesign DELETED the ink cover — the sheet's
-       header is the ds-letter family now. A returning `.ds-cover` rule means
-       someone resurrected the old sheet (or its name), which is exactly how
-       the .ds-hero collision shipped. The landing hero must also stay a flex
-       column — the collision's symptom was it becoming the cover's grid. */
+    /* The 2026-08-16 document redesign DELETED the ink cover, and the
+       document itself has since moved to sheet-doc.css. A returning
+       `.ds-cover` rule means someone resurrected the old sheet (or its name),
+       which is exactly how the .ds-hero collision shipped. The landing hero
+       must also stay a flex column — the collision's symptom was it becoming
+       the cover's grid. */
     const coverish = selectors.filter((sel) =>
       sel.split(",").some((s) => /\.ds-cover(?![\w-])/.test(s))
     );
@@ -87,20 +88,45 @@ describe("Summary sheet cascade", () => {
     expect(hero![0]).toMatch(/display:\s*flex/);
   });
 
-  it("the sheet's state colours outrank the table's number weight", () => {
-    /* `.dstudio .ds-mat-table td.num` is (0,3,1); a bare `td.num.ok` pair
-       written one level down would silently lose — the covered column rendered
-       plain black in the mock until the selectors carried the full chain. */
-    for (const state of ["ok", "under", "na"]) {
-      expect(css).toMatch(
-        new RegExp(`\\.dstudio \\.ds-mat-table td\\.num\\.${state}(?![\\w-])`)
-      );
-    }
-  });
-
   it("the Summary root is styled by its own class", () => {
     const root = selectors.filter((s) => /\.ds-summary(?![\w-])/.test(s));
     expect(root.length).toBeGreaterThan(0);
+  });
+
+  it("PRINT HIDES THE PAGE ONLY WHEN THERE IS A PRINT DOCUMENT TO REVEAL", () => {
+    /* FOUND IN PRODUCTION, on the customer's own link.
+
+       The print block hides everything and reveals `#ds-printdoc`, which is
+       right for the studio's Export. But this stylesheet is imported by more
+       than the studio — `/live/[token]` pulls it in for the dead-link dress
+       and the simulation viewer — and that page never mounts a print
+       document. A bare `body *` therefore hid every element on the customer's
+       sheet and revealed nothing: THE PRINT BUTTON PRODUCED A BLANK PAGE.
+
+       Invisible to every other check. jsdom has no print medium, the rule is
+       valid CSS, and no screen rendering of any page shows it. */
+    const hide = css.match(/@media print \{[\s\S]*?visibility:\s*hidden[^;]*;/);
+    expect(hide).not.toBeNull();
+    expect(hide![0]).toMatch(/body:has\(#ds-printdoc\) \*/);
+    /* and the bare form must not come back under any selector */
+    const bare = selectors.filter((sel) =>
+      sel.split(",").some((one) => /^body \*$/.test(one.trim()))
+    );
+    expect(bare).toEqual([]);
+  });
+
+  it("the recents skeleton PAINTS — its block outranks the card it sits in", () => {
+    /* `.ds-rthumb` carries its own fill and border at (0,2,0) and is written
+       LATER in this file, so a lone `.dstudio .ds-skb` loses to it and the
+       thumb animated an empty box: a sweep over nothing. Same shape as the
+       `.fg button` reset trap. The paint is one declaration block written at
+       both specificities rather than restated. */
+    const paint = selectors.filter((sel) =>
+      sel.split(",").some((one) => /\.ds-skb(?![\w-])\s*$/.test(one.trim()))
+    );
+    expect(paint.length).toBeGreaterThan(0);
+    for (const sel of paint)
+      expect(sel).toMatch(/\.ds-rcard\.skel \.ds-rthumb\.ds-skb/);
   });
 
   it("the dark glass primitives never reach .ds-tbbtn", () => {
@@ -113,22 +139,5 @@ describe("Summary sheet cascade", () => {
         sel.split(",").some((s) => /\.ds-tbbtn(?![\w-])/.test(s))
     );
     expect(glassy).toEqual([]);
-  });
-
-  it("the model column outranks the table's body weight", () => {
-    /* `.dstudio .ds-mat-table td` is (0,2,1); the emphasis rule must carry an
-       element too or it loses. */
-    const emphasis = selectors.filter((s) => s.includes(".ds-mat-model"));
-    expect(emphasis.length).toBeGreaterThan(0);
-    for (const sel of emphasis) {
-      expect(sel).toMatch(/td\.ds-mat-model/);
-    }
-  });
-
-  it("the table states a body weight, so emphasis rules mean something", () => {
-    const body = css.match(
-      /\.dstudio \.ds-mat-table td \{[^}]*font-weight:\s*500/
-    );
-    expect(body).not.toBeNull();
   });
 });

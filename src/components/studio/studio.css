@@ -239,27 +239,14 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   justify-content: center;
 }
-.dstudio .ds-hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  font: 800 11px var(--mono);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--teal);
-  background: rgba(0, 229, 192, 0.1);
-  border: 1px solid rgba(0, 229, 192, 0.3);
-  border-radius: 999px;
-  padding: 7px 13px;
-  margin-bottom: 22px;
-}
 .dstudio .ds-hero h2 {
   font-size: clamp(38px, 4.4vw, 58px);
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1.02;
-  margin: 0 0 18px;
+  /* The landing is now just the name and the one action — nothing sits
+     between them, so the title carries the gap the pitch used to. */
+  margin: 0 0 30px;
 }
 .dstudio .ds-hero p {
   color: rgba(255, 255, 255, 0.6);
@@ -733,6 +720,68 @@ html[data-ds-display] .dstudio.editing {
   transform: translateY(-2px);
   background: rgba(0, 229, 192, 0.07);
   border-color: rgba(0, 229, 192, 0.45);
+}
+
+/* ── the list still loading ──
+   Shapes only: they hold the space the real cards are about to occupy, so the
+   panel does not jump and a click has somewhere to land.
+
+   The sweep matches the shell's route skeleton — slow and low-contrast on
+   purpose, because a fast shimmer reads as an error state — but carries its
+   OWN keyframe rather than borrowing `pkSweep`. This stylesheet is imported
+   by `/live/[token]`, where shell.css is not loaded and a borrowed animation
+   name would silently resolve to nothing. The card sits on the studio's DARK
+   home, so the gradient is white-on-dark rather than `.pk-b`'s dark-on-white.
+
+   It is a card that cannot be pressed: no hover lift, no pointer. */
+@keyframes dsSweep {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.dstudio .ds-rcard.skel { cursor: default; }
+.dstudio .ds-rcard.skel:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+/* BOTH SPECIFICITIES, one declaration block. `.ds-rthumb` carries its own
+   fill and border at (0,2,0) and is written later in this file, so a lone
+   `.ds-skb` loses to it and the thumb animated an EMPTY box — the same shape
+   as the `.fg button` reset trap, hit here by my own rule. The second
+   selector states the paint where it has to win, rather than restating it. */
+.dstudio .ds-skb,
+.dstudio .ds-rcard.skel .ds-rthumb.ds-skb {
+  display: block;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 70%
+  );
+  background-size: 200% 100%;
+  animation: dsSweep 1.6s ease-in-out infinite;
+}
+/* the thumb keeps its own 46px box; the rest are the real lines' heights */
+.dstudio .ds-rcard.skel .ds-rthumb.ds-skb { border-radius: 13px; }
+.dstudio .ds-skb-nm { width: 46%; height: 12px; margin-bottom: 8px; }
+.dstudio .ds-skb-mt { width: 72%; height: 9px; }
+.dstudio .ds-skb-wh { flex: 0 0 auto; width: 52px; height: 9px; }
+/* a whole panel of pulsing blocks is exactly what this setting exists to stop */
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-skb { animation: none; }
+}
+
+/* visually hidden, for the reader who is not looking at shapes */
+.dstudio .ds-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .dstudio .ds-rthumb {
   flex: 0 0 auto;
@@ -2675,12 +2724,6 @@ html[data-ds-display] .dstudio.editing {
   justify-content: space-between;
   gap: 8px;
 }
-.dstudio .ds-insp-hint {
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--gray500);
-  line-height: 1.55;
-}
 .dstudio .ds-insp-toggle {
   display: flex;
   align-items: center;
@@ -4143,104 +4186,6 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 800;
 }
 
-/* materials (takeoff sections, now on the Summary screen) */
-.dstudio .ds-mat-sys {
-  border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  padding: 16px 18px;
-  background: #fff;
-}
-.dstudio .ds-mat-sys header {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 10px;
-}
-.dstudio .ds-mat-sys h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--ink);
-}
-.dstudio .ds-mat-type {
-  font-size: 11px;
-  color: var(--gray500);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.dstudio .ds-mat-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  margin-bottom: 8px;
-  /* Every table on this sheet used to size its own columns to its own
-     content, so nothing lined up down a page whose whole job is to be read
-     as one document: the second column started anywhere from 439px to 535px.
-     Fixed layout + the per-variant widths below give the rooms tables one
-     grid and the takeoff tables another. */
-  table-layout: fixed;
-}
-/* rooms & loads — one grid for every floor */
-.dstudio .ds-mat-table.rooms th:nth-child(1) { width: 34%; }
-.dstudio .ds-mat-table.rooms th:nth-child(2) { width: 13%; }
-.dstudio .ds-mat-table.rooms th:nth-child(3) { width: 13%; }
-/* the printed systems overview keeps content-sized columns */
-.dstudio .ds-mat-table.auto { table-layout: auto; }
-/* takeoff — one grid for units, pipe and the whole-job rollup */
-.dstudio .ds-mat-table.take th:nth-child(1) { width: 28%; }
-.dstudio .ds-mat-table.take th:nth-child(3) { width: 14%; }
-.dstudio .ds-mat-table th {
-  text-align: left;
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--gray500);
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--ds-border);
-}
-/* Numbers are marked, not inferred from position. `td:last-child` used to
-   carry this, which right-aligned whatever happened to be last — including
-   the em-dash in Served by, so an unserved room's dash sat ~300px from the
-   chips it lines up with. Both th and td, so the header sits over its own
-   figures instead of ~90px to their left. */
-.dstudio .ds-mat-table th.num,
-.dstudio .ds-mat-table td.num { text-align: right; }
-.dstudio .ds-mat-table td.num {
-  font-weight: 700;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.dstudio .ds-mat-table td {
-  padding: 7px 8px;
-  border-bottom: 1px solid #f4f4f2;
-  color: var(--gray700);
-  /* The sheet used to inherit 700 from a topbar pill (see the deleted rule
-     around line 1041), so EVERY cell was bold and the two emphasis rules
-     below emphasised nothing. State the body weight here and they work. */
-  font-weight: 500;
-}
-/* `td.ds-mat-model`, not `.ds-mat-model`: the body-weight rule above is
-   (0,2,1) and a bare class here is (0,2,0), so the model column would lose
-   the very emphasis this rule exists to give it. Same shape as the
-   `.fg button` trap — an element in the selector outranks a lone class. */
-.dstudio .ds-mat-table td.ds-mat-model { font-weight: 700; color: var(--ink); }
-.dstudio .ds-mat-charge {
-  font-size: 12.5px;
-  color: var(--gray700);
-  padding: 6px 8px;
-}
-.dstudio .ds-mat-note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #b26a00;
-  background: #fff6e6;
-  border-radius: 8px;
-  padding: 6px 10px;
-  margin-top: 6px;
-}
-
 /* ═════════════ unit browser modal (selector overhaul) ═════════════ */
 /* portalled to body — must not rely on any .page/.dstudio ancestor */
 
@@ -5515,54 +5460,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-job-print:disabled { opacity: 0.45; cursor: default; }
 .dstudio .ds-job-print:disabled:hover { transform: none; border-color: rgba(10, 12, 20, 0.08); box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04); }
 
-/* ── the print/export document (#ds-printdoc, summary/print-doc.tsx) —
-      mounted on demand, screen-hidden; @media print reveals only it. The
-      cover typography reuses the ds-jobpack-* classes below. ── */
-.dstudio .ds-jobpack-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 14px;
-  margin-bottom: 18px;
-}
-/* the issuer column holds a letterhead now, and a long contact line has to
-   wrap inside it rather than shove the addressee off the corner it owns */
-.dstudio .ds-jobpack-head > div:first-child { min-width: 0; }
-.dstudio .ds-jobpack-head .org-lh { margin-bottom: 10px; }
-.dstudio .ds-jobpack-head h1 { margin: 0 0 6px; font-size: 22px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-jobpack-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--gray500); }
-.dstudio .ds-jobpack-brand { font-size: 12px; font-weight: 800; color: var(--teal-d); text-transform: uppercase; letter-spacing: 0.04em; }
-.dstudio .ds-jobpack-sec { margin-bottom: 22px; }
-.dstudio .ds-jobpack-sec h2 { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray500); margin: 0 0 8px; }
-.dstudio .ds-jobpack-foot { margin-top: 8px; font-size: 11px; color: var(--gray400); border-top: 1px solid var(--ds-border); padding-top: 12px; }
-/* ── the printed cover's document furniture (2026-08-16 sheet) ──
-      Shares ds-letter-to / ds-letter-snap / ds-odu / ds-tcap / the tables
-      with the screen — the print-only bits are just these. */
-.dstudio .ds-print-job { margin-left: 12px; font-size: 12.5px; font-weight: 600; color: var(--gray500); white-space: nowrap; }
-.dstudio .ds-letter-to.print b { font-size: 14px; font-weight: 800; color: var(--ink); }
-.dstudio .ds-letter-to.print span { font-size: 12.5px; font-weight: 500; line-height: 1.5; color: var(--gray700); }
-.dstudio .ds-print-sys { border-top: 1px solid var(--ds-border); padding-top: 14px; }
-.dstudio .ds-print-sys-h {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px 20px;
-  flex-wrap: wrap;
-}
-.dstudio .ds-print-sys-h h2 { text-transform: none; letter-spacing: -0.01em; font-size: 14px; color: var(--ink); }
-.dstudio .ds-print-sys-h h2 span { font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--gray500); margin-left: 8px; }
-.dstudio .ds-print-verdict { display: flex; gap: 18px; flex-wrap: wrap; font-size: 11.5px; color: var(--gray500); }
-.dstudio .ds-print-verdict b { font-size: 13px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.dstudio .ds-print-verdict .ok b { color: var(--ds-ok-d); }
-/* a system with no measurable coverage: the shared tone() greys it, and paper
-   has to agree with the screen about that as much as about the figure */
-.dstudio .ds-print-verdict .na b { color: var(--gray500); }
-.dstudio .ds-print-verdict .under b { color: var(--ds-amber-d); }
-
 #ds-printdoc { display: none; }
-#ds-printdoc .ds-print-basis { margin-top: 8px; font-weight: 700; }
 #ds-printdoc .ds-print-cap {
   display: flex;
   align-items: baseline;
@@ -5585,9 +5483,20 @@ html[data-ds-display] .dstudio.editing {
 
 /* print: reveal only the print document. The studio grid children are
    display:none'd outright — visibility:hidden alone keeps their layout and
-   inflates the page count (the old jobpack learned this the hard way). */
+   inflates the page count (the old jobpack learned this the hard way).
+
+   SCOPED TO A BODY THAT HAS ONE. This was a bare `body *`, and this
+   stylesheet is imported by more than the studio: `/live/[token]` pulls it in
+   for the dead-link dress and the simulation viewer. That page never mounts a
+   print document, so printing it hid every element on it and revealed
+   nothing — THE CUSTOMER'S PRINT BUTTON PRODUCED A BLANK PAGE. Found by
+   walking the real link in production, because the rule is invisible in every
+   other medium.
+
+   The `:has()` says what the rule always meant: hide everything else only
+   when there is something to reveal. */
 @media print {
-  body * { visibility: hidden !important; }
+  body:has(#ds-printdoc) * { visibility: hidden !important; }
   #ds-printdoc, #ds-printdoc * { visibility: visible !important; }
   #ds-printdoc {
     display: block;
@@ -5605,8 +5514,8 @@ html[data-ds-display] .dstudio.editing {
   #ds-printdoc .ds-print-cover { break-after: page; }
   #ds-printdoc .ds-print-page { break-after: page; }
   #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
-  #ds-printdoc .ds-jobpack-sec { break-inside: avoid; }
-  #ds-printdoc .ds-mat-table tr { break-inside: avoid; }
+  /* the document keeps its own page-break rules (sheet-doc.css); what is
+     left here is the pack's own page structure */
 }
 
 /* .ds-cardt is a Home-screen title (white — dark backdrop); on the summary's
@@ -5698,6 +5607,44 @@ html[data-ds-display] .dstudio.editing {
 /* export customizer — collapsed behind Customise (defaults are everything);
    captioned groups of checkbox rows + mini segment pills, all on the light
    card */
+/* WHAT ARE YOU SENDING — the first thing the card asks, and the thing the
+   old card hid behind "Customise" while three mechanism buttons sat in front.
+   One row per artifact: what it is, then what comes out of it. */
+.dstudio .ds-export-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dstudio .ds-export-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(10, 12, 20, 0.1);
+  background: #fff;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dstudio .ds-export-pick:hover { background: #f6f7f9; border-color: rgba(10, 12, 20, 0.2); }
+.dstudio .ds-export-pick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.35);
+}
+/* the chosen one carries the teal edge and a tinted ground — the same
+   "selected" language the segment pills below already speak */
+.dstudio .ds-export-pick.on {
+  border-color: var(--teal-d);
+  background: rgba(0, 229, 192, 0.09);
+}
+.dstudio .ds-export-pick-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.dstudio .ds-export-pick-s {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--gray500);
+}
+
 .dstudio .ds-export-toggle {
   display: inline-flex;
   align-items: center;
@@ -9090,26 +9037,31 @@ html[data-ds-display] .dstudio.editing {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   THE SHEET AS A DOCUMENT (2026-08-16 redesign, direction approved on a
-   live mock). Chrome above, paper below; the print document renders the
-   SAME merged model with the same shared tables.
+   THE SUMMARY STEP'S CHROME — and only its chrome.
 
-   Class families here are grep-verified unique in this file (the .ds-hero
-   lesson): ds-chrome*, ds-letter*, ds-band*, ds-odu*, ds-tcap, and the
-   ds-sysc card is REBUILT in place (its old internals ds-rrow/ds-rcol/
-   ds-eqlist/ds-rmfigs are gone with the three-column room row).
+   THE DOCUMENT ITSELF MOVED OUT, to sheet-doc.css, when the Summary screen,
+   the customer's live link and the printed pack became three chromes around
+   one component. What used to live here — ds-letter*, ds-band*, ds-odu*,
+   ds-tcap, ds-mat-table, ds-sysc and the whole ds-jobpack* print cover — was
+   the sheet drawn twice, and it is gone rather than left lying about: dead
+   CSS is not inert, and a stale `.ds-band` would still be tinting something
+   the day somebody reused the name.
+
+   What is left is ds-chrome*: the bar that never prints, and the checks list
+   under it. Grep-verified unique in this file (the .ds-hero lesson).
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── chrome: everything that is NOT the document. Sticks to the panel's
       scrollport (.ds-panel.scroll) so Export never scrolls away from the
       sheet it acts on. ── */
+/* the mark leads the bar; the checks pill sits next to it */
+.dstudio .ds-chrome .dsd-logo { flex: none; margin-right: 2px; max-height: 28px; max-width: 160px; }
 .dstudio .ds-chrome {
   position: sticky;
   top: 0;
   z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px 14px;
   flex-wrap: wrap;
   margin: -8px -8px 0;
@@ -9148,7 +9100,10 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 600;
   color: var(--ds-ok-d);
 }
-.dstudio .ds-chrome-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+/* the actions keep the right-hand end; everything before them stays grouped
+   at the left, so the checks pill reads as sitting BESIDE the mark rather
+   than floating in the middle of the bar */
+.dstudio .ds-chrome-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .dstudio .ds-chrome-btn {
   display: inline-flex;
   align-items: center;
@@ -9186,26 +9141,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-chrome-list li { display: flex; flex-direction: column; gap: 1px; }
 .dstudio .ds-chrome-list b { font-size: 12.5px; font-weight: 700; color: #5c3a06; }
 .dstudio .ds-chrome-list span { font-size: 12.5px; font-weight: 500; line-height: 1.45; color: #7c4a03; }
-
-/* ── the letterhead ── */
-.dstudio .ds-letter {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px 40px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-.dstudio .ds-letter-lead { min-width: 0; flex: 1 1 22rem; }
-.dstudio .ds-letter-titlerow { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.dstudio .ds-letter-titlerow h2 {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--ink);
-}
-.dstudio .ds-letter-job { font-size: 12.5px; font-weight: 600; color: var(--gray500); white-space: nowrap; }
 .dstudio .ds-letter-src {
   display: inline-flex;
   align-items: center;
@@ -9247,219 +9182,3 @@ html[data-ds-display] .dstudio.editing {
 /* the picker overlays the sheet rather than pushing the title row apart */
 .dstudio .ds-letter-pick { display: inline-flex; align-items: center; gap: 10px; position: relative; }
 .dstudio .ds-letter-pick .ds-sm8-field { min-width: 19rem; }
-/* the option chip sits under the title, flush with its left edge */
-.dstudio .ds-letter-variant {
-  display: inline-block;
-  margin: 8px 0 0;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--teal-d);
-  border: 1px solid rgba(0, 163, 137, 0.4);
-  background: rgba(0, 163, 137, 0.07);
-  border-radius: 999px;
-  padding: 2px 10px;
-}
-.dstudio .ds-letter-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
-.dstudio .ds-letter-chips span {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--gray700);
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.12);
-  border-radius: 999px;
-  padding: 3px 11px;
-}
-/* edit in place: a value that reads as the document's own text until touched */
-.dstudio .ds-letter-inp {
-  font: inherit;
-  color: var(--ink);
-  font-weight: 600;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px dashed rgba(10, 12, 20, 0.22);
-  padding: 1px 2px;
-  border-radius: 2px;
-}
-.dstudio .ds-letter-inp:hover { background: #f4f6f8; border-bottom-color: rgba(10, 12, 20, 0.4); }
-.dstudio .ds-letter-inp:focus {
-  outline: none;
-  background: #fff;
-  border-bottom-color: var(--teal-d);
-  box-shadow: 0 0 0 3px rgba(0, 163, 137, 0.16);
-}
-.dstudio .ds-letter-inp.jn { width: 6.5rem; font-variant-numeric: tabular-nums; }
-/* the addressee: a letterhead block — ranged LEFT inside a block set to the
-   right, with its own rule; right-ragged lines read as a caption, not an
-   address */
-.dstudio .ds-letter-to {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 0 1 20rem;
-  padding-left: 13px;
-  border-left: 2px solid rgba(10, 12, 20, 0.16);
-}
-.dstudio .ds-letter-to .ds-letter-inp { border-bottom-color: transparent; width: 100%; }
-.dstudio .ds-letter-to .ds-letter-inp:hover { border-bottom-color: rgba(10, 12, 20, 0.3); }
-.dstudio .ds-letter-to .name { font-size: 15px; font-weight: 800; }
-.dstudio .ds-letter-to .addr {
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: var(--gray700);
-  resize: none;          /* field-sizing grows it — no grip on the letterhead */
-  field-sizing: content;
-  min-height: 3em;
-}
-/* the snapshot: the design load leads — the number the sheet argues about */
-.dstudio .ds-letter-snap { display: flex; flex-wrap: wrap; gap: 10px 30px; margin: 2px 0 0; }
-.dstudio .ds-letter-snap div { display: flex; flex-direction: column-reverse; }
-.dstudio .ds-letter-snap dt {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--gray500);
-}
-.dstudio .ds-letter-snap dd {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.dstudio .ds-letter-snap .lead dd { font-size: 27px; color: var(--teal-d); letter-spacing: -0.02em; }
-
-/* ── one card per system: band → outdoor → rooms → materials ── */
-.dstudio .ds-sysc {
-  --sys: #8b95a1;
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.1);
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04), 0 20px 44px -32px rgba(10, 12, 20, 0.45);
-}
-/* the separation between systems is the BAND: the system colour as a
-   full-width tinted header with a 2px rule, not a 4px sliver — two systems
-   can no longer read as one long list */
-.dstudio .ds-band {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 24px;
-  flex-wrap: wrap;
-  padding: 12px 18px;
-  background: color-mix(in srgb, var(--sys) 12%, #fff);
-  border-bottom: 2px solid var(--sys);
-}
-.dstudio .ds-sysc.none .ds-band,
-.dstudio .ds-sysc.pick .ds-band {
-  background: #f4f5f7;
-  border-bottom-color: rgba(10, 12, 20, 0.18);
-}
-.dstudio .ds-band-id { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
-.dstudio .ds-band-id h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  /* 55, not 62: at 62 the amber system colour landed at 4.44 on the tint;
-     55 puts the worst of the six palette colours at 4.9+ */
-  color: color-mix(in srgb, var(--sys) 55%, #0a0c14);
-}
-.dstudio .ds-sysc.none .ds-band-id h3,
-.dstudio .ds-sysc.pick .ds-band-id h3 { color: var(--ink); }
-.dstudio .ds-band-id > span { font-size: 12px; font-weight: 600; color: var(--gray700); }
-/* the verdict rides its own WHITE chip on the band — on the 12% tint every
-   state colour and label measured 4.1–4.4 across the six system colours; on
-   white they clear 4.8 whatever the band carries */
-.dstudio .ds-band-v {
-  display: flex;
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.dstudio .ds-band-v div {
-  display: flex;
-  flex-direction: column;
-  padding: 5px 14px;
-  border-right: 1px solid rgba(10, 12, 20, 0.08);
-  min-width: 74px;
-}
-.dstudio .ds-band-v div:last-child { border-right: 0; }
-.dstudio .ds-band-v b {
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-  line-height: 1.25;
-}
-.dstudio .ds-band-v span {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--gray500);
-}
-/* measured on the tinted grounds, not assumed: #00806C / --ds-amber-d */
-.dstudio .ds-band-v .ok b { color: var(--ds-ok-d); }
-.dstudio .ds-band-v .under b { color: var(--ds-amber-d); }
-.dstudio .ds-band-v .na b { font-weight: 500; color: var(--gray500); }
-
-.dstudio .ds-sysc-b { padding: 4px 18px 16px; }
-/* the picklist's push-to-job control, on the band beside the title */
-.dstudio .ds-pick-act { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.dstudio .ds-pick-act em { font-style: normal; font-size: 12px; font-weight: 600; }
-.dstudio .ds-pick-act em.ok { color: var(--ds-ok-d); }
-/* pushed, but something needs a person: a figure that moved under a picked
-   row, or a line the design has dropped. Amber, not red — nothing failed. */
-.dstudio .ds-pick-act em.warn { color: var(--ds-amber-d); }
-/* the danger TEXT tone the workboard already uses (#e0264f is the
-   fill, not a text colour) */
-.dstudio .ds-pick-act em.err { color: #b31038; }
-
-/* the parent machine — the one line that is genuinely the brand's */
-.dstudio .ds-odu { margin: 12px 0 2px; }
-.dstudio .ds-odu-m { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.dstudio .ds-odu-m b { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
-.dstudio .ds-odu-m span { font-size: 13.5px; font-weight: 700; color: var(--gray700); font-variant-numeric: tabular-nums; }
-.dstudio .ds-odu-m span.none { font-weight: 500; font-style: italic; color: var(--gray500); }
-.dstudio .ds-odu-d { font-size: 12px; font-weight: 500; color: var(--gray500); margin-top: 2px; }
-
-/* section captions inside a card */
-.dstudio .ds-tcap {
-  display: block;
-  font-size: 10.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink);
-  margin: 15px 0 3px;
-}
-.dstudio .ds-odu .ds-tcap { margin: 0 0 2px; color: var(--gray500); }
-
-/* ── the sheet's tables, on the shared .ds-mat-table plumbing ──
-      `serve` is FIXED layout with one set of widths, so every rooms table on
-      the sheet (and on the printed pack) shares one grid — auto layout sized
-      each table to its own content and nothing lined up down the page. */
-.dstudio .ds-mat-table.serve { table-layout: fixed; }
-.dstudio .ds-mat-table.serve th:nth-child(1) { width: 15%; }
-.dstudio .ds-mat-table.serve th:nth-child(2) { width: 10%; }
-.dstudio .ds-mat-table.serve th:nth-child(3) { width: 23%; }
-.dstudio .ds-mat-table.serve td.num,
-.dstudio .ds-mat-table.serve th.num { white-space: nowrap; }
-/* a model number is one token — wrapping it mid-code makes it unreadable */
-.dstudio .ds-mat-table.serve td.mono { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dstudio .ds-mat-table td.none { font-style: italic; color: var(--gray500); }
-/* state colours — (0,4,1), because the td.num body rule is (0,3,1) and a
-   bare class pair loses (the td.ds-mat-model trap, one row down the file) */
-.dstudio .ds-mat-table td.num.ok { color: var(--ds-ok-d); }
-.dstudio .ds-mat-table td.num.under { color: var(--ds-amber-d); }
-.dstudio .ds-mat-table td.num.na { font-weight: 500; color: var(--gray500); }
-/* on the card, the last row's rule would double the card edge */
-.dstudio .ds-sysc-b .ds-mat-table tr:last-child td { border-bottom: 0; }

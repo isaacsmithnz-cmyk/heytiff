@@ -12,8 +12,11 @@ import {
 } from "@/lib/studio/summary";
 import type { SimApprovalState } from "@/lib/studio/sim-approval";
 import type { SimReady } from "./sim-card";
-import { fmt, SnapshotList } from "./sheet-tables";
-import { PicklistCard, SystemCard, UnservedCard } from "./system-card";
+import { fmt } from "./sheet-tables";
+import { PicklistSection, SheetDoc } from "./sheet-doc";
+import { PicklistPush } from "./picklist-push";
+import { useOrgBrand } from "./use-org-brand";
+import { BrandLogo } from "@/components/org/letterhead";
 import { ShareCard } from "./share-card";
 import { ContributorsCard } from "./contributors-card";
 import { ExportCard } from "./export-card";
@@ -21,14 +24,16 @@ import { JobAttach } from "./job-attach";
 
 /* Summary view (Design Studio step 2) — the design as a DOCUMENT.
 
-   Everything that is not the document (the checks, Simulate/Share/Export)
-   lives in a chrome bar above it and never prints. The sheet itself reads
-   top to bottom: letterhead (what it's called, whose it is), the snapshot
-   figures, one card per system (band → outdoor → rooms → materials), the
-   rooms nothing serves, then the whole job's Material picklist.
+   THE SAME DOCUMENT the customer's live link and the printed pack render.
+   `SheetDoc` is the artifact — masthead, letterhead, the row of six, a block
+   per system, the picklist — and this file is one of its three chromes. What
+   is owner-only is passed IN rather than living in the shared component, and
+   what is owner-only is therefore ABSENT from the other two rather than
+   hidden in them: the checks, Simulate/Share/Export, the editable letterhead,
+   the ServiceM8 provenance, Add to job, and Contributors.
 
-   ONE derivation: buildSummaryModel carries coverage AND takeoff, and the
-   print document renders the same model — this file renders, never computes. */
+   The chrome bar never prints. ONE derivation: buildSummaryModel carries
+   coverage AND takeoff — this file renders, never computes. */
 
 /** "Ground floor", "Ground floor and First floor", "A, B and C" — floors read
     as a sentence, because the checks list is sentences. */
@@ -69,6 +74,21 @@ export function SummaryView({
   const snapshot = useMemo(() => buildDesignSnapshot(doc), [doc]);
   const model = useMemo(() => buildSummaryModel(doc, pack), [doc, pack]);
   const basis = designBasis(doc);
+  const brand = useOrgBrand();
+
+  /* "prepared" is when the design was last saved — the same date the
+     customer's copy carries, from the same field, formatted the same way.
+     en-AU explicitly rather than the reader's locale: the sheet is a document
+     with one date on it, not a localised view of one. */
+  const preparedOn = useMemo(
+    () =>
+      new Date(doc.meta.updatedAt).toLocaleDateString("en-AU", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    [doc.meta.updatedAt]
+  );
 
   /* what to look at before you send this. Derived from the same model the
      cards render, so the count can never disagree with them. */
@@ -134,10 +154,50 @@ export function SummaryView({
   const [checkOpen, setCheckOpen] = useState(false);
   const [panel, setPanel] = useState<"share" | "export" | null>(null);
 
+  /* THE OWNER TYPES INTO THE LETTERHEAD. Same frame the customer reads, same
+     classes — these are the FILLING, and the customer's copy passes none of
+     them, so an input cannot reach a client by being hidden badly. */
+  const fields = {
+    client: (
+      <input
+        className="dsd-f n"
+        aria-label="Client"
+        autoComplete="off"
+        value={doc.meta.client}
+        onChange={(e) => setMeta("client", e.target.value)}
+        placeholder="Client"
+      />
+    ),
+    site: (
+      <textarea
+        className="dsd-f a"
+        rows={2}
+        spellCheck={false}
+        value={doc.meta.site}
+        onChange={(e) => setMeta("site", e.target.value)}
+        aria-label="Site"
+        placeholder="Site address"
+      />
+    ),
+    jobNumber: (
+      <input
+        className="dsd-f j"
+        aria-label="Job number"
+        autoComplete="off"
+        value={doc.meta.jobNumber}
+        onChange={(e) => setMeta("jobNumber", e.target.value)}
+      />
+    ),
+  };
+
   return (
     <div className="ds-panel-card ds-summary">
       {/* ── chrome: everything that is NOT the document. Never prints. ── */}
       <div className="ds-chrome">
+        {/* THE MARK GOES TOP LEFT, with the checks pill beside it. It used to
+            sit in the masthead above a contact line; a mark belongs in the
+            corner, and the document below is the letterhead. */}
+        <BrandLogo brand={brand} className="dsd-logo" />
         {checks.length > 0 ? (
           <button
             className="ds-chrome-warn"
@@ -212,105 +272,59 @@ export function SummaryView({
         />
       )}
 
-      {/* ── the letterhead: what it's called, then whose it is ── */}
-      <header className="ds-letter">
-        <div className="ds-letter-lead">
-          <div className="ds-letter-titlerow">
-            <h2>{doc.meta.name || "Design"}</h2>
-            <span className="ds-letter-job">
-              Job{" "}
-              <input
-                className="ds-letter-inp jn"
-                aria-label="Job number"
-                autoComplete="off"
-                value={doc.meta.jobNumber}
-                onChange={(e) => setMeta("jobNumber", e.target.value)}
-              />
-            </span>
-            {/* PROVENANCE, and the place to change it. The link is what the
-                Material picklist pushes along, so a design that was never
-                started from a job could not reach one at all until this
-                existed — see the note on JobAttach. */}
-            <JobAttach doc={doc} onMutate={onMutate} />
-          </div>
-          {doc.meta.variantLabel && (
-            <span className="ds-letter-variant">{doc.meta.variantLabel}</span>
-          )}
-          {/* the loads were computed FROM these — edited in the studio menu */}
-          <div
-            className="ds-letter-chips"
-            title="Set in the studio menu (top left) — changing them re-loads every room"
-          >
-            <span>
-              Zone {basis.zone} · {basis.zoneCity}
-            </span>
-            <span>{basis.buildingLabel}</span>
-            <span>{basis.basisLabel}</span>
-          </div>
-        </div>
-
-        {/* the addressee: name, then the address a line at a time, ranged
-            LEFT inside a block set to the right — a letterhead keeps its own
-            left edge; right-ragged lines read as a caption */}
-        <div className="ds-letter-to">
-          <input
-            className="ds-letter-inp name"
-            aria-label="Client"
-            autoComplete="off"
-            value={doc.meta.client}
-            onChange={(e) => setMeta("client", e.target.value)}
-            placeholder="Client"
-          />
-          <textarea
-            className="ds-letter-inp addr"
-            rows={2}
-            spellCheck={false}
-            value={doc.meta.site}
-            onChange={(e) => setMeta("site", e.target.value)}
-            aria-label="Site"
-            placeholder="Site address"
-          />
-        </div>
-      </header>
-
-      {/* ── the snapshot: the design load leads — it is the number the whole
-            sheet is an argument about ── */}
-      <SnapshotList snapshot={snapshot} />
-
-      {model.systems.map((s) => (
-        <SystemCard key={s.systemId} sys={s} />
-      ))}
-      {model.unserved.length > 0 && <UnservedCard rooms={model.unserved} />}
-      {model.picklist.length > 0 && (
-        <PicklistCard
+      {/* ── the document. The SAME component the customer's live link and the
+            printed pack render; what differs is the chrome above and what
+            hangs off the foot. ── */}
+      <SheetDoc
+        doc={doc}
+        model={model}
+        snapshot={snapshot}
+        basis={basis}
+        brand={brand}
+        eyebrow={
+          doc.meta.variantLabel
+            ? `Design summary, ${doc.meta.variantLabel.toLowerCase()}`
+            : "Design summary"
+        }
+        preparedOn={preparedOn}
+        fields={fields}
+        provenance={<JobAttach doc={doc} onMutate={onMutate} />}
+      >
+        <PicklistSection
           rows={model.picklist}
-          designId={doc.id}
-          jobLink={
-            doc.jobLink
-              ? {
-                  remoteId: doc.jobLink.remoteId,
-                  jobNumber: doc.jobLink.jobNumber,
-                }
-              : null
+          action={
+            <PicklistPush
+              rows={model.picklist}
+              designId={doc.id}
+              jobLink={
+                doc.jobLink
+                  ? {
+                      remoteId: doc.jobLink.remoteId,
+                      jobNumber: doc.jobLink.jobNumber,
+                    }
+                  : null
+              }
+            />
           }
         />
-      )}
-
-      {empty && (
-        <div className="ds-empty">
-          <span className="ds-empty-ic">
-            <Icon name="receipt" size={22} />
-          </span>
-          <div className="ds-empty-t">An empty design is an empty sheet</div>
-          <div className="ds-empty-s">
-            Add a system and place its units on the Design step — the sheet
-            builds itself from what you draw. Nothing here is ever typed in by
-            hand.
+        {empty && (
+          <div className="ds-empty">
+            <span className="ds-empty-ic">
+              <Icon name="receipt" size={22} />
+            </span>
+            <div className="ds-empty-t">An empty design is an empty sheet</div>
+            <div className="ds-empty-s">
+              Add a system and place its units on the Design step — the sheet
+              builds itself from what you draw. Nothing here is ever typed in by
+              hand.
+            </div>
           </div>
-        </div>
-      )}
-
-      <ContributorsCard key={doc.id} designId={doc.id} />
+        )}
+        {/* who has worked on it. Staff names and "last worked 3 days ago" are
+            internal, so this is one of the things the customer's copy does
+            not have rather than one it hides. */}
+        <ContributorsCard key={doc.id} designId={doc.id} />
+      </SheetDoc>
     </div>
   );
 }

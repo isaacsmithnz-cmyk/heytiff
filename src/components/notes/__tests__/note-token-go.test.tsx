@@ -365,20 +365,27 @@ it("shows the words already in the box while a second leg records", async () => 
   mic.recording = true;
   await user.click(screen.getByRole("button", { name: /talk/i }));
 
-  expect(screen.getByLabelText(/what you have said so far/i)).toHaveValue(
+  expect(screen.getByLabelText(/what you have said so far/i)).toHaveTextContent(
     "middle rooftop unit tripped again"
   );
 });
 
 /* And it is a RECORD, not something to edit mid-sentence — the box you can
-   type into is the one you come back to when the recording ends. */
-it("shows it read-only", async () => {
+   type into is the one you come back to when the recording ends.
+
+   It used to be a read-only TEXTAREA, which is what made the live words
+   jumpy: a textarea can only take the sentence as one string, so every
+   partial swapped the lot and the per-word glide could not run inside it.
+   The record is ink now, so "not editable" is no longer an attribute to
+   assert — it is that there is no field on the card at all. */
+it("offers nothing to type into while it records", async () => {
   const user = await openToBox();
   await user.type(screen.getByRole("textbox"), "middle rooftop unit tripped again");
   mic.recording = true;
   await user.click(screen.getByRole("button", { name: /talk/i }));
 
-  expect(screen.getByLabelText(/what you have said so far/i)).toHaveAttribute("readonly");
+  expect(screen.getByLabelText(/what you have said so far/i).tagName).toBe("P");
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 });
 
 /* A FIRST leg has nothing to show, and an empty box in that space would put

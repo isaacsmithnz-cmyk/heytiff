@@ -10,10 +10,16 @@
    Pure module: shape and labels only, so the card can import it. The read
    itself is in query.ts alongside the credentials.
 
-   NOT here, deliberately: anything that would let this screen CHANGE these.
-   Ownership transfer is a handover flow of its own (/handover), the plan is
-   master-only billing, and the member count belongs to Team. This card states
-   facts and links to the screens that own them. */
+   WHAT THIS SCREEN MAY CHANGE, AND WHAT IT MAY NOT. Ownership now moves from
+   here — it is the one master-only act the app has, it is about WHOSE account
+   this is, and there is nowhere else it could sensibly live (an earlier version
+   of this comment sent it to "/handover", which is the project handover SHEET
+   and has nothing to do with ownership; the flow simply did not exist).
+
+   The other three still belong elsewhere and stay read-only: the owner's NAME
+   and EMAIL come from `profiles`, which is overwritten from the identity
+   provider on every sign-in, so an edit here would be erased at next login; the
+   plan is billing; the member count is Team's. Those link out. */
 
 /** The account's own facts, already resolved to what the card prints. */
 export type OrgAccount = {
@@ -22,7 +28,9 @@ export type OrgAccount = {
   ownerName: string | null;
   ownerEmail: string | null;
   /** true when the person reading the screen IS the primary owner — a
-      co-owner sees the same card and needs to know it isn't them */
+      co-owner sees the same card and needs to know it isn't them. It is also
+      exactly the condition for the handover control, because the master is the
+      only person who may transfer (MASTER_ONLY in lib/permissions.ts). */
   ownerIsYou: boolean;
   /** staff_profiles rows with status Active — the same population the Team
       page counts, so the two screens can never disagree */

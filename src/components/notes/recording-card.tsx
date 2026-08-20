@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/shell/icon";
-import { DictClock, LevelOrb, appendSpoken, type DictationState } from "./dictation";
+import { DictClock, LevelOrb, LiveWords, type DictationState } from "./dictation";
 
 /* THE RECORDING STAGE, ONCE.
 
@@ -107,23 +107,28 @@ export function RecordingCard({ dict, text }: RecordingCardProps) {
      second leg looked exactly like a first one. The card was hiding the only
      evidence that it had kept anything.
 
-     GUARDED, not just called. `appendSpoken` joins with a space and does not
-     care that the second half is empty, so calling it with no interim leaves
-     a trailing space on every batch recording. */
-  const sofar = dict.interim ? appendSpoken(text, dict.interim) : text;
-  const words = Boolean(sofar.trim());
+     IT IS NOT A TEXTAREA ANY MORE, and that is the whole of the smoothness
+     (Isaac, 2026-08-19: "words are appearing a bit jumpy when arriving as you
+     speak"). A textarea can only take the sentence as ONE STRING, so every
+     partial swapped the lot — the per-word glide `LiveWords` was written for
+     could not run inside it, a burst of three words appeared in one frame,
+     and nothing rode the newest word, so past four lines the words you were
+     saying were below the fold. The record and the arrival are two different
+     things and now render as two: `said` is the ink you have already read,
+     the live words glide in after it.
+
+     IT STILL SHOWS NOTHING ON AN EMPTY FIRST LEG — an empty box in that
+     space is the hole #367's audit closed, and a window with no words in it
+     is exactly that. What changed is how it ARRIVES: it used to snap open at
+     the first word and shove the meter and every button down mid-sentence,
+     and it now eases open once (`wb2LiveIn`) and then holds a FIXED height
+     for the rest of the recording. One soft growth, then nothing on this
+     card moves again except the words. */
+  const shows = Boolean(text.trim() || dict.interim);
 
   return (
     <div className="wb2-caprec">
-      {words && (
-        <textarea
-          className="wb2-notes wb2-recsofar"
-          value={sofar}
-          readOnly
-          rows={3}
-          aria-label="What you have said so far"
-        />
-      )}
+      {shows && <LiveWords className="wb2-livetext" said={text} text={dict.interim} />}
       {/* THE CLOCK HOLDS THE BOTTOM LEFT. It used to stand beside the meter,
           above the words; with the instrument lifted out of this card (the
           field spans stages, so it is mounted by the door — see `Body` in

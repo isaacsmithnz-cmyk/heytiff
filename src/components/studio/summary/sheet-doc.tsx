@@ -2,13 +2,13 @@ import type { DesignDocument } from "@/lib/studio/document";
 import type {
   DesignBasis,
   DesignSnapshot,
+  PicklistRow,
   SheetLine,
   SummaryModel,
   SummaryRoomRow,
   SummarySystem,
 } from "@/lib/studio/summary";
-import { BrandLogo } from "@/components/org/letterhead";
-import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
+import { hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { fmt, pct, SHEET_GROUPS, tone } from "./sheet-tables";
 import "./sheet-doc.css";
 
@@ -42,6 +42,8 @@ function Masthead({
   brand,
   eyebrow,
   preparedOn,
+  fields,
+  provenance,
 }: {
   doc: DesignDocument;
   brand: OrgBrand;
@@ -49,14 +51,19 @@ function Masthead({
   /** already formatted by the caller — a date built during render is a
       hydration failure waiting for midnight */
   preparedOn: string;
+  fields?: LetterheadFields;
+  provenance?: React.ReactNode;
 }) {
   const address = doc.meta.site.split("\n").map((l) => l.trim()).filter(Boolean);
-  /* THE IDENTITY IS IN THE DOCUMENT BODY, not the bar. Anything that lives
-     only in the chrome vanishes from the PDF, and the PDF is what a builder
-     puts in a folder — so the logo, the name and the contact line are all
-     here, assembled rather than taken from `Letterhead`, whose own
-     arrangement would print the name a second time under the 34px one. */
-  const contact = brandContact(brand);
+  /* WHO PREPARED IT, AND WHEN. That is the whole block.
+
+     It carried the logo and a contact line — ABN, email, website — as well,
+     on the reasoning that a letterhead states how to reach the business. On
+     the page it read as a business card dropped into the middle of a
+     document: four different weights and three sizes under a heading, before
+     the reader had reached a single figure. The name is the identity and the
+     date is what makes the figures mean anything; the logo is the mark, and a
+     mark belongs in the corner, not in a paragraph. */
   const named = hasBrand(brand);
   return (
     <div className="dsd-mast">
@@ -65,20 +72,12 @@ function Masthead({
         <h1>{doc.meta.name || address[0] || "Design"}</h1>
         <div className="dsd-prep">
           <span className="dsd-lab">Prepared by</span>
-          {named && <BrandLogo brand={brand} className="dsd-logo" />}
-          {/* the business's own name, at the size a letterhead earns. A
-              workspace that has set neither a name nor a logo falls back to
+          {/* a workspace that has set neither a name nor a logo falls back to
               the platform rather than printing an empty frame — and the
-              fallback is the WORDMARK, not a repeat of the design's title. */}
+              fallback is the WORDMARK, not a repeat of the design's title */}
           <span className="dsd-org">
             {named && brand.name ? brand.name : "HeyTiff Design Studio"}
           </span>
-          {contact.length > 0 && (
-            /* joined as ONE string, not spans with a separator between them:
-               a separator that can wrap onto a line by itself is the classic
-               way this row breaks */
-            <span className="dsd-contact">{contact.join(" · ")}</span>
-          )}
           <span className="dsd-date">{preparedOn}</span>
         </div>
       </div>
@@ -87,21 +86,47 @@ function Masthead({
           LEFT inside a block set to the right — a letterhead keeps its own
           left edge; right-ragged lines read as a caption. The job number
           closes it, because it belongs with who and where rather than
-          floating above the title. */}
-      {(doc.meta.client || address.length > 0 || doc.meta.jobNumber) && (
+          floating above the title.
+
+          ONE FRAME, two fillings. The owner types straight into it and the
+          customer reads it; both use the classes below, so the two can never
+          drift into different letterheads. The owner's copy always renders —
+          an empty letterhead is where you go to fill one in — while the
+          customer's appears only once there is something in it. */}
+      {(fields ||
+        doc.meta.client ||
+        address.length > 0 ||
+        doc.meta.jobNumber) && (
         <address className="dsd-to">
-          {doc.meta.client && <span className="dsd-to-n">{doc.meta.client}</span>}
-          {address.map((line) => (
-            <span key={line} className="dsd-to-l">
-              {line}
-            </span>
-          ))}
-          {doc.meta.jobNumber && (
+          {fields ? (
+            fields.client
+          ) : (
+            doc.meta.client && <span className="dsd-to-n">{doc.meta.client}</span>
+          )}
+          {fields
+            ? fields.site
+            : address.map((line) => (
+                <span key={line} className="dsd-to-l">
+                  {line}
+                </span>
+              ))}
+          {fields ? (
             <span className="dsd-job">
               <em>Job</em>
-              <b>{doc.meta.jobNumber}</b>
+              {fields.jobNumber}
             </span>
+          ) : (
+            doc.meta.jobNumber && (
+              <span className="dsd-job">
+                <em>Job</em>
+                <b>{doc.meta.jobNumber}</b>
+              </span>
+            )
           )}
+          {/* WHICH ROW this design came from, and the only control that acts
+              on it. Owner-only: a customer has no use for our provenance and
+              no business unlinking anything. */}
+          {provenance && <span className="dsd-src">{provenance}</span>}
         </address>
       )}
     </div>
@@ -285,7 +310,7 @@ function RoomsTable({
             <td className={`sty${r.styleLabel ? "" : " none"}`} data-l="Style">
               {r.styleLabel ?? "—"}
             </td>
-            <td data-l="Outdoor">
+            <td className="odu" data-l="Outdoor">
               {sharedOutdoor ? (
                 /* a fact about the system, not a model number — a quiet pill
                    so it does not compete with the real models beside it */
@@ -349,6 +374,75 @@ function Consumables({ lines }: { lines: SheetLine[] }) {
   );
 }
 
+/** The owner types straight INTO the letterhead — three fields wearing the
+    document's own type, revealing themselves on hover rather than sitting in
+    a form. The customer's copy passes none of this and gets plain text, which
+    is why an input cannot reach it: absence, not a hidden attribute. */
+export interface LetterheadFields {
+  client: React.ReactNode;
+  site: React.ReactNode;
+  jobNumber: React.ReactNode;
+}
+
+/* ── the Material picklist ──────────────────────────────────────────────────
+   The whole job combined, units included, in the same shelves the per-system
+   consumables use plus one of their own.
+
+   NO CHECKBOXES, deliberately. It becomes tickable when it is pushed to the
+   ServiceM8 job card — one checklist item per line, ticked by whoever is
+   standing in the warehouse. The sheet states the list; it is not the list. */
+
+const PICK_GROUPS: { key: PicklistRow["group"]; label: string }[] = [
+  { key: "units", label: "Units" },
+  { key: "pipe", label: "Pipe" },
+  { key: "electrical", label: "Electrical" },
+  { key: "components", label: "Components" },
+];
+
+export function PicklistSection({
+  rows,
+  action,
+}: {
+  rows: PicklistRow[];
+  /** the owner's "Add to job" — absent on paper, which cannot press it */
+  action?: React.ReactNode;
+}) {
+  const groups = PICK_GROUPS.map((g) => ({
+    ...g,
+    rows: rows.filter((r) => r.group === g.key),
+  })).filter((g) => g.rows.length > 0);
+  if (groups.length === 0) return null;
+  return (
+    <section className="dsd-pick">
+      <div className="dsd-pick-h">
+        <h2>Material picklist</h2>
+        <span className="dsd-pick-ct">
+          {rows.length} {rows.length === 1 ? "line" : "lines"} for the whole job
+        </span>
+        {action}
+      </div>
+      <div className="dsd-pick-g">
+        {groups.map((g) => (
+          <div key={g.key} className="dsd-grp card">
+            <h3>{g.label}</h3>
+            <ul>
+              {g.rows.map((l) => (
+                <li key={`${l.name}-${l.sub}`}>
+                  <span>
+                    {l.name}
+                    {l.sub && <i>{l.sub}</i>}
+                  </span>
+                  <b>{l.qty}</b>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── the document ── */
 
 export function SheetDoc({
@@ -359,6 +453,9 @@ export function SheetDoc({
   brand,
   eyebrow,
   preparedOn,
+  mark,
+  fields,
+  provenance,
   children,
 }: {
   doc: DesignDocument;
@@ -370,6 +467,18 @@ export function SheetDoc({
       option B" — the caller knows whether this is one of several */
   eyebrow: string;
   preparedOn: string;
+  /* THE MARK GOES TOP LEFT, and each chrome puts it where its own top left
+     is: the two screen chromes carry it in their bar, and PAPER HAS NO BAR,
+     so the print document renders it at the head of the page instead.
+
+     This is why it is a slot rather than part of the masthead. Anything that
+     lives only in a bar vanishes from the PDF, and a pack a builder files
+     without the installer's mark on it is the thing #440 existed to fix. */
+  mark?: React.ReactNode;
+  /** the owner's editable letterhead — see LetterheadFields */
+  fields?: LetterheadFields;
+  /** the owner's "Added from ServiceM8 …" line, with its Unlink */
+  provenance?: React.ReactNode;
   /** anything the CALLER puts at the foot of the document, above the close:
       the owner's copy hangs the whole-job picklist and contributors here, and
       the customer's copy hangs nothing. Absent, not hidden. */
@@ -377,22 +486,39 @@ export function SheetDoc({
 }) {
   return (
     <article className="dsd">
+      {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}
         brand={brand}
         eyebrow={eyebrow}
         preparedOn={preparedOn}
+        fields={fields}
+        provenance={provenance}
       />
       <Figures snapshot={snapshot} model={model} basis={basis} />
 
       {model.systems.map((s) => (
         <section key={s.systemId} className="dsd-sys">
           <SystemBand sys={s} />
-          <RoomsTable
-            rooms={s.rooms}
-            outdoorModel={s.outdoorModel}
-            sharedOutdoor={s.sharedOutdoor}
-          />
+          {/* A SYSTEM THAT SERVES NO ROOMS SAYS SO.
+
+              It used to render the table anyway: nine column headings with
+              nothing underneath, a row of labels floating above the
+              consumables. A system reaches this the moment its outdoor is
+              chosen and its indoor is not yet placed, which is most of the
+              time somebody is mid-design — and the customer's copy of the
+              sheet drew the same hole. */}
+          {s.rooms.length > 0 ? (
+            <RoomsTable
+              rooms={s.rooms}
+              outdoorModel={s.outdoorModel}
+              sharedOutdoor={s.sharedOutdoor}
+            />
+          ) : (
+            <p className="dsd-none">
+              No rooms are on this system yet.
+            </p>
+          )}
           <Consumables lines={s.lines} />
         </section>
       ))}

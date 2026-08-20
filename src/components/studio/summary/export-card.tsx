@@ -31,15 +31,82 @@ import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
    erased and costs nothing. */
 const orgActions = () => import("@/app/actions/org");
 
-/* Export action card — the customizer. Content (full pack / plan drawings /
-   materials schedule), floors, sibling variants (lazy-loaded through the
-   store, incl. "all options"), layers, black & white, legend, paper +
-   orientation — then three ways out: Print/Save PDF (the on-demand PrintDoc),
-   PNG per floor (PlanFigure → static markup → raster; no extra DOM), and the
-   design-file JSON. Defaults are "everything, in colour, A4" so the options
-   live behind a Customise disclosure and the card stays calm. */
+/* Export — WHAT ARE YOU SENDING, then how it should look.
+
+   It used to lead with the mechanism: three buttons reading Print / PNG per
+   floor / Design file, with the actual choice — how much of the design goes
+   in — hidden behind a Customise disclosure underneath them. So the first
+   decision the screen asked for was which machine to use, and the one that
+   matters was the one you had to go looking for.
+
+   Now the card is a list of the things you can send, each named by what comes
+   out of it, and the options that follow are only the ones that apply to the
+   pick. The button says what pressing it will do.
+
+   AND NOTHING IS CALLED A PACK. That word promised a folder of documents —
+   datasheets, schedules, compliance — and what comes out is the design
+   summary, optionally followed by a page per floor. On a blank-canvas design
+   with no plans it was the summary and nothing else. Each choice below states
+   its own contents instead.
+
+   Three machines still, underneath: the on-demand PrintDoc, PlanFigure →
+   static markup → raster for the images, and the design-file JSON. */
 
 const PNG_WIDTH_PX = 2600;
+
+/* THE THINGS YOU CAN SEND, each named by what comes out of it rather than by
+   the machine that makes it. `content` is the existing print model's own axis;
+   `how` is which machine. A pick that produces no drawing hides every drawing
+   option, and one that is not paper hides the paper options — an export sheet
+   should not ask about A3 for a JSON file. */
+type ExportHow = "print" | "png" | "file";
+
+interface ExportPick {
+  id: string;
+  label: string;
+  /** what comes out — the whole promise, in one line */
+  detail: string;
+  content: ExportContent;
+  how: ExportHow;
+}
+
+const PICKS: ExportPick[] = [
+  {
+    id: "summary",
+    label: "The design summary",
+    detail: "One document: the figures, each system, its rooms and materials.",
+    content: "schedule",
+    how: "print",
+  },
+  {
+    id: "summary-plans",
+    label: "The summary and the plans",
+    detail: "The document, then one page per floor.",
+    content: "full",
+    how: "print",
+  },
+  {
+    id: "plans",
+    label: "The plans",
+    detail: "One page per floor, and nothing else.",
+    content: "plans",
+    how: "print",
+  },
+  {
+    id: "plan-images",
+    label: "The plans as images",
+    detail: "A PNG per floor, for dropping into an email or a report.",
+    content: "plans",
+    how: "png",
+  },
+  {
+    id: "design-file",
+    label: "The design file",
+    detail: "A backup you can re-open with Import. Not for a customer.",
+    content: "full",
+    how: "file",
+  },
+];
 
 export function ExportCard({
   doc,
@@ -59,6 +126,12 @@ export function ExportCard({
   loadVariant: (id: string) => Promise<DesignDocument | null>;
 }) {
   const [open, setOpen] = useState(false);
+  /* the pick's content, read by startPrint. Written in an effect rather than
+     during render — a ref touched while rendering is the "cannot access refs
+     during render" rule, and this is the same shape print-doc.tsx uses to let
+     a callback see the latest prop without rebuilding itself. */
+  const pickContent = useRef<ExportContent>("full");
+
   const [opts, setOpts] = useState<ExportOptions>(() =>
     defaultExportOptions(doc)
   );
@@ -161,7 +234,13 @@ export function ExportCard({
     if (preparing || printing) return;
     setPreparing(true);
     try {
-      const model = buildPrintModel(resolveDocs(), pack, opts);
+      /* the pick decides how much of the design goes in — DERIVED here rather
+         than mirrored into `opts` by an effect, which is a cascading render
+         for a value that is already a function of the pick */
+      const model = buildPrintModel(resolveDocs(), pack, {
+        ...opts,
+        content: pickContent.current,
+      });
       const refs = collectSheetRefs(model);
       const urls: Record<string, string> = {};
       /* The letterhead is fetched HERE, alongside the rasters, and not when
@@ -277,7 +356,46 @@ export function ExportCard({
     </button>
   );
 
-  const planless = opts.content === "schedule";
+  /* the pick drives everything below it: `content` rides into the print
+     model, `how` decides which machine runs and which options are even
+     relevant. */
+  const [pickId, setPickId] = useState<string>("summary-plans");
+  const pick = PICKS.find((p) => p.id === pickId) ?? PICKS[1];
+  /* the design file has no LOOK — it is the document, not a rendering of it,
+     so every option below is gated on there being something to render */
+  const renders = pick.how !== "file";
+  const showsDrawing = renders && pick.content !== "schedule";
+  const showsPaper = pick.how === "print";
+  const showsFloors = showsDrawing && doc.floors.length > 1;
+  useEffect(() => {
+    pickContent.current = pick.content;
+  });
+
+  const busy = preparing || pnging;
+  const go = () => {
+    if (pick.how === "file") return onExportJson();
+    if (pick.how === "png") return void exportPngs();
+    return void startPrint();
+  };
+
+  /* the button says what pressing it will DO, not what mode you are in */
+  const goLabel = (() => {
+    if (preparing) return "Preparing…";
+    if (pnging) return "Drawing…";
+    if (pick.how === "file") return "Download the design file";
+    if (pick.how === "png") {
+      const n = opts.floorIds.length;
+      return `Download ${n} ${n === 1 ? "image" : "images"}`;
+    }
+    return "Print or save as PDF";
+  })();
+
+  /* a design with no systems has nothing to put on a summary; the drawings and
+     the backup are still real, so only the summary picks go dead */
+  const goDisabled =
+    busy ||
+    (pick.how === "print" && pick.content !== "plans" && empty) ||
+    (pick.how === "png" && opts.floorIds.length === 0);
 
   return (
     <div className="ds-act-card">
@@ -285,38 +403,48 @@ export function ExportCard({
         <Icon name="download" size={14} />
         Export
       </span>
-      <span className="ds-act-s">
-        The pack as a PDF — plan pages included — PNG drawings per floor, or
-        the design file.
-      </span>
+      <span className="ds-act-s">What are you sending?</span>
 
-      <button
-        className="ds-export-toggle"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-      >
-        <Icon name={open ? "chevD" : "chevR"} size={12} />
-        Customise
-      </button>
+      <div className="ds-export-picks" role="radiogroup" aria-label="What to export">
+        {PICKS.map((p) => (
+          <button
+            key={p.id}
+            role="radio"
+            aria-checked={p.id === pick.id}
+            /* the NAME is the artifact; the line under it is the description.
+               Rolling both into the name would announce "The plans as images
+               A PNG per floor, for dropping into an email or a report" every
+               time the choice moved. */
+            aria-labelledby={`ds-xp-t-${p.id}`}
+            aria-describedby={`ds-xp-s-${p.id}`}
+            className={`ds-export-pick${p.id === pick.id ? " on" : ""}`}
+            onClick={() => setPickId(p.id)}
+          >
+            <span className="ds-export-pick-t" id={`ds-xp-t-${p.id}`}>
+              {p.label}
+            </span>
+            <span className="ds-export-pick-s" id={`ds-xp-s-${p.id}`}>
+              {p.detail}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {renders &&
+        (showsFloors || showsDrawing || showsPaper || doc.variants.length > 1) && (
+        <button
+          className="ds-export-toggle"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          <Icon name={open ? "chevD" : "chevR"} size={12} />
+          How it should look
+        </button>
+      )}
 
       {open && (
         <div className="ds-export-opts">
-          <div className="ds-export-grp">
-            <span className="ds-export-cap">What</span>
-            <div className="ds-export-segs">
-              {(
-                [
-                  ["full", "Full pack"],
-                  ["plans", "Plans"],
-                  ["schedule", "Schedule"],
-                ] as [ExportContent, string][]
-              ).map(([v, label]) =>
-                seg(label, opts.content === v, () => patch({ content: v }))
-              )}
-            </div>
-          </div>
-
-          {!planless && doc.floors.length > 1 && (
+          {showsFloors && (
             <div className="ds-export-grp">
               <span className="ds-export-cap">Floors</span>
               {doc.floors.map((f) => (
@@ -362,7 +490,7 @@ export function ExportCard({
             </div>
           )}
 
-          {!planless && (
+          {showsDrawing && (
             <div className="ds-export-grp">
               <span className="ds-export-cap">Drawing</span>
               {(
@@ -403,51 +531,34 @@ export function ExportCard({
             </div>
           )}
 
-          <div className="ds-export-grp">
-            <span className="ds-export-cap">Paper</span>
-            <div className="ds-export-segs">
-              {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
-              {seg("A3", opts.paper === "A3", () => patch({ paper: "A3" }))}
+          {showsPaper && (
+            <div className="ds-export-grp">
+              <span className="ds-export-cap">Paper</span>
+              <div className="ds-export-segs">
+                {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
+                {seg("A3", opts.paper === "A3", () => patch({ paper: "A3" }))}
+              </div>
+              <div className="ds-export-segs">
+                {seg("Portrait", opts.orientation === "portrait", () =>
+                  patch({ orientation: "portrait" })
+                )}
+                {seg("Landscape", opts.orientation === "landscape", () =>
+                  patch({ orientation: "landscape" })
+                )}
+              </div>
             </div>
-            <div className="ds-export-segs">
-              {seg("Portrait", opts.orientation === "portrait", () =>
-                patch({ orientation: "portrait" })
-              )}
-              {seg("Landscape", opts.orientation === "landscape", () =>
-                patch({ orientation: "landscape" })
-              )}
-            </div>
-          </div>
+          )}
         </div>
       )}
 
       <div className="ds-act-row">
         <button
-          className="ds-tbbtn ds-job-print"
-          onClick={() => void startPrint()}
-          disabled={empty || preparing}
+          className="ds-tbbtn ds-act-go ds-job-print"
+          onClick={go}
+          disabled={goDisabled}
         >
           <Icon name="download" size={14} />
-          {preparing ? "Preparing…" : "Print / Save PDF"}
-        </button>
-        <button
-          className="ds-tbbtn"
-          onClick={() => void exportPngs()}
-          disabled={planless || pnging || opts.floorIds.length === 0}
-          title="One PNG image per selected floor, drawn with the options above"
-        >
-          <Icon name="file" size={14} />
-          {pnging ? "Drawing…" : "PNG per floor"}
-        </button>
-        {/* stays enabled when empty — a backup of an empty design is still a
-            valid backup */}
-        <button
-          className="ds-tbbtn ds-job-export"
-          onClick={onExportJson}
-          title="Download this design as a .heytiff-design.json backup — re-open it with Import on the studio home"
-        >
-          <Icon name="arrowUp" size={14} />
-          Design file
+          {goLabel}
         </button>
       </div>
 

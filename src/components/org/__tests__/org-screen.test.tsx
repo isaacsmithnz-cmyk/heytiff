@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { OrgAccount } from "@/lib/org/account";
+import type { OwnerCandidate } from "@/lib/org/ownership";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { OrgSettings } from "@/lib/org/settings";
 
@@ -72,6 +73,11 @@ const ACCOUNT: OrgAccount = {
   plan: "standard",
 };
 
+const CANDIDATES: OwnerCandidate[] = [
+  { userId: "auth0|liv", name: "Liv Nguyen", email: "liv@smithair.com.au", role: "admin" },
+  { userId: "auth0|sam", name: "Sam Reed", email: "sam@smithair.com.au", role: "owner" },
+];
+
 const CREDENTIALS: OrgCredential[] = [
   {
     id: "C1",
@@ -100,6 +106,8 @@ function setup(
     logoUrl?: string;
     addressLookup?: boolean;
     account?: OrgAccount | null;
+    candidates?: OwnerCandidate[];
+    onTransferOwnership?: jest.Mock;
     /** which tab to land on — the page's own `?sec=`, so a test that wants a
         section says which one instead of counting cards down a page */
     sec?: string;
@@ -112,12 +120,20 @@ function setup(
     onRemoveCredential: jest.fn().mockResolvedValue({ ok: true }),
     onSetLogo: jest.fn().mockResolvedValue({ ok: true }),
     onClearLogo: jest.fn().mockResolvedValue({ ok: true }),
+    /* Present = "you are the master". The page passes it only for the master
+       owner, so a test for a co-owner's screen passes `onTransferOwnership:
+       undefined` rather than a stub that refuses. */
+    onTransferOwnership:
+      over.onTransferOwnership === undefined
+        ? jest.fn().mockResolvedValue({ ok: true })
+        : over.onTransferOwnership,
   };
   const view = render(
     <OrgScreen
       org={{ ...ORG, ...(over.org ?? {}) }}
       credentials={over.credentials ?? CREDENTIALS}
       account={over.account === undefined ? ACCOUNT : over.account}
+      ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
       today={TODAY}
       initialSec={over.sec}
@@ -800,5 +816,145 @@ describe("the account card", () => {
       "aria-selected",
       "true"
     );
+  });
+});
+
+
+/* HANDING THE ACCOUNT OVER — the one master-only act on this screen.
+
+   It is the only control on the Account tab, and it exists because
+   `primary_owner_user_id` was written once at first login and never again:
+   the card stated who held the account with no way to change it, which is
+   how Isaac found it ("it doesn't look like i can change the org owner").
+
+   Three things this suite is really pinning: the button belongs to the MASTER
+   and nobody else, picking is not committing, and the consequence is on screen
+   before the button that causes it. */
+describe("handing the account over", () => {
+  const openHandover = async (user: ReturnType<typeof userEvent.setup>) =>
+    user.click(screen.getByRole("button", { name: /Hand over/ }));
+
+  it("offers the handover to the master owner", () => {
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    expect(screen.getByRole("button", { name: /Hand over/ })).toBeInTheDocument();
+  });
+
+  /* A co-owner is a full owner everywhere else on this screen — they edit the
+     ABN, the address, the licences. The page passes no action for them, so the
+     control is not rendered rather than rendered-and-refused. */
+  it("does not offer it to a co-owner", () => {
+    setup({ sec: "account", onTransferOwnership: undefined as unknown as jest.Mock });
+    expect(screen.queryByRole("button", { name: /Hand over/ })).not.toBeInTheDocument();
+  });
+
+  /* Reading someone else's ownership is not the same as holding it: the master
+     flag is what the button hangs off, not the action alone. */
+  it("does not offer it while someone else holds the account", () => {
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: false } });
+    expect(screen.queryByRole("button", { name: /Hand over/ })).not.toBeInTheDocument();
+  });
+
+  it("opens no dialog until it is asked for", () => {
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("lists everyone else with a login, and says what each of them is today", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    await openHandover(user);
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Liv Nguyen")).toBeInTheDocument();
+    expect(within(dialog).getByText("sam@smithair.com.au")).toBeInTheDocument();
+    expect(within(dialog).getByText("Admin")).toBeInTheDocument();
+    expect(within(dialog).getByText("Co-owner")).toBeInTheDocument();
+  });
+
+  /* PICKING IS NOT COMMITTING. The write is the one act on this screen the
+     person doing it cannot undo alone — only the new owner can hand it back —
+     so a misclick in a list must not be the whole transaction. */
+  it("writes nothing when a person is chosen", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    await openHandover(user);
+    await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
+
+    expect(actions.onTransferOwnership).not.toHaveBeenCalled();
+  });
+
+  it("cannot be committed before anyone is chosen", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    await openHandover(user);
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: /Hand over the account/ })).toBeDisabled();
+  });
+
+  /* The consequence the outgoing owner is actually agreeing to, and the extra
+     one that rides along when the person is not already an owner. */
+  it("says what it costs, and names the promotion when there is one", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    await openHandover(user);
+    await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
+
+    expect(screen.getByText("Liv Nguyen becomes the account owner.")).toBeInTheDocument();
+    expect(screen.getByText(/what you lose is the master’s protection/)).toBeInTheDocument();
+    expect(screen.getByText(/Liv Nguyen becomes an owner as part of this/)).toBeInTheDocument();
+  });
+
+  /* A co-owner already holds every capability, so handing it to them promotes
+     nobody — claiming otherwise would be a warning about nothing. */
+  it("claims no promotion when the person is already an owner", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    await openHandover(user);
+    await user.click(screen.getByRole("radio", { name: /Sam Reed/ }));
+
+    expect(screen.getByText("Sam Reed becomes the account owner.")).toBeInTheDocument();
+    expect(screen.queryByText(/becomes an owner as part of this/)).not.toBeInTheDocument();
+  });
+
+  it("hands it over by user id, then closes", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true } });
+    await openHandover(user);
+    await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
+    await user.click(screen.getByRole("button", { name: /Hand over the account/ }));
+
+    expect(actions.onTransferOwnership).toHaveBeenCalledWith("auth0|liv");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("stays open and says why when the server refuses", async () => {
+    const user = userEvent.setup();
+    const onTransferOwnership = jest
+      .fn()
+      .mockResolvedValue({ ok: false, error: "Only the account owner can hand the account over." });
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true }, onTransferOwnership });
+
+    await openHandover(user);
+    await user.click(screen.getByRole("radio", { name: /Liv Nguyen/ }));
+    await user.click(screen.getByRole("button", { name: /Hand over the account/ }));
+
+    expect(
+      await screen.findByText("Only the account owner can hand the account over.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  /* A one-person business is the normal case, not a failure — and the empty
+     state has to say what would change it, since "nobody" is a fact about
+     logins, not about the staff list. */
+  it("says why the list is empty rather than offering an empty one", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "account", account: { ...ACCOUNT, ownerIsYou: true }, candidates: [] });
+    await openHandover(user);
+
+    expect(screen.getByText("There is nobody else signed in")).toBeInTheDocument();
+    expect(screen.getByText(/accepted their invite and signed in/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Hand over the account/ })).toBeDisabled();
   });
 });

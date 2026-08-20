@@ -14,6 +14,7 @@ import { auDayOf, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
 import { orgCredBadge, type OrgCredential, type OrgCredentialInput } from "@/lib/org/credentials";
 import { ownerLabel, planLabel, type OrgAccount } from "@/lib/org/account";
+import type { OwnerCandidate } from "@/lib/org/ownership";
 import {
   AU_STATES,
   formatAbn,
@@ -22,10 +23,11 @@ import {
   type OrgSettings,
 } from "@/lib/org/settings";
 import { OrgCredentialModal } from "./org-credential-modal";
+import { TransferOwnerModal } from "./transfer-owner-modal";
 import { LogoUploader } from "./logo-uploader";
 import { OverviewTab } from "./overview-tab";
 import { ORG_TABS, orgTabFromParam, type OrgTabKey } from "./tabs";
-import type { OrgActions } from "./types";
+import type { OrgActions, TransferResult } from "./types";
 
 /* The Organisation screen — the company profile, on the Workboard's card.
 
@@ -103,6 +105,7 @@ export function OrgScreen({
   org,
   credentials,
   account,
+  ownerCandidates = [],
   logoUrl,
   today,
   initialSec,
@@ -114,6 +117,9 @@ export function OrgScreen({
   /** whose account this is — owner, size, age, plan. Optional so a caller that
       has no session to resolve "is that you" against can leave it out. */
   account?: OrgAccount | null;
+  /** Everyone else in the org with a login — who the account could be handed
+      to. Loaded only for the master owner, because nobody else may. */
+  ownerCandidates?: OwnerCandidate[];
   /** signed at render — the bucket is private, so this expires */
   logoUrl: string | null;
   /** AU calendar date, so expiries agree with the dashboard chips */
@@ -220,7 +226,13 @@ export function OrgScreen({
                       actions={actions}
                     />
                   )}
-                  {tab === "account" && account && <AccountSection account={account} />}
+                  {tab === "account" && account && (
+                    <AccountSection
+                      account={account}
+                      candidates={ownerCandidates}
+                      onTransfer={actions.onTransferOwnership}
+                    />
+                  )}
                 </section>
               </div>
             </div>
@@ -626,17 +638,43 @@ function CredentialsSection({
 
 /* The account — whose it is, how big, how old, what tier.
 
-   Read-only on purpose, and each fact points at whatever DOES own it rather
-   than growing a control here: the team count links to Team, and ownership
-   moves through the handover flow. See lib/org/account.ts.
+   ONE CONTROL, and it is the reason this tab is no longer purely a statement:
+   the account can be HANDED OVER from here. Everything else still points at
+   whatever owns it — the team count links to Team, the plan is billing, and
+   the owner's name and email come from the identity provider (see
+   lib/org/account.ts for why editing them here would be erased at next login).
+
+   The handover button exists only for the master owner. A co-owner reading
+   this tab sees the same four facts and no button, rather than a control that
+   would answer "only the account owner can do that" — the server refuses them
+   too, so this is about not offering, not about security.
 
    Last tab because it is the only one that isn't about the company as a
    customer sees it. */
-function AccountSection({ account }: { account: OrgAccount }) {
+function AccountSection({
+  account,
+  candidates,
+  onTransfer,
+}: {
+  account: OrgAccount;
+  candidates: OwnerCandidate[];
+  onTransfer?: (userId: string) => Promise<TransferResult>;
+}) {
+  const [handing, setHanding] = useState(false);
+  const mayHand = account.ownerIsYou && !!onTransfer;
+
   return (
     <div className="psec-body">
       <div className="psechd">
         <em>Who holds this HeyTiff account</em>
+        {mayHand && (
+          <span className="acts">
+            <button className="pbtn ghost" type="button" onClick={() => setHanding(true)}>
+              <Icon name="usershield" size={14} />
+              Hand over
+            </button>
+          </span>
+        )}
       </div>
 
       <div className="orgacct">
@@ -677,6 +715,15 @@ function AccountSection({ account }: { account: OrgAccount }) {
           <b>{planLabel(account.plan)}</b>
         </span>
       </div>
+
+      {handing && onTransfer && (
+        <TransferOwnerModal
+          candidates={candidates}
+          currentOwnerLabel={ownerLabel(account)}
+          onTransfer={onTransfer}
+          onClose={() => setHanding(false)}
+        />
+      )}
     </div>
   );
 }

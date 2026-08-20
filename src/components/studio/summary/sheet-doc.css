@@ -52,15 +52,10 @@
    across the middle — the sheet sits in the well the way a screen does in the
    dark shell.
 
-   THE RADIUS IS THE SHELL'S OWN 30px, converted rather than guessed: 30px at
-   96dpi is 7.94mm, which is what a printed sheet needs to be told. Note that
-   the same measurement is a BIGGER corner on paper — 30px is 2.08% of a 1440px
-   viewport and 3.78% of a 210mm page — so this is a deliberate literal match,
-   not a proportional one. Circular, as the shell's is, so the sweep across the
-   page and the depth of the dip are one number instead of two.
-
-   The gutter is 8mm rather than the shell's 4.23mm (its 16px). At the shell's
-   own figure the band read as a hairline on a sheet this size.
+   THE NUMBERS COME FROM `themeVars`, not from here. `--doc-gutter`,
+   `--doc-radius` and `--doc-band` are set alongside the colour and are absent
+   without it, so an org that has set no colour gets no band AND no padding for
+   one — see the note in lib/org/theme.ts. Every fallback below is 0.
 
    IT CARRIES NOTHING. No logo, no contact line, no page number — which is the
    entire reason this treatment was chosen over a letterhead band. Nothing on
@@ -76,7 +71,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  height: calc(8mm + 7.94mm);          /* gutter + radius = depth at the edge */
+  height: var(--doc-band, 0px);        /* gutter + radius = depth at the edge */
   background: var(--doc-ink, transparent);
   pointer-events: none;
   /* a fill a browser would otherwise drop to save ink — and this one IS the
@@ -93,10 +88,10 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 8mm;
-  bottom: 8mm;
+  top: var(--doc-gutter, 0px);
+  bottom: var(--doc-gutter, 0px);
   background: #fff;
-  border-radius: 7.94mm;
+  border-radius: var(--doc-radius, 0px);
   pointer-events: none;
 }
 /* the document's own content paints above all three. Scoped to the CONTENT:
@@ -104,7 +99,9 @@
    specificity and, coming later, would strip their position:absolute. */
 .dsd > *:not(.dsd-bband):not(.dsd-bwell) { position: relative; }
 /* and the content clears the band at both ends */
-.dsd { padding-top: calc(8mm + 7.94mm + 6mm); padding-bottom: calc(8mm + 7.94mm + 6mm); }
+/* ZERO WITHOUT A THEME. This padding exists only to clear the band; applied
+   unconditionally it was 22mm of white space added to every unthemed sheet. */
+.dsd { padding-top: var(--doc-pad, 0px); padding-bottom: var(--doc-pad, 0px); }
 
 /* ── masthead ── */
 .dsd-mast {

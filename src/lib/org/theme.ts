@@ -173,6 +173,14 @@ export function documentTheme(seed: string): DocumentTheme | null {
    "Unthemed" is therefore not a code path anybody has to maintain — it is the
    absence of one, which is the only version of that promise that cannot rot.
 
+   THE GEOMETRY TRAVELS WITH THE COLOUR, and that is not decoration. The band
+   takes space: the sheet has to be padded clear of it. Written into the
+   stylesheets as a constant that padding applied to EVERY document, themed or
+   not, and an org that had set no colour silently gained 22mm of white space
+   at each end — a change to a document this whole design promised not to
+   change. Shipping the depth through the same object as the colour is what
+   makes the two impossible to get out of step: no colour, no band, no padding.
+
    The names are `--doc-*` and not `--brand-*`: these reach documents only. The
    app's own chrome must never resolve them, and a token called `--brand-ink`
    would eventually be reached for inside `.fg` by someone reading the name
@@ -180,13 +188,42 @@ export function documentTheme(seed: string): DocumentTheme | null {
 
    A `import type` only — this stays a pure module with no runtime React, so
    the client components that print can still import it. The cast is needed
-   because React types custom properties as unknown keys; the values are hex
-   strings this module produced. */
+   because React types custom properties as unknown keys. */
 export function themeVars(seed: string | null): CSSProperties {
   const t = seed ? documentTheme(seed) : null;
   if (!t) return {};
-  return { "--doc-ink": t.ink } as CSSProperties;
+  return {
+    "--doc-ink": t.ink,
+    "--doc-gutter": BAND.gutter,
+    "--doc-radius": BAND.radius,
+    "--doc-band": `calc(${BAND.gutter} + ${BAND.radius})`,
+    /* what the SHEET must pad to clear the band. Computed here rather than in
+       CSS because `calc(var(--doc-band, 0px) + 6mm)` is 6mm when the variable
+       is absent, not 0 — and 6mm of new white space on every unthemed document
+       is exactly the bug this object exists to prevent. */
+    "--doc-pad": `calc(${BAND.gutter} + ${BAND.radius} + ${BAND.clear})`,
+  } as CSSProperties;
 }
+
+/* THE BAND'S GEOMETRY, in one place because three stylesheets draw it.
+
+   `radius` is the app shell's own corner, converted rather than guessed:
+   `.fg .outlet` is `border-radius: 40px 30px 30px 30px`, and 30px at 96dpi is
+   7.94mm. It is a LITERAL match, not a proportional one — the same measurement
+   is a bigger corner on paper (30px is 2.08% of a 1440px viewport and 3.78% of
+   a 210mm page) and that is the intended reading, because a radius is an
+   absolute token here and this one has to survive being printed at A5 or A3.
+
+   `gutter` is the band's depth across the middle of the page, and is NOT the
+   shell's 4.23mm (its 16px): at that figure the band read as a hairline on a
+   sheet this size. Its depth at the page edge is gutter + radius, because the
+   well's corner is what carves the middle away. */
+const BAND = {
+  gutter: "16mm",
+  radius: "7.94mm",
+  /** breathing room between the band and the first line of the document */
+  clear: "6mm",
+} as const;
 
 /** The grounds and floors, exported for the guard that proves the derivation
     — a test that restated them could agree with itself while disagreeing with

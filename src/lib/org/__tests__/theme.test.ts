@@ -280,7 +280,37 @@ describe("themeVars", () => {
   /* `--doc-*`, not `--brand-*`: these reach documents only, and a token named
      for the brand would eventually be reached for inside `.fg`, which is the
      one place the rules say a customer's colour must never go. */
-  it("names the variable for the document, not for the brand", () => {
-    expect(Object.keys(themeVars("#004885"))).toEqual(["--doc-ink"]);
+  it("names every variable for the document, not for the brand", () => {
+    for (const k of Object.keys(themeVars("#004885"))) {
+      expect(k.startsWith("--doc-")).toBe(true);
+    }
+  });
+
+  /* THE GEOMETRY TRAVELS WITH THE COLOUR, and this is the guard for the half
+     of it that got missed. The band needs the sheet padded clear of it, and
+     that padding was written into the stylesheets as a constant — so it
+     applied to every document, and an org that had set no colour silently
+     gained 22mm of white space at each end. A document this design promised
+     not to touch.
+
+     The fix is that the depth ships through the same object as the colour, so
+     the two cannot get out of step. Which makes the claim testable: no colour,
+     no variables of ANY kind. */
+  it("sets no geometry either when there is no colour", () => {
+    expect(themeVars(null)).toEqual({});
+    expect(themeVars("not a colour")).toEqual({});
+  });
+
+  it("ships the band's depth and its clearance alongside the colour", () => {
+    const v = themeVars("#004885") as Record<string, string>;
+    expect(Object.keys(v).sort()).toEqual(
+      ["--doc-band", "--doc-gutter", "--doc-ink", "--doc-pad", "--doc-radius"]
+    );
+    // the shell's own 30px corner at 96dpi, carried across as a measurement
+    expect(v["--doc-radius"]).toBe("7.94mm");
+    // and the depth at the page edge is gutter + radius, because the well's
+    // corner is what carves the middle away
+    expect(v["--doc-band"]).toContain(v["--doc-gutter"]);
+    expect(v["--doc-band"]).toContain(v["--doc-radius"]);
   });
 });

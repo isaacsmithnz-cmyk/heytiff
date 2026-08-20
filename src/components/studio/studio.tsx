@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import { Chevron } from "@/components/logo";
 import { JobSearchField, type JobSearch } from "./job-search";
 export type { JobSearch };
 import { agoLabel } from "@/lib/format/duration";
@@ -795,9 +796,17 @@ function Home({
           ) : (
             <>
               <h2>Design Studio</h2>
-              <button className="ds-cta" onClick={() => setStep("name")}>
-                <Icon name="plus" size={18} />
+              {/* The landing's one action, so it is sized like one: the mark
+                  sits at the far end of a wide button and reads as the arrow
+                  it already is, pointing at what happens next. */}
+              <button
+                className="ds-cta ds-start"
+                onClick={() => setStep("name")}
+              >
                 New design
+                <span className="ds-start-mk">
+                  <Chevron size={19} decorative />
+                </span>
               </button>
             </>
           )}

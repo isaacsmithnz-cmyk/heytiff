@@ -19,6 +19,10 @@
    thing instead of a row that disagrees with itself. The 4px bar retires
    because the fill is doing its job.
 
+   AND A COLOUR WITH NO HUE KEEPS NONE. Flooring the saturation of something
+   that is already grey does not rescue a wash, it fabricates a hue — see
+   MIN_SOURCE_CHROMA. Those fall to the neutral pair instead.
+
    AND NOT `opacity` FOR THE CLOSED ONES. A finished block used to be
    `opacity:.58`, which is de-emphasis by arithmetic: over a saturated fill it
    drags the label toward the ground behind it. `pale` is a stated colour with
@@ -153,6 +157,27 @@ const FLOOR_L = 0.12;
 /** ServiceM8's washes carry almost no chroma; below this a "colour" is grey. */
 const MIN_SATURATION = 0.55;
 
+/** Below this much chroma in the SOURCE, there is no hue to rescue.
+
+    The floor above exists to rescue a wash, and on a colour that has a hue it
+    does exactly that. On one that hasn't, it invents a hue and then states it
+    confidently — which is how a category somebody set to #D9D9DE came out
+    blue-violet (its 240° is arbitrary rounding on five points of chroma), and
+    how black and white both came out RED: neither has a hue, both compute 0°,
+    and 0° at full saturation is the danger colour.
+
+    Measured, the gap is wide and there is no judgement in the middle of it:
+
+      black, white   0.000        mint    0.485
+      #D9D9DE grey   0.070        lilac   0.690
+                                  teal    1.000
+
+    The line sits at 0.10 rather than in the middle, deliberately. Turning a
+    colour somebody chose into grey is the worse of the two mistakes, so this
+    errs toward keeping a hue: a deliberately muted pick like a dusty sage
+    (~0.12) still gets one. */
+const MIN_SOURCE_CHROMA = 0.1;
+
 /**
  * The paint for one category colour. `hex` is ServiceM8's own value, already
  * sanitised by `sm8CategoryColour`; null (or unreadable) gets the grey pair.
@@ -162,6 +187,9 @@ export function scheduleBlockPaint(hex: string | null | undefined): BlockPaint {
   if (!raw) return NO_CATEGORY_PAINT;
 
   const [h, s0] = toHsl(raw);
+  /* No hue to rescue — take the same grey a job with no category gets, rather
+     than inventing one. Black, white and a picked grey all land here. */
+  if (s0 < MIN_SOURCE_CHROMA) return NO_CATEGORY_PAINT;
   const s = Math.max(s0, MIN_SATURATION);
 
   /* Closed work: same hue, most of the way to white, chroma pulled back so a

@@ -16,22 +16,26 @@ function channels(cssColour: string): [number, number, number] {
 }
 
 /* A spread of what ServiceM8 actually hands out: washes around 85% lightness,
-   plus the awkward ones — a yellow (where white never works), a near-grey
-   (almost no chroma to floor up), and black and white themselves. */
+   plus the awkward ones — a yellow, where white can only sit once the fill has
+   travelled a long way down. */
 const CATEGORY_COLOURS = [
   "#CBB8F2", // lilac
   "#B9CCF5", // powder blue
   "#B7E6C8", // mint
   "#F5D9B8", // sand
-  "#F2EFB8", // pale yellow — the hue white can never sit on
+  "#F2EFB8", // pale yellow — needs the biggest walk before white clears
   "#F5B8C4", // pink
   "#B8EFF2", // ice
-  "#D9D9DE", // near-grey
-  "#000000",
-  "#FFFFFF",
   "#7A5AF8", // an already-strong colour, not a wash
   "#00A389",
+  "#C8D4C8", // a deliberately muted sage — faint, but still a chosen hue
 ];
+
+/* Colours with no hue to rescue. These do NOT get the category treatment:
+   flooring the saturation of something already grey fabricates a hue, which
+   is how #D9D9DE came out blue-violet and how black and white both came out
+   red. They take the neutral pair instead. */
+const ACHROMATIC = ["#D9D9DE", "#000000", "#FFFFFF", "#808080", "#1a1a1a"];
 
 describe("scheduleBlockPaint", () => {
   it.each(CATEGORY_COLOURS)("gives %s a label that clears 4.5:1", (hex) => {
@@ -61,6 +65,27 @@ describe("scheduleBlockPaint", () => {
     // the rail's text colour is a rule, not a property of the category. A row
     // of blocks that disagree about it reads as an accident.
     expect(scheduleBlockPaint(hex).ink).toBe("rgb(255, 255, 255)");
+  });
+
+  it.each(ACHROMATIC)("takes the neutral pair for %s rather than inventing a hue", (hex) => {
+    expect(scheduleBlockPaint(hex)).toBe(NO_CATEGORY_PAINT);
+  });
+
+  it("no longer turns black and white into the danger colour", () => {
+    // both compute 0°, and 0° at the saturation floor is red — they used to
+    // render identically to each other AND to a job that didn't go ahead
+    for (const hex of ["#000000", "#FFFFFF"]) {
+      const [r, g, b] = channels(scheduleBlockPaint(hex).fill);
+      expect(r - Math.max(g, b)).toBeLessThan(20); // nothing like a red
+    }
+  });
+
+  it("keeps a muted pick's hue rather than rounding it to grey", () => {
+    // the line errs toward keeping a colour: losing one somebody chose is the
+    // worse mistake of the two
+    expect(scheduleBlockPaint("#C8D4C8")).not.toBe(NO_CATEGORY_PAINT);
+    const [r, g, b] = channels(scheduleBlockPaint("#C8D4C8").fill);
+    expect(g).toBeGreaterThan(Math.max(r, b)); // still green
   });
 
   it.each(CATEGORY_COLOURS)("moves %s's chip away from its label, never toward it", (hex) => {
@@ -108,6 +133,7 @@ describe("scheduleBlockPaint", () => {
   });
 
   it("falls back to grey for no category or an unreadable colour", () => {
+    expect(scheduleBlockPaint("#12345")).toBe(NO_CATEGORY_PAINT);
     expect(scheduleBlockPaint(null)).toBe(NO_CATEGORY_PAINT);
     expect(scheduleBlockPaint(undefined)).toBe(NO_CATEGORY_PAINT);
     expect(scheduleBlockPaint("#12345")).toBe(NO_CATEGORY_PAINT);

@@ -9,7 +9,7 @@ import type {
   SummaryModel,
 } from "@/lib/studio/summary";
 import type { OrgBrand } from "@/lib/org/brand";
-import { BrandMark } from "@/components/org/letterhead";
+import { BrandLogo, BrandMark } from "@/components/org/letterhead";
 import { SheetDoc } from "@/components/studio/summary/sheet-doc";
 import { LiveViewer } from "./live-viewer";
 import "./live-sheet.css";
@@ -81,8 +81,16 @@ export function LiveSheet({
   return (
     <div className="dsd-page fg dstudio">
       <nav className="dsd-bar">
+        {/* the mark, and only the mark. The business's NAME is in the
+            document below at the size a letterhead earns; repeating it in the
+            bar said it twice, and for a business whose logo is a wordmark it
+            said it four times. */}
         <span className="dsd-mark">
-          <BrandMark brand={brand} fallback="HeyTiff" />
+          {brand.logoUrl ? (
+            <BrandLogo brand={brand} className="dsd-logo" />
+          ) : (
+            <BrandMark brand={brand} fallback="HeyTiff" />
+          )}
         </span>
         {/* the link is a WINDOW on the latest saved design, not a snapshot of
             the day it was sent — and it stops working on its own, so both

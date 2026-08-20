@@ -85,6 +85,37 @@ describe("the rooms table's cascade", () => {
   });
 });
 
+describe("the mark keeps its shape", () => {
+  /* FOUND IN PRODUCTION. `.dsd-logo` was `width: auto` with a max on each
+     side, which READS as "fit inside this box" and was not what it did: the
+     mark is a flex item in a column container, so `align-items: stretch` gave
+     it a definite width, `max-height` then clamped the height, and Diamond
+     Air's 3.55:1 logo rendered at 4.78:1 — stretched 35% wide.
+
+     jsdom has no layout, so no component test can see this. It is stated
+     against the source instead. */
+  it("opts out of the stretch and lets the ratio drive", () => {
+    const rule = css.match(/\.dsd-logo \{[^}]*\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/align-self:\s*flex-start/);
+    expect(rule![0]).toMatch(/height:\s*auto/);
+    expect(rule![0]).toMatch(/object-fit:\s*contain/);
+  });
+
+  it("never pins BOTH dimensions of the image itself", () => {
+    /* every rule that sizes the mark may cap it, but none may set a definite
+       width AND height — that is the distortion, whatever the selector */
+    const sizing = [...css.matchAll(/([^{}]*\.dsd-logo[^{}]*)\{([^}]*)\}/g)]
+      .filter(([, sel]) => !/org-initials/.test(sel));
+    expect(sizing.length).toBeGreaterThan(0);
+    for (const [, sel, body] of sizing) {
+      const pinned =
+        /(^|;)\s*width:\s*\d/.test(body) && /(^|;)\s*height:\s*\d/.test(body);
+      expect({ sel: sel.trim(), pinned }).toEqual({ sel: sel.trim(), pinned: false });
+    }
+  });
+});
+
 describe("the sheet measures its own width", () => {
   /* The three chromes hand this document wildly different room from the same
      viewport — the Summary step gives it what is left after a 224px sidebar,

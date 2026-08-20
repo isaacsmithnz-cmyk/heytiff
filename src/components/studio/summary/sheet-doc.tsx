@@ -8,8 +8,7 @@ import type {
   SummaryRoomRow,
   SummarySystem,
 } from "@/lib/studio/summary";
-import { BrandLogo } from "@/components/org/letterhead";
-import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
+import { hasBrand, type OrgBrand } from "@/lib/org/brand";
 import { fmt, pct, SHEET_GROUPS, tone } from "./sheet-tables";
 import "./sheet-doc.css";
 
@@ -56,12 +55,15 @@ function Masthead({
   provenance?: React.ReactNode;
 }) {
   const address = doc.meta.site.split("\n").map((l) => l.trim()).filter(Boolean);
-  /* THE IDENTITY IS IN THE DOCUMENT BODY, not the bar. Anything that lives
-     only in the chrome vanishes from the PDF, and the PDF is what a builder
-     puts in a folder — so the logo, the name and the contact line are all
-     here, assembled rather than taken from `Letterhead`, whose own
-     arrangement would print the name a second time under the 34px one. */
-  const contact = brandContact(brand);
+  /* WHO PREPARED IT, AND WHEN. That is the whole block.
+
+     It carried the logo and a contact line — ABN, email, website — as well,
+     on the reasoning that a letterhead states how to reach the business. On
+     the page it read as a business card dropped into the middle of a
+     document: four different weights and three sizes under a heading, before
+     the reader had reached a single figure. The name is the identity and the
+     date is what makes the figures mean anything; the logo is the mark, and a
+     mark belongs in the corner, not in a paragraph. */
   const named = hasBrand(brand);
   return (
     <div className="dsd-mast">
@@ -70,20 +72,12 @@ function Masthead({
         <h1>{doc.meta.name || address[0] || "Design"}</h1>
         <div className="dsd-prep">
           <span className="dsd-lab">Prepared by</span>
-          {named && <BrandLogo brand={brand} className="dsd-logo" />}
-          {/* the business's own name, at the size a letterhead earns. A
-              workspace that has set neither a name nor a logo falls back to
+          {/* a workspace that has set neither a name nor a logo falls back to
               the platform rather than printing an empty frame — and the
-              fallback is the WORDMARK, not a repeat of the design's title. */}
+              fallback is the WORDMARK, not a repeat of the design's title */}
           <span className="dsd-org">
             {named && brand.name ? brand.name : "HeyTiff Design Studio"}
           </span>
-          {contact.length > 0 && (
-            /* joined as ONE string, not spans with a separator between them:
-               a separator that can wrap onto a line by itself is the classic
-               way this row breaks */
-            <span className="dsd-contact">{contact.join(" · ")}</span>
-          )}
           <span className="dsd-date">{preparedOn}</span>
         </div>
       </div>
@@ -459,6 +453,7 @@ export function SheetDoc({
   brand,
   eyebrow,
   preparedOn,
+  mark,
   fields,
   provenance,
   children,
@@ -472,6 +467,14 @@ export function SheetDoc({
       option B" — the caller knows whether this is one of several */
   eyebrow: string;
   preparedOn: string;
+  /* THE MARK GOES TOP LEFT, and each chrome puts it where its own top left
+     is: the two screen chromes carry it in their bar, and PAPER HAS NO BAR,
+     so the print document renders it at the head of the page instead.
+
+     This is why it is a slot rather than part of the masthead. Anything that
+     lives only in a bar vanishes from the PDF, and a pack a builder files
+     without the installer's mark on it is the thing #440 existed to fix. */
+  mark?: React.ReactNode;
   /** the owner's editable letterhead — see LetterheadFields */
   fields?: LetterheadFields;
   /** the owner's "Added from ServiceM8 …" line, with its Unlink */
@@ -483,6 +486,7 @@ export function SheetDoc({
 }) {
   return (
     <article className="dsd">
+      {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}
         brand={brand}

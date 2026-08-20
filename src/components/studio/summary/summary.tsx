@@ -16,6 +16,7 @@ import { fmt } from "./sheet-tables";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PicklistPush } from "./picklist-push";
 import { useOrgBrand } from "./use-org-brand";
+import { BrandLogo } from "@/components/org/letterhead";
 import { ShareCard } from "./share-card";
 import { ContributorsCard } from "./contributors-card";
 import { ExportCard } from "./export-card";
@@ -193,6 +194,10 @@ export function SummaryView({
     <div className="ds-panel-card ds-summary">
       {/* ── chrome: everything that is NOT the document. Never prints. ── */}
       <div className="ds-chrome">
+        {/* THE MARK GOES TOP LEFT, with the checks pill beside it. It used to
+            sit in the masthead above a contact line; a mark belongs in the
+            corner, and the document below is the letterhead. */}
+        <BrandLogo brand={brand} className="dsd-logo" />
         {checks.length > 0 ? (
           <button
             className="ds-chrome-warn"

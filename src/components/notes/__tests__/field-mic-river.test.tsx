@@ -68,7 +68,7 @@ jest.mock("../dictation", () => {
 afterEach(cleanup);
 
 const mount = (ui: React.ReactElement) =>
-  render(<NoteScopeProvider value={{ voiceEnabled: true, staffFirstNames: [] }}>{ui}</NoteScopeProvider>);
+  render(<NoteScopeProvider voiceEnabled>{ui}</NoteScopeProvider>);
 
 function Harness({ as, start = "" }: { as: "strip" | "field" | "line"; start?: string }) {
   const [v, setV] = useState(start);

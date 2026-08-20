@@ -434,7 +434,7 @@ export function ProjectDetailScreen({
                 </span>
                 <div>
                   <b>Recurring issues</b>
-                  <em>Logged more than once — the count is the point.</em>
+                  <em>Logged more than once.</em>
                 </div>
               </div>
               {issues.map((i) => (

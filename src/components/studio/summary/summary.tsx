@@ -315,8 +315,7 @@ export function SummaryView({
             <div className="ds-empty-t">An empty design is an empty sheet</div>
             <div className="ds-empty-s">
               Add a system and place its units on the Design step — the sheet
-              builds itself from what you draw. Nothing here is ever typed in by
-              hand.
+              builds itself from what you draw.
             </div>
           </div>
         )}

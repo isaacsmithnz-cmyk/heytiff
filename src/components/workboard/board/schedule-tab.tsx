@@ -15,6 +15,11 @@ import {
   type ScheduleBlock,
   type ScheduleTracked,
 } from "@/lib/workboard/schedule";
+import {
+  NO_CATEGORY_PAINT,
+  scheduleBlockPaint,
+  type BlockPaint,
+} from "@/lib/workboard/schedule-colour";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
@@ -50,6 +55,17 @@ const LANE_PAD_PX = 5;
 const TIGHT_PX = 90;
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+/** A job promoted onto one of our boards leaves the category palette for the
+    tracked blue — the All jobs rows' chip, at block weight. Stated here rather
+    than derived, because this hue is ours and never arrives from ServiceM8. */
+const TRACKED_PAINT: BlockPaint = {
+  fill: "rgb(0, 106, 140)",
+  ink: "rgb(255, 255, 255)",
+  chip: "rgb(0, 83, 110)",
+  pale: "rgb(226, 241, 246)",
+  paleEdge: "rgb(178, 216, 229)",
+};
+
 /** A native day-booking — a project trip or maintenance visit. It has a DAY
     and no clock and mostly no person, so it rides a shelf above the lanes
     rather than being invented onto the rail. */
@@ -78,24 +94,6 @@ type Props = {
   onOpenTracked: (target: { kind: "visit" | "project"; id: string }) => void;
   onGoWork: () => void;
 };
-
-/** rgba() from a sanitised #hex at a given alpha. */
-function tintOf(hex: string, alpha: number): string {
-  const n = parseInt(hex.slice(1, 7), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
-}
-
-/** The category hue driven down to a weight a 4px bar can carry — ServiceM8
-    picks its colours to sit behind black text, so they arrive around 85%
-    lightness and vanish as an accent. One hue, two jobs. */
-function barOf(hex: string): string {
-  const n = parseInt(hex.slice(1, 7), 16);
-  const k = 0.55;
-  const r = Math.round(((n >> 16) & 255) * k);
-  const g = Math.round(((n >> 8) & 255) * k);
-  const b = Math.round((n & 255) * k);
-  return `rgb(${r}, ${g}, ${b})`;
-}
 
 function blockTitle(b: ScheduleBlock): string {
   return [
@@ -331,6 +329,9 @@ export function ScheduleTab({
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
     : false;
   const hasTracked = day ? day.lanes.some((l) => l.blocks.some((b) => !!b.tracked)) : false;
+  const hasDone = day
+    ? day.lanes.some((l) => l.blocks.some((b) => b.status === "Completed"))
+    : false;
 
   let bi = 0; // running block index — the entrance stagger reads left to right
 
@@ -431,7 +432,12 @@ export function ScheduleTab({
                           (b.status === "Quote" ? " qt" : "") +
                           (w < TIGHT_PX ? " tight" : "") +
                           (kin ? " kin" : "");
-                        const colour = !b.tracked ? b.categoryColour : null;
+                        /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
+                           boards wears the tracked blue, everything else is
+                           painted from its ServiceM8 category. */
+                        const paint = b.tracked
+                          ? TRACKED_PAINT
+                          : scheduleBlockPaint(b.categoryColour);
                         return (
                           <button
                             key={b.key}
@@ -443,13 +449,11 @@ export function ScheduleTab({
                               top: LANE_PAD_PX + ri * LANE_ROW_PX,
                               height: LANE_ROW_PX - 6,
                               animationDelay: `${Math.min(bi++ * 14, 400)}ms`,
-                              ...(colour
-                                ? {
-                                    ["--tint" as string]: tintOf(colour, 0.5),
-                                    ["--bar" as string]: barOf(colour),
-                                    ["--edge" as string]: tintOf(colour, 0.55),
-                                  }
-                                : {}),
+                              ["--fill" as string]: paint.fill,
+                              ["--btext" as string]: paint.ink,
+                              ["--chip" as string]: paint.chip,
+                              ["--pale" as string]: paint.pale,
+                              ["--pale-edge" as string]: paint.paleEdge,
                             }}
                             title={blockTitle(b)}
                             aria-label={`Open job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
@@ -468,12 +472,28 @@ export function ScheduleTab({
                               if (job) onOpenJob(job);
                             }}
                           >
-                            <b>
-                              {b.jobNumber ? `#${b.jobNumber}` : "Job"}
-                              {b.tracked ? ` · ${b.tracked.kind === "project" ? "Project" : "Maintenance"}` : ""}
+                            {/* THE CLIENT LEADS. The job number is the one
+                                thing on this block that means nothing until
+                                you have looked it up, and it used to be the
+                                biggest word on it. It rides beside the name as
+                                a chip now — still there for cross-referencing
+                                ServiceM8, no longer the headline — and a tight
+                                block drops back to it alone, which is the old
+                                behaviour unchanged. The second line becomes
+                                the category IN WORDS, so the hue is never the
+                                only thing naming one. */}
+                            <span className="wb2-schbh">
+                              <b>{b.clientName ?? "Unnamed client"}</b>
+                              {b.jobNumber && <u>{b.jobNumber}</u>}
+                            </span>
+                            <em>
+                              {b.tracked
+                                ? b.tracked.kind === "project"
+                                  ? "Project"
+                                  : "Maintenance"
+                                : (b.categoryName ?? "No category")}
                               {b.status === "Quote" ? " · Quote" : ""}
-                            </b>
-                            <em>{b.clientName ?? "Unnamed client"}</em>
+                            </em>
                             {b.suburb && <i>{b.suburb}</i>}
                           </button>
                         );
@@ -489,6 +509,9 @@ export function ScheduleTab({
                     <span
                       className="wb2-schnow"
                       style={{ left: ((nowMin - day.railStart) / 60) * PX_PER_HOUR }}
+                      /* the cap's text — the sheet draws it, so the line and
+                         its label can never end up in two different places */
+                      data-now={clockLabel(nowMin)}
                       aria-hidden="true"
                     />
                   )}
@@ -503,25 +526,33 @@ export function ScheduleTab({
           <div className="wb2-schkey">
             {categoriesOnDay.map(([name, colour]) => (
               <span key={name}>
-                <i style={{ background: tintOf(colour, 0.5), boxShadow: `inset 3px 0 0 ${barOf(colour)}` }} />
+                <i style={{ background: scheduleBlockPaint(colour).fill }} />
                 {name}
               </span>
             ))}
             {hasBare && (
               <span>
-                <i style={{ background: "#f2f3f5", boxShadow: "inset 3px 0 0 #b9bec7" }} />
+                <i style={{ background: NO_CATEGORY_PAINT.fill }} />
                 No category
               </span>
             )}
             {hasTracked && (
               <span>
+                <i style={{ background: TRACKED_PAINT.fill }} />
+                On a board here
+              </span>
+            )}
+            {/* The day's OTHER reading, and the one that needs saying in words:
+                a pale block is finished, not a category we forgot to colour. */}
+            {hasDone && (
+              <span>
                 <i
                   style={{
-                    background: "rgba(0,168,224,.14)",
-                    boxShadow: "inset 3px 0 0 #007fa8",
+                    background: NO_CATEGORY_PAINT.pale,
+                    boxShadow: `inset 0 0 0 1px ${NO_CATEGORY_PAINT.paleEdge}`,
                   }}
                 />
-                On a board here
+                Done and closed
               </span>
             )}
           </div>

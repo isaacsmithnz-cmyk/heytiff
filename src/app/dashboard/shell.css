@@ -5471,40 +5471,90 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* ── a block ──
    NO TIME TEXT: its place on the rail already says when — writing it on the
-   card too is double handling. Times live in the title and the aria-label. */
+   card too is double handling. Times live in the title and the aria-label.
+
+   THE FILL CARRIES THE COLOUR. It used to be ServiceM8's category hex at 50%
+   alpha, which landed a colour already around 85% lightness somewhere near
+   white — so a 4px bar was added beside it to recover the hue. The bar and
+   the wash are both gone: schedule-colour.ts rebuilds the hue at full
+   strength and picks the label's colour by measuring it, and one solid fill
+   does the work two half-legible elements were doing. --btext is that
+   measured colour and every line on the block takes it.
+
+   HIERARCHY BY SIZE AND WEIGHT, NEVER BY ALPHA. The three lines are
+   12/11/10.5px at 800/700/600 and all of them sit at full strength. Knocking
+   the lower two back with opacity is the trap the --q notes at the top of
+   this file describe: it is de-emphasis by arithmetic, it drags the text
+   toward whatever is behind it, and on a saturated fill it takes the suburb
+   line under 4.5:1. */
 .wb2-schb { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:2px;
-  padding:5px 10px 5px 13px; border-radius:10px; text-align:left; overflow:hidden; cursor:pointer;
-  background:var(--tint, #f2f3f5);
-  box-shadow:inset 0 0 0 1px var(--edge, rgba(5,5,5,.07));
-  transition:box-shadow .16s, opacity .16s;
+  padding:5px 10px 5px 12px; border-radius:10px; text-align:left; overflow:hidden; cursor:pointer;
+  background:var(--fill, #e2e4e9);
+  transition:box-shadow .16s, transform .16s;
   animation:wb2SchRise .26s cubic-bezier(.22,1,.36,1) backwards; }
 @keyframes wb2SchRise { from { opacity:0; transform:translateY(5px); } }
-/* The bar is an element, not a shadow, so a QUOTE can wear it dashed — the
-   "not won yet" signal that survives any block width. */
-.wb2-schb::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--bar, #b9bec7); }
-.wb2-schb.qt::before { background:repeating-linear-gradient(180deg, var(--bar, #b9bec7) 0 5px, transparent 5px 9px); }
-.wb2-schb:hover { box-shadow:inset 0 0 0 1px var(--edge, rgba(5,5,5,.07)), 0 5px 14px -5px rgba(10,12,20,.45); z-index:3; }
-.wb2-schb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.4); z-index:4; }
-.wb2-schb b { font-size:12px; font-weight:800; letter-spacing:-.015em; color:var(--ink); line-height:1.3;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wb2-schb em { font-style:normal; font-size:11px; font-weight:650; color:#2b3038; line-height:1.3;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-schb i { font-style:normal; font-size:10.5px; font-weight:650; color:#5a616d; line-height:1.3;
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-schb:hover { box-shadow:0 5px 14px -5px rgba(10,12,20,.45); z-index:3; }
+.wb2-schb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.55); z-index:4; }
+.wb2-schb b, .wb2-schb em, .wb2-schb i { color:var(--btext, var(--ink));
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3; }
+.wb2-schb b { font-size:12px; font-weight:800; letter-spacing:-.015em; }
+.wb2-schb em { font-style:normal; font-size:11px; font-weight:700; }
+.wb2-schb i { font-style:normal; font-size:10.5px; font-weight:600; }
+
+/* the title line: the client, and the job number demoted to a chip beside it.
+   The chip is a tint of the label's own colour, so it needs no second
+   measurement — it can only ever be closer to the ground than the text is. */
+.wb2-schbh { display:flex; align-items:center; gap:6px; min-width:0; }
+.wb2-schbh b { min-width:0; }
+.wb2-schb u { flex:none; padding:1px 5px; border-radius:5px; text-decoration:none;
+  font-size:9.5px; font-weight:800; color:var(--btext, var(--ink));
+  background:var(--chip, rgba(5,5,5,.09));
+  font-variant-numeric:tabular-nums; }
+
 /* a job promoted onto one of our boards leaves the category palette and
    wears the tracked blue — OWNERSHIP OUTRANKS CATEGORY. The word rides the
-   title line so colour is never the only carrier. */
-.wb2-schb.proj { --tint:rgba(0,168,224,.14); --bar:var(--wb2-cy); --edge:rgba(0,168,224,.5); }
-.wb2-schb.proj b { color:var(--wb2-cy); }
-/* done and closed — settled, and out of the way of what still needs doing */
-.wb2-schb.done { opacity:.58; }
-.wb2-schb.done b::after { content:" ✓"; color:#00806b; }
+   second line so colour is never the only carrier. */
+.wb2-schb.proj em { font-weight:800; }
+
+/* DONE AND CLOSED — the whole block goes pale, so the only thing on the rail
+   still carrying colour is the work that still has to happen.
+
+   Not `opacity:.58`, which is what this was: over a saturated fill that drags
+   every line toward the ground behind it. --pale is a stated colour with ink
+   on it, and ink on the pale measures 13–15:1 against 4.7:1 on the live block
+   it replaces — a closed job reads BETTER as it recedes, which is the right
+   way round for something you may still need to check. The tick keeps the
+   rule that colour is never the only carrier. */
+.wb2-schb.done { background:var(--pale, #f4f5f7); padding-right:28px;
+  box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4); }
+.wb2-schb.done b, .wb2-schb.done em, .wb2-schb.done i { color:var(--ink); }
+.wb2-schb.done em { color:#2b3038; }
+.wb2-schb.done i { color:#5a616d; }
+/* on a pale block the chip goes the other way — the ground is already near
+   white, so a lighter patch would not be a patch at all. Ink on this still
+   measures ~12:1, well clear. */
+.wb2-schb.done u { color:var(--ink); background:rgba(5,5,5,.09); }
+.wb2-schb.done:hover { box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4), 0 5px 14px -5px rgba(10,12,20,.45); }
+.wb2-schb.done::after { content:""; position:absolute; right:8px; top:50%; margin-top:-7px;
+  width:14px; height:14px; border-radius:50%; background:#00806b; }
+/* the tick itself — two borders of an empty box, rotated. The 4px bar that
+   used to own ::before went with the wash, so this is free. */
+.wb2-schb.done::before { content:""; position:absolute; right:13px; top:50%; margin-top:-4px;
+  width:3.5px; height:7px; border:solid #fff; border-width:0 2px 2px 0;
+  transform:rotate(40deg); z-index:1; }
+
 /* didn't go ahead — the one status that is an exception, so it gets the ring */
-.wb2-schb.dan { --bar:var(--wb2-dan); box-shadow:inset 0 0 0 1px rgba(224,38,79,.4); }
-.wb2-schb.dan b { color:var(--wb2-dan-t); }
+.wb2-schb.dan { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
+.wb2-schb.dan:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }
+/* a quote is not won yet, and the dashed 4px bar that used to say so went
+   with the bar. The dash moves to the block's own edge, where it survives
+   any width — including the 46px minimum. */
+.wb2-schb.qt { outline:2px dashed color-mix(in srgb, var(--btext, #050505) 55%, transparent);
+  outline-offset:-4px; }
 /* narrow blocks drop to the job number alone rather than clipping */
-.wb2-schb.tight { padding:4px 6px 4px 9px; justify-content:center; }
-.wb2-schb.tight em, .wb2-schb.tight i { display:none; }
+.wb2-schb.tight { padding:4px 6px 4px 8px; justify-content:center; }
+.wb2-schb.tight em, .wb2-schb.tight i, .wb2-schb.tight .wb2-schbh b { display:none; }
+.wb2-schb.done.tight { padding-right:26px; }
 /* THE CREW LINK: hovering any block of a multi-person job lifts its siblings
    across the other lanes and rests the rest of the day — four rectangles
    become one job. */
@@ -5513,16 +5563,26 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* the now line — only ever drawn on today. NOT the danger colour: red on
    this board means "didn't go ahead", and a red rule down a healthy day
-   reads as an alarm about the day. The board accent is chrome, and chrome
-   is what this is. */
-.wb2-schnow { position:absolute; top:0; bottom:0; width:1px; background:var(--wb2-acc); opacity:.5; z-index:5; pointer-events:none; }
-.wb2-schnow::before { content:""; position:absolute; top:0; left:-2.5px; width:6px; height:6px; border-radius:50%; background:var(--wb2-acc); }
+   reads as an alarm about the day.
+
+   It was 1px of the chrome cyan at opacity:.5, on a rail that already carries
+   an hour grid at a similar weight — so it disappeared into its own
+   background. It is the one mark saying which of these blocks is happening
+   right now, so it should be the most definite line here: 2px of ink at full
+   strength, with the time on a cap in the hour row. Ink rather than the
+   accent because the fills are saturated now and a mid-tone cyan has nothing
+   left to sit against. */
+.wb2-schnow { position:absolute; top:0; bottom:0; width:2px; background:var(--ink); z-index:5; pointer-events:none; }
+.wb2-schnow::before { content:attr(data-now); position:absolute; top:8px; left:1px;
+  transform:translateX(-50%); padding:2px 7px; border-radius:999px;
+  background:var(--ink); color:#fff; font-size:9.5px; font-weight:800;
+  letter-spacing:.03em; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
 /* ── the foot: the legend for this day, and the queue cross-link ── */
 .wb2-schfoot { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:14px 20px 16px; border-top:1px solid var(--wb2-line2); }
 .wb2-schkey { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
 .wb2-schkey span { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--gray500); }
-.wb2-schkey i { width:16px; height:12px; border-radius:4px; }
+.wb2-schkey i { width:18px; height:12px; border-radius:4px; flex:none; }
 .wb2-schwait { margin-left:auto; display:inline-flex; align-items:center; gap:6px;
   font-size:11.5px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
 .wb2-schwait:hover { text-decoration:underline; }

@@ -14,6 +14,14 @@ jest.mock("@/app/actions/workboard", () => ({
 }));
 
 import { ScheduleTab } from "../schedule-tab";
+import { contrastRatio } from "@/lib/workboard/schedule-colour";
+
+/** "rgb(1, 2, 3)" → channels, so a test can measure what actually shipped. */
+const rgb = (value: string): [number, number, number] => {
+  const m = value.match(/\d+/g);
+  if (!m || m.length < 3) throw new Error(`not an rgb() colour: "${value}"`);
+  return [Number(m[0]), Number(m[1]), Number(m[2])];
+};
 
 const TODAY = "2026-08-14";
 
@@ -117,8 +125,10 @@ it("fetches today on open and lays out a lane per person", async () => {
   expect(await screen.findByText("Alex Lorenz")).toBeInTheDocument();
   expect(screen.getByText("David Hann")).toBeInTheDocument();
   expect(scheduleDay).toHaveBeenCalledWith(TODAY);
-  // the crew job draws once per person — two blocks say #3145
-  expect(screen.getAllByText(/#3145/)).toHaveLength(2);
+  // the crew job draws once per person — two blocks carry it, and the CLIENT
+  // is what each one leads with, with the job number as a chip beside it
+  expect(screen.getAllByText("Rifkin, Julian")).toHaveLength(2);
+  expect(screen.getAllByText("3145")).toHaveLength(2);
   // lane load is spoken: Lorenz has 8h + 1h across two bookings
   expect(screen.getByText("2 bookings · 9h")).toBeInTheDocument();
 });
@@ -191,6 +201,49 @@ it("hands the queue to the tab that owns it", async () => {
   expect(onGoWork).toHaveBeenCalled();
 });
 
+it("names the category in words, not only in colour", async () => {
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  // #3145 is an Install — twice on the rail, plus once in the day's legend.
+  // #3171 has no category at all, and the block says that rather than
+  // leaving a grey rectangle to be interpreted.
+  expect(screen.getAllByText("Install")).toHaveLength(3);
+  expect(screen.getAllByText("No category")).toHaveLength(2);
+});
+
+it("hands the block a fill and a label colour that measure up", async () => {
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  const block = screen.getAllByRole("button", { name: /Open job #3145/ })[0];
+  const fill = block.style.getPropertyValue("--fill");
+  const ink = block.style.getPropertyValue("--btext");
+  // the label colour is handed down beside the fill, never left to the
+  // cascade to guess — and the pair clears AA, which is the whole promise
+  expect(contrastRatio(rgb(fill), rgb(ink))).toBeGreaterThanOrEqual(4.5);
+  // and what we draw is not ServiceM8's own wash: #e7b5ff arrives at ~85%
+  // lightness, far too pale to carry a word
+  expect(fill).not.toBe("rgb(231, 181, 255)");
+  expect(contrastRatio(rgb(fill), [231, 181, 255])).toBeGreaterThan(1.5);
+});
+
+it("goes pale when the job is closed, rather than fading out", async () => {
+  const p = payload();
+  scheduleDay.mockResolvedValue({
+    ...p,
+    jobs: p.jobs.map((j) => ({ ...j, status: "Completed" })),
+  });
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  const block = screen.getAllByRole("button", { name: /Open job #3145/ })[0];
+  expect(block).toHaveClass("done");
+  // the pale is a STATED colour — the old rule was opacity:.58, which drags
+  // every line on the block toward the ground behind it
+  expect(block.style.getPropertyValue("--pale")).toMatch(/^rgb\(/);
+  expect(block.style.opacity).toBe("");
+  // and the day's legend says what pale means, in words
+  expect(screen.getByText("Done and closed")).toBeInTheDocument();
+});
+
 it("wears the board's word on a tracked block", async () => {
   render(
     tab({
@@ -198,8 +251,10 @@ it("wears the board's word on a tracked block", async () => {
     })
   );
   await screen.findByText("Alex Lorenz");
-  // both of the crew job's blocks say Project beside the number
-  expect(screen.getAllByText(/#3145 · Project/)).toHaveLength(2);
+  // both of the crew job's blocks name the board that owns it, in words —
+  // the tracked blue is never the only thing carrying that
+  expect(screen.getAllByText("Project")).toHaveLength(2);
+  expect(screen.getAllByText("3145")).toHaveLength(2);
   expect(screen.getByText("On a board here")).toBeInTheDocument();
 });
 

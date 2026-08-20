@@ -30,12 +30,11 @@ import type { CSSProperties } from "react";
    3. PRINT IS ITS OWN BUDGET, and the band spends it. `ink` is a FILL, which
       a browser drops unless told otherwise, so the surfaces painting it owe a
       print-color-adjust. Measured on a rendered A4, the shipped frame inks
-      13.09% of the sheet — the two side strips run its full height, so a frame
-      costs well over twice what the same thickness cost as a head-and-foot
-      band (5.47%). That is on every page of every document for every org,
-      because the frame is the default, and it sits within a whisker of the
-      13.3% letterhead band this treatment replaced partly on cost. 4mm inks
-      6.89%, 5mm 8.46%, 6mm 10.01%. */
+      6.89% of the sheet, on every page of every document for every org because
+      the frame is the default. Worth keeping in view: the two side strips run
+      the full height, so a frame costs well over twice what the same thickness
+      costs as a head-and-foot band — 4mm here against 2.9% for a 4mm band. The
+      letterhead band this treatment replaced was 13.3%. */
 
 /** The paper every one of these documents is printed on. */
 const PAPER: RGB = [255, 255, 255];
@@ -230,11 +229,12 @@ export function themeVars(seed: string | null): CSSProperties {
    carves the middle away.
 
    Measured on a rendered A4 as a FRAME, since the arithmetic here is easy to
-   get wrong and the sides changed it a lot: 4mm inks 6.89% of the sheet, 5mm
-   8.46%, 6mm 10.01% and 8mm 13.09%. As a head-and-foot band the same 8mm was
-   5.47%. The letterhead band this treatment replaced was 13.3%. */
+   get wrong and adding the sides changed it a lot: 4mm inks 6.89% of the
+   sheet, 5mm 8.46%, 6mm 10.01% and 8mm 13.09%. The same 8mm as a head-and-foot
+   band was 5.47%, which is the trap — a frame is not a band with more edges,
+   it is roughly two and a half times the ink. */
 const BAND = {
-  gutter: "8mm",
+  gutter: "4mm",
   radius: "7.94mm",
   /** breathing room between the band and the first line of the document */
   clear: "6mm",

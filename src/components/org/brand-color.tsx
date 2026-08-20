@@ -101,8 +101,7 @@ export function BrandColorPicker({
           business choosing pale yellow sees the gold its band will actually be
           at the moment it chooses. */}
       <div className="orgcol-doc" aria-hidden="true">
-        <div className="orgcol-band top" style={{ background: ink }} />
-        <div className="orgcol-band bot" style={{ background: ink }} />
+        <div className="orgcol-band" style={{ background: ink }} />
         <div className="orgcol-well" />
         <div className="orgcol-page">
           <b>Handover sheet</b>

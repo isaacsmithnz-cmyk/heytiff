@@ -228,6 +228,19 @@ html[data-ds-display] .dstudio.editing {
     align-items: stretch;
     padding: 32px 28px;
   }
+  /* THE CARD HAS TO CLEAR THE CLOUD'S TAIL HERE. Stacked, the Recent card
+     follows the hero directly — and the hero's flow height ends at the
+     button, while the field carries on ~150px below it. The card's own glass
+     then pulled those dots THROUGH itself: it is translucent with a backdrop
+     blur, so covering them with a z-index is not covering them at all.
+
+     The room is bought on the button, which is the last thing in the hero's
+     flow. Nothing else can buy it: the cloud's anchor is zero-height and
+     sizeless by design, and margin on it would move the button off the
+     centre it was just placed on. */
+  .dstudio .ds-cta.ds-start {
+    margin-bottom: 150px;
+  }
 }
 
 /* New design — transparent hero rendered directly on the black frame (no card,
@@ -309,7 +322,7 @@ html[data-ds-display] .dstudio.editing {
   width: 0;
   height: 0;
   z-index: 0;
-  margin: 190px 0 0 170px;
+  margin: 190px 0 0 180px;
   pointer-events: none;
 }
 .dstudio .ds-cloud .dotf {
@@ -322,18 +335,19 @@ html[data-ds-display] .dstudio.editing {
 /* The landing's single action. Sized on its own class, not on `.ds-cta`: the
    wizard's nav buttons share that base and must stay small. */
 .dstudio .ds-cta.ds-start {
-  /* Clear of the cloud, under it. It was seated INSIDE the field for a while,
-     with dots passing behind the glass.
+  /* IN THE MIDDLE OF THE CLOUD. The anchor above places the cloud's centre;
+     this puts the button's centre on the same point — half its own height
+     above it, hence the negative margin, and 6px further for the field's own
+     centroid, which measured that far below the anchor — so the dots are
+     evenly distributed around it rather than sitting on top of it.
 
-     THE MARGIN IS SET AGAINST THE CLOUD'S BODY, NOT ITS LAST DOT. The bottom
-     8% of the dots are stragglers spread over ~60px of nothing, so clearing
-     the furthest of them by eye left the button reading as though it had come
-     loose from the field. This clears the body — where 92% of the dots stop —
-     by ~80px, and the last straggler by 10-23px as the cloud turns. Both
-     measured on the rendered dots across a full turn. */
+     This is what the shared glass buys. The button was held clear of the
+     field while it was an opaque fill, because an opaque box in the middle of
+     a cloud is a hole in it; the same box in glass has the dots passing
+     BEHIND it, softened by the 16px backdrop blur. */
   position: relative;
   z-index: 1;
-  margin-top: 195px;
+  margin-top: -40px;
   height: 68px;
   /* THE SAME GLASS AS THE RECENT CARD, from the same three tokens. It was its
      own darker, bluer mix with a teal-and-blue pair of glows under it, which

@@ -30,6 +30,12 @@ import {
   loadScheduleDay,
   type SchedulePayload,
 } from "@/lib/workboard/schedule-query";
+import {
+  EMPTY_CAPACITY,
+  loadCapacityMonth,
+  saveCapacityAllocation,
+  type CapacityPayload,
+} from "@/lib/workboard/capacity-query";
 
 /* Workboard mutations. Everything the UI decided is re-decided here — a
    Server Function is reachable by direct POST.
@@ -448,6 +454,40 @@ export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
   const ctx = await context();
   if (!ctx || !(await can("workboard"))) return EMPTY_SCHEDULE;
   return loadScheduleDay(ctx.orgId, dayISO);
+}
+
+/** One month of capacity — the Schedule's other view. Same gate as the day
+    rail: reading the diary and reading how full it is are the same right. */
+export async function scheduleCapacity(anyDayISO: string): Promise<CapacityPayload> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anyDayISO)) return EMPTY_CAPACITY;
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return EMPTY_CAPACITY;
+  return loadCapacityMonth(ctx.orgId, anyDayISO);
+}
+
+/** Set who counts toward a day and for how long.
+
+    A WRITE, so it takes the manage capability rather than the read one — the
+    allocation is the denominator under every number on the month, and someone
+    who may only look at the board should not be able to move it. */
+export async function setScheduleCapacity(
+  rows: { staffUuid: string; included: boolean; dailyMinutes: number }[]
+): Promise<WorkboardResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+  if (!Array.isArray(rows) || rows.length > 500) return { ok: false, error: "Nothing to save." };
+  const clean = rows
+    .filter((r) => typeof r?.staffUuid === "string" && r.staffUuid.length > 0)
+    .map((r) => ({
+      staffUuid: r.staffUuid,
+      included: r.included === true,
+      dailyMinutes: Number.isFinite(r.dailyMinutes) ? r.dailyMinutes : 480,
+    }));
+  const { ok } = await saveCapacityAllocation(ctx.orgId, ctx.userId, clean);
+  /* A server action with no try/catch returns a bare 503 the UI can neither
+     explain nor stop retrying — the SM8 media walk taught us that one. */
+  return ok ? { ok: true } : { ok: false, error: "Could not save the capacity list." };
 }
 
 export type ProjectFromJobInput = {

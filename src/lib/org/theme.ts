@@ -29,12 +29,13 @@ import type { CSSProperties } from "react";
 
    3. PRINT IS ITS OWN BUDGET, and the band spends it. `ink` is a FILL, which
       a browser drops unless told otherwise, so the surfaces painting it owe a
-      print-color-adjust. Measured on a rendered A4, the shipped frame inks
-      6.89% of the sheet, on every page of every document for every org because
-      the frame is the default. Worth keeping in view: the two side strips run
-      the full height, so a frame costs well over twice what the same thickness
-      costs as a head-and-foot band — 4mm here against 2.9% for a 4mm band. The
-      letterhead band this treatment replaced was 13.3%. */
+      print-color-adjust. Measured on a rendered A4, the frame inks 6.89% of
+      the sheet — on every page of a document belonging to an org that has
+      CHOSEN a colour, which is the whole of what it costs now that an
+      unthemed sheet has no frame. Worth keeping in view: the two side strips
+      run the full height, so a frame costs well over twice what the same
+      thickness costs as a head-and-foot band — 4mm here against 2.9% for a
+      4mm band. The letterhead band this treatment replaced was 13.3%. */
 
 /** The paper every one of these documents is printed on. */
 const PAPER: RGB = [255, 255, 255];
@@ -170,14 +171,11 @@ export function documentTheme(seed: string): DocumentTheme | null {
 /* HOW A DOCUMENT RECEIVES THE THEME, and why it is variables rather than
    inline colours on every element.
 
-   EVERY DOCUMENT GETS THE BAND. A business that has chosen no colour gets it
-   in the ink the sheet already prints in, so the treatment is part of the
-   document rather than a reward for visiting a settings page. Setting a colour
-   changes what the band is, never whether there is one.
-
-   That is a deliberate reversal. This used to return an EMPTY object with no
-   colour, so an unthemed sheet was byte-for-byte the one it had always been —
-   safe, and it meant most orgs never saw the design at all.
+   A COLOUR DECIDES WHETHER THERE IS A FRAME, not just what it is. See the
+   note on the early return below — briefly, an unthemed sheet got a frame in
+   the app's own near-black so the treatment would be seen, and what that
+   actually did was put HeyTiff's decoration on every document every business
+   sends, since no org has set a colour yet.
 
    THE GEOMETRY TRAVELS WITH THE COLOUR, and that is not decoration. The band
    takes space: the sheet has to be padded clear of it, and the two must never
@@ -196,9 +194,33 @@ export function documentTheme(seed: string): DocumentTheme | null {
    because React types custom properties as unknown keys. */
 export function themeVars(seed: string | null): CSSProperties {
   const t = seed ? documentTheme(seed) : null;
+  /* NO COLOUR, NO FRAME — and no geometry either, which is the half that has
+     to travel with it.
+
+     This returned a DEFAULT frame in the app's own near-black for a business
+     that had chosen nothing, so that the treatment would be seen rather than
+     sat behind a settings page most orgs never visit. Seen it now is: every
+     document every business sends, framed in a colour belonging to none of
+     them. That is this file's own rule 2 read backwards — the documents are
+     the business's, and a business with no brand colour has none for us to
+     put on its customer's copy on its behalf.
+
+     The frame is what a chosen colour DOES. Choosing nothing is a document
+     with no frame, which is the document every org has always had.
+
+     Returning `{}` rather than a set of empty values is deliberate: every
+     declaration downstream is `var(--doc-*, <fallback>)` and every fallback is
+     either 0 or the value that sheet already had, so absence degrades to the
+     old document rather than to a broken one. */
+  if (!t) return {};
   return {
-    "--doc-ink": t ? t.ink : BAND.default,
+    "--doc-ink": t.ink,
     "--doc-gutter": BAND.gutter,
+    /* the well the frame is carved out of — the paper, in other words. It is a
+       value rather than a constant in the sheets for the same reason the
+       padding is: absent, it must paint NOTHING, not white over a ground the
+       document does not own. */
+    "--doc-well": "#fff",
     "--doc-radius": BAND.radius,
     "--doc-band": `calc(${BAND.gutter} + ${BAND.radius})`,
     /* what the SHEET must pad to clear the band. Computed here rather than in
@@ -206,9 +228,21 @@ export function themeVars(seed: string | null): CSSProperties {
        is absent, not 0 — and 6mm of new white space on every unthemed document
        is exactly the bug this object exists to prevent. */
     "--doc-pad": `calc(${BAND.gutter} + ${BAND.radius} + ${BAND.clear})`,
-    /* the frame takes width as well as height, so the sheet's own horizontal
-       padding has to move in by the gutter or the first character sits on it */
-    "--doc-side": BAND.gutter,
+    /* THE SIDES CARRY THE CLEAR TOO, and this is the half that shipped wrong.
+
+       The frame takes width as well as height, so the sheet's horizontal
+       padding has to move in by the gutter — and it moved in by EXACTLY the
+       gutter, which puts the first character flush against the frame's inner
+       edge rather than clear of it. On the design sheet that meant the room
+       names and the Coverage column ran into the frame at every width; the
+       handover sheet only escaped on screen because it adds 28px of its own,
+       and its print rule reads this value raw, so it collided on paper.
+
+       Whatever the vertical gets, the horizontal gets: the gutter to clear the
+       frame and `clear` to breathe. `radius` is not in it — the corner only
+       carves inward at the very top and bottom, and `--doc-pad` already puts
+       the first line below it. */
+    "--doc-side": `calc(${BAND.gutter} + ${BAND.clear})`,
   } as CSSProperties;
 }
 
@@ -238,18 +272,13 @@ const BAND = {
   radius: "7.94mm",
   /** breathing room between the band and the first line of the document */
   clear: "6mm",
-  /* THE DEFAULT BAND, for a business that has chosen no colour.
+  /* THERE IS NO DEFAULT COLOUR, and the absence is the design.
 
-     Not #000000. This is the ink the letterhead and the handover sheet already
-     print their headings in, so the band reads as part of the document instead
-     of as a black bar laid on top of one. Pure black matches nothing else on
-     these sheets — the design sheet's own body ink is #050505 and the
-     handover sheet's is this — and on a solid 24mm band the difference between
-     black and near-black is the difference between a funeral notice and a
-     letterhead.
-
-     It is also the one value to change if true black is ever wanted. */
-  default: "#16181d",
+     A `default: "#16181d"` lived here so an unthemed sheet still got a frame.
+     It is gone with the branch in `themeVars` that read it — see the note
+     there. If a house frame for unthemed documents is ever wanted again, it
+     belongs to the SHEET's own stylesheet, where a static contrast guard can
+     see it, and not to the object that derives a customer's colour. */
 } as const;
 
 /** The grounds and floors, exported for the guard that proves the derivation

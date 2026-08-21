@@ -4647,9 +4647,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    actually sit.
 
    The band is the SAME construction the real sheets use (sheet-doc.css and the
-   handover page): two filled ends with a white well over them, so the colour
-   survives only where the well turns its corner. Scaled here by the same ratio
-   as the page, so what is on screen is the shape that prints. */
+   handover page): one filled rectangle with a white well inset on all four
+   sides, so the colour survives as a frame around the page. Scaled here by the
+   same ratio as the page, so what is on screen is the shape that prints. */
 .fg .orgcol-doc { position:relative; flex:0 0 auto; width:186px; aspect-ratio:210/297;
   background:#fff; border:1px solid #ecedf1; border-radius:10px; overflow:hidden; }
 /* THE SAME TWO NUMBERS AS THE REAL SHEETS, scaled: a 4mm gutter and the

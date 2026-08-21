@@ -48,12 +48,15 @@ export function BrandColorPicker({
   const [error, setError] = useState<string | null>(null);
 
   const theme = documentTheme(draft);
-  // transparent, not a grey stand-in: no colour means no band, which is what
-  // an unthemed document actually does
-  /* There is always a band; the colour decides what it is, not whether it
-     exists. With nothing chosen this previews the default the documents
-     actually use, so the control never shows a sheet the app cannot produce. */
-  const ink = theme && (value || touched) ? theme.ink : DEFAULT_BAND;
+  /* TRANSPARENT, not a grey stand-in and not a house colour: no colour means
+     no frame, which is what an unthemed document actually does. This drew the
+     documents' old default near-black instead, and once that default went the
+     control was previewing a sheet the app can no longer produce — the third
+     time this preview has needed hand-syncing, and the reason it cannot read
+     `--doc-*` like the sheets do is unchanged: it has to draw for a colour
+     that has not been saved, which is exactly when those variables are
+     absent. */
+  const ink = theme && (value || touched) ? theme.ink : "transparent";
 
   const commit = async (hex: string) => {
     setError(null);
@@ -89,8 +92,9 @@ export function BrandColorPicker({
     <div className="orgcol">
       {/* THE DOCUMENT, and it shows the BAND because the band is what the
           colour does. This preview and the real sheets are the same shape and
-          the same two numbers — 8mm gutter, 7.94mm radius (the app shell's own
-          30px, converted at 96dpi) — scaled down together.
+          the same two numbers — 4mm gutter, 7.94mm radius (the app shell's own
+          30px, converted at 96dpi) — scaled down together. Nothing chosen
+          draws no frame, because that is what an unthemed sheet does.
 
           Inert: no role, no labels, nothing to tab to. It is a picture of an
           outcome, and a screen reader announcing a coloured rectangle would be
@@ -165,8 +169,3 @@ export function BrandColorPicker({
    document should never be themed in. */
 const DEFAULT_SEED = "#1a2b4c";
 
-/** What the documents print when no colour is set — the ink they already print
-    their headings in. Mirrors `BAND.default` in lib/org/theme.ts; kept here
-    because this preview has to draw a band for a colour that has not been
-    saved, which is exactly when the `--doc-*` variables are absent. */
-const DEFAULT_BAND = "#16181d";

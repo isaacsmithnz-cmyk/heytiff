@@ -216,12 +216,23 @@ function SystemBand({ sys }: { sys: SummarySystem }) {
           </div>
           <div>
             <dt>Covered</dt>
-            <dd className={`dsd-v ${tone(sys.status, sys.pct)}`}>
-              {pct(sys.pct)}
-              <em>
-                {fmt(sys.capacityKw, "kW")} against {fmt(sys.loadKw, "kW")}
-              </em>
-            </dd>
+            {/* NOTHING TO DIVIDE READS AS ENGLISH, NOT AS THREE DASHES.
+
+                A system with no units placed has no percentage and neither
+                figure behind it, and this printed the em dash for all three:
+                "— — against —", on the sheet a customer is sent, for most of
+                the time somebody is mid-design. A dash in a table cell is a
+                blank; a dash inside a sentence is a broken sentence. */}
+            {sys.pct == null ? (
+              <dd className="dsd-v na">Not sized yet</dd>
+            ) : (
+              <dd className={`dsd-v ${tone(sys.status, sys.pct)}`}>
+                {pct(sys.pct)}
+                <em>
+                  {fmt(sys.capacityKw, "kW")} against {fmt(sys.loadKw, "kW")}
+                </em>
+              </dd>
+            )}
           </div>
         </dl>
       </div>

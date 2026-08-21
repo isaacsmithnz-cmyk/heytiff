@@ -330,6 +330,27 @@ html[data-ds-display] .dstudio.editing {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  /* THE HOLE THE BUTTON SITS IN. Glass is not opaque: dots drifting behind
+     the button showed through it as streaks across the label and made it hard
+     to read. The field is cleared where the button is and thins back in
+     around it, so the cloud surrounds the button rather than passing over it.
+
+     The mask is in the field's own box, which is NOT transformed — the tilt
+     and the .66 scale live on `.dotf-tilt` inside it — so these are screen
+     pixels, and they hold at every angle of the turn. The clear zone is
+     ~230x77 against a button of 360x68: past its corners on both axes, since
+     an ellipse that only touches the mid-points of a rectangle still leaves
+     dots sitting in its corners.
+
+     `-webkit-mask` paired with `mask`, which is how the rest of the app
+     writes this and unlike the backdrop-filter pair does survive the build. */
+  -webkit-mask: linear-gradient(
+    180deg,
+    #000 0 40%,
+    transparent 44% 54%,
+    #000 58%
+  );
+  mask: linear-gradient(180deg, #000 0 40%, transparent 44% 54%, #000 58%);
 }
 
 /* The landing's single action. Sized on its own class, not on `.ds-cta`: the

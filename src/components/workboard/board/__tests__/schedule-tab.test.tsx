@@ -4,7 +4,7 @@
    names, empty states say why they're empty, and the queue link goes to the
    tab that owns the queue. */
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 
@@ -137,19 +137,109 @@ it("fetches today on open and lays out a lane per person", async () => {
 
 it("never writes the time on a block — the rail already says it", async () => {
   render(tab());
-  const block = (await screen.findAllByRole("button", { name: /Open job #3171/ }))[0];
+  const block = (await screen.findAllByRole("button", { name: /Job #3171/ }))[0];
   // position carries the when; the card carries who and where only
   expect(block.textContent).not.toMatch(/am|pm/);
   // ...but the hover title still says it in full
   expect(block).toHaveAttribute("title", expect.stringContaining("7am–3pm"));
 });
 
-it("opens the job a block names", async () => {
-  const onOpenJob = jest.fn();
-  render(tab({ onOpenJob }));
-  const block = (await screen.findAllByRole("button", { name: /Open job #3171/ }))[0];
-  await userEvent.click(block);
-  expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3171" }));
+/* ── ONE JOB, BROUGHT FORWARD ──
+   The crew hover is gone: it answered "which of these rectangles are the same
+   job" only while the mouse was still, and never for a keyboard or a touch
+   screen. A click brings the job forward instead, and Open job is the second
+   step — the same second step whether one person is on it or four. */
+describe("clicking a block", () => {
+  const stack = () => screen.queryByRole("dialog");
+
+  it("brings the job forward rather than opening it", async () => {
+    const onOpenJob = jest.fn();
+    render(tab({ onOpenJob }));
+    const block = (await screen.findAllByRole("button", { name: /Job #3171/ }))[0];
+    await userEvent.click(block);
+    expect(stack()).toBeInTheDocument();
+    // the sheet is the SECOND step now — a click alone must not open it
+    expect(onOpenJob).not.toHaveBeenCalled();
+  });
+
+  it("opens the job from the stack, and closes it on the way", async () => {
+    const onOpenJob = jest.fn();
+    render(tab({ onOpenJob }));
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
+    await userEvent.click(screen.getByRole("button", { name: /Open job/ }));
+    expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3171" }));
+    expect(stack()).not.toBeInTheDocument();
+  });
+
+  it("brings EVERYONE on the job forward, with their own hours", async () => {
+    // #3145 is booked twice today — Hann 7am–4pm and Lorenz 3pm–4pm
+    render(tab());
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3145/ }))[0]);
+    expect(screen.getByText("2 people on this job")).toBeInTheDocument();
+    const panel = stack()!;
+    expect(within(panel).getByText("David Hann")).toBeInTheDocument();
+    expect(within(panel).getByText("Alex Lorenz")).toBeInTheDocument();
+    expect(within(panel).getByText("7am–4pm")).toBeInTheDocument();
+    expect(within(panel).getByText("3pm–4pm")).toBeInTheDocument();
+  });
+
+  it("gives a lone booking a stack of one rather than a different screen", async () => {
+    render(tab());
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
+    expect(screen.getByText("On this job")).toBeInTheDocument();
+    expect(within(stack()!).getByText("Alex Lorenz")).toBeInTheDocument();
+  });
+
+  it("says what each person's booking is doing, in words", async () => {
+    const p = payload();
+    scheduleDay.mockResolvedValue({ ...p, onSite: ["j-3145|s-hann"] });
+    render(tab());
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3145/ }))[0]);
+    const panel = stack()!;
+    expect(within(panel).getByText("Started")).toBeInTheDocument();
+    expect(within(panel).getByText("Not started")).toBeInTheDocument();
+  });
+
+  it("goes back to the day on a click outside, without opening anything", async () => {
+    const onOpenJob = jest.fn();
+    render(tab({ onOpenJob }));
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
+    await userEvent.click(document.querySelector(".wb2-scfov")!);
+    expect(stack()).not.toBeInTheDocument();
+    expect(onOpenJob).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the day on Escape", async () => {
+    render(tab());
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
+    await userEvent.keyboard("{Escape}");
+    expect(stack()).not.toBeInTheDocument();
+  });
+
+  it("no longer rests the rest of the day on hover", async () => {
+    /* The guard against the old behaviour coming back: hovering must not dim
+       forty blocks to emphasise four, and nothing may carry the link classes
+       the removed rules keyed on. */
+    render(tab());
+    const block = (await screen.findAllByRole("button", { name: /Job #3145/ }))[0];
+    await userEvent.hover(block);
+    expect(document.querySelector(".wb2-schboard.linking")).toBeNull();
+    expect(document.querySelector(".wb2-schb.kin")).toBeNull();
+    expect(stack()).not.toBeInTheDocument();
+  });
+});
+
+it("steps a WEEK on the arrows, because the strip already picks the day", async () => {
+  /* Isaac's call: a day at a time was the strip's job, one click at a time.
+     The arrow moves the frame; the strip picks inside it. */
+  scheduleDay.mockImplementation(async (dayISO: string) => ({ ...payload(), dayISO }));
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  await userEvent.click(screen.getByRole("button", { name: "The week after" }));
+  expect(scheduleDay).toHaveBeenLastCalledWith("2026-08-21");
+  await userEvent.click(screen.getByRole("button", { name: "The week before" }));
+  await userEvent.click(screen.getByRole("button", { name: "The week before" }));
+  expect(scheduleDay).toHaveBeenLastCalledWith("2026-08-07");
 });
 
 it("caches a day — stepping back to it asks the server nothing", async () => {
@@ -158,7 +248,7 @@ it("caches a day — stepping back to it asks the server nothing", async () => {
   await screen.findByText("Alex Lorenz");
   expect(scheduleDay).toHaveBeenCalledTimes(1);
 
-  await userEvent.click(screen.getByRole("button", { name: "The day after" }));
+  await userEvent.click(screen.getByRole("button", { name: "The week after" }));
   await screen.findByText("Alex Lorenz");
   expect(scheduleDay).toHaveBeenCalledTimes(2);
 
@@ -213,19 +303,23 @@ it("names the category in words, not only in colour", async () => {
   expect(screen.getAllByText("No category")).toHaveLength(2);
 });
 
-it("hands the block a fill and a label colour that measure up", async () => {
+it("hands the block a fill, a label colour and a cap that measure up", async () => {
   render(tab());
   await screen.findByText("Alex Lorenz");
-  const block = screen.getAllByRole("button", { name: /Open job #3145/ })[0];
+  const block = screen.getAllByRole("button", { name: /Job #3145/ })[0];
   const fill = block.style.getPropertyValue("--fill");
   const ink = block.style.getPropertyValue("--btext");
-  // the label colour is handed down beside the fill, never left to the
-  // cascade to guess — and the pair clears AA, which is the whole promise
+  const bar = block.style.getPropertyValue("--bar");
+  // every value is handed down beside the fill, never left to the cascade to
+  // guess — and each pair clears its floor, which is the whole promise
   expect(contrastRatio(rgb(fill), rgb(ink))).toBeGreaterThanOrEqual(4.5);
-  // and what we draw is not ServiceM8's own wash: #e7b5ff arrives at ~85%
-  // lightness, far too pale to carry a word
+  expect(contrastRatio(rgb(bar), rgb(fill))).toBeGreaterThanOrEqual(3);
+  // the ground is OUR wash, not ServiceM8's own pick passed through
   expect(fill).not.toBe("rgb(231, 181, 255)");
-  expect(contrastRatio(rgb(fill), [231, 181, 255])).toBeGreaterThan(1.5);
+  // and the hue lives on the cap now, which is a real colour rather than the
+  // slate the multiply-each-channel bar used to produce
+  const [r, g, b] = rgb(bar);
+  expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeGreaterThan(60);
 });
 
 it("goes pale when the job is closed, rather than fading out", async () => {
@@ -236,7 +330,7 @@ it("goes pale when the job is closed, rather than fading out", async () => {
   });
   render(tab());
   await screen.findByText("Alex Lorenz");
-  const block = screen.getAllByRole("button", { name: /Open job #3145/ })[0];
+  const block = screen.getAllByRole("button", { name: /Job #3145/ })[0];
   expect(block).toHaveClass("done");
   // the pale is a STATED colour — the old rule was opacity:.58, which drags
   // every line on the block toward the ground behind it
@@ -250,7 +344,7 @@ it("goes pale when the job is closed, rather than fading out", async () => {
    Three gates guard this, and the wrong hollow block is worse than none. */
 describe("nobody has started it", () => {
   const idle = () =>
-    screen.getAllByRole("button", { name: /Open job #/ }).filter((b) =>
+    screen.getAllByRole("button", { name: /Job #/ }).filter((b) =>
       b.classList.contains("idle")
     );
 
@@ -263,7 +357,7 @@ describe("nobody has started it", () => {
     // and it is spoken, not left to the outline — a ring reaches nobody on a
     // screen reader
     expect(
-      screen.getByRole("button", { name: /Open job #3145.*not started/ })
+      screen.getByRole("button", { name: /Job #3145.*not started/ })
     ).toBeInTheDocument();
     expect(screen.getByText("Not started")).toBeInTheDocument();
   });
@@ -279,10 +373,10 @@ describe("nobody has started it", () => {
       await screen.findByText("Alex Lorenz");
       // the 7am booking should have started hours ago and has nothing on it
       expect(
-        screen.getByRole("button", { name: /Open job #3145.*7am to 4pm.*nothing recorded yet/ })
+        screen.getByRole("button", { name: /Job #3145.*7am to 4pm.*nothing recorded yet/ })
       ).toHaveClass("late");
       // the 3pm one is simply not due yet — hollow, but not an accusation
-      const later = screen.getByRole("button", { name: /Open job #3145.*3pm to 4pm/ });
+      const later = screen.getByRole("button", { name: /Job #3145.*3pm to 4pm/ });
       expect(later).toHaveClass("idle");
       expect(later).not.toHaveClass("late");
       expect(later).toHaveAccessibleName(/not started/);
@@ -322,9 +416,9 @@ describe("nobody has started it", () => {
     await screen.findByText("Alex Lorenz");
     // #3145 is booked twice today and neither booking has recorded time
     expect(idle()).toHaveLength(2);
-    await userEvent.click(screen.getByRole("button", { name: "The day after" }));
+    await userEvent.click(screen.getByRole("button", { name: "The week after" }));
     await screen.findByText("Alex Lorenz");
-    expect(idle()).toHaveLength(0); // tomorrow, nothing is "not started" yet
+    expect(idle()).toHaveLength(0); // a week out, nothing is "not started" yet
   });
 
   it("never hollows work that is already closed off", async () => {
@@ -361,18 +455,58 @@ describe("a job closed before this booking's day", () => {
     });
     render(tab());
     await screen.findByText("Alex Lorenz");
-    const stale = screen.getAllByRole("button", { name: /Open job #3145/ });
+    const stale = screen.getAllByRole("button", { name: /Job #3145/ });
     for (const b of stale) {
       // still on somebody's run, so it must not recede like finished work
       expect(b).toHaveClass("stale");
       expect(b).not.toHaveClass("done");
     }
-    // and it is words, not just an amber ring
-    expect(screen.getAllByText(/Job closed/).length).toBeGreaterThan(0);
+    // and it is words, in ServiceM8's own terms — the ring is gone
+    expect(screen.getAllByText(/Marked complete in ServiceM8/).length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: /Open job #3145.*7am to 4pm.*job already closed/ })
+      screen.getByRole("button", {
+        name: /Job #3145.*7am to 4pm.*marked complete in ServiceM8/,
+      })
     ).toBeInTheDocument();
-    expect(screen.getByText("Job closed, still booked")).toBeInTheDocument();
+    expect(
+      screen.getByText("Marked complete in ServiceM8, still booked")
+    ).toBeInTheDocument();
+  });
+
+  it("never ALSO accuses it of not being started", async () => {
+    /* ONE STATE PER BLOCK. On the live board this drew a white ground, a 2px
+       danger ring and the client's name in red — "nothing recorded yet" — on
+       top of the closed-job flag, for a job the crew were simply going back
+       to. The crew may well be on site without clocking on; that is how the
+       job came to be closed with a later visit still booked. */
+    jest.useFakeTimers({ now: new Date(2026, 7, 14, 12, 0, 0) });
+    const p = payload();
+    scheduleDay.mockResolvedValue({
+      ...p,
+      /* Hann's booking on the closed job HAS recorded time, which is what
+         makes `tracksTime` true — without a single started booking anywhere
+         the whole reading is off and this test would pass for the wrong
+         reason. Lorenz's booking on the same job, and #3171, have none. */
+      onSite: ["j-3145|s-hann"],
+      jobs: p.jobs.map((j) =>
+        j.remoteId === "j-3145"
+          ? { ...j, status: "Completed", completionDate: "2026-08-11 16:00:00" }
+          : j
+      ),
+    });
+    render(tab());
+    await screen.findByText("Alex Lorenz");
+    for (const b of screen.getAllByRole("button", { name: /Job #3145/ })) {
+      expect(b).toHaveClass("stale");
+      expect(b).not.toHaveClass("late");
+      expect(b.getAttribute("aria-label")).not.toMatch(/nothing recorded/);
+    }
+    // the one that ISN'T closed still gets the reading — this is a narrowing,
+    // not a removal
+    expect(
+      screen.getByRole("button", { name: /Job #3171.*nothing recorded yet/ })
+    ).toBeInTheDocument();
+    jest.useRealTimers();
   });
 
   it("still fades a booking the completion actually covers", async () => {
@@ -387,7 +521,7 @@ describe("a job closed before this booking's day", () => {
     });
     render(tab());
     await screen.findByText("Alex Lorenz");
-    for (const b of screen.getAllByRole("button", { name: /Open job #3145/ })) {
+    for (const b of screen.getAllByRole("button", { name: /Job #3145/ })) {
       expect(b).toHaveClass("done");
       expect(b).not.toHaveClass("stale");
     }
@@ -404,7 +538,7 @@ describe("a job closed before this booking's day", () => {
     });
     render(tab());
     await screen.findByText("Alex Lorenz");
-    for (const b of screen.getAllByRole("button", { name: /Open job #3145/ })) {
+    for (const b of screen.getAllByRole("button", { name: /Job #3145/ })) {
       expect(b).not.toHaveClass("stale");
     }
   });

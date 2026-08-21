@@ -5557,11 +5557,17 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    toward whatever is behind it, and on a saturated fill it takes the suburb
    line under 4.5:1. */
 .wb2-schb { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:2px;
-  padding:5px 10px 5px 12px; border-radius:10px; text-align:left; overflow:hidden; cursor:pointer;
-  background:var(--fill, #e2e4e9);
+  padding:5px 10px 5px 16px; border-radius:10px; text-align:left; overflow:hidden; cursor:pointer;
+  background:var(--fill, #f4f5f7);
   transition:box-shadow .16s, transform .16s;
   animation:wb2SchRise .26s cubic-bezier(.22,1,.36,1) backwards; }
 @keyframes wb2SchRise { from { opacity:0; transform:translateY(5px); } }
+/* WHERE THE CATEGORY LIVES NOW. The ground is a 94%-light wash of the hue —
+   the same distance from white for every category, so it can never arrive as
+   an alarm — and the hue itself is this 4px cap, walked down by
+   schedule-colour.ts until it clears 3:1 against the wash behind it. */
+.wb2-schb::before { content:""; position:absolute; left:5px; top:9px; bottom:9px;
+  width:4px; border-radius:3px; background:var(--bar, #7a818c); }
 .wb2-schb:hover { box-shadow:0 5px 14px -5px rgba(10,12,20,.45); z-index:3; }
 .wb2-schb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.55); z-index:4; }
 .wb2-schb b, .wb2-schb em, .wb2-schb i { color:var(--btext, var(--ink));
@@ -5594,7 +5600,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    it replaces — a closed job reads BETTER as it recedes, which is the right
    way round for something you may still need to check. The tick keeps the
    rule that colour is never the only carrier. */
-.wb2-schb.done { background:var(--pale, #f4f5f7); padding-right:28px;
+/* A finished job carries NO HUE — see schedule-colour.ts. Under a wash, a
+   category-tinted "pale" and the live wash were the same colour twice, and
+   done work stopped being distinguishable at a glance. Neutral, no cap. */
+.wb2-schb.done { background:var(--pale, #f4f5f7); padding:5px 28px 5px 12px;
   box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4); }
 .wb2-schb.done b, .wb2-schb.done em, .wb2-schb.done i { color:var(--ink); }
 .wb2-schb.done em { color:#2b3038; }
@@ -5608,8 +5617,11 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   width:14px; height:14px; border-radius:50%; background:#00806b; }
 /* the tick itself — two borders of an empty box, rotated. The 4px bar that
    used to own ::before went with the wash, so this is free. */
-.wb2-schb.done::before { content:""; position:absolute; right:13px; top:50%; margin-top:-4px;
-  width:3.5px; height:7px; border:solid #fff; border-width:0 2px 2px 0;
+/* the tick itself — two borders of an empty box, rotated. It reclaims
+   ::before from the cap, so every inherited value has to be put back. */
+.wb2-schb.done::before { left:auto; right:13px; top:50%; bottom:auto; margin-top:-4px;
+  width:3.5px; height:7px; border-radius:0; background:none;
+  border:solid #fff; border-width:0 2px 2px 0;
   transform:rotate(40deg); z-index:1; }
 
 /* NOBODY HAS STARTED IT — hollow, with the category hue surviving on a cap so
@@ -5621,34 +5633,36 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    rail — which is right, because it is the one you have to do something
    about. It only ever appears on a day that has begun, for an account that
    records time at all; the component owns those gates. */
-.wb2-schb.idle { background:#fff; box-shadow:inset 0 0 0 1.5px var(--fill, #b9bec7);
-  padding-left:16px; }
+/* FILLED CAP MEANS SOMEONE IS ON IT; HOLLOW CAP MEANS IT IS STILL ONLY
+   BOOKED. This used to be a white ground against a saturated fill, which was
+   legible when the fill was a colour and says nothing now that it is a wash —
+   the two grounds are 1.2:1 apart. So the distinction moves to the cap, which
+   is the one thing on the block still carrying the hue at full strength. */
+.wb2-schb.idle { background:#fff; }
+.wb2-schb.idle::before { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #b9bec7); }
 .wb2-schb.idle b, .wb2-schb.idle em, .wb2-schb.idle i { color:var(--ink); }
 .wb2-schb.idle em { color:#2b3038; }
 .wb2-schb.idle i { color:#5a616d; }
 .wb2-schb.idle u { color:var(--ink); background:rgba(5,5,5,.09); }
-.wb2-schb.idle::before { content:""; position:absolute; left:5px; top:9px; bottom:9px;
-  width:4px; border-radius:3px; background:var(--fill, #b9bec7); }
-.wb2-schb.idle:hover { box-shadow:inset 0 0 0 1.5px var(--fill, #b9bec7), 0 5px 14px -5px rgba(10,12,20,.45); }
 /* and past its start with still nothing recorded — the one block on the board
    you want to be looking at. The ring is the danger colour because this IS the
    exception; the word rides the aria-label so it is never colour alone. */
 .wb2-schb.idle.late { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
 .wb2-schb.idle.late b { color:var(--wb2-dan-t); }
 .wb2-schb.idle.late:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }
-.wb2-schb.idle.tight { padding-left:13px; }
+.wb2-schb.tight::before { top:6px; bottom:6px; }
 
-/* JOB CLOSED, BOOKING STILL ON THE DAY. ServiceM8 has no per-booking status —
-   completing a job for the day marks its LATER bookings complete too, and the
-   crew turn up to work the office thinks is finished. The rail refuses to
-   repeat that: a booking after the job's completion date keeps its colour,
-   because it is still on somebody's run, and wears a warning instead.
+/* MARKED COMPLETE IN SERVICEM8, BOOKING STILL ON THE DAY. ServiceM8 has no
+   per-booking status — a crew marking TODAY complete closes the whole job,
+   including the visit they are going back for. The rail refuses to repeat
+   that: the booking keeps its category and stays live, because it is still on
+   somebody's run.
 
-   Amber, not the danger red: red here means "didn't go ahead", and this went
-   ahead — it is a diary that needs tidying, not a job that failed. The words
-   "Job closed" ride the category line, so the ring is never the only carrier. */
-.wb2-schb.stale { box-shadow:inset 0 0 0 2px var(--wb2-warn); }
-.wb2-schb.stale:hover { box-shadow:inset 0 0 0 2px var(--wb2-warn), 0 5px 14px -5px rgba(10,12,20,.45); }
+   IT WEARS NO RING AT ALL NOW. It had an amber one, and on today's board that
+   amber sat on a pure-red fill under a second, redder ring saying nothing had
+   been recorded — three alarms on one block, for a job that is simply booked
+   again. The words on the category line carry it, which is where they always
+   were; what is gone is the decoration that made a fact look like a fault. */
 
 /* didn't go ahead — the one status that is an exception, so it gets the ring */
 .wb2-schb.dan { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
@@ -5662,11 +5676,62 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-schb.tight { padding:4px 6px 4px 8px; justify-content:center; }
 .wb2-schb.tight em, .wb2-schb.tight i, .wb2-schb.tight .wb2-schbh b { display:none; }
 .wb2-schb.done.tight { padding-right:26px; }
-/* THE CREW LINK: hovering any block of a multi-person job lifts its siblings
-   across the other lanes and rests the rest of the day — four rectangles
-   become one job. */
-.wb2-schboard.linking .wb2-schb:not(.kin) { opacity:.35; }
-.wb2-schb.kin { box-shadow:inset 0 0 0 1.5px var(--wb2-cy2), 0 5px 14px -5px rgba(10,12,20,.45); z-index:3; }
+/* THE CREW LINK USED TO BE A HOVER: hovering any block of a multi-person job
+   lifted its siblings and rested the rest of the day at opacity .35. It is a
+   CLICK now (see schedule-focus.tsx) — it answered a real question, but only
+   while the mouse was still, and never for a keyboard or a touchscreen. The
+   rules that dimmed forty blocks to emphasise four are gone with it; the
+   overlay's own scrim does that job once, over the whole page. */
+
+/* ── ONE JOB, BROUGHT FORWARD (schedule-focus.tsx) ──
+   UNSCOPED, like .fl-ov and the fleet modals: this portals to <body>, outside
+   `.fg`, so a scoped rule would silently miss it. It reuses .fl-ov's scrim
+   rather than growing another — the page gets ONE backdrop-filter, and never a
+   `-webkit-` twin, because the build ships only the prefixed one and the blur
+   then vanishes everywhere else.
+
+   It takes .fl-ov's scrim and centring but NOT .fl-modal: this is not a dialog
+   box with a title bar, it is the cards coming forward. */
+.wb2-scf { width:min(420px, 100%); background:#fff; border-radius:22px; padding:20px;
+  box-shadow:0 30px 80px rgba(0,0,0,.3); animation:wb2ScfIn .26s cubic-bezier(.22,1,.36,1);
+  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:#050505; }
+@keyframes wb2ScfIn { from { opacity:0; transform:translateY(10px) scale(.97); } }
+
+.wb2-scfh { display:flex; flex-direction:column; gap:3px; padding:0 2px 14px; }
+.wb2-scfh span { display:flex; align-items:center; gap:8px; min-width:0; }
+.wb2-scfh b { font-size:17px; font-weight:800; letter-spacing:-.025em; color:#050505;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-scfh u { flex:none; padding:2px 7px; border-radius:6px; text-decoration:none;
+  font-size:10.5px; font-weight:800; background:rgba(5,5,5,.07); color:#374151;
+  font-variant-numeric:tabular-nums; }
+.wb2-scfh em { font-style:normal; font-size:12px; font-weight:700; color:#57616f; }
+
+.wb2-scfstack { display:flex; flex-direction:column; gap:6px; }
+/* the count, said in words — the hover answered "which of these are one job"
+   by moving pixels, and moving pixels reaches nobody who cannot see them */
+.wb2-scfc { font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase;
+  color:#636c7a; padding:0 2px 3px; }
+/* a card wears the paint its block wears, so what arrives is recognisably
+   what was clicked — same wash, same cap, same ink */
+.wb2-scfcard { position:relative; display:flex; align-items:baseline; gap:9px; flex-wrap:wrap;
+  padding:11px 13px 11px 17px; border-radius:12px; background:var(--fill, #f4f5f7); }
+.wb2-scfcard::before { content:""; position:absolute; left:6px; top:10px; bottom:10px;
+  width:4px; border-radius:3px; background:var(--bar, #7a818c); }
+.wb2-scfcard.done::before { display:none; }
+.wb2-scfcard b { font-size:13.5px; font-weight:800; letter-spacing:-.015em; color:var(--btext, #050505); }
+.wb2-scfcard span { font-size:12px; font-weight:700; color:#2b3038; font-variant-numeric:tabular-nums; }
+.wb2-scfcard em { margin-left:auto; font-style:normal; font-size:11px; font-weight:700; color:#57616f; }
+
+.wb2-scfft { display:flex; align-items:center; gap:10px; padding-top:16px; }
+.wb2-scfx { font-size:12.5px; font-weight:700; color:#57616f; cursor:pointer;
+  padding:9px 12px; border-radius:10px; background:transparent; }
+.wb2-scfx:hover { background:rgba(5,5,5,.05); color:#050505; }
+.wb2-scfgo { margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+  padding:10px 15px; border-radius:11px; background:#006a8c; color:#fff;
+  font-size:12.5px; font-weight:800; cursor:pointer; }
+.wb2-scfgo:hover { background:#005875; }
+.wb2-scfx:focus-visible, .wb2-scfgo:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.5); }
+@media (prefers-reduced-motion:reduce){ .wb2-scf { animation:none; } }
 
 /* the now line — only ever drawn on today. NOT the danger colour: red on
    this board means "didn't go ahead", and a red rule down a healthy day
@@ -5701,6 +5766,172 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 }
 @media (prefers-reduced-motion:reduce){
   .wb2-schb { animation:none; }
+}
+
+/* ── the Schedule tab's other side: the capacity month ──
+   Weeks as rows, one cell per day, and ONE FIGURE per cell: the fill
+   percentage, set large, on the card's own white. THE NUMBER CARRIES THE
+   RAMP — capacity-paint.ts computes it (slate when empty, the text-safe
+   green toward 100%, the warn INK past it) and hands it down in --capink;
+   nothing here states a ramp colour, so the sheet can never disagree with
+   the sweep that measures it. Hours live in the cell's title and the day
+   panel, not on the face. Every class starts `wb2-` for the same reason the
+   rail's do: the `.fg button` reset is (0,1,1) and silently strips the
+   background off any single-class button. */
+
+/* the Day/Capacity switcher — segmented, in the header beside the date
+   controls. A tinted well with a white raised thumb, the schday's "on"
+   treatment at header scale. */
+.wb2-schview { display:flex; gap:3px; padding:3px; border-radius:12px; background:rgba(5,5,5,.05);
+  margin-left:14px; flex:none; }
+.wb2-schvb { padding:6px 13px; border-radius:9px; font-size:12px; font-weight:800; color:var(--gray500);
+  cursor:pointer; transition:background .18s, color .18s; }
+.wb2-schvb:hover:not(.on) { color:var(--ink); }
+.wb2-schvb.on { background:#fff; color:var(--ink);
+  box-shadow:0 2px 6px -2px rgba(10,12,20,.25), inset 0 0 0 1px var(--wb2-line); }
+.wb2-schvb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+
+/* the crew button rides the header's chip cluster — mcnow's shape, plus the
+   icon, because it opens the list every number on the month divides by */
+.wb2-scmcrew { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 12px;
+  border-radius:999px; border:1px solid var(--wb2-line); background:#fff;
+  font-size:11.5px; font-weight:700; color:var(--gray500); cursor:pointer;
+  transition:border-color .18s, color .18s; }
+.wb2-scmcrew:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
+.wb2-scmcrew:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+
+/* nobody allocated: the month cannot be scored and SAYS SO once, in a band
+   above the grid, instead of printing 31 quiet zeros — capacity.ts's null
+   promise, kept on the screen */
+.wb2-scmnone { display:flex; align-items:center; gap:6px 14px; flex-wrap:wrap;
+  margin:14px 20px 0; padding:13px 16px; border:1px solid var(--wb2-line); border-radius:14px;
+  background:rgba(5,5,5,.03); }
+.wb2-scmnone b { font-size:13px; }
+.wb2-scmnone em { font-style:normal; font-size:12.5px; font-weight:500; color:var(--gray500); }
+.wb2-scmset { height:34px; padding:0 15px; border-radius:11px; margin-left:auto;
+  background:var(--wb2-cy, #007fa8); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer;
+  transition:background .18s; }
+.wb2-scmset:hover { background:var(--wb2-cy2, #0089b8); }
+.wb2-scmset:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+
+/* the month grid — the maintenance calendar's frame, re-stated rather than
+   reused so the two can move apart without either dragging the other */
+.wb2-scmdow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; padding:14px 20px 4px;
+  font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+.wb2-scmdow span { padding-left:8px; }
+.wb2-scm { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; padding:4px 20px 16px; }
+/* Tall enough that the figure has a cell, not a label — and the same height
+   whether a day is scored, unscored or inert, so the weeks stay level. */
+.wb2-scmc { position:relative; min-height:86px; border:1px solid var(--wb2-line2); border-radius:12px;
+  background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; text-align:center; padding:12px 6px 8px; }
+button.wb2-scmc { cursor:pointer;
+  transition:border-color .18s, transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s; }
+button.wb2-scmc:hover { border-color:rgba(5,5,5,.2); transform:translateY(-1px); }
+button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* selection is an ink ring — box-shadow, never a border or size change, so
+   opening a day cannot move the grid under the pointer */
+.wb2-scmc.on { box-shadow:0 0 0 2px var(--ink); border-color:transparent; }
+.wb2-scmc.on:focus-visible { box-shadow:0 0 0 2px var(--ink), 0 0 0 5px rgba(0,168,224,.3); }
+.wb2-scmd { position:absolute; top:7px; left:9px; font-size:10.5px; font-weight:800;
+  color:var(--gray500); font-variant-numeric:tabular-nums; }
+/* today: the date goes on an ink badge — legible over any figure colour,
+   and it cannot collide with the over ring the way a border treatment would */
+.wb2-scmc.today .wb2-scmd { top:4px; left:5px; min-width:21px; height:20px; display:grid;
+  place-items:center; padding:0 5px; border-radius:7px; background:var(--ink); color:#fff; }
+/* THE FIGURE IS THE CELL. --capink arrives per-day from capacity-paint.ts;
+   the fallback ink only ever paints a cell a future change forgets to hand
+   a colour — visible, and correct, rather than invisible. */
+/* THE FIGURE IS THE CELL. Isaac's brief: "the percentage number can take up
+   most of that day". It shipped at 23px beside a same-weight date and read as
+   a caption with a number in it; the date is the label now and the figure is
+   the object. Large type also means the ramp under it is judged as WCAG large
+   text (3:1) — it is still held to 4.5:1, so that never has to be argued. */
+.wb2-scmp { font-size:34px; font-weight:800; letter-spacing:-.045em; line-height:.95;
+  color:var(--capink, var(--ink)); font-variant-numeric:tabular-nums; }
+/* the one qualitative break: the word under the figure, in the same warn
+   ink the figure already wears — never a red anything on this grid */
+.wb2-scmo { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--capink, var(--wb2-warn-t, #B45309)); }
+/* unscored: no figure, no ramp, a quieter ground — null is not zero. The
+   dot is the one mark allowed: it says the day still holds work, which is
+   what makes it clickable. */
+.wb2-scmc.ns { background:rgba(5,5,5,.022); border-color:transparent; }
+.wb2-scmk { width:7px; height:7px; border-radius:50%; background:var(--gray500); }
+/* a neighbouring month's day: present so the weeks square off, and nothing
+   else — no data, no click, barely any ink */
+.wb2-scmc.out { background:transparent; border-color:transparent; }
+.wb2-scmc.out .wb2-scmd { color:var(--q); }
+
+/* the day panel — BELOW the grid, in flow, so selecting a day never moves
+   a cell. The rail's block anatomy at list scale: client leads, number is
+   a chip, hours right, people on their own line. */
+.wb2-scmdet { margin:2px 20px 16px; border:1px solid var(--wb2-line); border-radius:14px;
+  background:#fff; overflow:hidden; }
+.wb2-scmdh { display:flex; align-items:center; gap:10px; padding:11px 14px;
+  border-bottom:1px solid var(--wb2-line2); }
+.wb2-scmdh b { font-size:13px; font-weight:800; }
+.wb2-scmdh em { font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray500);
+  font-variant-numeric:tabular-nums; }
+.wb2-scmdx { margin-left:auto; width:26px; height:26px; display:grid; place-items:center;
+  border-radius:8px; color:var(--gray500); cursor:pointer; transition:background .18s, color .18s; }
+.wb2-scmdx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
+.wb2-scmdx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-scmjob { display:flex; flex-direction:column; gap:2px; padding:10px 14px;
+  border-bottom:1px solid var(--wb2-line2); }
+.wb2-scmjob:last-child { border-bottom:0; }
+.wb2-scmjh { display:flex; align-items:center; gap:7px; }
+.wb2-scmjh b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:12.5px; font-weight:800; }
+.wb2-scmjh u { flex:none; text-decoration:none; padding:1px 6px; border-radius:5px;
+  background:rgba(5,5,5,.06); font-size:10.5px; font-weight:800; color:var(--gray700);
+  font-variant-numeric:tabular-nums; }
+.wb2-scmjh em { margin-left:auto; flex:none; font-style:normal; font-size:11.5px; font-weight:800;
+  color:var(--gray700); font-variant-numeric:tabular-nums; }
+.wb2-scmjob > em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.wb2-scmjob > i { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray700); }
+
+/* ── the crew editor (inside .fl-modal, which PORTALS TO BODY — these are
+   unscoped like every wb2- rule, so they reach it out there; a .fg prefix
+   would style nothing) ── */
+.wb2-scmed { display:flex; flex-direction:column; }
+.wb2-scmrow { display:flex; align-items:center; gap:12px; padding:9px 2px;
+  border-bottom:1px solid rgba(5,5,5,.05); }
+.wb2-scmrow b { flex:1; min-width:0; font-size:13px; font-weight:700;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* set aside, not deleted: the name steps back a tier — COLOUR, never
+   opacity, which drags text toward whatever is behind it */
+.wb2-scmrow.off b { color:var(--gray500); }
+.wb2-scmtog { position:relative; flex:none; width:38px; height:22px; border-radius:999px;
+  background:rgba(5,5,5,.14); cursor:pointer; transition:background .18s; }
+.wb2-scmtog::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px;
+  border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(10,12,20,.35); transition:left .18s; }
+.wb2-scmtog[aria-checked="true"] { background:var(--wb2-ok, #00A389); }
+.wb2-scmtog[aria-checked="true"]::after { left:18px; }
+.wb2-scmtog:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-scmstep { display:flex; align-items:center; gap:2px; flex:none; }
+.wb2-scmstep > span { min-width:46px; text-align:center; font-size:12.5px; font-weight:800;
+  font-variant-numeric:tabular-nums; }
+.wb2-scmrow.off .wb2-scmstep > span { color:var(--gray500); }
+.wb2-scmsb { width:26px; height:26px; display:grid; place-items:center; border-radius:8px;
+  border:1px solid var(--wb2-line, rgba(5,5,5,.08)); background:#fff; color:var(--gray700);
+  font-size:14px; font-weight:800; cursor:pointer; transition:border-color .18s, color .18s; }
+.wb2-scmsb:hover:not(:disabled) { border-color:rgba(5,5,5,.24); color:var(--ink); }
+.wb2-scmsb:disabled { color:#c3c8d0; border-color:var(--wb2-line2, rgba(5,5,5,.06)); cursor:default; }
+.wb2-scmsb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* a failed save is a FAULT and may say so in the danger ink — the never-dan
+   rule above is about the grid, where under-capacity is not one */
+.wb2-scmerr { margin:10px 0 0; font-size:12.5px; font-weight:600; color:var(--wb2-dan-t, #b31038); }
+.wb2-scmft { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+
+@media (max-width:920px){
+  .wb2-scmc { min-height:66px; }
+  .wb2-scmp { font-size:25px; }
+  .wb2-schview { margin-left:8px; }
+  .wb2-schvb { padding:5px 9px; }
+}
+@media (prefers-reduced-motion:reduce){
+  button.wb2-scmc:hover { transform:none; }
 }
 
 /* ── completed ──

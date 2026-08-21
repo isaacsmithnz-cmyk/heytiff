@@ -39,12 +39,21 @@ import { ScheduleFocus } from "./schedule-focus";
    "7am–3pm" on the card as well is double handling (Isaac's words). The
    times live in the hover title and the aria-label, where they cost nothing.
 
-   TWO COLOUR CHANNELS, ONE OVERRIDE. Category tints a block (the same axis
-   the list rows' catdot uses); status is a second reading — Completed mutes
-   and takes a tick, Unsuccessful takes the danger ring, a Quote's bar goes
-   dashed. And OWNERSHIP OUTRANKS CATEGORY: a job promoted onto one of our
-   boards leaves the palette and wears the tracked blue with the word beside
-   the number, because it isn't pool work any more. */
+   TWO COLOUR CHANNELS, ONE OVERRIDE. Category washes a block and colours its
+   cap (the same axis the list rows' catdot uses); status is a second reading —
+   Completed mutes and takes a tick, Unsuccessful takes the danger ring, a
+   Quote takes a dashed edge. And OWNERSHIP OUTRANKS CATEGORY: a job promoted
+   onto one of our boards leaves the palette and wears the tracked blue with
+   the word beside the number, because it isn't pool work any more.
+
+   NOTHING GOES WHITE, AND ONE THING GETS A MARK. A booking nobody has clocked
+   on to keeps its category and hollows its cap. That is the ORDINARY state of
+   most of a day rather than an exception — the morning this was measured, ten
+   of twenty-one bookings were unstarted and seven more were closed, so a rail
+   that whitened the first and paled the second showed seventeen white
+   rectangles and hid the three that were live. The one genuine exception —
+   past its start with nothing recorded — carries a mark in the corner
+   instead, in the same slot the done tick uses. */
 
 const PX_PER_HOUR = 110;
 /* A sub-row must HOLD its own type: three lines at 1.3 line-height plus two
@@ -421,16 +430,14 @@ export function ScheduleTab({
     : false;
   /* The legend only claims what the day actually shows — on an account that
      never clocks on, `tracksTime` is false, no block is hollow, and offering
-     a key for a state nothing is in would be its own small lie. */
-  const hasIdle = day
-    ? hollowReads &&
-      day.lanes.some(
-        (l) =>
-          l.blocks.some(
-            (b) => !b.onSite && b.closure !== "done" && b.status !== "Unsuccessful"
-          )
-      )
-    : false;
+     a key for a state nothing is in would be its own small lie.
+
+     BOTH ASK `blockState`, which is the same call the rail makes to draw. It
+     used to restate the hollow rule here in its own words, and a key that
+     derives a treatment separately from the thing it is a key FOR is one edit
+     away from describing a board nobody is looking at. */
+  const hasIdle = day ? day.lanes.some((l) => l.blocks.some((b) => blockState(b).hollow)) : false;
+  const hasLate = day ? day.lanes.some((l) => l.blocks.some((b) => blockState(b).late)) : false;
 
   /* FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED.
      Three gates before a block is allowed to go hollow, because the wrong
@@ -753,16 +760,27 @@ export function ScheduleTab({
               </span>
             )}
             {/* The day's OTHER reading, and the one that needs saying in words:
-                a pale block is finished, not a category we forgot to colour. */}
+                a pale block is finished, not a category we forgot to colour.
+
+                THE SWATCH SHOWS THE CAP, because the cap is where the state
+                is. This used to be a white rectangle, back when the block was
+                one too — and a key that points at a treatment nothing wears
+                any more is worse than no key. */}
             {hasIdle && (
               <span>
-                <i
-                  style={{
-                    background: "#fff",
-                    boxShadow: `inset 0 0 0 1.5px ${NO_CATEGORY_PAINT.bar}`,
-                  }}
-                />
+                <i className="hollow" style={{ ["--kcap" as string]: NO_CATEGORY_PAINT.bar }} />
                 Not started
+              </span>
+            )}
+            {/* the one thing on the rail that is actually wrong, and the only
+                one carrying a mark — so it is the one entry here that is an
+                icon rather than a swatch. */}
+            {hasLate && (
+              <span>
+                <i className="mark" aria-hidden="true">
+                  !
+                </i>
+                Nothing recorded yet
               </span>
             )}
             {hasDone && (

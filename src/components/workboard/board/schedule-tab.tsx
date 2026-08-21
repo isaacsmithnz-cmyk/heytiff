@@ -8,6 +8,8 @@ import { isWeekendISO, mondayOf } from "@/lib/workboard/board-status";
 import { scheduleDay } from "@/app/actions/workboard";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
+import type { CapacityPayload } from "@/lib/workboard/capacity-query";
+import { CapacityView } from "./capacity-view";
 import {
   clockLabel,
   fmtHoursShort,
@@ -22,6 +24,7 @@ import {
   type BlockPaint,
 } from "@/lib/workboard/schedule-colour";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
+import { ScheduleFocus } from "./schedule-focus";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
    answered from the mirror this account already syncs: one lane per staff
@@ -60,11 +63,14 @@ const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     tracked blue — the All jobs rows' chip, at block weight. Stated here rather
     than derived, because this hue is ours and never arrives from ServiceM8. */
 const TRACKED_PAINT: BlockPaint = {
-  fill: "rgb(0, 106, 140)",
-  ink: "rgb(255, 255, 255)",
-  chip: "rgb(0, 83, 110)",
-  pale: "rgb(226, 241, 246)",
-  paleEdge: "rgb(178, 216, 229)",
+  fill: "rgb(231, 244, 248)",
+  ink: "rgb(10, 11, 16)",
+  chip: "rgb(201, 228, 237)",
+  /* the ONE cap that is not derived: this hue is ours, and it clears its own
+     wash 5.43:1 without needing to be walked anywhere */
+  bar: "rgb(0, 106, 140)",
+  pale: "rgb(244, 245, 247)",
+  paleEdge: "rgb(219, 222, 228)",
 };
 
 /** A native day-booking — a project trip or maintenance visit. It has a DAY
@@ -123,9 +129,20 @@ export function ScheduleTab({
 }: Props) {
   const [openDay, setOpenDay] = useState(today);
   const [payload, setPayload] = useState<SchedulePayload | null>(null);
-  const [hoverJob, setHoverJob] = useState<string | null>(null);
+  /** The job brought forward, by job uuid. Replaces the crew hover. */
+  const [focusJob, setFocusJob] = useState<string | null>(null);
   const [loading, startLoad] = useTransition();
   const cache = useRef(new Map<string, SchedulePayload>());
+  /** job uuid → its first block, so closing the stack returns focus there. */
+  const blockRefs = useRef(new Map<string, HTMLButtonElement>());
+  /* ── the tab's two sides ──
+     Day is the landing view; Capacity is the same diary read as a month of
+     fill. Its anchor and cache live HERE so flipping back and forth loses
+     nothing — the view component unmounts, the choice and the payloads
+     don't. */
+  const [view, setView] = useState<"day" | "capacity">("day");
+  const [capAnchor, setCapAnchor] = useState(today);
+  const capCache = useRef(new Map<string, CapacityPayload>());
 
   const load = (dayISO: string) => {
     startLoad(async () => {
@@ -137,7 +154,7 @@ export function ScheduleTab({
 
   const show = (dayISO: string) => {
     setOpenDay(dayISO);
-    setHoverJob(null);
+    setFocusJob(null);
     const hit = cache.current.get(dayISO);
     if (hit) setPayload(hit);
     else load(dayISO);
@@ -174,15 +191,6 @@ export function ScheduleTab({
     () => new Map((current?.jobs ?? []).map((j) => [j.remoteId, j])),
     [current]
   );
-  /** Jobs that draw more than one block — the crew-hover only ever fires for
-      these; lifting a lone block against a rested day would be noise. */
-  const crewJobs = useMemo(() => {
-    const seen = new Map<string, number>();
-    for (const l of day?.lanes ?? []) {
-      for (const b of l.blocks) seen.set(b.remoteId, (seen.get(b.remoteId) ?? 0) + 1);
-    }
-    return new Set([...seen.entries()].filter(([, n]) => n > 1).map(([id]) => id));
-  }, [day]);
 
   const monday = mondayOf(openDay);
   const week = useMemo(() => Array.from({ length: 7 }, (_, i) => plusDays(monday, i)), [monday]);
@@ -228,6 +236,29 @@ export function ScheduleTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lands once per loaded day
   }, [day, openDay]);
 
+  /* ── the Day / Capacity switcher — one element, rendered into BOTH
+     headers so the header reads as one thing changing its contents ── */
+  const switcher = (
+    <div className="wb2-schview" role="group" aria-label="Day or capacity">
+      <button
+        type="button"
+        className={"wb2-schvb" + (view === "day" ? " on" : "")}
+        aria-pressed={view === "day"}
+        onClick={() => setView("day")}
+      >
+        Day
+      </button>
+      <button
+        type="button"
+        className={"wb2-schvb" + (view === "capacity" ? " on" : "")}
+        aria-pressed={view === "capacity"}
+        onClick={() => setView("capacity")}
+      >
+        Capacity
+      </button>
+    </div>
+  );
+
   /* ── header ── */
   const head = (
     <div className="wb2-chd">
@@ -238,16 +269,16 @@ export function ScheduleTab({
         <div className="wb2-mchead">
           <button
             className="wb2-mcarrow"
-            aria-label="The day before"
-            onClick={() => show(plusDays(openDay, -1))}
+            aria-label="The week before"
+            onClick={() => show(plusDays(openDay, -7))}
           >
             <Icon name="chevL" size={15} />
           </button>
           <b>{fmtAuWeekdayDayMonth(openDay)}</b>
           <button
             className="wb2-mcarrow"
-            aria-label="The day after"
-            onClick={() => show(plusDays(openDay, 1))}
+            aria-label="The week after"
+            onClick={() => show(plusDays(openDay, 7))}
           >
             <Icon name="chevR" size={15} />
           </button>
@@ -258,6 +289,7 @@ export function ScheduleTab({
           )}
         </div>
       </div>
+      {switcher}
       {day && day.totalBookings > 0 && (
         <span className="wb2-mcsum">
           <span className="wb2-chip">
@@ -317,6 +349,24 @@ export function ScheduleTab({
     );
   }
 
+  /* The month is the same diary at a different grain — it renders its own
+     header (same shapes, month controls in it) and shares the rail's day
+     cache, so a day opened there is warm here. Only ever reached CONNECTED:
+     the gap return above fires first, and nothing is fetched mid-backfill. */
+  if (view === "capacity") {
+    return (
+      <CapacityView
+        today={today}
+        manage={manage}
+        anchor={capAnchor}
+        onAnchor={setCapAnchor}
+        capCache={capCache}
+        dayCache={cache}
+        switcher={switcher}
+      />
+    );
+  }
+
   const categoriesOnDay = day
     ? [
         ...new Map(
@@ -336,6 +386,30 @@ export function ScheduleTab({
      already gone is late in all of it; today needs the browser's clock, and
      without a trustworthy one nothing is claimed. */
   const overdueBefore = openDay < today ? 24 * 60 : openDay === today ? nowMin : null;
+
+  /* WHAT ONE BLOCK IS DOING, decided once. The rail draws it as treatment and
+     the focus stack writes it as a word, and the two must not be able to drift
+     apart — a card that says "not started" beside a block drawn as started is
+     worse than either mark alone. */
+  const blockState = (b: ScheduleBlock) => {
+    /* A stale booking is NOT closed off — the job is, but this day's work is
+       still on somebody's run, so it stays solid rather than fading. */
+    const open = b.closure !== "done" && b.status !== "Unsuccessful";
+    const hollow = hollowReads && open && !b.onSite;
+    /* ONE STATE PER BLOCK. A booking ServiceM8 has already marked complete
+       cannot also be accused of not having been started — the crew may well be
+       on site without clocking on, which is exactly how the job came to be
+       closed while a later visit was still booked. The flag wins. */
+    const late = hollow && b.closure !== "stale" && startedGone(b.startMin);
+    const word =
+      b.closure === "stale" ? "Marked complete in ServiceM8"
+      : b.status === "Unsuccessful" ? "Didn't go ahead"
+      : late ? "Nothing recorded yet"
+      : hollow ? "Not started"
+      : b.closure === "done" ? "Done"
+      : b.onSite ? "Started" : null;
+    return { hollow, late, word };
+  };
 
   const hasBare = day
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
@@ -374,6 +448,46 @@ export function ScheduleTab({
      On today that needs the browser's clock, which is the same clock the now
      line is drawn from and is null when it disagrees with the board's date —
      no mark beats one that is hours wrong, so lateness simply isn't claimed. */
+  /* THE JOB BROUGHT FORWARD. Gathered from the lanes rather than from the
+     payload, so the cards are exactly the blocks that are on screen — a job
+     booked on another day is not on this rail and has no business in a stack
+     lifted off it. */
+  const focus = (() => {
+    if (!focusJob || !day) return null;
+    const entries = day.lanes.flatMap((l) =>
+      l.blocks
+        .filter((b) => b.remoteId === focusJob)
+        .map((b) => ({
+          key: b.key,
+          who: l.name,
+          startMin: b.startMin,
+          endMin: b.endMin,
+          state: blockState(b).word,
+          done: b.closure === "done",
+          paint: b.tracked ? TRACKED_PAINT : scheduleBlockPaint(b.categoryColour),
+        }))
+    );
+    if (entries.length === 0) return null;
+    const first = day.lanes.flatMap((l) => l.blocks).find((b) => b.remoteId === focusJob)!;
+    return {
+      jobNumber: first.jobNumber,
+      clientName: first.clientName,
+      suburb: first.suburb,
+      label: first.tracked
+        ? first.tracked.kind === "project"
+          ? "Project"
+          : "Maintenance"
+        : (first.categoryName ?? "No category"),
+      entries,
+    };
+  })();
+
+  const closeFocus = () => {
+    const was = focusJob;
+    setFocusJob(null);
+    if (was) blockRefs.current.get(was)?.focus();
+  };
+
   let bi = 0; // running block index — the entrance stagger reads left to right
 
   return (
@@ -409,7 +523,7 @@ export function ScheduleTab({
       )}
 
       {day && day.totalBookings > 0 && (
-        <div className={"wb2-schboard" + (hoverJob ? " linking" : "")}>
+        <div className="wb2-schboard">
           <div className="wb2-schnames">
             <div className="wb2-schnh" />
             {day.lanes.map((l) => {
@@ -491,13 +605,7 @@ export function ScheduleTab({
                           ((b.endMin - b.startMin) / 60) * PX_PER_HOUR,
                           46
                         );
-                        const kin = hoverJob === b.remoteId;
-                        /* A stale booking is NOT closed off — the job is, but
-                           this day's work is still on somebody's run, so it
-                           stays solid and gets a warning rather than fading. */
-                        const open = b.closure !== "done" && b.status !== "Unsuccessful";
-                        const hollow = hollowReads && open && !b.onSite;
-                        const late = hollow && startedGone(b.startMin);
+                        const { hollow, late } = blockState(b);
                         const cls =
                           "wb2-schb" +
                           (b.tracked ? " proj" : "") +
@@ -508,7 +616,7 @@ export function ScheduleTab({
                           (hollow ? " idle" : "") +
                           (late ? " late" : "") +
                           (w < TIGHT_PX ? " tight" : "") +
-                          (kin ? " kin" : "");
+                          "";
                         /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
                            boards wears the tracked blue, everything else is
                            painted from its ServiceM8 category. */
@@ -529,17 +637,18 @@ export function ScheduleTab({
                               ["--fill" as string]: paint.fill,
                               ["--btext" as string]: paint.ink,
                               ["--chip" as string]: paint.chip,
+                              ["--bar" as string]: paint.bar,
                               ["--pale" as string]: paint.pale,
                               ["--pale-edge" as string]: paint.paleEdge,
                             }}
                             title={blockTitle(b)}
-                            aria-label={`Open job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
+                            aria-label={`Job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
                               b.clientName ?? ""
                             }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${
                               /* the outline and the ring are not available to a
                                  screen reader, so the state is spoken as well */
                               b.closure === "stale"
-                                ? ", job already closed"
+                                ? ", marked complete in ServiceM8"
                                 : late
                                   ? ", nothing recorded yet"
                                   : hollow
@@ -548,18 +657,15 @@ export function ScheduleTab({
                                       ? ", done"
                                       : ""
                             }`}
-                            onMouseEnter={() =>
-                              setHoverJob(crewJobs.has(b.remoteId) ? b.remoteId : null)
-                            }
-                            onMouseLeave={() => setHoverJob(null)}
-                            onFocus={() =>
-                              setHoverJob(crewJobs.has(b.remoteId) ? b.remoteId : null)
-                            }
-                            onBlur={() => setHoverJob(null)}
-                            onClick={() => {
-                              const job = jobById.get(b.remoteId);
-                              if (job) onOpenJob(job);
+                            ref={(el) => {
+                              if (el) blockRefs.current.set(b.remoteId, el);
                             }}
+                            /* A CLICK BRINGS IT FORWARD; it no longer opens
+                               the sheet directly. Every block does it, crew or
+                               not — a stack of one is still the same rule, and
+                               "Open job" then sits in the same place whatever
+                               was clicked. */
+                            onClick={() => setFocusJob(b.remoteId)}
                           >
                             {/* THE CLIENT LEADS. The job number is the one
                                 thing on this block that means nothing until
@@ -584,7 +690,7 @@ export function ScheduleTab({
                               {b.status === "Quote" ? " · Quote" : ""}
                               {/* in words, because an amber ring alone would
                                   leave a screen reader with a normal booking */}
-                              {b.closure === "stale" ? " · Job closed" : ""}
+                              {b.closure === "stale" ? " · Marked complete in ServiceM8" : ""}
                             </em>
                             {b.suburb && <i>{b.suburb}</i>}
                           </button>
@@ -613,24 +719,36 @@ export function ScheduleTab({
         </div>
       )}
 
+      {focus && (
+        <ScheduleFocus
+          job={focus}
+          onClose={closeFocus}
+          onOpen={() => {
+            const job = focusJob ? jobById.get(focusJob) : null;
+            setFocusJob(null);
+            if (job) onOpenJob(job);
+          }}
+        />
+      )}
+
       {day && day.totalBookings > 0 && (
         <div className="wb2-schfoot">
           <div className="wb2-schkey">
             {categoriesOnDay.map(([name, colour]) => (
               <span key={name}>
-                <i style={{ background: scheduleBlockPaint(colour).fill }} />
+                <i style={{ background: scheduleBlockPaint(colour).bar }} />
                 {name}
               </span>
             ))}
             {hasBare && (
               <span>
-                <i style={{ background: NO_CATEGORY_PAINT.fill }} />
+                <i style={{ background: NO_CATEGORY_PAINT.bar }} />
                 No category
               </span>
             )}
             {hasTracked && (
               <span>
-                <i style={{ background: TRACKED_PAINT.fill }} />
+                <i style={{ background: TRACKED_PAINT.bar }} />
                 On a board here
               </span>
             )}
@@ -641,7 +759,7 @@ export function ScheduleTab({
                 <i
                   style={{
                     background: "#fff",
-                    boxShadow: `inset 0 0 0 1.5px ${NO_CATEGORY_PAINT.fill}`,
+                    boxShadow: `inset 0 0 0 1.5px ${NO_CATEGORY_PAINT.bar}`,
                   }}
                 />
                 Not started
@@ -663,10 +781,10 @@ export function ScheduleTab({
                 <i
                   style={{
                     background: NO_CATEGORY_PAINT.fill,
-                    boxShadow: "inset 0 0 0 2px var(--wb2-warn)",
+                    boxShadow: `inset 4px 0 0 ${NO_CATEGORY_PAINT.bar}`,
                   }}
                 />
-                Job closed, still booked
+                Marked complete in ServiceM8, still booked
               </span>
             )}
           </div>

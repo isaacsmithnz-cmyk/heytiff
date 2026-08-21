@@ -433,6 +433,33 @@ describe("lanePresence", () => {
   });
 
   it("treats a stale booking as open — it is still on the run", () => {
-    expect(lanePresence([b({ closure: "stale", startMin: 60 })], 600)).toBe("late");
+    /* It used to read "late" here. That was the whole of the bug Isaac saw:
+       a job ServiceM8 closed when the crew marked an EARLIER visit complete
+       turned its owner's dot red on the day of the return visit. Open, yes —
+       there is work to do. Late, no — see the paragraph in lanePresence. */
+    expect(lanePresence([b({ closure: "stale", startMin: 60 })], 600)).toBe("wait");
+  });
+});
+
+describe("lanePresence and a job ServiceM8 has already closed", () => {
+  it("does not call somebody late for a booking on a closed job", () => {
+    /* The same law the block treatment follows, in the name column. This was
+       turning a person's dot red — "nothing recorded yet" — because a job
+       they are simply going back to had been marked complete for an earlier
+       visit. It still counts as work to do, so the lane says "not started". */
+    const stale = {
+      onSite: false,
+      closure: "stale" as const,
+      status: "Completed",
+      startMin: 7 * 60,
+    };
+    expect(lanePresence([stale], 12 * 60)).toBe("wait");
+  });
+
+  it("still calls an ordinary unstarted booking late", () => {
+    // a narrowing, not a removal
+    const open = { onSite: false, closure: "open" as const, status: "Work Order", startMin: 7 * 60 };
+    expect(lanePresence([open], 12 * 60)).toBe("late");
+    expect(lanePresence([open, { ...open, closure: "stale" as const }], 12 * 60)).toBe("late");
   });
 });

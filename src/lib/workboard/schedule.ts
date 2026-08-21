@@ -156,9 +156,16 @@ export function lanePresence(
   overdueBefore: number | null
 ): "on" | "wait" | "late" | null {
   const open = blocks.filter((b) => b.closure !== "done" && b.status !== "Unsuccessful");
+  /* A "stale" booking is on a job ServiceM8 has already marked complete, and
+     it is NOT evidence that its owner is running late — the crew may well be
+     on site without clocking on, which is how the job came to be closed with a
+     later visit still booked. It stays in `open` (it is still work to do, so
+     the lane can still say "not started") but it cannot make anyone late.
+     The block treatment draws the same line; this is the same law in the name
+     column, where it was turning a person's dot red for a finished job. */
   if (
     overdueBefore !== null &&
-    open.some((b) => !b.onSite && b.startMin < overdueBefore)
+    open.some((b) => b.closure !== "stale" && !b.onSite && b.startMin < overdueBefore)
   ) {
     return "late";
   }

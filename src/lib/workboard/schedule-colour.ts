@@ -4,30 +4,41 @@
    schedule.ts / schedule-query.ts split, applied to paint).
 
    SERVICEM8 PICKS ITS CATEGORY COLOURS TO SIT BEHIND BLACK TEXT. They arrive
-   around 85% lightness — a wash, not an accent. The first cut of this tab
-   took that hex, knocked it to 50% alpha (landing it near white) and then
-   added a 4px bar to recover the hue the fill had lost. The bar was computed
-   by multiplying each channel by 0.55, and multiplying RGB darkens TOWARD
-   GREY: a lilac category and a blue one both came out slate, and from a metre
-   away the whole rail was one colour.
+   around 85% lightness — a wash, not an accent. Two treatments have now been
+   tried on that fact and both failed in the same direction: at 50% alpha the
+   wash landed near white and lost its hue, so a 4px bar was added to recover
+   it — and the bar multiplied each channel by 0.55, which darkens toward GREY,
+   so a lilac category and a blue one both came out slate. Then the fill was
+   rebuilt from the hue at FULL chroma and walked down until white cleared
+   4.5:1, which fixed the greyness and created a worse problem: every category
+   shipped at 1.00 saturation while the board's own alarm colour sits at 0.75.
+   A pale pink Service Call came out rgb(235, 0, 0). Ordinary work was painted
+   louder than the exception, and a completed job the crew were returning to
+   read as an emergency.
 
-   So take the HUE and rebuild the swatch, rather than pushing the pixel
-   around. Floor the saturation (the pale pick carries almost none), then walk
-   lightness DOWN from a true mid until white measurably clears 4.5:1 against
-   the result. The text colour is not a search result here — it is white on
-   every block, and the fill is what moves to earn it, so the rail reads as one
-   thing instead of a row that disagrees with itself. The 4px bar retires
-   because the fill is doing its job.
+   SO THE FILL STOPS CARRYING THE HUE. The block is a near-white wash of its
+   category with ink on it, and the hue moves to a 4px cap on the leading edge.
+   The wash cannot be an alarm — it is 94% light by construction, for every hue
+   ServiceM8 can invent — so the loudest thing on the rail is once again the
+   thing that is actually wrong. Ink on the wash measures 16:1 at worst, against
+   the 4.7:1 the saturated fill managed.
+
+   AND THE CAP WALKS, BECAUSE A FIXED LIGHTNESS IS NOT A FIXED CONTRAST. The
+   first cut pinned the cap at L=0.42 and measured it: purple cleared its wash
+   6.12:1 and yellow-green cleared it 2.22:1, because HSL lightness is not
+   perceived lightness. So the cap does what the fill used to do — hold the hue
+   and walk down until it measures 3:1 against its own wash. Green and yellow
+   end up darker than blue and purple, which is exactly right and is not
+   something an eye would have caught on a screenshot.
 
    AND A COLOUR WITH NO HUE KEEPS NONE. Flooring the saturation of something
    that is already grey does not rescue a wash, it fabricates a hue — see
    MIN_SOURCE_CHROMA. Those fall to the neutral pair instead.
 
-   AND NOT `opacity` FOR THE CLOSED ONES. A finished block used to be
-   `opacity:.58`, which is de-emphasis by arithmetic: over a saturated fill it
-   drags the label toward the ground behind it. `pale` is a stated colour with
-   its own measured ink — a closed block reads BETTER than a live one, which
-   is the right way round for something you may still need to read. */
+   AND A CLOSED JOB KEEPS NO HUE EITHER. `pale` used to be the category at 92%
+   lightness, which under a 94% wash is the same colour twice: done work and
+   live work became indistinguishable at a glance. Finished work is neutral
+   now, and carries no cap — colour on this rail means "still to do". */
 
 /** Relative luminance, sRGB. The one piece of arithmetic everything else here
     is asking a question about. */
@@ -99,72 +110,70 @@ function toRgb(h: number, s: number, l: number): [number, number, number] {
 
 const css = (rgb: readonly [number, number, number]) => `rgb(${rgb.join(", ")})`;
 
-/** `t` of the way from `a` to `b`. */
-function mix(
-  a: readonly [number, number, number],
-  b: readonly [number, number, number],
-  t: number
-): [number, number, number] {
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * t),
-    Math.round(a[1] + (b[1] - a[1]) * t),
-    Math.round(a[2] + (b[2] - a[2]) * t),
-  ];
-}
-
-const WHITE: [number, number, number] = [255, 255, 255];
 /** The sheet's --ink. Written out because this file has no cascade to read. */
 const INK: [number, number, number] = [10, 11, 16];
-/** AA for the block's smallest line, which is 10.5px — so the whole label. */
-const AA = 4.5;
 
 /** How a block is painted. Every value is a plain CSS colour: the component
     hands them straight to custom properties and the sheet does the rest. */
 export type BlockPaint = {
-  /** A booking still in play — the category's hue at full strength. */
+  /** The block's ground — a near-white wash of the category's hue. It is the
+      one value here that is guaranteed not to be able to shout: 94% light for
+      every hue there is. */
   fill: string;
-  /** The label on `fill`. Always white for a category — the fill is darkened
-      until white clears 4.5:1 rather than the label switching to suit the hue.
-      Named `ink` because it is the block's text colour, not because it is. */
+  /** The label on `fill`. Ink on every block, because every ground is a wash —
+      the rail's text colour is a rule, not a property of the category. */
   ink: string;
-  /** The job-number chip's own ground. It sits ON the fill and under the same
-      label, so it has to move AWAY from it — the obvious tint (a wash of the
-      text colour) walks the chip toward its own words and takes them under
-      4.5:1, which is the whole bug this module exists to stop. */
+  /** The job-number chip's own ground: a deeper step of the same wash, so it
+      reads as a patch on the block rather than a second colour. */
   chip: string;
-  /** Finished and closed. Always takes ink, and by a wide margin. */
+  /** The 4px cap on the leading edge — where the category's hue actually lives
+      now. Walked down until it clears 3:1 against `fill`, so it is legible as
+      a graphic for every hue rather than only the dark half of the wheel. */
+  bar: string;
+  /** Finished and closed. NEUTRAL, and the same neutral for every category:
+      colour on this rail means work still to do. */
   pale: string;
   /** The closed block's own hairline, so it keeps an edge once it recedes. */
   paleEdge: string;
 };
 
+/** Finished work, whatever it was. Stated once, here, because every category
+    closes to the same neutral — see the header. */
+const DONE_PALE = "rgb(244, 245, 247)";
+const DONE_EDGE = "rgb(219, 222, 228)";
+
 /** No category, or a colour ServiceM8 gave us that we cannot read. Grey, and
     deliberately the same grey the rest of the board uses for "unset". */
 export const NO_CATEGORY_PAINT: BlockPaint = {
-  fill: "rgb(226, 228, 233)",
+  fill: "rgb(244, 245, 247)",
   ink: "rgb(10, 11, 16)",
-  chip: "rgb(243, 244, 246)",
-  pale: "rgb(244, 245, 247)",
-  paleEdge: "rgb(219, 222, 228)",
+  chip: "rgb(226, 228, 233)",
+  bar: "rgb(122, 129, 140)",
+  pale: DONE_PALE,
+  paleEdge: DONE_EDGE,
 };
 
-/** Where the search for a usable fill starts: a true mid, the most saturated
-    a hue gets. It only ever walks DOWN from here — see `scheduleBlockPaint`. */
-const START_L = 0.55;
-/** How far down it will go. Every real hue clears white long before this;
-    the floor exists so the loop is bounded rather than trusting arithmetic. */
-const FLOOR_L = 0.12;
-/** ServiceM8's washes carry almost no chroma; below this a "colour" is grey. */
-const MIN_SATURATION = 0.55;
+/** The wash: light enough that no hue can arrive as an alarm, saturated enough
+    that the category is still nameable at a glance. */
+const WASH_L = 0.94;
+const WASH_S = 0.55;
+/** The number chip — the same wash, one step deeper, under the same ink. */
+const CHIP_L = 0.86;
+const CHIP_S = 0.5;
+/** The cap. It starts here and only ever walks DOWN — see `capFor`. */
+const BAR_S = 0.62;
+const BAR_START_L = 0.46;
+const BAR_FLOOR_L = 0.1;
+/** WCAG's floor for a graphic that carries meaning. The cap is the only thing
+    naming the category by colour, so it is held to it. */
+const GRAPHIC = 3;
 
 /** Below this much chroma in the SOURCE, there is no hue to rescue.
 
-    The floor above exists to rescue a wash, and on a colour that has a hue it
-    does exactly that. On one that hasn't, it invents a hue and then states it
-    confidently — which is how a category somebody set to #D9D9DE came out
-    blue-violet (its 240° is arbitrary rounding on five points of chroma), and
-    how black and white both came out RED: neither has a hue, both compute 0°,
-    and 0° at full saturation is the danger colour.
+    Stating a wash's saturation rather than searching for it (see
+    `scheduleBlockPaint`) would otherwise give a colour somebody set to grey a
+    confident hue: #D9D9DE came out blue-violet on 240° of arbitrary rounding,
+    and black and white both came out RED — neither has a hue, both compute 0°.
 
     Measured, the gap is wide and there is no judgement in the middle of it:
 
@@ -179,6 +188,25 @@ const MIN_SATURATION = 0.55;
 const MIN_SOURCE_CHROMA = 0.1;
 
 /**
+ * The cap's colour for one hue: hold the hue, walk lightness DOWN until the
+ * cap clears 3:1 against the wash it sits on.
+ *
+ * A FIXED LIGHTNESS IS NOT A FIXED CONTRAST — this walk exists because the
+ * first cut pinned the cap at 0.42 and measured 6.12:1 for purple against
+ * 2.22:1 for yellow-green. The wash is the ground it actually sits on and is
+ * darker than the card, so clearing the wash clears white too.
+ */
+function capFor(h: number, wash: readonly [number, number, number]): [number, number, number] {
+  for (let l = BAR_START_L; l >= BAR_FLOOR_L; l -= 0.01) {
+    const rgb = toRgb(h, BAR_S, l);
+    if (contrastRatio(rgb, wash) >= GRAPHIC) return rgb;
+  }
+  /* Unreachable: every hue is dark enough by the floor. Kept so the function
+     is total rather than nearly total. */
+  return toRgb(h, BAR_S, BAR_FLOOR_L);
+}
+
+/**
  * The paint for one category colour. `hex` is ServiceM8's own value, already
  * sanitised by `sm8CategoryColour`; null (or unreadable) gets the grey pair.
  */
@@ -190,45 +218,28 @@ export function scheduleBlockPaint(hex: string | null | undefined): BlockPaint {
   /* No hue to rescue — take the same grey a job with no category gets, rather
      than inventing one. Black, white and a picked grey all land here. */
   if (s0 < MIN_SOURCE_CHROMA) return NO_CATEGORY_PAINT;
-  const s = Math.max(s0, MIN_SATURATION);
 
-  /* Closed work: same hue, most of the way to white, chroma pulled back so a
-     row of finished jobs reads as one quiet band rather than a pastel
-     rainbow. Ink on this runs 13–15:1 for every hue ServiceM8 can hand us,
-     so there is nothing to search for — but the test measures it anyway. */
-  const pale = css(toRgb(h, Math.min(s, 0.62), 0.92));
-  const paleEdge = css(toRgb(h, Math.min(s, 0.55), 0.82));
+  /* THE WASH IS NOT A SEARCH. Its saturation is stated rather than taken from
+     the source, because the source's own chroma is the thing that went wrong
+     twice: a category ServiceM8 set to a fully-saturated pink is not a louder
+     category than one set to a muted sage, it is the same category wearing a
+     different swatch. Every wash is the same distance from white, so the rail
+     reads as one system without any hue being able to shout. */
+  const wash = toRgb(h, WASH_S, WASH_L);
 
-  /* WHITE ON EVERY BLOCK. The first cut took whichever of white or ink cleared
-     at a true mid, and that made the rail's text colour a property of the hue:
-     purple and blue came out white, mint and yellow came out ink. Both were
-     legible and the board still looked like two designs, because a row of
-     blocks that disagree about their text colour reads as an accident rather
-     than a rule.
-
-     So pick the text first and let the fill move: hold the hue and walk
-     lightness down until WHITE clears 4.5:1 against it. Darkening always gets
-     there, so every category ends up white-on-colour and the rail is one
-     thing. What it costs is lightness on the bright hues — a mint that was
-     #4dcb7b becomes a deep #27864a, and a pale yellow becomes an olive. That
-     is the trade: hue fidelity for a rail that reads as one system. The
-     category is written on the block in words, so the hue was never carrying
-     the meaning on its own. */
-  for (let l = START_L; l >= FLOOR_L; l -= 0.01) {
-    const rgb = toRgb(h, s, l);
-    if (contrastRatio(rgb, WHITE) >= AA) {
-      return {
-        fill: css(rgb),
-        ink: css(WHITE),
-        // away from the label, which is now always white — so always darker
-        chip: css(mix(rgb, INK, 0.24)),
-        pale,
-        paleEdge,
-      };
-    }
-  }
-  /* Unreachable: at the floor every hue is dark enough for white by a wide
-     margin. Kept so the function is total rather than nearly total. */
-  const last = toRgb(h, s, FLOOR_L);
-  return { fill: css(last), ink: css(WHITE), chip: css(mix(last, INK, 0.24)), pale, paleEdge };
+  return {
+    fill: css(wash),
+    /* INK ON EVERY BLOCK. The text colour is a rule, not a property of the
+       category — a row of blocks that disagree about it reads as an accident.
+       On a 94%-light ground that rule costs nothing: 16:1 at the worst hue. */
+    ink: css(INK),
+    /* The chip sits ON the wash under the SAME ink, so it moves AWAY from the
+       label rather than toward it — the trap this module was written for. */
+    chip: css(toRgb(h, CHIP_S, CHIP_L)),
+    bar: css(capFor(h, wash)),
+    /* Neutral, and the same neutral whatever the category was: colour on this
+       rail means work still to do. */
+    pale: DONE_PALE,
+    paleEdge: DONE_EDGE,
+  };
 }

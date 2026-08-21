@@ -45,12 +45,18 @@ describe("scheduleBlockPaint", () => {
 
   it.each(CATEGORY_COLOURS)("keeps %s legible once it closes", (hex) => {
     const { pale } = scheduleBlockPaint(hex);
-    // a closed block always takes ink, and should be MORE readable, not less
-    const onInk = contrastRatio(channels(pale), [10, 11, 16]);
-    expect(onInk).toBeGreaterThanOrEqual(4.5);
-    expect(onInk).toBeGreaterThan(
-      contrastRatio(channels(scheduleBlockPaint(hex).fill), [10, 11, 16]) - 0.01
-    );
+    expect(contrastRatio(channels(pale), [10, 11, 16])).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("closes every category to the SAME neutral, carrying no hue", () => {
+    /* `pale` used to be the category at 92% lightness. Against a 94% wash that
+       is the same colour twice, and finished work stopped being tellable from
+       live work at a glance — the tick was doing all of it. Colour on this
+       rail means work still to do. */
+    const pales = new Set(CATEGORY_COLOURS.map((hex) => scheduleBlockPaint(hex).pale));
+    expect(pales.size).toBe(1);
+    const [r, g, b] = channels([...pales][0]);
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThan(8); // a grey, not a tint
   });
 
   it.each(CATEGORY_COLOURS)("keeps %s's number chip legible too", (hex) => {
@@ -61,10 +67,46 @@ describe("scheduleBlockPaint", () => {
     expect(contrastRatio(channels(chip), channels(ink))).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each(CATEGORY_COLOURS)("gives %s a WHITE label, whatever the hue", (hex) => {
+  it.each(CATEGORY_COLOURS)("gives %s an INK label, whatever the hue", (hex) => {
     // the rail's text colour is a rule, not a property of the category. A row
     // of blocks that disagree about it reads as an accident.
-    expect(scheduleBlockPaint(hex).ink).toBe("rgb(255, 255, 255)");
+    expect(scheduleBlockPaint(hex).ink).toBe("rgb(10, 11, 16)");
+  });
+
+  it.each(CATEGORY_COLOURS)("gives %s a cap that clears 3:1 on its own wash", (hex) => {
+    /* THE PROMISE THIS MODULE NOW MAKES. The cap is the only thing naming a
+       category by colour, so it is held to WCAG's floor for a graphic — and
+       it is held there by WALKING, because a fixed lightness is not a fixed
+       contrast: pinned at L=0.42 a purple cap measured 6.12:1 and a
+       yellow-green one 2.22:1 against the very same wash. */
+    const { fill, bar } = scheduleBlockPaint(hex);
+    expect(contrastRatio(channels(bar), channels(fill))).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(CATEGORY_COLOURS)("cannot paint %s as an alarm, whatever ServiceM8 sent", (hex) => {
+    /* THE BUG THIS TREATMENT EXISTS TO MAKE IMPOSSIBLE. A pale pink category
+       arrived as rgb(235, 0, 0) — more saturated than --wb2-dan itself — so a
+       Service Call outshouted the ring for a job that had actually failed.
+       The ground is a wash by construction now: it cannot get near a state
+       colour, because it cannot get far from white. */
+    const [r, g, b] = channels(scheduleBlockPaint(hex).fill);
+    expect(Math.min(r, g, b)).toBeGreaterThanOrEqual(224);
+    expect(contrastRatio([r, g, b], [255, 255, 255])).toBeLessThan(1.4);
+  });
+
+  it("walks a cap DOWN when the hue is too light to measure where it starts", () => {
+    /* yellow-green is far lighter than purple at the same HSL lightness, so it
+       has to travel; purple clears on the first step and stays put. */
+    const yellow = channels(scheduleBlockPaint("#F2EFB8").bar);
+    const lilac = channels(scheduleBlockPaint("#CBB8F2").bar);
+    const lightness = (c: [number, number, number]) =>
+      (Math.max(...c) + Math.min(...c)) / 2;
+    expect(lightness(yellow)).toBeLessThan(lightness(lilac));
+    // and both still measure, which is the whole point of the walk
+    for (const hex of ["#F2EFB8", "#CBB8F2"]) {
+      const { fill, bar } = scheduleBlockPaint(hex);
+      expect(contrastRatio(channels(bar), channels(fill))).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it.each(ACHROMATIC)("takes the neutral pair for %s rather than inventing a hue", (hex) => {
@@ -95,33 +137,17 @@ describe("scheduleBlockPaint", () => {
     expect(lum(channels(chip))).toBeLessThan(lum(channels(fill)));
   });
 
-  it("darkens a hue too bright for white until white works", () => {
-    // a pale yellow at a true mid is far brighter than white can sit on, so
-    // the FILL moves rather than the label — it lands an olive, not a lemon
-    const { fill } = scheduleBlockPaint("#F2EFB8");
-    expect(contrastRatio(channels(fill), [255, 255, 255])).toBeGreaterThanOrEqual(4.5);
-    // and it really did have to travel: well below the 0.55 start
-    const [r, g, b] = channels(fill);
-    expect(Math.max(r, g, b)).toBeLessThan(160);
-  });
-
-  it("leaves a hue that already carries white where it is", () => {
-    // lilac clears on the first step, so it keeps its full-strength mid
-    expect(scheduleBlockPaint("#CBB8F2").fill).toBe("rgb(113, 61, 219)");
-  });
-
-  it("rebuilds the hue rather than passing the wash through", () => {
-    // the fill must NOT still be ServiceM8's near-white pick
-    const [r, g, b] = channels(scheduleBlockPaint("#CBB8F2").fill);
-    expect(Math.max(r, g, b)).toBeLessThan(230);
-    // and it must be a real colour, not the grey `barOf` used to produce
+  it("rebuilds the hue on the cap rather than passing the wash through", () => {
+    // the cap must be a real colour, not the grey `barOf` used to produce by
+    // multiplying each channel — that is what flattened lilac into slate
+    const [r, g, b] = channels(scheduleBlockPaint("#CBB8F2").bar);
     expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeGreaterThan(60);
   });
 
   it("tells two washes apart that the old bar treatment flattened", () => {
     // lilac and powder blue both became slate under `× 0.55 per channel`
-    const lilac = channels(scheduleBlockPaint("#CBB8F2").fill);
-    const blue = channels(scheduleBlockPaint("#B9CCF5").fill);
+    const lilac = channels(scheduleBlockPaint("#CBB8F2").bar);
+    const blue = channels(scheduleBlockPaint("#B9CCF5").bar);
     const apart = Math.max(...lilac.map((v, i) => Math.abs(v - blue[i])));
     expect(apart).toBeGreaterThan(40);
   });
@@ -142,7 +168,8 @@ describe("scheduleBlockPaint", () => {
   });
 
   it("ships a grey pair that clears 4.5:1 as well", () => {
-    const { fill, ink, chip, pale } = NO_CATEGORY_PAINT;
+    const { fill, ink, chip, pale, bar } = NO_CATEGORY_PAINT;
+    expect(contrastRatio(channels(bar), channels(fill))).toBeGreaterThanOrEqual(3);
     expect(contrastRatio(channels(fill), channels(ink))).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(channels(chip), channels(ink))).toBeGreaterThanOrEqual(4.5);
     expect(contrastRatio(channels(pale), [10, 11, 16])).toBeGreaterThanOrEqual(4.5);

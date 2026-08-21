@@ -5805,13 +5805,14 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    NO TIME TEXT: its place on the rail already says when — writing it on the
    card too is double handling. Times live in the title and the aria-label.
 
-   THE FILL CARRIES THE COLOUR. It used to be ServiceM8's category hex at 50%
-   alpha, which landed a colour already around 85% lightness somewhere near
-   white — so a 4px bar was added beside it to recover the hue. The bar and
-   the wash are both gone: schedule-colour.ts rebuilds the hue at full
-   strength and picks the label's colour by measuring it, and one solid fill
-   does the work two half-legible elements were doing. --btext is that
-   measured colour and every line on the block takes it.
+   THE CAP CARRIES THE COLOUR, AND THE FILL CANNOT. ServiceM8 picks its
+   category colours to sit behind black text, so they arrive around 85%
+   lightness, and two attempts to build a fill out of that both failed loudly
+   enough to be worth naming here: at 50% alpha the colour landed near white
+   and lost its hue, and rebuilt at full chroma it painted ordinary work
+   redder than the board's own alarm. schedule-colour.ts settles it — the
+   ground is a 94% wash no hue can shout from, and the hue itself is the 4px
+   cap below. --btext is ink on every block, because every ground is a wash.
 
    HIERARCHY BY SIZE AND WEIGHT, NEVER BY ALPHA. The three lines are
    12/11/10.5px at 800/700/600 and all of them sit at full strength. Knocking
@@ -5887,32 +5888,44 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   border:solid #fff; border-width:0 2px 2px 0;
   transform:rotate(40deg); z-index:1; }
 
-/* NOBODY HAS STARTED IT — hollow, with the category hue surviving on a cap so
-   the block still says what kind of work it is. Filled/hollow is the one
-   distinction ServiceM8's status cannot make: a job sits at `Work Order`
-   whether the tech is on site or still in bed.
+/* NOBODY HAS STARTED IT — the cap goes hollow and NOTHING ELSE CHANGES.
+   Filled/hollow is the one distinction ServiceM8's status cannot make: a job
+   sits at `Work Order` whether the tech is on site or still in bed. It only
+   ever appears on a day that has begun, for an account that records time at
+   all; the component owns those gates.
 
-   White ground and ink, so a hollow block is the MOST readable thing on the
-   rail — which is right, because it is the one you have to do something
-   about. It only ever appears on a day that has begun, for an account that
-   records time at all; the component owns those gates. */
-/* FILLED CAP MEANS SOMEONE IS ON IT; HOLLOW CAP MEANS IT IS STILL ONLY
-   BOOKED. This used to be a white ground against a saturated fill, which was
-   legible when the fill was a colour and says nothing now that it is a wash —
-   the two grounds are 1.2:1 apart. So the distinction moves to the cap, which
-   is the one thing on the block still carrying the hue at full strength. */
-.wb2-schb.idle { background:#fff; }
+   THE WHITE GROUND IS GONE, AND IT IS THE POINT OF THIS RULE. It was here to
+   make an unstarted block the most readable thing on the rail, which was a
+   fair trade back when the fill beside it was a saturated colour. Against a
+   94% wash it buys 1.2:1 and still reads as WHITE — and "not started" is not
+   the exception on a rail, it is the ordinary state of most of the day. The
+   morning it was measured, ten of twenty-one bookings were unstarted and
+   seven more were pale because they were closed: seventeen white rectangles,
+   three of which were the only ones anybody needed to look at. A board where
+   booked, finished and live are all white says nothing about any of them.
+
+   So the ground stays the category and the state lives entirely in the cap —
+   filled means someone is on it, hollow means it is still only booked. What
+   is actually WRONG gets a mark of its own, below. */
 .wb2-schb.idle::before { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #b9bec7); }
-.wb2-schb.idle b, .wb2-schb.idle em, .wb2-schb.idle i { color:var(--ink); }
-.wb2-schb.idle em { color:#2b3038; }
-.wb2-schb.idle i { color:#5a616d; }
-.wb2-schb.idle u { color:var(--ink); background:rgba(5,5,5,.09); }
-/* and past its start with still nothing recorded — the one block on the board
-   you want to be looking at. The ring is the danger colour because this IS the
-   exception; the word rides the aria-label so it is never colour alone. */
-.wb2-schb.idle.late { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
-.wb2-schb.idle.late b { color:var(--wb2-dan-t); }
-.wb2-schb.idle.late:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }
+
+/* PAST ITS START WITH NOTHING RECORDED — the one block on the rail that is
+   actually wrong, and now the only one wearing a mark.
+
+   IT USED TO WEAR THREE: a white ground (which every unstarted block had,
+   including the ones simply not due yet), a 2px danger ring, and a red client
+   name. One fact, three treatments, and the loudest of them was the one that
+   said the least. A single disc instead, in the same slot and at the same
+   14px as the done tick, so "look at this one" and "this one is finished" are
+   read in the same place rather than in two different languages. The disc
+   clears its own wash 3.77:1 at the worst hue ServiceM8 can invent — a
+   graphic that carries meaning, held to the graphic floor — and the words
+   ride the aria-label and the focus card, so the mark is never alone. */
+.wb2-schb.late { padding-right:26px; }
+.wb2-schb.late::after { content:"!"; position:absolute; right:8px; top:50%; margin-top:-7px;
+  width:14px; height:14px; border-radius:50%; background:var(--wb2-dan);
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:900; line-height:1; color:#fff; }
 .wb2-schb.tight::before { top:6px; bottom:6px; }
 
 /* MARKED COMPLETE IN SERVICEM8, BOOKING STILL ON THE DAY. ServiceM8 has no
@@ -5938,7 +5951,16 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* narrow blocks drop to the job number alone rather than clipping */
 .wb2-schb.tight { padding:4px 6px 4px 8px; justify-content:center; }
 .wb2-schb.tight em, .wb2-schb.tight i, .wb2-schb.tight .wb2-schbh b { display:none; }
-.wb2-schb.done.tight { padding-right:26px; }
+.wb2-schb.done.tight, .wb2-schb.late.tight { padding-right:26px; }
+/* AND THE TICK STAYS ON ITS DISC. `.tight::before` shortens the CAP, which is
+   what ::before is on every block but a done one — where it is the tick's two
+   borders, pinned to the middle of the block beside the disc. Same
+   specificity, later in the sheet, so `top:6px; bottom:6px` won and the white
+   check stretched to the top-right corner on its own, an inch above the green
+   circle it belongs to. Put back explicitly rather than by reordering: the cap
+   rule is about height and the tick rule is about position, and the next edit
+   to either should not be able to reach the other. */
+.wb2-schb.done.tight::before { top:50%; bottom:auto; }
 /* THE CREW LINK USED TO BE A HOVER: hovering any block of a multi-person job
    lifted its siblings and rested the rest of the day at opacity .35. It is a
    CLICK now (see schedule-focus.tsx) — it answered a real question, but only
@@ -6018,6 +6040,17 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-schkey { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
 .wb2-schkey span { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--gray500); }
 .wb2-schkey i { width:18px; height:12px; border-radius:4px; flex:none; }
+/* THE SWATCH IS THE CAP. A category entry fills it with the cap's own colour,
+   so "not started" is that same swatch HOLLOW — which is precisely what the
+   block does now that the white ground is gone. Drawn as a pale rectangle
+   instead (which is what it was) it keys the reader to a treatment no block
+   wears any more; drawn as a tiny outlined pill inside a rectangle, which was
+   the first attempt at this, it reads as the digit 0. */
+.wb2-schkey i.hollow { background:none; box-shadow:inset 0 0 0 1.5px var(--kcap, #7a818c); }
+/* and the issue mark, at the size and colour it is on a block */
+.wb2-schkey i.mark { width:14px; height:14px; border-radius:50%; background:var(--wb2-dan);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-style:normal; font-size:10px; font-weight:900; line-height:1; color:#fff; }
 .wb2-schwait { margin-left:auto; display:inline-flex; align-items:center; gap:6px;
   font-size:11.5px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
 .wb2-schwait:hover { text-decoration:underline; }

@@ -282,13 +282,13 @@ html[data-ds-display] .dstudio.editing {
   transform: translateY(-2px);
   box-shadow: 0 18px 34px -10px rgba(0, 229, 192, 0.55);
 }
+/* Hover lights the same glass rather than swapping it for another one: the
+   fill comes up, the rim comes up, the drop deepens. `.ds-cta:hover` above
+   would otherwise put the teal glow back under it. */
 .dstudio .ds-cta.ds-start:hover {
-  background: rgba(8, 11, 16, 0.62);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    -14px 22px 42px -18px rgba(0, 229, 192, 0.6),
-    18px 22px 44px -18px rgba(46, 139, 255, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 34px 84px -30px rgba(0, 0, 0, 0.66);
 }
 /* The cloud between the name and the action. The field is a square box with
    the cloud floating at its centre, so it is pulled back by its own margin to
@@ -335,21 +335,19 @@ html[data-ds-display] .dstudio.editing {
   z-index: 1;
   margin-top: 195px;
   height: 68px;
-  /* BLACK GLASS. The fill is translucent over the frame's glow field, and the
-     rim carries the brand rather than the fill — teal under the text end, blue
-     under the arrow's, the same two colours `markInk` paints the dots in.
+  /* THE SAME GLASS AS THE RECENT CARD, from the same three tokens. It was its
+     own darker, bluer mix with a teal-and-blue pair of glows under it, which
+     put two different glasses on one screen — side by side, the difference
+     read as an accident rather than as emphasis.
 
      No `-webkit-backdrop-filter` twin: the pair collapses to the prefixed
      property alone in the build and the blur is silently dropped (see
      .ds-veil). */
-  background: rgba(6, 8, 12, 0.55);
-  backdrop-filter: blur(13px);
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: var(--ds-night);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--ds-night-line);
   color: #fff;
-  box-shadow:
-    -12px 16px 34px -18px rgba(0, 229, 192, 0.5),
-    16px 16px 36px -18px rgba(46, 139, 255, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  box-shadow: var(--ds-night-drop);
   /* Wide enough to carry the title's weight, capped so it never outruns the
      column on a big screen. */
   width: min(100%, 360px);
@@ -722,6 +720,20 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
 }
 
+/* THE LANDING'S GLASS, ONCE. The Recent card and the New design button are
+   the same material — same fill, same rim, same blur, same drop — and the
+   only way that stays true is for there to be one copy of the numbers. Two
+   hand-matched sets drift the first time either is touched.
+
+   Named `--ds-night-*` rather than `--ds-glass-*` because `.ds-glass` is
+   already taken, by the EDITOR's light cards on a white plate — the opposite
+   surface, and a name worth not overloading. */
+.dstudio:not(.editing) {
+  --ds-night: rgba(255, 255, 255, 0.055);
+  --ds-night-line: rgba(255, 255, 255, 0.13);
+  --ds-night-drop: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
+}
+
 /* Recent designs — glass card on the dark canvas */
 .dstudio .ds-recent {
   /* Over the cloud. Below 1100px the two columns stack and the cloud's tail
@@ -729,10 +741,10 @@ html[data-ds-display] .dstudio.editing {
      covers the stray dots rather than wearing them. */
   position: relative;
   z-index: 1;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: var(--ds-night);
+  border: 1px solid var(--ds-night-line);
   border-radius: 26px;
-  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--ds-night-drop);
   /* no -webkit- twin — see .ds-veil: the pair collapses to the prefixed
      property alone and the blur is silently dropped */
   backdrop-filter: blur(16px);

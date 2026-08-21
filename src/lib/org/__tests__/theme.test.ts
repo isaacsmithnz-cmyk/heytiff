@@ -247,28 +247,30 @@ describe("documentTheme — never state", () => {
 
 /* HOW A DOCUMENT RECEIVES THE THEME.
 
-   EVERY DOCUMENT GETS A BAND. Choosing a colour changes what the band is, not
-   whether there is one, so the treatment is part of the document rather than
-   something an owner has to find a settings page to switch on.
+   A COLOUR DECIDES WHETHER THERE IS A FRAME. It briefly did not — an unthemed
+   sheet got one in the app's own near-black, so that the treatment would be
+   seen — and since no org has chosen a colour, what that shipped was HeyTiff's
+   decoration on every document every business sends. The frame is what a
+   CHOSEN colour does; choosing nothing is the document every org already had.
 
-   Which makes the interesting case the DEFAULT rather than the absence: a
-   sheet with no colour still has to receive a full, coherent set — the ink and
-   the geometry that pads the page clear of it — or it gets a band with no room
-   made for it, or room made for a band that is not there. */
+   Which makes the two cases: all of it, or none of it. A themed sheet needs
+   the ink AND the geometry that pads the page clear of it, or it gets a frame
+   with no room made for it; an unthemed one needs neither, or it gets room
+   made for a frame that is not there. */
 describe("themeVars", () => {
-  it("falls back to the document's own ink when there is no colour", () => {
-    const v = themeVars(null) as Record<string, string>;
-    // the ink the letterhead and handover sheet already print in — NOT #000000,
-    // which matches nothing else on either sheet
-    expect(v["--doc-ink"]).toBe("#16181d");
-    expect(themeVars("")).toEqual(themeVars(null));
+  it("gives a document with no colour no frame at all", () => {
+    // not a frame in some house colour: nothing. Every declaration downstream
+    // is var(--doc-*, <fallback>) and every fallback is the value that sheet
+    // already had, so an empty set IS the untouched document.
+    expect(themeVars(null)).toEqual({});
+    expect(themeVars("")).toEqual({});
   });
 
   it("falls back rather than throwing on a value it cannot read", () => {
-    // these land inside a print path; a bad column must produce the default
+    // these land inside a print path; a bad column must produce the unframed
     // document, not a half-rendered handover sheet
-    expect(themeVars("rebeccapurple")).toEqual(themeVars(null));
-    expect(themeVars("#gggggg")).toEqual(themeVars(null));
+    expect(themeVars("rebeccapurple")).toEqual({});
+    expect(themeVars("#gggggg")).toEqual({});
   });
 
   it("hands the document the derived colour, never the raw seed", () => {
@@ -294,21 +296,21 @@ describe("themeVars", () => {
   });
 
   /* THE INK AND THE GEOMETRY ARE ONE SET, and this is the guard for the half
-     that once got missed. The band needs the sheet padded clear of it; written
-     into the stylesheets as a constant, that padding applied to documents that
-     had no band — room made for something not there.
+     that once got missed. The frame needs the sheet padded clear of it;
+     written into the stylesheets as a constant, that padding applied to
+     documents that had no frame — room made for something not there.
 
      Shipping both through this one object is what makes them impossible to
      separate, so the claim is: whatever the seed, you get ALL of it or none. */
-  it("hands a document with no colour the same full set as one with", () => {
-    expect(Object.keys(themeVars(null)).sort())
-      .toEqual(Object.keys(themeVars("#004885")).sort());
+  it("never ships a colour without its geometry, or geometry without a colour", () => {
+    expect(Object.keys(themeVars(null))).toEqual([]);
+    expect(Object.keys(themeVars("#004885")).length).toBeGreaterThan(1);
   });
 
-  it("ships the band's depth and its clearance alongside the colour", () => {
+  it("ships the frame's depth and its clearance alongside the colour", () => {
     const v = themeVars("#004885") as Record<string, string>;
     expect(Object.keys(v).sort()).toEqual(
-      ["--doc-band", "--doc-gutter", "--doc-ink", "--doc-pad", "--doc-radius", "--doc-side"]
+      ["--doc-band", "--doc-gutter", "--doc-ink", "--doc-pad", "--doc-radius", "--doc-side", "--doc-well"]
     );
     // the shell's own 30px corner at 96dpi, carried across as a measurement
     expect(v["--doc-radius"]).toBe("7.94mm");
@@ -316,5 +318,19 @@ describe("themeVars", () => {
     // corner is what carves the middle away
     expect(v["--doc-band"]).toContain(v["--doc-gutter"]);
     expect(v["--doc-band"]).toContain(v["--doc-radius"]);
+  });
+
+  /* THE SIDES CLEAR THE FRAME, and they did not: --doc-side was the gutter
+     exactly, so the first character of every line sat on the frame's inner
+     edge. The claim is that the horizontal clearance is strictly more than the
+     frame's own thickness — which is what makes it clearance rather than a
+     restatement of the frame. */
+  it("clears the frame horizontally by more than the frame is thick", () => {
+    const v = themeVars("#004885") as Record<string, string>;
+    expect(v["--doc-side"]).not.toBe(v["--doc-gutter"]);
+    expect(v["--doc-side"]).toContain(v["--doc-gutter"]);
+    // the same breathing room the vertical padding already added past the band
+    expect(v["--doc-pad"]).toContain("6mm");
+    expect(v["--doc-side"]).toContain("6mm");
   });
 });

@@ -49,7 +49,7 @@ const CSS = `
   /* scoped to the CONTENT: a '.ho-sheet > *' rule would also match the two
      layers above at equal specificity and strip their position:absolute */
   .ho-sheet > .ho { position: relative; }
-  .ho { max-width: 780px; margin: 0 auto; padding: var(--doc-pad, 40px) calc(28px + var(--doc-side, 0px)) var(--doc-pad, 64px); color: #16181d;
+  .ho { max-width: 780px; margin: 0 auto; padding: var(--doc-pad, 40px) var(--doc-side, 28px) var(--doc-pad, 64px); color: #16181d;
     font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif); font-size: 13.5px; line-height: 1.5; }
   .ho h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 2px 0 4px; }
   .ho h2 { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;

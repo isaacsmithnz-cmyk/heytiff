@@ -54,11 +54,12 @@
    It was a head and a foot only, and it did not read: a band that stops at the
    left and right edges looks like two bars rather than a frame around a page.
 
-   THE NUMBERS COME FROM `themeVars`, not from here, and it always returns a
-   full set: a business that has chosen no colour gets the band in the sheet's
-   own ink rather than no band at all. The fallbacks below are 0 so that a
-   missing variable collapses the band cleanly instead of drawing a bar with no
-   room made for it — see the note in lib/org/theme.ts.
+   THE NUMBERS COME FROM `themeVars`, not from here, and it ships all of them
+   or none: a business that has chosen a colour gets the ink, the geometry and
+   the well together, and one that has chosen nothing gets no variables at all.
+   The fallbacks below are `transparent` and 0 so that absence collapses the
+   frame cleanly rather than drawing a bar with no room made for it, or making
+   room for a bar that is not there — see the note in lib/org/theme.ts.
 
    IT CARRIES NOTHING. No logo, no contact line, no page number — which is the
    entire reason this treatment was chosen over a letterhead band. Nothing on
@@ -80,13 +81,18 @@
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-/* The well. White, full width, inset from head and foot by the gutter; its
-   four rounded corners are the only places the band survives across the
-   middle. */
+/* The well — the paper the frame is carved out of. Inset from all four edges
+   by the gutter and rounded at the corners, so what survives is a frame of
+   even thickness with the shell's own 30px corner. */
 .dsd-bwell {
   position: absolute;
   inset: var(--doc-gutter, 0px);
-  background: #fff;
+  /* the fill is part of the geometry and travels with it: with no frame there
+     is nothing to carve out of, and a `#fff` here would paint a full-bleed
+     white rectangle over whatever ground the document is sitting on. It is
+     white-on-white in all three chromes today, which is exactly how that kind
+     of layer survives long enough to cover a tinted one later. */
+  background: var(--doc-well, transparent);
   border-radius: var(--doc-radius, 0px);
   pointer-events: none;
 }
@@ -108,23 +114,36 @@
   align-items: start;
 }
 .dsd-eyebrow {
-  margin: 0 0 18px;
+  margin: 0 0 10px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--dsd-ink-3);
 }
+/* THE SITE IS THE TITLE, AND THE TITLE IS THE BIGGEST THING ON THE PAGE.
+
+   It was not. The heading ran to 28px and the business name under it to 34px,
+   on the reasoning that the masthead is the one place the business is shown
+   off — so on every sheet the preparer's name out-shouted the job it was
+   about, and on a workspace that has set no name the sheet led with "HeyTiff
+   Design Studio" in the largest type on a document being sent to somebody
+   else's customer.
+
+   A masthead is a subject and a byline. The subject is what a customer calls
+   this job; the byline is who wrote it, which is a credit and not a headline.
+   The business is still shown off — by the mark in the corner and by the only
+   name on the page that is not a heading. */
 .dsd-mast h1 {
   margin: 0;
-  font-size: clamp(22px, 2.6vw, 28px);
-  line-height: 1.12;
-  letter-spacing: -0.03em;
+  font-size: clamp(28px, 2.8vw, 36px);
+  line-height: 1.1;
+  letter-spacing: -0.032em;
   font-weight: 800;
   max-width: 20ch;
   text-wrap: balance;
 }
-.dsd-prep { display: flex; flex-direction: column; margin-top: 24px; }
+.dsd-prep { display: flex; flex-direction: column; margin-top: 26px; }
 .dsd-lab {
   font-size: 10.5px;
   font-weight: 800;
@@ -132,17 +151,17 @@
   text-transform: uppercase;
   color: var(--dsd-ink-3);
 }
-/* THE ONE EXCEPTION TO THE TYPE RAMP, which tops out at 28px everywhere
-   else in the studio. This is where the business is shown off. Nothing
-   below the masthead leaves the ramp. */
+/* THE BYLINE. Set to read as a name — the heaviest weight on the page after
+   the title itself — and sized under it, because the sheet is about the job
+   and not about us. Nothing here leaves the app's type ramp. */
 .dsd-org {
-  margin-top: 8px;
-  font-size: 34px;
+  margin-top: 5px;
+  font-size: 20px;
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
+  letter-spacing: -0.024em;
+  line-height: 1.15;
 }
-.dsd-date { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--dsd-ink-3); }
+.dsd-date { margin-top: 5px; font-size: 13px; font-weight: 600; color: var(--dsd-ink-3); }
 
 /* ── the mark ──
    Top left of whatever is holding the document: a bar on screen, the head of
@@ -276,12 +295,18 @@
   border-top: 1px solid var(--dsd-rule-2);
   border-bottom: 1px solid var(--dsd-rule-2);
 }
+/* RANGED LEFT, at every width. This row was centred, and the stylesheet
+   already carried the argument against it — the sub-768 block below ranged it
+   left because "centred text under a left-ranged headline reads broken". That
+   is just as true at six columns as at two: six centred pairs under a
+   left-ranged masthead, over a left-ranged table, float free of both edges and
+   of each other. One left edge per column, and they line up with the rooms
+   table underneath. */
 .dsd-figs > div {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 10px;
-  text-align: center;
 }
 .dsd-figs dt {
   font-size: 10.5px;
@@ -637,10 +662,11 @@
 
 @container (max-width: 767px) {
   .dsd-mast { grid-template-columns: 1fr; gap: 26px; }
-  /* one column stacked: centred text under a left-ranged headline reads
-     broken, so the figures range left too */
+  /* two per row, and the value sits straight under its label rather than
+     being pushed to the bottom of a box the tallest label sets — at this
+     width nothing is tall enough for that to matter */
   .dsd-figs { grid-template-columns: repeat(2, 1fr); gap: 22px 18px; }
-  .dsd-figs > div { justify-content: flex-start; text-align: left; }
+  .dsd-figs > div { justify-content: flex-start; }
   .dsd-consum,
   .dsd-pick-g { grid-template-columns: 1fr; gap: 22px; }
 }
@@ -699,7 +725,11 @@
   /* six figures across, as on a wide screen — three rows of two wasted a
      third of the first page */
   .dsd-figs { grid-template-columns: repeat(6, 1fr); gap: 12px; }
-  .dsd-figs > div { text-align: center; justify-content: space-between; }
+  /* space-between only: the container query for a hand pulls the value up
+     under its label, and six columns on paper want them on one baseline
+     again. The alignment is the sheet's — ranged left, like everything else
+     on the page. */
+  .dsd-figs > div { justify-content: space-between; }
   .dsd-figs dt { font-size: 7.5px; letter-spacing: 0.06em; }
   .dsd-figs dd { font-size: 14px; }
 

@@ -355,3 +355,26 @@ describe("the Claims / Closed split", () => {
     expect(screen.queryByText("Claim something you paid for")).not.toBeInTheDocument();
   });
 });
+
+/* THE PANEL SWAPS IN PLACE — no remount, no fade. `key={tab}` + `.psec2`
+   rebuilt the claim list and faded it in on every switch; Team's directory
+   just changes its children (Isaac, 2026-08-22). */
+describe("the panel does not animate on a switch", () => {
+  it("keeps the same panel node, with no fade class", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <MyExpenses
+        today={TODAY}
+        claims={[claim({ id: "o1", status: "pending" }), claim({ id: "d1", status: "reimbursed" })]}
+      />,
+    );
+    const panel = () => container.querySelector('[role="tabpanel"]');
+
+    const before = panel();
+    expect(before).not.toHaveClass("psec2");
+
+    await user.click(screen.getByRole("tab", { name: /Closed/ }));
+    expect(panel()).toBe(before);
+    expect(panel()).not.toHaveClass("psec2");
+  });
+});

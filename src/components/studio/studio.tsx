@@ -1557,6 +1557,14 @@ function Editor({
       if (!next) return;
       // the tape can only speak in metres — no scale, nothing to say
       if (next === "measure" && activeFloor?.scaleMmPerUnit == null) return;
+      // crop/move act on the plan sheets — a blank grid has none to trim or
+      // slide, so the keys stay inert exactly like their greyed menu rows
+      if (
+        (next === "crop" || next === "arrange") &&
+        (activeFloor?.plans.length ?? 0) === 0
+      )
+        return;
+
       // room/pipe/riser draw all belong to a system — type-first: none without one
       if (
         (next === "room-rect" ||
@@ -1579,6 +1587,7 @@ function Editor({
     armComponent,
     changeTool,
     activeFloor?.scaleMmPerUnit,
+    activeFloor?.plans.length,
     placing,
     armPlace,
     pairBrowse,
@@ -2109,8 +2118,6 @@ const CANVAS_TOOLS: {
   { key: "room-poly", icon: "hexagon", label: "Room (polygon)", short: "Shape", kbd: "G", needsSystem: true },
   { key: "pipe", icon: "pipe", label: "Refrigerant run", short: "Run", kbd: "P", needsSystem: true },
   { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", short: "Riser", kbd: "I", needsSystem: true },
-  { key: "crop", icon: "maximize", label: "Crop plan", short: "Crop", kbd: "X" },
-  { key: "arrange", icon: "hand", label: "Move plans", short: "Move", kbd: "M" },
   { key: "erase", icon: "eraser", label: "Eraser", short: "Erase", kbd: "E" },
 ];
 
@@ -2379,32 +2386,58 @@ function CanvasControls({
             >
               <Icon name="ruler" size={13} />
               <span className="k">Tape measure</span>
-              <span className="v unset">{floor.scaleMmPerUnit == null ? "Needs scale" : "K"}</span>
+              {floor.scaleMmPerUnit == null ? (
+                <span className="v unset">Needs scale</span>
+              ) : (
+                <span className="v kbd">K</span>
+              )}
             </button>
-            {/* plan-prep tools relocated out of the drawing rail */}
+            {/* plan-prep tools relocated out of the drawing rail. Both act on
+                the plan SHEETS, so a blank grid greys them and says why in
+                place — armed over nothing they just went silent. */}
             <div className="ds-view-sep" />
             <div className="ds-view-grp">Plan</div>
             <button
               className={`ds-calib-item${tool === "crop" ? " on" : ""}`}
+              disabled={floor.plans.length === 0}
               onClick={() => {
                 onTool("crop");
                 setCalibOpen(false);
               }}
-              title="Crop the plan to the area you're working on"
+              title={
+                floor.plans.length === 0
+                  ? "Crop — this floor is a blank grid, there's no plan to trim"
+                  : "Crop the plan to the area you're working on (X)"
+              }
             >
               <Icon name="maximize" size={13} />
               <span className="k">Crop</span>
+              {floor.plans.length === 0 ? (
+                <span className="v unset">No plan</span>
+              ) : (
+                <span className="v kbd">X</span>
+              )}
             </button>
             <button
               className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
+              disabled={floor.plans.length === 0}
               onClick={() => {
                 onTool("arrange");
                 setCalibOpen(false);
               }}
-              title="Reposition the plan sheets on this floor"
+              title={
+                floor.plans.length === 0
+                  ? "Move plans — this floor is a blank grid, there are no sheets to move"
+                  : "Reposition the plan sheets on this floor (M)"
+              }
             >
               <Icon name="hand" size={13} />
               <span className="k">Move plans</span>
+              {floor.plans.length === 0 ? (
+                <span className="v unset">No plan</span>
+              ) : (
+                <span className="v kbd">M</span>
+              )}
             </button>
           </div>
         )}

@@ -3,7 +3,7 @@
    the studio menu switch stage panels, and a remount recovers the design from
    persistence. */
 
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
@@ -163,6 +163,43 @@ describe("Design Studio shell", () => {
     expect(
       screen.getByText("An empty design is an empty sheet")
     ).toBeInTheDocument();
+  });
+
+  /* The Calibrate menu is plan-prep's one home. Crop and Move act on the plan
+     SHEETS — a blank grid has none, so both grey out with the reason worn in
+     place, and their X/M keys stay inert exactly like the rows. The tape is
+     the contrast: blank grids are pre-scaled, so K works from the start. */
+  it("Calibrate greys the sheet tools on a blank grid and keeps their keys inert", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Blank gating", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+
+    const pill = screen.getByTitle("Calibrate — set the scale and north");
+    await user.click(pill);
+    const crop = screen.getByRole("button", { name: /Crop/ });
+    const move = screen.getByRole("button", { name: /Move plans/ });
+    expect(crop).toBeDisabled();
+    expect(move).toBeDisabled();
+    // the reason sits in the row, not only in a tooltip
+    expect(crop.textContent).toContain("No plan");
+    expect(move.textContent).toContain("No plan");
+    // the tape is available — a blank grid is born scaled — and its shortcut
+    // reads as an offer (kbd chip), not the amber unset warning
+    const tape = screen.getByRole("button", { name: /Tape measure/ });
+    expect(tape).toBeEnabled();
+    expect(tape.querySelector(".v.kbd")!.textContent).toBe("K");
+
+    await user.click(pill); // fold the menu so the pill's lit state is the tool's
+
+    // X and M do nothing here; K arms the tape (the positive control that
+    // proves the key path itself is alive in this harness)
+    fireEvent.keyDown(window, { key: "x" });
+    expect(pill.className).not.toMatch(/\bon\b/);
+    fireEvent.keyDown(window, { key: "m" });
+    expect(pill.className).not.toMatch(/\bon\b/);
+    fireEvent.keyDown(window, { key: "k" });
+    expect(pill.className).toMatch(/\bon\b/);
   });
 
   it("recovers saved designs on a fresh mount (reload survival)", async () => {

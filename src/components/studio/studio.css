@@ -2146,6 +2146,21 @@ html[data-ds-display] .dstudio.editing {
 }
 /* unset reads as the thing to go fix, matching the pill's own amber */
 .dstudio .ds-calib-item .v.unset { color: var(--ds-amber-d); font-weight: 700; }
+/* a shortcut is an offer, not a warning — the bench's grey chip, menu-sized
+   (the tape's K used to wear the amber unset style and read as a problem) */
+.dstudio .ds-calib-item .v.kbd {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gray500);
+  background: #f1f2f4;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.dstudio .ds-calib-item:disabled {
+  cursor: default;
+  color: var(--gray400);
+}
+.dstudio .ds-calib-item:disabled:hover { background: none; }
 
 /* Floor dropdown — current level + a menu of all floors; each row has a delete
    x that reddens only on hover, behind a two-step "Delete?" confirm. */

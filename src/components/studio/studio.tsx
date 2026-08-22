@@ -1891,36 +1891,17 @@ function Editor({
           chip and the cockpit alike. Ranked against the lens room (the chips
           across its top switch the lens), committing the same settings write
           everywhere; choosing arms the indoor unit on the cursor. */}
-      {pairBrowse &&
-        pack &&
-        (() => {
-          const served = roomsServedBy(doc, effectiveSystemId);
-          const room = served.find((r) => r.id === pairBrowse);
-          if (!room) return null;
-          const chips = served.map((r) => ({
-            id: r.id,
-            name: String(r.props.name ?? "Room"),
-            loadKw: roomLoadKw(doc, r),
-            served: doc.objects.some(
-              (o) =>
-                o.type === "unit" &&
-                o.props.role === "idu" &&
-                String(o.props.roomId ?? "") === r.id
-            ),
-          }));
-          return (
-            <UnitBrowser
-              pack={pack}
-              loadKw={roomLoadKw(doc, room)}
-              basis={doc.settings.sizingBasis}
-              rooms={chips}
-              lensId={room.id}
-              onLens={setPairBrowse}
-              onChoose={(pair) => choosePairFromChip(pair, room.id)}
-              onClose={() => setPairBrowse(null)}
-            />
-          );
-        })()}
+      {pairBrowse && pack && (
+        <LensedUnitBrowser
+          doc={doc}
+          pack={pack}
+          systemId={effectiveSystemId}
+          roomId={pairBrowse}
+          onLens={setPairBrowse}
+          onChoose={choosePairFromChip}
+          onClose={() => setPairBrowse(null)}
+        />
+      )}
 
       {editingRoomId && doc.objects.some((o) => o.id === editingRoomId) && (
         <RoomModal
@@ -2218,6 +2199,60 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   pipes: "Pipework",
   labels: "Labels",
 };
+
+/* ── THE unit browser, aimed at a room. A component rather than an inline
+   block: the chips and the lens load are derived per render, and building
+   them inside the editor's own render meant handing the browser a callback
+   that reaches the history refs — which is a real hazard there (and what
+   react-hooks/refs was pointing at), not a lint technicality. Here the
+   derivation happens in this component's render and the handler is just a
+   prop. ── */
+function LensedUnitBrowser({
+  doc,
+  pack,
+  systemId,
+  roomId,
+  onLens,
+  onChoose,
+  onClose,
+}: {
+  doc: DesignDocument;
+  pack: DataPack;
+  systemId: string | null;
+  /** the lens: the room the ranking reads through, and the fallback the
+      drop attributes to */
+  roomId: string;
+  onLens: (roomId: string) => void;
+  onChoose: (pair: PairProposal, roomId: string) => void;
+  onClose: () => void;
+}) {
+  const served = roomsServedBy(doc, systemId);
+  const room = served.find((r) => r.id === roomId);
+  if (!room) return null;
+  const chips = served.map((r) => ({
+    id: r.id,
+    name: String(r.props.name ?? "Room"),
+    loadKw: roomLoadKw(doc, r),
+    served: doc.objects.some(
+      (o) =>
+        o.type === "unit" &&
+        o.props.role === "idu" &&
+        String(o.props.roomId ?? "") === r.id
+    ),
+  }));
+  return (
+    <UnitBrowser
+      pack={pack}
+      loadKw={roomLoadKw(doc, room)}
+      basis={doc.settings.sizingBasis}
+      rooms={chips}
+      lensId={room.id}
+      onLens={onLens}
+      onChoose={(pair) => onChoose(pair, room.id)}
+      onClose={onClose}
+    />
+  );
+}
 
 /* ── the Room tool: ONE bench button; the shape choice (square or drawn)
    appears where the click landed, and picking either arms its draw tool.

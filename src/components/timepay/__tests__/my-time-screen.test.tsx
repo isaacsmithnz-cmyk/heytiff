@@ -57,6 +57,29 @@ it("never touches the URL when switching faces", async () => {
   expect(window.location.pathname).toBe("/dashboard/my-timesheet");
 });
 
+/* THE PANEL SWAPS IN PLACE — no remount, no entrance animation.
+
+   It briefly wore the Organisation card's recipe: `key={tab}` plus `.psec2`
+   (`animation:fgUp .4s`). The key rebuilt the whole face on every click and
+   fgUp then faded it back in from opacity 0 — the content below the tabs
+   visibly flashed, where Team's just changes (Isaac, 2026-08-22). A stable
+   node is the proof: with a key, React hands back a different element. */
+it("swaps the face in place — same panel node, no fade class", async () => {
+  const user = userEvent.setup();
+  const { container } = render(
+    <MyTimeScreen initialTab="timesheet" timesheet={timesheet} leave={leave} />,
+  );
+  const panel = () => container.querySelector('[role="tabpanel"]');
+
+  const before = panel();
+  expect(before).not.toHaveClass("psec2");
+
+  await user.click(screen.getByRole("tab", { name: "Leave" }));
+  expect(screen.getByTestId("face-leave")).toBeInTheDocument();
+  expect(panel()).toBe(before);
+  expect(panel()).not.toHaveClass("psec2");
+});
+
 it("keeps Leave reachable from every timesheet empty state", async () => {
   const user = userEvent.setup();
   render(

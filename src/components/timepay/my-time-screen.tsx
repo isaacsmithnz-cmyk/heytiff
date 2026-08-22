@@ -71,13 +71,21 @@ export function MyTimeScreen({
               { key: "leave", label: "Leave" },
             ]}
           />
+          {/* NO `key` AND NO `.psec2` — the panel swaps in place, like Team's.
+
+              This wore the Organisation card's recipe (`key={tab}` + `.psec2`,
+              which is `animation:fgUp .4s`), and both hurt: the key unmounts
+              and rebuilds the whole face on every click, and fgUp then fades
+              it in from opacity 0 with a 12px rise. On Org's small forms that
+              reads as polish; on a timesheet grid it is a flash of the content
+              below the tabs (Isaac, 2026-08-22). Team's panel is a plain div
+              that just changes children — the thumb slide IS the animation,
+              and it is the only thing that should move. */}
           <section
-            key={tab}
             id={`mtp-${tab}`}
             role="tabpanel"
             aria-labelledby={`mtt-${tab}`}
             tabIndex={-1}
-            className="psec2"
           >
             {tab === "timesheet" ? timesheetFace(timesheet) : leaveFace(leave)}
           </section>

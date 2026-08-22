@@ -59,3 +59,23 @@ it("says so plainly when nothing has been archived", async () => {
   await user.click(screen.getByRole("tab", { name: "Archived" }));
   expect(screen.getByText("Nothing archived")).toBeInTheDocument();
 });
+
+/* THE PANEL SWAPS IN PLACE — no remount, no fade.
+
+   This wore `key={tab}` + `.psec2` (`animation:fgUp .4s`) from the
+   Organisation card's recipe: the key rebuilt the face on every click and
+   fgUp faded it back in, so the list visibly flashed. Team's directory just
+   changes its children, and that is the reference (Isaac, 2026-08-22). A
+   stable node is the proof — with a key, React hands back a different one. */
+it("swaps the face in place — same panel node, no fade class", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<MyNotesBoard notes={[note()]} archived={[note({ id: "n2" })]} />);
+  const panel = () => container.querySelector('[role="tabpanel"]');
+
+  const before = panel();
+  expect(before).not.toHaveClass("psec2");
+
+  await user.click(screen.getByRole("tab", { name: /Archived/ }));
+  expect(panel()).toBe(before);
+  expect(panel()).not.toHaveClass("psec2");
+});

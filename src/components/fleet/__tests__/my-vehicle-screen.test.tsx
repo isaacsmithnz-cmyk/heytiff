@@ -102,3 +102,24 @@ it("still answers on History when no vehicle is assigned", async () => {
   await user.click(screen.getByRole("tab", { name: "History" }));
   expect(screen.getByText(/Nothing logged yet/)).toBeInTheDocument();
 });
+
+/* THE PANEL SWAPS IN PLACE — no remount, no fade. Same recipe, same cause,
+   same reference as Team's directory; see my-notes-board.test.tsx. */
+it("swaps the face in place — same panel node, no fade class", async () => {
+  const user = userEvent.setup();
+  const { container } = render(
+    <MyVehicleScreen
+      own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
+      today="2026-08-22"
+      viewerStaffId="jordan-mills"
+    />,
+  );
+  const panel = () => container.querySelector('[role="tabpanel"]');
+
+  const before = panel();
+  expect(before).not.toHaveClass("psec2");
+
+  await user.click(screen.getByRole("tab", { name: /History/ }));
+  expect(panel()).toBe(before);
+  expect(panel()).not.toHaveClass("psec2");
+});

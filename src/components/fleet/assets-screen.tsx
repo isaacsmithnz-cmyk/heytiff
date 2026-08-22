@@ -147,12 +147,15 @@ export function AssetsScreen({
               {view === "equipment" ? (
                 <div className="wb2-card">
                   <div className="ppanel2">
+                    {/* No `.psec2`: the four register faces render through
+                        FleetRegister's plain `.dir`, so a fade here made
+                        Fleet→Equipment the only switch on this strip that
+                        animated. One strip, one behaviour. */}
                     <section
                       id="astp-equipment"
                       role="tabpanel"
                       aria-labelledby="ast-equipment"
                       tabIndex={-1}
-                      className="psec2"
                     >
                       <div className="emptybox">
                         <span className="ei">

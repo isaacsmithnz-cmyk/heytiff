@@ -260,13 +260,15 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
             />
             <div className="wb2-card">
               <div className="ppanel2">
+                {/* No `key`, no `.psec2` — the claim list swaps in place, the
+                    way Team's directory does. Both together remount the face
+                    and fade it back in from opacity 0, which on a list reads
+                    as a flash rather than polish (see my-time-screen.tsx). */}
                 <section
-                  key={tab}
                   id={`xcp-${tab}`}
                   role="tabpanel"
                   aria-labelledby={`xct-${tab}`}
                   tabIndex={-1}
-                  className="psec2"
                 >
           {tab === "claims" && (
             <>

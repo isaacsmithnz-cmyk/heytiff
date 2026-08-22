@@ -238,13 +238,14 @@ export function MyNotesBoard({
             />
             <div className="wb2-card">
               <div className="ppanel2">
+                {/* No `key`, no `.psec2` — the note list swaps in place, like
+                    Team's. The pair remounts the face and fades it in, which
+                    on a list is a flash (see my-time-screen.tsx). */}
                 <section
-                  key={tab}
                   id={`mynp-${tab}`}
                   role="tabpanel"
                   aria-labelledby={`mynt-${tab}`}
                   tabIndex={-1}
-                  className="psec2"
                 >
                   {tab === "notes" ? notesFace : archivedFace}
                 </section>

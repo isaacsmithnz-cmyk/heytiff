@@ -58,13 +58,14 @@ export function MyVehicleScreen({
             />
             <div className="wb2-card">
               <div className="ppanel2">
+                {/* No `key`, no `.psec2` — the vehicle and its log history
+                    swap in place, like Team's directory. The pair remounts
+                    the face and fades it in (see my-time-screen.tsx). */}
                 <section
-                  key={tab}
                   id={`mvp-${tab}`}
                   role="tabpanel"
                   aria-labelledby={`mvt-${tab}`}
                   tabIndex={-1}
-                  className="psec2"
                 >
                   <MyVehicle
                     face={tab}

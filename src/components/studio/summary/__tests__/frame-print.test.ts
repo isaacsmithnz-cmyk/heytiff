@@ -127,6 +127,16 @@ describe("the frame on paper", () => {
     expect(studio).toMatch(/\.ds-print-cover\s*\{[^}]*page:\s*cover/);
   });
 
+  /* EVERY PAGE CLOSES AS ITS OWN BOX. Without clone, border-radius and
+     padding exist only at the well's true start and end: every intermediate
+     page break is squared off and its content starts flush against the band.
+     Isaac saw both from his phone. */
+  it("clones the well so every page fragment is a complete, padded box", () => {
+    expect(CSS).toMatch(
+      /\.dsd-fr-w\s*\{[^}]*box-decoration-break:\s*clone/
+    );
+  });
+
   /* The two mechanisms must never both draw. The screen layers are one
      rectangle behind the whole document; left on in print they would paint a
      second, unclosed frame over the pages the table is framing properly. */

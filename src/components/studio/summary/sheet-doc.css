@@ -770,11 +770,17 @@
     vertical-align: top;
   }
   /* THE WELL — the paper, laid over the ink. Its rounded corners are the only
-     rounding the printed frame has, and fragmentation places them exactly
-     right on its own: `border-radius` applies only at a box's true start and
-     end (box-decoration-break's default), so the well opens rounded at the
-     head of page one, runs as a straight channel across every break, and
-     closes rounded where the document actually ends.
+     rounding the printed frame has, and EVERY PAGE GETS ITS OWN SET:
+     `box-decoration-break: clone` closes each fragment as a complete box, so
+     each page is the whole outlet — bands, sides, and a well rounded at all
+     four corners — rather than a slice of one long channel. The default
+     (slice) rounded only the document's true start and end, which squared
+     off the foot of every page but the last; each page of a printed pack is
+     handled, filed and photocopied alone, and each one should close.
+
+     Clone also clones the PADDING, which is the other half of the fix: under
+     slice the page-two content started flush against the top band, because
+     the well's padding existed only at its true ends.
 
      Twice the clear, deliberately: on screen the frame sits inside the panel
      card's own padding, on paper it IS the page margin, and text 10mm from
@@ -785,6 +791,7 @@
     background: var(--doc-well, transparent);
     border-radius: var(--doc-radius, 0px);
     padding: calc(var(--doc-clear, 0px) * 2);
+    box-decoration-break: clone;
   }
 
   /* PAPER IS NOT A PHONE.
@@ -855,14 +862,26 @@
     padding: 0 !important;
     margin-left: 0 !important;
   }
-  /* A SYSTEM MAY SPAN A PAGE; ITS HEADER MAY NOT LEAVE ITS TABLE.
+  /* A SYSTEM THAT FITS ON A PAGE STAYS ON ONE PAGE.
 
-     `break-inside: avoid` on the whole system block meant a system that did
-     not fit in what was left of a page moved to the next one entire — half of
-     page one was blank on a two-system job. Rows and the band still hold
-     together, which is the part a reader actually needs. */
-  .dsd-sys { break-inside: auto; }
+     This was `break-inside: auto` — the whole block moving to the next page
+     left half of page one blank on a two-system job, and that was judged the
+     worse reading when a blank half-page was naked white paper. Inside the
+     frame it is not: the well runs on and the gap reads as the end of a
+     chapter, while the split it bought — System 2's shelf headings stranded
+     at the foot of one page with their rows at the head of the next — reads
+     as an accident, because it is one. Isaac called it from his phone.
+
+     `avoid` is a request, not a guarantee, and that is exactly the right
+     strength: a system taller than a page cannot be granted it, so the
+     engine slices anyway — at the row and shelf boundaries below, never
+     mid-figure. The two failure modes are a page of air (bounded, looks
+     deliberate) against a decapitated table (unbounded, looks broken). */
+  .dsd-sys { break-inside: avoid; }
   .dsd-band { break-inside: avoid; break-after: avoid; }
+  /* a shelf never leaves its heading behind — the orphan the old setting
+     actually produced */
+  .dsd-grp { break-inside: avoid; }
   .dsd-pick,
   .dsd-mast { break-inside: avoid; }
   .dsd-rt tr { break-inside: avoid; }

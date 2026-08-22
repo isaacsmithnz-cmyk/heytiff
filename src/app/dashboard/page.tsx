@@ -1,6 +1,7 @@
 import { DashboardHome } from "@/components/dashboard/home";
 import { loadDashboard } from "@/lib/dashboard/page-data";
 import { NoteScopeScreen } from "@/components/notes/note-context";
+import { redirectIfSetupPending } from "@/lib/org/setup-gate";
 
 /* THE GREETING IS GONE, and with it the viewer's name, the daypart and the
    date line. It said "Good morning, Isaac" at 56px — the largest type in the
@@ -9,6 +10,11 @@ import { NoteScopeScreen } from "@/components/notes/note-context";
    day's work instead. `getViewerName` and `greetingFor` went with it. */
 
 export default async function DashboardHomePage() {
+  // A brand-new org's owner goes to first-run setup before an empty Home can
+  // read as a broken product. Home only — sign-in lands here, and the gate's
+  // header says why it is neither in the proxy nor the (synchronous) layout.
+  await redirectIfSetupPending();
+
   const data = await loadDashboard();
 
   /* Home is the universal case — nothing here is ABOUT a job, so the default

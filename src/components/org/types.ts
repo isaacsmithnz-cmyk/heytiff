@@ -10,6 +10,16 @@ export type SaveResult = { ok: true } | { ok: false; error: string; fields?: str
 
 export type TransferResult = { ok: true } | { ok: false; error: string };
 
+/** The two ways out of first-run setup (components/org/company-setup.tsx),
+    bound by /welcome the way OrgActions is by the Organisation page. */
+export type CompanySetupActions = {
+  onComplete: (
+    identity: Record<string, string>,
+    contact: Record<string, string>
+  ) => Promise<SaveResult>;
+  onSkip: () => Promise<SaveResult>;
+};
+
 /** Every write the screen can make, already bound by the page. */
 export type OrgActions = {
   onSave: (section: string, fields: Record<string, string>) => Promise<SaveResult>;

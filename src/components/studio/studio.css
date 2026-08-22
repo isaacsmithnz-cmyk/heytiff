@@ -9243,7 +9243,6 @@ html[data-ds-display] .dstudio.editing {
       scrollport (.ds-panel.scroll) so Export never scrolls away from the
       sheet it acts on. ── */
 /* the mark leads the bar; the checks pill sits next to it */
-.dstudio .ds-chrome .dsd-logo { flex: none; margin-right: 2px; max-height: 28px; max-width: 160px; }
 .dstudio .ds-chrome {
   position: sticky;
   top: 0;

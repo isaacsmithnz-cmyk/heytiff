@@ -140,13 +140,17 @@
    room made for a band that failed to render is worse than neither. */
 .dsd { padding: var(--doc-pad, 0px) var(--doc-side, 0px); }
 
-/* ── masthead ── */
+/* ── masthead ──
+   TWO PARTIES, ONE TO A SIDE: the job on the left, the business on the right.
+   `auto` on the identity column so it takes exactly the width of the logo or
+   the contact line, whichever is wider, and never steals room from a title. */
 .dsd-mast {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px clamp(24px, 5vw, 72px);
   align-items: start;
 }
+.dsd-mast-job { min-width: 0; }
 .dsd-eyebrow {
   margin: 0 0 10px;
   font-size: 11px;
@@ -197,51 +201,74 @@
 }
 .dsd-date { margin-top: 5px; font-size: 13px; font-weight: 600; color: var(--dsd-ink-3); }
 
-/* ── the mark ──
-   Top left of whatever is holding the document: a bar on screen, the head of
-   the page on paper (.dsd-mark-head).
-
-   THE ASPECT RATIO IS THE WHOLE RULE. This was `width: auto` with a max on
-   each side, which reads as "fit inside this box" and is not what it did: the
-   mark was a flex item in a COLUMN container, so `align-items: stretch` gave
-   it a definite width, `max-height` then clamped the height, and a 3.55:1
-   logo rendered at 4.78:1 — stretched 35% wide. `align-self` opts out of the
-   stretch, `height: auto` lets the ratio drive, and `object-fit: contain`
-   catches whatever is left. Nobody uploads a logo to have it squashed. */
-.dsd-logo {
-  display: block;
-  align-self: flex-start;
-  width: auto;
-  height: auto;
-  max-height: 40px;
-  max-width: 200px;
-  object-fit: contain;
-}
-/* the initials stand-in for a business with no logo uploaded — a square mark
-   rather than a stretched image box */
-.dsd-logo.org-initials {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--dsd-ink);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-}
-/* paper's top left — the document's own corner, since a page has no bar */
-.dsd-mark-head { margin-bottom: 20px; }
-
+/* WHO IT IS FOR, under the date. The rule down its left is what marks it as a
+   block quoted out of the byline above rather than more of the same column —
+   it was doing that job when this sat opposite, and it does it here too. */
 .dsd-to {
   font-style: normal;
   display: flex;
   flex-direction: column;
+  margin-top: 26px;
   padding-left: 15px;
   border-left: 2px solid var(--dsd-rule-2);
+  /* HELD TO A MEASURE. This block used to sit in a narrow column of its own
+     and was sized by it; in the job column it would run the full width of the
+     page, and the rule above the job number would draw a line most of the way
+     across the sheet for no reason. An address is a short measure — it should
+     look like one. */
+  max-width: 38ch;
 }
+
+/* ── the business, opposite the job ──
+   Ranged LEFT inside a column set to the right: right-ragged lines read as a
+   caption, and a wordmark logo whose width nobody controls needs a stable edge
+   to start from. */
+.dsd-ident {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 260px;
+}
+/* A BOX, NOT A SQUARE — the letterhead's own rule, for the letterhead's own
+   reason: most real logos are wordmarks three or four times wider than tall,
+   and one dropped into a square renders as a broken image with air above and
+   below it. Height to fill, width to stop at. */
+.dsd-idlogo {
+  display: block;
+  height: 46px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  object-position: left center;
+}
+/* the initials stand-in is not an image and has no ratio to keep — it is the
+   square the logo box would have been at its narrowest */
+.dsd-idlogo.org-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  border-radius: 12px;
+  background: var(--dsd-ink);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.dsd-idc {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--dsd-ink-2);
+}
+/* a long email or url breaks rather than pushing the column wider — the
+   identity column is `auto`, so an unbreakable string would take width off
+   the title beside it */
+.dsd-idc li { overflow-wrap: anywhere; }
 .dsd-to-n { font-size: 15px; font-weight: 800; line-height: 1.45; }
 .dsd-to-l { font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--dsd-ink-2); }
 .dsd-job {

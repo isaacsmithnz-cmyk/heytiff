@@ -85,7 +85,17 @@ describe("the handover sheet's inline stylesheet", () => {
       // the @page override lives in the COMPONENT, where the brand is —
       // an @page rule cannot read a CSS variable
       expect(PAGE).toMatch(/documentTheme\(brand\.color\)/);
-      expect(PAGE).toMatch(/themed && <style>\{"@media print \{ @page \{ margin: 0; \} \}"\}<\/style>/);
+      expect(PAGE).toMatch(/\{themed && \(/);
+      expect(PAGE).toMatch(/@media print \{ @page \{ margin: 0; \}/);
+      /* THE SQUARE-OFF RIDES WITH THE MARGIN STRIP. Full bleed means the
+         band's corners are the paper's corners, and a radius there draws four
+         white notches; inset in a margin it must stay rounded or it prints a
+         hard-cornered mat floating in white. One decision, one place. */
+      expect(PAGE).toMatch(/\.ho-band \{ border-radius: 0; \}/);
+      // and the band is concentric with its well everywhere else
+      expect(styleBlock()).toMatch(
+        /border-radius:\s*calc\(var\(--doc-radius[^)]*\)\s*\+\s*var\(--doc-gutter/
+      );
       // and the unthemed sheet keeps its own margin in the stylesheet
       expect(styleBlock()).toMatch(/@page \{ margin: 16mm; \}/);
     });

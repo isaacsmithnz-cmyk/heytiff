@@ -86,7 +86,9 @@ export function LiveSheet({
           frame itself: no derivable colour, no rule, and the plain sheet
           keeps the browser's own margins. */}
       {brand.color != null && documentTheme(brand.color) != null && (
-        <style>{`@media print { @page { margin: 0; } }`}</style>
+        <style>
+          {`@media print { @page { margin: 0; } .dsd-bband { border-radius: 0; } }`}
+        </style>
       )}
       <nav className="dsd-bar">
         {/* THE MARK IS IN THE DOCUMENT NOW, in its masthead, where it sits

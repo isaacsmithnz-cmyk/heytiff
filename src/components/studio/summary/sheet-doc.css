@@ -75,6 +75,18 @@
   position: absolute;
   inset: 0;
   background: var(--doc-ink, transparent);
+  /* CONCENTRIC WITH THE WELL, so the frame is an even thickness the whole way
+     round: the well is inset by the gutter and rounded by the radius, so the
+     outside has to be rounded by the two added or the corners run thick while
+     the sides run thin. Square, it read as a block someone had cut a rounded
+     hole in — which is what it was.
+
+     A FULL-BLEED PRINT SQUARES THIS OFF AGAIN, and the caller that goes full
+     bleed is the one that does it: at the paper's own corner a radius draws
+     four white notches, and paper does not have rounded corners. Every chrome
+     that injects `@page { margin: 0 }` injects the square-off with it, so the
+     two can never disagree. */
+  border-radius: calc(var(--doc-radius, 0px) + var(--doc-gutter, 0px));
   pointer-events: none;
   /* a fill a browser would otherwise drop to save ink — and this one IS the
      branding, so it is the last thing that should go */

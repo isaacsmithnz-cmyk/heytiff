@@ -38,8 +38,14 @@ const CSS = `
      the cell's side padding keeps the sides, and the well block's cloned
      padding keeps the clear. The spacers carry NO paint - a second copy of
      the ink would sit on top of the fixed well and notch against it. */
+  /* CONCENTRIC WITH THE WELL: the well is inset by the gutter and rounded by
+     the radius, so the outside is rounded by the two added or the frame runs
+     thick at the corners and thin down the sides. Square, it reads as a block
+     with a rounded hole cut in it. A full-bleed print squares it off again -
+     see the themed style the component injects. */
   .ho-band { position: absolute; inset: 0;
     background: var(--doc-ink, transparent); pointer-events: none;
+    border-radius: calc(var(--doc-radius, 0px) + var(--doc-gutter, 0px));
     -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .ho-well { position: absolute; inset: var(--doc-gutter, 0px);
     background: var(--doc-well, transparent); border-radius: var(--doc-radius, 0px);
@@ -168,7 +174,11 @@ export function HandoverChrome({
       {/* A THEMED PRINT OWNS THE PAPER EDGE. Fixed boxes are clipped to the
           page box; only with no margin is the page box the paper, so the
           frame can reach it. Unthemed keeps the 16mm in the sheet above. */}
-      {themed && <style>{"@media print { @page { margin: 0; } }"}</style>}
+      {themed && (
+        <style>
+          {"@media print { @page { margin: 0; } .ho-band { border-radius: 0; } }"}
+        </style>
+      )}
       {/* THE BUSINESS'S FRAME. Carries nothing and is announced to nobody: it
           is decoration, and a screen reader reading out a coloured rectangle
           would be reading out something that is not there. */}

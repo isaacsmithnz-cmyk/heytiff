@@ -163,6 +163,7 @@ export function SystemCockpit({
   onSelect,
   onEditRoom,
   onArmPlace,
+  onBrowseUnits,
   onFloor,
   floor,
   onAddVariant,
@@ -179,6 +180,8 @@ export function SystemCockpit({
   onSelect: (id: string | null) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  /** open THE unit browser (the editor's single instance) on this room */
+  onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   floor: Floor;
   /** design variations — branched/switched from the system dropdown */
@@ -329,6 +332,7 @@ export function SystemCockpit({
           onMutate={onMutate}
           onEditRoom={onEditRoom}
           onArmPlace={onArmPlace}
+          onBrowseUnits={onBrowseUnits}
           onFloor={onFloor}
           systemSelector={systemSelector}
           onChangeType={() => {
@@ -560,6 +564,7 @@ function ActiveCockpit({
   onMutate,
   onEditRoom,
   onArmPlace,
+  onBrowseUnits,
   onFloor,
   onChangeType,
   systemSelector,
@@ -574,6 +579,7 @@ function ActiveCockpit({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
@@ -704,6 +710,7 @@ function ActiveCockpit({
             onMutate={onMutate}
             onEditRoom={onEditRoom}
             onArmPlace={onArmPlace}
+            onBrowseUnits={onBrowseUnits}
             onFloor={onFloor}
           />
           <ComponentsView
@@ -1625,6 +1632,7 @@ function RoomsView({
   onMutate,
   onEditRoom,
   onArmPlace,
+  onBrowseUnits,
   onFloor,
 }: {
   doc: DesignDocument;
@@ -1642,6 +1650,7 @@ function RoomsView({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  onBrowseUnits: (roomId: string) => void;
   /** take the canvas to a floor — selecting a room on another storey should
       show you that storey, not leave you looking at a plan it isn't on */
   onFloor?: (floorId: string) => void;
@@ -1900,6 +1909,7 @@ function RoomsView({
           perRoom={perRoom}
           onMutate={onMutate}
           onArmPlace={onArmPlace}
+          onBrowseUnits={onBrowseUnits}
           onRelease={releaseRoom}
         />
       ) : null}
@@ -1919,6 +1929,7 @@ function RoomInspectCard({
   perRoom,
   onMutate,
   onArmPlace,
+  onBrowseUnits,
   onRelease,
 }: {
   doc: DesignDocument;
@@ -1933,6 +1944,7 @@ function RoomInspectCard({
   perRoom?: boolean;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  onBrowseUnits: (roomId: string) => void;
   onRelease: (roomId: string) => void;
 }) {
   const cov = roomCoverage(doc, pack, room, basis);
@@ -2029,9 +2041,9 @@ function RoomInspectCard({
             pack={pack}
             system={system}
             room={room}
-            basis={basis}
             onMutate={onMutate}
             onArmPlace={onArmPlace}
+            onBrowseUnits={onBrowseUnits}
           />
         )}
       </div>
@@ -2049,21 +2061,20 @@ export function UnitsSub({
   pack,
   system,
   room,
-  basis,
   onMutate,
   onArmPlace,
+  onBrowseUnits,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   system: DesignSystem;
   room: RoomObj;
-  basis: SizingBasis;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  /** open THE unit browser on this room — the editor owns the one instance
+      (Units on the bar, the Next chip and this card all reach the same one) */
+  onBrowseUnits: (roomId: string) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
-  const loadKw = roomLoadKw(doc, room);
-
   const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
   const sysIdu = mine.find((o) => o.props.role === "idu") ?? null;
   /* A split is ONE pair serving ONE room — but a system can SERVE several
@@ -2100,36 +2111,6 @@ export function UnitsSub({
           !(o.systemId === system.id && (o.type === "pipe-run" || o.type === "riser"))
       ),
     }));
-
-  const choose = (pair: PairProposal) => {
-    const changed = pair.idu.model !== iduModel || pair.odu.model !== oduModel;
-    onMutate((d) => ({
-      ...d,
-      systems: d.systems.map((s) =>
-        s.id === system.id
-          ? {
-              ...s,
-              settings: {
-                ...s.settings,
-                pairIdu: pair.idu.model,
-                pairOdu: pair.odu.model,
-                roomId: room.id,
-              },
-            }
-          : s
-      ),
-      objects: changed
-        ? d.objects.filter(
-            (o) =>
-              !(
-                o.systemId === system.id &&
-                (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
-              )
-          )
-        : d.objects,
-    }));
-    setBrowsing(false);
-  };
 
   const pipeSizes = pairRow ? `Ø${pairRow.pipe_liquid_mm} / ${pairRow.pipe_gas_mm}` : "";
 
@@ -2186,7 +2167,7 @@ export function UnitsSub({
           <button
             className="ds-ck-inkbtn"
             style={{ marginTop: 10 }}
-            onClick={() => setBrowsing(true)}
+            onClick={() => onBrowseUnits(room.id)}
           >
             <Glyph name="plus" size={16} />
             Select units
@@ -2233,7 +2214,7 @@ export function UnitsSub({
           <button
             className="ds-ck-inkbtn"
             style={{ marginTop: 10 }}
-            onClick={() => setBrowsing(true)}
+            onClick={() => onBrowseUnits(room.id)}
             title="Swap the chosen units"
           >
             <Glyph name="rotate" size={16} />
@@ -2242,9 +2223,6 @@ export function UnitsSub({
         </>
       )}
 
-      {browsing && pack && (
-        <UnitBrowser pack={pack} loadKw={loadKw} basis={basis} onChoose={choose} onClose={() => setBrowsing(false)} />
-      )}
     </div>
   );
 }

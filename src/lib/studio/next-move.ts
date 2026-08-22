@@ -13,7 +13,7 @@
 
 import type { DataPack } from "./packs/schema";
 import type { DesignDocument, DesignObject } from "./document";
-import { roomsServedBy } from "./coverage";
+import { lensRoom, roomsServedBy } from "./coverage";
 
 /** what the place tool needs armed — mirrors canvas.tsx's PlacingUnit
     (not imported: this module stays free of React/canvas) */
@@ -99,4 +99,67 @@ export function nextMove(
   if (!connected) return { key: "connect", label: "Connect the pair" };
 
   return { key: "complete", label: "System complete — review the summary" };
+}
+
+/* ── the Units verb on the toolbar ──────────────────────────────────────
+   One button, whose press means "work on the units": with nothing chosen it
+   opens the browser on the lens room; with a pair chosen it arms whichever
+   unit is still off the plan; with both placed it opens the browser again —
+   the same press is now a swap. Module-gated exactly like the chip. */
+
+export type UnitsVerb =
+  /* pressable, but not yet — the reason is worn in place */
+  | { kind: "off"; reason: string }
+  /* open the unit browser ranked against (and attributing to) this room */
+  | { kind: "browse"; roomId: string }
+  /* arm the next unplaced unit on the cursor */
+  | { kind: "arm"; placing: NextPlacing };
+
+export function unitsVerb(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  systemId: string | null
+): UnitsVerb | null {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  if (!sys) return null;
+  /* module-gated: only split's unit flow has moved to the bar */
+  if (sys.type !== "split") return null;
+
+  const rooms = roomsServedBy(doc, systemId);
+  if (rooms.length === 0) return { kind: "off", reason: "draw a room first" };
+  const lens = lensRoom(doc, systemId)!;
+
+  const iduModel = String(sys.settings.pairIdu ?? "");
+  const oduModel = String(sys.settings.pairOdu ?? "");
+  if (!iduModel || !oduModel) return { kind: "browse", roomId: lens.id };
+
+  const units = doc.objects.filter((o) => o.systemId === systemId && o.type === "unit");
+  const idu = units.find((o) => o.props.role === "idu") ?? null;
+  const odu = units.find((o) => o.props.role === "odu") ?? null;
+
+  if (!idu) {
+    const spec = pack?.indoor_units.find((u) => u.model === iduModel);
+    if (!spec) return { kind: "off", reason: "catalogue still loading" };
+    return {
+      kind: "arm",
+      placing: { role: "idu", model: iduModel, widthMm: spec.width_mm, depthMm: spec.depth_mm },
+    };
+  }
+  if (!odu) {
+    const spec = pack?.outdoor_units.find((u) => u.model === oduModel);
+    if (!spec) return { kind: "off", reason: "catalogue still loading" };
+    return {
+      kind: "arm",
+      placing: { role: "odu", model: oduModel, widthMm: spec.width_mm ?? 800, depthMm: spec.depth_mm ?? 300 },
+    };
+  }
+
+  /* both on the plan — the press becomes a swap, ranked against the room the
+     placed indoor unit actually serves (repair follows the unit, not the
+     original choice) */
+  const servedId = String(idu.props.roomId ?? "");
+  return {
+    kind: "browse",
+    roomId: rooms.some((r) => r.id === servedId) ? servedId : lens.id,
+  };
 }

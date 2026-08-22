@@ -65,6 +65,7 @@ function renderSub(
   handlers: {
     onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
     onArmPlace?: (p: PlacingUnit | null) => void;
+    onBrowseUnits?: (roomId: string) => void;
   } = {}
 ) {
   const d = docWith(system, extra);
@@ -74,9 +75,9 @@ function renderSub(
       pack={null}
       system={system}
       room={room}
-      basis="cooling"
       onMutate={handlers.onMutate ?? (() => {})}
       onArmPlace={handlers.onArmPlace ?? (() => {})}
+      onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
     />
   );
   return d;
@@ -89,6 +90,25 @@ describe("UnitsSub", () => {
     // and nothing to swap yet
     expect(screen.queryByRole("button", { name: /Swap units/ })).not.toBeInTheDocument();
     expect(screen.queryByTestId("unit-card-idu")).not.toBeInTheDocument();
+  });
+
+  /* the card no longer owns a browser instance — both buttons reach the
+     editor's single one (Units on the bar, the chip and this card all land
+     in the same place, ranked and attributed the same way) */
+  it("Select units opens the editor's browser on this room", () => {
+    const opened: string[] = [];
+    renderSub(sys({}), [], { onBrowseUnits: (id) => opened.push(id) });
+    fireEvent.click(screen.getByRole("button", { name: /Select units/ }));
+    expect(opened).toEqual(["room1"]);
+  });
+
+  it("Swap units routes to the same browser", () => {
+    const opened: string[] = [];
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [], {
+      onBrowseUnits: (id) => opened.push(id),
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Swap units/ }));
+    expect(opened).toEqual(["room1"]);
   });
 
   it("renders the indoor + outdoor drag rows once a pair is chosen", () => {
@@ -191,9 +211,9 @@ describe("UnitsSub", () => {
         pack={null}
         system={system}
         room={room}
-        basis="cooling"
         onMutate={(fn) => (next = fn(d))}
         onArmPlace={() => {}}
+        onBrowseUnits={() => {}}
       />
     );
     fireEvent.click(screen.getByRole("button", { name: "Recall Indoor unit" }));
@@ -223,9 +243,9 @@ describe("UnitsSub", () => {
           pack={null}
           system={system}
           room={r}
-          basis="cooling"
           onMutate={() => {}}
           onArmPlace={() => {}}
+          onBrowseUnits={() => {}}
         />
       );
     };

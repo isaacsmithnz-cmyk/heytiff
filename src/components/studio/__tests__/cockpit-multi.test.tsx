@@ -125,6 +125,7 @@ function renderCockpit(
       onSelect={() => {}}
       onEditRoom={() => {}}
       onArmPlace={() => {}}
+      onBrowseUnits={() => {}}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}

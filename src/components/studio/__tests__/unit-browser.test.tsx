@@ -544,4 +544,65 @@ describe("UnitBrowser", () => {
     expect(screen.queryByRole("columnheader", { name: /Airflow/ })).toBeNull();
     expect(screen.queryByText(/Airflow ≥/)).toBeNull();
   });
+
+  /* Room chips (drop-to-attribute slice): the lens the ranking reads through,
+     the fallback attribution, and — via the served tick — placement progress. */
+  describe("room chips", () => {
+    const chips = [
+      { id: "r1", name: "Lounge", loadKw: 4.2, served: true },
+      { id: "r2", name: "Study", loadKw: 2.1, served: false },
+    ];
+
+    it("wears the rooms across the top, lens pressed, load on each chip", () => {
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={chips}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      const row = screen.getByRole("navigation", { name: "Rank against a room" });
+      const study = within(row).getByRole("button", { name: /Study/ });
+      expect(study).toHaveAttribute("aria-pressed", "true");
+      expect(within(row).getByRole("button", { name: /Lounge/ })).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      );
+      expect(study.textContent).toContain("2.1 kW");
+      // the placed room wears the tick class — progress at a glance
+      expect(within(row).getByRole("button", { name: /Lounge/ }).className).toContain("served");
+    });
+
+    it("clicking a chip re-aims the lens", () => {
+      const aims: string[] = [];
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={chips}
+          lensId="r2"
+          onLens={(id) => aims.push(id)}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Lounge/ }));
+      expect(aims).toEqual(["r1"]);
+    });
+
+    it("shows no chip row when the host has no rooms to offer", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      expect(
+        screen.queryByRole("navigation", { name: "Rank against a room" })
+      ).toBeNull();
+    });
+  });
 });

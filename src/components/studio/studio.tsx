@@ -22,7 +22,7 @@ import {
   type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
-import { CLIMATE_ZONES, type SizingBasis } from "@/lib/studio/loads";
+import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
@@ -47,10 +47,10 @@ import {
   type ZoomApi,
 } from "./canvas";
 import { ComponentPalette, PlenumHud } from "./air-tools";
-import { isAirCapable } from "@/lib/studio/modules";
-import { roomsServedBy } from "@/lib/studio/coverage";
-import { nextMove, type NextMove } from "@/lib/studio/next-move";
-import { roomLoadKw } from "@/lib/studio/loads-room";
+import { isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
+import { nextMove, unitsVerb, type NextMove, type UnitsVerb } from "@/lib/studio/next-move";
+import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import type { PairProposal } from "@/lib/studio/split";
 import { UnitBrowser } from "./unit-browser";
 import { PlansPanel } from "./plans-panel";
@@ -1234,12 +1234,15 @@ function Editor({
     setTool("component");
   }, []);
 
-  /* switching to any other tool disarms the component (and folds the palette) */
+  /* switching to any other tool disarms the component (and folds the palette)
+     — and lets go of a riding unit, so `placing` can never sit stale behind
+     another tool (the Units button reads it as "armed") */
   const changeTool = useCallback((t: CanvasTool) => {
     if (t !== "component") {
       setAirComp(null);
       setPaletteOpen(false);
     }
+    if (t !== "place") setPlacing(null);
     setTool(t);
   }, []);
 
@@ -1263,9 +1266,21 @@ function Editor({
      placed units and plumbing with it */
   const choosePairFromChip = useCallback(
     (pair: PairProposal, roomId: string) => {
+      /* read the pre-write state for the arm decision below: a re-chosen
+         identical pair keeps its placed units, and arming then would offer a
+         second indoor unit */
+      const cur = doc.systems.find((s) => s.id === effectiveSystemId);
+      const changed =
+        !cur ||
+        pair.idu.model !== String(cur.settings.pairIdu ?? "") ||
+        pair.odu.model !== String(cur.settings.pairOdu ?? "");
+      const hadIdu = doc.objects.some(
+        (o) =>
+          o.systemId === effectiveSystemId && o.type === "unit" && o.props.role === "idu"
+      );
       mutate((d) => {
         const sys = d.systems.find((s) => s.id === effectiveSystemId);
-        const changed =
+        const swap =
           !sys ||
           pair.idu.model !== String(sys.settings.pairIdu ?? "") ||
           pair.odu.model !== String(sys.settings.pairOdu ?? "");
@@ -1284,7 +1299,7 @@ function Editor({
                 }
               : s
           ),
-          objects: changed
+          objects: swap
             ? d.objects.filter(
                 (o) =>
                   !(
@@ -1296,8 +1311,17 @@ function Editor({
         };
       });
       setPairBrowse(null);
+      /* choosing ARMS the indoor unit on the cursor — the drop that follows
+         is the attribution */
+      if (changed || !hadIdu)
+        armPlace({
+          role: "idu",
+          model: pair.idu.model,
+          widthMm: pair.idu.width_mm,
+          depthMm: pair.idu.depth_mm,
+        });
     },
-    [mutate, effectiveSystemId]
+    [doc, mutate, effectiveSystemId, armPlace]
   );
 
   const onNext = useCallback(() => {
@@ -1321,6 +1345,52 @@ function Editor({
         break;
     }
   }, [next, changeTool, armPlace, onStep]);
+
+  /* ── the Units verb (bar, System group): browse → arm IDU → arm ODU →
+     browse again as a swap. Pressing it while a unit rides the cursor
+     cancels the arm instead. ── */
+  const unitsV = useMemo(
+    () => unitsVerb(doc, pack, effectiveSystemId),
+    [doc, pack, effectiveSystemId]
+  );
+
+  const onUnits = useCallback(() => {
+    if (placing) {
+      armPlace(null);
+      return;
+    }
+    if (!unitsV || unitsV.kind === "off") return;
+    if (unitsV.kind === "browse") setPairBrowse(unitsV.roomId);
+    else armPlace(unitsV.placing);
+  }, [placing, unitsV, armPlace]);
+
+  /* the armed pairing's capacity, for the canvas's room tint: pair-flow
+     systems rate the pair; per-room modules rate the armed unit itself */
+  const placingKw = useMemo(() => {
+    if (!placing || placing.role !== "idu" || !pack || !effectiveSystemId) return null;
+    const sys = doc.systems.find((s) => s.id === effectiveSystemId);
+    if (!sys) return null;
+    if (moduleFor(sys.type).unitFlow === "per-room") {
+      const idu = pack.indoor_units.find((u) => u.model === placing.model);
+      return idu ? sizingCapacityKw(idu, doc.settings.sizingBasis) : null;
+    }
+    return systemPairKw(doc, pack, effectiveSystemId, doc.settings.sizingBasis);
+  }, [placing, pack, doc, effectiveSystemId]);
+
+  /* rooms whose PLACED unit missed their load — the verdict that persists on
+     the room label after the drop. A state, never a block. */
+  const roomFits = useMemo(() => {
+    const m: Record<string, "oversized" | "undersized"> = {};
+    if (!pack) return m;
+    for (const o of doc.objects) {
+      if (o.type !== "room" || o.geometry.kind !== "polygon") continue;
+      const cov = roomCoverage(doc, pack, o as RoomObj, doc.settings.sizingBasis);
+      if (cov.loadKw == null || cov.coveredKw <= 0) continue;
+      if (cov.oversized) m[o.id] = "oversized";
+      else if (cov.status === "under") m[o.id] = "undersized";
+    }
+    return m;
+  }, [doc, pack]);
 
   const toggleSim = useCallback(() => {
     if (simOn) {
@@ -1451,6 +1521,18 @@ function Editor({
         return;
       }
       if (step !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Esc lets go of a unit riding the cursor (the canvas clears its own
+      // drafts from its listener — both fire)
+      if (e.key === "Escape") {
+        if (placing) armPlace(null);
+        return;
+      }
+      // U = the Units verb: browse → arm IDU → arm ODU → browse-as-swap.
+      // Inert while the browser is already up (typing there must not re-arm).
+      if (e.key.toLowerCase() === "u") {
+        if (!pairBrowse) onUnits();
+        return;
+      }
       // C = Component (spec §3a — calibrate stays a top-toolbar pill): re-arm
       // the last-used component; the first-ever press opens the grid
       if (e.key.toLowerCase() === "c") {
@@ -1497,6 +1579,10 @@ function Editor({
     armComponent,
     changeTool,
     activeFloor?.scaleMmPerUnit,
+    placing,
+    armPlace,
+    pairBrowse,
+    onUnits,
   ]);
 
   return (
@@ -1638,6 +1724,8 @@ function Editor({
             onTool={changeTool}
             next={next}
             onNext={onNext}
+            unitsV={unitsV}
+            onUnits={onUnits}
             airGate={airGate}
             paletteOpen={paletteOpen}
             onPalette={setPaletteOpen}
@@ -1653,6 +1741,8 @@ function Editor({
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
             placing={placing}
+            placingKw={placingKw}
+            roomFits={roomFits}
             onPlaced={onPlaced}
             onRoomCreated={(id) => {
               setEditingRoomId(id);
@@ -1711,6 +1801,7 @@ function Editor({
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
             onArmPlace={armPlace}
+            onBrowseUnits={setPairBrowse}
             onFloor={setPickedFloorId}
             floor={activeFloor}
             onAddVariant={onAddVariant}
@@ -1748,18 +1839,35 @@ function Editor({
         />
       )}
 
-      {/* the Next chip's unit browser — ranked against the pair room's load,
-          committing the same settings write as the cockpit's picker */}
+      {/* THE unit browser — one instance, opened by the Units verb, the Next
+          chip and the cockpit alike. Ranked against the lens room (the chips
+          across its top switch the lens), committing the same settings write
+          everywhere; choosing arms the indoor unit on the cursor. */}
       {pairBrowse &&
         pack &&
         (() => {
-          const room = roomsServedBy(doc, effectiveSystemId).find((r) => r.id === pairBrowse);
+          const served = roomsServedBy(doc, effectiveSystemId);
+          const room = served.find((r) => r.id === pairBrowse);
           if (!room) return null;
+          const chips = served.map((r) => ({
+            id: r.id,
+            name: String(r.props.name ?? "Room"),
+            loadKw: roomLoadKw(doc, r),
+            served: doc.objects.some(
+              (o) =>
+                o.type === "unit" &&
+                o.props.role === "idu" &&
+                String(o.props.roomId ?? "") === r.id
+            ),
+          }));
           return (
             <UnitBrowser
               pack={pack}
               loadKw={roomLoadKw(doc, room)}
               basis={doc.settings.sizingBasis}
+              rooms={chips}
+              lensId={room.id}
+              onLens={setPairBrowse}
               onChoose={(pair) => choosePairFromChip(pair, room.id)}
               onClose={() => setPairBrowse(null)}
             />
@@ -2378,6 +2486,8 @@ function DesignPanel({
   onTool,
   next,
   onNext,
+  unitsV,
+  onUnits,
   airGate,
   paletteOpen,
   onPalette,
@@ -2393,6 +2503,8 @@ function DesignPanel({
   activeSystemId,
   revealTools,
   placing,
+  placingKw,
+  roomFits,
   onPlaced,
   onRoomCreated,
   remarkRoomId,
@@ -2417,6 +2529,10 @@ function DesignPanel({
   /** the system's first unmet requirement — the chip names it, clicking arms it */
   next: NextMove | null;
   onNext: () => void;
+  /** the Units verb's current meaning (null: this system type still picks
+      its units in the panel) — the button wears the reason in place */
+  unitsV: UnitsVerb | null;
+  onUnits: () => void;
   /** spec-§2 air-tool gate (rooms + air-capable AHU) + the AHU's pack row */
   airGate: { ok: boolean; reason: string; row: IndoorUnit | null };
   paletteOpen: boolean;
@@ -2435,6 +2551,10 @@ function DesignPanel({
   revealTools: boolean;
   /** the room-shape pill is up (raised by "Draw a room" / "Add room") */
   placing: PlacingUnit | null;
+  /** armed pairing's capacity — the canvas tints rooms against their loads */
+  placingKw: number | null;
+  /** rooms whose placed unit missed their load (persists on the label) */
+  roomFits: Record<string, "oversized" | "undersized">;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
   remarkRoomId: string | null;
@@ -2543,6 +2663,35 @@ function DesignPanel({
             <span className="ds-tb-gl" aria-hidden="true">
               System
             </span>
+            {/* Units leads the System group — the workflow places before it
+                connects. One verb, three meanings: browse (nothing chosen),
+                arm the next unplaced unit, browse again as a swap. While a
+                unit rides the cursor the button is lit and a press disarms. */}
+            <button
+              className={`ds-tool${tool === "place" ? " on" : ""}`}
+              aria-label="Units"
+              disabled={!unitsV || unitsV.kind === "off"}
+              title={
+                !activeSystemId
+                  ? "Units — pick a system first"
+                  : !unitsV
+                    ? "Units — this system type still picks its units in the panel"
+                    : unitsV.kind === "off"
+                      ? `Units — ${unitsV.reason}`
+                      : tool === "place"
+                        ? "Let go of the unit (U)"
+                        : unitsV.kind === "browse"
+                          ? "Choose the units (U)"
+                          : "Place the next unit (U)"
+              }
+              onClick={onUnits}
+            >
+              <Icon name="unit" size={15} />
+              Units
+              <span className="ds-kbd" aria-hidden="true">
+                U
+              </span>
+            </button>
             {toolButton(tb("pipe"))}
             {toolButton(tb("riser"))}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
@@ -2628,6 +2777,8 @@ function DesignPanel({
             planImages={planImages}
             activeSystemId={activeSystemId}
             placing={placing}
+            placingKw={placingKw}
+            roomFits={roomFits}
             onPlaced={onPlaced}
             component={airComp}
             onComponentPlaced={onComponentPlaced}

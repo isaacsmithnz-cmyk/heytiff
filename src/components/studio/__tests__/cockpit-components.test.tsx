@@ -56,6 +56,7 @@ function renderComponents(doc: DesignDocument, onMutate: (fn: (d: DesignDocument
       onSelect={() => {}}
       onEditRoom={() => {}}
       onArmPlace={() => {}}
+      onBrowseUnits={() => {}}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}

@@ -3,7 +3,7 @@
    never going silent while something is owed (the motivating bug: a real
    design stalled for hours between "outdoor placed" and "indoor placed"). */
 
-import { nextMove } from "../next-move";
+import { nextMove, unitsVerb } from "../next-move";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import { emptyPack, type DataPack, type IndoorUnit, type OutdoorUnit } from "../packs/schema";
 
@@ -138,5 +138,73 @@ describe("nextMove — the split ladder", () => {
       PAIR
     );
     expect(nextMove(d, pack(), "sys1")).toMatchObject({ key: "complete" });
+  });
+});
+
+/* The Units verb on the bar: one press whose meaning follows the state —
+   browse when nothing is chosen, arm whichever unit is off the plan, browse
+   again as a swap once both are down. */
+describe("unitsVerb — the Units button's meaning", () => {
+  it("says nothing without a system, or for a type whose flow is still in the panel", () => {
+    expect(unitsVerb(doc([]), pack(), null)).toBeNull();
+    expect(unitsVerb(doc([], {}, "multi-split"), pack(), "sys1")).toBeNull();
+  });
+
+  it("is off, with the reason, until a room exists", () => {
+    expect(unitsVerb(doc([]), pack(), "sys1")).toEqual({
+      kind: "off",
+      reason: "draw a room first",
+    });
+  });
+
+  it("browses on the lens room while no pair is chosen", () => {
+    expect(unitsVerb(doc([room("r1", "Bedroom")]), pack(), "sys1")).toEqual({
+      kind: "browse",
+      roomId: "r1",
+    });
+    // the lens follows settings.roomId when several rooms are served
+    const d = doc([room("r1", "Bedroom"), room("r2", "Study")], { roomId: "r2" });
+    expect(unitsVerb(d, pack(), "sys1")).toEqual({ kind: "browse", roomId: "r2" });
+  });
+
+  it("arms the indoor unit first, with the pack's dimensions", () => {
+    expect(unitsVerb(doc([room("r1", "Bedroom")], PAIR), pack(), "sys1")).toEqual({
+      kind: "arm",
+      placing: { role: "idu", model: "IDU-25", widthMm: 798, depthMm: 219 },
+    });
+  });
+
+  it("is off — never a dead arm — while the pack is still loading", () => {
+    expect(unitsVerb(doc([room("r1", "Bedroom")], PAIR), null, "sys1")).toEqual({
+      kind: "off",
+      reason: "catalogue still loading",
+    });
+  });
+
+  it("arms the outdoor unit once the indoor is down", () => {
+    const d = doc([room("r1", "Bedroom"), unit("u1", "idu", "IDU-25")], PAIR);
+    expect(unitsVerb(d, pack(), "sys1")).toEqual({
+      kind: "arm",
+      placing: { role: "odu", model: "ODU-25", widthMm: 800, depthMm: 285 },
+    });
+  });
+
+  it("becomes a swap once both are placed, ranked on the room the unit serves", () => {
+    const placed = [
+      room("r1", "Bedroom"),
+      room("r2", "Study"),
+      { ...unit("u1", "idu", "IDU-25"), props: { role: "idu", model: "IDU-25", roomId: "r2" } },
+      unit("u2", "odu", "ODU-25"),
+    ];
+    expect(unitsVerb(doc(placed, PAIR), pack(), "sys1")).toEqual({
+      kind: "browse",
+      roomId: "r2",
+    });
+    // an unattributed unit falls back to the lens
+    const loose = [room("r1", "Bedroom"), unit("u1", "idu", "IDU-25"), unit("u2", "odu", "ODU-25")];
+    expect(unitsVerb(doc(loose, PAIR), pack(), "sys1")).toEqual({
+      kind: "browse",
+      roomId: "r1",
+    });
   });
 });

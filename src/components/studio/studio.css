@@ -2563,6 +2563,46 @@ html[data-ds-display] .dstudio.editing {
   stroke-dasharray: 5 4;
 }
 .dstudio .ds-room.ghost text { fill: var(--gray400); }
+/* ── drop-to-attribute: while an indoor unit rides the cursor, the fit
+   verdict IS every room's paint — the browser's ranking made spatial.
+   Green fits · amber oversized · red won't-hold-it; a room with no load
+   reads neutral rather than pretending. Declared AFTER .sel/.ghost so the
+   same specificity resolves to the verdict while armed. ── */
+.dstudio .ds-room.armfit-none polygon {
+  fill: rgba(120, 130, 145, 0.06);
+  stroke: #b8bec8;
+}
+.dstudio .ds-room.armfit-fits polygon {
+  fill: rgba(0, 163, 137, 0.13);
+  stroke: var(--ds-ok, #00a389);
+}
+.dstudio .ds-room.armfit-oversized polygon {
+  fill: rgba(180, 83, 9, 0.11);
+  stroke: var(--ds-amber-d, #b45309);
+}
+.dstudio .ds-room.armfit-undersized polygon {
+  fill: rgba(224, 38, 79, 0.09);
+  stroke: var(--ds-red-d, #e0264f);
+}
+/* the room that would take the drop RIGHT NOW — containment, else the
+   split's lens room — answers a shade harder and carries the verdict line */
+.dstudio .ds-room.droptgt polygon { stroke-width: 2.4; }
+.dstudio .ds-room.armfit-none.droptgt polygon { fill: rgba(120, 130, 145, 0.12); }
+.dstudio .ds-room.armfit-fits.droptgt polygon { fill: rgba(0, 163, 137, 0.22); }
+.dstudio .ds-room.armfit-oversized.droptgt polygon { fill: rgba(180, 83, 9, 0.19); }
+.dstudio .ds-room.armfit-undersized.droptgt polygon { fill: rgba(224, 38, 79, 0.16); }
+.dstudio .ds-room-verdict {
+  font-weight: 800;
+  fill: var(--ink2);
+}
+.dstudio .ds-room-verdict.fits { fill: var(--ds-ok-d, #00806c); }
+.dstudio .ds-room-verdict.oversized { fill: var(--ds-amber-d, #b45309); }
+.dstudio .ds-room-verdict.undersized { fill: var(--ds-red-d, #e0264f); }
+/* the verdict that PERSISTS after the drop, on the area line — a state the
+   room keeps wearing, never a block (ranking-not-gating) */
+.dstudio .ds-room-covfit { font-weight: 800; }
+.dstudio .ds-room-covfit.oversized { fill: var(--ds-amber-d, #b45309); }
+.dstudio .ds-room-covfit.undersized { fill: var(--ds-red-d, #e0264f); }
 .dstudio .ds-room text {
   fill: var(--ink);
   font-family: var(--font);
@@ -4586,6 +4626,44 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
   color: #444;
 }
+/* room chips — the ranking lens, the outside-a-room fallback attribution and
+   the system's placement progress in one row over the tabs */
+.ds-ub-rooms {
+  display: flex;
+  gap: 6px;
+  padding: 10px 14px 4px;
+  overflow-x: auto;
+}
+.ds-ub-roomchip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3c414d;
+  background: #fff;
+  border: 1px solid #e0e0de;
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ds-ub-roomchip span {
+  font-weight: 600;
+  color: #767676;
+  font-variant-numeric: tabular-nums;
+}
+/* only the tick goes green — the name keeps the chip's own ink */
+.ds-ub-roomchip.served svg { stroke: var(--ds-ok-d, #00806c); }
+.ds-ub-roomchip.on {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+.ds-ub-roomchip.on span { color: rgba(255, 255, 255, 0.72); }
+.ds-ub-roomchip.on.served svg { stroke: #00e5c0; }
 .ds-ub-tabs {
   display: flex;
   gap: 2px;
@@ -7622,7 +7700,8 @@ html[data-ds-display] .dstudio.editing {
 /* the room name + area were the ONLY plan labels left off this rule — the
    most important text on the drawing was the one bit of it with no halo */
 .dstudio .ds-room-name,
-.dstudio .ds-room-area {
+.dstudio .ds-room-area,
+.dstudio .ds-room-verdict {
   paint-order: stroke;
   stroke: #fff;
   stroke-width: 3px;

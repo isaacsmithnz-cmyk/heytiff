@@ -8,6 +8,7 @@ import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
 import { BrandLogo } from "@/components/org/letterhead";
 import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { documentTheme } from "@/lib/org/theme";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
@@ -100,14 +101,26 @@ export function PrintDoc({
     };
   }, []);
 
-  /* paper size + orientation ride an injected @page rule while mounted */
+  /* paper size + orientation ride an injected @page rule while mounted.
+
+     A THEMED COVER PRINTS WITH NO MARGIN AT ALL. Its frame bleeds to the
+     paper edge — inside the default margin the same shape read as a border
+     drawn on the paper, not a ground the page sits in — and the frame's own
+     thickness becomes the margin instead. It is a NAMED page (`cover`, set on
+     .ds-print-cover in studio.css) so the plan pages behind it keep the 12mm
+     they were measured for; and it is gated on the same derivation the frame
+     is, because a margin removed for a frame that is not there would print
+     the plain sheet flush against the paper's edge. */
+  const themed = brand.color != null && documentTheme(brand.color) != null;
   useEffect(() => {
     const el = document.createElement("style");
     el.id = "ds-print-page-size";
-    el.textContent = `@page { size: ${options.paper} ${options.orientation}; margin: 12mm; }`;
+    el.textContent =
+      `@page { size: ${options.paper} ${options.orientation}; margin: 12mm; }` +
+      (themed ? ` @page cover { margin: 0; }` : "");
     document.head.appendChild(el);
     return () => el.remove();
-  }, [options.paper, options.orientation]);
+  }, [options.paper, options.orientation, themed]);
 
   /* fire onReady once every sheet URL is decoded (the SVG <image>s share the
      browser cache, so decoding here means they render). Next paint via rAF,

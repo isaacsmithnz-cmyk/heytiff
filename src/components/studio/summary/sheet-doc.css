@@ -747,25 +747,44 @@
      A rule written as `.dsd-fr-t` is (0,1,0) and LOSES to it no matter that it
      comes later in the file: `@media print` adds no specificity. Shipped that
      way the frame simply did not print, on a sheet where every screen check
-     said it was fine. Anchored to the row group each one is (0,2,3). */
+     said it was fine. Anchored to the row group each one is (0,2,3).
+
+     THE BANDS ARE SQUARE. The themed page prints with no margin — the frame
+     bleeds to the paper edge, because a frame inset inside a white margin is
+     a border drawn ON the paper, not a ground the page sits in — and paper's
+     corners are not rounded. The rounding belongs to the WELL below, the same
+     division of labour the screen's two layers have. */
   .dsd-frame > thead > tr > td.dsd-fr-t,
   .dsd-frame > tfoot > tr > td.dsd-fr-b {
     height: var(--doc-gutter, 0px);
     background: var(--doc-ink, transparent);
   }
-  /* the corners live on the two bands, which is the whole of the rounding —
-     the sides are borders and a border cannot curve on its own */
-  .dsd-frame > thead > tr > td.dsd-fr-t {
-    border-radius: var(--doc-radius, 0px) var(--doc-radius, 0px) 0 0;
-  }
-  .dsd-frame > tfoot > tr > td.dsd-fr-b {
-    border-radius: 0 0 var(--doc-radius, 0px) var(--doc-radius, 0px);
-  }
+  /* the sides: the cell's own ink showing through its side padding. Painting
+     the cell rather than bordering it is what lets the WELL round over it —
+     an inner corner carved out of a border is concave, which border-radius
+     cannot draw; a white rounded block over an inked ground is the corner
+     `.dsd-bwell` already draws on screen. */
   .dsd-frame > tbody > tr > td.dsd-fr-c {
-    border-left: var(--doc-gutter, 0px) solid var(--doc-ink, transparent);
-    border-right: var(--doc-gutter, 0px) solid var(--doc-ink, transparent);
-    padding: var(--doc-clear, 0px);
+    background: var(--doc-ink, transparent);
+    padding: 0 var(--doc-gutter, 0px);
     vertical-align: top;
+  }
+  /* THE WELL — the paper, laid over the ink. Its rounded corners are the only
+     rounding the printed frame has, and fragmentation places them exactly
+     right on its own: `border-radius` applies only at a box's true start and
+     end (box-decoration-break's default), so the well opens rounded at the
+     head of page one, runs as a straight channel across every break, and
+     closes rounded where the document actually ends.
+
+     Twice the clear, deliberately: on screen the frame sits inside the panel
+     card's own padding, on paper it IS the page margin, and text 10mm from
+     the paper edge reads as a compliment slip. ×2 rather than +6mm because a
+     calc() fallback is 6mm when the variable is absent, not 0 — the #470
+     padding bug one layer down. */
+  .dsd-frame > tbody > tr > td.dsd-fr-c > .dsd-fr-w {
+    background: var(--doc-well, transparent);
+    border-radius: var(--doc-radius, 0px);
+    padding: calc(var(--doc-clear, 0px) * 2);
   }
 
   /* PAPER IS NOT A PHONE.

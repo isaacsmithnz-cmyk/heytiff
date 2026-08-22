@@ -86,12 +86,13 @@ describe("the frame on paper", () => {
   it("paints every part of the frame with a selector that beats the reset", () => {
     const painters = [
       ...selectorsDeclaring(CSS, /background:\s*var\(--doc-ink/),
-      ...selectorsDeclaring(CSS, /border-left:\s*var\(--doc-gutter/),
+      ...selectorsDeclaring(CSS, /padding:\s*0\s+var\(--doc-gutter/),
       ...selectorsDeclaring(CSS, /border-radius:\s*var\(--doc-radius/),
-      ...selectorsDeclaring(CSS, /padding:\s*var\(--doc-clear/),
+      ...selectorsDeclaring(CSS, /padding:\s*calc\(var\(--doc-clear/),
     ].filter((s) => s.includes(".dsd-frame"));
 
-    // the bands, the two corners and the bordered cell — nothing may be missed
+    // the two bands, the inked cell (background + side padding) and the well
+    // (radius + clear) — nothing may be missed
     expect(painters.length).toBeGreaterThanOrEqual(5);
 
     for (const painter of painters) {
@@ -109,6 +110,21 @@ describe("the frame on paper", () => {
   it("prints the head and the foot as repeating row groups", () => {
     expect(CSS).toMatch(/\.dsd-frame\s*>\s*thead\s*\{\s*display:\s*table-header-group/);
     expect(CSS).toMatch(/\.dsd-frame\s*>\s*tfoot\s*\{\s*display:\s*table-footer-group/);
+  });
+
+  /* THE FRAME OWNS THE PAPER EDGE, and only when there is one. The themed
+     cover prints on a named page with no margin — inset inside the default
+     margin the frame reads as a border drawn on the paper. The name is the
+     whole mechanism: an @page rule cannot see a CSS variable, so the print
+     chrome injects `@page cover { margin: 0 }` for a themed brand and nothing
+     otherwise. If the cover loses its name, themed sheets quietly go back to
+     floating in a white ring. */
+  it("puts the cover on the named page the themed margin is stripped from", () => {
+    const studio = readFileSync(
+      join(__dirname, "../../studio.css"),
+      "utf8"
+    );
+    expect(studio).toMatch(/\.ds-print-cover\s*\{[^}]*page:\s*cover/);
   });
 
   /* The two mechanisms must never both draw. The screen layers are one

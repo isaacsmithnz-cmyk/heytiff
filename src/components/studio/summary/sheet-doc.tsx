@@ -542,8 +542,19 @@ export function SheetDoc({
 
           What DOES repeat, in every engine, is a table's header and footer
           row group. So the document rides in a single cell: `thead` paints the
-          top band, `tfoot` the bottom, and the cell's own left and right
-          BORDERS draw the sides. Rounded corners come from the two bands.
+          top band, `tfoot` the bottom, and the cell itself paints the sides —
+          its ink-coloured background showing through its side padding. The
+          well is the block inside (`dsd-fr-w`): the paper, white and rounded,
+          laid over the cell's ink exactly the way `.dsd-bwell` lies over
+          `.dsd-bband` on screen.
+
+          AND THE FRAME OWNS THE PAGE EDGE. Inside the default page margin the
+          same shape read as a border drawn on the paper — a certificate, not
+          a frame. A frame is a GROUND the page is carved out of, and a ground
+          does not float: the themed page prints with no margin at all
+          (`@page cover`, injected by the print chrome), the frame's own
+          thickness is the margin, and the corners are square at the paper's
+          corner because paper is. The rounding belongs to the well.
 
           It is a table only on paper. On screen every part of it is
           `display: block`, the head and foot are hidden, and the layers above
@@ -562,6 +573,7 @@ export function SheetDoc({
         <tbody>
           <tr>
             <td className="dsd-fr-c">
+              <div className="dsd-fr-w">
       {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}
@@ -625,6 +637,7 @@ export function SheetDoc({
       <footer className="dsd-close">
         Prepared with <b>HeyTiff Design Studio</b>
       </footer>
+              </div>
             </td>
           </tr>
         </tbody>

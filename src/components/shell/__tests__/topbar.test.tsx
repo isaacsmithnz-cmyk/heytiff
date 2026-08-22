@@ -4,7 +4,10 @@ import { Topbar } from "../topbar";
 import { CommandPaletteProvider } from "../command-palette-context";
 import type { ShellUser } from "../sidebar";
 import { actionRequiredItems } from "@/app/actions/action-required";
+import { myDueReminders, snoozeReminder } from "@/app/actions/reminders";
+import { completeTask } from "@/app/actions/dashboard";
 import type { ActionChip } from "@/lib/dashboard/chips";
+import type { DueReminder } from "@/lib/dashboard/reminders";
 import { fmtAuWeekdayDayMonth, todayInAu } from "@/lib/au-dates";
 
 /* The bell.
@@ -29,7 +32,20 @@ jest.mock("@/components/notes/tiff-button", () => ({
 jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
 jest.mock("@/app/actions/action-required", () => ({ actionRequiredItems: jest.fn() }));
 
+/* The bell reaches two more "use server" modules since reminders joined it —
+   same reason as the Tiff button above, and the same fix. The mocks are what
+   let the ROWS be tested here; what the actions themselves do is pinned where
+   they live. */
+jest.mock("@/app/actions/reminders", () => ({
+  myDueReminders: jest.fn(async () => []),
+  snoozeReminder: jest.fn(async () => ({ ok: true })),
+}));
+jest.mock("@/app/actions/dashboard", () => ({ completeTask: jest.fn(async () => ({ ok: true })) }));
+
 const itemsMock = actionRequiredItems as jest.MockedFunction<typeof actionRequiredItems>;
+const remsMock = myDueReminders as jest.MockedFunction<typeof myDueReminders>;
+const snoozeMock = snoozeReminder as jest.MockedFunction<typeof snoozeReminder>;
+const doneMock = completeTask as jest.MockedFunction<typeof completeTask>;
 
 /* Enough of a chip to render a row. The shapes themselves are pinned by the
    chips suite; what matters here is how many there are and what a row links to. */
@@ -64,9 +80,27 @@ const draw = () =>
 const bell = () => document.querySelector(".bell") as HTMLElement;
 const panel = () => document.querySelector(".bell-panel") as HTMLElement | null;
 const rows = () => Array.from(document.querySelectorAll(".bp-row")) as HTMLAnchorElement[];
+const remRows = () => Array.from(document.querySelectorAll(".bp-rem")) as HTMLElement[];
+
+/** One due reminder, as the bell receives it. */
+const reminder = (n: number, over: Partial<DueReminder> = {}): DueReminder => ({
+  taskId: `t${n}`,
+  title: `Check with Luke about quote ${n}`,
+  detail: null,
+  remindAt: "2026-08-24T20:30:00.000Z",
+  ...over,
+});
 
 afterEach(cleanup);
-beforeEach(() => itemsMock.mockReset());
+beforeEach(() => {
+  itemsMock.mockReset();
+  remsMock.mockReset();
+  remsMock.mockResolvedValue([]);
+  snoozeMock.mockReset();
+  snoozeMock.mockResolvedValue({ ok: true });
+  doneMock.mockReset();
+  doneMock.mockResolvedValue({ ok: true });
+});
 
 describe("the Tiff button", () => {
   /* It floated bottom-right first and covered the page it sat on. The topbar
@@ -272,5 +306,142 @@ describe("the clock", () => {
     expect(clock.closest(".tbr")).not.toBeNull();
     expect(clock.compareDocumentPosition(tiff) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(clock.querySelector("button")).toBeNull();
+  });
+});
+
+/* ── REMINDERS IN THE BELL ────────────────────────────────────────────────
+
+   "Remind me to do that on Monday morning" only means anything if Monday
+   morning actually arrives somewhere you are looking. This is that somewhere.
+
+   They are NOT ActionChips and are not tested as if they were: a chip is an
+   expiry whose only affordance is a link to the screen that fixes it, and a
+   reminder is a thing you asked for that you can finish or put off from where
+   it appears. The separation is the design, so it is what these pin. */
+describe("reminders in the bell", () => {
+  const openPanel = async () => {
+    draw();
+    await act(async () => {});
+    await act(async () => {
+      bell().click();
+    });
+  };
+
+  it("counts toward the badge alongside everything else that needs you", async () => {
+    /* Two numbers in the topbar would make a person add them up to answer the
+       question the badge exists to answer. */
+    itemsMock.mockResolvedValue(chips(2));
+    remsMock.mockResolvedValue([reminder(1), reminder(2), reminder(3)]);
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")?.textContent).toBe("5"));
+  });
+
+  it("shows the badge for a reminder even when nothing is expiring", async () => {
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1)]);
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")?.textContent).toBe("1"));
+  });
+
+  it("puts them above the chips — you asked for these, the rego did not", async () => {
+    itemsMock.mockResolvedValue(chips(1));
+    remsMock.mockResolvedValue([reminder(1)]);
+    await openPanel();
+
+    expect(remRows()).toHaveLength(1);
+    expect(rows()).toHaveLength(1);
+    expect(
+      remRows()[0].compareDocumentPosition(rows()[0]) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("says what it is and how late it is", async () => {
+    remsMock.mockResolvedValue([reminder(1)]);
+    itemsMock.mockResolvedValue([]);
+    await openPanel();
+    expect(remRows()[0].textContent).toContain("Check with Luke about quote 1");
+    // the row carries its own lateness rather than a bare timestamp
+    expect(remRows()[0].querySelector(".bp-main em")?.textContent).toMatch(/now|ago/);
+  });
+
+  it("is never capped or handed off to a board — there isn't one", async () => {
+    /* Chips stop at 20 and point at /dashboard/action-required. Reminders have
+       nowhere else to be, so every one you have is already here; a "see all"
+       under them would point at a screen that does not exist. */
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue(Array.from({ length: 26 }, (_, i) => reminder(i + 1)));
+    await openPanel();
+    expect(remRows()).toHaveLength(26);
+    expect(document.querySelector(".bp-more")).toBeNull();
+  });
+
+  it("finishes one where it appears, and drops it without waiting for the server", async () => {
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1), reminder(2)]);
+    await openPanel();
+
+    const done = remRows()[0].querySelector(".bp-remdo") as HTMLButtonElement;
+    /* Named, not "Done" alone — a column of identical buttons is one button to
+       anyone reading it out. */
+    expect(done.getAttribute("aria-label")).toBe("Mark done — Check with Luke about quote 1");
+
+    remsMock.mockResolvedValue([reminder(2)]);
+    await act(async () => {
+      done.click();
+    });
+    expect(doneMock).toHaveBeenCalledWith("t1");
+    expect(remRows()).toHaveLength(1);
+  });
+
+  it("offers the three ways to put one off, and none of them is a duration you type", async () => {
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1)]);
+    await openPanel();
+
+    // hidden until asked for: three buttons per row would bury the reminder
+    expect(document.querySelector(".bp-snooze")).toBeNull();
+
+    const later = remRows()[0].querySelector(".bp-remsnz") as HTMLButtonElement;
+    await act(async () => {
+      later.click();
+    });
+    expect(later.getAttribute("aria-expanded")).toBe("true");
+
+    const opts = Array.from(document.querySelectorAll(".bp-snzopt")).map((b) => b.textContent);
+    expect(opts).toEqual(["An hour", "Tomorrow", "Next week"]);
+  });
+
+  it("moves the nudge to the choice that was pressed", async () => {
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1)]);
+    await openPanel();
+
+    await act(async () => {
+      (remRows()[0].querySelector(".bp-remsnz") as HTMLButtonElement).click();
+    });
+    remsMock.mockResolvedValue([]);
+    await act(async () => {
+      (document.querySelectorAll(".bp-snzopt")[1] as HTMLButtonElement).click();
+    });
+
+    expect(snoozeMock).toHaveBeenCalledWith("t1", "tomorrow");
+    expect(remRows()).toHaveLength(0);
+  });
+
+  it("still says nothing needs you when neither list has anything", async () => {
+    /* The all-clear has to survive a second source arriving beside the first —
+       an empty-state that only knows about chips would show a panel with a
+       heading and no body the moment reminders existed. */
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([]);
+    await openPanel();
+    expect(document.querySelector(".bp-empty")).not.toBeNull();
+  });
+
+  it("does not claim an all-clear while a reminder is showing", async () => {
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1)]);
+    await openPanel();
+    expect(document.querySelector(".bp-empty")).toBeNull();
   });
 });

@@ -86,26 +86,38 @@ describe("the rooms table's cascade", () => {
 });
 
 describe("the mark keeps its shape", () => {
-  /* FOUND IN PRODUCTION. `.dsd-logo` was `width: auto` with a max on each
-     side, which READS as "fit inside this box" and was not what it did: the
-     mark is a flex item in a column container, so `align-items: stretch` gave
-     it a definite width, `max-height` then clamped the height, and Diamond
-     Air's 3.55:1 logo rendered at 4.78:1 — stretched 35% wide.
+  /* FOUND IN PRODUCTION, and the hazard outlived the class it was found on.
+
+     The mark used to be `.dsd-logo` in a chrome bar; it is `.dsd-idlogo` in
+     the masthead's identity block now. Same trap either way: the image is a
+     flex item in a COLUMN container, so a container that stretches its items
+     hands the image a definite width, a height cap then clamps it, and Diamond
+     Air's 3.55:1 logo renders at 4.78:1 — stretched 35% wide. Nobody uploads a
+     logo to have it squashed.
 
      jsdom has no layout, so no component test can see this. It is stated
      against the source instead. */
   it("opts out of the stretch and lets the ratio drive", () => {
-    const rule = css.match(/\.dsd-logo \{[^}]*\}/);
+    const rule = css.match(/\.dsd-idlogo \{[^}]*\}/);
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/align-self:\s*flex-start/);
-    expect(rule![0]).toMatch(/height:\s*auto/);
+    expect(rule![0]).toMatch(/width:\s*auto/);
     expect(rule![0]).toMatch(/object-fit:\s*contain/);
+    /* the stretch is opted out of ON THE CONTAINER here rather than per-item.
+       Either is fine; having NEITHER is the bug. */
+    const box = css.match(/\.dsd-ident \{[^}]*\}/);
+    expect(box).not.toBeNull();
+    expect(
+      /align-items:\s*flex-start/.test(box![0]) ||
+        /align-self:\s*flex-start/.test(rule![0])
+    ).toBe(true);
   });
 
   it("never pins BOTH dimensions of the image itself", () => {
-    /* every rule that sizes the mark may cap it, but none may set a definite
-       width AND height — that is the distortion, whatever the selector */
-    const sizing = [...css.matchAll(/([^{}]*\.dsd-logo[^{}]*)\{([^}]*)\}/g)]
+    /* every rule that sizes the mark may cap ONE side, but none may set a
+       definite width AND height — that is the distortion, whatever the
+       selector. The initials stand-in is excluded: it is a text span with no
+       ratio to keep, and a square is what it is meant to be. */
+    const sizing = [...css.matchAll(/([^{}]*\.dsd-idlogo[^{}]*)\{([^}]*)\}/g)]
       .filter(([, sel]) => !/org-initials/.test(sel));
     expect(sizing.length).toBeGreaterThan(0);
     for (const [, sel, body] of sizing) {

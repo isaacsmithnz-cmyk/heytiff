@@ -6,8 +6,7 @@ import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
-import { BrandLogo } from "@/components/org/letterhead";
-import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 import { documentTheme } from "@/lib/org/theme";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
@@ -49,10 +48,11 @@ function VariantCover({
   return (
     <section className="ds-print-cover">
       <SheetDoc
-        /* paper's top left. The screen chromes keep their mark in a bar; a
-           page has none, and a pack filed without the installer's mark on it
-           is what #440 existed to fix. */
-        mark={hasBrand(brand) ? <BrandLogo brand={brand} className="dsd-logo" /> : null}
+        /* no `mark` any more: the business's mark is IN the masthead, on every
+           copy of the document rather than in each chrome's own bar. A pack
+           filed without the installer's mark on it is what #440 existed to
+           fix, and it is fixed harder by the sheet carrying it than by three
+           chromes each remembering to pass one. */
         doc={v.doc}
         model={v.sheet}
         snapshot={v.snapshot}

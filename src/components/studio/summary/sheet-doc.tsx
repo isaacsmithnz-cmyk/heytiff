@@ -8,7 +8,8 @@ import type {
   SummaryRoomRow,
   SummarySystem,
 } from "@/lib/studio/summary";
-import { hasBrand, type OrgBrand } from "@/lib/org/brand";
+import { brandContact, hasBrand, type OrgBrand } from "@/lib/org/brand";
+import { BrandLogo } from "@/components/org/letterhead";
 import { fmt, pct, SHEET_GROUPS, tone } from "./sheet-tables";
 import "./sheet-doc.css";
 import { themeVars } from "@/lib/org/theme";
@@ -32,11 +33,27 @@ import { themeVars } from "@/lib/org/theme";
    render. Class prefix `dsd-`, grep-verified unique. */
 
 /* ── masthead ──────────────────────────────────────────────────────────────
-   The site address is the title, because that is what a customer calls this
-   job. Under it, who prepared it — a deliberate exception to the app's type
-   ramp, which tops out at 28px: this is the one place the business is shown
-   off, so the name runs to 34px and nothing below the masthead leaves the
-   ramp. */
+   TWO PARTIES, ONE TO A SIDE — the arrangement every quote and invoice a
+   builder handles already uses, and the one this sheet is read against.
+
+   LEFT is the job and the people it concerns: what it is, who prepared it,
+   when, and then who it is FOR — the client and the site, under the date,
+   because that is the order a reader assembles them in.
+
+   RIGHT is the business itself: the mark, and under it the details a document
+   gets checked against — ABN first, then how to make contact.
+
+   THE MARK MOVED INTO THE DOCUMENT, out of the chrome bar each surface used to
+   carry it in. That is what makes the arrangement possible: a bar is not part
+   of the sheet, so a logo in one cannot sit opposite anything on the page, and
+   it vanishes from the PDF entirely. In the masthead it is on every copy —
+   screen, live link and paper — in the same place, and the bars that used to
+   hold it no longer say the same thing twice.
+
+   The identity block is ranged LEFT inside a column set to the right, which is
+   the rule the addressee block already followed: right-ragged lines read as a
+   caption, and a wordmark logo whose width nobody controls needs a stable edge
+   to start from. */
 
 function Masthead({
   doc,
@@ -56,21 +73,18 @@ function Masthead({
   provenance?: React.ReactNode;
 }) {
   const address = doc.meta.site.split("\n").map((l) => l.trim()).filter(Boolean);
-  /* WHO PREPARED IT, AND WHEN. That is the whole block.
-
-     It carried the logo and a contact line — ABN, email, website — as well,
-     on the reasoning that a letterhead states how to reach the business. On
-     the page it read as a business card dropped into the middle of a
-     document: four different weights and three sizes under a heading, before
-     the reader had reached a single figure. The name is the identity and the
-     date is what makes the figures mean anything; the logo is the mark, and a
-     mark belongs in the corner, not in a paragraph. */
   const named = hasBrand(brand);
+  /* the fine print the document gets checked against — ABN first, because it
+     is the one somebody actually verifies, then how to reach the business */
+  const contact = brandContact(brand);
   return (
     <div className="dsd-mast">
-      <div>
+      <div className="dsd-mast-job">
         <p className="dsd-eyebrow">{eyebrow}</p>
         <h1>{doc.meta.name || address[0] || "Design"}</h1>
+        {/* WHO PREPARED IT, AND WHEN — the byline. The mark and the fine print
+            sit opposite in the identity block; this is the name at reading
+            size, which is what a byline is. */}
         <div className="dsd-prep">
           <span className="dsd-lab">Prepared by</span>
           {/* a workspace that has set neither a name nor a logo falls back to
@@ -81,13 +95,10 @@ function Masthead({
           </span>
           <span className="dsd-date">{preparedOn}</span>
         </div>
-      </div>
 
-      {/* the addressee: name, then the address one line at a time, ranged
-          LEFT inside a block set to the right — a letterhead keeps its own
-          left edge; right-ragged lines read as a caption. The job number
-          closes it, because it belongs with who and where rather than
-          floating above the title.
+      {/* WHO IT IS FOR, under the date: name, then the address one line at a
+          time, then the job number, which belongs with who and where rather
+          than floating above the title.
 
           ONE FRAME, two fillings. The owner types straight into it and the
           customer reads it; both use the classes below, so the two can never
@@ -129,6 +140,32 @@ function Masthead({
               no business unlinking anything. */}
           {provenance && <span className="dsd-src">{provenance}</span>}
         </address>
+      )}
+      </div>
+
+      {/* THE BUSINESS, opposite the job. Rendered from `brand` rather than
+          taken as a slot: it belongs to the document now, so every chrome gets
+          it without being asked and none of them can forget.
+
+          A workspace with neither a name nor a logo renders NOTHING here —
+          not an empty box, and not our wordmark, which already stands in as
+          the byline on the left. */}
+      {named && (
+        <div className="dsd-ident">
+          <BrandLogo brand={brand} className="dsd-idlogo" />
+          {contact.length > 0 && (
+            /* ONE PER LINE, not a middot-joined string. The joined form is
+               right for the handover sheet's letterhead, which is a wide
+               horizontal band; this is a narrow column, and there the same
+               string wraps every second part and leaves a separator dangling
+               at the end of each line. A list has no separators to strand. */
+            <ul className="dsd-idc">
+              {contact.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
@@ -465,7 +502,6 @@ export function SheetDoc({
   brand,
   eyebrow,
   preparedOn,
-  mark,
   fields,
   provenance,
   children,
@@ -479,14 +515,6 @@ export function SheetDoc({
       option B" — the caller knows whether this is one of several */
   eyebrow: string;
   preparedOn: string;
-  /* THE MARK GOES TOP LEFT, and each chrome puts it where its own top left
-     is: the two screen chromes carry it in their bar, and PAPER HAS NO BAR,
-     so the print document renders it at the head of the page instead.
-
-     This is why it is a slot rather than part of the masthead. Anything that
-     lives only in a bar vanishes from the PDF, and a document a builder
-     files without the installer's mark is the thing #440 existed to fix. */
-  mark?: React.ReactNode;
   /** the owner's editable letterhead — see LetterheadFields */
   fields?: LetterheadFields;
   /** the owner's "Added from ServiceM8 …" line, with its Unlink */
@@ -561,7 +589,6 @@ export function SheetDoc({
           <tr>
             <td className="dsd-fr-c">
               <div className="dsd-fr-w">
-      {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}
         brand={brand}

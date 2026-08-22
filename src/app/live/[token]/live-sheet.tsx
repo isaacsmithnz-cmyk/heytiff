@@ -9,6 +9,7 @@ import type {
   SummaryModel,
 } from "@/lib/studio/summary";
 import type { OrgBrand } from "@/lib/org/brand";
+import { documentTheme } from "@/lib/org/theme";
 import { BrandLogo, BrandMark } from "@/components/org/letterhead";
 import { SheetDoc } from "@/components/studio/summary/sheet-doc";
 import { LiveViewer } from "./live-viewer";
@@ -80,6 +81,14 @@ export function LiveSheet({
 
   return (
     <div className="dsd-page fg dstudio">
+      {/* A THEMED PRINT OWNS THE PAPER EDGE. The customer's Print is the
+          browser dialog, whose default margins would inset the frame into a
+          white ring — a border on the paper, not a ground. Same gate as the
+          frame itself: no derivable colour, no rule, and the plain sheet
+          keeps the browser's own margins. */}
+      {brand.color != null && documentTheme(brand.color) != null && (
+        <style>{`@media print { @page { margin: 0; } }`}</style>
+      )}
       <nav className="dsd-bar">
         {/* the mark, and only the mark. The business's NAME is in the
             document below at the size a letterhead earns; repeating it in the

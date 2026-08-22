@@ -5671,12 +5671,27 @@ html[data-ds-display] .dstudio.editing {
    specificity race to lose. `visibility` inherits, so hiding the siblings
    hides their contents with them. */
 @media print {
-  body:has(#ds-printdoc) > *:not(#ds-printdoc) { visibility: hidden !important; }
+  /* DISPLAY, NOT VISIBILITY, and the print document stays IN FLOW.
+
+     It was `visibility: hidden` on the siblings with the print document
+     positioned absolute over the space they still occupied — and an
+     absolutely positioned ancestor takes its whole subtree out of normal
+     flow, where the `page` property does not apply. `page: cover` below was
+     silently ignored: the named @page rule matched nothing, the themed frame
+     printed inside the default margin, and nothing on screen could tell.
+     Proved by probe — the same named page bleeds correctly the moment the
+     ancestor is in flow.
+
+     `visibility` was only ever needed when the reveal target sat INSIDE the
+     hidden tree. This one is a SIBLING — a portal straight under body — so
+     the siblings can leave the layout entirely and the print document can
+     simply be the flow. The body is forced to block for the same reason: it
+     is a flex column, and a flex item is not the plain block box named pages
+     are specified against. */
+  body:has(#ds-printdoc) { display: block !important; }
+  body:has(#ds-printdoc) > *:not(#ds-printdoc) { display: none !important; }
   #ds-printdoc {
     display: block;
-    position: absolute;
-    left: 0;
-    top: 0;
     width: 100%;
     background: #fff;
     print-color-adjust: exact;
@@ -5685,7 +5700,12 @@ html[data-ds-display] .dstudio.editing {
   .dstudio .ds-panel,
   .dstudio .ds-sidecol,
   .dstudio .ds-toolrail { display: none !important; }
-  #ds-printdoc .ds-print-cover { break-after: page; }
+  /* the cover is a NAMED page so the print chrome can strip ITS margin
+     without touching the plan pages' — the themed frame bleeds to the paper
+     edge, and @page rules cannot see a CSS variable, so the name is the only
+     handle. Unthemed nothing selects `cover` and it prints on the default
+     page box, margins intact. */
+  #ds-printdoc .ds-print-cover { break-after: page; page: cover; }
   #ds-printdoc .ds-print-page { break-after: page; }
   #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
   /* the document keeps its own page-break rules (sheet-doc.css); what is

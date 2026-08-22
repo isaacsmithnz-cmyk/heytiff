@@ -95,11 +95,45 @@
   background: var(--doc-well, transparent);
   border-radius: var(--doc-radius, 0px);
   pointer-events: none;
+  /* this layer PRINTS now (fixed, per page — see the print block), and it is
+     the white the ink is carved back out of: dropped as a background economy,
+     the whole page prints solid brand colour */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 /* the document's own content paints above all three. Scoped to the CONTENT:
    a `.dsd > *` rule would also match the three layers above at equal
    specificity and, coming later, would strip their position:absolute. */
 .dsd > *:not(.dsd-bband):not(.dsd-bwell) { position: relative; }
+
+/* ── the frame table ──
+   THE DOCUMENT RIDES IN ONE TABLE CELL so that paper can close the frame on
+   every page — see the long note in sheet-doc.tsx for what that is for and
+   what was tried first.
+
+   ON SCREEN IT IS NOT A TABLE. Every part of it is unset back to a block, the
+   head and the foot are hidden, and the two layers above draw the frame; a
+   scrolling document has no pages to close. This is the same technique the
+   rooms table already uses in the other direction — a block list on a narrow
+   screen, a real table on paper.
+
+   `table-layout` and `border-collapse` are deliberately not set here: they
+   mean nothing while the display is block, and print sets both. */
+.dsd-frame,
+.dsd-frame > thead,
+.dsd-frame > tfoot,
+.dsd-frame > tbody,
+.dsd-frame > * > tr,
+.dsd-frame > * > tr > td {
+  display: block;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.dsd-frame > thead,
+.dsd-frame > tfoot { display: none; }
 /* and the content clears the band at both ends */
 /* This padding exists only to clear the band, so it ships from the same object
    the band's depth does. Zero is the fallback rather than a value, because
@@ -681,6 +715,79 @@
    fields and the Add-to-job push — cannot be pressed on paper, so the fields
    print as the text they contain and the push does not print at all. */
 @media print {
+  /* ── THE FRAME PAINTS FIXED, ONCE PER PAGE ──
+     The same two layers that draw the frame on screen draw it on paper — as
+     `position: fixed`, which a print engine stamps onto EVERY page, full
+     height, clipped to the page box. That clipping is why this failed before
+     the frame owned the edge: inside a 12mm page margin a fixed box cannot
+     reach the paper. With `@page cover { margin: 0 }` the page box IS the
+     paper, and the outlet — band, well, four rounded corners — closes on
+     every page regardless of where the content stops. The tail of a last
+     page whose content ends early stays framed, which is the case the table
+     below cannot cover: a table ends where its rows end.
+
+     Unthemed both layers are transparent and paint nothing, fixed or not. */
+  .dsd-bband,
+  .dsd-bwell { position: fixed; }
+  /* the sheet's own padding was clearing a frame that is now drawn INSIDE it:
+     the cell's border is the gutter and the cell's padding is the clear */
+  .dsd { padding: 0; }
+  .dsd-frame {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    /* the frame IS the branding, so it is the last fill that should be
+       dropped to save ink */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .dsd-frame > thead { display: table-header-group; }
+  .dsd-frame > tfoot { display: table-footer-group; }
+  .dsd-frame > tbody { display: table-row-group; }
+  .dsd-frame > * > tr { display: table-row; }
+  .dsd-frame > * > tr > td { display: table-cell; }
+  /* THE TABLE IS A SPACER, NOT A PAINTER. The fixed layers above put the
+     ink and the paper on every page; what they cannot do is move the CONTENT
+     out of the frame's way, because vertical padding does not repeat across
+     page fragments. Repeating row groups do: `thead` and `tfoot` hold the
+     band's height open at the top and foot of every page, the cell's side
+     padding holds the sides open, and the well block holds the clear. No
+     backgrounds here — the one paint this table carried has moved up to the
+     layers, and a second copy would sit ON TOP of the fixed well and notch
+     its own corners against it.
+
+     EVERY ONE OF THESE CARRIES ITS ROW GROUP, and that is not decoration.
+     The screen reset above is `.dsd-frame > * > tr > td`, which is (0,1,2) —
+     it zeroes the padding these spacers are made of. A rule written as
+     `.dsd-fr-t` is (0,1,0) and LOSES to it no matter that it comes later in
+     the file: `@media print` adds no specificity. Shipped that way the frame
+     simply did not print, on a sheet where every screen check said it was
+     fine. Anchored to the row group each one is (0,2,3). */
+  .dsd-frame > thead > tr > td.dsd-fr-t,
+  .dsd-frame > tfoot > tr > td.dsd-fr-b {
+    height: var(--doc-gutter, 0px);
+  }
+  .dsd-frame > tbody > tr > td.dsd-fr-c {
+    padding: 0 var(--doc-gutter, 0px);
+    vertical-align: top;
+  }
+  /* THE CLEAR, held open on every page: `box-decoration-break: clone` clones
+     this padding onto each fragment, so content clears the band at the top
+     and foot of every page rather than only at the document's true ends —
+     under the default (slice), page-two content started flush against the
+     band. The paint and the rounding live on the fixed well above, which
+     already closes all four corners of every page.
+
+     Twice the clear, deliberately: on screen the frame sits inside the panel
+     card's own padding, on paper it IS the page margin, and text 10mm from
+     the paper edge reads as a compliment slip. ×2 rather than +6mm because a
+     calc() fallback is 6mm when the variable is absent, not 0 — the #470
+     padding bug one layer down. */
+  .dsd-frame > tbody > tr > td.dsd-fr-c > .dsd-fr-w {
+    padding: calc(var(--doc-clear, 0px) * 2);
+    box-decoration-break: clone;
+  }
+
   /* PAPER IS NOT A PHONE.
 
      A4 portrait gives the document about 703px, which the container query
@@ -749,14 +856,26 @@
     padding: 0 !important;
     margin-left: 0 !important;
   }
-  /* A SYSTEM MAY SPAN A PAGE; ITS HEADER MAY NOT LEAVE ITS TABLE.
+  /* A SYSTEM THAT FITS ON A PAGE STAYS ON ONE PAGE.
 
-     `break-inside: avoid` on the whole system block meant a system that did
-     not fit in what was left of a page moved to the next one entire — half of
-     page one was blank on a two-system job. Rows and the band still hold
-     together, which is the part a reader actually needs. */
-  .dsd-sys { break-inside: auto; }
+     This was `break-inside: auto` — the whole block moving to the next page
+     left half of page one blank on a two-system job, and that was judged the
+     worse reading when a blank half-page was naked white paper. Inside the
+     frame it is not: the well runs on and the gap reads as the end of a
+     chapter, while the split it bought — System 2's shelf headings stranded
+     at the foot of one page with their rows at the head of the next — reads
+     as an accident, because it is one. Isaac called it from his phone.
+
+     `avoid` is a request, not a guarantee, and that is exactly the right
+     strength: a system taller than a page cannot be granted it, so the
+     engine slices anyway — at the row and shelf boundaries below, never
+     mid-figure. The two failure modes are a page of air (bounded, looks
+     deliberate) against a decapitated table (unbounded, looks broken). */
+  .dsd-sys { break-inside: avoid; }
   .dsd-band { break-inside: avoid; break-after: avoid; }
+  /* a shelf never leaves its heading behind — the orphan the old setting
+     actually produced */
+  .dsd-grp { break-inside: avoid; }
   .dsd-pick,
   .dsd-mast { break-inside: avoid; }
   .dsd-rt tr { break-inside: avoid; }

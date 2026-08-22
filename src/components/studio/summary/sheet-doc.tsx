@@ -498,9 +498,9 @@ export function SheetDoc({
 }) {
   return (
     <article className="dsd" style={themeVars(brand.color)}>
-      {/* THE BUSINESS'S BAND, at the head and foot of the sheet.
+      {/* THE BUSINESS'S FRAME, around the whole sheet.
 
-          One filled rectangle behind the whole sheet with a white well inset on
+          One filled rectangle behind the document with a white well inset on
           all four sides, which is `.fg .outlet` exactly: the colour survives as
           a frame around the page.
 
@@ -511,9 +511,56 @@ export function SheetDoc({
 
           Rendered unconditionally: with no brand colour `--doc-ink` is unset,
           the fallback is `transparent`, and the sheet is byte-for-byte the one
-          it is today. */}
+          it is today.
+
+          ON PAPER THESE SAME TWO LAYERS GO `position: fixed`, which a print
+          engine stamps onto every page — full height, page after page,
+          including the tail of a last page whose content stops early. The
+          table below holds the space; these paint it. */}
       <div className="dsd-bband" aria-hidden="true" />
       <div className="dsd-bwell" aria-hidden="true" />
+
+      {/* THE TABLE HOLDS THE FRAME'S SPACE OPEN ON EVERY PRINTED PAGE.
+
+          The layers above paint the frame per page, but they are paint only —
+          fixed boxes do not displace content, and vertical padding does not
+          repeat across page fragments, so something has to keep the CONTENT
+          out of the frame's way at the top and foot of every page. The only
+          boxes a print engine repeats per page are a table's header and
+          footer row groups: `thead` and `tfoot` hold the band's height open,
+          the cell's side padding holds the sides, and the well block inside
+          (`dsd-fr-w`) holds the clear, cloned onto every fragment.
+
+          THE FRAME OWNS THE PAGE EDGE. Inside the default page margin the
+          same shape read as a border drawn on the paper — a certificate, not
+          a frame. A frame is a GROUND the page is carved out of, and a ground
+          does not float: the themed page prints with no margin at all
+          (`@page cover`, injected by the print chrome), which is also what
+          lets the fixed layers reach the paper — a fixed box is clipped to
+          the page box, and with no margin the page box IS the paper. That
+          clipping is why fixed alone failed while the margin existed, and a
+          table alone could not frame the tail of a last page whose content
+          stops early: a table ends where its rows end. The two halves are a
+          mechanism each; neither works alone.
+
+          It is a table only on paper. On screen every part of it is
+          `display: block`, the head and foot are hidden, and the layers above
+          draw the frame — a scrolling document has no pages to close. */}
+      <table className="dsd-frame" role="presentation">
+        <thead>
+          <tr>
+            <td className="dsd-fr-t" />
+          </tr>
+        </thead>
+        <tfoot>
+          <tr>
+            <td className="dsd-fr-b" />
+          </tr>
+        </tfoot>
+        <tbody>
+          <tr>
+            <td className="dsd-fr-c">
+              <div className="dsd-fr-w">
       {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}
@@ -577,6 +624,11 @@ export function SheetDoc({
       <footer className="dsd-close">
         Prepared with <b>HeyTiff Design Studio</b>
       </footer>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </article>
   );
 }

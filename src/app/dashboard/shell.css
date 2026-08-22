@@ -1234,7 +1234,22 @@
 
 /* ── the panel ── */
 .fg .ppanel2 { min-width:0; padding:22px 24px 26px; }
-.fg .psec2 { animation:fgUp .4s cubic-bezier(.22,1,.36,1) backwards; }
+/* `.psec2` NO LONGER FADES, and the class had to stay for the rest of its job.
+
+   It carried `animation:fgUp .4s backwards` — the panel started at opacity 0
+   and rose 12px into place on every tab switch. Six other screens borrowed
+   this recipe and it read as a flash of the content under the tabs on all of
+   them (#488, #489); Organisation and the staff card, the two it was written
+   for, are the last holdouts and Isaac asked for them to match too.
+
+   THE FIX IS HERE RATHER THAN IN THE MARKUP because the class is also a
+   styling hook — `:focus`, `.pdl`, `.pdnone`, `.liccards` all hang off it
+   below, so stripping it from the two <section>s would take their layout
+   with it. Their `key`s stay as well: those encode `startEditing` (how a
+   staff-card section jumps into edit mode) and `fallbackSwap` (a recovery
+   remount), which are real jobs, not this animation. A keyed remount with no
+   animation swaps in one commit and never paints the intermediate state, so
+   nothing flashes. Team's directory is the reference for all of it. */
 .fg .psec2:focus { outline:none; }
 
 /* ── who this is — Summary's first block ──

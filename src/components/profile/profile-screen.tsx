@@ -223,9 +223,12 @@ export function ProfileScreen({
 
           <div className="wb2-card">
             <div className="ppanel2">
-              {/* keyed on the section so the panel's entrance animation replays
-                  — and on the edit nonce, so "fill this in" remounts the
-                  section into edit mode */}
+              {/* Keyed on the edit nonce, so "fill this in" remounts the
+                  section into edit mode, and on `fallbackSwap` for the
+                  recovery remount. NOT for an animation any more: `.psec2`
+                  used to fade the panel in on every switch and no longer
+                  does — this card matches Team's, which just changes its
+                  children. The remount is invisible without it. */}
               <section
                 key={`${active}#${startEditing}#${fallbackSwap}`}
                 id={`psec-${active}`}

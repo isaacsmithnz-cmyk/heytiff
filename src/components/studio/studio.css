@@ -1732,9 +1732,10 @@ html[data-ds-display] .dstudio.editing {
   .dstudio .ds-tb-sep {
     margin: 0 2px;
   }
+  /* the group labels yield too — at these widths the Next chip carries the
+     workflow story, and the separators still group the verbs */
   .dstudio .ds-tb-gl {
-    margin: 0 4px 0 2px;
-    font-size: 9.5px;
+    display: none;
   }
 }
 /* group dividers + the uppercase group labels that make the bar read as the
@@ -1755,6 +1756,64 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-tb-spring {
   flex: 1;
+}
+/* ── the Next chip: the bar's one resident that isn't a tool. It names the
+   system's first unmet requirement and clicking ARMS that move — so it wears
+   the accent while something is owed, and goes quiet (no pulse, no wash)
+   the moment the system completes. Motion that ends when the choice is
+   made, per the canvas-UX rule. ── */
+.dstudio .ds-nextchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  margin-right: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 169, 143, 0.38);
+  background: rgba(0, 190, 160, 0.12);
+  color: var(--ds-teal-ink, #007a67);
+  font: 700 12.5px var(--font);
+  white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s;
+}
+.dstudio .ds-nextchip:hover {
+  background: rgba(0, 190, 160, 0.2);
+  border-color: rgba(0, 169, 143, 0.6);
+}
+.dstudio .ds-nextchip:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.dstudio .ds-nextdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #00b896;
+  flex: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dstudio .ds-nextchip:not(.done) .ds-nextdot {
+    animation: dsNextPulse 1.6s ease-in-out infinite;
+  }
+}
+@keyframes dsNextPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 184, 150, 0.5);
+  }
+  55% {
+    box-shadow: 0 0 0 7px rgba(0, 184, 150, 0);
+  }
+}
+/* complete: a made choice — calm, neutral, still a door to the Summary */
+.dstudio .ds-nextchip.done {
+  border-color: var(--ds-border);
+  background: #fff;
+  color: var(--gray700);
+}
+.dstudio .ds-nextchip.done .ds-nextdot {
+  background: var(--ds-ok, #00a389);
 }
 
 .dstudio .ds-canvas-col {

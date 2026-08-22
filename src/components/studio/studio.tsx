@@ -49,6 +49,10 @@ import {
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable } from "@/lib/studio/modules";
 import { roomsServedBy } from "@/lib/studio/coverage";
+import { nextMove, type NextMove } from "@/lib/studio/next-move";
+import { roomLoadKw } from "@/lib/studio/loads-room";
+import type { PairProposal } from "@/lib/studio/split";
+import { UnitBrowser } from "./unit-browser";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
 import {
@@ -1126,6 +1130,11 @@ function Editor({
   const [packVersion, setPackVersion] = useState<string>("2026.1");
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
   const [placing, setPlacing] = useState<PlacingUnit | null>(null);
+  /* the Next chip's unit browser — a room id while it's up. The chip owns its
+     own browser instance rather than reaching into the cockpit's: choosing a
+     pair is a settings write either way, and this keeps the chip's plumbing
+     out of four component signatures. */
+  const [pairBrowse, setPairBrowse] = useState<string | null>(null);
   /* room being configured in the heat-load modal (Slice 2) */
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   /* room whose external walls the canvas should re-mark (from the modal) */
@@ -1242,6 +1251,77 @@ function Editor({
   /* enter/exit simulation — entering disarms every tool (incl. the armed air
      component) and clears the selection; the canvas locks to pan/zoom while
      simming */
+  /* ── the Next chip: the split module's first unmet requirement, named.
+     Clicking ARMS the move — the chip is a control, not a caption. ── */
+  const next = useMemo(
+    () => nextMove(doc, pack, effectiveSystemId),
+    [doc, pack, effectiveSystemId]
+  );
+
+  /* the chip's pair choice — the same write UnitsSub's picker commits: the
+     pair models + the room it serves; a CHANGED pair takes the system's
+     placed units and plumbing with it */
+  const choosePairFromChip = useCallback(
+    (pair: PairProposal, roomId: string) => {
+      mutate((d) => {
+        const sys = d.systems.find((s) => s.id === effectiveSystemId);
+        const changed =
+          !sys ||
+          pair.idu.model !== String(sys.settings.pairIdu ?? "") ||
+          pair.odu.model !== String(sys.settings.pairOdu ?? "");
+        return {
+          ...d,
+          systems: d.systems.map((s) =>
+            s.id === effectiveSystemId
+              ? {
+                  ...s,
+                  settings: {
+                    ...s.settings,
+                    pairIdu: pair.idu.model,
+                    pairOdu: pair.odu.model,
+                    roomId,
+                  },
+                }
+              : s
+          ),
+          objects: changed
+            ? d.objects.filter(
+                (o) =>
+                  !(
+                    o.systemId === effectiveSystemId &&
+                    (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+                  )
+              )
+            : d.objects,
+        };
+      });
+      setPairBrowse(null);
+    },
+    [mutate, effectiveSystemId]
+  );
+
+  const onNext = useCallback(() => {
+    if (!next) return;
+    switch (next.key) {
+      case "draw-room":
+        changeTool("room-rect");
+        break;
+      case "choose-pair":
+        setPairBrowse(next.roomId);
+        break;
+      case "place-idu":
+      case "place-odu":
+        armPlace(next.placing);
+        break;
+      case "connect":
+        changeTool("pipe");
+        break;
+      case "complete":
+        onStep(2);
+        break;
+    }
+  }, [next, changeTool, armPlace, onStep]);
+
   const toggleSim = useCallback(() => {
     if (simOn) {
       setSimRt(null);
@@ -1556,6 +1636,8 @@ function Editor({
             onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={changeTool}
+            next={next}
+            onNext={onNext}
             airGate={airGate}
             paletteOpen={paletteOpen}
             onPalette={setPaletteOpen}
@@ -1665,6 +1747,24 @@ function Editor({
           onClose={() => setRefOpen(false)}
         />
       )}
+
+      {/* the Next chip's unit browser — ranked against the pair room's load,
+          committing the same settings write as the cockpit's picker */}
+      {pairBrowse &&
+        pack &&
+        (() => {
+          const room = roomsServedBy(doc, effectiveSystemId).find((r) => r.id === pairBrowse);
+          if (!room) return null;
+          return (
+            <UnitBrowser
+              pack={pack}
+              loadKw={roomLoadKw(doc, room)}
+              basis={doc.settings.sizingBasis}
+              onChoose={(pair) => choosePairFromChip(pair, room.id)}
+              onClose={() => setPairBrowse(null)}
+            />
+          );
+        })()}
 
       {editingRoomId && doc.objects.some((o) => o.id === editingRoomId) && (
         <RoomModal
@@ -2276,6 +2376,8 @@ function DesignPanel({
   onGoPlans,
   tool,
   onTool,
+  next,
+  onNext,
   airGate,
   paletteOpen,
   onPalette,
@@ -2312,6 +2414,9 @@ function DesignPanel({
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
+  /** the system's first unmet requirement — the chip names it, clicking arms it */
+  next: NextMove | null;
+  onNext: () => void;
   /** spec-§2 air-tool gate (rooms + air-capable AHU) + the AHU's pack row */
   airGate: { ok: boolean; reason: string; row: IndoorUnit | null };
   paletteOpen: boolean;
@@ -2473,6 +2578,20 @@ function DesignPanel({
             <span className="ds-tb-sep" aria-hidden="true" />
             {toolButton(tb("erase"))}
             <div className="ds-tb-spring" />
+            {next && (
+              <button
+                className={`ds-nextchip${next.key === "complete" ? " done" : ""}`}
+                onClick={onNext}
+                title={
+                  next.key === "complete"
+                    ? "Every requirement is met — open the Summary"
+                    : "Arm the next move"
+                }
+              >
+                <span className="ds-nextdot" aria-hidden="true" />
+                {next.key === "complete" ? next.label : `Next: ${next.label}`}
+              </button>
+            )}
             <button
               className="ds-tool"
               onClick={undo}

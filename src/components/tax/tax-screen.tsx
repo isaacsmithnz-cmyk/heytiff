@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
+import { BoardTabs } from "@/components/shell/board-tabs";
 import { formatAbn } from "@/lib/fleet/receipt";
 import { fyIsCurrent, fyLabel } from "@/lib/tax/fy";
 import { TAX_CATEGORY_LABEL, type TaxItem, type TaxYear } from "@/lib/tax/item";
@@ -81,21 +82,27 @@ export function TaxScreen({
             otherwise turns up at tax time in a glovebox.
           </p>
 
-          {/* The year picker. Links, not tabs — the year is in the URL, so one
-              of these can be sent to an accountant as-is. */}
-          <div className="tx-years">
-            {choices.map((y) => (
-              <Link
-                key={y}
-                href={`/dashboard/admin/tax?fy=${y}`}
-                className={`tx-year${y === fy ? " on" : ""}`}
-                aria-current={y === fy ? "page" : undefined}
-              >
-                {fyLabel(y)}
-                {fyIsCurrent(y, today) && <em>so far</em>}
-              </Link>
-            ))}
-          </div>
+          {/* The year picker — the board's tab row, still links underneath:
+              the year is in the URL, so one of these can be sent to an
+              accountant as-is. It was `.tx-years`, a third pill family doing
+              what the card strip already does everywhere else. */}
+          <div className="wb2">
+            <BoardTabs
+              label="Financial year"
+              active={String(fy)}
+              tabs={choices.map((y) => ({
+                key: String(y),
+                href: `/dashboard/admin/tax?fy=${y}`,
+                label: (
+                  <>
+                    {fyLabel(y)}
+                    {fyIsCurrent(y, today) && <em className="tx-sofar"> so far</em>}
+                  </>
+                ),
+              }))}
+            />
+            <div className="wb2-card">
+              <div className="ppanel2">
 
           <div className="tx-sumrow">
             <Stat label="Total spend" value={money.format(totals.amount)} sub={`${totals.count} ${totals.count === 1 ? "item" : "items"}`} />
@@ -173,6 +180,9 @@ export function TaxScreen({
               ))}
             </div>
           )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

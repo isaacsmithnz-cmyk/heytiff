@@ -2694,7 +2694,7 @@
    on EVERY tile, and dimming it multiplied every one of the nine inks against
    its own fill — 2.10 on an empty day, 2.89 on a sick one, and 4.17 / 4.45 /
    4.47 on the three that were otherwise comfortably clear. `opacity` is never
-   de-emphasis for text; see the note on `.dirtab` and the arithmetic pinned in
+   de-emphasis for text; the arithmetic is pinned in
    text-contrast.test.ts. The label is already three sizes down from the date
    and tracked wide — that is the hierarchy, and it costs nothing. */
 .fg .tpr .tile .wd { font-family:var(--font); font-size:9px; font-weight:800; letter-spacing:.06em; }
@@ -3095,38 +3095,16 @@
   .fg .invrow .invrole {grid-column:2; grid-row:1; justify-self:end;}
   .fg .invrow .invexp {grid-column:1/-1; grid-row:2;}
 }
-/* directory — sliding tab switcher */
-.fg .dirtabs {position:relative; display:grid; grid-template-columns:repeat(3,1fr); background:#f1f2f4; border:1px solid #e9eaee; border-radius:18px; padding:6px; margin-bottom:18px;}
-.fg .dirtabs.t4 {grid-template-columns:repeat(4,1fr);}
-.fg .dirtab-slide {position:absolute; top:6px; bottom:6px; left:6px; width:calc((100% - 12px)/3); background:#fff; border-radius:13px; box-shadow:0 4px 14px rgba(0,0,0,.09); transition:left .34s cubic-bezier(.34,1.2,.4,1), background .3s; z-index:0;}
-.fg .dirtabs.t4 .dirtab-slide {width:calc((100% - 12px)/4);}
-.fg .dirtabs[data-view="archived"] .dirtab-slide {background:linear-gradient(180deg,#f7f8fa,#fff);}
-.fg .dirtabs[data-view="warn"] .dirtab-slide {background:linear-gradient(180deg,#fffdf8,#fff);}
-.fg .dirtabs[data-view="pending"] .dirtab-slide {background:linear-gradient(180deg,#f8fbff,#fff);}
-/* THE UNSELECTED TABS ARE NOT FADED, THEY ARE QUIETER.
-
-   This was `opacity:.5`, and the whole tab went with it: the sub-line measured
-   1.46, the label 2.54. Against `.dirtabs`' own #f1f2f4 ground even pure black
-   at .5 only reaches 3.75, so this could never have been fixed by choosing a
-   darker grey — the multiply is the bug. The selected tab is already marked by
-   the white pill sliding under it and by aria-selected; what the other two owe
-   is legibility, not a second signal. Colour carries the difference now, and
-   only the big figure — 28px, so 3:1 is its bar — is allowed to go light. */
-.fg .dirtab {position:relative; z-index:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; padding:15px 18px; border-radius:13px; cursor:pointer; transition:color .2s;}
-.fg .dirtab .dtval {color:#59606e;}
-.fg .dirtab.on .dtval {color:var(--ink);}
-.fg .dirtab:hover .dtval {color:var(--ink);}
-.fg .dtval {font-size:28px; font-weight:800; letter-spacing:-.02em; line-height:1.05;}
-.fg .dtlab {font-size:13.5px; font-weight:700; color:var(--gray700); margin-top:4px;}
-.fg .dtsub {font-size:12px; font-weight:600; color:var(--q);}
-/* `[data-dquick]` was here, tinting the warn tab's figure amber and the pending
-   tab's blue. NOTHING HAS EVER SET THAT ATTRIBUTE — not Team, not the Fleet
-   register that wears these same classes — so both rules matched nothing and
-   those figures have always been plain ink. Deleted rather than wired up: the
-   count already sits under a label that says what it counts, and the tab beside
-   it is not a severity. */
-/* directory — toolbar */
-.fg .dirtools {display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+/* `.dirtabs` — the fat grey track with the sliding white pill — is GONE from
+   here: Team and the Fleet register switch with `shell/view-tabs` on the
+   card's own strip now, the control every other card already wears. These
+   rules died with the markup rather than staying as a fifth way to draw a
+   switcher nothing renders. */
+/* directory — toolbar. INSIDE the card now: the joined tab strip leaves no
+   room for a toolbar floating between it and the card, so search and sort
+   became the card's first row. */
+.fg .dirtools {display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+.fg .dir > .dirtools {padding:16px 20px 14px; border-bottom:1px solid #f0f0f2;}
 .fg .dsearch {display:flex; align-items:center; gap:9px; flex:1; min-width:220px; height:44px; padding:0 16px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
 .fg .dsearch:focus-within {border-color:#2E68FF; box-shadow:0 0 0 3px rgba(46,104,255,.12);}
 .fg .dsearch input {flex:1; border:none; outline:none; background:none; font-size:14px; font-weight:600; color:var(--ink);}
@@ -3201,7 +3179,7 @@
 .fg .direm.on { display:block; }
 
 /* ============================ FLEET (Assets) ============================ */
-/* register list — reuses .dir/.dirtabs/.dirtools bones with fleet columns */
+/* register list — reuses the .dir/.dirtools bones with fleet columns */
 .fg .dirtools .fl-add { height:44px; flex:0 0 auto; }
 .fg .fl-emptyadd { display:flex; justify-content:center; margin-top:18px; }
 .fg .flhead, .fg .flrow { grid-template-columns:2.1fr .9fr 1.5fr 1.7fr .9fr 40px; }
@@ -7658,11 +7636,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    Semantic colour only, never the page accent: ok #00A389, warn amber. The one
    thing this screen must be able to shout is a MISSING receipt, and it does it
    in the same amber every other caution in the app uses. */
-.fg .tx-years { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 22px; }
-.fg .tx-year { display:inline-flex; align-items:baseline; gap:6px; padding:8px 14px; border-radius:999px; background:#f4f5f7; border:1px solid transparent; font-size:13px; font-weight:700; color:var(--gray500); text-decoration:none; transition:background .15s, color .15s; }
-.fg .tx-year:hover { background:#ebedf0; color:var(--ink); }
-.fg .tx-year.on { background:var(--ink); color:#fff; }
-.fg .tx-year em { font-style:normal; font-size:10.5px; font-weight:700; opacity:.6; }
+/* `.tx-years` — the year picker's own pill family — is gone: the years ride
+   the board's tab strip (`shell/board-tabs`) above the one card. Only the
+   quiet "so far" tag on the running year survives, restyled for a tab. */
+.fg .wb2-vt .tx-sofar { font-style:normal; font-size:10.5px; font-weight:700; color:var(--q); }
 
 .fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
 .fg .tx-stat { display:flex; flex-direction:column; gap:3px; padding:16px 18px; border-radius:20px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }

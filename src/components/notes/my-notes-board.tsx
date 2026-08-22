@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
+import { ViewTabs } from "@/components/shell/view-tabs";
 import { NoteToken } from "./note-token";
 import { addMyNote, archiveMyNote, deleteMyNote, editMyNote } from "@/app/actions/my-notes";
 import type { MyNote } from "@/lib/notes/my-notes-query";
@@ -31,7 +32,7 @@ export function MyNotesBoard({
   const [editing, setEditing] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [showArchive, setShowArchive] = useState(false);
+  const [tab, setTab] = useState<"notes" | "archived">("notes");
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     start(async () => {
@@ -54,160 +55,202 @@ export function MyNotesBoard({
     run(() => editMyNote(id, next));
   };
 
+  /* A plain JSX value, NOT an inner component: an inner component is a new
+     type every render, so typing into the token would remount the face and
+     drop focus on each keystroke. */
+  const notesFace = (
+    <>
+      <NoteToken
+        as="strip"
+        label="a note"
+        value={draft}
+        onChange={setDraft}
+        onCommit={commit}
+        disabled={busy}
+        placeholder="Ring the wholesaler back about the coil pricing…"
+      />
+
+      {notes.length === 0 ? (
+        <div className="ro-empty" style={{ marginTop: 18 }}>
+          <span className="ei">
+            <Icon name="note" size={20} />
+          </span>
+          <b>Nothing here yet</b>
+          <em>
+            Notes you take that don&apos;t belong to a job — or that nobody else needed to
+            action — end up on this page.
+          </em>
+        </div>
+      ) : (
+        <ul className="wb2-blist read" style={{ marginTop: 16 }}>
+          {notes.map((n) => (
+            <li key={n.id} style={{ alignItems: "flex-start" }}>
+              <span className="wb2-bdot" aria-hidden="true" />
+              {editing === n.id ? (
+                <span style={{ flex: 1, display: "grid", gap: 8 }}>
+                  <textarea
+                    className="wb2-notes"
+                    rows={3}
+                    value={text}
+                    autoFocus
+                    aria-label="Edit note"
+                    onChange={(e) => setText(e.target.value)}
+                  />
+                  <span style={{ display: "flex", gap: 7 }}>
+                    <button className="pbtn sm" disabled={busy} onClick={() => saveEdit(n.id)}>
+                      Save
+                    </button>
+                    <button
+                      className="pbtn ghost sm"
+                      disabled={busy}
+                      onClick={() => setEditing(null)}
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                </span>
+              ) : (
+                <>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block" }}>{n.body}</span>
+                    <em className="wb2-capsaid" style={{ display: "block", marginTop: 3 }}>
+                      {fmtAuWeekdayDayMonth(n.createdAt.slice(0, 10))}
+                      {n.source === "routed" && " · came off a note you sorted"}
+                      {n.source === "voice" && " · dictated"}
+                    </em>
+                  </span>
+                  <button
+                    className="wb2-ico"
+                    title="Edit"
+                    aria-label={`Edit note: ${n.body.slice(0, 40)}`}
+                    disabled={busy}
+                    onClick={() => {
+                      setEditing(n.id);
+                      setText(n.body);
+                    }}
+                  >
+                    <Icon name="edit" size={13} />
+                  </button>
+                  {/* Archive, not delete. Deleting is offered from the
+                      archive only, so nothing is destroyed in one click
+                      from the list you read every day — the rule the
+                      noticeboard follows now too.
+
+                      ARCHIVE / ARCHIVED / PUT BACK, matching that board
+                      (Isaac, 2026-08-12). This screen said "Put it away
+                      / Put away / Bring it back" while the noticeboard
+                      said "Archive / Archived / Put back" — six words
+                      for two states across two screens doing the same
+                      thing. Archive won: it is what people expect, and
+                      it is shorter on a row of buttons. */}
+                  <button
+                    className="wb2-ico"
+                    title="Archive"
+                    aria-label={`Archive note: ${n.body.slice(0, 40)}`}
+                    disabled={busy}
+                    onClick={() => run(() => archiveMyNote(n.id))}
+                  >
+                    <Icon name="check" size={13} />
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+
+  const archivedFace =
+    archived.length === 0 ? (
+      <div className="ro-empty">
+        <span className="ei">
+          <Icon name="note" size={20} />
+        </span>
+        <b>Nothing archived</b>
+        <em>Archive a note from the list and it lands here.</em>
+      </div>
+    ) : (
+      <ul className="wb2-blist read">
+        {archived.map((n) => (
+          <li key={n.id} style={{ alignItems: "flex-start", opacity: 0.72 }}>
+            <span className="wb2-bdot" aria-hidden="true" />
+            <span style={{ flex: 1, minWidth: 0 }}>{n.body}</span>
+            <button
+              className="wb2-ico"
+              title="Put back"
+              aria-label={`Put back note: ${n.body.slice(0, 40)}`}
+              disabled={busy}
+              onClick={() => run(() => archiveMyNote(n.id, false))}
+            >
+              <Icon name="rotate" size={13} />
+            </button>
+            <button
+              className="wb2-ico"
+              title="Delete for good"
+              aria-label={`Delete note: ${n.body.slice(0, 40)}`}
+              disabled={busy}
+              onClick={() => run(() => deleteMyNote(n.id))}
+            >
+              <Icon name="eraser" size={13} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+
   return (
     <div className="page in">
       <div className="wrap">
         <div className="stg">
-          <header className="wb2-head">
-            <h1>Notes</h1>
-            <p className="int-lede" style={{ margin: "6px 0 0" }}>
-              Anything that didn&apos;t belong to a job. Only you can see these.
-            </p>
-          </header>
+          {/* The same header every flat page wears — the lede used to sit in
+              `wb2-head`'s CENTRE column (that grid is h1 | switcher | tools),
+              so the sentence floated mid-page, tied to nothing. */}
+          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1>Notes</h1>
+              <p className="int-lede" style={{ margin: "8px 0 0" }}>
+                Anything that didn&apos;t belong to a job. Only you can see these.
+              </p>
+            </div>
+          </div>
 
           {error && <div className="int-note bad">{error}</div>}
 
-          <div className="card2" style={{ padding: "16px 18px 18px" }}>
-            <NoteToken
-              as="strip"
-              label="a note"
-              value={draft}
-              onChange={setDraft}
-              onCommit={commit}
-              disabled={busy}
-              placeholder="Ring the wholesaler back about the coil pricing…"
+          {/* The board's card and the board's tabs — Archived was a disclosure
+              row inside a second card, the only fold of its kind in the app. */}
+          <div className="wb2">
+            <ViewTabs
+              ariaLabel="Your notes"
+              idPrefix="mynt"
+              panelPrefix="mynp"
+              active={tab}
+              onGo={(k) => setTab(k as "notes" | "archived")}
+              items={[
+                { key: "notes", label: "Notes" },
+                {
+                  key: "archived",
+                  label: "Archived",
+                  count: archived.length,
+                  countLabel: (n) => `${n} put away`,
+                },
+              ]}
             />
-
-            {notes.length === 0 ? (
-              <div className="ro-empty" style={{ marginTop: 18 }}>
-                <span className="ei">
-                  <Icon name="note" size={20} />
-                </span>
-                <b>Nothing here yet</b>
-                <em>
-                  Notes you take that don&apos;t belong to a job — or that nobody else needed to
-                  action — end up on this page.
-                </em>
+            <div className="wb2-card">
+              <div className="ppanel2">
+                <section
+                  key={tab}
+                  id={`mynp-${tab}`}
+                  role="tabpanel"
+                  aria-labelledby={`mynt-${tab}`}
+                  tabIndex={-1}
+                  className="psec2"
+                >
+                  {tab === "notes" ? notesFace : archivedFace}
+                </section>
               </div>
-            ) : (
-              <ul className="wb2-blist read" style={{ marginTop: 16 }}>
-                {notes.map((n) => (
-                  <li key={n.id} style={{ alignItems: "flex-start" }}>
-                    <span className="wb2-bdot" aria-hidden="true" />
-                    {editing === n.id ? (
-                      <span style={{ flex: 1, display: "grid", gap: 8 }}>
-                        <textarea
-                          className="wb2-notes"
-                          rows={3}
-                          value={text}
-                          autoFocus
-                          aria-label="Edit note"
-                          onChange={(e) => setText(e.target.value)}
-                        />
-                        <span style={{ display: "flex", gap: 7 }}>
-                          <button className="pbtn sm" disabled={busy} onClick={() => saveEdit(n.id)}>
-                            Save
-                          </button>
-                          <button
-                            className="pbtn ghost sm"
-                            disabled={busy}
-                            onClick={() => setEditing(null)}
-                          >
-                            Cancel
-                          </button>
-                        </span>
-                      </span>
-                    ) : (
-                      <>
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: "block" }}>{n.body}</span>
-                          <em className="wb2-capsaid" style={{ display: "block", marginTop: 3 }}>
-                            {fmtAuWeekdayDayMonth(n.createdAt.slice(0, 10))}
-                            {n.source === "routed" && " · came off a note you sorted"}
-                            {n.source === "voice" && " · dictated"}
-                          </em>
-                        </span>
-                        <button
-                          className="wb2-ico"
-                          title="Edit"
-                          aria-label={`Edit note: ${n.body.slice(0, 40)}`}
-                          disabled={busy}
-                          onClick={() => {
-                            setEditing(n.id);
-                            setText(n.body);
-                          }}
-                        >
-                          <Icon name="edit" size={13} />
-                        </button>
-                        {/* Archive, not delete. Deleting is offered from the
-                            archive only, so nothing is destroyed in one click
-                            from the list you read every day — the rule the
-                            noticeboard follows now too.
-
-                            ARCHIVE / ARCHIVED / PUT BACK, matching that board
-                            (Isaac, 2026-08-12). This screen said "Put it away
-                            / Put away / Bring it back" while the noticeboard
-                            said "Archive / Archived / Put back" — six words
-                            for two states across two screens doing the same
-                            thing. Archive won: it is what people expect, and
-                            it is shorter on a row of buttons. */}
-                        <button
-                          className="wb2-ico"
-                          title="Archive"
-                          aria-label={`Archive note: ${n.body.slice(0, 40)}`}
-                          disabled={busy}
-                          onClick={() => run(() => archiveMyNote(n.id))}
-                        >
-                          <Icon name="check" size={13} />
-                        </button>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {archived.length > 0 && (
-            <div className="card2" style={{ padding: "14px 18px 16px", marginTop: 14 }}>
-              <button
-                className="nb-archtoggle"
-                aria-expanded={showArchive}
-                onClick={() => setShowArchive((v) => !v)}
-              >
-                <Icon name={showArchive ? "chevD" : "chevR"} size={13} />
-                Archived · {archived.length}
-              </button>
-              {showArchive && (
-                <ul className="wb2-blist read">
-                  {archived.map((n) => (
-                    <li key={n.id} style={{ alignItems: "flex-start", opacity: 0.72 }}>
-                      <span className="wb2-bdot" aria-hidden="true" />
-                      <span style={{ flex: 1, minWidth: 0 }}>{n.body}</span>
-                      <button
-                        className="wb2-ico"
-                        title="Put back"
-                        aria-label={`Put back note: ${n.body.slice(0, 40)}`}
-                        disabled={busy}
-                        onClick={() => run(() => archiveMyNote(n.id, false))}
-                      >
-                        <Icon name="rotate" size={13} />
-                      </button>
-                      <button
-                        className="wb2-ico"
-                        title="Delete for good"
-                        aria-label={`Delete note: ${n.body.slice(0, 40)}`}
-                        disabled={busy}
-                        onClick={() => run(() => deleteMyNote(n.id))}
-                      >
-                        <Icon name="eraser" size={13} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -59,6 +59,23 @@ it("titles every face Time & Pay", async () => {
   expect(title()).toBeInTheDocument();
 });
 
+/* THE PANEL SWAPS IN PLACE — same guard as my-time-screen and the same
+   cause: `key={tab}` + `.psec2` remounted the face and faded it in, which
+   reads as the content flashing under the tabs. */
+it("swaps the face in place — same panel node, no fade class", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<TimepayScreen initialTab="sheets" section={section} />);
+  const panel = () => container.querySelector('[role="tabpanel"]');
+
+  const before = panel();
+  expect(before).not.toHaveClass("psec2");
+
+  await user.click(screen.getByRole("tab", { name: "Expenses" }));
+  expect(screen.getByTestId("face-expenses")).toBeInTheDocument();
+  expect(panel()).toBe(before);
+  expect(panel()).not.toHaveClass("psec2");
+});
+
 /* THE URL MUST NOT MOVE — same guard as my-time-screen and the same wreck
    behind it: the shell's outlet keys on the pathname, so a cross-path
    replaceState remounts the page and resets the open tab. Deep links live in

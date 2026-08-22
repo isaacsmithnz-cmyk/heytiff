@@ -57,13 +57,14 @@ export function TimepayScreen({
               { key: "expenses", label: "Expenses" },
             ]}
           />
+          {/* No `key`, no `.psec2` — see my-time-screen.tsx: the pair made
+              every switch unmount the face and fade it back in, which reads
+              as the content flashing. The thumb slide is the only motion. */}
           <section
-            key={tab}
             id={`tpp-${tab}`}
             role="tabpanel"
             aria-labelledby={`tpt-${tab}`}
             tabIndex={-1}
-            className="psec2"
           >
             {tab === "sheets" && (
               <TimePay

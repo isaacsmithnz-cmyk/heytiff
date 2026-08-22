@@ -141,11 +141,19 @@ export function UnitBrowser({
     [pack, loadKw, basis, phase]
   );
 
-  /** default tab: the caller's requested form factor, else the best-fit
-      option's, else the first tab */
+  /** default tab: the caller's requested form factor, else the first tab
+      (in prevalence order — wall-mounted leads) holding a clean fit, else
+      the best-fit option's tab, else the first tab */
   const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
   const activeTab = useMemo(() => {
     if (tab && tabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
+    /* Open where a person would look first. The old default followed the
+       cross-form-factor best fit, but between two exact-capacity fits that
+       winner is a ranking tiebreak — it once opened a bedroom split on Floor
+       console because an MFZ pipped the identical-kW wall unit. The tab
+       order already encodes what installers reach for; honour it. */
+    const fit = tabs.find((t) => t.fitCount > 0);
+    if (fit) return fit.formFactor;
     if (loadKw != null) {
       const all = unitOptions(pack, { loadKw, basis, formFactor: null, phase });
       const rec = all.find((o) => o.bestFit);

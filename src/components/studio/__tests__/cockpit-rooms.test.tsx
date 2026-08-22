@@ -1,11 +1,12 @@
 /* Cockpit Rooms view — numbered status pills (done/pending), pill selection,
-   auto-inspect of the first room, the shared-room release chip, the "+ Serve"
-   adopt flow, and the empty-state "Draw a room" route. */
+   auto-inspect of the first room, the shared-room release chip, and the
+   "+ Serve" adopt flow. Drawing rooms arms from the canvas toolbar now, so
+   the roster carries no draw control of its own. */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SystemCockpit, type RoomDraw } from "../cockpit-panel";
+import { SystemCockpit } from "../cockpit-panel";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "@/lib/studio/document";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
@@ -61,7 +62,6 @@ function renderCockpit(
     onSelect?: (id: string | null) => void;
     onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
     onEditRoom?: (id: string) => void;
-    roomDraw?: Partial<RoomDraw>;
     floor?: Floor;
     onFloor?: (id: string) => void;
   } = {}
@@ -78,7 +78,6 @@ function renderCockpit(
       onSelect={handlers.onSelect ?? (() => {})}
       onEditRoom={handlers.onEditRoom ?? (() => {})}
       onArmPlace={() => {}}
-      roomDraw={{ open: false, shape: null, start: () => {}, pick: () => {}, ...handlers.roomDraw }}
       floor={handlers.floor ?? doc.floors[0]}
       onFloor={handlers.onFloor}
       onAddVariant={() => {}}
@@ -209,25 +208,6 @@ describe("Cockpit Rooms view", () => {
       ).toContain("1 room");
     });
 
-    /* the button draws on the ACTIVE storey, so it belongs in that storey's
-       group — and moves when you change page */
-    it("keeps Add room inside the active floor's group", () => {
-      const doc = twoFloorDoc([room("room1", "Living", "sys1"), upstairs("room3", "Bed 1")]);
-      const { container, unmount } = renderCockpit(doc); // active = Ground
-      const groupOf = (name: string) =>
-        [...container.querySelectorAll(".ds-ck-fgrp")].find(
-          (g) => g.querySelector(".fn")!.textContent === name
-        )!;
-      expect(groupOf("Ground").querySelector(".ds-ck-rowadd")).not.toBeNull();
-      expect(groupOf("First floor").querySelector(".ds-ck-rowadd")).toBeNull();
-      unmount();
-
-      const up = renderCockpit(doc, { floor: first });
-      const upGroups = [...up.container.querySelectorAll(".ds-ck-fgrp")];
-      const upFirst = upGroups.find((g) => g.querySelector(".fn")!.textContent === "First floor")!;
-      expect(upFirst.querySelector(".ds-ck-rowadd")).not.toBeNull();
-    });
-
     /* numbering identifies the room in the SYSTEM — restarting it per floor
        would renumber a room because another storey gained one */
     it("numbers continuously across the storeys", () => {
@@ -255,51 +235,6 @@ describe("Cockpit Rooms view", () => {
     it("shows no header at all on a single-floor design", () => {
       const { container } = renderCockpit(baseDoc([room("room1", "Living", "sys1")]));
       expect(container.querySelector(".ds-ck-fhead")).toBeNull();
-      expect(container.querySelector(".ds-ck-rowadd")).not.toBeNull();
-    });
-  });
-
-  it("the empty state raises the shape picker from Draw a room", () => {
-    const drew: number[] = [];
-    const doc = baseDoc([], {}); // no rooms
-    renderCockpit(doc, { roomDraw: { start: () => drew.push(1) } });
-    fireEvent.click(screen.getByRole("button", { name: /Draw a room/ }));
-    expect(drew).toEqual([1]);
-  });
-
-  /* The shape choice used to be a pill pinned to the top of the CANVAS, far
-     from the cockpit button that raised it — pressing the button looked like
-     it did nothing. It now replaces that button in place. */
-  describe("the shape picker takes the button's own place", () => {
-    it("swaps Add room for the three shape controls", () => {
-      const doc = baseDoc([room("room1", "Living", "sys1")]);
-      renderCockpit(doc, { roomDraw: { open: true } });
-      expect(screen.queryByRole("button", { name: "Add room" })).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Rectangle room" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Polygon room" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Cancel drawing a room" })).toBeInTheDocument();
-    });
-
-    it("arms a shape, and cancel goes back to the button", () => {
-      const picks: (string | null)[] = [];
-      const doc = baseDoc([room("room1", "Living", "sys1")]);
-      renderCockpit(doc, { roomDraw: { open: true, pick: (s) => picks.push(s) } });
-      fireEvent.click(screen.getByRole("button", { name: "Rectangle room" }));
-      fireEvent.click(screen.getByRole("button", { name: "Cancel drawing a room" }));
-      expect(picks).toEqual(["rect", null]);
-    });
-
-    it("marks the armed shape pressed", () => {
-      const doc = baseDoc([room("room1", "Living", "sys1")]);
-      renderCockpit(doc, { roomDraw: { open: true, shape: "poly" } });
-      expect(screen.getByRole("button", { name: "Polygon room" })).toHaveAttribute(
-        "aria-pressed",
-        "true"
-      );
-      expect(screen.getByRole("button", { name: "Rectangle room" })).toHaveAttribute(
-        "aria-pressed",
-        "false"
-      );
     });
   });
 

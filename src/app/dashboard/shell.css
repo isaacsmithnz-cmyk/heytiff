@@ -217,7 +217,8 @@ html[data-rail] .fg .brand { padding:32px 0 20px; justify-content:center; }
 html[data-rail] .fg .ht-wm,
 html[data-rail] .fg .ht-orgpill,
 html[data-rail] .fg .navlbl,
-html[data-rail] .fg .ni .nlbl { display:none; }
+html[data-rail] .fg .ni .nlbl,
+html[data-rail] .fg .ni .sk-navtext { display:none; } /* skeleton's label bar collapses with the real one */
 html[data-rail] .fg .nav { padding:16px 12px; }
 html[data-rail] .fg .ni { justify-content:center; gap:0; padding:12px 0; }
 html[data-rail] .fg .navgrp + .navgrp { margin-top:24px; }

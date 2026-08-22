@@ -59,15 +59,19 @@ it("titles every face Time & Pay", async () => {
   expect(title()).toBeInTheDocument();
 });
 
-it("keeps the URL on the face that is open, so the Home chips' deep links stay real", async () => {
+/* THE URL MUST NOT MOVE — same guard as my-time-screen and the same wreck
+   behind it: the shell's outlet keys on the pathname, so a cross-path
+   replaceState remounts the page and resets the open tab. Deep links live in
+   the three ROUTES (the Home chips point at them); the switcher itself stays
+   out of the address bar, exactly like Team's. */
+it("never touches the URL when switching faces", async () => {
   const user = userEvent.setup();
-  window.history.replaceState(null, "", "/dashboard/timepay");
-  render(<TimepayScreen initialTab="sheets" section={section} />);
+  window.history.replaceState(null, "", "/dashboard/timepay/expenses");
+  render(<TimepayScreen initialTab="expenses" section={section} />);
 
   await user.click(screen.getByRole("tab", { name: "Leave" }));
-  expect(window.location.pathname).toBe("/dashboard/timepay/leave");
-  await user.click(screen.getByRole("tab", { name: "Expenses" }));
+  expect(screen.getByTestId("face-leave")).toBeInTheDocument();
   expect(window.location.pathname).toBe("/dashboard/timepay/expenses");
   await user.click(screen.getByRole("tab", { name: "Timesheets" }));
-  expect(window.location.pathname).toBe("/dashboard/timepay");
+  expect(window.location.pathname).toBe("/dashboard/timepay/expenses");
 });

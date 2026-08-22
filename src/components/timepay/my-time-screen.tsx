@@ -15,13 +15,19 @@ import { MyLeave } from "./my-leave";
    to kill (Isaac, 2026-08-22, prod walk).
 
    BOTH FACES ARRIVE TOGETHER now: each route loads timesheet AND leave and
-   renders this shell, so the switch is pure state. The URL still follows the
-   face via history.replaceState — the router syncs usePathname from it, so
-   the rail highlight moves, refresh lands on the face you're on, and both
-   deep links (`/dashboard/my-timesheet`, `/dashboard/my-leave`) stay real
-   routes that `requestLeave` already revalidates. replaceState, not push:
-   flicking between tabs is one place, not a trail of history entries — the
-   Team directory set that expectation.
+   renders this shell, so the switch is pure state — and ONLY state.
+
+   THE URL DELIBERATELY DOES NOT FOLLOW THE FACE. The first cut synced it with
+   history.replaceState('/dashboard/my-leave'), and every tab click bounced
+   back to the entry face with a full re-entrance: the dashboard shell keys
+   its outlet on the pathname (`<main key={pathname}>`, app-shell.tsx), so a
+   cross-PATH replaceState remounts the whole page tree and this component's
+   state with it (Isaac hit it on prod within minutes, 2026-08-22). The org
+   card's `?sec=` replaceState survives because search params don't change
+   the pathname. Team's switcher never touches the URL either — that is the
+   contract this shell copies, exactly. Both deep links stay real routes
+   (`/dashboard/my-timesheet`, `/dashboard/my-leave`): each just picks which
+   face opens first.
 
    The heading still swaps words per face (My timesheet / My leave) — these
    are two nav destinations sharing a card, unlike Time & Pay's one title. */
@@ -32,11 +38,6 @@ type TimesheetData = NonNullable<
 type LeaveData = Awaited<ReturnType<typeof import("@/lib/timepay/leave-page").loadMyLeave>>;
 
 type Tab = "timesheet" | "leave";
-
-const HREF: Record<Tab, string> = {
-  timesheet: "/dashboard/my-timesheet",
-  leave: "/dashboard/my-leave",
-};
 
 export function MyTimeScreen({
   initialTab,
@@ -49,14 +50,6 @@ export function MyTimeScreen({
   leave: LeaveData;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
-
-  const go = (k: string) => {
-    const next = k as Tab;
-    setTab(next);
-    /* Native history — no router.push: a push would refetch the sibling
-       route's RSC payload, which is the reload this shell exists to remove. */
-    window.history.replaceState(null, "", HREF[next]);
-  };
 
   return (
     <div className="page in">
@@ -72,7 +65,7 @@ export function MyTimeScreen({
             idPrefix="mtt"
             panelPrefix="mtp"
             active={tab}
-            onGo={go}
+            onGo={(k) => setTab(k as Tab)}
             items={[
               { key: "timesheet", label: "Timesheet" },
               { key: "leave", label: "Leave" },

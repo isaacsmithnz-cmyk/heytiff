@@ -39,13 +39,19 @@ it("switches faces without a navigation — tabs are buttons, never links", asyn
   expect(screen.getByRole("heading", { name: "My leave" })).toBeInTheDocument();
 });
 
-it("keeps the URL on the face that is open", async () => {
+/* THE URL MUST NOT MOVE. The first cut replaceState'd the sibling path on
+   every switch, and the dashboard shell — which keys its outlet on the
+   pathname — remounted the whole page and reset the tab: click Leave, get
+   Timesheet back with a full re-entrance. Any pathname change here means
+   that bug has returned. */
+it("never touches the URL when switching faces", async () => {
   const user = userEvent.setup();
   window.history.replaceState(null, "", "/dashboard/my-timesheet");
   render(<MyTimeScreen initialTab="timesheet" timesheet={timesheet} leave={leave} />);
 
   await user.click(screen.getByRole("tab", { name: "Leave" }));
-  expect(window.location.pathname).toBe("/dashboard/my-leave");
+  expect(screen.getByTestId("face-leave")).toBeInTheDocument();
+  expect(window.location.pathname).toBe("/dashboard/my-timesheet");
 
   await user.click(screen.getByRole("tab", { name: "Timesheet" }));
   expect(window.location.pathname).toBe("/dashboard/my-timesheet");

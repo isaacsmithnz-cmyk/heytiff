@@ -13,20 +13,18 @@ import type { TimepaySection } from "@/lib/timepay/section";
    sibling routes joined by BoardTabs, and every tab click round-tripped the
    server — a page reload next to Team's instant switcher (Isaac, 2026-08-22,
    prod walk). All three payloads arrive with the page now and the switch is
-   pure state; history.replaceState keeps the three real URLs — the Home
-   chips deep-link to them — pointing at the face on screen.
+   pure state — and ONLY state: the URL deliberately stays wherever you
+   entered. See my-time-screen.tsx for the wreck the first cut made of this —
+   the dashboard shell keys its outlet on the pathname, so a cross-path
+   replaceState remounts the page and resets the open tab. Team's switcher
+   never touches the URL; this copies it exactly. The three real routes —
+   the Home chips deep-link to them — each just pick which face opens first.
 
    THE TITLE STAYS "Time & Pay" on every face, the rule the old TimepayHead
    pinned: this is ONE nav item with three tabs inside it, and the tab row
    directly beneath already says which face you are on. */
 
 type Tab = "sheets" | "leave" | "expenses";
-
-const HREF: Record<Tab, string> = {
-  sheets: "/dashboard/timepay",
-  leave: "/dashboard/timepay/leave",
-  expenses: "/dashboard/timepay/expenses",
-};
 
 export function TimepayScreen({
   initialTab,
@@ -36,12 +34,6 @@ export function TimepayScreen({
   section: TimepaySection;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
-
-  const go = (k: string) => {
-    const next = k as Tab;
-    setTab(next);
-    window.history.replaceState(null, "", HREF[next]);
-  };
 
   const s = section;
   return (
@@ -58,7 +50,7 @@ export function TimepayScreen({
             idPrefix="tpt"
             panelPrefix="tpp"
             active={tab}
-            onGo={go}
+            onGo={(k) => setTab(k as Tab)}
             items={[
               { key: "sheets", label: "Timesheets" },
               { key: "leave", label: "Leave" },

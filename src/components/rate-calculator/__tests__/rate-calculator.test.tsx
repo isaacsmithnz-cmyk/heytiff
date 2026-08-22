@@ -8,16 +8,20 @@ import { buildBaselineState } from "./fixtures/baseline-org";
 jest.mock("@/app/actions/rate-calc", () => ({
   loadRateCalcState: jest.fn(),
   saveRateCalcState: jest.fn().mockResolvedValue(undefined),
+  resetRateCalcState: jest.fn().mockResolvedValue(undefined),
 }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { saveRateCalcState } = require("@/app/actions/rate-calc") as {
+const { saveRateCalcState, resetRateCalcState } = require("@/app/actions/rate-calc") as {
   saveRateCalcState: jest.Mock;
+  resetRateCalcState: jest.Mock;
 };
 
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   saveRateCalcState.mockClear();
+  resetRateCalcState.mockClear();
+  resetRateCalcState.mockResolvedValue(undefined);
 });
 
 async function dismissOnboarding(user: ReturnType<typeof userEvent.setup>) {
@@ -490,6 +494,69 @@ describe("RateCalculator — returning user with saved state", () => {
     render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
     // No onboarding for returning users
     expect(screen.queryByText("How to use this tool")).toBeNull();
+    expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
+  });
+});
+
+describe("RateCalculator — start fresh", () => {
+  // The reset lives behind the settings gear; arming it takes two presses.
+  async function startFresh(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByTitle("Settings"));
+    await user.click(screen.getByText("Start fresh", { selector: "button" }));
+    await user.click(screen.getByText("Yes, clear everything"));
+  }
+
+  it("clears the saved setup and drops the returning user back to a first run", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("heytiff.rate-calc.buffer", JSON.stringify({
+      state: buildBaselineState(), savedAt: 1_784_000_000_000,
+    }));
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
+
+    // A returning user with a complete setup lands on Results
+    expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
+
+    await startFresh(user);
+
+    // Server row deleted, crash buffer gone, onboarding back
+    await waitFor(() => expect(resetRateCalcState).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText("How to use this tool")).toBeInTheDocument());
+    expect(localStorage.getItem("heytiff.rate-calc.buffer")).toBeNull();
+    expect(screen.queryByText("Your recommended rates")).toBeNull();
+
+    // …and the wiped figures do not come back through the setup rail
+    await user.click(screen.getByText("Got it — start →"));
+    await user.click(screen.getByText("I don't know yet — skip"));
+    expect(screen.getByText(/Almost there/)).toBeInTheDocument();
+  });
+
+  it("does not clear anything until the second press", async () => {
+    const user = userEvent.setup();
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
+
+    await user.click(screen.getByTitle("Settings"));
+    await user.click(screen.getByText("Start fresh", { selector: "button" }));
+    await user.click(screen.getByText("Keep my setup"));
+
+    expect(resetRateCalcState).not.toHaveBeenCalled();
+    await user.click(screen.getByText("Cancel"));
+    expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
+  });
+
+  it("keeps the setup and says so when the clear fails", async () => {
+    const user = userEvent.setup();
+    resetRateCalcState.mockRejectedValue(new Error("network"));
+    localStorage.setItem("heytiff.rate-calc.buffer", JSON.stringify({
+      state: buildBaselineState(), savedAt: 1_784_000_000_000,
+    }));
+    render(<RateCalculator initialState={JSON.parse(JSON.stringify(buildBaselineState()))} />);
+
+    await startFresh(user);
+
+    await waitFor(() => expect(screen.getByText(/Couldn't clear your setup/)).toBeInTheDocument());
+    // Nothing local was thrown away on a failed delete
+    expect(localStorage.getItem("heytiff.rate-calc.buffer")).not.toBeNull();
+    await user.click(screen.getByText("Cancel"));
     expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
   });
 });

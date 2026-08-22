@@ -242,11 +242,13 @@ function RatesIntro({ s, patch, onDone }: {
 type SaveState = "idle" | "saving" | "saved" | "local";
 
 // ── Calculator app (remounted per data mode) ────────────────────────────
-function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState, xeroConnected, superOwned = false }: {
+function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, saveState, xeroConnected, superOwned = false }: {
   initial: RateCalcState;
   hasData: boolean;
   showOnboarding: boolean;
   onPersist: ((next: RateCalcState) => void) | null;
+  /** Clear the org's saved setup — see RateCalculator.reset. */
+  onReset: () => Promise<boolean>;
   saveState: SaveState;
   xeroConnected?: boolean;
   /** pay_settings holds a super rate — the panel shows it read-only. */
@@ -363,7 +365,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, saveState,
     <div className="rca">
       {showHelp && <HelpModal onClose={onHelpClose} />}
       {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setShowRatesIntro(false)} />}
-      {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} superOwned={superOwned} />}
+      {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} onReset={onReset} superOwned={superOwned} />}
 
       {/* workspace header — mirrors the Design Studio topbar: accent chip, 23px title,
           600-weight sub, transparent on the well */}
@@ -462,7 +464,12 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
   orgSuperPct?: number | null;
 }) {
   void initialUpdatedAt; // reserved for buffer-vs-server reconciliation
-  const hasServerState = initialState != null;
+  // "Start fresh" clears the saved row; from that point this page behaves
+  // exactly like a first run — empty state, onboarding, nothing written until
+  // the user edits. A counter rather than a flag so a second reset still
+  // changes the key and remounts the calculator.
+  const [resetCount, setResetCount] = React.useState(0);
+  const hasServerState = initialState != null && resetCount === 0;
   const [restored, setRestored] = React.useState<RateCalcState | null>(null);
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -492,6 +499,26 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
         setSaveState("local"); // buffer still holds it; next edit retries
       }
     }, 600);
+  }, []);
+
+  // Wipe everything: the pending debounced save (so it can't resurrect what we
+  // just deleted), the crash buffer, the restored buffer state, and the server
+  // row. The row is deleted last — only a real success is allowed to look like
+  // one, and a failure leaves the user's setup where it was on the next load.
+  const reset = React.useCallback(async (): Promise<boolean> => {
+    if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    pendingRef.current = null;
+    try {
+      const { resetRateCalcState } = await actions();
+      await resetRateCalcState();
+    } catch {
+      return false;
+    }
+    try { window.localStorage.removeItem(BUFFER_KEY); } catch { /* storage unavailable */ }
+    setRestored(null);
+    setSaveState("idle");
+    setResetCount(n => n + 1);
+    return true;
   }, []);
 
   // Crash-buffer restore: only when the org has never saved — a buffer means
@@ -537,11 +564,12 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
   const hasData = hasServerState || restored != null;
   return (
     <CalculatorApp
-      key={hasServerState ? "server" : restored ? "buffer" : "fresh"}
+      key={`${resetCount}:${hasServerState ? "server" : restored ? "buffer" : "fresh"}`}
       initial={initial}
       hasData={hasData}
       showOnboarding={!hasData}
       onPersist={persist}
+      onReset={reset}
       saveState={saveState}
       xeroConnected={xeroConnected}
       superOwned={orgSuperPct != null}

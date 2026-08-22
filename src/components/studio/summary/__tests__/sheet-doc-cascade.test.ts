@@ -97,19 +97,28 @@ describe("the mark keeps its shape", () => {
 
      jsdom has no layout, so no component test can see this. It is stated
      against the source instead. */
-  it("opts out of the stretch and lets the ratio drive", () => {
+  it("lets the ratio drive ONE axis and caps the other", () => {
+    /* WHICH axis is free is a design decision and has changed once already:
+       the mark was `height: 46px; width: auto`, parked in a max-content
+       column, and it is `width: 100%; height: auto` now that the column is a
+       measure the mark is meant to fill. Either is safe. Both definite is the
+       bug, and so is neither — a free axis with no `contain` under it stretches
+       the moment a flex container hands the other one a definite value.
+
+       So this states the invariant rather than the arrangement: exactly one of
+       the two runs on the image's own ratio, and `contain` catches whatever the
+       cap does to the other. That is what makes `align-self: flex-start` no
+       longer load-bearing — it was the stretch opt-out for a `width: auto`
+       image, and an image told to be 100% wide is not stretched by being
+       stretched. */
     const rule = css.match(/\.dsd-idlogo \{[^}]*\}/);
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/width:\s*auto/);
     expect(rule![0]).toMatch(/object-fit:\s*contain/);
-    /* the stretch is opted out of ON THE CONTAINER here rather than per-item.
-       Either is fine; having NEITHER is the bug. */
-    const box = css.match(/\.dsd-ident \{[^}]*\}/);
-    expect(box).not.toBeNull();
-    expect(
-      /align-items:\s*flex-start/.test(box![0]) ||
-        /align-self:\s*flex-start/.test(rule![0])
-    ).toBe(true);
+    const free = [
+      /(^|;)\s*width:\s*auto/.test(rule![0]),
+      /(^|;)\s*height:\s*auto/.test(rule![0]),
+    ].filter(Boolean);
+    expect(free).toHaveLength(1);
   });
 
   it("never pins BOTH dimensions of the image itself", () => {
@@ -143,5 +152,58 @@ describe("the sheet measures its own width", () => {
       (m) => m[0]
     );
     expect(viewportQueries).toEqual([]);
+  });
+
+  /* PAPER IS NOT A PHONE, and this is the third time it has had to be said.
+
+     A4 portrait leaves the document about 703px once the frame has taken its
+     edges — under EVERY container breakpoint in this sheet, including the one
+     drawn for a hand. So the moment a container query rearranges something,
+     paper silently gets the phone's version of it unless print says otherwise.
+
+     It has shipped twice. First the rooms table: nine columns became a stacked
+     block list and four rooms printed as three pages. Then the masthead: the
+     business's mark came out UNDER the client's address, mid-page, with a
+     column of white beside it — the first thing anyone sees on the document,
+     wrong on every copy ever printed, and the state Isaac found it in.
+
+     Both were caught by rendering an actual PDF, which is the only thing that
+     sees them: jsdom has no print medium and no layout, and on a 703px SCREEN
+     the phone layout is correct. So the rule is stated here instead, and it is
+     stated about ARRANGEMENT only — `grid-template-columns` and `display`, the
+     two properties that decide what shape the page is. Spacing may differ
+     between a screen and a sheet; the arrangement may not differ by accident. */
+  it("restates on paper every arrangement a container query changes", () => {
+    const block = (source: string, at: number): string => {
+      const open = source.indexOf("{", at);
+      let depth = 0;
+      for (let i = open; i < source.length; i++) {
+        if (source[i] === "{") depth++;
+        else if (source[i] === "}" && --depth === 0) return source.slice(open + 1, i);
+      }
+      throw new Error("unterminated block");
+    };
+    /** every `selector|property` an at-rule's body sets, arrangement only */
+    const arrangement = (body: string): string[] => {
+      const out: string[] = [];
+      for (const [, sel, decls] of body.matchAll(/([^{}]+)\{([^}]*)\}/g))
+        for (const one of sel.split(","))
+          for (const prop of ["grid-template-columns", "display"])
+            if (new RegExp(`(^|;)\\s*${prop}\\s*:`).test(decls))
+              out.push(`${one.replace(/\s+/g, " ").trim()}|${prop}`);
+      return out;
+    };
+
+    const printAt = css.indexOf("@media print");
+    expect(printAt).toBeGreaterThan(-1);
+    const onPaper = new Set(arrangement(block(css, printAt)));
+
+    const queries = [...css.matchAll(/@container \(max-width: \d+px\)/g)];
+    expect(queries.length).toBeGreaterThan(0);
+    const unanswered: string[] = [];
+    for (const q of queries)
+      for (const claim of arrangement(block(css, q.index!)))
+        if (!onPaper.has(claim)) unanswered.push(`${q[0]} ${claim}`);
+    expect(unanswered).toEqual([]);
   });
 });

@@ -4211,6 +4211,119 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sidecol > * {
   min-width: var(--ds-cockpit-w);
 }
+/* ── the cockpit's second size (slice 6): a 46px status tab. The flow picks —
+   the aside only wears .rest when the editor's derivation says the panel has
+   nothing to arm and nothing selected to inspect. Width rides the same curve
+   as the step transition; the full panel hides, the tab column shows. ── */
+.dstudio .ds-editor.two-col > .ds-sidecol.rest {
+  width: 46px;
+}
+.dstudio .ds-sidecol.rest > .ds-ck {
+  display: none;
+}
+.dstudio .ds-sidecol > .ds-cktab {
+  min-width: 0;
+}
+.dstudio .ds-cktab {
+  flex: 1 1 auto;
+  width: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 0;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 20px;
+  box-shadow: var(--ds-card-shadow);
+  cursor: pointer;
+  font: inherit;
+}
+.dstudio .ds-cktab:hover { border-color: var(--gray400); }
+.dstudio .ds-cktab:focus-visible {
+  outline: 2px solid var(--teal-d);
+  outline-offset: 2px;
+}
+/* the expand chevron points INTO the canvas — "the panel grows this way" */
+.dstudio .ds-cktab-x {
+  color: var(--gray500);
+  display: inline-flex;
+  transform: rotate(180deg);
+}
+.dstudio .ds-cktab-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+/* the fit donut in miniature — same verdict colours as the hero ring */
+.dstudio .ds-cktab-donut {
+  --ck-ring: var(--ds-ok, #00a389);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  position: relative;
+  background: conic-gradient(var(--ck-ring) 0 var(--p, 0%), #e6e8ec var(--p, 0%) 100%);
+}
+.dstudio .ds-cktab-donut::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  background: #fff;
+  border-radius: 999px;
+}
+.dstudio .ds-cktab-donut.warn { --ck-ring: var(--ds-amber-d, #b45309); }
+.dstudio .ds-cktab-donut.bad { --ck-ring: var(--ds-red-d, #e0264f); }
+.dstudio .ds-cktab-donut.empty { background: #e6e8ec; }
+/* room ticks — covered/total, a single check once every room is served */
+.dstudio .ds-cktab-ticks {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--gray500);
+  font-variant-numeric: tabular-nums;
+}
+.dstudio .ds-cktab-ticks.ok { color: var(--ds-ok-d, #00806c); display: inline-flex; }
+/* unplaced-count badge — dormant for split (unplaced units hold the panel
+   open), standing ready for per-room modules */
+.dstudio .ds-cktab-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--ds-ok-bg, rgba(0, 229, 192, 0.13));
+  color: var(--ds-ok-d, #00806c);
+  font-size: 11px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dstudio .ds-cktab-badge {
+    animation: ds-cktab-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes ds-cktab-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 184, 150, 0.45); }
+    55% { box-shadow: 0 0 0 7px rgba(0, 184, 150, 0); }
+  }
+}
+/* the foot chevron — the mirror of the shell rail's: present only while the
+   flow would rest and the pin (or a selection) is what holds the panel open */
+.dstudio .ds-ck-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 0;
+  margin: 0 9px 6px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--gray500);
+  cursor: pointer;
+}
+.dstudio .ds-ck-foot:hover {
+  background: #f3f4f6;
+  color: var(--ink);
+}
 
 .dstudio .ds-syscard {
   background: #fff;

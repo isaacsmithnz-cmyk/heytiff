@@ -79,6 +79,7 @@ function renderCockpit(
       onEditRoom={handlers.onEditRoom ?? (() => {})}
       onArmPlace={() => {}}
       onBrowseUnits={() => {}}
+      rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={handlers.floor ?? doc.floors[0]}
       onFloor={handlers.onFloor}
       onAddVariant={() => {}}

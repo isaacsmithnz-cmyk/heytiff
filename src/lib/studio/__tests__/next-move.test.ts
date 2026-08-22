@@ -3,7 +3,7 @@
    never going silent while something is owed (the motivating bug: a real
    design stalled for hours between "outdoor placed" and "indoor placed"). */
 
-import { nextMove, unitsVerb } from "../next-move";
+import { nextMove, panelRests, unitsVerb } from "../next-move";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import { emptyPack, type DataPack, type IndoorUnit, type OutdoorUnit } from "../packs/schema";
 
@@ -206,5 +206,36 @@ describe("unitsVerb — the Units button's meaning", () => {
       kind: "browse",
       roomId: "r1",
     });
+  });
+});
+
+/* The panel's two sizes: the FLOW picks. Rests through the room phase, opens
+   from pair choice until both units are down, rests again after — and only
+   split rests at all until other modules move their arming to the bar. */
+describe("panelRests — when the flow lets the cockpit rest", () => {
+  it("never rests without a system (the type chooser IS the panel)", () => {
+    expect(panelRests(doc([]), null)).toBe(false);
+    expect(panelRests(doc([]), "nope")).toBe(false);
+  });
+
+  it("never rests for types whose flow still works from the panel", () => {
+    expect(panelRests(doc([room("r1", "Bedroom")], {}, "multi-split"), "sys1")).toBe(false);
+  });
+
+  it("rests through the room phase — before and after rooms exist", () => {
+    expect(panelRests(doc([]), "sys1")).toBe(true);
+    expect(panelRests(doc([room("r1", "Bedroom")]), "sys1")).toBe(true);
+  });
+
+  it("opens from pair choice until both units are placed", () => {
+    expect(panelRests(doc([room("r1", "Bedroom")], PAIR), "sys1")).toBe(false);
+    expect(
+      panelRests(doc([room("r1", "Bedroom"), unit("u1", "idu", "IDU-25")], PAIR), "sys1")
+    ).toBe(false);
+  });
+
+  it("rests again once everything is down — connect is the chip's story", () => {
+    const placed = [room("r1", "Bedroom"), unit("u1", "idu", "IDU-25"), unit("u2", "odu", "ODU-25")];
+    expect(panelRests(doc(placed, PAIR), "sys1")).toBe(true);
   });
 });

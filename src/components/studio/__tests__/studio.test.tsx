@@ -202,6 +202,41 @@ describe("Design Studio shell", () => {
     expect(pill.className).toMatch(/\bon\b/);
   });
 
+  /* The cockpit's two sizes: the FLOW picks. The type chooser needs the full
+     panel; the moment a split exists the room phase belongs to the canvas, so
+     the panel rests as the 46px status tab. Opening it is a PIN (remembered
+     per system type); the foot chevron unpins and lets it rest again. */
+  it("the cockpit rests once a split exists, and the pin overrides both ways", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Resting job", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+
+    const aside = () => document.querySelector(".ds-sidecol")!;
+    // type-first: the chooser IS the panel — never rested
+    expect(aside().className).not.toContain("rest");
+    expect(screen.queryByRole("button", { name: /Open the System 1 panel/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
+    // room phase: the work is on the canvas, the panel rests to the tab
+    expect(aside().className).toContain("rest");
+    const tab = screen.getByRole("button", { name: "Open the System 1 panel" });
+
+    // opening is a pin, and it is remembered per system type
+    await user.click(tab);
+    expect(aside().className).not.toContain("rest");
+    expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
+      split: true,
+    });
+
+    // the foot chevron exists exactly because the flow would rest — unpin
+    await user.click(screen.getByRole("button", { name: /Rest the panel/ }));
+    expect(aside().className).toContain("rest");
+    expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
+      split: false,
+    });
+  });
+
   it("recovers saved designs on a fresh mount (reload survival)", async () => {
     const user = userEvent.setup();
     const first = render(localStudio());

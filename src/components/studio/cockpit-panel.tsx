@@ -25,6 +25,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
@@ -166,6 +167,7 @@ export function SystemCockpit({
   onBrowseUnits,
   onFloor,
   floor,
+  rest,
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
@@ -184,6 +186,16 @@ export function SystemCockpit({
   onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   floor: Floor;
+  /** the panel's two sizes (slice 6): `rested` swaps the panel for the 46px
+      status tab; `wouldRest` means the flow would rest were the panel not
+      held open by the pin or a selection — exactly when the foot chevron has
+      something to do. Expanding pins per system type; resting unpins. */
+  rest: {
+    rested: boolean;
+    wouldRest: boolean;
+    onExpand: () => void;
+    onRest: () => void;
+  };
   /** design variations — branched/switched from the system dropdown */
   onAddVariant: () => void;
   onSwitchVariant: (id: string) => void;
@@ -306,6 +318,7 @@ export function SystemCockpit({
   );
 
   return (
+    <>
     <div className="ds-ck">
       {showChooser ? (
         <div className="ds-ck-scroll">
@@ -356,7 +369,88 @@ export function SystemCockpit({
       ) : active && mod ? (
         <SimpleHero label={mod.label} systemSelector={systemSelector} />
       ) : null}
+      {/* the foot chevron appears only when it would DO something: the flow
+          would rest, and the pin or a selection is what's holding the panel
+          open. While the flow itself wants the panel, the flow owns it. */}
+      {rest.wouldRest && !rest.rested && (
+        <button
+          className="ds-ck-foot"
+          onClick={rest.onRest}
+          title="Let the panel rest — it reopens the moment the flow needs it"
+        >
+          <Glyph name="chev" size={13} />
+          Rest the panel
+        </button>
+      )}
     </div>
+    {rest.rested && active && (
+      <CockpitRestTab
+        doc={doc}
+        pack={pack}
+        system={active}
+        basis={basis}
+        onExpand={rest.onExpand}
+      />
+    )}
+    </>
+  );
+}
+
+/* ── the cockpit's second size: a 46px status tab (slice 6). Everything that
+   ARMS lives on the bar, so resting hides no verb — the tab reports the same
+   facts the panel would: system dot, the fit donut in miniature, the room
+   ticks, and (dormant for split, ready for multi) an unplaced-count badge. ── */
+function CockpitRestTab({
+  doc,
+  pack,
+  system,
+  basis,
+  onExpand,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  system: DesignSystem;
+  basis: SizingBasis;
+  onExpand: () => void;
+}) {
+  const rooms = roomsServedBy(doc, system.id);
+  const hero = computeHero(doc, pack, system, rooms, basis);
+  const done = pack
+    ? rooms.filter((r) => roomCoverage(doc, pack, r, basis).status === "covered").length
+    : 0;
+  const pairChosen = Boolean(system.settings.pairIdu && system.settings.pairOdu);
+  const units = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
+  const unplaced = pairChosen
+    ? (["idu", "odu"] as const).filter((role) => !units.some((u) => u.props.role === role))
+        .length
+    : 0;
+  const pct = hero.pct != null ? Math.min(hero.pct, 100) : 0;
+  return (
+    <button
+      className="ds-cktab"
+      onClick={onExpand}
+      title={`Open the ${system.name} panel`}
+      aria-label={`Open the ${system.name} panel`}
+      aria-expanded={false}
+    >
+      <span className="ds-cktab-x" aria-hidden="true">
+        <Glyph name="chev" size={13} />
+      </span>
+      <span className="ds-cktab-dot" style={{ background: system.colour }} aria-hidden="true" />
+      <span
+        className={`ds-cktab-donut ${hero.state}`}
+        style={{ "--p": `${pct}%` } as CSSProperties}
+        aria-hidden="true"
+      />
+      <span className={`ds-cktab-ticks${rooms.length > 0 && done === rooms.length ? " ok" : ""}`}>
+        {rooms.length > 0 && done === rooms.length ? (
+          <Glyph name="check" size={12} />
+        ) : (
+          `${done}/${rooms.length}`
+        )}
+      </span>
+      {unplaced > 0 && <span className="ds-cktab-badge">{unplaced}</span>}
+    </button>
   );
 }
 

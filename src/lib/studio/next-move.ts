@@ -163,3 +163,30 @@ export function unitsVerb(
     roomId: rooms.some((r) => r.id === servedId) ? servedId : lens.id,
   };
 }
+
+/* ── the cockpit's two sizes ────────────────────────────────────────────
+   The panel only reports, so the FLOW picks its size: it rests as a 46px
+   status tab through the canvas-heavy room phase, opens the moment a pair
+   is chosen and units want placing, and rests again once everything is
+   down. This is the pure half of that question — the editor composes it
+   with the per-type pin and the selection (an inspector needs a panel). */
+
+/** true when the flow would let the panel rest for this system */
+export function panelRests(doc: DesignDocument, systemId: string | null): boolean {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  /* no system: the type chooser IS the panel */
+  if (!sys) return false;
+  /* module-gated: only split's arming has fully moved to the bar; other
+     types still work from the panel, so they never rest */
+  if (sys.type !== "split") return false;
+  const iduModel = String(sys.settings.pairIdu ?? "");
+  const oduModel = String(sys.settings.pairOdu ?? "");
+  /* room phase — the work is on the canvas, the roster ticks fit the tab */
+  if (!iduModel || !oduModel) return true;
+  const units = doc.objects.filter((o) => o.systemId === systemId && o.type === "unit");
+  const idu = units.some((o) => o.props.role === "idu");
+  const odu = units.some((o) => o.props.role === "odu");
+  /* open while anything is unplaced; at rest again once both are down
+     (the connect rung is the chip's story — the tab still reports fit) */
+  return idu && odu;
+}

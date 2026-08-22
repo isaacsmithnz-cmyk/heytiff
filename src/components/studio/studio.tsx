@@ -49,7 +49,7 @@ import {
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
-import { nextMove, unitsVerb, type NextMove, type UnitsVerb } from "@/lib/studio/next-move";
+import { nextMove, panelRests, unitsVerb, type NextMove, type UnitsVerb } from "@/lib/studio/next-move";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import type { PairProposal } from "@/lib/studio/split";
 import { UnitBrowser } from "./unit-browser";
@@ -1377,6 +1377,33 @@ function Editor({
     return systemPairKw(doc, pack, effectiveSystemId, doc.settings.sizingBasis);
   }, [placing, pack, doc, effectiveSystemId]);
 
+  /* ── the cockpit's two sizes: the flow picks (slice 6). Rested = a 46px
+     status tab; open while the flow needs the panel (pair chosen, units
+     unplaced), while something is selected (the inspector lives there), or
+     while pinned. The pin is remembered PER SYSTEM TYPE — multi's tuning
+     stage will want it standing open. Read through useSyncExternalStore so
+     the server snapshot (nothing pinned) and the client settle without an
+     effect — the same pattern as the shell rail. ── */
+  const ckPins = useSyncExternalStore(subscribeCkPins, readCkPins, emptyCkPins);
+  const activeSysType = doc.systems.find((s) => s.id === effectiveSystemId)?.type ?? null;
+  const ckWouldRest = panelRests(doc, effectiveSystemId);
+  const cockpitRested =
+    ckWouldRest && !(activeSysType != null && ckPins[activeSysType]) && selectedId == null;
+  const cockpitRest = useMemo(
+    () => ({
+      rested: cockpitRested,
+      wouldRest: ckWouldRest,
+      onExpand: () => {
+        if (activeSysType) writeCkPin(activeSysType, true);
+      },
+      onRest: () => {
+        if (activeSysType) writeCkPin(activeSysType, false);
+        setSelectedId(null);
+      },
+    }),
+    [cockpitRested, ckWouldRest, activeSysType]
+  );
+
   /* rooms whose PLACED unit missed their load — the verdict that persists on
      the room label after the drop. A state, never a block. */
   const roomFits = useMemo(() => {
@@ -1795,7 +1822,7 @@ function Editor({
           and goes inert while collapsed so it's out of the tab order. */}
       {activeFloor && (
         <aside
-          className="ds-sidecol"
+          className={`ds-sidecol${cockpitRested ? " rest" : ""}`}
           aria-hidden={step !== 1 ? true : undefined}
           inert={step !== 1 ? true : undefined}
         >
@@ -1813,6 +1840,7 @@ function Editor({
             onBrowseUnits={setPairBrowse}
             onFloor={setPickedFloorId}
             floor={activeFloor}
+            rest={cockpitRest}
             onAddVariant={onAddVariant}
             onSwitchVariant={onSwitchVariant}
             onRenameVariant={onRenameVariant}
@@ -2103,6 +2131,52 @@ function StudioMenu({
 }
 
 /* ═════════════ Stage panels — Stage-0 empty states ═════════════ */
+
+/* ── the cockpit pin store (slice 6): which system TYPES hold their panel
+   open. localStorage-backed, read via useSyncExternalStore — the snapshot is
+   cached on the raw string so getSnapshot stays referentially stable. ── */
+const CK_PIN_KEY = "ht-ckpin";
+const emptyCkPinsValue: Record<string, boolean> = {};
+const emptyCkPins = () => emptyCkPinsValue;
+let ckPinsRaw: string | null = null;
+let ckPinsCache: Record<string, boolean> = emptyCkPinsValue;
+const ckPinListeners = new Set<() => void>();
+function readCkPins(): Record<string, boolean> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(CK_PIN_KEY);
+  } catch {
+    /* storage unavailable — nothing is pinned */
+  }
+  if (raw !== ckPinsRaw) {
+    ckPinsRaw = raw;
+    try {
+      ckPinsCache = raw ? (JSON.parse(raw) as Record<string, boolean>) : emptyCkPinsValue;
+    } catch {
+      ckPinsCache = emptyCkPinsValue;
+    }
+  }
+  return ckPinsCache;
+}
+function writeCkPin(type: string, v: boolean) {
+  const next = { ...readCkPins(), [type]: v };
+  try {
+    localStorage.setItem(CK_PIN_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode — the pin won't survive a reload, but it works now */
+  }
+  ckPinsCache = next;
+  ckPinsRaw = JSON.stringify(next);
+  ckPinListeners.forEach((l) => l());
+}
+function subscribeCkPins(cb: () => void) {
+  ckPinListeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    ckPinListeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
 
 const CANVAS_TOOLS: {
   key: CanvasTool;

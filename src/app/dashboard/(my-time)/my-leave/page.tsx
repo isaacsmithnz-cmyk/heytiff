@@ -1,30 +1,15 @@
-import { MyLeave } from "@/components/timepay/my-leave";
+import { MyTimeScreen } from "@/components/timepay/my-time-screen";
+import { loadMyTimesheet } from "@/lib/timepay/page-data";
 import { loadMyLeave } from "@/lib/timepay/leave-page";
 
 /* Ungated: your own leave is intrinsic, like your timesheet and vehicle.
-   The heading, the tabs and the page frame come from `(my-time)/layout.tsx`. */
+
+   Same combined load as /dashboard/my-timesheet — this route only picks the
+   Leave face first. Both URLs stay real (the rail links here, `requestLeave`
+   revalidates both); the shell keeps whichever is open in the address bar. */
 
 export default async function MyLeavePage() {
-  const data = await loadMyLeave();
+  const [timesheet, leave] = await Promise.all([loadMyTimesheet(), loadMyLeave()]);
 
-  if (!data) {
-    return (
-      <div className="emptybox">
-        <b>No staff record yet</b>
-        <em>Your leave appears once your card exists in Team.</em>
-      </div>
-    );
-  }
-
-  return (
-    <MyLeave
-      today={data.today}
-      standard={data.standard}
-      balances={data.balances}
-      requests={data.requests}
-      holidays={data.holidays}
-      workDays={data.workDays}
-      certAfterDays={data.certAfterDays}
-    />
-  );
+  return <MyTimeScreen initialTab="leave" timesheet={timesheet} leave={leave} />;
 }

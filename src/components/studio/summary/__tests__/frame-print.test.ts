@@ -151,6 +151,54 @@ describe("the frame on paper", () => {
     expect(studio).toMatch(/\.ds-print-cover\s*\{[^}]*page:\s*cover/);
   });
 
+  /* THE FRAME IS CONCENTRIC WITH ITS WELL, and only a full-bleed print
+     squares it off.
+
+     The band was a plain rectangle with a rounded well inside it, which reads
+     as a block someone has cut a rounded hole in — Isaac called it unfinished
+     the first time a real brand colour was set, and it had looked that way
+     since the frame shipped. Concentric means outer = radius + gutter, or the
+     frame runs thick at the corners and thin down the sides.
+
+     THE SQUARE-OFF AND THE MARGIN STRIP ARE ONE DECISION. A radius at the
+     paper's own corner draws four white notches, so a chrome that prints full
+     bleed must square the band — and a chrome that does NOT must leave it
+     rounded, or it prints a hard-cornered mat floating in a white margin.
+     Neither is knowable from this stylesheet, so the rule is: whoever injects
+     `margin: 0` injects the square-off with it. Asserted over the source of
+     every chrome that does, so a fourth one cannot quietly land with half. */
+  it("rounds the band concentrically with its well", () => {
+    /* comments stripped first: this file's prose quotes CSS, and a `}` inside
+       a comment ends a naive `[^}]*` scan of the rule it sits in — which is
+       exactly what happened writing this test. */
+    const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare).toMatch(
+      /\.dsd-bband\s*\{[^}]*border-radius:\s*calc\(\s*var\(--doc-radius[^)]*\)\s*\+\s*var\(--doc-gutter/
+    );
+  });
+
+  it("squares the band in exactly the chromes that strip the page margin", () => {
+    const chromes = [
+      "src/components/studio/summary/print-doc.tsx",
+      "src/app/live/[token]/live-sheet.tsx",
+      "src/app/handover/[id]/sheet-chrome.tsx",
+    ];
+    const seen: string[] = [];
+    for (const rel of chromes) {
+      const src = readFileSync(join(process.cwd(), rel), "utf8");
+      // a chrome that goes full bleed...
+      if (!/@page[^{]*\{\s*margin:\s*0/.test(src)) continue;
+      seen.push(rel);
+      // ...owes the square-off, on the band its own sheet draws
+      expect({ rel, squares: /-b(?:and|band)\s*\{\s*border-radius:\s*0/.test(src) }).toEqual({
+        rel,
+        squares: true,
+      });
+    }
+    // all three, or the loop proved nothing
+    expect(seen).toEqual(chromes);
+  });
+
   /* EVERY PAGE CLOSES AS ITS OWN BOX. Without clone, border-radius and
      padding exist only at the well's true start and end: every intermediate
      page break is squared off and its content starts flush against the band.

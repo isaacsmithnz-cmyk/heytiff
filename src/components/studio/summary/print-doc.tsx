@@ -117,7 +117,14 @@ export function PrintDoc({
     el.id = "ds-print-page-size";
     el.textContent =
       `@page { size: ${options.paper} ${options.orientation}; margin: 12mm; }` +
-      (themed ? ` @page cover { margin: 0; }` : "");
+      /* full bleed, so the frame's corners ARE the paper's corners and a
+         radius there would draw four white notches. The square-off ships with
+         the margin strip rather than living in the sheet, so the two can never
+         disagree about whether this document reaches the edge. */
+      (themed
+        ? ` @page cover { margin: 0; }` +
+          ` @media print { .ds-print-cover .dsd-bband { border-radius: 0; } }`
+        : "");
     document.head.appendChild(el);
     return () => el.remove();
   }, [options.paper, options.orientation, themed]);

@@ -87,7 +87,9 @@ export function LiveSheet({
           frame itself: no derivable colour, no rule, and the plain sheet
           keeps the browser's own margins. */}
       {brand.color != null && documentTheme(brand.color) != null && (
-        <style>{`@media print { @page { margin: 0; } }`}</style>
+        <style>
+          {`@media print { @page { margin: 0; } .dsd-bband { border-radius: 0; } }`}
+        </style>
       )}
       <nav className="dsd-bar">
         {/* the mark, and only the mark. The business's NAME is in the

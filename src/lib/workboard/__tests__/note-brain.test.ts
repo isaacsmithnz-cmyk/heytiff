@@ -16,6 +16,9 @@ import {
   isEmptyProposal,
   resolveAssignee,
   shapeProposal,
+  systemPrompt,
+  whenBlock,
+  whoBlock,
   SEVERITIES,
   type NoteContext,
 } from "../note-brain";
@@ -30,6 +33,18 @@ const ctx: NoteContext = { staff: STAFF, todayISO: "2026-07-28" };
 const twoLukes: NoteContext = {
   ...ctx,
   staff: [...STAFF, { id: "s-luke-t", fullName: "Luke Tran" }],
+};
+
+/* The note is being dictated BY somebody. Isaac is on the roster like anyone
+   else — the author is not a fourth kind of person, it is which of the three
+   is holding the phone. */
+const ISAAC = { id: "s-isaac", fullName: "Isaac Smith" };
+const spoken: NoteContext = {
+  ...ctx,
+  staff: [...STAFF, ISAAC],
+  author: ISAAC,
+  dayStart: "06:30",
+  dayEnd: "15:00",
 };
 
 /** A well-formed model response; tests override the parts they're about. */
@@ -327,6 +342,160 @@ describe("shapeProposal — debrief coercion", () => {
     expect(p.tasks).toHaveLength(1);
     expect(p.kbEntries).toHaveLength(1);
     expect(p.noteLines).toEqual([]);
+  });
+});
+
+/* ── "REMIND ME" ──────────────────────────────────────────────────────────
+
+   THE NOTE THAT MADE THIS EXIST, dictated into Tiff on 2026-08-22:
+
+     "I need to check with Luke whether he sent the quote to Chris from Scott
+      Group. Remind me to do that on Monday morning."
+
+   The router did its half perfectly — one task, well titled, dated the right
+   Monday. Then the card refused to save it: "One task still needs a person on
+   it", with a cascade underneath reading "No tasks for anyone" while the task
+   sat on screen a centimetre above. `resolveAssignee` only ever matched names,
+   and nothing had told the router that a "me" was in the room, so the one task
+   a person is most certain about — their own — was the one it could not
+   produce.
+
+   Both halves are pinned below: the person, and the time of day that the word
+   "morning" used to be thrown away with. */
+describe("a note that asks to be reminded", () => {
+  const remindMe = (over: Record<string, unknown> = {}) =>
+    raw({
+      tasks: [
+        {
+          title: "Check with Luke about quote to Chris from Scott Group",
+          detail: "Did the quote go out?",
+          assignee_hint: "me",
+          due_hint: "Monday morning",
+          due_date: "2026-08-24",
+          remind_time: "06:30",
+          ...over,
+        },
+      ],
+    });
+
+  it("gives the task to the person who dictated it", () => {
+    const p = shapeProposal(remindMe(), spoken);
+    expect(p.tasks[0].assigneeId).toBe(ISAAC.id);
+    // and the card no longer has anything to complain about
+    expect(p.clarify).toBeNull();
+  });
+
+  it("keeps the time of day the note asked for", () => {
+    expect(shapeProposal(remindMe(), spoken).tasks[0]).toMatchObject({
+      dueDate: "2026-08-24",
+      remindTime: "06:30",
+    });
+  });
+
+  it("answers to 'me' in the language it was said in", () => {
+    /* The model is told to leave `assignee_hint` in the note's own words and
+       NOT to correct it, so a note dictated in Vietnamese arrives with "tôi"
+       in that field. An English-only list hands that person the exact failure
+       this whole thing exists to remove. */
+    for (const said of ["me", "I", "myself", "tôi", "yo", "ako", "我"])
+      expect(shapeProposal(remindMe({ assignee_hint: said }), spoken).tasks[0].assigneeId).toBe(
+        ISAAC.id,
+      );
+  });
+
+  it("still gives a NAMED person the task, not the speaker", () => {
+    expect(shapeProposal(remindMe({ assignee_hint: "Luke" }), spoken).tasks[0].assigneeId).toBe(
+      "s-luke-n",
+    );
+  });
+
+  it("lets a real person beat a pronoun that happens to look like them", () => {
+    /* A workspace is entitled to a member called Mi, and she is a person
+       before she is a Spanish possessive. The self tokens are checked LAST,
+       after every name, and this is the assertion that keeps them there. */
+    const withMi: NoteContext = {
+      ...spoken,
+      staff: [...spoken.staff, { id: "s-mi", fullName: "Mi Tran" }],
+    };
+    expect(shapeProposal(remindMe({ assignee_hint: "Mi" }), withMi).tasks[0].assigneeId).toBe(
+      "s-mi",
+    );
+  });
+
+  it("assigns nobody when there is no author to be", () => {
+    /* A surface that routes without an author gets the OLD behaviour — an
+       unresolved hint and a card that asks — rather than a wrong person. */
+    expect(shapeProposal(remindMe(), ctx).tasks[0].assigneeId).toBeNull();
+  });
+
+  it("refuses a time it cannot read rather than inventing one", () => {
+    /* Same posture as the date beside it, and it matters more: this is
+       composed into a real instant server-side, so "9pm-ish" reaching the
+       database as a nudge is worse than no nudge at all. */
+    for (const bad of ["9pm-ish", "6:30", "24:00", "06:60", "morning", "", null, 630])
+      expect(shapeProposal(remindMe({ remind_time: bad }), spoken).tasks[0].remindTime).toBe("");
+  });
+
+  it("leaves an ordinary task without an alarm", () => {
+    const p = shapeProposal(
+      raw({
+        tasks: [
+          {
+            title: "Order the grilles",
+            detail: "",
+            assignee_hint: "Luke",
+            due_hint: "Friday",
+            due_date: "2026-07-31",
+            remind_time: "",
+          },
+        ],
+      }),
+      spoken,
+    );
+    expect(p.tasks[0]).toMatchObject({ dueDate: "2026-07-31", remindTime: "" });
+  });
+});
+
+describe("what the router is told about who and when", () => {
+  it("names the speaker, and how they will refer to themselves", () => {
+    const said = whoBlock(spoken);
+    expect(said).toContain("The person speaking is Isaac Smith");
+    expect(said).toContain("`me` in `assignee_hint`");
+  });
+
+  it("says nothing about an author when there isn't one", () => {
+    expect(whoBlock(ctx)).not.toContain("The person speaking");
+    // but still lists who can be given work — the old behaviour, intact
+    expect(whoBlock(ctx)).toContain("Luke Nguyen");
+  });
+
+  it("resolves morning against THIS person's day, not a number in the prompt", () => {
+    /* The workspace already knows when this person starts. A model left to
+       guess renders "morning" as 9am — ninety minutes after an installer's day
+       has already begun, on the one feature whose entire job is being on time. */
+    const said = whenBlock(spoken);
+    expect(said).toContain('morning" -> 06:30');
+    expect(said).toContain("knock-off, close of play -> 15:00");
+    expect(whenBlock({ ...spoken, dayStart: "08:00", dayEnd: "16:30" })).toContain(
+      'morning" -> 08:00',
+    );
+  });
+
+  it("asks for a nudge even when the note names no time at all", () => {
+    /* "Remind me on Monday" with no time word must not become a task with no
+       alarm — they asked for a nudge, and a day with no time is a nudge that
+       never comes. */
+    expect(whenBlock(spoken)).toMatch(/asks to be reminded but names no time[\s\S]*06:30/);
+  });
+
+  it("carries both blocks into the real prompt, in both modes", () => {
+    /* They were duplicated across the two variants once and drifted within two
+       edits, which is why they are functions. */
+    for (const mode of [spoken, { ...spoken, debrief: true }]) {
+      const prompt = systemPrompt(mode);
+      expect(prompt).toContain("The person speaking is Isaac Smith");
+      expect(prompt).toContain("`remind_time` is the time of day to nudge them at");
+    }
   });
 });
 

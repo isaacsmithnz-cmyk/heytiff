@@ -18,6 +18,8 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
+import { remindAtFrom } from "@/lib/dashboard/reminders";
+import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { publishFieldNote } from "@/lib/tiff/field-notes";
 import { jobHistory } from "@/lib/brain/tools";
@@ -45,7 +47,18 @@ export type NoteTarget = {
 };
 
 export type RouteResult =
-  | { ok: true; noteId: string; proposal: NoteProposal; staff: NoteStaff[] }
+  | {
+      ok: true;
+      noteId: string;
+      proposal: NoteProposal;
+      staff: NoteStaff[];
+      /** When this person's day starts, "HH:MM". Rides back with the proposal
+          so the review card's time control opens on their morning rather than
+          on a number picked in the browser — the same fact the router used to
+          resolve "Monday morning", so the card and the model cannot disagree
+          about when morning is. */
+      dayStart: string;
+    }
   | { ok: false; error: string };
 
 export type ApplyResult = { ok: true; summary: string } | { ok: false; error: string };
@@ -94,6 +107,28 @@ async function assignableStaff(orgId: string): Promise<NoteStaff[]> {
   return ((data ?? []) as Record<string, unknown>[])
     .map((s) => ({ id: String(s.id), fullName: fullNameOf(s) }))
     .filter((s) => s.fullName);
+}
+
+/** The author of a note, as the router needs to see them, plus the working day
+    a vague time resolves against.
+
+    ONE READ FOR BOTH BECAUSE THEY ARE ONE FACT: "remind me" and "morning" are
+    both statements about the person holding the phone. Every routing call makes
+    it — the first pass and every clarify round — or answering "which Luke?"
+    would quietly cost the note its author and turn a saved reminder back into
+    the unassignable task this feature exists to fix. */
+async function authorContext(
+  orgId: string,
+  staffId: string | null,
+  staff: NoteStaff[],
+): Promise<{ author?: NoteStaff; dayStart: string; dayEnd: string }> {
+  const day = await workdayHours(orgId, staffId);
+  /* Taken from the roster rather than read separately, so the name the model is
+     told is speaking is exactly the name it can assign work to. A staff member
+     with no readable name is not in `staff` and gets no author line — the
+     router falls back to its old behaviour rather than to a wrong person. */
+  const author = staffId ? staff.find((s) => s.id === staffId) : undefined;
+  return { author, dayStart: day.start, dayEnd: day.end };
 }
 
 /** The row a target names. Three call sites had this ternary written out by
@@ -170,8 +205,10 @@ export async function routeNote(input: {
     getSm8Timezone(ctx.orgId),
     jobHistory(ctx.orgId, target),
   ]);
+  const who = await authorContext(ctx.orgId, ctx.staffId, staff);
   const read = await readNote(transcript, {
     staff,
+    ...who,
     targetLabel: label ?? undefined,
     todayISO: todayInZone(tz),
     debrief: input.debrief === true,
@@ -207,7 +244,7 @@ export async function routeNote(input: {
     .eq("id", noteId);
 
   refresh(target);
-  return { ok: true, noteId, proposal: read.proposal, staff };
+  return { ok: true, noteId, proposal: read.proposal, staff, dayStart: who.dayStart };
 }
 
 async function targetLabel(orgId: string, target: NoteTarget): Promise<string | null> {
@@ -258,10 +295,12 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
        cost the model everything it knew about the job. */
     jobHistory(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
   ]);
+  const who = await authorContext(ctx.orgId, ctx.staffId, staff);
   const read = await readNote(
     note.transcript,
     {
       staff,
+      ...who,
       targetLabel: label ?? undefined,
       todayISO: todayInZone(tz),
       equipment: history.equipment.length ? history.equipment : undefined,
@@ -296,7 +335,7 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
     .eq("id", noteId);
 
   refresh({ kind: note.target_kind, id: note.target_id });
-  return { ok: true, noteId, proposal: read.proposal, staff };
+  return { ok: true, noteId, proposal: read.proposal, staff, dayStart: who.dayStart };
 }
 
 type NoteRow = {
@@ -324,7 +363,19 @@ async function noteIn(orgId: string, noteId: string): Promise<NoteRow | null> {
     the user may have edited a title, picked the right Luke, or unticked
     half of it, and this is that decision. */
 export type ConfirmedNote = {
-  tasks: { title: string; detail: string; assigneeId: string | null; dueDate: string | null }[];
+  tasks: {
+    title: string;
+    detail: string;
+    assigneeId: string | null;
+    dueDate: string | null;
+    /** "HH:MM" on the workspace's clock, or null for an ordinary task.
+
+        A TIME, NOT AN INSTANT, and deliberately so: a Server Function is
+        reachable by direct POST, so a timestamp arriving from a browser is a
+        claim about a moment that nobody here can check. The server composes the
+        instant itself from this and the due date, on the account's own zone. */
+    remindTime?: string | null;
+  }[];
   bringItems: string[];
   flags: { message: string; severity: string }[];
   progressBullets: string[];
@@ -453,6 +504,11 @@ export async function applyNote(
       return { ok: false, error: "That person isn't on this workspace any more." };
     }
 
+    /* The account's own clock, because "Monday 6:30" is a different instant in
+       Perth than in Sydney and the server runs in neither. Read once for the
+       whole batch, and only when there are tasks to write. */
+    const tz = await getSm8Timezone(ctx.orgId);
+
     const rows = wanted
       .map((t) => ({
         org_id: ctx.orgId,
@@ -461,6 +517,10 @@ export async function applyNote(
         assigned_to: t.assigneeId,
         created_by: ctx.staffId,
         due_date: typeof t.dueDate === "string" && ISO_DATE.test(t.dueDate) ? t.dueDate : null,
+        /* The nudge, composed here and nowhere else. Null unless the task
+           carries BOTH a day and a time — `remindAtFrom` returns null for
+           either half missing, which is exactly "this is an ordinary task". */
+        remind_at: remindAtFrom(t.dueDate, t.remindTime, tz),
         status: "open",
       }));
 

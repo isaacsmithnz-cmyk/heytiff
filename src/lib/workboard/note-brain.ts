@@ -26,6 +26,7 @@
    are tested without a network call. */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { HHMM } from "@/lib/dashboard/reminders";
 import { RECORD_IN_ENGLISH } from "@/lib/lang/policy";
 import { englishProposal } from "./note-english";
 
@@ -83,6 +84,15 @@ export type ProposedTask = {
       and a silly one for "tomorrow". Still shown in an editable date field:
       the model proposes, the person confirming sees it and can change it. */
   dueDate: string;
+  /** The time of day to be nudged at, "HH:MM" on the workspace's clock, or ""
+      when the note asked for no particular time.
+
+      THIS IS WHAT MAKES A REMINDER A REMINDER. "Remind me to do that on Monday
+      morning" used to arrive here as a Monday and nothing else — `dueDate` is a
+      day, and the word "morning" had nowhere to go. A task with a day and a
+      time is a reminder; a task with only a day is an ordinary task, as it has
+      always been. */
+  remindTime: string;
 };
 
 export type ProposedFlag = { message: string; severity: Severity };
@@ -133,6 +143,18 @@ export type NoteContext = {
   };
   /** The day the note was dictated, so "Tuesday" resolves to a real date. */
   todayISO: string;
+  /** WHO IS SPEAKING. The router met every note anonymously, so "remind me"
+      resolved to nobody, the task came back unassigned, and the card refused to
+      save the one task a person is most certain about — their own. The author
+      is not merely another name in `staff`: `me` has to beat every name in the
+      workspace, and only this field knows which one it is. */
+  author?: NoteStaff;
+  /** The author's normal working day on the workspace's clock ("06:30",
+      "15:00"), so vague times land where their day actually starts and ends
+      rather than on somebody's idea of morning. Their own hours where they
+      keep them, the workspace's otherwise. */
+  dayStart?: string;
+  dayEnd?: string;
   /** Debrief mode: one long transcript, many unrelated things, before the
       day starts. Changes what the model is asked for — see systemPrompt —
       and what the shaper tolerates. */
@@ -165,8 +187,16 @@ const NOTE_SCHEMA = {
           assignee_hint: str,
           due_hint: str,
           due_date: str,
+          remind_time: str,
         },
-        required: ["title", "detail", "assignee_hint", "due_hint", "due_date"],
+        required: [
+          "title",
+          "detail",
+          "assignee_hint",
+          "due_hint",
+          "due_date",
+          "remind_time",
+        ],
         additionalProperties: false,
       },
     },
@@ -277,13 +307,77 @@ export function historyBlock(ctx: NoteContext): string {
   return lines.length ? `\nWhat the workspace already knows:\n${lines.join("\n")}` : "";
 }
 
+/** WHEN, AND WHO "ME" IS — the block both prompt variants share.
+
+    Exported and shared for the reason `historyBlock` is: a site note and a
+    debrief ask for different things, but the day a note was dictated and the
+    person who dictated it are facts about the workspace, not about the ask.
+    They were duplicated once and drifted within two edits.
+
+    THE VAGUE-TIME TABLE IS THE POINT. "Monday morning" is the ordinary way to
+    say when, and a model left to guess renders it as 9am — an hour and a half
+    after an installer's day has already started. The workspace already knows
+    when this person starts and finishes, so morning means their morning. */
+export function whenBlock(ctx: NoteContext): string {
+  const start = ctx.dayStart || "07:00";
+  const end = ctx.dayEnd || "15:00";
+  return [
+    `Today is ${ctx.todayISO}. Resolve relative days against it.`,
+    "Write `due_hint` in the note's own plain words, in English ('tomorrow',",
+    "'before the next visit'), AND when those words name a day you can work out,",
+    "put it in `due_date` as YYYY-MM-DD. 'Tomorrow', 'Monday' and '3 August'",
+    "all resolve; 'before the next visit' and 'when the part lands' do not —",
+    "leave `due_date` empty for those rather than inventing a day. The person",
+    "confirming sees the date and can change it.",
+    "",
+    "`remind_time` is the time of day to nudge them at, as 24-hour HH:MM on a",
+    `working day that runs ${start} to ${end}. Set it when the note asks to be`,
+    "reminded, or names a time of day:",
+    `  first thing, early, start of the day, ${'"'}morning${'"'} -> ${start}`,
+    "  midday, lunch, lunchtime -> 12:00",
+    "  afternoon, this arvo, after lunch -> 13:00",
+    `  end of the day, before knock-off, close of play -> ${end}`,
+    "  tonight, this evening, after work -> 18:00",
+    "  a time said outright ('half seven', '2pm') -> that time",
+    "When the note asks to be reminded but names no time at all, use",
+    `${start} — they asked for a nudge, so a day with no time is a nudge that`,
+    "never comes. When the note is not asking to be reminded, leave",
+    "`remind_time` empty: an ordinary task has a due date and no alarm.",
+  ].join("\n");
+}
+
+/** WHO CAN BE GIVEN WORK, and who is doing the giving.
+
+    Shared by both variants for the same reason as `whenBlock`. The author line
+    is the fix for the note that started this: "remind me to check with Luke"
+    produced a perfectly good task with nobody on it, because the router had
+    never been told that a "me" was in the room. */
+export function whoBlock(ctx: NoteContext): string {
+  const names = ctx.staff.map((s) => s.fullName).join(", ") || "nobody on record";
+  return [
+    `People who can be assigned work: ${names}.`,
+    "Put the name exactly as the note said it in `assignee_hint` — do not",
+    "correct it to someone on the list. The application resolves names, and",
+    "an unresolvable name becomes a question to the author.",
+    ctx.author
+      ? [
+          `The person speaking is ${ctx.author.fullName}. When the note gives a`,
+          "job to themselves — 'remind me', 'I need to', 'I'll', 'chase it up",
+          "myself' — put `me` in `assignee_hint` rather than their name, and",
+          "leave it in whatever language they said it. A task somebody set for",
+          "themselves is still a task and still needs a person on it.",
+        ].join("\n")
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /** What the router is told it is. Exported for the same reason
     `systemPromptFor` is in the KB answerer: the two variants — site note and
     debrief — are worth reading side by side in a test, and the language rule
     they both carry is a fact about the workspace rather than about a call. */
 export function systemPrompt(ctx: NoteContext): string {
-  const names = ctx.staff.map((s) => s.fullName).join(", ") || "nobody on record";
-
   /* DEBRIEF IS A DIFFERENT ASK. One long transcript, recorded before the day
      starts, deliberately unsorted — "empty your head". Expect MANY unrelated
      items. The job-bound lanes are closed (a debrief spans several jobs and
@@ -321,20 +415,13 @@ export function systemPrompt(ctx: NoteContext): string {
       "or issue_entries in a debrief — return them empty. An item that looks",
       "like one of those becomes a note_line that names the job.",
       "",
-      `People who can be assigned work: ${names}.`,
-      "Put the name exactly as the note said it in `assignee_hint` — do not",
-      "correct it to someone on the list. The application resolves names, and",
-      "an unresolvable name becomes a question to the author.",
+      whoBlock(ctx),
       "",
       "Set clarify_needed only when an item genuinely cannot be routed",
       "without an answer. Ask ONE short question about ONE item; route",
       "everything else meanwhile.",
       "",
-      `Today is ${ctx.todayISO}. Resolve relative days against it.`,
-      "Write `due_hint` in the note's own plain words, in English, AND when",
-      "those words name a day you can work out, put it in `due_date` as",
-      "YYYY-MM-DD;",
-      "otherwise leave `due_date` empty rather than inventing a day.",
+      whenBlock(ctx),
       "",
       "Leave plain_note empty — note_lines carries the leftovers here.",
     ].join("\n");
@@ -375,10 +462,7 @@ export function systemPrompt(ctx: NoteContext): string {
     "One note can produce several of these at once. Produce nothing for the",
     "parts of the note that do not call for it: empty arrays are correct.",
     "",
-    `People who can be assigned work: ${names}.`,
-    "Put the name exactly as the note said it in `assignee_hint` — do not",
-    "correct it to someone on the list. The application resolves names, and",
-    "an unresolvable name becomes a question to the author.",
+    whoBlock(ctx),
     "",
     "Set clarify_needed only when you genuinely cannot route the note without",
     "an answer — an ambiguous person, an unclear target, or a sentence that",
@@ -386,13 +470,7 @@ export function systemPrompt(ctx: NoteContext): string {
     "concrete options. When clarify_needed is true, still fill in whatever",
     "you are confident about; do not blank the rest.",
     "",
-    `Today is ${ctx.todayISO}. Resolve relative days against it.`,
-    "Write `due_hint` in the note's own plain words, in English ('tomorrow',",
-    "'before the next visit'), AND when those words name a day you can work out,",
-    "put it in `due_date` as YYYY-MM-DD. 'Tomorrow', 'Monday' and '3 August'",
-    "all resolve; 'before the next visit' and 'when the part lands' do not —",
-    "leave `due_date` empty for those rather than inventing a day. The person",
-    "confirming sees the date and can change it.",
+    whenBlock(ctx),
     ctx.targetLabel ? `\nThis note is about: ${ctx.targetLabel}.` : "",
     ctx.equipment?.length ? `Equipment on site: ${ctx.equipment.join(", ")}.` : "",
     historyBlock(ctx),
@@ -408,14 +486,64 @@ export type AssigneeMatch =
   | { kind: "one"; id: string }
   | { kind: "ambiguous"; names: string[] };
 
+/* WHAT A PERSON CALLS THEMSELVES.
+
+   Kept here rather than in `lib/notes/sniff-cues`, whose own rule is not to
+   copy entries between consumers on the assumption that a cue is a cue: the
+   sieve is spending a routing call and can afford to be generous, while this
+   list assigns real work to a real person and cannot. Every entry has to mean
+   the speaker and nothing else.
+
+   The other languages are here because the model is told to put the hint in
+   the note's own words and NOT to correct it — so a note dictated in Vietnamese
+   arrives with "tôi" in `assignee_hint`, and an English-only list quietly gives
+   that person the one failure this whole feature exists to remove. Matched
+   whole, never as substrings: "me" inside "Mehmet" is somebody else. */
+const SELF: readonly string[] = [
+  "me",
+  "i",
+  "myself",
+  "my self",
+  "self",
+  // Spanish
+  "yo",
+  "mí",
+  "mi",
+  "a mí",
+  // Vietnamese
+  "tôi",
+  "toi",
+  "mình",
+  "minh",
+  // Tagalog
+  "ako",
+  "sa akin",
+  // Mandarin
+  "我",
+  "我自己",
+  // Arabic
+  "أنا",
+  "لي",
+];
+
 /** Match what the note said against the people who can be assigned work.
 
     First names are how a site note refers to people ("tell Luke"), so a
     first-name match counts — but ONLY when it is unique. Two Lukes is the
     case that matters: guessing picks a person at random and assigns real
     work to them, so it returns `ambiguous` and the caller turns that into a
-    question instead. */
-export function resolveAssignee(hint: string, staff: readonly NoteStaff[]): AssigneeMatch {
+    question instead.
+
+    "ME" IS CHECKED LAST, AFTER EVERY REAL NAME, and the order is the whole of
+    the rule: a workspace is entitled to a member called Mi or Ako, and a person
+    who is on the list beats a pronoun that merely looks like them. It resolves
+    only when an author was supplied — a surface that routes notes without one
+    gets the old behaviour rather than a wrong person. */
+export function resolveAssignee(
+  hint: string,
+  staff: readonly NoteStaff[],
+  authorId?: string | null,
+): AssigneeMatch {
   const h = norm(hint);
   if (!h) return { kind: "none" };
 
@@ -426,6 +554,8 @@ export function resolveAssignee(hint: string, staff: readonly NoteStaff[]): Assi
   const first = staff.filter((s) => norm(s.fullName).split(" ")[0] === h);
   if (first.length === 1) return { kind: "one", id: first[0].id };
   if (first.length > 1) return { kind: "ambiguous", names: first.map((s) => s.fullName) };
+
+  if (authorId && SELF.includes(h)) return { kind: "one", id: authorId };
 
   return { kind: "none" };
 }
@@ -470,7 +600,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
     if (!title) continue; // a task with no title is not a task
 
     const assigneeHint = clean(row.assignee_hint, TITLE_MAX);
-    const match = resolveAssignee(assigneeHint, ctx.staff);
+    const match = resolveAssignee(assigneeHint, ctx.staff, ctx.author?.id);
 
     // Two people answer to that name — ask rather than pick one.
     if (match.kind === "ambiguous" && !clarify) {
@@ -489,6 +619,11 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
       /* Validated, not trusted: the model is asked for an ISO date and a
          malformed one becomes no date rather than a bad one. */
       dueDate: ISO_DATE.test(String(row.due_date ?? "")) ? String(row.due_date) : "",
+      /* Same posture as the date beside it, and it matters more: a time is
+         composed into a real instant server-side, so "9pm-ish" reaching the
+         database as a nudge is worse than no nudge at all. Anything that is not
+         a 24-hour clock becomes no time, and the task is simply a task. */
+      remindTime: HHMM.test(String(row.remind_time ?? "")) ? String(row.remind_time) : "",
     });
   }
 

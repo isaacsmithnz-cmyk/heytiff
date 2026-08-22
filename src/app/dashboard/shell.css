@@ -1063,10 +1063,15 @@
 /* The scroller, and the reason the panel is a column flexbox: the head and the
    footer stay put and only this moves. `min-height:0` because a flex child
    defaults to min-content and would refuse to shrink — without it the panel
-   grows past its own max-height and the list never scrolls. */
-.fg .topbar .bp-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
-.fg .topbar .bp-list::-webkit-scrollbar { width:6px; }
-.fg .topbar .bp-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:99px; }
+   grows past its own max-height and the list never scrolls.
+
+   IT MOVED UP ONE LEVEL when reminders joined the panel, from `.bp-list` to a
+   wrapper around both groups. Two scrollers in a 360px popover is the thing to
+   avoid: whichever one the wheel happened to be over would move, and neither
+   could reach the other group's rows. */
+.fg .topbar .bp-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
+.fg .topbar .bp-scroll::-webkit-scrollbar { width:6px; }
+.fg .topbar .bp-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:99px; }
 
 /* One row. Two channels, same as the board's tiles: the GLYPH is the domain
    (truck / shield / hexagon, matching the nav) and the COLOUR is the urgency —
@@ -1093,6 +1098,50 @@
    already all of it is a lie about there being more. */
 .fg .topbar .bp-more { display:flex; align-items:center; justify-content:center; gap:6px; flex:0 0 auto; margin-top:6px; padding:10px; border-radius:11px; background:rgba(255,255,255,.05); color:rgba(255,255,255,.72); font-size:12px; font-weight:700; text-decoration:none; transition:background .18s, color .18s; }
 .fg .topbar .bp-more:hover { background:rgba(255,255,255,.1); color:#fff; }
+
+/* REMINDERS — the group above the chips.
+
+   THE ROW DOES NOT LIFT ON HOVER, and that is a contrast decision rather than a
+   styling one. A chip row is a link, so hovering it lifts the ground by .08
+   white and its text goes to #fff to keep up. This row is not a link — it is
+   text with two buttons on it — so a lift would raise the ground under a
+   subject line that stayed put, which is exactly how this panel shipped under
+   AA once already. The ground here is the panel's own opaque #0d0e13 and
+   nothing moves it; only the BUTTONS light up, and they carry their own ink.
+
+   `--on-ink-q` on the late line measures 5.03 against that ground.
+   `topbar-popover-grounds.test.ts` holds all of this. */
+.fg .topbar .bp-grp { padding:8px 11px 4px; font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--on-ink-q); }
+.fg .topbar .bp-rems { display:flex; flex-direction:column; }
+.fg .topbar .bp-rem { border-radius:11px; }
+.fg .topbar .bp-remrow { display:flex; align-items:center; gap:11px; padding:9px 11px; }
+.fg .topbar .bp-rem .bp-ic { background:rgba(0,229,192,.14); color:#3fd7b6; }
+.fg .topbar .bp-remacts { display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+
+/* THE TITLE WRAPS HERE, WHERE A CHIP'S DOES NOT, and the difference is what
+   the line is FOR. A chip's headline is a formula — "<thing> <expiry clause>" —
+   so its first few words carry the whole meaning and an ellipsis costs a
+   subject you can also read underneath. A reminder's title is a sentence
+   somebody dictated, and it is the entire content of the row: measured on the
+   real font, "Check with Luke about quote to Chris from Scott Group" wants
+   335px and the two buttons leave 187, so an ellipsis cut it at "quote…" —
+   which is the half that says nothing. Clamped at two lines rather than
+   unbounded, so one long note can't push the rest of the list off the panel. */
+.fg .topbar .bp-rem .bp-main b { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; }
+.fg .topbar .bp-remrow { align-items:flex-start; }
+.fg .topbar .bp-rem .bp-ic, .fg .topbar .bp-remacts { margin-top:1px; }
+.fg .topbar :is(.bp-remdo, .bp-remsnz) { display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.72); font:inherit; font-size:11.5px; font-weight:700; cursor:pointer; transition:background .18s, color .18s; }
+.fg .topbar .bp-remdo { width:28px; height:28px; }
+.fg .topbar .bp-remsnz { height:28px; padding:0 10px; }
+.fg .topbar :is(.bp-remdo, .bp-remsnz):hover { background:rgba(255,255,255,.14); color:#fff; }
+.fg .topbar .bp-remsnz.on { background:rgba(255,255,255,.16); color:#fff; }
+
+/* The three choices, in the row's own space rather than a menu over it. A
+   popover inside a popover needs its own dismissal, its own escape key and its
+   own outside-click — for three buttons that are already one tap away. */
+.fg .topbar .bp-snooze { display:flex; gap:6px; padding:0 11px 9px 52px; }
+.fg .topbar .bp-snzopt { flex:1 1 0; padding:7px 4px; border:1px solid rgba(255,255,255,.12); border-radius:9px; background:none; color:rgba(255,255,255,.72); font:inherit; font-size:11.5px; font-weight:700; cursor:pointer; transition:background .18s, color .18s, border-color .18s; }
+.fg .topbar .bp-snzopt:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.2); color:#fff; }
 
 /* the light content well, inset so the dark frame shows across top / right / bottom */
 .fg .main { padding:0 16px 16px 0; }
@@ -5047,6 +5096,60 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
 .wb-chip.warn { background:rgba(255,138,0,.14); color:#B26A00; }
 .wb-review .wb-row { gap:8px; }
 .wb-review .wb-select { max-width:170px; }
+
+/* THE TASK ROW WRAPS RATHER THAN CRUSHING ITS OWN TITLE.
+
+   It carried four controls — tick, title, person, date — and `input.wb-inline`
+   is `flex:1; min-width:0`, so the title is whatever is left over. That was
+   fine at four. The reminder chip made it five, and on the real card (680px,
+   less 36px of padding) the title collapsed to about 75px: "Check with Luke
+   ab". The one field you have to READ to know what you are agreeing to was the
+   one paying for the new control, and on a phone the card is 343px wide, where
+   it would have had nothing at all.
+
+   So the row wraps and the title claims a floor. Everything still sits on one
+   line where there is room; where there isn't, the chip at the end drops to
+   its own line instead of taking the words with it. `flex-basis` rather than a
+   width so it still grows into whatever space a wide card has. */
+.wb-review .wb-row { flex-wrap:wrap; }
+.wb-review input.wb-inline { flex:1 1 240px; min-width:180px; }
+
+/* THE REMINDER CONTROL — a day plus a time is a reminder.
+
+   It wears `.wb-select` so it takes the row's control styling (and the dusk
+   skin's override of it) rather than restating either, and adds only what a
+   BUTTON needs that a select doesn't: a row for the glyph beside the label.
+   `.on` is the state that matters — a task carrying a nudge has to be
+   distinguishable at a glance from one merely offering the option, or the
+   control reads as decoration and nobody presses it twice. */
+.wb-review .wb2-remind { display:flex; align-items:center; gap:6px; max-width:none; white-space:nowrap; font-weight:700; color:var(--gray500); }
+.wb-review .wb2-remind.on { color:var(--ink); border-color:rgba(5,5,5,.24); }
+/* `.wb-select` IS IN THE COMPOUND, and that is why these two carry it too.
+
+   The chip wears `.wb-select` to inherit the row's control styling, which also
+   puts it inside `.wb2-capcard.wb2-dusk :is(input.wb-inline, .wb-select)` —
+   and `:is()` takes the specificity of its most specific argument, so that rule
+   is (0,3,1) and quietly beat a (0,3,0) written for this button by name. Both
+   states came out pure white on the dusk card: the control still worked, and
+   "a reminder is set" looked exactly like "you could set one".
+
+   Naming `.wb-select` here makes these (0,4,0) and (0,5,0), which wins on class
+   count rather than on being written further down the file. Found by measuring
+   the rendered colour, not by reading the cascade — the same shape as the
+   `.fg button` trap, one selector along. */
+.wb2-capcard.wb2-dusk .wb-select.wb2-remind { color:rgba(255,255,255,.62); }
+.wb2-capcard.wb2-dusk .wb-select.wb2-remind.on { color:#fff; border-color:rgba(0,229,192,.4); }
+
+/* The wheel, opened UNDER the row it belongs to rather than beside it. Three
+   scrolling columns do not fit in a row that already carries a title, a person
+   and a date, and a control that squeezes the title to 40px to make room has
+   made the card worse to read in order to be easier to reach. */
+.wb2-remindbox { display:flex; flex-direction:column; gap:8px; margin:0 10px 8px; padding:10px; border-radius:12px; background:rgba(5,5,5,.04); }
+.wb2-capcard.wb2-dusk .wb2-remindbox { background:rgba(255,255,255,.05); }
+.wb2-remindoff { align-self:flex-start; padding:6px 10px; border:0; border-radius:8px; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.wb2-remindoff:hover { background:rgba(5,5,5,.06); color:var(--ink); }
+.wb2-capcard.wb2-dusk .wb2-remindoff { color:rgba(255,255,255,.62); }
+.wb2-capcard.wb2-dusk .wb2-remindoff:hover { background:rgba(255,255,255,.08); color:#fff; }
 
 /* visits */
 .wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:14px; padding:6px 8px; margin-bottom:10px; }

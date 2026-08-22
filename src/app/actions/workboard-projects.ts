@@ -304,7 +304,21 @@ export async function setProjectDefectsEnd(
     if (taskId) {
       const { data } = await supabaseAdmin
         .from("tasks")
-        .update({ title, detail, due_date: value, updated_at: new Date().toISOString() })
+        /* MOVING THE DAY DROPS THE NUDGE. `tasks.remind_at` is an instant
+           composed from the due date plus a time of day, so a due date changed
+           by anything that does not recompose it would leave the reminder
+           ringing on the old morning. Cleared rather than recomputed here
+           because this task belongs to the defects period, not to a person who
+           asked to be reminded — a nudge that stops is recoverable, one that
+           fires on the wrong day is not. Anything that MEANS to keep the time
+           must go through `remindAtFrom`. */
+        .update({
+          title,
+          detail,
+          due_date: value,
+          remind_at: null,
+          updated_at: new Date().toISOString(),
+        })
         .eq("org_id", ctx.orgId)
         .eq("id", taskId)
         .eq("status", "open")

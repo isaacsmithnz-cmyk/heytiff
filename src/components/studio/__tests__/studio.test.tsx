@@ -230,7 +230,7 @@ describe("Design Studio shell", () => {
     });
 
     // the foot chevron exists exactly because the flow would rest — unpin
-    await user.click(screen.getByRole("button", { name: /Rest the panel/ }));
+    await user.click(screen.getByRole("button", { name: /Collapse/ }));
     expect(aside().className).toContain("rest");
     expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
       split: false,
@@ -261,6 +261,22 @@ describe("Design Studio shell", () => {
     // blank designs reopen on the canvas; the floor is on the Plans screen
     await menuPick(user, "Edit plans");
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
+  });
+
+  /* The rail's collapse is a CANVAS behaviour: the editor stamps the root on
+     mount and lifts it on unmount, and the shell's collapse + seam handle key
+     on the attribute — so no other screen can ever show a collapsed rail
+     with no way back. */
+  it("stamps the canvas context while the editor is open, and lifts it on exit", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    expect(document.documentElement.hasAttribute("data-ds-canvas")).toBe(false);
+    await newDesign(user, "Canvas context", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+    expect(document.documentElement.hasAttribute("data-ds-canvas")).toBe(true);
+    await menuPick(user, "Open"); // back to Home — the editor unmounts
+    await screen.findByText("New design");
+    expect(document.documentElement.hasAttribute("data-ds-canvas")).toBe(false);
   });
 
   it("menu Open exits to a plain Home; menu New arrives mid-wizard", async () => {

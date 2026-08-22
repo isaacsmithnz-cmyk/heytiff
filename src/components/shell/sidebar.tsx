@@ -43,6 +43,7 @@ export function Sidebar({
   const rail = useSyncExternalStore(subscribeRail, railCollapsed, railServerSnapshot);
 
   return (
+    <>
     <aside className="side">
       <div className="glow" />
 
@@ -104,16 +105,20 @@ export function Sidebar({
         ))}
       </div>
 
-      {/* the rail's two sizes — one control at the foot, state remembered */}
-      <button
-        type="button"
-        className="railtg"
-        onClick={toggleRail}
-        aria-label={rail ? "Expand navigation" : "Collapse navigation"}
-        title={rail ? "Expand navigation" : "Collapse navigation"}
-      >
-        <Icon name={rail ? "chevR" : "chevL"} size={16} />
-      </button>
     </aside>
+    {/* the rail's two sizes — one control, a handle riding the SEAM between
+        rail and content. It lives outside the aside: .side clips at its own
+        edge (overflow:hidden contains the glow), which would cut the
+        straddling chip in half. */}
+    <button
+      type="button"
+      className="railtg"
+      onClick={toggleRail}
+      aria-label={rail ? "Expand navigation" : "Collapse navigation"}
+      title={rail ? "Expand navigation" : "Collapse navigation"}
+    >
+      <Icon name={rail ? "chevR" : "chevL"} size={15} />
+    </button>
+    </>
   );
 }

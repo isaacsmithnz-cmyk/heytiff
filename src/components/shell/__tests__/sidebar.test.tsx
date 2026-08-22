@@ -106,7 +106,7 @@ describe("Sidebar — role-gated nav", () => {
 
   it("owners get the full rail", () => {
     render(as("owner", "Smith Air"));
-    for (const label of ["Home", "Workboard", "Toolbox", "Design Studio", "Library", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
+    for (const label of ["Home", "Workboard", "Toolbox", "Design", "Library", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
@@ -129,7 +129,7 @@ describe("Sidebar — a granted capability shows its entry", () => {
     // an explicit revoke is respected for non-owners
     render(<Sidebar role="admin" caps={[...resolve("admin", { toolbox: false })]} />);
     expect(screen.queryByText("Toolbox")).toBeNull();
-    expect(screen.getByText("Design Studio")).toBeTruthy();
+    expect(screen.getByText("Design")).toBeTruthy();
   });
 });
 

@@ -16,8 +16,13 @@ async function armRoom(
   user: ReturnType<typeof userEvent.setup>,
   shape: "Rectangle" | "Polygon" = "Rectangle"
 ) {
-  const name = shape === "Rectangle" ? "Room (rectangle)" : "Room (polygon)";
-  await user.click(await screen.findByRole("button", { name }));
+  // one Room button now — the shape choice flies out on click
+  await user.click(await screen.findByRole("button", { name: "Room" }));
+  await user.click(
+    await screen.findByRole("menuitem", {
+      name: shape === "Rectangle" ? /Square/ : /Shape/,
+    })
+  );
 }
 
 

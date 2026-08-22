@@ -1070,6 +1070,17 @@ function Editor({
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  /* The rail's collapse belongs to the CANVAS: the seam handle shows, and a
+     remembered data-rail takes effect, only while the editor is open (this
+     attribute). Every other screen keeps the full rail — a collapsed strip
+     with no handle there would have stranded people. Unmount lifts it, so
+     leaving the editor restores the frame on its own. */
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-ds-canvas", "on");
+    return () => root.removeAttribute("data-ds-canvas");
+  }, []);
+
   /* Cleanup runs on leaving the editor too (menu → New/Open unmounts it), so
      going Home can't strand you fullscreen with no chrome. */
   useEffect(() => {
@@ -1687,6 +1698,8 @@ function Editor({
             onDeleteFloor={deleteFloor}
             tool={tool}
             onTool={changeTool}
+            next={next}
+            onNext={onNext}
             layers={layers}
             onLayers={setLayers}
             grayscale={grayscale}
@@ -1758,8 +1771,6 @@ function Editor({
             onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={changeTool}
-            next={next}
-            onNext={onNext}
             unitsV={unitsV}
             onUnits={onUnits}
             airGate={airGate}
@@ -2188,8 +2199,6 @@ const CANVAS_TOOLS: {
   needsSystem?: boolean;
 }[] = [
   { key: "select", icon: "cursor", label: "Select", short: "Select", kbd: "V" },
-  { key: "room-rect", icon: "square", label: "Room (rectangle)", short: "Room", kbd: "R", needsSystem: true },
-  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", short: "Shape", kbd: "G", needsSystem: true },
   { key: "pipe", icon: "pipe", label: "Refrigerant run", short: "Run", kbd: "P", needsSystem: true },
   { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", short: "Riser", kbd: "I", needsSystem: true },
   { key: "erase", icon: "eraser", label: "Eraser", short: "Erase", kbd: "E" },
@@ -2209,6 +2218,75 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   pipes: "Pipework",
   labels: "Labels",
 };
+
+/* ── the Room tool: ONE bench button; the shape choice (square or drawn)
+   appears where the click landed, and picking either arms its draw tool.
+   R and G still arm each shape directly from the keyboard. ── */
+function RoomTool({
+  tool,
+  onTool,
+  disabled,
+}: {
+  tool: CanvasTool;
+  onTool: (t: CanvasTool) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const on = tool === "room-rect" || tool === "room-poly";
+  const arm = (t: CanvasTool) => {
+    onTool(t);
+    setOpen(false);
+  };
+  return (
+    <div className="ds-pal-wrap" ref={wrapRef}>
+      <button
+        className={`ds-tool${on ? " on" : ""}`}
+        aria-label="Room"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={disabled}
+        title={disabled ? "Room — pick a system first" : "Room — square or drawn shape (R / G)"}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="square" size={15} />
+        Room
+        <span className="ds-kbd" aria-hidden="true">
+          R
+        </span>
+      </button>
+      {open && !disabled && (
+        <div className="ds-roomfly" role="menu" aria-label="Room shape">
+          <button role="menuitem" onClick={() => arm("room-rect")}>
+            <Icon name="square" size={14} />
+            Square
+            <span className="ds-flykbd" aria-hidden="true">R</span>
+          </button>
+          <button role="menuitem" onClick={() => arm("room-poly")}>
+            <Icon name="hexagon" size={14} />
+            Shape
+            <span className="ds-flykbd" aria-hidden="true">G</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ═════════════ Canvas controls (topbar, Design step) ═════════════ */
 
@@ -2256,6 +2334,8 @@ function CanvasControls({
   onDeleteFloor,
   tool,
   onTool,
+  next,
+  onNext,
   layers,
   onLayers,
   grayscale,
@@ -2273,6 +2353,10 @@ function CanvasControls({
   onDeleteFloor: (id: string) => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
+  /** the flow's first unmet requirement — the chip rides this row now, in
+      line with the floor/Calibrate/View pills (the bench keeps the verbs) */
+  next: NextMove | null;
+  onNext: () => void;
   layers: LayerFlags;
   onLayers: (l: LayerFlags) => void;
   grayscale: boolean;
@@ -2580,6 +2664,20 @@ function CanvasControls({
           <span className="ds-ctl-word">{simOn ? "Exit sim" : "Simulate"}</span>
         </button>
       )}
+      {next && (
+        <button
+          className={`ds-nextchip${next.key === "complete" ? " done" : ""}`}
+          onClick={onNext}
+          title={
+            next.key === "complete"
+              ? "Every requirement is met — open the Summary"
+              : "Arm the next move"
+          }
+        >
+          <span className="ds-nextdot" aria-hidden="true" />
+          {next.key === "complete" ? next.label : `Next: ${next.label}`}
+        </button>
+      )}
     </div>
   );
 }
@@ -2591,8 +2689,6 @@ function DesignPanel({
   onGoPlans,
   tool,
   onTool,
-  next,
-  onNext,
   unitsV,
   onUnits,
   airGate,
@@ -2633,9 +2729,6 @@ function DesignPanel({
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
-  /** the system's first unmet requirement — the chip names it, clicking arms it */
-  next: NextMove | null;
-  onNext: () => void;
   /** the Units verb's current meaning (null: this system type still picks
       its units in the panel) — the button wears the reason in place */
   unitsV: UnitsVerb | null;
@@ -2764,8 +2857,7 @@ function DesignPanel({
             <span className="ds-tb-gl" aria-hidden="true">
               Rooms
             </span>
-            {toolButton(tb("room-rect"))}
-            {toolButton(tb("room-poly"))}
+            <RoomTool tool={tool} onTool={onTool} disabled={!activeSystemId} />
             <span className="ds-tb-sep" aria-hidden="true" />
             <span className="ds-tb-gl" aria-hidden="true">
               System
@@ -2834,20 +2926,6 @@ function DesignPanel({
             <span className="ds-tb-sep" aria-hidden="true" />
             {toolButton(tb("erase"))}
             <div className="ds-tb-spring" />
-            {next && (
-              <button
-                className={`ds-nextchip${next.key === "complete" ? " done" : ""}`}
-                onClick={onNext}
-                title={
-                  next.key === "complete"
-                    ? "Every requirement is met — open the Summary"
-                    : "Arm the next move"
-                }
-              >
-                <span className="ds-nextdot" aria-hidden="true" />
-                {next.key === "complete" ? next.label : `Next: ${next.label}`}
-              </button>
-            )}
             <button
               className="ds-tool"
               onClick={undo}

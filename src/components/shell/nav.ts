@@ -84,7 +84,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // of that group it defaults to EVERYONE (`workboard` is a staff default).
       { key: "workboard", label: "Workboard", icon: "activity", href: "/dashboard/workboard", hint: "Maintenance & projects command centre", accent: "#00A8E0", capability: "workboard" },
       { key: "toolbox", label: "Toolbox", icon: "wrench", href: "/dashboard/toolbox", hint: "Calculators & references", accent: "#8A2BE2", capability: "toolbox" },
-      { key: "ductr", label: "Design Studio", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
+      { key: "ductr", label: "Design", icon: "wind", href: "/dashboard/studio", hint: "VRF design canvas", accent: "#FF8A00", capability: "studio" },
       /* The catalogue rides along as a tab, like Leave does on Timesheet: it is
          the same feature seen from the other end — you ask the library, and the
          library is where the answers come from. One rail row, two faces, and ⌘K

@@ -376,10 +376,10 @@ export function SystemCockpit({
         <button
           className="ds-ck-foot"
           onClick={rest.onRest}
-          title="Let the panel rest — it reopens the moment the flow needs it"
+          title="Collapse the panel — it reopens the moment the flow needs it"
         >
           <Glyph name="chev" size={13} />
-          Rest the panel
+          Collapse
         </button>
       )}
     </div>

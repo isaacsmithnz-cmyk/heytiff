@@ -203,34 +203,39 @@
    the honest kind — it stops when the recording does. */
 @keyframes fgPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-/* ── the rail's second size ──────────────────────────────────────────────
-   `html[data-rail]` collapses the sidebar to a 64px icon rail: mark only,
-   icon-only rows (hover titles give the words back), group headings gone.
-   The attribute is set BEFORE first paint by the layout's boot script and
-   toggled at the rail's foot (.railtg), remembered in localStorage — CSS
-   keys off <html> so a collapsed frame never flashes wide while React wakes.
-   The studio's fullscreen mode still removes .side entirely; this is the
-   in-frame size between that and the full 224. */
+/* ── the rail's second size — a CANVAS-ONLY behaviour ────────────────────
+   The collapse and its handle exist for the drawing room: both key on
+   `html[data-ds-canvas]`, stamped while the studio editor is mounted.
+   Everywhere else the rail stands full and carries no handle — a collapsed
+   strip on Workboard with no way back would strand people. `data-rail`
+   (the remembered preference, set pre-paint by the boot script) only takes
+   effect in that context: leave the editor and the frame restores itself,
+   come back and the room is yours again. */
 .fg .side { transition:width .35s cubic-bezier(.22,1,.36,1), flex-basis .35s cubic-bezier(.22,1,.36,1); }
-html[data-rail] .fg .side { width:64px; flex:0 0 64px; }
-html[data-rail] .fg .brand { padding:32px 0 20px; justify-content:center; }
-html[data-rail] .fg .ht-wm,
-html[data-rail] .fg .ht-orgpill,
-html[data-rail] .fg .navlbl,
-html[data-rail] .fg .ni .nlbl,
-html[data-rail] .fg .ni .sk-navtext { display:none; } /* skeleton's label bar collapses with the real one */
-html[data-rail] .fg .nav { padding:16px 12px; }
-html[data-rail] .fg .ni { justify-content:center; gap:0; padding:12px 0; }
-html[data-rail] .fg .navgrp + .navgrp { margin-top:24px; }
-/* the foot toggle — the one control that changes the rail's size. Ink sits at
-   the frame's graphic floor (see the dark-chrome contrast note): .45 white on
-   #050505, lifting to full white on hover like every row above it. */
-.fg .railtg { position:relative; z-index:10; margin:8px 20px 18px; padding:9px 0;
-  display:flex; align-items:center; justify-content:center; border-radius:12px;
-  color:rgba(255,255,255,.45); transition:background .3s, color .3s; }
-.fg .railtg:hover { background:rgba(255,255,255,.05); color:#fff; }
+html[data-rail][data-ds-canvas] .fg .side { width:44px; flex:0 0 44px; }
+html[data-rail][data-ds-canvas] .fg .brand,
+html[data-rail][data-ds-canvas] .fg .nav { display:none; } /* the skeleton rows live in .nav and fold with it */
+/* the size toggle: a dark chevron chip SITTING ON THE BLACK, vertically
+   centred against the rail's inner edge — where a drawer says "pull here".
+   It stays outside .side only for positioning freedom (it tracks the rail's
+   width through the same curve); the treatment is the frame's own — ink at
+   the dark-chrome graphic floor, lifting to full white on a soft wash.
+   Hidden outside the canvas context, and in fullscreen (which removes the
+   whole frame) via the :not guard. */
+.fg .railtg { position:absolute; z-index:40; top:50%; left:192px; /* inside the 224 edge */
+  width:26px; height:26px; transform:translateY(-50%);
+  display:none; align-items:center; justify-content:center; border-radius:999px;
+  background:transparent; color:rgba(255,255,255,.45);
+  transition:left .35s cubic-bezier(.22,1,.36,1), color .3s, background .3s; }
+html[data-ds-canvas]:not([data-ds-display]) .fg .railtg { display:flex; }
+.fg .railtg:hover { color:#fff; background:rgba(255,255,255,.09); }
 .fg .railtg:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
-html[data-rail] .fg .railtg { margin:8px 12px 18px; }
+/* the arrow leans the way the rail will move — in on hover-to-close, out on
+   hover-to-open — so the chip explains itself before the click */
+.fg .railtg svg { transition:transform .25s cubic-bezier(.22,1,.36,1); }
+.fg .railtg:hover svg { transform:translateX(-2px); }
+html[data-rail][data-ds-canvas] .fg .railtg { left:9px; /* centred in the 44px strip */ }
+html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px); }
 /* note: the studio toolbar's own width concessions live in studio.css — the
    kbd chips and group labels yield below 1600px so the bar and the Next chip
    share one row even beside the full 224px rail */

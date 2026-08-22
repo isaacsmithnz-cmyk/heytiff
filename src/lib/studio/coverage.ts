@@ -65,6 +65,18 @@ export function roomAtPoint(
   return null;
 }
 
+/** A split's ranking lens and fallback attribution: the room its pair was
+    chosen for, else the first room it serves. A drop INSIDE a room always
+    wins by containment; a drop outside every room (the hallway-bulkhead
+    case) attributes here instead of nowhere. Null for other module types —
+    their lens rules arrive with their modules. */
+export function lensRoom(doc: DesignDocument, systemId: string | null): RoomObj | null {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  if (!sys || sys.type !== "split") return null;
+  const rooms = roomsServedBy(doc, systemId);
+  return rooms.find((r) => r.id === String(sys.settings.roomId ?? "")) ?? rooms[0] ?? null;
+}
+
 /** rooms a system serves: drawn under it ∪ adopted via settings.roomIds */
 export function roomsServedBy(doc: DesignDocument, systemId: string | null): RoomObj[] {
   if (!systemId) return [];

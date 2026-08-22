@@ -105,6 +105,25 @@ describe("UnitBrowser", () => {
     expect(screen.getByRole("button", { name: /Ducted\s*2/ })).toBeInTheDocument();
   });
 
+  it("opens on the first prevalent tab with a fit, not the cross-form best fit", () => {
+    /* the real case: a bedroom split at 4.2 kW. A floor console lands the
+       exact capacity, so the cross-form-factor best fit is the console — but
+       a wall unit fits too, and wall-mounted is where an installer looks
+       first. The default follows the tab order, not the ranking tiebreak. */
+    const p = fixturePack();
+    p.indoor_units.push(
+      idu("WALL-45", "wall", 4.5, [900, 230, 305]),
+      idu("CONS-42", "floor-console", 4.2, [750, 215, 600])
+    );
+    p.outdoor_units.push(odu("OD-45", 4.5), odu("OD-42C", 4.2));
+    p.pair_tables.push(pair("WALL-45", "OD-45", 4.5, 20), pair("CONS-42", "OD-42C", 4.2, 20));
+    render(
+      <UnitBrowser pack={p} loadKw={4.2} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    expect(screen.getByRole("button", { name: /Wall-mounted/ }).className).toContain("on");
+    expect(within(tbl()).getByText("WALL-45")).toBeInTheDocument();
+  });
+
   it("opens on the requested form-factor tab (ducted AHU flow)", () => {
     render(
       <UnitBrowser
@@ -524,5 +543,66 @@ describe("UnitBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: /Wall-mounted/ }));
     expect(screen.queryByRole("columnheader", { name: /Airflow/ })).toBeNull();
     expect(screen.queryByText(/Airflow ≥/)).toBeNull();
+  });
+
+  /* Room chips (drop-to-attribute slice): the lens the ranking reads through,
+     the fallback attribution, and — via the served tick — placement progress. */
+  describe("room chips", () => {
+    const chips = [
+      { id: "r1", name: "Lounge", loadKw: 4.2, served: true },
+      { id: "r2", name: "Study", loadKw: 2.1, served: false },
+    ];
+
+    it("wears the rooms across the top, lens pressed, load on each chip", () => {
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={chips}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      const row = screen.getByRole("navigation", { name: "Rank against a room" });
+      const study = within(row).getByRole("button", { name: /Study/ });
+      expect(study).toHaveAttribute("aria-pressed", "true");
+      expect(within(row).getByRole("button", { name: /Lounge/ })).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      );
+      expect(study.textContent).toContain("2.1 kW");
+      // the placed room wears the tick class — progress at a glance
+      expect(within(row).getByRole("button", { name: /Lounge/ }).className).toContain("served");
+    });
+
+    it("clicking a chip re-aims the lens", () => {
+      const aims: string[] = [];
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={chips}
+          lensId="r2"
+          onLens={(id) => aims.push(id)}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: /Lounge/ }));
+      expect(aims).toEqual(["r1"]);
+    });
+
+    it("shows no chip row when the host has no rooms to offer", () => {
+      render(
+        <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
+      );
+      expect(
+        screen.queryByRole("navigation", { name: "Rank against a room" })
+      ).toBeNull();
+    });
   });
 });

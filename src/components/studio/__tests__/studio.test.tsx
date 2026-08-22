@@ -3,7 +3,7 @@
    the studio menu switch stage panels, and a remount recovers the design from
    persistence. */
 
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
@@ -165,6 +165,78 @@ describe("Design Studio shell", () => {
     ).toBeInTheDocument();
   });
 
+  /* The Calibrate menu is plan-prep's one home. Crop and Move act on the plan
+     SHEETS — a blank grid has none, so both grey out with the reason worn in
+     place, and their X/M keys stay inert exactly like the rows. The tape is
+     the contrast: blank grids are pre-scaled, so K works from the start. */
+  it("Calibrate greys the sheet tools on a blank grid and keeps their keys inert", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Blank gating", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+
+    const pill = screen.getByTitle("Calibrate — set the scale and north");
+    await user.click(pill);
+    const crop = screen.getByRole("button", { name: /Crop/ });
+    const move = screen.getByRole("button", { name: /Move plans/ });
+    expect(crop).toBeDisabled();
+    expect(move).toBeDisabled();
+    // the reason sits in the row, not only in a tooltip
+    expect(crop.textContent).toContain("No plan");
+    expect(move.textContent).toContain("No plan");
+    // the tape is available — a blank grid is born scaled — and its shortcut
+    // reads as an offer (kbd chip), not the amber unset warning
+    const tape = screen.getByRole("button", { name: /Tape measure/ });
+    expect(tape).toBeEnabled();
+    expect(tape.querySelector(".v.kbd")!.textContent).toBe("K");
+
+    await user.click(pill); // fold the menu so the pill's lit state is the tool's
+
+    // X and M do nothing here; K arms the tape (the positive control that
+    // proves the key path itself is alive in this harness)
+    fireEvent.keyDown(window, { key: "x" });
+    expect(pill.className).not.toMatch(/\bon\b/);
+    fireEvent.keyDown(window, { key: "m" });
+    expect(pill.className).not.toMatch(/\bon\b/);
+    fireEvent.keyDown(window, { key: "k" });
+    expect(pill.className).toMatch(/\bon\b/);
+  });
+
+  /* The cockpit's two sizes: the FLOW picks. The type chooser needs the full
+     panel; the moment a split exists the room phase belongs to the canvas, so
+     the panel rests as the 46px status tab. Opening it is a PIN (remembered
+     per system type); the foot chevron unpins and lets it rest again. */
+  it("the cockpit rests once a split exists, and the pin overrides both ways", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Resting job", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+
+    const aside = () => document.querySelector(".ds-sidecol")!;
+    // type-first: the chooser IS the panel — never rested
+    expect(aside().className).not.toContain("rest");
+    expect(screen.queryByRole("button", { name: /Open the System 1 panel/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
+    // room phase: the work is on the canvas, the panel rests to the tab
+    expect(aside().className).toContain("rest");
+    const tab = screen.getByRole("button", { name: "Open the System 1 panel" });
+
+    // opening is a pin, and it is remembered per system type
+    await user.click(tab);
+    expect(aside().className).not.toContain("rest");
+    expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
+      split: true,
+    });
+
+    // the foot chevron exists exactly because the flow would rest — unpin
+    await user.click(screen.getByRole("button", { name: /Collapse/ }));
+    expect(aside().className).toContain("rest");
+    expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
+      split: false,
+    });
+  });
+
   it("recovers saved designs on a fresh mount (reload survival)", async () => {
     const user = userEvent.setup();
     const first = render(localStudio());
@@ -189,6 +261,22 @@ describe("Design Studio shell", () => {
     // blank designs reopen on the canvas; the floor is on the Plans screen
     await menuPick(user, "Edit plans");
     expect(screen.getByDisplayValue("Ground floor")).toBeInTheDocument();
+  });
+
+  /* The rail's collapse is a CANVAS behaviour: the editor stamps the root on
+     mount and lifts it on unmount, and the shell's collapse + seam handle key
+     on the attribute — so no other screen can ever show a collapsed rail
+     with no way back. */
+  it("stamps the canvas context while the editor is open, and lifts it on exit", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    expect(document.documentElement.hasAttribute("data-ds-canvas")).toBe(false);
+    await newDesign(user, "Canvas context", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+    expect(document.documentElement.hasAttribute("data-ds-canvas")).toBe(true);
+    await menuPick(user, "Open"); // back to Home — the editor unmounts
+    await screen.findByText("New design");
+    expect(document.documentElement.hasAttribute("data-ds-canvas")).toBe(false);
   });
 
   it("menu Open exits to a plain Home; menu New arrives mid-wizard", async () => {

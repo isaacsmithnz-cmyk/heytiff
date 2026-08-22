@@ -25,6 +25,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { Icon } from "@/components/shell/icon";
 import type {
@@ -150,82 +151,6 @@ function Glyph({ name, size = 16 }: { name: keyof typeof GLYPHS | ComponentIcon;
   );
 }
 
-/* Drawing a room is shape-first, and the shape choice now lives ON the button
-   you pressed to ask for it. It used to appear as a pill pinned to the top of
-   the CANVAS — several hundred px from the cockpit button that raised it, on
-   the far side of the screen from where you were looking — so pressing "Add
-   room" read as doing nothing at all. A marching-ants ring was added to make
-   that pill louder, which treated a LOCATION problem as a salience one. */
-export type RoomDraw = {
-  /** the picker is up (raised by Add room / Draw a room) */
-  open: boolean;
-  /** which shape is armed, if any */
-  shape: "rect" | "poly" | null;
-  /** raise the picker */
-  start: () => void;
-  /** arm a shape — null cancels back to the select tool */
-  pick: (shape: "rect" | "poly" | null) => void;
-};
-
-/** "Add room" that becomes the shape choice in place: ▢ · ⬡ · ✕. Same
-    control, same spot — so the click visibly did something. */
-function RoomDrawControl({
-  draw,
-  variant,
-}: {
-  draw: RoomDraw;
-  /** the roster's dashed row, or the empty state's solid ink button */
-  variant: "row" | "ink";
-}) {
-  const first = useRef<HTMLButtonElement | null>(null);
-  /* keyboard users land in the choice they just asked for, rather than being
-     left on a button that has turned into something else */
-  useEffect(() => {
-    if (draw.open) first.current?.focus();
-  }, [draw.open]);
-
-  const base = variant === "ink" ? "ds-ck-inkbtn" : "ds-ck-rowadd";
-  if (!draw.open) {
-    return (
-      <button className={base} onClick={draw.start}>
-        <Glyph name="edit" size={variant === "ink" ? 16 : 14} />
-        {variant === "ink" ? "Draw a room" : "Add room"}
-      </button>
-    );
-  }
-  return (
-    <div className={`${base} picking`} role="toolbar" aria-label="Room shape">
-      <button
-        ref={first}
-        className={`ds-ck-shape${draw.shape === "rect" ? " on" : ""}`}
-        onClick={() => draw.pick("rect")}
-        aria-pressed={draw.shape === "rect"}
-        aria-label="Rectangle room"
-        title="Rectangle room (R)"
-      >
-        <Glyph name="square" size={16} />
-      </button>
-      <button
-        className={`ds-ck-shape${draw.shape === "poly" ? " on" : ""}`}
-        onClick={() => draw.pick("poly")}
-        aria-pressed={draw.shape === "poly"}
-        aria-label="Polygon room"
-        title="Polygon room (G)"
-      >
-        <Glyph name="hexagon" size={16} />
-      </button>
-      <button
-        className="ds-ck-shape x"
-        onClick={() => draw.pick(null)}
-        aria-label="Cancel drawing a room"
-        title="Cancel (Esc)"
-      >
-        <Glyph name="x" size={13} />
-      </button>
-    </div>
-  );
-}
-
 /* ─────────────────────────── root ─────────────────────────── */
 
 export function SystemCockpit({
@@ -239,9 +164,10 @@ export function SystemCockpit({
   onSelect,
   onEditRoom,
   onArmPlace,
-  roomDraw,
+  onBrowseUnits,
   onFloor,
   floor,
+  rest,
   onAddVariant,
   onSwitchVariant,
   onRenameVariant,
@@ -256,9 +182,20 @@ export function SystemCockpit({
   onSelect: (id: string | null) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
-  roomDraw: RoomDraw;
+  /** open THE unit browser (the editor's single instance) on this room */
+  onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   floor: Floor;
+  /** the panel's two sizes (slice 6): `rested` swaps the panel for the 46px
+      status tab; `wouldRest` means the flow would rest were the panel not
+      held open by the pin or a selection — exactly when the foot chevron has
+      something to do. Expanding pins per system type; resting unpins. */
+  rest: {
+    rested: boolean;
+    wouldRest: boolean;
+    onExpand: () => void;
+    onRest: () => void;
+  };
   /** design variations — branched/switched from the system dropdown */
   onAddVariant: () => void;
   onSwitchVariant: (id: string) => void;
@@ -381,6 +318,7 @@ export function SystemCockpit({
   );
 
   return (
+    <>
     <div className="ds-ck">
       {showChooser ? (
         <div className="ds-ck-scroll">
@@ -407,7 +345,7 @@ export function SystemCockpit({
           onMutate={onMutate}
           onEditRoom={onEditRoom}
           onArmPlace={onArmPlace}
-          roomDraw={roomDraw}
+          onBrowseUnits={onBrowseUnits}
           onFloor={onFloor}
           systemSelector={systemSelector}
           onChangeType={() => {
@@ -431,7 +369,88 @@ export function SystemCockpit({
       ) : active && mod ? (
         <SimpleHero label={mod.label} systemSelector={systemSelector} />
       ) : null}
+      {/* the foot chevron appears only when it would DO something: the flow
+          would rest, and the pin or a selection is what's holding the panel
+          open. While the flow itself wants the panel, the flow owns it. */}
+      {rest.wouldRest && !rest.rested && (
+        <button
+          className="ds-ck-foot"
+          onClick={rest.onRest}
+          title="Collapse the panel — it reopens the moment the flow needs it"
+        >
+          <Glyph name="chev" size={13} />
+          Collapse
+        </button>
+      )}
     </div>
+    {rest.rested && active && (
+      <CockpitRestTab
+        doc={doc}
+        pack={pack}
+        system={active}
+        basis={basis}
+        onExpand={rest.onExpand}
+      />
+    )}
+    </>
+  );
+}
+
+/* ── the cockpit's second size: a 46px status tab (slice 6). Everything that
+   ARMS lives on the bar, so resting hides no verb — the tab reports the same
+   facts the panel would: system dot, the fit donut in miniature, the room
+   ticks, and (dormant for split, ready for multi) an unplaced-count badge. ── */
+function CockpitRestTab({
+  doc,
+  pack,
+  system,
+  basis,
+  onExpand,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  system: DesignSystem;
+  basis: SizingBasis;
+  onExpand: () => void;
+}) {
+  const rooms = roomsServedBy(doc, system.id);
+  const hero = computeHero(doc, pack, system, rooms, basis);
+  const done = pack
+    ? rooms.filter((r) => roomCoverage(doc, pack, r, basis).status === "covered").length
+    : 0;
+  const pairChosen = Boolean(system.settings.pairIdu && system.settings.pairOdu);
+  const units = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
+  const unplaced = pairChosen
+    ? (["idu", "odu"] as const).filter((role) => !units.some((u) => u.props.role === role))
+        .length
+    : 0;
+  const pct = hero.pct != null ? Math.min(hero.pct, 100) : 0;
+  return (
+    <button
+      className="ds-cktab"
+      onClick={onExpand}
+      title={`Open the ${system.name} panel`}
+      aria-label={`Open the ${system.name} panel`}
+      aria-expanded={false}
+    >
+      <span className="ds-cktab-x" aria-hidden="true">
+        <Glyph name="chev" size={13} />
+      </span>
+      <span className="ds-cktab-dot" style={{ background: system.colour }} aria-hidden="true" />
+      <span
+        className={`ds-cktab-donut ${hero.state}`}
+        style={{ "--p": `${pct}%` } as CSSProperties}
+        aria-hidden="true"
+      />
+      <span className={`ds-cktab-ticks${rooms.length > 0 && done === rooms.length ? " ok" : ""}`}>
+        {rooms.length > 0 && done === rooms.length ? (
+          <Glyph name="check" size={12} />
+        ) : (
+          `${done}/${rooms.length}`
+        )}
+      </span>
+      {unplaced > 0 && <span className="ds-cktab-badge">{unplaced}</span>}
+    </button>
   );
 }
 
@@ -639,7 +658,7 @@ function ActiveCockpit({
   onMutate,
   onEditRoom,
   onArmPlace,
-  roomDraw,
+  onBrowseUnits,
   onFloor,
   onChangeType,
   systemSelector,
@@ -654,7 +673,7 @@ function ActiveCockpit({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
-  roomDraw: RoomDraw;
+  onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
@@ -785,7 +804,7 @@ function ActiveCockpit({
             onMutate={onMutate}
             onEditRoom={onEditRoom}
             onArmPlace={onArmPlace}
-            roomDraw={roomDraw}
+            onBrowseUnits={onBrowseUnits}
             onFloor={onFloor}
           />
           <ComponentsView
@@ -1707,7 +1726,7 @@ function RoomsView({
   onMutate,
   onEditRoom,
   onArmPlace,
-  roomDraw,
+  onBrowseUnits,
   onFloor,
 }: {
   doc: DesignDocument;
@@ -1725,7 +1744,7 @@ function RoomsView({
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
-  roomDraw: RoomDraw;
+  onBrowseUnits: (roomId: string) => void;
   /** take the canvas to a floor — selecting a room on another storey should
       show you that storey, not leave you looking at a plan it isn't on */
   onFloor?: (floorId: string) => void;
@@ -1788,7 +1807,6 @@ function RoomsView({
           {ducted || perRoom ? "system" : "split"}.
         </div>
         <div className="ds-ck-emptyactions">
-          <RoomDrawControl draw={roomDraw} variant="ink" />
           {adoptable.length > 0 &&
             (adopting ? (
               <div className="ds-ck-adopt">
@@ -1926,13 +1944,9 @@ function RoomsView({
                   </span>
                 </button>
                 {!shut && g.rooms.map(roomRow)}
-                {/* Add room belongs to the storey it will draw on, so it sits
-                    under that floor's last room and moves when you change page */}
-                {!shut && isActive && <RoomDrawControl draw={roomDraw} variant="row" />}
               </div>
             );
           })}
-        {!grouped && <RoomDrawControl draw={roomDraw} variant="row" />}
         {adoptable.length > 0 && !adopting && (
           <button className="ds-ck-rowadd" onClick={() => setAdopting(true)}>
             <Glyph name="plus" size={14} />
@@ -1989,6 +2003,7 @@ function RoomsView({
           perRoom={perRoom}
           onMutate={onMutate}
           onArmPlace={onArmPlace}
+          onBrowseUnits={onBrowseUnits}
           onRelease={releaseRoom}
         />
       ) : null}
@@ -2008,6 +2023,7 @@ function RoomInspectCard({
   perRoom,
   onMutate,
   onArmPlace,
+  onBrowseUnits,
   onRelease,
 }: {
   doc: DesignDocument;
@@ -2022,6 +2038,7 @@ function RoomInspectCard({
   perRoom?: boolean;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  onBrowseUnits: (roomId: string) => void;
   onRelease: (roomId: string) => void;
 }) {
   const cov = roomCoverage(doc, pack, room, basis);
@@ -2118,9 +2135,9 @@ function RoomInspectCard({
             pack={pack}
             system={system}
             room={room}
-            basis={basis}
             onMutate={onMutate}
             onArmPlace={onArmPlace}
+            onBrowseUnits={onBrowseUnits}
           />
         )}
       </div>
@@ -2138,21 +2155,20 @@ export function UnitsSub({
   pack,
   system,
   room,
-  basis,
   onMutate,
   onArmPlace,
+  onBrowseUnits,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
   system: DesignSystem;
   room: RoomObj;
-  basis: SizingBasis;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  /** open THE unit browser on this room — the editor owns the one instance
+      (Units on the bar, the Next chip and this card all reach the same one) */
+  onBrowseUnits: (roomId: string) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
-  const loadKw = roomLoadKw(doc, room);
-
   const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
   const sysIdu = mine.find((o) => o.props.role === "idu") ?? null;
   /* A split is ONE pair serving ONE room — but a system can SERVE several
@@ -2189,36 +2205,6 @@ export function UnitsSub({
           !(o.systemId === system.id && (o.type === "pipe-run" || o.type === "riser"))
       ),
     }));
-
-  const choose = (pair: PairProposal) => {
-    const changed = pair.idu.model !== iduModel || pair.odu.model !== oduModel;
-    onMutate((d) => ({
-      ...d,
-      systems: d.systems.map((s) =>
-        s.id === system.id
-          ? {
-              ...s,
-              settings: {
-                ...s.settings,
-                pairIdu: pair.idu.model,
-                pairOdu: pair.odu.model,
-                roomId: room.id,
-              },
-            }
-          : s
-      ),
-      objects: changed
-        ? d.objects.filter(
-            (o) =>
-              !(
-                o.systemId === system.id &&
-                (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
-              )
-          )
-        : d.objects,
-    }));
-    setBrowsing(false);
-  };
 
   const pipeSizes = pairRow ? `Ø${pairRow.pipe_liquid_mm} / ${pairRow.pipe_gas_mm}` : "";
 
@@ -2275,7 +2261,7 @@ export function UnitsSub({
           <button
             className="ds-ck-inkbtn"
             style={{ marginTop: 10 }}
-            onClick={() => setBrowsing(true)}
+            onClick={() => onBrowseUnits(room.id)}
           >
             <Glyph name="plus" size={16} />
             Select units
@@ -2322,7 +2308,7 @@ export function UnitsSub({
           <button
             className="ds-ck-inkbtn"
             style={{ marginTop: 10 }}
-            onClick={() => setBrowsing(true)}
+            onClick={() => onBrowseUnits(room.id)}
             title="Swap the chosen units"
           >
             <Glyph name="rotate" size={16} />
@@ -2331,9 +2317,6 @@ export function UnitsSub({
         </>
       )}
 
-      {browsing && pack && (
-        <UnitBrowser pack={pack} loadKw={loadKw} basis={basis} onChoose={choose} onClose={() => setBrowsing(false)} />
-      )}
     </div>
   );
 }

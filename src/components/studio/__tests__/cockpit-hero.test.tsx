@@ -64,7 +64,8 @@ function renderHero(doc: DesignDocument) {
       onSelect={() => {}}
       onEditRoom={() => {}}
       onArmPlace={() => {}}
-      roomDraw={{ open: false, shape: null, start: () => {}, pick: () => {} }}
+      onBrowseUnits={() => {}}
+      rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}

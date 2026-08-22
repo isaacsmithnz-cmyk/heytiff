@@ -7,7 +7,7 @@ import { join } from "path";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
-import { roomsServedBy, roomCoverage, systemPairKw } from "../coverage";
+import { lensRoom, roomsServedBy, roomCoverage, systemPairKw } from "../coverage";
 import type { RoomObj } from "../loads-room";
 
 const SEED_DIR = join(__dirname, "../../../../data/packs/mitsubishi-electric@2026.1");
@@ -192,5 +192,35 @@ describe("roomCoverage", () => {
     const c = roomCoverage(d, pack, room1(d), "cooling");
     expect(c.loadKw).toBeNull();
     expect(c.status).toBe("unknown");
+  });
+});
+
+/* The lens: where a split's drop attributes when it lands outside every room,
+   and what the browser ranks against by default. */
+describe("lensRoom", () => {
+  it("is the pair's chosen room, else the first served room", () => {
+    const d = baseDoc();
+    d.objects.push({
+      id: "room2",
+      type: "room",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: rect(600, 0, 300, 300),
+      plane: "room",
+      props: { name: "Study" },
+    });
+    expect(lensRoom(d, "sys1")?.id).toBe("room1");
+    d.systems[0].settings.roomId = "room2";
+    expect(lensRoom(d, "sys1")?.id).toBe("room2");
+    // a stale roomId (room deleted) falls back rather than pointing at nothing
+    d.systems[0].settings.roomId = "gone";
+    expect(lensRoom(d, "sys1")?.id).toBe("room1");
+  });
+
+  it("is null with no served rooms, and null for non-split modules", () => {
+    const d = baseDoc();
+    expect(lensRoom(d, "sys2")).toBeNull(); // sys2 serves nothing
+    d.systems[0].type = "multi-split";
+    expect(lensRoom(d, "sys1")).toBeNull(); // module-gated
   });
 });

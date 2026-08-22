@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/shell/app-shell";
+import { RAIL_BOOT } from "@/components/shell/rail-state";
 import { NoteScopeProvider } from "@/components/notes/note-context";
 import { isTranscriptionConfigured } from "@/lib/voice/transcribe";
 import { ShellPalette, ShellSidebar, ShellTopbar } from "@/components/shell/shell-chrome";
@@ -31,6 +32,10 @@ import "./shell.css";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <NoteScopeProvider voiceEnabled={isTranscriptionConfigured()}>
+      {/* the sidebar's remembered size, applied BEFORE the frame paints — a
+          collapsed rail must never flash wide. Synchronous inline script; the
+          layout stays synchronous with it. */}
+      <script dangerouslySetInnerHTML={{ __html: RAIL_BOOT }} />
       <AppShell
         sidebar={
         <Suspense fallback={<SidebarSkeleton />}>

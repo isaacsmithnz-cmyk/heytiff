@@ -47,7 +47,10 @@ import type { DesignDocument, DesignObject, Floor, Point } from "@/lib/studio/do
 import { newId } from "@/lib/studio/document";
 import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
-import { roomAtPoint } from "@/lib/studio/coverage";
+import { lensRoom, roomAtPoint } from "@/lib/studio/coverage";
+import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
+import { capacityFit, type UnitFit } from "@/lib/studio/fit";
+import { OVERSIZE_CAP } from "@/lib/studio/select";
 import { isAirCapable } from "@/lib/studio/modules";
 import { attachOf } from "@/lib/studio/graph";
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
@@ -492,6 +495,8 @@ export function StudioCanvas({
   planImages,
   activeSystemId = null,
   placing = null,
+  placingKw = null,
+  roomFits,
   onPlaced,
   component = null,
   onComponentPlaced,
@@ -531,6 +536,12 @@ export function StudioCanvas({
   activeSystemId?: string | null;
   /** armed unit for the place tool */
   placing?: PlacingUnit | null;
+  /** the armed pairing's sizing capacity — while an indoor unit rides the
+      cursor every room tints by how this sits against its own load */
+  placingKw?: number | null;
+  /** rooms whose PLACED unit missed their load (oversized/undersized) — the
+      verdict that persists after the drop, worn on the label, never a block */
+  roomFits?: Record<string, "oversized" | "undersized">;
   onPlaced?: () => void;
   /** armed air component for the component tool (Stage 7 — plenum first) */
   component?: ArmedComponent | null;
@@ -1721,8 +1732,14 @@ export function StudioCanvas({
       onMutate((d) => {
         /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces);
            dropping into another system's room also adopts that room into this
-           system's served list (the user's call: drop adopts) */
-        const room = placing.role === "idu" ? roomAtPoint(d.objects, floor.id, at) : null;
+           system's served list (the user's call: drop adopts). A split IDU
+           dropped OUTSIDE every room still serves the lens room — the plan's
+           own "Bulkhead AC in the hallway void" case; containment wins
+           whenever there is containment. */
+        const room =
+          placing.role === "idu"
+            ? (roomAtPoint(d.objects, floor.id, at) ?? lensRoom(d, activeSystemId))
+            : null;
         const adopt =
           room && room.systemId !== activeSystemId
             ? (() => {
@@ -2291,12 +2308,17 @@ export function StudioCanvas({
           const moved = d.objects.find((o) => o.id === id);
           /* moving an IDU re-derives its room attribution (unless the user
              pinned it manually via roomLock) — and adopts a foreign room the
-             same way a fresh drop does */
+             same way a fresh drop does. Outside every room, a split falls
+             back to its lens room, so nudging a bulkhead along the hallway
+             never silently un-serves the room it was placed for. */
           const restamp =
             moved?.type === "unit" &&
             moved.props.role === "idu" &&
             !moved.props.roomLock;
-          const room = restamp ? roomAtPoint(d.objects, moved!.floorId, at) : null;
+          const room = restamp
+            ? (roomAtPoint(d.objects, moved!.floorId, at) ??
+              lensRoom(d, moved!.systemId ?? null))
+            : null;
           const adopt =
             restamp && room && moved!.systemId && room.systemId !== moved!.systemId
               ? (() => {
@@ -2474,6 +2496,21 @@ export function StudioCanvas({
   const labelZoom = Math.max(zoom, 1);
   const mm = floor.scaleMmPerUnit;
 
+  /* ── drop-to-attribute readout: while an indoor unit rides the cursor,
+     every room reads how the armed capacity sits against its OWN load —
+     the browser's ranking made spatial — and the room that would take the
+     drop (containment, else the split's lens room) carries the verdict. ── */
+  const armedIdu = tool === "place" && placing != null && placing.role === "idu";
+  const armedLens = useMemo(
+    () => (armedIdu ? lensRoom(doc, activeSystemId) : null),
+    [armedIdu, doc, activeSystemId]
+  );
+  const dropTargetId = armedIdu
+    ? ((cursor ? roomAtPoint(doc.objects, floor.id, cursor)?.id : null) ??
+      armedLens?.id ??
+      null)
+    : null;
+
   /* what the corner card says about the hovered unit. Everything the labels
      used to spell out on the plan, plus the things that never fitted there —
      capacity, form factor, the room it serves. Selection is unaffected: this
@@ -2610,7 +2647,16 @@ export function StudioCanvas({
                 icon: "wind",
                 text: `Click a glowing air-handler end to fit the ${component.stream} plenum`,
               }
-            : null;
+            : tool === "place" && placing
+              ? {
+                  icon: "unit",
+                  /* the gesture IS the attribution — say so while it's armed */
+                  text:
+                    placing.role === "idu"
+                      ? "Drop it in the room it serves · Esc to cancel"
+                      : "Click where the outdoor unit sits · Esc to cancel",
+                }
+              : null;
 
   return (
     <div
@@ -2767,11 +2813,22 @@ export function StudioCanvas({
             const ghost = !roomServed(r);
             // the room being sized reads as loose (dashed) until it's saved
             const loose = adjust?.id === r.id;
+            /* while an IDU is armed the fit verdict IS the room's paint;
+               rooms with no load yet read neutral rather than pretending */
+            const armLoad = armedIdu ? roomLoadKw(doc, r as RoomObj) : null;
+            const armFit: UnitFit | null =
+              armedIdu && placingKw != null && armLoad != null && armLoad > 0
+                ? capacityFit(placingKw, armLoad, OVERSIZE_CAP)
+                : null;
+            const isTarget = armedIdu && dropTargetId === r.id;
+            const covFit = roomFits?.[r.id];
             return (
               <g
                 key={r.id}
                 className={`ds-room${selected ? " sel" : ""}${ghost ? " ghost" : ""}${
                   loose ? " loose" : ""
+                }${armedIdu ? ` armfit-${armFit ?? "none"}` : ""}${
+                  isTarget ? " droptgt" : ""
                 }`}
               >
                 <polygon points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
@@ -2789,8 +2846,35 @@ export function StudioCanvas({
                       className="ds-room-area"
                     >
                       {mm ? formatArea(areaUnitsToM2(areaU, mm)) : "not calibrated"}
+                      {/* the verdict that PERSISTS after a drop — a room served
+                          by the wrong size keeps saying so; a state, never a
+                          block (ranking-not-gating) */}
+                      {covFit && (
+                        <tspan className={`ds-room-covfit ${covFit}`}>
+                          {covFit === "oversized" ? " · oversized" : " · undersized"}
+                        </tspan>
+                      )}
                     </text>
                   </>
+                )}
+                {/* the drop's verdict, on the room that would take it — the
+                    lens room keeps carrying it while the cursor is outside
+                    every room (that drop attributes here) */}
+                {isTarget && placing && (
+                  <text
+                    x={c.x}
+                    y={c.y + 32 / labelZoom}
+                    fontSize={11 / labelZoom}
+                    className={`ds-room-verdict${armFit ? ` ${armFit}` : ""}`}
+                  >
+                    {armFit === "fits"
+                      ? `${placing.model} fits — needs ≈${armLoad!.toFixed(1)} kW`
+                      : armFit === "oversized"
+                        ? `${placing.model} oversized — needs ≈${armLoad!.toFixed(1)} kW`
+                        : armFit === "undersized"
+                          ? `${placing.model} won't hold it — needs ≈${armLoad!.toFixed(1)} kW`
+                          : `${placing.model} lands here`}
+                  </text>
                 )}
                 {loose &&
                   tool === "select" &&

@@ -9,18 +9,19 @@ import { createDesign } from "@/lib/studio/document";
 import { LocalDesignStore } from "@/lib/studio/store";
 import type { PlanImages } from "@/lib/studio/plans";
 
-/* Room tools left the rail: the cockpit raises a shape pill ("Draw a room"
-   when there are none yet, "Add room" thereafter), and you pick the shape
-   from that. */
+/* Room tools live on the canvas toolbar now — one labeled button per shape,
+   armed with a single click. */
 async function armRoom(
   user: ReturnType<typeof userEvent.setup>,
   shape: "Rectangle" | "Polygon" = "Rectangle"
 ) {
-  const raise =
-    screen.queryByRole("button", { name: "Draw a room" }) ??
-    (await screen.findByRole("button", { name: "Add room" }));
-  await user.click(raise);
-  await user.click(await screen.findByRole("button", { name: `${shape} room` }));
+  // one Room button now — the shape choice flies out on click
+  await user.click(await screen.findByRole("button", { name: "Room" }));
+  await user.click(
+    await screen.findByRole("menuitem", {
+      name: shape === "Rectangle" ? /Square/ : /Shape/,
+    })
+  );
 }
 
 

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Sidebar } from "../sidebar";
 import { resolve } from "@/lib/permissions";
 import type { Role } from "@/lib/roles-shared";
@@ -106,7 +106,7 @@ describe("Sidebar — role-gated nav", () => {
 
   it("owners get the full rail", () => {
     render(as("owner", "Smith Air"));
-    for (const label of ["Home", "Workboard", "Toolbox", "Design Studio", "Library", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
+    for (const label of ["Home", "Workboard", "Toolbox", "Design", "Library", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
   });
@@ -129,6 +129,31 @@ describe("Sidebar — a granted capability shows its entry", () => {
     // an explicit revoke is respected for non-owners
     render(<Sidebar role="admin" caps={[...resolve("admin", { toolbox: false })]} />);
     expect(screen.queryByText("Toolbox")).toBeNull();
-    expect(screen.getByText("Design Studio")).toBeTruthy();
+    expect(screen.getByText("Design")).toBeTruthy();
+  });
+});
+
+describe("Sidebar — the rail's two sizes", () => {
+  afterEach(() => {
+    document.documentElement.removeAttribute("data-rail");
+    window.localStorage.clear();
+  });
+
+  it("the foot toggle collapses to the rail, remembers it, and expands back", () => {
+    render(as("owner"));
+    fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+    expect(document.documentElement.hasAttribute("data-rail")).toBe(true);
+    expect(window.localStorage.getItem("ht-rail")).toBe("1");
+    /* collapsed rows are icon-only, so each grows a hover title giving the
+       word back — and the same control now reads as Expand */
+    expect(screen.getByRole("link", { name: "Home" }).getAttribute("title")).toBe("Home");
+    fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
+    expect(document.documentElement.hasAttribute("data-rail")).toBe(false);
+    expect(window.localStorage.getItem("ht-rail")).toBe("0");
+  });
+
+  it("expanded rows carry no tooltip — the label is already worn", () => {
+    render(as("owner"));
+    expect(screen.getByRole("link", { name: "Home" }).getAttribute("title")).toBeNull();
   });
 });

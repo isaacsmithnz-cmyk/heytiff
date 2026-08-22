@@ -46,6 +46,17 @@ type CompareEntry = { key: string; brand: string; option: UnitOption; pair: Pair
     browser's 150% gate, tighter so the badge stays meaningful. */
 export const REQUIRED_BAND_CAP = 1.35;
 
+/** One room chip across the browser's top: the ranking lens, the fallback
+    attribution for a drop outside every room, and — via the served tick —
+    the system's placement progress. */
+export type BrowserRoomChip = {
+  id: string;
+  name: string;
+  loadKw: number | null;
+  /** an indoor unit is already placed and attributed to this room */
+  served: boolean;
+};
+
 /** The row's sizing flag. Nothing on a unit that suits the load — the
     Recommended heading already said so, and a chip on every row is noise. */
 function FitChip({
@@ -84,6 +95,9 @@ export function UnitBrowser({
   onClose,
   initialFormFactor,
   requiredKw,
+  rooms,
+  lensId,
+  onLens,
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -95,6 +109,13 @@ export function UnitBrowser({
   initialFormFactor?: FormFactor | null;
   /** highlight — never filter — pairs sized within REQUIRED_BAND_CAP of this */
   requiredKw?: number | null;
+  /** the system's rooms, worn as chips across the top: lens, fallback
+      attribution and progress in one row (absent on hosts without rooms) */
+  rooms?: BrowserRoomChip[];
+  /** which chip the ranking currently reads through */
+  lensId?: string | null;
+  /** re-aim the lens — the host re-ranks by handing back a new loadKw */
+  onLens?: (roomId: string) => void;
 }) {
   const [filters, setFilters] = useState<SelectFilters>({});
   const [sort, setSort] = useState<SelectSort>("capacity");
@@ -141,11 +162,19 @@ export function UnitBrowser({
     [pack, loadKw, basis, phase]
   );
 
-  /** default tab: the caller's requested form factor, else the best-fit
-      option's, else the first tab */
+  /** default tab: the caller's requested form factor, else the first tab
+      (in prevalence order — wall-mounted leads) holding a clean fit, else
+      the best-fit option's tab, else the first tab */
   const [tab, setTab] = useState<FormFactor | null>(initialFormFactor ?? null);
   const activeTab = useMemo(() => {
     if (tab && tabs.some((t) => t.formFactor === tab && t.count > 0)) return tab;
+    /* Open where a person would look first. The old default followed the
+       cross-form-factor best fit, but between two exact-capacity fits that
+       winner is a ranking tiebreak — it once opened a bedroom split on Floor
+       console because an MFZ pipped the identical-kW wall unit. The tab
+       order already encodes what installers reach for; honour it. */
+    const fit = tabs.find((t) => t.fitCount > 0);
+    if (fit) return fit.formFactor;
     if (loadKw != null) {
       const all = unitOptions(pack, { loadKw, basis, formFactor: null, phase });
       const rec = all.find((o) => o.bestFit);
@@ -431,6 +460,33 @@ export function UnitBrowser({
             <Icon name="x" size={16} />
           </button>
         </header>
+
+        {/* the system's rooms as chips: click one and the whole browser ranks
+            against ITS load; the tick doubles as placement progress. The lens
+            room is also where a drop outside every room attributes. */}
+        {rooms && rooms.length > 0 && (
+          <nav className="ds-ub-rooms" aria-label="Rank against a room">
+            {rooms.map((rc) => (
+              <button
+                key={rc.id}
+                className={`ds-ub-roomchip${rc.id === lensId ? " on" : ""}${rc.served ? " served" : ""}`}
+                aria-pressed={rc.id === lensId}
+                onClick={() => onLens?.(rc.id)}
+                title={
+                  rc.served
+                    ? `${rc.name} — unit placed`
+                    : rc.loadKw != null
+                      ? `Rank against ${rc.name} — needs ${rc.loadKw.toFixed(1)} kW`
+                      : `${rc.name} — calibrate the floor to size it`
+                }
+              >
+                {rc.served && <Icon name="check" size={11} />}
+                <b>{rc.name}</b>
+                {rc.loadKw != null && <span>{rc.loadKw.toFixed(1)} kW</span>}
+              </button>
+            ))}
+          </nav>
+        )}
 
         <nav className="ds-ub-tabs">
           {tabs.map((t) => (

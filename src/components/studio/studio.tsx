@@ -22,7 +22,7 @@ import {
   type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
-import { CLIMATE_ZONES, type SizingBasis } from "@/lib/studio/loads";
+import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
 import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
@@ -47,8 +47,12 @@ import {
   type ZoomApi,
 } from "./canvas";
 import { ComponentPalette, PlenumHud } from "./air-tools";
-import { isAirCapable } from "@/lib/studio/modules";
-import { roomsServedBy } from "@/lib/studio/coverage";
+import { isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
+import { nextMove, panelRests, unitsVerb, type NextMove, type UnitsVerb } from "@/lib/studio/next-move";
+import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
+import type { PairProposal } from "@/lib/studio/split";
+import { UnitBrowser } from "./unit-browser";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
 import {
@@ -1038,10 +1042,6 @@ function Editor({
       ? pickedFloorId
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
-  /* room drawing is shape-first: "Draw a room" raises a pill offering the
-     rectangle and polygon tools (they left the rail), and it folds away once
-     a room lands */
-  const [roomPicker, setRoomPicker] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
@@ -1068,6 +1068,17 @@ function Editor({
     };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  /* The rail's collapse belongs to the CANVAS: the seam handle shows, and a
+     remembered data-rail takes effect, only while the editor is open (this
+     attribute). Every other screen keeps the full rail — a collapsed strip
+     with no handle there would have stranded people. Unmount lifts it, so
+     leaving the editor restores the frame on its own. */
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-ds-canvas", "on");
+    return () => root.removeAttribute("data-ds-canvas");
   }, []);
 
   /* Cleanup runs on leaving the editor too (menu → New/Open unmounts it), so
@@ -1130,6 +1141,11 @@ function Editor({
   const [packVersion, setPackVersion] = useState<string>("2026.1");
   const [activeSystemId, setActiveSystemId] = useState<string | null>(null);
   const [placing, setPlacing] = useState<PlacingUnit | null>(null);
+  /* the Next chip's unit browser — a room id while it's up. The chip owns its
+     own browser instance rather than reaching into the cockpit's: choosing a
+     pair is a settings write either way, and this keeps the chip's plumbing
+     out of four component signatures. */
+  const [pairBrowse, setPairBrowse] = useState<string | null>(null);
   /* room being configured in the heat-load modal (Slice 2) */
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   /* room whose external walls the canvas should re-mark (from the modal) */
@@ -1229,15 +1245,15 @@ function Editor({
     setTool("component");
   }, []);
 
-  /* switching to any other tool disarms the component (and folds the palette) */
+  /* switching to any other tool disarms the component (and folds the palette)
+     — and lets go of a riding unit, so `placing` can never sit stale behind
+     another tool (the Units button reads it as "armed") */
   const changeTool = useCallback((t: CanvasTool) => {
     if (t !== "component") {
       setAirComp(null);
       setPaletteOpen(false);
     }
-    /* the room-shape pill mirrors whichever room tool is armed — any other
-       tool (including the auto-disarm after a room lands) folds it away */
-    setRoomPicker(t === "room-rect" || t === "room-poly");
+    if (t !== "place") setPlacing(null);
     setTool(t);
   }, []);
 
@@ -1249,6 +1265,171 @@ function Editor({
   /* enter/exit simulation — entering disarms every tool (incl. the armed air
      component) and clears the selection; the canvas locks to pan/zoom while
      simming */
+  /* ── the Next chip: the split module's first unmet requirement, named.
+     Clicking ARMS the move — the chip is a control, not a caption. ── */
+  const next = useMemo(
+    () => nextMove(doc, pack, effectiveSystemId),
+    [doc, pack, effectiveSystemId]
+  );
+
+  /* the chip's pair choice — the same write UnitsSub's picker commits: the
+     pair models + the room it serves; a CHANGED pair takes the system's
+     placed units and plumbing with it */
+  const choosePairFromChip = useCallback(
+    (pair: PairProposal, roomId: string) => {
+      /* read the pre-write state for the arm decision below: a re-chosen
+         identical pair keeps its placed units, and arming then would offer a
+         second indoor unit */
+      const cur = doc.systems.find((s) => s.id === effectiveSystemId);
+      const changed =
+        !cur ||
+        pair.idu.model !== String(cur.settings.pairIdu ?? "") ||
+        pair.odu.model !== String(cur.settings.pairOdu ?? "");
+      const hadIdu = doc.objects.some(
+        (o) =>
+          o.systemId === effectiveSystemId && o.type === "unit" && o.props.role === "idu"
+      );
+      mutate((d) => {
+        const sys = d.systems.find((s) => s.id === effectiveSystemId);
+        const swap =
+          !sys ||
+          pair.idu.model !== String(sys.settings.pairIdu ?? "") ||
+          pair.odu.model !== String(sys.settings.pairOdu ?? "");
+        return {
+          ...d,
+          systems: d.systems.map((s) =>
+            s.id === effectiveSystemId
+              ? {
+                  ...s,
+                  settings: {
+                    ...s.settings,
+                    pairIdu: pair.idu.model,
+                    pairOdu: pair.odu.model,
+                    roomId,
+                  },
+                }
+              : s
+          ),
+          objects: swap
+            ? d.objects.filter(
+                (o) =>
+                  !(
+                    o.systemId === effectiveSystemId &&
+                    (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+                  )
+              )
+            : d.objects,
+        };
+      });
+      setPairBrowse(null);
+      /* choosing ARMS the indoor unit on the cursor — the drop that follows
+         is the attribution */
+      if (changed || !hadIdu)
+        armPlace({
+          role: "idu",
+          model: pair.idu.model,
+          widthMm: pair.idu.width_mm,
+          depthMm: pair.idu.depth_mm,
+        });
+    },
+    [doc, mutate, effectiveSystemId, armPlace]
+  );
+
+  const onNext = useCallback(() => {
+    if (!next) return;
+    switch (next.key) {
+      case "draw-room":
+        changeTool("room-rect");
+        break;
+      case "choose-pair":
+        setPairBrowse(next.roomId);
+        break;
+      case "place-idu":
+      case "place-odu":
+        armPlace(next.placing);
+        break;
+      case "connect":
+        changeTool("pipe");
+        break;
+      case "complete":
+        onStep(2);
+        break;
+    }
+  }, [next, changeTool, armPlace, onStep]);
+
+  /* ── the Units verb (bar, System group): browse → arm IDU → arm ODU →
+     browse again as a swap. Pressing it while a unit rides the cursor
+     cancels the arm instead. ── */
+  const unitsV = useMemo(
+    () => unitsVerb(doc, pack, effectiveSystemId),
+    [doc, pack, effectiveSystemId]
+  );
+
+  const onUnits = useCallback(() => {
+    if (placing) {
+      armPlace(null);
+      return;
+    }
+    if (!unitsV || unitsV.kind === "off") return;
+    if (unitsV.kind === "browse") setPairBrowse(unitsV.roomId);
+    else armPlace(unitsV.placing);
+  }, [placing, unitsV, armPlace]);
+
+  /* the armed pairing's capacity, for the canvas's room tint: pair-flow
+     systems rate the pair; per-room modules rate the armed unit itself */
+  const placingKw = useMemo(() => {
+    if (!placing || placing.role !== "idu" || !pack || !effectiveSystemId) return null;
+    const sys = doc.systems.find((s) => s.id === effectiveSystemId);
+    if (!sys) return null;
+    if (moduleFor(sys.type).unitFlow === "per-room") {
+      const idu = pack.indoor_units.find((u) => u.model === placing.model);
+      return idu ? sizingCapacityKw(idu, doc.settings.sizingBasis) : null;
+    }
+    return systemPairKw(doc, pack, effectiveSystemId, doc.settings.sizingBasis);
+  }, [placing, pack, doc, effectiveSystemId]);
+
+  /* ── the cockpit's two sizes: the flow picks (slice 6). Rested = a 46px
+     status tab; open while the flow needs the panel (pair chosen, units
+     unplaced), while something is selected (the inspector lives there), or
+     while pinned. The pin is remembered PER SYSTEM TYPE — multi's tuning
+     stage will want it standing open. Read through useSyncExternalStore so
+     the server snapshot (nothing pinned) and the client settle without an
+     effect — the same pattern as the shell rail. ── */
+  const ckPins = useSyncExternalStore(subscribeCkPins, readCkPins, emptyCkPins);
+  const activeSysType = doc.systems.find((s) => s.id === effectiveSystemId)?.type ?? null;
+  const ckWouldRest = panelRests(doc, effectiveSystemId);
+  const cockpitRested =
+    ckWouldRest && !(activeSysType != null && ckPins[activeSysType]) && selectedId == null;
+  const cockpitRest = useMemo(
+    () => ({
+      rested: cockpitRested,
+      wouldRest: ckWouldRest,
+      onExpand: () => {
+        if (activeSysType) writeCkPin(activeSysType, true);
+      },
+      onRest: () => {
+        if (activeSysType) writeCkPin(activeSysType, false);
+        setSelectedId(null);
+      },
+    }),
+    [cockpitRested, ckWouldRest, activeSysType]
+  );
+
+  /* rooms whose PLACED unit missed their load — the verdict that persists on
+     the room label after the drop. A state, never a block. */
+  const roomFits = useMemo(() => {
+    const m: Record<string, "oversized" | "undersized"> = {};
+    if (!pack) return m;
+    for (const o of doc.objects) {
+      if (o.type !== "room" || o.geometry.kind !== "polygon") continue;
+      const cov = roomCoverage(doc, pack, o as RoomObj, doc.settings.sizingBasis);
+      if (cov.loadKw == null || cov.coveredKw <= 0) continue;
+      if (cov.oversized) m[o.id] = "oversized";
+      else if (cov.status === "under") m[o.id] = "undersized";
+    }
+    return m;
+  }, [doc, pack]);
+
   const toggleSim = useCallback(() => {
     if (simOn) {
       setSimRt(null);
@@ -1378,6 +1559,18 @@ function Editor({
         return;
       }
       if (step !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Esc lets go of a unit riding the cursor (the canvas clears its own
+      // drafts from its listener — both fire)
+      if (e.key === "Escape") {
+        if (placing) armPlace(null);
+        return;
+      }
+      // U = the Units verb: browse → arm IDU → arm ODU → browse-as-swap.
+      // Inert while the browser is already up (typing there must not re-arm).
+      if (e.key.toLowerCase() === "u") {
+        if (!pairBrowse) onUnits();
+        return;
+      }
       // C = Component (spec §3a — calibrate stays a top-toolbar pill): re-arm
       // the last-used component; the first-ever press opens the grid
       if (e.key.toLowerCase() === "c") {
@@ -1402,6 +1595,14 @@ function Editor({
       if (!next) return;
       // the tape can only speak in metres — no scale, nothing to say
       if (next === "measure" && activeFloor?.scaleMmPerUnit == null) return;
+      // crop/move act on the plan sheets — a blank grid has none to trim or
+      // slide, so the keys stay inert exactly like their greyed menu rows
+      if (
+        (next === "crop" || next === "arrange") &&
+        (activeFloor?.plans.length ?? 0) === 0
+      )
+        return;
+
       // room/pipe/riser draw all belong to a system — type-first: none without one
       if (
         (next === "room-rect" ||
@@ -1424,6 +1625,11 @@ function Editor({
     armComponent,
     changeTool,
     activeFloor?.scaleMmPerUnit,
+    activeFloor?.plans.length,
+    placing,
+    armPlace,
+    pairBrowse,
+    onUnits,
   ]);
 
   return (
@@ -1492,6 +1698,8 @@ function Editor({
             onDeleteFloor={deleteFloor}
             tool={tool}
             onTool={changeTool}
+            next={next}
+            onNext={onNext}
             layers={layers}
             onLayers={setLayers}
             grayscale={grayscale}
@@ -1563,6 +1771,8 @@ function Editor({
             onGoPlans={() => onStep(0)}
             tool={tool}
             onTool={changeTool}
+            unitsV={unitsV}
+            onUnits={onUnits}
             airGate={airGate}
             paletteOpen={paletteOpen}
             onPalette={setPaletteOpen}
@@ -1578,9 +1788,10 @@ function Editor({
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
             placing={placing}
+            placingKw={placingKw}
+            roomFits={roomFits}
             onPlaced={onPlaced}
             onRoomCreated={(id) => {
-              setRoomPicker(false);
               setEditingRoomId(id);
             }}
             remarkRoomId={remarkRoomId}
@@ -1622,7 +1833,7 @@ function Editor({
           and goes inert while collapsed so it's out of the tab order. */}
       {activeFloor && (
         <aside
-          className="ds-sidecol"
+          className={`ds-sidecol${cockpitRested ? " rest" : ""}`}
           aria-hidden={step !== 1 ? true : undefined}
           inert={step !== 1 ? true : undefined}
         >
@@ -1637,17 +1848,10 @@ function Editor({
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
             onArmPlace={armPlace}
-            roomDraw={{
-              open: roomPicker,
-              shape:
-                tool === "room-rect" ? "rect" : tool === "room-poly" ? "poly" : null,
-              start: () => setRoomPicker(true),
-              // null cancels: changeTool("select") folds the picker away too
-              pick: (s) =>
-                changeTool(s === "rect" ? "room-rect" : s === "poly" ? "room-poly" : "select"),
-            }}
+            onBrowseUnits={setPairBrowse}
             onFloor={setPickedFloorId}
             floor={activeFloor}
+            rest={cockpitRest}
             onAddVariant={onAddVariant}
             onSwitchVariant={onSwitchVariant}
             onRenameVariant={onRenameVariant}
@@ -1680,6 +1884,22 @@ function Editor({
           doc={doc}
           planImages={planImages}
           onClose={() => setRefOpen(false)}
+        />
+      )}
+
+      {/* THE unit browser — one instance, opened by the Units verb, the Next
+          chip and the cockpit alike. Ranked against the lens room (the chips
+          across its top switch the lens), committing the same settings write
+          everywhere; choosing arms the indoor unit on the cursor. */}
+      {pairBrowse && pack && (
+        <LensedUnitBrowser
+          doc={doc}
+          pack={pack}
+          systemId={effectiveSystemId}
+          roomId={pairBrowse}
+          onLens={setPairBrowse}
+          onChoose={choosePairFromChip}
+          onClose={() => setPairBrowse(null)}
         />
       )}
 
@@ -1904,22 +2124,74 @@ function StudioMenu({
 
 /* ═════════════ Stage panels — Stage-0 empty states ═════════════ */
 
+/* ── the cockpit pin store (slice 6): which system TYPES hold their panel
+   open. localStorage-backed, read via useSyncExternalStore — the snapshot is
+   cached on the raw string so getSnapshot stays referentially stable. ── */
+const CK_PIN_KEY = "ht-ckpin";
+const emptyCkPinsValue: Record<string, boolean> = {};
+const emptyCkPins = () => emptyCkPinsValue;
+let ckPinsRaw: string | null = null;
+let ckPinsCache: Record<string, boolean> = emptyCkPinsValue;
+const ckPinListeners = new Set<() => void>();
+function readCkPins(): Record<string, boolean> {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(CK_PIN_KEY);
+  } catch {
+    /* storage unavailable — nothing is pinned */
+  }
+  if (raw !== ckPinsRaw) {
+    ckPinsRaw = raw;
+    try {
+      ckPinsCache = raw ? (JSON.parse(raw) as Record<string, boolean>) : emptyCkPinsValue;
+    } catch {
+      ckPinsCache = emptyCkPinsValue;
+    }
+  }
+  return ckPinsCache;
+}
+function writeCkPin(type: string, v: boolean) {
+  const next = { ...readCkPins(), [type]: v };
+  try {
+    localStorage.setItem(CK_PIN_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode — the pin won't survive a reload, but it works now */
+  }
+  ckPinsCache = next;
+  ckPinsRaw = JSON.stringify(next);
+  ckPinListeners.forEach((l) => l());
+}
+function subscribeCkPins(cb: () => void) {
+  ckPinListeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    ckPinListeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
 const CANVAS_TOOLS: {
   key: CanvasTool;
   icon: string;
   label: string;
+  /** the word the toolbar wears; `label` stays the full accessible name */
+  short: string;
   kbd: string;
   needsSystem?: boolean;
 }[] = [
-  { key: "select", icon: "cursor", label: "Select", kbd: "V" },
-  { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R", needsSystem: true },
-  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G", needsSystem: true },
-  { key: "pipe", icon: "pipe", label: "Refrigerant run", kbd: "P", needsSystem: true },
-  { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", kbd: "I", needsSystem: true },
-  { key: "crop", icon: "maximize", label: "Crop plan", kbd: "X" },
-  { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
-  { key: "erase", icon: "eraser", label: "Eraser", kbd: "E" },
+  { key: "select", icon: "cursor", label: "Select", short: "Select", kbd: "V" },
+  { key: "pipe", icon: "pipe", label: "Refrigerant run", short: "Run", kbd: "P", needsSystem: true },
+  { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", short: "Riser", kbd: "I", needsSystem: true },
+  { key: "erase", icon: "eraser", label: "Eraser", short: "Erase", kbd: "E" },
 ];
+
+/** toolbar lookup by key — a find, not a Record, so a typo'd key fails loudly
+    instead of type-checking into a fallback */
+function tb(key: CanvasTool) {
+  const t = CANVAS_TOOLS.find((x) => x.key === key);
+  if (!t) throw new Error(`unknown canvas tool: ${key}`);
+  return t;
+}
 
 const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   plan: "Floor plan",
@@ -1927,6 +2199,129 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   pipes: "Pipework",
   labels: "Labels",
 };
+
+/* ── THE unit browser, aimed at a room. A component rather than an inline
+   block: the chips and the lens load are derived per render, and building
+   them inside the editor's own render meant handing the browser a callback
+   that reaches the history refs — which is a real hazard there (and what
+   react-hooks/refs was pointing at), not a lint technicality. Here the
+   derivation happens in this component's render and the handler is just a
+   prop. ── */
+function LensedUnitBrowser({
+  doc,
+  pack,
+  systemId,
+  roomId,
+  onLens,
+  onChoose,
+  onClose,
+}: {
+  doc: DesignDocument;
+  pack: DataPack;
+  systemId: string | null;
+  /** the lens: the room the ranking reads through, and the fallback the
+      drop attributes to */
+  roomId: string;
+  onLens: (roomId: string) => void;
+  onChoose: (pair: PairProposal, roomId: string) => void;
+  onClose: () => void;
+}) {
+  const served = roomsServedBy(doc, systemId);
+  const room = served.find((r) => r.id === roomId);
+  if (!room) return null;
+  const chips = served.map((r) => ({
+    id: r.id,
+    name: String(r.props.name ?? "Room"),
+    loadKw: roomLoadKw(doc, r),
+    served: doc.objects.some(
+      (o) =>
+        o.type === "unit" &&
+        o.props.role === "idu" &&
+        String(o.props.roomId ?? "") === r.id
+    ),
+  }));
+  return (
+    <UnitBrowser
+      pack={pack}
+      loadKw={roomLoadKw(doc, room)}
+      basis={doc.settings.sizingBasis}
+      rooms={chips}
+      lensId={room.id}
+      onLens={onLens}
+      onChoose={(pair) => onChoose(pair, room.id)}
+      onClose={onClose}
+    />
+  );
+}
+
+/* ── the Room tool: ONE bench button; the shape choice (square or drawn)
+   appears where the click landed, and picking either arms its draw tool.
+   R and G still arm each shape directly from the keyboard. ── */
+function RoomTool({
+  tool,
+  onTool,
+  disabled,
+}: {
+  tool: CanvasTool;
+  onTool: (t: CanvasTool) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const on = tool === "room-rect" || tool === "room-poly";
+  const arm = (t: CanvasTool) => {
+    onTool(t);
+    setOpen(false);
+  };
+  return (
+    <div className="ds-pal-wrap" ref={wrapRef}>
+      <button
+        className={`ds-tool${on ? " on" : ""}`}
+        aria-label="Room"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={disabled}
+        title={disabled ? "Room — pick a system first" : "Room — square or drawn shape (R / G)"}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="square" size={15} />
+        Room
+        <span className="ds-kbd" aria-hidden="true">
+          R
+        </span>
+      </button>
+      {open && !disabled && (
+        <div className="ds-roomfly" role="menu" aria-label="Room shape">
+          <button role="menuitem" onClick={() => arm("room-rect")}>
+            <Icon name="square" size={14} />
+            Square
+            <span className="ds-flykbd" aria-hidden="true">R</span>
+          </button>
+          <button role="menuitem" onClick={() => arm("room-poly")}>
+            <Icon name="hexagon" size={14} />
+            Shape
+            <span className="ds-flykbd" aria-hidden="true">G</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ═════════════ Canvas controls (topbar, Design step) ═════════════ */
 
@@ -1974,6 +2369,8 @@ function CanvasControls({
   onDeleteFloor,
   tool,
   onTool,
+  next,
+  onNext,
   layers,
   onLayers,
   grayscale,
@@ -1991,6 +2388,10 @@ function CanvasControls({
   onDeleteFloor: (id: string) => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
+  /** the flow's first unmet requirement — the chip rides this row now, in
+      line with the floor/Calibrate/View pills (the bench keeps the verbs) */
+  next: NextMove | null;
+  onNext: () => void;
   layers: LayerFlags;
   onLayers: (l: LayerFlags) => void;
   grayscale: boolean;
@@ -2178,32 +2579,58 @@ function CanvasControls({
             >
               <Icon name="ruler" size={13} />
               <span className="k">Tape measure</span>
-              <span className="v unset">{floor.scaleMmPerUnit == null ? "Needs scale" : "K"}</span>
+              {floor.scaleMmPerUnit == null ? (
+                <span className="v unset">Needs scale</span>
+              ) : (
+                <span className="v kbd">K</span>
+              )}
             </button>
-            {/* plan-prep tools relocated out of the drawing rail */}
+            {/* plan-prep tools relocated out of the drawing rail. Both act on
+                the plan SHEETS, so a blank grid greys them and says why in
+                place — armed over nothing they just went silent. */}
             <div className="ds-view-sep" />
             <div className="ds-view-grp">Plan</div>
             <button
               className={`ds-calib-item${tool === "crop" ? " on" : ""}`}
+              disabled={floor.plans.length === 0}
               onClick={() => {
                 onTool("crop");
                 setCalibOpen(false);
               }}
-              title="Crop the plan to the area you're working on"
+              title={
+                floor.plans.length === 0
+                  ? "Crop — this floor is a blank grid, there's no plan to trim"
+                  : "Crop the plan to the area you're working on (X)"
+              }
             >
               <Icon name="maximize" size={13} />
               <span className="k">Crop</span>
+              {floor.plans.length === 0 ? (
+                <span className="v unset">No plan</span>
+              ) : (
+                <span className="v kbd">X</span>
+              )}
             </button>
             <button
               className={`ds-calib-item${tool === "arrange" ? " on" : ""}`}
+              disabled={floor.plans.length === 0}
               onClick={() => {
                 onTool("arrange");
                 setCalibOpen(false);
               }}
-              title="Reposition the plan sheets on this floor"
+              title={
+                floor.plans.length === 0
+                  ? "Move plans — this floor is a blank grid, there are no sheets to move"
+                  : "Reposition the plan sheets on this floor (M)"
+              }
             >
               <Icon name="hand" size={13} />
               <span className="k">Move plans</span>
+              {floor.plans.length === 0 ? (
+                <span className="v unset">No plan</span>
+              ) : (
+                <span className="v kbd">M</span>
+              )}
             </button>
           </div>
         )}
@@ -2272,6 +2699,20 @@ function CanvasControls({
           <span className="ds-ctl-word">{simOn ? "Exit sim" : "Simulate"}</span>
         </button>
       )}
+      {next && (
+        <button
+          className={`ds-nextchip${next.key === "complete" ? " done" : ""}`}
+          onClick={onNext}
+          title={
+            next.key === "complete"
+              ? "Every requirement is met — open the Summary"
+              : "Arm the next move"
+          }
+        >
+          <span className="ds-nextdot" aria-hidden="true" />
+          {next.key === "complete" ? next.label : `Next: ${next.label}`}
+        </button>
+      )}
     </div>
   );
 }
@@ -2283,6 +2724,8 @@ function DesignPanel({
   onGoPlans,
   tool,
   onTool,
+  unitsV,
+  onUnits,
   airGate,
   paletteOpen,
   onPalette,
@@ -2298,6 +2741,8 @@ function DesignPanel({
   activeSystemId,
   revealTools,
   placing,
+  placingKw,
+  roomFits,
   onPlaced,
   onRoomCreated,
   remarkRoomId,
@@ -2319,6 +2764,10 @@ function DesignPanel({
   onGoPlans: () => void;
   tool: CanvasTool;
   onTool: (t: CanvasTool) => void;
+  /** the Units verb's current meaning (null: this system type still picks
+      its units in the panel) — the button wears the reason in place */
+  unitsV: UnitsVerb | null;
+  onUnits: () => void;
   /** spec-§2 air-tool gate (rooms + air-capable AHU) + the AHU's pack row */
   airGate: { ok: boolean; reason: string; row: IndoorUnit | null };
   paletteOpen: boolean;
@@ -2337,6 +2786,10 @@ function DesignPanel({
   revealTools: boolean;
   /** the room-shape pill is up (raised by "Draw a room" / "Add room") */
   placing: PlacingUnit | null;
+  /** armed pairing's capacity — the canvas tints rooms against their loads */
+  placingKw: number | null;
+  /** rooms whose placed unit missed their load (persists on the label) */
+  roomFits: Record<string, "oversized" | "undersized">;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
   remarkRoomId: string | null;
@@ -2417,19 +2870,64 @@ function DesignPanel({
       disabled={Boolean(t.needsSystem) && !activeSystemId}
       onClick={() => onTool(t.key)}
     >
-      <Icon name={t.icon as never} size={17} />
+      <Icon name={t.icon as never} size={15} />
+      {t.short}
+      <span className="ds-kbd" aria-hidden="true">
+        {t.kbd}
+      </span>
     </button>
   );
 
   return (
     <div className="ds-design">
       <div className="ds-canvas-col">
-        <div className="ds-canvas-body">
-          {revealTools && (
-          <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
-            {/* room tools left the rail — they're offered by the shape pill,
-                raised from the cockpit's Draw a room / Add room */}
-            {CANVAS_TOOLS.slice(0, 1).map(toolButton)}
+        {revealTools && (
+          <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
+            {/* the bench reads in workflow order: Select, then Rooms, then the
+                System verbs, then Erase — with history at the far end. Room
+                tools live HERE now, not in the cockpit: the verb sits on the
+                same side of the screen as the act. */}
+            {toolButton(tb("select"))}
+            <span className="ds-tb-sep" aria-hidden="true" />
+            <span className="ds-tb-gl" aria-hidden="true">
+              Rooms
+            </span>
+            <RoomTool tool={tool} onTool={onTool} disabled={!activeSystemId} />
+            <span className="ds-tb-sep" aria-hidden="true" />
+            <span className="ds-tb-gl" aria-hidden="true">
+              System
+            </span>
+            {/* Units leads the System group — the workflow places before it
+                connects. One verb, three meanings: browse (nothing chosen),
+                arm the next unplaced unit, browse again as a swap. While a
+                unit rides the cursor the button is lit and a press disarms. */}
+            <button
+              className={`ds-tool${tool === "place" ? " on" : ""}`}
+              aria-label="Units"
+              disabled={!unitsV || unitsV.kind === "off"}
+              title={
+                !activeSystemId
+                  ? "Units — pick a system first"
+                  : !unitsV
+                    ? "Units — this system type still picks its units in the panel"
+                    : unitsV.kind === "off"
+                      ? `Units — ${unitsV.reason}`
+                      : tool === "place"
+                        ? "Let go of the unit (U)"
+                        : unitsV.kind === "browse"
+                          ? "Choose the units (U)"
+                          : "Place the next unit (U)"
+              }
+              onClick={onUnits}
+            >
+              <Icon name="unit" size={15} />
+              Units
+              <span className="ds-kbd" aria-hidden="true">
+                U
+              </span>
+            </button>
+            {toolButton(tb("pipe"))}
+            {toolButton(tb("riser"))}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
                 (spec §2); Duct arms at Step 4, Component opens the palette */}
             <button
@@ -2438,7 +2936,8 @@ function DesignPanel({
               aria-label="Duct"
               title="Ductwork arrives at Step 4"
             >
-              <Icon name="wind" size={17} />
+              <Icon name="wind" size={15} />
+              Duct
             </button>
             <div className="ds-pal-wrap">
               <button
@@ -2448,18 +2947,20 @@ function DesignPanel({
                 title={airGate.ok ? "Component (C)" : `Component — ${airGate.reason}`}
                 onClick={() => onPalette(!paletteOpen)}
               >
-                <Icon name="box" size={17} />
+                <Icon name="box" size={15} />
+                Component
+                <span className="ds-kbd" aria-hidden="true">
+                  C
+                </span>
               </button>
               {paletteOpen && airGate.ok && (
                 <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
               )}
             </div>
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
-            {CANVAS_TOOLS.slice(3)
-              .filter((t) => t.key !== "crop" && t.key !== "arrange")
-              .map(toolButton)}
-            {/* history — undo/redo live at the foot of the rail */}
-            <div className="ds-rail-sep" />
+            <span className="ds-tb-sep" aria-hidden="true" />
+            {toolButton(tb("erase"))}
+            <div className="ds-tb-spring" />
             <button
               className="ds-tool"
               onClick={undo}
@@ -2467,7 +2968,7 @@ function DesignPanel({
               aria-label="Undo"
               title="Undo (⌘Z)"
             >
-              <Icon name="rotate" size={17} />
+              <Icon name="rotate" size={15} />
             </button>
             <button
               className="ds-tool flip"
@@ -2476,10 +2977,11 @@ function DesignPanel({
               aria-label="Redo"
               title="Redo (⇧⌘Z)"
             >
-              <Icon name="rotate" size={17} />
+              <Icon name="rotate" size={15} />
             </button>
           </div>
-          )}
+        )}
+        <div className="ds-canvas-body">
           <StudioCanvas
             key={floor.id}
             doc={doc}
@@ -2495,6 +2997,8 @@ function DesignPanel({
             planImages={planImages}
             activeSystemId={activeSystemId}
             placing={placing}
+            placingKw={placingKw}
+            roomFits={roomFits}
             onPlaced={onPlaced}
             component={airComp}
             onComponentPlaced={onComponentPlaced}

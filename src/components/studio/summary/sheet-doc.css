@@ -154,11 +154,25 @@
 
 /* ── masthead ──
    TWO PARTIES, ONE TO A SIDE: the job on the left, the business on the right.
-   `auto` on the identity column so it takes exactly the width of the logo or
-   the contact line, whichever is wider, and never steals room from a title. */
+
+   THE IDENTITY COLUMN IS A MEASURE, NOT A MAX-CONTENT BLOB. It was `auto`,
+   which sizes the column to whichever child happens to be widest — so the
+   block's right edge was set by the longest contact line and the logo, sized
+   independently, stopped short of it. Two ragged edges, and a mark floating
+   free of the margin it should be hanging off.
+
+   Given a measure, the column has ONE right edge — the sheet's own — and the
+   logo fills it (see `.dsd-idlogo`). Both children start at the same left and
+   the mark ends at the same right as everything else on the page.
+
+   Clamped rather than fixed because the three chromes hand the document
+   wildly different widths, and paper is the narrowest of them: the floor is
+   what a wordmark needs to still read at A4, the ceiling is the point past
+   which a mark starts competing with the title beside it. */
+.dsd { --dsd-ident-w: clamp(210px, 23%, 290px); }
 .dsd-mast {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) var(--dsd-ident-w);
   gap: 16px clamp(24px, 5vw, 72px);
   align-items: start;
 }
@@ -238,33 +252,49 @@
 .dsd-ident {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 12px;
-  max-width: 260px;
 }
-/* A BOX, NOT A SQUARE — the letterhead's own rule, for the letterhead's own
-   reason: most real logos are wordmarks three or four times wider than tall,
-   and one dropped into a square renders as a broken image with air above and
-   below it. Height to fill, width to stop at. */
+/* THE MARK FILLS THE COLUMN, which is the whole reason the column was given a
+   width. It was `height: 46px; width: auto` — sized by a number nobody chose
+   against anything, and on the sheet it read as a small mark parked in the
+   corner with the contact lines below it running WIDER than it did.
+
+   Width to fill, height to stop at, and that is the same rule the letterhead's
+   own box states in the other order — for the same reason. Most real logos are
+   wordmarks three or four times wider than tall: given the width they are
+   drawn for, a wordmark takes it and lands at 55-65px on screen, which is a
+   mark you can actually read. `max-height` is the guard for the OTHER shape —
+   a square badge would otherwise be as tall as the column is wide, and swallow
+   the masthead.
+
+   `object-fit: contain` is what makes both of those safe. Clamping one axis
+   while the other is definite is the classic way a logo comes out stretched
+   (Diamond Air's 3.553:1 mark once printed at 4.783:1); with `contain` the
+   image letterboxes inside its box instead, at any ratio, and cannot distort. */
 .dsd-idlogo {
   display: block;
-  height: 46px;
-  width: auto;
-  max-width: 240px;
+  width: 100%;
+  height: auto;
+  max-height: 64px;
   object-fit: contain;
   object-position: left center;
 }
 /* the initials stand-in is not an image and has no ratio to keep — it is the
-   square the logo box would have been at its narrowest */
+   square the logo box would have been at its narrowest, so it states BOTH
+   axes rather than inheriting a width that would stretch it across the column */
 .dsd-idlogo.org-initials {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
+  align-self: flex-start;
+  width: 56px;
+  height: 56px;
+  max-height: none;
   border-radius: 12px;
   background: var(--dsd-ink);
   color: #fff;
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
@@ -277,9 +307,10 @@
   line-height: 1.55;
   color: var(--dsd-ink-2);
 }
-/* a long email or url breaks rather than pushing the column wider — the
-   identity column is `auto`, so an unbreakable string would take width off
-   the title beside it */
+/* the last resort, and it should never fire: the identity column's floor is
+   set to hold an email address on one line, and this is what catches the one
+   longer than that — a break mid-word is ugly, a string running out through
+   the frame is a broken document. */
 .dsd-idc li { overflow-wrap: anywhere; }
 .dsd-to-n { font-size: 15px; font-weight: 800; line-height: 1.45; }
 .dsd-to-l { font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--dsd-ink-2); }
@@ -867,6 +898,45 @@
   .dsd-rt .dsd-cv b { font-size: 10.5px; }
   .dsd-rt .dsd-cv i { display: block; height: 2px; margin-top: 3px; }
   .dsd-shared { font-size: 8.5px; padding: 1px 6px; }
+
+  /* THE MASTHEAD IS TWO PARTIES, ONE TO A SIDE — ON PAPER TOO.
+
+     Same bug as the table above, one layer up and missed the first time. A4
+     portrait is 703px of document once the frame has taken its edges, and the
+     container query for a HAND fires at 767 — so the printed masthead stacked:
+     the business's mark came out UNDER the client's address, ranged left, in
+     the middle of the page, with a column of white beside it where it should
+     have been. It is the first thing anybody sees on the document, and it was
+     wrong on every copy anybody has ever printed.
+
+     Restated rather than raised to 703, because the number that matters here
+     is not a width — it is that PAPER IS NEVER THE PHONE CASE. A4 landscape,
+     A3 and a browser margin setting all move that width around underneath us;
+     the arrangement should not move with it.
+
+     The same track as the screen, through the same variable: its floor is what
+     an email address needs to sit on one line, and A4 portrait is exactly the
+     case that floor was chosen for. A narrower column here is what broke
+     `service@diamondairsolutions.com` across two lines mid-word. */
+  .dsd-mast {
+    grid-template-columns: minmax(0, 1fr) var(--dsd-ident-w);
+    gap: 14px 32px;
+  }
+  /* and the mark is sized for the column it lands in, not the one on screen */
+  .dsd-idlogo { max-height: 52px; }
+
+  /* THE SYSTEM BAND KEEPS ITS OUTDOOR BESIDE IT, for the same reason: stacked,
+     the shared outdoor block ran a further 90px down a page that then could
+     not fit the rooms table under it, and the whole system moved to page two
+     leaving half of page one empty. The band is the widest thing it has to
+     hold and it holds it at 703px. */
+  .dsd-band { grid-template-columns: minmax(0, 1fr) auto; }
+  .dsd-odu {
+    padding-left: 20px;
+    padding-top: 0;
+    border-left: 1px solid color-mix(in srgb, var(--sys) 34%, #fff);
+    border-top: 0;
+  }
 
   /* six figures across, as on a wide screen — three rows of two wasted a
      third of the first page */

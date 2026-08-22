@@ -46,6 +46,7 @@ export function MyVehicle({
   onDeleteLog,
   today,
   viewerStaffId,
+  face,
 }: {
   /** The vehicle assigned to you, or null when you have none. */
   vehicle: VehicleWithFacts | null;
@@ -64,6 +65,10 @@ export function MyVehicle({
   /** The server's AU calendar date — the ceiling on a receipt date, and never
       the browser's, which is the day before for most of the working morning. */
   today: string;
+  /** Which face of the card to render. Absent = the pre-tabs combined page,
+      which the Assets staff lens still draws. `vehicle` is the truck as it
+      stands; `history` is every log, not the newest eight. */
+  face?: "vehicle" | "history";
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
   const [logTarget, setLogTarget] = useState<string | null>(null);
@@ -74,6 +79,41 @@ export function MyVehicle({
     setLogTarget(null);
   };
   const errBox = error ? <div className="fl-aierr">{error}</div> : null;
+
+  /* THE HISTORY FACE — every log, oldest reachable. Handled before the
+     no-vehicle branch so the tab still answers when nothing is assigned. */
+  if (face === "history") {
+    const eco = fuelEconomy(logs);
+    return (
+      <div>
+        {errBox}
+        {logs.length === 0 ? (
+          <div className="fl-hempty">
+            Nothing logged yet — your fuel, odo and issue reports land here.
+          </div>
+        ) : (
+          logs.map((l) => (
+            <LogRow key={l.id} log={l} eco={eco[l.id]} onCorrect={mine(l) ? setCorrecting : undefined} />
+          ))
+        )}
+        {correcting && (
+          <EditLogModal
+            log={correcting}
+            today={today}
+            onSave={(patch) => {
+              onEditLog(correcting.id, patch);
+              setCorrecting(null);
+            }}
+            onDelete={() => {
+              onDeleteLog(correcting.id);
+              setCorrecting(null);
+            }}
+            onClose={() => setCorrecting(null)}
+          />
+        )}
+      </div>
+    );
+  }
 
   if (!vehicle) {
     // No assignment — but you can still fuel the pool ute you borrowed today.
@@ -210,29 +250,33 @@ export function MyVehicle({
         ))}
       </div>
 
-      <div className="fl-card">
-        <div className="fl-ch">
-          <span className="fl-ci">
-            <Icon name="clock" size={17} />
-          </span>
-          <span>
-            <b>Recent activity</b>
-            <em>Your fuel, odometer &amp; issue history on {displayName(vehicle)}</em>
-          </span>
+      {/* Only the combined page keeps the recent-eight card — with tabs, the
+          History face IS the history, all of it. */}
+      {!face && (
+        <div className="fl-card">
+          <div className="fl-ch">
+            <span className="fl-ci">
+              <Icon name="clock" size={17} />
+            </span>
+            <span>
+              <b>Recent activity</b>
+              <em>Your fuel, odometer &amp; issue history on {displayName(vehicle)}</em>
+            </span>
+          </div>
+          {recent.length === 0 ? (
+            <div className="fl-hempty">Nothing logged yet — your fuel, odo and issue reports land here.</div>
+          ) : (
+            recent.map((l) => (
+              <LogRow
+                key={l.id}
+                log={l}
+                eco={eco[l.id]}
+                onCorrect={mine(l) ? setCorrecting : undefined}
+              />
+            ))
+          )}
         </div>
-        {recent.length === 0 ? (
-          <div className="fl-hempty">Nothing logged yet — your fuel, odo and issue reports land here.</div>
-        ) : (
-          recent.map((l) => (
-            <LogRow
-              key={l.id}
-              log={l}
-              eco={eco[l.id]}
-              onCorrect={mine(l) ? setCorrecting : undefined}
-            />
-          ))
-        )}
-      </div>
+      )}
 
       {correcting && (
         <EditLogModal

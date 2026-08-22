@@ -37,8 +37,11 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                 <Icon name="chevL" size={15} />
                 Admin
               </Link>
+              {/* The same words as the Admin row that opens this page —
+                  "Knowledge from the field" there landing on "Field-learned
+                  knowledge" here read as two different places. */}
               <h1 style={{ margin: "10px 0 0" }}>
-                Field-learned knowledge
+                Knowledge from the field
               </h1>
               <p className="int-lede" style={{ margin: "6px 0 0" }}>
                 These are live in the library now — spoken on the job, ticked by whoever

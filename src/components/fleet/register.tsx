@@ -52,13 +52,16 @@ export function FleetRegister({
   fleet,
   staff,
   today,
+  view,
 }: {
   fleet: FleetState;
   staff: FleetStaff[];
   today: string;
+  /** Which slice of the fleet to show — the Assets screen owns the tab strip
+      now, so the register renders one face rather than carrying its own. */
+  view: FleetTab;
 }) {
   const { vehicles, logs } = fleet;
-  const [tab, setTab] = useState<FleetTab>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<FleetSort>("attention");
   const [modal, setModal] = useState<ModalState>({ t: "none" });
@@ -83,11 +86,9 @@ export function FleetRegister({
 
   const working = vehicles.filter((v) => v.status !== "sold");
   const sold = vehicles.filter((v) => v.status === "sold");
-  const attention = working.filter((v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0);
-  const pool = working.filter((v) => v.assignedTo === null);
   const rows = useMemo(
-    () => sortVehicles(filterVehicles(vehicles, logs, tab, query, staffName), logs, sort),
-    [vehicles, logs, tab, query, staffName, sort],
+    () => sortVehicles(filterVehicles(vehicles, logs, view, query, staffName), logs, sort),
+    [vehicles, logs, view, query, staffName, sort],
   );
 
   const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
@@ -118,19 +119,10 @@ export function FleetRegister({
     setValuing(false);
   };
 
-  const tabBtn = (key: FleetTab, val: number, label: string, sub: string) => (
-    <button key={key} className={`dirtab${tab === key ? " on" : ""}`} onClick={() => setTab(key)}>
-      <span className="dtval">{val}</span>
-      <span className="dtlab">{label}</span>
-      <span className="dtsub">{sub}</span>
-    </button>
-  );
-  const tabIdx = tab === "all" ? 0 : tab === "attention" ? 1 : tab === "pool" ? 2 : 3;
-  const tabView = tab === "attention" ? "warn" : tab === "sold" ? "archived" : tab;
-
   if (vehicles.length === 0) {
     return (
-      <div>
+      <div className="wb2-card">
+        <div className="ppanel2">
         <div className="emptybox">
           <span className="ei">
             <Icon name="truck" size={24} />
@@ -156,56 +148,57 @@ export function FleetRegister({
             onClose={() => setModal({ t: "none" })}
           />
         )}
+        </div>
       </div>
     );
   }
 
   return (
     <div ref={rootRef}>
-      <div className="dirtabs t4" data-view={tabView} style={{ "--idx": tabIdx } as React.CSSProperties}>
-        <span className="dirtab-slide" style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 4)` }} />
-        {tabBtn("all", working.length, "Fleet", "Working vehicles")}
-        {tabBtn("attention", attention.length, "Need attention", "Expiries, service & issues")}
-        {tabBtn("pool", pool.length, "Pool", "Unassigned & spare")}
-        {tabBtn("sold", sold.length, "Sold", "Kept for history")}
-      </div>
-
-      <div className="dirtools">
-        <div className="dsearch">
-          <Icon name="search" size={17} />
-          <input
-            className="dsearchin"
-            placeholder="Search rego, name or driver..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+      <div
+        className="dir"
+        id={`astp-${view}`}
+        role="tabpanel"
+        aria-labelledby={`ast-${view}`}
+        tabIndex={-1}
+      >
+        {/* The card's own toolbar — it sat between the tab strip and the card,
+            which the joined strip leaves no room for. */}
+        <div className="dirtools">
+          <div className="dsearch">
+            <Icon name="search" size={17} />
+            <input
+              className="dsearchin"
+              placeholder="Search rego, name or driver..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <label className="dsortwrap">
+            <Icon name="arrowDown" size={14} />
+            <select className="dsort" value={sort} onChange={(e) => setSort(e.target.value as FleetSort)}>
+              <option value="attention">Needs attention</option>
+              <option value="name">Name (A–Z)</option>
+              <option value="value">Value (high–low)</option>
+            </select>
+          </label>
+          <button
+            className={`pbtn ghost fl-add fl-valuebtn${valuing ? " busy" : ""}`}
+            disabled={valuing}
+            onClick={runValuation}
+            title="Tiff estimates each vehicle's AU market value — Manager+ only"
+          >
+            <Chevron size={19} gradient decorative />
+            {valuing ? "Tiff is valuing…" : "Value with Tiff"}
+          </button>
+          <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
+            <Icon name="plus" size={16} />
+            Add vehicle
+          </button>
         </div>
-        <label className="dsortwrap">
-          <Icon name="arrowDown" size={14} />
-          <select className="dsort" value={sort} onChange={(e) => setSort(e.target.value as FleetSort)}>
-            <option value="attention">Needs attention</option>
-            <option value="name">Name (A–Z)</option>
-            <option value="value">Value (high–low)</option>
-          </select>
-        </label>
-        <button
-          className={`pbtn ghost fl-add fl-valuebtn${valuing ? " busy" : ""}`}
-          disabled={valuing}
-          onClick={runValuation}
-          title="Tiff estimates each vehicle's AU market value — Manager+ only"
-        >
-          <Chevron size={19} gradient decorative />
-          {valuing ? "Tiff is valuing…" : "Value with Tiff"}
-        </button>
-        <button className="pbtn primary fl-add" onClick={() => setModal({ t: "add" })}>
-          <Icon name="plus" size={16} />
-          Add vehicle
-        </button>
-      </div>
-      {valueErr && <div className="fl-aierr">{valueErr}</div>}
-      {fleet.error && <div className="fl-aierr">{fleet.error}</div>}
+        {valueErr && <div className="fl-aierr">{valueErr}</div>}
+        {fleet.error && <div className="fl-aierr">{fleet.error}</div>}
 
-      <div className="dir">
         <div className="dirhead flhead">
           <span>Vehicle</span>
           <span>Rego</span>

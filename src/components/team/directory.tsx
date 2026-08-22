@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ViewTabs } from "@/components/shell/view-tabs";
 import { CopyLink } from "@/components/shell/copy-link";
 import { InviteModal } from "@/components/team/invite-modal";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
@@ -133,105 +134,51 @@ export function TeamDirectory({
     );
   }, [staff, warnStaff, view, query, sort]);
 
-  const tabIdx = view === "active" ? 0 : view === "warn" ? 1 : 2;
-
-  /* Which view you are on was carried by opacity and a sliding white pill and
-     nothing else — three plain buttons, no roles, no aria-selected. It is a
-     tablist, so it says so: roving tabindex and the arrow walk included,
-     because a tablist that puts every tab in the tab order is a worse tablist
-     than none. Same contract the staff card's strip already keeps. */
-  const moveTab = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    const keys = ["ArrowLeft", "ArrowRight", "Home", "End"];
-    if (!keys.includes(e.key)) return;
-    const tabs = [...(e.currentTarget.closest(".dirtabs")?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])];
-    const i = tabs.indexOf(e.currentTarget);
-    if (i < 0) return;
-    e.preventDefault();
-    const next =
-      e.key === "Home"
-        ? 0
-        : e.key === "End"
-          ? tabs.length - 1
-          : (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
-    tabs[next]?.focus();
-  };
-
-  const tab = (key: View, val: number, label: string, sub: string) => {
-    const on = view === key;
-    return (
-      <button
-        key={key}
-        type="button"
-        role="tab"
-        id={`dirtab-${key}`}
-        aria-selected={on}
-        aria-controls="dirpanel"
-        tabIndex={on ? 0 : -1}
-        className={`dirtab${on ? " on" : ""}`}
-        onClick={() => setView(key)}
-        onKeyDown={moveTab}
-      >
-        <span className="dtval">{val}</span>
-        <span className="dtlab">{label}</span>
-        <span className="dtsub">{sub}</span>
-      </button>
-    );
-  };
+  /* The strip is the board's — `shell/view-tabs` carries the tablist
+     contract (roving tabindex, the arrow walk) that used to be hand-rolled
+     here. The old fat tabs' sub-lines ride the count's accessible name now,
+     so nothing the tab said is lost to a screen reader. */
 
   return (
-    <div ref={rootRef}>
-      <div className="dirtabs" role="tablist" aria-label="Directory view" data-view={view}>
-        <span
-          className="dirtab-slide"
-          aria-hidden="true"
-          style={{ left: `calc(6px + ${tabIdx} * (100% - 12px) / 3)` }}
-        />
-        {tab("active", activeCount, "Active staff", "Currently working")}
-        {/* NOT "Need attention". Home's card has a tab called "Needs
-            attention" one rail row away, and the two count different things in
-            different units: Home counts ITEMS inside a 30-day warning window
-            across people, fleet, business and pay; this counts PEOPLE whose
-            compliance isn't clear, expired and expiring together. Two numbers
-            that will rarely agree under two labels a letter apart. This one
-            says what it counts. */}
-        {tab("warn", warnStaff.length, "Compliance gaps", "Expired, expiring or unverified")}
-        {tab("pending", pending.length, "Pending invites", "Awaiting acceptance")}
-      </div>
-
-      {view !== "pending" && (
-        <div className="dirtools">
-          <div className="dsearch">
-            <Icon name="search" size={17} />
-            <input
-              className="dsearchin"
-              aria-label="Search staff by name or role"
-              placeholder="Search name or role..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-          {/* The wrapper holds an icon and no text, so without a name of its
-              own the select announced as its whole option list — "Name
-              (A–Z)RoleCompliance expiry". A <label> that wraps a control still
-              has to say something. */}
-          <label className="dsortwrap">
-            <Icon name="arrowDown" size={14} />
-            <select
-              className="dsort"
-              aria-label="Sort by"
-              value={sort}
-              onChange={(e) => setSort(e.target.value as Sort)}
-            >
-              <option value="name">Name (A–Z)</option>
-              <option value="role">Role</option>
-              <option value="exp">Compliance expiry</option>
-            </select>
-          </label>
-        </div>
-      )}
+    <div ref={rootRef} className="wb2">
+      {/* NOT "Need attention". Home's card has a tab called "Needs
+          attention" one rail row away, and the two count different things in
+          different units: Home counts ITEMS inside a 30-day warning window
+          across people, fleet, business and pay; this counts PEOPLE whose
+          compliance isn't clear, expired and expiring together. Two numbers
+          that will rarely agree under two labels a letter apart. This one
+          says what it counts. */}
+      <ViewTabs
+        ariaLabel="Directory view"
+        idPrefix="dirtab"
+        panelPrefix="dirpanel"
+        active={view}
+        onGo={(k) => setView(k as View)}
+        items={[
+          {
+            key: "active",
+            label: "Active staff",
+            count: activeCount,
+            countLabel: (n) => `${n} currently working`,
+          },
+          {
+            key: "warn",
+            label: "Compliance gaps",
+            count: warnStaff.length,
+            tone: "warn",
+            countLabel: (n) => `${n} expired, expiring or unverified`,
+          },
+          {
+            key: "pending",
+            label: "Pending invites",
+            count: pending.length,
+            countLabel: (n) => `${n} awaiting acceptance`,
+          },
+        ]}
+      />
 
       {view === "pending" ? (
-        <div className="dir" id="dirpanel" role="tabpanel" aria-labelledby={`dirtab-${view}`}>
+        <div className="dir" id="dirpanel-pending" role="tabpanel" aria-labelledby="dirtab-pending">
           {inviteError && <div className="invmsg">{inviteError}</div>}
           {pending.length === 0 && <div className="direm on">No invites waiting.</div>}
           {pending.map((p) => (
@@ -288,11 +235,42 @@ export function TeamDirectory({
           ))}
         </div>
       ) : (
-        <div className="dir" id="dirpanel" role="tabpanel" aria-labelledby={`dirtab-${view}`}>
+        <div className="dir" id={`dirpanel-${view}`} role="tabpanel" aria-labelledby={`dirtab-${view}`}>
           {/* Deactivate writes from THIS view, so its failure has to be
               readable from this view — the message used to live only in the
               pending-invites branch. */}
           {inviteError && <div className="invmsg">{inviteError}</div>}
+          {/* The card's own toolbar — it sat between the tabs and the card,
+              which the joined strip leaves no room for. */}
+          <div className="dirtools">
+            <div className="dsearch">
+              <Icon name="search" size={17} />
+              <input
+                className="dsearchin"
+                aria-label="Search staff by name or role"
+                placeholder="Search name or role..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            {/* The wrapper holds an icon and no text, so without a name of its
+                own the select announced as its whole option list — "Name
+                (A–Z)RoleCompliance expiry". A <label> that wraps a control still
+                has to say something. */}
+            <label className="dsortwrap">
+              <Icon name="arrowDown" size={14} />
+              <select
+                className="dsort"
+                aria-label="Sort by"
+                value={sort}
+                onChange={(e) => setSort(e.target.value as Sort)}
+              >
+                <option value="name">Name (A–Z)</option>
+                <option value="role">Role</option>
+                <option value="exp">Compliance expiry</option>
+              </select>
+            </label>
+          </div>
           <div className="dirhead">
             <span>Name</span>
             <span>Role</span>

@@ -328,3 +328,30 @@ describe("the claim form", () => {
     expect(container.querySelector(".datef")).not.toBeNull();
   });
 });
+
+/* THE CARD'S TWO FACES. Answered claims — reimbursed, declined, cancelled —
+   used to pad the one list forever; they live behind the Closed tab now, and
+   the Claims tab counts only what is still moving. */
+describe("the Claims / Closed split", () => {
+  it("keeps open claims on Claims and answered ones behind Closed", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyExpenses
+        today={TODAY}
+        claims={[
+          claim({ id: "open-1", description: "Brazing rods", status: "pending" }),
+          claim({ id: "done-1", description: "Old drill", status: "reimbursed" }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Brazing rods")).toBeInTheDocument();
+    expect(screen.queryByText("Old drill")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Closed/ }));
+    expect(screen.getByText("Old drill")).toBeInTheDocument();
+    expect(screen.queryByText("Brazing rods")).not.toBeInTheDocument();
+    // the capture banner is the working face's, not history's
+    expect(screen.queryByText("Claim something you paid for")).not.toBeInTheDocument();
+  });
+});

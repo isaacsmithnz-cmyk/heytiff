@@ -498,9 +498,9 @@ export function SheetDoc({
 }) {
   return (
     <article className="dsd" style={themeVars(brand.color)}>
-      {/* THE BUSINESS'S BAND, at the head and foot of the sheet.
+      {/* THE BUSINESS'S FRAME, around the whole sheet.
 
-          One filled rectangle behind the whole sheet with a white well inset on
+          One filled rectangle behind the document with a white well inset on
           all four sides, which is `.fg .outlet` exactly: the colour survives as
           a frame around the page.
 
@@ -511,9 +511,57 @@ export function SheetDoc({
 
           Rendered unconditionally: with no brand colour `--doc-ink` is unset,
           the fallback is `transparent`, and the sheet is byte-for-byte the one
-          it is today. */}
+          it is today.
+
+          SCREEN ONLY. On paper these two are hidden and the frame is drawn by
+          the table below instead — see the note on it. */}
       <div className="dsd-bband" aria-hidden="true" />
       <div className="dsd-bwell" aria-hidden="true" />
+
+      {/* THE FRAME HAS TO CLOSE ON EVERY PAGE, AND ONLY A TABLE CAN DO THAT.
+
+          The two layers above are one rectangle behind the whole document, so
+          a browser fragments them across pages the obvious way: a top band on
+          page one, a bottom band on the last page, and on every page in
+          between two bare strips down the sides. That is a frame around the
+          DOCUMENT. What a reader holds is a PAGE, and page two of it looked
+          like the head-and-foot band this treatment replaced precisely because
+          two bars are not a frame.
+
+          Every cheaper fix was tried and measured against a rendered PDF:
+
+          - `position: fixed` under `@media print` is the running-header trick
+            and repeats per page correctly — but a fixed box is CLIPPED to the
+            page box, so it cannot reach out into the page margin. Pushed out
+            with a negative inset it disappears entirely; kept at inset 0 it
+            sits exactly where the text starts on page two.
+          - per-page padding does not exist: horizontal padding applies to
+            every fragment, vertical padding only to the first and last.
+          - `@page` margin boxes can paint on the margin, and Chrome does not
+            support a fill in one.
+
+          What DOES repeat, in every engine, is a table's header and footer
+          row group. So the document rides in a single cell: `thead` paints the
+          top band, `tfoot` the bottom, and the cell's own left and right
+          BORDERS draw the sides. Rounded corners come from the two bands.
+
+          It is a table only on paper. On screen every part of it is
+          `display: block`, the head and foot are hidden, and the layers above
+          draw the frame — a scrolling document has no pages to close. */}
+      <table className="dsd-frame" role="presentation">
+        <thead>
+          <tr>
+            <td className="dsd-fr-t" />
+          </tr>
+        </thead>
+        <tfoot>
+          <tr>
+            <td className="dsd-fr-b" />
+          </tr>
+        </tfoot>
+        <tbody>
+          <tr>
+            <td className="dsd-fr-c">
       {mark && <div className="dsd-mark-head">{mark}</div>}
       <Masthead
         doc={doc}
@@ -577,6 +625,10 @@ export function SheetDoc({
       <footer className="dsd-close">
         Prepared with <b>HeyTiff Design Studio</b>
       </footer>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </article>
   );
 }

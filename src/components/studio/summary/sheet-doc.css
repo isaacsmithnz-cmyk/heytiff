@@ -100,6 +100,35 @@
    a `.dsd > *` rule would also match the three layers above at equal
    specificity and, coming later, would strip their position:absolute. */
 .dsd > *:not(.dsd-bband):not(.dsd-bwell) { position: relative; }
+
+/* ── the frame table ──
+   THE DOCUMENT RIDES IN ONE TABLE CELL so that paper can close the frame on
+   every page — see the long note in sheet-doc.tsx for what that is for and
+   what was tried first.
+
+   ON SCREEN IT IS NOT A TABLE. Every part of it is unset back to a block, the
+   head and the foot are hidden, and the two layers above draw the frame; a
+   scrolling document has no pages to close. This is the same technique the
+   rooms table already uses in the other direction — a block list on a narrow
+   screen, a real table on paper.
+
+   `table-layout` and `border-collapse` are deliberately not set here: they
+   mean nothing while the display is block, and print sets both. */
+.dsd-frame,
+.dsd-frame > thead,
+.dsd-frame > tfoot,
+.dsd-frame > tbody,
+.dsd-frame > * > tr,
+.dsd-frame > * > tr > td {
+  display: block;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.dsd-frame > thead,
+.dsd-frame > tfoot { display: none; }
 /* and the content clears the band at both ends */
 /* This padding exists only to clear the band, so it ships from the same object
    the band's depth does. Zero is the fallback rather than a value, because
@@ -681,6 +710,64 @@
    fields and the Add-to-job push — cannot be pressed on paper, so the fields
    print as the text they contain and the push does not print at all. */
 @media print {
+  /* ── THE FRAME CLOSES ON EVERY PAGE ──
+     The two layers that draw it on screen are one rectangle behind the whole
+     document, which fragments into a top band, a bottom band and bare side
+     strips on everything between. They go; the table takes over.
+
+     `thead` and `tfoot` are the only boxes a print engine repeats on every
+     page, so they are the top and bottom of the frame, and the cell holding
+     the document draws the sides with its own borders. Every value is a
+     `var()` with a zero or transparent fallback, so an unthemed sheet gets a
+     borderless cell and two zero-height rows — no frame, no room made for
+     one, exactly the document it has always printed. */
+  .dsd-bband,
+  .dsd-bwell { display: none; }
+  /* the sheet's own padding was clearing a frame that is now drawn INSIDE it:
+     the cell's border is the gutter and the cell's padding is the clear */
+  .dsd { padding: 0; }
+  .dsd-frame {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+    /* the frame IS the branding, so it is the last fill that should be
+       dropped to save ink */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .dsd-frame > thead { display: table-header-group; }
+  .dsd-frame > tfoot { display: table-footer-group; }
+  .dsd-frame > tbody { display: table-row-group; }
+  .dsd-frame > * > tr { display: table-row; }
+  .dsd-frame > * > tr > td { display: table-cell; }
+  /* EVERY ONE OF THESE CARRIES ITS ROW GROUP, and that is not decoration.
+
+     The screen reset above is `.dsd-frame > * > tr > td`, which is (0,1,2) —
+     it zeroes the background, the border and the padding of all three cells.
+     A rule written as `.dsd-fr-t` is (0,1,0) and LOSES to it no matter that it
+     comes later in the file: `@media print` adds no specificity. Shipped that
+     way the frame simply did not print, on a sheet where every screen check
+     said it was fine. Anchored to the row group each one is (0,2,3). */
+  .dsd-frame > thead > tr > td.dsd-fr-t,
+  .dsd-frame > tfoot > tr > td.dsd-fr-b {
+    height: var(--doc-gutter, 0px);
+    background: var(--doc-ink, transparent);
+  }
+  /* the corners live on the two bands, which is the whole of the rounding —
+     the sides are borders and a border cannot curve on its own */
+  .dsd-frame > thead > tr > td.dsd-fr-t {
+    border-radius: var(--doc-radius, 0px) var(--doc-radius, 0px) 0 0;
+  }
+  .dsd-frame > tfoot > tr > td.dsd-fr-b {
+    border-radius: 0 0 var(--doc-radius, 0px) var(--doc-radius, 0px);
+  }
+  .dsd-frame > tbody > tr > td.dsd-fr-c {
+    border-left: var(--doc-gutter, 0px) solid var(--doc-ink, transparent);
+    border-right: var(--doc-gutter, 0px) solid var(--doc-ink, transparent);
+    padding: var(--doc-clear, 0px);
+    vertical-align: top;
+  }
+
   /* PAPER IS NOT A PHONE.
 
      A4 portrait gives the document about 703px, which the container query

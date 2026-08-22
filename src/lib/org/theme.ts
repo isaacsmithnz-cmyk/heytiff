@@ -221,6 +221,11 @@ export function themeVars(seed: string | null): CSSProperties {
        padding is: absent, it must paint NOTHING, not white over a ground the
        document does not own. */
     "--doc-well": "#fff",
+    /* the breathing room on its own, as well as folded into `--doc-pad` and
+       `--doc-side`. PRINT needs it separately: there the frame is drawn as a
+       cell border rather than a layer behind the sheet, so the gutter comes
+       from the border and only the clear is left for the padding. */
+    "--doc-clear": BAND.clear,
     "--doc-radius": BAND.radius,
     "--doc-band": `calc(${BAND.gutter} + ${BAND.radius})`,
     /* what the SHEET must pad to clear the band. Computed here rather than in

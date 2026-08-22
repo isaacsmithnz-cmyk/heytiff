@@ -513,48 +513,35 @@ export function SheetDoc({
           the fallback is `transparent`, and the sheet is byte-for-byte the one
           it is today.
 
-          SCREEN ONLY. On paper these two are hidden and the frame is drawn by
-          the table below instead — see the note on it. */}
+          ON PAPER THESE SAME TWO LAYERS GO `position: fixed`, which a print
+          engine stamps onto every page — full height, page after page,
+          including the tail of a last page whose content stops early. The
+          table below holds the space; these paint it. */}
       <div className="dsd-bband" aria-hidden="true" />
       <div className="dsd-bwell" aria-hidden="true" />
 
-      {/* THE FRAME HAS TO CLOSE ON EVERY PAGE, AND ONLY A TABLE CAN DO THAT.
+      {/* THE TABLE HOLDS THE FRAME'S SPACE OPEN ON EVERY PRINTED PAGE.
 
-          The two layers above are one rectangle behind the whole document, so
-          a browser fragments them across pages the obvious way: a top band on
-          page one, a bottom band on the last page, and on every page in
-          between two bare strips down the sides. That is a frame around the
-          DOCUMENT. What a reader holds is a PAGE, and page two of it looked
-          like the head-and-foot band this treatment replaced precisely because
-          two bars are not a frame.
+          The layers above paint the frame per page, but they are paint only —
+          fixed boxes do not displace content, and vertical padding does not
+          repeat across page fragments, so something has to keep the CONTENT
+          out of the frame's way at the top and foot of every page. The only
+          boxes a print engine repeats per page are a table's header and
+          footer row groups: `thead` and `tfoot` hold the band's height open,
+          the cell's side padding holds the sides, and the well block inside
+          (`dsd-fr-w`) holds the clear, cloned onto every fragment.
 
-          Every cheaper fix was tried and measured against a rendered PDF:
-
-          - `position: fixed` under `@media print` is the running-header trick
-            and repeats per page correctly — but a fixed box is CLIPPED to the
-            page box, so it cannot reach out into the page margin. Pushed out
-            with a negative inset it disappears entirely; kept at inset 0 it
-            sits exactly where the text starts on page two.
-          - per-page padding does not exist: horizontal padding applies to
-            every fragment, vertical padding only to the first and last.
-          - `@page` margin boxes can paint on the margin, and Chrome does not
-            support a fill in one.
-
-          What DOES repeat, in every engine, is a table's header and footer
-          row group. So the document rides in a single cell: `thead` paints the
-          top band, `tfoot` the bottom, and the cell itself paints the sides —
-          its ink-coloured background showing through its side padding. The
-          well is the block inside (`dsd-fr-w`): the paper, white and rounded,
-          laid over the cell's ink exactly the way `.dsd-bwell` lies over
-          `.dsd-bband` on screen.
-
-          AND THE FRAME OWNS THE PAGE EDGE. Inside the default page margin the
+          THE FRAME OWNS THE PAGE EDGE. Inside the default page margin the
           same shape read as a border drawn on the paper — a certificate, not
           a frame. A frame is a GROUND the page is carved out of, and a ground
           does not float: the themed page prints with no margin at all
-          (`@page cover`, injected by the print chrome), the frame's own
-          thickness is the margin, and the corners are square at the paper's
-          corner because paper is. The rounding belongs to the well.
+          (`@page cover`, injected by the print chrome), which is also what
+          lets the fixed layers reach the paper — a fixed box is clipped to
+          the page box, and with no margin the page box IS the paper. That
+          clipping is why fixed alone failed while the margin existed, and a
+          table alone could not frame the tail of a last page whose content
+          stops early: a table ends where its rows end. The two halves are a
+          mechanism each; neither works alone.
 
           It is a table only on paper. On screen every part of it is
           `display: block`, the head and foot are hidden, and the layers above

@@ -95,6 +95,11 @@
   background: var(--doc-well, transparent);
   border-radius: var(--doc-radius, 0px);
   pointer-events: none;
+  /* this layer PRINTS now (fixed, per page — see the print block), and it is
+     the white the ink is carved back out of: dropped as a background economy,
+     the whole page prints solid brand colour */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 /* the document's own content paints above all three. Scoped to the CONTENT:
    a `.dsd > *` rule would also match the three layers above at equal
@@ -710,19 +715,20 @@
    fields and the Add-to-job push — cannot be pressed on paper, so the fields
    print as the text they contain and the push does not print at all. */
 @media print {
-  /* ── THE FRAME CLOSES ON EVERY PAGE ──
-     The two layers that draw it on screen are one rectangle behind the whole
-     document, which fragments into a top band, a bottom band and bare side
-     strips on everything between. They go; the table takes over.
+  /* ── THE FRAME PAINTS FIXED, ONCE PER PAGE ──
+     The same two layers that draw the frame on screen draw it on paper — as
+     `position: fixed`, which a print engine stamps onto EVERY page, full
+     height, clipped to the page box. That clipping is why this failed before
+     the frame owned the edge: inside a 12mm page margin a fixed box cannot
+     reach the paper. With `@page cover { margin: 0 }` the page box IS the
+     paper, and the outlet — band, well, four rounded corners — closes on
+     every page regardless of where the content stops. The tail of a last
+     page whose content ends early stays framed, which is the case the table
+     below cannot cover: a table ends where its rows end.
 
-     `thead` and `tfoot` are the only boxes a print engine repeats on every
-     page, so they are the top and bottom of the frame, and the cell holding
-     the document draws the sides with its own borders. Every value is a
-     `var()` with a zero or transparent fallback, so an unthemed sheet gets a
-     borderless cell and two zero-height rows — no frame, no room made for
-     one, exactly the document it has always printed. */
+     Unthemed both layers are transparent and paint nothing, fixed or not. */
   .dsd-bband,
-  .dsd-bwell { display: none; }
+  .dsd-bwell { position: fixed; }
   /* the sheet's own padding was clearing a frame that is now drawn INSIDE it:
      the cell's border is the gutter and the cell's padding is the clear */
   .dsd { padding: 0; }
@@ -740,47 +746,37 @@
   .dsd-frame > tbody { display: table-row-group; }
   .dsd-frame > * > tr { display: table-row; }
   .dsd-frame > * > tr > td { display: table-cell; }
-  /* EVERY ONE OF THESE CARRIES ITS ROW GROUP, and that is not decoration.
+  /* THE TABLE IS A SPACER, NOT A PAINTER. The fixed layers above put the
+     ink and the paper on every page; what they cannot do is move the CONTENT
+     out of the frame's way, because vertical padding does not repeat across
+     page fragments. Repeating row groups do: `thead` and `tfoot` hold the
+     band's height open at the top and foot of every page, the cell's side
+     padding holds the sides open, and the well block holds the clear. No
+     backgrounds here — the one paint this table carried has moved up to the
+     layers, and a second copy would sit ON TOP of the fixed well and notch
+     its own corners against it.
 
+     EVERY ONE OF THESE CARRIES ITS ROW GROUP, and that is not decoration.
      The screen reset above is `.dsd-frame > * > tr > td`, which is (0,1,2) —
-     it zeroes the background, the border and the padding of all three cells.
-     A rule written as `.dsd-fr-t` is (0,1,0) and LOSES to it no matter that it
-     comes later in the file: `@media print` adds no specificity. Shipped that
-     way the frame simply did not print, on a sheet where every screen check
-     said it was fine. Anchored to the row group each one is (0,2,3).
-
-     THE BANDS ARE SQUARE. The themed page prints with no margin — the frame
-     bleeds to the paper edge, because a frame inset inside a white margin is
-     a border drawn ON the paper, not a ground the page sits in — and paper's
-     corners are not rounded. The rounding belongs to the WELL below, the same
-     division of labour the screen's two layers have. */
+     it zeroes the padding these spacers are made of. A rule written as
+     `.dsd-fr-t` is (0,1,0) and LOSES to it no matter that it comes later in
+     the file: `@media print` adds no specificity. Shipped that way the frame
+     simply did not print, on a sheet where every screen check said it was
+     fine. Anchored to the row group each one is (0,2,3). */
   .dsd-frame > thead > tr > td.dsd-fr-t,
   .dsd-frame > tfoot > tr > td.dsd-fr-b {
     height: var(--doc-gutter, 0px);
-    background: var(--doc-ink, transparent);
   }
-  /* the sides: the cell's own ink showing through its side padding. Painting
-     the cell rather than bordering it is what lets the WELL round over it —
-     an inner corner carved out of a border is concave, which border-radius
-     cannot draw; a white rounded block over an inked ground is the corner
-     `.dsd-bwell` already draws on screen. */
   .dsd-frame > tbody > tr > td.dsd-fr-c {
-    background: var(--doc-ink, transparent);
     padding: 0 var(--doc-gutter, 0px);
     vertical-align: top;
   }
-  /* THE WELL — the paper, laid over the ink. Its rounded corners are the only
-     rounding the printed frame has, and EVERY PAGE GETS ITS OWN SET:
-     `box-decoration-break: clone` closes each fragment as a complete box, so
-     each page is the whole outlet — bands, sides, and a well rounded at all
-     four corners — rather than a slice of one long channel. The default
-     (slice) rounded only the document's true start and end, which squared
-     off the foot of every page but the last; each page of a printed pack is
-     handled, filed and photocopied alone, and each one should close.
-
-     Clone also clones the PADDING, which is the other half of the fix: under
-     slice the page-two content started flush against the top band, because
-     the well's padding existed only at its true ends.
+  /* THE CLEAR, held open on every page: `box-decoration-break: clone` clones
+     this padding onto each fragment, so content clears the band at the top
+     and foot of every page rather than only at the document's true ends —
+     under the default (slice), page-two content started flush against the
+     band. The paint and the rounding live on the fixed well above, which
+     already closes all four corners of every page.
 
      Twice the clear, deliberately: on screen the frame sits inside the panel
      card's own padding, on paper it IS the page margin, and text 10mm from
@@ -788,8 +784,6 @@
      calc() fallback is 6mm when the variable is absent, not 0 — the #470
      padding bug one layer down. */
   .dsd-frame > tbody > tr > td.dsd-fr-c > .dsd-fr-w {
-    background: var(--doc-well, transparent);
-    border-radius: var(--doc-radius, 0px);
     padding: calc(var(--doc-clear, 0px) * 2);
     box-decoration-break: clone;
   }

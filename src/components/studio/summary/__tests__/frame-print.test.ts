@@ -81,26 +81,50 @@ describe("the frame on paper", () => {
     expect(reset.some((s) => s.endsWith("td"))).toBe(true);
   });
 
-  /* THE CLAIM. Every rule that paints part of the frame must out-specify every
-     part of that reset — otherwise it loses silently and prints nothing. */
-  it("paints every part of the frame with a selector that beats the reset", () => {
-    const painters = [
-      ...selectorsDeclaring(CSS, /background:\s*var\(--doc-ink/),
+  /* THE CLAIM. Every spacer that holds the frame's room open must
+     out-specify every part of that reset — otherwise it loses silently, the
+     content prints under the fixed paint, and nothing on screen can tell. */
+  it("holds every spacer open with a selector that beats the reset", () => {
+    const spacers = [
+      ...selectorsDeclaring(CSS, /height:\s*var\(--doc-gutter/),
       ...selectorsDeclaring(CSS, /padding:\s*0\s+var\(--doc-gutter/),
-      ...selectorsDeclaring(CSS, /border-radius:\s*var\(--doc-radius/),
       ...selectorsDeclaring(CSS, /padding:\s*calc\(var\(--doc-clear/),
     ].filter((s) => s.includes(".dsd-frame"));
 
-    // the two bands, the inked cell (background + side padding) and the well
-    // (radius + clear) — nothing may be missed
-    expect(painters.length).toBeGreaterThanOrEqual(5);
+    // the two band rows, the side-padded cell and the well's clear —
+    // nothing may be missed
+    expect(spacers.length).toBeGreaterThanOrEqual(4);
 
-    for (const painter of painters) {
+    for (const spacer of spacers) {
       for (const zeroed of reset) {
-        expect({ painter, beats: beats(specificity(painter), specificity(zeroed)) })
-          .toEqual({ painter, beats: true });
+        expect({ spacer, beats: beats(specificity(spacer), specificity(zeroed)) })
+          .toEqual({ spacer, beats: true });
       }
     }
+  });
+
+  /* THE PAINT IS THE FIXED LAYERS, stamped once per page. A table ends where
+     its rows end, so only these can frame the tail of a last page whose
+     content stops early — lose the position override and the tail goes back
+     to bare paper. And the table must never paint again: a second copy of
+     the ink or the well would sit ON TOP of the fixed layers and notch its
+     own corners against them. */
+  it("paints the frame with the fixed per-page layers, not the table", () => {
+    const printBlock = CSS.slice(CSS.indexOf("@media print"));
+    expect(printBlock).toMatch(
+      /\.dsd-bband,\s*\n?\s*\.dsd-bwell\s*\{\s*position:\s*fixed/
+    );
+    // the well's fill must survive an ink-saving print — it is what carves
+    // the page back out of the brand colour
+    expect(CSS).toMatch(
+      /\.dsd-bwell\s*\{[^}]*print-color-adjust:\s*exact/
+    );
+    // and the spacers carry no paint of their own
+    const framePaint = [
+      ...selectorsDeclaring(printBlock, /background:\s*var\(--doc-ink/),
+      ...selectorsDeclaring(printBlock, /background:\s*var\(--doc-well/),
+    ].filter((s) => s.includes(".dsd-frame"));
+    expect(framePaint).toEqual([]);
   });
 
   /* The head and the foot are what make it a frame per PAGE rather than per
@@ -137,11 +161,4 @@ describe("the frame on paper", () => {
     );
   });
 
-  /* The two mechanisms must never both draw. The screen layers are one
-     rectangle behind the whole document; left on in print they would paint a
-     second, unclosed frame over the pages the table is framing properly. */
-  it("hides the screen layers on paper", () => {
-    const printBlock = CSS.slice(CSS.indexOf("@media print"));
-    expect(printBlock).toMatch(/\.dsd-bband,\s*\n?\s*\.dsd-bwell\s*\{\s*display:\s*none/);
-  });
 });

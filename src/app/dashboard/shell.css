@@ -203,6 +203,34 @@
    the honest kind — it stops when the recording does. */
 @keyframes fgPulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
+/* ── the rail's second size ──────────────────────────────────────────────
+   `html[data-rail]` collapses the sidebar to a 64px icon rail: mark only,
+   icon-only rows (hover titles give the words back), group headings gone.
+   The attribute is set BEFORE first paint by the layout's boot script and
+   toggled at the rail's foot (.railtg), remembered in localStorage — CSS
+   keys off <html> so a collapsed frame never flashes wide while React wakes.
+   The studio's fullscreen mode still removes .side entirely; this is the
+   in-frame size between that and the full 224. */
+.fg .side { transition:width .35s cubic-bezier(.22,1,.36,1), flex-basis .35s cubic-bezier(.22,1,.36,1); }
+html[data-rail] .fg .side { width:64px; flex:0 0 64px; }
+html[data-rail] .fg .brand { padding:32px 0 20px; justify-content:center; }
+html[data-rail] .fg .ht-wm,
+html[data-rail] .fg .ht-orgpill,
+html[data-rail] .fg .navlbl,
+html[data-rail] .fg .ni .nlbl { display:none; }
+html[data-rail] .fg .nav { padding:16px 12px; }
+html[data-rail] .fg .ni { justify-content:center; gap:0; padding:12px 0; }
+html[data-rail] .fg .navgrp + .navgrp { margin-top:24px; }
+/* the foot toggle — the one control that changes the rail's size. Ink sits at
+   the frame's graphic floor (see the dark-chrome contrast note): .45 white on
+   #050505, lifting to full white on hover like every row above it. */
+.fg .railtg { position:relative; z-index:10; margin:8px 20px 18px; padding:9px 0;
+  display:flex; align-items:center; justify-content:center; border-radius:12px;
+  color:rgba(255,255,255,.45); transition:background .3s, color .3s; }
+.fg .railtg:hover { background:rgba(255,255,255,.05); color:#fff; }
+.fg .railtg:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+html[data-rail] .fg .railtg { margin:8px 12px 18px; }
+
 
 /* ============================ MAIN + TOPBAR ============================ */
 .fg .main { flex:1; min-width:0; display:flex; flex-direction:column; position:relative; z-index:10; }

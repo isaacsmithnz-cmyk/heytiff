@@ -1,10 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
 import { Chevron } from "../logo";
 import { navGroupsFor, isActive } from "./nav";
+import {
+  railCollapsed,
+  railServerSnapshot,
+  subscribeRail,
+  toggleRail,
+} from "./rail-state";
 import type { Role } from "@/lib/roles-shared";
 import type { Capability } from "@/lib/permissions";
 
@@ -30,6 +37,10 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const groups = navGroupsFor({ caps: new Set(caps), role });
+  /* collapsed = the 64px icon rail. CSS keys off html[data-rail] (set before
+     paint by the layout's boot script); React reads it only for the toggle's
+     label and the items' hover titles. */
+  const rail = useSyncExternalStore(subscribeRail, railCollapsed, railServerSnapshot);
 
   return (
     <aside className="side">
@@ -73,7 +84,14 @@ export function Sidebar({
             {group.items.map((n) => {
               const on = isActive(n, pathname);
               return (
-                <Link key={n.key} href={n.href} className={`ni${on ? " on" : ""}`}>
+                <Link
+                  key={n.key}
+                  href={n.href}
+                  className={`ni${on ? " on" : ""}`}
+                  /* collapsed rows are icon-only — the hover gives the word
+                     back; expanded rows already wear it, so no tooltip */
+                  title={rail ? n.label : undefined}
+                >
                   <span className="nibg" />
                   <span className="nicon">
                     <Icon name={n.icon} size={16} sw={on ? 2.5 : 2} />
@@ -85,6 +103,17 @@ export function Sidebar({
           </div>
         ))}
       </div>
+
+      {/* the rail's two sizes — one control at the foot, state remembered */}
+      <button
+        type="button"
+        className="railtg"
+        onClick={toggleRail}
+        aria-label={rail ? "Expand navigation" : "Collapse navigation"}
+        title={rail ? "Expand navigation" : "Collapse navigation"}
+      >
+        <Icon name={rail ? "chevR" : "chevL"} size={16} />
+      </button>
     </aside>
   );
 }

@@ -10,18 +10,14 @@ import { Studio } from "../studio";
 import { ComponentPalette, PlenumHud, PALETTE_ENTRIES } from "../air-tools";
 import { LocalDesignStore } from "@/lib/studio/store";
 
-/* Room tools left the rail: the cockpit raises a shape pill ("Draw a room"
-   when there are none yet, "Add room" thereafter), and you pick the shape
-   from that. */
+/* Room tools live on the canvas toolbar now — one labeled button per shape,
+   armed with a single click. */
 async function armRoom(
   user: ReturnType<typeof userEvent.setup>,
   shape: "Rectangle" | "Polygon" = "Rectangle"
 ) {
-  const raise =
-    screen.queryByRole("button", { name: "Draw a room" }) ??
-    (await screen.findByRole("button", { name: "Add room" }));
-  await user.click(raise);
-  await user.click(await screen.findByRole("button", { name: `${shape} room` }));
+  const name = shape === "Rectangle" ? "Room (rectangle)" : "Room (polygon)";
+  await user.click(await screen.findByRole("button", { name }));
 }
 
 

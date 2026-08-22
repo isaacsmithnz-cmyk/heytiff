@@ -105,6 +105,25 @@ describe("UnitBrowser", () => {
     expect(screen.getByRole("button", { name: /Ducted\s*2/ })).toBeInTheDocument();
   });
 
+  it("opens on the first prevalent tab with a fit, not the cross-form best fit", () => {
+    /* the real case: a bedroom split at 4.2 kW. A floor console lands the
+       exact capacity, so the cross-form-factor best fit is the console — but
+       a wall unit fits too, and wall-mounted is where an installer looks
+       first. The default follows the tab order, not the ranking tiebreak. */
+    const p = fixturePack();
+    p.indoor_units.push(
+      idu("WALL-45", "wall", 4.5, [900, 230, 305]),
+      idu("CONS-42", "floor-console", 4.2, [750, 215, 600])
+    );
+    p.outdoor_units.push(odu("OD-45", 4.5), odu("OD-42C", 4.2));
+    p.pair_tables.push(pair("WALL-45", "OD-45", 4.5, 20), pair("CONS-42", "OD-42C", 4.2, 20));
+    render(
+      <UnitBrowser pack={p} loadKw={4.2} basis="worst-of-both" onChoose={noop} onClose={noop} />
+    );
+    expect(screen.getByRole("button", { name: /Wall-mounted/ }).className).toContain("on");
+    expect(within(tbl()).getByText("WALL-45")).toBeInTheDocument();
+  });
+
   it("opens on the requested form-factor tab (ducted AHU flow)", () => {
     render(
       <UnitBrowser

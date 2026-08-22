@@ -1038,10 +1038,6 @@ function Editor({
       ? pickedFloorId
       : (doc.floors[0]?.id ?? null);
   const [tool, setTool] = useState<CanvasTool>("select");
-  /* room drawing is shape-first: "Draw a room" raises a pill offering the
-     rectangle and polygon tools (they left the rail), and it folds away once
-     a room lands */
-  const [roomPicker, setRoomPicker] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /* reference-sheets viewer — browse the uploaded plan set without placing it */
   const [refOpen, setRefOpen] = useState(false);
@@ -1235,9 +1231,6 @@ function Editor({
       setAirComp(null);
       setPaletteOpen(false);
     }
-    /* the room-shape pill mirrors whichever room tool is armed — any other
-       tool (including the auto-disarm after a room lands) folds it away */
-    setRoomPicker(t === "room-rect" || t === "room-poly");
     setTool(t);
   }, []);
 
@@ -1580,7 +1573,6 @@ function Editor({
             placing={placing}
             onPlaced={onPlaced}
             onRoomCreated={(id) => {
-              setRoomPicker(false);
               setEditingRoomId(id);
             }}
             remarkRoomId={remarkRoomId}
@@ -1637,15 +1629,6 @@ function Editor({
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
             onArmPlace={armPlace}
-            roomDraw={{
-              open: roomPicker,
-              shape:
-                tool === "room-rect" ? "rect" : tool === "room-poly" ? "poly" : null,
-              start: () => setRoomPicker(true),
-              // null cancels: changeTool("select") folds the picker away too
-              pick: (s) =>
-                changeTool(s === "rect" ? "room-rect" : s === "poly" ? "room-poly" : "select"),
-            }}
             onFloor={setPickedFloorId}
             floor={activeFloor}
             onAddVariant={onAddVariant}
@@ -1908,18 +1891,28 @@ const CANVAS_TOOLS: {
   key: CanvasTool;
   icon: string;
   label: string;
+  /** the word the toolbar wears; `label` stays the full accessible name */
+  short: string;
   kbd: string;
   needsSystem?: boolean;
 }[] = [
-  { key: "select", icon: "cursor", label: "Select", kbd: "V" },
-  { key: "room-rect", icon: "square", label: "Room (rectangle)", kbd: "R", needsSystem: true },
-  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", kbd: "G", needsSystem: true },
-  { key: "pipe", icon: "pipe", label: "Refrigerant run", kbd: "P", needsSystem: true },
-  { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", kbd: "I", needsSystem: true },
-  { key: "crop", icon: "maximize", label: "Crop plan", kbd: "X" },
-  { key: "arrange", icon: "hand", label: "Move plans", kbd: "M" },
-  { key: "erase", icon: "eraser", label: "Eraser", kbd: "E" },
+  { key: "select", icon: "cursor", label: "Select", short: "Select", kbd: "V" },
+  { key: "room-rect", icon: "square", label: "Room (rectangle)", short: "Room", kbd: "R", needsSystem: true },
+  { key: "room-poly", icon: "hexagon", label: "Room (polygon)", short: "Shape", kbd: "G", needsSystem: true },
+  { key: "pipe", icon: "pipe", label: "Refrigerant run", short: "Run", kbd: "P", needsSystem: true },
+  { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", short: "Riser", kbd: "I", needsSystem: true },
+  { key: "crop", icon: "maximize", label: "Crop plan", short: "Crop", kbd: "X" },
+  { key: "arrange", icon: "hand", label: "Move plans", short: "Move", kbd: "M" },
+  { key: "erase", icon: "eraser", label: "Eraser", short: "Erase", kbd: "E" },
 ];
+
+/** toolbar lookup by key — a find, not a Record, so a typo'd key fails loudly
+    instead of type-checking into a fallback */
+function tb(key: CanvasTool) {
+  const t = CANVAS_TOOLS.find((x) => x.key === key);
+  if (!t) throw new Error(`unknown canvas tool: ${key}`);
+  return t;
+}
 
 const LAYER_LABELS: Record<keyof LayerFlags, string> = {
   plan: "Floor plan",
@@ -2417,19 +2410,36 @@ function DesignPanel({
       disabled={Boolean(t.needsSystem) && !activeSystemId}
       onClick={() => onTool(t.key)}
     >
-      <Icon name={t.icon as never} size={17} />
+      <Icon name={t.icon as never} size={15} />
+      {t.short}
+      <span className="ds-kbd" aria-hidden="true">
+        {t.kbd}
+      </span>
     </button>
   );
 
   return (
     <div className="ds-design">
       <div className="ds-canvas-col">
-        <div className="ds-canvas-body">
-          {revealTools && (
-          <div className="ds-toolrail" role="toolbar" aria-label="Canvas tools">
-            {/* room tools left the rail — they're offered by the shape pill,
-                raised from the cockpit's Draw a room / Add room */}
-            {CANVAS_TOOLS.slice(0, 1).map(toolButton)}
+        {revealTools && (
+          <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
+            {/* the bench reads in workflow order: Select, then Rooms, then the
+                System verbs, then Erase — with history at the far end. Room
+                tools live HERE now, not in the cockpit: the verb sits on the
+                same side of the screen as the act. */}
+            {toolButton(tb("select"))}
+            <span className="ds-tb-sep" aria-hidden="true" />
+            <span className="ds-tb-gl" aria-hidden="true">
+              Rooms
+            </span>
+            {toolButton(tb("room-rect"))}
+            {toolButton(tb("room-poly"))}
+            <span className="ds-tb-sep" aria-hidden="true" />
+            <span className="ds-tb-gl" aria-hidden="true">
+              System
+            </span>
+            {toolButton(tb("pipe"))}
+            {toolButton(tb("riser"))}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
                 (spec §2); Duct arms at Step 4, Component opens the palette */}
             <button
@@ -2438,7 +2448,8 @@ function DesignPanel({
               aria-label="Duct"
               title="Ductwork arrives at Step 4"
             >
-              <Icon name="wind" size={17} />
+              <Icon name="wind" size={15} />
+              Duct
             </button>
             <div className="ds-pal-wrap">
               <button
@@ -2448,18 +2459,20 @@ function DesignPanel({
                 title={airGate.ok ? "Component (C)" : `Component — ${airGate.reason}`}
                 onClick={() => onPalette(!paletteOpen)}
               >
-                <Icon name="box" size={17} />
+                <Icon name="box" size={15} />
+                Component
+                <span className="ds-kbd" aria-hidden="true">
+                  C
+                </span>
               </button>
               {paletteOpen && airGate.ok && (
                 <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
               )}
             </div>
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
-            {CANVAS_TOOLS.slice(3)
-              .filter((t) => t.key !== "crop" && t.key !== "arrange")
-              .map(toolButton)}
-            {/* history — undo/redo live at the foot of the rail */}
-            <div className="ds-rail-sep" />
+            <span className="ds-tb-sep" aria-hidden="true" />
+            {toolButton(tb("erase"))}
+            <div className="ds-tb-spring" />
             <button
               className="ds-tool"
               onClick={undo}
@@ -2467,7 +2480,7 @@ function DesignPanel({
               aria-label="Undo"
               title="Undo (⌘Z)"
             >
-              <Icon name="rotate" size={17} />
+              <Icon name="rotate" size={15} />
             </button>
             <button
               className="ds-tool flip"
@@ -2476,10 +2489,11 @@ function DesignPanel({
               aria-label="Redo"
               title="Redo (⇧⌘Z)"
             >
-              <Icon name="rotate" size={17} />
+              <Icon name="rotate" size={15} />
             </button>
           </div>
-          )}
+        )}
+        <div className="ds-canvas-body">
           <StudioCanvas
             key={floor.id}
             doc={doc}

@@ -10,7 +10,7 @@
    All the diagnostic content lives in lib/toolbox/guided.ts; this file is
    only the walk through it. */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -174,15 +174,18 @@ function OutcomeCard({
   outcome,
   color,
   library,
+  ref,
 }: {
   outcome: Outcome;
   color: string;
   /** "off" hides the lookup entirely — no Tiff access at all. */
   library: "ready" | "empty" | "off";
+  /** the walk scrolls this into view — see `focusRef` in FaultFinder */
+  ref?: React.Ref<HTMLElement>;
 }) {
   return (
     <>
-      <section className="ffg-outcome" style={{ "--sc2": color } as React.CSSProperties}>
+      <section ref={ref} className="ffg-outcome" style={{ "--sc2": color } as React.CSSProperties}>
         <span className="gl" />
         <div className="lab">
           {CONFIDENCE_LABEL[outcome.confidence]}
@@ -292,6 +295,36 @@ export function FaultFinder({
     setFinished(null);
   };
 
+  /* KEEP THE THING YOU JUST UNCOVERED ON SCREEN.
+
+     The trail of answers renders ABOVE the question, so every answer inserts
+     another ~44px row over the top of the card you are reading and pushes it
+     down by that much. Nothing scrolled on its own, so by the fifth or sixth
+     question the answer buttons had walked past the fold — and once you had
+     scrolled down to reach them, the next insertion above left you looking at
+     the bottom of the page instead of at the new question. It read as the page
+     loading at the bottom on every click.
+
+     `block: "nearest"` is the whole trick: it scrolls the MINIMUM amount, so
+     the early questions — which fit — do not move at all and nothing jumps.
+     Same call the view tabs make. Optional-called because jsdom has no layout.
+
+     With no question and no outcome we are back on the symptom picker (Start
+     over), which is a different page height entirely, so that one goes to the
+     top of the well the way the org and profile switchers do. `walked` keeps
+     that off the FIRST render: arriving at the route is Next's scroll to make,
+     not ours. */
+  const focusRef = useRef<HTMLElement>(null);
+  const walked = useRef(false);
+  useEffect(() => {
+    if (!walked.current) {
+      walked.current = true;
+      return;
+    }
+    if (focusRef.current) focusRef.current.scrollIntoView?.({ block: "nearest" });
+    else document.querySelector(".outlet")?.scrollTo({ top: 0 });
+  }, [currentId, finished]);
+
   /* ---- state 1: pick a symptom ---- */
   if (!symptom) {
     return (
@@ -361,7 +394,7 @@ export function FaultFinder({
         <Trail steps={trail} color={color} onBack={backTo} />
 
         {question && (
-          <section className="ffg-q" style={{ "--sc2": color } as React.CSSProperties}>
+          <section ref={focusRef} className="ffg-q" style={{ "--sc2": color } as React.CSSProperties}>
             <h2>{question.ask}</h2>
             {question.why && <p className="why">{question.why}</p>}
             {question.safety && (
@@ -384,7 +417,7 @@ export function FaultFinder({
           </section>
         )}
 
-        {outcome && <OutcomeCard outcome={outcome} color={color} library={library} />}
+        {outcome && <OutcomeCard ref={focusRef} outcome={outcome} color={color} library={library} />}
 
         <div className="ffg-nav">
           <button type="button" className="tbtn ghost" onClick={backOne}>

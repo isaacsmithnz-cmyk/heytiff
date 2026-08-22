@@ -15,7 +15,7 @@ import path from "node:path";
    that can end them. Cheap, and it fails in the loop that actually runs. */
 
 const PAGE = fs.readFileSync(
-  path.join(process.cwd(), "src/app/handover/[id]/page.tsx"),
+  path.join(process.cwd(), "src/app/handover/[id]/sheet-chrome.tsx"),
   "utf8"
 );
 
@@ -46,5 +46,58 @@ describe("the handover sheet's inline stylesheet", () => {
     expect(css).toContain(".ho-head");
     expect(css).toContain("@media print");
     expect(css.split("{").length).toBe(css.split("}").length);
+  });
+
+  /* THE FRAME MECHANICS, pinned the same way the design sheet pins its own
+     (summary/__tests__/frame-print.test.ts) and for the same reason: none of
+     this is observable from jsdom, and all of it has silently failed once.
+
+     The construction is #481's: the two layers go position:fixed in print
+     and are stamped per page — which only reaches the paper because a THEMED
+     print drops the page margin (a fixed box is clipped to the page box);
+     the spacer table holds the frame's room open per page, anchored heavier
+     than the screen reset because @media print adds no specificity; and the
+     well's clear is cloned onto every fragment. */
+  describe("the frame on paper", () => {
+    it("stamps the layers per page and lets the well fill survive ink-saving", () => {
+      const css = styleBlock();
+      const printBlock = css.slice(css.indexOf("@media print"));
+      expect(printBlock).toMatch(/\.ho-band,\s*\.ho-well\s*\{\s*position:\s*fixed/);
+      expect(css).toMatch(/\.ho-well\s*\{[^}]*print-color-adjust:\s*exact/);
+    });
+
+    it("holds the spacers open with selectors anchored past the screen reset", () => {
+      const css = styleBlock();
+      const printBlock = css.slice(css.indexOf("@media print"));
+      expect(printBlock).toMatch(
+        /\.ho-fr > thead > tr > td\.ho-fr-t,\s*\n?\s*\.ho-fr > tfoot > tr > td\.ho-fr-b\s*\{\s*height:\s*var\(--doc-gutter/
+      );
+      expect(printBlock).toMatch(
+        /\.ho-fr > tbody > tr > td\.ho-fr-c\s*\{\s*padding:\s*0 var\(--doc-gutter/
+      );
+      expect(printBlock).toMatch(/box-decoration-break:\s*clone/);
+      // and the spacers carry no paint of their own — a second copy of the
+      // ink would sit on top of the fixed well and notch against it
+      expect(printBlock).not.toMatch(/\.ho-fr[^{]*\{[^}]*background:\s*var\(--doc-ink/);
+    });
+
+    it("strips the page margin only for a brand the derivation accepts", () => {
+      // the @page override lives in the COMPONENT, where the brand is —
+      // an @page rule cannot read a CSS variable
+      expect(PAGE).toMatch(/documentTheme\(brand\.color\)/);
+      expect(PAGE).toMatch(/\{themed && \(/);
+      expect(PAGE).toMatch(/@media print \{ @page \{ margin: 0; \}/);
+      /* THE SQUARE-OFF RIDES WITH THE MARGIN STRIP. Full bleed means the
+         band's corners are the paper's corners, and a radius there draws four
+         white notches; inset in a margin it must stay rounded or it prints a
+         hard-cornered mat floating in white. One decision, one place. */
+      expect(PAGE).toMatch(/\.ho-band \{ border-radius: 0; \}/);
+      // and the band is concentric with its well everywhere else
+      expect(styleBlock()).toMatch(
+        /border-radius:\s*calc\(var\(--doc-radius[^)]*\)\s*\+\s*var\(--doc-gutter/
+      );
+      // and the unthemed sheet keeps its own margin in the stylesheet
+      expect(styleBlock()).toMatch(/@page \{ margin: 16mm; \}/);
+    });
   });
 });

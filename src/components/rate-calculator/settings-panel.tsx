@@ -139,8 +139,53 @@ function ExplainerSection() {
   );
 }
 
-export function SettingsPanel({ st: committed, patch: commit, onClose, superOwned = false }: {
+// Start fresh — the one destructive control in the tool, so it arms before it
+// fires. The consequence is spelled out because it is the whole decision, and
+// the second press is labelled with the act rather than "Confirm".
+function DangerZone({ onReset }: { onReset: () => Promise<boolean> }) {
+  const [armed, setArmed] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setErr(null);
+    const ok = await onReset();
+    // On success the whole calculator remounts and this panel goes with it —
+    // touching state here would be a write into an unmounting tree.
+    if (!ok) { setBusy(false); setErr("Couldn't clear your setup. Check your connection and try again."); }
+  };
+  return (
+    <>
+      <WsEyebrow color={RC.redInk} style={{ marginTop: 24, marginBottom: 4 }}>Start fresh</WsEyebrow>
+      <div style={{ background: RC.redSoft, borderRadius: 12, padding: "14px 16px", marginTop: 8 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, color: RC.redInk }}>Clear this setup and start again</div>
+        <div style={{ fontSize: 12.5, color: RC.ink2, marginTop: 4, lineHeight: 1.55 }}>
+          Deletes your wages, costs, vehicles, risk and profit figures, your current rates and these settings. Staff and their wages stay in Team.
+        </div>
+        {err && <div style={{ fontSize: 12.5, fontWeight: 700, color: RC.redInk, marginTop: 10 }}>{err}</div>}
+        {!armed ? (
+          <button className="rca-btn ghost sm" style={{ marginTop: 12, color: RC.redInk, borderColor: "rgba(214,31,83,.35)" }} onClick={() => setArmed(true)}>
+            Start fresh
+          </button>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+            <button className="rca-btn ghost sm" disabled={busy} onClick={() => { setArmed(false); setErr(null); }}>Keep my setup</button>
+            <button className="rca-btn sm" disabled={busy} onClick={run}
+              style={{ background: RC.redInk, color: "#fff", opacity: busy ? 0.6 : 1, cursor: busy ? "default" : "pointer" }}>
+              {busy ? "Clearing…" : "Yes, clear everything"}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+export function SettingsPanel({ st: committed, patch: commit, onClose, onReset, superOwned = false }: {
   st: RateCalcState; patch: (p: Partial<RateCalcState>) => void; onClose: () => void;
+  /** Wipe the org's saved setup and start over. Resolves false if the clear
+      failed, so the panel can say so instead of pretending. */
+  onReset: () => Promise<boolean>;
   /** pay_settings owns the super rate — the field here goes read-only. */
   superOwned?: boolean;
 }) {
@@ -229,6 +274,8 @@ export function SettingsPanel({ st: committed, patch: commit, onClose, superOwne
           </Field>
 
           <ExplainerSection />
+
+          <DangerZone onReset={onReset} />
         </div>
 
         <div style={{ flexShrink: 0, padding: "16px 26px", background: "#fff", borderTop: `1px solid ${RC.line}`, display: "flex", gap: 12 }}>

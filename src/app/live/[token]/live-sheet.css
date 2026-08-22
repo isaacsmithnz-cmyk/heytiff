@@ -39,11 +39,6 @@
   border-bottom: 1px solid rgba(10, 12, 20, 0.09);
 }
 .dsd-sp { flex: 1 1 auto; }
-.dsd-mark { display: inline-flex; align-items: center; font-size: 14px; font-weight: 800; }
-/* the bar's mark is smaller than the document's, and keeps its ratio the same
-   way — see the note on .dsd-logo in sheet-doc.css */
-.dsd-mark .dsd-logo { max-height: 30px; max-width: 170px; }
-.dsd-mark .org-mark-logo:not(.org-initials) { height: 26px; width: auto; }
 
 /* the chip says LIVE, and the ink on it has to survive the wash it sits on:
    #00806c on a 15% teal wash measures 4.43 and fails at this size, so this is

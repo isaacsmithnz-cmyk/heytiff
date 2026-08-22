@@ -142,15 +142,44 @@ describe("the document", () => {
        that lives only in the chrome vanishes from the PDF */
     expect(screen.getByText("Diamond Air", { selector: ".dsd-org" })).toBeInTheDocument();
     expect(screen.getByText("17 August 2026")).toBeInTheDocument();
-    /* NAME AND DATE, and nothing else. The contact line — ABN, phone, email,
-       website — read as a business card dropped into the middle of a
-       document, four weights under a heading before the reader reached a
-       single figure. */
-    expect(screen.queryByText(/ABN/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/4225 1188/)).not.toBeInTheDocument();
+    /* THE BUSINESS OPPOSITE THE JOB. The contact line came out of the
+       masthead once, when it sat UNDER the byline and read as a business card
+       dropped into a heading — four weights before the reader reached a
+       figure. It is back because it has somewhere to be: its own column on
+       the right, under the mark, where a quote or an invoice puts it. ABN
+       first, because that is the one that gets checked. */
+    expect(screen.getByText(/ABN 51 824 753 556/)).toBeInTheDocument();
+    expect(screen.getByText(/4225 1188/)).toBeInTheDocument();
+    /* and it is in the identity block, not loose under the byline — the
+       arrangement is the point, not the presence */
+    expect(document.querySelector(".dsd-ident .dsd-idc")).not.toBeNull();
+
+    /* WHO IT IS FOR, under the date rather than opposite it */
     expect(screen.getByText("Halloran Bros Construction")).toBeInTheDocument();
     expect(screen.getByText("Wollongong")).toBeInTheDocument();
     expect(screen.getByText("2214")).toBeInTheDocument();
+    expect(document.querySelector(".dsd-mast-job .dsd-to")).not.toBeNull();
+  });
+
+  /* THE MARK IS IN THE DOCUMENT, not in the bar it used to live in. That is
+     what makes it survive being printed and what lets it sit opposite the job
+     — and it is why the bar must NOT still carry one, or the customer's first
+     screen says the same thing twice a centimetre apart. */
+  it("carries the mark in its masthead and not in the bar", () => {
+    renderSheet();
+    const ident = document.querySelector(".dsd-ident");
+    expect(ident).not.toBeNull();
+    expect(ident!.querySelector(".dsd-idlogo")).not.toBeNull();
+    expect(document.querySelector(".dsd-bar .dsd-idlogo")).toBeNull();
+    expect(document.querySelector(".dsd-bar img")).toBeNull();
+  });
+
+  /* A workspace with no name and no logo renders NO identity block — not an
+     empty box, and not our own wordmark, which already stands in as the
+     byline on the left. */
+  it("renders no identity block for a business that has told us nothing", () => {
+    renderSheet({ brand: NO_BRAND });
+    expect(document.querySelector(".dsd-ident")).toBeNull();
   });
 
   it("falls back to the platform when the business has told us nothing", () => {

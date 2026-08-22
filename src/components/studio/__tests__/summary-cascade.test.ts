@@ -105,14 +105,22 @@ describe("Summary sheet cascade", () => {
 
        Invisible to every other check. jsdom has no print medium, the rule is
        valid CSS, and no screen rendering of any page shows it. */
-    const hide = css.match(/@media print \{[\s\S]*?visibility:\s*hidden[^;]*;/);
-    expect(hide).not.toBeNull();
     /* SELECTS THE SIBLINGS, not everything-then-reveal. Scoping the old bare
        `body *` as `body:has(#ds-printdoc) *` fixed the customer's blank page
        and broke the studio's own print, because `:has()` CONTRIBUTES ITS
        ARGUMENT'S SPECIFICITY — the hide became (1,0,1) and out-ranked the
        (1,0,0) reveal it was paired with, both `!important`, so the print
-       document hid itself. A blank PDF, found by rendering one. */
+       document hid itself. A blank PDF, found by rendering one.
+
+       DISPLAY NOW, NOT VISIBILITY. `visibility` left the hidden siblings in
+       the layout, so the print document had to be positioned ABSOLUTE over
+       the space they still occupied — and an out-of-flow ancestor is where
+       the `page` property does not apply, so the themed cover's named page
+       (`@page cover`, the margin-stripping mechanism for the full-bleed
+       frame) was silently ignored. The siblings leave the layout entirely and
+       the print document IS the flow. */
+    const hide = css.match(/@media print \{[\s\S]*?display:\s*none[^;]*;/);
+    expect(hide).not.toBeNull();
     expect(hide![0]).toMatch(/body:has\(#ds-printdoc\) > \*:not\(#ds-printdoc\)/);
     /* the bare form must not come back under any selector */
     const bare = selectors.filter((sel) =>
@@ -122,6 +130,30 @@ describe("Summary sheet cascade", () => {
     /* and there must be no hide/reveal pair to lose a specificity race with:
        nothing inside the print document is hidden, so nothing needs revealing */
     expect(css).not.toMatch(/#ds-printdoc \*\s*\{[^}]*visibility:\s*visible/);
+  });
+
+  it("the print document stays in NORMAL FLOW — named pages do not apply out of it", () => {
+    /* `page: cover` on the print cover is how a themed sheet sheds its page
+       margin so the frame can bleed. The property only applies to boxes in
+       the normal flow: reintroduce `position: absolute` on #ds-printdoc (or
+       leave body a flex column, whose items are not the plain block boxes
+       named pages are specified against) and the named @page rule silently
+       matches nothing — the frame prints inset in a white ring again, and no
+       screen check can see it. Proved by probe both ways. */
+    /* EVERY `#ds-printdoc { … }` block, because the first one is the screen's
+       `display: none` and a match on it alone would wave the print block's
+       `position: absolute` straight through — which is exactly the mutation
+       this guard exists to catch. */
+    const printdoc = css.match(/#ds-printdoc \{[^}]*\}/g);
+    expect(printdoc).not.toBeNull();
+    expect(printdoc!.length).toBeGreaterThanOrEqual(2);
+    for (const block of printdoc!) {
+      expect(block).not.toMatch(/position:\s*absolute/);
+    }
+    expect(css).toMatch(/body:has\(#ds-printdoc\)\s*\{[^}]*display:\s*block/);
+    /* the cover carries the name the injected @page rule strips the margin
+       from */
+    expect(css).toMatch(/\.ds-print-cover\s*\{[^}]*page:\s*cover/);
   });
 
   it("the recents skeleton PAINTS — its block outranks the card it sits in", () => {

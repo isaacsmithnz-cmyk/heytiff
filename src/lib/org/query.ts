@@ -130,6 +130,26 @@ export async function listOwnerCandidates(
   );
 }
 
+/* HAS THIS ORG BEEN THROUGH FIRST-RUN SETUP? Null timestamp = never — the
+   state create_org_for_owner leaves a fresh org in, and the one condition the
+   welcome flow redirects on (lib/org/setup.ts has the flow itself).
+
+   FAILS SOFT TO "NOTHING PENDING", and the direction matters: this read runs
+   on every owner's visit to Home, and the column arrives by migration
+   (docs/migrations/org_setup_completed.sql). Code deployed ahead of the
+   migration errors here — resolving that to `true` would bounce every owner
+   in production to a setup screen for orgs that are already set up, so an
+   error means "stay out of the way", never "redirect". */
+export async function orgSetupPending(orgId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from("organizations")
+    .select("setup_completed_at")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (error || !data) return false;
+  return data.setup_completed_at == null;
+}
+
 /* The company's face, for a surface a customer receives — see lib/org/brand.ts.
 
    One row, six columns, and the logo signed on the way out. Callers that hold

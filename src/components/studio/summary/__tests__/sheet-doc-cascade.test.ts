@@ -86,26 +86,47 @@ describe("the rooms table's cascade", () => {
 });
 
 describe("the mark keeps its shape", () => {
-  /* FOUND IN PRODUCTION. `.dsd-logo` was `width: auto` with a max on each
-     side, which READS as "fit inside this box" and was not what it did: the
-     mark is a flex item in a column container, so `align-items: stretch` gave
-     it a definite width, `max-height` then clamped the height, and Diamond
-     Air's 3.55:1 logo rendered at 4.78:1 — stretched 35% wide.
+  /* FOUND IN PRODUCTION, and the hazard outlived the class it was found on.
+
+     The mark used to be `.dsd-logo` in a chrome bar; it is `.dsd-idlogo` in
+     the masthead's identity block now. Same trap either way: the image is a
+     flex item in a COLUMN container, so a container that stretches its items
+     hands the image a definite width, a height cap then clamps it, and Diamond
+     Air's 3.55:1 logo renders at 4.78:1 — stretched 35% wide. Nobody uploads a
+     logo to have it squashed.
 
      jsdom has no layout, so no component test can see this. It is stated
      against the source instead. */
-  it("opts out of the stretch and lets the ratio drive", () => {
-    const rule = css.match(/\.dsd-logo \{[^}]*\}/);
+  it("lets the ratio drive ONE axis and caps the other", () => {
+    /* WHICH axis is free is a design decision and has changed once already:
+       the mark was `height: 46px; width: auto`, parked in a max-content
+       column, and it is `width: 100%; height: auto` now that the column is a
+       measure the mark is meant to fill. Either is safe. Both definite is the
+       bug, and so is neither — a free axis with no `contain` under it stretches
+       the moment a flex container hands the other one a definite value.
+
+       So this states the invariant rather than the arrangement: exactly one of
+       the two runs on the image's own ratio, and `contain` catches whatever the
+       cap does to the other. That is what makes `align-self: flex-start` no
+       longer load-bearing — it was the stretch opt-out for a `width: auto`
+       image, and an image told to be 100% wide is not stretched by being
+       stretched. */
+    const rule = css.match(/\.dsd-idlogo \{[^}]*\}/);
     expect(rule).not.toBeNull();
-    expect(rule![0]).toMatch(/align-self:\s*flex-start/);
-    expect(rule![0]).toMatch(/height:\s*auto/);
     expect(rule![0]).toMatch(/object-fit:\s*contain/);
+    const free = [
+      /(^|;)\s*width:\s*auto/.test(rule![0]),
+      /(^|;)\s*height:\s*auto/.test(rule![0]),
+    ].filter(Boolean);
+    expect(free).toHaveLength(1);
   });
 
   it("never pins BOTH dimensions of the image itself", () => {
-    /* every rule that sizes the mark may cap it, but none may set a definite
-       width AND height — that is the distortion, whatever the selector */
-    const sizing = [...css.matchAll(/([^{}]*\.dsd-logo[^{}]*)\{([^}]*)\}/g)]
+    /* every rule that sizes the mark may cap ONE side, but none may set a
+       definite width AND height — that is the distortion, whatever the
+       selector. The initials stand-in is excluded: it is a text span with no
+       ratio to keep, and a square is what it is meant to be. */
+    const sizing = [...css.matchAll(/([^{}]*\.dsd-idlogo[^{}]*)\{([^}]*)\}/g)]
       .filter(([, sel]) => !/org-initials/.test(sel));
     expect(sizing.length).toBeGreaterThan(0);
     for (const [, sel, body] of sizing) {
@@ -131,5 +152,58 @@ describe("the sheet measures its own width", () => {
       (m) => m[0]
     );
     expect(viewportQueries).toEqual([]);
+  });
+
+  /* PAPER IS NOT A PHONE, and this is the third time it has had to be said.
+
+     A4 portrait leaves the document about 703px once the frame has taken its
+     edges — under EVERY container breakpoint in this sheet, including the one
+     drawn for a hand. So the moment a container query rearranges something,
+     paper silently gets the phone's version of it unless print says otherwise.
+
+     It has shipped twice. First the rooms table: nine columns became a stacked
+     block list and four rooms printed as three pages. Then the masthead: the
+     business's mark came out UNDER the client's address, mid-page, with a
+     column of white beside it — the first thing anyone sees on the document,
+     wrong on every copy ever printed, and the state Isaac found it in.
+
+     Both were caught by rendering an actual PDF, which is the only thing that
+     sees them: jsdom has no print medium and no layout, and on a 703px SCREEN
+     the phone layout is correct. So the rule is stated here instead, and it is
+     stated about ARRANGEMENT only — `grid-template-columns` and `display`, the
+     two properties that decide what shape the page is. Spacing may differ
+     between a screen and a sheet; the arrangement may not differ by accident. */
+  it("restates on paper every arrangement a container query changes", () => {
+    const block = (source: string, at: number): string => {
+      const open = source.indexOf("{", at);
+      let depth = 0;
+      for (let i = open; i < source.length; i++) {
+        if (source[i] === "{") depth++;
+        else if (source[i] === "}" && --depth === 0) return source.slice(open + 1, i);
+      }
+      throw new Error("unterminated block");
+    };
+    /** every `selector|property` an at-rule's body sets, arrangement only */
+    const arrangement = (body: string): string[] => {
+      const out: string[] = [];
+      for (const [, sel, decls] of body.matchAll(/([^{}]+)\{([^}]*)\}/g))
+        for (const one of sel.split(","))
+          for (const prop of ["grid-template-columns", "display"])
+            if (new RegExp(`(^|;)\\s*${prop}\\s*:`).test(decls))
+              out.push(`${one.replace(/\s+/g, " ").trim()}|${prop}`);
+      return out;
+    };
+
+    const printAt = css.indexOf("@media print");
+    expect(printAt).toBeGreaterThan(-1);
+    const onPaper = new Set(arrangement(block(css, printAt)));
+
+    const queries = [...css.matchAll(/@container \(max-width: \d+px\)/g)];
+    expect(queries.length).toBeGreaterThan(0);
+    const unanswered: string[] = [];
+    for (const q of queries)
+      for (const claim of arrangement(block(css, q.index!)))
+        if (!onPaper.has(claim)) unanswered.push(`${q[0]} ${claim}`);
+    expect(unanswered).toEqual([]);
   });
 });

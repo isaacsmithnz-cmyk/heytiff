@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ViewTabs } from "@/components/shell/view-tabs";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { DateField } from "@/components/ui/date-field";
@@ -91,6 +92,7 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
   /* One claim armed for cancellation at a time — same shape My leave and the
      team directory use. Arming a second forgets the first. */
   const [armed, setArmed] = useState<string | null>(null);
+  const [tab, setTab] = useState<"claims" | "closed">("claims");
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* Object URLs are held until they're replaced or the claim is cleared —
@@ -214,10 +216,17 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
      to the person who is actually out of pocket. */
   const owed = owedTotal(claims);
 
+  /* The two faces: what's still moving, and what's been answered. Open rides
+     `isOpen` — the same test `owedTotal` uses — so the Claims tab and the
+     owed figure can never disagree about which rows count. */
+  const openClaims = claims.filter((c) => isOpen(c.status));
+  const closedClaims = claims.filter((c) => !isOpen(c.status));
+  const shown = tab === "closed" ? closedClaims : openClaims;
+
   return (
     <div className="page in">
       <div className="wrap">
-        <div className="stg" style={{ maxWidth: 760 }}>
+        <div className="stg">
           <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
             <div>
               <h1>
@@ -228,6 +237,41 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
 
           {error && <div className="xc-err">{error}</div>}
 
+          {/* The board's card and tabs. Claims is the working face — capture
+              first, then what's still moving; Closed is the answered pile
+              (reimbursed, declined, cancelled), which used to pad out the one
+              list forever. */}
+          <div className="wb2">
+            <ViewTabs
+              ariaLabel="Your expense claims"
+              idPrefix="xct"
+              panelPrefix="xcp"
+              active={tab}
+              onGo={(k) => setTab(k as "claims" | "closed")}
+              items={[
+                {
+                  key: "claims",
+                  label: "Claims",
+                  count: openClaims.length,
+                  countLabel: (n) => `${n} open`,
+                },
+                { key: "closed", label: "Closed" },
+              ]}
+            />
+            <div className="wb2-card">
+              <div className="ppanel2">
+                {/* No `key`, no `.psec2` — the claim list swaps in place, the
+                    way Team's directory does. Both together remount the face
+                    and fade it back in from opacity 0, which on a list reads
+                    as a flash rather than polish (see my-time-screen.tsx). */}
+                <section
+                  id={`xcp-${tab}`}
+                  role="tabpanel"
+                  aria-labelledby={`xct-${tab}`}
+                  tabIndex={-1}
+                >
+          {tab === "claims" && (
+            <>
           {!draft ? (
             <div className="xc-start">
               <span className="xc-ic">
@@ -386,21 +430,6 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
             </div>
           )}
 
-          {/* ONE picker, mounted for the life of the screen. On the start
-              screen a file is scanned into a draft; once a draft exists it is
-              attached and nothing is overwritten. */}
-          <input
-            ref={fileRef}
-            type="file"
-            accept={RECEIPT_ACCEPT}
-            hidden
-            onChange={(e) => {
-              const picked = e.target.files?.[0];
-              if (draft) onAttachOnly(picked);
-              else void onPick(picked);
-            }}
-          />
-
           {/* WHAT YOU ARE OWED, on the screen of the person owed it. The
               approver's queue has carried this figure all along, and so has
               the Time & Pay stat tile; the claimant's own screen listed the
@@ -412,15 +441,24 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
               <em>Claims sent or approved but not yet paid.</em>
             </div>
           )}
+            </>
+          )}
 
           <div className="xc-list">
-            {claims.length === 0 ? (
-              <div className="adm-empty">
-                <b>Nothing claimed yet</b>
-                <em>Anything you buy for a job and pay for yourself goes here.</em>
-              </div>
+            {shown.length === 0 ? (
+              tab === "closed" ? (
+                <div className="adm-empty">
+                  <b>Nothing here yet</b>
+                  <em>Claims land here once they&apos;re reimbursed, declined or cancelled.</em>
+                </div>
+              ) : (
+                <div className="adm-empty">
+                  <b>Nothing claimed yet</b>
+                  <em>Anything you buy for a job and pay for yourself goes here.</em>
+                </div>
+              )
             ) : (
-              claims.map((c) => (
+              shown.map((c) => (
                 <div className={`xc-row ${c.status}`} key={c.id}>
                   <div className="xc-main">
                     <b>{c.description}</b>
@@ -492,6 +530,26 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
               ))
             )}
           </div>
+                </section>
+              </div>
+            </div>
+          </div>
+
+          {/* ONE picker, mounted for the life of the screen — outside the
+              card so a tab switch can't unmount it mid-pick. On the start
+              screen a file is scanned into a draft; once a draft exists it is
+              attached and nothing is overwritten. */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept={RECEIPT_ACCEPT}
+            hidden
+            onChange={(e) => {
+              const picked = e.target.files?.[0];
+              if (draft) onAttachOnly(picked);
+              else void onPick(picked);
+            }}
+          />
         </div>
       </div>
     </div>

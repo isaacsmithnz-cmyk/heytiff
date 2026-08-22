@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { TimeWheel, clockParts, formatClock } from "@/components/ui/time-wheel";
+import { toHHMM } from "@/lib/dashboard/reminders";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import { describeJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
 import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
@@ -28,6 +30,9 @@ export type Draft = {
     detail: string;
     assigneeId: string | null;
     dueDate: string;
+    /** "HH:MM" on the workspace's clock, or "" for an ordinary task. A day
+        plus a time IS a reminder — there is no separate switch for one. */
+    remindTime: string;
     hint: string;
     dueHint: string;
   }[];
@@ -53,6 +58,10 @@ export function toDraft(p: NoteProposal): Draft {
          making someone read the word and then type the date is asking them
          to do the easy half of the job the note already did. */
       dueDate: t.dueDate,
+      /* The router resolves "Monday morning" against this person's own working
+         day, so the wheel opens on the time they asked for rather than on one
+         the card guessed. */
+      remindTime: t.remindTime,
       hint: t.assigneeHint,
       /* What was actually SAID about when — "before Monday's visit (3
          August)". The date box starts empty because that phrase isn't a
@@ -83,6 +92,10 @@ export function toConfirmed(d: Draft): ConfirmedNote {
         detail: t.detail,
         assigneeId: t.assigneeId,
         dueDate: t.dueDate || null,
+        /* A time with no day is not a moment, so it never travels alone —
+           `remindAtFrom` would refuse it server-side anyway, and sending it
+           would put a value in the payload that cannot become anything. */
+        remindTime: (t.dueDate && t.remindTime) || null,
       })),
     bringItems: d.bringItems.filter((b) => b.on && b.text.trim()).map((b) => b.text),
     flags: d.flags
@@ -241,53 +254,111 @@ export function ReviewRows({
   draft,
   staff,
   patch,
+  dayStart,
 }: {
   draft: Draft;
   staff: NoteStaff[];
   patch: (fn: (d: Draft) => Draft) => void;
+  /** When this person's day starts, "HH:MM" — where the wheel opens for a task
+      the note gave no time to. From the router, so the card's idea of morning
+      and the model's are the same fact. */
+  dayStart: string;
 }) {
+  /* Which task's time wheel is open, by index. One at a time: three wheels
+     stacked in a card that already scrolls is a card nobody can read, and a
+     time is a thing you set and move on from. */
+  const [timeOn, setTimeOn] = useState<number | null>(null);
+
   return (
     <>
       {draft.tasks.length > 0 && (
         <div className="wb-day">
           <div className="wb-dayhead">Tasks</div>
           {draft.tasks.map((t, i) => (
-            <div className="wb-row" key={i}>
-              <button
-                className={"wb-tick" + (t.on ? " done" : "")}
-                onClick={() => patch((d) => ((d.tasks[i].on = !d.tasks[i].on), d))}
-                /* Named, not "this task" — three rows all labelled "Skip this
-                   task" is three identical buttons to anyone not looking. */
-                aria-label={(t.on ? "Skip " : "Include ") + t.title}
-              >
-                <Icon name="check" size={13} />
-              </button>
-              <input
-                className="wb-inline"
-                value={t.title}
-                onChange={(e) => patch((d) => ((d.tasks[i].title = e.target.value), d))}
-              />
-              <select
-                className="wb-select"
-                value={t.assigneeId ?? ""}
-                onChange={(e) => patch((d) => ((d.tasks[i].assigneeId = e.target.value || null), d))}
-              >
-                <option value="">{t.hint ? `${t.hint} — who?` : "Assign to…"}</option>
-                {staff.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.fullName}
-                  </option>
-                ))}
-              </select>
-              <DateField
-                className="wb-select"
-                aria-label={`Due date — ${t.title}`}
-                clearable
-                value={t.dueDate || null}
-                onChange={(iso) => patch((d) => ((d.tasks[i].dueDate = iso ?? ""), d))}
-              />
-              {t.dueHint && !t.dueDate && <em className="wb2-capsaid">said: {t.dueHint}</em>}
-            </div>
+            <Fragment key={i}>
+              <div className="wb-row">
+                <button
+                  className={"wb-tick" + (t.on ? " done" : "")}
+                  onClick={() => patch((d) => ((d.tasks[i].on = !d.tasks[i].on), d))}
+                  /* Named, not "this task" — three rows all labelled "Skip this
+                     task" is three identical buttons to anyone not looking. */
+                  aria-label={(t.on ? "Skip " : "Include ") + t.title}
+                >
+                  <Icon name="check" size={13} />
+                </button>
+                <input
+                  className="wb-inline"
+                  value={t.title}
+                  onChange={(e) => patch((d) => ((d.tasks[i].title = e.target.value), d))}
+                />
+                <select
+                  className="wb-select"
+                  value={t.assigneeId ?? ""}
+                  onChange={(e) => patch((d) => ((d.tasks[i].assigneeId = e.target.value || null), d))}
+                >
+                  <option value="">{t.hint ? `${t.hint} — who?` : "Assign to…"}</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.fullName}
+                    </option>
+                  ))}
+                </select>
+                <DateField
+                  className="wb-select"
+                  aria-label={`Due date — ${t.title}`}
+                  clearable
+                  value={t.dueDate || null}
+                  onChange={(iso) => patch((d) => ((d.tasks[i].dueDate = iso ?? ""), d))}
+                />
+                {/* A DAY PLUS A TIME IS A REMINDER. It hangs off the date rather
+                    than standing beside it because a time with no day is not a
+                    moment — there is nothing for it to be. */}
+                {t.dueDate && (
+                  <button
+                    type="button"
+                    className={"wb-select wb2-remind" + (t.remindTime ? " on" : "")}
+                    aria-expanded={timeOn === i}
+                    aria-label={
+                      (t.remindTime
+                        ? `Reminder at ${formatClock(clockParts(t.remindTime))} — `
+                        : "Add a reminder time — ") + t.title
+                    }
+                    onClick={() => {
+                      /* Opening SETS the time, it doesn't merely reveal a wheel
+                         already showing one. A control that shows 6:30 while the
+                         task carries no reminder is the card saying something
+                         that isn't true. */
+                      if (!t.remindTime)
+                        patch((d) => ((d.tasks[i].remindTime = dayStart), d));
+                      setTimeOn(timeOn === i ? null : i);
+                    }}
+                  >
+                    <Icon name="bell" size={12} />
+                    {t.remindTime ? formatClock(clockParts(t.remindTime)) : "Remind"}
+                  </button>
+                )}
+                {t.dueHint && !t.dueDate && <em className="wb2-capsaid">said: {t.dueHint}</em>}
+              </div>
+              {timeOn === i && t.dueDate && (
+                <div className="wb2-remindbox">
+                  <TimeWheel
+                    label="Remind at"
+                    value={t.remindTime || dayStart}
+                    onChange={(v) => patch((d) => ((d.tasks[i].remindTime = toHHMM(v)), d))}
+                  />
+                  <button
+                    type="button"
+                    className="wb2-remindoff"
+                    onClick={() => {
+                      patch((d) => ((d.tasks[i].remindTime = ""), d));
+                      setTimeOn(null);
+                    }}
+                  >
+                    No reminder — just the day
+                  </button>
+                </div>
+              )}
+            </Fragment>
           ))}
         </div>
       )}

@@ -75,6 +75,9 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     id: string;
     proposal: NoteProposal;
     staff: NoteStaff[];
+    /** The author's normal start, "HH:MM" — where the review card's time
+        control opens when a task is given one by hand. */
+    dayStart: string;
   } | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [answer, setAnswer] = useState("");
@@ -201,7 +204,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
         /* The end of the wait — the card now has something to check. The
            transport only owns the first half of this number. */
         markProposal();
-        setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
+        setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff, dayStart: res.dayStart });
         setDraft(toDraft(res.proposal));
       });
     },
@@ -439,7 +442,7 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
     start(async () => {
       const res = await answerClarify(note.id, reply);
       if (!res.ok) return setError(res.error);
-      setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff });
+      setNote({ id: res.noteId, proposal: res.proposal, staff: res.staff, dayStart: res.dayStart });
       setDraft(toDraft(res.proposal));
       setAnswer("");
     });

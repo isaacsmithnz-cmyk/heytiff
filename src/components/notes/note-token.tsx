@@ -551,7 +551,7 @@ function Review({ flow }: { flow: NoteFlow }) {
         </div>
       )}
 
-      <ReviewRows draft={draft} staff={note.staff} patch={flow.patch} />
+      <ReviewRows draft={draft} staff={note.staff} patch={flow.patch} dayStart={note.dayStart} />
 
       <Cascade
         /* A debrief used to pass null unconditionally, because it could not

@@ -528,10 +528,15 @@
 .fg .tool .ffg-trail .a { font-size: 12.5px; font-weight: 800; flex: 0 0 auto; }
 .fg .tool .ffg-trail svg { color: #c8cdd6; flex: 0 0 auto; }
 
-/* the question */
+/* the question.
+
+   `scroll-margin` is load-bearing, not decoration: answering scrolls this card
+   into view with `block: "nearest"` (see fault-finder.tsx), and without a
+   margin a card taller than the well lands flush against the edge of it. */
 .fg .tool .ffg-q {
   background: #fff; border-radius: 24px; border: 1px solid #eef0f4; padding: 26px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 34px rgba(0, 0, 0, 0.04);
+  scroll-margin: 20px 0;
 }
 .fg .tool .ffg-q h2 { font-size: 23px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.28; margin: 0; }
 .fg .tool .ffg-q .why { margin: 10px 0 0; font-size: 13.5px; font-weight: 500; color: var(--gray500); line-height: 1.6; }
@@ -565,6 +570,7 @@
   position: relative; overflow: hidden; border-radius: 24px; padding: 28px 26px; color: #fff;
   background: radial-gradient(120% 150% at 12% 0%, color-mix(in srgb, var(--sc2) 32%, #0a0b10) 0%, #08090d 62%), var(--ink);
   border: 1px solid rgba(255, 255, 255, 0.07);
+  scroll-margin: 20px 0;   /* same reason as .ffg-q above */
 }
 .fg .tool .ffg-outcome .gl {
   position: absolute; top: -90px; right: -50px; width: 220px; height: 200px; border-radius: 50%;

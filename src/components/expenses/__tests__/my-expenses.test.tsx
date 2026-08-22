@@ -328,3 +328,53 @@ describe("the claim form", () => {
     expect(container.querySelector(".datef")).not.toBeNull();
   });
 });
+
+/* THE CARD'S TWO FACES. Answered claims — reimbursed, declined, cancelled —
+   used to pad the one list forever; they live behind the Closed tab now, and
+   the Claims tab counts only what is still moving. */
+describe("the Claims / Closed split", () => {
+  it("keeps open claims on Claims and answered ones behind Closed", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyExpenses
+        today={TODAY}
+        claims={[
+          claim({ id: "open-1", description: "Brazing rods", status: "pending" }),
+          claim({ id: "done-1", description: "Old drill", status: "reimbursed" }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Brazing rods")).toBeInTheDocument();
+    expect(screen.queryByText("Old drill")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Closed/ }));
+    expect(screen.getByText("Old drill")).toBeInTheDocument();
+    expect(screen.queryByText("Brazing rods")).not.toBeInTheDocument();
+    // the capture banner is the working face's, not history's
+    expect(screen.queryByText("Claim something you paid for")).not.toBeInTheDocument();
+  });
+});
+
+/* THE PANEL SWAPS IN PLACE — no remount, no fade. `key={tab}` + `.psec2`
+   rebuilt the claim list and faded it in on every switch; Team's directory
+   just changes its children (Isaac, 2026-08-22). */
+describe("the panel does not animate on a switch", () => {
+  it("keeps the same panel node, with no fade class", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <MyExpenses
+        today={TODAY}
+        claims={[claim({ id: "o1", status: "pending" }), claim({ id: "d1", status: "reimbursed" })]}
+      />,
+    );
+    const panel = () => container.querySelector('[role="tabpanel"]');
+
+    const before = panel();
+    expect(before).not.toHaveClass("psec2");
+
+    await user.click(screen.getByRole("tab", { name: /Closed/ }));
+    expect(panel()).toBe(before);
+    expect(panel()).not.toHaveClass("psec2");
+  });
+});

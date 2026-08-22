@@ -55,6 +55,20 @@ export async function saveRateCalcState(state: unknown): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/* "Start fresh" — the saved row is DELETED rather than overwritten with an
+   empty blob, so the org reads as never-configured on the next load and gets
+   the first-run onboarding back. Same `financials` gate as everything else
+   here: wiping the pricing model is a financial act, and the gate has to hold
+   in both directions (see the note at the top of the file). */
+export async function resetRateCalcState(): Promise<void> {
+  const { orgId } = await requireOrg("financials");
+  const { error } = await supabaseAdmin
+    .from("rate_calc_state")
+    .delete()
+    .eq("org_id", orgId);
+  if (error) throw new Error(error.message);
+}
+
 /* ── business costs from a connected Xero organisation ─────────────────────
 
    Same `financials` gate as everything else here — this reads the company's

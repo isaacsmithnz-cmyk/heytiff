@@ -193,7 +193,11 @@ export function OrgScreen({
 
             <div className="wb2-card">
               <div className="ppanel2">
-                {/* keyed on the tab so the panel's entrance animation replays */}
+                {/* Keyed for `fallbackSwap`, the recovery remount — NOT for an
+                    animation any more. `.psec2` used to fade the panel in on
+                    every switch; it stopped when Isaac asked for this card to
+                    match Team's, which just changes its children. The remount
+                    itself is invisible: React swaps it in one commit. */}
                 <section
                   key={`${tab}#${fallbackSwap}`}
                   id={`orgsec-${tab}`}

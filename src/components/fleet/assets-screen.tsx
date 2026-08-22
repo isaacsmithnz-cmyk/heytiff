@@ -1,21 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
+import { ViewTabs } from "@/components/shell/view-tabs";
 import { useFleetActions } from "./fleet-state";
 import type {
   AiValuation,
   FleetStaff,
+  FleetTab,
   Vehicle,
   VehicleIdentity,
   VehicleLog,
   VehicleWithFacts,
 } from "./logic";
+import { openIssueCount, vehicleChips } from "./logic";
 import { MyVehicle } from "./my-vehicle";
 import { FleetRegister } from "./register";
 
-/* Assets — Fleet + Equipment tabs. The .ptab / .ptabpanel markup matches the
-   old static screen: the shell's delegated click handler does the tab
-   switching, so these classNames stay static (never re-rendered with state).
+/* Assets — the register, on the board's card.
+
+   ONE STRIP, FIVE FACES. This screen wore two switchers stacked: a `.ptabs`
+   pill pair (Fleet | Equipment & tools) over the register's own four fat
+   `.dirtabs` — two controls, two visual languages, one job. The register's
+   views and the equipment placeholder are peers on the one `wb2-vtabs` strip
+   now, the control every card in the app switches with.
 
    Role rules (docs/roles-and-permissions.md): `assets_all` gets the whole
    register incl. valuations; everyone else gets only their own vehicle. The
@@ -42,6 +50,8 @@ export type Register = {
   staff: FleetStaff[];
 };
 
+type AssetsView = FleetTab | "equipment";
+
 export function AssetsScreen({
   own,
   register,
@@ -56,6 +66,19 @@ export function AssetsScreen({
 }) {
   const actions = useFleetActions();
   const staffLens = !register;
+  const [view, setView] = useState<AssetsView>("all");
+
+  /* The same slices the register itself filters by, counted here because the
+     strip lives here. `working` deliberately includes vehicles off the road —
+     off road is a state of a working vehicle, not an exit from the fleet. */
+  const vehicles = register?.vehicles ?? [];
+  const logs = register?.logs ?? [];
+  const working = vehicles.filter((v) => v.status !== "sold");
+  const sold = vehicles.filter((v) => v.status === "sold");
+  const attention = working.filter(
+    (v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0,
+  );
+  const pool = working.filter((v) => v.assignedTo === null);
 
   return (
     <div className="page in">
@@ -69,46 +92,91 @@ export function AssetsScreen({
             </div>
           </div>
 
-          <div className="ptabs">
-            <button className="ptab on" data-ptab="0">
-              Fleet
-            </button>
-            <button className="ptab" data-ptab="1">
-              Equipment &amp; tools
-            </button>
-          </div>
-          <div className="ptabpanels">
-            <div className="ptabpanel on" data-ppanel="0">
-              {staffLens ? (
-                <MyVehicle
-                  vehicle={own.vehicle}
-                  pickable={own.pickable}
-                  logs={own.logs}
-                  error={actions.error}
-                  onLog={actions.addLog}
-                  onEditLog={actions.editLog}
-                  onDeleteLog={actions.deleteLog}
-                  viewerStaffId={viewerStaffId}
-                  today={today}
-                />
+          {staffLens ? (
+            /* Unreachable in practice — the page redirects to /my-vehicle
+               without `assets_all` — kept so a payload bug degrades to the
+               person's own vehicle rather than a blank screen. */
+            <MyVehicle
+              vehicle={own.vehicle}
+              pickable={own.pickable}
+              logs={own.logs}
+              error={actions.error}
+              onLog={actions.addLog}
+              onEditLog={actions.editLog}
+              onDeleteLog={actions.deleteLog}
+              viewerStaffId={viewerStaffId}
+              today={today}
+            />
+          ) : (
+            <div className="wb2">
+              <ViewTabs
+                ariaLabel="Assets"
+                idPrefix="ast"
+                panelPrefix="astp"
+                active={view}
+                onGo={(k) => setView(k as AssetsView)}
+                items={[
+                  {
+                    key: "all",
+                    label: "Fleet",
+                    count: working.length,
+                    countLabel: (n) => `${n} working vehicles`,
+                  },
+                  {
+                    key: "attention",
+                    label: "Need attention",
+                    count: attention.length,
+                    tone: "warn",
+                    countLabel: (n) => `${n} with expiries, service or issues`,
+                  },
+                  {
+                    key: "pool",
+                    label: "Pool",
+                    count: pool.length,
+                    countLabel: (n) => `${n} unassigned or spare`,
+                  },
+                  {
+                    key: "sold",
+                    label: "Sold",
+                    count: sold.length,
+                    countLabel: (n) => `${n} kept for history`,
+                  },
+                  { key: "equipment", label: "Equipment & tools" },
+                ]}
+              />
+              {view === "equipment" ? (
+                <div className="wb2-card">
+                  <div className="ppanel2">
+                    {/* No `.psec2`: the four register faces render through
+                        FleetRegister's plain `.dir`, so a fade here made
+                        Fleet→Equipment the only switch on this strip that
+                        animated. One strip, one behaviour. */}
+                    <section
+                      id="astp-equipment"
+                      role="tabpanel"
+                      aria-labelledby="ast-equipment"
+                      tabIndex={-1}
+                    >
+                      <div className="emptybox">
+                        <span className="ei">
+                          <Icon name="box" size={24} />
+                        </span>
+                        <b>No equipment registered</b>
+                        <em>Register serials, holders and calibration / test-tag dates.</em>
+                      </div>
+                    </section>
+                  </div>
+                </div>
               ) : (
                 <FleetRegister
                   fleet={{ ...actions, ...register }}
                   staff={register.staff}
                   today={today}
+                  view={view}
                 />
               )}
             </div>
-            <div className="ptabpanel" data-ppanel="1">
-              <div className="emptybox">
-                <span className="ei">
-                  <Icon name="box" size={24} />
-                </span>
-                <b>No equipment registered</b>
-                <em>Register serials, holders and calibration / test-tag dates.</em>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

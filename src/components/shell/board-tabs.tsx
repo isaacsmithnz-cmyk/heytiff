@@ -22,7 +22,10 @@ import { useLayoutEffect, useRef, useState } from "react";
    it, because their tab swaps in place. These tabs are real routes, so it
    simply arrives in position — same shape, nothing to travel. */
 
-export type BoardTab = { key: string; href: string; label: string };
+/* label is a node, not a string: the tax year tabs append their quiet
+   "so far" tag to the current year, and a type that only takes words would
+   force that back into a second control. */
+export type BoardTab = { key: string; href: string; label: React.ReactNode };
 
 export function BoardTabs({
   tabs,

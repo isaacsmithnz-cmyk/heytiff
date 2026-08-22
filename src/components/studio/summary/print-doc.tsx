@@ -6,8 +6,8 @@ import type { PrintModel, PrintVariant } from "@/lib/studio/export";
 import { floorDisplayName } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
-import { BrandLogo } from "@/components/org/letterhead";
-import { hasBrand, NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
+import { documentTheme } from "@/lib/org/theme";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
@@ -48,10 +48,11 @@ function VariantCover({
   return (
     <section className="ds-print-cover">
       <SheetDoc
-        /* paper's top left. The screen chromes keep their mark in a bar; a
-           page has none, and a pack filed without the installer's mark on it
-           is what #440 existed to fix. */
-        mark={hasBrand(brand) ? <BrandLogo brand={brand} className="dsd-logo" /> : null}
+        /* no `mark` any more: the business's mark is IN the masthead, on every
+           copy of the document rather than in each chrome's own bar. A pack
+           filed without the installer's mark on it is what #440 existed to
+           fix, and it is fixed harder by the sheet carrying it than by three
+           chromes each remembering to pass one. */
         doc={v.doc}
         model={v.sheet}
         snapshot={v.snapshot}
@@ -100,14 +101,33 @@ export function PrintDoc({
     };
   }, []);
 
-  /* paper size + orientation ride an injected @page rule while mounted */
+  /* paper size + orientation ride an injected @page rule while mounted.
+
+     A THEMED COVER PRINTS WITH NO MARGIN AT ALL. Its frame bleeds to the
+     paper edge — inside the default margin the same shape read as a border
+     drawn on the paper, not a ground the page sits in — and the frame's own
+     thickness becomes the margin instead. It is a NAMED page (`cover`, set on
+     .ds-print-cover in studio.css) so the plan pages behind it keep the 12mm
+     they were measured for; and it is gated on the same derivation the frame
+     is, because a margin removed for a frame that is not there would print
+     the plain sheet flush against the paper's edge. */
+  const themed = brand.color != null && documentTheme(brand.color) != null;
   useEffect(() => {
     const el = document.createElement("style");
     el.id = "ds-print-page-size";
-    el.textContent = `@page { size: ${options.paper} ${options.orientation}; margin: 12mm; }`;
+    el.textContent =
+      `@page { size: ${options.paper} ${options.orientation}; margin: 12mm; }` +
+      /* full bleed, so the frame's corners ARE the paper's corners and a
+         radius there would draw four white notches. The square-off ships with
+         the margin strip rather than living in the sheet, so the two can never
+         disagree about whether this document reaches the edge. */
+      (themed
+        ? ` @page cover { margin: 0; }` +
+          ` @media print { .ds-print-cover .dsd-bband { border-radius: 0; } }`
+        : "");
     document.head.appendChild(el);
     return () => el.remove();
-  }, [options.paper, options.orientation]);
+  }, [options.paper, options.orientation, themed]);
 
   /* fire onReady once every sheet URL is decoded (the SVG <image>s share the
      browser cache, so decoding here means they render). Next paint via rAF,

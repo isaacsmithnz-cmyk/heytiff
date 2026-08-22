@@ -125,3 +125,109 @@ it("grows out of the bell instead of sliding down onto the page", () => {
   // a translate here re-introduces the travel that made it read as a separate window
   expect(decl).not.toMatch(/translate/);
 });
+
+/* ── THE REMINDER ROWS, MEASURED AGAINST THE GROUND THEY ACTUALLY SIT ON ──
+
+   Reminders joined this panel after everything above was written, which makes
+   them the first new thing to arrive since the bug — and the bug was never
+   about a colour, it was about a ground that MOVED. So the question for a new
+   row is not "is its ink light enough" but "against what, at every moment".
+
+   A chip row is a link: hovering it lifts the ground by .08 white and takes its
+   title to #fff to keep up, while the subject line stays on `--on-ink-q` — the
+   ink stays put while the ground rises, which is the whole shape of the 4.44.
+   A reminder row is NOT a link. It is text with two buttons on it, so it does
+   not lift at all, and its ground is the panel's own opaque #0d0e13 at every
+   moment. The buttons light up instead, and they carry their own ink, so they
+   are measured on their own grounds — including hovered.
+
+   The maths is here rather than in an eye. jsdom computes no composite, so
+   nothing at runtime can see any of this. */
+
+/** WCAG relative luminance. */
+function luminance([r, g, b]: number[]): number {
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** `fg` painted onto `bg`, honouring fg's alpha. */
+function over(fg: number[], bg: number[]): number[] {
+  const a = fg[3] ?? 1;
+  return [0, 1, 2].map((i) => fg[i] * a + bg[i] * (1 - a));
+}
+
+function contrast(a: number[], b: number[]): number {
+  const [x, y] = [luminance(a), luminance(b)];
+  const [hi, lo] = x > y ? [x, y] : [y, x];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const rgba = (v: string): number[] => {
+  const m = /rgba?\(([^)]+)\)/.exec(v);
+  if (!m) throw new Error(`not a colour: ${v}`);
+  return m[1].split(",").map((n) => Number(n.trim()));
+};
+
+/** A declaration's value inside a rule. */
+const decl = (selector: string, prop: string): string => {
+  const m = new RegExp(`(?:^|;)\\s*${prop}:([^;]+)`).exec(rule(selector));
+  if (!m) throw new Error(`${selector} declares no ${prop}`);
+  return m[1].trim();
+};
+
+/** The panel's opaque ground — the fact everything above exists to protect. */
+const GROUND = [13, 14, 19];
+const QUIET = rgba(/--on-ink-q\s*:\s*(rgba?\([^)]+\))/.exec(CSS)![1]);
+
+it("does not lift the ground under a reminder row", () => {
+  /* THE ASSERTION THAT KEEPS THE BUG FROM COMING BACK BY A NEW DOOR. A hover
+     background here would raise the ground under a late line that stays on
+     `--on-ink-q`, which is exactly what measured 4.44 on prod. If a reminder
+     row ever needs a hover state, its ink has to move with it. */
+  expect(CSS).not.toMatch(/\.fg \.topbar \.bp-rem(row)?:hover\s*\{[^}]*background/);
+});
+
+it("keeps the late line on the shared token, over a ground that cannot move", () => {
+  // it inherits `.bp-main em`, which the guard above already pins to the token
+  expect(decl(".fg .topbar .bp-grp", "color")).toBe("var(--on-ink-q)");
+  expect(contrast(over(QUIET, GROUND), GROUND)).toBeGreaterThanOrEqual(4.5);
+});
+
+it("gives the row's two buttons AA on their own grounds, at rest and hovered", () => {
+  /* Each button paints a translucent chip on the panel and then its ink on
+     that — two composites deep, which is where "it looked fine" stops being
+     evidence. Hover is measured because it is the state a person reads the
+     label in: they are pointing at it. */
+  const CHIP = ".fg .topbar :is(.bp-remdo, .bp-remsnz)";
+  const chipGround = over(rgba(decl(CHIP, "background")), GROUND);
+  expect(contrast(over(rgba(decl(CHIP, "color")), chipGround), chipGround)).toBeGreaterThanOrEqual(
+    4.5,
+  );
+
+  const hovered = over(rgba(decl(`${CHIP}:hover`, "background")), GROUND);
+  expect(contrast(over(rgba("rgba(255,255,255,1)"), hovered), hovered)).toBeGreaterThanOrEqual(4.5);
+
+  // and the three snooze choices, which sit straight on the panel
+  const OPT = ".fg .topbar .bp-snzopt";
+  expect(contrast(over(rgba(decl(OPT, "color")), GROUND), GROUND)).toBeGreaterThanOrEqual(4.5);
+  const optHover = over(rgba(decl(`${OPT}:hover`, "background")), GROUND);
+  expect(contrast(over(rgba("rgba(255,255,255,1)"), optHover), optHover)).toBeGreaterThanOrEqual(
+    4.5,
+  );
+});
+
+it("marks a reminder's glyph as its own kind, not as an urgency", () => {
+  /* The chip rows use red and amber for bad/warn, and on this app those two
+     colours never stop meaning something is wrong. A reminder coming due is
+     not a failure — it is a thing you asked for — so its glyph takes the
+     product's own accent and the row takes no state class at all. */
+  const ic = rule(".fg .topbar .bp-rem .bp-ic");
+  expect(ic).not.toMatch(/224,\s*38,\s*79/); // danger
+  expect(ic).not.toMatch(/245,\s*158,\s*11/); // warn
+  // the icon is a graphic, so AA is 3:1
+  const icGround = over(rgba(ic.match(/background:([^;]+)/)![1]), GROUND);
+  expect(contrast(rgba(`rgba(${[0x3f, 0xd7, 0xb6].join(",")},1)`), icGround)).toBeGreaterThanOrEqual(3);
+});

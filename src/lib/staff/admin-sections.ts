@@ -28,6 +28,13 @@ export const ADMIN_SECTIONS = {
       "employment_type",
       "job_title",
       "status",
+      // what to order them — the same four the person can set on their own
+      // card (SELF_EDITABLE_SECTIONS.personal), because a size is a fact
+      // either side may be the one to learn first
+      "shirt_size",
+      "jacket_size",
+      "trousers_size",
+      "boot_size",
       // which state's public holidays apply to their timesheet; empty = the
       // organisation's own state (the presumption resolves staff → org)
       "state",

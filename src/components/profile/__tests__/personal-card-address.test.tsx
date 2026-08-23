@@ -125,13 +125,19 @@ describe("with the lookup on", () => {
     expect(Object.keys(fields).sort()).toEqual([
       "address",
       "birthday",
+      // the four uniform sizes ride the personal section — same save, same
+      // allowlist, no extra round trip. See lib/staff/uniform.ts.
+      "boot_size",
       "employment_type",
       "first_name",
+      "jacket_size",
       "last_name",
       "phone",
       "preferred_name",
+      "shirt_size",
       "start_date",
       "status",
+      "trousers_size",
     ]);
   });
 

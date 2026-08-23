@@ -71,7 +71,7 @@ describe("nothing moves when the mode changes", () => {
     await startEdit(user);
 
     expect(panels(container)).toEqual(before);
-    expect(before).toEqual(["Identity", "Contact", "Employment"]);
+    expect(before).toEqual(["Identity", "Contact", "Employment", "Uniform"]);
   });
 
   it("keeps the same rows, with the same labels, in the same order", async () => {

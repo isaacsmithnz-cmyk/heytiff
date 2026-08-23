@@ -11,6 +11,13 @@ import type { StaffProfile } from "./profile";
    card below 100% forever). Add a field here the day the control exists, not
    before.
 
+   NOT EVERY FIELD WITH A CONTROL BELONGS HERE, though. The uniform sizes on
+   the Personal card have controls and are deliberately absent: a size is
+   wanted by whoever places the next order, not by payroll or by the law, and
+   four more entries would drop every existing card by a third of the ring for
+   a shirt nobody has ordered yet. Same rule as preferred_name — the list is
+   what the business is short of, not everything the screen can write.
+
    photo_url joined on that rule, not despite it: the camera badge on the
    identity block is the control, so the field became answerable and went in
    the same change. It counts against `summary` because that is the tab the

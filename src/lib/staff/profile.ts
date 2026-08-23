@@ -29,6 +29,14 @@ export type StaffProfile = {
   state: string | null;
   photo_url: string | null;
 
+  /* What to order them. Four sizes, no history: nobody asks what shirt size
+     someone took two years ago. Free text with suggested ladders — see
+     lib/staff/uniform.ts for why a CHECK constraint would be wrong here. */
+  shirt_size: string | null;
+  jacket_size: string | null;
+  trousers_size: string | null;
+  boot_size: string | null;
+
   emergency_name: string | null;
   emergency_phone: string | null;
   emergency_relationship: string | null;
@@ -60,6 +68,13 @@ export const SELF_EDITABLE_SECTIONS = {
     "address",
     "start_date",
     "employment_type",
+    /* Your own sizes are the one thing on this card you know better than the
+       office does, and getting one wrong orders the wrong shirt — not a pay
+       run. So unlike `status` and `job_title` below, these are yours. */
+    "shirt_size",
+    "jacket_size",
+    "trousers_size",
+    "boot_size",
     /* `status` is NOT here, for the same reason `job_title` and `state` aren't:
        whether someone is on staff is a thing the business sets, not a thing
        they type about themselves. It also isn't cosmetic — `status="Active"`

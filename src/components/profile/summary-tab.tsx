@@ -7,6 +7,7 @@ import { formatAuDate } from "@/lib/au-dates";
 import { fmtKm, modelLabel, serviceKmLeft } from "@/components/fleet/logic";
 import { Plate } from "@/components/fleet/plate";
 import type { StaffProfile } from "@/lib/staff/profile";
+import { uniformSummary } from "@/lib/staff/uniform";
 import type { StaffLicence } from "@/lib/staff/types";
 import { IdentityBlock } from "./identity-block";
 import { DetailPanel, DetailPanels } from "./detail";
@@ -73,6 +74,12 @@ export function SummaryTab({
           <Row label="Mobile" value={profile?.phone} />
           <Row label="Address" value={profile?.address} small />
           <Row label="Employment" value={profile?.employment_type} />
+          {/* ONE row, not four: "Shirt L · Trousers 92 · Boots 10" is the whole
+              answer a uniform order needs, and four rows of sizes would push
+              the panel past everything above it that gets read more often. The
+              sizes themselves are set on Personal, where "Open ›" already
+              goes. */}
+          <Row label="Uniform" value={uniformSummary(profile)} small />
           {/* RESOLVED, not described. This row used to read "Same as
               organisation", which is a sentence about a setting rather than an
               answer to "which public holidays does this person get paid for".

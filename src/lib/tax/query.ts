@@ -38,13 +38,22 @@ export * from "./item";
    happens on a phone, in a servo or a trade counter, which is the spend that
    otherwise arrives at tax time as a shoebox. */
 
-/* Which claims are business spend.
+/* Which rows are business spend.
 
    `declined` and `cancelled` are excluded, and the distinction is real: a
    declined claim is the business saying "that wasn't ours", which is exactly
    the thing that must not appear in a deduction. `pending` is included and
-   flagged — the money left somebody's account whatever happens next. */
-const CLAIM_STATUSES = ["pending", "approved", "reimbursed"] as const;
+   flagged — the money left somebody's account whatever happens next.
+
+   `recorded` is a COMPANY-CARD receipt, and it belongs here for the same
+   reason company-paid fuel already does: `fuelItems` below reads every fuel
+   log regardless of who paid, because a docket captured on a phone is the
+   substantiation the bank feed cannot supply. The bills this report leaves to
+   Xero are the ones that arrive as invoices and are already substantiated —
+   rent, insurance, subscriptions — not the drill somebody bought at a trade
+   counter on the way to a job. Excluding it would drop the receipt out of the
+   only report that was ever going to look for it. */
+const CLAIM_STATUSES = ["pending", "approved", "reimbursed", "recorded"] as const;
 
 export async function taxYear(
   orgId: string,

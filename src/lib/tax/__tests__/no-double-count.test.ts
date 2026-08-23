@@ -76,13 +76,20 @@ describe("the tax year's claim read", () => {
     );
   });
 
-  it("keeps excluding declined and cancelled claims", async () => {
-    // a declined claim is the business saying "that wasn't ours", which is
-    // exactly what must not appear in a deduction
+  it("keeps excluding declined and cancelled claims, and keeps card receipts", async () => {
+    /* A declined claim is the business saying "that wasn't ours", which is
+       exactly what must not appear in a deduction.
+
+       `recorded` is the other half of this guard and pulls the opposite way: a
+       company-card docket is business spend that nothing else in the app will
+       ever substantiate — the bank feed carries an amount and no receipt — and
+       dropping it here would lose it from the only report built to look for
+       it. Company-paid FUEL has always been in this report for the same
+       reason; the two must not disagree. */
     await taxYear("org-1", 2026);
     expect(on("expense_claims", "in")[0]?.args).toEqual([
       "status",
-      ["pending", "approved", "reimbursed"],
+      ["pending", "approved", "reimbursed", "recorded"],
     ]);
   });
 });

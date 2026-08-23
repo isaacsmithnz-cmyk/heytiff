@@ -30,6 +30,8 @@ describe("buildClaim", () => {
         amount: 84.5,
         gst_amount: 7.68,
         supplier: "Reece",
+        paid_with: "own",
+        status: "pending",
       },
     });
   });
@@ -65,7 +67,7 @@ describe("buildClaim", () => {
       error: "That date is in the future.",
     });
     expect(buildClaim(input({ expenseDate: "2019-07-20" }), TODAY)).toEqual({
-      error: "That receipt is too old to claim.",
+      error: "That receipt is too old to file.",
     });
     expect(buildClaim(input({ expenseDate: "not a date" }), TODAY)).toMatchObject({
       error: expect.any(String),
@@ -180,5 +182,68 @@ describe("owedTotal", () => {
 
   it("counts only what someone is still waiting on a decision for", () => {
     expect(pendingCount(claims)).toBe(1);
+  });
+});
+
+/* ── whose money ──────────────────────────────────────────────────────────
+
+   `paidWith` is the only field in this module that decides whether the
+   BUSINESS IS ASKED FOR MONEY, so every rule around it is pinned here rather
+   than left to the screen that happens to set it today. */
+
+describe("who paid", () => {
+  const co = (over: Partial<Parameters<typeof buildClaim>[0]> = {}) =>
+    buildClaim(input({ paidWith: "company", ...over }), TODAY);
+
+  it("files a company-card row as recorded, and an own-pocket one as pending", () => {
+    const company = co();
+    expect("row" in company && company.row).toMatchObject({
+      paid_with: "company",
+      status: "recorded",
+    });
+    const own = buildClaim(input(), TODAY);
+    expect("row" in own && own.row).toMatchObject({ paid_with: "own", status: "pending" });
+  });
+
+  /* THE DEFAULT FAILS TOWARD THE HUMAN. Both wrong answers are costly — a
+     claim filed as company-paid leaves somebody permanently out of their own
+     money; a card purchase filed as a claim asks the business to pay twice.
+     The second lands in front of an approver holding the receipt, so that is
+     the direction an unstated field must fall. */
+  it("treats an unstated payer as own pocket, never as the company", () => {
+    const out = buildClaim(input(), TODAY);
+    expect("row" in out && out.row.paid_with).toBe("own");
+    expect("row" in out && out.row.status).toBe("pending");
+  });
+
+  /* …and a value that is neither is REFUSED, not quietly defaulted: a silent
+     fallback on a typo'd string is exactly how the business gets asked
+     wrongly. */
+  it("refuses a payer it doesn't recognise", () => {
+    expect(buildClaim(input({ paidWith: "petty cash" }), TODAY)).toEqual({
+      error: "Say who paid for it.",
+    });
+  });
+
+  it("never lets a company record become approved or reimbursed", () => {
+    expect(canTransition("recorded", "approved")).toBe(false);
+    expect(canTransition("recorded", "reimbursed")).toBe(false);
+    // …but its author can still take back a docket filed against the wrong
+    // purchase, because nothing else in the app can remove it
+    expect(canTransition("recorded", "cancelled")).toBe(true);
+    expect(isCancellable("recorded")).toBe(true);
+  });
+
+  /* NOBODY IS OWED FOR THE COMPANY'S OWN MONEY. `owedTotal` and the approver
+     queue both ride `isOpen`, so this one line keeps a card receipt out of the
+     Time & Pay tile, the dashboard chip and the review list at once. */
+  it("keeps a company record out of the open queue and the owed total", () => {
+    expect(isOpen("recorded")).toBe(false);
+    const rows = [
+      { status: "pending" as const, amount: 100 },
+      { status: "recorded" as const, amount: 900 },
+    ];
+    expect(owedTotal(rows)).toBe(100);
+    expect(pendingCount(rows)).toBe(1);
   });
 });

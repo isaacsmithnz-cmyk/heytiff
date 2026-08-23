@@ -8,7 +8,7 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
 import { buildClaim, canTransition, isExpenseStatus, type ClaimInput } from "@/lib/expenses/claim";
 
-/* Expense-claim mutations — reimbursing a person for money they spent.
+/* Expense mutations — reimbursing a person, and filing what the card bought.
 
    THE SAME THREE TIERS AS LEAVE, deliberately: this is the same kind of object,
    and a second approval model would drift from the proven one.
@@ -19,6 +19,14 @@ import { buildClaim, canTransition, isExpenseStatus, type ClaimInput } from "@/l
      REVIEW  approve / decline. Needs `approvals`, and NEVER on your own claim.
      PAY     mark reimbursed. Needs `financials`, because it records that money
              moved — a manager can approve the spend without touching payroll.
+
+   A COMPANY-CARD RECEIPT USES THE FIRST TIER AND NEVER THE OTHER TWO. It is
+   born `recorded` — see `initialStatus` — and `recorded` has no edge to
+   `approved` or `reimbursed` in the transition table, so REVIEW and PAY refuse
+   one without either of them needing to know it exists. That is on purpose:
+   the alternative is two screens each remembering to check `paidWith`, and one
+   of them eventually forgetting and paying somebody for the company's own
+   money.
 
    Every status change goes through canTransition(), so "already decided" and
    "already paid" are refusals rather than silent overwrites. The UI is not a
@@ -41,8 +49,8 @@ function refresh() {
   revalidatePath("/dashboard/timepay");
 }
 
-/** The most receipts one claim can carry. A claim is one purchase; several
-    pages of the same receipt is the case this allows for, not a folder. */
+/** The most receipts one row can carry. A row is one purchase; several pages
+    of the same receipt is the case this allows for, not a folder. */
 const MAX_RECEIPTS = 3;
 
 /* ---------------- your own claim ---------------- */
@@ -63,7 +71,15 @@ export async function submitClaim(
     .select("id")
     .maybeSingle();
 
-  if (error || !data) return { ok: false, error: "Couldn't submit that claim." };
+  if (error || !data) {
+    return {
+      ok: false,
+      error:
+        built.row.paid_with === "company"
+          ? "Couldn't save that receipt."
+          : "Couldn't submit that claim.",
+    };
+  }
 
   /* Adopt the receipts, the way notices claim their attachments. Every clause
      matters: only this org's documents, only ones THIS person uploaded, only

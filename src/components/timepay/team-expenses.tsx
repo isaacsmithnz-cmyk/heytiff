@@ -39,12 +39,18 @@ const money = (n: number) =>
 
 /** Waiting on a person, in the order they should be dealt with: undecided
     first, then approved-but-unpaid, then everything settled. */
+/* THE QUEUE IS SORTED BY WHO IT IS WAITING ON. `recorded` sits below
+   everything anybody has to act on and above the dead rows: a company-card
+   receipt needs nothing from this screen — no approval, no payment — but the
+   person doing the books still has to be able to find the docket, which is the
+   entire reason it was captured. */
 const QUEUE_ORDER: Record<ExpenseStatus, number> = {
   pending: 0,
   approved: 1,
   reimbursed: 2,
-  declined: 3,
-  cancelled: 4,
+  recorded: 3,
+  declined: 4,
+  cancelled: 5,
 };
 
 export function TeamExpenses({
@@ -108,8 +114,11 @@ export function TeamExpenses({
 
           {sorted.length === 0 ? (
             <div className="adm-empty">
-              <b>No expense claims yet</b>
-              <em>When someone pays for something out of their own pocket, it lands here.</em>
+              <b>No expenses yet</b>
+              <em>
+                When someone pays for something out of their own pocket — or files the docket for
+                something the company card bought — it lands here.
+              </em>
             </div>
           ) : (
             <div className="xc-list">

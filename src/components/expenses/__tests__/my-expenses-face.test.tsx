@@ -46,6 +46,7 @@ const claim = (over: Partial<Claim> = {}): Claim =>
     amount: 184.5,
     gstAmount: 16.77,
     supplier: "Reece",
+    paidWith: "own",
     status: "pending",
     reviewNote: null,
     createdAt: "2026-08-01T00:00:00Z",
@@ -187,6 +188,7 @@ describe("provenance", () => {
     amount: 158.4,
     gstAmount: 14.4,
     supplier: "BP Kingsford",
+    paidWith: "own" as const,
     status: "pending" as const,
     reviewNote: null,
     createdAt: "2026-08-01T00:00:00Z",
@@ -377,4 +379,113 @@ describe("the panel does not animate on a switch", () => {
     expect(panel()).toBe(before);
     expect(panel()).not.toHaveClass("psec2");
   });
+});
+
+/* ── the company card ─────────────────────────────────────────────────────
+
+   The screen was reimbursement-only: a staff member who bought a drill on the
+   company card had nowhere to put the docket, and Xero would see a card
+   transaction off the bank feed with no receipt, no description and no
+   category against it (Isaac, 2026-08-23). What these pin is the half of that
+   fix the screen owns — that the two kinds never mix, and that the button
+   never says the wrong thing about what pressing it does. */
+
+describe("company-card receipts", () => {
+  const card = (over: Partial<Claim> = {}) =>
+    claim({ id: "cc1", paidWith: "company", status: "recorded", description: "Makita drill", ...over });
+
+  it("keeps card receipts off Claims and Closed entirely", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyExpensesFace
+        today={TODAY}
+        claims={[card(), claim({ id: "o1", status: "pending", description: "Copper fittings" })]}
+      />,
+    );
+    // Claims is money you are owed — a filed docket is not that
+    expect(screen.queryByText("Makita drill")).not.toBeInTheDocument();
+    expect(screen.getByText("Copper fittings")).toBeInTheDocument();
+
+    /* And NOT in Closed either. Closed is reimbursed / declined / cancelled —
+       the pile you read when something went wrong — and nothing went wrong
+       with a receipt somebody filed. */
+    await user.click(screen.getByRole("tab", { name: /Closed/ }));
+    expect(screen.queryByText("Makita drill")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: /Company card/ }));
+    expect(screen.getByText("Makita drill")).toBeInTheDocument();
+    expect(screen.queryByText("Copper fittings")).not.toBeInTheDocument();
+  });
+
+  /* THE OPEN COUNT IS PEOPLE WAITING ON MONEY. A card receipt is nobody
+     waiting on anything, so it must not inflate the badge that says how many
+     claims are still live. */
+  it("does not count a card receipt as an open claim", () => {
+    render(<MyExpensesFace today={TODAY} claims={[card(), card({ id: "cc2" })]} />);
+    expect(screen.queryByRole("tab", { name: /Claims — / })).not.toBeInTheDocument();
+  });
+
+  it("says what pressing the button will do, on each side", async () => {
+    const user = userEvent.setup();
+    render(<MyExpensesFace today={TODAY} claims={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    expect(screen.getByRole("button", { name: "Send for approval" })).toBeInTheDocument();
+
+    /* Flipping the payer inside the form flips the promise with it — the
+       control exists precisely so somebody who came through the wrong door
+       can fix it without losing what they typed. */
+    await user.click(screen.getByRole("radio", { name: "Company card" }));
+    expect(screen.getByRole("button", { name: "Save the receipt" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Send for approval" })).not.toBeInTheDocument();
+  });
+
+  it("starts a draft on the payer of the face you came from", async () => {
+    const user = userEvent.setup();
+    render(<MyExpensesFace today={TODAY} claims={[]} />);
+    await user.click(screen.getByRole("tab", { name: /Company card/ }));
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    expect(screen.getByRole("radio", { name: "Company card" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Save the receipt" })).toBeInTheDocument();
+  });
+
+  /* WHAT THE SERVER IS ACTUALLY TOLD. Everything above is copy; this is the
+     field that decides whether the business is asked for money. */
+  it("sends the payer through to the server", async () => {
+    const user = userEvent.setup();
+    submit.mockResolvedValue({ ok: true });
+    render(<MyExpensesFace today={TODAY} claims={[]} />);
+
+    await user.click(screen.getByRole("tab", { name: /Company card/ }));
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    await user.type(screen.getByLabelText(/What was it for/i), "Makita drill");
+    await user.type(screen.getByLabelText(/Total paid/i), "289");
+    await user.click(screen.getByRole("button", { name: "Save the receipt" }));
+
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(expect.objectContaining({ paidWith: "company" })),
+    );
+  });
+});
+
+/* OWED IS A CLAIMS FACT. Over a list of company dockets it is a figure about
+   somewhere else entirely — and the one thing that face has to say is that
+   nobody owes anybody anything. */
+it("keeps the owed figure off the company-card face", async () => {
+  const user = userEvent.setup();
+  render(
+    <MyExpensesFace
+      today={TODAY}
+      claims={[
+        claim({ id: "o1", status: "pending", amount: 184.5 }),
+        claim({ id: "cc1", paidWith: "company", status: "recorded", amount: 289 }),
+      ]}
+    />,
+  );
+  expect(screen.getByText("Owed to you")).toBeInTheDocument();
+  await user.click(screen.getByRole("tab", { name: /Company card/ }));
+  expect(screen.queryByText("Owed to you")).not.toBeInTheDocument();
 });

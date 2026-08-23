@@ -10,6 +10,7 @@ import { DateField } from "@/components/ui/date-field";
 import {
   CATEGORY_LABEL,
   EXPENSE_CATEGORIES,
+  type PaidWith,
   isCancellable,
   isOpen,
   owedTotal,
@@ -63,6 +64,10 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+/* "What am I owed" · "where's the docket for the thing on the card" · "did my
+   claim get paid". Three questions, three faces — see the split below. */
+type XcFace = "claims" | "company" | "closed";
+
 type Draft = {
   expenseDate: string;
   description: string;
@@ -70,15 +75,20 @@ type Draft = {
   amount: string;
   gstAmount: string;
   supplier: string;
+  /* Whose money. It is the first field in the form and the last thing the
+     submit button reads, because it decides what pressing that button MEANS —
+     asking to be paid back, or filing a docket for money already gone. */
+  paidWith: PaidWith;
 };
 
-const emptyDraft = (today: string): Draft => ({
+const emptyDraft = (today: string, paidWith: PaidWith = "own"): Draft => ({
   expenseDate: today,
   description: "",
   category: "materials",
   amount: "",
   gstAmount: "",
   supplier: "",
+  paidWith,
 });
 
 export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: string }) {
@@ -92,7 +102,7 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
   /* One claim armed for cancellation at a time — same shape My leave and the
      team directory use. Arming a second forgets the first. */
   const [armed, setArmed] = useState<string | null>(null);
-  const [face, setFace] = useState<"claims" | "closed">("claims");
+  const [face, setFace] = useState<XcFace>("claims");
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* Object URLs are held until they're replaced or the claim is cleared —
@@ -130,7 +140,7 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
     try {
       const b64 = await fileToBase64(picked);
       const res = await readExpenseReceipt(b64, picked.type);
-      const base = emptyDraft(today);
+      const base = emptyDraft(today, payer);
       if (res.ok) {
         setDraft({
           ...base,
@@ -179,6 +189,7 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
         }
         documentIds = [up.file.documentId];
       }
+      const company = draft.paidWith === "company";
       const res = await submitClaim({
         expenseDate: draft.expenseDate,
         description: draft.description,
@@ -186,10 +197,15 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
         amount: Number(draft.amount),
         gstAmount: draft.gstAmount ? Number(draft.gstAmount) : null,
         supplier: draft.supplier || null,
+        paidWith: draft.paidWith,
         documentIds,
       });
       if (res.ok) {
         reset();
+        /* Land on the face the thing you just filed lives on. Saving a card
+           receipt and being left staring at Claims — where it will never
+           appear — reads as the save having failed. */
+        setFace(company ? "company" : "claims");
         router.refresh();
       } else setError(res.error);
     });
@@ -216,12 +232,27 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
      to the person who is actually out of pocket. */
   const owed = owedTotal(claims);
 
-  /* The two faces: what's still moving, and what's been answered. Open rides
-     `isOpen` — the same test `owedTotal` uses — so the Claims tab and the
-     owed figure can never disagree about which rows count. */
-  const openClaims = claims.filter((c) => isOpen(c.status));
-  const closedClaims = claims.filter((c) => !isOpen(c.status));
-  const shown = face === "closed" ? closedClaims : openClaims;
+  /* THREE FACES, THREE QUESTIONS. "What am I owed?" · "Where's the receipt for
+     the thing I bought on the card?" · "Did my claim get paid?"
+
+     Company rows are split off FIRST and never appear anywhere else. They are
+     not open — nobody is waiting on them — so without this they would have
+     landed in Closed beside declined and cancelled claims, which is the pile
+     you look at when something went wrong. Nothing went wrong with a filed
+     docket.
+
+     Open rides `isOpen`, the same test `owedTotal` uses, so the Claims face
+     and the owed figure can never disagree about which rows count. */
+  /* Which payer a NEW row starts as, read off the face you started from. */
+  const payer: PaidWith = face === "company" ? "company" : "own";
+  const company = draft?.paidWith === "company";
+
+  const cardReceipts = claims.filter((c) => c.paidWith === "company");
+  const ownClaims = claims.filter((c) => c.paidWith === "own");
+  const openClaims = ownClaims.filter((c) => isOpen(c.status));
+  const closedClaims = ownClaims.filter((c) => !isOpen(c.status));
+  const shown =
+    face === "company" ? cardReceipts : face === "closed" ? closedClaims : openClaims;
 
   return (
     <>
@@ -230,18 +261,20 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
       {error && <div className="xc-err">{error}</div>}
 
       {/* Claims is the working face — capture first, then what's still
-          moving; Closed is the answered pile (reimbursed, declined,
-          cancelled), which used to pad out the one list forever.
+          moving. Company card is the docket pile for the business's own
+          money, which needs no decision from anybody. Closed is the answered
+          pile (reimbursed, declined, cancelled), which used to pad out the one
+          list forever.
 
           The pair was this card's tab strip until expenses became a face of
           the Me card, and a card-edge strip does not nest — see
           me/face-switch.tsx. Same two faces, one level down. */}
       <FaceSwitch
-        ariaLabel="Your expense claims"
+        ariaLabel="Your expenses"
         idPrefix="xct"
         panelPrefix="xcp"
         active={face}
-        onGo={(k) => setFace(k as "claims" | "closed")}
+        onGo={(k) => setFace(k as XcFace)}
         items={[
           {
             key: "claims",
@@ -249,6 +282,10 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
             count: openClaims.length,
             countLabel: (n) => `${n} open`,
           },
+          /* NO COUNT. A number here would be "how many receipts have you filed
+             this year", which asks nothing of anybody — unlike the open claims
+             beside it, which are people waiting on money. */
+          { key: "company", label: "Company card" },
           { key: "closed", label: "Closed" },
         ]}
       />
@@ -257,15 +294,28 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
           back in from opacity 0, which on a list reads as a flash rather than
           polish (see me-screen.tsx). */}
       <section id={`xcp-${face}`} role="tabpanel" aria-labelledby={`xct-${face}`} tabIndex={-1}>
-          {face === "claims" && (
+          {(face === "claims" || face === "company") && (
             <>
           {!draft ? (
+            /* THE FACE YOU ARE ON DECIDES WHOSE MONEY IT WAS.
+
+               The alternative was one door and a radio inside the form, and it
+               is the wrong shape for this field: get it wrong and either
+               somebody is permanently out of their own money or the business
+               is asked to pay twice for the same drill. Arriving from Company
+               card means you already answered it — the copy, the button and
+               the draft all say so, and the control is still there in the form
+               to change your mind. */
             <div className="xc-start">
               <span className="xc-ic">
-                <Icon name="receipt" size={22} />
+                <Icon name={face === "company" ? "card" : "receipt"} size={22} />
               </span>
               <div className="xc-startk">
-                <b>Claim something you paid for</b>
+                <b>
+                  {face === "company"
+                    ? "File a receipt for something the company paid for"
+                    : "Claim something you paid for"}
+                </b>
                 {/* "— you check it before it goes" came off: the same hedge
                     the agreement modal wore ("every field below is editable
                     before anything is created"). The form appears filled and
@@ -278,7 +328,11 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
                   <Icon name="cam" size={16} />
                   {scanning ? "Reading…" : "Scan a receipt"}
                 </button>
-                <button className="pbtn ghost" onClick={() => setDraft(emptyDraft(today))} disabled={scanning}>
+                <button
+                  className="pbtn ghost"
+                  onClick={() => setDraft(emptyDraft(today, payer))}
+                  disabled={scanning}
+                >
                   Enter it myself
                 </button>
               </div>
@@ -290,8 +344,47 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
                   <Icon name="receipt" size={19} />
                 </span>
                 <div>
-                  <b>New claim</b>
-                  <em>Check everything before you send it — this is what gets approved.</em>
+                  <b>{company ? "New company-card receipt" : "New claim"}</b>
+                  <em>
+                    {company
+                      ? "Nobody has to approve this — the card already paid. It is the docket that was missing."
+                      : "Check everything before you send it — this is what gets approved."}
+                  </em>
+                </div>
+              </div>
+
+              {/* WHOSE MONEY — first, above everything, because it changes
+                  what every field under it is FOR. It is a duplicate of the
+                  door you came through on purpose: the door is how most people
+                  will answer it, and this is how anyone who came through the
+                  wrong one fixes that without losing what they have typed.
+
+                  A `.seg`, not a checkbox: "company card" and "I paid" are two
+                  named states of one question, and a lone tickbox reading
+                  "paid by the company" makes the OTHER answer the absence of
+                  an answer — which is the one that quietly costs somebody
+                  their own money. */}
+              <div className="xc-payer">
+                <span className="xc-payerk">Who paid for it?</span>
+                <div className="seg" role="radiogroup" aria-label="Who paid for it">
+                  {(
+                    [
+                      { key: "own", label: "I did" },
+                      { key: "company", label: "Company card" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={draft.paidWith === o.key}
+                      className={draft.paidWith === o.key ? "on" : undefined}
+                      disabled={busy}
+                      onClick={() => set({ paidWith: o.key })}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -325,7 +418,11 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
                   <>
                     <span className="xc-attk">
                       <b>No receipt attached</b>
-                      <em>A claim with the docket on it is the one that gets approved without a conversation.</em>
+                      <em>
+                        {company
+                          ? "The docket is the whole point of this one — without it the bank feed says a number and nothing else."
+                          : "A claim with the docket on it is the one that gets approved without a conversation."}
+                      </em>
                     </span>
                     <div className="xc-attb">
                       <button className="pbtn" onClick={() => fileRef.current?.click()} disabled={busy}>
@@ -407,7 +504,13 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
 
               <div className="xc-act">
                 <button className="pbtn primary" onClick={submit} disabled={busy || !!missing}>
-                  {busy ? "Sending…" : "Send for approval"}
+                  {busy
+                    ? company
+                      ? "Saving…"
+                      : "Sending…"
+                    : company
+                      ? "Save the receipt"
+                      : "Send for approval"}
                 </button>
                 <button className="pbtn ghost" onClick={reset} disabled={busy}>
                   Discard
@@ -420,8 +523,14 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
           {/* WHAT YOU ARE OWED, on the screen of the person owed it. The
               approver's queue has carried this figure all along, and so has
               the Time & Pay stat tile; the claimant's own screen listed the
-              claims and left them to add up. */}
-          {owed > 0 && (
+              claims and left them to add up.
+
+              CLAIMS ONLY. The capture row above is on both faces because both
+              file a receipt, but this figure is not: over a list of company
+              dockets, "Owed to you $184.50" is a number about somewhere else,
+              and the one thing a card receipt has to say is that nobody owes
+              anybody anything. */}
+          {face === "claims" && owed > 0 && (
             <div className="xc-owed">
               <span className="xc-owedk">Owed to you</span>
               <b>{money(owed)}</b>
@@ -437,6 +546,14 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
                 <div className="adm-empty">
                   <b>Nothing here yet</b>
                   <em>Claims land here once they&apos;re reimbursed, declined or cancelled.</em>
+                </div>
+              ) : face === "company" ? (
+                <div className="adm-empty">
+                  <b>No card receipts filed</b>
+                  <em>
+                    Buy something on the company card and the docket goes here — the bank feed
+                    knows the amount, this is the only place the receipt will ever be.
+                  </em>
                 </div>
               ) : (
                 <div className="adm-empty">

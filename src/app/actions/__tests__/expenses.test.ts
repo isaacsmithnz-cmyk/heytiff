@@ -233,3 +233,59 @@ describe("markReimbursed", () => {
     expect(update).not.toHaveBeenCalled();
   });
 });
+
+/* ── the company card ─────────────────────────────────────────────────────
+
+   A card receipt is born `recorded`, and `recorded` has no edge to `approved`
+   or `reimbursed` in the transition table. That is deliberately the ONLY thing
+   standing between an approver and paying somebody back for the company's own
+   money — neither `decide()` nor `markReimbursed()` knows `paidWith` exists,
+   because two screens each remembering to check it is two chances to forget.
+   These pin the refusal at the layer that actually enforces it. */
+
+describe("a company-card receipt", () => {
+  it("is inserted as recorded, not pending", async () => {
+    await submitClaim({
+      expenseDate: "2026-07-20",
+      description: "Makita drill",
+      category: "tools",
+      amount: 289,
+      paidWith: "company",
+    });
+    expect(insert).toHaveBeenCalledWith(
+      "expense_claims",
+      expect.objectContaining({ paid_with: "company", status: "recorded" }),
+    );
+  });
+
+  it("cannot be approved, declined or reimbursed by anybody", async () => {
+    claimRow = { status: "recorded", staff_profile_id: "someone-else" };
+    caps = new Set(["approvals", "financials"]);
+
+    expect(await approveClaim("c1")).toEqual({
+      ok: false,
+      error: "That claim has already been decided.",
+    });
+    expect(await declineClaim("c1", "not ours")).toEqual({
+      ok: false,
+      error: "That claim has already been decided.",
+    });
+    expect(await markReimbursed("c1")).toEqual({
+      ok: false,
+      error: "That claim isn't approved and awaiting payment.",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  /* …but the person who filed it can withdraw it. A docket entered against the
+     wrong purchase would otherwise be permanent — nothing else in this app can
+     remove one. */
+  it("can be cancelled by the person who filed it", async () => {
+    claimRow = { status: "recorded", staff_profile_id: "me" };
+    expect(await cancelClaim("c1")).toEqual({ ok: true });
+    expect(update).toHaveBeenCalledWith(
+      "expense_claims",
+      expect.objectContaining({ status: "cancelled" }),
+    );
+  });
+});

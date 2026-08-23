@@ -4922,6 +4922,12 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xc-startk b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; }
 .fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:3px; line-height:1.5; }
 .fg .xc-startb { display:flex; flex-wrap:wrap; gap:9px; flex:0 0 auto; }
+/* WHOSE MONEY — the form's first row, above the receipt, because it decides
+   what every field under it is for. Its own row rather than sharing one with
+   the fields: it is the only control here whose two answers mean two different
+   things happen when you press Send. */
+.fg .xc-payer { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+.fg .xc-payerk { font-size:12.5px; font-weight:800; color:var(--gray500); }
 
 /* The receipt strip — the thumbnail (or the PDF's name) plus the controls that
    change it. The preview's own bottom margin moves to the strip, so the two

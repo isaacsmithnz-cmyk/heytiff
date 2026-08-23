@@ -1,7 +1,7 @@
 "use server";
 
 import Anthropic from "@anthropic-ai/sdk";
-import { can, getDbRole } from "@/lib/permissions-server";
+import { getDbRole } from "@/lib/permissions-server";
 
 /* Fleet ← Tiff: live AU-market vehicle valuations + fuel-receipt reading.
    First real Claude integration in the app. Role rules are enforced HERE, not
@@ -21,91 +21,11 @@ function reasonFor(err: unknown): string {
   return "Tiff couldn't complete that.";
 }
 
-/* ---------------- fleet valuation (Manager+) ---------------- */
-
-export type FleetAiVehicle = {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  odometerKm: number;
-  status: string; // "In service" | "Off road"
-  purchasePriceAud: number | null;
-  ageYears: number | null;
-  notes?: string;
-};
-
-export type FleetValuation = { id: string; low: number; high: number; point: number; note: string };
-
-export type ValueFleetResult =
-  | { ok: true; valuations: FleetValuation[] }
-  | { ok: false; reason: string };
-
-const VALUATION_SCHEMA = {
-  type: "object",
-  properties: {
-    valuations: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          low: { type: "integer" },
-          high: { type: "integer" },
-          point: { type: "integer" },
-          note: { type: "string" },
-        },
-        required: ["id", "low", "high", "point", "note"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["valuations"],
-  additionalProperties: false,
-};
-
-export async function valueFleet(vehicles: FleetAiVehicle[]): Promise<ValueFleetResult> {
-  // Valuations ride on `assets_all` (the register capability), not on pay —
-  // fleet value is deliberately separate from financials.
-  if (!(await can("assets_all"))) {
-    return { ok: false, reason: "Valuations need access to the fleet register." };
-  }
-  if (offline()) return { ok: false, reason: "Tiff is offline — no API key configured." };
-  if (vehicles.length === 0) return { ok: false, reason: "No vehicles to value." };
-
-  const prompt =
-    "You are Tiff, the AI inside HeyTiff, valuing a small Australian HVAC company's work " +
-    "vehicles for their internal fleet register. All figures are AUD.\n\n" +
-    "For each vehicle, estimate its current Australian private-sale market value: a low–high " +
-    "range plus a single point estimate. Weigh age, odometer, the model's reputation and " +
-    "resale behaviour in the AU used market, and typical tradie-fleet condition (fitted-out " +
-    "work vans/utes — serviced, but worked hard). A status of \"Off road\" means a repairable " +
-    "fault: value it lightly discounted, not as a write-off. Round every figure to the " +
-    "nearest $100. Give each vehicle a note of at most 12 words explaining the number.\n\n" +
-    `Return one valuation per vehicle, keyed by the same id.\n\nVehicles:\n${JSON.stringify(vehicles, null, 2)}`;
-
-  try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 16000,
-      thinking: { type: "adaptive" },
-      output_config: {
-        effort: "medium",
-        format: { type: "json_schema", schema: VALUATION_SCHEMA },
-      },
-      messages: [{ role: "user", content: prompt }],
-    });
-    if (response.stop_reason === "refusal") {
-      return { ok: false, reason: "Tiff declined this request." };
-    }
-    const text = response.content.find((b) => b.type === "text")?.text ?? "";
-    const parsed = JSON.parse(text) as { valuations?: FleetValuation[] };
-    return { ok: true, valuations: parsed.valuations ?? [] };
-  } catch (err) {
-    return { ok: false, reason: reasonFor(err) };
-  }
-}
+/* Fleet valuation used to live here. It moved to the route handler at
+   `src/app/api/fleet/value/route.ts` when it gained web search: grounding a
+   valuation in live listings turned a one-shot call into a multi-minute one,
+   and `maxDuration` is a route-segment option an action cannot set for itself.
+   Receipt reading stays an action — it is a single short vision call. */
 
 /* ---------------- fuel-receipt reading (any signed-in member) ---------------- */
 

@@ -156,6 +156,27 @@ it("never writes the path when you change face", async () => {
   push.mockRestore();
 });
 
+/* THE HEADER MUST NOT MOVE. Notes carried "Only you can see these" under the
+   card's heading, so landing on Notes stepped the whole page down and leaving
+   it stepped back up (Isaac, 2026-08-23). The sentence is not gone — it rides
+   the switch row inside the panel — but the header now holds exactly one
+   thing on every face, and any face that adds a second brings the shift back. */
+it("keeps the header to a heading alone, on every face", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<MeScreen initialTab="timesheet" data={DATA} />);
+  const head = () => container.querySelector(".rhead") as HTMLElement;
+
+  for (const tab of ["Leave", "Expenses", "Vehicle", "Notes", "Timesheet"] as const) {
+    await user.click(within(strip()).getByRole("tab", { name: tab }));
+    expect(head().querySelectorAll("h1")).toHaveLength(1);
+    // nothing else in there — no lede, no chip, nothing a single face adds
+    expect(head().textContent).toBe(head().querySelector("h1")!.textContent);
+  }
+  // …and the sentence still exists, on the surface it describes
+  await user.click(within(strip()).getByRole("tab", { name: "Notes" }));
+  expect(screen.getByText("Only you can see these.")).toBeTruthy();
+});
+
 /* A MISSING STAFF CARD USED TO REDIRECT. My expenses and My notes each bounced
    to /dashboard when the viewer had no staff row, which cannot survive the
    merge: one absent face would take the other four with it. */

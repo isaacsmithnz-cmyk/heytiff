@@ -63,15 +63,13 @@ export function MeScreen({ initialTab, data }: { initialTab: Tab; data: MeData }
         <div className="stg tpr wb2">
           <div className="rhead">
             <div>
+              {/* THE HEADING IS THE ONLY THING IN HERE, and it has to be:
+                  anything a single face adds changes the header's height, so
+                  the card steps down when you land on that face and back up
+                  when you leave. Notes' "Only you can see these" did exactly
+                  that (Isaac, 2026-08-23) and now rides the switch row inside
+                  the panel, where it costs nothing. */}
               <h1>{TITLE[tab]}</h1>
-              {/* Not a hint — a fact about who can read these, and the only
-                  reason anyone trusts the screen enough to write on it. It
-                  used to sit under the page's own heading. */}
-              {tab === "notes" && (
-                <p className="int-lede" style={{ margin: "8px 0 0" }}>
-                  Anything that didn&apos;t belong to a job. Only you can see these.
-                </p>
-              )}
             </div>
           </div>
           <ViewTabs

@@ -212,6 +212,7 @@ export function MyNotesFace({
         {error && <div className="int-note bad">{error}</div>}
         <FaceSwitch
           ariaLabel="Your notes"
+          aside="Only you can see these."
           idPrefix="mynt"
           panelPrefix="mynp"
           active={face}

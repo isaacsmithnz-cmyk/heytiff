@@ -1686,7 +1686,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    The count is the strip's badge at the switch's size — same grey, same
    "absent means none" rule. It must never be tinted: red and amber on this
    sheet mean something is wrong, and "3 archived" is not. */
-.fg .me-fsw { margin-bottom:20px; }
+.fg .me-fshd { display:flex; align-items:center; justify-content:space-between; gap:16px;
+  flex-wrap:wrap; margin-bottom:20px; }
+/* A fact about the surface, in the row the switch already occupies — see
+   me/face-switch.tsx for why it is not allowed near the heading. */
+.fg .me-fsnote { margin:0; font-size:12.5px; font-weight:600; color:var(--gray500); }
 .fg .seg button .segn { display:inline-block; margin-left:7px; padding:0 6px; min-width:18px;
   border-radius:6px; background:rgba(15,18,26,.07); color:var(--gray500);
   font-size:11px; font-weight:800; font-style:normal; line-height:18px; text-align:center; }
@@ -5449,7 +5453,26 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2 .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
-.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost { height:34px; padding:0 12px; font-size:12.5px; }
+/* A GHOST STANDING NEXT TO A PRIMARY HAS TO LOOK LIKE ITS PAIR.
+
+   This rule set the ghost's height, padding and size and then left its RADIUS
+   alone, so beside a 38px/12px primary it stood 34px tall with a 13px corner —
+   two buttons on one row agreeing about nothing. And its only boundary was
+   `#e5e7eb` on white at **1.2:1**, which is not a boundary: "Enter it myself"
+   beside "Scan a receipt" read as a sentence somebody had underlined, not as
+   the other half of a choice (Isaac, 2026-08-23).
+
+   So the geometry is copied from the primary exactly, and the outline is a
+   real one — `#89929f` measures **3.15:1** on white, clearing the 3:1 floor a
+   control's boundary owes anyone who has to find its edge. `#8f98a6` was the
+   first try and came back 2.91; measure this one if you move it. The fill stays white: a filled primary
+   beside an outlined secondary is the pair saying which one is the default,
+   and two fills would say neither. */
+.wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost {
+  height:38px; padding:0 15px; font-size:12.5px; border-radius:12px;
+  border:1px solid #89929f; box-shadow:none; }
+.wb2 .pbtn.ghost:hover:not(:disabled), .wb2-sheet .pbtn.ghost:hover:not(:disabled),
+.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; }
 .wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
   height:38px; padding:0 15px; font-size:12.5px; border-radius:12px; }
 
@@ -6506,11 +6529,15 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn {
   display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 18px; border-radius:13px;
   font-size:13.5px; font-weight:700; transition:background .25s, border-color .25s, color .25s, box-shadow .25s, transform .18s; }
+/* THE OUTLINE IS THE SAME ONE THE IN-PAGE GHOST WEARS, and it has to be:
+   this block is later in the sheet than the accent block, so whatever it says
+   about the border is what a ghost in a sheet or a modal gets. Left at
+   `#e5e7eb` the two diverged — the same class, 1.2:1 here and 3:1 there. */
 .wb2-sheet .pbtn.ghost, .wb2-daymodal .pbtn.ghost, .wb2-capcard .pbtn.ghost {
-  background:#fff; border:1px solid #e5e7eb; color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  background:#fff; border:1px solid #89929f; color:var(--gray700); box-shadow:none; }
 .wb2-sheet .pbtn.ghost:hover:not(:disabled),
 .wb2-daymodal .pbtn.ghost:hover:not(:disabled),
-.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f3f4f6; border-color:#d1d5db; color:var(--ink); }
+.wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; color:var(--ink); }
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-daymodal .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { box-shadow:0 9px 20px -10px rgba(0,127,168,.95); }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
-import { type FleetAiVehicle, valueFleet } from "@/app/actions/fleet-ai";
+import type { FleetAiVehicle, ValueFleetResult } from "@/lib/fleet/valuation";
 import type { FleetState } from "./fleet-state";
 import {
   STATUS_LABEL,
@@ -110,7 +110,15 @@ export function FleetRegister({
       notes: v.notes,
     }));
     try {
-      const res = await valueFleet(payload);
+      /* A route handler, not an action — pricing against live listings runs
+         long enough to need its own maxDuration (see the route's comment). */
+      const res = (await (
+        await fetch("/api/fleet/value", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vehicles: payload }),
+        })
+      ).json()) as ValueFleetResult;
       if (res.ok) fleet.setValuations(parseValuations(res, vehicles));
       else setValueErr(res.reason === "no-key" ? "Tiff is offline — no API key configured." : res.reason);
     } catch {

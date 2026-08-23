@@ -45,7 +45,7 @@ it("opens the calendar over the modal and saves the pick as a day count", async 
   const { user, onSave } = setup();
 
   await user.type(screen.getByPlaceholderText("e.g. MKT482"), "MKT482");
-  await user.type(screen.getByPlaceholderText("e.g. Toyota"), "Toyota");
+  await user.selectOptions(screen.getByRole("combobox", { name: /^Make/ }), "Toyota");
 
   await user.click(field("Rego expiry"));
   await user.click(screen.getByRole("button", { name: "Friday 31 July 2026" }));

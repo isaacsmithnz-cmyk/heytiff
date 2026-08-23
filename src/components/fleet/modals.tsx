@@ -8,6 +8,7 @@ import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
+import { MAKE_NOT_LISTED, VEHICLE_MAKES, canonicalMake } from "@/lib/fleet/makes";
 import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
 import {
@@ -149,7 +150,10 @@ export function VehicleFormModal({
           name: initial.name,
           plate: initial.plate,
           plateState: initial.plateState ?? "",
-          make: initial.make,
+          /* An existing row may hold a dirty spelling from before the picker
+             ("TOYOTA", "Byd"). Canonicalise on open so the select can find its
+             row — and so saving an untouched vehicle quietly tidies it. */
+          make: canonicalMake(initial.make) ?? initial.make,
           model: initial.model,
           year: initial.year ? String(initial.year) : "",
           odometer: String(initial.odometer),
@@ -183,6 +187,12 @@ export function VehicleFormModal({
           assignedTo: "",
           notes: "",
         },
+  );
+  /* Whether the make is being typed rather than picked. This can't be derived
+     from the value: choosing "Not listed" leaves the field empty, which is
+     indistinguishable from not having chosen anything yet. */
+  const [makeNotListed, setMakeNotListed] = useState(
+    () => !!initial && initial.make.trim() !== "" && canonicalMake(initial.make) === null,
   );
   const set =
     (k: keyof typeof f) =>
@@ -244,8 +254,38 @@ export function VehicleFormModal({
         <Field label="Name / fleet no.">
           <input className="fl-i" placeholder="Optional — e.g. VRF-09" value={f.name} onChange={set("name")} />
         </Field>
+        {/* Picked, not typed — a free-text make is how one register ends up
+            holding TOYOTA, Toyota and toyota as three marques. "Not listed"
+            still takes anything, because trailers and plant never make a list. */}
         <Field label="Make" req>
-          <input className="fl-i" placeholder="e.g. Toyota" value={f.make} onChange={set("make")} />
+          <select
+            className="fl-i"
+            value={makeNotListed ? MAKE_NOT_LISTED : (canonicalMake(f.make) ?? "")}
+            onChange={(e) => {
+              const picked = e.target.value;
+              const typing = picked === MAKE_NOT_LISTED;
+              setMakeNotListed(typing);
+              setF((p) => ({ ...p, make: typing ? "" : picked }));
+            }}
+          >
+            <option value="">Select a make</option>
+            {VEHICLE_MAKES.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+            <option value={MAKE_NOT_LISTED}>Not listed…</option>
+          </select>
+          {makeNotListed && (
+            <input
+              className="fl-i"
+              aria-label="Make not listed"
+              placeholder="e.g. LG Chiv"
+              value={f.make}
+              onChange={set("make")}
+              autoFocus
+            />
+          )}
         </Field>
         <Field label="Model">
           <input className="fl-i" placeholder="e.g. Hiace ZR" value={f.model} onChange={set("model")} />

@@ -4928,6 +4928,24 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    things happen when you press Send. */
 .fg .xc-payer { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
 .fg .xc-payerk { font-size:12.5px; font-weight:800; color:var(--gray500); }
+/* WHICH JOB — the form's line, and the row's. Same posture as the note
+   capture's `wb2-capjob`, which asks the same question with the same picker;
+   `on` is the answered state, and it is the only place a tint appears, because
+   "against a job" is a fact rather than a warning. */
+.fg .xc-job { display:flex; align-items:center; gap:9px; margin-bottom:16px; padding:10px 13px;
+  border-radius:12px; background:#f6f7f9; color:var(--gray500);
+  font-size:12.5px; font-weight:600; }
+.fg .xc-job.on { background:rgba(0,163,137,.07); color:var(--ok-t); }
+/* `Icon` wraps its svg in a BARE span, so `> span` reached the glyph too and
+   gave a 14px icon a third of the row (measured, not guessed). The text says
+   which span it is. */
+.fg .xc-job > :first-child { flex:none; }
+.fg .xc-jobk { flex:1; min-width:0; }
+.fg .xc-job b { font-weight:800; color:var(--ink); }
+/* On a filed row it is one quiet line under the supplier, not a chip: a
+   receipt has exactly one job and a chip would compete with the status. */
+.fg .xc-onjob { display:flex; align-items:center; gap:6px; margin:5px 0 0;
+  font-size:12px; font-weight:600; color:var(--gray500); }
 
 /* The receipt strip — the thumbnail (or the PDF's name) plus the controls that
    change it. The preview's own bottom margin moves to the strip, so the two

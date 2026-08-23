@@ -101,7 +101,7 @@ function face(tab: Tab, data: MeData) {
     case "leave":
       return leaveFace(data);
     case "expenses":
-      return <MyExpensesFace claims={data.claims} today={data.today} />;
+      return <MyExpensesFace claims={data.claims} today={data.today} jobs={data.jobs} />;
     case "vehicle":
       return (
         <MyVehicleFace

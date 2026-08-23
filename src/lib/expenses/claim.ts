@@ -69,6 +69,31 @@ export function isPaidWith(v: unknown): v is PaidWith {
   return typeof v === "string" && (PAID_WITH as readonly string[]).includes(v);
 }
 
+/* WHAT IT WAS BOUGHT FOR.
+
+   The vocabulary is `workboard_notes.target_kind`'s, unchanged, because it is
+   the same act — pointing a captured thing at work — and two vocabularies for
+   one question is how a picker and a store stop agreeing. `JobCandidate.kind`
+   in workboard/note-match uses these three words too, which is what lets the
+   existing job picker feed this without a translation step.
+
+   OPTIONAL, and both kinds carry it. Plenty of spend belongs to the business
+   rather than to any one job — a new drill is the van's, not Tuesday's — and
+   "which job" has nothing to do with whose card paid: materials bought for
+   Northgate on a personal card are the same cost on the same job. */
+export const JOB_KINDS = ["project", "visit", "agreement"] as const;
+export type JobKind = (typeof JOB_KINDS)[number];
+
+export function isJobKind(v: unknown): v is JobKind {
+  return typeof v === "string" && (JOB_KINDS as readonly string[]).includes(v);
+}
+
+/** The job a row is against, as the screen reads it. `label` is a SNAPSHOT
+    taken when the row was filed — see the migration: what this records is
+    which job the money went on at the time, and re-deriving it from a job
+    since renamed would rewrite history under the person who filed it. */
+export type JobLink = { kind: JobKind; id: string; label: string };
+
 export const EXPENSE_STATUSES = [
   "pending",
   "approved",
@@ -144,6 +169,8 @@ export type Claim = {
   supplier: string | null;
   /** Whose money. `own` is a claim; `company` is a receipt, already paid. */
   paidWith: PaidWith;
+  /** The job it was bought for, or null — most spend is against no one job. */
+  job: JobLink | null;
   status: ExpenseStatus;
   reviewNote: string | null;
   createdAt: string;
@@ -208,6 +235,11 @@ export type ClaimInput = {
   amount: number;
   gstAmount?: number | null;
   supplier?: string | null;
+  /* The job, already resolved. The SERVER builds this, never the browser: an
+     id off the wire is a claim about somebody else's data until a row in this
+     org proves otherwise, and the label is printed on a screen. See
+     `resolveJobLink` in actions/expenses.ts. */
+  job?: JobLink | null;
   /* Absent means `own`, and that default is chosen for which way it FAILS.
      Both directions have a wrong answer: a claim filed as company-paid leaves
      somebody permanently out of their own money, and a card purchase filed as
@@ -226,6 +258,9 @@ export type ClaimRow = {
   supplier: string | null;
   paid_with: PaidWith;
   status: ExpenseStatus;
+  job_kind: JobKind | "none";
+  job_id: string | null;
+  job_label: string | null;
 };
 
 /** The most anyone can put through in one go. Not a policy about spending — a
@@ -281,6 +316,13 @@ export function buildClaim(
   const paidWith = input.paidWith ?? "own";
   if (!isPaidWith(paidWith)) return { error: "Say who paid for it." };
 
+  /* A job is optional, and an ABSENT one is the common answer rather than a
+     missing one. What is refused is a HALF link — a kind with no id, or an id
+     with no kind — because neither is a state any reader can do anything with,
+     and the column constraint refuses them anyway. */
+  const job = input.job ?? null;
+  if (job && (!isJobKind(job.kind) || !job.id)) return { error: "Pick the job again." };
+
   return {
     row: {
       expense_date: date,
@@ -291,6 +333,9 @@ export function buildClaim(
       supplier,
       paid_with: paidWith,
       status: initialStatus(paidWith),
+      job_kind: job ? job.kind : "none",
+      job_id: job ? job.id : null,
+      job_label: job ? job.label.slice(0, 160) : null,
     },
   };
 }

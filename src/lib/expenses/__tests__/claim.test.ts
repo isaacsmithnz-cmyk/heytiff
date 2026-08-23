@@ -32,6 +32,9 @@ describe("buildClaim", () => {
         supplier: "Reece",
         paid_with: "own",
         status: "pending",
+        job_kind: "none",
+        job_id: null,
+        job_label: null,
       },
     });
   });
@@ -245,5 +248,57 @@ describe("who paid", () => {
     ];
     expect(owedTotal(rows)).toBe(100);
     expect(pendingCount(rows)).toBe(1);
+  });
+});
+
+/* ── which job ────────────────────────────────────────────────────────────
+
+   Optional, and it has to stay optional: a new drill is the van's, not
+   Tuesday's. What is refused is a HALF link, because neither half is a state
+   any reader can act on — and the column constraint refuses one anyway. */
+
+describe("the job it was bought for", () => {
+  it("files against no job by default, and says so in the row", () => {
+    const out = buildClaim(input(), TODAY);
+    expect("row" in out && out.row).toMatchObject({
+      job_kind: "none",
+      job_id: null,
+      job_label: null,
+    });
+  });
+
+  it("carries the job through when there is one", () => {
+    const out = buildClaim(
+      input({ job: { kind: "visit", id: "v1", label: "#1042 · Northgate Realty · Quarterly" } }),
+      TODAY,
+    );
+    expect("row" in out && out.row).toMatchObject({
+      job_kind: "visit",
+      job_id: "v1",
+      job_label: "#1042 · Northgate Realty · Quarterly",
+    });
+  });
+
+  it("refuses a half link rather than filing against nothing", () => {
+    // `as never` because the TYPE already refuses these — this pins the
+    // RUNTIME refusal, which is the one a request off the wire has to meet
+    expect(
+      buildClaim(input({ job: { kind: "nonsense" as never, id: "v1", label: "x" } }), TODAY),
+    ).toEqual({ error: "Pick the job again." });
+    expect(buildClaim(input({ job: { kind: "visit", id: "", label: "x" } }), TODAY)).toEqual({
+      error: "Pick the job again.",
+    });
+  });
+
+  /* WHOSE CARD PAID HAS NOTHING TO DO WITH WHICH JOB. Materials for Northgate
+     bought on a personal card are the same cost on the same job, and a rule
+     that applied to one payer and not the other would be a hole to fall
+     through. */
+  it("is available to a claim and a card receipt alike", () => {
+    const job = { kind: "project" as const, id: "p1", label: "Acme · Plant room" };
+    for (const paidWith of ["own", "company"]) {
+      const out = buildClaim(input({ paidWith, job }), TODAY);
+      expect("row" in out && out.row).toMatchObject({ paid_with: paidWith, job_id: "p1" });
+    }
   });
 });

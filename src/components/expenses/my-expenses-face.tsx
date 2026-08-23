@@ -7,6 +7,8 @@ import { FaceSwitch } from "@/components/me/face-switch";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { DateField } from "@/components/ui/date-field";
+import { JobPicker, targetOf } from "@/components/notes/review-card";
+import type { JobCandidate } from "@/lib/workboard/note-match";
 import {
   CATEGORY_LABEL,
   EXPENSE_CATEGORIES,
@@ -19,6 +21,7 @@ import {
   STATUS_LABEL,
   type Claim,
   type ExpenseCategory,
+  type JobLink,
 } from "@/lib/expenses/claim";
 import { cancelClaim, submitClaim, type ExpenseResult } from "@/app/actions/expenses";
 import { readExpenseReceipt } from "@/app/actions/expense-ai";
@@ -52,6 +55,16 @@ import { readExpenseReceipt } from "@/app/actions/expense-ai";
 
 const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/* HOW A JOB READS, in the same shape `resolveJobLink` will store — a label
+   that changed the moment you saved would look like the wrong job had been
+   picked. The one the SERVER builds is what ends up on the row; this is what
+   the person is looking at while they decide. */
+function describe(j: JobCandidate): string {
+  const named =
+    !j.clientName || j.clientName === j.label ? j.label || j.clientName : `${j.clientName} · ${j.label}`;
+  return j.jobNumber ? `#${j.jobNumber} · ${named}` : named;
+}
+
 /** A PDF has no thumbnail, so the strip names it instead of showing it. */
 const isPdf = (f: File) => f.type === RECEIPT_PDF_TYPE;
 
@@ -75,6 +88,8 @@ type Draft = {
   amount: string;
   gstAmount: string;
   supplier: string;
+  /** The job it was bought for, or null. Most spend is against no one job. */
+  job: JobLink | null;
   /* Whose money. It is the first field in the form and the last thing the
      submit button reads, because it decides what pressing that button MEANS —
      asking to be paid back, or filing a docket for money already gone. */
@@ -88,10 +103,25 @@ const emptyDraft = (today: string, paidWith: PaidWith = "own"): Draft => ({
   amount: "",
   gstAmount: "",
   supplier: "",
+  job: null,
   paidWith,
 });
 
-export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: string }) {
+export function MyExpensesFace({
+  claims,
+  today,
+  jobs = [],
+}: {
+  claims: Claim[];
+  today: string;
+  /* The open work this receipt could belong to — the SAME list the note
+     capture picks from (`jobCandidates`), through the same `JobPicker`, so
+     "which job" is asked once in this app and answered the same way. An empty
+     list hides the control rather than offering an empty picker: a workspace
+     with no open work has nothing to attach to, and a dead row saying so is
+     the hint text this app doesn't write. */
+  jobs?: JobCandidate[];
+}) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +132,7 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
   /* One claim armed for cancellation at a time — same shape My leave and the
      team directory use. Arming a second forgets the first. */
   const [armed, setArmed] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const [face, setFace] = useState<XcFace>("claims");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +152,7 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
     setDraft(null);
     attach(null);
     setError(null);
+    setPicking(false);
   };
 
   /* Attaching from INSIDE the form — no scan. See the header: by then the
@@ -191,6 +223,10 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
       }
       const company = draft.paidWith === "company";
       const res = await submitClaim({
+        /* kind + id only. The label the person just read came from the
+           picker, but the one that gets STORED is built on the server from
+           the row it finds — see resolveJobLink. */
+        job: draft.job ? { kind: draft.job.kind, id: draft.job.id } : null,
         expenseDate: draft.expenseDate,
         description: draft.description,
         category: draft.category,
@@ -388,6 +424,56 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
                 </div>
               </div>
 
+              {/* WHICH JOB, if any. Optional and it has to stay optional: a
+                  new drill is the van's, not Tuesday's, and forcing a pick
+                  would either stop the capture or fill the column with the
+                  wrong answer.
+
+                  It is the app's ONE job picker — the same `JobPicker` and the
+                  same `jobCandidates` the note capture uses — because "which
+                  job" asked twice in two shapes is how two lists stop agreeing
+                  about what an open job is. */}
+              {jobs.length > 0 && (
+                <div className={"xc-job" + (draft.job ? " on" : "")}>
+                  <Icon name={draft.job ? "check" : "activity"} size={14} />
+                  <span className="xc-jobk">
+                    {draft.job ? (
+                      <>
+                        On <b>{draft.job.label}</b>
+                      </>
+                    ) : (
+                      "Not against a job"
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="wb2-capchange"
+                    onClick={() => setPicking(!picking)}
+                    aria-expanded={picking}
+                  >
+                    {draft.job ? "Change" : "Pick a job"}
+                  </button>
+                </div>
+              )}
+              {picking && (
+                <JobPicker
+                  options={jobs}
+                  noneLabel="Not for a job in particular"
+                  chosenId={draft.job?.id ?? null}
+                  onPick={(picked) => {
+                    /* The picker speaks "kind:id" and `targetOf` is the parser
+                       that goes with it — the note capture uses the same pair.
+                       "" is its own "nothing in particular", and it means the
+                       same thing here: this was not for a job. */
+                    const t = targetOf(picked);
+                    const hit = t && jobs.find((j) => j.kind === t.kind && j.id === t.id);
+                    set({ job: hit ? { kind: hit.kind, id: hit.id, label: describe(hit) } : null });
+                    setPicking(false);
+                  }}
+                  onClose={() => setPicking(false)}
+                />
+              )}
+
               {/* THE RECEIPT, and the way to change it. There was no control
                   here at all — the picker lived on the start screen and
                   unmounted the moment a draft existed, so "Enter it myself"
@@ -578,6 +664,18 @@ export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: stri
                         <Icon name="fuel" size={13} />
                         Raised from your fuel log
                         {c.fuelLog.vehicle ? ` · ${c.fuelLog.vehicle}` : ""}
+                      </p>
+                    )}
+                    {/* WHICH JOB IT WENT ON — in the MAIN column, with the
+                        supplier and the date, because it is a fact about the
+                        purchase and not a status. `job.label` is the snapshot
+                        filed with the receipt, so a job renamed since still
+                        reads as the one the money was actually spent on (see
+                        the migration). */}
+                    {c.job && (
+                      <p className="xc-onjob">
+                        <Icon name="activity" size={13} />
+                        {c.job.label}
                       </p>
                     )}
                     {c.reviewNote && <p className="xc-note">{c.reviewNote}</p>}

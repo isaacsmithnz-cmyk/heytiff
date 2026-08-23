@@ -47,6 +47,7 @@ const claim = (over: Partial<Claim> = {}): Claim =>
     gstAmount: 16.77,
     supplier: "Reece",
     paidWith: "own",
+    job: null,
     status: "pending",
     reviewNote: null,
     createdAt: "2026-08-01T00:00:00Z",
@@ -189,6 +190,7 @@ describe("provenance", () => {
     gstAmount: 14.4,
     supplier: "BP Kingsford",
     paidWith: "own" as const,
+    job: null,
     status: "pending" as const,
     reviewNote: null,
     createdAt: "2026-08-01T00:00:00Z",
@@ -488,4 +490,108 @@ it("keeps the owed figure off the company-card face", async () => {
   expect(screen.getByText("Owed to you")).toBeInTheDocument();
   await user.click(screen.getByRole("tab", { name: /Company card/ }));
   expect(screen.queryByText("Owed to you")).not.toBeInTheDocument();
+});
+
+/* ── which job ────────────────────────────────────────────────────────────
+
+   A receipt for a job is a cost on that job, and the app knew it for the two
+   seconds somebody was holding the docket. Optional, and it stays optional —
+   a new drill is the van's, not Tuesday's. */
+
+describe("attaching a receipt to a job", () => {
+  const jobs = [
+    {
+      kind: "visit" as const,
+      id: "v1",
+      clientName: "Northgate Realty",
+      label: "Quarterly service",
+      siteLabel: null,
+      jobNumber: "1042",
+    },
+    {
+      kind: "project" as const,
+      id: "p1",
+      clientName: "Acme Industrial",
+      label: "Plant room",
+      siteLabel: null,
+      jobNumber: null,
+    },
+  ];
+
+  it("offers the picker, and sends kind and id — never the label", async () => {
+    const user = userEvent.setup();
+    submit.mockResolvedValue({ ok: true });
+    render(<MyExpensesFace today={TODAY} claims={[]} jobs={jobs} />);
+
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    expect(screen.getByText("Not against a job")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Pick a job" }));
+    await user.click(screen.getByRole("option", { name: /Northgate Realty/ }));
+    expect(screen.getByText("#1042 · Northgate Realty · Quarterly service")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/What was it for/i), "Copper fittings");
+    await user.type(screen.getByLabelText(/Total paid/i), "84.50");
+    await user.click(screen.getByRole("button", { name: "Send for approval" }));
+
+    /* The label the person just read came from the picker; the one that gets
+       STORED is built on the server from the row it finds. Sending it would
+       let a browser write anything into an expense list. */
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(
+        expect.objectContaining({ job: { kind: "visit", id: "v1" } }),
+      ),
+    );
+  });
+
+  /* "Nothing in particular" is the picker's own escape, and it means the same
+     thing here — this was not for a job. */
+  it("lets you take the job back off", async () => {
+    const user = userEvent.setup();
+    render(<MyExpensesFace today={TODAY} claims={[]} jobs={jobs} />);
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    await user.click(screen.getByRole("button", { name: "Pick a job" }));
+    await user.click(screen.getByRole("option", { name: /Acme Industrial/ }));
+    expect(screen.getByText("Acme Industrial · Plant room")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Change" }));
+    /* The escape hatch says what it means HERE — the picker's default words
+       name a destination ("keep it in my notes") that an expense doesn't have. */
+    expect(screen.queryByText(/keep it in my notes/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "Not for a job in particular" }));
+    expect(screen.getByText("Not against a job")).toBeInTheDocument();
+  });
+
+  /* AN EMPTY LIST HIDES THE CONTROL. A workspace with no open work has nothing
+     to attach to, and a dead row saying so is the hint text this app doesn't
+     write. */
+  it("says nothing at all when there is no open work", async () => {
+    const user = userEvent.setup();
+    render(<MyExpensesFace today={TODAY} claims={[]} jobs={[]} />);
+    await user.click(screen.getByRole("button", { name: "Enter it myself" }));
+    expect(screen.queryByText("Not against a job")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pick a job" })).not.toBeInTheDocument();
+  });
+
+  it("shows the job on a filed row, on both kinds", async () => {
+    const user = userEvent.setup();
+    render(
+      <MyExpensesFace
+        today={TODAY}
+        claims={[
+          claim({ id: "o1", status: "pending", job: { kind: "visit", id: "v1", label: "#1042 · Northgate" } }),
+          claim({
+            id: "cc1",
+            paidWith: "company",
+            status: "recorded",
+            description: "Makita drill",
+            job: { kind: "project", id: "p1", label: "Acme · Plant room" },
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("#1042 · Northgate")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /Company card/ }));
+    expect(screen.getByText("Acme · Plant room")).toBeInTheDocument();
+  });
 });

@@ -19,6 +19,7 @@ const claim = (o: Partial<TeamClaim> & { id: string; status: TeamClaim["status"]
   staffProfileId: "s1",
   staffName: "Dan Smith",
   paidWith: "own",
+  job: null,
   expenseDate: "2026-07-20",
   description: "Copper fittings",
   category: "materials",

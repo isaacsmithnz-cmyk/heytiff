@@ -4,7 +4,7 @@ import { TimepayScreen } from "../timepay-screen";
 import type { TimepaySection } from "@/lib/timepay/section";
 
 /* The three faces of team Time & Pay, switched on the CLIENT — the same
-   conversion my-time-screen made and the same guards: instant switch, no
+   conversion me-screen made and the same guards: instant switch, no
    links, one constant title, URL following the open face. */
 
 jest.mock("../timepay", () => ({
@@ -59,7 +59,7 @@ it("titles every face Time & Pay", async () => {
   expect(title()).toBeInTheDocument();
 });
 
-/* THE PANEL SWAPS IN PLACE — same guard as my-time-screen and the same
+/* THE PANEL SWAPS IN PLACE — same guard as me-screen and the same
    cause: `key={tab}` + `.psec2` remounted the face and faded it in, which
    reads as the content flashing under the tabs. */
 it("swaps the face in place — same panel node, no fade class", async () => {
@@ -76,7 +76,7 @@ it("swaps the face in place — same panel node, no fade class", async () => {
   expect(panel()).not.toHaveClass("psec2");
 });
 
-/* THE URL MUST NOT MOVE — same guard as my-time-screen and the same wreck
+/* THE URL MUST NOT MOVE — same guard as me-screen and the same wreck
    behind it: the shell's outlet keys on the pathname, so a cross-path
    replaceState remounts the page and resets the open tab. Deep links live in
    the three ROUTES (the Home chips point at them); the switcher itself stays

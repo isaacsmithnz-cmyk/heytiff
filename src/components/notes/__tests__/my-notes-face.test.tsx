@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MyNotesBoard } from "../my-notes-board";
+import { MyNotesFace } from "../my-notes-face";
 import type { MyNote } from "@/lib/notes/my-notes-query";
 
 /* THE BOARD'S TWO FACES. Archived used to be a second card behind a
@@ -37,7 +37,7 @@ const note = (over: Partial<MyNote> = {}): MyNote => ({
 it("keeps live notes on the Notes face and the put-away pile behind the Archived tab", async () => {
   const user = userEvent.setup();
   render(
-    <MyNotesBoard
+    <MyNotesFace
       notes={[note()]}
       archived={[note({ id: "n2", body: "Old coil pricing", archivedAt: "2026-08-21T01:00:00.000Z" })]}
     />,
@@ -55,7 +55,7 @@ it("keeps live notes on the Notes face and the put-away pile behind the Archived
 
 it("says so plainly when nothing has been archived", async () => {
   const user = userEvent.setup();
-  render(<MyNotesBoard notes={[note()]} archived={[]} />);
+  render(<MyNotesFace notes={[note()]} archived={[]} />);
   await user.click(screen.getByRole("tab", { name: "Archived" }));
   expect(screen.getByText("Nothing archived")).toBeInTheDocument();
 });
@@ -69,7 +69,7 @@ it("says so plainly when nothing has been archived", async () => {
    stable node is the proof — with a key, React hands back a different one. */
 it("swaps the face in place — same panel node, no fade class", async () => {
   const user = userEvent.setup();
-  const { container } = render(<MyNotesBoard notes={[note()]} archived={[note({ id: "n2" })]} />);
+  const { container } = render(<MyNotesFace notes={[note()]} archived={[note({ id: "n2" })]} />);
   const panel = () => container.querySelector('[role="tabpanel"]');
 
   const before = panel();

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
-import { ViewTabs } from "@/components/shell/view-tabs";
+import { FaceSwitch } from "@/components/me/face-switch";
 import { NoteToken } from "./note-token";
 import { addMyNote, archiveMyNote, deleteMyNote, editMyNote } from "@/app/actions/my-notes";
 import type { MyNote } from "@/lib/notes/my-notes-query";
@@ -18,9 +18,16 @@ import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
    It also dogfoods the token. The add row here is the same `strip` posture
    the job card uses — commit is instant, and the sniff offers the review only
-   when the words look like a job for somebody. */
+   when the words look like a job for somebody.
 
-export function MyNotesBoard({
+   A FACE OF THE ME CARD now, not a page of its own. Archived came out of a
+   disclosure row inside a second card and onto the card's tab strip, which was
+   right and is not being undone — it has simply moved down one level, onto
+   `FaceSwitch`, because the card's strip belongs to Me's five destinations and
+   this app does not nest that control. Notes and Archived are still two named
+   faces you switch between, with the count on the second. */
+
+export function MyNotesFace({
   notes,
   archived,
 }: {
@@ -32,7 +39,7 @@ export function MyNotesBoard({
   const [editing, setEditing] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"notes" | "archived">("notes");
+  const [face, setFace] = useState<"notes" | "archived">("notes");
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) =>
     start(async () => {
@@ -200,59 +207,31 @@ export function MyNotesBoard({
     );
 
   return (
-    <div className="page in">
-      <div className="wrap">
-        <div className="stg">
-          {/* The same header every flat page wears — the lede used to sit in
-              `wb2-head`'s CENTRE column (that grid is h1 | switcher | tools),
-              so the sentence floated mid-page, tied to nothing. */}
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1>Notes</h1>
-              <p className="int-lede" style={{ margin: "8px 0 0" }}>
-                Anything that didn&apos;t belong to a job. Only you can see these.
-              </p>
-            </div>
-          </div>
-
-          {error && <div className="int-note bad">{error}</div>}
-
-          {/* The board's card and the board's tabs — Archived was a disclosure
-              row inside a second card, the only fold of its kind in the app. */}
-          <div className="wb2">
-            <ViewTabs
-              ariaLabel="Your notes"
-              idPrefix="mynt"
-              panelPrefix="mynp"
-              active={tab}
-              onGo={(k) => setTab(k as "notes" | "archived")}
-              items={[
-                { key: "notes", label: "Notes" },
-                {
-                  key: "archived",
-                  label: "Archived",
-                  count: archived.length,
-                  countLabel: (n) => `${n} put away`,
-                },
-              ]}
-            />
-            <div className="wb2-card">
-              <div className="ppanel2">
-                {/* No `key`, no `.psec2` — the note list swaps in place, like
-                    Team's. The pair remounts the face and fades it in, which
-                    on a list is a flash (see my-time-screen.tsx). */}
-                <section
-                  id={`mynp-${tab}`}
-                  role="tabpanel"
-                  aria-labelledby={`mynt-${tab}`}
-                  tabIndex={-1}
-                >
-                  {tab === "notes" ? notesFace : archivedFace}
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="wb2-card">
+      <div className="ppanel2">
+        {error && <div className="int-note bad">{error}</div>}
+        <FaceSwitch
+          ariaLabel="Your notes"
+          idPrefix="mynt"
+          panelPrefix="mynp"
+          active={face}
+          onGo={(k) => setFace(k as "notes" | "archived")}
+          items={[
+            { key: "notes", label: "Notes" },
+            {
+              key: "archived",
+              label: "Archived",
+              count: archived.length,
+              countLabel: (n) => `${n} put away`,
+            },
+          ]}
+        />
+        {/* No `key`, no `.psec2` — the note list swaps in place, like Team's.
+            The pair remounts the face and fades it in, which on a list is a
+            flash (see me-screen.tsx). */}
+        <section id={`mynp-${face}`} role="tabpanel" aria-labelledby={`mynt-${face}`} tabIndex={-1}>
+          {face === "notes" ? notesFace : archivedFace}
+        </section>
       </div>
     </div>
   );

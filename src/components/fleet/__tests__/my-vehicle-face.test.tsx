@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MyVehicleScreen } from "../my-vehicle-screen";
+import { MyVehicleFace } from "../my-vehicle-face";
 import type { Vehicle, VehicleLog } from "../logic";
 
 /* THE HISTORY TAB SHOWS EVERYTHING. The old single page rendered
@@ -65,7 +65,7 @@ const nineLogs = Array.from({ length: 9 }, (_, i) => log(i + 1));
 
 it("opens on the Vehicle face — the truck, not the paperwork", () => {
   render(
-    <MyVehicleScreen
+    <MyVehicleFace
       own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"
@@ -79,7 +79,7 @@ it("opens on the Vehicle face — the truck, not the paperwork", () => {
 it("shows every log on History, not the newest eight", async () => {
   const user = userEvent.setup();
   render(
-    <MyVehicleScreen
+    <MyVehicleFace
       own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"
@@ -93,7 +93,7 @@ it("shows every log on History, not the newest eight", async () => {
 it("still answers on History when no vehicle is assigned", async () => {
   const user = userEvent.setup();
   render(
-    <MyVehicleScreen
+    <MyVehicleFace
       own={{ vehicle: null, pickable: [], logs: [] }}
       today="2026-08-22"
       viewerStaffId={null}
@@ -104,11 +104,11 @@ it("still answers on History when no vehicle is assigned", async () => {
 });
 
 /* THE PANEL SWAPS IN PLACE — no remount, no fade. Same recipe, same cause,
-   same reference as Team's directory; see my-notes-board.test.tsx. */
+   same reference as Team's directory; see my-notes-face.test.tsx. */
 it("swaps the face in place — same panel node, no fade class", async () => {
   const user = userEvent.setup();
   const { container } = render(
-    <MyVehicleScreen
+    <MyVehicleFace
       own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"

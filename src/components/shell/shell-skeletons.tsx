@@ -30,10 +30,6 @@ export function SidebarSkeleton() {
       <div className="nav no-sb">
         {[4, 3, 3].map((count, g) => (
           <div className="navgrp" key={g}>
-            <div className="navlbl">
-              <span />
-              <i className="sk-dark sk-navlbl" />
-            </div>
             {Array.from({ length: count }, (_, i) => (
               <div className="ni" key={i}>
                 <span className="nicon">

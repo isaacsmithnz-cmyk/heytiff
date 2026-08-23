@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MyExpenses } from "../my-expenses";
+import { MyExpensesFace } from "../my-expenses-face";
 import type { Claim } from "@/lib/expenses/claim";
 
 /* THE CLAIMANT'S SCREEN — the half of expenses that had no test at all.
@@ -52,7 +52,7 @@ const claim = (over: Partial<Claim> = {}): Claim =>
     receipts: [],
     ...over,
   }) as Claim;
-const draw = () => render(<MyExpenses claims={[]} today={TODAY} />);
+const draw = () => render(<MyExpensesFace claims={[]} today={TODAY} />);
 
 /** The one hidden picker the whole screen shares. */
 const picker = () => document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -194,17 +194,17 @@ describe("provenance", () => {
   };
 
   it("says a claim came from a fuel log, and names the vehicle", () => {
-    render(<MyExpenses claims={[fuelClaim]} today={TODAY} />);
+    render(<MyExpensesFace claims={[fuelClaim]} today={TODAY} />);
     expect(screen.getByText(/Raised from your fuel log · Hilux/)).toBeInTheDocument();
   });
 
   it("still says it when the vehicle has no name to show", () => {
-    render(<MyExpenses claims={[{ ...fuelClaim, fuelLog: { vehicleLogId: "log-1", vehicle: null } }]} today={TODAY} />);
+    render(<MyExpensesFace claims={[{ ...fuelClaim, fuelLog: { vehicleLogId: "log-1", vehicle: null } }]} today={TODAY} />);
     expect(screen.getByText(/Raised from your fuel log/)).toBeInTheDocument();
   });
 
   it("says nothing on a claim somebody typed themselves", () => {
-    render(<MyExpenses claims={[{ ...fuelClaim, fuelLog: null }]} today={TODAY} />);
+    render(<MyExpensesFace claims={[{ ...fuelClaim, fuelLog: null }]} today={TODAY} />);
     expect(screen.queryByText(/Raised from your fuel log/)).toBeNull();
   });
 });
@@ -230,7 +230,7 @@ describe("what the claimant is told", () => {
      out of pocket, who got a list and was left to add it up. */
   it("totals what it owes you, using the same helper the approver's screen uses", () => {
     const { container } = render(
-      <MyExpenses
+      <MyExpensesFace
         today={TODAY}
         claims={[
           claim({ id: "a", amount: 184.5, status: "pending" }),
@@ -246,7 +246,7 @@ describe("what the claimant is told", () => {
 
   it("says nothing when nothing is owed", () => {
     const { container } = render(
-      <MyExpenses today={TODAY} claims={[claim({ status: "reimbursed" })]} />,
+      <MyExpensesFace today={TODAY} claims={[claim({ status: "reimbursed" })]} />,
     );
     expect(container.querySelector(".xc-owed")).toBeNull();
   });
@@ -256,19 +256,19 @@ describe("what the claimant is told", () => {
      "what gets approved without a conversation" while filling the form, and
      never told again whether theirs had one. */
   it("says when a claim has no receipt, the way the review screen does", () => {
-    render(<MyExpenses today={TODAY} claims={[claim({ receipts: [] })]} />);
+    render(<MyExpensesFace today={TODAY} claims={[claim({ receipts: [] })]} />);
     expect(screen.getByText("No receipt")).toBeInTheDocument();
   });
 
   it("drops the nag once the claim is settled", () => {
     // a reimbursed claim's missing docket is history, not a thing to chase
-    render(<MyExpenses today={TODAY} claims={[claim({ status: "reimbursed", receipts: [] })]} />);
+    render(<MyExpensesFace today={TODAY} claims={[claim({ status: "reimbursed", receipts: [] })]} />);
     expect(screen.queryByText("No receipt")).toBeNull();
   });
 
   it("links the receipt when there is one, instead", () => {
     render(
-      <MyExpenses
+      <MyExpensesFace
         today={TODAY}
         claims={[claim({ receipts: [{ url: "https://x/r.jpg", image: true }] })]}
       />,
@@ -284,7 +284,7 @@ describe("cancelling a claim", () => {
      one, at that) and strands the receipt with it. One press did it. */
   it("asks first, then goes through on the second press", async () => {
     const user = userEvent.setup();
-    render(<MyExpenses today={TODAY} claims={[claim({ id: "c9", status: "pending" })]} />);
+    render(<MyExpensesFace today={TODAY} claims={[claim({ id: "c9", status: "pending" })]} />);
 
     await user.click(screen.getByRole("button", { name: /^Cancel / }));
     expect(cancel).not.toHaveBeenCalled();
@@ -300,7 +300,7 @@ describe("the claim form", () => {
      was for" — something the button could see before it was pressed. */
   it("holds Send until it has the two things a claim cannot be without", async () => {
     const user = userEvent.setup();
-    render(<MyExpenses today={TODAY} claims={[]} />);
+    render(<MyExpensesFace today={TODAY} claims={[]} />);
     await user.click(screen.getByRole("button", { name: /Enter it myself/ }));
 
     const send = () => screen.getByRole("button", { name: /Send for approval/ });
@@ -321,7 +321,7 @@ describe("the claim form", () => {
      date decides which BAS period a GST figure lands in. */
   it("picks the date with the app's calendar, never a native date input", async () => {
     const user = userEvent.setup();
-    const { container } = render(<MyExpenses today={TODAY} claims={[]} />);
+    const { container } = render(<MyExpensesFace today={TODAY} claims={[]} />);
     await user.click(screen.getByRole("button", { name: /Enter it myself/ }));
 
     expect(container.querySelector('input[type="date"]')).toBeNull();
@@ -336,7 +336,7 @@ describe("the Claims / Closed split", () => {
   it("keeps open claims on Claims and answered ones behind Closed", async () => {
     const user = userEvent.setup();
     render(
-      <MyExpenses
+      <MyExpensesFace
         today={TODAY}
         claims={[
           claim({ id: "open-1", description: "Brazing rods", status: "pending" }),
@@ -363,7 +363,7 @@ describe("the panel does not animate on a switch", () => {
   it("keeps the same panel node, with no fade class", async () => {
     const user = userEvent.setup();
     const { container } = render(
-      <MyExpenses
+      <MyExpensesFace
         today={TODAY}
         claims={[claim({ id: "o1", status: "pending" }), claim({ id: "d1", status: "reimbursed" })]}
       />,

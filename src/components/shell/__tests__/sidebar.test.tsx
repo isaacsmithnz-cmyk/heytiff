@@ -87,13 +87,17 @@ describe("Sidebar — the business chip", () => {
 });
 
 describe("Sidebar — role-gated nav", () => {
-  it("staff see no Operations entries, but keep their own vehicle", () => {
+  it("staff see no Operations entries, but keep their own things", () => {
     render(as("staff"));
     expect(screen.queryByText("Team")).toBeNull();
     expect(screen.queryByText("Time & Pay")).toBeNull();
     expect(screen.queryByText("Admin")).toBeNull();
     expect(screen.queryByText("Assets")).toBeNull(); // the register is admin+
-    expect(screen.getByText("Vehicle")).toBeTruthy(); // Personal group carries the "my"
+    /* One row, and it carries the "my" itself now that the group headings are
+       gone. Vehicle, Timesheet and the rest are FACES of it — they belong to
+       ⌘K and to the card's tab strip, never to the rail. */
+    expect(screen.getByText("Me")).toBeTruthy();
+    expect(screen.queryByText("Vehicle")).toBeNull();
     expect(screen.getByText("Toolbox")).toBeTruthy();
   });
 
@@ -106,8 +110,24 @@ describe("Sidebar — role-gated nav", () => {
 
   it("owners get the full rail", () => {
     render(as("owner", "Smith Air"));
-    for (const label of ["Home", "Workboard", "Toolbox", "Design", "Library", "Team", "Time & Pay", "Assets", "Admin", "Vehicle"]) {
+    for (const label of ["Home", "Workboard", "Toolbox", "Design", "Library", "Me", "Team", "Time & Pay", "Assets", "Admin"]) {
       expect(screen.getByText(label)).toBeTruthy();
+    }
+  });
+});
+
+describe("Sidebar — the groups are drawn, not written", () => {
+  /* WORKSPACE / PERSONAL / OPERATIONS came off the rail: three headings at
+     31px each, on a list that needed 999px of nav inside a 733px window. The
+     grouping survives as an accessible name and a hairline; the drawn words do
+     not, and a `.navlbl` back in this markup would be the height coming back
+     with them. */
+  it("names each group for assistive tech without drawing the word", () => {
+    const { container } = render(as("owner"));
+    expect(container.querySelector(".navlbl")).toBeNull();
+    for (const label of ["Workspace", "Personal", "Operations"]) {
+      expect(screen.queryByText(label)).toBeNull();
+      expect(screen.getByRole("group", { name: label })).toBeTruthy();
     }
   });
 });

@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
-import { ViewTabs } from "@/components/shell/view-tabs";
+import { FaceSwitch } from "@/components/me/face-switch";
 import { fmtAuWeekdayDate } from "@/lib/au-dates";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { DateField } from "@/components/ui/date-field";
@@ -81,7 +81,7 @@ const emptyDraft = (today: string): Draft => ({
   supplier: "",
 });
 
-export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }) {
+export function MyExpensesFace({ claims, today }: { claims: Claim[]; today: string }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +92,7 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
   /* One claim armed for cancellation at a time — same shape My leave and the
      team directory use. Arming a second forgets the first. */
   const [armed, setArmed] = useState<string | null>(null);
-  const [tab, setTab] = useState<"claims" | "closed">("claims");
+  const [face, setFace] = useState<"claims" | "closed">("claims");
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* Object URLs are held until they're replaced or the claim is cleared —
@@ -221,56 +221,43 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
      owed figure can never disagree about which rows count. */
   const openClaims = claims.filter((c) => isOpen(c.status));
   const closedClaims = claims.filter((c) => !isOpen(c.status));
-  const shown = tab === "closed" ? closedClaims : openClaims;
+  const shown = face === "closed" ? closedClaims : openClaims;
 
   return (
-    <div className="page in">
-      <div className="wrap">
-        <div className="stg">
-          <div className="v2head" style={{ marginBottom: 24, alignItems: "center" }}>
-            <div>
-              <h1>
-                My expenses
-              </h1>
-            </div>
-          </div>
+    <>
+      <div className="wb2-card">
+        <div className="ppanel2">
+      {error && <div className="xc-err">{error}</div>}
 
-          {error && <div className="xc-err">{error}</div>}
+      {/* Claims is the working face — capture first, then what's still
+          moving; Closed is the answered pile (reimbursed, declined,
+          cancelled), which used to pad out the one list forever.
 
-          {/* The board's card and tabs. Claims is the working face — capture
-              first, then what's still moving; Closed is the answered pile
-              (reimbursed, declined, cancelled), which used to pad out the one
-              list forever. */}
-          <div className="wb2">
-            <ViewTabs
-              ariaLabel="Your expense claims"
-              idPrefix="xct"
-              panelPrefix="xcp"
-              active={tab}
-              onGo={(k) => setTab(k as "claims" | "closed")}
-              items={[
-                {
-                  key: "claims",
-                  label: "Claims",
-                  count: openClaims.length,
-                  countLabel: (n) => `${n} open`,
-                },
-                { key: "closed", label: "Closed" },
-              ]}
-            />
-            <div className="wb2-card">
-              <div className="ppanel2">
-                {/* No `key`, no `.psec2` — the claim list swaps in place, the
-                    way Team's directory does. Both together remount the face
-                    and fade it back in from opacity 0, which on a list reads
-                    as a flash rather than polish (see my-time-screen.tsx). */}
-                <section
-                  id={`xcp-${tab}`}
-                  role="tabpanel"
-                  aria-labelledby={`xct-${tab}`}
-                  tabIndex={-1}
-                >
-          {tab === "claims" && (
+          The pair was this card's tab strip until expenses became a face of
+          the Me card, and a card-edge strip does not nest — see
+          me/face-switch.tsx. Same two faces, one level down. */}
+      <FaceSwitch
+        ariaLabel="Your expense claims"
+        idPrefix="xct"
+        panelPrefix="xcp"
+        active={face}
+        onGo={(k) => setFace(k as "claims" | "closed")}
+        items={[
+          {
+            key: "claims",
+            label: "Claims",
+            count: openClaims.length,
+            countLabel: (n) => `${n} open`,
+          },
+          { key: "closed", label: "Closed" },
+        ]}
+      />
+      {/* No `key`, no `.psec2` — the claim list swaps in place, the way
+          Team's directory does. Both together remount the face and fade it
+          back in from opacity 0, which on a list reads as a flash rather than
+          polish (see me-screen.tsx). */}
+      <section id={`xcp-${face}`} role="tabpanel" aria-labelledby={`xct-${face}`} tabIndex={-1}>
+          {face === "claims" && (
             <>
           {!draft ? (
             <div className="xc-start">
@@ -446,7 +433,7 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
 
           <div className="xc-list">
             {shown.length === 0 ? (
-              tab === "closed" ? (
+              face === "closed" ? (
                 <div className="adm-empty">
                   <b>Nothing here yet</b>
                   <em>Claims land here once they&apos;re reimbursed, declined or cancelled.</em>
@@ -530,28 +517,25 @@ export function MyExpenses({ claims, today }: { claims: Claim[]; today: string }
               ))
             )}
           </div>
-                </section>
-              </div>
-            </div>
-          </div>
-
-          {/* ONE picker, mounted for the life of the screen — outside the
-              card so a tab switch can't unmount it mid-pick. On the start
-              screen a file is scanned into a draft; once a draft exists it is
-              attached and nothing is overwritten. */}
-          <input
-            ref={fileRef}
-            type="file"
-            accept={RECEIPT_ACCEPT}
-            hidden
-            onChange={(e) => {
-              const picked = e.target.files?.[0];
-              if (draft) onAttachOnly(picked);
-              else void onPick(picked);
-            }}
-          />
+      </section>
         </div>
       </div>
-    </div>
+
+      {/* ONE picker, mounted for the life of this face — outside the panel so
+          a Claims/Closed switch can't unmount it mid-pick. On the start screen
+          a file is scanned into a draft; once a draft exists it is attached
+          and nothing is overwritten. */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept={RECEIPT_ACCEPT}
+        hidden
+        onChange={(e) => {
+          const picked = e.target.files?.[0];
+          if (draft) onAttachOnly(picked);
+          else void onPick(picked);
+        }}
+      />
+    </>
   );
 }

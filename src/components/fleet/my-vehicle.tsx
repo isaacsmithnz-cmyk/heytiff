@@ -30,6 +30,29 @@ import { Plate } from "./plate";
    without `assets_all` is sent exactly enough to name a pool vehicle and
    satisfy the odometer guardrail — see lib/projections.ts. */
 
+/* WHICH FACE SHOWS WHICH LOGS, and what an empty one says. The empty line is
+   per-face on purpose: "Nothing logged yet" under a tab called Issues reads as
+   the screen being broken rather than as good news. */
+export type VehicleFace = "vehicle" | "fuel" | "issues" | "services";
+
+export const LOG_FACES: Record<
+  Exclude<VehicleFace, "vehicle">,
+  { kinds: LogKind[]; empty: string }
+> = {
+  fuel: {
+    kinds: ["fuel", "odo"],
+    empty: "No fill-ups yet — fuel and odometer readings land here.",
+  },
+  issues: {
+    kinds: ["issue"],
+    empty: "Nothing wrong with it — anything you report stays here until it is resolved.",
+  },
+  services: {
+    kinds: ["service"],
+    empty: "No service logged on this vehicle yet.",
+  },
+};
+
 const QUICK: { kind: LogKind; icon: string; label: string; sub: string }[] = [
   { kind: "fuel", icon: "fuel", label: "Log fuel", sub: "Litres, cost & odo" },
   { kind: "odo", icon: "gauge", label: "Update odometer", sub: "Reading off the dash" },
@@ -67,8 +90,8 @@ export function MyVehicle({
   today: string;
   /** Which face of the card to render. Absent = the pre-tabs combined page,
       which the Assets staff lens still draws. `vehicle` is the truck as it
-      stands; `history` is every log, not the newest eight. */
-  face?: "vehicle" | "history";
+      stands; the other three are the log, split by what you came to ask. */
+  face?: VehicleFace;
 }) {
   const [logKind, setLogKind] = useState<LogKind | null>(null);
   const [logTarget, setLogTarget] = useState<string | null>(null);
@@ -80,19 +103,40 @@ export function MyVehicle({
   };
   const errBox = error ? <div className="fl-aierr">{error}</div> : null;
 
-  /* THE HISTORY FACE — every log, oldest reachable. Handled before the
-     no-vehicle branch so the tab still answers when nothing is assigned. */
-  if (face === "history") {
+  /* THE LOG FACES. Handled before the no-vehicle branch so they still answer
+     when nothing is assigned.
+
+     THERE USED TO BE ONE OF THESE, CALLED HISTORY, and it was every log of
+     every kind in one column — "History is too broad. Where can you see the
+     issues that you have logged? Or your last services?" (Isaac, 2026-08-23).
+     Which is the right question: nobody opens a vehicle asking "what has
+     happened", they ask "is the thing I reported fixed" or "when was it last
+     serviced". Three faces, one question each.
+
+     Odometer readings ride with Fuel rather than taking a face of their own —
+     they are the same act of running the truck, and the economy figure on a
+     fill is computed FROM them. */
+  if (face && face !== "vehicle") {
+    const spec = LOG_FACES[face];
+    const shown = logs.filter((l) => spec.kinds.includes(l.kind));
+    /* Issues sort OPEN FIRST, then by recency. Everywhere else newest-first is
+       right; here the question is "is it fixed", and an open fault from March
+       outranks a resolved one from yesterday. */
+    const ordered =
+      face === "issues"
+        ? [...shown].sort((a, b) => {
+            const open = (l: VehicleLog) => (l.status === "open" ? 0 : 1);
+            return open(a) - open(b) || a.ago - b.ago;
+          })
+        : shown;
     const eco = fuelEconomy(logs);
     return (
       <div>
         {errBox}
-        {logs.length === 0 ? (
-          <div className="fl-hempty">
-            Nothing logged yet — your fuel, odo and issue reports land here.
-          </div>
+        {ordered.length === 0 ? (
+          <div className="fl-hempty">{spec.empty}</div>
         ) : (
-          logs.map((l) => (
+          ordered.map((l) => (
             <LogRow key={l.id} log={l} eco={eco[l.id]} onCorrect={mine(l) ? setCorrecting : undefined} />
           ))
         )}

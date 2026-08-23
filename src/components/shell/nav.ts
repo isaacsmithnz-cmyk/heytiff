@@ -112,30 +112,35 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Your own things, ungated — the group heading carries the "my", so the
-    // labels don't repeat it. Sits above Operations: everyone has these,
-    // only some people manage.
+    /* Your own things, ungated — everyone has these, only some people manage.
+       Sits above Operations for that reason.
+
+       ONE ROW, FIVE FACES. This was five rows (Timesheet+Leave, Vehicle,
+       Expenses, Notes) and the rail could not afford them: thirteen rows
+       needed 999px of nav against a 733px window, so Operations and Admin sat
+       below a fold that `.no-sb` gives no scrollbar to admit. Folding them
+       took the rail to 711px, which fits a 13" laptop.
+
+       The group heading used to carry the "my" so the labels didn't repeat it.
+       There are no headings any more (sidebar.tsx), so the row carries it
+       instead — which is the whole of what "Me" means here. Every face is
+       still a real route and still its own ⌘K result. */
     label: "Personal",
     items: [
-      /* Leave rides along as a tab rather than a row of its own. The two are
-         one calendar underneath — booking leave writes to the timesheet, which
-         is why `requestLeave` revalidates both paths — so they were always
-         going to be read together, and the rail was the wrong place to insist
-         they're separate. ⌘K still lists Leave in its own right. */
-      { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF",
+      { key: "me", label: "Me", icon: "user", href: "/dashboard/my-timesheet", hint: "Your hours, leave, expenses, vehicle & notes", accent: "#2E68FF",
         subItems: [
+          { key: "mytimesheet", label: "Timesheet", icon: "clock", href: "/dashboard/my-timesheet", hint: "Your hours & submissions", accent: "#2E68FF" },
           { key: "myleave", label: "Leave", icon: "calendar", href: "/dashboard/my-leave", hint: "Book leave & see balances", accent: "#00A389" },
+          // Ungated like the rest of this card: spending your own money on
+          // the job and asking for it back is not a privilege.
+          { key: "myexpenses", label: "Expenses", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#8A2BE2" },
+          { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
+          /* The note cascade's floor, and the whole reason it may be a
+             destination at all: a note that couldn't be filed against a job or
+             handed to somebody as a task lands here, where its author reads
+             it. */
+          { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Anything that didn't belong to a job", accent: "#007FA8" },
         ] },
-      { key: "myvehicle", label: "Vehicle", icon: "truck", href: "/dashboard/my-vehicle", hint: "Your vehicle, fuel & issues", accent: "#FF8A00" },
-      // Ungated like the rest of this group: spending your own money on the
-      // job and asking for it back is not a privilege.
-      { key: "myexpenses", label: "Expenses", icon: "receipt", href: "/dashboard/my-expenses", hint: "Claim money you've spent", accent: "#8A2BE2" },
-      /* The note cascade's floor, and the whole reason it may be a
-         destination at all: a note that couldn't be filed against a job or
-         handed to somebody as a task lands here, where its author reads it.
-         Ungated like the rest of Personal — writing yourself a note is the
-         least privileged thing in the app. */
-      { key: "mynotes", label: "Notes", icon: "note", href: "/dashboard/my-notes", hint: "Anything that didn't belong to a job", accent: "#007FA8" },
     ],
   },
   {

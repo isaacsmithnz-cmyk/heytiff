@@ -212,12 +212,9 @@ describe("capability gating", () => {
     // Workspace — so the whole group falls away for them.
     const groups = navGroupsFor(viewer("staff"));
     expect(groups.map((g) => g.label)).toEqual(["Workspace", "Personal"]);
-    expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual([
-      "mytimesheet",
-      "myvehicle",
-      "myexpenses",
-      "mynotes",
-    ]);
+    // ONE row now — Timesheet, Leave, Expenses, Vehicle and Notes are five
+    // faces of the Me card, not five rows of the rail.
+    expect(groups.find((g) => g.label === "Personal")?.items.map((i) => i.key)).toEqual(["me"]);
     expect(groups.every((g) => g.items.length > 0)).toBe(true);
 
     // …and an admin, who does hold Operations entries, keeps the group.
@@ -246,9 +243,13 @@ describe("capability gating", () => {
   it("Personal is ungated — every viewer keeps their own timesheet, vehicle and expenses", () => {
     for (const role of ["staff", "admin", "owner"] as const) {
       expect(navGroupsFor(viewer(role)).find((g) => g.label === "Personal")?.items.map((i) => i.key))
-        .toEqual(["mytimesheet", "myvehicle", "myexpenses", "mynotes"]);
-      // …and leave stays reachable from ⌘K, riding on the timesheet entry
-      expect(navFor(viewer(role)).map((n) => n.key)).toContain("myleave");
+        .toEqual(["me"]);
+      /* One ROW, and every face still its own ⌘K result — the whole point of
+         folding onto a card rather than deleting doors. Typing "leave",
+         "expenses" or "notes" must still find them. */
+      expect(navFor(viewer(role)).map((n) => n.key)).toEqual(
+        expect.arrayContaining(["me", "mytimesheet", "myleave", "myexpenses", "myvehicle", "mynotes"])
+      );
     }
     // revoking the team-wide screens doesn't touch your own
     expect(keys({ caps: resolve("owner", { assets_all: false, timepay_all: false }), role: "owner" }))
@@ -285,15 +286,19 @@ describe("isActive", () => {
   it("keeps an entry lit on its tabbed faces — the row is the section", () => {
     // Without this the rail would go dark the moment you hit the Leave tab,
     // reading as "you have navigated out of Timesheet" when you have not.
-    const sheet = byKey("mytimesheet");
-    expect(isActive(sheet, "/dashboard/my-timesheet")).toBe(true);
-    expect(isActive(sheet, "/dashboard/my-leave")).toBe(true);
-    expect(isActive(sheet, "/dashboard/my-expenses")).toBe(false);
-    expect(isActive(sheet, "/dashboard/timepay/leave")).toBe(false);
+    const me = byKey("me");
+    for (const face of ["my-timesheet", "my-leave", "my-expenses", "my-vehicle", "my-notes"]) {
+      expect(isActive(me, `/dashboard/${face}`)).toBe(true);
+    }
+    // …and the manager-side twins are a different row entirely
+    expect(isActive(me, "/dashboard/timepay/leave")).toBe(false);
+    expect(isActive(me, "/dashboard/assets")).toBe(false);
   });
 
   it("does not let a face bleed onto a neighbouring entry", () => {
-    // /dashboard/my-leave must not also light Vehicle or Expenses.
+    // A face lights only its own route — /dashboard/my-leave must not also
+    // match Vehicle or Expenses, which is what would let two ⌘K results claim
+    // the same screen.
     for (const key of ["myvehicle", "myexpenses"]) {
       expect(isActive(byKey(key), "/dashboard/my-leave")).toBe(false);
     }

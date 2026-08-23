@@ -9,12 +9,12 @@ import type { TimepaySection } from "@/lib/timepay/section";
 
 /* The three faces of team Time & Pay, on one card — SWITCHED ON THE CLIENT.
 
-   Same conversion as `my-time-screen.tsx`, for the same reason: these were
+   Same conversion as `me-screen.tsx`, for the same reason: these were
    sibling routes joined by BoardTabs, and every tab click round-tripped the
    server — a page reload next to Team's instant switcher (Isaac, 2026-08-22,
    prod walk). All three payloads arrive with the page now and the switch is
    pure state — and ONLY state: the URL deliberately stays wherever you
-   entered. See my-time-screen.tsx for the wreck the first cut made of this —
+   entered. See me-screen.tsx for the wreck the first cut made of this —
    the dashboard shell keys its outlet on the pathname, so a cross-path
    replaceState remounts the page and resets the open tab. Team's switcher
    never touches the URL; this copies it exactly. The three real routes —
@@ -57,7 +57,7 @@ export function TimepayScreen({
               { key: "expenses", label: "Expenses" },
             ]}
           />
-          {/* No `key`, no `.psec2` — see my-time-screen.tsx: the pair made
+          {/* No `key`, no `.psec2` — see me-screen.tsx: the pair made
               every switch unmount the face and fade it back in, which reads
               as the content flashing. The thumb slide is the only motion. */}
           <section

@@ -77,11 +77,22 @@ export function Sidebar({
 
       <div className="nav no-sb">
         {groups.map((group) => (
-          <div className="navgrp" key={group.label}>
-            <div className="navlbl">
-              <span />
-              {group.label}
-            </div>
+          /* THE GROUP HEADING IS GONE — the word is the group's ACCESSIBLE
+             NAME now, and a hairline says where one list ends.
+
+             WORKSPACE / PERSONAL / OPERATIONS cost 31px each on a rail that
+             does not fit: an owner's nav needs 999px and a 900px window shows
+             733 of it, so the bottom of Operations — Admin included — sat
+             below a fold with no scrollbar to admit it (`.nav` is `.no-sb`).
+             Three headings, three group gaps and the row padding were 293px of
+             that, and these were the cheapest of the three: the stylesheet
+             already called them the least readable text in the app at 2.53:1,
+             and every word they said the icons below them say again.
+
+             `role="group"` + `aria-label` keeps the grouping for anyone
+             listening to it — what leaves is the drawn text, not the
+             structure. */
+          <div className="navgrp" key={group.label} role="group" aria-label={group.label}>
             {group.items.map((n) => {
               const on = isActive(n, pathname);
               return (

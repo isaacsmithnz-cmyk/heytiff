@@ -13,11 +13,35 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { displayNameOf } from "@/lib/staff/name";
 import { isImage } from "@/lib/documents/files";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
-import { isExpenseCategory, isExpenseStatus, type Claim } from "./claim";
+import {
+  isExpenseCategory,
+  isExpenseStatus,
+  isJobKind,
+  isPaidWith,
+  type Claim,
+  type JobLink,
+} from "./claim";
+
+/* The job a row is against. NO JOIN — `job_label` is a snapshot taken when the
+   row was filed, for the reason the migration spells out: this records which
+   job the money went on at the time, and most rows now carry one, so resolving
+   three tables per read would be both wrong and expensive.
+
+   A half-written link reads as no link rather than as an error. The column
+   constraint refuses one, so seeing it here means somebody wrote the table by
+   hand, and a row that still has a description and an amount on it is worth
+   showing without its job. */
+function toJob(row: Record<string, unknown>): JobLink | null {
+  const kind = row.job_kind;
+  const id = row.job_id;
+  if (!isJobKind(kind) || !id) return null;
+  return { kind, id: String(id), label: String(row.job_label ?? "") };
+}
 
 const COLUMNS =
   "id, staff_profile_id, expense_date, description, category, amount, gst_amount, " +
-  "supplier, status, review_note, created_at, vehicle_log_id";
+  "supplier, paid_with, status, review_note, created_at, vehicle_log_id, " +
+  "job_kind, job_id, job_label";
 
 /** A claim plus who made it — the review queue needs the name, the person's
     own list already knows. */
@@ -26,9 +50,14 @@ export type TeamClaim = Claim & { staffName: string };
 function toClaim(row: Record<string, unknown>): Claim | null {
   const category = row.category;
   const status = row.status;
-  // A row whose category or status we don't recognise is a row written by
-  // something newer than this code. Dropping it beats rendering it wrong.
+  /* A row whose category, status or payer we don't recognise is a row written
+     by something newer than this code. Dropping it beats rendering it wrong —
+     and `paid_with` earns its place in that list more than the other two:
+     guessing it wrong means showing a claim as settled, or asking for money
+     that was never spent. */
   if (!isExpenseCategory(category) || !isExpenseStatus(status)) return null;
+  const paidWith = row.paid_with ?? "own";
+  if (!isPaidWith(paidWith)) return null;
 
   return {
     id: String(row.id),
@@ -39,6 +68,8 @@ function toClaim(row: Record<string, unknown>): Claim | null {
     amount: Number(row.amount ?? 0),
     gstAmount: row.gst_amount === null || row.gst_amount === undefined ? null : Number(row.gst_amount),
     supplier: (row.supplier as string | null) ?? null,
+    paidWith,
+    job: toJob(row),
     status,
     reviewNote: (row.review_note as string | null) ?? null,
     createdAt: String(row.created_at ?? ""),

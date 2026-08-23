@@ -6,9 +6,17 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
-import { buildClaim, canTransition, isExpenseStatus, type ClaimInput } from "@/lib/expenses/claim";
+import {
+  buildClaim,
+  canTransition,
+  isExpenseStatus,
+  isJobKind,
+  type ClaimInput,
+  type JobKind,
+  type JobLink,
+} from "@/lib/expenses/claim";
 
-/* Expense-claim mutations — reimbursing a person for money they spent.
+/* Expense mutations — reimbursing a person, and filing what the card bought.
 
    THE SAME THREE TIERS AS LEAVE, deliberately: this is the same kind of object,
    and a second approval model would drift from the proven one.
@@ -20,11 +28,103 @@ import { buildClaim, canTransition, isExpenseStatus, type ClaimInput } from "@/l
      PAY     mark reimbursed. Needs `financials`, because it records that money
              moved — a manager can approve the spend without touching payroll.
 
+   A COMPANY-CARD RECEIPT USES THE FIRST TIER AND NEVER THE OTHER TWO. It is
+   born `recorded` — see `initialStatus` — and `recorded` has no edge to
+   `approved` or `reimbursed` in the transition table, so REVIEW and PAY refuse
+   one without either of them needing to know it exists. That is on purpose:
+   the alternative is two screens each remembering to check `paidWith`, and one
+   of them eventually forgetting and paying somebody for the company's own
+   money.
+
    Every status change goes through canTransition(), so "already decided" and
    "already paid" are refusals rather than silent overwrites. The UI is not a
    control: everything is re-decided here. */
 
 export type ExpenseResult = { ok: true } | { ok: false; error: string };
+
+/* WHICH JOB, RESOLVED HERE AND NOWHERE ELSE.
+
+   The browser sends a kind and an id. Both are claims about somebody else's
+   data until a row in THIS org proves otherwise, so the id is looked up before
+   anything is written — an id belonging to another workspace resolves to
+   nothing and the submit is refused, rather than filing a cost against a job
+   the person cannot see.
+
+   THE LABEL IS BUILT FROM THE ROW, never taken from the request. It is a
+   snapshot that will be printed on a screen for as long as the receipt exists;
+   a caller who could set it could write anything into somebody's expense list.
+
+   The three shapes match `jobCandidates` exactly — the picker that feeds this
+   — because a label that read differently after saving would look like the
+   wrong job had been picked. */
+async function resolveJobLink(
+  orgId: string,
+  job: { kind: string; id: string } | null | undefined,
+): Promise<{ link: JobLink | null } | { error: string }> {
+  if (!job) return { link: null };
+  if (!isJobKind(job.kind) || !job.id) return { error: "Pick the job again." };
+
+  const kind: JobKind = job.kind;
+  if (kind === "project") {
+    const { data } = await supabaseAdmin
+      .from("projects")
+      .select("id, name, client_name")
+      .eq("org_id", orgId)
+      .eq("id", job.id)
+      .maybeSingle();
+    if (!data) return { error: "That job isn't in this workspace." };
+    const r = data as { name: string; client_name: string | null };
+    return { link: { kind, id: job.id, label: label(r.client_name, r.name) } };
+  }
+
+  if (kind === "agreement") {
+    const { data } = await supabaseAdmin
+      .from("maintenance_agreements")
+      .select("id, label, client_name")
+      .eq("org_id", orgId)
+      .eq("id", job.id)
+      .maybeSingle();
+    if (!data) return { error: "That job isn't in this workspace." };
+    const r = data as { label: string; client_name: string };
+    return { link: { kind, id: job.id, label: label(r.client_name, r.label) } };
+  }
+
+  /* A visit's name lives on its agreement, so this is two reads — and the job
+     NUMBER leads when there is one, because that is what is written on the
+     paperwork the person is holding. */
+  const { data: visit } = await supabaseAdmin
+    .from("maintenance_visits")
+    .select("id, agreement_id, job_number, job_no")
+    .eq("org_id", orgId)
+    .eq("id", job.id)
+    .maybeSingle();
+  if (!visit) return { error: "That job isn't in this workspace." };
+  const v = visit as { agreement_id: string; job_number: string | null; job_no: number | null };
+
+  const { data: agreement } = await supabaseAdmin
+    .from("maintenance_agreements")
+    .select("label, client_name")
+    .eq("org_id", orgId)
+    .eq("id", v.agreement_id)
+    .maybeSingle();
+  const a = (agreement ?? null) as { label: string; client_name: string } | null;
+
+  /* `job_number` is ServiceM8's text; `job_no` is ours (#1001 up) and a
+     NUMBER column. Typing them the same is how a number reaches a string
+     field — the same note job-candidates.ts carries. */
+  const no = v.job_number ?? (v.job_no === null ? null : String(v.job_no));
+  const named = label(a?.client_name ?? null, a?.label ?? "Visit");
+  return { link: { kind, id: job.id, label: no ? `#${no} · ${named}` : named } };
+}
+
+/** "Client · what the work is", the shape the picker shows. A job whose client
+    IS its name (an unnamed project) says it once rather than twice. */
+function label(clientName: string | null, name: string): string {
+  const client = (clientName ?? "").trim();
+  const what = (name ?? "").trim();
+  if (!client || client === what) return what || client;
+  return `${client} · ${what}`;
+}
 
 type Ctx = { orgId: string; staffId: string | null };
 
@@ -41,20 +141,30 @@ function refresh() {
   revalidatePath("/dashboard/timepay");
 }
 
-/** The most receipts one claim can carry. A claim is one purchase; several
-    pages of the same receipt is the case this allows for, not a folder. */
+/** The most receipts one row can carry. A row is one purchase; several pages
+    of the same receipt is the case this allows for, not a folder. */
 const MAX_RECEIPTS = 3;
 
 /* ---------------- your own claim ---------------- */
 
 export async function submitClaim(
-  input: ClaimInput & { documentIds?: string[] }
+  input: Omit<ClaimInput, "job"> & {
+    documentIds?: string[];
+    /** kind + id only — the label is built here, from the row. */
+    job?: { kind: string; id: string } | null;
+  }
 ): Promise<ExpenseResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
 
+  /* The job is resolved BEFORE the row is built, so an id from another
+     workspace stops the submit rather than being stripped out of it — filing
+     the receipt against no job at all would look like it worked. */
+  const job = await resolveJobLink(ctx.orgId, input.job);
+  if ("error" in job) return { ok: false, error: job.error };
+
   // Every rule the form applied, applied again — the form is a courtesy.
-  const built = buildClaim(input, todayInAu());
+  const built = buildClaim({ ...input, job: job.link }, todayInAu());
   if ("error" in built) return { ok: false, error: built.error };
 
   const { data, error } = await supabaseAdmin
@@ -63,7 +173,15 @@ export async function submitClaim(
     .select("id")
     .maybeSingle();
 
-  if (error || !data) return { ok: false, error: "Couldn't submit that claim." };
+  if (error || !data) {
+    return {
+      ok: false,
+      error:
+        built.row.paid_with === "company"
+          ? "Couldn't save that receipt."
+          : "Couldn't submit that claim.",
+    };
+  }
 
   /* Adopt the receipts, the way notices claim their attachments. Every clause
      matters: only this org's documents, only ones THIS person uploaded, only

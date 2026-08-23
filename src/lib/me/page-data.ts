@@ -6,6 +6,7 @@ import { loadMyTimesheet } from "@/lib/timepay/page-data";
 import { loadMyLeave } from "@/lib/timepay/leave-page";
 import { myClaims } from "@/lib/expenses/query";
 import { listArchivedNotes, listMyNotes } from "@/lib/notes/my-notes-query";
+import { jobCandidates } from "@/lib/dashboard/job-candidates";
 
 /* EVERYTHING THAT IS YOURS, LOADED ONCE.
 
@@ -35,6 +36,11 @@ export type MeData = {
   claims: Awaited<ReturnType<typeof myClaims>>;
   notes: Awaited<ReturnType<typeof listMyNotes>>;
   archived: Awaited<ReturnType<typeof listArchivedNotes>>;
+  /* The open work a receipt can be filed against. The SAME list the note
+     capture picks from — three narrow selects, no joins, and Home already
+     rides it on every load, so "which job" costs the same here as it does
+     there and both screens agree about what an open job is. */
+  jobs: Awaited<ReturnType<typeof jobCandidates>>;
   /** null = no staff card yet; the faces that need one say so. */
   staffId: string | null;
   today: string;
@@ -46,14 +52,15 @@ export async function loadMe(period?: string): Promise<MeData> {
   const userId = session?.user?.sub as string | undefined;
   const staffId = orgId && userId ? await staffProfileIdFor(orgId, userId) : null;
 
-  const [timesheet, leave, fleet, claims, notes, archived] = await Promise.all([
+  const [timesheet, leave, fleet, claims, notes, archived, jobs] = await Promise.all([
     loadMyTimesheet(period),
     loadMyLeave(),
     loadFleetPage({ withRegister: false }),
     orgId && staffId ? myClaims(orgId, staffId) : Promise.resolve([]),
     orgId && staffId ? listMyNotes(orgId, staffId) : Promise.resolve([]),
     orgId && staffId ? listArchivedNotes(orgId, staffId) : Promise.resolve([]),
+    orgId ? jobCandidates(orgId) : Promise.resolve([]),
   ]);
 
-  return { timesheet, leave, fleet, claims, notes, archived, staffId, today: todayInAu() };
+  return { timesheet, leave, fleet, claims, notes, archived, jobs, staffId, today: todayInAu() };
 }

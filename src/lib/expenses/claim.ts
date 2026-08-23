@@ -1,8 +1,22 @@
-/* Expense claims — the rules, pure.
+/* Expenses — the rules, pure.
 
-   A claim is money a staff member spent from their own pocket and wants back.
-   Not the business's own bills: those live in Xero and reach the Rate
-   Calculator as overheads. A reimbursement is owed to a PERSON.
+   TWO THINGS LIVE IN THIS TABLE, and `paidWith` is the whole difference.
+
+   A CLAIM is money a staff member spent from their own pocket and wants back.
+   It is owed to a PERSON, so it has an approval, a decision and a payment.
+
+   A COMPANY RECORD is a receipt for something bought on the company's own card
+   — the drill somebody picked up on the way to a job. The money has already
+   left the business account, so nobody is owed anything and there is nothing
+   to approve; what is missing is the DOCKET. Xero sees a card transaction off
+   the bank feed with no receipt, no description and no category, and the one
+   person who can supply all three is standing at the trade counter holding a
+   phone. That is the same spend this table was built to catch, arriving by a
+   different route (Isaac, 2026-08-23).
+
+   Still not the business's own bills: rent, insurance, subscriptions live in
+   Xero and reach the Rate Calculator as overheads. The line is not "whose
+   money" — it is whether a receipt exists that only a phone will ever capture.
 
    Everything here is a rule the server enforces, kept separate from the action
    so each one can be tested on its own and so the screen can apply the same
@@ -45,17 +59,64 @@ export function isReadableReceipt(mediaType: string): boolean {
 export const EXPENSE_CATEGORIES = ["materials", "tools", "travel", "meals", "fuel", "other"] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
+/* WHOSE MONEY BOUGHT IT. The same question `vehicle_logs.paid_with` asks, in
+   the same two words, because it is the same question — and a fuel docket and
+   a trade-counter docket should not need two vocabularies. */
+export const PAID_WITH = ["own", "company"] as const;
+export type PaidWith = (typeof PAID_WITH)[number];
+
+export function isPaidWith(v: unknown): v is PaidWith {
+  return typeof v === "string" && (PAID_WITH as readonly string[]).includes(v);
+}
+
+/* WHAT IT WAS BOUGHT FOR.
+
+   The vocabulary is `workboard_notes.target_kind`'s, unchanged, because it is
+   the same act — pointing a captured thing at work — and two vocabularies for
+   one question is how a picker and a store stop agreeing. `JobCandidate.kind`
+   in workboard/note-match uses these three words too, which is what lets the
+   existing job picker feed this without a translation step.
+
+   OPTIONAL, and both kinds carry it. Plenty of spend belongs to the business
+   rather than to any one job — a new drill is the van's, not Tuesday's — and
+   "which job" has nothing to do with whose card paid: materials bought for
+   Northgate on a personal card are the same cost on the same job. */
+export const JOB_KINDS = ["project", "visit", "agreement"] as const;
+export type JobKind = (typeof JOB_KINDS)[number];
+
+export function isJobKind(v: unknown): v is JobKind {
+  return typeof v === "string" && (JOB_KINDS as readonly string[]).includes(v);
+}
+
+/** The job a row is against, as the screen reads it. `label` is a SNAPSHOT
+    taken when the row was filed — see the migration: what this records is
+    which job the money went on at the time, and re-deriving it from a job
+    since renamed would rewrite history under the person who filed it. */
+export type JobLink = { kind: JobKind; id: string; label: string };
+
 export const EXPENSE_STATUSES = [
   "pending",
   "approved",
   "declined",
   "reimbursed",
   "cancelled",
+  /* A company-card receipt is born here and stays here. It is not a claim
+     waiting on anybody: the money moved when the card was tapped, so there is
+     no decision to make and nothing to pay. Its author can still cancel it —
+     see TRANSITIONS. */
+  "recorded",
 ] as const;
 export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
 
 export function isExpenseCategory(v: unknown): v is ExpenseCategory {
   return typeof v === "string" && (EXPENSE_CATEGORIES as readonly string[]).includes(v);
+}
+
+/** The status a new row is born with, decided by who paid. Kept as a function
+    rather than a constant so the two facts can never drift apart: a company
+    row is `recorded`, an own-pocket row is `pending`, and nothing else. */
+export function initialStatus(paidWith: PaidWith): ExpenseStatus {
+  return paidWith === "company" ? "recorded" : "pending";
 }
 
 export function isExpenseStatus(v: unknown): v is ExpenseStatus {
@@ -80,6 +141,10 @@ export const STATUS_LABEL: Record<ExpenseStatus, string> = {
   declined: "Declined",
   reimbursed: "Reimbursed",
   cancelled: "Cancelled",
+  /* Not "Approved" and not "Paid" — both would be answering a question nobody
+     asked. What this row says is that the docket is filed and the business's
+     own card paid for it. */
+  recorded: "On the company card",
 };
 
 export type Claim = {
@@ -102,6 +167,10 @@ export type Claim = {
   amount: number;
   gstAmount: number | null;
   supplier: string | null;
+  /** Whose money. `own` is a claim; `company` is a receipt, already paid. */
+  paidWith: PaidWith;
+  /** The job it was bought for, or null — most spend is against no one job. */
+  job: JobLink | null;
   status: ExpenseStatus;
   reviewNote: string | null;
   createdAt: string;
@@ -125,18 +194,34 @@ const TRANSITIONS: Record<ExpenseStatus, ExpenseStatus[]> = {
   declined: [],
   reimbursed: [],
   cancelled: [],
+  /* A company record never becomes approved or reimbursed, and this table is
+     where that is enforced rather than in any screen: `decide()` and
+     `markReimbursed()` both ask here first, so an approver who somehow reaches
+     one gets a refusal instead of authorising a payment for money that never
+     left anybody's pocket.
+
+     Cancelled IS reachable, and has to be — a docket entered against the wrong
+     purchase can only be withdrawn by the person who entered it, and nothing
+     else in this app can remove it. */
+  recorded: ["cancelled"],
 };
 
 export function canTransition(from: ExpenseStatus, to: ExpenseStatus): boolean {
   return TRANSITIONS[from]?.includes(to) ?? false;
 }
 
-/** Can the claimant still take it back? Only while nobody has decided. */
+/** Can the person who raised it still take it back? While nobody has decided
+    — or, for a company record, at any point, because there is no decision
+    coming and a wrong docket would otherwise be permanent. */
 export function isCancellable(status: ExpenseStatus): boolean {
-  return status === "pending";
+  return canTransition(status, "cancelled");
 }
 
-/** Is this claim still someone's problem — i.e. does it belong in a queue? */
+/** Is this claim still someone's problem — i.e. does it belong in a queue?
+
+    `recorded` is deliberately not: nothing is owed and nobody is waiting, so a
+    company receipt must never reach the approver's queue or the owed total.
+    Every consumer of those two numbers gets that for free from this one line. */
 export function isOpen(status: ExpenseStatus): boolean {
   return status === "pending" || status === "approved";
 }
@@ -150,6 +235,18 @@ export type ClaimInput = {
   amount: number;
   gstAmount?: number | null;
   supplier?: string | null;
+  /* The job, already resolved. The SERVER builds this, never the browser: an
+     id off the wire is a claim about somebody else's data until a row in this
+     org proves otherwise, and the label is printed on a screen. See
+     `resolveJobLink` in actions/expenses.ts. */
+  job?: JobLink | null;
+  /* Absent means `own`, and that default is chosen for which way it FAILS.
+     Both directions have a wrong answer: a claim filed as company-paid leaves
+     somebody permanently out of their own money, and a card purchase filed as
+     a claim asks the business to pay twice. The second one lands in front of
+     an approver who can see the receipt and say no; the first is a silent row
+     nobody ever looks at again. So the default fails toward the human. */
+  paidWith?: string;
 };
 
 export type ClaimRow = {
@@ -159,11 +256,16 @@ export type ClaimRow = {
   amount: number;
   gst_amount: number | null;
   supplier: string | null;
+  paid_with: PaidWith;
+  status: ExpenseStatus;
+  job_kind: JobKind | "none";
+  job_id: string | null;
+  job_label: string | null;
 };
 
-/** The most anyone can claim in one go. Not a policy about spending — a guard
-    against a typo'd amount (a missing decimal point) reaching an approver as
-    though it were real. */
+/** The most anyone can put through in one go. Not a policy about spending — a
+    guard against a typo'd amount (a missing decimal point) reaching an
+    approver, or a tax report, as though it were real. */
 export const MAX_CLAIM = 100_000;
 
 /** How far back a receipt can be dated. Generous enough for a glovebox find,
@@ -186,14 +288,14 @@ export function buildClaim(
 
   const amount = round2(Number(input.amount));
   if (!Number.isFinite(amount) || amount <= 0) return { error: "Enter how much it cost." };
-  if (amount > MAX_CLAIM) return { error: "That's larger than a claim can be — check the amount." };
+  if (amount > MAX_CLAIM) return { error: "That's larger than a receipt can be — check the amount." };
 
   const date = (input.expenseDate ?? "").slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Pick the date on the receipt." };
   if (date > today) return { error: "That date is in the future." };
   const ageDays = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86_400_000;
   if (!Number.isFinite(ageDays)) return { error: "Pick the date on the receipt." };
-  if (ageDays > MAX_AGE_DAYS) return { error: "That receipt is too old to claim." };
+  if (ageDays > MAX_AGE_DAYS) return { error: "That receipt is too old to file." };
 
   /* GST above the total is arithmetically impossible and always a scan
      mis-read — refuse it rather than storing a figure that would make a BAS
@@ -208,6 +310,19 @@ export function buildClaim(
 
   const supplier = (input.supplier ?? "").trim().slice(0, 120) || null;
 
+  /* An unrecognised value is REFUSED rather than falling back to `own`. This
+     one field decides whether the business is asked for money, and a silent
+     fallback on a typo'd string is exactly how it would be asked wrongly. */
+  const paidWith = input.paidWith ?? "own";
+  if (!isPaidWith(paidWith)) return { error: "Say who paid for it." };
+
+  /* A job is optional, and an ABSENT one is the common answer rather than a
+     missing one. What is refused is a HALF link — a kind with no id, or an id
+     with no kind — because neither is a state any reader can do anything with,
+     and the column constraint refuses them anyway. */
+  const job = input.job ?? null;
+  if (job && (!isJobKind(job.kind) || !job.id)) return { error: "Pick the job again." };
+
   return {
     row: {
       expense_date: date,
@@ -216,6 +331,11 @@ export function buildClaim(
       amount,
       gst_amount: gst,
       supplier,
+      paid_with: paidWith,
+      status: initialStatus(paidWith),
+      job_kind: job ? job.kind : "none",
+      job_id: job ? job.id : null,
+      job_label: job ? job.label.slice(0, 160) : null,
     },
   };
 }

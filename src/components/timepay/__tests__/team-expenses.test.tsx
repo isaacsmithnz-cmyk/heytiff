@@ -18,6 +18,8 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
 const claim = (o: Partial<TeamClaim> & { id: string; status: TeamClaim["status"] }): TeamClaim => ({
   staffProfileId: "s1",
   staffName: "Dan Smith",
+  paidWith: "own",
+  job: null,
   expenseDate: "2026-07-20",
   description: "Copper fittings",
   category: "materials",
@@ -198,6 +200,6 @@ describe("TeamExpenses — what it says", () => {
 
   it("says so plainly when there is nothing to review", () => {
     render(<TeamExpenses claims={[]} canApprove canPay />);
-    expect(screen.getByText("No expense claims yet")).toBeInTheDocument();
+    expect(screen.getByText("No expenses yet")).toBeInTheDocument();
   });
 });

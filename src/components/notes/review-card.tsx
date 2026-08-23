@@ -510,11 +510,18 @@ export function JobPicker({
   chosenId,
   onPick,
   onClose,
+  noneLabel = "Nothing in particular — keep it in my notes",
 }: {
   options: JobCandidate[];
   chosenId: string | null;
   onPick: (value: string) => void;
   onClose: () => void;
+  /* What the always-reachable "no job" option says. It defaults to the note
+     capture's words because that is where this control was born, but the words
+     name a DESTINATION — a note with no job goes to your own notes — and an
+     expense with no job goes nowhere in particular, it is simply not against a
+     job. Callers that are not filing a note say their own. */
+  noneLabel?: string;
 }) {
   const [q, setQ] = useState("");
   const found = useMemo(() => searchJobs(q, options), [q, options]);
@@ -547,7 +554,7 @@ export function JobPicker({
           className={"wb2-jobopt" + (!chosenId ? " on" : "")}
           onClick={() => onPick("")}
         >
-          Nothing in particular — keep it in my notes
+          {noneLabel}
         </button>
         {found.map((o) => (
           <button

@@ -122,7 +122,7 @@ it("keeps each face's own pair on an in-panel switch, not a second card strip", 
   // …and switching the CARD's face does not leave the old switch behind
   await user.click(within(strip()).getByRole("tab", { name: "Expenses" }));
   expect(screen.queryByRole("tablist", { name: "Your notes" })).toBeNull();
-  expect(screen.getByRole("tablist", { name: "Your expense claims" })).toBeTruthy();
+  expect(screen.getByRole("tablist", { name: "Your expenses" })).toBeTruthy();
 });
 
 /* THE PANEL SWAPS IN PLACE — no remount, no fade. `key={tab}` + `.psec2`

@@ -8,6 +8,8 @@ import {
   polygonArea,
   polygonCentroid,
   polylineLength,
+  smoothedLength,
+  smoothPathD,
   unitsToMeters,
 } from "@/lib/studio/geometry";
 import { unitGlyph, type LayerFlags } from "../canvas";
@@ -134,7 +136,8 @@ export function PlanFigure({
   );
   const runs = onFloor.filter(
     (o): o is DesignObject & { geometry: { kind: "polyline"; points: Point[] } } =>
-      o.type === "pipe-run" && o.geometry.kind === "polyline"
+      (o.type === "pipe-run" || o.type === "drain-run" || o.type === "cable-run") &&
+      o.geometry.kind === "polyline"
   );
   const units = onFloor.filter(
     (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
@@ -165,7 +168,9 @@ export function PlanFigure({
         .ds-pf .ds-room polygon { fill: rgba(240,164,49,0.13); stroke: #d98f1f; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-room-name { fill: #0d1220; font-weight: 800; text-anchor: middle; }
         .ds-pf .ds-room-area { fill: #6a7284; font-weight: 600; text-anchor: middle; }
-        .ds-pf .ds-pipe polyline { fill: none; stroke: currentColor; stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-pipe polyline, .ds-pf .ds-pipe path { fill: none; stroke: currentColor; stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-pfdrain polyline { fill: none; stroke: currentColor; stroke-width: 2px; stroke-dasharray: 8 5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-pfcable path { fill: none; stroke: currentColor; stroke-width: 1.8px; stroke-dasharray: 2 5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pipe-len { fill: currentColor; text-anchor: middle; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
         .ds-pf .ds-unit rect { fill: #fff; stroke: currentColor; stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-unit-detail { fill: none; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
@@ -250,7 +255,10 @@ export function PlanFigure({
           );
         })}
 
-        {/* pipe runs — system colour, length when calibrated */}
+        {/* drawn runs (pipe/drain/cable) — system colour, length when
+            calibrated. Prints what the canvas shows: curved runs as the
+            smoothed spline, drains dashed with their size, cables dash-dot
+            with their kind. */}
         {layers.pipes &&
           runs.map((r) => {
             const pts = r.geometry.points;
@@ -259,17 +267,39 @@ export function PlanFigure({
               x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
               y: (pts[midI].y + pts[Math.min(midI + 1, pts.length - 1)].y) / 2,
             };
+            const curved =
+              r.type === "cable-run" || (r.type === "pipe-run" && r.props.form === "soft");
+            const cls =
+              r.type === "drain-run" ? "ds-pfdrain" : r.type === "cable-run" ? "ds-pfcable" : "ds-pipe";
+            const len = scale
+              ? formatMeters(
+                  unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), scale)
+                )
+              : null;
+            const tag =
+              r.type === "drain-run"
+                ? `Ø${Number(r.props.sizeMm) || 25} drain`
+                : r.type === "cable-run"
+                  ? r.props.kind === "data"
+                    ? "Data"
+                    : "Power"
+                  : null;
+            const label = [len, tag].filter(Boolean).join(" · ");
             return (
-              <g key={r.id} className="ds-pipe" style={{ color: colourOf(r) }}>
-                <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-                {scale && layers.labels && (
+              <g key={r.id} className={cls} style={{ color: colourOf(r) }}>
+                {curved ? (
+                  <path d={smoothPathD(pts)} />
+                ) : (
+                  <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                )}
+                {label && layers.labels && (
                   <text
                     x={mid.x}
                     y={mid.y - 7 * u}
                     fontSize={11 * u}
                     className="ds-pipe-len"
                   >
-                    {formatMeters(unitsToMeters(polylineLength(pts), scale))}
+                    {label}
                   </text>
                 )}
               </g>

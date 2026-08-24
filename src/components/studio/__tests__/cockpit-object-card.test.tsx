@@ -131,3 +131,52 @@ describe("Cockpit object card", () => {
     expect(cleared).toContain(null);
   });
 });
+
+/* ── the Draw families' cards — everything picked at draw is adjustable ── */
+describe("Cockpit object card — drawn runs", () => {
+  const drain: DesignObject = {
+    id: "drain1",
+    type: "drain-run",
+    systemId: "sys1",
+    floorId: "flr",
+    geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
+    plane: "room",
+    props: { sizeMm: 25 },
+  };
+  const cable: DesignObject = {
+    id: "cable1",
+    type: "cable-run",
+    systemId: "sys1",
+    floorId: "flr",
+    geometry: { kind: "polyline", points: [{ x: 0, y: 0 }, { x: 100, y: 40 }] },
+    plane: "room",
+    props: { kind: "power" },
+  };
+
+  it("a drain's size is picked at draw and re-pickable here", () => {
+    const doc = mkDoc([room("room1", "Living"), drain]);
+    let next: DesignDocument | undefined;
+    renderCockpit(doc, "drain1", { onMutate: (fn) => (next = fn(doc)) });
+    expect(screen.getByText("Drain", { selector: ".ds-ck-iname" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Pipe size" }), { target: { value: "40" } });
+    expect(next!.objects.find((o) => o.id === "drain1")!.props.sizeMm).toBe(40);
+  });
+
+  it("a cable's kind switches between power and data", () => {
+    const doc = mkDoc([room("room1", "Living"), cable]);
+    let next: DesignDocument | undefined;
+    renderCockpit(doc, "cable1", { onMutate: (fn) => (next = fn(doc)) });
+    expect(screen.getByText("Cable", { selector: ".ds-ck-iname" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("combobox", { name: "Carries" }), { target: { value: "data" } });
+    expect(next!.objects.find((o) => o.id === "cable1")!.props.kind).toBe("data");
+  });
+
+  it("a pipe-run's line sizes override the pairing's; blank returns to auto", () => {
+    const doc = mkDoc([room("room1", "Living"), run]);
+    let next: DesignDocument | undefined;
+    renderCockpit(doc, "run1", { onMutate: (fn) => (next = fn(doc)) });
+    const liquid = screen.getByRole("textbox", { name: "Liquid line (mm)" });
+    fireEvent.change(liquid, { target: { value: "9.52" } });
+    expect(next!.objects.find((o) => o.id === "run1")!.props.liquidMm).toBe(9.52);
+  });
+});

@@ -13,6 +13,7 @@ import {
 import { PACK_SECTIONS, emptyPack, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import {
+  pairPipeSizes,
   systemComponents,
   componentChoices,
   COMPONENT_CHOICES,
@@ -195,5 +196,40 @@ describe("component choice rows", () => {
     const choices = componentChoices(bad);
     expect(choices.electrical).toBe("isolator-20a"); // invalid → default
     expect(choices.mounting).toBe("wall-bracket"); // missing → default
+  });
+});
+
+/* ── pairPipeSizes — what a drawn pipe-run autosizes to ── */
+describe("pairPipeSizes", () => {
+  it("returns the pair row's line sizes once the pairing resolves", () => {
+    const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    const row = pack.pair_tables.find(
+      (p) => p.idu_model === "SLZ-M25FA-A" && p.odu_model === "SUZ-M25VAD-A"
+    )!;
+    expect(pairPipeSizes(doc, pack, system)).toEqual({
+      liquidMm: row.pipe_liquid_mm,
+      gasMm: row.pipe_gas_mm,
+    });
+  });
+
+  it("placed unit models win over settings", () => {
+    const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    doc.objects = [unit("i1", "idu", "PLA-M100EA2-A"), unit("o1", "odu", "PUZ-M100VKA-A")];
+    const row = pack.pair_tables.find(
+      (p) => p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A"
+    )!;
+    expect(pairPipeSizes(doc, pack, system)).toEqual({
+      liquidMm: row.pipe_liquid_mm,
+      gasMm: row.pipe_gas_mm,
+    });
+  });
+
+  it("is null before a pairing resolves, without a pack, or off the tables", () => {
+    const { doc, system } = docWith({});
+    expect(pairPipeSizes(doc, pack, system)).toBeNull();
+    const paired = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    expect(pairPipeSizes(paired.doc, null, paired.system)).toBeNull();
+    const unknown = docWith({ pairIdu: "NOPE-1", pairOdu: "NOPE-2" });
+    expect(pairPipeSizes(unknown.doc, pack, unknown.system)).toBeNull();
   });
 });

@@ -22,6 +22,9 @@ import {
   isAxisAlignedRect,
   rectDragVertex,
   boundingRect,
+  smoothPathD,
+  smoothedLength,
+  distToSmoothed,
   type Viewport,
 } from "../geometry";
 
@@ -281,5 +284,56 @@ describe("viewport", () => {
     // try to zoom way out; clamps at min, not the absolute MIN_ZOOM
     const out = zoomAt(start, { x: 400, y: 300 }, 1e-6, min);
     expect(out.zoom).toBe(min);
+  });
+});
+
+/* ── Smoothed runs (Draw tools) — the spline the soft pipe / cable renders ── */
+describe("smoothed runs", () => {
+  const dots = [
+    { x: 0, y: 0 },
+    { x: 100, y: 80 },
+    { x: 220, y: 20 },
+  ];
+
+  it("smoothPathD passes through every placed dot", () => {
+    const d = smoothPathD(dots);
+    // M at the first dot, one C per segment, each landing on the next dot
+    expect(d.startsWith("M 0 0")).toBe(true);
+    expect(d).toContain("100 80");
+    expect(d.endsWith("220 20")).toBe(true);
+    expect(d.match(/C /g)).toHaveLength(2);
+  });
+
+  it("smoothPathD of two dots is the straight line between them", () => {
+    const d = smoothPathD([dots[0], dots[2]]);
+    expect(smoothedLength([dots[0], dots[2]])).toBeCloseTo(
+      polylineLength([dots[0], dots[2]]),
+      6
+    );
+    expect(d.startsWith("M 0 0")).toBe(true);
+  });
+
+  it("a curve through a bend is longer than its chords, shorter than absurd", () => {
+    const curveLen = smoothedLength(dots);
+    const chordLen = polylineLength(dots);
+    expect(curveLen).toBeGreaterThan(chordLen);
+    expect(curveLen).toBeLessThan(chordLen * 1.5);
+  });
+
+  it("collinear dots smooth to the straight line (no invented wiggle)", () => {
+    const line = [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 200, y: 0 },
+    ];
+    expect(smoothedLength(line)).toBeCloseTo(200, 4);
+  });
+
+  it("distToSmoothed is ~0 on a dot and near the chord midpoint offset off-curve", () => {
+    expect(distToSmoothed(dots[1], dots)).toBeLessThan(0.5);
+    // far away is far
+    expect(distToSmoothed({ x: 0, y: 500 }, dots)).toBeGreaterThan(300);
+    // one dot degenerates to point distance
+    expect(distToSmoothed({ x: 3, y: 4 }, [{ x: 0, y: 0 }])).toBeCloseTo(5, 6);
   });
 });

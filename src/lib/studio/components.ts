@@ -128,6 +128,24 @@ function resolvePair(
   return { iduModel, oduModel };
 }
 
+/** Refrigerant line sizes for the system's resolved pairing — what a drawn
+    run autosizes to (pipe-run props override per run; blank = these). Null
+    until a pairing resolves or when the pack has no row for it. */
+export function pairPipeSizes(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  system: DesignSystem
+): { liquidMm: number; gasMm: number } | null {
+  if (!pack) return null;
+  const pair = resolvePair(doc, system);
+  if (!pair) return null;
+  const row = pack.pair_tables.find(
+    (p) => p.idu_model === pair.iduModel && p.odu_model === pair.oduModel
+  );
+  if (!row) return null;
+  return { liquidMm: row.pipe_liquid_mm, gasMm: row.pipe_gas_mm };
+}
+
 const phaseLabel = (odu: OutdoorUnit): string => (odu.phase === "3" ? "3Ø" : "1Ø");
 
 function oduRow(

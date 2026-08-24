@@ -14,6 +14,7 @@ import userEvent from "@testing-library/user-event";
 import { createDesign, type DesignDocument } from "@/lib/studio/document";
 import type { SimApprovalState } from "@/lib/studio/sim-approval";
 import { SimApproveSwitch } from "../../sim-approve";
+import { NO_BRAND } from "@/lib/org/brand";
 import { SummaryView } from "../summary";
 
 /* Contributors resolves a lazily imported action after paint, and settling it
@@ -48,6 +49,7 @@ function renderSummary(simApproval: SimApprovalState, doc?: DesignDocument) {
   render(
     <SummaryView
       doc={doc ?? createDesign({ name: "Kembla St", mode: "blank", now: "2026-08-18T00:00:00.000Z" })}
+      brand={NO_BRAND}
       pack={null}
       onMutate={jest.fn()}
       onExportJson={jest.fn()}

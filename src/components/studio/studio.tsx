@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Icon } from "@/components/shell/icon";
+import type { OrgBrand } from "@/lib/org/brand";
 import { DotField } from "@/components/ui/dot-field";
 import { JobSearchField, type JobSearch } from "./job-search";
 export type { JobSearch };
@@ -67,6 +68,7 @@ import {
   type PlanImages,
 } from "@/lib/studio/plans";
 import { SummaryView } from "./summary/summary";
+import { useOrgBrand } from "./summary/use-org-brand";
 import type { SimReady } from "./summary/sim-card";
 import { buildSimModel } from "@/lib/studio/sim";
 import {
@@ -170,6 +172,7 @@ export function Studio({
   sm8Jobs,
   jobSearch,
   openDesignId,
+  brand: servedBrand,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
@@ -181,6 +184,13 @@ export function Studio({
   /** `?design=<id>` — open this design instead of landing on Home. What a
       link from the Workboard's job sheet arrives with. */
   openDesignId?: string;
+  /** The business's letterhead, READ ON THE SERVER by the route. Held here
+      rather than in the Summary sheet that renders it, because here is where
+      it can be in hand before the sheet is opened — the logo is primed into
+      the browser cache from the moment a design is, and the sheet's first
+      paint already carries its frame. Absent (the tests), the hook asks for
+      it itself. */
+  brand?: OrgBrand;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -196,6 +206,12 @@ export function Studio({
     () => planImages ?? new RemotePlanImages(),
     [planImages]
   );
+
+  /* THE LETTERHEAD IS HELD AT THE TOP, not by the sheet that prints it. Held
+     here it is in hand — and its logo already fetched — before Summary is
+     ever pressed, which is the difference between a document that opens
+     branded and one that opens plain and then reshapes around a frame. */
+  const brand = useOrgBrand(servedBrand);
 
   /* null = the list has not answered yet. THREE STATES, not two: loading,
      empty, and no-matches. Collapsing the first into the second is how the
@@ -532,6 +548,7 @@ export function Studio({
         {doc ? (
           <Editor
             doc={doc}
+            brand={brand}
             step={step}
             saveState={saveState}
             onStep={setStep}
@@ -968,6 +985,7 @@ function Home({
 
 function Editor({
   doc,
+  brand,
   step,
   saveState,
   onStep,
@@ -984,6 +1002,8 @@ function Editor({
   loadVariant,
 }: {
   doc: DesignDocument;
+  /** the business's letterhead, in hand from the route — see `Studio` */
+  brand: OrgBrand;
   step: number;
   saveState: "saved" | "saving" | "local";
   onStep: (i: number) => void;
@@ -1828,6 +1848,7 @@ function Editor({
         {step === 2 && (
           <SummaryView
             doc={doc}
+            brand={brand}
             pack={pack}
             onMutate={mutate}
             onExportJson={() => downloadDesign(doc)}

@@ -250,8 +250,14 @@ export async function clearOrgBrandColor(): Promise<SaveResult> {
    THE SUMMARY SHEET ASKS FOR LONGER. Printing happens seconds after the
    press, so the default hour is generous there; the sheet on screen is the
    same document sitting in a tab somebody leaves open, and its letterhead
-   would go to a broken image mid-afternoon. It signs for six hours and
-   re-signs when the tab is looked at again — see useOrgBrand.
+   would go to a broken image mid-afternoon. It signs for BRAND_TTL_S — six
+   hours — and re-signs when the tab is looked at again; see useOrgBrand.
+
+   IT NO LONGER ASKS AT MOUNT. The studio route reads the same brand on the
+   server and hands it down with the page, so the sheet opens branded rather
+   than opening plain and re-laying itself out around a frame that turned up
+   afterwards. What is left for this action is the re-sign on return, and the
+   Export card's own fresh mint at the moment of the press.
 
    `studio` is the gate because that is the screen that prints. It is on by
    default for every role and revocable, which is the same bar as reaching the

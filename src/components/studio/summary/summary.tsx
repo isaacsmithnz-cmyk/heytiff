@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { DesignDocument } from "@/lib/studio/document";
+import type { OrgBrand } from "@/lib/org/brand";
 import type { DataPack } from "@/lib/studio/packs/schema";
 import type { PlanImages } from "@/lib/studio/plans";
 import {
@@ -15,7 +16,6 @@ import type { SimReady } from "./sim-card";
 import { fmt } from "./sheet-tables";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PicklistPush } from "./picklist-push";
-import { useOrgBrand } from "./use-org-brand";
 import { ShareCard } from "./share-card";
 import { ContributorsCard } from "./contributors-card";
 import { ExportCard } from "./export-card";
@@ -44,6 +44,7 @@ function listFloors(floors: { name: string }[]): string {
 
 export function SummaryView({
   doc,
+  brand,
   pack,
   onMutate,
   onExportJson,
@@ -55,6 +56,9 @@ export function SummaryView({
   loadVariant,
 }: {
   doc: DesignDocument;
+  /** the business's letterhead — held by the studio, not read here: it has to
+      be in hand before this screen is opened, not after (see useOrgBrand) */
+  brand: OrgBrand;
   pack: DataPack | null;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   /** the .heytiff-design.json backup download */
@@ -73,7 +77,6 @@ export function SummaryView({
   const snapshot = useMemo(() => buildDesignSnapshot(doc), [doc]);
   const model = useMemo(() => buildSummaryModel(doc, pack), [doc, pack]);
   const basis = designBasis(doc);
-  const brand = useOrgBrand();
 
   /* "prepared" is when the design was last saved — the same date the
      customer's copy carries, from the same field, formatted the same way.

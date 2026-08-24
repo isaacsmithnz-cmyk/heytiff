@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { isProviderConnected } from "@/lib/integrations/store";
+import { orgBrand } from "@/lib/org/query";
+import { BRAND_TTL_S, NO_BRAND } from "@/lib/org/brand";
 import { Studio } from "@/components/studio/studio";
 
 // `studio` is on by default for every role but revocable — gate the route,
@@ -25,10 +27,22 @@ export default async function StudioPage({
      `workboard`, the same gate the Workboard's own job picker holds. */
   const session = await auth0.getSession();
   const orgId = session?.orgId as string | undefined;
-  const [sm8Connected, boardAccess, params] = await Promise.all([
+  /* THE LETTERHEAD COMES WITH THE PAGE. The Summary sheet is a document with
+     the business's mark on it and, if they have chosen a colour, a frame in
+     it — and both used to be asked for from the browser at the moment the
+     sheet mounted, so the document arrived plain and then re-laid itself out
+     around a frame that appeared a second later. Read here it is simply part
+     of the page, at the cost of nothing: this await runs beside the two that
+     were already here, so the route waits for the slowest, not the sum.
+
+     Signed for the same window the client re-signs for (see useOrgBrand), and
+     asked for only when there is a session to ask with — the redirect above
+     has already turned away anyone without one. */
+  const [sm8Connected, boardAccess, params, brand] = await Promise.all([
     orgId ? isProviderConnected(orgId, "servicem8") : Promise.resolve(false),
     can("workboard"),
     searchParams,
+    orgId ? orgBrand(orgId, { seconds: BRAND_TTL_S }) : Promise.resolve(NO_BRAND),
   ]);
 
   /* The id is a CHOICE handed in by whoever followed the link, so nothing
@@ -38,6 +52,10 @@ export default async function StudioPage({
   const openDesignId = typeof asked === "string" && asked ? asked : undefined;
 
   return (
-    <Studio sm8Jobs={sm8Connected && boardAccess} openDesignId={openDesignId} />
+    <Studio
+      sm8Jobs={sm8Connected && boardAccess}
+      openDesignId={openDesignId}
+      brand={brand}
+    />
   );
 }

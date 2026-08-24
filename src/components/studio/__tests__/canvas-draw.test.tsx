@@ -243,3 +243,61 @@ describe("Draw tools — each family renders its own mark", () => {
     expect(labels.some((l) => l?.includes("Ø9.5/15.9"))).toBe(true);
   });
 });
+
+/* ── ending a line: the double-click's own click must not leave a stub, and
+   Enter ends it with no click at all (Isaac, 2026-08-24 walk) ── */
+describe("Draw tools — ending a line", () => {
+  it("double-click collapses its own trailing duplicate dots before commit", () => {
+    const doc = mkDoc();
+    const c = captureCommit(doc);
+    const { svg } = renderCanvas({
+      doc,
+      tool: "cable",
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power" },
+      onMutate: c.onMutate,
+    });
+    // two real dots, then the double-click's own click lands 2px away — the
+    // browser fires click, click, dblclick at nearly the same spot
+    click(svg, sx(0), sy(0));
+    click(svg, sx(200), sy(80));
+    click(svg, sx(200), sy(82)); // the dblclick's first click
+    fireEvent.doubleClick(svg);
+    const o = lastObj(c.get());
+    expect(o.type).toBe("cable-run");
+    const pts = (o.geometry as { points: { x: number; y: number }[] }).points;
+    expect(pts).toHaveLength(2); // no tiny stub
+  });
+
+  it("a double-click that never travelled keeps drafting instead of committing a dot", () => {
+    const doc = mkDoc();
+    const c = captureCommit(doc);
+    const { svg } = renderCanvas({
+      doc,
+      tool: "cable",
+      draw: { pipeForm: "hard", drainMm: 25, cableKind: "power" },
+      onMutate: c.onMutate,
+    });
+    click(svg, sx(0), sy(0));
+    click(svg, sx(0), sy(2));
+    fireEvent.doubleClick(svg);
+    expect(c.get().objects).toHaveLength(0);
+  });
+
+  it("Enter ends the line without adding anything", () => {
+    const doc = mkDoc();
+    const c = captureCommit(doc);
+    const { svg } = renderCanvas({
+      doc,
+      tool: "pipe",
+      draw: { pipeForm: "soft", drainMm: 25, cableKind: "power" },
+      onMutate: c.onMutate,
+    });
+    click(svg, sx(0), sy(0));
+    click(svg, sx(150), sy(90));
+    fireEvent.keyDown(window, { key: "Enter" });
+    const o = lastObj(c.get());
+    expect(o.type).toBe("pipe-run");
+    expect(o.props.form).toBe("soft");
+    expect((o.geometry as { points: unknown[] }).points).toHaveLength(2);
+  });
+});

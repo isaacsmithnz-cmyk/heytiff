@@ -120,6 +120,8 @@ const GLYPHS = {
   bolt: { d: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>', sw: 1.8 },
   mount: { d: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.9 2.9-2.5-2.5 2.4-3.4Z"/>', sw: 1.8 },
   branch: { d: '<rect x="3" y="9" width="18" height="6" rx="1.5"/><path d="M7 9V6M12 9V6M17 9V6M7 15v3M12 15v3M17 15v3"/>', sw: 1.8 },
+  /* lagged pipe in section: the copper bore inside its insulation annulus */
+  insulation: { d: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>', sw: 1.8 },
   controller: { d: '<rect x="6" y="2" width="12" height="20" rx="3"/><circle cx="12" cy="9" r="2.3"/><path d="M9.5 15h5"/>', sw: 1.8 },
   configure: { d: '<path d="M4 7h16M4 17h16"/><circle cx="10" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>', sw: 2 },
   unitsq: { d: '<rect x="4" y="7" width="16" height="10" rx="2"/><path d="M4 12h16"/>', sw: 2 },

@@ -18,7 +18,7 @@
    Pure functions: (objects, floors) in → nodes/edges/paths out. No React. */
 
 import type { DesignObject, Floor } from "./document";
-import { polylineLength, unitsToMeters } from "./geometry";
+import { polylineLength, smoothedLength, unitsToMeters } from "./geometry";
 
 /* Attach kinds: unit/riser are live today (graph v0); fitting/spigot/grille
    are the Stage-7 duct anchors (ducted spec §13) — accepted now so duct-run
@@ -86,10 +86,13 @@ export function buildSystemGraph(
     const start = attachOf(o.props.startAttach);
     const end = attachOf(o.props.endAttach);
     const scale = floorById.get(o.floorId)?.scaleMmPerUnit ?? null;
-    const lengthM =
-      scale != null
-        ? unitsToMeters(polylineLength(o.geometry.points), scale)
-        : null;
+    // a soft-drawn run is the smoothed curve through its dots — the takeoff
+    // must measure the pipe that gets installed, not the chords between dots
+    const drawnUnits =
+      o.props.form === "soft"
+        ? smoothedLength(o.geometry.points)
+        : polylineLength(o.geometry.points);
+    const lengthM = scale != null ? unitsToMeters(drawnUnits, scale) : null;
     if (start && end && nodes.has(start.id) && nodes.has(end.id)) {
       edges.push({ id: o.id, a: start.id, b: end.id, lengthM, riseM: 0 });
     } else {

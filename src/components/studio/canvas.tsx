@@ -797,7 +797,10 @@ export function StudioCanvas({
     tool,
     pts: [],
   });
-  const draftPipe = runDraft.tool === tool ? runDraft.pts : [];
+  const draftPipe = useMemo(
+    () => (runDraft.tool === tool ? runDraft.pts : []),
+    [runDraft, tool]
+  );
   const setDraftPipe = useCallback(
     (v: Point[] | ((p: Point[]) => Point[])) =>
       setRunDraft((cur) => {
@@ -1942,6 +1945,20 @@ export function StudioCanvas({
     [activeSystemId, onMutate, floor.id, tool, draw, setDraftPipe]
   );
 
+  /* Enter finishes a drawn run open — the ending that can't misfire. The
+     double-click's own first click lands an extra dot (collapsed at commit,
+     see onDoubleClick), but a key adds nothing. */
+  useEffect(() => {
+    if (!isRunTool(tool)) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (e.key === "Enter") commitPipe(draftPipe, null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tool, draftPipe, commitPipe]);
+
   /* ── pointer handlers ── */
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
     const w = toWorld(e);
@@ -2527,9 +2544,17 @@ export function StudioCanvas({
       beginRoomAdjust(draftPoly, "poly");
       setDraftPoly([]);
     }
-    // double-click ends a drawn run without an end anchor (open run)
+    // double-click ends a drawn run without an end anchor (open run). Its own
+    // clicks landed as dots first, so the tail carries one or two duplicates
+    // within a click's travel of each other — collapse them before the commit
+    // or every run ends with an extra tiny stub.
     if (isRunTool(tool) && draftPipe.length >= 2) {
-      commitPipe(draftPipe, null);
+      const tol = (TAP_SLOP_PX * 1.5) / vp.zoom;
+      const pts = [...draftPipe];
+      while (pts.length >= 2 && dist(pts[pts.length - 1], pts[pts.length - 2]) <= tol)
+        pts.pop();
+      // everything collapsed into one spot: a dot is not a line — keep drafting
+      if (pts.length >= 2) commitPipe(pts, null);
     }
   };
 
@@ -2732,8 +2757,8 @@ export function StudioCanvas({
             icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
-                ? "Place dots — the line curves through them · double-click or an anchor ends it · Esc to cancel"
-                : "Click each corner · double-click or an anchor ends it · Esc to cancel",
+                ? "Place dots — the line curves through them · Enter, double-click or an anchor ends it · Esc to cancel"
+                : "Click each corner · Enter, double-click or an anchor ends it · Esc to cancel",
           }
       : tool === "set-north"
         ? floor.northPos

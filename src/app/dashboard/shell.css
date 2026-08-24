@@ -123,7 +123,7 @@
    sidebar's right edge (x=224), which would create a tonal step at the
    sidebar/topbar junction. Kept subtle around the logo. */
 .fg .side .glow { position:absolute; top:-170px; left:-160px; width:250px; height:250px; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.16; pointer-events:none; }
-.fg .brand { display:flex; align-items:center; gap:16px; padding:24px 24px 18px; position:relative; z-10:1; z-index:10; }
+.fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4.8px, 38px) 24px clamp(18px, 3vh - 3.6px, 28px); position:relative; z-10:1; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform .5s cubic-bezier(.22,1,.36,1); }
 .fg .ht-logo:hover svg { transform:scale(1.08); }
@@ -177,22 +177,32 @@
    They were also four of the seventeen white-alpha values the contrast sweep
    below had to reason about, on a surface where only three were real. */
 .fg .nav { flex:1; overflow-y:auto; padding:12px 20px 20px; position:relative; z-index:10; }
-/* THE RAIL HAS TO FIT. It never did: 13 rows and three headings needed 999px
-   of nav plus a 167px brand block, so a 900px window hid 266px of it and a 13"
-   laptop hid 366 — the whole Operations group, Admin included, below a fold
-   that `.no-sb` makes invisible (Isaac, 2026-08-23).
+/* THE RAIL HAS TO FIT — AND THEN IT HAS TO FILL. It never fit: 13 rows and
+   three headings needed 999px of nav plus a 167px brand block, so a 900px
+   window hid 266px of it and a 13" laptop hid 366 — the whole Operations
+   group, Admin included, below a fold that `.no-sb` makes invisible (Isaac,
+   2026-08-23). The compact sizes bought that back: headings and their gaps
+   −93, row padding and margins −144, the brand block −44. The hairline
+   replaces three words with one line and the grouping survives as
+   `aria-label` (sidebar.tsx).
 
-   What the sizes here buy, measured against this stylesheet at the real font:
-   the headings and their gaps −93, the row padding and margins −144, the brand
-   block −44. The hairline replaces three words with one line and the grouping
-   survives as `aria-label` (sidebar.tsx). */
-.fg .navgrp + .navgrp { margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.07); }
+   But a floor worn as a uniform is its own bug: on a 1080p screen the same
+   compaction parked the rail ~300px above the bottom of a frame it used to
+   fill (Isaac, 2026-08-23, second walk). So every vertical in the rail is a
+   clamp on vh now — `.fg` is `position:fixed; inset:0`, so 1vh IS 1% of the
+   frame. The floors are the compact sizes and hold to a 720px window
+   (709px of rail, measured); the ceilings land the rows back at their
+   original 56px by ~1080. Between the two it breathes continuously, and the
+   sum of the slopes is ~0.58vh per vh — the window always grows faster than
+   the rail, so no height between floor and ceiling can reopen the fold.
+   Change a coefficient and re-check that sum, not just the endpoints. */
+.fg .navgrp + .navgrp { margin-top:clamp(14px, 2.8vh - 6.2px, 26px); padding-top:clamp(14px, 2.8vh - 6.2px, 26px); border-top:1px solid rgba(255,255,255,.07); }
 /* `.navlbl` LIVED HERE — WORKSPACE / PERSONAL / OPERATIONS, at 2.53:1 until
    the contrast sweep lifted them to `--on-ink-q`. The rule is gone with the
    markup rather than left behind: a dead selector on this sheet is one shadow
    away from matching something else, which is exactly how `.fg .me` and
    `.ni .pdot` bit it twice already. `.sk-navlbl` went with it. */
-.fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:14px; padding:9px 16px; border-radius:14px; overflow:hidden; transition:background .5s; margin-bottom:2px; }
+.fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:14px; padding:clamp(9px, 1.5vh - 1.8px, 13px) 16px; border-radius:14px; overflow:hidden; transition:background .5s; margin-bottom:clamp(2px, 1vh - 5.2px, 6px); }
 .fg .ni:hover { background:rgba(255,255,255,.05); }
 .fg .ni .nibg { position:absolute; inset:0; background:linear-gradient(90deg,rgba(255,255,255,.1),transparent); border-left:2px solid var(--teal); opacity:0; transition:opacity .4s; }
 .fg .ni.on .nibg { opacity:1; }

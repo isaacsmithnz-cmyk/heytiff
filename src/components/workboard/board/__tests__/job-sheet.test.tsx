@@ -192,6 +192,25 @@ describe("the sheet renders what the mirror already held", () => {
     expect(link.getAttribute("href")).toBe("mailto:josh@lsdb.com.au");
   });
 
+  it("always chips the status, and wears the diary's reading when handed one", async () => {
+    /* the status chip used to appear only when it had a tone, which hid
+       exactly the statuses a reader arrives unsure about; and a block opened
+       from the Schedule hands the day's reading across, "!" included */
+    readMirrorJob.mockResolvedValueOnce(detail());
+    render(
+      <JobSheet
+        row={row()}
+        {...props}
+        scheduleState={{ kind: "late", word: "Nothing recorded yet" }}
+      />
+    );
+    await screen.findByText("18h 30m");
+    expect(screen.getByText("Work Order")).toBeInTheDocument();
+    const chip = screen.getByText("Nothing recorded yet");
+    expect(chip).toHaveClass("dan");
+    expect(chip.querySelector(".wb2-shbang")).not.toBeNull();
+  });
+
   it("wears the category colour as a dot, never as the chip surface", async () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     const { container } = render(<JobSheet row={row()} {...props} />);

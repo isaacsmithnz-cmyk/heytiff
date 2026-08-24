@@ -1,12 +1,12 @@
-/* One month of capacity — the Schedule month's read.
+/* One window of capacity — the Schedule's rolling four weeks' read.
 
    THE DECISIONS LIVE IN capacity.ts (pure, tested); this file only fetches,
    joins the names, and hands over rows — the loadScheduleDay contract,
    repeated. Names are joined in app code, not SQL: the mirror has no foreign
    keys by doctrine.
 
-   DATES ARE STRINGS. The month's bounds are naive local text compared
-   lexicographically — `[first 00:00:00, first-of-next 00:00:00)` — never
+   DATES ARE STRINGS. The window's bounds are naive local text compared
+   lexicographically — `[start 00:00:00, start+28d 00:00:00)` — never
    Dates, for the reason stamped on every file that touches this mirror.
 
    THE ALLOCATION LIST IS THE CREW, NOT THE MIRROR. Two things are read here
@@ -22,16 +22,16 @@
    all-jobs-query.ts says. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { type CapacityAllocation } from "./capacity";
+import { CAPACITY_WINDOW_DAYS, daysFrom, type CapacityAllocation } from "./capacity";
 import { type ScheduleActivity } from "./schedule";
 
 /** The default day for somebody who has never been set: eight hours. */
 export const DEFAULT_DAILY_MINUTES = 480;
 
 export type CapacityPayload = {
-  /** Any day in the month this payload covers — the caller's own anchor,
-      echoed back so a stale response can be told from a current one exactly as
-      the day rail tells them apart. */
+  /** The first day of the window this payload covers — the caller's own
+      anchor, echoed back so a stale response can be told from a current one
+      exactly as the day rail tells them apart. */
   anyDayISO: string;
   activities: ScheduleActivity[];
   allocation: CapacityAllocation[];
@@ -46,23 +46,14 @@ export const EMPTY_CAPACITY: CapacityPayload = {
   staffNames: [],
 };
 
-/** '2026-08-20' → '2026-08-01' and '2026-09-01'. Sliced, never parsed. */
-function monthBounds(anyDayISO: string): { floor: string; ceil: string } {
-  const y = Number(anyDayISO.slice(0, 4));
-  const m = Number(anyDayISO.slice(5, 7));
-  const nextY = m === 12 ? y + 1 : y;
-  const nextM = m === 12 ? 1 : m + 1;
-  return {
-    floor: `${anyDayISO.slice(0, 7)}-01 00:00:00`,
-    ceil: `${nextY}-${String(nextM).padStart(2, "0")}-01 00:00:00`,
-  };
-}
-
-export async function loadCapacityMonth(
+export async function loadCapacityWindow(
   orgId: string,
-  anyDayISO: string
+  startISO: string
 ): Promise<CapacityPayload> {
-  const { floor, ceil } = monthBounds(anyDayISO);
+  /* [start, start+28d) — daysFrom's own arithmetic, so the fetch's bounds and
+     the scorer's day list can never cover different windows */
+  const floor = `${startISO} 00:00:00`;
+  const ceil = `${daysFrom(startISO, CAPACITY_WINDOW_DAYS + 1)[CAPACITY_WINDOW_DAYS]} 00:00:00`;
 
   const [{ data: actRows }, { data: staffRows }, { data: allocRows }] = await Promise.all([
     /* ONLY DISPATCHED BOOKINGS, the rail's single most important filter. The
@@ -161,7 +152,7 @@ export async function loadCapacityMonth(
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return {
-    anyDayISO,
+    anyDayISO: startISO,
     activities,
     allocation,
     staffNames: [...nameOf.entries()],

@@ -92,6 +92,24 @@ export function daysBetweenISO(a: string, b: string): number {
   return Math.round((bt - at) / 86_400_000);
 }
 
+/** How many days the rolling window holds: four weeks, Monday to Sunday.
+    Lives HERE, not in the query — this module is pure and the screen imports
+    it; the query file owns a Supabase client the client bundle must never
+    touch. */
+export const CAPACITY_WINDOW_DAYS = 28;
+
+/** `count` days starting at `startISO` — the rolling window's day list. The
+    same UTC-midnight arithmetic as daysBetweenISO, for the same reason: whole
+    days, no timezone anywhere near them. */
+export function daysFrom(startISO: string, count: number): string[] {
+  const base = Date.UTC(+startISO.slice(0, 4), +startISO.slice(5, 7) - 1, +startISO.slice(8, 10));
+  const out: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    out.push(new Date(base + i * 86_400_000).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
 /** Every day of the month `anyDayISO` falls in, in order. */
 export function daysOfMonth(anyDayISO: string): string[] {
   const y = +anyDayISO.slice(0, 4);
@@ -129,12 +147,24 @@ export function bookedMinutesOf(a: Pick<ScheduleActivity, "start" | "end">): num
   return endMin - startMin;
 }
 
-/** One month, scored. `activities` is every dispatched booking in the month —
-    the caller has already applied `activity_was_scheduled = 1`, and this
-    re-applies it for the same reason schedule.ts does: it is the single most
-    important line in the feature and a pure function is where a test pins it. */
+/** One month, scored — the window scorer over the month's own day list. */
 export function capacityMonth(input: {
   anyDayISO: string;
+  activities: ScheduleActivity[];
+  allocation: CapacityAllocation[];
+  /** staff uuid → name, for the people list on a day. */
+  staffNames?: Map<string, string>;
+}): CapacityDay[] {
+  return capacityWindow({ ...input, days: daysOfMonth(input.anyDayISO) });
+}
+
+/** Any run of days, scored. `activities` is every dispatched booking in the
+    window — the caller has already applied `activity_was_scheduled = 1`, and
+    this re-applies it for the same reason schedule.ts does: it is the single
+    most important line in the feature and a pure function is where a test
+    pins it. */
+export function capacityWindow(input: {
+  days: string[];
   activities: ScheduleActivity[];
   allocation: CapacityAllocation[];
   /** staff uuid → name, for the people list on a day. */
@@ -161,7 +191,7 @@ export function capacityMonth(input: {
     cell.people.add(a.staffUuid ? names.get(a.staffUuid) ?? "Nobody named" : "Nobody named");
   }
 
-  return daysOfMonth(input.anyDayISO).map((dayISO) => {
+  return input.days.map((dayISO) => {
     const cell = byDay.get(dayISO);
     const bookedMinutes = cell?.minutes ?? 0;
     const capacityMinutes = capacityForDay(dayISO, input.allocation);

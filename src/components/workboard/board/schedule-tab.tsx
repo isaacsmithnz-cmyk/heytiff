@@ -2,9 +2,10 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { plusDays } from "@/lib/workboard/dates";
 import { isWeekendISO, mondayOf } from "@/lib/workboard/board-status";
+import { dowOfISO } from "@/lib/workboard/capacity";
 import { scheduleDay } from "@/app/actions/workboard";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
@@ -24,7 +25,7 @@ import {
   type BlockPaint,
 } from "@/lib/workboard/schedule-colour";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
-import { ScheduleFocus } from "./schedule-focus";
+import { ScheduleFocus, type FocusMark } from "./schedule-focus";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
    answered from the mirror this account already syncs: one lane per staff
@@ -66,6 +67,8 @@ const LANE_PAD_PX = 5;
 /** Below this width a block drops to its number alone — three clipped lines
     say less than one whole one. */
 const TIGHT_PX = 90;
+/** Indexed by `dowOfISO` (Mon=0 … Sun=6) — the strip's window slides a day at
+    a time now, so a card's weekday comes from its own date, never its slot. */
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** A job promoted onto one of our boards leaves the category palette for the
@@ -94,6 +97,15 @@ export type ScheduleShelfItem = {
   sub: string | null;
 };
 
+/** What this day's diary says the job is doing — handed to the JobSheet when
+    a block opens it, so the sheet's header can carry the same reading the
+    rail drew. Only the day-states travel: the ServiceM8 statuses (Quote,
+    Unsuccessful, Completed) are already the sheet's own chips. */
+export type ScheduleJobState = {
+  kind: "late" | "idle" | "on" | "stale";
+  word: string;
+};
+
 type Props = {
   today: string;
   connected: boolean;
@@ -106,7 +118,7 @@ type Props = {
   /** The Work orders tab's "waiting on a day" count — the dispatch board's
       unscheduled pane, already answered by the tab that owns the list. */
   waitingCount: number;
-  onOpenJob: (job: AllJobsMirrorJob) => void;
+  onOpenJob: (job: AllJobsMirrorJob, state?: ScheduleJobState | null) => void;
   onOpenTracked: (target: { kind: "visit" | "project"; id: string }) => void;
   onGoWork: () => void;
 };
@@ -137,6 +149,15 @@ export function ScheduleTab({
   onGoWork,
 }: Props) {
   const [openDay, setOpenDay] = useState(today);
+  /** The first day the strip shows. A WINDOW, not a week: the flanking arrows
+      slide it one day at a time (Isaac's call — click past Sunday and Monday
+      of the next week walks in), so it starts on a Monday and then goes where
+      it's pushed. The week stepper in the header snaps it back to Mondays. */
+  const [stripStart, setStripStart] = useState(() => mondayOf(today));
+  /** Every day-count the session has learned, merged across payloads — the
+      sliding window crosses week boundaries, and a count learned last week is
+      still the count. */
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [payload, setPayload] = useState<SchedulePayload | null>(null);
   /** The job brought forward, by job uuid. Replaces the crew hover. */
   const [focusJob, setFocusJob] = useState<string | null>(null);
@@ -157,6 +178,7 @@ export function ScheduleTab({
     startLoad(async () => {
       const p = await scheduleDay(dayISO);
       cache.current.set(dayISO, p);
+      setCounts((c) => ({ ...c, ...p.weekCounts }));
       setPayload(p);
     });
   };
@@ -201,9 +223,43 @@ export function ScheduleTab({
     [current]
   );
 
-  const monday = mondayOf(openDay);
-  const week = useMemo(() => Array.from({ length: 7 }, (_, i) => plusDays(monday, i)), [monday]);
+  const week = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => plusDays(stripStart, i)),
+    [stripStart]
+  );
   const shelf = shelfItems.filter((s) => s.date === openDay);
+
+  /* ── moving through time, two grains ──
+     The header's stepper walks WEEKS (it moves the open day ±7 and snaps the
+     strip to that Monday); the strip's flanking arrows SLIDE the window one
+     day, revealing the next day without changing what's open. The old design
+     put the week arrows beside the day's name, which read as "next day" and
+     stepped seven — Isaac kept getting caught by it. */
+  const goWeek = (dir: 1 | -1) => {
+    const target = plusDays(openDay, dir * 7);
+    setStripStart(mondayOf(target));
+    show(target);
+  };
+  const goToday = () => {
+    setStripStart(mondayOf(today));
+    show(today);
+  };
+  const slide = (dir: 1 | -1) => setStripStart(plusDays(stripStart, dir));
+
+  /* What the middle of the header calls the window. Named weeks only when the
+     window IS a week — once it has been slid off a Monday it spans two, and
+     the honest label is its own two ends. */
+  const thisMon = mondayOf(today);
+  const weekWord =
+    stripStart !== mondayOf(stripStart)
+      ? `${fmtAuDayMonth(stripStart)} – ${fmtAuDayMonth(plusDays(stripStart, 6))}`
+      : stripStart === thisMon
+        ? "This week"
+        : stripStart === plusDays(thisMon, 7)
+          ? "Next week"
+          : stripStart === plusDays(thisMon, -7)
+            ? "Last week"
+            : `Week of ${fmtAuDayMonth(stripStart)}`;
 
   /* "Now" is drawn from the BROWSER's clock, and only when the browser's own
      date agrees with the board's today — the account's timezone lives on the
@@ -268,7 +324,11 @@ export function ScheduleTab({
     </div>
   );
 
-  /* ── header ── */
+  /* ── header ──
+     Three stations: the open day's name on the left (a fact, no controls on
+     it), the WEEK stepper in the middle in line with the Day/Capacity
+     switcher, and the summary chips on the right. The day-to-day arrows live
+     on the strip itself, flanking the cards they move. */
   const head = (
     <div className="wb2-chd">
       <span className="wb2-ci blue">
@@ -276,27 +336,22 @@ export function ScheduleTab({
       </span>
       <div>
         <div className="wb2-mchead">
-          <button
-            className="wb2-mcarrow"
-            aria-label="The week before"
-            onClick={() => show(plusDays(openDay, -7))}
-          >
-            <Icon name="chevL" size={15} />
-          </button>
           <b>{fmtAuWeekdayDayMonth(openDay)}</b>
-          <button
-            className="wb2-mcarrow"
-            aria-label="The week after"
-            onClick={() => show(plusDays(openDay, 7))}
-          >
-            <Icon name="chevR" size={15} />
-          </button>
-          {openDay !== today && (
-            <button className="wb2-mcnow" onClick={() => show(today)}>
+          {(openDay !== today || stripStart !== thisMon) && (
+            <button className="wb2-mcnow" onClick={goToday}>
               Today
             </button>
           )}
         </div>
+      </div>
+      <div className="wb2-schweek" role="group" aria-label="Week">
+        <button className="wb2-mcarrow" aria-label="The week before" onClick={() => goWeek(-1)}>
+          <Icon name="chevL" size={15} />
+        </button>
+        <b>{weekWord}</b>
+        <button className="wb2-mcarrow" aria-label="The week after" onClick={() => goWeek(1)}>
+          <Icon name="chevR" size={15} />
+        </button>
       </div>
       {switcher}
       {day && day.totalBookings > 0 && (
@@ -313,33 +368,44 @@ export function ScheduleTab({
     </div>
   );
 
-  /* ── the seven-day strip ── */
+  /* ── the seven-day strip, with its own arrows ──
+     The flanking arrows slide the WINDOW one day — click past Sunday and next
+     week's Monday walks in — without touching the open day. Picking a day is
+     still the card's own job. */
   const strip = (
-    <div className="wb2-schdays" role="group" aria-label="Days this week">
-      {week.map((iso, i) => {
-        const n = current?.weekCounts[iso] ?? null;
-        return (
-          <button
-            key={iso}
-            type="button"
-            className={
-              "wb2-schday" +
-              (iso === openDay ? " on" : "") +
-              (iso === today ? " today" : "") +
-              (iso < today ? " past" : "") +
-              (isWeekendISO(iso) ? " we" : "") +
-              (n === 0 ? " free" : "")
-            }
-            aria-pressed={iso === openDay}
-            aria-label={`${fmtAuWeekdayDayMonth(iso)}${n !== null ? `, ${n} booked` : ""}`}
-            onClick={() => show(iso)}
-          >
-            <span className="cw">{DOW[i]}</span>
-            <span className="cd">{parseInt(iso.slice(8, 10), 10)}</span>
-            <span className="cn">{n === null ? "" : n === 0 ? "clear" : n}</span>
-          </button>
-        );
-      })}
+    <div className="wb2-schstrip">
+      <button className="wb2-mcarrow" aria-label="The day before" onClick={() => slide(-1)}>
+        <Icon name="chevL" size={15} />
+      </button>
+      <div className="wb2-schdays" role="group" aria-label="Days">
+        {week.map((iso) => {
+          const n = counts[iso] ?? null;
+          return (
+            <button
+              key={iso}
+              type="button"
+              className={
+                "wb2-schday" +
+                (iso === openDay ? " on" : "") +
+                (iso === today ? " today" : "") +
+                (iso < today ? " past" : "") +
+                (isWeekendISO(iso) ? " we" : "") +
+                (n === 0 ? " free" : "")
+              }
+              aria-pressed={iso === openDay}
+              aria-label={`${fmtAuWeekdayDayMonth(iso)}${n !== null ? `, ${n} booked` : ""}`}
+              onClick={() => show(iso)}
+            >
+              <span className="cw">{DOW[dowOfISO(iso)]}</span>
+              <span className="cd">{parseInt(iso.slice(8, 10), 10)}</span>
+              <span className="cn">{n === null ? "" : n === 0 ? "clear" : n}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button className="wb2-mcarrow" aria-label="The day after" onClick={() => slide(1)}>
+        <Icon name="chevR" size={15} />
+      </button>
     </div>
   );
 
@@ -475,16 +541,38 @@ export function ScheduleTab({
         }))
     );
     if (entries.length === 0) return null;
-    const first = day.lanes.flatMap((l) => l.blocks).find((b) => b.remoteId === focusJob)!;
+    const all = day.lanes.flatMap((l) => l.blocks).filter((b) => b.remoteId === focusJob);
+    const first = all[0];
+    const label = first.tracked
+      ? first.tracked.kind === "project"
+        ? "Project"
+        : "Maintenance"
+      : (first.categoryName ?? "No category");
+    const paint = first.tracked ? TRACKED_PAINT : scheduleBlockPaint(first.categoryColour);
+    /* WHAT THE BLOCK'S PAINT IS SAYING, in words — the footer key scoped to
+       the one job on the table. Only treatments this job actually wears; each
+       one draws its own swatch in the card, so the decode and the block can't
+       drift. The category leads because its colour is the loudest thing on
+       the block and the least self-explanatory. */
+    const marks: FocusMark[] = [{ kind: "cat", word: label }];
+    if (first.status === "Quote") marks.push({ kind: "qt", word: "A quote — dashed edge" });
+    if (first.status === "Unsuccessful") marks.push({ kind: "dan", word: "Didn't go ahead" });
+    if (all.some((b) => b.closure === "stale"))
+      marks.push({ kind: "stale", word: "Marked complete in ServiceM8, still booked" });
+    if (all.some((b) => b.closure === "done")) marks.push({ kind: "done", word: "Done and closed" });
+    if (all.some((b) => blockState(b).late))
+      marks.push({ kind: "late", word: "Nothing recorded yet" });
+    else if (all.some((b) => blockState(b).hollow))
+      marks.push({ kind: "idle", word: "Not started — hollow cap" });
+    else if (all.some((b) => b.onSite && b.closure !== "done"))
+      marks.push({ kind: "on", word: "Started" });
     return {
       jobNumber: first.jobNumber,
       clientName: first.clientName,
       suburb: first.suburb,
-      label: first.tracked
-        ? first.tracked.kind === "project"
-          ? "Project"
-          : "Maintenance"
-        : (first.categoryName ?? "No category"),
+      label,
+      paint,
+      marks,
       entries,
     };
   })();
@@ -732,8 +820,20 @@ export function ScheduleTab({
           onClose={closeFocus}
           onOpen={() => {
             const job = focusJob ? jobById.get(focusJob) : null;
+            /* the day-state rides along so the sheet's header can wear the
+               same reading the rail drew — the statuses the sheet already
+               chips (Quote, Unsuccessful, Completed) stay its own */
+            const dayState =
+              focus.marks.find(
+                (m): m is FocusMark & { kind: ScheduleJobState["kind"] } =>
+                  m.kind === "late" || m.kind === "idle" || m.kind === "on" || m.kind === "stale"
+              ) ?? null;
             setFocusJob(null);
-            if (job) onOpenJob(job);
+            if (job)
+              onOpenJob(
+                job,
+                dayState ? { kind: dayState.kind, word: dayState.word.split(" — ")[0] } : null
+              );
           }}
         />
       )}

@@ -1,42 +1,36 @@
-/* What colour the capacity month's percentage figure is — the grid's one
-   paint decision, pure so jest can sweep every step of it (the schedule.ts /
-   schedule-query.ts split, applied to paint, exactly as schedule-colour.ts).
+/* What one capacity cell wears — the grid's one paint decision, pure so jest
+   can sweep every step of it (the schedule.ts / schedule-query.ts split,
+   applied to paint, exactly as schedule-colour.ts).
 
-   THE NUMBER CARRIES THE RAMP; THE CELL STAYS WHITE. Isaac's call: no filled
-   swatch behind the figure, the figure itself deepens as the day fills. That
-   moves the contrast question — the type sits on white, and white never
-   moves, so every step of the ramp is measured against white and nothing
-   else.
+   THE CELL IS A GAUGE NOW. Isaac's call (2026-08-24), and it REVERSES the
+   previous design on purpose: the figure used to carry the ramp on a white
+   cell, and the ramp ran quiet-to-green because "a full day is revenue". The
+   new reading is the tank: the cell fills from the bottom as the day fills,
+   GREEN WHEN THERE IS ROOM and RED AS IT APPROACHES CAPACITY — the question
+   being asked is "where can I put work", and room is the good news. If a
+   future session finds a test pinning green-at-full, this is why it's gone.
 
-   FULLNESS IS CHROMA, NOT LIGHTNESS. Text on white cannot run pale-to-deep
-   the way a background swatch would: a 5% day at a background ramp's pale end
-   would be near-invisible type. So both ends are dark enough to read and the
-   axis that moves is saturation — an empty day is a muted slate with almost
-   no colour in it, a full day is the deep saturated green. Empty is quiet,
-   full is green, over breaks to amber: deliberately the INVERSE of a traffic
-   light, because a full day is the week's revenue, not a fault. The danger
-   red appears nowhere on this grid — this session started because a routine
-   job was painted rgb(235, 0, 0) and read as an emergency.
+   THE FILL IS A WASH THAT DEEPENS, NOT AN ALARM AT EVERY STEP. The category
+   palette taught this the hard way: full-chroma paint made a routine job read
+   as an emergency. So an empty day is a pale green wash and the colour only
+   approaches the danger family's weight as the day actually runs out of
+   room — saturation stays moderate the whole way, and the hue walks green →
+   amber → red.
 
-   THE GREEN IS THE TEXT-SAFE ONE. The board's green FILL token --wb2-ok
-   #00A389 measures ~2.9:1 on white — fine as a swatch, unreadable as type —
-   and the app-wide rule is that state ink comes from a `-t` token and a fill
-   token never paints text. So the ramp lands on the ink token's value,
-   --ok-t #00735f (~5.8:1 on white). Both greens are written here as literals
-   because this module has no cascade to read; the component hands the result
-   to a custom property on the cell.
-
-   AND EVERY STEP IS WALKED, NOT TRUSTED. A fixed lightness is not a fixed
-   contrast — schedule-colour.ts measured purple at 6.12:1 and yellow-green
-   at 2.22:1 at the same L. The band below clears 4.5:1 on white at every
-   step of this hue as tuned today; the walk is what keeps that true when the
-   endpoints are next fiddled with. The figure qualifies as WCAG large text
-   and would earn a 3:1 floor — it is held to 4.5:1 anyway, so the question
-   cannot come back. */
+   THE FIGURE'S INK IS BLACK OR WHITE, MEASURED, NEVER GUESSED. The number
+   sits mid-cell, so its ground depends on how high the gauge reaches: below
+   the figure it sits on white and stays dark; once the fill covers it, the
+   ink is whichever of black or white actually clears the fill — a fixed
+   lightness is not a fixed contrast, twice over, so every step is walked
+   against the ground it really sits on and darkened until the winner clears
+   4.5:1. The date label at the top of the cell gets the same treatment at
+   its own, higher, waterline. */
 
 import { contrastRatio } from "./schedule-colour";
 
 const WHITE: readonly [number, number, number] = [255, 255, 255];
+/** The board's ink token, as channels — the dark ink the sheet already uses. */
+const DARK: readonly [number, number, number] = [10, 11, 16];
 /** Body-text floor, applied even though the figure is large type. */
 const TEXT = 4.5;
 
@@ -44,15 +38,16 @@ const TEXT = 4.5;
     module exports arithmetic that only means something beside the constants
     tuned around it. */
 function toRgb(h: number, s: number, l: number): [number, number, number] {
+  const hh = ((h % 360) + 360) % 360;
   const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1));
   const m = l - c / 2;
   const [r, g, b] =
-    h < 60 ? [c, x, 0]
-    : h < 120 ? [x, c, 0]
-    : h < 180 ? [0, c, x]
-    : h < 240 ? [0, x, c]
-    : h < 300 ? [x, 0, c]
+    hh < 60 ? [c, x, 0]
+    : hh < 120 ? [x, c, 0]
+    : hh < 180 ? [0, c, x]
+    : hh < 240 ? [0, x, c]
+    : hh < 300 ? [x, 0, c]
     : [c, 0, x];
   return [
     Math.round((r + m) * 255),
@@ -61,28 +56,20 @@ function toRgb(h: number, s: number, l: number): [number, number, number] {
   ];
 }
 
-/** --ok-t's own hue: at (H, s 1, l .226) the full end computes rgb(0, 115, 96)
-    — #00735f to within one channel. */
-const H = 170;
-/** Chroma is one axis that carries fullness; LIGHTNESS IS THE OTHER, and the
-    first cut of this got that wrong in an instructive way. It shaped the ramp
-    with the contrast walk below — darkening every step until it cleared 4.5:1
-    — which NORMALISED the whole scale: measured on the live month, every step
-    from 0% to 100% landed between 5.29:1 and 5.80:1. On white, contrast IS
-    perceived lightness, so holding contrast flat held lightness flat, and the
-    ramp varied only in chroma. Walked on real data the effect was plain: 43%
-    drew rgb(41, 119, 106) and 88% drew rgb(7, 118, 99) — the same colour
-    twice, across the entire band this business actually operates in.
+/* The band. Hue walks DOWN from the ok family's green through amber into the
+   danger family's red — H_FULL is −13°, which is 347° (#e0264f's own hue),
+   written negative so the walk passes through yellow and orange rather than
+   round the other way through blue; toRgb wraps it. Lightness deepens with
+   fullness so a nearly-full day carries weight a pale wash can't. */
+const H_EMPTY = 160;
+const H_FULL = -13;
+const S_EMPTY = 0.45;
+const S_FULL = 0.72;
+const L_EMPTY = 0.87;
+const L_FULL = 0.52;
+const L_FLOOR = 0.2;
 
-    So the band is stated, wide, and deliberately NOT flat: the empty end sits
-    just above the text floor and the full end runs far darker. */
-const S_EMPTY = 0.06;
-const S_FULL = 1;
-const L_EMPTY = 0.44;
-const L_FULL = 0.19;
-const L_FLOOR = 0.1;
-
-/** Smoothstep. REAL DAYS CLUSTER BETWEEN 40% AND 90% — the live month runs
+/** Smoothstep. REAL DAYS CLUSTER BETWEEN 40% AND 90% — the live month ran
     43–88 — so a linear ramp spends most of its travel on values a dispatcher
     never sees. This eases the change into the middle, where the difference
     between a 60% day and an 80% day is the thing being asked. */
@@ -90,28 +77,71 @@ function ease(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/** Over capacity — the grid's one qualitative break — takes the WARN family's
-    INK, never its fill: --wb2-warn-t #B45309 is ~5.0:1 on white, while
-    --wb2-warn #FF8A00 is ~2.4:1 and never paints text. Not --wb2-dan,
-    anywhere on this grid: an over-booked day is a scheduling fact, not a
-    fault. */
-export const OVER_INK = "rgb(180, 83, 9)";
+/** The gauge covers the centred figure once it reaches about here. */
+const FIGURE_WATERLINE = 55;
+/** …and the date label, pinned to the top of the cell, only near the brim. */
+const DATE_WATERLINE = 85;
 
-/** The figure's colour for a scored day: slate at 0%, the text-safe green at
-    100%, walked darker wherever a step would miss 4.5:1 on white. Callers
-    only ever pass a real `fillPct` — a null day has no figure to paint. */
-export function capacityInk(fillPct: number): string {
-  const t = ease(Math.min(100, Math.max(0, fillPct)) / 100);
-  const s = S_EMPTY + (S_FULL - S_EMPTY) * t;
-  let l = L_EMPTY + (L_FULL - L_EMPTY) * t;
-  let rgb = toRgb(H, s, l);
-  /* A GUARD, NOT THE SHAPE. The band above already clears 4.5:1 at every step
-     (4.66:1 at its worst, which is 13%), so this loop does not fire as tuned —
-     it is here so that moving an endpoint later cannot quietly ship type
-     nobody can read, which is the failure the endpoints themselves replaced. */
-  while (contrastRatio(rgb, WHITE) < TEXT && l > L_FLOOR) {
-    l -= 0.005;
-    rgb = toRgb(H, s, l);
+/** Over capacity breaks to the danger fill itself — past the brim is the one
+    state on this grid that IS the alarm, and the gauge is already full. */
+const OVER_FILL: readonly [number, number, number] = [224, 38, 79];
+
+export type CapacityCellPaint = {
+  /** The gauge's colour. */
+  fill: string;
+  /** How far up the cell the gauge reaches, 0–100. */
+  level: number;
+  /** The figure's ink — black or white, whichever clears its real ground. */
+  ink: string;
+  /** The date label's ink, or null to leave the sheet's quiet default —
+      non-null only once the gauge has climbed under it. */
+  dateInk: string | null;
+};
+
+const asCss = (rgb: readonly [number, number, number]) => `rgb(${rgb.join(", ")})`;
+
+/** Black or white against `ground`, whichever measures better — walked darker
+    if neither clears the floor, which the band as tuned never needs (the
+    guard exists so moving an endpoint later cannot ship an unreadable step). */
+function inkOn(ground: [number, number, number]): { ink: string; ok: boolean } {
+  const white = contrastRatio(WHITE, ground);
+  const dark = contrastRatio(DARK, ground);
+  return {
+    ink: white >= dark ? asCss(WHITE) : asCss(DARK),
+    ok: Math.max(white, dark) >= TEXT,
+  };
+}
+
+/** One scored day's paint. Callers only ever pass a real `fillPct` — a null
+    day has no gauge and no figure. */
+export function capacityCellPaint(fillPct: number, over: boolean): CapacityCellPaint {
+  const level = over ? 100 : Math.min(100, Math.max(0, Math.round(fillPct)));
+
+  let rgb: [number, number, number];
+  if (over) {
+    rgb = [...OVER_FILL];
+  } else {
+    const t = ease(level / 100);
+    const s = S_EMPTY + (S_FULL - S_EMPTY) * t;
+    let l = L_EMPTY + (L_FULL - L_EMPTY) * t;
+    rgb = toRgb(H_EMPTY + (H_FULL - H_EMPTY) * t, s, l);
+    /* A GUARD, NOT THE SHAPE: darken until black-or-white clears the floor.
+       The band crosses the mid-luminance trough (where NEITHER ink reads)
+       near its red end, and this walk is what carries those steps through it
+       — the sweep in the tests holds the outcome to 4.5:1 at every step. */
+    while (!inkOn(rgb).ok && l > L_FLOOR) {
+      l -= 0.005;
+      rgb = toRgb(H_EMPTY + (H_FULL - H_EMPTY) * ease(level / 100), s, l);
+    }
   }
-  return `rgb(${rgb.join(", ")})`;
+
+  const onFill = inkOn(rgb).ink;
+  const darkCss = asCss(DARK);
+  return {
+    fill: asCss(rgb),
+    level,
+    /* the figure's ground is white until the gauge reaches it */
+    ink: level >= FIGURE_WATERLINE ? onFill : darkCss,
+    dateInk: level >= DATE_WATERLINE ? onFill : null,
+  };
 }

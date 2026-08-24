@@ -49,12 +49,24 @@ export type FocusEntry = {
   done: boolean;
 };
 
+/** One treatment this job's blocks wear, decoded: the swatch is drawn by the
+    card in the job's own paint, the word says what it means. `cat` is always
+    first — the category (or owning board) whose colour washes the block. */
+export type FocusMark = {
+  kind: "cat" | "qt" | "dan" | "done" | "stale" | "idle" | "late" | "on";
+  word: string;
+};
+
 export type FocusJob = {
   jobNumber: string | null;
   clientName: string | null;
   suburb: string | null;
   /** The category, or the board that owns it — whatever the block says. */
   label: string;
+  /** The job's own paint, for the marks' swatches. */
+  paint: BlockPaint;
+  /** The status of the job and what its colours mean — only what it wears. */
+  marks: FocusMark[];
   entries: FocusEntry[];
 };
 
@@ -104,6 +116,28 @@ export function ScheduleFocus({
             {job.label}
             {job.suburb ? ` · ${job.suburb}` : ""}
           </em>
+        </div>
+
+        {/* THE STATUS, AND WHAT THE COLOURS MEAN — the rail's footer key,
+            scoped to this one job. Each swatch is drawn in the job's own
+            paint so what it decodes is literally what was clicked. */}
+        <div
+          className="wb2-scfkey"
+          style={{
+            ["--fill" as string]: job.paint.fill,
+            ["--bar" as string]: job.paint.bar,
+            ["--pale" as string]: job.paint.pale,
+            ["--pale-edge" as string]: job.paint.paleEdge,
+          }}
+        >
+          {job.marks.map((m) => (
+            <span key={m.kind}>
+              <i className={m.kind} aria-hidden="true">
+                {m.kind === "late" ? "!" : ""}
+              </i>
+              {m.word}
+            </span>
+          ))}
         </div>
 
         {/* WHO IS ON IT — the question the hover existed to answer, now

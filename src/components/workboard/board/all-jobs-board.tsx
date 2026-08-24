@@ -7,7 +7,7 @@ import type { AllJobsData } from "@/lib/workboard/all-jobs-query";
 import type { BoardVisit, BoardAgreement, BoardCategory } from "@/lib/workboard/board-query";
 import type { BoardProject, ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import { WorkOrdersTab, QuotesTab, CompletedJobsTab } from "./all-jobs-tab";
-import { ScheduleTab, type ScheduleShelfItem } from "./schedule-tab";
+import { ScheduleTab, type ScheduleJobState, type ScheduleShelfItem } from "./schedule-tab";
 import { JobSheet } from "./job-sheet";
 import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
@@ -105,6 +105,9 @@ export function AllJobsBoard({
      Workboard page load: the board only mounts when the side is chosen. */
   const [tab, setTab] = useState<AllJobsTabKey>("schedule");
   const [sheetRow, setSheetRow] = useState<AllJobRow | null>(null);
+  /** The diary's reading of the sheet's job — set only when a schedule block
+      opened it, cleared with the row. */
+  const [sheetState, setSheetState] = useState<ScheduleJobState | null>(null);
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
   const { toasts, toast, dismiss } = useBoardToasts();
 
@@ -209,7 +212,7 @@ export function AllJobsBoard({
   /* A schedule block — or a search result — opens THE SAME SHEET the list rows
      open, on the same row shape: one job, one law. Both arrive already in the
      mirror shape, so the row builder that feeds the list feeds them too. */
-  const openJob = (job: AllJobsMirrorJob) => {
+  const openJob = (job: AllJobsMirrorJob, state: ScheduleJobState | null = null) => {
     const found = allJobsRows({ jobs: [job], visits: [], projects: [], today });
     const row = [
       ...found.work.booked,
@@ -220,6 +223,7 @@ export function AllJobsBoard({
     ][0];
     if (!row) return;
     const t = trackedByJob.get(job.remoteId);
+    setSheetState(state);
     setSheetRow(t ? { ...row, tracked: t } : row);
   };
 
@@ -343,7 +347,11 @@ export function AllJobsBoard({
           row={sheetRow}
           manage={manage}
           moneyVisible={moneyVisible}
-          onClose={() => setSheetRow(null)}
+          scheduleState={sheetState}
+          onClose={() => {
+            setSheetRow(null);
+            setSheetState(null);
+          }}
           onCreateAgreement={(row) => {
             setSheetRow(null);
             setAgreementFrom(row);

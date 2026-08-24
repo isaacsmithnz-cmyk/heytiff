@@ -94,7 +94,9 @@ async function fuelItems(orgId: string, start: string, end: string): Promise<Sou
     .eq("org_id", orgId)
     .eq("kind", "fuel")
     // a deleted entry is not a deduction — the row is kept for audit, not for
-    // the export it was withdrawn from
+    // the export it was withdrawn from. If the fill was on somebody's own card
+    // its reimbursement claim survives the delete and takes over as the line:
+    // see claimItems.
     .is("deleted_at", null)
     .gte("logged_on", start)
     .lte("logged_on", end)
@@ -149,29 +151,49 @@ async function fuelItems(orgId: string, start: string, end: string): Promise<Sou
 
    The FUEL LOG is the tax line because it is the fuller record — litres, the
    vehicle, the odometer, the docket's own ABN. The claim is only how the money
-   gets back to the person. */
+   gets back to the person.
+
+   UNLESS THE LOG WAS WITHDRAWN. deleteLog only ever soft-deletes, and on
+   purpose leaves the claim standing — the money still left somebody's account.
+   The fuel read above skips deleted rows, so a claim that also stepped aside
+   would leave the purchase in NEITHER read: a real deduction silently missing
+   from the export. So the skip is conditional — a claim yields only to a log
+   that is still alive, and becomes the purchase's line the moment its log is
+   withdrawn, which is what docs/migrations/fuel_paid_with.sql always said the
+   claim does when the log goes. */
 async function claimItems(orgId: string, start: string, end: string): Promise<Sourced> {
   const { data } = await supabaseAdmin
     .from("expense_claims")
-    .select("id, staff_profile_id, expense_date, description, category, amount, gst_amount, supplier, status")
+    .select("id, staff_profile_id, expense_date, description, category, amount, gst_amount, supplier, status, vehicle_log_id")
     .eq("org_id", orgId)
-    .is("vehicle_log_id", null)
     .gte("expense_date", start)
     .lte("expense_date", end)
     .in("status", [...CLAIM_STATUSES]);
 
-  const rows = (data ?? []) as unknown as Record<string, unknown>[];
+  const all = (data ?? []) as unknown as Record<string, unknown>[];
+  if (all.length === 0) return { items: [], refs: new Map() };
+
+  const rows = await withoutLiveLogTwins(orgId, all);
   if (rows.length === 0) return { items: [], refs: new Map() };
 
-  const [staff, receipts] = await Promise.all([
+  /* A claim standing in for a deleted log has its docket filed against the LOG
+     (documents.vehicle_log_id — deleteLog leaves it attached there), so those
+     receipts are looked up where the paper actually is. */
+  const orphanLogIds = rows
+    .filter((r) => r.vehicle_log_id != null)
+    .map((r) => String(r.vehicle_log_id));
+  const [staff, receipts, logReceipts] = await Promise.all([
     staffNames(orgId),
     receiptsByOwner(orgId, "expense_claim_id", rows.map((r) => String(r.id))),
+    receiptsByOwner(orgId, "vehicle_log_id", orphanLogIds),
   ]);
 
   const refs = new Map<string, string>();
   const items = rows.map((r) => {
     const id = String(r.id);
-    const doc = receipts.get(id);
+    const doc =
+      receipts.get(id) ??
+      (r.vehicle_log_id != null ? logReceipts.get(String(r.vehicle_log_id)) : undefined);
     if (doc) refs.set(`expense:${id}`, doc.ref);
     return {
       id: `expense:${id}`,
@@ -195,6 +217,31 @@ async function claimItems(orgId: string, start: string, end: string): Promise<So
     };
   });
   return { items, refs };
+}
+
+/* Which linked claims step aside: only those whose fuel log is still ALIVE —
+   that log is the purchase's line, and the claim would be its double. Fetching
+   the live logs (rather than the deleted ones) means a log that is missing
+   outright fails the same safe way a soft-deleted one does: the claim keeps
+   its line, and the purchase counts once instead of never. */
+async function withoutLiveLogTwins(
+  orgId: string,
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const linked = [...new Set(
+    rows.filter((r) => r.vehicle_log_id != null).map((r) => String(r.vehicle_log_id)),
+  )];
+  if (linked.length === 0) return rows;
+
+  const { data } = await supabaseAdmin
+    .from("vehicle_logs")
+    .select("id")
+    .eq("org_id", orgId)
+    .in("id", linked)
+    .is("deleted_at", null);
+
+  const live = new Set(((data ?? []) as Record<string, unknown>[]).map((r) => String(r.id)));
+  return rows.filter((r) => r.vehicle_log_id == null || !live.has(String(r.vehicle_log_id)));
 }
 
 /* ---------------- shared lookups ---------------- */

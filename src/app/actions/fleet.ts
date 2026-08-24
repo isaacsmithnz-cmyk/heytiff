@@ -461,7 +461,12 @@ export async function editLog(logId: string, patch: LogEdit): Promise<FleetResul
    it ever existed, so the row stays and every read stops returning it. Its
    receipt stays attached too: the document is evidence about a correction as
    much as about a purchase, and a bucket object with no row pointing at it is
-   the one shape this track has always refused. */
+   the one shape this track has always refused.
+
+   If the fill was on somebody's own card, the reimbursement claim survives
+   this delete untouched — the money still left their account — and becomes the
+   purchase's tax line: src/lib/tax/query.ts skips a linked claim only while
+   its log is alive. */
 export async function deleteLog(logId: string): Promise<FleetResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };

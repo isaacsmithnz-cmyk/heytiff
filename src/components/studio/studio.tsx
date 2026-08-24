@@ -392,15 +392,13 @@ export function Studio({
      there is no screen to leave: the studio opens ON the design rather than
      landing on Home and then travelling.
 
-     The parameter is then STRIPPED with replaceState (no router push, the
-     profile screen's pattern). Otherwise the URL keeps saying `?design=…`
-     after you close the design and go back to Home, and a refresh from there
-     would drag you back into a design you had deliberately left.
-
      A design that isn't there — deleted, or another org's id typed in — is
      said out loud rather than silently dropping you on Home wondering whether
      the link was broken or you were. */
   const [openFailed, setOpenFailed] = useState(false);
+  /* nothing to say about the URL until an arrival has settled — see the sync
+     effect below, which must not clear the very id it is being asked to open */
+  const [arrived, setArrived] = useState(!openDesignId);
   const openedOnce = useRef(false);
   useEffect(() => {
     if (!openDesignId || openedOnce.current) return;
@@ -413,16 +411,58 @@ export function Studio({
         if (!live) return;
         if (d) openDesign(d);
         else setOpenFailed(true);
-        try {
-          window.history.replaceState(null, "", window.location.pathname);
-        } catch {
-          /* no history in this environment — the design still opened */
-        }
+        setArrived(true);
       });
     return () => {
       live = false;
     };
   }, [openDesignId, getStore, openDesign]);
+
+  /* ── the URL says which design is open ──
+
+     `?design=<id>` is how a job sheet links in, and it is also how this screen
+     survives being reloaded. Everything the studio knows lives in client
+     state, so with a bare `/dashboard/studio` in the address bar any reload —
+     a refresh, a deploy landing, a session hiccup, anything that quietly
+     reloads the tab mid-session — comes back to Home with the design you were
+     drawing nowhere in sight and no hint in the URL that anything happened.
+     With the id there, the same reload comes back to the design.
+
+     It used to be STRIPPED on arrival, for a real reason poorly served: a
+     parameter left behind after you closed a design would drag you back into
+     it on the next refresh. Keeping it IN STEP answers that properly — it is
+     removed when you go Home, which is the moment you actually left.
+
+     `replaceState`, never a router navigation: only the query moves, and the
+     App Router folds that change into its own URL without a server round trip
+     (`linking-and-navigating.md`, "Native History API"). A push would stack a
+     history entry per design opened, turning Back into a tour of everything
+     you looked at; and a `router.replace` would re-run the page on the server
+     — including its capability check — for a change the server needn't hear
+     about at all. The PATH never moves: the shell keys its outlet on pathname,
+     and writing that would remount this whole screen. */
+  /* Named out here rather than read off `doc` inside the effect, for two
+     reasons. The dependency is the ID, not the document: `doc` is a new object
+     on every stroke, and the URL has nothing to say about any of them. And
+     React Compiler 1.0 cannot lower a value block — an optional chain, a `??`,
+     a ternary — inside a try/catch, and answers by giving up on the WHOLE
+     component, silently: lint, build and tests look identical either way. The
+     canvas hoists its setPointerCapture calls out of a try for the same
+     reason, and says so at the top of that file. */
+  const openId = doc ? doc.id : null;
+  useEffect(() => {
+    if (!arrived) return;
+    try {
+      const here = new URL(window.location.href);
+      // `get` already answers null when absent, so this needs no `??`
+      if (here.searchParams.get("design") === openId) return;
+      if (openId) here.searchParams.set("design", openId);
+      else here.searchParams.delete("design");
+      window.history.replaceState(null, "", `${here.pathname}${here.search}`);
+    } catch {
+      /* no history or URL in this environment — the design is still open */
+    }
+  }, [openId, arrived]);
 
   /* undo/redo restores an exact prior document — no updatedAt bump */
   const replaceDoc = useCallback((d: DesignDocument) => {

@@ -283,9 +283,10 @@ describe("opening a design by id", () => {
     expect(screen.getByTestId("studio-canvas")).toBeInTheDocument();
   });
 
-  /* Otherwise the URL keeps saying `?design=…` after you close the design,
-     and a refresh from Home drags you back into what you just left. */
-  it("strips the parameter once it has opened", async () => {
+  /* The studio's state is all client-side, so a bare /dashboard/studio in the
+     address bar means any reload lands on Home with the design nowhere in
+     sight. The id stays in the URL for exactly that reason. */
+  it("keeps the parameter, so a reload comes back to the design", async () => {
     const id = await seed("Farran St");
     window.history.replaceState(null, "", `/dashboard/studio?design=${id}`);
     render(
@@ -293,7 +294,42 @@ describe("opening a design by id", () => {
     );
 
     await screen.findByTestId("studio-canvas");
-    expect(window.location.search).toBe("");
+    expect(new URLSearchParams(window.location.search).get("design")).toBe(id);
+    expect(window.location.pathname).toBe("/dashboard/studio");
+  });
+
+  /* Opening from Home writes it too — the whole point is that the URL always
+     names what is on screen, however you got there. */
+  it("names the design in the URL when one is opened from Home", async () => {
+    const user = userEvent.setup();
+    const id = await seed("Bourke St");
+    render(<Studio store={new LocalDesignStore(window.localStorage)} />);
+
+    await user.click(await screen.findByText("Bourke St"));
+
+    await screen.findByTestId("studio-canvas");
+    await waitFor(() =>
+      expect(new URLSearchParams(window.location.search).get("design")).toBe(id)
+    );
+  });
+
+  /* And it goes when you do. Leaving it behind was the reason it used to be
+     stripped on arrival: a stale id would drag you back into a design you had
+     deliberately closed. */
+  it("drops the parameter on the way back to Home", async () => {
+    const user = userEvent.setup();
+    const id = await seed("Iris St");
+    window.history.replaceState(null, "", `/dashboard/studio?design=${id}`);
+    render(
+      <Studio store={new LocalDesignStore(window.localStorage)} openDesignId={id} />
+    );
+    await screen.findByTestId("studio-canvas");
+
+    await user.click(screen.getByLabelText("Studio menu"));
+    await user.click(screen.getByText("Open"));
+
+    await screen.findByText("New design");
+    await waitFor(() => expect(window.location.search).toBe(""));
   });
 
   /* A dead link is a dead door: the design may have been deleted since the

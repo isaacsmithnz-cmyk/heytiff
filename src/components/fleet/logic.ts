@@ -223,6 +223,20 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
    computed at. Manager+ only — the column is in the `assets_all` projection
    and nowhere else. */
 
+/* A renewal on file — one insurance policy or rego period. The newest
+   expires_on is current; the rest are the history, and the vehicle's expiry
+   column is a cache of the newest. `premium` is null when the document didn't
+   print one: never derived, for the same reason fuel GST isn't. */
+export type VehiclePolicy = {
+  id: string;
+  kind: "insurance" | "rego";
+  provider: string | null;
+  premium: number | null;
+  startsOn: string | null;
+  expiresOn: string;
+  documentId: string | null;
+};
+
 export type AiValuation = {
   point: number;
   low: number;

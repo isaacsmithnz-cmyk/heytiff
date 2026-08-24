@@ -25,7 +25,7 @@ import {
   vehicleChips,
   worstState,
 } from "./logic";
-import { DetailModal, EditLogModal, LogModal, VehicleFormModal } from "./modals";
+import { DetailModal, EditLogModal, LogModal, RenewalModal, VehicleFormModal } from "./modals";
 import { Plate } from "./plate";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
@@ -44,7 +44,8 @@ type ModalState =
   | { t: "edit"; id: string }
   | { t: "detail"; id: string }
   | { t: "log"; id: string; kind: LogKind }
-  | { t: "fix"; id: string; log: VehicleLog };
+  | { t: "fix"; id: string; log: VehicleLog }
+  | { t: "renew"; id: string; kind: "insurance" | "rego" };
 
 export function FleetRegister({
   fleet,
@@ -201,7 +202,19 @@ export function FleetRegister({
             Add your first vehicle
           </button>
         </div>
-        {modal.t === "add" && (
+        {modal.t === "renew" && openVehicle && (
+        <RenewalModal
+          vehicle={openVehicle}
+          kind={modal.kind}
+          today={today}
+          onSave={(input) => {
+            fleet.recordRenewal({ ...input, vehicleId: openVehicle.id });
+            setModal({ t: "detail", id: openVehicle.id });
+          }}
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+        />
+      )}
+      {modal.t === "add" && (
           <VehicleFormModal
             initial={null}
             staff={staff}
@@ -459,6 +472,8 @@ export function FleetRegister({
           valuation={fleet.aiValues[openVehicle.id]}
           valuationIsStale={valuationStale(openVehicle, fleet.aiValues[openVehicle.id])}
           documents={fleet.documents[openVehicle.id] ?? []}
+          policies={fleet.policies[openVehicle.id] ?? []}
+          onRenew={(kind) => setModal({ t: "renew", id: openVehicle.id, kind })}
           staff={staff}
           manager
           onClose={() => setModal({ t: "none" })}

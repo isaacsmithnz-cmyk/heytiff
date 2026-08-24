@@ -4,6 +4,7 @@ import { todayInAu } from "@/lib/au-dates";
 import { displayNameOf } from "@/lib/staff/name";
 import type {
   AiValuation,
+  VehiclePolicy,
   FleetStaff,
   Vehicle,
   VehicleIdentity,
@@ -203,3 +204,32 @@ export const staffProfileIdFor = cache(
     return (data?.id as string) ?? null;
   }
 );
+
+/* Every renewal a fleet has on file, newest first, keyed by vehicle.
+
+   This is the record; `vehicles.insurance_expiry` is a cache of the newest
+   row here. The register renders "current" as the first entry and everything
+   under it as history — nothing is flagged or moved, so the two can never
+   disagree. `assets_all` only, like the rest of this file's full-width reads. */
+export async function listPolicies(orgId: string): Promise<Record<string, VehiclePolicy[]>> {
+  const { data } = await supabaseAdmin
+    .from("vehicle_policies")
+    .select("id, vehicle_id, kind, provider, premium, starts_on, expires_on, document_id")
+    .eq("org_id", orgId)
+    .order("expires_on", { ascending: false });
+
+  const out: Record<string, VehiclePolicy[]> = {};
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const key = String(r.vehicle_id);
+    (out[key] ??= []).push({
+      id: String(r.id),
+      kind: r.kind === "rego" ? "rego" : "insurance",
+      provider: (r.provider as string) ?? null,
+      premium: r.premium === null || r.premium === undefined ? null : Number(r.premium),
+      startsOn: (r.starts_on as string) ?? null,
+      expiresOn: String(r.expires_on),
+      documentId: (r.document_id as string) ?? null,
+    });
+  }
+  return out;
+}

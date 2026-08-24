@@ -52,7 +52,7 @@ function refresh() {
 async function vehicleIn(orgId: string, vehicleId: string) {
   const { data } = await supabaseAdmin
     .from("vehicles")
-    .select("id, status, odometer, last_service_odo, assigned_to")
+    .select("id, status, odometer, last_service_odo, assigned_to, rego_expiry, insurance_expiry")
     .eq("org_id", orgId)
     .eq("id", vehicleId)
     .maybeSingle();
@@ -510,4 +510,102 @@ export async function resolveIssue(logId: string): Promise<FleetResult> {
   if (error) return { ok: false, error: "Couldn't close that issue." };
   refresh();
   return { ok: true };
+}
+
+/* ---------------- renewals (assets_all) ---------------- */
+
+/* Recording a renewal (issue #509, slice 2).
+
+   THREE WRITES, ONE MEANING. The policy row is the record; the vehicle's
+   expiry column is a CACHE of the newest row, kept because every chip, filter
+   and attention count reads it and none of them should learn about policies;
+   the document is adopted so the paper sits with the vehicle. Nothing is
+   overwritten — the previous policy is simply an older row, which is what
+   makes "previous versions" free rather than a second store.
+
+   The expiry cache is only advanced by a LATER date. Filing a policy you
+   forgot from two years ago is a legitimate thing to do, and it must not drag
+   the vehicle's expiry backwards and raise a false warning. */
+export type RenewalInput = {
+  vehicleId: string;
+  kind: "insurance" | "rego";
+  expiresOn: string;
+  startsOn?: string | null;
+  provider?: string | null;
+  premium?: number | null;
+  documentId?: string;
+};
+
+export async function recordRenewal(input: RenewalInput): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+
+  const vehicle = await vehicleIn(ctx.orgId, input.vehicleId);
+  if (!vehicle) return GONE;
+  if (!input.expiresOn) return { ok: false, error: "A renewal needs an expiry date." };
+
+  const { data: policy, error } = await supabaseAdmin
+    .from("vehicle_policies")
+    .insert({
+      org_id: ctx.orgId,
+      vehicle_id: input.vehicleId,
+      kind: input.kind,
+      provider: input.provider?.trim() || null,
+      premium: input.premium ?? null,
+      starts_on: input.startsOn || null,
+      expires_on: input.expiresOn,
+      document_id: input.documentId ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: "Couldn't record that renewal." };
+
+  // cache the newest expiry on the vehicle — never backwards
+  const column = input.kind === "insurance" ? "insurance_expiry" : "rego_expiry";
+  const current = (vehicle as Record<string, unknown>)[column] as string | null | undefined;
+  if (!current || input.expiresOn > current) {
+    await supabaseAdmin
+      .from("vehicles")
+      .update({ [column]: input.expiresOn, updated_at: new Date().toISOString() })
+      .eq("org_id", ctx.orgId)
+      .eq("id", input.vehicleId);
+  }
+
+  if (input.documentId) {
+    await adoptRenewalDocument(ctx, input.vehicleId, input.documentId, input.kind, policy.id as string);
+  }
+  refresh();
+  return { ok: true };
+}
+
+/* Same contract as the other adoptions: only the uploader's own, confirmed,
+   still-orphaned document of the RIGHT kind may land. The kind check is what
+   keeps a fuel docket from being filed as a policy schedule. */
+async function adoptRenewalDocument(
+  ctx: Ctx,
+  vehicleId: string,
+  documentId: string,
+  kind: "insurance" | "rego",
+  policyId: string,
+): Promise<void> {
+  if (!ctx.staffId) return;
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: vehicleId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", kind === "insurance" ? "insurance_policy" : "rego_notice")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null)
+    .select("id");
+  // a document that refused adoption must not be claimed by the policy row
+  if (!data || data.length === 0) {
+    await supabaseAdmin
+      .from("vehicle_policies")
+      .update({ document_id: null })
+      .eq("org_id", ctx.orgId)
+      .eq("id", policyId);
+  }
 }

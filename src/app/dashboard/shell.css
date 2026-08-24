@@ -3612,6 +3612,13 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-docrow:hover b { text-decoration:underline; }
 .fl-invoice { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--ink); margin-top:2px; min-width:0; }
 .fl-invoice i { font-style:normal; font-weight:600; color:var(--q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Update — the fix for an expiry, sitting on the fact that warns about it. */
+.fl-renew { display:inline-flex; align-items:center; gap:5px; margin-top:6px; padding:4px 9px; border-radius:8px; background:#fff; border:1px solid #e5e7eb; font-size:11px; font-weight:800; color:var(--ink); }
+.fl-renew:hover { border-color:#2E68FF; color:var(--info-t); }
+/* Current vs previous on a renewal document. Derived from the file list, so
+   the tag can never disagree with what is above it. */
+.fl-doctag { flex:none; padding:2px 7px; border-radius:6px; background:#f1f2f4; font-size:10px; font-weight:800; color:var(--q); text-transform:uppercase; letter-spacing:.03em; }
+.fl-doctag.now { background:rgba(0,229,192,.1); color:var(--ok-t); }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:34px 20px; border:1.5px dashed #d7dae0; border-radius:18px; background:#fafbfc; cursor:pointer; transition:all .2s; }
 .fl-scan:hover, .fl-scan.over { border-color:#00E5C0; background:rgba(0,229,192,.05); }
 .fl-scan input { display:none; }

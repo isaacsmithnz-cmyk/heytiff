@@ -6492,33 +6492,66 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-scmc.ns { background:rgba(5,5,5,.022); border-color:transparent; }
 .wb2-scmk { width:7px; height:7px; border-radius:50%; background:var(--gray500); }
 
-/* the day panel — BELOW the grid, in flow, so selecting a day never moves
-   a cell. The rail's block anatomy at list scale: client leads, number is
-   a chip, hours right, people on their own line. */
-.wb2-scmdet { margin:2px 20px 16px; border:1px solid var(--wb2-line); border-radius:14px;
-  background:#fff; overflow:hidden; }
-.wb2-scmdh { display:flex; align-items:center; gap:10px; padding:11px 14px;
-  border-bottom:1px solid var(--wb2-line2); }
-.wb2-scmdh b { font-size:13px; font-weight:800; }
-.wb2-scmdh em { font-style:normal; font-size:11.5px; font-weight:700; color:var(--gray500);
+/* ── THE DAY, BROUGHT FORWARD (the capacity window's day) ──
+   UNSCOPED, like .fl-ov and .wb2-scf: this portals to <body>, outside `.fg`,
+   so a scoped rule would silently miss it. It takes .fl-ov's scrim and
+   centring — ONE backdrop-filter on the page, and never a `-webkit-` twin —
+   and then the focus card's own anatomy, because the two are the same object
+   at two grains: the day, and one job out of it.
+
+   It used to be a panel under the weeks. Nothing was wrong with it except
+   the screen: 28 cells above a job list meant the list ran off the bottom
+   while three-quarters of the window sat unread above it. */
+.wb2-scd { width:min(560px, 100%); max-height:min(78vh, 760px); display:flex; flex-direction:column;
+  background:#fff; border-radius:22px; box-shadow:0 30px 80px rgba(0,0,0,.3);
+  animation:wb2ScfIn .26s cubic-bezier(.22,1,.36,1);
+  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:#050505; }
+.wb2-scd *, .wb2-scd *::before, .wb2-scd *::after { box-sizing:border-box; }
+/* the card takes focus when it opens (a dialog the keyboard is in), and says
+   nothing about it — the ring belongs to the controls inside */
+.wb2-scd:focus { outline:none; }
+.wb2-scd button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+@media (prefers-reduced-motion:reduce){ .wb2-scd { animation:none; } }
+
+.wb2-scdh { flex:none; display:flex; align-items:center; gap:12px; padding:18px 20px 12px; }
+.wb2-scdh span { display:flex; align-items:baseline; gap:9px; min-width:0; }
+.wb2-scdh b { font-size:17px; font-weight:800; letter-spacing:-.025em; color:#050505; }
+.wb2-scdh em { font-style:normal; font-size:12px; font-weight:700; color:#57616f;
   font-variant-numeric:tabular-nums; }
-.wb2-scmdx { margin-left:auto; width:26px; height:26px; display:grid; place-items:center;
-  border-radius:8px; color:var(--gray500); cursor:pointer; transition:background .18s, color .18s; }
-.wb2-scmdx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
-.wb2-scmdx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
-.wb2-scmjob { display:flex; flex-direction:column; gap:2px; padding:10px 14px;
-  border-bottom:1px solid var(--wb2-line2); }
-.wb2-scmjob:last-child { border-bottom:0; }
-.wb2-scmjh { display:flex; align-items:center; gap:7px; }
-.wb2-scmjh b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  font-size:12.5px; font-weight:800; }
-.wb2-scmjh u { flex:none; text-decoration:none; padding:1px 6px; border-radius:5px;
-  background:rgba(5,5,5,.06); font-size:10.5px; font-weight:800; color:var(--gray700);
+.wb2-scdx { margin-left:auto; flex:none; width:28px; height:28px; display:grid; place-items:center;
+  border-radius:9px; color:#57616f; transition:background .18s, color .18s; }
+.wb2-scdx:hover { background:rgba(5,5,5,.06); color:#050505; }
+.wb2-scdx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.4); }
+
+/* the list scrolls INSIDE the card — a twelve-job day is a scroll, never a
+   modal taller than the viewport with its own header pushed off the top */
+.wb2-scdlist { flex:1 1 auto; min-height:0; overflow:auto; display:flex; flex-direction:column;
+  gap:6px; padding:2px 16px 18px; }
+.wb2-scdlist .wb2-hint { margin:8px 4px 4px; }
+
+/* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL — same wash, same 4px cap, same
+   number chip, so what the day holds is recognisable before it is read. */
+.wb2-scdjob { position:relative; display:flex; flex-direction:column; gap:2px; width:100%;
+  text-align:left; padding:11px 13px 11px 19px; border-radius:13px;
+  background:var(--fill, #f4f5f7); transition:transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s; }
+.wb2-scdjob::before { content:""; position:absolute; left:7px; top:11px; bottom:11px;
+  width:4px; border-radius:3px; background:var(--bar, #7a818c); }
+/* finished work keeps its hairline and loses its cap: colour on this board
+   means work still to do */
+.wb2-scdjob.done { box-shadow:inset 0 0 0 1px rgba(5,5,5,.07); }
+.wb2-scdjob.done::before { display:none; }
+.wb2-scdjob:hover { transform:translateY(-1px); box-shadow:0 6px 18px rgba(5,5,5,.1); }
+.wb2-scdjob:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.45); }
+.wb2-scdjh { display:flex; align-items:center; gap:8px; }
+.wb2-scdjh b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:13.5px; font-weight:800; letter-spacing:-.015em; color:var(--btext, #050505); }
+.wb2-scdjh u { flex:none; text-decoration:none; padding:1px 7px; border-radius:6px;
+  background:var(--chip, rgba(5,5,5,.06)); font-size:10.5px; font-weight:800; color:#374151;
   font-variant-numeric:tabular-nums; }
-.wb2-scmjh em { margin-left:auto; flex:none; font-style:normal; font-size:11.5px; font-weight:800;
-  color:var(--gray700); font-variant-numeric:tabular-nums; }
-.wb2-scmjob > em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
-.wb2-scmjob > i { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray700); }
+.wb2-scdjh em { margin-left:auto; flex:none; font-style:normal; font-size:11.5px; font-weight:800;
+  color:#2b3038; font-variant-numeric:tabular-nums; }
+.wb2-scdjob > em { font-style:normal; font-size:11.5px; font-weight:700; color:#57616f; }
+.wb2-scdjob > i { font-style:normal; font-size:11.5px; font-weight:600; color:#2b3038; }
 
 /* ── the crew editor (inside .fl-modal, which PORTALS TO BODY — these are
    unscoped like every wb2- rule, so they reach it out there; a .fg prefix

@@ -22,10 +22,18 @@ import {
 import {
   NO_CATEGORY_PAINT,
   scheduleBlockPaint,
-  type BlockPaint,
+  TRACKED_PAINT,
 } from "@/lib/workboard/schedule-colour";
+import {
+  blockLabel,
+  blockPaint,
+  blockState as blockStateOf,
+  dayStateOfMarks,
+  focusJobOf,
+  type DayClock,
+} from "@/lib/workboard/focus";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
-import { ScheduleFocus, type FocusMark } from "./schedule-focus";
+import { ScheduleFocus } from "./schedule-focus";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
    answered from the mirror this account already syncs: one lane per staff
@@ -70,20 +78,6 @@ const TIGHT_PX = 90;
 /** Indexed by `dowOfISO` (Mon=0 … Sun=6) — the strip's window slides a day at
     a time now, so a card's weekday comes from its own date, never its slot. */
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-/** A job promoted onto one of our boards leaves the category palette for the
-    tracked blue — the All jobs rows' chip, at block weight. Stated here rather
-    than derived, because this hue is ours and never arrives from ServiceM8. */
-const TRACKED_PAINT: BlockPaint = {
-  fill: "rgb(231, 244, 248)",
-  ink: "rgb(10, 11, 16)",
-  chip: "rgb(201, 228, 237)",
-  /* the ONE cap that is not derived: this hue is ours, and it clears its own
-     wash 5.43:1 without needing to be walked anywhere */
-  bar: "rgb(0, 106, 140)",
-  pale: "rgb(244, 245, 247)",
-  paleEdge: "rgb(219, 222, 228)",
-};
 
 /** A native day-booking — a project trip or maintenance visit. It has a DAY
     and no clock and mostly no person, so it rides a shelf above the lanes
@@ -438,6 +432,9 @@ export function ScheduleTab({
         capCache={capCache}
         dayCache={cache}
         switcher={switcher}
+        tracked={tracked}
+        nowMin={nowMin}
+        onOpenJob={onOpenJob}
       />
     );
   }
@@ -452,39 +449,32 @@ export function ScheduleTab({
         ).entries(),
       ].sort((a, b) => a[0].localeCompare(b[0]))
     : [];
-  const dayBegun = openDay <= today;
-  const hollowReads = dayBegun && !!day?.tracksTime;
-  const startedGone = (startMin: number) =>
-    openDay < today || (nowMin !== null && startMin < nowMin);
+  /* The lane dots' two gates, which are the block treatment's own: a day that
+     has begun, and an account that records time at all. */
+  const hollowReads = openDay <= today && !!day?.tracksTime;
   /* The minute past which an unstarted booking is late — the same judgement
-     `startedGone` makes per block, in the shape lanePresence wants. A day
+     `blockState` makes per block, in the shape lanePresence wants. A day
      already gone is late in all of it; today needs the browser's clock, and
      without a trustworthy one nothing is claimed. */
   const overdueBefore = openDay < today ? 24 * 60 : openDay === today ? nowMin : null;
 
-  /* WHAT ONE BLOCK IS DOING, decided once. The rail draws it as treatment and
-     the focus stack writes it as a word, and the two must not be able to drift
-     apart — a card that says "not started" beside a block drawn as started is
-     worse than either mark alone. */
-  const blockState = (b: ScheduleBlock) => {
-    /* A stale booking is NOT closed off — the job is, but this day's work is
-       still on somebody's run, so it stays solid rather than fading. */
-    const open = b.closure !== "done" && b.status !== "Unsuccessful";
-    const hollow = hollowReads && open && !b.onSite;
-    /* ONE STATE PER BLOCK. A booking ServiceM8 has already marked complete
-       cannot also be accused of not having been started — the crew may well be
-       on site without clocking on, which is exactly how the job came to be
-       closed while a later visit was still booked. The flag wins. */
-    const late = hollow && b.closure !== "stale" && startedGone(b.startMin);
-    const word =
-      b.closure === "stale" ? "Marked complete in ServiceM8"
-      : b.status === "Unsuccessful" ? "Didn't go ahead"
-      : late ? "Nothing recorded yet"
-      : hollow ? "Not started"
-      : b.closure === "done" ? "Done"
-      : b.onSite ? "Started" : null;
-    return { hollow, late, word };
+  /* WHAT ONE BLOCK IS DOING — asked of lib/workboard/focus.ts, which is the
+     same call the focus card makes. The rail draws the answer as treatment
+     and the card writes it as a word, and the two must not be able to drift
+     apart: a card that says "not started" beside a block drawn as started is
+     worse than either mark alone.
+
+     FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED — the
+     three gates and the late case are stated there, over this clock. `nowMin`
+     is null when the browser's date disagrees with the board's, and lateness
+     is then simply not claimed. */
+  const clock: DayClock = {
+    dayISO: openDay,
+    today,
+    nowMin,
+    tracksTime: !!day?.tracksTime,
   };
+  const blockState = (b: ScheduleBlock) => blockStateOf(b, clock);
 
   const hasBare = day
     ? day.lanes.some((l) => l.blocks.some((b) => !b.tracked && !b.categoryColour))
@@ -505,77 +495,10 @@ export function ScheduleTab({
   const hasIdle = day ? day.lanes.some((l) => l.blocks.some((b) => blockState(b).hollow)) : false;
   const hasLate = day ? day.lanes.some((l) => l.blocks.some((b) => blockState(b).late)) : false;
 
-  /* FILLED MEANS SOMEONE IS ON IT; HOLLOW MEANS IT IS STILL ONLY BOOKED.
-     Three gates before a block is allowed to go hollow, because the wrong
-     hollow block is worse than none:
-
-     · the day has to have begun. On a day still ahead, nothing is started
-       yet by definition, and a whole board of outlines would say nothing.
-     · the account has to record time at all. `tracksTime` is false when no
-       booking drawn today carries any, which is a crew that marks jobs
-       complete and never clocks on — for them this reading does not exist.
-     · the job has to still be open. Completed work has plainly happened, and
-       goes pale; Unsuccessful didn't and says so with its own ring.
-
-     LATE is the narrower case on top: hollow AND its start has already gone.
-     On today that needs the browser's clock, which is the same clock the now
-     line is drawn from and is null when it disagrees with the board's date —
-     no mark beats one that is hours wrong, so lateness simply isn't claimed. */
-  /* THE JOB BROUGHT FORWARD. Gathered from the lanes rather than from the
-     payload, so the cards are exactly the blocks that are on screen — a job
-     booked on another day is not on this rail and has no business in a stack
-     lifted off it. */
-  const focus = (() => {
-    if (!focusJob || !day) return null;
-    const entries = day.lanes.flatMap((l) =>
-      l.blocks
-        .filter((b) => b.remoteId === focusJob)
-        .map((b) => ({
-          key: b.key,
-          who: l.name,
-          startMin: b.startMin,
-          endMin: b.endMin,
-          state: blockState(b).word,
-          done: b.closure === "done",
-          paint: b.tracked ? TRACKED_PAINT : scheduleBlockPaint(b.categoryColour),
-        }))
-    );
-    if (entries.length === 0) return null;
-    const all = day.lanes.flatMap((l) => l.blocks).filter((b) => b.remoteId === focusJob);
-    const first = all[0];
-    const label = first.tracked
-      ? first.tracked.kind === "project"
-        ? "Project"
-        : "Maintenance"
-      : (first.categoryName ?? "No category");
-    const paint = first.tracked ? TRACKED_PAINT : scheduleBlockPaint(first.categoryColour);
-    /* WHAT THE BLOCK'S PAINT IS SAYING, in words — the footer key scoped to
-       the one job on the table. Only treatments this job actually wears; each
-       one draws its own swatch in the card, so the decode and the block can't
-       drift. The category leads because its colour is the loudest thing on
-       the block and the least self-explanatory. */
-    const marks: FocusMark[] = [{ kind: "cat", word: label }];
-    if (first.status === "Quote") marks.push({ kind: "qt", word: "A quote — dashed edge" });
-    if (first.status === "Unsuccessful") marks.push({ kind: "dan", word: "Didn't go ahead" });
-    if (all.some((b) => b.closure === "stale"))
-      marks.push({ kind: "stale", word: "Marked complete in ServiceM8, still booked" });
-    if (all.some((b) => b.closure === "done")) marks.push({ kind: "done", word: "Done and closed" });
-    if (all.some((b) => blockState(b).late))
-      marks.push({ kind: "late", word: "Nothing recorded yet" });
-    else if (all.some((b) => blockState(b).hollow))
-      marks.push({ kind: "idle", word: "Not started — hollow cap" });
-    else if (all.some((b) => b.onSite && b.closure !== "done"))
-      marks.push({ kind: "on", word: "Started" });
-    return {
-      jobNumber: first.jobNumber,
-      clientName: first.clientName,
-      suburb: first.suburb,
-      label,
-      paint,
-      marks,
-      entries,
-    };
-  })();
+  /* THE JOB BROUGHT FORWARD — read off the LAID-OUT day, so the cards are
+     exactly the blocks that are on screen. The capacity window opens its days
+     into the same card from the same function. */
+  const focus = focusJob && day ? focusJobOf(day, focusJob, clock) : null;
 
   const closeFocus = () => {
     const was = focusJob;
@@ -715,9 +638,7 @@ export function ScheduleTab({
                         /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
                            boards wears the tracked blue, everything else is
                            painted from its ServiceM8 category. */
-                        const paint = b.tracked
-                          ? TRACKED_PAINT
-                          : scheduleBlockPaint(b.categoryColour);
+                        const paint = blockPaint(b);
                         return (
                           <button
                             key={b.key}
@@ -777,11 +698,7 @@ export function ScheduleTab({
                               {b.jobNumber && <u>{b.jobNumber}</u>}
                             </span>
                             <em>
-                              {b.tracked
-                                ? b.tracked.kind === "project"
-                                  ? "Project"
-                                  : "Maintenance"
-                                : (b.categoryName ?? "No category")}
+                              {blockLabel(b)}
                               {b.status === "Quote" ? " · Quote" : ""}
                               {/* in words, because an amber ring alone would
                                   leave a screen reader with a normal booking */}
@@ -823,17 +740,9 @@ export function ScheduleTab({
             /* the day-state rides along so the sheet's header can wear the
                same reading the rail drew — the statuses the sheet already
                chips (Quote, Unsuccessful, Completed) stay its own */
-            const dayState =
-              focus.marks.find(
-                (m): m is FocusMark & { kind: ScheduleJobState["kind"] } =>
-                  m.kind === "late" || m.kind === "idle" || m.kind === "on" || m.kind === "stale"
-              ) ?? null;
+            const dayState = dayStateOfMarks(focus.marks);
             setFocusJob(null);
-            if (job)
-              onOpenJob(
-                job,
-                dayState ? { kind: dayState.kind, word: dayState.word.split(" — ")[0] } : null
-              );
+            if (job) onOpenJob(job, dayState);
           }}
         />
       )}

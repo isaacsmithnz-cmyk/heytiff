@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { clockLabel } from "@/lib/workboard/schedule";
-import type { BlockPaint } from "@/lib/workboard/schedule-colour";
+import type { FocusJob } from "@/lib/workboard/focus";
 
 /* ONE JOB, BROUGHT FORWARD — what replaced the crew hover.
 
@@ -35,40 +35,12 @@ import type { BlockPaint } from "@/lib/workboard/schedule-colour";
    a `-webkit-` twin, because the build ships only the prefixed one and the
    blur then silently disappears everywhere else. */
 
-/** One person on the job, and what their booking is doing. */
-export type FocusEntry = {
-  key: string;
-  who: string;
-  startMin: number;
-  endMin: number;
-  /** The word for this booking's state, already decided by the rail so the two
-      surfaces can never disagree. Null when there is nothing to claim. */
-  state: string | null;
-  paint: BlockPaint;
-  /** Finished work is neutral on the rail and neutral here. */
-  done: boolean;
-};
-
-/** One treatment this job's blocks wear, decoded: the swatch is drawn by the
-    card in the job's own paint, the word says what it means. `cat` is always
-    first — the category (or owning board) whose colour washes the block. */
-export type FocusMark = {
-  kind: "cat" | "qt" | "dan" | "done" | "stale" | "idle" | "late" | "on";
-  word: string;
-};
-
-export type FocusJob = {
-  jobNumber: string | null;
-  clientName: string | null;
-  suburb: string | null;
-  /** The category, or the board that owns it — whatever the block says. */
-  label: string;
-  /** The job's own paint, for the marks' swatches. */
-  paint: BlockPaint;
-  /** The status of the job and what its colours mean — only what it wears. */
-  marks: FocusMark[];
-  entries: FocusEntry[];
-};
+/* The card's shapes — FocusEntry / FocusMark / FocusJob — live in
+   lib/workboard/focus.ts with the law that builds them, because two surfaces
+   build one now (the rail and the capacity day) and the judgement they carry
+   has to be the same judgement. Re-exported here so a caller can keep asking
+   the card for its own types. */
+export type { FocusEntry, FocusMark, FocusJob } from "@/lib/workboard/focus";
 
 export function ScheduleFocus({
   job,

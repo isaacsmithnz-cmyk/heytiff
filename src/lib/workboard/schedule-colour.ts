@@ -153,6 +153,23 @@ export const NO_CATEGORY_PAINT: BlockPaint = {
   paleEdge: DONE_EDGE,
 };
 
+/** A job promoted onto one of our boards leaves the category palette for the
+    tracked blue — the All jobs rows' chip, at block weight. STATED, not
+    derived: this hue is ours and never arrives from ServiceM8. It lives here
+    beside the other paints because three surfaces now draw it — the rail, the
+    focus card and the capacity day — and a fourth copy is a fourth chance to
+    drift. */
+export const TRACKED_PAINT: BlockPaint = {
+  fill: "rgb(231, 244, 248)",
+  ink: "rgb(10, 11, 16)",
+  chip: "rgb(201, 228, 237)",
+  /* the ONE cap that is not derived: this hue is ours, and it clears its own
+     wash 5.43:1 without needing to be walked anywhere */
+  bar: "rgb(0, 106, 140)",
+  pale: DONE_PALE,
+  paleEdge: DONE_EDGE,
+};
+
 /** The wash: light enough that no hue can arrive as an alarm, saturated enough
     that the category is still nameable at a glance. */
 const WASH_L = 0.94;

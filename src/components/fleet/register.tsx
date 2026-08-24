@@ -206,8 +206,8 @@ export function FleetRegister({
             initial={null}
             staff={staff}
             today={today}
-            onSave={(v) => {
-              fleet.saveVehicle(v);
+            onSave={(v, invoiceId) => {
+              fleet.saveVehicle(v, invoiceId);
               setModal({ t: "none" });
             }}
             onClose={() => setModal({ t: "none" })}
@@ -431,8 +431,8 @@ export function FleetRegister({
           initial={null}
           staff={staff}
           today={today}
-          onSave={(v) => {
-            fleet.saveVehicle(v);
+          onSave={(v, invoiceId) => {
+            fleet.saveVehicle(v, invoiceId);
             setModal({ t: "none" });
           }}
           onClose={() => setModal({ t: "none" })}
@@ -443,8 +443,8 @@ export function FleetRegister({
           initial={openVehicle}
           staff={staff}
           today={today}
-          onSave={(v) => {
-            fleet.saveVehicle(v);
+          onSave={(v, invoiceId) => {
+            fleet.saveVehicle(v, invoiceId);
             setModal({ t: "detail", id: v.id });
           }}
           onClose={() => setModal({ t: "detail", id: openVehicle.id })}
@@ -458,6 +458,7 @@ export function FleetRegister({
           eco={fuelEconomy(logsFor(logs, openVehicle.id))}
           valuation={fleet.aiValues[openVehicle.id]}
           valuationIsStale={valuationStale(openVehicle, fleet.aiValues[openVehicle.id])}
+          documents={fleet.documents[openVehicle.id] ?? []}
           staff={staff}
           manager
           onClose={() => setModal({ t: "none" })}

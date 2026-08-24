@@ -12,6 +12,7 @@ import type {
   VehicleLog,
   VehicleWithFacts,
 } from "./logic";
+import type { StoredDocument } from "@/lib/documents/query";
 import { MyVehicle } from "./my-vehicle";
 import { FleetRegister } from "./register";
 
@@ -48,6 +49,8 @@ export type Register = {
   logs: VehicleLog[];
   aiValues: Record<string, AiValuation>;
   staff: FleetStaff[];
+  /** The paper trail, per vehicle: its own documents plus its logs' dockets. */
+  documents: Record<string, StoredDocument[]>;
 };
 
 type AssetsView = "fleet" | "equipment";

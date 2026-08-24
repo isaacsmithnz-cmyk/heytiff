@@ -5,9 +5,10 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
 import { DateField } from "@/components/ui/date-field";
-import { readFuelReceipt } from "@/app/actions/fleet-ai";
+import { readFuelReceipt, readPurchaseInvoice } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
+import type { StoredDocument } from "@/lib/documents/query";
 import { MAKE_NOT_LISTED, VEHICLE_MAKES, canonicalMake } from "@/lib/fleet/makes";
 import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
@@ -41,6 +42,18 @@ import {
 function num(s: string): number {
   const n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+/* What a document calls itself in the paper trail. Only the kinds a vehicle
+   can actually own appear; anything else renders as plain "Document". */
+const DOC_KIND_LABEL: Partial<Record<StoredDocument["kind"], string>> = {
+  purchase_invoice: "Purchase invoice",
+  fuel_receipt: "Fuel docket",
+};
+
+function fmtDocDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -141,7 +154,7 @@ export function VehicleFormModal({
       anchor: the day-counts this form produces are converted back to dates
       server-side against the same day, and the two must agree. */
   today: string;
-  onSave: (v: Vehicle) => void;
+  onSave: (v: Vehicle, purchaseInvoiceId?: string) => void;
   onClose: () => void;
 }) {
   const [f, setF] = useState(() =>
@@ -194,6 +207,48 @@ export function VehicleFormModal({
   const [makeNotListed, setMakeNotListed] = useState(
     () => !!initial && initial.make.trim() !== "" && canonicalMake(initial.make) === null,
   );
+  /* The purchase invoice (issue #509). Uploaded and read while the form is
+     open; adopted onto the vehicle by the save action, because a NEW vehicle
+     has no row to own it until then. The scan fills the price and date fields
+     the person is looking at — the form IS the confirm step, same doctrine as
+     the fuel docket. */
+  const [invoice, setInvoice] = useState<
+    | { state: "none" }
+    | { state: "reading"; name: string }
+    | { state: "attached"; name: string; documentId: string; read: string | null }
+  >({ state: "none" });
+  const invoiceFileRef = useRef<HTMLInputElement>(null);
+
+  const onInvoicePick = async (file: File | null) => {
+    if (!file || invoice.state === "reading") return;
+    setInvoice({ state: "reading", name: file.name });
+    const [up, scan] = await Promise.all([
+      uploadFile(file, "purchase_invoice").catch(() => ({ ok: false, error: "upload" }) as const),
+      fileToBase64(file)
+        .then((b64) => readPurchaseInvoice(b64, file.type))
+        .catch(() => ({ ok: false, reason: "read" }) as const),
+    ]);
+    if (!up.ok) {
+      setInvoice({ state: "none" });
+      return;
+    }
+    let read: string | null = null;
+    if (scan.ok && (scan.cost || scan.purchasedOn)) {
+      setF((p) => ({
+        ...p,
+        purchasePrice: scan.cost ? String(scan.cost) : p.purchasePrice,
+        purchaseDate: scan.purchasedOn ?? p.purchaseDate,
+      }));
+      read = [
+        scan.cost ? fmtMoney(scan.cost) : null,
+        scan.purchasedOn,
+        scan.supplier,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
+    setInvoice({ state: "attached", name: file.name, documentId: up.file.documentId, read });
+  };
   const set =
     (k: keyof typeof f) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -208,6 +263,7 @@ export function VehicleFormModal({
   const save = () => {
     if (!ready) return;
     const odometer = num(f.odometer);
+    const invoiceId = invoice.state === "attached" ? invoice.documentId : undefined;
     onSave({
       // blank id = a new row; the database mints the uuid
       id: initial?.id ?? "",
@@ -228,7 +284,7 @@ export function VehicleFormModal({
       serviceIntervalKm: num(f.intervalKm) || 10000,
       lastServiceOdo: f.lastServiceOdo.trim() ? num(f.lastServiceOdo) : odometer,
       notes: f.notes.trim() || undefined,
-    });
+    }, invoiceId);
   };
 
   return (
@@ -331,6 +387,34 @@ export function VehicleFormModal({
             value={f.purchasePrice}
             onChange={set("purchasePrice")}
           />
+          <input
+            ref={invoiceFileRef}
+            type="file"
+            accept="image/*,application/pdf"
+            hidden
+            onChange={(e) => {
+              void onInvoicePick(e.target.files?.[0] ?? null);
+              e.target.value = "";
+            }}
+          />
+          {invoice.state === "attached" ? (
+            <span className="fl-invoice">
+              <Icon name="file" size={13} />
+              {invoice.name}
+              {invoice.read && <i> — Tiff read {invoice.read}</i>}
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="fl-modeline"
+              disabled={invoice.state === "reading"}
+              onClick={() => invoiceFileRef.current?.click()}
+            >
+              {invoice.state === "reading"
+                ? "Tiff is reading the invoice…"
+                : "Attach the invoice — Tiff reads the price and date"}
+            </button>
+          )}
         </Field>
         <Field label="Book value ($)" hint="What it's worth today. You keep this current; it's what the fleet total adds up.">
           <input className="fl-i" type="number" placeholder="What it's worth now" value={f.value} onChange={set("value")} />
@@ -1042,6 +1126,7 @@ export function DetailModal({
   eco,
   valuation,
   valuationIsStale,
+  documents = [],
   staff,
   manager,
   onClose,
@@ -1059,6 +1144,8 @@ export function DetailModal({
   eco: Record<string, number>;
   valuation?: AiValuation;
   valuationIsStale?: boolean;
+  /** The vehicle's paper trail — its own documents plus its logs' dockets. */
+  documents?: StoredDocument[];
   staff: FleetStaff[];
   manager: boolean;
   onClose: () => void;
@@ -1222,6 +1309,24 @@ export function DetailModal({
             <Icon name="x" size={15} />
             {confirmRemove ? "Confirm remove" : "Remove"}
           </button>
+        </div>
+      )}
+
+      {/* The paper trail (issue #509): what this vehicle owns on file — its
+          purchase invoice, and every docket its logs adopted. Links are
+          signed per page view and expire; nothing here is a stored URL. */}
+      {documents.length > 0 && (
+        <div className="fl-hist fl-docs">
+          <div className="fl-hh">Documents</div>
+          {documents.map((d) => (
+            <a key={d.id} className="fl-docrow" href={d.url ?? undefined} target="_blank" rel="noreferrer">
+              <Icon name="file" size={15} />
+              <b>{d.fileName}</b>
+              <em>
+                {DOC_KIND_LABEL[d.kind] ?? "Document"} · {fmtDocDate(d.createdAt)}
+              </em>
+            </a>
+          ))}
         </div>
       )}
 

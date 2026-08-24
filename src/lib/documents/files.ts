@@ -38,6 +38,11 @@ export type DocumentKind =
      when the grant is, and it must never be adoptable by a claim or a notice
      the way a receipt is. */
   | "job_file"
+  /* The invoice or receipt behind a vehicle's purchase price. Its own kind for
+     the standing reason: an expense claim must not be able to adopt the van's
+     purchase paperwork and land a $45,000 vehicle in someone's
+     reimbursements. Owned by the VEHICLE (documents.vehicle_id), not a log. */
+  | "purchase_invoice"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -51,6 +56,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "staff_photo",
   "project_file",
   "job_file",
+  "purchase_invoice",
   "other",
 ];
 

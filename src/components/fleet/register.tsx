@@ -50,15 +50,11 @@ export function FleetRegister({
   fleet,
   staff,
   today,
-  view,
   openVehicleId = null,
 }: {
   fleet: FleetState;
   staff: FleetStaff[];
   today: string;
-  /** Which slice of the fleet to show — the Assets screen owns the tab strip
-      now, so the register renders one face rather than carrying its own. */
-  view: FleetTab;
   /** `?v=` — a vehicle to open on arrival, from a plate clicked elsewhere.
       Looked up against the whole fleet, not the current face, so a link to a
       sold or pooled vehicle still opens from the Fleet tab. */
@@ -66,6 +62,11 @@ export function FleetRegister({
 }) {
   const { vehicles, logs } = fleet;
   const [query, setQuery] = useState("");
+  /* The slices that used to be tabs (Need attention / Pool / Sold) are a
+     toolbar filter now — the strip above switches asset class, not fleet
+     slices. Sold stays an OPTION rather than a face so sold vehicles remain
+     reachable; "All vehicles" still excludes them, as the Fleet tab did. */
+  const [filter, setFilter] = useState<FleetTab>("all");
   const [sort, setSort] = useState<FleetSort>("attention");
   /* ?v=<id> OPENS THAT VEHICLE, which is what makes the plate on a staff card a
      door rather than a signpost. The id is read on the SERVER and handed down —
@@ -108,9 +109,13 @@ export function FleetRegister({
 
   const working = vehicles.filter((v) => v.status !== "sold");
   const sold = vehicles.filter((v) => v.status === "sold");
+  const attention = working.filter(
+    (v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0,
+  );
+  const pool = working.filter((v) => v.assignedTo === null);
   const rows = useMemo(
-    () => sortVehicles(filterVehicles(vehicles, logs, view, query, staffName), logs, sort),
-    [vehicles, logs, view, query, staffName, sort],
+    () => sortVehicles(filterVehicles(vehicles, logs, filter, query, staffName), logs, sort),
+    [vehicles, logs, filter, query, staffName, sort],
   );
 
   const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
@@ -217,9 +222,9 @@ export function FleetRegister({
     <div ref={rootRef}>
       <div
         className="dir"
-        id={`astp-${view}`}
+        id="astp-fleet"
         role="tabpanel"
-        aria-labelledby={`ast-${view}`}
+        aria-labelledby="ast-fleet"
         tabIndex={-1}
       >
         {/* The card's own toolbar — it sat between the tab strip and the card,
@@ -240,6 +245,20 @@ export function FleetRegister({
               <option value="attention">Needs attention</option>
               <option value="name">Name (A–Z)</option>
               <option value="value">Value (high–low)</option>
+            </select>
+          </label>
+          <label className="dsortwrap">
+            <Icon name="layers" size={14} />
+            <select
+              className="dsort"
+              aria-label="Filter vehicles"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as FleetTab)}
+            >
+              <option value="all">All vehicles</option>
+              <option value="attention">{`Needs attention (${attention.length})`}</option>
+              <option value="pool">{`Pool (${pool.length})`}</option>
+              <option value="sold">{`Sold (${sold.length})`}</option>
             </select>
           </label>
           <button
@@ -329,6 +348,19 @@ export function FleetRegister({
                     >
                       <Chevron size={14} gradient decorative />
                       {fmtMoney(val.point)}
+                      {/* The note was hover-only and Isaac found it by accident.
+                          The ⓘ is the visible door; the detail modal prints the
+                          source in full. */}
+                      <button
+                        className="fl-tiffinfo"
+                        aria-label="How Tiff priced this"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModal({ t: "detail", id: v.id });
+                        }}
+                      >
+                        <Icon name="info" size={13} />
+                      </button>
                     </em>
                   )}
                 </span>

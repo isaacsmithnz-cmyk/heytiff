@@ -1144,6 +1144,10 @@ export function DetailModal({
                   {fmtMoney(valuation.low)}–{fmtMoney(valuation.high)}
                 </span>
               )}
+              {/* The source, in ink — what it priced against, or why it's
+                  stale. This used to live only in the title attribute, which
+                  is to say: nowhere. */}
+              {valuation && <span className="fl-tiffnote">{tiffTitle}</span>}
             </div>
             <div className="fl-fact">
               <em>Status</em>

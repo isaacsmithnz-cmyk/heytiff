@@ -9,7 +9,6 @@ import {
   editLog as editLogAction,
   removeVehicle as removeVehicleAction,
   resolveIssue as resolveIssueAction,
-  saveValuations as saveValuationsAction,
   saveVehicle as saveVehicleAction,
 } from "@/app/actions/fleet";
 import type { LogEdit } from "@/app/actions/fleet";
@@ -37,7 +36,6 @@ export type FleetActions = {
   editLog: (logId: string, patch: LogEdit) => void;
   deleteLog: (logId: string) => void;
   resolveIssue: (logId: string) => void;
-  setValuations: (vals: Record<string, AiValuation>) => void;
 };
 
 /** The register's view: the whole payload plus the actions. The staff lens
@@ -84,9 +82,5 @@ export function useFleetActions(): FleetActions {
     ),
     deleteLog: useCallback((logId: string) => run(() => deleteLogAction(logId)), [run]),
     resolveIssue: useCallback((logId: string) => run(() => resolveIssueAction(logId)), [run]),
-    setValuations: useCallback(
-      (vals: Record<string, AiValuation>) => run(() => saveValuationsAction(vals)),
-      [run],
-    ),
   };
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
-import type { FleetAiVehicle, ValueFleetResult } from "@/lib/fleet/valuation";
 import type { FleetState } from "./fleet-state";
 import {
-  STATUS_LABEL,
   type FleetSort,
   type FleetStaff,
   type FleetTab,
@@ -21,7 +20,6 @@ import {
   logsFor,
   modelLabel,
   openIssueCount,
-  parseValuations,
   sortVehicles,
   valuationStale,
   vehicleChips,
@@ -92,6 +90,7 @@ export function FleetRegister({
   const [valuing, setValuing] = useState(false);
   const [valueErr, setValueErr] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!openMenu) return;
@@ -117,33 +116,63 @@ export function FleetRegister({
   const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
   const aiTotal = fleetAiValue(vehicles, fleet.aiValues);
 
+  /* The route owns the run now (issue #502): it reads the fleet, prices it,
+     and PERSISTS before responding — this component is a viewer, not the
+     courier the result has to survive in. So finishing, from here, is just
+     refreshing the page data. `watchRun` covers the runs this tab didn't
+     start (or lost): a reload mid-run finds the lease via GET and waits on it
+     instead of showing an idle button. */
+  const watchRun = useCallback(() => {
+    setValuing(true);
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch("/api/fleet/value");
+        if (res.ok && !(await res.json()).running) {
+          clearInterval(poll);
+          setValuing(false);
+          router.refresh();
+        }
+      } catch {
+        /* transient — the next tick asks again */
+      }
+    }, 8000);
+    return () => clearInterval(poll);
+  }, [router]);
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let gone = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/fleet/value");
+        if (!gone && res.ok && (await res.json()).running) stop = watchRun();
+      } catch {
+        /* no answer, no spinner — the button stays pressable */
+      }
+    })();
+    return () => {
+      gone = true;
+      stop?.();
+    };
+  }, [watchRun]);
+
   const runValuation = async () => {
     if (valuing) return;
     setValuing(true);
     setValueErr(null);
-    const payload: FleetAiVehicle[] = working.map((v) => ({
-      id: v.id,
-      make: v.make,
-      model: v.model,
-      year: v.year,
-      odometerKm: v.odometer,
-      status: STATUS_LABEL[v.status],
-      purchasePriceAud: v.purchasePrice || null,
-      ageYears: v.purchaseDateDays ? Math.round((v.purchaseDateDays / 365.25) * 10) / 10 : null,
-      notes: v.notes,
-    }));
     try {
       /* A route handler, not an action — pricing against live listings runs
          long enough to need its own maxDuration (see the route's comment). */
-      const res = (await (
-        await fetch("/api/fleet/value", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vehicles: payload }),
-        })
-      ).json()) as ValueFleetResult;
-      if (res.ok) fleet.setValuations(parseValuations(res, vehicles));
-      else setValueErr(res.reason === "no-key" ? "Tiff is offline — no API key configured." : res.reason);
+      const res = (await (await fetch("/api/fleet/value", { method: "POST" })).json()) as {
+        ok: boolean;
+        running?: boolean;
+        reason?: string;
+      };
+      if (res.ok) router.refresh();
+      else if (res.running) {
+        watchRun(); // someone else's press — wait for theirs instead of erroring
+        return;
+      } else setValueErr(res.reason ?? "Tiff couldn't complete that.");
     } catch {
       setValueErr("Tiff couldn't be reached.");
     }

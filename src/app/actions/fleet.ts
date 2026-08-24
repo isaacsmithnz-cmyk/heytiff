@@ -12,7 +12,6 @@ import {
   odoEffect,
   odoRecompute,
   odoRejection,
-  type AiValuation,
   type NewLog,
   type Vehicle,
 } from "@/components/fleet/logic";
@@ -133,26 +132,6 @@ export async function assignVehicle(
     .eq("org_id", ctx.orgId)
     .eq("id", vehicleId);
   if (error) return { ok: false, error: "Couldn't change the driver." };
-  refresh();
-  return { ok: true };
-}
-
-/** Cache Tiff's valuations on the rows they belong to (Manager+, like the
-    valuation action itself). */
-export async function saveValuations(
-  values: Record<string, AiValuation>,
-): Promise<FleetResult> {
-  const ctx = await context();
-  if (!ctx) return { ok: false, error: "Not signed in." };
-  if (!(await can("assets_all"))) return DENIED;
-
-  for (const [id, val] of Object.entries(values)) {
-    await supabaseAdmin
-      .from("vehicles")
-      .update({ ai_value: val })
-      .eq("org_id", ctx.orgId)
-      .eq("id", id);
-  }
   refresh();
   return { ok: true };
 }

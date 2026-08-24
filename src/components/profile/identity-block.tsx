@@ -1,6 +1,7 @@
 "use client";
 
-import { displayName } from "@/components/fleet/logic";
+import Link from "next/link";
+import { Plate } from "@/components/fleet/plate";
 import { PhotoBadge } from "./photo-badge";
 import type { AssignedVehicle, ProfileActions, ProfileHeader } from "./types";
 
@@ -60,11 +61,7 @@ export function IdentityBlock({
       <dl className="pfstrip">
         <Fact label="Started" value={header.started} />
         <Fact label="Tenure" value={header.years === "—" ? "—" : `${header.years} years`} />
-        <Fact
-          label="Vehicle"
-          value={vehicle ? displayName(vehicle.vehicle) : "Unassigned"}
-          muted={!vehicle}
-        />
+        <VehicleFact vehicle={vehicle} />
       </dl>
     </div>
   );
@@ -75,6 +72,37 @@ function Fact({ label, value, muted }: { label: string; value: string; muted?: b
     <div className="pfs">
       <dt>{label}</dt>
       <dd className={muted ? "muted" : undefined}>{value}</dd>
+    </div>
+  );
+}
+
+/* THE VEHICLE IS A PLATE AND A DOOR, and it used to be four rows of panel.
+
+   The assignment had a panel of its own down the card — plate, make & model,
+   next service, rego expiry — sitting under a strip that had already named the
+   vehicle. That is the card's own rule broken ("if the identity block says it,
+   a panel doesn't"), and it cost a whole panel to say what one identifier says:
+   in a fleet of white Hiaces the plate is the only thing that tells one from
+   another, so the plate IS the fact. Everything else about the vehicle —
+   including its warnings — belongs to Fleet, one click away, where it is
+   current rather than copied. Isaac's call: the staff card names the vehicle,
+   it does not nag about it. */
+function VehicleFact({ vehicle }: { vehicle: AssignedVehicle | null }) {
+  if (!vehicle) return <Fact label="Vehicle" value="Unassigned" muted />;
+
+  const v = vehicle.vehicle;
+  return (
+    <div className="pfs pfs-veh">
+      <dt>Vehicle</dt>
+      <dd>
+        {/* `?v=` and not a path segment: the app shell keys its outlet on
+            pathname, so a link that changes the path remounts the page it
+            lands on. Assets reads the param and opens that vehicle. */}
+        <Link className="vehjump" href={`/dashboard/assets?v=${v.id}`}>
+          <Plate plate={v.plate} state={v.plateState} size="sm" />
+          <span className="sr-only">Open {v.plate} in Fleet</span>
+        </Link>
+      </dd>
     </div>
   );
 }

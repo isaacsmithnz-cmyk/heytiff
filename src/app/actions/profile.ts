@@ -28,7 +28,7 @@ import { resolvePhotoDocument } from "@/lib/staff/photo";
 const COLUMNS =
   "id, org_id, user_id, first_name, last_name, full_name, preferred_name, phone, birthday, address, " +
   "start_date, employment_type, job_title, status, photo_url, " +
-  "shirt_size, jacket_size, trousers_size, boot_size, " +
+  "shirt_size, jacket_size, trousers_size, boot_size, boot_scale, " +
   "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
   "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
   "work_rights_doc_url, qualifications";

@@ -29,6 +29,7 @@ const blank: StaffProfile = {
   jacket_size: null,
   trousers_size: null,
   boot_size: null,
+  boot_scale: null,
   emergency_name: null,
   emergency_phone: null,
   emergency_relationship: null,

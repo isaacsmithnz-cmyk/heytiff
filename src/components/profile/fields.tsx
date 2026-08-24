@@ -283,6 +283,82 @@ export function PctInput({
   );
 }
 
+/* A NUMBER IN A SYSTEM — one box, and the system it is quoted on beside it.
+
+   A boot size is the case this exists for: "10" is a different boot in AU/UK,
+   EU and US, so the number alone is an order waiting to arrive two sizes out.
+   The scale sits INSIDE the row with the number rather than in a row of its
+   own, because it is not a second fact — it is what the first one means, and a
+   value you have to read two rows apart is one people stop reading.
+
+   The suggestions follow the scale (the ladder is a different ladder), which
+   is the other half of why the two controls are one component. */
+export function ScaledInput({
+  name,
+  value,
+  onChange,
+  scale,
+  scaleName,
+  scales,
+  onScaleChange,
+  scaleLabel,
+  placeholder,
+  suggestions,
+  invalid,
+}: {
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  scale: string;
+  scaleName: string;
+  scales: readonly string[];
+  onScaleChange: (v: string) => void;
+  /** what the scale picker announces itself as — the row's label names the
+      number, so the picker has to name itself */
+  scaleLabel: string;
+  placeholder?: string;
+  suggestions?: readonly string[];
+  invalid?: boolean;
+}) {
+  const listId = suggestions?.length ? `${name}-suggestions` : undefined;
+  return (
+    <div className="scaled">
+      <input
+        className={invalid ? "inp err" : "inp"}
+        name={name}
+        id={name}
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        list={listId}
+        aria-invalid={invalid || undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <select
+        className="scalesel"
+        name={scaleName}
+        id={scaleName}
+        aria-label={scaleLabel}
+        value={scale}
+        onChange={(e) => onScaleChange(e.target.value)}
+      >
+        {scales.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
+      {listId && (
+        <datalist id={listId}>
+          {suggestions!.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
+    </div>
+  );
+}
+
 /** Two-state segmented control (Active / Inactive). */
 export function Seg({
   value,

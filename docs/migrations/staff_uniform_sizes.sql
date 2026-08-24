@@ -8,13 +8,25 @@
 -- section's existing save — no new table, no new allowlist, no new capability.
 --
 -- WHY TEXT AND NOT A CHECK CONSTRAINT. Australian workwear has no single
--- sizing vocabulary: shirts run XS–5XL, trousers run the 72–117 waist ladder
--- OR S/M/L depending on the brand, women's ranges number differently again,
--- and boots come in half sizes and in US/UK conversions. The card offers the
--- common ladders as datalist SUGGESTIONS (lib/staff/uniform.ts) and takes
--- whatever is typed, because the next supplier will use a scale nobody here
--- thought to list — and a CHECK that rejects a real size is worse than a
--- column holding "Ladies 14".
+-- sizing vocabulary: shirts are labelled XS–5XL on one rack and by CHEST in
+-- centimetres on the next, trousers run the 72–117 waist ladder, women's
+-- ranges number differently again. The card offers both ladders as datalist
+-- SUGGESTIONS (lib/staff/uniform.ts) and takes whatever is typed, because the
+-- next supplier will use a scale nobody here thought to list — and a CHECK
+-- that rejects a real size is worse than a column holding "Ladies 14".
+--
+-- WHY BOOTS GET A SECOND COLUMN. A boot size is not a number, it is a number
+-- in a SYSTEM: 10 in AU/UK is 44 in EU and 11 in US, so a bare "10" is an
+-- order waiting to arrive two sizes out. `boot_scale` records which one was
+-- meant and is picked, not typed — the app writes only 'AU/UK', 'EU' or 'US'
+-- (the enum guard in section-patch.ts drops anything else), and NULL where no
+-- boot size is held, because a scale with no number is not a fact. AU and UK
+-- are one value on purpose: AU safety boots are UK-sized, and splitting them
+-- would offer a distinction with no difference.
+--
+-- Still no CHECK on the scale, for the same reason as the sizes: the guard is
+-- in the write path, where a bad value can be dropped with the rest of the
+-- save intact, rather than in a constraint that turns it into a 500.
 --
 -- SELF-SERVICE ON PURPOSE. These join the `personal` allowlist in BOTH
 -- lib/staff/profile.ts (your own card) and lib/staff/admin-sections.ts
@@ -36,4 +48,6 @@ alter table public.staff_profiles
   add column if not exists shirt_size    text,
   add column if not exists jacket_size   text,
   add column if not exists trousers_size text,
-  add column if not exists boot_size     text;
+  add column if not exists boot_size     text,
+  -- 'AU/UK' | 'EU' | 'US', and null wherever boot_size is null
+  add column if not exists boot_scale    text;

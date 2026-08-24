@@ -6,10 +6,16 @@ import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
-import { DateField, Seg, SelectInput, TextInput } from "./fields";
+import { DateField, ScaledInput, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
-import { UNIFORM_FIELDS, uniformValues } from "@/lib/staff/uniform";
+import {
+  BOOT_SCALES,
+  UNIFORM_FIELDS,
+  bootLadder,
+  uniformDisplay,
+  uniformValues,
+} from "@/lib/staff/uniform";
 import { AU_STATES } from "@/lib/org/settings";
 
 /* the one list, shared with the Rate Calculator and Time & Pay — a label
@@ -67,6 +73,9 @@ export function PersonalCard({
   onSave: SaveSection;
 }) {
   const values = personalValues(profile, mode);
+  // what the uniform rows READ as, which is not what they submit: a boot size
+  // reads with its scale attached and saves as the two columns it is
+  const display = uniformDisplay(profile);
   // read mode is dd/mm/yyyy — how an Australian reads a date. Only ENTRY is ISO,
   // because that is what a calendar picker speaks.
   const born = formatAuDate(profile?.birthday);
@@ -291,27 +300,52 @@ export function PersonalCard({
         )}
       </DetailPanel>
 
-      {/* Sizes, not measurements: what goes on the order form when someone
-          starts, and what gets re-ordered when a shirt wears through. Every
-          field is free text over a suggested ladder — AU workwear has no one
-          sizing vocabulary, and a box that refuses "Ladies 14" is worse than
-          one that takes it. See lib/staff/uniform.ts. */}
+      {/* What goes on the order form when someone starts, and what gets
+          re-ordered when a shirt wears through.
+
+          Every garment is free text over a suggested ladder — AU workwear has
+          no one sizing vocabulary, and a box that refuses "Ladies 14" is worse
+          than one that takes it. The top-half fields suggest BOTH ladders,
+          alpha and chest in centimetres, because a crew holds both answers.
+
+          Boots carry their scale with them: 10 in AU/UK is 44 in EU and 11 in
+          US, so the number alone is an order two sizes out. See
+          lib/staff/uniform.ts. */}
       <DetailPanel title="Uniform" wide split>
         {UNIFORM_FIELDS.map((f) => (
           <Detail
             key={f.key}
             label={f.label}
             editing={editing}
-            value={values[f.key]}
+            // boots read "10 AU/UK" — the size never appears without the
+            // system it is quoted on
+            value={display[f.key]}
             onAdd={edit}
             control={
-              <TextInput
-                name={f.key}
-                placeholder={f.placeholder}
-                suggestions={f.suggestions}
-                value={draft[f.key]}
-                onChange={(v) => set(f.key, v)}
-              />
+              f.scaleKey ? (
+                <ScaledInput
+                  name={f.key}
+                  placeholder={f.placeholder}
+                  // the ladder IS the scale's ladder — switch to EU and the
+                  // suggestions become 37–49, not 4–14
+                  suggestions={bootLadder(draft[f.scaleKey])}
+                  value={draft[f.key]}
+                  onChange={(v) => set(f.key, v)}
+                  scale={draft[f.scaleKey]}
+                  scaleName={f.scaleKey}
+                  scales={BOOT_SCALES}
+                  scaleLabel={`${f.label} — size scale`}
+                  onScaleChange={(v) => set(f.scaleKey!, v)}
+                />
+              ) : (
+                <TextInput
+                  name={f.key}
+                  placeholder={f.placeholder}
+                  suggestions={f.suggestions}
+                  value={draft[f.key]}
+                  onChange={(v) => set(f.key, v)}
+                />
+              )
             }
           />
         ))}

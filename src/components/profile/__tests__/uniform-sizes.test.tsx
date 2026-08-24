@@ -20,6 +20,7 @@ const sized: StaffProfile = {
   jacket_size: "XL",
   trousers_size: "92",
   boot_size: "10.5",
+  boot_scale: "AU/UK",
 };
 
 const startEdit = (user: ReturnType<typeof userEvent.setup>) =>
@@ -27,6 +28,12 @@ const startEdit = (user: ReturnType<typeof userEvent.setup>) =>
 
 const save = (user: ReturnType<typeof userEvent.setup>) =>
   user.click(screen.getByRole("button", { name: /^Save changes$/ }));
+
+/** what a field's datalist is offering right now */
+const options = (name: string) =>
+  [...document.querySelectorAll(`#${name}-suggestions option`)].map((o) => o.getAttribute("value"));
+
+const scalePicker = () => screen.getByLabelText("Boots — size scale") as HTMLSelectElement;
 
 function card(profile: StaffProfile = sized, mode: "self" | "admin" = "self") {
   const onSave = jest.fn().mockResolvedValue({ ok: true });
@@ -51,15 +58,17 @@ describe("the Uniform panel", () => {
 
     expect(panel).toBeTruthy();
     const values = [...panel.querySelectorAll(".pdrow")].map((r) => r.textContent);
+    // boots read with their scale attached — "10.5" alone is a different boot
+    // in EU and in US
     expect(values).toEqual([
       "ShirtL",
       "Jacket / jumperXL",
       "Trousers92",
-      "Boots10.5",
+      "Boots10.5 AU/UK",
     ]);
   });
 
-  it("offers the AU ladders as suggestions, and still takes anything typed", async () => {
+  it("offers the ladders as suggestions, and still takes anything typed", async () => {
     const user = userEvent.setup();
     const { onSave } = card();
     await startEdit(user);
@@ -68,11 +77,7 @@ describe("the Uniform panel", () => {
     // a datalist, not a <select> — the common answer is one keystroke and the
     // uncommon one is still possible
     expect(shirt.getAttribute("list")).toBe("shirt_size-suggestions");
-    expect(
-      [...document.querySelectorAll("#shirt_size-suggestions option")].map((o) =>
-        o.getAttribute("value")
-      )
-    ).toContain("2XL");
+    expect(options("shirt_size")).toEqual(expect.arrayContaining(["2XL", "102"]));
 
     await user.clear(shirt);
     await user.type(shirt, "Ladies 14");
@@ -82,6 +87,22 @@ describe("the Uniform panel", () => {
       "personal",
       expect.objectContaining({ shirt_size: "Ladies 14" })
     );
+  });
+
+  /* Both racks. The bloke who says "large" and the one who reads 102 off the
+     tag are describing the same shirt, and a field that suggests only one of
+     them makes half the crew type around it. */
+  it("suggests chest measurements beside the alpha sizes, on both top-half rows", async () => {
+    const user = userEvent.setup();
+    card();
+    await startEdit(user);
+
+    for (const key of ["shirt_size", "jacket_size"]) {
+      expect(options(key)).toEqual(expect.arrayContaining(["S", "L", "5XL", "87", "102", "132"]));
+    }
+    // trousers stay the waist ladder — a different measurement, not this one
+    expect(options("trousers_size")).not.toContain("L");
+    expect(options("trousers_size")).toContain("92");
   });
 
   /* One save, not a second one to remember: the sizes go up with the name and
@@ -101,6 +122,7 @@ describe("the Uniform panel", () => {
       jacket_size: "XL",
       trousers_size: "92",
       boot_size: "10.5",
+      boot_scale: "AU/UK",
     });
   });
 
@@ -119,6 +141,53 @@ describe("the Uniform panel", () => {
       p.querySelector(".pdlh")?.textContent?.includes("Uniform")
     ) as HTMLElement;
     expect(within(panel).getAllByRole("button", { name: /Add/ })).toHaveLength(4);
+  });
+});
+
+/* A boot size is a number in a SYSTEM. "10" is a different boot in AU/UK, EU
+   and US, so the scale is picked beside the number, saved with it, and shown
+   wherever it is shown. */
+describe("the boot scale", () => {
+  it("starts on AU/UK — what is printed inside a boot bought here", async () => {
+    const user = userEvent.setup();
+    card({ ...jordan, boot_size: null, boot_scale: null });
+    await startEdit(user);
+    expect(scalePicker().value).toBe("AU/UK");
+    expect([...scalePicker().options].map((o) => o.value)).toEqual(["AU/UK", "EU", "US"]);
+  });
+
+  it("swaps the ladder with the scale, rather than offering AU rungs in EU", async () => {
+    const user = userEvent.setup();
+    card();
+    await startEdit(user);
+    expect(options("boot_size")).toEqual(expect.arrayContaining(["10.5", "14"]));
+
+    await user.selectOptions(scalePicker(), "EU");
+
+    expect(options("boot_size")).toEqual(expect.arrayContaining(["44", "49"]));
+    expect(options("boot_size")).not.toContain("10.5");
+  });
+
+  it("saves the scale beside the size", async () => {
+    const user = userEvent.setup();
+    const { onSave } = card();
+    await startEdit(user);
+
+    const boots = screen.getByLabelText("Boots") as HTMLInputElement;
+    await user.clear(boots);
+    await user.type(boots, "44");
+    await user.selectOptions(scalePicker(), "EU");
+    await save(user);
+
+    expect(onSave).toHaveBeenCalledWith(
+      "personal",
+      expect.objectContaining({ boot_size: "44", boot_scale: "EU" })
+    );
+  });
+
+  it("reads the number and its scale as one value", () => {
+    card({ ...sized, boot_size: "11", boot_scale: "US" });
+    expect(screen.getByText("11 US")).toBeInTheDocument();
   });
 });
 
@@ -141,7 +210,7 @@ describe("on Summary", () => {
   it("answers in one labelled line, under Personal", () => {
     summary();
     const row = screen.getByText("Uniform").closest(".pdrow") as HTMLElement;
-    expect(row.textContent).toBe("UniformShirt L · Jacket XL · Trousers 92 · Boots 10.5");
+    expect(row.textContent).toBe("UniformShirt L · Jacket XL · Trousers 92 · Boots 10.5 AU/UK");
   });
 
   it("shows the dash when we hold no sizes — nothing to order from", () => {

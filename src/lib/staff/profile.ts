@@ -4,6 +4,7 @@
    Pure module: no server imports, so the renderer and the tests can use it. */
 
 import { buildSectionPatch, type SectionConfig } from "../section-patch";
+import { BOOT_SCALES, dropOrphanScale } from "./uniform";
 
 export type StaffProfile = {
   id: string;
@@ -36,6 +37,10 @@ export type StaffProfile = {
   jacket_size: string | null;
   trousers_size: string | null;
   boot_size: string | null;
+  /* Which system the boot number is quoted on — 'AU/UK', 'EU' or 'US'. Picked,
+     not typed, and null wherever boot_size is: a scale with no number is not a
+     fact. See lib/staff/uniform.ts. */
+  boot_scale: string | null;
 
   emergency_name: string | null;
   emergency_phone: string | null;
@@ -75,6 +80,7 @@ export const SELF_EDITABLE_SECTIONS = {
     "jacket_size",
     "trousers_size",
     "boot_size",
+    "boot_scale",
     /* `status` is NOT here, for the same reason `job_title` and `state` aren't:
        whether someone is on staff is a thing the business sets, not a thing
        they type about themselves. It also isn't cosmetic — `status="Active"`
@@ -123,7 +129,11 @@ export { formatAuDate, parseAuDate } from "../au-dates";
 const STAFF_PATCH_CONFIG: SectionConfig = {
   sections: SELF_EDITABLE_SECTIONS,
   dateColumns: DATE_COLUMNS,
-  enums: { status: ["Active", "Inactive"] },
+  // boot_scale is PICKED from three values, so it is guarded like an enum
+  // rather than trusted like the sizes beside it — and nullable, because
+  // clearing the boot size clears the scale with it.
+  enums: { status: ["Active", "Inactive"], boot_scale: BOOT_SCALES },
+  nullableEnums: new Set(["boot_scale"]),
 };
 
 /* Turn submitted form entries into a column patch for one section.
@@ -135,5 +145,6 @@ export function buildPatch(
   section: SelfSection,
   entries: Iterable<[string, string]>
 ): { patch: Record<string, string | null>; invalid: string[] } {
-  return buildSectionPatch(STAFF_PATCH_CONFIG, section, entries);
+  const { patch, invalid } = buildSectionPatch(STAFF_PATCH_CONFIG, section, entries);
+  return { patch: dropOrphanScale(patch), invalid };
 }

@@ -1428,6 +1428,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    changes a label, a gap or a grid — only what sits inside a `dd`. */
 .fg .pdrow.live dd > .inp,
 .fg .pdrow.live dd > .selwrap > .inp,
+.fg .pdrow.live dd > .scaled > .inp,
 .fg .pdrow.live dd > .inpd {
   height:34px; padding:0 11px; border-radius:10px; font-size:16px; font-weight:600;
   letter-spacing:-0.01em; background:#fafbfc; }
@@ -1448,6 +1449,22 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 /* a segmented control is already the right height; it only needs to stop
    filling the row */
 .fg .pdrow.live dd > .seg { width:fit-content; }
+
+/* ── A NUMBER, AND THE SYSTEM IT IS QUOTED ON ──
+   Boot sizes. "10" is a different boot in AU/UK, EU and US, so the scale sits
+   in the row WITH the number rather than in a row of its own — it isn't a
+   second fact, it's what the first one means. The number keeps the metrics of
+   every other box on the card (it is the same `.inp`, one level deeper), and
+   the picker is deliberately quieter than it: smaller, greyer, sized to its
+   content, so the row still reads as one value with a qualifier and not as
+   two fields. See ScaledInput in fields.tsx. */
+.fg .pdrow.live dd > .scaled { display:flex; align-items:center; gap:6px; }
+.fg .pdrow.live dd > .scaled > .inp { flex:1 1 auto; min-width:0; }
+.fg .pdrow.live dd > .scaled > .scalesel {
+  flex:0 0 auto; height:34px; padding:0 7px; border:1px solid #e5e7eb; border-radius:10px;
+  background:#f3f4f6; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.fg .pdrow.live dd > .scaled > .scalesel:focus-visible {
+  border-color:var(--wb2-cy); box-shadow:0 0 0 3px rgba(0,168,224,.14); outline:none; }
 
 /* ── a percentage you can SEE ──
    Utilisation was a number you could only reach by clicking "+ Set" and then

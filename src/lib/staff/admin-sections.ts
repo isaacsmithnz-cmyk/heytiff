@@ -8,6 +8,7 @@
 import { buildSectionPatch, type SectionConfig } from "../section-patch";
 import type { Capability } from "../permissions";
 import { AU_STATES } from "../org/settings";
+import { BOOT_SCALES, dropOrphanScale } from "./uniform";
 
 /* Each section names the capability that unlocks it. `permissions` is absent
    here because it doesn't write staff_profiles columns at all — it writes
@@ -35,6 +36,7 @@ export const ADMIN_SECTIONS = {
       "jacket_size",
       "trousers_size",
       "boot_size",
+      "boot_scale",
       // which state's public holidays apply to their timesheet; empty = the
       // organisation's own state (the presumption resolves staff → org)
       "state",
@@ -102,9 +104,16 @@ const ADMIN_PATCH_CONFIG: SectionConfig = {
     Object.entries(ADMIN_SECTIONS).map(([k, v]) => [k, v.columns])
   ),
   dateColumns: new Set(["birthday", "start_date", "visa_expiry", "vevo_checked_at"]),
-  enums: { status: ["Active", "Inactive"], state: AU_STATES, pay_basis: ["hourly", "salary"] },
-  // state is nullable: clearing it means "use the organisation's state"
-  nullableEnums: new Set(["state"]),
+  enums: {
+    status: ["Active", "Inactive"],
+    state: AU_STATES,
+    pay_basis: ["hourly", "salary"],
+    // picked from three values, not typed — see lib/staff/uniform.ts
+    boot_scale: BOOT_SCALES,
+  },
+  // state is nullable: clearing it means "use the organisation's state".
+  // boot_scale is nullable because clearing the boot size clears it too.
+  nullableEnums: new Set(["state", "boot_scale"]),
 };
 
 /** Columns stored as numbers — the form sends text. */
@@ -172,5 +181,5 @@ export function buildAdminPatch(
     }
   }
 
-  return { patch, invalid };
+  return { patch: dropOrphanScale(patch), invalid };
 }

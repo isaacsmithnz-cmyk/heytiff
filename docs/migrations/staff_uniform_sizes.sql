@@ -42,7 +42,8 @@
 -- POSTURE: RLS unchanged — staff_profiles stays deny-all, all access through
 -- the service-role client behind the app's own gates.
 --
--- APPLY THIS BEFORE MERGING THE PR. Re-runnable; all four are nullable.
+-- APPLIED 2026-08-24 (Supabase migration `staff_uniform_sizes`).
+-- Re-runnable; all five columns are nullable.
 
 alter table public.staff_profiles
   add column if not exists shirt_size    text,

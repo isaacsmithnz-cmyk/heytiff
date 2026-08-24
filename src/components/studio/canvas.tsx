@@ -110,7 +110,7 @@ import {
   zoomAt,
   type Viewport,
 } from "@/lib/studio/geometry";
-import { createWheelReader } from "@/lib/studio/wheel";
+import { readWheel, type WheelMode } from "@/lib/studio/wheel";
 
 /* StudioCanvas — the SVG scene per ADR-001. Renders the document, emits
    intents via onMutate; it never mutates the document itself. World space is
@@ -466,7 +466,7 @@ function defaultViewport(
     the only way a trackpad could pan and a tight threshold made it reachable —
     which meant a press that rolled a few px, as a trackpad press does, nudged
     the plan instead of dropping the point you aimed at. Now that a two-finger
-    scroll pans (see createWheelReader), the drag is a fallback and the click can be
+    scroll can pan (see readWheel), the drag is a fallback and the click can be
     forgiving again. */
 const TAP_SLOP_PX = 10;
 
@@ -548,6 +548,7 @@ export function StudioCanvas({
   bare = false,
   draw = DEFAULT_DRAW,
   runSizes,
+  wheelMode = "zoom",
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -563,6 +564,8 @@ export function StudioCanvas({
   layers?: LayerFlags;
   /** desaturate + brighten the plan raster for overlay readability */
   grayscale?: boolean;
+  /** what a bare scroll does — the user's setting, not a guess at their device */
+  wheelMode?: WheelMode;
   /** receive the zoom controls so the toolbar can render them */
   onZoomApi?: (api: ZoomApi) => void;
   /** current zoom percentage, for the toolbar readout */
@@ -986,6 +989,13 @@ export function StudioCanvas({
     minZoomRef.current = minZoom;
   }, [minZoom]);
 
+  /* the wheel listener binds once (it has to be non-passive), so the setting
+     reaches it through a ref rather than by re-binding on every change */
+  const wheelModeRef = useRef(wheelMode);
+  useEffect(() => {
+    wheelModeRef.current = wheelMode;
+  }, [wheelMode]);
+
   /* zoom controls exposed to the toolbar (they live in the top strip now).
      Stable callbacks read the latest size/content via refs. */
   const sizeRef = useRef(size);
@@ -1335,23 +1345,24 @@ export function StudioCanvas({
      endpoints snap to anchors; rect rooms still stay rectangular via rectResize. */
 
   /* ── pan + zoom (native non-passive wheel so preventDefault works) ──
-     A mouse wheel zooms and a two-finger scroll pans — see createWheelReader
-     for how the two devices are told apart, and why the reader has to remember
-     the gesture rather than judge each event alone. Scrolling is the ONLY pan
-     gesture a trackpad has: middle-drag needs a button it doesn't have, and
-     hold-Space is swallowed the moment focus lands in the calibration
-     measurement field. A mouse keeps both of those on top of the wheel. */
+     What a bare scroll does is the user's setting, not a guess about their
+     hardware — see readWheel for the two guesses that got this wrong. The
+     listener is bound once and reads the mode through a ref, so flipping the
+     toggle takes effect on the very next notch without a rebind.
+
+     Whichever way it is set, ctrl/cmd still zooms, and panning also lives on
+     middle-drag and hold-Space — though a trackpad has neither (no middle
+     button, and Space is swallowed the moment focus lands in the calibration
+     measurement field), which is why "pan" is the setting a trackpad wants. */
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    // one reader per mount: the pad latch is state, and it belongs to this canvas
-    const readWheel = createWheelReader();
     const onWheel = (e: WheelEvent) => {
       /* momentum events are dispatched non-cancelable, and calling
          preventDefault on one is a no-op that Chrome warns about */
       if (e.cancelable) e.preventDefault();
       userFramed.current = true;
-      const g = readWheel(e);
+      const g = readWheel(e, wheelModeRef.current);
       if (g.kind === "pan") {
         setVp((v) => ({ ...v, x: v.x + g.dx / v.zoom, y: v.y + g.dy / v.zoom }));
         return;

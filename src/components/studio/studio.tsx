@@ -49,6 +49,7 @@ import {
   type PlacingUnit,
   type ZoomApi,
 } from "./canvas";
+import { useWheelMode, WheelModeToggle } from "./wheel-toggle";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
@@ -2939,6 +2940,7 @@ function DesignPanel({
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
+  const wheelMode = useWheelMode();
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
@@ -3147,14 +3149,18 @@ function DesignPanel({
             sim={null}
             draw={draw}
             runSizes={runSizes}
+            wheelMode={wheelMode}
           />
         </div>
-        {/* zoom floats over the canvas, bottom-right — its pre-strip home */}
+        {/* zoom floats over the canvas, bottom-right — its pre-strip home.
+            The scroll toggle leads it: what the wheel does is a fact about
+            THIS view, and it belongs where the view's other controls are. */}
         <div className="ds-zoomctl" role="group" aria-label="Zoom">
+          <WheelModeToggle value={wheelMode} />
           <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
             −
           </button>
-          <span>{zoomPct}%</span>
+          <span className="ds-zoomval">{zoomPct}%</span>
           <button aria-label="Zoom in" onClick={() => zoomApi?.zoomIn()}>
             +
           </button>

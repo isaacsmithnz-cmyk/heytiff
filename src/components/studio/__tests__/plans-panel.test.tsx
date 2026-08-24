@@ -219,7 +219,8 @@ describe("Plans stage", () => {
     const svg = canvas.querySelector("svg")!;
 
     const zoomGroup = screen.getByRole("group", { name: "Zoom" });
-    const readZoom = () => parseInt(zoomGroup.querySelector("span")!.textContent!, 10);
+    const readZoom = () =>
+      parseInt(zoomGroup.querySelector(".ds-zoomval")!.textContent!, 10);
 
     // fit the whole 1200×900 sheet first
     await user.click(screen.getByRole("button", { name: "Fit to content" }));

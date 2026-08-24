@@ -1618,8 +1618,17 @@ function Editor({
         return;
       changeTool(next);
     };
+    // right-click disarms like Esc: let go of a unit riding the cursor (the
+    // canvas's own contextmenu handler clears its drafts + returns to Select)
+    const onCtx = () => {
+      if (step === 1 && placing) armPlace(null);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("contextmenu", onCtx);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("contextmenu", onCtx);
+    };
   }, [
     step,
     undo,

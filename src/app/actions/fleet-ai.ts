@@ -256,3 +256,114 @@ export async function readPurchaseInvoice(
     return { ok: false, reason: reasonFor(err) };
   }
 }
+
+/* ---------------- renewal reading (assets_all) ---------------- */
+
+/* The paper behind an expiry date (issue #509, slice 2). One reader for both
+   renewal kinds: an insurance schedule and a rego notice carry the same three
+   facts — who it is with, what it cost, when it runs out — and the only thing
+   that differs is which expiry column the answer updates. Same
+   scan-then-confirm contract as the invoice: this fills a form the person
+   then saves. */
+
+export type RenewalKind = "insurance" | "rego";
+
+export type ReadRenewalResult =
+  | { ok: true; provider: string | null; premium: number | null; startsOn: string | null; expiresOn: string | null }
+  | { ok: false; reason: string };
+
+const RENEWAL_SCHEMA = {
+  type: "object",
+  properties: {
+    provider: { type: ["string", "null"] },
+    premium: { type: ["number", "null"] },
+    startsOn: { type: ["string", "null"] },
+    expiresOn: { type: ["string", "null"] },
+  },
+  required: ["provider", "premium", "startsOn", "expiresOn"],
+  additionalProperties: false,
+};
+
+export async function readRenewalDocument(
+  fileBase64: string,
+  mediaType: string,
+  kind: RenewalKind,
+): Promise<ReadRenewalResult> {
+  if (!(await can("assets_all"))) return { ok: false, reason: "Reading renewals needs the register." };
+  if (offline()) return { ok: false, reason: "no-key" };
+  const isPdf = mediaType === "application/pdf";
+  if (!isPdf && !RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
+    return { ok: false, reason: "Unsupported file type." };
+  }
+  if (!fileBase64 || fileBase64.length > 14_000_000) {
+    return { ok: false, reason: "That file is too large to read." };
+  }
+
+  const what =
+    kind === "insurance"
+      ? "an Australian motor-vehicle insurance policy schedule or certificate of currency"
+      : "an Australian vehicle registration renewal notice or certificate";
+  const providerHint =
+    kind === "insurance"
+      ? "the insurer's name (e.g. \"NRMA\", \"Allianz\")"
+      : "the issuing road authority (e.g. \"Transport for NSW\")";
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: RENEWAL_SCHEMA },
+      },
+      messages: [
+        {
+          role: "user",
+          content: [
+            isPdf
+              ? {
+                  type: "document" as const,
+                  source: { type: "base64" as const, media_type: "application/pdf" as const, data: fileBase64 },
+                }
+              : {
+                  type: "image" as const,
+                  source: {
+                    type: "base64" as const,
+                    media_type: mediaType as ReceiptMedia,
+                    data: fileBase64,
+                  },
+                },
+            {
+              type: "text",
+              text:
+                `This is ${what}. Extract:\n` +
+                `- provider: ${providerHint}\n` +
+                "- premium: the total amount payable in AUD, GST inclusive\n" +
+                "- startsOn: the date cover/registration BEGINS, as yyyy-mm-dd\n" +
+                "- expiresOn: the date cover/registration ENDS or is due for renewal, as yyyy-mm-dd\n\n" +
+                "expiresOn is the important one — it is the date the vehicle's record will be " +
+                "updated to. If the document shows a period like \"01/09/2026 to 01/09/2027\", " +
+                "the LATER date is expiresOn. Use null for anything not clearly readable; a " +
+                "guessed expiry is worse than a blank one, because it silences a real warning. " +
+                "If this is not that kind of document at all, return null for every field.",
+            },
+          ],
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal") {
+      return { ok: false, reason: "Tiff declined to read this document." };
+    }
+    const text = response.content.find((b) => b.type === "text")?.text ?? "";
+    const parsed = JSON.parse(text) as {
+      provider: string | null;
+      premium: number | null;
+      startsOn: string | null;
+      expiresOn: string | null;
+    };
+    return { ok: true, ...parsed };
+  } catch (err) {
+    return { ok: false, reason: reasonFor(err) };
+  }
+}

@@ -43,6 +43,12 @@ export type DocumentKind =
      purchase paperwork and land a $45,000 vehicle in someone's
      reimbursements. Owned by the VEHICLE (documents.vehicle_id), not a log. */
   | "purchase_invoice"
+  /* Renewal paperwork. Two kinds, not one "renewal" with a flag, for the
+     standing reason — and because they land on different expiry dates. Each
+     upload is a NEW document: the newest is current and the ones under it are
+     the history, so nothing is ever overwritten. */
+  | "insurance_policy"
+  | "rego_notice"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -57,6 +63,8 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "project_file",
   "job_file",
   "purchase_invoice",
+  "insurance_policy",
+  "rego_notice",
   "other",
 ];
 

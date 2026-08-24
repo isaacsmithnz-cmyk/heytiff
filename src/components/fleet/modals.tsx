@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
 import { DateField } from "@/components/ui/date-field";
-import { readFuelReceipt, readPurchaseInvoice } from "@/app/actions/fleet-ai";
+import { readFuelReceipt, readPurchaseInvoice, readRenewalDocument } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { dateFromDays } from "@/lib/fleet/map";
 import type { StoredDocument } from "@/lib/documents/query";
@@ -24,6 +24,7 @@ import {
   type StatusChip,
   type Vehicle,
   type VehicleIdentity,
+  type VehiclePolicy,
   type VehicleStatus,
   type VehicleLog,
   daysUntil,
@@ -49,7 +50,13 @@ function num(s: string): number {
 const DOC_KIND_LABEL: Partial<Record<StoredDocument["kind"], string>> = {
   purchase_invoice: "Purchase invoice",
   fuel_receipt: "Fuel docket",
+  insurance_policy: "Insurance policy",
+  rego_notice: "Rego notice",
 };
+
+/* The kinds that supersede each other, and so carry a Current/Previous tag.
+   A fuel docket doesn't — every one of them stands on its own. */
+const RENEWAL_KINDS = new Set<StoredDocument["kind"]>(["insurance_policy", "rego_notice"]);
 
 function fmtDocDate(iso: string): string {
   const d = new Date(iso);
@@ -1119,6 +1126,167 @@ export function LogRow({
   );
 }
 
+/* ---------------- renewal (Update) ---------------- */
+
+/* Isaac's ask: when a document is near expiry an Update button appears, you
+   drop the new one in, it is scanned, the expiry updates and the previous one
+   becomes history. This modal is the middle of that: drop → read → confirm.
+
+   It is SCAN-FIRST but never scan-only. The date is the thing that silences a
+   real warning, so it is always a field the person can see and correct before
+   saving — the same reason the fuel docket has "enter manually instead". */
+export function RenewalModal({
+  vehicle,
+  kind,
+  today,
+  onSave,
+  onClose,
+}: {
+  vehicle: Vehicle;
+  kind: "insurance" | "rego";
+  today: string;
+  onSave: (input: {
+    kind: "insurance" | "rego";
+    expiresOn: string;
+    startsOn: string | null;
+    provider: string | null;
+    premium: number | null;
+    documentId?: string;
+  }) => void;
+  onClose: () => void;
+}) {
+  const label = kind === "insurance" ? "insurance" : "rego";
+  const [doc, setDoc] = useState<{ name: string; documentId: string } | null>(null);
+  const [reading, setReading] = useState(false);
+  const [readErr, setReadErr] = useState<string | null>(null);
+  const [f, setF] = useState({ provider: "", premium: "", startsOn: "", expiresOn: "" });
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pick = async (file: File | null) => {
+    if (!file || reading) return;
+    setReading(true);
+    setReadErr(null);
+    const [up, scan] = await Promise.all([
+      uploadFile(file, kind === "insurance" ? "insurance_policy" : "rego_notice").catch(
+        () => ({ ok: false, error: "upload" }) as const,
+      ),
+      fileToBase64(file)
+        .then((b64) => readRenewalDocument(b64, file.type, kind))
+        .catch(() => ({ ok: false, reason: "read" }) as const),
+    ]);
+    if (up.ok) setDoc({ name: file.name, documentId: up.file.documentId });
+    if (scan.ok) {
+      setF((p) => ({
+        provider: scan.provider ?? p.provider,
+        premium: scan.premium != null ? String(scan.premium) : p.premium,
+        startsOn: scan.startsOn ?? p.startsOn,
+        expiresOn: scan.expiresOn ?? p.expiresOn,
+      }));
+      if (!scan.expiresOn) setReadErr("Tiff couldn't find an expiry date — enter it below.");
+    } else {
+      setReadErr("Tiff couldn't read that one — enter the details below.");
+    }
+    setReading(false);
+  };
+
+  const save = () => {
+    if (!f.expiresOn) return;
+    onSave({
+      kind,
+      expiresOn: f.expiresOn,
+      startsOn: f.startsOn || null,
+      provider: f.provider.trim() || null,
+      premium: f.premium.trim() ? num(f.premium) : null,
+      documentId: doc?.documentId,
+    });
+  };
+
+  return (
+    <FleetModal
+      title={`Update ${label}`}
+      sub={displayName(vehicle)}
+      onClose={onClose}
+    >
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,application/pdf"
+        hidden
+        onChange={(e) => {
+          void pick(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+      {doc ? (
+        <span className="fl-invoice">
+          <Icon name="file" size={13} />
+          {doc.name}
+        </span>
+      ) : (
+        <button
+          type="button"
+          className="fl-modeline"
+          disabled={reading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {reading
+            ? "Tiff is reading it…"
+            : `Drop in the new ${label} document — Tiff reads the dates`}
+        </button>
+      )}
+      {readErr && <div className="fl-aierr">{readErr}</div>}
+
+      <div className="fl-grid">
+        <Field label={kind === "insurance" ? "Insurer" : "Issued by"}>
+          <input
+            className="fl-i"
+            placeholder={kind === "insurance" ? "e.g. NRMA" : "e.g. Transport for NSW"}
+            value={f.provider}
+            onChange={(e) => setF((p) => ({ ...p, provider: e.target.value }))}
+          />
+        </Field>
+        <Field label="Cost ($)" hint="What this renewal cost. Left blank if the document didn't say.">
+          <input
+            className="fl-i"
+            type="number"
+            placeholder="Premium or fee"
+            value={f.premium}
+            onChange={(e) => setF((p) => ({ ...p, premium: e.target.value }))}
+          />
+        </Field>
+        <Field label="Starts">
+          <DateField
+            size="lg"
+            clearable
+            today={today}
+            value={f.startsOn || null}
+            onChange={(iso) => setF((p) => ({ ...p, startsOn: iso ?? "" }))}
+          />
+        </Field>
+        <Field label="Expires" req>
+          <DateField
+            size="lg"
+            clearable
+            today={today}
+            value={f.expiresOn || null}
+            onChange={(iso) => setF((p) => ({ ...p, expiresOn: iso ?? "" }))}
+          />
+        </Field>
+      </div>
+
+      <div className="fl-foot">
+        <button className="fl-btn ghost" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="fl-btn primary" disabled={!f.expiresOn} onClick={save}>
+          <Icon name="check" size={15} />
+          Save {label}
+        </button>
+      </div>
+    </FleetModal>
+  );
+}
+
 export function DetailModal({
   vehicle,
   chips,
@@ -1127,6 +1295,8 @@ export function DetailModal({
   valuation,
   valuationIsStale,
   documents = [],
+  policies = [],
+  onRenew,
   staff,
   manager,
   onClose,
@@ -1146,6 +1316,10 @@ export function DetailModal({
   valuationIsStale?: boolean;
   /** The vehicle's paper trail — its own documents plus its logs' dockets. */
   documents?: StoredDocument[];
+  /** Renewals on file, newest first — the first of each kind is current. */
+  policies?: VehiclePolicy[];
+  /** Opens the Update flow for a document that is near or past expiry. */
+  onRenew?: (kind: "insurance" | "rego") => void;
   staff: FleetStaff[];
   manager: boolean;
   onClose: () => void;
@@ -1162,6 +1336,14 @@ export function DetailModal({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const driver = staff.find((s) => s.id === vehicle.assignedTo);
   const facts = vehicleFacts(vehicle);
+  /* The newest document of each renewal kind is the current one; the rest are
+     previous versions. `documents` arrives newest-first, so this is a first-
+     wins pass rather than a sort. */
+  const newestOfKind = new Map<string, string>();
+  for (const d of documents) {
+    if (RENEWAL_KINDS.has(d.kind) && !newestOfKind.has(d.kind)) newestOfKind.set(d.kind, d.id);
+  }
+  const currentIds = new Set(newestOfKind.values());
   const purchaseText = vehicle.purchasePrice
     ? `${fmtMoney(vehicle.purchasePrice)}${
         vehicle.purchaseDateDays ? ` · ${(vehicle.purchaseDateDays / 365.25).toFixed(1)} yrs ago` : ""
@@ -1204,12 +1386,28 @@ export function DetailModal({
       </div>
 
       <div className="fl-facts">
-        {facts.map((fa) => (
-          <div key={fa.key} className="fl-fact">
-            <em>{fa.label}</em>
-            <b>{fa.text}</b>
-          </div>
-        ))}
+        {facts.map((fa) => {
+          /* The Update button rides the fact's OWN state — the same rule the
+             chips use — so "near expiry" is decided in one place and can't
+             drift between the warning and the fix for it. */
+          const renewable = onRenew && (fa.key === "rego" || fa.key === "insurance");
+          const due = fa.state !== "ok";
+          return (
+            <div key={fa.key} className="fl-fact">
+              <em>{fa.label}</em>
+              <b>{fa.text}</b>
+              {renewable && due && (
+                <button
+                  className="fl-renew"
+                  onClick={() => onRenew(fa.key as "insurance" | "rego")}
+                >
+                  <Icon name="upload" size={12} />
+                  Update
+                </button>
+              )}
+            </div>
+          );
+        })}
         {manager && (
           <>
             <div className="fl-fact">
@@ -1318,14 +1516,44 @@ export function DetailModal({
       {documents.length > 0 && (
         <div className="fl-hist fl-docs">
           <div className="fl-hh">Documents</div>
-          {documents.map((d) => (
-            <a key={d.id} className="fl-docrow" href={d.url ?? undefined} target="_blank" rel="noreferrer">
-              <Icon name="file" size={15} />
-              <b>{d.fileName}</b>
+          {documents.map((d) => {
+            /* "Current" is simply the newest of its kind — nothing is moved or
+               flagged when a renewal arrives, so the label can never disagree
+               with the file list. Everything under it is a previous version. */
+            const current = currentIds.has(d.id);
+            return (
+              <a key={d.id} className="fl-docrow" href={d.url ?? undefined} target="_blank" rel="noreferrer">
+                <Icon name="file" size={15} />
+                <b>{d.fileName}</b>
+                {RENEWAL_KINDS.has(d.kind) && (
+                  <span className={`fl-doctag${current ? " now" : ""}`}>
+                    {current ? "Current" : "Previous"}
+                  </span>
+                )}
+                <em>
+                  {DOC_KIND_LABEL[d.kind] ?? "Document"} · {fmtDocDate(d.createdAt)}
+                </em>
+              </a>
+            );
+          })}
+        </div>
+      )}
+
+      {/* What insuring and registering this vehicle has cost over time —
+          Isaac asked for the history, and it is these rows, not a derived
+          figure. A renewal whose document printed no price shows none. */}
+      {policies.length > 0 && (
+        <div className="fl-hist">
+          <div className="fl-hh">Renewals</div>
+          {policies.map((pl) => (
+            <div key={pl.id} className="fl-docrow">
+              <Icon name={pl.kind === "insurance" ? "shield" : "file"} size={15} />
+              <b>{pl.provider ?? (pl.kind === "insurance" ? "Insurance" : "Registration")}</b>
               <em>
-                {DOC_KIND_LABEL[d.kind] ?? "Document"} · {fmtDocDate(d.createdAt)}
+                {pl.premium != null ? `${fmtMoney(pl.premium)} · ` : ""}
+                to {fmtDocDate(pl.expiresOn)}
               </em>
-            </a>
+            </div>
           ))}
         </div>
       )}

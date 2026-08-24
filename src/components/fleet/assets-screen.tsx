@@ -9,6 +9,7 @@ import type {
   FleetStaff,
   Vehicle,
   VehicleIdentity,
+  VehiclePolicy,
   VehicleLog,
   VehicleWithFacts,
 } from "./logic";
@@ -51,6 +52,8 @@ export type Register = {
   staff: FleetStaff[];
   /** The paper trail, per vehicle: its own documents plus its logs' dockets. */
   documents: Record<string, StoredDocument[]>;
+  /** Renewals on file, per vehicle, newest first. */
+  policies: Record<string, VehiclePolicy[]>;
 };
 
 type AssetsView = "fleet" | "equipment";

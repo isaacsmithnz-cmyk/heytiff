@@ -8,8 +8,18 @@
 
    The choice is a DEVICE setting, not a document one — it belongs to this
    machine and whatever is plugged into it — so it lives in localStorage beside
-   the cockpit pins rather than in the design. Zoom is the default: it's what a
-   mouse expects and what CAD tools do, and a trackpad's owner flips it once. */
+   the cockpit pins rather than in the design.
+
+   PAN is the default, and the default matters more than it looks: whichever way
+   it falls, one device is wrong until someone finds this control. It goes to
+   the trackpad because the two costs aren't equal. A trackpad has no OTHER pan
+   gesture — middle-drag needs a button it hasn't got, and hold-Space dies the
+   moment focus enters the calibration field — so defaulting to zoom leaves it
+   unable to cross a plan at all, which is what shipping the other way did. A
+   mouse set to pan still zooms with cmd+wheel and still pans by middle-drag, so
+   nothing is out of reach while its owner clicks the magnifier once. It is also
+   what the pad expects from every other design tool: scroll moves the page,
+   pinch is the zoom. */
 
 import { useSyncExternalStore } from "react";
 import { Icon } from "@/components/shell/icon";
@@ -19,15 +29,15 @@ const WHEEL_KEY = "ht-wheel";
 
 function readWheelMode(): WheelMode {
   try {
-    return localStorage.getItem(WHEEL_KEY) === "pan" ? "pan" : "zoom";
+    return localStorage.getItem(WHEEL_KEY) === "zoom" ? "zoom" : "pan";
   } catch {
-    return "zoom"; // storage unavailable — the mouse default
+    return "pan"; // storage unavailable — the trackpad-safe default
   }
 }
 /* localStorage does not exist on the server, so the markup that hydrates has
    to be the default and only then become the stored choice. That is exactly
    what the server-snapshot argument is for. */
-const serverWheelMode = (): WheelMode => "zoom";
+const serverWheelMode = (): WheelMode => "pan";
 
 const listeners = new Set<() => void>();
 function writeWheelMode(v: WheelMode) {

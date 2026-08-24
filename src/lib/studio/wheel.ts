@@ -17,6 +17,13 @@
    wrong again. So the canvas stops guessing and asks: `WheelMode` is a setting
    the user holds — the toggle sits in the zoom HUD — and this module obeys it.
 
+   It defaults to "pan", which is the trackpad's answer: two fingers move across
+   the plan and PINCH is the zoom, the way every other design tool behaves. It
+   shipped defaulting to "zoom" for one day and that was wrong — a trackpad has
+   no other pan gesture, so scroll-to-zoom left it unable to cross a drawing.
+   A mouse set to pan loses nothing it can't reach another way (cmd+wheel zooms,
+   middle-drag pans) while its owner flips the toggle once.
+
    The one thing that never needed guessing is ctrl/cmd. macOS synthesises
    ctrlKey for a pinch, Windows sends it for ctrl+wheel, and cmd+wheel is the
    Mac user's explicit "zoom, not pan" — so a modifier zooms in either mode.

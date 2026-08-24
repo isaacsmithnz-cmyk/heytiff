@@ -548,7 +548,7 @@ export function StudioCanvas({
   bare = false,
   draw = DEFAULT_DRAW,
   runSizes,
-  wheelMode = "zoom",
+  wheelMode = "pan",
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -564,7 +564,9 @@ export function StudioCanvas({
   layers?: LayerFlags;
   /** desaturate + brighten the plan raster for overlay readability */
   grayscale?: boolean;
-  /** what a bare scroll does — the user's setting, not a guess at their device */
+  /** what a bare scroll does — the user's setting, not a guess at their device.
+      Defaults to pan: a trackpad has no other way to cross a plan, and pinch
+      (which arrives as ctrl+wheel) zooms regardless of this. */
   wheelMode?: WheelMode;
   /** receive the zoom controls so the toolbar can render them */
   onZoomApi?: (api: ZoomApi) => void;

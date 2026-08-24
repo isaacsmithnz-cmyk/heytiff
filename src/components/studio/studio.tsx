@@ -1618,8 +1618,17 @@ function Editor({
         return;
       changeTool(next);
     };
+    // right-click disarms like Esc: let go of a unit riding the cursor (the
+    // canvas's own contextmenu handler clears its drafts + returns to Select)
+    const onCtx = () => {
+      if (step === 1 && placing) armPlace(null);
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("contextmenu", onCtx);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("contextmenu", onCtx);
+    };
   }, [
     step,
     undo,
@@ -2180,12 +2189,10 @@ const CANVAS_TOOLS: {
   label: string;
   /** the word the toolbar wears; `label` stays the full accessible name */
   short: string;
-  kbd: string;
   needsSystem?: boolean;
 }[] = [
-  { key: "select", icon: "cursor", label: "Select", short: "Select", kbd: "V" },
-  { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", short: "Riser", kbd: "I", needsSystem: true },
-  { key: "erase", icon: "eraser", label: "Eraser", short: "Erase", kbd: "E" },
+  { key: "select", icon: "cursor", label: "Select", short: "Select" },
+  { key: "erase", icon: "eraser", label: "Eraser", short: "Erase" },
 ];
 
 /** toolbar lookup by key — a find, not a Record, so a typo'd key fails loudly
@@ -2299,26 +2306,21 @@ function RoomTool({
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
-        title={disabled ? "Room — pick a system first" : "Room — square or drawn shape (R / G)"}
+        title={disabled ? "Room — pick a system first" : "Room — square or drawn shape"}
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name="square" size={15} />
         Room
-        <span className="ds-kbd" aria-hidden="true">
-          R
-        </span>
       </button>
       {open && !disabled && (
         <div className="ds-roomfly" role="menu" aria-label="Room shape">
           <button role="menuitem" onClick={() => arm("room-rect")}>
             <Icon name="square" size={14} />
             Square
-            <span className="ds-flykbd" aria-hidden="true">R</span>
           </button>
           <button role="menuitem" onClick={() => arm("room-poly")}>
             <Icon name="hexagon" size={14} />
             Shape
-            <span className="ds-flykbd" aria-hidden="true">G</span>
           </button>
         </div>
       )}
@@ -2361,7 +2363,7 @@ function DrawTool({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
-  const on = isRunTool(tool);
+  const on = isRunTool(tool) || tool === "riser";
   const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
     if (patch) onDraw({ ...draw, ...patch });
     onTool(t);
@@ -2394,15 +2396,12 @@ function DrawTool({
         title={
           disabled
             ? "Draw — pick a system first"
-            : "Draw — pipe, drain or cable (P arms pipe)"
+            : "Draw — pipe, drain, cable or riser"
         }
         onClick={() => setOpen((v) => !v)}
       >
         <Icon name="pipe" size={15} />
         Draw
-        <span className="ds-kbd" aria-hidden="true">
-          P
-        </span>
       </button>
       {open && !disabled && (
         <div className="ds-roomfly ds-drawfly" role="menu" aria-label="Draw a line">
@@ -2435,6 +2434,17 @@ function DrawTool({
             <div className="ds-drawchips">
               {chip("Power", draw.cableKind === "power", "cable", { cableKind: "power" })}
               {chip("Data", draw.cableKind === "data", "cable", { cableKind: "data" })}
+            </div>
+          </div>
+          {/* the riser rides along: not linework (a point that joins floors),
+              but it belongs to the same "put pipework on the plan" verb */}
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="arrowUp" size={14} />
+              Riser
+            </span>
+            <div className="ds-drawchips">
+              {chip("Joins floors", true, "riser")}
             </div>
           </div>
         </div>
@@ -2997,7 +3007,7 @@ function DesignPanel({
       title={
         t.needsSystem && !activeSystemId
           ? `${t.label} — pick a system first`
-          : `${t.label} (${t.kbd})`
+          : t.label
       }
       aria-label={t.label}
       disabled={Boolean(t.needsSystem) && !activeSystemId}
@@ -3005,9 +3015,6 @@ function DesignPanel({
     >
       <Icon name={t.icon as never} size={15} />
       {t.short}
-      <span className="ds-kbd" aria-hidden="true">
-        {t.kbd}
-      </span>
     </button>
   );
 
@@ -3016,20 +3023,14 @@ function DesignPanel({
       <div className="ds-canvas-col">
         {revealTools && (
           <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
-            {/* the bench reads in workflow order: Select, then Rooms, then the
-                System verbs, then Erase — with history at the far end. Room
-                tools live HERE now, not in the cockpit: the verb sits on the
-                same side of the screen as the act. */}
+            {/* the bench reads in workflow order: Select, then Room, then the
+                system verbs, then Erase — with history at the far end. The
+                separators alone carry the grouping (the uppercase group titles
+                are gone — Isaac, 2026-08-24). */}
             {toolButton(tb("select"))}
             <span className="ds-tb-sep" aria-hidden="true" />
-            <span className="ds-tb-gl" aria-hidden="true">
-              Rooms
-            </span>
             <RoomTool tool={tool} onTool={onTool} disabled={!activeSystemId} />
             <span className="ds-tb-sep" aria-hidden="true" />
-            <span className="ds-tb-gl" aria-hidden="true">
-              System
-            </span>
             {/* Units leads the System group — the workflow places before it
                 connects. One verb, three meanings: browse (nothing chosen),
                 arm the next unplaced unit, browse again as a swap. While a
@@ -3046,18 +3047,15 @@ function DesignPanel({
                     : unitsV.kind === "off"
                       ? `Units — ${unitsV.reason}`
                       : tool === "place"
-                        ? "Let go of the unit (U)"
+                        ? "Let go of the unit"
                         : unitsV.kind === "browse"
-                          ? "Choose the units (U)"
-                          : "Place the next unit (U)"
+                          ? "Choose the units"
+                          : "Place the next unit"
               }
               onClick={onUnits}
             >
               <Icon name="unit" size={15} />
               Units
-              <span className="ds-kbd" aria-hidden="true">
-                U
-              </span>
             </button>
             <DrawTool
               tool={tool}
@@ -3066,7 +3064,6 @@ function DesignPanel({
               onDraw={setDraw}
               disabled={!activeSystemId}
             />
-            {toolButton(tb("riser"))}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
                 (spec §2); Duct arms at Step 4, Component opens the palette */}
             <button
@@ -3083,14 +3080,11 @@ function DesignPanel({
                 className={`ds-tool${tool === "component" ? " on" : ""}`}
                 aria-label="Component"
                 disabled={!airGate.ok}
-                title={airGate.ok ? "Component (C)" : `Component — ${airGate.reason}`}
+                title={airGate.ok ? "Component" : `Component — ${airGate.reason}`}
                 onClick={() => onPalette(!paletteOpen)}
               >
                 <Icon name="box" size={15} />
                 Component
-                <span className="ds-kbd" aria-hidden="true">
-                  C
-                </span>
               </button>
               {paletteOpen && airGate.ok && (
                 <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />

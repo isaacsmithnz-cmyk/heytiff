@@ -2523,6 +2523,25 @@ export function StudioCanvas({
     setDrag(null);
   };
 
+  /* ── right-click disarms: whatever tool is up, a right-click drops any
+     in-progress draft and hands back to Select (Isaac, 2026-08-24). Only a
+     resting Select keeps the browser's own menu. ── */
+  const onContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (sim) return;
+    const draftUp =
+      draftPipe.length > 0 || draftPoly.length > 0 || draftRect !== null || wallSelect !== null;
+    if (tool === "select" && !draftUp) return;
+    e.preventDefault();
+    setDraftPipe([]);
+    pipeStartAttach.current = null;
+    setDraftPoly([]);
+    setDraftRect(null);
+    setCalib({});
+    setCalibMeters("");
+    setWallSelect(null);
+    onToolDone();
+  };
+
   /* ── drag-from-card placement (Slice 3): the panel arms `placing` on
      dragstart; dragover tracks the to-scale ghost, drop commits the unit ── */
   const onDragOver = (e: React.DragEvent<SVGSVGElement>) => {
@@ -2797,6 +2816,7 @@ export function StudioCanvas({
         onPointerUp={onPointerUp}
         onPointerLeave={() => setHoverUnitId(null)}
         onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
         role="application"

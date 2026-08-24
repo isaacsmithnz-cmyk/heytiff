@@ -301,3 +301,57 @@ describe("Draw tools — ending a line", () => {
     expect((o.geometry as { points: unknown[] }).points).toHaveLength(2);
   });
 });
+
+/* ── right-click disarms: any tool drops back to Select, drafts discarded ── */
+describe("right-click disarms the armed tool", () => {
+  function renderWithDone(tool: Parameters<typeof StudioCanvas>[0]["tool"]) {
+    const doc = mkDoc();
+    const c = captureCommit(doc);
+    let done = 0;
+    const utils = render(
+      <StudioCanvas
+        doc={doc}
+        floor={floor}
+        tool={tool}
+        selectedId={null}
+        onSelect={() => {}}
+        onMutate={c.onMutate}
+        onToolDone={() => done++}
+        activeSystemId="sys1"
+        component={null}
+        iduSpec={() => null}
+        onPlaced={() => {}}
+        onRoomCreated={() => {}}
+        onRemarkConsumed={() => {}}
+        reshapeRoomId={null}
+        onReshapeConsumed={() => {}}
+      />
+    );
+    return { svg: utils.container.querySelector("svg")!, c, doneCount: () => done };
+  }
+
+  it("mid-draft: discards the dots and returns to Select without committing", () => {
+    const { svg, c, doneCount } = renderWithDone("pipe");
+    click(svg, sx(0), sy(0));
+    click(svg, sx(150), sy(0));
+    fireEvent.contextMenu(svg);
+    expect(doneCount()).toBe(1);
+    expect(c.get().objects).toHaveLength(0); // nothing committed
+    // the draft is gone: a later double-click has nothing to finish
+    fireEvent.doubleClick(svg);
+    expect(c.get().objects).toHaveLength(0);
+  });
+
+  it("an armed tool with no draft still hands back to Select", () => {
+    const { doneCount, svg } = renderWithDone("erase");
+    fireEvent.contextMenu(svg);
+    expect(doneCount()).toBe(1);
+  });
+
+  it("a resting Select keeps the browser's own menu", () => {
+    const { svg, doneCount } = renderWithDone("select");
+    const e = fireEvent.contextMenu(svg);
+    expect(doneCount()).toBe(0);
+    expect(e).toBe(true); // not prevented — fireEvent returns !defaultPrevented
+  });
+});

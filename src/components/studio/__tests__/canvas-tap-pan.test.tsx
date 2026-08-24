@@ -37,7 +37,7 @@ function mkDoc(): DesignDocument {
 function renderCanvas(
   tool: CanvasTool,
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void = () => {},
-  wheelMode: WheelMode = "zoom"
+  wheelMode: WheelMode = "pan"
 ) {
   const doc = mkDoc();
   const utils = render(
@@ -145,11 +145,36 @@ describe("tap-or-pan on click-to-place tools", () => {
       expect(after.x).toBeLessThan(before.x);
     });
 
+    /* THE DEFAULT IS THE BUG SURFACE. Shipped as "zoom" it left a trackpad
+       unable to cross a plan — two fingers zoomed, and a pad has no other pan
+       gesture. Whatever else moves, an unset canvas pans on a bare scroll and
+       zooms only on a pinch. */
+    it("pans on a two-finger scroll by DEFAULT, with no mode set", () => {
+      const { svg, viewport } = renderCanvas("select");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: 12.5, deltaY: 18.25, deltaMode: 0 });
+
+      const after = readVp(viewport());
+      expect(after.zoom).toBe(before.zoom);
+      expect(after.x).toBeGreaterThan(before.x);
+      expect(after.y).toBeGreaterThan(before.y);
+    });
+
+    it("zooms on a pinch by DEFAULT — the trackpad's only zoom", () => {
+      const { svg, viewport } = renderCanvas("select");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: 0, deltaY: -8.5, deltaMode: 0, ctrlKey: true });
+
+      expect(readVp(viewport()).zoom).toBeGreaterThan(before.zoom);
+    });
+
     /* THE REPORT that ended the device-guessing: a Logitech wheel reports
        fractional deltas, which the old classifier called a trackpad. In zoom
        mode — the default — nothing about the delta's shape can stop it. */
     it("zooms on a high-resolution wheel's fractional delta", () => {
-      const { svg, viewport } = renderCanvas("select");
+      const { svg, viewport } = renderCanvas("select", undefined, "zoom");
       const before = readVp(viewport());
 
       fireEvent.wheel(svg, { deltaX: 0, deltaY: -4.8, deltaMode: 0 });
@@ -170,7 +195,7 @@ describe("tap-or-pan on click-to-place tools", () => {
     });
 
     it("a mouse notch still zooms — the mouse loses nothing", () => {
-      const { svg, viewport } = renderCanvas("calibrate");
+      const { svg, viewport } = renderCanvas("calibrate", undefined, "zoom");
       const before = readVp(viewport());
 
       fireEvent.wheel(svg, { deltaX: 0, deltaY: -120, deltaMode: 0 });

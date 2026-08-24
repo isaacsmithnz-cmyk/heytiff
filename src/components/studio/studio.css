@@ -4307,26 +4307,6 @@ html[data-ds-display] .dstudio.editing {
     55% { box-shadow: 0 0 0 7px rgba(0, 184, 150, 0); }
   }
 }
-/* the foot chevron — the mirror of the shell rail's: present only while the
-   flow would rest and the pin (or a selection) is what holds the panel open */
-.dstudio .ds-ck-foot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 8px 0;
-  margin: 0 9px 6px;
-  border-radius: 10px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--gray500);
-  cursor: pointer;
-}
-.dstudio .ds-ck-foot:hover {
-  background: #f3f4f6;
-  color: var(--ink);
-}
-
 .dstudio .ds-syscard {
   background: #fff;
   border: 1px solid var(--ds-border);
@@ -6538,6 +6518,25 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid var(--ds-border-s);
 }
 .dstudio .ds-ck-caphero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+/* the hero's right-hand cluster: the type pill plus, only while the flow
+   would rest and the pin/selection holds the panel open, the collapse
+   chevron — the mirror of the rest tab's expand chevron, so opening and
+   closing live in the same top corner instead of a foot below the scroll */
+.dstudio .ds-ck-caphero-tr { display: inline-flex; align-items: center; gap: 9px; }
+.dstudio .ds-ck-caphero-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  /* pull the icon's edge back to the card's text line, keeping the hit area */
+  margin-right: -6px;
+  border-radius: 8px;
+  color: var(--gray500);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dstudio .ds-ck-caphero-x:hover { background: rgba(10, 12, 20, 0.07); color: var(--ink2); }
 .dstudio .ds-ck-caphero-eyebrow {
   font: 800 9.5px var(--font);
   letter-spacing: 0.09em;

@@ -317,6 +317,23 @@ export function SystemCockpit({
     />
   );
 
+  /* the collapse chevron appears only when it would DO something: the flow
+     would rest, and the pin or a selection is what's holding the panel open.
+     While the flow itself wants the panel, the flow owns it. It rides the
+     hero's top-right so opening (the rest tab's chevron) and closing live in
+     the same place, instead of a foot the reader finds after scrolling. */
+  const restControl =
+    rest.wouldRest && !rest.rested ? (
+      <button
+        className="ds-ck-caphero-x"
+        onClick={rest.onRest}
+        title="Collapse the panel — it reopens the moment the flow needs it"
+        aria-label="Collapse the panel"
+      >
+        <Glyph name="chev" size={13} />
+      </button>
+    ) : null;
+
   return (
     <>
     <div className="ds-ck">
@@ -348,6 +365,7 @@ export function SystemCockpit({
           onBrowseUnits={onBrowseUnits}
           onFloor={onFloor}
           systemSelector={systemSelector}
+          restControl={restControl}
           onChangeType={() => {
             setAdding(false);
             setChangingType(true);
@@ -355,7 +373,7 @@ export function SystemCockpit({
         />
       ) : active && mod && !mod.available ? (
         <>
-          <SimpleHero label={mod.label} systemSelector={systemSelector} />
+          <SimpleHero label={mod.label} systemSelector={systemSelector} restControl={restControl} />
           <div className="ds-ck-scroll">
             <div className="ds-ck-coming">
               <div className="ct">{mod.label}</div>
@@ -367,21 +385,8 @@ export function SystemCockpit({
           </div>
         </>
       ) : active && mod ? (
-        <SimpleHero label={mod.label} systemSelector={systemSelector} />
+        <SimpleHero label={mod.label} systemSelector={systemSelector} restControl={restControl} />
       ) : null}
-      {/* the foot chevron appears only when it would DO something: the flow
-          would rest, and the pin or a selection is what's holding the panel
-          open. While the flow itself wants the panel, the flow owns it. */}
-      {rest.wouldRest && !rest.rested && (
-        <button
-          className="ds-ck-foot"
-          onClick={rest.onRest}
-          title="Collapse the panel — it reopens the moment the flow needs it"
-        >
-          <Glyph name="chev" size={13} />
-          Collapse
-        </button>
-      )}
     </div>
     {rest.rested && active && (
       <CockpitRestTab
@@ -662,6 +667,7 @@ function ActiveCockpit({
   onFloor,
   onChangeType,
   systemSelector,
+  restControl,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -677,6 +683,7 @@ function ActiveCockpit({
   onFloor?: (floorId: string) => void;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
+  restControl?: React.ReactNode;
 }) {
   const [view, setView] = useState<"rooms" | "components">("rooms");
 
@@ -738,11 +745,12 @@ function ActiveCockpit({
           req={req}
           onChangeType={onChangeType}
           systemSelector={systemSelector}
+          restControl={restControl}
         />
       ) : conn ? (
-        <CockpitHero hero={computeMultiHero(conn)} onChangeType={onChangeType} systemSelector={systemSelector} />
+        <CockpitHero hero={computeMultiHero(conn)} onChangeType={onChangeType} systemSelector={systemSelector} restControl={restControl} />
       ) : hero ? (
-        <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} />
+        <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} restControl={restControl} />
       ) : null}
 
       <div className="ds-ck-seg" role="tablist" aria-label="Panel view">
@@ -974,6 +982,7 @@ function HeroShell({
   donut,
   onChangeType,
   systemSelector,
+  restControl,
 }: {
   label: string;
   state: HeroState;
@@ -984,6 +993,7 @@ function HeroShell({
   donut: React.ReactNode;
   onChangeType?: () => void;
   systemSelector?: React.ReactNode;
+  restControl?: React.ReactNode;
 }) {
   const [name, ratio] = splitLabel(label);
   const typeInner = (
@@ -994,20 +1004,24 @@ function HeroShell({
   );
   return (
     <div className="ds-ck-caphero" data-state={state}>
-      {/* top row: system selector (left) · clickable type → change (right) */}
+      {/* top row: system selector (left) · clickable type → change, then the
+          collapse chevron when the flow would let the panel rest (right) */}
       <div className="ds-ck-caphero-top">
         {systemSelector}
-        {onChangeType ? (
-          <button
-            className="ds-ck-caphero-type"
-            onClick={onChangeType}
-            title="Change system type — a different type clears the system's units"
-          >
-            {typeInner}
-          </button>
-        ) : (
-          <span className="ds-ck-caphero-type">{typeInner}</span>
-        )}
+        <span className="ds-ck-caphero-tr">
+          {onChangeType ? (
+            <button
+              className="ds-ck-caphero-type"
+              onClick={onChangeType}
+              title="Change system type — a different type clears the system's units"
+            >
+              {typeInner}
+            </button>
+          ) : (
+            <span className="ds-ck-caphero-type">{typeInner}</span>
+          )}
+          {restControl}
+        </span>
       </div>
       <div className="ds-ck-caphero-cols">
         <div className="ds-ck-caphero-left">
@@ -1036,10 +1050,12 @@ function CockpitHero({
   hero,
   onChangeType,
   systemSelector,
+  restControl,
 }: {
   hero: HeroModel;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
+  restControl?: React.ReactNode;
 }) {
   return (
     <HeroShell
@@ -1051,13 +1067,22 @@ function CockpitHero({
       sumValue={hero.sumValue}
       onChangeType={onChangeType}
       systemSelector={systemSelector}
+      restControl={restControl}
       donut={<Donut state={hero.state} pct={hero.pct} dash={hero.dash} over={hero.over} />}
     />
   );
 }
 
 /** a minimal hero for unavailable modules (no pack-driven coverage) */
-function SimpleHero({ label, systemSelector }: { label: string; systemSelector?: React.ReactNode }) {
+function SimpleHero({
+  label,
+  systemSelector,
+  restControl,
+}: {
+  label: string;
+  systemSelector?: React.ReactNode;
+  restControl?: React.ReactNode;
+}) {
   return (
     <HeroShell
       label={label}
@@ -1065,6 +1090,7 @@ function SimpleHero({ label, systemSelector }: { label: string; systemSelector?:
       requiredKw={null}
       selectedKw={null}
       systemSelector={systemSelector}
+      restControl={restControl}
       /* NAMES THE MISSING PRECONDITION, like every other empty hero on this
          panel ("Not sized", "Calibrate", "Select units"). It read "Coming
          soon", which is a release promise in a ledger row — and the panel
@@ -1110,6 +1136,7 @@ function DuctedHero({
   req,
   onChangeType,
   systemSelector,
+  restControl,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -1118,6 +1145,7 @@ function DuctedHero({
   req: DuctedRequirement;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
+  restControl?: React.ReactNode;
 }) {
   const { iduModel, oduModel } = ductedPair(doc, system);
   const hasPair = Boolean(iduModel && oduModel);
@@ -1136,7 +1164,7 @@ function DuctedHero({
     pairKw,
     emptySumLabel
   );
-  return <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} />;
+  return <CockpitHero hero={hero} onChangeType={onChangeType} systemSelector={systemSelector} restControl={restControl} />;
 }
 
 /* ── Air-handler section: the choose CTA, the chosen pair's engine figures,

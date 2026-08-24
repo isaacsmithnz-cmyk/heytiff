@@ -7,23 +7,23 @@ import { useFleetActions } from "./fleet-state";
 import type {
   AiValuation,
   FleetStaff,
-  FleetTab,
   Vehicle,
   VehicleIdentity,
   VehicleLog,
   VehicleWithFacts,
 } from "./logic";
-import { openIssueCount, vehicleChips } from "./logic";
 import { MyVehicle } from "./my-vehicle";
 import { FleetRegister } from "./register";
 
 /* Assets — the register, on the board's card.
 
-   ONE STRIP, FIVE FACES. This screen wore two switchers stacked: a `.ptabs`
-   pill pair (Fleet | Equipment & tools) over the register's own four fat
-   `.dirtabs` — two controls, two visual languages, one job. The register's
-   views and the equipment placeholder are peers on the one `wb2-vtabs` strip
-   now, the control every card in the app switches with.
+   ONE STRIP, TWO FACES. The strip once carried five: Fleet's slices (Need
+   attention / Pool / Sold) sat as tabs beside Equipment & tools, so two
+   different KINDS of switch — "which asset class" and "which slice of the
+   fleet" — shared one row. Isaac read it as noise. The strip now switches
+   asset class only (Fleet | Equipment & tools), and the slices are a filter
+   in the register's own toolbar, next to Value with Tiff, where the other
+   list controls live.
 
    Role rules (docs/roles-and-permissions.md): `assets_all` gets the whole
    register incl. valuations; everyone else gets only their own vehicle. The
@@ -50,7 +50,7 @@ export type Register = {
   staff: FleetStaff[];
 };
 
-type AssetsView = FleetTab | "equipment";
+type AssetsView = "fleet" | "equipment";
 
 export function AssetsScreen({
   own,
@@ -70,19 +70,13 @@ export function AssetsScreen({
 }) {
   const actions = useFleetActions();
   const staffLens = !register;
-  const [view, setView] = useState<AssetsView>("all");
+  const [view, setView] = useState<AssetsView>("fleet");
 
-  /* The same slices the register itself filters by, counted here because the
-     strip lives here. `working` deliberately includes vehicles off the road —
-     off road is a state of a working vehicle, not an exit from the fleet. */
+  /* `working` deliberately includes vehicles off the road — off road is a
+     state of a working vehicle, not an exit from the fleet. The finer slices
+     (attention / pool / sold) are the register's filter now, counted there. */
   const vehicles = register?.vehicles ?? [];
-  const logs = register?.logs ?? [];
   const working = vehicles.filter((v) => v.status !== "sold");
-  const sold = vehicles.filter((v) => v.status === "sold");
-  const attention = working.filter(
-    (v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0,
-  );
-  const pool = working.filter((v) => v.assignedTo === null);
 
   return (
     <div className="page in">
@@ -121,29 +115,10 @@ export function AssetsScreen({
                 onGo={(k) => setView(k as AssetsView)}
                 items={[
                   {
-                    key: "all",
+                    key: "fleet",
                     label: "Fleet",
                     count: working.length,
                     countLabel: (n) => `${n} working vehicles`,
-                  },
-                  {
-                    key: "attention",
-                    label: "Need attention",
-                    count: attention.length,
-                    tone: "warn",
-                    countLabel: (n) => `${n} with expiries, service or issues`,
-                  },
-                  {
-                    key: "pool",
-                    label: "Pool",
-                    count: pool.length,
-                    countLabel: (n) => `${n} unassigned or spare`,
-                  },
-                  {
-                    key: "sold",
-                    label: "Sold",
-                    count: sold.length,
-                    countLabel: (n) => `${n} kept for history`,
                   },
                   { key: "equipment", label: "Equipment & tools" },
                 ]}
@@ -176,7 +151,6 @@ export function AssetsScreen({
                   fleet={{ ...actions, ...register }}
                   staff={register.staff}
                   today={today}
-                  view={view}
                   openVehicleId={openVehicleId}
                 />
               )}

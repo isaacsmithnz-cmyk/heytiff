@@ -2980,12 +2980,42 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 800;
   color: var(--gray500);
 }
-.dstudio .ds-zoomctl span {
+/* the readout, named rather than matched as "the span in here" — the scroll
+   toggle's icons are spans too, and must not inherit its width or its ink */
+.dstudio .ds-zoomctl .ds-zoomval {
   min-width: 44px;
   text-align: center;
   font-size: 11px;
   font-weight: 700;
   color: var(--gray500);
+}
+/* the scroll-wheel toggle, riding the front of the zoom HUD. Two states, both
+   always visible, because this is a CHOICE the user has to be able to see they
+   made — a single button that swaps its own icon would leave them guessing
+   which half they are looking at. Its own width, not the readout's. */
+.dstudio .ds-zoomctl .ds-wheelmode {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 4px;
+  margin-right: 2px;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+}
+.dstudio .ds-zoomctl .ds-wheelbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--gray400);
+}
+/* the chosen half is filled — the same inverted-surface language the HUD's
+   hover uses, one step firmer so it reads as state rather than as hover */
+.dstudio .ds-zoomctl .ds-wheelbtn.on {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
 }
 /* ── canvas HUDs ──────────────────────────────────────────────────────
    Everything that floats over the PLAN is dark. studio.css used to argue

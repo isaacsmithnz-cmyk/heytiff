@@ -12,6 +12,7 @@ import { render, fireEvent } from "@testing-library/react";
 import { StudioCanvas } from "../canvas";
 import { createDesign, type DesignDocument, type Floor } from "@/lib/studio/document";
 import type { CanvasTool } from "../canvas";
+import type { WheelMode } from "@/lib/studio/wheel";
 
 const floor: Floor = {
   id: "flr",
@@ -33,7 +34,11 @@ function mkDoc(): DesignDocument {
   return d;
 }
 
-function renderCanvas(tool: CanvasTool, onMutate: (fn: (d: DesignDocument) => DesignDocument) => void = () => {}) {
+function renderCanvas(
+  tool: CanvasTool,
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void = () => {},
+  wheelMode: WheelMode = "zoom"
+) {
   const doc = mkDoc();
   const utils = render(
     <StudioCanvas
@@ -50,6 +55,7 @@ function renderCanvas(tool: CanvasTool, onMutate: (fn: (d: DesignDocument) => De
       onPlaced={() => {}}
       onRoomCreated={() => {}}
       onRemarkConsumed={() => {}}
+      wheelMode={wheelMode}
     />
   );
   const svg = utils.container.querySelector("svg")!;
@@ -100,9 +106,11 @@ describe("tap-or-pan on click-to-place tools", () => {
     });
   });
 
-  /* The trackpad's ONLY pan gesture. Middle-drag needs a button it hasn't got,
-     and hold-Space is swallowed once focus is in the measurement field — so
-     before this, calibrating on a laptop meant zooming and hoping. */
+  /* What a bare scroll does is the user's SETTING — reading it off the event
+     was wrong twice (see wheel.ts). Pan is the trackpad's only pan gesture:
+     middle-drag needs a button it hasn't got, and hold-Space is swallowed once
+     focus is in the measurement field. Zoom is what a mouse wheel wants, and
+     is the default. Both are pinned here, through the real component. */
   describe("wheel gestures", () => {
     /** `scale(z) translate(-x -y)` — pulled apart so a pan and a zoom can be
         told from each other rather than just "the transform changed" */
@@ -112,7 +120,7 @@ describe("tap-or-pan on click-to-place tools", () => {
     };
 
     it("a two-finger scroll pans, and does not zoom", () => {
-      const { svg, viewport } = renderCanvas("calibrate");
+      const { svg, viewport } = renderCanvas("calibrate", undefined, "pan");
       const before = readVp(viewport());
 
       // trackpad shape: pixel units, fractional, both axes live
@@ -127,7 +135,7 @@ describe("tap-or-pan on click-to-place tools", () => {
     /* the sharpest edge of the old handler: a sideways swipe has deltaY 0,
        which read as "not < 0" and zoomed OUT — swiping across a sheet shrank it */
     it("a sideways swipe pans sideways instead of zooming out", () => {
-      const { svg, viewport } = renderCanvas("calibrate");
+      const { svg, viewport } = renderCanvas("calibrate", undefined, "pan");
       const before = readVp(viewport());
 
       fireEvent.wheel(svg, { deltaX: -30.5, deltaY: 0, deltaMode: 0 });
@@ -135,6 +143,30 @@ describe("tap-or-pan on click-to-place tools", () => {
       const after = readVp(viewport());
       expect(after.zoom).toBe(before.zoom);
       expect(after.x).toBeLessThan(before.x);
+    });
+
+    /* THE REPORT that ended the device-guessing: a Logitech wheel reports
+       fractional deltas, which the old classifier called a trackpad. In zoom
+       mode — the default — nothing about the delta's shape can stop it. */
+    it("zooms on a high-resolution wheel's fractional delta", () => {
+      const { svg, viewport } = renderCanvas("select");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: 0, deltaY: -4.8, deltaMode: 0 });
+
+      expect(readVp(viewport()).zoom).toBeGreaterThan(before.zoom);
+    });
+
+    /* the same event, the other way round: the setting is what decides */
+    it("pans on that same delta once the wheel is set to pan", () => {
+      const { svg, viewport } = renderCanvas("select", undefined, "pan");
+      const before = readVp(viewport());
+
+      fireEvent.wheel(svg, { deltaX: 0, deltaY: -4.8, deltaMode: 0 });
+
+      const after = readVp(viewport());
+      expect(after.zoom).toBe(before.zoom);
+      expect(after.y).toBeLessThan(before.y);
     });
 
     it("a mouse notch still zooms — the mouse loses nothing", () => {
@@ -156,7 +188,7 @@ describe("tap-or-pan on click-to-place tools", () => {
     });
 
     it("panning by wheel places nothing", () => {
-      const { svg } = renderCanvas("calibrate");
+      const { svg } = renderCanvas("calibrate", undefined, "pan");
       fireEvent.wheel(svg, { deltaX: 24.5, deltaY: 12.25, deltaMode: 0 });
       expect(svg.querySelector(".ds-calib")).toBeNull();
     });
@@ -177,7 +209,7 @@ describe("tap-or-pan on click-to-place tools", () => {
     /* a momentum event cannot be cancelled; calling preventDefault on one is
        a no-op Chrome warns about, and it must still pan */
     it("still pans on a non-cancelable momentum event", () => {
-      const { svg, viewport } = renderCanvas("select");
+      const { svg, viewport } = renderCanvas("select", undefined, "pan");
       const before = readVp(viewport());
       fireEvent.wheel(svg, { deltaX: 18.5, deltaY: 0, deltaMode: 0, cancelable: false });
       expect(readVp(viewport()).x).toBeGreaterThan(before.x);

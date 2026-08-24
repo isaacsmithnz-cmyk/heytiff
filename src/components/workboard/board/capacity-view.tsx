@@ -2,71 +2,63 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Icon } from "@/components/shell/icon";
-import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { plusDays } from "@/lib/workboard/dates";
+import { mondayOf } from "@/lib/workboard/board-status";
 import { scheduleCapacity, scheduleDay, setScheduleCapacity } from "@/app/actions/workboard";
 import type { CapacityPayload } from "@/lib/workboard/capacity-query";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
 import {
   bookedMinutesOf,
-  capacityMonth,
+  CAPACITY_WINDOW_DAYS,
   capacityMonthTotal,
-  daysOfMonth,
-  dowOfISO,
+  capacityWindow,
+  daysFrom,
   type CapacityAllocation,
   type CapacityDay,
 } from "@/lib/workboard/capacity";
 import { fmtHoursShort } from "@/lib/workboard/schedule";
-import { capacityInk, OVER_INK } from "@/lib/workboard/capacity-paint";
+import { capacityCellPaint } from "@/lib/workboard/capacity-paint";
 import { WbModal } from "../wb-modal";
 
-/* Capacity — the Schedule tab's other side: how full each day of the month
-   is, one big percentage per cell. The maths lives in lib/workboard/
-   capacity.ts (pure, tested) and the figure's colour in capacity-paint.ts;
-   what matters HERE is the wiring, the rail's pattern repeated:
+/* Capacity — the Schedule tab's other side: how full each day is, one gauge
+   per cell. The maths lives in lib/workboard/capacity.ts (pure, tested) and
+   the cell's paint in capacity-paint.ts; what matters HERE is the wiring,
+   the rail's pattern repeated:
 
-   FETCH-ON-OPEN, CACHED FOR THE SESSION. A month arrives when it is asked
+   A ROLLING FOUR WEEKS, NOT A MONTH. Isaac's call: the question this screen
+   answers is "where can I put work", and the answer starts from now — so the
+   current week is always the top row and the grid runs four Mondays deep. A
+   month grid spent its first fortnight showing days already gone.
+
+   FETCH-ON-OPEN, CACHED FOR THE SESSION. A window arrives when it is asked
    for and lands in a cache the parent owns, so flipping Day ↔ Capacity does
    not re-ask. The day panel reads through the SAME per-day cache the rail
    uses — one law for what a day holds, one round trip for both views.
 
-   THE FIGURE IS THE CELL. No meter, no hours on the face (Isaac's call) —
-   the percentage set large, coloured by how full the day is, and the hours
-   in the cell's title and the day panel. A day with no denominator (a
-   weekend, an unset crew) gets NO figure and NO colour: fillPct is null
-   there, not zero, and drawing "0%" would dress a division by zero up as
-   insight — capacity.ts's central promise, kept on the screen.
+   THE CELL IS A GAUGE. It fills from the bottom as the day does — green
+   while there's room, red as it runs out — with the percentage over it in
+   whichever of black or white actually reads (capacity-paint.ts measures,
+   never guesses). The hours live in the cell's title and the day panel, not
+   on the face. A day with no denominator (a weekend, an unset crew) gets NO
+   figure and NO gauge: fillPct is null there, not zero, and drawing "0%"
+   would dress a division by zero up as insight — capacity.ts's central
+   promise, kept on the screen.
 
    THE PANEL NEVER MOVES THE GRID. It opens BELOW the weeks, so picking a
-   day reads as asking about it, not rearranging the month. */
+   day reads as asking about it, not rearranging the window. */
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const monthKey = (iso: string) => iso.slice(0, 7);
-const firstOf = (iso: string) => `${iso.slice(0, 7)}-01`;
+const MON3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 type Props = {
   today: string;
   manage: boolean;
-  /** Any day in the month on show — owned by the tab so the choice survives
-      a flip to Day and back. */
+  /** Any day in the window on show (its Monday is derived here) — owned by
+      the tab so the choice survives a flip to Day and back. */
   anchor: string;
   onAnchor: (iso: string) => void;
-  /** Month-key → payload, owned by the tab for the same reason. */
+  /** Window-start → payload, owned by the tab for the same reason. */
   capCache: { current: Map<string, CapacityPayload> };
   /** THE RAIL'S OWN day cache, shared on purpose: a day opened here is warm
       when the rail visits it, and the panel obeys the same law as the lanes
@@ -86,8 +78,10 @@ export function CapacityView({
   dayCache,
   switcher,
 }: Props) {
+  /* The window starts on a Monday, always — the anchor is any day in it. */
+  const start = mondayOf(anchor);
   const [cap, setCap] = useState<CapacityPayload | null>(
-    () => capCache.current.get(monthKey(anchor)) ?? null
+    () => capCache.current.get(start) ?? null
   );
   const [loading, startLoad] = useTransition();
   const [openDay, setOpenDay] = useState<string | null>(null);
@@ -96,68 +90,53 @@ export function CapacityView({
   const [editing, setEditing] = useState(false);
   const cellRefs = useRef(new Map<string, HTMLButtonElement>());
 
-  const load = (anyDayISO: string) => {
+  const load = (startISO: string) => {
     startLoad(async () => {
-      const p = await scheduleCapacity(anyDayISO);
-      capCache.current.set(monthKey(anyDayISO), p);
+      const p = await scheduleCapacity(startISO);
+      capCache.current.set(startISO, p);
       setCap(p);
     });
   };
 
-  /* The first open loads the anchored month — only the fetch, no state
+  /* The first open loads the anchored window — only the fetch, no state
      writes: `cap` was seeded from the cache in useState, and a transition's
      async callback is where the result lands (the rail's mount effect,
      repeated). */
   useEffect(() => {
-    if (!capCache.current.get(monthKey(anchor))) load(anchor);
+    if (!capCache.current.get(start)) load(start);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- first open only
   }, []);
 
-  const showMonth = (anyDayISO: string) => {
-    onAnchor(anyDayISO);
+  const showWindow = (startISO: string) => {
+    onAnchor(startISO);
     setOpenDay(null);
-    const hit = capCache.current.get(monthKey(anyDayISO));
+    const hit = capCache.current.get(startISO);
     if (hit) setCap(hit);
-    else load(anyDayISO);
+    else load(startISO);
   };
 
-  const current = cap && monthKey(cap.anyDayISO) === monthKey(anchor) ? cap : null;
+  const current = cap && cap.anyDayISO === start ? cap : null;
   const days = useMemo(
     () =>
       current
-        ? capacityMonth({
-            anyDayISO: firstOf(anchor),
+        ? capacityWindow({
+            days: daysFrom(start, CAPACITY_WINDOW_DAYS),
             activities: current.activities,
             allocation: current.allocation,
             staffNames: new Map(current.staffNames),
           })
         : null,
-    [current, anchor]
+    [current, start]
   );
   const total = useMemo(() => (days ? capacityMonthTotal(days) : null), [days]);
-  /* Every booked minute in the month, weekends included — the unscored
-     month's one honest figure (capacityMonthTotal only counts days WITH a
+  /* Every booked minute in the window, weekends included — the unscored
+     window's one honest figure (the total only counts days WITH a
      denominator, which with an unset crew is none of them). */
-  const monthBooked = useMemo(
+  const windowBooked = useMemo(
     () => (days ?? []).reduce((s, d) => s + d.bookedMinutes, 0),
     [days]
   );
   const scored = total !== null && total.fillPct !== null;
-
-  /* Lead-in and trailing days square the weeks off; they belong to the
-     neighbouring months, so they carry a date and nothing else. */
-  const grid = useMemo(() => {
-    if (!days) return null;
-    const first = firstOf(anchor);
-    const cells: ({ kind: "day"; d: CapacityDay } | { kind: "out"; dayISO: string })[] = [];
-    for (let i = dowOfISO(first); i > 0; i -= 1)
-      cells.push({ kind: "out", dayISO: plusDays(first, -i) });
-    for (const d of days) cells.push({ kind: "day", d });
-    const nextFirst = plusDays(first, days.length);
-    const tail = (7 - (cells.length % 7)) % 7;
-    for (let i = 0; i < tail; i += 1) cells.push({ kind: "out", dayISO: plusDays(nextFirst, i) });
-    return cells;
-  }, [days, anchor]);
 
   const closeDetail = () => {
     const was = openDay;
@@ -202,7 +181,7 @@ export function CapacityView({
     const by = new Map<string, { minutes: number; people: Set<string> }>();
     for (const a of detailNow.activities) {
       /* the rail's single most important filter, re-applied here for the
-         same reason capacityMonth re-applies it */
+         same reason capacityWindow re-applies it */
       if (a.wasScheduled !== 1 || !a.jobUuid) continue;
       const cell = by.get(a.jobUuid) ?? { minutes: 0, people: new Set<string>() };
       cell.minutes += bookedMinutesOf(a);
@@ -226,16 +205,20 @@ export function CapacityView({
 
   const savedCrew = () => {
     setEditing(false);
-    /* the allocation is the denominator under EVERY month, so every cached
-       month is stale, not just this one */
+    /* the allocation is the denominator under EVERY window, so every cached
+       window is stale, not just this one */
     capCache.current.clear();
-    load(anchor);
+    load(start);
   };
 
-  const first = firstOf(anchor);
-  const prevMonth = firstOf(plusDays(first, -1));
-  const nextMonth = plusDays(first, daysOfMonth(first).length);
-  const monthLabel = `${MONTHS[Number(anchor.slice(5, 7)) - 1]} ${anchor.slice(0, 4)}`;
+  /* The window under the pointer: the current four weeks by default, stepped
+     a week at a time. Its name is honest about which it is — "next four
+     weeks" only while the window actually starts now. */
+  const anchored = start === mondayOf(today);
+  const rangeLabel = `${fmtAuDayMonth(start)} – ${fmtAuDayMonth(
+    plusDays(start, CAPACITY_WINDOW_DAYS - 1)
+  )}`;
+  const windowWord = anchored ? "Next four weeks" : "These four weeks";
 
   return (
     <>
@@ -247,22 +230,22 @@ export function CapacityView({
           <div className="wb2-mchead">
             <button
               className="wb2-mcarrow"
-              aria-label="The month before"
-              onClick={() => showMonth(prevMonth)}
+              aria-label="The week before"
+              onClick={() => showWindow(plusDays(start, -7))}
             >
               <Icon name="chevL" size={15} />
             </button>
-            <b>{monthLabel}</b>
+            <b>{rangeLabel}</b>
             <button
               className="wb2-mcarrow"
-              aria-label="The month after"
-              onClick={() => showMonth(nextMonth)}
+              aria-label="The week after"
+              onClick={() => showWindow(plusDays(start, 7))}
             >
               <Icon name="chevR" size={15} />
             </button>
-            {monthKey(anchor) !== monthKey(today) && (
-              <button className="wb2-mcnow" onClick={() => showMonth(today)}>
-                This month
+            {!anchored && (
+              <button className="wb2-mcnow" onClick={() => showWindow(mondayOf(today))}>
+                This week
               </button>
             )}
           </div>
@@ -275,27 +258,27 @@ export function CapacityView({
               Crew
             </button>
           )}
+          {/* ONE chip, and it says WHAT is 69% full — a bare percentage next
+              to a month name answered a question nobody had asked. The hours
+              behind it live in each cell's title and the day panel. */}
           {scored && total && (
-            <>
-              <span className="wb2-chip">
-                {fmtHoursShort(total.bookedMinutes)} of {fmtHoursShort(total.capacityMinutes)}
-              </span>
-              <span className="wb2-chip">{total.fillPct}% full</span>
-            </>
+            <span className="wb2-chip">
+              {windowWord} · {total.fillPct}% full
+            </span>
           )}
-          {current && !scored && monthBooked > 0 && (
-            <span className="wb2-chip">{fmtHoursShort(monthBooked)} booked</span>
+          {current && !scored && windowBooked > 0 && (
+            <span className="wb2-chip">{fmtHoursShort(windowBooked)} booked</span>
           )}
         </span>
       </div>
 
-      {loading && !current && <p className="wb2-hint wb2-schload">Reading the month…</p>}
+      {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks…</p>}
 
       {days && !scored && (
         <div className="wb2-scmnone">
           <b>The crew hasn&apos;t been set</b>
           <em>
-            Nobody counts toward a day yet, so the month can&apos;t be scored — what&apos;s booked
+            Nobody counts toward a day yet, so the weeks can&apos;t be scored — what&apos;s booked
             still shows.
           </em>
           {manage && (
@@ -306,23 +289,15 @@ export function CapacityView({
         </div>
       )}
 
-      {grid && (
+      {days && (
         <>
           <div className="wb2-scmdow" aria-hidden="true">
             {DOW.map((d) => (
               <span key={d}>{d}</span>
             ))}
           </div>
-          <div className="wb2-scm" role="group" aria-label={`How full each day of ${monthLabel} is`}>
-            {grid.map((cell) => {
-              if (cell.kind === "out") {
-                return (
-                  <span key={cell.dayISO} className="wb2-scmc out" aria-hidden="true">
-                    <span className="wb2-scmd">{Number(cell.dayISO.slice(8, 10))}</span>
-                  </span>
-                );
-              }
-              const d = cell.d;
+          <div className="wb2-scm" role="group" aria-label="How full each day is">
+            {days.map((d, di) => {
               const hasPct = d.fillPct !== null;
               const clickable = d.jobs > 0;
               const sel = openDay === d.dayISO;
@@ -336,23 +311,35 @@ export function CapacityView({
                 .join(" · ");
               const cls =
                 "wb2-scmc" +
-                (hasPct ? "" : " ns") +
+                (hasPct ? " gauge" : " ns") +
                 (d.over ? " over" : "") +
                 (d.dayISO === today ? " today" : "") +
                 (sel ? " on" : "");
-              /* the figure's colour rides a custom property so the sheet
-                 styles one class and a test can measure what actually
-                 shipped — the rail's --fill technique */
-              const style = hasPct
-                ? { ["--capink" as string]: d.over ? OVER_INK : capacityInk(d.fillPct!) }
+              /* the gauge rides custom properties so the sheet styles one
+                 class and a test can measure what actually shipped — the
+                 rail's --fill technique */
+              const paint = hasPct ? capacityCellPaint(d.fillPct!, d.over) : null;
+              const style = paint
+                ? {
+                    ["--capfill" as string]: paint.fill,
+                    ["--caplevel" as string]: `${paint.level}%`,
+                    ["--capink" as string]: paint.ink,
+                    ...(paint.dateInk ? { ["--capdate" as string]: paint.dateInk } : {}),
+                  }
                 : undefined;
+              /* a rolling window has no month around it, so a month TURN is
+                 named on the cell where it happens — and on the first cell,
+                 which is the window's own anchor */
+              const dnum = Number(d.dayISO.slice(8, 10));
+              const dateLabel =
+                dnum === 1 || di === 0 ? `${dnum} ${MON3[Number(d.dayISO.slice(5, 7)) - 1]}` : dnum;
               const inner = (
                 <>
-                  <span className="wb2-scmd">{Number(d.dayISO.slice(8, 10))}</span>
+                  <span className="wb2-scmd">{dateLabel}</span>
                   {hasPct ? (
                     <b className="wb2-scmp">{d.fillPct}%</b>
                   ) : d.bookedMinutes > 0 ? (
-                    /* no figure and no ramp without a denominator — the dot
+                    /* no figure and no gauge without a denominator — the dot
                        only says the day still holds work */
                     <i className="wb2-scmk" aria-hidden="true" />
                   ) : null}

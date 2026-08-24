@@ -5991,7 +5991,21 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    prefix is what opts these out (see the carve-out at the top of this file).
    A block rendered transparent in the first prototype is how we know. */
 
-/* the seven-day strip — the timesheet strip's day-pill technique */
+/* ── the week stepper, mid-header ──
+   The window's name between its own arrows, in line with the Day/Capacity
+   switcher. The day-name on the left is a FACT and carries no controls: the
+   old layout hung the ±week arrows off it, which read as "next day" and
+   stepped seven — the two grains live apart now (week here, day on the
+   strip). Both margins are auto so the stepper takes the middle of whatever
+   the chips leave. */
+.wb2-schweek { display:flex; align-items:center; gap:8px; margin-left:auto; flex:none; }
+.wb2-schweek b { font-size:13px; font-weight:800; letter-spacing:-.01em; min-width:74px; text-align:center; }
+
+/* the seven-day strip — the timesheet strip's day-pill technique. Its
+   flanking arrows SLIDE the window one day at a time; the cards still pick. */
+.wb2-schstrip { display:flex; align-items:center; gap:8px; padding:12px 20px 0; }
+.wb2-schstrip > .wb2-mcarrow { align-self:stretch; height:auto; }
+.wb2-schstrip .wb2-schdays { flex:1 1 0; min-width:0; padding:0; }
 .wb2-schdays { display:flex; gap:3px; padding:12px 20px 0; }
 .wb2-schday { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px;
   padding:8px 4px 9px; border-radius:13px; background:transparent; cursor:pointer;
@@ -6280,6 +6294,23 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   font-variant-numeric:tabular-nums; }
 .wb2-scfh em { font-style:normal; font-size:12px; font-weight:700; color:#57616f; }
 
+/* THE STATUS AND WHAT THE COLOURS MEAN — the rail's footer key scoped to the
+   one job brought forward. Each swatch draws the treatment it decodes in the
+   job's OWN paint (the vars arrive from the component), so the key and the
+   block cannot disagree. Same anatomy as .wb2-schkey, restated rather than
+   reused so the footer can move without dragging the card. */
+.wb2-scfkey { display:flex; flex-wrap:wrap; gap:6px 14px; padding:0 2px 14px; }
+.wb2-scfkey span { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:#57616f; }
+.wb2-scfkey i { width:18px; height:12px; border-radius:4px; flex:none; font-style:normal; }
+.wb2-scfkey i.cat { background:var(--bar, #7a818c); }
+.wb2-scfkey i.qt { background:var(--fill, #f4f5f7); outline:1.5px dashed rgba(5,5,5,.5); outline-offset:-1px; }
+.wb2-scfkey i.dan { background:var(--fill, #f4f5f7); box-shadow:inset 0 0 0 2px var(--wb2-dan); }
+.wb2-scfkey i.idle { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #7a818c); }
+.wb2-scfkey i.on, .wb2-scfkey i.stale { background:var(--fill, #f4f5f7); box-shadow:inset 4px 0 0 var(--bar, #7a818c); }
+.wb2-scfkey i.done { background:var(--pale, #f4f5f7); box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4); }
+.wb2-scfkey i.late { width:14px; height:14px; border-radius:50%; background:var(--wb2-dan); color:#fff;
+  display:grid; place-items:center; font-size:9.5px; font-weight:800; line-height:1; }
+
 .wb2-scfstack { display:flex; flex-direction:column; gap:6px; }
 /* the count, said in words — the hover answered "which of these are one job"
    by moving pixels, and moving pixels reaches nobody who cannot see them */
@@ -6418,8 +6449,17 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    opening a day cannot move the grid under the pointer */
 .wb2-scmc.on { box-shadow:0 0 0 2px var(--ink); border-color:transparent; }
 .wb2-scmc.on:focus-visible { box-shadow:0 0 0 2px var(--ink), 0 0 0 5px rgba(0,168,224,.3); }
+/* THE CELL IS A GAUGE: it fills from the bottom as the day does. A hard-stop
+   gradient, not a nested element, so the ring/hover/focus treatments keep
+   working on the one box they already style. --capfill/--caplevel arrive
+   per-day from capacity-paint.ts, which also picks black-or-white ink for
+   whatever the gauge puts under the figure. */
+.wb2-scmc.gauge { background:linear-gradient(to top, var(--capfill, #fff) var(--caplevel, 0%), #fff var(--caplevel, 0%)); }
 .wb2-scmd { position:absolute; top:7px; left:9px; font-size:10.5px; font-weight:800;
   color:var(--gray500); font-variant-numeric:tabular-nums; }
+/* the date label sits at the brim — it only changes ink once the gauge has
+   actually climbed under it (paint hands --capdate then, and only then) */
+.wb2-scmc.gauge .wb2-scmd { color:var(--capdate, var(--gray500)); }
 /* today: the date goes on an ink badge — legible over any figure colour,
    and it cannot collide with the over ring the way a border treatment would */
 .wb2-scmc.today .wb2-scmd { top:4px; left:5px; min-width:21px; height:20px; display:grid;
@@ -6434,8 +6474,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    text (3:1) — it is still held to 4.5:1, so that never has to be argued. */
 .wb2-scmp { font-size:34px; font-weight:800; letter-spacing:-.045em; line-height:.95;
   color:var(--capink, var(--ink)); font-variant-numeric:tabular-nums; }
-/* the one qualitative break: the word under the figure, in the same warn
-   ink the figure already wears — never a red anything on this grid */
+/* the one qualitative break: the word under the figure, in the same ink the
+   figure already wears — on an over day the gauge is brimful danger and the
+   paint hands white */
 .wb2-scmo { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.14em;
   text-transform:uppercase; color:var(--capink, var(--wb2-warn-t, #B45309)); }
 /* unscored: no figure, no ramp, a quieter ground — null is not zero. The
@@ -6443,10 +6484,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    what makes it clickable. */
 .wb2-scmc.ns { background:rgba(5,5,5,.022); border-color:transparent; }
 .wb2-scmk { width:7px; height:7px; border-radius:50%; background:var(--gray500); }
-/* a neighbouring month's day: present so the weeks square off, and nothing
-   else — no data, no click, barely any ink */
-.wb2-scmc.out { background:transparent; border-color:transparent; }
-.wb2-scmc.out .wb2-scmd { color:var(--q); }
 
 /* the day panel — BELOW the grid, in flow, so selecting a day never moves
    a cell. The rail's block anatomy at list scale: client leads, number is
@@ -6719,6 +6756,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-shname { flex:1 1 220px; min-width:0; margin:0; font-size:20px; font-weight:800; letter-spacing:-.03em;
   line-height:1.2; text-wrap:pretty; }
 .wb2-shchips { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+/* the rail's "!" disc, at chip scale — the one schedule state that is
+   actually wrong keeps its mark when the job opens into the sheet */
+.wb2-shchips .wb2-shbang { width:13px; height:13px; border-radius:50%; background:var(--wb2-dan);
+  color:#fff; display:grid; place-items:center; font-style:normal; font-size:9px; font-weight:800;
+  line-height:1; flex:none; }
 .wb2-ico { width:30px; height:30px; border-radius:9px; border:0; background:rgba(5,5,5,.05); color:var(--gray700);
   display:grid; place-items:center; cursor:pointer; transition:background .18s; }
 .wb2-ico:hover { background:rgba(5,5,5,.1); }

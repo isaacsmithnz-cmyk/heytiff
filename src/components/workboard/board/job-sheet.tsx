@@ -33,6 +33,7 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JOB_MEDIA_CAP, mediaCountLine } from "@/lib/workboard/job-media";
 import { fmtMinutesAsHours, groupChecklist, type AllJobRow } from "@/lib/workboard/all-jobs";
+import type { ScheduleJobState } from "./schedule-tab";
 
 /* One ServiceM8 job, read-only — and the two ways out of it.
 
@@ -106,6 +107,7 @@ export function JobSheet({
   row,
   manage,
   moneyVisible,
+  scheduleState = null,
   onClose,
   onCreateAgreement,
   onOpenTracked,
@@ -114,6 +116,10 @@ export function JobSheet({
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
+  /** What today's diary says the job is doing — set only when a schedule
+      block opened this sheet, so the header carries the same reading the rail
+      drew (the "!" and the hollow cap, in words). */
+  scheduleState?: ScheduleJobState | null;
   onClose: () => void;
   /** Hands this job to the existing new-agreement modal, prefilled. */
   onCreateAgreement: (row: AllJobRow, detail: MirrorJobDetail | null) => void;
@@ -269,7 +275,28 @@ export function JobSheet({
             <span className="wb2-chip" title="This job's number in ServiceM8">
               ServiceM8 job
             </span>
-            {row.tone !== "" && <span className={`wb2-chip ${row.tone}`}>{row.statusLabel}</span>}
+            {/* THE STATUS ALWAYS SHOWS. It used to appear only when it had a
+                tone, which hid exactly the statuses a reader arrives unsure
+                about — a Quote wore its dashed edge on the rail and then
+                nothing up here. Neutral statuses wear the plain chip. */}
+            {row.statusLabel && (
+              <span className={"wb2-chip" + (row.tone ? ` ${row.tone}` : "")}>
+                {row.statusLabel}
+              </span>
+            )}
+            {/* what today's diary said, when a schedule block opened this —
+                the rail's marks in words, the "!" kept for the one state
+                that is actually wrong */}
+            {scheduleState && (
+              <span className={"wb2-chip" + (scheduleState.kind === "late" ? " dan" : "")}>
+                {scheduleState.kind === "late" && (
+                  <i className="wb2-shbang" aria-hidden="true">
+                    !
+                  </i>
+                )}
+                {scheduleState.word}
+              </span>
+            )}
             {row.categoryName && (
               <span className="wb2-chip">
                 {row.categoryColour && (

@@ -167,7 +167,11 @@ describe("clicking a block", () => {
     render(tab({ onOpenJob }));
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
     await userEvent.click(screen.getByRole("button", { name: /Open job/ }));
-    expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3171" }));
+    expect(onOpenJob).toHaveBeenCalledWith(
+      expect.objectContaining({ remoteId: "j-3171" }),
+      /* the diary's reading rides along, so the sheet can chip it */
+      { kind: "on", word: "Started" }
+    );
     expect(stack()).not.toBeInTheDocument();
   });
 
@@ -188,6 +192,18 @@ describe("clicking a block", () => {
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
     expect(screen.getByText("On this job")).toBeInTheDocument();
     expect(within(stack()!).getByText("Alex Lorenz")).toBeInTheDocument();
+  });
+
+  it("tells the status of the job and what its colours mean, on the card", async () => {
+    /* the key row decodes the treatments THIS job wears: its category (the
+       colour), and the state the rail drew — nothing it doesn't wear */
+    render(tab());
+    await userEvent.click((await screen.findAllByRole("button", { name: /Job #3145/ }))[0]);
+    const key = stack()!.querySelector(".wb2-scfkey") as HTMLElement;
+    expect(within(key).getByText("Install")).toBeInTheDocument();
+    expect(within(key).getByText("Started")).toBeInTheDocument();
+    expect(within(key).queryByText(/quote/i)).not.toBeInTheDocument();
+    expect(within(key).queryByText(/Done/)).not.toBeInTheDocument();
   });
 
   it("says what each person's booking is doing, in words", async () => {
@@ -229,9 +245,11 @@ describe("clicking a block", () => {
   });
 });
 
-it("steps a WEEK on the arrows, because the strip already picks the day", async () => {
-  /* Isaac's call: a day at a time was the strip's job, one click at a time.
-     The arrow moves the frame; the strip picks inside it. */
+it("steps a WEEK on the header's stepper, because the strip already picks the day", async () => {
+  /* Isaac's call, twice over: the arrows used to hang off the day's name and
+     read as "next day" while stepping seven. The WEEK stepper lives in the
+     middle of the header now, and it still moves the frame; the strip picks
+     inside it. */
   scheduleDay.mockImplementation(async (dayISO: string) => ({ ...payload(), dayISO }));
   render(tab());
   await screen.findByText("Alex Lorenz");
@@ -240,6 +258,37 @@ it("steps a WEEK on the arrows, because the strip already picks the day", async 
   await userEvent.click(screen.getByRole("button", { name: "The week before" }));
   await userEvent.click(screen.getByRole("button", { name: "The week before" }));
   expect(scheduleDay).toHaveBeenLastCalledWith("2026-08-07");
+});
+
+it("names the window in the middle of the header, by its place from today", async () => {
+  scheduleDay.mockImplementation(async (dayISO: string) => ({ ...payload(), dayISO }));
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  expect(screen.getByText("This week")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "The week after" }));
+  expect(screen.getByText("Next week")).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Today" }));
+  expect(screen.getByText("This week")).toBeInTheDocument();
+});
+
+it("slides the strip a day at a time on its own arrows — the open day stays put", async () => {
+  /* The strip is a WINDOW now: past Sunday, next week's Monday walks in one
+     card at a time. Sliding is looking, not choosing — nothing is fetched
+     and the selection doesn't move. */
+  render(tab());
+  await screen.findByText("Alex Lorenz");
+  expect(screen.getByRole("button", { name: /Mon 10 Aug/ })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "The day after" }));
+  expect(screen.queryByRole("button", { name: /Mon 10 Aug/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Mon 17 Aug/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Fri 14 Aug/ })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  expect(scheduleDay).toHaveBeenCalledTimes(1);
+  // and back
+  await userEvent.click(screen.getByRole("button", { name: "The day before" }));
+  expect(screen.getByRole("button", { name: /Mon 10 Aug/ })).toBeInTheDocument();
 });
 
 it("caches a day — stepping back to it asks the server nothing", async () => {

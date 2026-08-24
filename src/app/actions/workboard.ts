@@ -32,7 +32,7 @@ import {
 } from "@/lib/workboard/schedule-query";
 import {
   EMPTY_CAPACITY,
-  loadCapacityMonth,
+  loadCapacityWindow,
   saveCapacityAllocation,
   type CapacityPayload,
 } from "@/lib/workboard/capacity-query";
@@ -456,13 +456,14 @@ export async function scheduleDay(dayISO: string): Promise<SchedulePayload> {
   return loadScheduleDay(ctx.orgId, dayISO);
 }
 
-/** One month of capacity — the Schedule's other view. Same gate as the day
-    rail: reading the diary and reading how full it is are the same right. */
-export async function scheduleCapacity(anyDayISO: string): Promise<CapacityPayload> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(anyDayISO)) return EMPTY_CAPACITY;
+/** Four weeks of capacity from `startISO` — the Schedule's other view. Same
+    gate as the day rail: reading the diary and reading how full it is are the
+    same right. */
+export async function scheduleCapacity(startISO: string): Promise<CapacityPayload> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startISO)) return EMPTY_CAPACITY;
   const ctx = await context();
   if (!ctx || !(await can("workboard"))) return EMPTY_CAPACITY;
-  return loadCapacityMonth(ctx.orgId, anyDayISO);
+  return loadCapacityWindow(ctx.orgId, startISO);
 }
 
 /** Set who counts toward a day and for how long.

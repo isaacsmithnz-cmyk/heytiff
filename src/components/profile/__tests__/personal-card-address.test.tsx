@@ -125,13 +125,21 @@ describe("with the lookup on", () => {
     expect(Object.keys(fields).sort()).toEqual([
       "address",
       "birthday",
+      // the uniform sizes ride the personal section — same save, same
+      // allowlist, no extra round trip. `boot_scale` is the picked half of the
+      // boot size, saved with it. See lib/staff/uniform.ts.
+      "boot_scale",
+      "boot_size",
       "employment_type",
       "first_name",
+      "jacket_size",
       "last_name",
       "phone",
       "preferred_name",
+      "shirt_size",
       "start_date",
       "status",
+      "trousers_size",
     ]);
   });
 

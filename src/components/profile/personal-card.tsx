@@ -6,9 +6,16 @@ import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
 import { SectionCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
-import { DateField, Seg, SelectInput, TextInput } from "./fields";
+import { DateField, ScaledInput, Seg, SelectInput, TextInput } from "./fields";
 import type { ProfileMode, SaveSection } from "./types";
 import { EMPLOYMENT_TYPES } from "@/lib/staff/employment";
+import {
+  BOOT_SCALES,
+  UNIFORM_FIELDS,
+  bootLadder,
+  uniformDisplay,
+  uniformValues,
+} from "@/lib/staff/uniform";
 import { AU_STATES } from "@/lib/org/settings";
 
 /* the one list, shared with the Rate Calculator and Time & Pay — a label
@@ -28,6 +35,9 @@ export function personalValues(p: StaffProfile | null, mode: ProfileMode): Recor
     start_date: dateInputValue(p?.start_date),
     employment_type: p?.employment_type ?? "",
     status: p?.status ?? "Active",
+    // shirt / jacket / trousers / boots — self-editable in both modes, so they
+    // sit in the base rather than the admin half below
+    ...uniformValues(p),
   };
   // job_title and state are in ADMIN_SECTIONS but not SELF_EDITABLE_SECTIONS:
   // your role — and which state's holiday calendar pays you — are things the
@@ -63,21 +73,26 @@ export function PersonalCard({
   onSave: SaveSection;
 }) {
   const values = personalValues(profile, mode);
+  // what the uniform rows READ as, which is not what they submit: a boot size
+  // reads with its scale attached and saves as the two columns it is
+  const display = uniformDisplay(profile);
   // read mode is dd/mm/yyyy — how an Australian reads a date. Only ENTRY is ISO,
   // because that is what a calendar picker speaks.
   const born = formatAuDate(profile?.birthday);
   const started = formatAuDate(profile?.start_date);
 
-  /* Three groups rather than one long list — you come to this card looking for
-     ONE of "who are they", "how do I reach them" or "how are they employed",
-     and grouping means you stop reading as soon as you've found it.
+  /* Four groups rather than one long list — you come to this card looking for
+     ONE of "who are they", "how do I reach them", "how are they employed" or
+     "what do I order them", and grouping means you stop reading as soon as
+     you've found it. Uniform is a group for exactly that reason: it is the
+     question a supplier asks, never mixed with the ones payroll asks.
 
      ONE LIST, BOTH MODES. Each row names what it reads as and what it becomes,
      so editing swaps the contents of a value slot and nothing else — the
      labels don't move, the panels don't dissolve, and "+ Add" now opens the
      form with the control landing exactly where the blank was. See detail.tsx.
 
-     There is no empty state. A blank card renders the same three panels with a
+     There is no empty state. A blank card renders the same four panels with a
      "+ Add" in every value slot, which is strictly more useful than a
      paragraph explaining that it's blank. */
   const body = ({ editing, draft, set, invalid, edit, errorFor }: SectionBodyContext) => (
@@ -284,6 +299,57 @@ export function PersonalCard({
           />
         )}
       </DetailPanel>
+
+      {/* What goes on the order form when someone starts, and what gets
+          re-ordered when a shirt wears through.
+
+          Every garment is free text over a suggested ladder — AU workwear has
+          no one sizing vocabulary, and a box that refuses "Ladies 14" is worse
+          than one that takes it. The top-half fields suggest BOTH ladders,
+          alpha and chest in centimetres, because a crew holds both answers.
+
+          Boots carry their scale with them: 10 in AU/UK is 44 in EU and 11 in
+          US, so the number alone is an order two sizes out. See
+          lib/staff/uniform.ts. */}
+      <DetailPanel title="Uniform" wide split>
+        {UNIFORM_FIELDS.map((f) => (
+          <Detail
+            key={f.key}
+            label={f.label}
+            editing={editing}
+            // boots read "10 AU/UK" — the size never appears without the
+            // system it is quoted on
+            value={display[f.key]}
+            onAdd={edit}
+            control={
+              f.scaleKey ? (
+                <ScaledInput
+                  name={f.key}
+                  placeholder={f.placeholder}
+                  // the ladder IS the scale's ladder — switch to EU and the
+                  // suggestions become 37–49, not 4–14
+                  suggestions={bootLadder(draft[f.scaleKey])}
+                  value={draft[f.key]}
+                  onChange={(v) => set(f.key, v)}
+                  scale={draft[f.scaleKey]}
+                  scaleName={f.scaleKey}
+                  scales={BOOT_SCALES}
+                  scaleLabel={`${f.label} — size scale`}
+                  onScaleChange={(v) => set(f.scaleKey!, v)}
+                />
+              ) : (
+                <TextInput
+                  name={f.key}
+                  placeholder={f.placeholder}
+                  suggestions={f.suggestions}
+                  value={draft[f.key]}
+                  onChange={(v) => set(f.key, v)}
+                />
+              )
+            }
+          />
+        ))}
+      </DetailPanel>
     </DetailPanels>
   );
 
@@ -292,7 +358,7 @@ export function PersonalCard({
       variant="section"
       icon="user"
       title="Personal details"
-      sub="Identity, contact & employment basics"
+      sub="Identity, contact, employment & uniform sizes"
       values={values}
       startEditing={startEditing}
       onSave={(fields) => onSave("personal", fields)}

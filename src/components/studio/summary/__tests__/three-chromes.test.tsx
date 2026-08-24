@@ -70,6 +70,7 @@ function renderOwner(doc = baseDoc(), onMutate = jest.fn()) {
   render(
     <SummaryView
       doc={doc}
+      brand={NO_BRAND}
       pack={null}
       onMutate={onMutate}
       onExportJson={jest.fn()}

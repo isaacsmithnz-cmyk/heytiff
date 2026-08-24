@@ -168,8 +168,16 @@
    Clamped rather than fixed because the three chromes hand the document
    wildly different widths, and paper is the narrowest of them: the floor is
    what a wordmark needs to still read at A4, the ceiling is the point past
-   which a mark starts competing with the title beside it. */
-.dsd { --dsd-ident-w: clamp(210px, 23%, 290px); }
+   which a mark starts competing with the title beside it.
+
+   THE FLOOR IS DERIVED FROM THE CONTACT LINES, NOT CHOSEN. It is the width
+   `service@diamondairsolutions.com` needs to sit on one line — 210px was that
+   width while those lines were set at 11.5px, and they are set at 13px now
+   (see `.dsd-idc`), which is 217px of address. A floor that stays behind the
+   type it was measured for is a floor that breaks an email mid-word on the
+   one copy nobody re-reads: the printed one. 236px is the same slack over the
+   longest line that 210px gave. */
+.dsd { --dsd-ident-w: clamp(236px, 23%, 290px); }
 .dsd-mast {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--dsd-ident-w);
@@ -276,7 +284,27 @@
   display: block;
   width: 100%;
   height: auto;
-  max-height: 64px;
+  /* THE CAP IS FOR THE OTHER SHAPE, AND IT MUST NOT BIND ON A WORDMARK.
+
+     It was 64px, and 64px is shorter than the column is wide divided by the
+     ratio a wordmark is drawn at: at 290px and 3.55:1 the image wanted 82px,
+     the cap held it to 64, and `contain` letterboxed it to 227px inside a
+     290px box — 63px of dead space between the mark and the sheet's own right
+     margin, on the one edge every other line on the page hangs off. The
+     column was given a width precisely so the mark would fill it; the cap
+     quietly took that back, and what it left looked like a small logo parked
+     short of the margin with the contact lines under it running wider.
+
+     85px is what a 3.45:1 mark needs to fill 290px, so anything wider than
+     that — which is most wordmarks — now reaches the margin and the cap never
+     fires. It still fires on the shape it was written for: a square badge
+     stops at 85px rather than being as tall as the column is wide.
+
+     The number is the column's ceiling over that ratio, and the print rule
+     below is the column's FLOOR over the same ratio. Neither is a taste
+     judgement about how big a logo should be — the column decides that, and
+     these two only keep a badge from setting the masthead's height. */
+  max-height: 85px;
   object-fit: contain;
   object-position: left center;
 }
@@ -298,13 +326,23 @@
   font-weight: 800;
   letter-spacing: 0.01em;
 }
+/* THE SAME LINE ON BOTH SIDES OF THE MASTHEAD, SET THE SAME WAY.
+
+   These are the business's address lines and `.dsd-to-l` is the client's, and
+   they sit opposite each other across the sheet — so they are one thing typed
+   twice, and were set as two: 11.5px/600 here against 13px/500 there. 11.5px
+   is a size nothing else on this document uses; every other lowercase line in
+   the masthead is 13px, and the eye reads the odd one out as a caption that
+   wandered in from another document rather than as the other half of a pair.
+
+   Matched to `.dsd-to-l` exactly. Nothing here is chosen — it is quoted. */
 .dsd-idc {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.55;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
   color: var(--dsd-ink-2);
 }
 /* the last resort, and it should never fire: the identity column's floor is
@@ -922,8 +960,12 @@
     grid-template-columns: minmax(0, 1fr) var(--dsd-ident-w);
     gap: 14px 32px;
   }
-  /* and the mark is sized for the column it lands in, not the one on screen */
-  .dsd-idlogo { max-height: 52px; }
+  /* and the mark is sized for the column it lands in, not the one on screen.
+     Same rule as the screen's, one column narrower: A4 puts the identity
+     column on its floor, so a wordmark fills 236px at 69px and the cap is set
+     there. At 52px it letterboxed and printed short of the margin — the
+     screen's bug, on paper. */
+  .dsd-idlogo { max-height: 69px; }
 
   /* THE SYSTEM BAND KEEPS ITS OUTDOOR BESIDE IT, for the same reason: stacked,
      the shared outdoor block ran a further 90px down a page that then could

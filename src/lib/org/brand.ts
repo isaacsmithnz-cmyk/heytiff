@@ -33,6 +33,24 @@ export type OrgBrand = {
   website: string | null;
 };
 
+/* HOW LONG A LETTERHEAD LIVES.
+
+   The logo is a private object behind a signed link, and the surface that
+   renders it is a studio tab somebody leaves open all afternoon — so the link
+   has to outlive the sitting, and the sheet has to be able to notice when it
+   has not.
+
+   Both numbers are here rather than in the hook because the SERVER now mints
+   the first one (the studio route hands the brand down with the page, so the
+   sheet's first paint already has its frame and its mark) and the CLIENT
+   re-mints it later. Two places signing for two different windows is how a
+   letterhead goes to a broken image mid-afternoon on one surface only. */
+
+/** six hours, matching what the customer's live link signs for */
+export const BRAND_TTL_S = 21600;
+/** re-sign on return once the link is this old — well inside the TTL */
+export const BRAND_STALE_MS = 3_600_000;
+
 /** A business that has told us nothing yet — every surface falls back to its
     own platform wording rather than printing an empty letterhead. */
 export const NO_BRAND: OrgBrand = {

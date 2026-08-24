@@ -57,12 +57,16 @@ export function AssetsScreen({
   register,
   today,
   viewerStaffId,
+  openVehicleId = null,
 }: {
   own: OwnFleet;
   /** Present only for holders of `assets_all`. */
   register?: Register;
   today: string;
   viewerStaffId: string | null;
+  /** `?v=` — a vehicle to open on arrival, read on the server by the page and
+      passed through. A staff card's plate is the caller. */
+  openVehicleId?: string | null;
 }) {
   const actions = useFleetActions();
   const staffLens = !register;
@@ -173,6 +177,7 @@ export function AssetsScreen({
                   staff={register.staff}
                   today={today}
                   view={view}
+                  openVehicleId={openVehicleId}
                 />
               )}
             </div>

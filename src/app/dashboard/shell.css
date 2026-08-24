@@ -1299,7 +1299,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    Above the tabs this was a page header carrying a person, next to a card that
    opened with its own headline: two headers stacked. Inside the card it opens
    Summary, which is where "who is this" belongs. */
-.fg .pident { display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+.fg .pident { display:flex; align-items:center; gap:15px; flex-wrap:wrap;
   padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid var(--wb2-line2); }
 /* The avatar tile, and the camera badge that finally makes it settable.
 
@@ -1310,9 +1310,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    is also LIGHT now: the dark inner face was drawn for a dark rail, and on a
    light card it was the one black square on the screen. The gradient stays as
    the ring — the only brand mark on the block. */
-.fg .pident .pphoto { position:relative; width:68px; height:68px; border-radius:20px; flex:0 0 auto;
+.fg .pident .pphoto { position:relative; width:46px; height:46px; border-radius:15px; flex:0 0 auto;
   background:linear-gradient(140deg,var(--teal),var(--blue)); padding:2px; }
-.fg .pident .pphoto .inn { width:100%; height:100%; border-radius:18px; display:flex;
+.fg .pident .pphoto .inn { width:100%; height:100%; border-radius:13px; display:flex;
   align-items:center; justify-content:center; background:#fff; color:var(--ink);
   font-size:22px; font-weight:800; object-fit:cover; }
 
@@ -1357,9 +1357,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .carderr.photoerr { flex:1 1 100%; margin-top:0; }
 
 .fg .phid { min-width:0; flex:1 1 260px; }
-.fg .phid h1 { font-size:30px; font-weight:800; letter-spacing:-0.03em; margin:0; line-height:1.05; overflow-wrap:anywhere; }
-.fg .phid h1 em { font-style:normal; font-size:16px; font-weight:600; color:var(--gray400); margin-left:10px; }
-.fg .phid .sub { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;
+.fg .phid h1 { font-size:23px; font-weight:800; letter-spacing:-0.03em; margin:0; line-height:1.1; overflow-wrap:anywhere; }
+.fg .phid h1 em { font-style:normal; font-size:14px; font-weight:600; color:var(--gray400); margin-left:9px; }
+.fg .phid .sub { display:flex; align-items:center; gap:9px; margin-top:5px; flex-wrap:wrap;
   font-size:14px; font-weight:600; color:var(--gray500); }
 /* the status pill, also declared in full: it was drawn for the dark rail, and
    on a light card it needs light ink rather than a translucent fill */
@@ -1375,11 +1375,21 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    licence count used to be among them, until the licence wall two panels down
    started saying it better. */
 .fg .pfstrip { display:flex; align-items:center; gap:0; flex-wrap:wrap; flex:0 0 auto; margin:0; }
-.fg .pfs { padding:0 20px; border-left:1px solid #e2e5ea; }
+.fg .pfs { padding:0 16px; border-left:1px solid #e2e5ea; }
 .fg .pfs:first-child { border-left:0; padding-left:0; }
-.fg .pfs dt { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); }
-.fg .pfs dd { margin:4px 0 0; font-size:15px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .pfs dt { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); }
+.fg .pfs dd { margin:3px 0 0; font-size:14px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
 .fg .pfs dd.muted { color:var(--q); font-weight:600; }
+
+/* ── the vehicle, as a plate and a door ──
+   Four rows of panel down the card became one identifier up here. The plate is
+   the link: in a fleet of white Hiaces it is the only thing that tells one
+   from another, and Fleet is where the make, the odometer, the service history
+   and every warning actually live — the staff card names the vehicle, it does
+   not nag about it. */
+.fg .vehjump { display:inline-flex; border-radius:7px; transition:transform .15s; }
+.fg .vehjump:hover { transform:translateY(-1px); }
+.fg .vehjump:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
 
 /* ── a section, with the card chrome taken off ──
    Each section used to render as a `.card2` with an icon, a title and a
@@ -1428,11 +1438,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    changes a label, a gap or a grid — only what sits inside a `dd`. */
 .fg .pdrow.live dd > .inp,
 .fg .pdrow.live dd > .selwrap > .inp,
+.fg .pdrow.live dd > .suffixwrap > .inp,
 .fg .pdrow.live dd > .scaled > .inp,
 .fg .pdrow.live dd > .inpd {
   height:34px; padding:0 11px; border-radius:10px; font-size:16px; font-weight:600;
   letter-spacing:-0.01em; background:#fafbfc; }
 .fg .pdrow.live dd > .inpd { padding:0 11px; }
+/* a 34px box wants the symbol closer in than a 46px one — the gutters above
+   are cut to match, so the figure still clears it */
+.fg .pdrow.live dd > .suffixwrap > .inp.with-suffix { padding-right:28px; }
+.fg .pdrow.live dd > .suffixwrap > .inp.with-prefix { padding-left:24px; }
+.fg .pdrow.live dd .suffixwrap .sfx { right:11px; font-size:14px; }
+.fg .pdrow.live dd .suffixwrap .sfx.pre { right:auto; left:11px; }
 .fg .pdrow.live dd .inp:focus, .fg .pdrow.live dd .inpd:focus-visible {
   border-color:var(--wb2-cy); background:#fff; box-shadow:0 0 0 3px rgba(0,168,224,.14); }
 .fg .pdrow.live dd .inp::placeholder { color:var(--q); font-weight:500; }
@@ -1505,6 +1522,40 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .pdv.sm { font-size:14.5px; }
 .fg .pdsub { display:block; margin-top:2px; font-size:11.5px; font-weight:600; color:var(--gray400); }
 .fg .pdnone { font-size:14px; font-style:italic; font-weight:500; color:#bcc2cd; }
+
+/* ── SUMMARY, AT A GLANCE ──
+   The overview and a section you are editing were rendering at the same
+   density, and only one of them wants it. A section's row has to hold the
+   control the value turns into, so 16px values and 10px gaps are the floor
+   there. Summary holds nothing but facts, and at that density eighteen of them
+   ran past the fold — a card you scroll is not an overview, it is a form you
+   can't type in.
+
+   So `tight` keeps every panel, heading and jump exactly where they were and
+   only changes the type ramp: labels go to small caps on one line, values come
+   down to 14px, and the air between them halves. Same rows, same rules, read
+   in one look. Nothing here touches `.psec-body`, so the sections are
+   untouched. */
+.fg .pdlgrid.tight { gap:11px; }
+.fg .tight .pdlcard { padding:13px 15px 14px; border-radius:14px; }
+.fg .tight .pdl, .fg .tight .pdlbody { margin-top:10px; gap:7px; }
+.fg .tight .pdl.split { column-gap:28px; }
+/* the label is small caps and narrower — at 12.5px sentence case it read as a
+   value's equal, which is what made the pairs hard to scan down */
+.fg .tight .pdrow { grid-template-columns:92px minmax(0,1fr); gap:12px; }
+.fg .tight .pdrow dt { font-size:10px; font-weight:700; letter-spacing:.09em;
+  text-transform:uppercase; color:var(--gray400); }
+.fg .tight .pdv { font-size:14px; font-weight:600; }
+.fg .tight .pdv.sm { font-size:13px; }
+.fg .psec2 .tight .pdnone { font-size:14px; }
+.fg .tight .pdsub { margin-top:1px; font-size:10.5px; }
+.fg .tight .pdlh { font-size:10px; letter-spacing:.14em; }
+.fg .tight .liccards { margin-top:11px; }
+@media (max-width:560px){
+  /* the label stacks above its value at phone width, so small caps stop being
+     a column and start being a caption — which is the right shape there */
+  .fg .tight .pdrow { grid-template-columns:1fr; gap:1px; }
+}
 .fg .padd { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color .2s; }
 .fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:6px; flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:all .2s; }
 .fg .padd:hover { color:var(--ok-t); }
@@ -1640,9 +1691,21 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .selwrap { position:relative; }
 .fg .selwrap .chev { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--q); pointer-events:none; }
 .fg select.inp { appearance:none; -webkit-appearance:none; padding-right:40px; cursor:pointer; }
+/* THE $ AND THE % SIT IN THE BOX, and for a long time they only did so on one
+   screen. The pair was scoped `.fg .field .suffixwrap` — `.field` being the
+   old stacked-form wrapper — so the moment Payroll started editing in place,
+   inside a `.pdrow` rather than a `.field`, neither rule matched: the wrapper
+   lost its containing block and the symbol lost `position:absolute`, so it
+   rendered as static text UNDER the input. Nothing looked broken enough to
+   read as a bug; the $ just sat below the wage. The wrapper is the hook now,
+   which is what it always described. */
 .fg .inp.with-suffix { padding-right:42px; }
-.fg .field .suffixwrap { position:relative; }
-.fg .field .suffixwrap .sfx { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:13px; font-weight:700; color:var(--q); }
+.fg .inp.with-prefix { padding-left:30px; }
+.fg .suffixwrap { position:relative; }
+/* pointer-events:none — the symbol is a label on the box, not a thing beside
+   it, so clicking it lands in the field rather than on a dead 10px. */
+.fg .suffixwrap .sfx { position:absolute; right:14px; top:50%; transform:translateY(-50%); font-family:var(--mono); font-size:13px; font-weight:700; color:var(--q); pointer-events:none; }
+.fg .suffixwrap .sfx.pre { right:auto; left:14px; }
 .fg .help { font-size:11.5px; color:var(--gray400); font-weight:500; }
 
 /* read-only profile mode */

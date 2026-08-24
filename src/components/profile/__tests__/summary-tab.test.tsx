@@ -13,6 +13,38 @@ import { TODAY, header, jordan, okActions } from "./fixtures/staff";
    noticing the block three inches above already says it, and that is exactly
    how this screen got to a screen and a half of scrolling the first time. */
 
+/* FULLY TYPED, and that is the point of it. The old fixture went in through
+   `as unknown as` and spelled two fields wrong — `serviceEveryKm` and
+   `lastServiceKm` for `serviceIntervalKm` and `lastServiceOdo`. Nothing caught
+   it because the cast turned the compiler off and the test it served only ever
+   asked whether a panel had a jump. The moment the card started reading the
+   service schedule, the fixture was quietly describing a vehicle with no
+   schedule at all.
+
+   serviceKmLeft = lastServiceOdo + serviceIntervalKm - odometer = 6,000, and
+   rego is 120 days out, so this vehicle is healthy. The no-warning test winds
+   the odometer 45,500 km past due instead — proving the card stays quiet on a
+   vehicle that genuinely has something to warn about. */
+const VEHICLE: AssignedVehicle = {
+  vehicle: {
+    id: "v1",
+    name: "",
+    make: "Toyota",
+    model: "Hilux",
+    year: 2022,
+    plate: "ABC123",
+    plateState: "NSW",
+    status: "active",
+    odometer: 82_000,
+    regoDays: 120,
+    insuranceDays: 200,
+    serviceIntervalKm: 10_000,
+    lastServiceOdo: 78_000,
+  },
+  openIssues: 0,
+  lastFuel: null,
+};
+
 const LICENCES: StaffLicence[] = [
   {
     id: "l1",
@@ -83,11 +115,17 @@ describe("what Summary does not repeat", () => {
     expect(sub).not.toHaveTextContent("Smith Air");
   });
 
-  /* The block's Vehicle fact was the whole story while nothing is assigned, so
-     the panel that would only have said "—" isn't rendered at all. */
-  it("gives the vehicle a panel only once there is one", () => {
-    setup({ vehicle: null });
-    expect(screen.queryByText("Assigned vehicle", { selector: ".pdlh > span" })).not.toBeInTheDocument();
+  /* The vehicle had a panel of four rows sitting under a strip that had already
+     named it — the same rule broken from the other end. The plate IS the fact,
+     and Fleet owns everything the four rows copied. */
+  it("gives the vehicle no panel at all — the strip carries the plate", () => {
+    setup({ vehicle: VEHICLE });
+    expect(
+      screen.queryByText("Assigned vehicle", { selector: ".pdlh > span" })
+    ).not.toBeInTheDocument();
+    // and the facts that panel copied out of Fleet are not restated either
+    expect(screen.queryByText("Make & model")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rego expiry")).not.toBeInTheDocument();
   });
 });
 
@@ -187,27 +225,34 @@ describe("a panel opens its tab", () => {
     expect(screen.queryByRole("button", { name: /^Save\b/ })).not.toBeInTheDocument();
   });
 
-  it("has no jump on a panel that isn't a tab", () => {
-    setup({
-      vehicle: {
-        vehicle: {
-          id: "v1",
-          plate: "ABC123",
-          plateState: "NSW",
-          make: "Toyota",
-          model: "Hilux",
-          odometer: 82000,
-          serviceEveryKm: 10000,
-          lastServiceKm: 78000,
-          regoDays: 120,
-        } as unknown as AssignedVehicle["vehicle"],
-        openIssues: 0,
-        lastFuel: null,
-      },
+});
+
+describe("the vehicle, as a plate and a door", () => {
+  it("reads as the plate, and opens that vehicle in Fleet", () => {
+    const { container } = setup({ vehicle: VEHICLE });
+
+    const jump = container.querySelector(".pfs-veh .vehjump") as HTMLAnchorElement;
+    expect(jump).toHaveTextContent("ABC123");
+    /* `?v=`, not a path segment: the app shell keys its outlet on pathname, so
+       a link that writes the path remounts the page it lands on. */
+    expect(jump.getAttribute("href")).toBe("/dashboard/assets?v=v1");
+  });
+
+  /* And ONLY the plate — the warnings the old panel carried live in Fleet now,
+     behind the click. Isaac's call: the staff card names the vehicle, it does
+     not nag about it, even when the service really is overdue. */
+  it("carries no warning, even on a vehicle that has one", () => {
+    const { container } = setup({
+      vehicle: { ...VEHICLE, vehicle: { ...VEHICLE.vehicle, odometer: 133_500 } },
     });
-    const v = panel("Assigned vehicle");
-    expect(within(v).queryByRole("button", { name: /Open/ })).not.toBeInTheDocument();
-    expect(within(v).getByText("from Fleet")).toBeInTheDocument();
+    expect(container.querySelector(".pfs-veh .vehwarn")).toBeNull();
+    expect(screen.queryByText(/Service overdue/)).not.toBeInTheDocument();
+  });
+
+  it("reads 'Unassigned' with no link when nobody has one", () => {
+    const { container } = setup({ vehicle: null });
+    expect(container.querySelector(".pfstrip")).toHaveTextContent("Unassigned");
+    expect(container.querySelector(".vehjump")).toBeNull();
   });
 });
 

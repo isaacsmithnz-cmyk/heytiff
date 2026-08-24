@@ -16,9 +16,14 @@ import { Icon } from "@/components/shell/icon";
    The markup is a real <dl>: the div-per-pair wrapper is valid inside one and
    is what lets each row be its own grid. */
 
-/** The panel grid — two across on a wide card, one on a narrow one. */
-export function DetailPanels({ children }: { children: ReactNode }) {
-  return <div className="pdlgrid">{children}</div>;
+/** The panel grid — two across on a wide card, one on a narrow one.
+
+    `tight` is Summary's: the same panels at a glanceable density, small-caps
+    labels on one line each rather than a form's worth of air per fact. Only
+    the overview wants it — a section you are editing needs room for the
+    control the value turns into. */
+export function DetailPanels({ tight = false, children }: { tight?: boolean; children: ReactNode }) {
+  return <div className={`pdlgrid${tight ? " tight" : ""}`}>{children}</div>;
 }
 
 export function DetailPanel({

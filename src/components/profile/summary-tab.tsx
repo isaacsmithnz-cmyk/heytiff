@@ -4,8 +4,6 @@ import { Icon } from "@/components/shell/icon";
 import { LicenceCard } from "@/components/cards/licence-card";
 import { licenceStatus } from "@/lib/staff/licence";
 import { formatAuDate } from "@/lib/au-dates";
-import { fmtKm, modelLabel, serviceKmLeft } from "@/components/fleet/logic";
-import { Plate } from "@/components/fleet/plate";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { uniformSummary } from "@/lib/staff/uniform";
 import type { StaffLicence } from "@/lib/staff/types";
@@ -34,6 +32,12 @@ import type {
    half down to one screen. The rule has teeth: it is why Personal opens on
    Date of birth rather than on First name.
 
+   AND IT READS AS A CARD, not as a form you can't type in. The panels are
+   tight — small caps labels, one line each, no 46px of air per fact — because
+   Summary's job is to be glanced at. The assigned vehicle used to have four
+   rows of its own down here; it is a plate in the strip above now, and the
+   plate is a link into Fleet, which owns everything the four rows copied.
+
    Blanks are DASHES, not "Not set". Nothing here is editable, so a blank has
    no button behind it and nothing to say beyond "nothing" — and eight "Not
    set"s down one column read as an error state rather than as a card someone
@@ -61,13 +65,11 @@ export function SummaryTab({
   actions: Pick<ProfileActions, "onSetPhoto" | "onClearPhoto">;
   onGo: (key: SectionKey) => void;
 }) {
-  const v = vehicle?.vehicle;
-
   return (
     <>
       <IdentityBlock header={header} vehicle={vehicle} actions={actions} />
 
-      <DetailPanels>
+      <DetailPanels tight>
         <DetailPanel title="Personal" wide split onOpen={() => onGo("personal")}>
           <Row label="Date of birth" value={formatAuDate(profile?.birthday)} />
           <Row label="Email" value={header.email} small />
@@ -106,34 +108,6 @@ export function SummaryTab({
           <Row label="Visa" value={profile?.visa_type} />
           <Row label="Expiry" value={formatAuDate(profile?.visa_expiry)} />
         </DetailPanel>
-
-        {/* The vehicle only earns a panel once there IS one. Unassigned, the
-            identity block's "Vehicle — Unassigned" is the whole story and this
-            would be a header over a dash. Assigned, it carries the three facts
-            the block can't fit — and this is the only place they read, since
-            Fleet owns the assignment and there is no vehicle tab. */}
-        {v && (
-          <DetailPanel title="Assigned vehicle" note="from Fleet">
-            <Row label="Plate" value={<Plate plate={v.plate} state={v.plateState} size="sm" />} />
-            <Row label="Make & model" value={modelLabel(v)} />
-            <Row
-              label="Next service"
-              value={
-                serviceKmLeft(v) < 0 ? (
-                  <span className="ro-state bad">{fmtKm(-serviceKmLeft(v))} km overdue</span>
-                ) : (
-                  `in ${fmtKm(serviceKmLeft(v))} km`
-                )
-              }
-            />
-            <Row
-              label="Rego expiry"
-              value={
-                v.regoDays < 0 ? <span className="ro-state bad">Expired</span> : `${v.regoDays} days`
-              }
-            />
-          </DetailPanel>
-        )}
 
         {/* The licences are CARDS, not rows — they are things you carry in a
             wallet, and the same CR80 object the Compliance tab issues them as.

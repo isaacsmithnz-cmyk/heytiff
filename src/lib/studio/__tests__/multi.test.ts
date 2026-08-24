@@ -422,7 +422,7 @@ describe("multi systemComponents", () => {
     const { doc, system } = docWithRooms();
     system.settings = { pairOdu: "MXZ-2F52VGD" };
     const rows = systemComponents(doc, pack, system, basis);
-    expect(rows.map((r) => r.kind)).toEqual(["odu", "charge", "choice", "choice"]);
+    expect(rows.map((r) => r.kind)).toEqual(["odu", "charge", "choice", "choice", "choice"]);
     expect(rows[0].name).toBe("MXZ-2F52VGD");
     expect(rows[0].value).toBe("5.2 kW"); // the outdoor's own worst-of-both rating
     // factory pre-charge (2.4 kg) with no run drawn → no top-up

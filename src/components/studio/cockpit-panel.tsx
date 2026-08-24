@@ -38,7 +38,12 @@ import type {
 } from "@/lib/studio/document";
 import { newId } from "@/lib/studio/document";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
-import { polylineLength, unitsToMeters } from "@/lib/studio/geometry";
+import {
+  formatMeters,
+  polylineLength,
+  smoothedLength,
+  unitsToMeters,
+} from "@/lib/studio/geometry";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
@@ -72,6 +77,7 @@ import {
   type MultiOduProposal,
 } from "@/lib/studio/multi";
 import {
+  pairPipeSizes,
   systemComponents,
   type ComponentIcon,
   type ComponentRow,
@@ -90,6 +96,8 @@ const SYSTEM_COLOURS = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "
 const TYPE_WIPED_OBJECTS: ReadonlySet<string> = new Set([
   "unit",
   "pipe-run",
+  "drain-run",
+  "cable-run",
   "riser",
   ...DUCTED_OBJECT_TYPES,
 ]);
@@ -112,6 +120,8 @@ const GLYPHS = {
   bolt: { d: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>', sw: 1.8 },
   mount: { d: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.9 2.9-2.5-2.5 2.4-3.4Z"/>', sw: 1.8 },
   branch: { d: '<rect x="3" y="9" width="18" height="6" rx="1.5"/><path d="M7 9V6M12 9V6M17 9V6M7 15v3M12 15v3M17 15v3"/>', sw: 1.8 },
+  /* lagged pipe in section: the copper bore inside its insulation annulus */
+  insulation: { d: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/>', sw: 1.8 },
   controller: { d: '<rect x="6" y="2" width="12" height="20" rx="3"/><circle cx="12" cy="9" r="2.3"/><path d="M9.5 15h5"/>', sw: 1.8 },
   configure: { d: '<path d="M4 7h16M4 17h16"/><circle cx="10" cy="7" r="2"/><circle cx="15" cy="17" r="2"/>', sw: 2 },
   unitsq: { d: '<rect x="4" y="7" width="16" height="10" rx="2"/><path d="M4 12h16"/>', sw: 2 },
@@ -718,7 +728,12 @@ function ActiveCockpit({
     (o) =>
       o.id === selectedId &&
       o.systemId === system.id &&
-      (o.type === "unit" || o.type === "riser" || o.type === "pipe-run" || o.type === "plenum")
+      (o.type === "unit" ||
+        o.type === "riser" ||
+        o.type === "pipe-run" ||
+        o.type === "drain-run" ||
+        o.type === "cable-run" ||
+        o.type === "plenum")
   );
 
   /* which room the Inspect card shows: a selected served room, else the room
@@ -2814,17 +2829,108 @@ function ObjectInspectCard({
       </>
     );
   } else {
-    title = "Refrigerant run";
-    delLabel = "Delete run";
-    body = (
-      <>
-        <ObjRow k="System" v={system?.name ?? "—"} />
-        <ObjRow
-          k="Attached"
-          v={`${(obj.props.startAttach ? 1 : 0) + (obj.props.endAttach ? 1 : 0)} of 2 ends`}
-        />
-      </>
+    /* the drawn runs — pipe / drain / cable. Everything picked at draw is
+       adjustable here: the pipe's line sizes (blank = the pairing's own),
+       the drain's size, the cable's kind. */
+    const setProp = (key: string, value: unknown) =>
+      onMutate((d) => ({
+        ...d,
+        objects: d.objects.map((o) => {
+          if (o.id !== obj.id) return o;
+          const props = { ...o.props };
+          if (value === undefined) delete props[key];
+          else props[key] = value;
+          return { ...o, props };
+        }),
+      }));
+    const pts = obj.geometry.kind === "polyline" ? obj.geometry.points : [];
+    const curved =
+      obj.type === "cable-run" || (obj.type === "pipe-run" && obj.props.form === "soft");
+    const mm = floor.scaleMmPerUnit;
+    const lenRow = mm ? (
+      <ObjRow
+        k="Length"
+        v={formatMeters(
+          unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), mm)
+        )}
+      />
+    ) : null;
+    const attachedRow = (
+      <ObjRow
+        k="Attached"
+        v={`${(obj.props.startAttach ? 1 : 0) + (obj.props.endAttach ? 1 : 0)} of 2 ends`}
+      />
     );
+    if (obj.type === "drain-run") {
+      title = "Drain";
+      delLabel = "Delete drain";
+      body = (
+        <>
+          <ObjRow k="System" v={system?.name ?? "—"} />
+          {lenRow}
+          <label className="ds-ck-objfield">
+            <span>Pipe size</span>
+            <select
+              value={String(Number(obj.props.sizeMm) || 25)}
+              onChange={(e) => setProp("sizeMm", Number(e.target.value))}
+            >
+              {[20, 25, 32, 40].map((s) => (
+                <option key={s} value={s}>
+                  Ø{s} mm
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      );
+    } else if (obj.type === "cable-run") {
+      title = "Cable";
+      delLabel = "Delete cable";
+      body = (
+        <>
+          <ObjRow k="System" v={system?.name ?? "—"} />
+          {lenRow}
+          <label className="ds-ck-objfield">
+            <span>Carries</span>
+            <select
+              value={obj.props.kind === "data" ? "data" : "power"}
+              onChange={(e) => setProp("kind", e.target.value)}
+            >
+              <option value="power">Power</option>
+              <option value="data">Data</option>
+            </select>
+          </label>
+        </>
+      );
+    } else {
+      title = "Refrigerant run";
+      delLabel = "Delete run";
+      const auto = system && pack ? pairPipeSizes(doc, pack, system) : null;
+      const sizeField = (key: "liquidMm" | "gasMm", label: string, autoMm?: number) => (
+        <label className="ds-ck-objfield" key={key}>
+          <span>{label}</span>
+          <input
+            inputMode="decimal"
+            value={obj.props[key] == null ? "" : String(obj.props[key])}
+            placeholder={autoMm != null ? `Ø${autoMm} (from pairing)` : "—"}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setProp(key, e.target.value.trim() === "" || !Number.isFinite(v) ? undefined : v);
+            }}
+          />
+        </label>
+      );
+      body = (
+        <>
+          <ObjRow k="System" v={system?.name ?? "—"} />
+          <ObjRow k="Drawn" v={obj.props.form === "soft" ? "Soft (curved)" : "Hard (straight)"} />
+          {lenRow}
+          {attachedRow}
+          {sizeField("liquidMm", "Liquid line (mm)", auto?.liquidMm)}
+          {sizeField("gasMm", "Gas line (mm)", auto?.gasMm)}
+        </>
+      );
+    }
   }
 
   return (

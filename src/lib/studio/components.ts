@@ -25,7 +25,14 @@ import { moduleFor } from "./modules";
 /* ─────────────────────────── row shapes ─────────────────────────── */
 
 /** icon key → the cockpit maps this to an inline glyph */
-export type ComponentIcon = "odu" | "droplet" | "bolt" | "mount" | "branch" | "controller";
+export type ComponentIcon =
+  | "odu"
+  | "droplet"
+  | "bolt"
+  | "mount"
+  | "branch"
+  | "controller"
+  | "insulation";
 
 export interface ComponentChoiceOption {
   id: string;
@@ -36,7 +43,7 @@ export interface ComponentChoiceOption {
 }
 
 export interface ComponentChoiceGroup {
-  key: "electrical" | "mounting";
+  key: "electrical" | "mounting" | "insulation";
   role: string;
   icon: ComponentIcon;
   defaultId: string;
@@ -92,6 +99,22 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
       { id: "roof-mount", name: "Roof frame", sub: "Galv. steel · spring feet", value: "1 set" },
     ],
   },
+  /* Hard-drawn pipe arrives as raw copper — soft coil comes pre-insulated —
+     so lagging is a real line on the takeoff whenever a hard run is drawn.
+     The row's VALUE is derived (the system's hard-drawn length), not the
+     static "—" here; see choiceRows. Walls are the stocked standards. */
+  {
+    key: "insulation",
+    role: "Pipe insulation",
+    icon: "insulation",
+    defaultId: "wall-13",
+    options: [
+      { id: "wall-9", name: "Lagging · 9 mm wall", sub: "Closed-cell · hard drawn runs", value: "—" },
+      { id: "wall-13", name: "Lagging · 13 mm wall", sub: "Closed-cell · hard drawn runs", value: "—" },
+      { id: "wall-19", name: "Lagging · 19 mm wall", sub: "Closed-cell · hard drawn runs", value: "—" },
+      { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
+    ],
+  },
 ];
 
 /** the effective choice selection for a system: persisted overrides ∪ defaults */
@@ -126,6 +149,24 @@ function resolvePair(
   );
   if (!iduModel || !oduModel) return null;
   return { iduModel, oduModel };
+}
+
+/** Refrigerant line sizes for the system's resolved pairing — what a drawn
+    run autosizes to (pipe-run props override per run; blank = these). Null
+    until a pairing resolves or when the pack has no row for it. */
+export function pairPipeSizes(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  system: DesignSystem
+): { liquidMm: number; gasMm: number } | null {
+  if (!pack) return null;
+  const pair = resolvePair(doc, system);
+  if (!pair) return null;
+  const row = pack.pair_tables.find(
+    (p) => p.idu_model === pair.iduModel && p.odu_model === pair.oduModel
+  );
+  if (!row) return null;
+  return { liquidMm: row.pipe_liquid_mm, gasMm: row.pipe_gas_mm };
 }
 
 const phaseLabel = (odu: OutdoorUnit): string => (odu.phase === "3" ? "3Ø" : "1Ø");
@@ -207,20 +248,43 @@ function chargeRow(
   };
 }
 
-function choiceRows(system: DesignSystem): ComponentRow[] {
+/** Metres of raw copper: the system's connected hard-drawn pipe (graph edges,
+    same population as the sheet's pair-coil line) minus nothing — soft-drawn
+    runs are skipped because the coil arrives pre-insulated. Riser verticals
+    count: they are hard pipe. Null while a run crosses an uncalibrated floor. */
+function hardDrawnLengthM(doc: DesignDocument, system: DesignSystem): number | null {
+  const graph = buildSystemGraph(doc.objects, doc.floors, system.id);
+  const byId = new Map(doc.objects.map((o) => [o.id, o]));
+  let total = 0;
+  for (const e of graph.edges) {
+    const o = byId.get(e.id);
+    if (o?.type === "pipe-run" && o.props.form === "soft") continue;
+    if (e.lengthM == null) return null;
+    total += e.lengthM;
+  }
+  return Math.round(total * 10) / 10;
+}
+
+function choiceRows(doc: DesignDocument, system: DesignSystem): ComponentRow[] {
   const selected = componentChoices(system);
   return COMPONENT_CHOICES.map((g) => {
     const selectedId = selected[g.key];
     const opt =
       g.options.find((o) => o.id === selectedId) ??
       g.options.find((o) => o.id === g.defaultId)!;
+    // insulation's takeoff value is derived: metres of hard-drawn copper
+    let value = opt.value;
+    if (g.key === "insulation" && selectedId !== "none") {
+      const m = hardDrawnLengthM(doc, system);
+      value = m != null && m > 0 ? `${m} m` : "—";
+    }
     return {
       id: g.key,
       kind: "choice" as const,
       role: g.role,
       name: opt.name,
       sub: opt.sub,
-      value: opt.value,
+      value,
       icon: g.icon,
       choice: { key: g.key, selectedId, options: g.options },
     };
@@ -252,7 +316,7 @@ export function systemComponents(
     return [
       oduRow(doc, pack, system, basis, odu),
       chargeRow(doc, system, odu, rule?.additional_charge ?? null, null),
-      ...choiceRows(system),
+      ...choiceRows(doc, system),
     ];
   }
 
@@ -270,6 +334,6 @@ export function systemComponents(
   return [
     oduRow(doc, pack, system, basis, odu),
     chargeRow(doc, system, odu, pair?.additional_charge ?? null, pair?.pipe_liquid_mm ?? null),
-    ...choiceRows(system),
+    ...choiceRows(doc, system),
   ];
 }

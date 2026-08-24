@@ -97,10 +97,13 @@ import {
   MIN_ZOOM,
   mmPerUnitFromCalibration,
   orthoSnap,
+  distToSmoothed,
   pointInPolygon,
   polygonArea,
   polygonCentroid,
   polylineLength,
+  smoothedLength,
+  smoothPathD,
   screenToWorld,
   unitsToMeters,
   worldToScreen,
@@ -126,8 +129,38 @@ export type CanvasTool =
   | "arrange"
   | "place" // place a unit (armed from the system panel with a model)
   | "pipe" // refrigerant run — endpoints snap to unit/riser anchors
+  | "drain" // condensate drain — straight segments, size picked at draw
+  | "cable" // power/data cable — dots smoothed into a curve
   | "riser"
   | "component"; // air component armed from the palette (Stage 7 — plenum first)
+
+/** the Draw flyout's armed options — what the next drawn line IS. Soft-drawn
+    pipe and cable place dots that render as a smoothed curve; hard-drawn pipe
+    and drain stay orthogonal segments. */
+export interface DrawOptions {
+  pipeForm: "soft" | "hard";
+  drainMm: number;
+  cableKind: "power" | "data";
+}
+export const DEFAULT_DRAW: DrawOptions = {
+  pipeForm: "hard",
+  drainMm: 25,
+  cableKind: "power",
+};
+
+/** the tools that draft a polyline run (share the dot draft + anchors) */
+export const isRunTool = (t: CanvasTool): t is "pipe" | "drain" | "cable" =>
+  t === "pipe" || t === "drain" || t === "cable";
+
+/** the object types those tools commit (hit/erase/drag-follow treat alike) */
+const RUN_TYPES = new Set(["pipe-run", "drain-run", "cable-run"]);
+
+/** does this run render as a smoothed curve? cables always; pipe when soft */
+export const isCurvedRun = (o: {
+  type: string;
+  props: Record<string, unknown>;
+}): boolean =>
+  o.type === "cable-run" || (o.type === "pipe-run" && o.props.form === "soft");
 
 /** Canvas layer visibility (transient view state, not persisted). */
 export interface LayerFlags {
@@ -513,6 +546,8 @@ export function StudioCanvas({
   onZoomChange,
   sim = null,
   bare = false,
+  draw = DEFAULT_DRAW,
+  runSizes,
 }: {
   doc: DesignDocument;
   floor: Floor;
@@ -564,6 +599,11 @@ export function StudioCanvas({
   sim?: SimRuntime | null;
   /** chromeless: drop the editing dot grid (present mode — a clean plan). */
   bare?: boolean;
+  /** armed Draw options (pipe form, drain size, cable kind) */
+  draw?: DrawOptions;
+  /** systemId → the pairing's line sizes; pipe-run labels autosize from this
+      (per-run props override) */
+  runSizes?: ReadonlyMap<string, { liquidMm: number; gasMm: number }>;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -700,7 +740,7 @@ export function StudioCanvas({
     () =>
       doc.objects.filter(
         (o): o is DesignObject & { geometry: { kind: "polyline"; points: Point[] } } =>
-          inScope(o) && o.type === "pipe-run" && o.geometry.kind === "polyline"
+          inScope(o) && RUN_TYPES.has(o.type) && o.geometry.kind === "polyline"
       ),
     [doc.objects, inScope]
   );
@@ -749,8 +789,26 @@ export function StudioCanvas({
     [liveAnchorAt]
   );
 
-  /* pipe drafting: clicked vertices + what the first click attached to */
-  const [draftPipe, setDraftPipe] = useState<Point[]>([]);
+  /* run drafting (pipe/drain/cable share it): clicked vertices + what the
+     first click attached to. The dots are KEYED to the tool that placed them
+     — switching draw tools mid-draft must not carry them across, or a half
+     drawn pipe double-clicked as a drain would commit as the wrong type. */
+  const [runDraft, setRunDraft] = useState<{ tool: CanvasTool; pts: Point[] }>({
+    tool,
+    pts: [],
+  });
+  const draftPipe = useMemo(
+    () => (runDraft.tool === tool ? runDraft.pts : []),
+    [runDraft, tool]
+  );
+  const setDraftPipe = useCallback(
+    (v: Point[] | ((p: Point[]) => Point[])) =>
+      setRunDraft((cur) => {
+        const prev = cur.tool === tool ? cur.pts : [];
+        return { tool, pts: typeof v === "function" ? v(prev) : v };
+      }),
+    [tool]
+  );
   const pipeStartAttach = useRef<{ kind: "unit" | "riser"; id: string } | null>(null);
 
   /** connection anchors of the active system on this floor (units + risers).
@@ -1405,7 +1463,7 @@ export function StudioCanvas({
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [selectedId, onMutate, onSelect, units, ahuRow]);
+  }, [selectedId, onMutate, onSelect, units, ahuRow, setDraftPipe]);
 
   /* ── document intents ── */
   /* A closed boundary lands the room on the plan LOOSE — the user tweaks its
@@ -1649,6 +1707,12 @@ export function StudioCanvas({
       const tol = HIT_EDGE_PX / vp.zoom;
       for (let i = runs.length - 1; i >= 0; i--) {
         const pts = runs[i].geometry.points;
+        // curved runs are grabbed by the curve you can see, not the dots
+        if (isCurvedRun(runs[i])) {
+          if (distToSmoothed(w, pts) <= tol)
+            return { id: runs[i].id, kind: "pipe-run" };
+          continue;
+        }
         for (let j = 0; j < pts.length - 1; j++) {
           if (distToSegment(w, pts[j], pts[j + 1]) <= tol)
             return { id: runs[i].id, kind: "pipe-run" };
@@ -1697,14 +1761,23 @@ export function StudioCanvas({
           return;
         }
       }
-      // pipe runs — nearest segment across all runs
+      // runs (pipe/drain/cable) — nearest segment across all runs. A curved
+      // run is HIT by its visible curve, but the segment picked is still the
+      // nearest control segment — that's the dot the splice removes.
       let bestRun: string | null = null, bestSeg = -1, bestDist = tol;
       for (let i = runs.length - 1; i >= 0; i--) {
         const pts = runs[i].geometry.points;
+        const curved = isCurvedRun(runs[i]);
+        // the gate is the distance to what's visible; the ranking too
+        const gate = curved ? distToSmoothed(w, pts) : Infinity;
+        if (curved && gate >= bestDist) continue;
+        let segI = -1, segD = Infinity;
         for (let j = 0; j < pts.length - 1; j++) {
           const d = distToSegment(w, pts[j], pts[j + 1]);
-          if (d < bestDist) { bestDist = d; bestRun = runs[i].id; bestSeg = j; }
+          if (d < segD) { segD = d; segI = j; }
         }
+        const d = curved ? gate : segD;
+        if (d < bestDist && segI >= 0) { bestDist = d; bestRun = runs[i].id; bestSeg = segI; }
       }
       if (bestRun) {
         onMutate((d) => ({
@@ -1835,18 +1908,31 @@ export function StudioCanvas({
     (points: Point[], endAttach: { kind: "unit" | "riser"; id: string } | null) => {
       if (!activeSystemId || points.length < 2) return;
       const startAttach = pipeStartAttach.current;
+      // what the armed Draw tool commits: the type + its picked-at-draw props
+      const runKind: { type: string; props: Record<string, unknown> } =
+        tool === "drain"
+          ? { type: "drain-run", props: { sizeMm: draw.drainMm } }
+          : tool === "cable"
+            ? { type: "cable-run", props: { kind: draw.cableKind } }
+            : {
+                type: "pipe-run",
+                // hard-drawn is the default every pre-Draw run already is —
+                // only soft is worth a word on the document
+                props: draw.pipeForm === "soft" ? { form: "soft" } : {},
+              };
       onMutate((d) => ({
         ...d,
         objects: [
           ...d.objects,
           {
             id: newId("obj"),
-            type: "pipe-run",
+            type: runKind.type,
             systemId: activeSystemId,
             floorId: floor.id,
             geometry: { kind: "polyline", points },
             plane: "room",
             props: {
+              ...runKind.props,
               ...(startAttach ? { startAttach } : {}),
               ...(endAttach ? { endAttach } : {}),
             },
@@ -1856,8 +1942,22 @@ export function StudioCanvas({
       setDraftPipe([]);
       pipeStartAttach.current = null;
     },
-    [activeSystemId, onMutate, floor.id]
+    [activeSystemId, onMutate, floor.id, tool, draw, setDraftPipe]
   );
+
+  /* Enter finishes a drawn run open — the ending that can't misfire. The
+     double-click's own first click lands an extra dot (collapsed at commit,
+     see onDoubleClick), but a key adds nothing. */
+  useEffect(() => {
+    if (!isRunTool(tool)) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (e.key === "Enter") commitPipe(draftPipe, null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tool, draftPipe, commitPipe]);
 
   /* ── pointer handlers ── */
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
@@ -2005,13 +2105,18 @@ export function StudioCanvas({
         });
         break;
       }
-      case "pipe": {
+      case "pipe":
+      case "drain":
+      case "cable": {
         tap(() => {
           const anchor = nearestAnchor(w);
           // free first vertex; later vertices ortho-snap to the previous point
-          // so runs stay horizontal/vertical (anchors always win).
+          // so runs stay horizontal/vertical (anchors always win). The curved
+          // draws — soft pipe, cable — place their dots free: the smoothing
+          // is the point.
+          const curved = tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
           const prev = draftPipe[draftPipe.length - 1];
-          const p = anchor ? anchor.at : prev ? orthoSnap(prev, w) : w;
+          const p = anchor ? anchor.at : prev && !curved ? orthoSnap(prev, w) : w;
           if (draftPipe.length === 0) {
             pipeStartAttach.current = anchor
               ? { kind: anchor.kind, id: anchor.id }
@@ -2439,9 +2544,17 @@ export function StudioCanvas({
       beginRoomAdjust(draftPoly, "poly");
       setDraftPoly([]);
     }
-    // double-click ends a pipe run without an end anchor (open run)
-    if (tool === "pipe" && draftPipe.length >= 2) {
-      commitPipe(draftPipe, null);
+    // double-click ends a drawn run without an end anchor (open run). Its own
+    // clicks landed as dots first, so the tail carries one or two duplicates
+    // within a click's travel of each other — collapse them before the commit
+    // or every run ends with an extra tiny stub.
+    if (isRunTool(tool) && draftPipe.length >= 2) {
+      const tol = (TAP_SLOP_PX * 1.5) / vp.zoom;
+      const pts = [...draftPipe];
+      while (pts.length >= 2 && dist(pts[pts.length - 1], pts[pts.length - 2]) <= tol)
+        pts.pop();
+      // everything collapsed into one spot: a dot is not a line — keep drafting
+      if (pts.length >= 2) commitPipe(pts, null);
     }
   };
 
@@ -2635,6 +2748,17 @@ export function StudioCanvas({
               draftPoly.length >= 3
                 ? "Click the first point to close the room · Esc to cancel"
                 : "Click each corner of the room · Esc to cancel",
+          }
+      /* the drawn runs: the curved tools are new grammar (dots → curve), so
+         the canvas says how a line ENDS — the one thing a first draw can't
+         guess */
+      : isRunTool(tool)
+        ? {
+            icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
+            text:
+              tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
+                ? "Place dots — the line curves through them · Enter, double-click or an anchor ends it · Esc to cancel"
+                : "Click each corner · Enter, double-click or an anchor ends it · Esc to cancel",
           }
       : tool === "set-north"
         ? floor.northPos
@@ -2893,7 +3017,11 @@ export function StudioCanvas({
             );
           })}
 
-          {/* pipe runs (Stage 4) — system colour, length when calibrated */}
+          {/* drawn runs (Stage 4 + Draw tools) — system colour, length when
+              calibrated. Pipe wears the pairing's line sizes (per-run props
+              override); drain wears its picked size; cable its kind. Curved
+              runs (soft pipe, cable) render the smoothed spline through their
+              dots. */}
           {layers.pipes && runs.map((r) => {
             const pts = liveRunPoints(r);
             const colour = sysColour.get(r.systemId ?? "") ?? "#888";
@@ -2902,16 +3030,40 @@ export function StudioCanvas({
               x: (pts[midI].x + pts[Math.min(midI + 1, pts.length - 1)].x) / 2,
               y: (pts[midI].y + pts[Math.min(midI + 1, pts.length - 1)].y) / 2,
             };
+            const curved = isCurvedRun(r);
+            const cls =
+              r.type === "drain-run" ? "ds-drain" : r.type === "cable-run" ? "ds-cable" : "ds-pipe";
+            const len = mm
+              ? formatMeters(
+                  unitsToMeters(curved ? smoothedLength(pts) : polylineLength(pts), mm)
+                )
+              : null;
+            let tag: string | null = null;
+            if (r.type === "pipe-run") {
+              const auto = runSizes?.get(r.systemId ?? "") ?? null;
+              const liq = Number(r.props.liquidMm) || auto?.liquidMm || null;
+              const gas = Number(r.props.gasMm) || auto?.gasMm || null;
+              tag = liq && gas ? `Ø${liq}/${gas}` : null;
+            } else if (r.type === "drain-run") {
+              tag = `Ø${Number(r.props.sizeMm) || 25} drain`;
+            } else if (r.type === "cable-run") {
+              tag = r.props.kind === "data" ? "Data" : "Power";
+            }
+            const label = [len, tag].filter(Boolean).join(" · ");
             return (
               <g
                 key={r.id}
-                className={`ds-pipe${r.id === selectedId ? " sel" : ""}`}
+                className={`${cls}${r.id === selectedId ? " sel" : ""}`}
                 style={{ color: colour }}
               >
-                <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
-                {mm && layers.labels && (
+                {curved ? (
+                  <path d={smoothPathD(pts)} />
+                ) : (
+                  <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                )}
+                {label && layers.labels && (
                   <text x={mid.x} y={mid.y - 7 / labelZoom} fontSize={11 / labelZoom} className="ds-pipe-len">
-                    {formatMeters(unitsToMeters(polylineLength(pts), mm))}
+                    {label}
                   </text>
                 )}
               </g>
@@ -3288,7 +3440,7 @@ export function StudioCanvas({
 
           {/* connection anchors — visible while piping; nearest one glows
               BEFORE the click (pre-click snap feedback) */}
-          {tool === "pipe" &&
+          {isRunTool(tool) &&
             (() => {
               const near = cursor ? nearestAnchor(cursor) : null;
               return anchors.map((a) => (
@@ -3302,22 +3454,36 @@ export function StudioCanvas({
               ));
             })()}
 
-          {/* pipe draft */}
-          {draftPipe.length > 0 && (
-            <g className="ds-pipe-draft">
-              <polyline
-                points={[
-                  ...draftPipe,
-                  ...(cursor
-                    ? [nearestAnchor(cursor)?.at ?? orthoSnap(draftPipe[draftPipe.length - 1], cursor)]
-                    : []),
-                ]
-                  .map((p) => `${p.x},${p.y}`)
-                  .join(" ")}
-              />
-              <circle cx={draftPipe[0].x} cy={draftPipe[0].y} r={4 / zoom} />
-            </g>
-          )}
+          {/* run draft — straight tools preview the ortho-snapped tail, the
+              curved ones preview the live spline through every dot */}
+          {draftPipe.length > 0 &&
+            (() => {
+              const curved =
+                tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft");
+              const tail = cursor
+                ? [
+                    nearestAnchor(cursor)?.at ??
+                      (curved
+                        ? cursor
+                        : orthoSnap(draftPipe[draftPipe.length - 1], cursor)),
+                  ]
+                : [];
+              const pts = [...draftPipe, ...tail];
+              return (
+                <g className="ds-pipe-draft">
+                  {curved ? (
+                    <path d={smoothPathD(pts)} fill="none" />
+                  ) : (
+                    <polyline points={pts.map((p) => `${p.x},${p.y}`).join(" ")} />
+                  )}
+                  {curved &&
+                    draftPipe.map((p, i) => (
+                      <circle key={i} cx={p.x} cy={p.y} r={3 / zoom} className="dot" />
+                    ))}
+                  <circle cx={draftPipe[0].x} cy={draftPipe[0].y} r={4 / zoom} />
+                </g>
+              );
+            })()}
 
           {/* placement ghost — the armed unit follows the cursor to-scale */}
           {tool === "place" && placing && cursor && (

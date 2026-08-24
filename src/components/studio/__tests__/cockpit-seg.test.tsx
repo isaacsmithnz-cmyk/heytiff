@@ -72,7 +72,7 @@ describe("Cockpit seg-switch", () => {
     const roomsTab = screen.getByRole("tab", { name: /Rooms/ });
     const compTab = screen.getByRole("tab", { name: /Components/ });
     expect(roomsTab).toHaveTextContent("1"); // one served room
-    expect(compTab).toHaveTextContent("4"); // odu + charge + electrical + mounting
+    expect(compTab).toHaveTextContent("5"); // odu + charge + electrical + mounting + insulation
     // rooms is the default view
     expect(roomsTab).toHaveAttribute("aria-selected", "true");
     const track = container.querySelector(".ds-ck-segtrack") as HTMLElement;

@@ -13,6 +13,7 @@ import {
 import { PACK_SECTIONS, emptyPack, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import {
+  pairPipeSizes,
   systemComponents,
   componentChoices,
   COMPONENT_CHOICES,
@@ -81,8 +82,8 @@ describe("systemComponents — derived rows (small split, no top-up)", () => {
   const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
   const rows = systemComponents(doc, pack, system, "cooling");
 
-  it("emits odu, charge, then the two choice rows in order", () => {
-    expect(rows.map((r) => r.id)).toEqual(["odu", "charge", "electrical", "mounting"]);
+  it("emits odu, charge, then the three choice rows in order", () => {
+    expect(rows.map((r) => r.id)).toEqual(["odu", "charge", "electrical", "mounting", "insulation"]);
   });
 
   it("derives the outdoor-unit row from the pack", () => {
@@ -195,5 +196,134 @@ describe("component choice rows", () => {
     const choices = componentChoices(bad);
     expect(choices.electrical).toBe("isolator-20a"); // invalid → default
     expect(choices.mounting).toBe("wall-bracket"); // missing → default
+  });
+});
+
+/* ── pairPipeSizes — what a drawn pipe-run autosizes to ── */
+describe("pairPipeSizes", () => {
+  it("returns the pair row's line sizes once the pairing resolves", () => {
+    const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    const row = pack.pair_tables.find(
+      (p) => p.idu_model === "SLZ-M25FA-A" && p.odu_model === "SUZ-M25VAD-A"
+    )!;
+    expect(pairPipeSizes(doc, pack, system)).toEqual({
+      liquidMm: row.pipe_liquid_mm,
+      gasMm: row.pipe_gas_mm,
+    });
+  });
+
+  it("placed unit models win over settings", () => {
+    const { doc, system } = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    doc.objects = [unit("i1", "idu", "PLA-M100EA2-A"), unit("o1", "odu", "PUZ-M100VKA-A")];
+    const row = pack.pair_tables.find(
+      (p) => p.idu_model === "PLA-M100EA2-A" && p.odu_model === "PUZ-M100VKA-A"
+    )!;
+    expect(pairPipeSizes(doc, pack, system)).toEqual({
+      liquidMm: row.pipe_liquid_mm,
+      gasMm: row.pipe_gas_mm,
+    });
+  });
+
+  it("is null before a pairing resolves, without a pack, or off the tables", () => {
+    const { doc, system } = docWith({});
+    expect(pairPipeSizes(doc, pack, system)).toBeNull();
+    const paired = docWith({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" });
+    expect(pairPipeSizes(paired.doc, null, paired.system)).toBeNull();
+    const unknown = docWith({ pairIdu: "NOPE-1", pairOdu: "NOPE-2" });
+    expect(pairPipeSizes(unknown.doc, pack, unknown.system)).toBeNull();
+  });
+});
+
+/* ── insulation — lagging for hard-drawn copper (soft coil comes insulated) ── */
+describe("insulation choice row", () => {
+  const IDU = "PLA-M100EA2-A";
+  const ODU = "PUZ-M100VKA-A";
+  const run = (id: string, pts: { x: number; y: number }[], props: Record<string, unknown> = {}): DesignObject => ({
+    id,
+    type: "pipe-run",
+    systemId: "sys1",
+    floorId: "flr",
+    geometry: { kind: "polyline", points: pts },
+    plane: "room",
+    props: {
+      startAttach: { kind: "unit", id: "u_idu" },
+      endAttach: { kind: "unit", id: "u_odu" },
+      ...props,
+    },
+  });
+
+  it("defaults to 13 mm wall and derives its metres from hard-drawn runs", () => {
+    const { doc, system } = docWith({ pairIdu: IDU, pairOdu: ODU });
+    // 10 mm/unit → a 500-unit run = 5 m of raw copper
+    doc.objects = [
+      unit("u_idu", "idu", IDU),
+      unit("u_odu", "odu", ODU),
+      run("r1", [{ x: 0, y: 0 }, { x: 500, y: 0 }]),
+    ];
+    const row = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "insulation")!;
+    expect(row.name).toBe("Lagging · 13 mm wall");
+    expect(row.value).toBe("5 m");
+  });
+
+  it("skips soft-drawn runs — the coil arrives pre-insulated", () => {
+    const { doc, system } = docWith({ pairIdu: IDU, pairOdu: ODU });
+    doc.objects = [
+      unit("u_idu", "idu", IDU),
+      unit("u_odu", "odu", ODU),
+      run("r1", [{ x: 0, y: 0 }, { x: 500, y: 0 }], { form: "soft" }),
+    ];
+    const row = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "insulation")!;
+    expect(row.value).toBe("—");
+  });
+
+  it("'supplied by others' zeroes the takeoff line", () => {
+    const { doc, system } = docWith({
+      pairIdu: IDU,
+      pairOdu: ODU,
+      components: { insulation: "none" },
+    });
+    doc.objects = [
+      unit("u_idu", "idu", IDU),
+      unit("u_odu", "odu", ODU),
+      run("r1", [{ x: 0, y: 0 }, { x: 500, y: 0 }]),
+    ];
+    const row = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "insulation")!;
+    expect(row.name).toBe("Supplied by others");
+    expect(row.value).toBe("—");
+  });
+});
+
+/* ── the takeoff graph measures a soft run along its curve, not its chords ── */
+describe("graph length for soft-drawn runs", () => {
+  it("smoothed length exceeds the chord length through a bend", async () => {
+    const { buildSystemGraph, totalPipeLengthM } = await import("../graph");
+    const { doc } = docWith({});
+    const mkRun = (form?: string): DesignObject => ({
+      id: "r1",
+      type: "pipe-run",
+      systemId: "sys1",
+      floorId: "flr",
+      geometry: {
+        kind: "polyline",
+        points: [
+          { x: 0, y: 0 },
+          { x: 250, y: 200 },
+          { x: 500, y: 0 },
+        ],
+      },
+      plane: "room",
+      props: {
+        startAttach: { kind: "unit", id: "u_idu" },
+        endAttach: { kind: "unit", id: "u_odu" },
+        ...(form ? { form } : {}),
+      },
+    });
+    const units = [unit("u_idu", "idu", "A"), unit("u_odu", "odu", "B")];
+    doc.objects = [...units, mkRun()];
+    const hard = totalPipeLengthM(buildSystemGraph(doc.objects, doc.floors, "sys1"))!;
+    doc.objects = [...units, mkRun("soft")];
+    const soft = totalPipeLengthM(buildSystemGraph(doc.objects, doc.floors, "sys1"))!;
+    expect(soft).toBeGreaterThan(hard);
+    expect(soft).toBeLessThan(hard * 1.5);
   });
 });

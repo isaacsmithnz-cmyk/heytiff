@@ -39,13 +39,17 @@ import { History } from "@/lib/studio/history";
 import {
   StudioCanvas,
   ALL_LAYERS_ON,
+  DEFAULT_DRAW,
+  isRunTool,
   type AirComponentKind,
   type ArmedComponent,
   type CanvasTool,
+  type DrawOptions,
   type LayerFlags,
   type PlacingUnit,
   type ZoomApi,
 } from "./canvas";
+import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
@@ -2180,7 +2184,6 @@ const CANVAS_TOOLS: {
   needsSystem?: boolean;
 }[] = [
   { key: "select", icon: "cursor", label: "Select", short: "Select", kbd: "V" },
-  { key: "pipe", icon: "pipe", label: "Refrigerant run", short: "Run", kbd: "P", needsSystem: true },
   { key: "riser", icon: "arrowUp", label: "Riser (joins floors)", short: "Riser", kbd: "I", needsSystem: true },
   { key: "erase", icon: "eraser", label: "Eraser", short: "Erase", kbd: "E" },
 ];
@@ -2317,6 +2320,123 @@ function RoomTool({
             Shape
             <span className="ds-flykbd" aria-hidden="true">G</span>
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── the Draw tool: ONE bench button for everything drawn as a line. The
+   flyout names the three families — pipe (soft or hard drawn), drain (size
+   picked at draw), cable (power or data) — and each chip arms its tool with
+   that option. Soft pipe and cable place dots that smooth into a curve; hard
+   pipe and drain stay orthogonal. P still arms pipe from the keyboard. ── */
+function DrawTool({
+  tool,
+  onTool,
+  draw,
+  onDraw,
+  disabled,
+}: {
+  tool: CanvasTool;
+  onTool: (t: CanvasTool) => void;
+  draw: DrawOptions;
+  onDraw: (d: DrawOptions) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const on = isRunTool(tool);
+  const arm = (t: CanvasTool, patch?: Partial<DrawOptions>) => {
+    if (patch) onDraw({ ...draw, ...patch });
+    onTool(t);
+    setOpen(false);
+  };
+  const chip = (
+    label: string,
+    active: boolean,
+    t: CanvasTool,
+    patch?: Partial<DrawOptions>
+  ) => (
+    <button
+      key={label}
+      role="menuitemradio"
+      aria-checked={active && tool === t}
+      className={`ds-drawchip${active && tool === t ? " on" : ""}`}
+      onClick={() => arm(t, patch)}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="ds-pal-wrap" ref={wrapRef}>
+      <button
+        className={`ds-tool${on ? " on" : ""}`}
+        aria-label="Draw"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={disabled}
+        title={
+          disabled
+            ? "Draw — pick a system first"
+            : "Draw — pipe, drain or cable (P arms pipe)"
+        }
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="pipe" size={15} />
+        Draw
+        <span className="ds-kbd" aria-hidden="true">
+          P
+        </span>
+      </button>
+      {open && !disabled && (
+        <div className="ds-roomfly ds-drawfly" role="menu" aria-label="Draw a line">
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="pipe" size={14} />
+              Pipe
+            </span>
+            <div className="ds-drawchips">
+              {chip("Hard drawn", draw.pipeForm === "hard", "pipe", { pipeForm: "hard" })}
+              {chip("Soft drawn", draw.pipeForm === "soft", "pipe", { pipeForm: "soft" })}
+            </div>
+          </div>
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="droplet" size={14} />
+              Drain
+            </span>
+            <div className="ds-drawchips">
+              {[20, 25, 32, 40].map((mm) =>
+                chip(`Ø${mm}`, draw.drainMm === mm, "drain", { drainMm: mm })
+              )}
+            </div>
+          </div>
+          <div className="ds-drawrow">
+            <span className="ds-drawk">
+              <Icon name="zap" size={14} />
+              Cable
+            </span>
+            <div className="ds-drawchips">
+              {chip("Power", draw.cableKind === "power", "cable", { cableKind: "power" })}
+              {chip("Data", draw.cableKind === "data", "cable", { cableKind: "data" })}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -2809,6 +2929,19 @@ function DesignPanel({
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
+  /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
+     view state: what the NEXT line is, never what a drawn one was */
+  const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
+  /* pairing line sizes per system — what a drawn pipe autosizes its label to
+     (per-run props override in the object card) */
+  const runSizes = useMemo(() => {
+    const m = new Map<string, { liquidMm: number; gasMm: number }>();
+    for (const s of doc.systems) {
+      const sz = pairPipeSizes(doc, pack, s);
+      if (sz) m.set(s.id, sz);
+    }
+    return m;
+  }, [doc, pack]);
 
   /* pack-row resolver the canvas uses for plenum specs / air capability —
      keyed to unit data, never system type (ducted spec §11.1) */
@@ -2926,7 +3059,13 @@ function DesignPanel({
                 U
               </span>
             </button>
-            {toolButton(tb("pipe"))}
+            <DrawTool
+              tool={tool}
+              onTool={onTool}
+              draw={draw}
+              onDraw={setDraw}
+              disabled={!activeSystemId}
+            />
             {toolButton(tb("riser"))}
             {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
                 (spec §2); Duct arms at Step 4, Component opens the palette */}
@@ -3012,6 +3151,8 @@ function DesignPanel({
             layers={layers}
             grayscale={grayscale}
             sim={null}
+            draw={draw}
+            runSizes={runSizes}
           />
         </div>
         {/* zoom floats over the canvas, bottom-right — its pre-strip home */}
@@ -3065,6 +3206,8 @@ function DesignPanel({
               <div className="ds-legend-row"><span className="ds-legend-ic idu" /> Indoor unit</div>
               <div className="ds-legend-row"><span className="ds-legend-ic odu" /> Outdoor unit</div>
               <div className="ds-legend-row"><span className="ds-legend-ic riser" /> Riser</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic drain" /> Drain</div>
+              <div className="ds-legend-row"><span className="ds-legend-ic cable" /> Cable</div>
             </div>
           </div>
         )}

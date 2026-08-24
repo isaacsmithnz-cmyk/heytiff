@@ -75,6 +75,99 @@ export function polylineLength(points: Point[]): number {
   return len;
 }
 
+/* ── Smoothed runs (Draw tools). A soft-drawn pipe or a cable is placed as
+   dots and rendered as a Catmull-Rom spline through every dot — the person
+   marks where the line passes, the curve is the tool's job. The spline is
+   converted to cubic beziers for SVG; length is measured by sampling the same
+   curve, so the label never reads the (shorter) chord distance. ── */
+
+/** Catmull-Rom control points → cubic-bezier segments through every point. */
+function splineSegments(
+  points: Point[]
+): { a: Point; c1: Point; c2: Point; b: Point }[] {
+  const segs: { a: Point; c1: Point; c2: Point; b: Point }[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? points[i + 1];
+    segs.push({
+      a: p1,
+      c1: { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 },
+      c2: { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 },
+      b: p2,
+    });
+  }
+  return segs;
+}
+
+/** SVG path `d` for the spline through the dots (straight line for 2 dots). */
+export function smoothPathD(points: Point[]): string {
+  if (points.length === 0) return "";
+  const d = [`M ${points[0].x} ${points[0].y}`];
+  for (const s of splineSegments(points))
+    d.push(`C ${s.c1.x} ${s.c1.y}, ${s.c2.x} ${s.c2.y}, ${s.b.x} ${s.b.y}`);
+  return d.join(" ");
+}
+
+/** Arc length of the smoothed curve, by sampling each bezier segment. */
+export function smoothedLength(points: Point[], samplesPerSeg = 16): number {
+  let len = 0;
+  for (const s of splineSegments(points)) {
+    let prev = s.a;
+    for (let i = 1; i <= samplesPerSeg; i++) {
+      const t = i / samplesPerSeg;
+      const u = 1 - t;
+      const p = {
+        x:
+          u * u * u * s.a.x +
+          3 * u * u * t * s.c1.x +
+          3 * u * t * t * s.c2.x +
+          t * t * t * s.b.x,
+        y:
+          u * u * u * s.a.y +
+          3 * u * u * t * s.c1.y +
+          3 * u * t * t * s.c2.y +
+          t * t * t * s.b.y,
+      };
+      len += dist(prev, p);
+      prev = p;
+    }
+  }
+  return len;
+}
+
+/** Distance from a point to the smoothed curve (sampled) — hit-testing. */
+export function distToSmoothed(
+  p: Point,
+  points: Point[],
+  samplesPerSeg = 12
+): number {
+  let best = Infinity;
+  for (const s of splineSegments(points)) {
+    let prev = s.a;
+    for (let i = 1; i <= samplesPerSeg; i++) {
+      const t = i / samplesPerSeg;
+      const u = 1 - t;
+      const q = {
+        x:
+          u * u * u * s.a.x +
+          3 * u * u * t * s.c1.x +
+          3 * u * t * t * s.c2.x +
+          t * t * t * s.b.x,
+        y:
+          u * u * u * s.a.y +
+          3 * u * u * t * s.c1.y +
+          3 * u * t * t * s.c2.y +
+          t * t * t * s.b.y,
+      };
+      best = Math.min(best, distToSegment(p, prev, q));
+      prev = q;
+    }
+  }
+  return points.length === 1 ? dist(p, points[0]) : best;
+}
+
 /** Ray-casting point-in-polygon. */
 export function pointInPolygon(p: Point, poly: Point[]): boolean {
   let inside = false;

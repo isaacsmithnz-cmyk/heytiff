@@ -1990,6 +1990,16 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-legend-ic.idu { border: 1.5px solid #14b8a6; border-radius: 2px; }
 .dstudio .ds-legend-ic.odu { border: 1.5px solid #14b8a6; border-radius: 50%; }
 .dstudio .ds-legend-ic.riser { background: #14b8a6; border-radius: 50%; }
+.dstudio .ds-legend-ic.drain {
+  height: 0;
+  border-top: 2px dashed #14b8a6;
+  align-self: center;
+}
+.dstudio .ds-legend-ic.cable {
+  height: 0;
+  border-top: 2px dotted #14b8a6;
+  align-self: center;
+}
 
 /* north arrow */
 .dstudio .ds-north-ring {
@@ -4526,6 +4536,38 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-pipe.sel polyline { stroke-width: 4px; }
+/* soft-drawn pipe renders the smoothed spline as a path */
+.dstudio .ds-pipe path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-pipe.sel path { stroke-width: 4px; }
+/* drains: the system's colour, dashed — condensate, not refrigerant */
+.dstudio .ds-drain polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2px;
+  stroke-dasharray: 8 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-drain.sel polyline { stroke-width: 3.5px; }
+/* cables: dash-dot curve */
+.dstudio .ds-cable path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8px;
+  stroke-dasharray: 2 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-cable.sel path { stroke-width: 3.2px; }
 .dstudio .ds-pipe-len {
   fill: currentColor;
   text-anchor: middle;
@@ -4596,6 +4638,15 @@ html[data-ds-display] .dstudio.editing {
   vector-effect: non-scaling-stroke;
 }
 .dstudio .ds-pipe-draft circle { fill: var(--teal-d); }
+.dstudio .ds-pipe-draft path {
+  fill: none;
+  stroke: var(--teal-d);
+  stroke-width: 2px;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+/* the placed dots of a curved draft — the person's own marks */
+.dstudio .ds-pipe-draft circle.dot { fill: #fff; stroke: var(--teal-d); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 .dstudio .ds-place-ghost rect {
   fill: none;
   stroke: var(--teal-d);
@@ -7673,6 +7724,50 @@ html[data-ds-display] .dstudio.editing {
   background: #f1f2f4;
   border-radius: 4px;
   padding: 1px 5px;
+}
+
+/* the Draw button's flyout — three families, each row naming its options as
+   chips; a chip both picks the option and arms the tool */
+.dstudio .ds-drawfly {
+  min-width: 296px;
+  gap: 4px;
+}
+.dstudio .ds-drawfly .ds-drawrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 8px;
+}
+.dstudio .ds-drawfly .ds-drawk {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 62px;
+  flex: none;
+  font: 600 12.5px var(--font);
+  color: var(--ink);
+}
+.dstudio .ds-drawfly .ds-drawchips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.dstudio .ds-drawfly button.ds-drawchip {
+  width: auto;
+  padding: 5px 9px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  font: 600 11.5px var(--font);
+  color: var(--ink);
+  background: #fff;
+  cursor: pointer;
+}
+.dstudio .ds-drawfly button.ds-drawchip:hover { background: #f3f4f6; }
+.dstudio .ds-drawfly button.ds-drawchip.on {
+  background: var(--teal-d);
+  border-color: var(--teal-d);
+  color: #fff;
 }
 .dstudio .ds-pal {
   position: absolute;

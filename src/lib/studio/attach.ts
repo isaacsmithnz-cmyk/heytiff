@@ -13,9 +13,12 @@ import { attachOf, type Attach } from "./graph";
 import { isPlenumOf } from "./ducted";
 
 /** Run types whose attached endpoints track their referenced object.
-    pipe-run is live today; duct-run inherits the behaviour when it ships. */
+    pipe-run, drain-run and cable-run are live today; duct-run inherits the
+    behaviour when it ships. */
 export const ATTACHED_RUN_TYPES: ReadonlySet<string> = new Set([
   "pipe-run",
+  "drain-run",
+  "cable-run",
   "duct-run",
 ]);
 

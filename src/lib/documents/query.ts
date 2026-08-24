@@ -29,6 +29,58 @@ export type StoredDocument = {
 const COLUMNS =
   "id, kind, storage_ref, file_name, mime_type, size_bytes, uploaded_by, created_at, notice_id";
 
+/* A vehicle's paper trail: documents owned by the vehicle itself (its
+   purchase invoice; later policies and service records) AND the dockets on
+   its logs. Two queries because they are two owner columns, merged per
+   vehicle so the register renders one list. Same page-load signing the
+   expenses screen does — links are minted per request, never stored. */
+export async function documentsForVehicles(
+  orgId: string,
+  vehicleIds: readonly string[],
+  logToVehicle: ReadonlyMap<string, string>,
+): Promise<Map<string, StoredDocument[]>> {
+  const out = new Map<string, StoredDocument[]>();
+  if (vehicleIds.length === 0) return out;
+
+  const logIds = [...logToVehicle.keys()];
+  const [own, onLogs] = await Promise.all([
+    supabaseAdmin
+      .from("documents")
+      .select(`${COLUMNS}, vehicle_id`)
+      .eq("org_id", orgId)
+      .in("vehicle_id", [...vehicleIds])
+      .not("uploaded_at", "is", null),
+    logIds.length === 0
+      ? Promise.resolve({ data: [] })
+      : supabaseAdmin
+          .from("documents")
+          .select(`${COLUMNS}, vehicle_log_id`)
+          .eq("org_id", orgId)
+          .in("vehicle_log_id", logIds)
+          .not("uploaded_at", "is", null),
+  ]);
+
+  const rows = [
+    ...((own.data ?? []) as Record<string, unknown>[]),
+    ...((onLogs.data ?? []) as Record<string, unknown>[]),
+  ];
+  const urls = await signMany(rows.map((r) => String(r.storage_ref)));
+
+  for (const r of rows) {
+    const key = r.vehicle_id
+      ? String(r.vehicle_id)
+      : (logToVehicle.get(String(r.vehicle_log_id)) ?? "");
+    if (!key) continue;
+    const list = out.get(key) ?? [];
+    list.push(toStored(r, urls));
+    out.set(key, list);
+  }
+  // newest first, whichever owner column it came through
+  for (const list of out.values())
+    list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return out;
+}
+
 /* The attachments on a page of notices, keyed by notice.
 
    Only CONFIRMED uploads are returned. A slot that was handed out and never

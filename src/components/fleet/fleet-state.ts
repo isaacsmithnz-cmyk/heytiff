@@ -12,6 +12,7 @@ import {
   saveVehicle as saveVehicleAction,
 } from "@/app/actions/fleet";
 import type { LogEdit } from "@/app/actions/fleet";
+import type { StoredDocument } from "@/lib/documents/query";
 import type { AiValuation, NewLog, Vehicle, VehicleLog } from "./logic";
 
 /* Fleet state. The localStorage overlay (ht_fleet_v1) is gone — server data
@@ -29,7 +30,7 @@ export type FleetActions = {
   pending: boolean;
   error: string | null;
   clearError: () => void;
-  saveVehicle: (v: Vehicle) => void;
+  saveVehicle: (v: Vehicle, purchaseInvoiceId?: string) => void;
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: NewLog) => void;
@@ -44,6 +45,7 @@ export type FleetState = FleetActions & {
   vehicles: Vehicle[];
   logs: VehicleLog[];
   aiValues: Record<string, AiValuation>;
+  documents: Record<string, StoredDocument[]>;
 };
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -69,7 +71,10 @@ export function useFleetActions(): FleetActions {
     pending,
     error,
     clearError: useCallback(() => setError(null), []),
-    saveVehicle: useCallback((v: Vehicle) => run(() => saveVehicleAction(v)), [run]),
+    saveVehicle: useCallback(
+      (v: Vehicle, purchaseInvoiceId?: string) => run(() => saveVehicleAction(v, purchaseInvoiceId)),
+      [run],
+    ),
     removeVehicle: useCallback((id: string) => run(() => removeVehicleAction(id)), [run]),
     assignVehicle: useCallback(
       (id: string, staffId: string | null) => run(() => assignVehicleAction(id, staffId)),

@@ -61,7 +61,13 @@ async function vehicleIn(orgId: string, vehicleId: string) {
 
 /* ---------------- register (assets_all) ---------------- */
 
-export async function saveVehicle(vehicle: Vehicle): Promise<FleetResult> {
+export async function saveVehicle(
+  vehicle: Vehicle,
+  /** A purchase_invoice uploaded while the form was open, to adopt onto this
+      vehicle once the row exists — same orphan-then-adopt shape as the fuel
+      docket, because a NEW vehicle has no id until the insert. */
+  purchaseInvoiceId?: string,
+): Promise<FleetResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
   if (!(await can("assets_all"))) return DENIED;
@@ -82,13 +88,20 @@ export async function saveVehicle(vehicle: Vehicle): Promise<FleetResult> {
   }
 
   const existing = vehicle.id ? await vehicleIn(ctx.orgId, vehicle.id) : null;
-  const { error } = existing
-    ? await supabaseAdmin
-        .from("vehicles")
-        .update({ ...row, updated_at: new Date().toISOString() })
-        .eq("org_id", ctx.orgId)
-        .eq("id", vehicle.id)
-    : await supabaseAdmin.from("vehicles").insert(row);
+  let savedId = vehicle.id;
+  let error;
+  if (existing) {
+    ({ error } = await supabaseAdmin
+      .from("vehicles")
+      .update({ ...row, updated_at: new Date().toISOString() })
+      .eq("org_id", ctx.orgId)
+      .eq("id", vehicle.id));
+  } else {
+    // the insert returns its id because the invoice below adopts onto it
+    const res = await supabaseAdmin.from("vehicles").insert(row).select("id").single();
+    error = res.error;
+    savedId = (res.data?.id as string) ?? "";
+  }
 
   if (error) {
     // the (org, state, plate) unique index is the one a user can actually trip
@@ -96,8 +109,25 @@ export async function saveVehicle(vehicle: Vehicle): Promise<FleetResult> {
       return { ok: false, error: `${vehicle.plate} is already registered in this fleet.` };
     return { ok: false, error: "Couldn't save that vehicle." };
   }
+  if (purchaseInvoiceId && savedId) await adoptPurchaseInvoice(ctx, savedId, purchaseInvoiceId);
   refresh();
   return { ok: true };
+}
+
+/* Same contract as adoptReceipt below: only the uploader's own, confirmed,
+   still-orphaned purchase_invoice may land — the kind check is what keeps a
+   receipt or anything else from being claimed as the van's paperwork. */
+async function adoptPurchaseInvoice(ctx: Ctx, vehicleId: string, documentId: string): Promise<void> {
+  if (!ctx.staffId) return;
+  await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: vehicleId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", "purchase_invoice")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null);
 }
 
 export async function removeVehicle(vehicleId: string): Promise<FleetResult> {

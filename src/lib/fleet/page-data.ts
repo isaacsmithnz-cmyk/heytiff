@@ -2,6 +2,7 @@ import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { todayInAu } from "@/lib/au-dates";
 import type { OwnFleet, Register } from "@/components/fleet/assets-screen";
+import { documentsForVehicles } from "@/lib/documents/query";
 import {
   getOwnVehicle,
   listFleetStaff,
@@ -61,5 +62,19 @@ export async function loadFleetPage(opts: { withRegister: boolean }): Promise<Fl
     listLogs(orgId),
     listFleetStaff(orgId),
   ]);
-  return { own, register: { vehicles, logs, aiValues, staff }, today, viewerStaffId: staffId };
+  /* The paper trail rides the register payload the way logs do: it is the
+     same capability, and the detail modal should not have to fetch to show
+     what the vehicle already owns. Dockets hang off logs, so the log→vehicle
+     map is how they find their vehicle. */
+  const documents = await documentsForVehicles(
+    orgId,
+    vehicles.map((v) => v.id),
+    new Map(logs.map((l) => [l.id, l.vehicleId])),
+  );
+  return {
+    own,
+    register: { vehicles, logs, aiValues, staff, documents: Object.fromEntries(documents) },
+    today,
+    viewerStaffId: staffId,
+  };
 }

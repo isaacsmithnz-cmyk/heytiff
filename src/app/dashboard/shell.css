@@ -3603,6 +3603,15 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Unscoped like the rest of the modal's fl-*: the detail modal portals to
    <body>, so anything under .fg would simply be absent here. */
 .fl-fact .fl-tiffnote { display:block; font-size:11px; font-weight:600; color:var(--gray500); margin-top:3px; line-height:1.45; }
+/* The paper trail in the detail modal, and the invoice chip on the form —
+   both portal to <body>, so unscoped like the rest of fl-*. */
+.fl-docrow { display:flex; align-items:center; gap:9px; padding:9px 2px; border-bottom:1px solid #f4f4f6; color:var(--ink); text-decoration:none; font-size:13px; }
+.fl-docrow:last-child { border-bottom:none; }
+.fl-docrow b { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.fl-docrow em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--q); margin-left:auto; white-space:nowrap; }
+.fl-docrow:hover b { text-decoration:underline; }
+.fl-invoice { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--ink); margin-top:2px; min-width:0; }
+.fl-invoice i { font-style:normal; font-weight:600; color:var(--q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:34px 20px; border:1.5px dashed #d7dae0; border-radius:18px; background:#fafbfc; cursor:pointer; transition:all .2s; }
 .fl-scan:hover, .fl-scan.over { border-color:#00E5C0; background:rgba(0,229,192,.05); }
 .fl-scan input { display:none; }

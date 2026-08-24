@@ -53,6 +53,7 @@ export function FleetRegister({
   staff,
   today,
   view,
+  openVehicleId = null,
 }: {
   fleet: FleetState;
   staff: FleetStaff[];
@@ -60,11 +61,33 @@ export function FleetRegister({
   /** Which slice of the fleet to show — the Assets screen owns the tab strip
       now, so the register renders one face rather than carrying its own. */
   view: FleetTab;
+  /** `?v=` — a vehicle to open on arrival, from a plate clicked elsewhere.
+      Looked up against the whole fleet, not the current face, so a link to a
+      sold or pooled vehicle still opens from the Fleet tab. */
+  openVehicleId?: string | null;
 }) {
   const { vehicles, logs } = fleet;
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<FleetSort>("attention");
-  const [modal, setModal] = useState<ModalState>({ t: "none" });
+  /* ?v=<id> OPENS THAT VEHICLE, which is what makes the plate on a staff card a
+     door rather than a signpost. The id is read on the SERVER and handed down —
+     `useSearchParams` would put this whole tree behind a Suspense boundary,
+     which is the call Studio, Organisation and the profile all made too. A
+     param and not a path segment, either: the app shell keys its outlet on
+     pathname, so a link that writes the path remounts the page it lands on.
+
+     IT SEEDS THE STATE, it does not sync it. An effect would have to remember
+     which id it had already honoured or the close button would fight the URL
+     and the modal would spring back open — and setState in an effect is a
+     cascading render the lint rule is right to refuse. The initialiser runs
+     once, at mount, which is exactly when a link arrives; from then on the
+     register owns its own modal. Looked up against the whole fleet rather than
+     the current face, so a link to a sold or pooled vehicle still opens. */
+  const [modal, setModal] = useState<ModalState>(() =>
+    openVehicleId && vehicles.some((v) => v.id === openVehicleId)
+      ? { t: "detail", id: openVehicleId }
+      : { t: "none" },
+  );
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [valuing, setValuing] = useState(false);
   const [valueErr, setValueErr] = useState<string | null>(null);

@@ -218,7 +218,15 @@ export function TextArea({
   );
 }
 
-/** $-prefixed money input. */
+/** $-prefixed money input.
+
+    THE GUTTER AND THE SYMBOL ARE ONE DECISION, so they are both in CSS now.
+    They used to be inline styles here — a `paddingLeft:30` on the input and a
+    `left:14` on the span — which was fine until the same control had to render
+    at two sizes: an inline style beats every stylesheet rule, so the 46px box's
+    gutter followed the $ into Payroll's 34px in-place row and the figure
+    started under it. `with-prefix` and `.sfx.pre` let the row retune both
+    together. */
 export function MoneyInput({
   name,
   value,
@@ -235,19 +243,16 @@ export function MoneyInput({
   return (
     <div className="suffixwrap">
       <input
-        className={invalid ? "inp err" : "inp"}
+        className={invalid ? "inp with-prefix err" : "inp with-prefix"}
         name={name}
         id={name}
         type="text"
-        style={{ paddingLeft: 30 }}
         placeholder={placeholder}
         value={value}
         aria-invalid={invalid || undefined}
         onChange={(e) => onChange(e.target.value)}
       />
-      <span className="sfx" style={{ left: 14, right: "auto" }}>
-        $
-      </span>
+      <span className="sfx pre">$</span>
     </div>
   );
 }

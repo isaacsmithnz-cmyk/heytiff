@@ -348,6 +348,19 @@ export function FleetRegister({
                     >
                       <Chevron size={14} gradient decorative />
                       {fmtMoney(val.point)}
+                      {/* The note was hover-only and Isaac found it by accident.
+                          The ⓘ is the visible door; the detail modal prints the
+                          source in full. */}
+                      <button
+                        className="fl-tiffinfo"
+                        aria-label="How Tiff priced this"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModal({ t: "detail", id: v.id });
+                        }}
+                      >
+                        <Icon name="info" size={13} />
+                      </button>
                     </em>
                   )}
                 </span>

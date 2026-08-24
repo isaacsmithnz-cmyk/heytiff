@@ -3593,9 +3593,16 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .fl-valuebtn.busy .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
 .fg .fl-aierr { font-size:12.5px; font-weight:600; color:var(--warn-t); margin:-6px 0 12px; }
 .fg .fl-tiff.stale { opacity:.45; }
+/* The visible door to the valuation's source — the note was title-attr-only
+   and got found by accident. `.fg` scope outranks the `.fg button` reset. */
+.fg .fl-tiffinfo { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:6px; color:var(--q); transition:background .18s, color .18s; }
+.fg .fl-tiffinfo:hover { background:#eef0f3; color:var(--ink); }
 @keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
 .fl-fact.tiff.stale { opacity:.55; }
 .fl-fact .fl-range { display:block; font-size:11px; font-weight:600; color:var(--gray500); margin-top:2px; }
+/* Unscoped like the rest of the modal's fl-*: the detail modal portals to
+   <body>, so anything under .fg would simply be absent here. */
+.fl-fact .fl-tiffnote { display:block; font-size:11px; font-weight:600; color:var(--gray500); margin-top:3px; line-height:1.45; }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:34px 20px; border:1.5px dashed #d7dae0; border-radius:18px; background:#fafbfc; cursor:pointer; transition:all .2s; }
 .fl-scan:hover, .fl-scan.over { border-color:#00E5C0; background:rgba(0,229,192,.05); }
 .fl-scan input { display:none; }

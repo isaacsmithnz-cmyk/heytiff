@@ -101,8 +101,14 @@ async function openEditor() {
   return { store, doc };
 }
 
-/** open the units modal from the room card the cockpit is inspecting */
+/** Open the units modal the way a person does now: click the room's row in
+    the panel, which opens the ROOM modal, and take Select unit from inside it.
+    The cockpit stopped hosting the room's units on 2026-08-25. */
 async function openModal(user: ReturnType<typeof userEvent.setup>) {
+  const row = (await screen.findAllByRole("button", { name: /Lounge/ })).find((b) =>
+    b.classList.contains("ds-ck-rrow")
+  )!;
+  await user.click(row);
   const sub = await screen.findByTestId("multi-unit-sub");
   await user.click(within(sub).getByRole("button", { name: /Select unit/ }));
   return screen.getByRole("dialog", { name: "Choose a unit" });

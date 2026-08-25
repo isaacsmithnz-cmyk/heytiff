@@ -7,7 +7,8 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { SystemCockpit } from "../cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "../cockpit-panel";
+import type { RoomObj } from "@/lib/studio/loads-room";
 import {
   createDesign,
   type DesignDocument,
@@ -136,7 +137,6 @@ function renderCockpit(
       selectedId={opts.selectedId ?? null}
       onSelect={opts.onSelect ?? (() => {})}
       onEditRoom={() => {}}
-      onBrowseUnits={() => {}}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
@@ -304,11 +304,35 @@ describe("AHU inspect card — plenum status line", () => {
   });
 });
 
+
+/* The Inspect card left the panel on 2026-08-25 — the room modal hosts it now.
+   The card's behaviour is unchanged, so these render it where it lives. */
+function renderInspect(
+  doc: DesignDocument,
+  roomId: string,
+  handlers: { onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void } = {}
+) {
+  const room = doc.objects.find((o) => o.id === roomId) as RoomObj;
+  return render(
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={doc.systems[0]}
+      room={room}
+      basis={doc.settings.sizingBasis}
+      ducted
+      onMutate={handlers.onMutate ?? (() => {})}
+      onBrowseUnits={() => {}}
+      onRelease={() => {}}
+    />
+  );
+}
+
 describe("spill rooms (Configure toggle + surfaces)", () => {
   it("the Configure toggle writes room.props.spill", () => {
     const doc = mkDoc({ objects: twoRooms(), settings: {} });
     let next: DesignDocument | undefined;
-    renderCockpit(doc, { selectedId: "room2", onMutate: (fn) => (next = fn(doc)) });
+    renderInspect(doc, "room2", { onMutate: (fn) => (next = fn(doc)) });
 
     const toggle = screen.getByRole("checkbox", { name: "Spill room" });
     expect(toggle).not.toBeChecked();
@@ -322,7 +346,7 @@ describe("spill rooms (Configure toggle + surfaces)", () => {
       settings: {},
     });
     let next: DesignDocument | undefined;
-    renderCockpit(doc, { selectedId: "room2", onMutate: (fn) => (next = fn(doc)) });
+    renderInspect(doc, "room2", { onMutate: (fn) => (next = fn(doc)) });
     fireEvent.click(screen.getByRole("checkbox", { name: "Spill room" }));
     expect("spill" in next!.objects.find((o) => o.id === "room2")!.props).toBe(false);
   });

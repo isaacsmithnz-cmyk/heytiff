@@ -166,7 +166,7 @@ describe("Design canvas", () => {
     expect(svg.querySelector(".ds-room-name")?.textContent).toBe("Room 1");
   });
 
-  it("selecting a room opens the Inspect card; Edit renames via the modal; Delete key removes it", async () => {
+  it("a room row opens the modal; renaming there follows onto the plan; Delete removes it", async () => {
     const { user, svg } = await openBlankDesignOnCanvas();
     await armRoom(user);
     fireEvent.pointerDown(svg, pt(400, 300));
@@ -174,13 +174,17 @@ describe("Design canvas", () => {
     fireEvent.pointerUp(svg, pt(500, 380));
     await finishRoom(user);
 
-    // click inside the room with the select tool → the cockpit Inspect card
     await user.click(screen.getByRole("button", { name: "Select" }));
     fireEvent.pointerDown(svg, pt(430, 330));
     fireEvent.pointerUp(svg, pt(430, 330));
 
-    // Configure now lives on the room pill and opens the room modal directly
-    await user.click(screen.getByRole("button", { name: "Configure room" }));
+    /* the room's row in the panel IS the way in now (Isaac, 2026-08-25) — the
+       panel no longer unfolds an Inspect card, and the Configure pill that
+       used to sit beside the row went with it */
+    const row = screen
+      .getAllByRole("button", { name: /Room 1/ })
+      .find((b) => b.classList.contains("ds-ck-rrow"))!;
+    await user.click(row);
     const nameInput = screen.getByPlaceholderText("e.g. Living / Dining");
     await user.clear(nameInput);
     await user.type(nameInput, "Lounge");

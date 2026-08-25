@@ -10,7 +10,8 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { SystemCockpit } from "../cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "../cockpit-panel";
+import type { RoomObj } from "@/lib/studio/loads-room";
 import {
   createDesign,
   type DesignDocument,
@@ -127,7 +128,6 @@ function renderCockpit(
       selectedId={null}
       onSelect={() => {}}
       onEditRoom={() => {}}
-      onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
@@ -264,16 +264,40 @@ describe("Shared-outdoor section", () => {
   });
 });
 
+/* The Inspect card left the panel on 2026-08-25 — the room modal hosts it now.
+   Its own behaviour is unchanged, so these render it directly. */
+function renderInspect(
+  doc: DesignDocument,
+  roomId: string,
+  handlers: {
+    onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+    onBrowseUnits?: (roomId: string) => void;
+  } = {}
+) {
+  const room = doc.objects.find((o) => o.id === roomId) as RoomObj;
+  return render(
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={doc.systems[0]}
+      room={room}
+      basis={doc.settings.sizingBasis}
+      perRoom
+      onMutate={handlers.onMutate ?? (() => {})}
+      onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
+      onRelease={() => {}}
+    />
+  );
+}
+
 describe("Per-room Unit tab", () => {
   it("the multi room inspect shows per-room unit selection with no sub-tabs", () => {
-    renderCockpit(mkDoc({ objects: twoRooms() }));
+    renderInspect(mkDoc({ objects: twoRooms() }), "room1");
     // the Configure/Unit/Pipework switcher is gone — the card is unit selection only
     expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Unit" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Pipework" })).toBeNull();
     expect(screen.getByTestId("multi-unit-sub")).toBeInTheDocument();
-    // Configure moved onto the room pills
-    expect(screen.getAllByRole("button", { name: "Configure room" }).length).toBeGreaterThan(0);
   });
 
   it("hands the room off to THE units modal instead of owning a picker", () => {
@@ -284,7 +308,7 @@ describe("Per-room Unit tab", () => {
        one card would open the modal aimed at another. */
     const doc = mkDoc({ objects: twoRooms() });
     const asked: string[] = [];
-    renderCockpit(doc, { onBrowseUnits: (id) => asked.push(id) });
+    renderInspect(doc, "room1", { onBrowseUnits: (id) => asked.push(id) });
 
     const sub = screen.getByTestId("multi-unit-sub");
     expect(within(sub).getByText("No unit for this room yet")).toBeInTheDocument();
@@ -296,7 +320,7 @@ describe("Per-room Unit tab", () => {
   });
 
   it("a chosen unit renders its card with its own capacity", () => {
-    renderCockpit(mkDoc({ objects: twoRooms(), settings: bothChosen() }));
+    renderInspect(mkDoc({ objects: twoRooms(), settings: bothChosen() }), "room1");
     const sub = screen.getByTestId("multi-unit-sub");
     const card = within(sub).getByTestId("unit-card-idu");
     expect(card).toHaveTextContent("MSZ-AP20VGD");
@@ -318,9 +342,9 @@ describe("Per-room Unit tab", () => {
       settings: bothChosen(),
     });
     let next: DesignDocument | undefined;
-    renderCockpit(doc, { onMutate: (fn) => (next = fn(doc)) });
+    /* room1's card — recall must take ITS unit and pipework, not room2's */
+    renderInspect(doc, "room1", { onMutate: (fn) => (next = fn(doc)) });
 
-    // the first room's inspect card is showing (first served room by default)
     const sub = screen.getByTestId("multi-unit-sub");
     fireEvent.click(within(sub).getByRole("button", { name: /Recall/ }));
 

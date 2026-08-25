@@ -26,7 +26,12 @@ import {
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
-import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
+import {
+  pruneObjects,
+  releaseRoomFromSystem,
+  releaseRoomsFromSystems,
+  removedRoomIds,
+} from "@/lib/studio/attach";
 import {
   browserDesignStore,
   designFileName,
@@ -91,7 +96,7 @@ import {
   setFloorApproval,
   simApprovalState,
 } from "@/lib/studio/sim-approval";
-import { SystemCockpit } from "./cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
@@ -2116,7 +2121,6 @@ function Editor({
             selectedId={selectedId}
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
-            onBrowseUnits={setPairBrowse}
             onFloor={setPickedFloorId}
             floor={activeFloor}
             rest={cockpitRest}
@@ -2187,6 +2191,22 @@ function Editor({
             setReshapeRoomId(id);
           }}
           onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
+          unitsSection={
+            <RoomModalUnits
+              doc={doc}
+              pack={pack}
+              systemId={effectiveSystemId}
+              roomId={editingRoomId}
+              onMutate={mutate}
+              onBrowseUnits={(id) => {
+                /* the units modal replaces this one — two stacked dialogs
+                   would leave the room open behind a browser that can re-aim
+                   at a different room entirely */
+                setEditingRoomId(null);
+                setPairBrowse(id);
+              }}
+            />
+          }
         />
       )}
 
@@ -2473,6 +2493,56 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
    react-hooks/refs was pointing at), not a lint technicality. Here the
    derivation happens in this component's render and the handler is just a
    prop. ── */
+/* The room modal's units section.
+
+   A real component, not an inline IIFE in the editor's render: an arrow
+   created during render that hands a callback downwards trips
+   `react-hooks/refs` and CI blocks on it — the exact shape that cost hours
+   when the unit browser was an IIFE (see LensedUnitBrowser below).
+
+   It lives here rather than inside RoomModal because it needs the SYSTEM's
+   shape: the module decides whether a room takes a pair, an indoor head of
+   its own, or spill air. The modal is about the ROOM. */
+function RoomModalUnits({
+  doc,
+  pack,
+  systemId,
+  roomId,
+  onMutate,
+  onBrowseUnits,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  systemId: string | null;
+  roomId: string;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onBrowseUnits: (roomId: string) => void;
+}) {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  const room = doc.objects.find((o) => o.id === roomId);
+  if (!sys || !room || room.geometry.kind !== "polygon") return null;
+  const summary = SYSTEM_MODULES[sys.type].summary;
+  return (
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={sys}
+      room={room as RoomObj}
+      basis={doc.settings.sizingBasis}
+      ducted={summary === "ducted"}
+      perRoom={summary === "capacity"}
+      onMutate={onMutate}
+      onBrowseUnits={onBrowseUnits}
+      onRelease={(id) =>
+        onMutate((d) => ({
+          ...d,
+          systems: releaseRoomFromSystem(d.systems, sys.id, id),
+        }))
+      }
+    />
+  );
+}
+
 function LensedUnitBrowser({
   doc,
   pack,

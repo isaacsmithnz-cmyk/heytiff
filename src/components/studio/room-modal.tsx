@@ -78,6 +78,7 @@ export function RoomModal({
   onRemarkWalls,
   onEditShape,
   onOpenReference,
+  unitsSection,
 }: {
   doc: DesignDocument;
   roomId: string;
@@ -88,6 +89,14 @@ export function RoomModal({
   /** unpin the room on the canvas to resize / move it (saves first) */
   onEditShape?: (roomId: string) => void;
   onOpenReference?: () => void;
+  /** the room's units, rendered by the host. The panel used to unfold an
+      Inspect card under the rooms list; a room click opens this modal instead
+      (Isaac, 2026-08-25), so "everything for that room" has to include what is
+      serving it. Passed as a slot rather than built here: the units section
+      needs the system, the pack and the sizing basis, and this modal is about
+      the ROOM — it should not have to learn the shape of a system to show
+      them. */
+  unitsSection?: React.ReactNode;
 }) {
   const room = useMemo(() => doc.objects.find((o) => o.id === roomId), [doc.objects, roomId]);
   const floor = useMemo(
@@ -542,6 +551,10 @@ export function RoomModal({
               {loadKw != null ? `${loadKw.toFixed(2)} kW` : "—"}
             </div>
           </div>
+
+          {/* what is serving the room, after what the room IS — the figures
+              above are the question, this is the answer to it */}
+          {unitsSection && <div className="ds-rm-units">{unitsSection}</div>}
         </div>
 
         <footer className="ds-rm-foot">

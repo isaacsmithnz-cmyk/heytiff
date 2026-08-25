@@ -7,7 +7,8 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { SystemCockpit } from "../cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "../cockpit-panel";
+import type { RoomObj } from "@/lib/studio/loads-room";
 import {
   createDesign,
   type DesignDocument,
@@ -103,7 +104,6 @@ function renderCockpit(
       selectedId={null}
       onSelect={() => {}}
       onEditRoom={() => {}}
-      onBrowseUnits={() => {}}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
@@ -114,6 +114,30 @@ function renderCockpit(
 }
 
 const heroState = (c: HTMLElement) => c.querySelector(".ds-ck-caphero")!.getAttribute("data-state");
+
+
+/* The Inspect card left the panel on 2026-08-25 — the room modal hosts it now.
+   The card's behaviour is unchanged, so these render it where it lives. */
+function renderInspect(
+  doc: DesignDocument,
+  roomId: string,
+  handlers: { onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void } = {}
+) {
+  const room = doc.objects.find((o) => o.id === roomId) as RoomObj;
+  return render(
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={doc.systems[0]}
+      room={room}
+      basis={doc.settings.sizingBasis}
+      ducted
+      onMutate={handlers.onMutate ?? (() => {})}
+      onBrowseUnits={() => {}}
+      onRelease={() => {}}
+    />
+  );
+}
 
 describe("Cockpit ducted body", () => {
   it("pre-pair: donut hero reads the requirement; Select air handler CTA in the section", () => {
@@ -207,8 +231,8 @@ describe("Cockpit ducted body", () => {
   });
 
   it("ducted room inspect shows the outlets placeholder and spill toggle, no sub-tabs", () => {
-    renderCockpit(mkDoc({ objects: twoRooms() }));
-    // the Configure/Units/Pipework switcher is gone; Configure moved to the pill
+    renderInspect(mkDoc({ objects: twoRooms() }), "room1");
+    // the Configure/Units/Pipework switcher is gone
     expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Units" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Pipework" })).toBeNull();

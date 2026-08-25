@@ -172,7 +172,6 @@ export function SystemCockpit({
   selectedId,
   onSelect,
   onEditRoom,
-  onBrowseUnits,
   onFloor,
   floor,
   rest,
@@ -190,7 +189,6 @@ export function SystemCockpit({
   onSelect: (id: string | null) => void;
   onEditRoom: (id: string) => void;
   /** open THE unit browser (the editor's single instance) on this room */
-  onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   floor: Floor;
   /** the panel's two sizes (slice 6): `rested` swaps the panel for the 46px
@@ -368,7 +366,6 @@ export function SystemCockpit({
           onSelect={onSelect}
           onMutate={onMutate}
           onEditRoom={onEditRoom}
-          onBrowseUnits={onBrowseUnits}
           onFloor={onFloor}
           systemSelector={systemSelector}
           restControl={restControl}
@@ -668,7 +665,6 @@ function ActiveCockpit({
   onSelect,
   onMutate,
   onEditRoom,
-  onBrowseUnits,
   onFloor,
   onChangeType,
   systemSelector,
@@ -683,7 +679,6 @@ function ActiveCockpit({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
-  onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   onChangeType: () => void;
   systemSelector?: React.ReactNode;
@@ -813,12 +808,10 @@ function ActiveCockpit({
             ducted={ducted}
             perRoom={perRoom}
             selObj={selObj ?? null}
-            inspectRoom={inspectRoom}
             highlightRoomId={highlightRoomId}
             onSelect={onSelect}
             onMutate={onMutate}
             onEditRoom={onEditRoom}
-            onBrowseUnits={onBrowseUnits}
             onFloor={onFloor}
           />
           <ComponentsView
@@ -1708,12 +1701,10 @@ function RoomsView({
   ducted,
   perRoom,
   selObj,
-  inspectRoom,
   highlightRoomId,
   onSelect,
   onMutate,
   onEditRoom,
-  onBrowseUnits,
   onFloor,
 }: {
   doc: DesignDocument;
@@ -1725,12 +1716,10 @@ function RoomsView({
   ducted: boolean;
   perRoom: boolean;
   selObj: DesignObject | null;
-  inspectRoom: RoomObj | null;
   highlightRoomId: string;
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
-  onBrowseUnits: (roomId: string) => void;
   /** take the canvas to a floor — selecting a room on another storey should
       show you that storey, not leave you looking at a plan it isn't on */
   onFloor?: (floorId: string) => void;
@@ -1759,25 +1748,6 @@ function RoomsView({
     }));
     setAdopting(false);
   };
-
-  const releaseRoom = (roomId: string) =>
-    onMutate((d) => ({
-      ...d,
-      systems: d.systems.map((s) =>
-        s.id === system.id
-          ? {
-              ...s,
-              settings: {
-                ...s.settings,
-                roomIds: (Array.isArray(s.settings.roomIds)
-                  ? (s.settings.roomIds as string[])
-                  : []
-                ).filter((id) => id !== roomId),
-              },
-            }
-          : s
-      ),
-    }));
 
   const floorName = (id: string) => doc.floors.find((f) => f.id === id)?.name ?? "";
 
@@ -1854,6 +1824,12 @@ function RoomsView({
                   // follow the room to its own storey before selecting it
                   if (r.floorId !== floor.id) onFloor?.(r.floorId);
                   onSelect(r.id);
+                  /* the row opens the room (Isaac, 2026-08-25). The panel used
+                     to answer a click by unfolding an Inspect card beneath the
+                     list; everything that card held now lives in the modal, so
+                     the click goes straight there. Selecting still happens, so
+                     the room lights up on the plan behind it. */
+                  onEditRoom(r.id);
                 }}
                 title={
                   cov.status === "covered"
@@ -1880,18 +1856,6 @@ function RoomsView({
                     ⤢
                   </span>
                 )}
-              </button>
-              {/* Configure moved off the room card onto the pill (opens the room modal) */}
-              <button
-                className="ds-ck-rcfg"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditRoom(r.id);
-                }}
-                title={`Configure ${roomName} — name, area, heat load, walls`}
-                aria-label="Configure room"
-              >
-                <Glyph name="configure" size={14} />
               </button>
             </div>
     );
@@ -1955,9 +1919,15 @@ function RoomsView({
         </div>
       )}
 
-      <div className="ds-ck-lbl">
-        <span className="rl">Inspect</span>
-      </div>
+      {/* the heading belongs to the OBJECT cards below, and only appears with
+          one. It used to be unconditional because a room was always being
+          inspected; with rooms moved to their modal it was left labelling an
+          empty rail (seen on Isaac's screen, 2026-08-25). */}
+      {selObj && (
+        <div className="ds-ck-lbl">
+          <span className="rl">Inspect</span>
+        </div>
+      )}
 
       {selObj ? (
         selObj.type === "plenum" ? (
@@ -1978,27 +1948,18 @@ function RoomsView({
             onSelect={onSelect}
           />
         )
-      ) : inspectRoom ? (
-        <RoomInspectCard
-          doc={doc}
-          pack={pack}
-          system={system}
-          room={inspectRoom}
-          basis={basis}
-          ducted={ducted}
-          perRoom={perRoom}
-          onMutate={onMutate}
-          onBrowseUnits={onBrowseUnits}
-          onRelease={releaseRoom}
-        />
       ) : null}
+      {/* No room Inspect card here any more — a room click opens the modal,
+          which carries the same header and the same units section. The OBJECT
+          cards above stay: they answer a canvas selection (a run, a unit, a
+          plenum), which is not a room and has nowhere else to go. */}
     </>
   );
 }
 
 /* ─────────────────── inspect card (a served room) ─────────────────── */
 
-function RoomInspectCard({
+export function RoomInspectCard({
   doc,
   pack,
   system,

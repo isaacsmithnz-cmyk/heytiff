@@ -2273,21 +2273,6 @@ export function UnitsSub({
             placed={Boolean(placedOdu)}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
           />
-          {/* Same slot as the first-run button above — the action for this
-              section sits UNDER what it acts on, so it reads as "these units,
-              change them" rather than as a header control. It stays offered
-              mid-placement: picking the wrong pair and placing one of them
-              used to leave you stuck with it, and `choose` takes any placed
-              unit back off the plan with it, so nothing is stranded. */}
-          <button
-            className="ds-ck-inkbtn"
-            style={{ marginTop: 10 }}
-            onClick={() => onBrowseUnits(room.id)}
-            title="Swap the chosen units"
-          >
-            <Glyph name="rotate" size={16} />
-            Swap units
-          </button>
         </>
       )}
 

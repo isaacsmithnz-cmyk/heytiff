@@ -531,11 +531,13 @@ export function LogModal({
   // rego picker: default vehicle first, then the rest of the working fleet by plate
   const pickable = [...(fleetVehicles ?? [])]
     .filter((v) => v.status !== "sold")
-    .sort(
-      (a, b) =>
-        (a.id === vehicle.id ? -1 : 0) - (b.id === vehicle.id ? -1 : 0) ||
-        a.plate.localeCompare(b.plate),
-    );
+    /* two statements, not one `||`: React Compiler 1.0 refuses a logical
+       whose test is a ternary and gives up on the whole component */
+    .sort((a, b) => {
+      const byDefault = (a.id === vehicle.id ? -1 : 0) - (b.id === vehicle.id ? -1 : 0);
+      if (byDefault !== 0) return byDefault;
+      return a.plate.localeCompare(b.plate);
+    });
   const target = pickable.find((v) => v.id === vehicleId) ?? vehicle;
   const vehiclePicker = pickable.length > 1 && (
     /* A native <option> can only hold text, so the list stays plain and the

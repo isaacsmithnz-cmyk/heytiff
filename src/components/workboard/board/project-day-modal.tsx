@@ -152,91 +152,6 @@ export function ProjectDayModal({
     );
   };
 
-  return createPortal(
-    <>
-      <div className="wb2-scrim" onClick={onClose} />
-      <div
-        className="wb2-daymodal"
-        role="dialog"
-        aria-modal="true"
-        aria-label={fmtAuWeekdayDayMonth(dayISO)}
-      >
-        <div className="wb2-dmhd" data-tone={tone}>
-          <div className="wb2-dmtop">
-            <span className="wb2-sect">{when}</span>
-            <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
-              <Icon name="x" size={14} />
-            </button>
-          </div>
-          <h2>{fmtAuWeekdayDayMonth(dayISO)}</h2>
-          <div className="wb2-dmchips">
-            <span className={"wb2-chip" + (chipTone ? ` ${chipTone}` : "")}>{chipText}</span>
-            {dayVisits.length > 0 && (
-              <span className="wb2-chip">
-                {dayVisits.length} {dayVisits.length === 1 ? "trip" : "trips"}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="wb2-dmbody">
-          {dayVisits.length === 0 && (
-            <div className="wb2-empty">
-              <Icon name="calendar" size={20} />
-              <b>No trips on this day</b>
-              <em>
-                {candidates.unplaced.length || candidates.elsewhere.length
-                  ? "Place a trip below to start the day."
-                  : "Every open trip already has its day."}
-              </em>
-            </div>
-          )}
-
-          {dayVisits.map((v) => (
-            <DayCard key={v.id} v={v} />
-          ))}
-
-          {(placing || dayVisits.length === 0) &&
-            (candidates.unplaced.length > 0 || candidates.elsewhere.length > 0) && (
-              <div className="wb2-dmgrp">
-                {candidates.unplaced.length > 0 && (
-                  <>
-                    <span className="wb2-sect">Not placed yet</span>
-                    {candidates.unplaced.map(candidateRow)}
-                  </>
-                )}
-                {candidates.elsewhere.length > 0 && (
-                  <>
-                    <span className="wb2-sect">Booked another day — moving one reschedules it</span>
-                    {candidates.elsewhere.map(candidateRow)}
-                  </>
-                )}
-              </div>
-            )}
-        </div>
-
-        <div className="wb2-dmft">
-          {manage && (
-            <button className="pbtn" disabled={busy} onClick={() => setPlacing((p) => !p)}>
-              <Icon name="plus" size={15} />
-              Place a trip on this day
-            </button>
-          )}
-          {dayVisits.length > 0 && (
-            <span className="wb2-hint" style={{ margin: 0, marginLeft: "auto" }}>
-              {good === dayVisits.length
-                ? dayVisits.every((v) => v.status === "done")
-                  ? "All done and closed"
-                  : "Every trip ready to run"
-                : `${good} of ${dayVisits.length} good to go`}
-            </span>
-          )}
-        </div>
-      </div>
-    </>,
-    document.body
-  );
-
   function DayCard({ v }: { v: ProjectBoardVisit }) {
     const vTone = projectToneOf(v, today);
     const missing = projectMissingOf(v);
@@ -369,4 +284,93 @@ export function ProjectDayModal({
       </div>
     );
   }
+
+  /* THE RETURN IS LAST, under the components it renders, and has to stay
+     there: a hoisted `function` declaration after a `return` is unreachable
+     code, which React Compiler 1.0 refuses to compile past — it gives up on
+     the whole component. */
+  return createPortal(
+    <>
+      <div className="wb2-scrim" onClick={onClose} />
+      <div
+        className="wb2-daymodal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={fmtAuWeekdayDayMonth(dayISO)}
+      >
+        <div className="wb2-dmhd" data-tone={tone}>
+          <div className="wb2-dmtop">
+            <span className="wb2-sect">{when}</span>
+            <button ref={closeRef} className="wb2-ico" onClick={onClose} title="Close" aria-label="Close">
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+          <h2>{fmtAuWeekdayDayMonth(dayISO)}</h2>
+          <div className="wb2-dmchips">
+            <span className={"wb2-chip" + (chipTone ? ` ${chipTone}` : "")}>{chipText}</span>
+            {dayVisits.length > 0 && (
+              <span className="wb2-chip">
+                {dayVisits.length} {dayVisits.length === 1 ? "trip" : "trips"}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="wb2-dmbody">
+          {dayVisits.length === 0 && (
+            <div className="wb2-empty">
+              <Icon name="calendar" size={20} />
+              <b>No trips on this day</b>
+              <em>
+                {candidates.unplaced.length || candidates.elsewhere.length
+                  ? "Place a trip below to start the day."
+                  : "Every open trip already has its day."}
+              </em>
+            </div>
+          )}
+
+          {dayVisits.map((v) => (
+            <DayCard key={v.id} v={v} />
+          ))}
+
+          {(placing || dayVisits.length === 0) &&
+            (candidates.unplaced.length > 0 || candidates.elsewhere.length > 0) && (
+              <div className="wb2-dmgrp">
+                {candidates.unplaced.length > 0 && (
+                  <>
+                    <span className="wb2-sect">Not placed yet</span>
+                    {candidates.unplaced.map(candidateRow)}
+                  </>
+                )}
+                {candidates.elsewhere.length > 0 && (
+                  <>
+                    <span className="wb2-sect">Booked another day — moving one reschedules it</span>
+                    {candidates.elsewhere.map(candidateRow)}
+                  </>
+                )}
+              </div>
+            )}
+        </div>
+
+        <div className="wb2-dmft">
+          {manage && (
+            <button className="pbtn" disabled={busy} onClick={() => setPlacing((p) => !p)}>
+              <Icon name="plus" size={15} />
+              Place a trip on this day
+            </button>
+          )}
+          {dayVisits.length > 0 && (
+            <span className="wb2-hint" style={{ margin: 0, marginLeft: "auto" }}>
+              {good === dayVisits.length
+                ? dayVisits.every((v) => v.status === "done")
+                  ? "All done and closed"
+                  : "Every trip ready to run"
+                : `${good} of ${dayVisits.length} good to go`}
+            </span>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body
+  );
 }

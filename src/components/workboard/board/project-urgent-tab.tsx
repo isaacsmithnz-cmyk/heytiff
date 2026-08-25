@@ -101,103 +101,6 @@ export function ProjectUrgentTab({
       </button>
     );
 
-  return (
-    <>
-      <div className="wb2-chd">
-        <span className="wb2-ci dan">
-          <Icon name="zap" size={19} />
-        </span>
-        <div>
-          <b>Needs attention</b>
-          <em>Late trips first, then what&apos;s stuck.</em>
-        </div>
-        <div className="wb2-filters">
-          {filterChip("all", "everything", "")}
-          {filterChip("trips", "trips", "dan")}
-          {filterChip("projects", "stuck projects", "warn")}
-          {filterChip("flags", "flags", "warn")}
-        </div>
-      </div>
-
-      {shown.length === 0 ? (
-        <div className="wb2-empty">
-          <Icon name="check" size={20} />
-          <b>{filter === "all" ? "Nothing needs attention right now" : "Nothing of that kind right now"}</b>
-          <em>
-            {filter === "all"
-              ? "Every project is moving and every trip is on track."
-              : "The rest of the queue is under Everything."}
-          </em>
-        </div>
-      ) : (
-        <UrgentBody
-          overdue={shown
-            .filter((r) => r.reason === "visit_overdue")
-            .map((r) => <Row key={r.key} r={r} />)}
-          soon={shown
-            .filter((r) => r.reason !== "visit_overdue")
-            .map((r) => <Row key={r.key} r={r} />)}
-        />
-      )}
-    </>
-  );
-
-  function Row({ r }: { r: ProjectUrgentRow }) {
-    const openable = !!r.visitId;
-    return (
-      <div
-        className={"wb2-ur" + (openable ? " can-open" : "")}
-        data-sev={r.severity === "danger" ? "dan" : "warn"}
-        role={openable ? "button" : undefined}
-        tabIndex={openable ? 0 : undefined}
-        aria-label={openable ? `Open ${r.label}` : undefined}
-        onClick={openable ? () => onOpenVisit(r.visitId!) : undefined}
-        onKeyDown={
-          openable
-            ? (e) => {
-                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                  e.preventDefault();
-                  onOpenVisit(r.visitId!);
-                }
-              }
-            : undefined
-        }
-      >
-        <div className="wb2-urt">
-          <div className="wb2-urwhy">
-            <span className={"wb2-chip " + (r.severity === "danger" ? "dan" : "warn")}>
-              {r.headline}
-            </span>
-            {r.also.map((a) => (
-              <span className="wb2-chip" key={a}>
-                {a}
-              </span>
-            ))}
-          </div>
-          <b>{r.reason === "flag" ? r.headline : r.label}</b>
-          {r.reason === "flag" ? (
-            <em>Raised from a note — stays up until somebody clears it.</em>
-          ) : r.visitId ? (
-            /* Facts, not instructions — see the note in urgent-tab. */
-            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
-          ) : (
-            <em>
-              {r.clientName ? `${r.clientName} · ` : ""}
-              {r.reason === "blocked"
-                ? "unblocking is a decision — open the project"
-                : r.reason === "promise"
-                  ? "the promise needs a call: pull crew forward or reset the date"
-                  : r.reason === "burn"
-                    ? "the hours are the news — worth a look before quoting more"
-                    : "open it and move something, or park it on hold honestly"}
-            </em>
-          )}
-        </div>
-        <RowAction r={r} />
-      </div>
-    );
-  }
-
   function RowAction({ r }: { r: ProjectUrgentRow }) {
     const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -310,4 +213,105 @@ export function ProjectUrgentTab({
       </button>
     );
   }
+
+  function Row({ r }: { r: ProjectUrgentRow }) {
+    const openable = !!r.visitId;
+    return (
+      <div
+        className={"wb2-ur" + (openable ? " can-open" : "")}
+        data-sev={r.severity === "danger" ? "dan" : "warn"}
+        role={openable ? "button" : undefined}
+        tabIndex={openable ? 0 : undefined}
+        aria-label={openable ? `Open ${r.label}` : undefined}
+        onClick={openable ? () => onOpenVisit(r.visitId!) : undefined}
+        onKeyDown={
+          openable
+            ? (e) => {
+                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                  e.preventDefault();
+                  onOpenVisit(r.visitId!);
+                }
+              }
+            : undefined
+        }
+      >
+        <div className="wb2-urt">
+          <div className="wb2-urwhy">
+            <span className={"wb2-chip " + (r.severity === "danger" ? "dan" : "warn")}>
+              {r.headline}
+            </span>
+            {r.also.map((a) => (
+              <span className="wb2-chip" key={a}>
+                {a}
+              </span>
+            ))}
+          </div>
+          <b>{r.reason === "flag" ? r.headline : r.label}</b>
+          {r.reason === "flag" ? (
+            <em>Raised from a note — stays up until somebody clears it.</em>
+          ) : r.visitId ? (
+            /* Facts, not instructions — see the note in urgent-tab. */
+            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
+          ) : (
+            <em>
+              {r.clientName ? `${r.clientName} · ` : ""}
+              {r.reason === "blocked"
+                ? "unblocking is a decision — open the project"
+                : r.reason === "promise"
+                  ? "the promise needs a call: pull crew forward or reset the date"
+                  : r.reason === "burn"
+                    ? "the hours are the news — worth a look before quoting more"
+                    : "open it and move something, or park it on hold honestly"}
+            </em>
+          )}
+        </div>
+        <RowAction r={r} />
+      </div>
+    );
+  }
+
+  /* THE RETURN IS LAST, under the components it renders, and has to stay
+     there: a hoisted `function` declaration after a `return` is unreachable
+     code, which React Compiler 1.0 refuses to compile past — it gives up on
+     the whole component. */
+  return (
+    <>
+      <div className="wb2-chd">
+        <span className="wb2-ci dan">
+          <Icon name="zap" size={19} />
+        </span>
+        <div>
+          <b>Needs attention</b>
+          <em>Late trips first, then what&apos;s stuck.</em>
+        </div>
+        <div className="wb2-filters">
+          {filterChip("all", "everything", "")}
+          {filterChip("trips", "trips", "dan")}
+          {filterChip("projects", "stuck projects", "warn")}
+          {filterChip("flags", "flags", "warn")}
+        </div>
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="wb2-empty">
+          <Icon name="check" size={20} />
+          <b>{filter === "all" ? "Nothing needs attention right now" : "Nothing of that kind right now"}</b>
+          <em>
+            {filter === "all"
+              ? "Every project is moving and every trip is on track."
+              : "The rest of the queue is under Everything."}
+          </em>
+        </div>
+      ) : (
+        <UrgentBody
+          overdue={shown
+            .filter((r) => r.reason === "visit_overdue")
+            .map((r) => <Row key={r.key} r={r} />)}
+          soon={shown
+            .filter((r) => r.reason !== "visit_overdue")
+            .map((r) => <Row key={r.key} r={r} />)}
+        />
+      )}
+    </>
+  );
 }

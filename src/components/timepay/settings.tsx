@@ -553,15 +553,6 @@ export function TimePaySettings({
      otherwise anchor this position:fixed overlay to the page instead of the
      viewport. display:contents wrappers keep the .fg .tpr style scope without
      re-applying the shell's own layout. */
-  return createPortal(
-    <div className="fg" style={{ display: "contents" }}>
-      <div className="tpr" style={{ display: "contents" }}>
-        {renderModal()}
-      </div>
-    </div>,
-    document.body
-  );
-
   function renderModal() {
     return (
     <div className="tset open">
@@ -843,4 +834,17 @@ export function TimePaySettings({
     </div>
     );
   }
+
+  /* THE RETURN IS LAST, under the components it renders, and has to stay
+     there: a hoisted `function` declaration after a `return` is unreachable
+     code, which React Compiler 1.0 refuses to compile past — it gives up on
+     the whole component. */
+  return createPortal(
+    <div className="fg" style={{ display: "contents" }}>
+      <div className="tpr" style={{ display: "contents" }}>
+        {renderModal()}
+      </div>
+    </div>,
+    document.body
+  );
 }

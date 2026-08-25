@@ -239,6 +239,11 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
           const ch = chipColor(v.allocation);
           const annual = bd[v.vehicle_id]?.annual;
           const costs = v.costs || {};
+          /* read out here, not inside the `&&` below: React Compiler 1.0
+             refuses a logical whose test is itself a logical, and gives up
+             on the whole component when it meets one */
+          const resale = costs.resale_value || 0;
+          const replacement = costs.replacement_value || 0;
           return (
             <div key={v.vehicle_id} style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, boxShadow: "0 8px 30px rgba(0,0,0,.03)", overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 18px", borderBottom: `1px solid ${RC.line}` }}>
@@ -252,7 +257,7 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
                   <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 20, letterSpacing: "-0.01em", color: ch.c }}>{money(annual)}</div>
                 </div>
               </div>
-              {(costs.resale_value || 0) > (costs.replacement_value || 0) && (
+              {resale > replacement && (
                 <div style={{ padding: "8px 18px", background: RC.amberSoft, fontSize: 12, color: RC.amberDeep, fontWeight: 600, borderBottom: `1px solid ${RC.line}` }}>
                   Resale is higher than replacement — depreciation goes negative and understates this vehicle&apos;s true cost. Check the two values.
                 </div>

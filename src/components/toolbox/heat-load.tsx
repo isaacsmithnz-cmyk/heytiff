@@ -10,7 +10,7 @@
    behind its one-line summary. Last-used factors are remembered per browser
    so repeat checks on the same site keep their context. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import {
@@ -97,6 +97,49 @@ export const HL_DEFAULTS: HlState = {
 
 const BUFFER_KEY = "heytiff.toolbox.heat-load.v2";
 
+/* THE SAVED FACTORS ARE READ AS AN EXTERNAL STORE, not restored by an effect.
+   A client-only value has to diverge from the HTML the server sent, and the
+   effect that used to do it needed a `react-hooks/set-state-in-effect`
+   disable — which makes React Compiler skip the whole component, whatever the
+   rule and however good the reason (see studio/canvas.tsx).
+   `useSyncExternalStore` says the same thing in the supported way: the server
+   snapshot through hydration, the real one after, and React re-renders for
+   the swap.
+
+   The parse is cached against the RAW string, so the snapshot keeps its
+   identity between renders — React loops otherwise — while still picking up a
+   write, including the one this screen makes on every factor change. */
+let lastRaw: string | null = null;
+let lastSaved: HlState | null = null;
+
+function savedFactors(): HlState | null {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(BUFFER_KEY);
+  } catch {
+    raw = null;
+  }
+  if (raw === lastRaw) return lastSaved;
+  lastRaw = raw;
+  lastSaved = null;
+  try {
+    const saved = raw ? (JSON.parse(raw) as { v: number; s: Partial<HlState> }) : null;
+    /* the size fields start blank either way — a quick check always begins
+       with the room in front of you */
+    if (saved && saved.v === 2 && saved.s) {
+      lastSaved = { ...HL_DEFAULTS, ...saved.s, lengthM: "", widthM: "", areaM2: "" };
+    }
+  } catch {
+    /* corrupt buffer — start fresh */
+  }
+  return lastSaved;
+}
+
+/** Nothing saved on the server, and nothing to subscribe to — the buffer only
+    ever changes because this screen wrote it, which already re-renders. */
+const noSavedFactors = () => null;
+const noSubscription = () => () => {};
+
 /* ---------- pure helpers (exported for tests) ---------- */
 
 /** Lenient numeric input parse — null unless a finite positive number. */
@@ -145,26 +188,16 @@ const fmtArea = (a: number) => (Math.round(a * 10) / 10).toString();
 /* ---------- component ---------- */
 
 export function HeatLoadCalculator() {
-  const [s, setS] = useState<HlState>(HL_DEFAULTS);
+  const saved = useSyncExternalStore(noSubscription, savedFactors, noSavedFactors);
+  /* null until the first change: what is on screen is the last-used factors
+     until somebody moves one, and only then is there an edit to hold. */
+  const [edits, setEdits] = useState<HlState | null>(null);
+  const s = edits ?? saved ?? HL_DEFAULTS;
   const [adjustOpen, setAdjustOpen] = useState(false);
   const hydrated = useRef(false);
   const lenRef = useRef<HTMLInputElement>(null);
 
-  /* restore last-used factors once on mount (size fields start blank — a
-     quick check always begins with the room in front of you) */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(BUFFER_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as { v: number; s: Partial<HlState> };
-        if (saved && saved.v === 2 && saved.s) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; must diverge from the SSR-safe initial render (rate-calculator pattern)
-          setS({ ...HL_DEFAULTS, ...saved.s, lengthM: "", widthM: "", areaM2: "" });
-        }
-      }
-    } catch {
-      /* corrupt buffer — start fresh */
-    }
     hydrated.current = true;
     lenRef.current?.focus();
   }, []);
@@ -186,7 +219,8 @@ export function HeatLoadCalculator() {
     return () => clearTimeout(t);
   }, [s]);
 
-  const patch = (p: Partial<HlState>) => setS((prev) => ({ ...prev, ...p }));
+  const patch = (p: Partial<HlState>) =>
+    setEdits((prev) => ({ ...(prev ?? saved ?? HL_DEFAULTS), ...p }));
 
   const zone = CLIMATE_ZONES[s.climateZone] ?? CLIMATE_ZONES[DEFAULT_CLIMATE_ZONE];
   const zoneWm2 = baseWm2({ climateZone: s.climateZone, buildingType: s.buildingType });
@@ -365,7 +399,7 @@ export function HeatLoadCalculator() {
               className="hl2-mode reset"
               onClick={() => {
                 const { lengthM, widthM, areaM2: a, areaMode, ceilingHeightM } = s;
-                setS({ ...HL_DEFAULTS, lengthM, widthM, areaM2: a, areaMode, ceilingHeightM });
+                setEdits({ ...HL_DEFAULTS, lengthM, widthM, areaM2: a, areaMode, ceilingHeightM });
               }}
             >
               Reset factors

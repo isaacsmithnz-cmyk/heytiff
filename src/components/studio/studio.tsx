@@ -23,6 +23,7 @@ import {
   type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
+import { DEFAULT_NOTE_INK, NOTE_INKS } from "@/lib/studio/notes";
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
@@ -2789,6 +2790,79 @@ function RoomTool({
   );
 }
 
+/* ── the Note tool: ONE bench button, and the flyout is the ink. A drawing
+   office marks up in more than one colour and the colour carries meaning the
+   words don't repeat, so the choice belongs where the tool is armed — the
+   same shape RoomTool and DrawTool use. Picking a swatch arms the tool in
+   that ink; `A` still arms the last one straight from the keyboard. ── */
+function NoteTool({
+  tool,
+  onTool,
+  ink,
+  onInk,
+}: {
+  tool: CanvasTool;
+  onTool: (t: CanvasTool) => void;
+  ink: string;
+  onInk: (hex: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const on = tool === "note";
+  return (
+    <div className="ds-pal-wrap" ref={wrapRef}>
+      <button
+        className={`ds-tool${on ? " on" : ""}`}
+        aria-label="Note"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Note — a cloud round something, with its say in the margin"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {/* the button carries the armed ink, so the bench says what the next
+            note will be drawn in without opening anything */}
+        <span className="ds-noteink-dot" style={{ background: ink }} aria-hidden="true" />
+        Note
+      </button>
+      {open && (
+        <div className="ds-roomfly ds-notefly" role="menu" aria-label="Note colour">
+          {NOTE_INKS.map((k) => (
+            <button
+              key={k.id}
+              role="menuitemradio"
+              aria-checked={ink === k.hex}
+              className={`ds-note-ink${ink === k.hex ? " on" : ""}`}
+              style={{ background: k.hex, color: k.hex }}
+              title={k.label}
+              aria-label={k.label}
+              onClick={() => {
+                onInk(k.hex);
+                onTool("note");
+                setOpen(false);
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── the Draw tool: ONE bench button for everything drawn as a line. The
    flyout names the three families — pipe (soft or hard drawn), drain (size
    picked at draw), cable (power or data) — and each chip arms its tool with
@@ -3416,6 +3490,10 @@ function DesignPanel({
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
+  /* the armed note ink. Transient like DrawOptions, not stored on the design:
+     it is "what I am marking up in right now", and every note keeps its own
+     colour on the document once drawn. */
+  const [noteInk, setNoteInk] = useState<string>(DEFAULT_NOTE_INK);
   /* pairing line sizes per system — what a drawn pipe autosizes its label to
      (per-run props override in the object card) */
   const runSizes = useMemo(() => {
@@ -3579,7 +3657,7 @@ function DesignPanel({
                 verb that is not about the SYSTEM at all: it needs no system to
                 arm and it never belongs to one. Last is also workflow order —
                 you draw the design, then you write on it. */}
-            {toolButton(tb("note"))}
+            <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setNoteInk} />
             <div className="ds-tb-spring" />
             <button
               className="ds-tool"
@@ -3634,6 +3712,7 @@ function DesignPanel({
             grayscale={grayscale}
             sim={null}
             draw={draw}
+            armedInk={noteInk}
             runSizes={runSizes}
             wheelMode={wheelMode}
           />

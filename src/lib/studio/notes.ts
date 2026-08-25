@@ -23,6 +23,51 @@ import { newId, type DesignObject, type Point } from "./document";
 
 export const NOTE_TYPE = "note";
 
+/* ── ink ──────────────────────────────────────────────────────────────────
+   A drawing office marks up in more than one colour, and the colour usually
+   means something the words don't repeat — this trade's clouds in one ink,
+   this revision's in another, a query in red.
+
+   Eight, and deliberately DEEP ones. The system palette (cockpit-panel.ts)
+   is mid-bright because a system is a 2.5px line; a note is TEXT that has to
+   be read off a printed sheet, so every ink here clears 4.5:1 on white and
+   sits darker than any system colour — which is also what keeps a note from
+   reading as somebody's pipework. Amber is missing on purpose: rooms wear it.
+   Guarded in __tests__/notes.test.ts. ── */
+export interface NoteInk {
+  id: string;
+  label: string;
+  hex: string;
+}
+
+export const NOTE_INKS: readonly NoteInk[] = [
+  { id: "indigo", label: "Indigo", hex: "#4338CA" },
+  { id: "blue", label: "Blue", hex: "#1D4ED8" },
+  { id: "teal", label: "Teal", hex: "#0F766E" },
+  { id: "green", label: "Green", hex: "#15803D" },
+  { id: "red", label: "Red", hex: "#C81E3C" },
+  { id: "orange", label: "Orange", hex: "#C2410C" },
+  { id: "purple", label: "Purple", hex: "#7E22CE" },
+  { id: "graphite", label: "Graphite", hex: "#334155" },
+];
+
+/** what a note is drawn in when nobody has chosen — the ink notes shipped in */
+export const DEFAULT_NOTE_INK = NOTE_INKS[0].hex;
+
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+
+/** A note's ink.
+
+    The HEX is stored, not the palette id, for the same reason `DesignSystem`
+    stores one: a design printed a year from now must come out the colour it
+    was drawn in, even if this palette is retuned. So the check here is that
+    the value is a well-formed colour, NOT that it is still on the palette —
+    a note keeps whatever it was given, and only garbage falls back. */
+export function noteInkOf(o: DesignObject): string {
+  const v = o.props.ink;
+  return typeof v === "string" && HEX6.test(v) ? v : DEFAULT_NOTE_INK;
+}
+
 /** A note's cloud, as a box. Stored as the polygon's four corners so a note
     is an ordinary object to everything that walks geometry (bounds, floors,
     delete); read back as a rect because a cloud is always axis-aligned. */
@@ -95,6 +140,8 @@ export function createNote(opts: {
   rect: NoteRect;
   leader: Point;
   text?: string;
+  /** the armed ink; omitted = the default */
+  ink?: string;
   id?: string;
 }): DesignObject {
   return {
@@ -110,6 +157,7 @@ export function createNote(opts: {
     props: {
       text: opts.text ?? "",
       leader: { x: opts.leader.x, y: opts.leader.y },
+      ink: opts.ink && HEX6.test(opts.ink) ? opts.ink : DEFAULT_NOTE_INK,
     },
   };
 }

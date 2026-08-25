@@ -205,6 +205,26 @@ describe("PlanFigure", () => {
       expect(b.x + b.w).toBeGreaterThan(2400); // past the leader, not just to it
     });
 
+    /* a note prints in the ink it was DRAWN in — the whole reason the hex is
+       stored on the document rather than a palette id */
+    it("prints each note in its own ink", () => {
+      const d = fixtureDoc();
+      d.objects = [
+        ...d.objects,
+        createNote({ floorId: "f1", rect: { x: 100, y: 100, w: 120, h: 90 },
+          leader: { x: 900, y: 150 }, text: "Query", ink: "#C81E3C", id: "n_red" }),
+        createNote({ floorId: "f1", rect: { x: 260, y: 100, w: 120, h: 90 },
+          leader: { x: 900, y: 320 }, text: "Note", ink: "#15803D", id: "n_green" }),
+      ];
+      const { container } = render(
+        <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+      );
+      const inks = [...container.querySelectorAll<SVGGElement>(".ds-note")].map(
+        (g) => g.style.color
+      );
+      expect(inks).toEqual(["rgb(200, 30, 60)", "rgb(21, 128, 61)"]);
+    });
+
     it("is not counted as a room", () => {
       const d = withNote();
       const { container } = render(

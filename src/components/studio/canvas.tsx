@@ -118,6 +118,9 @@ import {
   moveNote,
   noteBounds,
   noteHit,
+  noteInkOf,
+  NOTE_INKS,
+  DEFAULT_NOTE_INK,
   noteLeader,
   noteRect,
   noteText,
@@ -594,6 +597,7 @@ export function StudioCanvas({
   sim = null,
   bare = false,
   draw = DEFAULT_DRAW,
+  armedInk = DEFAULT_NOTE_INK,
   runSizes,
   wheelMode = "pan",
 }: {
@@ -655,6 +659,8 @@ export function StudioCanvas({
   bare?: boolean;
   /** armed Draw options (pipe form, drain size, cable kind) */
   draw?: DrawOptions;
+  /** the ink the NEXT note is drawn in (the Note flyout's armed swatch) */
+  armedInk?: string;
   /** systemId → the pairing's line sizes; pipe-run labels autosize from this
       (per-run props override) */
   runSizes?: ReadonlyMap<string, { liquidMm: number; gasMm: number }>;
@@ -1888,12 +1894,21 @@ export function StudioCanvas({
   };
 
   const commitNote = (rect: NoteRect, leader: Point) => {
-    const note = createNote({ floorId: floor.id, rect, leader });
+    const note = createNote({ floorId: floor.id, rect, leader, ink: armedInk });
     onMutate((d) => ({ ...d, objects: [...d.objects, note] }));
     onSelect(note.id);
     // straight into the words: a cloud with nothing to say is not a note
     setNoteEdit({ id: note.id, text: "" });
     onToolDone();
+  };
+
+  const setNoteInk = (id: string, ink: string) => {
+    onMutate((d) => ({
+      ...d,
+      objects: d.objects.map((o) =>
+        o.id === id ? { ...o, props: { ...o.props, ink } } : o
+      ),
+    }));
   };
 
   const saveNoteText = (id: string, text: string) => {
@@ -4039,7 +4054,11 @@ export function StudioCanvas({
             const start = leaderStart(rect, leader);
             const on = stored.id === selectedId || noteEdit?.id === stored.id;
             return (
-              <g key={stored.id} className={`ds-note${on ? " sel" : ""}`}>
+              <g
+                key={stored.id}
+                className={`ds-note${on ? " sel" : ""}`}
+                style={{ color: noteInkOf(n) }}
+              >
                 <path className="ds-note-cloud" d={cloudPath(rect)} />
                 <polyline
                   className="ds-note-leader"
@@ -4068,14 +4087,14 @@ export function StudioCanvas({
           {/* the cloud being dragged out — it is the shape you will get, not a
               box that turns into one on release */}
           {tool === "note" && noteDraft && (
-            <g className="ds-note draft">
+            <g className="ds-note draft" style={{ color: armedInk }}>
               <path className="ds-note-cloud" d={cloudPath(rectFromDrag(noteDraft.a, noteDraft.b))} />
             </g>
           )}
           {/* cloud drawn, waiting to be told where its words go: the leader
               rubber-bands to the cursor so the margin lands where you look */}
           {tool === "note" && notePin && (
-            <g className="ds-note draft">
+            <g className="ds-note draft" style={{ color: armedInk }}>
               <path className="ds-note-cloud" d={cloudPath(notePin)} />
               {cursor && (
                 <polyline
@@ -4268,6 +4287,26 @@ export function StudioCanvas({
                   }
                 }}
               />
+              {/* the ink, on the note it belongs to. Recolouring is a
+                  document edit like any other — one press, one undo step. */}
+              <div className="ds-note-inks" role="radiogroup" aria-label="Note colour">
+                {NOTE_INKS.map((ink) => {
+                  const on = noteInkOf(n) === ink.hex;
+                  return (
+                    <button
+                      key={ink.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      className={`ds-note-ink${on ? " on" : ""}`}
+                      style={{ background: ink.hex, color: ink.hex }}
+                      title={ink.label}
+                      aria-label={ink.label}
+                      onClick={() => setNoteInk(noteEdit.id, ink.hex)}
+                    />
+                  );
+                })}
+              </div>
               <div className="ds-note-actions">
                 <button
                   className="ds-calib-cancel"

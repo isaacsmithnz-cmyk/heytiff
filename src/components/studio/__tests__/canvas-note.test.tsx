@@ -16,8 +16,11 @@ import {
   isNote,
   noteLeader,
   noteRect,
+  noteInkOf,
   noteText,
   noteTextLayout,
+  DEFAULT_NOTE_INK,
+  NOTE_INKS,
 } from "@/lib/studio/notes";
 
 /* the margin text's world size at these fixtures' zoom. Notes hold a constant
@@ -52,6 +55,7 @@ function renderCanvas(opts: {
   doc?: DesignDocument;
   activeSystemId?: string | null;
   selectedId?: string | null;
+  armedInk?: string;
 } = {}) {
   let doc = opts.doc ?? mkDoc();
   const onMutate = jest.fn((fn: (d: DesignDocument) => DesignDocument) => {
@@ -69,6 +73,7 @@ function renderCanvas(opts: {
       onMutate={onMutate}
       onToolDone={() => {}}
       activeSystemId={opts.activeSystemId === undefined ? "sys1" : opts.activeSystemId}
+      armedInk={opts.armedInk}
       component={null}
       iduSpec={() => null}
       onPlaced={() => {}}
@@ -281,10 +286,86 @@ describe("a note on the drawing", () => {
     expect(screen.getByLabelText("Note text")).toHaveValue("Existing unit stays");
   });
 
+  it("is drawn in its own ink, not the group's fallback", () => {
+    const d = mkDoc();
+    d.objects = [
+      createNote({
+        floorId: "flr",
+        rect: { x: 0, y: 0, w: 200, h: 100 },
+        leader: { x: 600, y: 0 },
+        text: "Query",
+        ink: "#C81E3C",
+        id: "note_1",
+      }),
+    ];
+    const v = renderCanvas({ tool: "select", doc: d });
+    expect(v.container.querySelector<SVGGElement>(".ds-note")!.style.color).toBe(
+      "rgb(200, 30, 60)"
+    );
+  });
+
   it("erases whole — half a note is a leader pointing at nothing", () => {
     const v = renderCanvas({ tool: "erase", doc: withNote() });
     fireEvent.pointerDown(v.svg, world(v.svg, 0, 0));
     fireEvent.pointerUp(v.svg, world(v.svg, 0, 0));
     expect(v.notes).toHaveLength(0);
+  });
+});
+
+/* The ink is armed on the bench and lands on the note; the note keeps it, and
+   the editor can change it afterwards. */
+describe("choosing the ink", () => {
+  const make = (v: ReturnType<typeof renderCanvas>) => {
+    dragCloud(v.svg);
+    placeWords(v.svg);
+  };
+
+  it("draws the next note in the armed ink", () => {
+    const v = renderCanvas({ armedInk: "#15803D" });
+    make(v);
+    expect(noteInkOf(v.notes[0])).toBe("#15803D");
+  });
+
+  it("defaults to the ink notes shipped in", () => {
+    const v = renderCanvas();
+    make(v);
+    expect(noteInkOf(v.notes[0])).toBe(DEFAULT_NOTE_INK);
+  });
+
+  /* what you are about to draw is drawn in what you picked — the draft is not
+     a grey preview of a coloured thing */
+  it("shows the armed ink on the cloud being dragged", () => {
+    const v = renderCanvas({ armedInk: "#C2410C" });
+    fireEvent.pointerDown(v.svg, world(v.svg, 0, 0));
+    fireEvent.pointerMove(v.svg, world(v.svg, 200, 100));
+    expect(v.container.querySelector<SVGGElement>(".ds-note.draft")!.style.color).toBe(
+      "rgb(194, 65, 12)"
+    );
+  });
+
+  it("offers every ink in the editor, and recolours on a press", () => {
+    const v = renderCanvas();
+    make(v);
+    const swatches = screen.getAllByRole("radio");
+    expect(swatches).toHaveLength(NOTE_INKS.length);
+    expect(swatches[0]).toBeChecked();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Red" }));
+    expect(noteInkOf(v.notes[0])).toBe("#C81E3C");
+    expect(screen.getByRole("radio", { name: "Red" })).toBeChecked();
+  });
+
+  /* recolouring must not eat the words somebody has already typed */
+  it("keeps the text through a recolour", () => {
+    const v = renderCanvas();
+    make(v);
+    fireEvent.change(screen.getByLabelText("Note text"), {
+      target: { value: "Existing unit stays" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Teal" }));
+    fireEvent.click(screen.getByText("Done"));
+
+    expect(noteText(v.notes[0])).toBe("Existing unit stays");
+    expect(noteInkOf(v.notes[0])).toBe("#0F766E");
   });
 });

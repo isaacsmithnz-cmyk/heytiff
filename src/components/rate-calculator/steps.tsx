@@ -145,11 +145,13 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
   };
   // Heal a legacy split that doesn't total 100 (older ± builds could persist
   // e.g. 65/30/10) by pinning admin to the remainder once, on load.
-  React.useEffect(() => {
+  const healSplit = React.useEffectEvent(() => {
     if (install + service + (sl.admin_pct || 0) !== 100) {
       patch({ simpleLabour: { ...sl, admin_pct: 100 - install - service } });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  React.useEffect(() => {
+    healSplit();
   }, [install, service, sl.admin_pct]);
 
   const questions: StackQuestion[] = [

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -144,9 +144,11 @@ export function CapacityView({
      writes: `cap` was seeded from the cache in useState, and a transition's
      async callback is where the result lands (the rail's mount effect,
      repeated). */
-  useEffect(() => {
+  const openFirstWindow = useEffectEvent(() => {
     if (!capCache.current.get(start)) load(start);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- first open only
+  });
+  useEffect(() => {
+    openFirstWindow();
   }, []);
 
   const showWindow = (startISO: string) => {

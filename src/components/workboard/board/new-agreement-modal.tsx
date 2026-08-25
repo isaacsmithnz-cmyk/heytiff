@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -142,12 +142,14 @@ export function NewAgreementModal({
      handed over. An effect rather than initial state, deliberately — `pick`
      is where the client-name and site rules live, and copying them into a
      useState initialiser is exactly how the two legs would drift apart. */
-  useEffect(() => {
+  const takeInitialJob = useEffectEvent(() => {
     if (!initialJob || pickedInitial.current) return;
     pickedInitial.current = true;
     setSource("sm8");
     pick(initialJob);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    takeInitialJob();
   }, [initialJob?.remoteId]);
 
   const applyProposal = (p: AgreementProposal) => {

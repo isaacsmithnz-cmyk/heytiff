@@ -123,7 +123,7 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
   // carries an amount the table is the user's — never seeded again, so a
   // deliberately removed category stays gone (the chips below re-add it).
   const seeded = React.useRef(false);
-  React.useEffect(() => {
+  const seedTable = React.useEffectEvent(() => {
     if (seeded.current) return;
     seeded.current = true;
     if (s.businessCosts.some(c => (c.amount || 0) > 0)) return;
@@ -134,7 +134,9 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
       return n !== "" && n !== "new cost" && !suggested.has(n);
     });
     patch({ businessCosts: [...suggestedBusinessCosts(), ...kept] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  React.useEffect(() => {
+    seedTable();
   }, []);
 
   const setCost = (i: number, p: Partial<RateCalcState["businessCosts"][number]>) =>

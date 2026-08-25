@@ -1,9 +1,15 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DetailModal, RenewalModal } from "../modals";
+import { FleetRegister } from "../register";
+import type { FleetState } from "../fleet-state";
 import type { StoredDocument } from "@/lib/documents/query";
 import type { Vehicle, VehiclePolicy } from "../logic";
 import { vehicleChips } from "../logic";
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: jest.fn() }),
+}));
 
 /* Renewals (issue #509, slice 2). Isaac's shape: near expiry an Update button
    appears, you drop the document in, it is scanned, the expiry updates and the
@@ -174,6 +180,40 @@ it("scans the dropped document into the fields, then saves what was confirmed", 
   expect(onSave).toHaveBeenCalledWith(
     expect.objectContaining({ kind: "insurance", expiresOn: "2027-09-01", premium: 1240.5, documentId: "doc-9" }),
   );
+});
+
+/* The modal tests above wire onRenew themselves, so they can never notice the
+   register failing to render the RenewalModal at all — which is exactly what
+   shipped: the renew case sat inside the "No vehicles yet" branch, so with any
+   real fleet the Update click closed everything. This walks the actual path. */
+it("Update opens the renewal flow from the real register, not just the empty state", async () => {
+  const noop = jest.fn();
+  const fleet: FleetState = {
+    pending: false,
+    error: null,
+    clearError: noop,
+    saveVehicle: noop,
+    recordRenewal: noop,
+    removeVehicle: noop,
+    assignVehicle: noop,
+    addLog: noop,
+    editLog: noop,
+    deleteLog: noop,
+    resolveIssue: noop,
+    vehicles: [{ ...van, regoDays: 20 }],
+    logs: [],
+    aiValues: {},
+    documents: {},
+    policies: {},
+  };
+  global.fetch = jest.fn(async () => ({ ok: false })) as unknown as typeof fetch;
+
+  render(<FleetRegister fleet={fleet} staff={[]} today={TODAY} />);
+  const user = userEvent.setup();
+
+  await user.click(screen.getByText("GOOD VAN")); // the row opens the detail modal
+  await user.click(screen.getByRole("button", { name: "Update" }));
+  expect(screen.getByText("Update rego")).toBeInTheDocument();
 });
 
 it("cannot save without an expiry — the date is the thing that silences a warning", async () => {

@@ -202,19 +202,7 @@ export function FleetRegister({
             Add your first vehicle
           </button>
         </div>
-        {modal.t === "renew" && openVehicle && (
-        <RenewalModal
-          vehicle={openVehicle}
-          kind={modal.kind}
-          today={today}
-          onSave={(input) => {
-            fleet.recordRenewal({ ...input, vehicleId: openVehicle.id });
-            setModal({ t: "detail", id: openVehicle.id });
-          }}
-          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
-        />
-      )}
-      {modal.t === "add" && (
+        {modal.t === "add" && (
           <VehicleFormModal
             initial={null}
             staff={staff}
@@ -487,6 +475,18 @@ export function FleetRegister({
             fleet.removeVehicle(openVehicle.id);
             setModal({ t: "none" });
           }}
+        />
+      )}
+      {modal.t === "renew" && openVehicle && (
+        <RenewalModal
+          vehicle={openVehicle}
+          kind={modal.kind}
+          today={today}
+          onSave={(input) => {
+            fleet.recordRenewal({ ...input, vehicleId: openVehicle.id });
+            setModal({ t: "detail", id: openVehicle.id });
+          }}
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
         />
       )}
       {modal.t === "fix" && openVehicle && (

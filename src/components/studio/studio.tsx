@@ -62,7 +62,15 @@ import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
-import { nextMove, panelRests, unitsVerb, type NextMove, type UnitsVerb } from "@/lib/studio/next-move";
+import {
+  itemsToPlace,
+  nextMove,
+  panelRests,
+  unitsVerb,
+  type NextMove,
+  type PlaceItem,
+  type UnitsVerb,
+} from "@/lib/studio/next-move";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import type { PairProposal } from "@/lib/studio/split";
 import { UnitBrowser } from "./unit-browser";
@@ -1950,6 +1958,7 @@ function Editor({
             onTool={changeTool}
             unitsV={unitsV}
             onUnits={onUnits}
+            onArmPlace={armPlace}
             airGate={airGate}
             paletteOpen={paletteOpen}
             onPalette={setPaletteOpen}
@@ -2445,6 +2454,111 @@ function LensedUnitBrowser({
       onAssign={onAssign}
       onClose={onClose}
     />
+  );
+}
+
+/* ── "Items to place": the tray of units attributed to a room and still off
+   the plan (units↔rooms workflow, slice 2). Attribution now happens in the
+   modal, so by the time it closes a design can owe the plan several units
+   with nothing naming them — this is the list, and the place they're picked
+   up from.
+
+   It renders ONLY while something is owed. A permanent "Items to place · 0"
+   would be a dead control on an already-tight bench, and its mere PRESENCE
+   is the signal that work is outstanding — the same reasoning that gave the
+   cockpit no dead close chevron.
+
+   Both gestures land in the same place: dragging an item arms it and the
+   canvas's existing drop handler commits it; clicking arms it for a tap. ── */
+function ItemsTray({
+  items,
+  onArmPlace,
+}: {
+  items: PlaceItem[];
+  onArmPlace: (p: PlacingUnit | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  /* nothing owed, nothing shown — and the open tray closes with the last
+     item rather than sitting there empty */
+  if (items.length === 0) return null;
+
+  const arm = (item: PlaceItem) => {
+    onArmPlace(item.placing);
+    setOpen(false);
+  };
+
+  return (
+    <div className="ds-pal-wrap" ref={wrapRef}>
+      <button
+        className={`ds-tool ds-tray-btn${open ? " on" : ""}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Items to place (${items.length})`}
+        title="Units attributed to a room and not yet on the plan"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="unit" size={15} />
+        Items to place
+        <span className="ds-tray-n">{items.length}</span>
+      </button>
+      {open && (
+        <div className="ds-tray" role="menu" aria-label="Items to place">
+          {items.map((item) => (
+            <div
+              key={item.key}
+              role="menuitem"
+              tabIndex={0}
+              className={`ds-tray-item ${item.role}`}
+              draggable
+              onDragStart={(e) => {
+                if (e.dataTransfer) {
+                  e.dataTransfer.setData("text/plain", item.model);
+                  e.dataTransfer.effectAllowed = "copy";
+                }
+                /* the canvas places whatever is ARMED, so arming on dragstart
+                   is what makes the drop land the right unit — the payload is
+                   for other drop targets, not for the canvas */
+                onArmPlace(item.placing);
+              }}
+              /* the tray stays open through the drag on purpose: unmounting
+                 the source mid-drag ends it early in Chrome */
+              onDragEnd={() => onArmPlace(null)}
+              onClick={() => arm(item)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  arm(item);
+                }
+              }}
+            >
+              <span className="ds-tray-role">
+                {item.role === "idu" ? "Indoor" : "Outdoor"}
+              </span>
+              <span className="ds-tray-model">{item.model}</span>
+              {/* an outdoor unit serves the system, so it names no room */}
+              {item.roomName && <span className="ds-tray-room">{item.roomName}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -3040,6 +3154,7 @@ function DesignPanel({
   onTool,
   unitsV,
   onUnits,
+  onArmPlace,
   airGate,
   paletteOpen,
   onPalette,
@@ -3082,6 +3197,9 @@ function DesignPanel({
       its units in the panel) — the button wears the reason in place */
   unitsV: UnitsVerb | null;
   onUnits: () => void;
+  /** arm a unit on the cursor (or disarm with null) — the Items tray's
+      one lever; the canvas commits whatever is armed */
+  onArmPlace: (p: PlacingUnit | null) => void;
   /** spec-§2 air-tool gate (rooms + air-capable AHU) + the AHU's pack row */
   airGate: { ok: boolean; reason: string; row: IndoorUnit | null };
   paletteOpen: boolean;
@@ -3124,6 +3242,11 @@ function DesignPanel({
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
   const wheelMode = useWheelMode();
+  /* units attributed to a room and still off the plan — the tray's list */
+  const toPlace = useMemo(
+    () => itemsToPlace(doc, pack, activeSystemId),
+    [doc, pack, activeSystemId]
+  );
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
@@ -3242,6 +3365,9 @@ function DesignPanel({
               <Icon name="unit" size={15} />
               Units
             </button>
+            {/* directly after Units, because it is what Units leaves behind:
+                choose them there, pick them up here */}
+            <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
             <DrawTool
               tool={tool}
               onTool={onTool}

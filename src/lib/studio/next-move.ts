@@ -14,6 +14,8 @@
 import type { DataPack } from "./packs/schema";
 import type { DesignDocument, DesignObject } from "./document";
 import { lensRoom, roomsServedBy } from "./coverage";
+import { multiIduSelections } from "./multi";
+import { SYSTEM_MODULES } from "./modules";
 
 /** what the place tool needs armed — mirrors canvas.tsx's PlacingUnit
     (not imported: this module stays free of React/canvas) */
@@ -189,4 +191,103 @@ export function panelRests(doc: DesignDocument, systemId: string | null): boolea
   /* open while anything is unplaced; at rest again once both are down
      (the connect rung is the chip's story — the tab still reports fit) */
   return idu && odu;
+}
+
+/* ── "Items to place": everything ATTRIBUTED but not yet on the plan ─────
+   The second half of the units↔rooms workflow. Attribution now happens in
+   the units modal (drag a unit onto a room card), so the units a design owes
+   the plan pile up with nowhere to see them — this is that list, and the
+   toolbar tray renders it.
+
+   `unitsVerb` answers the same question one unit at a time, for the bar's
+   single Units press. This answers it for ALL of them at once, which is what
+   a tray needs; the two must agree on what "placed" means, and both read it
+   the same way — an object of type "unit" carrying the model, and for a
+   per-room indoor unit, stamped to that room via `props.roomId`. */
+
+/** one unplaced unit, ready to arm */
+export type PlaceItem = {
+  /** stable identity for React and for de-duping: role + room + model */
+  key: string;
+  role: "idu" | "odu";
+  model: string;
+  /** the room this unit was attributed to — null for a shared outdoor,
+      which serves the SYSTEM rather than any one room */
+  roomId: string | null;
+  roomName: string | null;
+  placing: NextPlacing;
+};
+
+export function itemsToPlace(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  systemId: string | null
+): PlaceItem[] {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  /* no pack = no dimensions = nothing can be armed to scale. The tray shows
+     empty rather than guessing a size, matching unitsVerb's "catalogue still
+     loading" rather than inventing an 800×300 box. */
+  if (!sys || !pack) return [];
+
+  const units = doc.objects.filter((o) => o.systemId === systemId && o.type === "unit");
+  const rooms = roomsServedBy(doc, systemId);
+  const roomName = (id: string | null) =>
+    id ? (String(rooms.find((r) => r.id === id)?.props.name ?? "") || null) : null;
+
+  const idu = (model: string, roomId: string | null): PlaceItem | null => {
+    const spec = pack.indoor_units.find((u) => u.model === model);
+    if (!spec) return null;
+    return {
+      key: `idu:${roomId ?? "-"}:${model}`,
+      role: "idu",
+      model,
+      roomId,
+      roomName: roomName(roomId),
+      placing: { role: "idu", model, widthMm: spec.width_mm, depthMm: spec.depth_mm },
+    };
+  };
+  const odu = (model: string): PlaceItem | null => {
+    const spec = pack.outdoor_units.find((u) => u.model === model);
+    if (!spec) return null;
+    return {
+      key: `odu:-:${model}`,
+      role: "odu",
+      model,
+      roomId: null,
+      roomName: null,
+      /* the same fallbacks unitsVerb uses — an outdoor row may carry no
+         footprint, and a missing size must not stop it being placed */
+      placing: { role: "odu", model, widthMm: spec.width_mm ?? 800, depthMm: spec.depth_mm ?? 300 },
+    };
+  };
+
+  const out: (PlaceItem | null)[] = [];
+  const flow = SYSTEM_MODULES[sys.type].unitFlow;
+
+  if (flow === "per-room") {
+    /* an indoor unit per room: outstanding when its room carries no placed
+       indoor unit of its own */
+    for (const [roomId, model] of Object.entries(multiIduSelections(sys))) {
+      const placed = units.some(
+        (o) => o.props.role === "idu" && String(o.props.roomId ?? "") === roomId
+      );
+      if (!placed) out.push(idu(model, roomId));
+    }
+    const shared = String(sys.settings.multiOdu ?? "");
+    if (shared && !units.some((o) => o.props.role === "odu")) out.push(odu(shared));
+  } else if (flow === "pair") {
+    /* 1:1 — the system holds one pair, sized against one room */
+    const iduModel = String(sys.settings.pairIdu ?? "");
+    const oduModel = String(sys.settings.pairOdu ?? "");
+    if (iduModel && !units.some((o) => o.props.role === "idu")) {
+      const pairRoom =
+        rooms.find((r) => r.id === String(sys.settings.roomId ?? "")) ?? rooms[0];
+      out.push(idu(iduModel, pairRoom?.id ?? null));
+    }
+    if (oduModel && !units.some((o) => o.props.role === "odu")) out.push(odu(oduModel));
+  }
+  /* ducted places an air handler and grilles, not units — its own flow owns
+     that list, and guessing here would put the wrong things in the tray */
+
+  return out.filter((i): i is PlaceItem => i !== null);
 }

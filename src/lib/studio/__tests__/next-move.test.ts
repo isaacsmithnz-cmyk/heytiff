@@ -3,7 +3,7 @@
    never going silent while something is owed (the motivating bug: a real
    design stalled for hours between "outdoor placed" and "indoor placed"). */
 
-import { nextMove, panelRests, unitsVerb } from "../next-move";
+import { itemsToPlace, nextMove, panelRests, unitsVerb } from "../next-move";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "../document";
 import { emptyPack, type DataPack, type IndoorUnit, type OutdoorUnit } from "../packs/schema";
 
@@ -237,5 +237,92 @@ describe("panelRests — when the flow lets the cockpit rest", () => {
   it("rests again once everything is down — connect is the chip's story", () => {
     const placed = [room("r1", "Bedroom"), unit("u1", "idu", "IDU-25"), unit("u2", "odu", "ODU-25")];
     expect(panelRests(doc(placed, PAIR), "sys1")).toBe(true);
+  });
+});
+
+/* Items to place — the tray's list. The invariant that matters: an item is
+   owed until the thing it names is actually ON THE PLAN, and for a per-room
+   indoor unit "on the plan" means stamped to THAT room, not merely existing
+   somewhere on the system. */
+describe("itemsToPlace", () => {
+  /** a placed indoor unit attributed to a room (the per-room stamp) */
+  const iduIn = (id: string, model: string, roomId: string): DesignObject => ({
+    ...unit(id, "idu", model),
+    props: { role: "idu", model, roomId },
+  });
+
+  it("has nothing to place before anything is chosen", () => {
+    expect(itemsToPlace(doc([room("r1", "Lounge")]), pack(), "sys1")).toEqual([]);
+  });
+
+  it("offers a chosen pair's two units, the indoor one named for its room", () => {
+    const items = itemsToPlace(
+      doc([room("r1", "Lounge")], { ...PAIR, roomId: "r1" }),
+      pack(),
+      "sys1"
+    );
+    expect(items.map((i) => [i.role, i.model, i.roomName])).toEqual([
+      ["idu", "IDU-25", "Lounge"],
+      /* the outdoor serves the SYSTEM — naming a room for it would be a lie */
+      ["odu", "ODU-25", null],
+    ]);
+    /* armable to scale, straight from the pack */
+    expect(items[0].placing).toEqual({
+      role: "idu", model: "IDU-25", widthMm: 798, depthMm: 219,
+    });
+  });
+
+  it("drops each unit from the list as it lands on the plan", () => {
+    const settings = { ...PAIR, roomId: "r1" };
+    const half = itemsToPlace(
+      doc([room("r1", "Lounge"), iduIn("u1", "IDU-25", "r1")], settings),
+      pack(),
+      "sys1"
+    );
+    expect(half.map((i) => i.role)).toEqual(["odu"]);
+    const done = itemsToPlace(
+      doc(
+        [room("r1", "Lounge"), iduIn("u1", "IDU-25", "r1"), unit("u2", "odu", "ODU-25")],
+        settings
+      ),
+      pack(),
+      "sys1"
+    );
+    expect(done).toEqual([]);
+  });
+
+  it("per-room: one item per assigned room, and a room keeps its own", () => {
+    const d = doc(
+      [room("r1", "Lounge"), room("r2", "Study"), iduIn("u1", "IDU-25", "r1")],
+      { multiIdus: { r1: "IDU-25", r2: "IDU-25" } },
+      "multi-split"
+    );
+    const items = itemsToPlace(d, pack(), "sys1");
+    /* r1 is served, so only r2 is still owed — the placed unit must NOT
+       satisfy the whole system, which is the bug a system-wide check makes */
+    expect(items.map((i) => [i.roomId, i.roomName])).toEqual([["r2", "Study"]]);
+    /* and the two rooms' items carry distinct keys even on the same model */
+    const both = itemsToPlace(
+      doc([room("r1", "Lounge"), room("r2", "Study")], { multiIdus: { r1: "IDU-25", r2: "IDU-25" } }, "multi-split"),
+      pack(),
+      "sys1"
+    );
+    expect(new Set(both.map((i) => i.key)).size).toBe(2);
+  });
+
+  it("waits for the catalogue rather than guessing a size", () => {
+    /* no pack: a unit armed at a made-up size would drop a wrong-scale ghost
+       on the plan, so the tray stays empty until the dimensions are real */
+    expect(
+      itemsToPlace(doc([room("r1", "Lounge")], { ...PAIR, roomId: "r1" }), null, "sys1")
+    ).toEqual([]);
+    /* a model the pack has never heard of is skipped, not faked */
+    expect(
+      itemsToPlace(
+        doc([room("r1", "Lounge")], { pairIdu: "GHOST-1", pairOdu: "ODU-25", roomId: "r1" }),
+        pack(),
+        "sys1"
+      ).map((i) => i.model)
+    ).toEqual(["ODU-25"]);
   });
 });

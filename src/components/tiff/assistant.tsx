@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -10,6 +10,32 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
 import { askPrefill, consumeAskHandoff } from "@/lib/tiff/ask-handoff";
+
+/* THE HANDOFF IS READ ONCE PER MOUNT, as a store rather than in an effect.
+
+   It is a client-only note and what it decides — the opener in the box — has
+   to diverge from the HTML the server sent, which used to mean `setInput`
+   inside a mount effect and a `react-hooks/set-state-in-effect` disable. One
+   disable makes React Compiler skip the whole component, whatever the rule
+   and however good the reason (see studio/canvas.tsx), and this is the
+   biggest component on the screen.
+
+   `consumeAskHandoff` READS AND TEARS UP the note, so it cannot be called
+   again for a second snapshot — hence the latch. React asks for the first
+   client snapshot once hydration is done, which is where the note is eaten;
+   the latch is dropped on unmount so a remount finds an empty box, which is
+   the behaviour the "eats the note" test walks. */
+let latchedHandoff: string | null | undefined;
+
+const askHandoffAtMount = () => {
+  if (latchedHandoff === undefined) latchedHandoff = consumeAskHandoff();
+  return latchedHandoff;
+};
+const forgetAskHandoff = () => {
+  latchedHandoff = undefined;
+};
+const noAskHandoff = () => null;
+const noHandoffSubscription = () => () => {};
 import type { KbRecentDoc } from "@/lib/tiff/query";
 import {
   cardNote,
@@ -320,13 +346,18 @@ export function TiffAssistant({
   // null = "not touched yet": until the first send, render straight from storage
   const [threadState, setThreadState] = useState<Thread[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [input, setInput] = useState("");
+  const prefill = useSyncExternalStore(noHandoffSubscription, askHandoffAtMount, noAskHandoff);
+  /* null until the box is touched: until then the handoff's opener IS the box,
+     and with no handoff that is the empty string it always was. */
+  const [typed, setTyped] = useState<string | null>(null);
+  const input = typed ?? prefill ?? "";
   /* The switch starts where the headline points. "Ask the library" over a bar
      set to General knowledge shipped once — the first question of every visit
      answered from the wrong place and then offered to look properly, which is
      the headline's promise sold as an upsell. Library whenever it has anything
      in it; at zero the option is disabled and General is all there is. */
-  const [research, setResearch] = useState(readyCount > 0);
+  const [researchPick, setResearchPick] = useState<boolean | null>(null);
+  const research = researchPick ?? readyCount > 0;
   const [peek, setPeek] = useState<SourceDoc | null>(null);
 
   /* The thread being renamed, and the one being removed. Held as the row
@@ -434,7 +465,7 @@ export function TiffAssistant({
     onTranscript: (spoken, { capped }) => {
       setVoiceErr(null);
       setRanOut(capped);
-      setInput((typed) => appendSpoken(typed, spoken));
+      setTyped((prev) => appendSpoken(prev ?? prefill ?? "", spoken));
     },
     onError: setVoiceErr,
   });
@@ -500,13 +531,10 @@ export function TiffAssistant({
      putting words in somebody's mouth and spending a question they never
      asked. Read-once, so a refresh doesn't hand it over again. */
   useEffect(() => {
-    const prefill = consumeAskHandoff();
-    if (!prefill) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is client-only; must diverge from the SSR-safe initial render
-    setInput(prefill);
-    if (readyCount > 0) setResearch(true);
-    inputRef.current?.focus();
-  }, [readyCount]);
+    if (prefill) inputRef.current?.focus();
+  }, [prefill]);
+  /* The latch belongs to this mount — see askHandoffAtMount. */
+  useEffect(() => forgetAskHandoff, []);
 
   const persist = useCallback((next: Thread[]) => {
     setThreadState(next);
@@ -720,7 +748,7 @@ export function TiffAssistant({
     }
 
     persist(next);
-    setInput("");
+    setTyped("");
     followRef.current = true;
     run(threadId!, trimmed, researchMode, historyOf(active?.messages ?? []));
   };
@@ -733,7 +761,7 @@ export function TiffAssistant({
   };
 
   const researchThis = (question: string) => {
-    setResearch(true);
+    setResearchPick(true);
     send(question, true);
   };
 
@@ -747,8 +775,8 @@ export function TiffAssistant({
   const askAboutDoc = (title: string) => {
     const opener = askPrefill(title);
     if (!opener) return;
-    setInput(opener);
-    if (readyCount > 0) setResearch(true);
+    setTyped(opener);
+    if (readyCount > 0) setResearchPick(true);
     inputRef.current?.focus();
   };
 
@@ -793,28 +821,28 @@ export function TiffAssistant({
     window.history.back();
   };
 
-  /* The browser's back (and forward) button, made to mean something here.
-     Everything this closure touches is a ref or a setState — stable across
-     renders — so it binds once. */
-  useEffect(() => {
-    const onPop = (e: PopStateEvent) => {
-      const id = (e.state as { tiffChat?: string } | null)?.tiffChat;
-      if (typeof id === "string") {
-        // forward, onto an entry we own: reopen the thread if it still exists
-        pushedRef.current = true;
-        if (loadThreads().some((t) => t.id === id)) {
-          followRef.current = true;
-          setActiveId(id);
-        }
-        return;
+  /* The browser's back (and forward) button, made to mean something here. It
+     binds ONCE — an effect event says that outright, where an empty dep array
+     over a closure reading `leaveThread` needed a disable to keep. */
+  const onPop = useEffectEvent((e: PopStateEvent) => {
+    const id = (e.state as { tiffChat?: string } | null)?.tiffChat;
+    if (typeof id === "string") {
+      // forward, onto an entry we own: reopen the thread if it still exists
+      pushedRef.current = true;
+      if (loadThreads().some((t) => t.id === id)) {
+        followRef.current = true;
+        setActiveId(id);
       }
-      // back, off our entry: leave the chat, keeping a half-written answer
-      pushedRef.current = false;
-      leaveThread(true);
-    };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs and setters only
+      return;
+    }
+    // back, off our entry: leave the chat, keeping a half-written answer
+    pushedRef.current = false;
+    leaveThread(true);
+  });
+  useEffect(() => {
+    const handler = (e: PopStateEvent) => onPop(e);
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
   }, []);
 
   /** The header's back button: out of the chat, thread kept, input kept. */
@@ -826,7 +854,7 @@ export function TiffAssistant({
   const newChat = () => {
     leaveThread(false);
     settleHistory();
-    setInput("");
+    setTyped("");
     inputRef.current?.focus();
   };
 
@@ -1120,7 +1148,7 @@ export function TiffAssistant({
                 <input
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => setTyped(e.target.value)}
                   placeholder={active ? "Ask a follow-up…" : "Ask Tiff anything…"}
                   aria-label="Ask Tiff"
                   disabled={listening}
@@ -1204,7 +1232,7 @@ export function TiffAssistant({
                   aria-pressed={research}
                   disabled={!canResearch}
                   title={canResearch ? undefined : "Add documents to the library first"}
-                  onClick={() => setResearch(true)}
+                  onClick={() => setResearchPick(true)}
                 >
                   <Icon name="library" size={15} />
                   Your library
@@ -1213,7 +1241,7 @@ export function TiffAssistant({
                   type="button"
                   className={`tk-modeb${research ? "" : " on"}`}
                   aria-pressed={!research}
-                  onClick={() => setResearch(false)}
+                  onClick={() => setResearchPick(false)}
                 >
                   <Icon name="bot" size={15} />
                   General knowledge

@@ -63,7 +63,7 @@ import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor } from "@/lib/studio/modules";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import { nextMove, panelRests, unitsVerb, type NextMove, type UnitsVerb } from "@/lib/studio/next-move";
-import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
+import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import type { PairProposal } from "@/lib/studio/split";
 import { UnitBrowser } from "./unit-browser";
 import { PlansPanel } from "./plans-panel";
@@ -1453,6 +1453,56 @@ function Editor({
     [doc, mutate, effectiveSystemId, armPlace]
   );
 
+  /* Dragging a unit onto a room card ATTRIBUTES it and nothing more. Unlike
+     choosePairFromChip it neither closes the browser nor arms the cursor:
+     the workflow is attribute every room in one visit, then place the lot
+     afterwards, so an arm here would fight the next drag. The unit becomes a
+     pending item on the room — placement is a separate act. */
+  const assignPairToRoom = useCallback(
+    (pair: PairProposal, roomId: string) => {
+      mutate((d) => {
+        const sys = d.systems.find((s) => s.id === effectiveSystemId);
+        const swap =
+          !sys ||
+          pair.idu.model !== String(sys.settings.pairIdu ?? "") ||
+          pair.odu.model !== String(sys.settings.pairOdu ?? "");
+        return {
+          ...d,
+          systems: d.systems.map((s) =>
+            s.id === effectiveSystemId
+              ? {
+                  ...s,
+                  settings: {
+                    ...s.settings,
+                    pairIdu: pair.idu.model,
+                    pairOdu: pair.odu.model,
+                    roomId,
+                  },
+                }
+              : s
+          ),
+          /* a different pair takes the old units (and their pipework) back off
+             the plan — the same rule choosePairFromChip applies, so the two
+             routes to a pair can never leave different wreckage behind */
+          objects: swap
+            ? d.objects.filter(
+                (o) =>
+                  !(
+                    o.systemId === effectiveSystemId &&
+                    (o.type === "unit" || o.type === "pipe-run" || o.type === "riser")
+                  )
+              )
+            : d.objects,
+        };
+      });
+      /* the lens deliberately does NOT follow the drop. It decides which
+         units the table recommends, so moving it would re-rank the list under
+         someone mid-way through attributing several rooms — the drop says
+         where this unit goes, not what to shop for next. */
+    },
+    [mutate, effectiveSystemId]
+  );
+
   const onNext = useCallback(() => {
     if (!next) return;
     switch (next.key) {
@@ -2027,6 +2077,7 @@ function Editor({
           roomId={pairBrowse}
           onLens={setPairBrowse}
           onChoose={choosePairFromChip}
+          onAssign={assignPairToRoom}
           onClose={() => setPairBrowse(null)}
         />
       )}
@@ -2339,6 +2390,7 @@ function LensedUnitBrowser({
   roomId,
   onLens,
   onChoose,
+  onAssign,
   onClose,
 }: {
   doc: DesignDocument;
@@ -2349,31 +2401,48 @@ function LensedUnitBrowser({
   roomId: string;
   onLens: (roomId: string) => void;
   onChoose: (pair: PairProposal, roomId: string) => void;
+  /** a unit dragged onto a room card — records the attribution and leaves the
+      browser open, unlike onChoose which commits and arms the cursor */
+  onAssign: (pair: PairProposal, roomId: string) => void;
   onClose: () => void;
 }) {
   const served = roomsServedBy(doc, systemId);
   const room = served.find((r) => r.id === roomId);
   if (!room) return null;
-  const chips = served.map((r) => ({
-    id: r.id,
-    name: String(r.props.name ?? "Room"),
-    loadKw: roomLoadKw(doc, r),
-    served: doc.objects.some(
+  const sys = doc.systems.find((s) => s.id === systemId);
+  const rooms = served.map((r) => {
+    const placed = doc.objects.find(
       (o) =>
         o.type === "unit" &&
         o.props.role === "idu" &&
         String(o.props.roomId ?? "") === r.id
-    ),
-  }));
+    );
+    /* what this room has been given: the unit standing in it, else the pair
+       chosen FOR it and still waiting to be placed (the pending state the
+       toolbar tray will read) */
+    const pending =
+      sys && String(sys.settings.roomId ?? "") === r.id
+        ? String(sys.settings.pairIdu ?? "")
+        : "";
+    return {
+      id: r.id,
+      name: String(r.props.name ?? "Room"),
+      areaM2: roomAreaM2(doc, r),
+      loadKw: roomLoadKw(doc, r),
+      served: !!placed,
+      assignedModel: String(placed?.props.model ?? "") || pending || null,
+    };
+  });
   return (
     <UnitBrowser
       pack={pack}
       loadKw={roomLoadKw(doc, room)}
       basis={doc.settings.sizingBasis}
-      rooms={chips}
+      rooms={rooms}
       lensId={room.id}
       onLens={onLens}
       onChoose={(pair) => onChoose(pair, room.id)}
+      onAssign={onAssign}
       onClose={onClose}
     />
   );

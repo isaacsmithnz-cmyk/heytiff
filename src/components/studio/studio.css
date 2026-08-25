@@ -4820,42 +4820,136 @@ html[data-ds-display] .dstudio.editing {
 }
 /* room chips — the ranking lens, the outside-a-room fallback attribution and
    the system's placement progress in one row over the tabs */
-.ds-ub-rooms {
+/* ── the rooms column (right-hand rail) ──
+   The workflow's spine: draw every room, then attribute a unit to each by
+   dragging a table row onto its card, then place the lot from the plan. It
+   replaced a chip row across the top — chips had nowhere to show what a room
+   had been given, which is the whole point of the column. */
+.ds-ub-roomcol {
+  width: 232px;
+  flex: none;
+  border-left: 1px solid #ececec;
+  background: #fcfcfb;
   display: flex;
-  gap: 6px;
-  padding: 10px 14px 4px;
-  overflow-x: auto;
+  flex-direction: column;
+  min-height: 0;
 }
-.ds-ub-roomchip {
-  appearance: none;
-  display: inline-flex;
+.ds-ub-rchead {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  color: #3c414d;
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 999px;
-  padding: 5px 11px;
-  cursor: pointer;
-  white-space: nowrap;
+  gap: 7px;
+  padding: 13px 14px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #767676;
 }
-.ds-ub-roomchip span {
+.ds-ub-rchead span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8a8a8a;
+  background: #f0f0ee;
+  border-radius: 999px;
+  padding: 1px 7px;
+  letter-spacing: 0;
+}
+.ds-ub-rclist {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0 12px 14px;
+}
+.ds-ub-rcard {
+  appearance: none;
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: #fff;
+  border: 1px solid #e4e4e2;
+  border-radius: 12px;
+  padding: 10px 11px;
+  cursor: pointer;
+}
+.ds-ub-rcname {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #22242b;
+}
+.ds-ub-rcname svg { stroke: var(--ds-ok-d, #00806c); }
+.ds-ub-rcfig {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #767676;
   font-variant-numeric: tabular-nums;
 }
-/* only the tick goes green — the name keeps the chip's own ink */
-.ds-ub-roomchip.served svg { stroke: var(--ds-ok-d, #00806c); }
-.ds-ub-roomchip.on {
-  background: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
+.ds-ub-rcfig b { font-weight: 700; color: #5c6068; }
+.ds-ub-rcfig i { font-style: normal; }
+/* the empty slot IS the affordance — a dashed well reads as somewhere a unit
+   goes, so no caption has to say "drag a unit here" (feedback-no-hint-text) */
+.ds-ub-rcslot {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  border: 1px dashed #d6d6d3;
+  border-radius: 8px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #9a9a9a;
 }
-.ds-ub-roomchip.on span { color: rgba(255, 255, 255, 0.72); }
-.ds-ub-roomchip.on.served svg { stroke: #00e5c0; }
+.ds-ub-rcard.has .ds-ub-rcslot {
+  border-style: solid;
+  border-color: #e0e0de;
+  background: #f6f6f4;
+  color: #22242b;
+}
+.ds-ub-rcard.on {
+  border-color: #1a1a1a;
+  box-shadow: 0 0 0 1px #1a1a1a;
+}
+/* While a unit is in flight every card advertises itself, and the one under
+   the pointer commits — the lit target replaces the caption.
+   `--teal-d` is the ARMED ink: the armed tool pill wears exactly this pair
+   (teal rule over a 10% wash), and a card waiting for a drop is the same
+   state. Note it resolves to the same #00a389 as `--ds-ok` — in this system
+   the accent teal and the ok green ARE one colour, so what separates "you can
+   drop here" from a capacity verdict is context, never hue. Don't reach for
+   `--ds-ok-d` here expecting a different green; reach for the armed token
+   because this is an armed state. */
+.ds-ub-rcard.target { border-color: #c9cbd0; }
+.ds-ub-rcard.target .ds-ub-rcslot { border-color: #b9bcc2; }
+.ds-ub-rcard.over {
+  border-color: var(--teal-d, #00a389);
+  box-shadow: 0 0 0 1px var(--teal-d, #00a389);
+}
+.ds-ub-rcard.over .ds-ub-rcslot {
+  border-style: solid;
+  border-color: var(--teal-d, #00a389);
+  background: rgba(0, 163, 137, 0.1);
+}
+/* a draggable row says so by the cursor, the one place it costs no ink */
+.ds-ub-table tbody tr.drag { cursor: grab; }
+.ds-ub-table tbody tr.drag:active { cursor: grabbing; }
+@media (max-width: 900px) {
+  .ds-ub-roomcol {
+    width: auto;
+    border-left: none;
+    border-top: 1px solid #ececec;
+  }
+  .ds-ub-rclist { flex-direction: row; overflow-x: auto; }
+  .ds-ub-rcard { width: 168px; flex: none; }
+}
 .ds-ub-tabs {
   display: flex;
   gap: 2px;

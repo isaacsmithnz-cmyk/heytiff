@@ -207,13 +207,16 @@ export function Studio({
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
   const storeRef = useRef<DesignStore | null>(null);
-  const getStore = useCallback(
-    () =>
-      (storeRef.current ??=
+  /* Written long-hand, not `??=`: React Compiler 1.0 cannot lower a `??=`
+     assignment and gives up on the WHOLE component when it meets one. */
+  const getStore = useCallback(() => {
+    if (storeRef.current === null) {
+      storeRef.current =
         store ??
-        new SyncedDesignStore(new RemoteDesignStore(), browserDesignStore())),
-    [store]
-  );
+        new SyncedDesignStore(new RemoteDesignStore(), browserDesignStore());
+    }
+    return storeRef.current;
+  }, [store]);
   const planImagesInst = useMemo(
     () => planImages ?? new RemotePlanImages(),
     [planImages]
@@ -285,15 +288,22 @@ export function Studio({
         });
       setSwapping(true);
       setExiting(true);
+      /* A `finally` would say this once, but React Compiler 1.0 cannot lower
+         a try with a finalizer and gives up on the WHOLE component when it
+         meets one — so the two cleanup lines are spelled out on both exits
+         instead. Keep them in step. */
       try {
         const [value] = await Promise.all([prepare(), wait(SWAP_OUT_MS)]);
         apply(value);
         setExiting(false); // same commit as the swap: the old screen is gone
         await wait(SWAP_PAINT_MS);
-      } finally {
+      } catch (e) {
         setSwapping(false); // always bring the screen back, even if the load throws
         setExiting(false);
+        throw e;
       }
+      setSwapping(false);
+      setExiting(false);
     },
     []
   );

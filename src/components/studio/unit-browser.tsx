@@ -88,9 +88,14 @@ export type BrowserRoom = {
   loadKw: number | null;
   /** an indoor unit is already placed and attributed to this room */
   served: boolean;
-  /** the model attributed to this room — placed, or assigned and awaiting
-      placement. Null when nothing has been attributed yet. */
+  /** the indoor model attributed to this room — placed, or assigned and
+      awaiting placement. Null when nothing has been attributed yet. */
   assignedModel: string | null;
+  /** the outdoor it runs to. A split's is the room's own; a multi's is the
+      SYSTEM's, shared by every room — `oduShared` says which, so the card can
+      be honest rather than implying each room has its own. */
+  oduModel?: string | null;
+  oduShared?: boolean;
 };
 
 /** The row's sizing flag. Nothing on a unit that suits the load — the
@@ -816,6 +821,14 @@ export function UnitBrowser({
                       <span className="ds-ub-rcslot">
                         {r.assignedModel ?? ""}
                       </span>
+                      {/* the outdoor it runs to — a room's pairing is only
+                          half-told by its indoor head */}
+                      {r.assignedModel && r.oduModel && (
+                        <span className="ds-ub-rcodu">
+                          <i>{r.oduShared ? "shared outdoor" : "outdoor"}</i>
+                          {r.oduModel}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

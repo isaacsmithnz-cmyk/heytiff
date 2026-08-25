@@ -608,6 +608,48 @@ describe("UnitBrowser", () => {
       expect(card(/Lounge/).textContent).toContain("MSZ-AP42VGD");
     });
 
+    it("names both halves of the pairing, and says when the outdoor is shared", () => {
+      /* a room's pairing is only half-told by its indoor head (Isaac,
+         2026-08-25). A multi's outdoor serves EVERY room, so the card says
+         "shared outdoor" rather than implying this room has one of its own. */
+      const paired = [
+        { ...rooms[0], oduModel: "MUZ-AP42VG", oduShared: false },
+        { ...rooms[1], assignedModel: "MSZ-AP25VGD2", oduModel: "MXZ-4F80VG", oduShared: true },
+      ];
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={paired}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      expect(card(/Lounge/).textContent).toContain("MUZ-AP42VG");
+      expect(card(/Lounge/).textContent).toContain("outdoor");
+      expect(card(/Study/).textContent).toContain("shared outdoor");
+    });
+
+    it("shows no outdoor line for a room with nothing attributed yet", () => {
+      /* an outdoor with no indoor beside it would read as this room's unit */
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={[{ ...rooms[1], oduModel: "MUZ-AP42VG" }]}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      expect(card(/Study/).textContent).not.toContain("MUZ-AP42VG");
+    });
+
     it("clicking a card re-aims the lens", () => {
       const aims: string[] = [];
       render(

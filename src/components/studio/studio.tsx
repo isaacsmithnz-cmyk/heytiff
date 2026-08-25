@@ -1629,13 +1629,15 @@ function Editor({
   );
 
   const onUnits = useCallback(() => {
+    /* a unit riding the cursor is let go first — the press cannot mean two
+       things at once, and opening a modal over an armed cursor would strand
+       the arm behind it */
     if (placing) {
       armPlace(null);
       return;
     }
     if (!unitsV || unitsV.kind === "off") return;
-    if (unitsV.kind === "browse") setPairBrowse(unitsV.roomId);
-    else armPlace(unitsV.placing);
+    setPairBrowse(unitsV.roomId);
   }, [placing, unitsV, armPlace]);
 
   /* the armed pairing's capacity, for the canvas's room tint: pair-flow
@@ -2593,6 +2595,15 @@ function LensedUnitBrowser({
         : String(sys.settings.roomId ?? "") === r.id
           ? String(sys.settings.pairIdu ?? "")
           : "";
+    /* the outdoor half of the room's pairing: a split's own pair, a multi's
+       shared unit. Placed wins over chosen, same as the indoor above. */
+    const placedOdu = doc.objects.find(
+      (o) => o.systemId === systemId && o.type === "unit" && o.props.role === "odu"
+    );
+    const oduModel =
+      String(placedOdu?.props.model ?? "") ||
+      String((perRoom ? sys?.settings.multiOdu : sys?.settings.pairOdu) ?? "") ||
+      null;
     return {
       id: r.id,
       name: String(r.props.name ?? "Room"),
@@ -2600,6 +2611,8 @@ function LensedUnitBrowser({
       loadKw: roomLoadKw(doc, r),
       served: !!placed,
       assignedModel: String(placed?.props.model ?? "") || pending || null,
+      oduModel,
+      oduShared: perRoom,
     };
   });
   return (
@@ -3525,9 +3538,7 @@ function DesignPanel({
                       ? `Units — ${unitsV.reason}`
                       : tool === "place"
                         ? "Let go of the unit"
-                        : unitsV.kind === "browse"
-                          ? "Choose the units"
-                          : "Place the next unit"
+                        : "Choose the units"
               }
               onClick={onUnits}
             >

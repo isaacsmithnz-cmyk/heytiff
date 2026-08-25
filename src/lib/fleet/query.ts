@@ -36,7 +36,8 @@ import { toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from ".
 const PICKER_COLUMNS = "id, name, plate, plate_state, make, model, year, status, odometer";
 
 const FACTS_COLUMNS =
-  `${PICKER_COLUMNS}, rego_expiry, insurance_expiry, service_interval_km, last_service_odo`;
+  `${PICKER_COLUMNS}, rego_expiry, insurance_expiry, service_interval_km, last_service_odo` +
+  `, service_interval_months, last_service_on, motorised`;
 
 const FULL_COLUMNS =
   `${FACTS_COLUMNS}, assigned_to, value, purchase_price, purchase_date, notes, ai_value`;

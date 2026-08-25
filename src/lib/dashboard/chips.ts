@@ -22,12 +22,12 @@ import {
   REGO_WARN_DAYS,
   SERVICE_WARN_KM,
   fmtKm,
-  serviceKmLeft,
+  serviceDue,
   type ChipState,
   type VehicleWithFacts,
 } from "@/components/fleet/logic";
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
-import { expiryClause } from "@/lib/format/duration";
+import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
 import { isNoVisa } from "@/lib/staff/work-rights";
 
@@ -253,23 +253,44 @@ export function insuranceChip(
   };
 }
 
-/** Service-due chip for a vehicle (km-based, not a date). */
+/** Service-due chip for a vehicle — distance or time, whichever arrives first. */
 export function serviceChip(
-  v: Pick<VehicleWithFacts, "id" | "status" | "odometer" | "serviceIntervalKm" | "lastServiceOdo">,
+  v: Pick<
+    VehicleWithFacts,
+    | "id"
+    | "status"
+    | "odometer"
+    | "serviceIntervalKm"
+    | "lastServiceOdo"
+    | "serviceDays"
+    | "motorised"
+  >,
   ctx: { subject: string; href: string },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  const left = serviceKmLeft(v as VehicleWithFacts);
-  if (left > SERVICE_WARN_KM) return null;
-  const state: ActionState = left < 0 ? "bad" : "warn";
+  const due = serviceDue(v as VehicleWithFacts);
+  if (due.state === "ok") return null;
+  const state: ActionState = due.state === "bad" ? "bad" : "warn";
+  /* Whichever limit is the reason gets to word the chip. A vehicle overdue on
+     time and fine on distance must not be told it is overdue by kilometres. */
+  const byKm = due.kmLeft != null && (due.kmLeft < 0 || due.kmLeft <= SERVICE_WARN_KM);
+  const km = due.kmLeft ?? 0;
+  const days = due.daysLeft ?? 0;
   return {
     key: `service:${v.id}`,
     kind: "service",
     state,
-    label: left < 0 ? `Service overdue ${fmtKm(-left)} km` : `Service in ${fmtKm(left)} km`,
+    label: byKm
+      ? km < 0
+        ? `Service overdue ${fmtKm(-km)} km`
+        : `Service in ${fmtKm(km)} km`
+      : days < 0
+        ? `Service overdue ${agoLabel(days)}`
+        : `Service ${inLabel(days)}`,
     subject: ctx.subject,
     href: ctx.href,
-    urgency: urgency(state, left / SERVICE_KM_PER_DAY),
+    // days-to-due either way: the km limit converts, the time limit already is
+    urgency: urgency(state, byKm ? km / SERVICE_KM_PER_DAY : days),
   };
 }
 

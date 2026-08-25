@@ -15,7 +15,7 @@ import type {
   VehicleStatus,
   VehicleWithFacts,
 } from "@/components/fleet/logic";
-import { daysUntil } from "@/components/fleet/logic";
+import { daysUntil, serviceDaysUntil } from "@/components/fleet/logic";
 
 export type Row = Record<string, unknown>;
 
@@ -61,13 +61,28 @@ export function toVehicleWithFacts(r: Row, today: string): VehicleWithFacts {
     // an unset expiry must not read as "expired" — it reads as "not soon"
     regoDays: daysFrom(r.rego_expiry, today, 365),
     insuranceDays: daysFrom(r.insurance_expiry, today, 365),
-    serviceIntervalKm: num(r.service_interval_km, 10_000),
+    /* Null now means "no distance limit" — a trailer has none — so it must
+       survive the mapping rather than being defaulted back into one. */
+    serviceIntervalKm: r.service_interval_km == null ? null : num(r.service_interval_km),
     lastServiceOdo: num(r.last_service_odo),
+    serviceIntervalMonths:
+      r.service_interval_months == null ? null : num(r.service_interval_months),
+    /* The time limit as a day count, measured here against the SERVER's date
+       for the same reason regoDays is: a clock read in a render body breaks
+       hydration for the whole tree. Needs BOTH an interval and an anchor —
+       with either missing there is no countdown to report. */
+    serviceDays: serviceDaysUntil(
+      dateStr(r.last_service_on),
+      r.service_interval_months == null ? null : num(r.service_interval_months),
+      today,
+    ),
+    motorised: r.motorised !== false,
   };
 }
 
 export function toVehicle(r: Row, today: string): Vehicle {
   const purchase = dateStr(r.purchase_date);
+  const lastService = dateStr(r.last_service_on);
   return {
     ...toVehicleWithFacts(r, today),
     assignedTo: typeof r.assigned_to === "string" ? r.assigned_to : null,
@@ -75,6 +90,7 @@ export function toVehicle(r: Row, today: string): Vehicle {
     purchasePrice: num(r.purchase_price),
     // stored as a date; the UI thinks in "days since"
     purchaseDateDays: purchase ? Math.max(0, -daysUntil(purchase, today)) : 0,
+    lastServiceDays: lastService ? -daysUntil(lastService, today) : null,
     notes: typeof r.notes === "string" && r.notes ? r.notes : undefined,
   };
 }
@@ -157,6 +173,9 @@ export function vehicleRow(v: Vehicle, today: string): Row {
     insurance_expiry: dateFromDays(v.insuranceDays, today),
     service_interval_km: v.serviceIntervalKm,
     last_service_odo: v.lastServiceOdo,
+    service_interval_months: v.serviceIntervalMonths,
+    last_service_on: v.lastServiceDays == null ? null : dateFromDays(-v.lastServiceDays, today),
+    motorised: v.motorised,
     notes: v.notes ?? null,
   };
 }

@@ -55,10 +55,14 @@ function vehicle(over: Partial<Vehicle>): Vehicle {
     insuranceDays: 100,
     serviceIntervalKm: 10000,
     lastServiceOdo: 50000,
+    serviceIntervalMonths: null,
+    serviceDays: null,
+    motorised: true,
     assignedTo: null,
     value: 45000,
     purchasePrice: 0,
     purchaseDateDays: 0,
+    lastServiceDays: null,
     ...over,
   };
 }

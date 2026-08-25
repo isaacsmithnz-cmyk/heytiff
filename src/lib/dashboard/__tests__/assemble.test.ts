@@ -31,10 +31,14 @@ const vehicle = (id: string, assignedTo: string | null): Vehicle => ({
   insuranceDays: 200,
   serviceIntervalKm: 10_000,
   lastServiceOdo: 88_000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true,
   assignedTo,
   value: 0,
   purchasePrice: 0,
   purchaseDateDays: 0,
+  lastServiceDays: null,
 });
 
 // A fully-populated source set — every section has something actionable, so a

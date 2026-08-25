@@ -45,7 +45,10 @@ const vehicle = (over: Partial<VehicleWithFacts> = {}): VehicleWithFacts => ({
   regoDays: 200,
   insuranceDays: 200,
   serviceIntervalKm: 10_000,
-  lastServiceOdo: 88_000, // due at 98,000 → 8,000 km left (well clear)
+  lastServiceOdo: 88_000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true, // due at 98,000 → 8,000 km left (well clear)
   ...over,
 });
 

@@ -101,6 +101,24 @@ const ARMING_CEILING_MS = 4_000;
    read inside a try/catch, so the `??` and the ternary have to live out here:
    React Compiler 1.0 cannot lower a value block in there and gives up on the
    whole component when it meets one. */
+/* The tap, or none when the live transport is off. It swallows its own
+   failure because a browser with no audio pipeline is a batch recording, not
+   an error anybody needs to hear about. Out here because the ternary would be
+   a value block inside `start`'s try. */
+const tapFor = (stream: MediaStream) =>
+  transportChoice() ? openMicTap(stream).catch(() => null) : null;
+
+/* Both of these are read inside `goLive`'s try/catch, where a `??` or a
+   ternary is a value block the compiler cannot lower. */
+const keytermsOf = (k: string[] | undefined) => k ?? [];
+const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/* The words, or null when there are none worth handing back — refused, empty,
+   or noise the transcriber labelled. Read inside a try/catch, where a `||`
+   chain is a value block the compiler cannot lower, so it lives out here. */
+const usableText = (ok: boolean, body: { text?: string }): string | null =>
+  ok && body.text && saidSomething(body.text) ? body.text : null;
+
 const unreadable = (body: { text?: string; error?: string }) =>
   body.error ??
   (body.text
@@ -440,7 +458,8 @@ export function useDictation({
       /* Walked away while this was in the air. Nothing to say and nowhere to
          say it — the surface that asked is gone. */
       if (mine.discard) return void clearRun();
-      if (!res.ok || !body.text || !saidSomething(body.text)) {
+      const text = usableText(res.ok, body);
+      if (text === null) {
         /* A run that never reaches a proposal has to be dropped, or the
            NEXT note — quite possibly a typed one — prints its `routed`
            measured from a stop that happened minutes ago. */
@@ -449,7 +468,7 @@ export function useDictation({
         return;
       }
       markTranscript("batch");
-      cbs.current.onTranscript(body.text, { capped: capped.current });
+      cbs.current.onTranscript(text, { capped: capped.current });
     } catch {
       clearRun();
       report("That recording couldn't be sent. Type it instead.");
@@ -486,7 +505,7 @@ export function useDictation({
       const handle = await startRealtime({
         tap,
         token,
-        keyterms: keyterms ?? [],
+        keyterms: keytermsOf(keyterms),
         onText: setInterim,
       });
       /* Stopped or discarded while the handshake was in flight — the socket
@@ -501,7 +520,7 @@ export function useDictation({
          is a no-op, so this is the one line that covers every failure
          whichever side of the handover it happened on. */
       tap.close();
-      console.error(`[dictation] live transport unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`[dictation] live transport unavailable: ${errText(err)}`);
     }
   };
 
@@ -556,7 +575,7 @@ export function useDictation({
            every word said in the meantime. It swallows its own failure
            because a browser with no audio pipeline is a batch recording,
            not an error anybody needs to hear about. */
-        tapping = transportChoice() ? openMicTap(stream).catch(() => null) : null;
+        tapping = tapFor(stream);
         /* Only once the microphone is genuinely open — chiming before the
            prompt is answered would announce a recording that may never
            start. `{ audio: true }` turns on echo cancellation by default,

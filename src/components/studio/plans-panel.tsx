@@ -47,6 +47,24 @@ type PlanSource = { kind: "pdf" | "image"; file?: File; ref?: string };
 
 type Busy = { kind: "rendering" | "uploading"; done: number; total: number };
 
+/* Why a commit failed, in the words the person gets — read from inside a
+   catch, so the ternary lives out here. */
+const uploadError = (e: unknown) =>
+  e instanceof Error
+    ? `Upload failed: ${e.message}`
+    : "Upload failed — check your connection and try again";
+
+/* Why an upload failed, in the words the person gets. Out here for the same
+   reason as `withRef` — it is read from inside a catch. */
+const readError = (e: unknown) =>
+  e instanceof Error ? e.message : "Couldn't read that file";
+
+/* A rehydrated page, carrying its committed image ref when it had one. Out
+   here because the ternary would be a value block inside the try that calls
+   it, which is a compiler bail. */
+const withRef = (p: PageImage, ref: string | undefined): PageImage =>
+  ref ? { ...p, ref } : p;
+
 export function PlansPanel({
   doc,
   onMutate,
@@ -103,24 +121,31 @@ export function PlansPanel({
       return;
     let cancelled = false;
     setBusy({ kind: "rendering", done: 0, total: imp.sources.length });
+    // re-rasterise the stored source files back into the full page grid.
+    // Inlined (not a plans.ts helper) so it calls the imported pdfToPages /
+    // imageToPage — the ones tests mock; a module-internal call wouldn't be.
+    // It sits OUT HERE, beside the try rather than inside it, because React
+    // Compiler 1.0 cannot lower a loop inside a try/catch and gives up on the
+    // whole component when it meets one (see studio/canvas.tsx).
+    const rasterise = async (srcs: PlanImportSource[]) => {
+      const restored: PageImage[] = [];
+      for (const src of srcs) {
+        const file = await planImages.sourceFile(src.ref);
+        if (src.kind === "pdf") {
+          restored.push(
+            ...(await pdfToPages(file, (done, total) =>
+              setBusy({ kind: "rendering", done, total })
+            ))
+          );
+        } else {
+          restored.push(await imageToPage(file));
+        }
+      }
+      return restored;
+    };
     (async () => {
       try {
-        // re-rasterise the stored source files back into the full page grid.
-        // Inlined (not a plans.ts helper) so it calls the imported pdfToPages /
-        // imageToPage — the ones tests mock; a module-internal call wouldn't be.
-        const restoredPages: PageImage[] = [];
-        for (const src of imp.sources) {
-          const file = await planImages.sourceFile(src.ref);
-          if (src.kind === "pdf") {
-            restoredPages.push(
-              ...(await pdfToPages(file, (done, total) =>
-                setBusy({ kind: "rendering", done, total })
-              ))
-            );
-          } else {
-            restoredPages.push(await imageToPage(file));
-          }
-        }
+        const restoredPages = await rasterise(imp.sources);
         labelPagesSequentially(restoredPages);
         if (cancelled) return;
         // claim the once-per-open guard only on success — a run cancelled by a
@@ -129,9 +154,7 @@ export function PlansPanel({
         // re-attach each placed page's committed image ref so the stacker can
         // match it to its floor and a re-commit never re-uploads it. Build new
         // objects (don't mutate) — two re-rasterised pages could share identity.
-        const pagesWithRefs = restoredPages.map((p, i) =>
-          imp.placed[i] ? { ...p, ref: imp.placed[i] } : p
-        );
+        const pagesWithRefs = restoredPages.map((p, i) => withRef(p, imp.placed[i]));
         setPages(pagesWithRefs);
         setSources(imp.sources.map((s) => ({ kind: s.kind, ref: s.ref })));
         setChosen(imp.chosen);
@@ -157,8 +180,8 @@ export function PlansPanel({
     setError(null);
     const list = [...files];
     if (list.length === 0) return;
-    try {
-      setBusy({ kind: "rendering", done: 0, total: list.length });
+    // the loop reads OUTSIDE the try, same reason as the rehydrate above
+    const read = async () => {
       const fresh: PageImage[] = [];
       const freshSources: PlanSource[] = [];
       for (const f of list) {
@@ -174,12 +197,17 @@ export function PlansPanel({
           freshSources.push({ kind: "image", file: f });
         }
       }
+      return { fresh, freshSources };
+    };
+    const base = pages ?? [];
+    try {
+      setBusy({ kind: "rendering", done: 0, total: list.length });
+      const { fresh, freshSources } = await read();
       setBusy(null);
       if (fresh.length === 0) {
         setError("No usable pages — upload a PDF, PNG or JPG.");
         return;
       }
-      const base = pages ?? [];
       const startIdx = base.length;
       const all = [...base, ...fresh];
       labelPagesSequentially(all); // Page 1, Page 2, … across the whole upload
@@ -208,7 +236,7 @@ export function PlansPanel({
       }
     } catch (e) {
       setBusy(null);
-      setError(e instanceof Error ? e.message : "Couldn't read that file");
+      setError(readError(e));
     }
   };
 
@@ -250,78 +278,89 @@ export function PlansPanel({
     if (!pages) return;
     const pageIdxs = rows.flatMap((r) => r.pageIdxs);
     if (pageIdxs.length === 0) return;
+    /* THE WHOLE UPLOAD IS ONE CALL from inside the try. Its three loops and
+       its `??` cannot live in there: React Compiler 1.0 lowers neither a
+       loop nor a value block inside a try/catch, and gives up on the whole
+       component when it meets one (see studio/canvas.tsx). Called from the
+       try, every failure still lands in the same catch. */
+    const run = async () => {
+        // storage = the original source files + only the PLACED pages (the canvas
+        // needs a rendered image for those). Unplaced pages are never stored — the
+        // grid re-rasterises from the sources on return. Anything already stored
+        // (a fresh source's ref set on a prior commit, or a rehydrated page) is
+        // kept, never re-uploaded.
+        const remaining =
+          sources.filter((s) => !s.ref).length +
+          pageIdxs.filter((i) => !pages[i].ref).length;
+        let done = 0;
+        /* `done = done + 1`, not `done++`: React Compiler 1.0 cannot lower an
+           update expression on a variable a lambda captures, and gives up on
+           the whole component when it meets one. The reported figure is still
+           the count BEFORE this page, as `done++` read it. */
+        const tick = () => {
+          setBusy({ kind: "uploading", done, total: remaining });
+          done = done + 1;
+        };
+
+        const storedSources: PlanImportSource[] = [];
+        for (const s of sources) {
+          let ref = s.ref;
+          if (!ref) {
+            tick();
+            ref = await planImages.uploadSource(s.file!);
+          }
+          storedSources.push({ ref, kind: s.kind });
+        }
+
+        // render + store each placed page (if not already), and map index → ref
+        const placed: Record<number, string> = {};
+        for (const idx of pageIdxs) {
+          const p = pages[idx];
+          let ref = p.ref;
+          if (!ref) {
+            tick();
+            ref = await planImages.upload(p);
+          }
+          placed[idx] = ref;
+        }
+        const uploads = new Map<number, UploadedSheet>();
+        for (const idx of pageIdxs) {
+          const p = pages[idx];
+          uploads.set(idx, {
+            label: p.label,
+            ref: placed[idx],
+            pageNumber: p.pageNumber,
+            width: p.width,
+            height: p.height,
+          });
+        }
+        // compute once (fresh floor ids) so we can commit AND land on one
+        const committed = applyBuilderRows(rows, uploads, doc.floors);
+        const planImport: PlanImport = {
+          sources: storedSources,
+          placed,
+          chosen,
+          names,
+        };
+        onMutate((d) => ({ ...d, floors: committed, planImport }));
+        // only fresh (object-URL) thumbnails need revoking; rehydrated pages hold
+        // real signed URLs (no blob) that must not be revoked
+        pages.forEach((p) => p.blob && URL.revokeObjectURL(p.thumbUrl));
+        setBusy(null);
+        discardImport(); // session done — URLs already revoked, this just resets
+        // skip the floor-list step — go straight to the canvas on the ground
+        // floor (or the lowest floor if there's no level 0)
+        const landing =
+          committed.find((f) => f.level === 0) ??
+          [...committed].sort((a, b) => a.level - b.level)[0];
+        if (landing) onOpenFloor(landing.id);
+    };
     try {
-      // storage = the original source files + only the PLACED pages (the canvas
-      // needs a rendered image for those). Unplaced pages are never stored — the
-      // grid re-rasterises from the sources on return. Anything already stored
-      // (a fresh source's ref set on a prior commit, or a rehydrated page) is
-      // kept, never re-uploaded.
-      const remaining =
-        sources.filter((s) => !s.ref).length +
-        pageIdxs.filter((i) => !pages[i].ref).length;
-      let done = 0;
-      const tick = () => setBusy({ kind: "uploading", done: done++, total: remaining });
-
-      const storedSources: PlanImportSource[] = [];
-      for (const s of sources) {
-        let ref = s.ref;
-        if (!ref) {
-          tick();
-          ref = await planImages.uploadSource(s.file!);
-        }
-        storedSources.push({ ref, kind: s.kind });
-      }
-
-      // render + store each placed page (if not already), and map index → ref
-      const placed: Record<number, string> = {};
-      for (const idx of pageIdxs) {
-        const p = pages[idx];
-        let ref = p.ref;
-        if (!ref) {
-          tick();
-          ref = await planImages.upload(p);
-        }
-        placed[idx] = ref;
-      }
-      const uploads = new Map<number, UploadedSheet>();
-      for (const idx of pageIdxs) {
-        const p = pages[idx];
-        uploads.set(idx, {
-          label: p.label,
-          ref: placed[idx],
-          pageNumber: p.pageNumber,
-          width: p.width,
-          height: p.height,
-        });
-      }
-      // compute once (fresh floor ids) so we can commit AND land on one
-      const committed = applyBuilderRows(rows, uploads, doc.floors);
-      const planImport: PlanImport = {
-        sources: storedSources,
-        placed,
-        chosen,
-        names,
-      };
-      onMutate((d) => ({ ...d, floors: committed, planImport }));
-      // only fresh (object-URL) thumbnails need revoking; rehydrated pages hold
-      // real signed URLs (no blob) that must not be revoked
-      pages.forEach((p) => p.blob && URL.revokeObjectURL(p.thumbUrl));
-      setBusy(null);
-      discardImport(); // session done — URLs already revoked, this just resets
-      // skip the floor-list step — go straight to the canvas on the ground
-      // floor (or the lowest floor if there's no level 0)
-      const landing =
-        committed.find((f) => f.level === 0) ??
-        [...committed].sort((a, b) => a.level - b.level)[0];
-      if (landing) onOpenFloor(landing.id);
+      await run();
     } catch (e) {
       // keep the import session so a retry is one click
       setBusy(null);
-      setError(
-        e instanceof Error
-          ? `Upload failed: ${e.message}`
-          : "Upload failed — check your connection and try again"
-      );
+      setError(uploadError(e));
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { SimRuntime } from "@/lib/studio/sim-runtime";
 import { steadyStateC, timeToSetpointSimS, type SimFan, type SimMode } from "@/lib/studio/sim";
 
@@ -105,7 +105,7 @@ export function SimControllerCard({
             <button
               key={h.id}
               className={`ds-sim-tab${h.id === active?.id ? " on" : ""}`}
-              style={{ ["--sys" as never]: h.colour }}
+              style={{ "--sys": h.colour } as CSSProperties}
               onClick={() => setPickedId(h.id)}
             >
               <span className="ds-sim-tabdot" />

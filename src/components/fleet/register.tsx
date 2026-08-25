@@ -24,8 +24,16 @@ import {
   valuationStale,
   vehicleChips,
   worstState,
+  type RenewalKind,
 } from "./logic";
-import { DetailModal, EditLogModal, LogModal, RenewalModal, VehicleFormModal } from "./modals";
+import {
+  DetailModal,
+  EditLogModal,
+  LogModal,
+  RenewalHistoryModal,
+  RenewalModal,
+  VehicleFormModal,
+} from "./modals";
 import { Plate } from "./plate";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
@@ -45,7 +53,11 @@ type ModalState =
   | { t: "detail"; id: string }
   | { t: "log"; id: string; kind: LogKind }
   | { t: "fix"; id: string; log: VehicleLog }
-  | { t: "renew"; id: string; kind: "insurance" | "rego" };
+  | { t: "history"; id: string; kind: RenewalKind }
+  /* `back` is where Cancel and Save return to. Filing from the history popup
+     lands back in it, so the row you just added is visible rather than taken
+     on trust. */
+  | { t: "renew"; id: string; kind: RenewalKind; back: "detail" | "history" };
 
 export function FleetRegister({
   fleet,
@@ -461,7 +473,8 @@ export function FleetRegister({
           valuationIsStale={valuationStale(openVehicle, fleet.aiValues[openVehicle.id])}
           documents={fleet.documents[openVehicle.id] ?? []}
           policies={fleet.policies[openVehicle.id] ?? []}
-          onRenew={(kind) => setModal({ t: "renew", id: openVehicle.id, kind })}
+          onRenew={(kind) => setModal({ t: "renew", id: openVehicle.id, kind, back: "detail" })}
+          onHistory={(kind) => setModal({ t: "history", id: openVehicle.id, kind })}
           staff={staff}
           manager
           onClose={() => setModal({ t: "none" })}
@@ -477,6 +490,18 @@ export function FleetRegister({
           }}
         />
       )}
+      {modal.t === "history" && openVehicle && (
+        <RenewalHistoryModal
+          vehicle={openVehicle}
+          kind={modal.kind}
+          documents={fleet.documents[openVehicle.id] ?? []}
+          policies={fleet.policies[openVehicle.id] ?? []}
+          onAdd={() =>
+            setModal({ t: "renew", id: openVehicle.id, kind: modal.kind, back: "history" })
+          }
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+        />
+      )}
       {modal.t === "renew" && openVehicle && (
         <RenewalModal
           vehicle={openVehicle}
@@ -484,9 +509,19 @@ export function FleetRegister({
           today={today}
           onSave={(input) => {
             fleet.recordRenewal({ ...input, vehicleId: openVehicle.id });
-            setModal({ t: "detail", id: openVehicle.id });
+            setModal(
+              modal.back === "history"
+                ? { t: "history", id: openVehicle.id, kind: modal.kind }
+                : { t: "detail", id: openVehicle.id },
+            );
           }}
-          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+          onClose={() =>
+            setModal(
+              modal.back === "history"
+                ? { t: "history", id: openVehicle.id, kind: modal.kind }
+                : { t: "detail", id: openVehicle.id },
+            )
+          }
         />
       )}
       {modal.t === "fix" && openVehicle && (

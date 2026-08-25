@@ -237,6 +237,53 @@ export type VehiclePolicy = {
   documentId: string | null;
 };
 
+/** The document kind each renewal kind arrives as. */
+export const RENEWAL_DOC_KIND = {
+  insurance: "insurance_policy",
+  rego: "rego_notice",
+} as const;
+
+export type RenewalKind = keyof typeof RENEWAL_DOC_KIND;
+
+/* WHICH DOCUMENT IS ACTUALLY IN FORCE.
+
+   The newest UPLOAD is not the answer. Renewals can be filed at any time now,
+   including a back-catalogue policy entered long after it lapsed — so the
+   latest expiry decides, exactly as it decides the vehicle's cached expiry
+   column. Reading it off the upload date instead would tag a 2024 policy
+   "Current" the moment it was typed in, while the vehicle's own expiry
+   (correctly) stayed on the live one: two answers to one question, which is
+   the thing deriving this was meant to prevent.
+
+   The latest expiry is picked outright rather than trusting the caller's sort:
+   the query does order by expires_on, but a rule about which paper is in force
+   should not quietly depend on that staying true.
+
+   With no policy row of that kind there is nothing stating a period, and the
+   newest upload is the best available answer. */
+export function currentRenewalDocIds(
+  policies: readonly Pick<VehiclePolicy, "kind" | "expiresOn" | "documentId">[],
+  documents: readonly { id: string; kind: string }[],
+): Set<string> {
+  const out = new Set<string>();
+  for (const kind of ["insurance", "rego"] as const) {
+    const filed = policies.filter((p) => p.kind === kind);
+    const inForce = filed
+      .filter((p) => p.documentId)
+      .reduce<(typeof filed)[number] | null>(
+        (best, p) => (!best || p.expiresOn > best.expiresOn ? p : best),
+        null,
+      );
+    if (inForce?.documentId) {
+      out.add(inForce.documentId);
+    } else if (filed.length === 0) {
+      const newest = documents.find((d) => d.kind === RENEWAL_DOC_KIND[kind]);
+      if (newest) out.add(newest.id);
+    }
+  }
+  return out;
+}
+
 export type AiValuation = {
   point: number;
   low: number;

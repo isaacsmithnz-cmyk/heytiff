@@ -48,6 +48,7 @@ import { newId } from "@/lib/studio/document";
 import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
 import { lensRoom, roomAtPoint } from "@/lib/studio/coverage";
+import { setHintsOn, useHintsOn } from "./hints";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
@@ -3068,6 +3069,9 @@ export function StudioCanvas({
             ? "ds-cur-north"
             : "ds-cur-cross";
 
+  /* whether this machine still wants to be talked through the armed tool */
+  const hintsOn = useHintsOn();
+
   /* in-progress guidance while a step tool is active */
   const toolHint: { icon: string; text: string } | null =
     tool === "calibrate" && !(calib.a && calib.b)
@@ -4332,11 +4336,25 @@ export function StudioCanvas({
           );
         })()}
 
-      {/* in-progress guidance while a step tool is active (bottom-centre) */}
-      {toolHint && (
+      {/* in-progress guidance while a step tool is active — a window tucked
+          into the canvas's own top-right corner, taking its outer radius from
+          the canvas so it reads as part of the sheet rather than a pill
+          floating over the middle of the drawing (Isaac, 2026-08-25). Grey,
+          not the dark chrome: it sits over the plan for as long as the tool is
+          armed, and the dark pill kept pulling the eye off the shape being
+          drawn. Anyone who knows the gestures turns it off on the × . */}
+      {toolHint && hintsOn && (
         <div className="ds-tool-hint" role="status">
           <Icon name={toolHint.icon} size={14} />
-          <span>{toolHint.text}</span>
+          <span className="ds-tool-hint-t">{toolHint.text}</span>
+          <button
+            className="ds-tool-hint-x"
+            title="Turn hints off"
+            aria-label="Turn tool hints off"
+            onClick={() => setHintsOn(false)}
+          >
+            <Icon name="x" size={13} />
+          </button>
         </div>
       )}
 

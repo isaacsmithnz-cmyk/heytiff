@@ -1902,10 +1902,16 @@ html[data-ds-display] .dstudio.editing {
 }
 
 /* legend panel — floats over the canvas */
+/* The legend used to sit top-right, which was two problems in one: it is
+   positioned against the COLUMN, so top:14px put it over the toolbar rather
+   than over the canvas, and the canvas's top-right corner now belongs to the
+   tool-hint window. Bottom-left is the one corner of the canvas with nothing
+   in it — 34px clears the scale readout, and the zoom HUD is at the far end
+   of the same edge. */
 .dstudio .ds-legend {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  bottom: 34px;
+  left: 14px;
   z-index: 15;
   min-width: 176px;
   border-radius: 14px;
@@ -3167,6 +3173,19 @@ html[data-ds-display] .dstudio.editing {
   background: rgba(255, 255, 255, 0.16);
   color: var(--ink);
 }
+/* hints on/off — one button, not a pair, because unlike the wheel mode this
+   one shows its state by whether the window is on the canvas at all */
+.dstudio .ds-zoomctl .ds-hintbtn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  color: var(--gray400);
+}
+.dstudio .ds-zoomctl .ds-hintbtn.on {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+}
 /* ── canvas HUDs ──────────────────────────────────────────────────────
    Everything that floats over the PLAN is dark. studio.css used to argue
    these "stay light on purpose" because they sit over the white canvas —
@@ -3178,7 +3197,6 @@ html[data-ds-display] .dstudio.editing {
    ink ramp every child reads through. Anything new that floats over the
    canvas joins this list rather than restating it. */
 .dstudio .ds-zoomctl,
-.dstudio .ds-tool-hint,
 .dstudio .ds-legend,
 .dstudio .ds-hud {
   background: rgba(17, 20, 28, 0.92);
@@ -3199,26 +3217,88 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
 }
 
-/* in-progress step guidance — top-centre pill */
+/* ── in-progress step guidance — the corner window ────────────────────
+   It used to be a dark pill floating at the top CENTRE of the canvas, which
+   put it directly over the plan you were drawing on and moved the eye off the
+   shape every time a tool was armed. Now it tucks flush into the canvas's own
+   top-right corner: no gap on the two outer edges, the outer corner taking the
+   canvas's radius (24px less its 1px border = 23) so the curve continues
+   unbroken, and only the two INNER corners rounded like a panel. The result
+   reads as a window cut into the sheet, in one fixed place, instead of a thing
+   that appears over the drawing.
+
+   Grey rather than the dark chrome for the same reason: it is on screen for as
+   long as the tool is armed, so it has to sit quietly beside the work. The
+   plan's own white is what the dark HUDs were fighting; the panel grey with a
+   hairline on its two inner edges separates from white without shouting. */
 .dstudio .ds-tool-hint {
   position: absolute;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
+  top: 0;
+  right: 0;
   z-index: 14;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+  max-width: min(320px, 60%);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 12px;
   font-weight: 700;
+  line-height: 1.45;
   color: var(--ink);
-  border-radius: 999px;
-  padding: 7px 14px;
+  background: var(--ds-card2);
+  /* the two inner edges only — the outer two are the canvas's own border */
+  border-left: 1px solid var(--ds-border-s);
+  border-bottom: 1px solid var(--ds-border-s);
+  border-radius: 0 23px 0 16px;
+  padding: 11px 14px 12px 15px;
+  box-shadow: -6px 8px 20px -14px rgba(10, 12, 20, 0.5);
+  /* the window never eats a click meant for the plan; only the × does */
   pointer-events: none;
+  animation: ds-tool-hint-in 0.14s ease-out;
 }
-/* the mid-dark teal reads as muddy grey-green on the dark surface — the
-   bright twin is the one that carries, same swap the frame chrome makes */
-.dstudio .ds-tool-hint svg { color: var(--teal); }
+@keyframes ds-tool-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dstudio .ds-tool-hint {
+    animation: none;
+  }
+}
+/* the icon sits on the first line of the text, not centred on a block that
+   may run to two or three lines */
+.dstudio .ds-tool-hint > span:first-child {
+  flex: 0 0 auto;
+  display: inline-flex;
+  margin-top: 1px;
+  color: var(--ds-teal-ink);
+}
+.dstudio .ds-tool-hint-t {
+  min-width: 0;
+}
+/* the off switch, where the annoyance is. It clears the outer curve by sitting
+   on the text's first line rather than in the corner the radius owns. */
+.dstudio .ds-tool-hint-x {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin: -1px -4px 0 2px;
+  padding: 0;
+  border-radius: 7px;
+  /* --gray400 (#9ca3af) is 2.4:1 on the panel grey — under the 3:1 graphic
+     floor. gray500 is the faintest ink this surface can carry. */
+  color: var(--gray500);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.dstudio .ds-tool-hint-x:hover {
+  background: rgba(10, 12, 20, 0.07);
+  color: var(--ink);
+}
 .dstudio .ds-insp-head {
   display: flex;
   align-items: center;

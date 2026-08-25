@@ -25,6 +25,8 @@ import {
   proposeMultiOdus,
   checkMultiCompatibility,
   multiConnection,
+  multiUnitOptions,
+  multiFormFactorSummary,
   MULTI_OVERSIZE_CAP,
 } from "../multi";
 
@@ -432,5 +434,114 @@ describe("multi systemComponents", () => {
   it("stays empty until an outdoor resolves", () => {
     const { doc, system } = docWithRooms();
     expect(systemComponents(doc, pack, system, basis)).toHaveLength(0);
+  });
+});
+
+/* The per-room selector behind the big units modal. These mirror select.ts's
+   contract deliberately — the same modal drives both flows, so it has to rank
+   the same way whichever one is behind it. Against the real shipped pack. */
+describe("multiUnitOptions / multiFormFactorSummary", () => {
+  const pack = loadPack();
+  const basis = "worst-of-both" as const;
+
+  it("offers only multi-capable indoor units, never the pair-table catalogue", () => {
+    const capable = new Set(multiCapableIdus(pack).map((u) => u.model));
+    const rows = multiUnitOptions(pack, { loadKw: null, basis });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => capable.has(r.idu.model))).toBe(true);
+    /* and it really is a narrower set than everything the pack holds */
+    expect(rows.length).toBeLessThan(pack.indoor_units.length);
+  });
+
+  it("narrows to a form factor, and the fit filters narrow within it", () => {
+    const all = multiUnitOptions(pack, { loadKw: null, basis, formFactor: "wall" });
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.every((r) => r.idu.form_factor === "wall")).toBe(true);
+
+    const narrow = multiUnitOptions(pack, {
+      loadKw: null,
+      basis,
+      formFactor: "wall",
+      filters: { maxWidthMm: 800 },
+    });
+    expect(narrow.length).toBeLessThan(all.length);
+    expect(narrow.every((r) => (r.idu.width_mm ?? Infinity) <= 800)).toBe(true);
+  });
+
+  it("re-derives bestFit inside the CURRENT view, never at a hidden row", () => {
+    /* The bug this guards: proposeMultiIdus flags bestFit across the whole
+       capable catalogue, so once a tab narrows the list that flag can point at
+       a row nobody can see — leaving the table with NO recommendation.
+
+       Pinning it needs a view that provably excludes the catalogue-wide
+       winner; asserting on an arbitrary tab passes even without the
+       re-derivation whenever the global best happens to live there. */
+    const load = 1.74;
+    const globalBest = proposeMultiIdus(pack, load, basis).find((p) => p.bestFit)!;
+    expect(globalBest).toBeDefined();
+
+    const elsewhere = multiFormFactorSummary(pack, load, basis).find(
+      (t) => t.formFactor !== globalBest.idu.form_factor && t.fitCount > 0
+    )!;
+    expect(elsewhere).toBeDefined();
+
+    const rows = multiUnitOptions(pack, { loadKw: load, basis, formFactor: elsewhere.formFactor });
+    /* the winner really is absent from this view */
+    expect(rows.some((r) => r.idu.model === globalBest.idu.model)).toBe(false);
+
+    const flagged = rows.filter((r) => r.bestFit);
+    expect(flagged).toHaveLength(1);
+    expect(flagged[0].fit).toBe("fits");
+    const smallest = Math.min(...rows.filter((r) => r.fit === "fits").map((r) => r.capacityKw));
+    expect(flagged[0].capacityKw).toBe(smallest);
+  });
+
+  it("recommends the SMALLEST unit that suits, never a bigger one and never an undersized one", () => {
+    /* Deliberately the wall tab: at 1.74 kW it is the view with a real spread
+       — undersized rows BELOW the winner (1.2, 1.7) and several fitting
+       capacities above it (2.0, 2.2, 2.5). A tab whose fitting rows all share
+       one capacity cannot tell "smallest" from "largest" apart, and cannot
+       catch a recommendation that ignores fit at all. */
+    const rows = multiUnitOptions(pack, { loadKw: 1.74, basis, formFactor: "wall" });
+    const fitting = rows.filter((r) => r.fit === "fits");
+    const caps = new Set(fitting.map((r) => r.capacityKw));
+    expect(caps.size).toBeGreaterThan(1); // the spread this test depends on
+    expect(rows.some((r) => r.fit === "undersized")).toBe(true);
+
+    const best = rows.filter((r) => r.bestFit);
+    expect(best).toHaveLength(1);
+    expect(best[0].fit).toBe("fits");
+    expect(best[0].capacityKw).toBe(Math.min(...fitting.map((r) => r.capacityKw)));
+    /* and something smaller genuinely exists — so "smallest overall" and
+       "smallest that fits" are different answers here */
+    expect(Math.min(...rows.map((r) => r.capacityKw))).toBeLessThan(best[0].capacityKw);
+  });
+
+  it("flags nothing without a load — there is no 'best' against no target", () => {
+    const rows = multiUnitOptions(pack, { loadKw: null, basis, formFactor: "wall" });
+    expect(rows.some((r) => r.bestFit)).toBe(false);
+  });
+
+  it("sorts by the column asked for, capacity by default", () => {
+    const byCap = multiUnitOptions(pack, { loadKw: null, basis, formFactor: "wall" });
+    const caps = byCap.map((r) => r.capacityKw);
+    expect([...caps].sort((a, b) => a - b)).toEqual(caps);
+
+    const byWidth = multiUnitOptions(pack, {
+      loadKw: null, basis, formFactor: "wall", sort: "width",
+    });
+    const widths = byWidth.map((r) => r.idu.width_mm ?? Infinity);
+    expect([...widths].sort((a, b) => a - b)).toEqual(widths);
+  });
+
+  it("summarises tabs over the capable catalogue, fits never exceeding the count", () => {
+    const tabs = multiFormFactorSummary(pack, 1.74, basis);
+    expect(tabs.length).toBeGreaterThan(0);
+    for (const t of tabs) {
+      expect(t.count).toBeGreaterThan(0);
+      expect(t.fitCount).toBeLessThanOrEqual(t.count);
+      /* the count must agree with what the table will actually list */
+      expect(multiUnitOptions(pack, { loadKw: null, basis, formFactor: t.formFactor })).toHaveLength(t.count);
+    }
   });
 });

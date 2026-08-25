@@ -43,8 +43,14 @@ export interface UnitSpec {
   detailOnly?: boolean;
   /** column header in the table */
   header: string;
-  /** table cell text for a row (idu + its chosen pair) */
-  cell: (o: UnitOption, pair: PairProposal) => string;
+  /** Table cell text for a row (idu + its chosen pair).
+
+      `pair` is null in the per-room flow, where a row is an indoor head with
+      no pairing of its own — a multi's outdoor belongs to the system. Only
+      `group: "idu"` specs are ever asked for there (the browser filters on
+      exactly that), so the odu/pair cells below answer with a dash rather
+      than pretending; the null is what makes that impossible to get wrong. */
+  cell: (o: UnitOption, pair: PairProposal | null) => string;
   /** engine sort key, when this column is sortable */
   sortKey?: SelectSort;
   /** shown by default (the rest are opt-in via the Columns menu) */
@@ -62,7 +68,7 @@ export interface UnitSpec {
   label: string;
   unit?: string;
   /** raw numeric for best-in-row highlighting; null when not applicable */
-  numeric?: (o: UnitOption, pair: PairProposal) => number | null;
+  numeric?: (o: UnitOption, pair: PairProposal | null) => number | null;
   /** which direction wins when comparing */
   better?: "higher" | "lower";
 }
@@ -74,8 +80,8 @@ export const UNIT_SPECS: UnitSpec[] = [
     header: "Cool / Heat",
     label: "Capacity",
     unit: "kW",
-    cell: (_o, p) => `${p.coolKw} / ${p.heatKw} kW`,
-    numeric: (_o, p) => p.capacityKw,
+    cell: (_o, p) => !p ? "—" : `${p.coolKw} / ${p.heatKw} kW`,
+    numeric: (_o, p) => !p ? null : p.capacityKw,
     better: "higher",
     sortKey: "capacity",
     defaultOn: true,
@@ -194,7 +200,7 @@ export const UNIT_SPECS: UnitSpec[] = [
     group: "odu",
     header: "Phase",
     label: "Power phase",
-    cell: (_o, p) => (p.odu.phase === "3" ? "3φ" : "1φ"),
+    cell: (_o, p) => !p ? "—" : (p.odu.phase === "3" ? "3φ" : "1φ"),
     defaultOn: false,
   },
   {
@@ -203,8 +209,8 @@ export const UNIT_SPECS: UnitSpec[] = [
     header: "Sound (out)",
     label: "Sound",
     unit: "dBA",
-    cell: (_o, p) => formatSoundRange(p.odu.sound_low_dba, p.odu.sound_high_dba),
-    numeric: (_o, p) => p.odu.sound_high_dba ?? p.odu.sound_low_dba ?? null,
+    cell: (_o, p) => !p ? "—" : formatSoundRange(p.odu.sound_low_dba, p.odu.sound_high_dba),
+    numeric: (_o, p) => !p ? null : p.odu.sound_high_dba ?? p.odu.sound_low_dba ?? null,
     better: "lower",
     defaultOn: false,
   },
@@ -216,7 +222,7 @@ export const UNIT_SPECS: UnitSpec[] = [
     unit: "mm",
     // composite — no numeric, so no best-in-row (three columns would bloat
     // the table for a rarely-scanned spec)
-    cell: (_o, p) =>
+    cell: (_o, p) => !p ? "—" :
       p.odu.width_mm != null && p.odu.depth_mm != null && p.odu.height_mm != null
         ? `${p.odu.width_mm} × ${p.odu.depth_mm} × ${p.odu.height_mm}`
         : "—",
@@ -228,8 +234,8 @@ export const UNIT_SPECS: UnitSpec[] = [
     header: "ODU kg",
     label: "Weight",
     unit: "kg",
-    cell: (_o, p) => (p.odu.weight_kg != null ? String(p.odu.weight_kg) : "—"),
-    numeric: (_o, p) => p.odu.weight_kg ?? null,
+    cell: (_o, p) => !p ? "—" : (p.odu.weight_kg != null ? String(p.odu.weight_kg) : "—"),
+    numeric: (_o, p) => !p ? null : p.odu.weight_kg ?? null,
     better: "lower",
     defaultOn: false,
   },
@@ -238,7 +244,7 @@ export const UNIT_SPECS: UnitSpec[] = [
     group: "odu",
     header: "ODU power",
     label: "Power supply",
-    cell: (_o, p) => p.odu.power_supply ?? "—",
+    cell: (_o, p) => !p ? "—" : p.odu.power_supply ?? "—",
     defaultOn: false,
   },
   {
@@ -247,8 +253,8 @@ export const UNIT_SPECS: UnitSpec[] = [
     header: "Max run m",
     label: "Max pipe run",
     unit: "m",
-    cell: (_o, p) => `${p.pair.max_length_m} m`,
-    numeric: (_o, p) => p.pair.max_length_m,
+    cell: (_o, p) => !p ? "—" : `${p.pair.max_length_m} m`,
+    numeric: (_o, p) => !p ? null : p.pair.max_length_m,
     better: "higher",
     defaultOn: false,
   },
@@ -259,8 +265,8 @@ export const UNIT_SPECS: UnitSpec[] = [
     header: "Max lift m",
     label: "Max lift",
     unit: "m",
-    cell: (_o, p) => `${p.pair.max_lift_m} m`,
-    numeric: (_o, p) => p.pair.max_lift_m,
+    cell: (_o, p) => !p ? "—" : `${p.pair.max_lift_m} m`,
+    numeric: (_o, p) => !p ? null : p.pair.max_lift_m,
     better: "higher",
     defaultOn: false,
   },
@@ -271,7 +277,7 @@ export const UNIT_SPECS: UnitSpec[] = [
     header: "Pipe ø",
     label: "Pipe ø (liq / gas)",
     unit: "mm",
-    cell: (_o, p) => `${p.pair.pipe_liquid_mm} / ${p.pair.pipe_gas_mm} mm`,
+    cell: (_o, p) => !p ? "—" : `${p.pair.pipe_liquid_mm} / ${p.pair.pipe_gas_mm} mm`,
     defaultOn: false,
   },
   {

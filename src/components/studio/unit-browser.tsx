@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import type { DataPack, FormFactor, Phase } from "@/lib/studio/packs/schema";
+import type { DataPack, FormFactor, IndoorUnit, Phase } from "@/lib/studio/packs/schema";
 import type { SizingBasis } from "@/lib/studio/loads";
 import {
   unitOptions,
@@ -25,6 +25,7 @@ import {
 } from "@/lib/studio/unit-specs";
 import type { PairProposal } from "@/lib/studio/split";
 import { DUCT_AIRWAY_FORMS } from "@/lib/studio/form-factors";
+import { multiFormFactorSummary, multiUnitOptions } from "@/lib/studio/multi";
 
 /* one unit staged for comparison — self-contained (brand + option + chosen
    pair) so the comparison survives brand switches and never re-reads a pack */
@@ -45,6 +46,35 @@ type CompareEntry = { key: string; brand: string; option: UnitOption; pair: Pair
     required figure up to ~135% of it — the same oversize spirit as the
     browser's 150% gate, tighter so the badge stays meaningful. */
 export const REQUIRED_BAND_CAP = 1.35;
+
+/** What a row commits to.
+
+    The two system flows choose different things, and the modal has to hand
+    back what was actually picked rather than flatten them: a split picks an
+    indoor unit AND the outdoor it pairs with, while a multi picks only the
+    indoor head — its outdoor is shared across every room and chosen once for
+    the system, so there is no pairing to return here. */
+export type UnitChoice =
+  | { kind: "pair"; pair: PairProposal }
+  | { kind: "idu"; idu: IndoorUnit };
+
+/** How the browser is being driven.
+    - "pair"     — split: rows are indoor units with their outdoor pairings.
+    - "per-room" — multi/VRF: rows are multi-capable indoor heads, no pairing
+                   column, and each room takes one. */
+export type BrowserMode = "pair" | "per-room";
+
+/** One table row, either flow. A per-room row has no pairing — see UnitChoice. */
+type BrowserRow = {
+  idu: IndoorUnit;
+  /** capacity under the sizing basis: the pairing's in pair flow, the indoor
+      unit's own in per-room flow */
+  capacityKw: number;
+  fit: UnitFit;
+  bestFit: boolean;
+  pairs: PairProposal[];
+  defaultPair: PairProposal | null;
+};
 
 /** One room in the browser's right-hand column — the workflow's spine: draw
     every room first, then attribute a unit to each by dragging it onto the
@@ -105,12 +135,13 @@ export function UnitBrowser({
   lensId,
   onLens,
   onAssign,
+  mode = "pair",
 }: {
   pack: DataPack;
   loadKw: number | null;
   basis: SizingBasis;
   /** commit the chosen pairing (the host arms placement via its drag cards) */
-  onChoose: (pair: PairProposal) => void;
+  onChoose: (choice: UnitChoice) => void;
   onClose: () => void;
   /** open on this form-factor tab while it has options (ducted AHU flow) */
   initialFormFactor?: FormFactor | null;
@@ -127,7 +158,9 @@ export function UnitBrowser({
   /** a unit was dragged onto a room card: attribute it to that room and STAY
       OPEN — the point of the column is attributing every room in one visit,
       with placement following afterwards. Absent = the column is read-only. */
-  onAssign?: (pair: PairProposal, roomId: string) => void;
+  onAssign?: (choice: UnitChoice, roomId: string) => void;
+  /** which flow is driving — see BrowserMode. Defaults to the split's. */
+  mode?: BrowserMode;
 }) {
   const [filters, setFilters] = useState<SelectFilters>({});
   const [sort, setSort] = useState<SelectSort>("capacity");
@@ -167,17 +200,21 @@ export function UnitBrowser({
   const compareKey = (model: string) => `${brandName}::${model}`;
   const inCompare = (model: string) => compare.some((c) => c.key === compareKey(model));
   const COMPARE_MAX = 3;
-  const toggleCompare = (o: UnitOption, pair: PairProposal) =>
+  const toggleCompare = (o: BrowserRow, pair: PairProposal) =>
     setCompare((cur) => {
       const key = compareKey(o.idu.model);
       if (cur.some((c) => c.key === key)) return cur.filter((c) => c.key !== key);
       if (cur.length >= COMPARE_MAX) return cur; // capped
-      return [...cur, { key, brand: brandName, option: o, pair }];
+      return [...cur, { key, brand: brandName, option: o as unknown as UnitOption, pair }];
     });
 
+  const perRoom = mode === "per-room";
   const tabs = useMemo(
-    () => formFactorSummary(pack, loadKw, basis, phase),
-    [pack, loadKw, basis, phase]
+    () =>
+      perRoom
+        ? multiFormFactorSummary(pack, loadKw, basis)
+        : formFactorSummary(pack, loadKw, basis, phase),
+    [perRoom, pack, loadKw, basis, phase]
   );
 
   /** default tab: the caller's requested form factor, else the first tab
@@ -194,24 +231,51 @@ export function UnitBrowser({
     const fit = tabs.find((t) => t.fitCount > 0);
     if (fit) return fit.formFactor;
     if (loadKw != null) {
-      const all = unitOptions(pack, { loadKw, basis, formFactor: null, phase });
+      const all = perRoom
+        ? multiUnitOptions(pack, { loadKw, basis })
+        : unitOptions(pack, { loadKw, basis, formFactor: null, phase });
       const rec = all.find((o) => o.bestFit);
       if (rec) return rec.idu.form_factor;
     }
     return tabs[0]?.formFactor ?? null;
-  }, [tab, tabs, pack, loadKw, basis, phase]);
+  }, [tab, tabs, pack, loadKw, basis, phase, perRoom]);
 
-  const options = useMemo(
+  /* One row shape, two sources. A pair row carries its outdoor pairings; a
+     per-room row has none, because a multi's outdoor is chosen once for the
+     system rather than per room. */
+  const options = useMemo<BrowserRow[]>(
     () =>
-      unitOptions(pack, {
-        loadKw,
-        basis,
-        formFactor: activeTab,
-        phase,
-        filters,
-        sort,
-      }),
-    [pack, loadKw, basis, activeTab, phase, filters, sort]
+      perRoom
+        ? multiUnitOptions(pack, {
+            loadKw,
+            basis,
+            formFactor: activeTab,
+            filters,
+            sort,
+          }).map((p) => ({
+            idu: p.idu,
+            capacityKw: p.capacityKw,
+            fit: p.fit,
+            bestFit: p.bestFit,
+            pairs: [],
+            defaultPair: null,
+          }))
+        : unitOptions(pack, {
+            loadKw,
+            basis,
+            formFactor: activeTab,
+            phase,
+            filters,
+            sort,
+          }).map((o) => ({
+            idu: o.idu,
+            capacityKw: o.defaultPair.capacityKw,
+            fit: o.fit,
+            bestFit: o.bestFit,
+            pairs: o.pairs,
+            defaultPair: o.defaultPair,
+          })),
+    [perRoom, pack, loadKw, basis, activeTab, phase, filters, sort]
   );
 
   /* the airflow filter belongs to every ducted-airway form, not the "ducted"
@@ -223,21 +287,27 @@ export function UnitBrowser({
   const activeSpecs = COLUMN_SPECS.filter(
     (s) =>
       columnIds.includes(s.id) &&
-      (!s.only || (activeTab != null && s.only.includes(activeTab)))
+      (!s.only || (activeTab != null && s.only.includes(activeTab))) &&
+      /* per-room has no outdoor and no pairing to describe — those columns
+         would have nothing to read from (see BrowserRow) */
+      (!perRoom || s.group === "idu")
   );
   /* the specs offered in the Columns menu for THIS tab (hide inapplicable ones) */
   const menuSpecs = COLUMN_SPECS.filter(
-    (s) => !s.only || (activeTab != null && s.only.includes(activeTab))
+    (s) =>
+      (!s.only || (activeTab != null && s.only.includes(activeTab))) &&
+      (!perRoom || s.group === "idu")
   );
-  // compare + Model + spec columns + Outdoor
-  const colSpan = 1 + 1 + activeSpecs.length + 1;
+  /* per-room: Model + capacity + specs. pair: compare + Model + specs + Outdoor */
+  const colSpan = perRoom ? 1 + 1 + activeSpecs.length : 1 + 1 + activeSpecs.length + 1;
 
   /** the option's outdoor pairing: the picked model if it still qualifies
       under the current filters, else the first surviving pairing */
-  const pairFor = (o: UnitOption): PairProposal =>
+  const pairFor = (o: BrowserRow): PairProposal | null =>
     o.pairs.find((p) => p.odu.model === oduPick[o.idu.model]) ?? o.defaultPair;
 
-  const inRequiredBand = (p: PairProposal): boolean =>
+  const inRequiredBand = (p: PairProposal | null): boolean =>
+    p != null &&
     requiredKw != null &&
     p.capacityKw >= requiredKw &&
     p.capacityKw <= requiredKw * REQUIRED_BAND_CAP;
@@ -245,9 +315,9 @@ export function UnitBrowser({
   /* group same-series rows adjacently, preserving the sorted order within each
      group and ordering groups by first appearance (keeps the best-fit unit's
      series near the top). Headers only make sense with 2+ series. */
-  const seriesGroups = (items: UnitOption[]) => {
+  const seriesGroups = (items: BrowserRow[]) => {
     const order: string[] = [];
-    const bySeries = new Map<string, UnitOption[]>();
+    const bySeries = new Map<string, BrowserRow[]>();
     for (const o of items) {
       const s = o.idu.series || "Other";
       if (!bySeries.has(s)) {
@@ -265,7 +335,7 @@ export function UnitBrowser({
      and it can only be read if the section is on screen. Without a load
      there's nothing to rank against, so it stays one plain list. */
   const sections = useMemo(() => {
-    const build = (key: string, title: string | null, hint: string | null, items: UnitOption[]) => {
+    const build = (key: string, title: string | null, hint: string | null, items: BrowserRow[]) => {
       const groups = seriesGroups(items);
       const grouped = groupBySeries && groups.length > 1;
       return {
@@ -332,10 +402,21 @@ export function UnitBrowser({
     );
   }, [visibleOptions, selected]);
 
-  const choose = (o: UnitOption) => onChoose(pairFor(o));
+  /** what a row commits to — a pairing in the split flow, the indoor head
+      alone in per-room (its outdoor belongs to the system, not the room) */
+  const choiceFor = (o: BrowserRow): UnitChoice | null => {
+    if (perRoom) return { kind: "idu", idu: o.idu };
+    const pair = pairFor(o);
+    return pair ? { kind: "pair", pair } : null;
+  };
+
+  const choose = (o: BrowserRow) => {
+    const choice = choiceFor(o);
+    if (choice) onChoose(choice);
+  };
 
   /* Add straight from a comparison column (uses that entry's captured pair) */
-  const chooseEntry = (e: CompareEntry) => onChoose(e.pair);
+  const chooseEntry = (e: CompareEntry) => onChoose({ kind: "pair", pair: e.pair });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -383,7 +464,7 @@ export function UnitBrowser({
     />
   );
 
-  const renderRow = (o: UnitOption) => {
+  const renderRow = (o: BrowserRow) => {
     const pair = pairFor(o);
     const checked = inCompare(o.idu.model);
     const isSel = selectedOption?.idu.model === o.idu.model;
@@ -415,45 +496,55 @@ export function UnitBrowser({
           setDropRoomId(null);
         }}
       >
-        <td className="ds-ub-cmpcell" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={checked}
-            disabled={!checked && compare.length >= COMPARE_MAX}
-            onChange={() => toggleCompare(o, pair)}
-            aria-label={`Compare ${o.idu.model}`}
-            title={
-              !checked && compare.length >= COMPARE_MAX
-                ? `Comparing ${COMPARE_MAX} — remove one first`
-                : "Add to comparison"
-            }
-          />
-        </td>
+        {/* comparison is a pairing-vs-pairing question; a per-room row has
+            no pairing to compare, so the column goes rather than sitting
+            there inert */}
+        {!perRoom && pair && (
+          <td className="ds-ub-cmpcell" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={!checked && compare.length >= COMPARE_MAX}
+              onChange={() => toggleCompare(o, pair)}
+              aria-label={`Compare ${o.idu.model}`}
+              title={
+                !checked && compare.length >= COMPARE_MAX
+                  ? `Comparing ${COMPARE_MAX} — remove one first`
+                  : "Add to comparison"
+              }
+            />
+          </td>
+        )}
         <td className="ds-ub-model">
           {o.idu.model}
           {o.bestFit && <em>best fit</em>}
-          <FitChip fit={o.fit} loadKw={loadKw} capacityKw={pair.capacityKw} />
+          <FitChip fit={o.fit} loadKw={loadKw} capacityKw={o.capacityKw} />
           {band && !o.bestFit && (
             <em className="ds-ub-inband" title="Within the required capacity band">
               in range
             </em>
           )}
         </td>
+        {/* the capacity a per-room row is judged on. In pair flow the same
+            figure arrives as the "Cooling / heating" pairing column. */}
+        {perRoom && <td className="ds-ub-capcell">{o.capacityKw.toFixed(1)} kW</td>}
         {activeSpecs.map((s) => (
-          <td key={s.id}>{s.cell(o, pair)}</td>
+          <td key={s.id}>{s.cell(o as unknown as UnitOption, pair)}</td>
         ))}
-        <td className="ds-ub-oducell">
-          <span className="ds-ub-odu">{pair.odu.model}</span>
-          <PhaseBadge phase={pair.odu.phase} />
-          {o.pairs.length > 1 && (
-            <span
-              className="ds-ub-morepairs"
-              title={`${o.pairs.length - 1} more outdoor pairing${o.pairs.length > 2 ? "s" : ""} — pick in the panel`}
-            >
-              +{o.pairs.length - 1}
-            </span>
-          )}
-        </td>
+        {!perRoom && pair && (
+          <td className="ds-ub-oducell">
+            <span className="ds-ub-odu">{pair.odu.model}</span>
+            <PhaseBadge phase={pair.odu.phase} />
+            {o.pairs.length > 1 && (
+              <span
+                className="ds-ub-morepairs"
+                title={`${o.pairs.length - 1} more outdoor pairing${o.pairs.length > 2 ? "s" : ""} — pick in the panel`}
+              >
+                +{o.pairs.length - 1}
+              </span>
+            )}
+          </td>
+        )}
       </tr>
     );
   };
@@ -563,8 +654,9 @@ export function UnitBrowser({
               <table className="ds-ub-table">
                 <thead>
                   <tr>
-                    <th className="ds-ub-cmpcol" aria-label="Compare" />
+                    {!perRoom && <th className="ds-ub-cmpcol" aria-label="Compare" />}
                     <th>Model</th>
+                    {perRoom && <th>Cooling</th>}
                     {activeSpecs.map((s) =>
                       s.sortKey ? (
                         <th
@@ -584,7 +676,7 @@ export function UnitBrowser({
                         <th key={s.id}>{s.header}</th>
                       )
                     )}
-                    <th>Outdoor</th>
+                    {!perRoom && <th>Outdoor</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -641,9 +733,10 @@ export function UnitBrowser({
           <aside className="ds-ub-detail">
             {selectedOption ? (
               <DetailPanel
-                option={selectedOption}
+                option={selectedOption as unknown as UnitOption}
                 pair={pairFor(selectedOption)}
                 loadKw={loadKw}
+                capacityKw={selectedOption.capacityKw}
                 onPickOdu={(oduModel) =>
                   setOduPick((m) => ({ ...m, [selectedOption.idu.model]: oduModel }))
                 }
@@ -701,7 +794,8 @@ export function UnitBrowser({
                         const opt = options.find((o) => o.idu.model === model);
                         setDragModel(null);
                         setDropRoomId(null);
-                        if (opt) onAssign!(pairFor(opt), r.id);
+                        const choice = opt ? choiceFor(opt) : null;
+                        if (choice) onAssign!(choice, r.id);
                       }}
                       title={
                         r.loadKw != null
@@ -837,13 +931,18 @@ function DetailPanel({
   option,
   pair,
   loadKw,
+  capacityKw,
   onPickOdu,
   onAdd,
 }: {
   option: UnitOption;
-  pair: PairProposal;
+  /** null in per-room flow: the outdoor is the SYSTEM's, chosen once, so the
+      sheet shows the indoor unit alone rather than half-filled pairing rows */
+  pair: PairProposal | null;
   /** the load the flag is measured against — null under the full catalogue */
   loadKw: number | null;
+  /** capacity the fit flag is measured on — the pairing's, or the head's own */
+  capacityKw: number;
   onPickOdu: (oduModel: string) => void;
   onAdd: () => void;
 }) {
@@ -863,7 +962,7 @@ function DetailPanel({
           {option.bestFit && <em>best fit</em>}
           {/* the flag follows the unit into the panel — the last screen before
               Add is where a wrong size most needs to still be saying so */}
-          <FitChip fit={option.fit} loadKw={loadKw} capacityKw={pair.capacityKw} />
+          <FitChip fit={option.fit} loadKw={loadKw} capacityKw={capacityKw} />
           <span className="ds-ub-dseries">{option.idu.series}</span>
         </div>
 
@@ -872,26 +971,30 @@ function DetailPanel({
           {rows("idu")}
         </section>
 
-        <section className="ds-ub-dsec">
-          <h4 className="ds-ub-dsech">
-            {SPEC_GROUP_LABELS.odu}
-            <PhaseBadge phase={pair.odu.phase} />
-          </h4>
-          <OduPicker option={option} pickedModel={pair.odu.model} onPick={onPickOdu} />
-          {rows("odu")}
-        </section>
+        {pair && (
+          <>
+            <section className="ds-ub-dsec">
+              <h4 className="ds-ub-dsech">
+                {SPEC_GROUP_LABELS.odu}
+                <PhaseBadge phase={pair.odu.phase} />
+              </h4>
+              <OduPicker option={option} pickedModel={pair.odu.model} onPick={onPickOdu} />
+              {rows("odu")}
+            </section>
 
-        <section className="ds-ub-dsec">
-          <h4 className="ds-ub-dsech">{SPEC_GROUP_LABELS.pair}</h4>
-          {rows("pair")}
-        </section>
+            <section className="ds-ub-dsec">
+              <h4 className="ds-ub-dsech">{SPEC_GROUP_LABELS.pair}</h4>
+              {rows("pair")}
+            </section>
+          </>
+        )}
       </div>
 
       <div className="ds-ub-addbar">
         <button
           className="ds-ub-addbtn"
           onClick={onAdd}
-          title={`Add ${option.idu.model} + ${pair.odu.model}`}
+          title={pair ? `Add ${option.idu.model} + ${pair.odu.model}` : `Add ${option.idu.model}`}
         >
           Add to plan
         </button>

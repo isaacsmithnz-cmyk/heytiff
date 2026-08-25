@@ -45,7 +45,7 @@ import {
   unitsToMeters,
 } from "@/lib/studio/geometry";
 import { sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
-import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
+import { roomAreaM2, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { formFactorLabel } from "@/lib/studio/unit-specs";
@@ -84,7 +84,7 @@ import {
 } from "@/lib/studio/components";
 import { SystemTypeChooser } from "./system-type-chooser";
 import { UnitBrowser } from "./unit-browser";
-import { MultiIduPicker, MultiOduPicker } from "./multi-browser";
+import { MultiOduPicker } from "./multi-browser";
 import type { PlacingUnit } from "./canvas";
 
 /* one colour per system, cycled on creation (kept from the old SystemsPanel) */
@@ -1356,7 +1356,8 @@ export function AhuSection({
           basis={basis}
           initialFormFactor="ducted"
           requiredKw={req.requiredKw}
-          onChoose={choose}
+          /* the ducted AHU flow is a pairing like the split's */
+          onChoose={(c) => c.kind === "pair" && choose(c.pair)}
           onClose={() => setBrowsing(false)}
         />
       )}
@@ -1577,6 +1578,7 @@ export function MultiUnitsSub({
   basis,
   onMutate,
   onArmPlace,
+  onBrowseUnits,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -1585,10 +1587,12 @@ export function MultiUnitsSub({
   basis: SizingBasis;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onArmPlace: (p: PlacingUnit | null) => void;
+  /** open THE units modal on this room. A multi used to open a small picker
+      per room, which could only ever see one room at a time; the big modal
+      lists every room on the system down its right-hand side, so one visit
+      assigns the lot. */
+  onBrowseUnits: (roomId: string) => void;
 }) {
-  const [browsing, setBrowsing] = useState(false);
-  const loadKw = roomLoadKw(doc, room);
-
   const placedIdu =
     doc.objects.find(
       (o) =>
@@ -1613,28 +1617,6 @@ export function MultiUnitsSub({
   const recall = (unitId: string) =>
     onMutate((d) => ({ ...d, objects: dropUnitObjects(d, unitId) }));
 
-  const choose = (idu: IndoorUnit) => {
-    const changed = idu.model !== model;
-    const placedId = placedIdu?.id ?? null;
-    onMutate((d) => ({
-      ...d,
-      systems: d.systems.map((s) =>
-        s.id === system.id
-          ? {
-              ...s,
-              settings: {
-                ...s.settings,
-                multiIdus: { ...multiIduSelections(s), [room.id]: idu.model },
-              },
-            }
-          : s
-      ),
-      // a different unit takes the placed one (and its runs) back off the plan
-      objects: changed && placedId ? dropUnitObjects(d, placedId) : d.objects,
-    }));
-    setBrowsing(false);
-  };
-
   return (
     <div className="ds-ck-sub units" data-testid="multi-unit-sub">
       <div className="ds-ck-subh">
@@ -1645,7 +1627,7 @@ export function MultiUnitsSub({
         {model && (
           <button
             className="ds-ck-act"
-            onClick={() => setBrowsing(true)}
+            onClick={() => onBrowseUnits(room.id)}
             title="Swap this room's indoor unit"
           >
             Change
@@ -1667,7 +1649,7 @@ export function MultiUnitsSub({
           <button
             className="ds-ck-inkbtn"
             style={{ marginTop: 10 }}
-            onClick={() => setBrowsing(true)}
+            onClick={() => onBrowseUnits(room.id)}
           >
             <Glyph name="plus" size={16} />
             Select unit
@@ -1690,16 +1672,6 @@ export function MultiUnitsSub({
         </>
       )}
 
-      {browsing && pack && (
-        <MultiIduPicker
-          pack={pack}
-          loadKw={loadKw}
-          basis={basis}
-          current={model || undefined}
-          onChoose={choose}
-          onClose={() => setBrowsing(false)}
-        />
-      )}
     </div>
   );
 }
@@ -2171,6 +2143,7 @@ function RoomInspectCard({
             basis={basis}
             onMutate={onMutate}
             onArmPlace={onArmPlace}
+            onBrowseUnits={onBrowseUnits}
           />
         ) : (
           <UnitsSub

@@ -42,10 +42,14 @@ const van: Vehicle = {
   insuranceDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 100000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true,
   assignedTo: null,
   value: 27000,
   purchasePrice: 0,
   purchaseDateDays: 0,
+  lastServiceDays: null,
 };
 
 function log(over: Partial<VehicleLog>): VehicleLog {
@@ -91,6 +95,17 @@ function detail(vehicle: Vehicle) {
   );
   return { onServiceHistory, user: userEvent.setup() };
 }
+
+it("offers no fuel or odometer entry on something with no motor", async () => {
+  /* Update odo writes the very reading the card stops showing for a motorless
+     vehicle — leaving the button would let a phantom odometer back in. */
+  detail({ ...van, motorised: false, serviceIntervalKm: null });
+  expect(screen.queryByRole("button", { name: /log fuel/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /update odo/i })).not.toBeInTheDocument();
+  // what CAN happen to a trailer still can
+  expect(screen.getByRole("button", { name: /log service/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /report issue/i })).toBeInTheDocument();
+});
 
 it("opens the service history from the Next service fact", async () => {
   const { onServiceHistory, user } = detail(van);

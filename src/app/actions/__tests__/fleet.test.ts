@@ -116,13 +116,27 @@ describe("logging is intrinsic", () => {
     expect(insert.mock.calls[0][1]).toMatchObject({ staff_profile_id: "staff-1" });
   });
 
-  it("rolls the odometer forward, and a service resets the cycle", async () => {
+  it("rolls the odometer forward, and a service resets BOTH limits", async () => {
     await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800 });
     expect(update).toHaveBeenCalledWith("vehicles", { odometer: 84800 });
 
     update.mockClear();
     await addLog({ vehicleId: "v-1", kind: "service", odo: 85000 });
-    expect(update).toHaveBeenCalledWith("vehicles", { odometer: 85000, last_service_odo: 85000 });
+    /* The date anchor moves too. A cycle that falls due on distance OR time
+       has to be reset on both by the one service, or a serviced vehicle stays
+       overdue on time for good. */
+    expect(update).toHaveBeenCalledWith("vehicles", {
+      odometer: 85000,
+      last_service_odo: 85000,
+      last_service_on: "2026-08-25",
+    });
+  });
+
+  it("anchors the date even when the service came with no reading", async () => {
+    // a trailer has no odometer to quote, and it was still serviced that day
+    update.mockClear();
+    await addLog({ vehicleId: "v-1", kind: "service" });
+    expect(update).toHaveBeenCalledWith("vehicles", { last_service_on: "2026-08-25" });
   });
 
   it("rejects a backwards odometer even though the modal only warned", async () => {

@@ -259,10 +259,17 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
     { odometer: v.odometer as number, lastServiceOdo: v.last_service_odo as number },
     log,
   );
+  /* A service resets BOTH limits, so it re-anchors the date as well as the
+     odometer — otherwise a serviced vehicle would stay overdue on time
+     forever. It lands even when odoEffect returns nothing: a service logged
+     without a reading (a trailer has none) still happened on a day. */
+  const patch: Record<string, unknown> = {};
   if (effect) {
-    const patch: Record<string, unknown> = { odometer: effect.odometer };
-    // only a completed service touches the cycle
+    patch.odometer = effect.odometer;
     if (effect.lastServiceOdo !== undefined) patch.last_service_odo = effect.lastServiceOdo;
+  }
+  if (log.kind === "service") patch.last_service_on = tax.columns.logged_on;
+  if (Object.keys(patch).length > 0) {
     await supabaseAdmin
       .from("vehicles")
       .update(patch)

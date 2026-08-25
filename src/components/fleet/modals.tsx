@@ -31,7 +31,8 @@ import {
   RENEWAL_DOC_KIND,
   currentRenewalDocIds,
   serviceDueKm,
-  serviceKmLeft,
+  serviceDueText,
+  serviceDaysUntil,
   daysUntil,
   displayName,
   fmtCost,
@@ -184,8 +185,13 @@ export function VehicleFormModal({
           odometer: String(initial.odometer),
           rego: dateFromDays(initial.regoDays, today),
           insurance: dateFromDays(initial.insuranceDays, today),
-          intervalKm: String(initial.serviceIntervalKm),
+          intervalKm: initial.serviceIntervalKm == null ? "" : String(initial.serviceIntervalKm),
           lastServiceOdo: String(initial.lastServiceOdo),
+          intervalMonths:
+            initial.serviceIntervalMonths == null ? "" : String(initial.serviceIntervalMonths),
+          lastServiceOn:
+            initial.lastServiceDays == null ? "" : dateFromDays(-initial.lastServiceDays, today),
+          motorised: initial.motorised,
           purchaseDate: initial.purchaseDateDays ? dateFromDays(-initial.purchaseDateDays, today) : "",
           purchasePrice: initial.purchasePrice ? String(initial.purchasePrice) : "",
           value: String(initial.value),
@@ -205,6 +211,9 @@ export function VehicleFormModal({
           insurance: "",
           intervalKm: "",
           lastServiceOdo: "",
+          intervalMonths: "",
+          lastServiceOn: "",
+          motorised: true,
           purchaseDate: "",
           purchasePrice: "",
           value: "",
@@ -293,8 +302,23 @@ export function VehicleFormModal({
       purchaseDateDays: f.purchaseDate ? Math.max(0, -daysUntil(f.purchaseDate, today)) : 0,
       regoDays: f.rego ? daysUntil(f.rego, today) : 365,
       insuranceDays: f.insurance ? daysUntil(f.insurance, today) : 365,
-      serviceIntervalKm: num(f.intervalKm) || 10000,
+      /* Blank means "no distance limit", which is the whole point of the
+         column being nullable — defaulting it back to 10,000 would give a
+         trailer a cycle it can never reach. No motor forces it either way. */
+      serviceIntervalKm:
+        !f.motorised || !f.intervalKm.trim() ? null : num(f.intervalKm) || null,
       lastServiceOdo: f.lastServiceOdo.trim() ? num(f.lastServiceOdo) : odometer,
+      serviceIntervalMonths: f.intervalMonths.trim() ? num(f.intervalMonths) || null : null,
+      lastServiceDays: f.lastServiceOn ? -daysUntil(f.lastServiceOn, today) : null,
+      /* Derived from the two fields above by the same function the mapper
+         uses, rather than left null for the round trip to fill in — the object
+         handed to onSave should describe the vehicle it just described. */
+      serviceDays: serviceDaysUntil(
+        f.lastServiceOn || null,
+        f.intervalMonths.trim() ? num(f.intervalMonths) || null : null,
+        today,
+      ),
+      motorised: f.motorised,
       notes: f.notes.trim() || undefined,
     }, invoiceId);
   };
@@ -361,25 +385,59 @@ export function VehicleFormModal({
         <Field label="Year">
           <input className="fl-i" type="number" placeholder="e.g. 2022" value={f.year} onChange={set("year")} />
         </Field>
-        <Field label="Odometer (km)">
-          <input className="fl-i" type="number" placeholder="e.g. 84120" value={f.odometer} onChange={set("odometer")} />
-        </Field>
+        {/* Asked only of something that has one. A trailer offered an odometer
+            box gets a zero typed into it, and that zero then reads as a
+            measurement on every screen downstream. */}
+        {f.motorised && (
+          <Field label="Odometer (km)">
+            <input className="fl-i" type="number" placeholder="e.g. 84120" value={f.odometer} onChange={set("odometer")} />
+          </Field>
+        )}
         <Field label="Rego expiry">
           <DateField size="lg" clearable today={today} value={f.rego || null} onChange={setDate("rego")} />
         </Field>
         <Field label="Insurance expiry">
           <DateField size="lg" clearable today={today} value={f.insurance || null} onChange={setDate("insurance")} />
         </Field>
-        <Field label="Service interval (km)">
-          <input className="fl-i" type="number" placeholder="e.g. 10000" value={f.intervalKm} onChange={set("intervalKm")} />
-        </Field>
-        <Field label="Last service odo (km)">
-          <input
+        <Field label="Motor">
+          <select
             className="fl-i"
-            type="number"
-            placeholder="Blank = current odo"
-            value={f.lastServiceOdo}
-            onChange={set("lastServiceOdo")}
+            value={f.motorised ? "yes" : "no"}
+            onChange={(e) => setF((p) => ({ ...p, motorised: e.target.value === "yes" }))}
+          >
+            <option value="yes">Has a motor</option>
+            <option value="no">No motor</option>
+          </select>
+        </Field>
+        {/* Distance is only a limit for something that covers distance. The
+            fields disappear rather than sitting there greyed: a trailer has no
+            odometer to service on, so there is nothing to fill in. */}
+        {f.motorised && (
+          <>
+            <Field label="Service interval (km)">
+              <input className="fl-i" type="number" placeholder="e.g. 10000" value={f.intervalKm} onChange={set("intervalKm")} />
+            </Field>
+            <Field label="Last service odo (km)">
+              <input
+                className="fl-i"
+                type="number"
+                placeholder="Blank = current odo"
+                value={f.lastServiceOdo}
+                onChange={set("lastServiceOdo")}
+              />
+            </Field>
+          </>
+        )}
+        <Field label="Service interval (months)">
+          <input className="fl-i" type="number" placeholder="e.g. 12" value={f.intervalMonths} onChange={set("intervalMonths")} />
+        </Field>
+        <Field label="Last service date">
+          <DateField
+            size="lg"
+            clearable
+            today={today}
+            value={f.lastServiceOn || null}
+            onChange={setDate("lastServiceOn")}
           />
         </Field>
         <Field label="Purchase date">
@@ -1415,22 +1473,37 @@ export function ServiceHistoryModal({
   onClose: () => void;
 }) {
   const services = logs.filter((l) => l.kind === "service");
-  const left = serviceKmLeft(vehicle);
+  const dueKm = serviceDueKm(vehicle);
+  /* Both limits, each stated only if it applies — the vehicle falls due on
+     whichever arrives first, so showing one of them would be showing half the
+     answer, and showing a limit it hasn't got would be inventing one. */
+  const every = [
+    vehicle.serviceIntervalKm != null && vehicle.motorised
+      ? `${fmtKm(vehicle.serviceIntervalKm)} km`
+      : null,
+    vehicle.serviceIntervalMonths != null
+      ? `${vehicle.serviceIntervalMonths} month${vehicle.serviceIntervalMonths === 1 ? "" : "s"}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" or ");
 
   return (
     <FleetModal title="Service" sub={displayName(vehicle)} onClose={onClose}>
       <div className="fl-facts">
         <div className="fl-fact">
           <em>Next service</em>
-          <b>{left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`}</b>
+          <b>{serviceDueText(vehicle) ?? "No cycle set"}</b>
         </div>
-        <div className="fl-fact">
-          <em>Due at</em>
-          <b>{fmtKm(serviceDueKm(vehicle))} km</b>
-        </div>
+        {dueKm != null && (
+          <div className="fl-fact">
+            <em>Due at</em>
+            <b>{fmtKm(dueKm)} km</b>
+          </div>
+        )}
         <div className="fl-fact">
           <em>Every</em>
-          <b>{fmtKm(vehicle.serviceIntervalKm)} km</b>
+          <b>{every || "—"}</b>
         </div>
       </div>
 
@@ -1667,14 +1740,20 @@ export function DetailModal({
       {vehicle.notes && <div className="fl-note">{vehicle.notes}</div>}
 
       <div className="fl-actions">
-        <button className="fl-btn ghost" onClick={() => onLog("fuel")}>
-          <Icon name="fuel" size={15} />
-          Log fuel
-        </button>
-        <button className="fl-btn ghost" onClick={() => onLog("odo")}>
-          <Icon name="gauge" size={15} />
-          Update odo
-        </button>
+        {/* No motor, no tank and no odometer — and Update odo would write the
+            very reading the card has just stopped claiming to have. */}
+        {vehicle.motorised && (
+          <>
+            <button className="fl-btn ghost" onClick={() => onLog("fuel")}>
+              <Icon name="fuel" size={15} />
+              Log fuel
+            </button>
+            <button className="fl-btn ghost" onClick={() => onLog("odo")}>
+              <Icon name="gauge" size={15} />
+              Update odo
+            </button>
+          </>
+        )}
         <button className="fl-btn ghost" onClick={() => onLog("issue")}>
           <Icon name="alert" size={15} />
           Report issue

@@ -51,10 +51,14 @@ const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   value: 52000,
   purchasePrice: 58900,
   purchaseDateDays: 1524,
+  lastServiceDays: null,
   regoDays: 200,
   insuranceDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 80000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true,
   ...over,
 });
 

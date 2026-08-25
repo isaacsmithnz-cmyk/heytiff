@@ -49,10 +49,14 @@ const van: Vehicle = {
   insuranceDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 95000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true,
   assignedTo: null,
   value: 30000,
   purchasePrice: 0,
   purchaseDateDays: 0,
+  lastServiceDays: null,
 };
 
 function doc(over: Partial<StoredDocument>): StoredDocument {

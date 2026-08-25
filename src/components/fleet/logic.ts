@@ -5,6 +5,7 @@
    knows about neither. */
 
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
+import { daysUntil } from "@/lib/au-dates";
 
 export type VehicleStatus = "active" | "offroad" | "sold";
 
@@ -38,8 +39,19 @@ export type VehicleIdentity = {
 export type VehicleWithFacts = VehicleIdentity & {
   regoDays: number; // days until rego expires (negative = expired)
   insuranceDays: number; // days until insurance expires
-  serviceIntervalKm: number; // service every N km
+  /* The service cycle has TWO limits and falls due on whichever arrives first.
+     Either may be null, which means that limit does not apply to this vehicle
+     — a trailer has no distance limit, a vehicle nobody has given a time
+     interval has no time limit. */
+  serviceIntervalKm: number | null; // service every N km
   lastServiceOdo: number; // odometer at the last completed service
+  serviceIntervalMonths: number | null; // ...or every N months
+  /** Days until the time limit falls due. Null = no time limit, or nothing has
+      anchored one yet. Computed in lib/fleet/map.ts against the SERVER's date,
+      like regoDays — a clock read in a render body breaks hydration. */
+  serviceDays: number | null;
+  /** False for anything with no motor: no odometer, so no distance limit. */
+  motorised: boolean;
 };
 
 /** The full register record — `assets_all` only. */
@@ -48,6 +60,10 @@ export type Vehicle = VehicleWithFacts & {
   value: number; // $ book value
   purchasePrice: number; // $ — 0 = unknown; feeds the Tiff estimate
   purchaseDateDays: number; // days since purchase (0 = unknown/new)
+  /** Days SINCE the last service — the anchor the time limit counts from, as
+      the form edits it. `serviceDays` is the countdown derived from it; this is
+      the stored date. Null = nothing has anchored the cycle yet. */
+  lastServiceDays: number | null;
   notes?: string;
 };
 
@@ -143,14 +159,17 @@ export function modelLabel(v: VehicleIdentity): string {
   return [v.make, v.model, v.year || null].filter(Boolean).join(" ");
 }
 
-/* ---- service schedule (interval-based; Log service resets the cycle) ---- */
+/* ---- service schedule: distance OR time, whichever arrives first ---- */
 
-export function serviceDueKm(v: VehicleWithFacts): number {
+/** The odometer this vehicle is next due at, or null with no distance limit. */
+export function serviceDueKm(v: VehicleWithFacts): number | null {
+  if (!v.motorised || v.serviceIntervalKm == null) return null;
   return v.lastServiceOdo + v.serviceIntervalKm;
 }
 
-export function serviceKmLeft(v: VehicleWithFacts): number {
-  return serviceDueKm(v) - v.odometer;
+export function serviceKmLeft(v: VehicleWithFacts): number | null {
+  const due = serviceDueKm(v);
+  return due == null ? null : due - v.odometer;
 }
 
 /* ---- status chips ---- */
@@ -161,6 +180,68 @@ export type StatusChip = { label: string; state: ChipState };
 export const REGO_WARN_DAYS = 30;
 export const INSURANCE_WARN_DAYS = 30;
 export const SERVICE_WARN_KM = 1500;
+export const SERVICE_WARN_DAYS = 30;
+
+/* WHICHEVER ARRIVES FIRST, without predicting anything.
+
+   There is no need to rank a distance against a date — and no honest way to,
+   since it would take a km-per-day rate nobody has. The service is due when
+   the FIRST limit is reached, so each limit is judged on its own and the worse
+   verdict is the vehicle's. A limit that does not apply says nothing rather
+   than saying "fine": a trailer is not "0 km from due", it simply has no
+   distance to be measured in. */
+export type ServiceDue = {
+  /** Null when this limit does not apply. Negative = past it. */
+  kmLeft: number | null;
+  daysLeft: number | null;
+  state: ChipState;
+};
+
+function limitState(left: number | null, warnAt: number): ChipState {
+  if (left == null) return "ok";
+  return left < 0 ? "bad" : left <= warnAt ? "warn" : "ok";
+}
+
+export function serviceDue(v: VehicleWithFacts): ServiceDue {
+  const kmLeft = serviceKmLeft(v);
+  const daysLeft = v.serviceDays;
+  const km = limitState(kmLeft, SERVICE_WARN_KM);
+  const days = limitState(daysLeft, SERVICE_WARN_DAYS);
+  const rank: ChipState[] = ["ok", "warn", "bad"];
+  return {
+    kmLeft,
+    daysLeft,
+    state: rank[Math.max(rank.indexOf(km), rank.indexOf(days))],
+  };
+}
+
+/* Days until the time limit falls due, from the anchor and the interval.
+
+   One function, used by the mapper that feeds the screens AND by the form that
+   sets the fields — so what the form says it is doing and what the countdown
+   then reports cannot drift. Month arithmetic, not 30-day blocks: "12 months
+   from 29 Feb" has an answer the calendar gives and multiplication doesn't. */
+export function serviceDaysUntil(
+  lastServiceOn: string | null,
+  months: number | null,
+  today: string,
+): number | null {
+  if (!lastServiceOn || !months) return null;
+  const due = new Date(`${lastServiceOn}T00:00:00Z`);
+  due.setUTCMonth(due.getUTCMonth() + months);
+  return daysUntil(due.toISOString().slice(0, 10), today);
+}
+
+/** How the nearer limit reads. Null when neither limit applies — a vehicle
+    with no cycle at all, which must not be dressed up as one that is fine. */
+export function serviceDueText(v: VehicleWithFacts): string | null {
+  const { kmLeft, daysLeft } = serviceDue(v);
+  const parts: string[] = [];
+  if (kmLeft != null) parts.push(kmLeft < 0 ? `${fmtKm(-kmLeft)} km overdue` : `in ${fmtKm(kmLeft)} km`);
+  if (daysLeft != null)
+    parts.push(daysLeft < 0 ? `${agoLabel(daysLeft)} overdue` : `in ${inLabel(daysLeft).replace(/^in /, "")}`);
+  return parts.length === 0 ? null : parts.join(" or ");
+}
 
 /** Everything wrong (or soon-wrong) with a vehicle, worst-first. Empty = all good. */
 export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChip[] {
@@ -173,9 +254,24 @@ export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChi
   if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
   else if (v.insuranceDays <= INSURANCE_WARN_DAYS)
     chips.push({ label: `Insurance ${expiryClause(v.insuranceDays)}`, state: "warn" });
-  const left = serviceKmLeft(v);
-  if (left < 0) chips.push({ label: `Service overdue ${fmtKm(-left)} km`, state: "bad" });
-  else if (left <= SERVICE_WARN_KM) chips.push({ label: `Service in ${fmtKm(left)} km`, state: "warn" });
+  /* One chip for the cycle, reading whichever limit is worse — the vehicle is
+     due on the first of them, so two chips would be two ways of saying it. */
+  const svc = serviceDue(v);
+  if (svc.state !== "ok") {
+    const byKm = limitState(svc.kmLeft, SERVICE_WARN_KM) === svc.state;
+    const km = svc.kmLeft ?? 0;
+    const days = svc.daysLeft ?? 0;
+    chips.push({
+      label: byKm
+        ? km < 0
+          ? `Service overdue ${fmtKm(-km)} km`
+          : `Service in ${fmtKm(km)} km`
+        : days < 0
+          ? `Service overdue ${agoLabel(days)}`
+          : `Service ${inLabel(days)}`,
+      state: svc.state,
+    });
+  }
   if (openIssues > 0)
     chips.push({ label: openIssues === 1 ? "1 issue open" : `${openIssues} issues open`, state: "warn" });
   const order: ChipState[] = ["bad", "warn", "ok"];
@@ -193,14 +289,19 @@ export function worstState(chips: StatusChip[]): ChipState {
 export type VehicleFact = { key: string; label: string; text: string; state: ChipState };
 
 export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
-  const left = serviceKmLeft(v);
+  const svc = serviceDue(v);
   return [
-    { key: "odo", label: "Odometer", text: `${fmtKm(v.odometer)} km`, state: "ok" },
+    /* No motor, no odometer — and a trailer reading "0 km" would be a figure
+       standing where a fact should be, which is how a seeded default gets
+       mistaken for a reading. */
+    ...(v.motorised
+      ? [{ key: "odo", label: "Odometer", text: `${fmtKm(v.odometer)} km`, state: "ok" as ChipState }]
+      : []),
     {
       key: "service",
       label: "Next service",
-      text: left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`,
-      state: left < 0 ? "bad" : left <= SERVICE_WARN_KM ? "warn" : "ok",
+      text: serviceDueText(v) ?? "No cycle set",
+      state: svc.state,
     },
     {
       key: "rego",

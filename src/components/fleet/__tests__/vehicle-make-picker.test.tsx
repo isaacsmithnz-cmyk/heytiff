@@ -32,10 +32,14 @@ const VAN: Vehicle = {
   insuranceDays: 300,
   serviceIntervalKm: 10000,
   lastServiceOdo: 50000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true,
   assignedTo: null,
   value: 45000,
   purchasePrice: 0,
   purchaseDateDays: 0,
+  lastServiceDays: null,
 };
 
 function setup(initial: Vehicle | null = null) {

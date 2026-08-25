@@ -17,6 +17,9 @@
 import {
   cloudPath,
   createNote,
+  DEFAULT_NOTE_INK,
+  NOTE_INKS,
+  noteInkOf,
   isNote,
   leaderStart,
   moveNote,
@@ -231,6 +234,66 @@ describe("a note as an object", () => {
     const b = noteBounds(n, 12);
     expect(b.x).toBeLessThanOrEqual(0);
     expect(b.x + b.w).toBeGreaterThan(900); // the text is past the leader
+  });
+});
+
+/* The ink palette. Two of these are contrast guards over DATA rather than
+   over a stylesheet, which is the only kind that can be checked here — a note
+   is text on white paper, and an ink nobody can read is not a colour choice,
+   it is a bug that only shows up on a printed sheet in somebody's van. */
+describe("the ink palette", () => {
+  const lum = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    const ch = (c: number) => {
+      const v = c / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255);
+  };
+  const onWhite = (hex: string) => 1.05 / (lum(hex) + 0.05);
+
+  it("offers eight inks, each one usable", () => {
+    expect(NOTE_INKS).toHaveLength(8);
+    for (const ink of NOTE_INKS) {
+      expect(ink.hex).toMatch(/^#[0-9A-F]{6}$/);
+      expect(ink.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps every ink readable as TEXT on white paper", () => {
+    // asserted as a map so a failure NAMES the ink that fell short
+    const failing = NOTE_INKS.filter((i) => onWhite(i.hex) < 4.5).map(
+      (i) => `${i.label} ${i.hex} @ ${onWhite(i.hex).toFixed(2)}:1`
+    );
+    expect(failing).toEqual([]);
+  });
+
+  it("has no two inks a person could confuse", () => {
+    const ids = NOTE_INKS.map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const hexes = NOTE_INKS.map((i) => i.hex);
+    expect(new Set(hexes).size).toBe(hexes.length);
+  });
+
+  it("reads a note's ink back, and falls back only on garbage", () => {
+    const n = mkNote(RECT, { x: 400, y: 60 });
+    expect(noteInkOf(n)).toBe(DEFAULT_NOTE_INK);
+    const red = createNote({
+      floorId: "flr",
+      rect: RECT,
+      leader: { x: 400, y: 60 },
+      ink: "#C81E3C",
+    });
+    expect(noteInkOf(red)).toBe("#C81E3C");
+    expect(noteInkOf({ ...n, props: { ...n.props, ink: "red" } })).toBe(DEFAULT_NOTE_INK);
+    expect(noteInkOf({ ...n, props: { ...n.props, ink: 42 } })).toBe(DEFAULT_NOTE_INK);
+  });
+
+  /* the hex is stored, not the palette id — a design printed a year from now
+     must come out the colour it was drawn in, even if this palette is retuned */
+  it("keeps an ink that is no longer on the palette", () => {
+    const n = mkNote(RECT, { x: 400, y: 60 });
+    expect(noteInkOf({ ...n, props: { ...n.props, ink: "#123456" } })).toBe("#123456");
   });
 });
 

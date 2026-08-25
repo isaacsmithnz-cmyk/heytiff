@@ -2802,9 +2802,10 @@ html[data-ds-display] .dstudio.editing {
    painted in no system's colour: one markup ink, indigo, which no room (amber),
    no state (teal/red) and no studio accent (orange) uses. Seeing it means
    "somebody wrote this", before you have read a word of it. */
+/* the ink arrives as an inline `color` per note (notes.ts holds the palette);
+   this is only the fallback for a note drawn before inks existed */
 .dstudio .ds-note {
-  --ds-markup: #4338ca;
-  color: var(--ds-markup);
+  color: #4338ca;
 }
 .dstudio .ds-note-cloud {
   fill: none;
@@ -2828,7 +2829,7 @@ html[data-ds-display] .dstudio.editing {
 /* the words carry a white halo, like every other label out on the plan —
    a note is worthless if the drawing under it wins */
 .dstudio .ds-note-text {
-  fill: var(--ds-markup);
+  fill: currentColor;
   font-weight: 700;
   paint-order: stroke;
   stroke: #fff;
@@ -2949,6 +2950,48 @@ html[data-ds-display] .dstudio.editing {
   box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
   background: #fff;
 }
+/* one swatch, wherever it appears: the bench flyout arms the next note's ink,
+   the editor recolours the note already on the drawing. Same control, so the
+   same shape — a ring rather than a tick, because a tick over a dark ink is
+   another colour to get right. */
+.dstudio .ds-note-ink {
+  width: 22px;
+  height: 22px;
+  /* `.fg button` resets background/border but NOT padding, and the UA's own
+     button padding would squash these circles into ovals */
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(10, 12, 20, 0.16);
+}
+.dstudio .ds-note-ink:hover {
+  transform: scale(1.12);
+}
+.dstudio .ds-note-ink.on {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px currentColor;
+}
+.dstudio .ds-note-ink:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+.dstudio .ds-note-inks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+/* the armed ink, shown on the bench button itself */
+.dstudio .ds-noteink-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(10, 12, 20, 0.22);
+}
+
 .dstudio .ds-note-actions {
   display: flex;
   gap: 8px;
@@ -7998,6 +8041,31 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-roomfly button:hover { background: #f3f4f6; }
+
+/* The Note button's flyout — the ink the next note is drawn in, on one row.
+
+   IT HAS TO LIVE HERE, after `.ds-roomfly`, not up with the rest of the note
+   styles. Every declaration below overrides one of `.ds-roomfly`'s at EQUAL
+   specificity (both are two classes), and `@media`-style ordering is all that
+   decides an equal-specificity fight — written earlier in the file it parsed,
+   validated, matched, and did nothing: eight swatches stacked into a 150px
+   tower because the column direction and the min-width both still won. */
+.dstudio .ds-notefly {
+  flex-direction: row;
+  min-width: 0;
+  gap: 9px;
+  padding: 10px;
+}
+/* `.dstudio .ds-roomfly button` is (0,2,1) — two classes AND an element — so it
+   outranks the two-class swatch rule and hands these buttons a menu-row's
+   width, padding and corner. Naming the swatch THROUGH the flyout (0,3,0) is
+   what wins the circle back. Only the three contested properties are repeated;
+   size, colour and the selected ring still come from the one base rule. */
+.dstudio .ds-notefly .ds-note-ink {
+  width: 22px;
+  padding: 0;
+  border-radius: 50%;
+}
 
 /* the Draw button's flyout — the line families plus the riser, each row
    naming its options as chips; a chip both picks the option and arms the

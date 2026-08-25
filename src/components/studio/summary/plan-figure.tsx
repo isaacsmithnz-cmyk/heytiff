@@ -17,6 +17,7 @@ import {
   isNote,
   leaderStart,
   noteBounds,
+  noteInkOf,
   noteLeader,
   noteRect,
   noteText,
@@ -443,7 +444,7 @@ export function PlanFigure({
           const lay = noteTextLayout(rect, leader, noteText(n), noteFont);
           const start = leaderStart(rect, leader);
           return (
-            <g key={n.id} className="ds-note">
+            <g key={n.id} className="ds-note" style={{ color: noteInkOf(n) }}>
               <path className="ds-note-cloud" d={cloudPath(rect)} />
               <polyline
                 className="ds-note-leader"

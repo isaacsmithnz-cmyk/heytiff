@@ -46,15 +46,21 @@ type CompareEntry = { key: string; brand: string; option: UnitOption; pair: Pair
     browser's 150% gate, tighter so the badge stays meaningful. */
 export const REQUIRED_BAND_CAP = 1.35;
 
-/** One room chip across the browser's top: the ranking lens, the fallback
-    attribution for a drop outside every room, and — via the served tick —
-    the system's placement progress. */
-export type BrowserRoomChip = {
+/** One room in the browser's right-hand column — the workflow's spine: draw
+    every room first, then attribute a unit to each by dragging it onto the
+    card. The column is also the ranking lens, the fallback attribution for a
+    drop outside every room, and — via `served` — the placement progress. */
+export type BrowserRoom = {
   id: string;
   name: string;
+  /** floor area, null until the floor is calibrated */
+  areaM2: number | null;
   loadKw: number | null;
   /** an indoor unit is already placed and attributed to this room */
   served: boolean;
+  /** the model attributed to this room — placed, or assigned and awaiting
+      placement. Null when nothing has been attributed yet. */
+  assignedModel: string | null;
 };
 
 /** The row's sizing flag. Nothing on a unit that suits the load — the
@@ -98,6 +104,7 @@ export function UnitBrowser({
   rooms,
   lensId,
   onLens,
+  onAssign,
 }: {
   pack: DataPack;
   loadKw: number | null;
@@ -109,13 +116,18 @@ export function UnitBrowser({
   initialFormFactor?: FormFactor | null;
   /** highlight — never filter — pairs sized within REQUIRED_BAND_CAP of this */
   requiredKw?: number | null;
-  /** the system's rooms, worn as chips across the top: lens, fallback
-      attribution and progress in one row (absent on hosts without rooms) */
-  rooms?: BrowserRoomChip[];
-  /** which chip the ranking currently reads through */
+  /** the system's rooms, listed down the right-hand column: lens, fallback
+      attribution, progress and drop target in one card (absent on hosts
+      without rooms) */
+  rooms?: BrowserRoom[];
+  /** which card the ranking currently reads through */
   lensId?: string | null;
   /** re-aim the lens — the host re-ranks by handing back a new loadKw */
   onLens?: (roomId: string) => void;
+  /** a unit was dragged onto a room card: attribute it to that room and STAY
+      OPEN — the point of the column is attributing every room in one visit,
+      with placement following afterwards. Absent = the column is read-only. */
+  onAssign?: (pair: PairProposal, roomId: string) => void;
 }) {
   const [filters, setFilters] = useState<SelectFilters>({});
   const [sort, setSort] = useState<SelectSort>("capacity");
@@ -128,6 +140,12 @@ export function UnitBrowser({
   const [selected, setSelected] = useState<string | null>(null);
   /** group the table by product series (e.g. AP, EF) — an aid, toggleable off */
   const [groupBySeries, setGroupBySeries] = useState(true);
+  /** the model being dragged towards a room card, null at rest. Held so the
+      column can show ITSELF as the destination while a unit is in flight —
+      the affordance is the lit target, never a caption telling you to drag */
+  const [dragModel, setDragModel] = useState<string | null>(null);
+  /** the card the pointer is currently over, for the single lit target */
+  const [dropRoomId, setDropRoomId] = useState<string | null>(null);
   /** the installer's chosen spec columns (persisted per-device) */
   const [columnIds, setColumnIds] = useState<string[]>(() => loadColumnIds());
   const toggleColumn = (id: string) =>
@@ -348,6 +366,11 @@ export function UnitBrowser({
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  /* attribution by drag is offered only when there is a column to drop onto
+     AND a host willing to record it */
+  const hasRooms = !!rooms && rooms.length > 0;
+  const canAssign = hasRooms && !!onAssign;
+
   const numInput = (key: keyof SelectFilters, placeholder: string) => (
     <input
       inputMode="numeric"
@@ -370,9 +393,27 @@ export function UnitBrowser({
         key={o.idu.model}
         className={`${o.bestFit ? "rec" : ""}${isSel ? " sel" : ""}${band ? " band" : ""}${
           o.fit !== "fits" ? ` ${o.fit}` : ""
-        }`}
+        }${canAssign ? " drag" : ""}`}
         aria-selected={isSel}
         onClick={() => setSelected(o.idu.model)}
+        /* a row is the drag SOURCE for attribution; without a rooms column to
+           drop onto there is nothing to drag to, so it stays inert */
+        draggable={canAssign}
+        onDragStart={(e) => {
+          if (!canAssign) return;
+          /* the row is the subject of the drag — highlight it in the table
+             the same way the detail panel would */
+          setSelected(o.idu.model);
+          setDragModel(o.idu.model);
+          if (e.dataTransfer) {
+            e.dataTransfer.setData("text/plain", o.idu.model);
+            e.dataTransfer.effectAllowed = "copy";
+          }
+        }}
+        onDragEnd={() => {
+          setDragModel(null);
+          setDropRoomId(null);
+        }}
       >
         <td className="ds-ub-cmpcell" onClick={(e) => e.stopPropagation()}>
           <input
@@ -460,33 +501,6 @@ export function UnitBrowser({
             <Icon name="x" size={16} />
           </button>
         </header>
-
-        {/* the system's rooms as chips: click one and the whole browser ranks
-            against ITS load; the tick doubles as placement progress. The lens
-            room is also where a drop outside every room attributes. */}
-        {rooms && rooms.length > 0 && (
-          <nav className="ds-ub-rooms" aria-label="Rank against a room">
-            {rooms.map((rc) => (
-              <button
-                key={rc.id}
-                className={`ds-ub-roomchip${rc.id === lensId ? " on" : ""}${rc.served ? " served" : ""}`}
-                aria-pressed={rc.id === lensId}
-                onClick={() => onLens?.(rc.id)}
-                title={
-                  rc.served
-                    ? `${rc.name} — unit placed`
-                    : rc.loadKw != null
-                      ? `Rank against ${rc.name} — needs ${rc.loadKw.toFixed(1)} kW`
-                      : `${rc.name} — calibrate the floor to size it`
-                }
-              >
-                {rc.served && <Icon name="check" size={11} />}
-                <b>{rc.name}</b>
-                {rc.loadKw != null && <span>{rc.loadKw.toFixed(1)} kW</span>}
-              </button>
-            ))}
-          </nav>
-        )}
 
         <nav className="ds-ub-tabs">
           {tabs.map((t) => (
@@ -639,6 +653,81 @@ export function UnitBrowser({
               <div className="ds-ub-dempty">Select a unit to see its full spec sheet.</div>
             )}
           </aside>
+
+          {/* ── the rooms column: every room on the system, with the size and
+              load you are shopping against. Clicking a card aims the ranking
+              lens at it; dragging a unit onto it attributes the unit to that
+              room WITHOUT closing — the flow is attribute-everything-then-
+              place, so the modal has to survive the whole round. ── */}
+          {hasRooms && (
+            <aside
+              className={`ds-ub-roomcol${dragModel ? " arming" : ""}`}
+              aria-label="Rooms on this system"
+            >
+              <header className="ds-ub-rchead">
+                Rooms
+                <span>{rooms!.length}</span>
+              </header>
+              <div className="ds-ub-rclist">
+                {rooms!.map((r) => {
+                  const isLens = r.id === lensId;
+                  const isTarget = canAssign && dragModel != null;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`ds-ub-rcard${isLens ? " on" : ""}${
+                        r.served ? " served" : ""
+                      }${r.assignedModel ? " has" : ""}${isTarget ? " target" : ""}${
+                        isTarget && r.id === dropRoomId ? " over" : ""
+                      }`}
+                      aria-pressed={isLens}
+                      onClick={() => onLens?.(r.id)}
+                      onDragOver={(e) => {
+                        if (!isTarget) return;
+                        /* preventDefault is what MAKES this a drop target —
+                           without it the browser refuses the drop silently */
+                        e.preventDefault();
+                        if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+                        setDropRoomId(r.id);
+                      }}
+                      onDragLeave={() =>
+                        setDropRoomId((cur) => (cur === r.id ? null : cur))
+                      }
+                      onDrop={(e) => {
+                        if (!isTarget) return;
+                        e.preventDefault();
+                        const model = e.dataTransfer?.getData("text/plain") || dragModel;
+                        const opt = options.find((o) => o.idu.model === model);
+                        setDragModel(null);
+                        setDropRoomId(null);
+                        if (opt) onAssign!(pairFor(opt), r.id);
+                      }}
+                      title={
+                        r.loadKw != null
+                          ? `${r.name} — needs ≈${r.loadKw.toFixed(1)} kW`
+                          : `${r.name} — calibrate the floor to size it`
+                      }
+                    >
+                      <span className="ds-ub-rcname">
+                        {r.name}
+                        {r.served && <Icon name="check" size={11} />}
+                      </span>
+                      <span className="ds-ub-rcfig">
+                        {r.areaM2 != null && <b>{r.areaM2.toFixed(1)} m²</b>}
+                        {r.loadKw != null && <i>{r.loadKw.toFixed(1)} kW</i>}
+                      </span>
+                      {/* the slot is the affordance: empty and dashed it reads
+                          as somewhere a unit goes, with no caption saying so */}
+                      <span className="ds-ub-rcslot">
+                        {r.assignedModel ?? ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+          )}
         </div>
 
         {compare.length > 0 && (

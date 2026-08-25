@@ -545,63 +545,175 @@ describe("UnitBrowser", () => {
     expect(screen.queryByText(/Airflow ≥/)).toBeNull();
   });
 
-  /* Room chips (drop-to-attribute slice): the lens the ranking reads through,
-     the fallback attribution, and — via the served tick — placement progress. */
-  describe("room chips", () => {
-    const chips = [
-      { id: "r1", name: "Lounge", loadKw: 4.2, served: true },
-      { id: "r2", name: "Study", loadKw: 2.1, served: false },
+  /* The rooms column: every room on the system down the right, carrying the
+     size and load you shop against, what it has been given, and the drop
+     target that gives it one. */
+  describe("rooms column", () => {
+    const rooms = [
+      {
+        id: "r1",
+        name: "Lounge",
+        areaM2: 24.4,
+        loadKw: 4.2,
+        served: true,
+        assignedModel: "MSZ-AP42VGD",
+      },
+      { id: "r2", name: "Study", areaM2: 9.1, loadKw: 2.1, served: false, assignedModel: null },
     ];
 
-    it("wears the rooms across the top, lens pressed, load on each chip", () => {
+    /** jsdom implements no DataTransfer — hand the events a real one so the
+        drop reads its model the way a browser's would, rather than passing
+        on the component's in-flight fallback (a fake here would let a broken
+        payload look healthy) */
+    const transfer = () => {
+      const store: Record<string, string> = {};
+      return {
+        setData: (k: string, v: string) => {
+          store[k] = v;
+        },
+        getData: (k: string) => store[k] ?? "",
+        effectAllowed: "none",
+        dropEffect: "none",
+      };
+    };
+
+    const column = () => screen.getByRole("complementary", { name: "Rooms on this system" });
+    const card = (name: RegExp) => within(column()).getByRole("button", { name });
+
+    it("lists each room with its size and load, lens pressed", () => {
       render(
         <UnitBrowser
           pack={fixturePack()}
           loadKw={2.1}
           basis="worst-of-both"
-          rooms={chips}
+          rooms={rooms}
           lensId="r2"
           onLens={noop}
           onChoose={noop}
           onClose={noop}
         />
       );
-      const row = screen.getByRole("navigation", { name: "Rank against a room" });
-      const study = within(row).getByRole("button", { name: /Study/ });
+      const study = card(/Study/);
       expect(study).toHaveAttribute("aria-pressed", "true");
-      expect(within(row).getByRole("button", { name: /Lounge/ })).toHaveAttribute(
-        "aria-pressed",
-        "false"
-      );
+      expect(card(/Lounge/)).toHaveAttribute("aria-pressed", "false");
+      /* the two figures the choice is made on */
+      expect(study.textContent).toContain("9.1 m²");
       expect(study.textContent).toContain("2.1 kW");
-      // the placed room wears the tick class — progress at a glance
-      expect(within(row).getByRole("button", { name: /Lounge/ }).className).toContain("served");
+      /* progress, and what the room already holds */
+      expect(card(/Lounge/).className).toContain("served");
+      expect(card(/Lounge/).textContent).toContain("MSZ-AP42VGD");
     });
 
-    it("clicking a chip re-aims the lens", () => {
+    it("clicking a card re-aims the lens", () => {
       const aims: string[] = [];
       render(
         <UnitBrowser
           pack={fixturePack()}
           loadKw={2.1}
           basis="worst-of-both"
-          rooms={chips}
+          rooms={rooms}
           lensId="r2"
           onLens={(id) => aims.push(id)}
           onChoose={noop}
           onClose={noop}
         />
       );
-      fireEvent.click(screen.getByRole("button", { name: /Lounge/ }));
+      fireEvent.click(card(/Lounge/));
       expect(aims).toEqual(["r1"]);
     });
 
-    it("shows no chip row when the host has no rooms to offer", () => {
+    it("dragging a unit onto a card attributes it to THAT room", () => {
+      const got: { model: string; roomId: string }[] = [];
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={rooms}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onAssign={(pair, roomId) => got.push({ model: pair.idu.model, roomId })}
+          onClose={noop}
+        />
+      );
+      const row = screen
+        .getAllByRole("row")
+        .find((r) => r.getAttribute("draggable") === "true")!;
+      const dt = transfer();
+      fireEvent.dragStart(row, { dataTransfer: dt });
+      /* the payload the drag actually carries — asserting against it proves
+         the row wrote its model, not just that SOME pair came back */
+      const model = dt.getData("text/plain");
+      expect(model).not.toBe("");
+      /* Dropped on Lounge while the lens is aimed at Study. The two MUST be
+         different rooms here: with the lens on the same card, reading the
+         attribution off the lens would answer identically and the test would
+         pass on a component that ignores where you dropped. */
+      const target = card(/Lounge/);
+      expect(target).toHaveAttribute("aria-pressed", "false");
+      fireEvent.dragOver(target, { dataTransfer: dt });
+      fireEvent.drop(target, { dataTransfer: dt });
+      expect(got).toEqual([{ model, roomId: "r1" }]);
+    });
+
+    it("stays open on a drop — the point is attributing every room in one visit", () => {
+      let closed = false;
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={rooms}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onAssign={noop}
+          onClose={() => {
+            closed = true;
+          }}
+        />
+      );
+      const row = screen
+        .getAllByRole("row")
+        .find((r) => r.getAttribute("draggable") === "true")!;
+      const dt = transfer();
+      fireEvent.dragStart(row, { dataTransfer: dt });
+      fireEvent.drop(card(/Lounge/), { dataTransfer: dt });
+      expect(closed).toBe(false);
+      expect(screen.getByRole("dialog", { name: "Choose a unit" })).toBeInTheDocument();
+    });
+
+    it("offers no drag at all when the host records no attribution", () => {
+      /* without onAssign the column is a read-only lens — a row that looks
+         draggable but drops into nothing is worse than one that doesn't */
+      render(
+        <UnitBrowser
+          pack={fixturePack()}
+          loadKw={2.1}
+          basis="worst-of-both"
+          rooms={rooms}
+          lensId="r2"
+          onLens={noop}
+          onChoose={noop}
+          onClose={noop}
+        />
+      );
+      /* assert the ATTRIBUTE the browser acts on, not the class that styles
+         it — a row can carry the cursor and still be draggable, and only the
+         attribute decides whether a drag can start */
+      const draggable = screen
+        .getAllByRole("row")
+        .filter((r) => r.getAttribute("draggable") === "true");
+      expect(draggable).toEqual([]);
+    });
+
+    it("shows no column when the host has no rooms to offer", () => {
       render(
         <UnitBrowser pack={fixturePack()} loadKw={null} basis="worst-of-both" onChoose={noop} onClose={noop} />
       );
       expect(
-        screen.queryByRole("navigation", { name: "Rank against a room" })
+        screen.queryByRole("complementary", { name: "Rooms on this system" })
       ).toBeNull();
     });
   });

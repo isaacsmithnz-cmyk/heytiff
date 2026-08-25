@@ -97,6 +97,16 @@ export const COUNTDOWN_FROM = 30;
    broken. Past it the card hands back the box and says so. */
 const ARMING_CEILING_MS = 4_000;
 
+/* What to say when the batch transport comes back with nothing usable. It is
+   read inside a try/catch, so the `??` and the ternary have to live out here:
+   React Compiler 1.0 cannot lower a value block in there and gives up on the
+   whole component when it meets one. */
+const unreadable = (body: { text?: string; error?: string }) =>
+  body.error ??
+  (body.text
+    ? "Nothing was said in that one. Try again, or type it."
+    : "That recording couldn't be read. Type it instead.");
+
 /* AND WHAT TO SAY WHEN IT DOES NOT OPEN, which is the half that matters —
    Isaac, 2026-08-17: "now it's not listening at all", against a card sitting
    on the mark with a clock at 0:00.
@@ -415,6 +425,12 @@ export function useDictation({
   /** The batch transport, unchanged — and now also the live one's floor.
       `mine` is the run that asked for it: words that arrive for a run somebody
       has already walked away from go in the bin, not in a box. */
+  /* The optional call, hoisted into its own function. Both of `upload`'s
+     endings report through it, and both are inside a try/catch — where React
+     Compiler 1.0 cannot lower a value block, and gives up on the whole
+     component when it meets one. */
+  const report = (msg: string) => cbs.current.onError?.(msg);
+
   const upload = async (blob: Blob, mine: { discard: boolean }) => {
     try {
       const form = new FormData();
@@ -429,17 +445,14 @@ export function useDictation({
            NEXT note — quite possibly a typed one — prints its `routed`
            measured from a stop that happened minutes ago. */
         clearRun();
-        cbs.current.onError?.(
-          body.error ??
-            (body.text ? "Nothing was said in that one. Try again, or type it." : "That recording couldn't be read. Type it instead.")
-        );
+        report(unreadable(body));
         return;
       }
       markTranscript("batch");
       cbs.current.onTranscript(body.text, { capped: capped.current });
     } catch {
       clearRun();
-      cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
+      report("That recording couldn't be sent. Type it instead.");
     }
   };
 

@@ -18,6 +18,12 @@ import { BusinessDetail, StaffDetail, VehiclesDetail, type StepBodyProps } from 
 import { XeroCostsPanel } from "./xero-costs";
 import { XeroFleetPanel } from "./xero-fleet";
 
+/* The lazy import lives OUT HERE, not in the component. The deferral is
+   unchanged — the module is still fetched on the first call — but React
+   Compiler 1.0 cannot lower an `import()` expression inside a component
+   and gives up on the WHOLE component when it meets one. */
+const rateCalcActions = () => import("@/app/actions/rate-calc");
+
 function StepHead({ eyebrow, title, mode, onMode, desc }: {
   eyebrow: string; title: string; mode?: string; onMode?: (v: string) => void; desc?: string;
 }) {
@@ -342,7 +348,7 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
             s={s}
             patch={patch}
             onFetch={async (choice) =>
-              (await import("@/app/actions/rate-calc")).fetchXeroBusinessCosts(choice)
+              (await rateCalcActions()).fetchXeroBusinessCosts(choice)
             }
           />
         </Body>
@@ -502,7 +508,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
             s={s}
             patch={patch}
             onFetch={async (choice) =>
-              (await import("@/app/actions/rate-calc")).fetchXeroBusinessCosts(choice)
+              (await rateCalcActions()).fetchXeroBusinessCosts(choice)
             }
           />
         </Body>

@@ -4,6 +4,46 @@ import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { PicklistRow } from "@/lib/studio/summary";
 
+/* The lazy import lives OUT HERE, not in the component. The deferral is
+   unchanged — the module is still fetched on the first call — but React
+   Compiler 1.0 cannot lower an `import()` expression inside a component
+   and gives up on the WHOLE component when it meets one. */
+const jobPicklistActions = () => import("@/app/actions/job-picklist");
+
+/* Say what actually happened, in the order a person cares about. The two
+   that need a person — a figure that changed under something already picked,
+   and a line the design has dropped — are named plainly and carry the
+   warning tone; "Already on the job" would have been a lie the moment either
+   existed.
+
+   Both of these live out here rather than in `push`'s try/catch: React
+   Compiler 1.0 cannot lower a value block — a ternary, a `||` — inside a try
+   and gives up on the whole component when it meets one. */
+const pushOutcome = (r: {
+  added: number;
+  updated: number;
+  heldBack: number;
+  orphaned: number;
+}): { kind: "warn" | "done"; msg: string } => {
+  const parts = [
+    r.added > 0 ? `${r.added} added` : null,
+    r.updated > 0 ? `${r.updated} updated` : null,
+    r.heldBack > 0
+      ? `${r.heldBack} changed since ${r.heldBack === 1 ? "it was" : "they were"} picked`
+      : null,
+    r.orphaned > 0 ? `${r.orphaned} no longer in the design` : null,
+  ].filter(Boolean);
+  return {
+    kind: r.heldBack > 0 || r.orphaned > 0 ? "warn" : "done",
+    msg: parts.length > 0 ? parts.join(" · ") : "Already on the job",
+  };
+};
+
+/* a server action with no catch returns a bare 503 the UI can neither
+   explain nor stop retrying */
+const pushFailure = (e: unknown) =>
+  e instanceof Error ? e.message : "Could not add to the job";
+
 /* "Add to job" — the Material picklist's one action, and the only thing on
    the sheet that leaves it.
 
@@ -39,32 +79,11 @@ export function PicklistPush({
     if (!jobLink) return;
     setState({ kind: "busy" });
     try {
-      const { pushPicklistToJob } = await import("@/app/actions/job-picklist");
+      const { pushPicklistToJob } = await jobPicklistActions();
       const r = await pushPicklistToJob(jobLink.remoteId, designId, rows);
-      /* Say what actually happened, in the order a person cares about. The
-         two that need a person — a figure that changed under something
-         already picked, and a line the design has dropped — are named
-         plainly and carry the warning tone; "Already on the job" would have
-         been a lie the moment either existed. */
-      const parts = [
-        r.added > 0 ? `${r.added} added` : null,
-        r.updated > 0 ? `${r.updated} updated` : null,
-        r.heldBack > 0
-          ? `${r.heldBack} changed since ${r.heldBack === 1 ? "it was" : "they were"} picked`
-          : null,
-        r.orphaned > 0 ? `${r.orphaned} no longer in the design` : null,
-      ].filter(Boolean);
-      setState({
-        kind: r.heldBack > 0 || r.orphaned > 0 ? "warn" : "done",
-        msg: parts.length > 0 ? parts.join(" · ") : "Already on the job",
-      });
+      setState(pushOutcome(r));
     } catch (e) {
-      /* a server action with no catch returns a bare 503 the UI can neither
-         explain nor stop retrying */
-      setState({
-        kind: "err",
-        msg: e instanceof Error ? e.message : "Could not add to the job",
-      });
+      setState({ kind: "err", msg: pushFailure(e) });
     }
   };
 

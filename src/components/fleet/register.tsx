@@ -133,11 +133,15 @@ export function FleetRegister({
     const poll = setInterval(async () => {
       try {
         const res = await fetch("/api/fleet/value");
-        if (res.ok && !(await res.json()).running) {
-          clearInterval(poll);
-          setValuing(false);
-          router.refresh();
-        }
+        /* two guards rather than one `&&`, because React Compiler 1.0 cannot
+           lower a value block inside a try/catch — the short circuit is the
+           same, the body still only runs on a finished run */
+        if (!res.ok) return;
+        const { running } = await res.json();
+        if (running) return;
+        clearInterval(poll);
+        setValuing(false);
+        router.refresh();
       } catch {
         /* transient — the next tick asks again */
       }

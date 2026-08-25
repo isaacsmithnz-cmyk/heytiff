@@ -68,6 +68,18 @@ const NOTE_LABEL: Record<string, string> = {
   insurance: "if the fleet's cover is in here, Vehicles may be charging it too",
 };
 
+/* What a finished pull writes. Out here, not in `pull`'s try/catch, because
+   React Compiler 1.0 cannot lower a value block — the conditional spread —
+   inside a try and gives up on the whole component when it meets one. */
+const pulledPatch = (
+  s: RateCalcState,
+  snap: XeroCostSnapshot | null | undefined,
+  xeroCosts: XeroCostSnapshot
+): Partial<RateCalcState> => ({
+  xeroCosts,
+  ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
+});
+
 export type XeroCostsPanelProps = {
   s: RateCalcState;
   patch: (p: Partial<RateCalcState>) => void;
@@ -101,10 +113,7 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
              would otherwise be born. On a refresh the fleet source is wherever
              the user last put it; re-running the convenience default here would
              override "Enter them myself" every time this button was pressed. */
-          patch({
-            xeroCosts,
-            ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
-          });
+          patch(pulledPatch(s, snap, xeroCosts));
         } else setError(res.error);
       } catch {
         setError("Couldn't reach Xero. Try again.");

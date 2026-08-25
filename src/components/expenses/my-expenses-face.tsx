@@ -24,7 +24,7 @@ import {
   type JobLink,
 } from "@/lib/expenses/claim";
 import { cancelClaim, submitClaim, type ExpenseResult } from "@/app/actions/expenses";
-import { readExpenseReceipt } from "@/app/actions/expense-ai";
+import { readExpenseReceipt, type ReadExpenseResult } from "@/app/actions/expense-ai";
 import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* My expenses — money you spent on the job, and want back.
@@ -96,6 +96,20 @@ type Draft = {
      asking to be paid back, or filing a docket for money already gone. */
   paidWith: PaidWith;
 };
+
+/* The read laid over a blank draft. It sits out here, not in the scan's
+   try/catch, because React Compiler 1.0 cannot lower a value block — a `??`,
+   a ternary — inside a try and gives up on the whole component when it meets
+   one. Called from in there, it is still covered by the same catch. */
+const draftFromRead = (base: Draft, res: Extract<ReadExpenseResult, { ok: true }>): Draft => ({
+  ...base,
+  expenseDate: res.date ?? base.expenseDate,
+  description: res.description ?? "",
+  category: res.category ?? "materials",
+  amount: res.total !== null ? String(res.total) : "",
+  gstAmount: res.gst !== null ? String(res.gst) : "",
+  supplier: res.supplier ?? "",
+});
 
 const emptyDraft = (today: string, paidWith: PaidWith = "own"): Draft => ({
   expenseDate: today,
@@ -176,15 +190,7 @@ export function MyExpensesFace({
         const res = await readExpenseReceipt(b64, picked.type);
         const base = emptyDraft(today, payer);
         if (res.ok) {
-          setDraft({
-            ...base,
-            expenseDate: res.date ?? base.expenseDate,
-            description: res.description ?? "",
-            category: res.category ?? "materials",
-            amount: res.total !== null ? String(res.total) : "",
-            gstAmount: res.gst !== null ? String(res.gst) : "",
-            supplier: res.supplier ?? "",
-          });
+          setDraft(draftFromRead(base, res));
         } else {
           // A scan that couldn't read still leaves them with the receipt and a
           // form — the file stays attached either way.

@@ -29,6 +29,12 @@ import type { SheetState } from "@/lib/timepay/query";
 import { XeroPayroll } from "./xero-payroll";
 import Link from "next/link";
 
+/* The lazy import lives OUT HERE, not in the component. The deferral is
+   unchanged — the module is still fetched on the first call — but React
+   Compiler 1.0 cannot lower an `import()` expression inside a component
+   and gives up on the WHOLE component when it meets one. */
+const xeroLinks = () => import("@/app/actions/xero-links");
+
 /** Whole dollars — a stat tile is a glance, and cents on it are noise. */
 const money0 = (n: number) => `$${Math.round(n).toLocaleString("en-AU")}`;
 
@@ -710,24 +716,24 @@ export function TimePay({
                      screen's bundle — the same reason the rate calculator
                      dynamic-imports its own save action. */
                   <XeroPayroll
-                    load={async () => (await import("@/app/actions/xero-links")).getLinkingData()}
+                    load={async () => (await xeroLinks()).getLinkingData()}
                     onLink={async (id, remote, how) =>
-                      (await import("@/app/actions/xero-links")).linkEmployee(id, remote, how)
+                      (await xeroLinks()).linkEmployee(id, remote, how)
                     }
                     onUnlink={async (id) =>
-                      (await import("@/app/actions/xero-links")).unlinkEmployee(id)
+                      (await xeroLinks()).unlinkEmployee(id)
                     }
                     onAdoptEmployment={async (id, value) =>
-                      (await import("@/app/actions/xero-links")).adoptEmploymentType(id, value)
+                      (await xeroLinks()).adoptEmploymentType(id, value)
                     }
                     onAdoptBasis={async (id, value) =>
-                      (await import("@/app/actions/xero-links")).adoptPayBasis(id, value)
+                      (await xeroLinks()).adoptPayBasis(id, value)
                     }
                     onCheckPay={async () =>
-                      (await import("@/app/actions/xero-links")).checkPayRates()
+                      (await xeroLinks()).checkPayRates()
                     }
                     onAdoptWage={async (id) =>
-                      (await import("@/app/actions/xero-links")).adoptWage(id)
+                      (await xeroLinks()).adoptWage(id)
                     }
                   />
                 ) : null

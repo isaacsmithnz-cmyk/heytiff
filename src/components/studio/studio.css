@@ -7820,6 +7820,73 @@ html[data-ds-display] .dstudio.editing {
 
 /* the palette flyout anchors to the dock's Component button */
 .dstudio .ds-pal-wrap { position: relative; }
+/* ── "Items to place" — the tray of units attributed to a room and still off
+   the plan. It only exists while something is owed, so it needs no empty
+   state and no dead-count styling. */
+.dstudio .ds-tray-btn { gap: 7px; }
+.dstudio .ds-tray-n {
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: var(--teal-d, #00a389);
+  border-radius: 999px;
+  min-width: 17px;
+  padding: 1px 5px;
+  text-align: center;
+}
+.dstudio .ds-tray-btn.on .ds-tray-n { background: #1a1a1a; }
+.dstudio .ds-tray {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  min-width: 218px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px -18px rgba(10, 12, 20, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dstudio .ds-tray-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  cursor: grab;
+  user-select: none;
+}
+.dstudio .ds-tray-item:active { cursor: grabbing; }
+.dstudio .ds-tray-item:hover,
+.dstudio .ds-tray-item:focus-visible {
+  background: #f5f5f3;
+  outline: none;
+}
+.dstudio .ds-tray-item:focus-visible { box-shadow: inset 0 0 0 1.5px var(--teal-d, #00a389); }
+.dstudio .ds-tray-role {
+  grid-row: 1;
+  font: 700 10.5px var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+  align-self: center;
+}
+.dstudio .ds-tray-model {
+  grid-row: 1;
+  font: 700 12.5px var(--font);
+  color: var(--ink);
+}
+/* the room the unit is owed to — an outdoor unit names none */
+.dstudio .ds-tray-room {
+  grid-row: 2;
+  grid-column: 2;
+  font: 600 11.5px var(--font);
+  color: #767676;
+}
 /* the Room button's shape flyout — the choice lands where the click did */
 .dstudio .ds-roomfly {
   position: absolute;

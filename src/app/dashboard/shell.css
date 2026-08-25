@@ -3566,6 +3566,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-lk { min-width:0; }
 .fl-lk b { display:block; font-size:13.5px; font-weight:700; color:#050505; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fl-lk em { font-style:normal; display:block; font-size:11.5px; font-weight:600; color:var(--q); margin-top:1px; }
+/* In the mixed History list a one-line row keeps the log scannable, but the
+   service history exists TO say what was done — so there it wraps instead of
+   ending in an ellipsis. */
+.fl-hist.full .fl-lk b { overflow:visible; text-overflow:clip; white-space:normal; }
 .fl-lr { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fl-lo { font-size:12.5px; font-weight:800; color:#374151; flex:0 0 auto; }
 

@@ -30,6 +30,8 @@ import {
   type RenewalKind,
   RENEWAL_DOC_KIND,
   currentRenewalDocIds,
+  serviceDueKm,
+  serviceKmLeft,
   daysUntil,
   displayName,
   fmtCost,
@@ -1387,6 +1389,74 @@ export function RenewalHistoryModal({
   );
 }
 
+/* ---------------- service history ---------------- */
+
+/* Every service this vehicle has had, and the cycle they set.
+
+   Deliberately NOT the renewal treatment twice over. A service does not
+   supersede the one before it — each stands on its own, the way a fuel docket
+   does, so nothing here is tagged Current or Previous; that tag belongs only
+   to paper that REPLACES paper. And filing was never gated: Log service has
+   always sat in the actions row. What was missing is only the view — services
+   were mixed into one History list with fuel, odometer and issues, so "when
+   was this last serviced, and what was done" had nowhere to be read. */
+export function ServiceHistoryModal({
+  vehicle,
+  logs,
+  onAdd,
+  onCorrect,
+  onClose,
+}: {
+  vehicle: Vehicle;
+  /** This vehicle's logs — filtered to services here, so callers pass the lot. */
+  logs: VehicleLog[];
+  onAdd: () => void;
+  onCorrect?: (log: VehicleLog) => void;
+  onClose: () => void;
+}) {
+  const services = logs.filter((l) => l.kind === "service");
+  const left = serviceKmLeft(vehicle);
+
+  return (
+    <FleetModal title="Service" sub={displayName(vehicle)} onClose={onClose}>
+      <div className="fl-facts">
+        <div className="fl-fact">
+          <em>Next service</em>
+          <b>{left < 0 ? `${fmtKm(-left)} km overdue` : `in ${fmtKm(left)} km`}</b>
+        </div>
+        <div className="fl-fact">
+          <em>Due at</em>
+          <b>{fmtKm(serviceDueKm(vehicle))} km</b>
+        </div>
+        <div className="fl-fact">
+          <em>Every</em>
+          <b>{fmtKm(vehicle.serviceIntervalKm)} km</b>
+        </div>
+      </div>
+
+      <div className="fl-histadd">
+        <button className="fl-btn primary" onClick={onAdd}>
+          <Icon name="wrench" size={15} />
+          Log service
+        </button>
+      </div>
+
+      {services.length === 0 ? (
+        /* The cycle above is read off last_service_odo, which a manager can set
+           on the vehicle directly — so "none logged" is the honest line here.
+           Saying "never serviced" would claim something the record cannot. */
+        <div className="fl-hempty">No services logged yet</div>
+      ) : (
+        <div className="fl-hist full">
+          {services.map((l) => (
+            <LogRow key={l.id} log={l} manager onCorrect={onCorrect} />
+          ))}
+        </div>
+      )}
+    </FleetModal>
+  );
+}
+
 export function DetailModal({
   vehicle,
   chips,
@@ -1398,6 +1468,7 @@ export function DetailModal({
   policies = [],
   onRenew,
   onHistory,
+  onServiceHistory,
   staff,
   manager,
   onClose,
@@ -1423,6 +1494,9 @@ export function DetailModal({
   onRenew?: (kind: "insurance" | "rego") => void;
   /** Opens everything on file for one renewal kind — its papers and its costs. */
   onHistory?: (kind: RenewalKind) => void;
+  /** Opens the services behind the cycle. Separate from onHistory because a
+      service has no kind to pass and no paper to supersede. */
+  onServiceHistory?: () => void;
   staff: FleetStaff[];
   manager: boolean;
   onClose: () => void;
@@ -1492,14 +1566,18 @@ export function DetailModal({
           const kind = fa.key as RenewalKind;
           const renewable = onRenew && isRenewal;
           const due = fa.state !== "ok";
-          /* A renewal fact is a DOOR to its own paperwork, open whatever the
-             expiry says — that is where a policy gets filed when nothing is
-             warning yet, which is most of the year. The chevron carries that;
-             a caption explaining it would be a caption apologising for it. */
+          /* A fact that OWNS A RECORD is a door to it, open whatever the fact
+             currently says — that is where a policy gets filed when nothing is
+             warning yet, and where the services are read when none is due. The
+             chevron carries that; a caption explaining it would be a caption
+             apologising for it. Facts with nothing behind them stay inert. */
+          const door = isRenewal
+            ? onHistory && (() => onHistory(kind))
+            : fa.key === "service" && onServiceHistory;
           return (
             <div key={fa.key} className="fl-fact">
-              {onHistory && isRenewal ? (
-                <button className="fl-factdoor" onClick={() => onHistory(kind)}>
+              {door ? (
+                <button className="fl-factdoor" onClick={door}>
                   <span className="fl-factmain">
                     <em>{fa.label}</em>
                     <b>{fa.text}</b>

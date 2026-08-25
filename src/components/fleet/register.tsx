@@ -32,6 +32,7 @@ import {
   LogModal,
   RenewalHistoryModal,
   RenewalModal,
+  ServiceHistoryModal,
   VehicleFormModal,
 } from "./modals";
 import { Plate } from "./plate";
@@ -51,9 +52,10 @@ type ModalState =
   | { t: "add" }
   | { t: "edit"; id: string }
   | { t: "detail"; id: string }
-  | { t: "log"; id: string; kind: LogKind }
+  | { t: "log"; id: string; kind: LogKind; back?: "service" }
   | { t: "fix"; id: string; log: VehicleLog }
   | { t: "history"; id: string; kind: RenewalKind }
+  | { t: "services"; id: string }
   /* `back` is where Cancel and Save return to. Filing from the history popup
      lands back in it, so the row you just added is visible rather than taken
      on trust. */
@@ -489,6 +491,7 @@ export function FleetRegister({
           policies={fleet.policies[openVehicle.id] ?? []}
           onRenew={(kind) => setModal({ t: "renew", id: openVehicle.id, kind, back: "detail" })}
           onHistory={(kind) => setModal({ t: "history", id: openVehicle.id, kind })}
+          onServiceHistory={() => setModal({ t: "services", id: openVehicle.id })}
           staff={staff}
           manager
           onClose={() => setModal({ t: "none" })}
@@ -513,6 +516,17 @@ export function FleetRegister({
           onAdd={() =>
             setModal({ t: "renew", id: openVehicle.id, kind: modal.kind, back: "history" })
           }
+          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+        />
+      )}
+      {modal.t === "services" && openVehicle && (
+        <ServiceHistoryModal
+          vehicle={openVehicle}
+          logs={logsFor(logs, openVehicle.id)}
+          onAdd={() =>
+            setModal({ t: "log", id: openVehicle.id, kind: "service", back: "service" })
+          }
+          onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
           onClose={() => setModal({ t: "detail", id: openVehicle.id })}
         />
       )}
@@ -561,9 +575,19 @@ export function FleetRegister({
           fleetVehicles={vehicles}
           onSave={(log) => {
             fleet.addLog(log);
-            setModal({ t: "detail", id: openVehicle.id });
+            setModal(
+              modal.back === "service"
+                ? { t: "services", id: openVehicle.id }
+                : { t: "detail", id: openVehicle.id },
+            );
           }}
-          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+          onClose={() =>
+            setModal(
+              modal.back === "service"
+                ? { t: "services", id: openVehicle.id }
+                : { t: "detail", id: openVehicle.id },
+            )
+          }
         />
       )}
     </div>

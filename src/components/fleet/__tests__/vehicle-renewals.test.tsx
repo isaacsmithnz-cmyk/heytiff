@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DetailModal, RenewalModal } from "../modals";
+import { DetailModal, RenewalHistoryModal, RenewalModal } from "../modals";
 import { FleetRegister } from "../register";
 import type { FleetState } from "../fleet-state";
 import type { StoredDocument } from "@/lib/documents/query";
 import type { Vehicle, VehiclePolicy } from "../logic";
-import { vehicleChips } from "../logic";
+import { currentRenewalDocIds, vehicleChips } from "../logic";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
@@ -72,6 +72,7 @@ function doc(over: Partial<StoredDocument>): StoredDocument {
 
 function detail(vehicle: Vehicle, extra: { documents?: StoredDocument[]; policies?: VehiclePolicy[] } = {}) {
   const onRenew = jest.fn();
+  const onHistory = jest.fn();
   render(
     <DetailModal
       vehicle={vehicle}
@@ -81,6 +82,7 @@ function detail(vehicle: Vehicle, extra: { documents?: StoredDocument[]; policie
       documents={extra.documents ?? []}
       policies={extra.policies ?? []}
       onRenew={onRenew}
+      onHistory={onHistory}
       staff={[]}
       manager
       onClose={jest.fn()}
@@ -92,7 +94,20 @@ function detail(vehicle: Vehicle, extra: { documents?: StoredDocument[]; policie
       onRemove={jest.fn()}
     />,
   );
-  return { onRenew, user: userEvent.setup() };
+  return { onRenew, onHistory, user: userEvent.setup() };
+}
+
+function policy(over: Partial<VehiclePolicy> = {}): VehiclePolicy {
+  return {
+    id: "p",
+    kind: "insurance",
+    provider: "NRMA",
+    premium: 1240.5,
+    startsOn: null,
+    expiresOn: "2027-09-01",
+    documentId: null,
+    ...over,
+  };
 }
 
 beforeEach(() => {
@@ -180,6 +195,102 @@ it("scans the dropped document into the fields, then saves what was confirmed", 
   expect(onSave).toHaveBeenCalledWith(
     expect.objectContaining({ kind: "insurance", expiresOn: "2027-09-01", premium: 1240.5, documentId: "doc-9" }),
   );
+});
+
+/* ---- the fact as a door: filing when nothing is warning ---- */
+
+/* The gap this closes: Update only appears inside the 30-day window, so for
+   most of the year — and for the whole back-catalogue — there was no way in. */
+it("opens the history from a renewal fact that is nowhere near expiry", async () => {
+  const { onHistory, user } = detail(van); // both dates 200 days out
+  expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
+
+  await user.click(screen.getByText("Insurance"));
+  expect(onHistory).toHaveBeenCalledWith("insurance");
+});
+
+it("does not turn the facts that own no paperwork into doors", async () => {
+  const { onHistory, user } = detail(van);
+  await user.click(screen.getByText("Odometer"));
+  await user.click(screen.getByText("Next service"));
+  expect(onHistory).not.toHaveBeenCalled();
+});
+
+it("lists what each renewal cost and covered, and offers Add renewal regardless of dates", async () => {
+  const onAdd = jest.fn();
+  render(
+    <RenewalHistoryModal
+      vehicle={van}
+      kind="insurance"
+      documents={[doc({ id: "d1", fileName: "policy-2027.pdf" })]}
+      policies={[
+        policy({ id: "p1", expiresOn: "2027-09-01", startsOn: "2026-09-01", documentId: "d1" }),
+        policy({ id: "p2", provider: "AAMI", premium: null, expiresOn: "2026-09-01" }),
+      ]}
+      onAdd={onAdd}
+      onClose={jest.fn()}
+    />,
+  );
+  const user = userEvent.setup();
+
+  expect(screen.getByText(/\$1,241/)).toBeInTheDocument();
+  expect(screen.getByText("1 Sept 2026 – 1 Sept 2027")).toBeInTheDocument();
+  expect(screen.getByText("policy-2027.pdf")).toBeInTheDocument();
+  // the one with no printed premium invents none
+  expect(screen.getByText("AAMI").closest(".fl-renrow")!.textContent).not.toMatch(/\$/);
+
+  await user.click(screen.getByRole("button", { name: /add renewal/i }));
+  expect(onAdd).toHaveBeenCalled();
+});
+
+it("shows a renewal kind with nothing filed as empty rather than missing", () => {
+  render(
+    <RenewalHistoryModal
+      vehicle={van}
+      kind="rego"
+      documents={[doc({ id: "d1" })]} // an insurance policy — not this kind
+      policies={[policy({ id: "p1", documentId: "d1" })]}
+      onAdd={jest.fn()}
+      onClose={jest.fn()}
+    />,
+  );
+  expect(screen.getByText("Nothing on file yet")).toBeInTheDocument();
+  expect(screen.queryByText("policy.pdf")).not.toBeInTheDocument();
+});
+
+/* ---- what back-filling breaks if "current" is read off the upload date ---- */
+
+it("keeps Current on the policy in force when an older one is filed later", () => {
+  // the 2024 policy is typed in TODAY, so it is the newest UPLOAD but the
+  // oldest COVER — the vehicle's expiry stays on 2027 and so must this tag
+  detail(van, {
+    documents: [
+      doc({ id: "backfilled", fileName: "policy-2024.pdf", createdAt: "2026-08-25T00:00:00Z" }),
+      doc({ id: "live", fileName: "policy-2027.pdf", createdAt: "2026-08-01T00:00:00Z" }),
+    ],
+    policies: [
+      policy({ id: "p1", expiresOn: "2027-09-01", documentId: "live" }),
+      policy({ id: "p2", expiresOn: "2024-09-01", documentId: "backfilled" }),
+    ],
+  });
+
+  const live = screen.getByText("policy-2027.pdf").closest("a")!;
+  const old = screen.getByText("policy-2024.pdf").closest("a")!;
+  expect(live.textContent).toMatch(/Current/);
+  expect(old.textContent).toMatch(/Previous/);
+});
+
+it("reads current off the latest expiry however the rows arrive", () => {
+  // same two policies, passed oldest-first — the answer must not move
+  expect(
+    currentRenewalDocIds(
+      [
+        policy({ expiresOn: "2024-09-01", documentId: "backfilled" }),
+        policy({ expiresOn: "2027-09-01", documentId: "live" }),
+      ],
+      [],
+    ),
+  ).toEqual(new Set(["live"]));
 });
 
 /* The modal tests above wire onRenew themselves, so they can never notice the

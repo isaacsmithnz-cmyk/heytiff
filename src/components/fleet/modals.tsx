@@ -27,6 +27,9 @@ import {
   type VehiclePolicy,
   type VehicleStatus,
   type VehicleLog,
+  type RenewalKind,
+  RENEWAL_DOC_KIND,
+  currentRenewalDocIds,
   daysUntil,
   displayName,
   fmtCost,
@@ -1287,6 +1290,101 @@ export function RenewalModal({
   );
 }
 
+/* ---------------- renewal history (the fact's own paperwork) ---------------- */
+
+const RENEWAL_TITLE: Record<RenewalKind, string> = { insurance: "Insurance", rego: "Registration" };
+
+/* Everything on file for ONE renewal kind: what it cost, what period it
+   covered, and the paper it was read from — newest first.
+
+   This is also where a renewal gets FILED. The Update button on the detail
+   card only appears once something is near expiry, which is the wrong moment
+   to be the only one: insurers post a renewal six weeks out, a whole fleet can
+   renew on one date, and a back-catalogue policy has no expiry warning at all
+   to hang off. Add renewal is open here whatever the dates say. */
+export function RenewalHistoryModal({
+  vehicle,
+  kind,
+  documents = [],
+  policies = [],
+  onAdd,
+  onClose,
+}: {
+  vehicle: Vehicle;
+  kind: RenewalKind;
+  documents?: StoredDocument[];
+  policies?: VehiclePolicy[];
+  onAdd: () => void;
+  onClose: () => void;
+}) {
+  const docKind = RENEWAL_DOC_KIND[kind];
+  const mine = policies.filter((p) => p.kind === kind);
+  const currentIds = currentRenewalDocIds(policies, documents);
+  const byId = new Map(documents.map((d) => [d.id, d]));
+  /* Paper with no renewal row behind it — filed before this screen existed, or
+     its row removed. Listing it separately beats dropping it: a document the
+     vehicle owns and nothing shows is worse than one without a period. */
+  const filedIds = new Set(mine.map((p) => p.documentId).filter(Boolean) as string[]);
+  const looseDocs = documents.filter((d) => d.kind === docKind && !filedIds.has(d.id));
+
+  return (
+    <FleetModal title={RENEWAL_TITLE[kind]} sub={displayName(vehicle)} onClose={onClose}>
+      <div className="fl-histadd">
+        <button className="fl-btn primary" onClick={onAdd}>
+          <Icon name="plus" size={15} />
+          Add renewal
+        </button>
+      </div>
+
+      {mine.length === 0 && looseDocs.length === 0 ? (
+        <div className="fl-hempty">Nothing on file yet</div>
+      ) : (
+        <div className="fl-hist">
+          {mine.map((pl) => {
+            const doc = pl.documentId ? byId.get(pl.documentId) : undefined;
+            const current = !!pl.documentId && currentIds.has(pl.documentId);
+            const period = pl.startsOn
+              ? `${fmtDocDate(pl.startsOn)} – ${fmtDocDate(pl.expiresOn)}`
+              : `to ${fmtDocDate(pl.expiresOn)}`;
+            return (
+              <div key={pl.id} className="fl-renrow">
+                <Icon name={kind === "insurance" ? "shield" : "file"} size={15} />
+                <span className="fl-renwho">
+                  <b>{pl.provider ?? RENEWAL_TITLE[kind]}</b>
+                  <i>{period}</i>
+                </span>
+                {current && <span className="fl-doctag now">Current</span>}
+                {/* premium is null when the document printed none — never invented */}
+                {pl.premium != null && <em>{fmtMoney(pl.premium)}</em>}
+                {doc?.url && (
+                  <a className="fl-renfile" href={doc.url} target="_blank" rel="noreferrer">
+                    <Icon name="file" size={14} />
+                    {doc.fileName}
+                  </a>
+                )}
+              </div>
+            );
+          })}
+          {looseDocs.map((d) => (
+            <a
+              key={d.id}
+              className="fl-docrow"
+              href={d.url ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Icon name="file" size={15} />
+              <b>{d.fileName}</b>
+              {currentIds.has(d.id) && <span className="fl-doctag now">Current</span>}
+              <em>{fmtDocDate(d.createdAt)}</em>
+            </a>
+          ))}
+        </div>
+      )}
+    </FleetModal>
+  );
+}
+
 export function DetailModal({
   vehicle,
   chips,
@@ -1297,6 +1395,7 @@ export function DetailModal({
   documents = [],
   policies = [],
   onRenew,
+  onHistory,
   staff,
   manager,
   onClose,
@@ -1320,6 +1419,8 @@ export function DetailModal({
   policies?: VehiclePolicy[];
   /** Opens the Update flow for a document that is near or past expiry. */
   onRenew?: (kind: "insurance" | "rego") => void;
+  /** Opens everything on file for one renewal kind — its papers and its costs. */
+  onHistory?: (kind: RenewalKind) => void;
   staff: FleetStaff[];
   manager: boolean;
   onClose: () => void;
@@ -1336,14 +1437,9 @@ export function DetailModal({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const driver = staff.find((s) => s.id === vehicle.assignedTo);
   const facts = vehicleFacts(vehicle);
-  /* The newest document of each renewal kind is the current one; the rest are
-     previous versions. `documents` arrives newest-first, so this is a first-
-     wins pass rather than a sort. */
-  const newestOfKind = new Map<string, string>();
-  for (const d of documents) {
-    if (RENEWAL_KINDS.has(d.kind) && !newestOfKind.has(d.kind)) newestOfKind.set(d.kind, d.id);
-  }
-  const currentIds = new Set(newestOfKind.values());
+  /* Which paper is in force — the latest EXPIRY, not the latest upload. One
+     shared rule so this list and the history popup can never disagree. */
+  const currentIds = currentRenewalDocIds(policies, documents);
   const purchaseText = vehicle.purchasePrice
     ? `${fmtMoney(vehicle.purchasePrice)}${
         vehicle.purchaseDateDays ? ` · ${(vehicle.purchaseDateDays / 365.25).toFixed(1)} yrs ago` : ""
@@ -1390,17 +1486,32 @@ export function DetailModal({
           /* The Update button rides the fact's OWN state — the same rule the
              chips use — so "near expiry" is decided in one place and can't
              drift between the warning and the fix for it. */
-          const renewable = onRenew && (fa.key === "rego" || fa.key === "insurance");
+          const isRenewal = fa.key === "rego" || fa.key === "insurance";
+          const kind = fa.key as RenewalKind;
+          const renewable = onRenew && isRenewal;
           const due = fa.state !== "ok";
+          /* A renewal fact is a DOOR to its own paperwork, open whatever the
+             expiry says — that is where a policy gets filed when nothing is
+             warning yet, which is most of the year. The chevron carries that;
+             a caption explaining it would be a caption apologising for it. */
           return (
             <div key={fa.key} className="fl-fact">
-              <em>{fa.label}</em>
-              <b>{fa.text}</b>
+              {onHistory && isRenewal ? (
+                <button className="fl-factdoor" onClick={() => onHistory(kind)}>
+                  <span className="fl-factmain">
+                    <em>{fa.label}</em>
+                    <b>{fa.text}</b>
+                  </span>
+                  <Icon name="chevR" size={14} />
+                </button>
+              ) : (
+                <>
+                  <em>{fa.label}</em>
+                  <b>{fa.text}</b>
+                </>
+              )}
               {renewable && due && (
-                <button
-                  className="fl-renew"
-                  onClick={() => onRenew(fa.key as "insurance" | "rego")}
-                >
+                <button className="fl-renew" onClick={() => onRenew(kind)}>
                   <Icon name="upload" size={12} />
                   Update
                 </button>

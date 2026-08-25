@@ -3615,6 +3615,28 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Update — the fix for an expiry, sitting on the fact that warns about it. */
 .fl-renew { display:inline-flex; align-items:center; gap:5px; margin-top:6px; padding:4px 9px; border-radius:8px; background:#fff; border:1px solid #e5e7eb; font-size:11px; font-weight:800; color:var(--ink); }
 .fl-renew:hover { border-color:#2E68FF; color:var(--info-t); }
+/* The rego/insurance fact as a door to its own paperwork. A full reset, not a
+   tweak: these modals portal to <body>, so the .fg button reset never lands
+   here and the UA's own button styling would otherwise show through. */
+.fl-factdoor { display:flex; align-items:center; gap:8px; width:100%; margin:0; padding:0; border:none; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer; }
+/* An explicit class, not `> span`: Icon renders its svg inside a bare span, so
+   a positional selector would catch the chevron too. */
+.fl-factmain { flex:1; min-width:0; }
+.fl-factdoor .i { color:var(--q); transition:color .15s, transform .15s; }
+.fl-factdoor:hover .i { color:var(--info-t); transform:translateX(2px); }
+.fl-factdoor:hover b { color:var(--info-t); }
+/* Add renewal — open whatever the expiry says, so it sits above the list. */
+.fl-histadd { display:flex; justify-content:flex-end; margin-bottom:16px; }
+.fl-renrow { display:flex; align-items:center; gap:9px; padding:10px 2px; border-bottom:1px solid #f4f4f6; font-size:13px; color:var(--ink); }
+.fl-renrow:last-child { border-bottom:none; }
+/* flex:1 on the name, not margin-left:auto on the price — a renewal whose
+   document printed no premium has no price element to push the rest right. */
+.fl-renwho { display:flex; flex-direction:column; flex:1; min-width:0; }
+.fl-renwho b { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fl-renwho i { font-style:normal; font-size:11.5px; font-weight:600; color:var(--q); }
+.fl-renrow em { font-style:normal; font-weight:800; white-space:nowrap; }
+.fl-renfile { display:inline-flex; align-items:center; gap:5px; max-width:150px; font-size:11.5px; font-weight:700; color:var(--q); text-decoration:none; }
+.fl-renfile:hover { color:var(--info-t); text-decoration:underline; }
 /* Current vs previous on a renewal document. Derived from the file list, so
    the tag can never disagree with what is above it. */
 .fl-doctag { flex:none; padding:2px 7px; border-radius:6px; background:#f1f2f4; font-size:10px; font-weight:800; color:var(--q); text-transform:uppercase; letter-spacing:.03em; }

@@ -6604,7 +6604,15 @@ html[data-ds-display] .dstudio.editing {
    would rest and the pin/selection holds the panel open, the collapse
    chevron — the mirror of the rest tab's expand chevron, so opening and
    closing live in the same top corner instead of a foot below the scroll */
-.dstudio .ds-ck-caphero-tr { display: inline-flex; align-items: center; gap: 9px; }
+.dstudio .ds-ck-caphero-tr { display: inline-flex; align-items: center; gap: 7px; }
+/* The type pill carries a -8px overhang so its TEXT sits on the card's edge.
+   With the collapse chevron beside it, that overhang became 8px of INVISIBLE
+   target — and the pill's job is "change system type", which clears the
+   system's units. Measured, the two hit areas ended up 1px apart: aiming at
+   collapse and missing wiped a selection. Inside the cluster the pill gives
+   the overhang back; the chevron's own -6px keeps the glyph on the edge, so
+   nothing moves but the reach. */
+.dstudio .ds-ck-caphero-tr .ds-ck-caphero-type { margin-right: 0; }
 .dstudio .ds-ck-caphero-x {
   display: inline-flex;
   align-items: center;

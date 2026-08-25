@@ -487,6 +487,26 @@ describe("RateCalculator — retired example data", () => {
     expect(localStorage.getItem("heytiff.rate-calc.buffer")).toBeNull();
     expect(saveRateCalcState).not.toHaveBeenCalled();
   });
+
+  /* The other half of the rule above, and the one nothing was holding: a
+     HEALTHY buffer on an org that has never saved is a previous session's
+     edits that never reached the server. It opens as those edits — not as a
+     first run — and it is pushed up straight away rather than waiting for
+     somebody to type. Deliberately the test after the retired one, so a
+     buffer read that leaked from it would show up here as onboarding. */
+  it("restores a healthy crash buffer and pushes it to the server", async () => {
+    localStorage.setItem("heytiff.rate-calc.buffer", JSON.stringify({
+      state: buildBaselineState(),
+      savedAt: 1_784_000_000_000,
+    }));
+    render(<RateCalculator initialState={null} />);
+
+    // A returning user, not a first run — no onboarding chain
+    expect(screen.queryByText("How to use this tool")).toBeNull();
+    expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
+
+    await waitFor(() => expect(saveRateCalcState).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
 });
 
 describe("RateCalculator — returning user with saved state", () => {

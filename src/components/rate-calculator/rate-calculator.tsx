@@ -38,6 +38,68 @@ const actions = () => import("@/app/actions/rate-calc");
 
 const BUFFER_KEY = "heytiff.rate-calc.buffer";
 const HELP_DISMISSED_KEY = "rc-help-dismissed";
+
+/* "Don't show again" is a CLIENT-ONLY fact, so what it decides has to diverge
+   from the HTML the server sent. It used to be restored by a mount effect,
+   which needed a `react-hooks/set-state-in-effect` disable — and one disable
+   anywhere makes React Compiler skip the whole component, whatever the rule
+   and however good the reason (see studio/canvas.tsx).
+
+   `useSyncExternalStore` says the same thing in the supported way: not
+   dismissed through hydration, the real answer after, and React re-renders
+   for the swap. A boolean snapshot is stable by value, so nothing has to be
+   cached, and this screen's own write is picked up on its next render. */
+const helpDismissedNow = () => {
+  try {
+    return window.sessionStorage.getItem(HELP_DISMISSED_KEY) === "1";
+  } catch {
+    return false; /* storage unavailable */
+  }
+};
+const helpNotDismissed = () => false;
+const noStorageSubscription = () => () => {};
+
+/* THE CRASH BUFFER, READ ONCE — as this mount found it, and never again.
+
+   It cannot be a live read. `persist` REWRITES the buffer on every keystroke
+   (with a fresh `savedAt`) and REMOVES it after a successful save, so a store
+   that followed localStorage would hand back a different value mid-session —
+   and `restored` decides `hasData` and the `key` below, so that would remount
+   the whole calculator under the person using it.
+
+   So the read is latched at the first snapshot, which React asks for once
+   hydration is done — before any edit can have touched the buffer. The latch
+   is dropped on unmount, so a later mount reads the buffer as IT finds it,
+   which is what the old mount effect did. */
+type BufferRead = { state: RateCalcState | null; retired: boolean };
+const NO_BUFFER: BufferRead = { state: null, retired: false };
+let latchedBuffer: BufferRead | undefined;
+
+const readBuffer = (): BufferRead => {
+  let buf: { state?: unknown } | null = null;
+  try {
+    const raw = window.localStorage.getItem(BUFFER_KEY);
+    buf = raw ? (JSON.parse(raw) as { state?: unknown }) : null;
+  } catch {
+    buf = null;
+  }
+  if (buf?.state == null) return NO_BUFFER;
+  const state = hydrateState(buf.state);
+  // One-time cleanup: the retired "Blue Sky Air Conditioning" example org
+  // could be left in a stale buffer, and restoring it would write the demo
+  // straight back onto a clean org. Drop such a buffer instead.
+  if (state.businessName === RETIRED_EXAMPLE_ORG) return { state: null, retired: true };
+  return { state, retired: false };
+};
+
+const bufferAtMount = (): BufferRead => {
+  if (latchedBuffer === undefined) latchedBuffer = readBuffer();
+  return latchedBuffer;
+};
+const forgetBufferAtMount = () => {
+  latchedBuffer = undefined;
+};
+const noBufferOnServer = () => NO_BUFFER;
 /** The example org the calculator used to ship with. Only referenced to
     recognise and discard leftovers of it — see the crash-buffer restore. */
 const RETIRED_EXAMPLE_ORG = "Blue Sky Air Conditioning";
@@ -266,21 +328,22 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
   // manual "?" reopen must NOT re-trigger the intro. "Don't show again" is
   // remembered for the session via sessionStorage — read in an effect so the
   // server prerender and first client render agree.
-  const [showHelp, setShowHelp] = React.useState(showOnboarding);
-  const [showRatesIntro, setShowRatesIntro] = React.useState(false);
-  const onboardRef = React.useRef(showOnboarding);
-  React.useEffect(() => {
-    if (!showOnboarding) return;
-    let dismissed = false;
-    try { dismissed = window.sessionStorage.getItem(HELP_DISMISSED_KEY) === "1"; } catch { /* storage unavailable */ }
-    if (dismissed) {
-      onboardRef.current = false;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is client-only; must diverge from the SSR-safe initial render
-      setShowHelp(false);
-      setShowRatesIntro(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const helpDismissed = React.useSyncExternalStore(
+    noStorageSubscription,
+    helpDismissedNow,
+    helpNotDismissed
+  );
+  /* Each is null until somebody acts on that modal; until then the chain says
+     where we are. Dismissed already ⇒ the help is skipped and the rates intro
+     is where a fresh setup lands. */
+  const [helpOpen, setHelpOpen] = React.useState<boolean | null>(null);
+  const [introOpen, setIntroOpen] = React.useState<boolean | null>(null);
+  const [chainDone, setChainDone] = React.useState(false);
+  const showHelp = helpOpen ?? (showOnboarding && !helpDismissed);
+  const showRatesIntro = introOpen ?? (showOnboarding && helpDismissed);
+  /* Still owed the intro — false once it has been handed over, and false from
+     the start when the help was dismissed before this screen opened. */
+  const chainOwed = showOnboarding && !chainDone && !helpDismissed;
   const [showSettings, setShowSettings] = React.useState(false);
   const [showBanner, setShowBanner] = React.useState(true);
   const [s, setS] = React.useState(initial);
@@ -288,10 +351,12 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
   // Persist AFTER render commits — calling the host mid-updater would set
   // parent state while this component renders (React error).
   const firstRender = React.useRef(true);
-  React.useEffect(() => {
+  const pushUp = React.useEffectEvent(() => {
     if (firstRender.current) { firstRender.current = false; return; }
     if (onPersist) { try { onPersist(s); } catch { /* host handles save errors */ } }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  React.useEffect(() => {
+    pushUp();
   }, [s]);
   const { calc, health, steps, uplift, ready, missing } = runEngine(s);
   const hc = HEALTH_COLORS[health.type] || HEALTH_COLORS.neutral;
@@ -351,9 +416,9 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
   const reviewDue = daysSince != null && daysSince >= (s.settings.review_reminder_months ?? 6) * 30;
 
   const onHelpClose = (dontShow: boolean) => {
-    setShowHelp(false);
+    setHelpOpen(false);
     if (dontShow) { try { window.sessionStorage.setItem(HELP_DISMISSED_KEY, "1"); } catch { /* storage unavailable */ } }
-    if (onboardRef.current) { onboardRef.current = false; setShowRatesIntro(true); }
+    if (chainOwed) { setChainDone(true); setIntroOpen(true); }
   };
 
   const saveLabel = saveState === "saving" ? "saving…"
@@ -364,7 +429,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
   return (
     <div className="rca">
       {showHelp && <HelpModal onClose={onHelpClose} />}
-      {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setShowRatesIntro(false)} />}
+      {showRatesIntro && <RatesIntro s={s} patch={patch} onDone={() => setIntroOpen(false)} />}
       {showSettings && <SettingsPanel st={s} patch={patch} onClose={() => setShowSettings(false)} onReset={onReset} superOwned={superOwned} />}
 
       {/* workspace header — mirrors the Design Studio topbar: accent chip, 23px title,
@@ -377,7 +442,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {s.businessName && <span style={{ fontFamily: RC.head, fontSize: 12, fontWeight: 700, color: RC.label, background: "#fff", border: `1px solid rgba(10,12,20,.07)`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{s.businessName}</span>}
-          <button className="rca-iconbtn" onClick={() => setShowHelp(true)} title="How to use" style={{ fontWeight: 800, fontSize: 15 }}>?</button>
+          <button className="rca-iconbtn" onClick={() => setHelpOpen(true)} title="How to use" style={{ fontWeight: 800, fontSize: 15 }}>?</button>
           <button className="rca-iconbtn" onClick={() => setShowSettings(true)} title="Settings"><RcIcon name="settings" size={16} /></button>
         </div>
       </div>
@@ -470,12 +535,27 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
   // changes the key and remounts the calculator.
   const [resetCount, setResetCount] = React.useState(0);
   const hasServerState = initialState != null && resetCount === 0;
-  const [restored, setRestored] = React.useState<RateCalcState | null>(null);
+  const buffer = React.useSyncExternalStore(
+    noStorageSubscription,
+    bufferAtMount,
+    noBufferOnServer
+  );
+  /* "Start fresh" wipes the buffer; nothing may restore it afterwards. */
+  const [bufferDropped, setBufferDropped] = React.useState(false);
+  const restored = hasServerState || bufferDropped ? null : buffer.state;
   const [saveState, setSaveState] = React.useState<SaveState>("idle");
   const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = React.useRef<RateCalcState | null>(null);
 
-  const persist = React.useCallback((next: RateCalcState) => {
+  /* THE SAVE IS SPLIT FROM WHAT IT SAYS ABOUT ITSELF. This half touches only
+     the outside world — the crash buffer and the debounced write — which is
+     exactly what an effect may do, and the crash restore below calls it
+     directly for that reason. `persist` is this plus the header's "saving…",
+     and it belongs to a keystroke. The two used to be one function with a
+     `setSaveState` in it, so restoring a buffer meant setting state
+     synchronously inside an effect: a `set-state-in-effect` disable, and one
+     disable costs the whole component its compilation. */
+  const scheduleSave = React.useCallback((next: RateCalcState) => {
     // The staff array is roster-sourced now, so it is NEVER persisted — the
     // stored row slims to the org's settings and it's re-fed from the roster on
     // every load. (Empty array keeps the save-shape guard happy.)
@@ -483,7 +563,6 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
     // Crash buffer first — synchronous, survives tab close mid-debounce.
     try { window.localStorage.setItem(BUFFER_KEY, JSON.stringify({ state: next, savedAt: Date.now() })); } catch { /* storage full/blocked */ }
     pendingRef.current = next;
-    setSaveState("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       saveTimer.current = null;
@@ -501,6 +580,14 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
     }, 600);
   }, []);
 
+  const persist = React.useCallback(
+    (next: RateCalcState) => {
+      setSaveState("saving");
+      scheduleSave(next);
+    },
+    [scheduleSave]
+  );
+
   // Wipe everything: the pending debounced save (so it can't resurrect what we
   // just deleted), the crash buffer, the restored buffer state, and the server
   // row. The row is deleted last — only a real success is allowed to look like
@@ -515,33 +602,25 @@ export function RateCalculator({ initialState, initialUpdatedAt, roster = [], xe
       return false;
     }
     try { window.localStorage.removeItem(BUFFER_KEY); } catch { /* storage unavailable */ }
-    setRestored(null);
+    setBufferDropped(true);
     setSaveState("idle");
     setResetCount(n => n + 1);
     return true;
   }, []);
 
+  // The latch belongs to this mount — see bufferAtMount.
+  React.useEffect(() => forgetBufferAtMount, []);
+
   // Crash-buffer restore: only when the org has never saved — a buffer means
-  // a previous session's edits never reached the server. Runs in an effect so
-  // the server prerender and first client render agree.
+  // a previous session's edits never reached the server.
   React.useEffect(() => {
     if (hasServerState) return;
-    let buf: { state?: unknown } | null = null;
-    try { const raw = window.localStorage.getItem(BUFFER_KEY); buf = raw ? JSON.parse(raw) : null; } catch { buf = null; }
-    if (buf?.state == null) return;
-    const state = hydrateState(buf.state);
-    // One-time cleanup: the retired "Blue Sky Air Conditioning" example org
-    // could be left in a stale buffer, and restoring it would write the demo
-    // straight back onto a clean org. Drop such a buffer instead.
-    if (state.businessName === RETIRED_EXAMPLE_ORG) {
+    if (buffer.retired) {
       try { window.localStorage.removeItem(BUFFER_KEY); } catch { /* ignore */ }
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is client-only; must diverge from the SSR-safe initial render
-    setRestored(state);
-    persist(state); // push the recovered edits up immediately
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (restored) scheduleSave(restored); // push the recovered edits up immediately
+  }, [hasServerState, buffer, restored, scheduleSave]);
 
   // Flush a pending debounced save when navigating away.
   React.useEffect(() => () => {

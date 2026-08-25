@@ -142,7 +142,12 @@ export function AddressField({
     };
   }, []);
 
-  const sessionToken = () => (token.current ??= newToken());
+  /* written long-hand, not `??=`: React Compiler 1.0 cannot lower a `??=`
+     assignment and gives up on the WHOLE component when it meets one */
+  const sessionToken = () => {
+    if (token.current === null) token.current = newToken();
+    return token.current;
+  };
 
   const ask = async (input: string) => {
     const mine = ++seq.current;

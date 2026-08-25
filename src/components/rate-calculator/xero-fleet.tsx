@@ -6,6 +6,7 @@ import { money } from "./format";
 import { WsEyebrow } from "./ui";
 import { mergeSnapshot, periodChoiceOf, snapshotVehicleTotal, type RateCalcState, type XeroCostSnapshot } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* The fleet's running cost, read from the same Xero snapshot the Business step
    pulled. No second call and no second period: one P&L answers both steps, and
@@ -42,19 +43,19 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
   const pull = async () => {
     setBusy(true);
     setError(null);
-    try {
-      /* Same window the snapshot already covers, and the shared merge — this
-         panel writes the SAME snapshot the Business step reads, so a refresh
-         here must neither swap the period under that step nor reset the
-         judgements (allocations, exclusions, annualise) made on it. */
-      const res = await onFetch(periodChoiceOf(snap));
-      if (res.ok) patch({ xeroCosts: mergeSnapshot(snap, res.snapshot), vehicleSource: "xero" });
-      else setError(res.error);
-    } catch {
-      setError("Couldn't reach Xero. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    await withCleanup(async () => {
+      try {
+        /* Same window the snapshot already covers, and the shared merge — this
+           panel writes the SAME snapshot the Business step reads, so a refresh
+           here must neither swap the period under that step nor reset the
+           judgements (allocations, exclusions, annualise) made on it. */
+        const res = await onFetch(periodChoiceOf(snap));
+        if (res.ok) patch({ xeroCosts: mergeSnapshot(snap, res.snapshot), vehicleSource: "xero" });
+        else setError(res.error);
+      } catch {
+        setError("Couldn't reach Xero. Try again.");
+      }
+    }, () => setBusy(false));
   };
 
   const lines = (snap?.excluded ?? []).filter(e => e.reason === "vehicle");

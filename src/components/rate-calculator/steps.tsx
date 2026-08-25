@@ -18,6 +18,12 @@ import { BusinessDetail, StaffDetail, VehiclesDetail, type StepBodyProps } from 
 import { XeroCostsPanel } from "./xero-costs";
 import { XeroFleetPanel } from "./xero-fleet";
 
+/* The lazy import lives OUT HERE, not in the component. The deferral is
+   unchanged — the module is still fetched on the first call — but React
+   Compiler 1.0 cannot lower an `import()` expression inside a component
+   and gives up on the WHOLE component when it meets one. */
+const rateCalcActions = () => import("@/app/actions/rate-calc");
+
 function StepHead({ eyebrow, title, mode, onMode, desc }: {
   eyebrow: string; title: string; mode?: string; onMode?: (v: string) => void; desc?: string;
 }) {
@@ -139,11 +145,13 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
   };
   // Heal a legacy split that doesn't total 100 (older ± builds could persist
   // e.g. 65/30/10) by pinning admin to the remainder once, on load.
-  React.useEffect(() => {
+  const healSplit = React.useEffectEvent(() => {
     if (install + service + (sl.admin_pct || 0) !== 100) {
       patch({ simpleLabour: { ...sl, admin_pct: 100 - install - service } });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  React.useEffect(() => {
+    healSplit();
   }, [install, service, sl.admin_pct]);
 
   const questions: StackQuestion[] = [
@@ -342,7 +350,7 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
             s={s}
             patch={patch}
             onFetch={async (choice) =>
-              (await import("@/app/actions/rate-calc")).fetchXeroBusinessCosts(choice)
+              (await rateCalcActions()).fetchXeroBusinessCosts(choice)
             }
           />
         </Body>
@@ -502,7 +510,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
             s={s}
             patch={patch}
             onFetch={async (choice) =>
-              (await import("@/app/actions/rate-calc")).fetchXeroBusinessCosts(choice)
+              (await rateCalcActions()).fetchXeroBusinessCosts(choice)
             }
           />
         </Body>

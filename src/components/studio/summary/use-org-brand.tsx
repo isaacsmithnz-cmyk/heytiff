@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BRAND_STALE_MS,
   BRAND_TTL_S,
@@ -65,8 +65,14 @@ function primeLogo(url: string | null) {
     window this hook re-signs for. Omitted, the hook asks for it itself. */
 export function useOrgBrand(served?: OrgBrand): OrgBrand {
   const [brand, setBrand] = useState<OrgBrand>(served ?? NO_BRAND);
+  /* The served brand is a PAGE-LOAD FACT, not a prop that changes under us —
+     held in a ref so the effect below can be honestly empty-dep'd instead of
+     silencing exhaustive-deps. A `react-hooks/*` disable anywhere in a file
+     makes React Compiler skip the whole component (see studio/canvas.tsx). */
+  const servedAtMount = useRef(served);
 
   useEffect(() => {
+    const served = servedAtMount.current;
     let on = true;
     /* what the page was served with is as old as the page, and the page is
        seconds old at mount — so the staleness clock starts here either way */
@@ -98,8 +104,6 @@ export function useOrgBrand(served?: OrgBrand): OrgBrand {
       on = false;
       document.removeEventListener("visibilitychange", onVisible);
     };
-    /* the served brand is a page-load fact, not a prop that changes under us */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return brand;

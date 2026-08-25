@@ -3,6 +3,20 @@
 import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { SaveResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
+
+/* IMPORTED WHERE IT IS USED, not at the top. upload-client pulls the
+   documents actions, which pull auth0's server bundle — statically, that
+   puts the whole chain in the module graph of every screen that renders a
+   staff card, and in the initial bundle of a page where most visits never
+   pick a file. Deferring it also keeps the profile's render tests from
+   having to mock a module they never exercise.
+
+   The call sits OUT HERE rather than in the handler because React Compiler
+   1.0 cannot lower an `import()` expression inside a component and gives up
+   on the whole component when it meets one. The deferral is unchanged — the
+   module is still fetched on the first press. */
+const uploadClient = () => import("@/lib/documents/upload-client");
 
 /* The avatar, and the camera badge that finally makes it settable.
 
@@ -47,14 +61,8 @@ export function PhotoBadge({
     if (!file) return;
     setError(null);
     setBusy(true);
-    try {
-      /* IMPORTED WHERE IT IS USED, not at the top. upload-client pulls the
-         documents actions, which pull auth0's server bundle — statically, that
-         puts the whole chain in the module graph of every screen that renders
-         a staff card, and in the initial bundle of a page where most visits
-         never pick a file. Deferring it also keeps the profile's render tests
-         from having to mock a module they never exercise. */
-      const { uploadFile } = await import("@/lib/documents/upload-client");
+    await withCleanup(async () => {
+      const { uploadFile } = await uploadClient();
       const up = await uploadFile(file, "staff_photo");
       if (!up.ok) {
         setError(up.error);
@@ -62,22 +70,20 @@ export function PhotoBadge({
       }
       const res = await onSet(up.file.documentId);
       if (!res.ok) setError(res.error);
-    } finally {
+    }, () => {
       setBusy(false);
       // let the same file be chosen again after a failure
       if (fileRef.current) fileRef.current.value = "";
-    }
+    });
   };
 
   const clear = async () => {
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onClear();
       if (!res.ok) setError(res.error);
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   return (

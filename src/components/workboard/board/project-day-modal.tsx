@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -152,6 +152,143 @@ export function ProjectDayModal({
     );
   };
 
+  function DayCard({ v }: { v: ProjectBoardVisit }) {
+    const vTone = projectToneOf(v, today);
+    const missing = projectMissingOf(v);
+    const openSheet = () => onOpenVisit(v.id);
+
+    if (v.status === "done" || v.status === "skipped" || missing.length === 0) {
+      const chip =
+        v.status === "done" ? (
+          <span className="wb2-chip ok">Done and closed</span>
+        ) : v.status === "skipped" ? (
+          <span className="wb2-chip">Skipped</span>
+        ) : (
+          <span className="wb2-chip ok">Ready to run</span>
+        );
+      return (
+        <div
+          className="wb2-dc mini can-open"
+          data-tone={vTone}
+          role="button"
+          tabIndex={0}
+          aria-label={`Open ${v.projectName} — ${v.label}`}
+          onClick={openSheet}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openSheet();
+            }
+          }}
+        >
+          <div className="wb2-dch">
+            <b>{v.projectName}</b>
+            {chip}
+          </div>
+          <div className="wb2-dcs">
+            {v.label}
+            {v.techs.length > 0 ? ` · ${v.techs.map((t) => t.name).join(", ")}` : ""}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="wb2-dc can-open"
+        data-tone={vTone}
+        style={{
+          "--lead": `var(--wb2-${missing[0] === "equipment" ? "eq" : missing[0] === "access" ? "acc" : "crew"})`,
+        } as CSSProperties}
+        role="button"
+        tabIndex={0}
+        aria-label={`Open ${v.projectName} — ${v.label}`}
+        onClick={openSheet}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+            e.preventDefault();
+            openSheet();
+          }
+        }}
+      >
+        <div className="wb2-dch">
+          <b>{v.projectName}</b>
+          <span className={"wb2-chip " + (vTone === "soon" ? "warn" : "dan")}>
+            {missing.length} to confirm
+          </span>
+        </div>
+        <div className="wb2-dcs">
+          {v.label}
+          {v.siteLabel ? ` · ${v.siteLabel}` : ""}
+          {v.jobNumber ? ` · #${v.jobNumber}` : ""}
+        </div>
+        <div className="wb2-dcck" data-cols={missing.length}>
+          {missing.map((g) =>
+            g === "crew" ? (
+              manage ? (
+                <select
+                  key={g}
+                  className="wb2-sel"
+                  disabled={busy}
+                  value=""
+                  aria-label={`Assign a technician — ${v.projectName}`}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    const staffId = e.target.value;
+                    if (!staffId) return;
+                    const name = staff.find((s) => s.id === staffId)?.name ?? "Assigned";
+                    run(
+                      () => assignVisitTech(v.id, staffId),
+                      `${name} assigned — ${v.projectName}`,
+                      undoable(() => unassignVisitTech(v.id, staffId))
+                    );
+                  }}
+                >
+                  <option value="">Crew — assign…</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span key={g} className="wb2-ck" style={{ "--as": "var(--wb2-crew)" } as CSSProperties}>
+                  <i /> <span>{GATE_LABEL[g]}</span>
+                </span>
+              )
+            ) : (
+              <button
+                key={g}
+                className="wb2-ck"
+                style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : "acc"})` } as CSSProperties}
+                disabled={busy}
+                title={`${GATE_FULL[g]} — not confirmed. Press to confirm.`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const key = g === "equipment" ? "equipment_ready" : "access_confirmed";
+                  const word = g === "equipment" ? "Equipment" : "Access";
+                  run(
+                    () => setVisitReadiness(v.id, key, true),
+                    `${word} confirmed — ${v.projectName}`,
+                    undoable(() => setVisitReadiness(v.id, key, false))
+                  );
+                }}
+              >
+                <i />
+                <span>{GATE_LABEL[g]}</span>
+              </button>
+            )
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* THE RETURN IS LAST, under the components it renders, and has to stay
+     there: a hoisted `function` declaration after a `return` is unreachable
+     code, which React Compiler 1.0 refuses to compile past — it gives up on
+     the whole component. */
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
@@ -236,137 +373,4 @@ export function ProjectDayModal({
     </>,
     document.body
   );
-
-  function DayCard({ v }: { v: ProjectBoardVisit }) {
-    const vTone = projectToneOf(v, today);
-    const missing = projectMissingOf(v);
-    const openSheet = () => onOpenVisit(v.id);
-
-    if (v.status === "done" || v.status === "skipped" || missing.length === 0) {
-      const chip =
-        v.status === "done" ? (
-          <span className="wb2-chip ok">Done and closed</span>
-        ) : v.status === "skipped" ? (
-          <span className="wb2-chip">Skipped</span>
-        ) : (
-          <span className="wb2-chip ok">Ready to run</span>
-        );
-      return (
-        <div
-          className="wb2-dc mini can-open"
-          data-tone={vTone}
-          role="button"
-          tabIndex={0}
-          aria-label={`Open ${v.projectName} — ${v.label}`}
-          onClick={openSheet}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              openSheet();
-            }
-          }}
-        >
-          <div className="wb2-dch">
-            <b>{v.projectName}</b>
-            {chip}
-          </div>
-          <div className="wb2-dcs">
-            {v.label}
-            {v.techs.length > 0 ? ` · ${v.techs.map((t) => t.name).join(", ")}` : ""}
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className="wb2-dc can-open"
-        data-tone={vTone}
-        style={{
-          ["--lead" as string]: `var(--wb2-${missing[0] === "equipment" ? "eq" : missing[0] === "access" ? "acc" : "crew"})`,
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={`Open ${v.projectName} — ${v.label}`}
-        onClick={openSheet}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-            e.preventDefault();
-            openSheet();
-          }
-        }}
-      >
-        <div className="wb2-dch">
-          <b>{v.projectName}</b>
-          <span className={"wb2-chip " + (vTone === "soon" ? "warn" : "dan")}>
-            {missing.length} to confirm
-          </span>
-        </div>
-        <div className="wb2-dcs">
-          {v.label}
-          {v.siteLabel ? ` · ${v.siteLabel}` : ""}
-          {v.jobNumber ? ` · #${v.jobNumber}` : ""}
-        </div>
-        <div className="wb2-dcck" data-cols={missing.length}>
-          {missing.map((g) =>
-            g === "crew" ? (
-              manage ? (
-                <select
-                  key={g}
-                  className="wb2-sel"
-                  disabled={busy}
-                  value=""
-                  aria-label={`Assign a technician — ${v.projectName}`}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    const staffId = e.target.value;
-                    if (!staffId) return;
-                    const name = staff.find((s) => s.id === staffId)?.name ?? "Assigned";
-                    run(
-                      () => assignVisitTech(v.id, staffId),
-                      `${name} assigned — ${v.projectName}`,
-                      undoable(() => unassignVisitTech(v.id, staffId))
-                    );
-                  }}
-                >
-                  <option value="">Crew — assign…</option>
-                  {staff.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span key={g} className="wb2-ck" style={{ ["--as" as string]: "var(--wb2-crew)" }}>
-                  <i /> <span>{GATE_LABEL[g]}</span>
-                </span>
-              )
-            ) : (
-              <button
-                key={g}
-                className="wb2-ck"
-                style={{ ["--as" as string]: `var(--wb2-${g === "equipment" ? "eq" : "acc"})` }}
-                disabled={busy}
-                title={`${GATE_FULL[g]} — not confirmed. Press to confirm.`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const key = g === "equipment" ? "equipment_ready" : "access_confirmed";
-                  const word = g === "equipment" ? "Equipment" : "Access";
-                  run(
-                    () => setVisitReadiness(v.id, key, true),
-                    `${word} confirmed — ${v.projectName}`,
-                    undoable(() => setVisitReadiness(v.id, key, false))
-                  );
-                }}
-              >
-                <i />
-                <span>{GATE_LABEL[g]}</span>
-              </button>
-            )
-          )}
-        </div>
-      </div>
-    );
-  }
 }

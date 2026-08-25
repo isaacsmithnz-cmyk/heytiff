@@ -6,6 +6,12 @@ import type { DesignDocument } from "@/lib/studio/document";
 import { prefillFromJob, type StudioJobHit } from "@/lib/studio/job-link";
 import { JobSearchField } from "../job-search";
 
+/* The lazy import lives OUT HERE, not in the component. The deferral is
+   unchanged — the module is still fetched on the first call — but React
+   Compiler 1.0 cannot lower an `import()` expression inside a component
+   and gives up on the WHOLE component when it meets one. */
+const studioActions = () => import("@/app/actions/studio");
+
 /* Attaching an existing design to a ServiceM8 job.
 
    `jobLink` used to be written in exactly one place — `createDesign`, from
@@ -43,7 +49,7 @@ export function JobAttach({
 
   const search = useCallback(
     (q: string) =>
-      import("@/app/actions/studio").then((a) => a.searchStudioJobs(q)),
+      studioActions().then((a) => a.searchStudioJobs(q)),
     []
   );
 

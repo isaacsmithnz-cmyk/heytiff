@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { plusDays } from "@/lib/workboard/dates";
@@ -124,9 +124,9 @@ export function UpcomingTab({
             <span>Due</span>
             <span>Day booked</span>
             <span className="wb2-trhd-ck">
-              <em style={{ ["--as" as string]: "var(--wb2-eq)" }}>Equip</em>
-              <em style={{ ["--as" as string]: "var(--wb2-acc)" }}>Access</em>
-              <em style={{ ["--as" as string]: "var(--wb2-crew)" }}>Crew</em>
+              <em style={{ "--as": "var(--wb2-eq)" } as CSSProperties}>Equip</em>
+              <em style={{ "--as": "var(--wb2-acc)" } as CSSProperties}>Access</em>
+              <em style={{ "--as": "var(--wb2-crew)" } as CSSProperties}>Crew</em>
             </span>
           </div>
           {groups.map((g) => (
@@ -242,7 +242,7 @@ function Row({
               <span
                 key={g}
                 className={"wb2-ckq" + (on ? " on" : "")}
-                style={{ ["--as" as string]: `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` }}
+                style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
                 title={`${GATE_FULL[g]} — ${on ? "confirmed" : "not yet"}`}
                 aria-label={GATE_LABEL[g]}
               >

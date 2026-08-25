@@ -187,7 +187,12 @@ export function QuestionStack({ questions, revealAll = false, stageFromTop = fal
   const mounted = React.useRef(false);
   React.useEffect(() => {
     if (!mounted.current) { mounted.current = true; return; }
-    try { wrapRef.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch { /* jsdom */ }
+    /* the optional chain is READ FIRST, outside the try: React Compiler 1.0
+       cannot lower a value block inside a try/catch and gives up on the
+       whole component when it meets one (see studio/canvas.tsx) */
+    const last = wrapRef.current?.lastElementChild;
+    if (!last) return;
+    try { last.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch { /* jsdom */ }
   }, [revealed]);
   const complete = revealed >= questions.length - 1 && questions[questions.length - 1]?.answered;
   return (

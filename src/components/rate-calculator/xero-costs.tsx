@@ -20,6 +20,7 @@ import {
 } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 import { useHydrated } from "@/lib/use-hydrated";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Business costs, read from a connected Xero organisation.
 
@@ -67,6 +68,18 @@ const NOTE_LABEL: Record<string, string> = {
   insurance: "if the fleet's cover is in here, Vehicles may be charging it too",
 };
 
+/* What a finished pull writes. Out here, not in `pull`'s try/catch, because
+   React Compiler 1.0 cannot lower a value block — the conditional spread —
+   inside a try and gives up on the whole component when it meets one. */
+const pulledPatch = (
+  s: RateCalcState,
+  snap: XeroCostSnapshot | null | undefined,
+  xeroCosts: XeroCostSnapshot
+): Partial<RateCalcState> => ({
+  xeroCosts,
+  ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
+});
+
 export type XeroCostsPanelProps = {
   s: RateCalcState;
   patch: (p: Partial<RateCalcState>) => void;
@@ -87,28 +100,25 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
   const pull = async () => {
     setBusy(true);
     setError(null);
-    try {
-      const res = await onFetch(choice);
-      if (res.ok) {
-        /* A refresh is new AMOUNTS; every judgement made about the old ones —
-           allocations, re-exclusions, inclusions, the annualise answer —
-           survives via the shared merge. */
-        const xeroCosts = mergeSnapshot(snap, res.snapshot);
-        /* The fleet comes along on the FIRST pull only — that is the moment
-           vehicle lines first leave the overhead pool and the mixed state
-           would otherwise be born. On a refresh the fleet source is wherever
-           the user last put it; re-running the convenience default here would
-           override "Enter them myself" every time this button was pressed. */
-        patch({
-          xeroCosts,
-          ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
-        });
-      } else setError(res.error);
-    } catch {
-      setError("Couldn't reach Xero. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    await withCleanup(async () => {
+      try {
+        const res = await onFetch(choice);
+        if (res.ok) {
+          /* A refresh is new AMOUNTS; every judgement made about the old ones —
+             allocations, re-exclusions, inclusions, the annualise answer —
+             survives via the shared merge. */
+          const xeroCosts = mergeSnapshot(snap, res.snapshot);
+          /* The fleet comes along on the FIRST pull only — that is the moment
+             vehicle lines first leave the overhead pool and the mixed state
+             would otherwise be born. On a refresh the fleet source is wherever
+             the user last put it; re-running the convenience default here would
+             override "Enter them myself" every time this button was pressed. */
+          patch(pulledPatch(s, snap, xeroCosts));
+        } else setError(res.error);
+      } catch {
+        setError("Couldn't reach Xero. Try again.");
+      }
+    }, () => setBusy(false));
   };
 
   const cycleAlloc = (i: number) => {

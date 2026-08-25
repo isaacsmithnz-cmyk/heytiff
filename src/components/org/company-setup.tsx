@@ -28,6 +28,12 @@ import type { CompanySetupActions } from "./types";
 
 const NETWORK_ERROR = "Couldn’t save — check your connection and try again.";
 
+/* The columns a rejected save named, or none. Out here rather than inline at
+   the call site, which sits inside a try/catch: React Compiler 1.0 cannot
+   lower a value block — a `??` — in there, and gives up on the whole
+   component when it meets one. */
+const namedFields = (fields: string[] | undefined) => fields ?? [];
+
 const INP =
   "w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 " +
   "placeholder:text-zinc-400 focus:outline-none focus:ring-2";
@@ -117,7 +123,7 @@ export function CompanySetup({
         return; // stay "busy" — the screen is navigating, not waiting
       }
       setError(res.error);
-      setBadFields(res.fields ?? []);
+      setBadFields(namedFields(res.fields));
       setStep(stepForFields(res.fields));
     } catch {
       setError(NETWORK_ERROR);

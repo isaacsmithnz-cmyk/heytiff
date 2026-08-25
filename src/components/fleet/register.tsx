@@ -59,6 +59,12 @@ type ModalState =
      on trust. */
   | { t: "renew"; id: string; kind: RenewalKind; back: "detail" | "history" };
 
+/* The reason a refused valuation gave, or a plain one. Read inside a
+   try/catch, where a `??` is a value block React Compiler 1.0 cannot lower —
+   it gives up on the whole component when it meets one. */
+const valuationError = (reason: string | undefined) =>
+  reason ?? "Tiff couldn't complete that.";
+
 export function FleetRegister({
   fleet,
   staff,
@@ -145,11 +151,15 @@ export function FleetRegister({
     const poll = setInterval(async () => {
       try {
         const res = await fetch("/api/fleet/value");
-        if (res.ok && !(await res.json()).running) {
-          clearInterval(poll);
-          setValuing(false);
-          router.refresh();
-        }
+        /* two guards rather than one `&&`, because React Compiler 1.0 cannot
+           lower a value block inside a try/catch — the short circuit is the
+           same, the body still only runs on a finished run */
+        if (!res.ok) return;
+        const { running } = await res.json();
+        if (running) return;
+        clearInterval(poll);
+        setValuing(false);
+        router.refresh();
       } catch {
         /* transient — the next tick asks again */
       }
@@ -163,7 +173,11 @@ export function FleetRegister({
     (async () => {
       try {
         const res = await fetch("/api/fleet/value");
-        if (!gone && res.ok && (await res.json()).running) stop = watchRun();
+        /* guards, not one `&&` chain — see the note in `watchRun` */
+        if (gone) return;
+        if (!res.ok) return;
+        const { running } = await res.json();
+        if (running) stop = watchRun();
       } catch {
         /* no answer, no spinner — the button stays pressable */
       }
@@ -190,7 +204,7 @@ export function FleetRegister({
       else if (res.running) {
         watchRun(); // someone else's press — wait for theirs instead of erroring
         return;
-      } else setValueErr(res.reason ?? "Tiff couldn't complete that.");
+      } else setValueErr(valuationError(res.reason));
     } catch {
       setValueErr("Tiff couldn't be reached.");
     }

@@ -5,6 +5,7 @@ import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/l
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 import { Orb } from "@/components/ui/orb";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -95,6 +96,34 @@ export const COUNTDOWN_FROM = 30;
    after the first time) and well short of a person deciding the app is
    broken. Past it the card hands back the box and says so. */
 const ARMING_CEILING_MS = 4_000;
+
+/* What to say when the batch transport comes back with nothing usable. It is
+   read inside a try/catch, so the `??` and the ternary have to live out here:
+   React Compiler 1.0 cannot lower a value block in there and gives up on the
+   whole component when it meets one. */
+/* The tap, or none when the live transport is off. It swallows its own
+   failure because a browser with no audio pipeline is a batch recording, not
+   an error anybody needs to hear about. Out here because the ternary would be
+   a value block inside `start`'s try. */
+const tapFor = (stream: MediaStream) =>
+  transportChoice() ? openMicTap(stream).catch(() => null) : null;
+
+/* Both of these are read inside `goLive`'s try/catch, where a `??` or a
+   ternary is a value block the compiler cannot lower. */
+const keytermsOf = (k: string[] | undefined) => k ?? [];
+const errText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/* The words, or null when there are none worth handing back — refused, empty,
+   or noise the transcriber labelled. Read inside a try/catch, where a `||`
+   chain is a value block the compiler cannot lower, so it lives out here. */
+const usableText = (ok: boolean, body: { text?: string }): string | null =>
+  ok && body.text && saidSomething(body.text) ? body.text : null;
+
+const unreadable = (body: { text?: string; error?: string }) =>
+  body.error ??
+  (body.text
+    ? "Nothing was said in that one. Try again, or type it."
+    : "That recording couldn't be read. Type it instead.");
 
 /* AND WHAT TO SAY WHEN IT DOES NOT OPEN, which is the half that matters —
    Isaac, 2026-08-17: "now it's not listening at all", against a card sitting
@@ -414,6 +443,12 @@ export function useDictation({
   /** The batch transport, unchanged — and now also the live one's floor.
       `mine` is the run that asked for it: words that arrive for a run somebody
       has already walked away from go in the bin, not in a box. */
+  /* The optional call, hoisted into its own function. Both of `upload`'s
+     endings report through it, and both are inside a try/catch — where React
+     Compiler 1.0 cannot lower a value block, and gives up on the whole
+     component when it meets one. */
+  const report = (msg: string) => cbs.current.onError?.(msg);
+
   const upload = async (blob: Blob, mine: { discard: boolean }) => {
     try {
       const form = new FormData();
@@ -423,22 +458,20 @@ export function useDictation({
       /* Walked away while this was in the air. Nothing to say and nowhere to
          say it — the surface that asked is gone. */
       if (mine.discard) return void clearRun();
-      if (!res.ok || !body.text || !saidSomething(body.text)) {
+      const text = usableText(res.ok, body);
+      if (text === null) {
         /* A run that never reaches a proposal has to be dropped, or the
            NEXT note — quite possibly a typed one — prints its `routed`
            measured from a stop that happened minutes ago. */
         clearRun();
-        cbs.current.onError?.(
-          body.error ??
-            (body.text ? "Nothing was said in that one. Try again, or type it." : "That recording couldn't be read. Type it instead.")
-        );
+        report(unreadable(body));
         return;
       }
       markTranscript("batch");
-      cbs.current.onTranscript(body.text, { capped: capped.current });
+      cbs.current.onTranscript(text, { capped: capped.current });
     } catch {
       clearRun();
-      cbs.current.onError?.("That recording couldn't be sent. Type it instead.");
+      report("That recording couldn't be sent. Type it instead.");
     }
   };
 
@@ -472,7 +505,7 @@ export function useDictation({
       const handle = await startRealtime({
         tap,
         token,
-        keyterms: keyterms ?? [],
+        keyterms: keytermsOf(keyterms),
         onText: setInterim,
       });
       /* Stopped or discarded while the handshake was in flight — the socket
@@ -487,7 +520,7 @@ export function useDictation({
          is a no-op, so this is the one line that covers every failure
          whichever side of the handover it happened on. */
       tap.close();
-      console.error(`[dictation] live transport unavailable: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`[dictation] live transport unavailable: ${errText(err)}`);
     }
   };
 
@@ -542,7 +575,7 @@ export function useDictation({
            every word said in the meantime. It swallows its own failure
            because a browser with no audio pipeline is a batch recording,
            not an error anybody needs to hear about. */
-        tapping = transportChoice() ? openMicTap(stream).catch(() => null) : null;
+        tapping = tapFor(stream);
         /* Only once the microphone is genuinely open — chiming before the
            prompt is answered would announce a recording that may never
            start. `{ audio: true }` turns on echo cancellation by default,
@@ -588,7 +621,7 @@ export function useDictation({
           }
 
           setTranscribing(true);
-          try {
+          await withCleanup(async () => {
             /* The live transcript first, because it is already finished.
                `stop()` only flushes the last utterance — it does not wait
                for the whole recording to be processed, which is the entire
@@ -630,14 +663,14 @@ export function useDictation({
               return;
             }
             await upload(blob, mine);
-          } finally {
+          }, () => {
             /* The tracks are held until here so the live path can flush the
                last sentence off a stream that is still open. */
             stream.getTracks().forEach((t) => t.stop());
             setTranscribing(false);
             setHanding(false);
             setInterim("");
-          }
+          });
         };
         recorder.current = rec;
         rec.start();

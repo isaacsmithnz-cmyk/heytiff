@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { plusDays } from "@/lib/workboard/dates";
@@ -189,13 +189,15 @@ export function ScheduleTab({
      already IS today, and a transition's async callback is where the result
      lands. StrictMode double-invoking the effect costs one duplicate read,
      which the cache then absorbs for the session. */
-  useEffect(() => {
+  const openToday = useEffectEvent(() => {
     /* Mid-backfill the read is not just wasted, it's WRONG to show: a day
        drawn from half a walk is a diary with people missing from it, which
        reads as "nobody is on" rather than "not here yet". The gap below says
        so instead, and nothing is fetched to contradict it. */
     if (connected && !syncing) load(today);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- first open only
+  });
+  useEffect(() => {
+    openToday();
   }, []);
 
   const current = payload && payload.dayISO === openDay ? payload : null;
@@ -282,7 +284,7 @@ export function ScheduleTab({
     const r = railRef.current;
     if (r) setAtEnd(r.scrollLeft + r.clientWidth >= r.scrollWidth - 2);
   };
-  useLayoutEffect(() => {
+  const landRail = useEffectEvent(() => {
     const r = railRef.current;
     if (!r || !day || day.totalBookings === 0) return;
     const first = day.lanes.reduce((m, l) => Math.min(m, l.blocks[0].startMin), Infinity);
@@ -292,7 +294,9 @@ export function ScheduleTab({
     }
     r.scrollLeft = Math.max(0, target);
     judgeEnd();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- lands once per loaded day
+  });
+  useLayoutEffect(() => {
+    landRail();
   }, [day, openDay]);
 
   /* ── the Day / Capacity switcher — one element, rendered into BOTH
@@ -506,7 +510,20 @@ export function ScheduleTab({
     if (was) blockRefs.current.get(was)?.focus();
   };
 
-  let bi = 0; // running block index — the entrance stagger reads left to right
+  /* The entrance stagger reads left to right across the whole rail. Built as a
+     lookup, not a counter incremented inside the map: React Compiler 1.0
+     cannot lower an update expression on a variable a lambda captures, and a
+     memoised subtree would not re-run one anyway. */
+  const staggerAt = new Map<string, number>();
+  if (day) {
+    let n = 0;
+    for (const lane of day.lanes)
+      for (const row of lane.rows)
+        for (const b of row) {
+          staggerAt.set(b.key, n);
+          n += 1;
+        }
+  }
 
   return (
     <>
@@ -596,8 +613,8 @@ export function ScheduleTab({
                 className="wb2-schinner"
                 style={{
                   width: ((day.railEnd - day.railStart) / 60) * PX_PER_HOUR,
-                  ["--hr" as string]: `${PX_PER_HOUR}px`,
-                }}
+                  "--hr": `${PX_PER_HOUR}px`,
+                } as CSSProperties}
               >
                 <div className="wb2-schhours">
                   {Array.from(
@@ -649,14 +666,14 @@ export function ScheduleTab({
                               width: w - 3,
                               top: LANE_PAD_PX + ri * LANE_ROW_PX,
                               height: LANE_ROW_PX - 6,
-                              animationDelay: `${Math.min(bi++ * 14, 400)}ms`,
-                              ["--fill" as string]: paint.fill,
-                              ["--btext" as string]: paint.ink,
-                              ["--chip" as string]: paint.chip,
-                              ["--bar" as string]: paint.bar,
-                              ["--pale" as string]: paint.pale,
-                              ["--pale-edge" as string]: paint.paleEdge,
-                            }}
+                              animationDelay: `${Math.min((staggerAt.get(b.key) ?? 0) * 14, 400)}ms`,
+                              "--fill": paint.fill,
+                              "--btext": paint.ink,
+                              "--chip": paint.chip,
+                              "--bar": paint.bar,
+                              "--pale": paint.pale,
+                              "--pale-edge": paint.paleEdge,
+                            } as CSSProperties}
                             title={blockTitle(b)}
                             aria-label={`Job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
                               b.clientName ?? ""
@@ -777,7 +794,7 @@ export function ScheduleTab({
                 any more is worse than no key. */}
             {hasIdle && (
               <span>
-                <i className="hollow" style={{ ["--kcap" as string]: NO_CATEGORY_PAINT.bar }} />
+                <i className="hollow" style={{ "--kcap": NO_CATEGORY_PAINT.bar } as CSSProperties} />
                 Not started
               </span>
             )}

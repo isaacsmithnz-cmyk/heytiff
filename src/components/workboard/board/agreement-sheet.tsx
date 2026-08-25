@@ -47,6 +47,14 @@ const INTERVALS: [number, string][] = [
   [24, "Every 2 years"],
 ];
 
+/* What is known about a piece of equipment, or that nothing is. Out here
+   because React Compiler 1.0 refuses a logical whose test is itself a logical
+   and gives up on the whole component when it meets one. */
+const equipmentLine = (e: { model: string | null; serial: string | null; location: string | null }) =>
+  [e.model && `Model ${e.model}`, e.serial && `Serial ${e.serial}`, e.location]
+    .filter(Boolean)
+    .join(" · ") || "no details recorded";
+
 export function AgreementSheet({
   agreement: a,
   categories,
@@ -522,9 +530,7 @@ export function AgreementSheet({
                 <div className="wb2-trt">
                   <b>{e.description}</b>
                   <em>
-                    {[e.model && `Model ${e.model}`, e.serial && `Serial ${e.serial}`, e.location]
-                      .filter(Boolean)
-                      .join(" · ") || "no details recorded"}
+                    {equipmentLine(e)}
                   </em>
                 </div>
                 {manage && (

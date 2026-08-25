@@ -10,6 +10,7 @@ import {
   type OwnerCandidate,
 } from "@/lib/org/ownership";
 import type { TransferResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Handing the account to someone else.
 
@@ -57,16 +58,14 @@ export function TransferOwnerModal({
     if (!picked) return;
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onTransfer(picked.userId);
       if (!res.ok) {
         setError(res.error);
         return;
       }
       onClose();
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   const warning = picked ? transferWarning(picked) : null;

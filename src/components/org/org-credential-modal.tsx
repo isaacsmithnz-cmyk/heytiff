@@ -14,6 +14,7 @@ import {
   type OrgCredentialInput,
 } from "@/lib/org/credentials";
 import type { CredResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Adding or editing one of the business's licences / policies.
 
@@ -101,16 +102,14 @@ export function OrgCredentialModal({
     }
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onSave(input());
       if (!res.ok) {
         setError(res.error);
         return;
       }
       onClose();
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   const remove = async () => {
@@ -120,7 +119,7 @@ export function OrgCredentialModal({
       return;
     }
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onDelete();
       if (!res.ok) {
         setError(res.error);
@@ -128,9 +127,7 @@ export function OrgCredentialModal({
         return;
       }
       onClose();
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   return createPortal(

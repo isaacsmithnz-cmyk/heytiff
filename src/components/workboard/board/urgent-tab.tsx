@@ -108,139 +108,6 @@ export function UrgentTab({
       </button>
     );
 
-  return (
-    <>
-      <div className="wb2-chd">
-        <span className="wb2-ci dan">
-          <Icon name="zap" size={19} />
-        </span>
-        <div>
-          {/* NOT "needs you". Display mode puts this board on a wall, and
-              anyone walking past can act on a row — the queue belongs to
-              whoever picks it up (Isaac, 2026-08-02). */}
-          <b>Needs attention</b>
-          {/* THE SORT ORDER IS A FACT ABOUT THE LIST; how the list maintains
-              itself is not. This closed with "Rows clear themselves as facts
-              change", which is the app describing its own bookkeeping to
-              somebody who came here to see what needs doing — and describing
-              it in the one place a row disappearing is self-evident. */}
-          <em>Overdue first, then before the week turns.</em>
-        </div>
-        <div className="wb2-filters">
-          {filterChip("all", "Everything", "")}
-          {filterChip("overdue", "Overdue", "dan")}
-          {filterChip("gaps", "To confirm", "warn")}
-          {filterChip("flags", "Flags", "warn")}
-          {filterChip("tasks", "Tasks", "warn")}
-        </div>
-      </div>
-
-      {shown.length === 0 ? (
-        <div className="wb2-empty">
-          <Icon name="check" size={20} />
-          <b>{filter === "all" ? "Nothing needs attention right now" : "Nothing of that kind right now"}</b>
-          <em>
-            {filter === "all"
-              ? "The month is confirmed as far as it goes."
-              : "The rest of the queue is under Everything."}
-          </em>
-        </div>
-      ) : (
-        <UrgentBody
-          overdue={shown
-            .filter((r) => r.reason === "overdue")
-            .map((r) => <Row key={r.key} r={r} />)}
-          soon={shown
-            .filter((r) => r.reason !== "overdue" && r.reason !== "task")
-            .map((r) => <Row key={r.key} r={r} />)}
-          tasks={shown
-            .filter((r) => r.reason === "task")
-            .map((r) => (
-              <TaskRow
-                key={r.key}
-                title={r.label ?? r.headline}
-                who={r.also[0] ?? null}
-                due={r.headline}
-                tone={r.daysOver && r.daysOver > 0 ? "dan" : "warn"}
-                busy={busy}
-                onDone={() => {
-                  const id = r.taskId!;
-                  run(
-                    () => completeTask(id),
-                    `Done — ${r.label}`,
-                    undoable(() => reopenTask(id))
-                  );
-                }}
-              />
-            ))}
-        />
-      )}
-    </>
-  );
-
-  function Row({ r }: { r: UrgentRow }) {
-    /* Every row that KNOWS what it's about opens it — including a flag, which
-       used to say "raised from a note" and then go nowhere. A flag against an
-       agreement opens the agreement; against a visit, the visit sheet. */
-    const open = r.visitId
-      ? () => onOpenVisit(r.visitId!)
-      : r.agreementId && onOpenAgreement
-        ? () => onOpenAgreement(r.agreementId!)
-        : null;
-    const openable = open !== null;
-    const what =
-      r.reason === "flag" ? r.headline : `${r.clientName} — ${r.label}`;
-    return (
-      <div
-        className={"wb2-ur" + (openable ? " can-open" : "")}
-        data-sev={r.severity === "danger" ? "dan" : "warn"}
-        role={openable ? "button" : undefined}
-        tabIndex={openable ? 0 : undefined}
-        aria-label={openable ? `Open ${what}` : undefined}
-        onClick={open ?? undefined}
-        onKeyDown={
-          open
-            ? (e) => {
-                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                  e.preventDefault();
-                  open();
-                }
-              }
-            : undefined
-        }
-      >
-        <div className="wb2-urt">
-          <div className="wb2-urwhy">
-            <span className={"wb2-chip " + (r.severity === "danger" ? "dan" : "warn")}>
-              {r.headline}
-            </span>
-            {r.also.map((a) => (
-              <span className="wb2-chip" key={a}>
-                {a}
-              </span>
-            ))}
-          </div>
-          <b>{r.reason === "flag" ? r.label ?? r.headline : `${r.clientName} — ${r.label}`}</b>
-          {r.reason === "flag" ? (
-            <em>
-              {r.visitId || r.agreementId
-                ? "Raised from a note — open the job, or clear it."
-                : "Raised from a note — stays up until somebody clears it."}
-            </em>
-          ) : (
-            /* Facts, not instructions. This line used to end with "book it in
-               to get it moving" — a sentence telling you to press the button
-               sitting six pixels to its right. The design spends the space on
-               the DATE instead, which is the thing you can't work out from
-               anywhere else on the row. */
-            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
-          )}
-        </div>
-        <RowAction r={r} />
-      </div>
-    );
-  }
-
   function RowAction({ r }: { r: UrgentRow }) {
     const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -346,4 +213,141 @@ export function UrgentTab({
       </button>
     );
   }
+
+  function Row({ r }: { r: UrgentRow }) {
+    /* Every row that KNOWS what it's about opens it — including a flag, which
+       used to say "raised from a note" and then go nowhere. A flag against an
+       agreement opens the agreement; against a visit, the visit sheet. */
+    const open = r.visitId
+      ? () => onOpenVisit(r.visitId!)
+      : r.agreementId && onOpenAgreement
+        ? () => onOpenAgreement(r.agreementId!)
+        : null;
+    const openable = open !== null;
+    const what =
+      r.reason === "flag" ? r.headline : `${r.clientName} — ${r.label}`;
+    return (
+      <div
+        className={"wb2-ur" + (openable ? " can-open" : "")}
+        data-sev={r.severity === "danger" ? "dan" : "warn"}
+        role={openable ? "button" : undefined}
+        tabIndex={openable ? 0 : undefined}
+        aria-label={openable ? `Open ${what}` : undefined}
+        onClick={open ?? undefined}
+        onKeyDown={
+          open
+            ? (e) => {
+                if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                  e.preventDefault();
+                  open();
+                }
+              }
+            : undefined
+        }
+      >
+        <div className="wb2-urt">
+          <div className="wb2-urwhy">
+            <span className={"wb2-chip " + (r.severity === "danger" ? "dan" : "warn")}>
+              {r.headline}
+            </span>
+            {r.also.map((a) => (
+              <span className="wb2-chip" key={a}>
+                {a}
+              </span>
+            ))}
+          </div>
+          <b>{r.reason === "flag" ? r.label ?? r.headline : `${r.clientName} — ${r.label}`}</b>
+          {r.reason === "flag" ? (
+            <em>
+              {r.visitId || r.agreementId
+                ? "Raised from a note — open the job, or clear it."
+                : "Raised from a note — stays up until somebody clears it."}
+            </em>
+          ) : (
+            /* Facts, not instructions. This line used to end with "book it in
+               to get it moving" — a sentence telling you to press the button
+               sitting six pixels to its right. The design spends the space on
+               the DATE instead, which is the thing you can't work out from
+               anywhere else on the row. */
+            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
+          )}
+        </div>
+        <RowAction r={r} />
+      </div>
+    );
+  }
+
+  /* THE RETURN IS LAST, under the components it renders, and has to stay
+     there: a hoisted `function` declaration after a `return` is unreachable
+     code, which React Compiler 1.0 refuses to compile past — it gives up on
+     the whole component. */
+  return (
+    <>
+      <div className="wb2-chd">
+        <span className="wb2-ci dan">
+          <Icon name="zap" size={19} />
+        </span>
+        <div>
+          {/* NOT "needs you". Display mode puts this board on a wall, and
+              anyone walking past can act on a row — the queue belongs to
+              whoever picks it up (Isaac, 2026-08-02). */}
+          <b>Needs attention</b>
+          {/* THE SORT ORDER IS A FACT ABOUT THE LIST; how the list maintains
+              itself is not. This closed with "Rows clear themselves as facts
+              change", which is the app describing its own bookkeeping to
+              somebody who came here to see what needs doing — and describing
+              it in the one place a row disappearing is self-evident. */}
+          <em>Overdue first, then before the week turns.</em>
+        </div>
+        <div className="wb2-filters">
+          {filterChip("all", "Everything", "")}
+          {filterChip("overdue", "Overdue", "dan")}
+          {filterChip("gaps", "To confirm", "warn")}
+          {filterChip("flags", "Flags", "warn")}
+          {filterChip("tasks", "Tasks", "warn")}
+        </div>
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="wb2-empty">
+          <Icon name="check" size={20} />
+          <b>{filter === "all" ? "Nothing needs attention right now" : "Nothing of that kind right now"}</b>
+          <em>
+            {filter === "all"
+              ? "The month is confirmed as far as it goes."
+              : "The rest of the queue is under Everything."}
+          </em>
+        </div>
+      ) : (
+        <UrgentBody
+          overdue={shown
+            .filter((r) => r.reason === "overdue")
+            .map((r) => <Row key={r.key} r={r} />)}
+          soon={shown
+            .filter((r) => r.reason !== "overdue" && r.reason !== "task")
+            .map((r) => <Row key={r.key} r={r} />)}
+          tasks={shown
+            .filter((r) => r.reason === "task")
+            .map((r) => (
+              <TaskRow
+                key={r.key}
+                title={r.label ?? r.headline}
+                who={r.also[0] ?? null}
+                due={r.headline}
+                tone={r.daysOver && r.daysOver > 0 ? "dan" : "warn"}
+                busy={busy}
+                onDone={() => {
+                  const id = r.taskId!;
+                  run(
+                    () => completeTask(id),
+                    `Done — ${r.label}`,
+                    undoable(() => reopenTask(id))
+                  );
+                }}
+              />
+            ))}
+        />
+      )}
+    </>
+  );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -63,6 +63,7 @@ import {
   VariationsCard,
 } from "./project-money-cards";
 import { DateField } from "@/components/ui/date-field";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* One project, stacked cards — the whole start-to-finish story on one page,
    now in the redesigned board's language: the stage is manual but
@@ -731,7 +732,7 @@ export function ProjectDetailScreen({
     const upload = async (file: File) => {
       setUploading(true);
       setUploadErr(null);
-      try {
+      await withCleanup(async () => {
         const up = await uploadFile(file, "project_file");
         if (!up.ok) {
           setUploadErr(up.error);
@@ -740,9 +741,7 @@ export function ProjectDetailScreen({
         const attached = await attachDocumentToProject(up.file.documentId, project.id);
         if (!attached.ok) setUploadErr(attached.error);
         router.refresh();
-      } finally {
-        setUploading(false);
-      }
+      }, () => setUploading(false));
     };
 
     return (
@@ -1004,7 +1003,7 @@ export function ProjectDetailScreen({
                       <span
                         key={g}
                         className={"wb2-ckq" + (on ? " on" : "")}
-                        style={{ ["--as" as string]: `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` }}
+                        style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
                         title={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
                       >
                         {on ? <Icon name="check" size={12} /> : <i />}
@@ -1584,7 +1583,7 @@ function AddEquipmentModal({
     setScanNote(null);
     if (!file.type.startsWith("image/")) return;
     setScanning(true);
-    try {
+    await withCleanup(async () => {
       const res = await readEquipmentPhoto(await fileToBase64(file), file.type);
       if (res.ok) {
         // A DRAFT, never a decision: prefill only what's empty, and say so.
@@ -1603,9 +1602,7 @@ function AddEquipmentModal({
             : res.reason
         );
       }
-    } finally {
-      setScanning(false);
-    }
+    }, () => setScanning(false));
   };
 
   return (

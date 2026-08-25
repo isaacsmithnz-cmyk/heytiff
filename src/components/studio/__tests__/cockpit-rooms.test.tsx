@@ -6,7 +6,9 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { SystemCockpit } from "../cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "../cockpit-panel";
+import { releaseRoomFromSystem } from "@/lib/studio/attach";
+import type { RoomObj } from "@/lib/studio/loads-room";
 import { createDesign, type DesignDocument, type DesignObject, type Floor } from "@/lib/studio/document";
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "@/lib/studio/packs/schema";
 import { assemblePack, type PackSource } from "@/lib/studio/packs/loader";
@@ -77,14 +79,42 @@ function renderCockpit(
       selectedId={handlers.selectedId ?? null}
       onSelect={handlers.onSelect ?? (() => {})}
       onEditRoom={handlers.onEditRoom ?? (() => {})}
-      onArmPlace={() => {}}
-      onBrowseUnits={() => {}}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={handlers.floor ?? doc.floors[0]}
       onFloor={handlers.onFloor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}
       onRenameVariant={() => {}}
+    />
+  );
+}
+
+/* The Inspect card left the panel on 2026-08-25: a room click opens the room
+   modal, which hosts this same card. The card's own behaviour did not change,
+   so its tests render it directly rather than hunting for it under the
+   roster. */
+function renderInspect(
+  doc: DesignDocument,
+  roomId: string,
+  handlers: { onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void } = {}
+) {
+  const system = doc.systems[0];
+  const room = doc.objects.find((o) => o.id === roomId) as RoomObj;
+  return render(
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={system}
+      room={room}
+      basis={doc.settings.sizingBasis}
+      onMutate={handlers.onMutate ?? (() => {})}
+      onBrowseUnits={() => {}}
+      onRelease={(id) =>
+        (handlers.onMutate ?? (() => {}))((d) => ({
+          ...d,
+          systems: releaseRoomFromSystem(d.systems, system.id, id),
+        }))
+      }
     />
   );
 }
@@ -109,18 +139,24 @@ describe("Cockpit Rooms view", () => {
     expect(picked).toContain("room2");
   });
 
-  it("auto-inspects the first served room when nothing is selected", () => {
+  it("opens the room rather than unfolding an Inspect card under the list", () => {
+    /* Isaac, 2026-08-25. The panel used to answer a click — and an empty
+       selection — by inspecting a room inline. It is the rooms list now, and
+       the click opens the modal that carries everything for that room. */
     const doc = baseDoc([room("room1", "Living", "sys1"), room("room2", "Study", "sys1")]);
-    renderCockpit(doc);
-    // the Inspect card names the first room
-    expect(screen.getByText("Living", { selector: ".ds-ck-iname" })).toBeInTheDocument();
+    const edited: string[] = [];
+    const { container } = renderCockpit(doc, { onEditRoom: (id) => edited.push(id) });
+    expect(container.querySelector(".ds-ck-iname")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Study/ }));
+    expect(edited).toEqual(["room2"]);
   });
 
   it("a shared room shows a release control that stops serving it", () => {
     // room owned by sys2 but adopted into sys1 → shared, auto-inspected
     const doc = baseDoc([room("roomX", "Hall", "sys2")], { roomIds: ["roomX"] });
     let next: DesignDocument | undefined;
-    renderCockpit(doc, { onMutate: (fn) => (next = fn(doc)) });
+    renderInspect(doc, "roomX", { onMutate: (fn) => (next = fn(doc)) });
     fireEvent.click(screen.getByRole("button", { name: "Stop serving this room" }));
     expect((next!.systems[0].settings.roomIds as string[]) ?? []).not.toContain("roomX");
   });
@@ -147,7 +183,7 @@ describe("Cockpit Rooms view", () => {
 
     it("puts area and required load under the room name on the card", () => {
       const doc = baseDoc([room("room1", "Living", "sys1")]);
-      const { container } = renderCockpit(doc);
+      const { container } = renderInspect(doc, "room1");
       const facts = container.querySelector(".ds-ck-ifacts")!;
       expect(facts.textContent).toMatch(/^\d+\.\d m² · \d+\.\d kW required$/);
     });
@@ -159,7 +195,8 @@ describe("Cockpit Rooms view", () => {
       doc.floors = [{ ...floor, scaleMmPerUnit: null }];
       const { container } = renderCockpit(doc);
       expect(container.querySelector(".ds-ck-rload")).toBeNull();
-      expect(container.querySelector(".ds-ck-ifacts")!.textContent).toBe(
+      const card = renderInspect(doc, "room1");
+      expect(card.container.querySelector(".ds-ck-ifacts")!.textContent).toBe(
         "Calibrate the floor to size this room"
       );
     });
@@ -240,16 +277,28 @@ describe("Cockpit Rooms view", () => {
     });
   });
 
-  it("the inspect card shows units only; the pill Configure opens the room editor", () => {
-    const edited: string[] = [];
+  it("the inspect card shows units only — flat, no sub-tabs", () => {
     const doc = baseDoc([room("room1", "Living", "sys1")]);
-    renderCockpit(doc, { onEditRoom: (id) => edited.push(id) });
-    // flat card: unit selection, no Configure/Units/Pipework tablist, no facts
+    renderInspect(doc, "room1");
     expect(screen.getByTestId("unit-card-idu")).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
     expect(screen.queryByText("Area")).not.toBeInTheDocument();
-    // Configure moved onto the room pill → opens the room editor
-    fireEvent.click(screen.getByRole("button", { name: "Configure room" }));
-    expect(edited).toContain("room1");
+  });
+
+  it("the panel keeps no Configure pill — the row itself opens the room", () => {
+    /* the pill and the row did the same thing once the row opened the modal */
+    const doc = baseDoc([room("room1", "Living", "sys1")]);
+    renderCockpit(doc);
+    expect(screen.queryByRole("button", { name: "Configure room" })).toBeNull();
+  });
+
+  it("drops the Inspect heading when there is nothing under it", () => {
+    /* seen on Isaac's screen: the heading was unconditional because a room was
+       always being inspected, so with rooms in their modal it sat labelling an
+       empty rail. It belongs to the OBJECT cards, which only a canvas
+       selection raises. */
+    const doc = baseDoc([room("room1", "Living", "sys1")]);
+    renderCockpit(doc);
+    expect(screen.queryByText("Inspect")).not.toBeInTheDocument();
   });
 });

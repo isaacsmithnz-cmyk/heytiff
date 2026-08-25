@@ -7330,7 +7330,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-unit + .ds-ck-unit { margin-top: 8px; }
 .dstudio .ds-ck-unit.toplace { border-style: dashed; }
-.dstudio .ds-ck-unit[draggable="true"] { cursor: grab; }
 .dstudio .ds-ck-uico {
   position: relative;
   width: 38px;
@@ -7385,17 +7384,6 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-ck-airflip button:disabled { color: var(--gray400); cursor: default; }
-.dstudio .ds-ck-utotag {
-  display: inline-block;
-  margin-top: 3px;
-  font: 800 8px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ds-amber-d);
-  background: var(--ds-amber-bg);
-  border-radius: 5px;
-  padding: 2px 6px;
-}
 .dstudio .ds-ck-ukw {
   margin-left: auto;
   font: 700 14px var(--font);
@@ -9619,3 +9607,30 @@ html[data-ds-display] .dstudio.editing {
 /* the picker overlays the sheet rather than pushing the title row apart */
 .dstudio .ds-letter-pick { display: inline-flex; align-items: center; gap: 10px; position: relative; }
 .dstudio .ds-letter-pick .ds-sm8-field { min-width: 19rem; }
+
+/* ── the room modal's REVIEW face (Isaac, 2026-08-25) ──
+   A room fresh off the canvas opens straight into the heat-load wizard. Every
+   visit after that opens here instead: what the room is and what it needs, on
+   two lines, with the wizard one press away below. */
+.ds-rm-review {
+  display: grid;
+  gap: 12px;
+}
+/* the way back into setup — an offer, not the page's main action */
+.ds-rm-editload {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  font: 700 12.5px var(--font);
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.ds-rm-editload:hover { background: #f5f5f3; }
+/* the units card carries its own .dstudio wrapper (see room-modal.tsx); keep
+   that wrapper from imposing the studio column gap on a single child */
+.ds-rm-units.dstudio { display: block; gap: 0; }

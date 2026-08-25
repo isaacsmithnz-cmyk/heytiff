@@ -188,6 +188,27 @@ export function releaseRoomsFromSystems(
   return changed ? next : systems;
 }
 
+/** Release ONE room from ONE system's adopted list — the "stop serving this
+    room" control. Distinct from releaseRoomsFromSystems above, which drops a
+    room from EVERY system: a room can be adopted by more than one, and letting
+    one system stop serving it must not speak for the others. Shared so the
+    room modal and the cockpit cannot drift apart on what releasing means. */
+export function releaseRoomFromSystem(
+  systems: DesignSystem[],
+  systemId: string,
+  roomId: string
+): DesignSystem[] {
+  return systems.map((s) => {
+    if (s.id !== systemId) return s;
+    const cur = Array.isArray(s.settings.roomIds) ? (s.settings.roomIds as string[]) : [];
+    if (!cur.includes(roomId)) return s;
+    return {
+      ...s,
+      settings: { ...s.settings, roomIds: cur.filter((id) => id !== roomId) },
+    };
+  });
+}
+
 /** Filter objects, then drop attach refs to everything that went — so a bulk
     delete (a whole system, a floor) can't leave a surviving run claiming a
     connection to a unit that no longer exists. */

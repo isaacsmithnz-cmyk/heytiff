@@ -12,7 +12,6 @@ import {
   type DesignSystem,
 } from "@/lib/studio/document";
 import type { RoomObj } from "@/lib/studio/loads-room";
-import type { PlacingUnit } from "../canvas";
 
 const room: RoomObj = {
   id: "room1",
@@ -64,7 +63,6 @@ function renderSub(
   extra: DesignObject[] = [],
   handlers: {
     onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
-    onArmPlace?: (p: PlacingUnit | null) => void;
     onBrowseUnits?: (roomId: string) => void;
   } = {}
 ) {
@@ -76,7 +74,6 @@ function renderSub(
       system={system}
       room={room}
       onMutate={handlers.onMutate ?? (() => {})}
-      onArmPlace={handlers.onArmPlace ?? (() => {})}
       onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
     />
   );
@@ -102,13 +99,15 @@ describe("UnitsSub", () => {
     expect(opened).toEqual(["room1"]);
   });
 
-  it("Swap units routes to the same browser", () => {
-    const opened: string[] = [];
-    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [], {
-      onBrowseUnits: (id) => opened.push(id),
-    });
-    fireEvent.click(screen.getByRole("button", { name: /Swap units/ }));
-    expect(opened).toEqual(["room1"]);
+  it("offers no reopen once a pair is chosen — changing units is the bench's", () => {
+    /* Isaac, 2026-08-25. The panel kept a "Swap units" button under the two
+       cards; unit choice now belongs to the bench's Units verb, which reads as
+       a swap once the pair is down. Only the FIRST-RUN button survives here,
+       because a system with nothing chosen has nothing for the panel to
+       report yet. */
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), []);
+    expect(screen.queryByRole("button", { name: /Swap units/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Select units/ })).not.toBeInTheDocument();
   });
 
   it("renders the indoor + outdoor drag rows once a pair is chosen", () => {
@@ -119,38 +118,41 @@ describe("UnitsSub", () => {
     expect(screen.getByText("SUZ-M25VAD-A")).toBeInTheDocument();
   });
 
-  /* The swap used to wait for BOTH units to be on the plan, which stranded
-     anyone who picked the wrong pair and placed one of them (field feedback
-     2026-07-25). */
-  it("offers the swap mid-placement, beside the placed counter", () => {
+  /* The counter is what the panel still says mid-placement. The swap that
+     used to sit beside it is gone (2026-08-25) — note the older field
+     feedback it was answering (2026-07-25: picking the wrong pair and placing
+     one of them left you stranded), because the bench now has to be the way
+     back, not the panel. */
+  it("still counts what is down mid-placement", () => {
     renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
       unit("u_idu", "idu", "SLZ-M25FA-A"),
     ]);
     expect(screen.getByText("1 / 2 placed")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Swap units/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Swap units/ })).not.toBeInTheDocument();
   });
 
-  it("drops the counter once both are down, keeping the swap", () => {
+  it("drops the counter once both are down", () => {
     renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
       unit("u_idu", "idu", "SLZ-M25FA-A"),
       unit("u_odu", "odu", "SUZ-M25VAD-A"),
     ]);
     expect(screen.queryByText(/placed$/)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Swap units/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Swap units/ })).not.toBeInTheDocument();
   });
 
-  it("an unplaced row is draggable and arms placement; dragend disarms", () => {
-    const armed: (PlacingUnit | null)[] = [];
-    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [], {
-      onArmPlace: (p) => armed.push(p),
-    });
-    const card = screen.getByTestId("unit-card-idu");
-    expect(card).toHaveAttribute("draggable", "true");
-    fireEvent.dragStart(card);
-    expect(armed[0]).toMatchObject({ role: "idu", model: "SLZ-M25FA-A" });
-    expect(typeof armed[0]!.widthMm).toBe("number");
-    fireEvent.dragEnd(card);
-    expect(armed[1]).toBeNull();
+  it("offers NO way to place a unit — the panel reports, the bench places", () => {
+    /* Isaac, 2026-08-25: placement belongs to the bench alone (the Units verb
+       and the Items-to-place tray). A card that could also arm the cursor gave
+       one act two homes and two different gestures, and the panel's job is to
+       say what the system HAS, not to put it on the plan. */
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), []);
+    for (const role of ["idu", "odu"]) {
+      const card = screen.getByTestId(`unit-card-${role}`);
+      /* not merely draggable="false" — the attribute is gone entirely */
+      expect(card.hasAttribute("draggable")).toBe(false);
+    }
+    /* and the caption that advertised the gesture goes with it */
+    expect(screen.queryByText(/Drag to place/i)).not.toBeInTheDocument();
   });
 
   /* Recall used to be absolutely positioned at the card's right edge — the
@@ -174,17 +176,12 @@ describe("UnitsSub", () => {
     expect(unplaced.querySelector(".ds-ck-recall")).toBeNull();
   });
 
-  it("a placed row is not draggable and offers Recall", () => {
-    const armed: (PlacingUnit | null)[] = [];
+  it("still takes a placed unit back off the plan — only PLACING moved away", () => {
     renderSub(
       sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }),
-      [unit("u_idu", "idu", "SLZ-M25FA-A"), unit("u_odu", "odu", "SUZ-M25VAD-A")],
-      { onArmPlace: (p) => armed.push(p) }
+      [unit("u_idu", "idu", "SLZ-M25FA-A"), unit("u_odu", "odu", "SUZ-M25VAD-A")]
     );
-    const card = screen.getByTestId("unit-card-idu");
-    expect(card).toHaveAttribute("draggable", "false");
-    fireEvent.dragStart(card);
-    expect(armed).toHaveLength(0);
+    expect(screen.getByTestId("unit-card-idu").hasAttribute("draggable")).toBe(false);
     expect(screen.getByRole("button", { name: "Recall Indoor unit" })).toBeInTheDocument();
   });
 
@@ -212,7 +209,6 @@ describe("UnitsSub", () => {
         system={system}
         room={room}
         onMutate={(fn) => (next = fn(d))}
-        onArmPlace={() => {}}
         onBrowseUnits={() => {}}
       />
     );
@@ -244,7 +240,6 @@ describe("UnitsSub", () => {
           system={system}
           room={r}
           onMutate={() => {}}
-          onArmPlace={() => {}}
           onBrowseUnits={() => {}}
         />
       );
@@ -285,19 +280,4 @@ describe("UnitsSub", () => {
     });
   });
 
-  it("names the reopen action for what it does, under the units it acts on", () => {
-    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [
-      unit("u_idu", "idu", "SLZ-M25FA-A"),
-      unit("u_odu", "odu", "SUZ-M25VAD-A"),
-    ]);
-    /* "Select units" is the first-run wording only; with a pair chosen the
-       same slot reads "Swap units" (field feedback 2026-07-26). It sits after
-       the two unit cards, not in the section header. */
-    const swap = screen.getByRole("button", { name: /Swap units/ });
-    expect(screen.queryByRole("button", { name: /Select units/ })).not.toBeInTheDocument();
-    const cards = screen.getAllByTestId(/^unit-card-/);
-    expect(
-      cards[1].compareDocumentPosition(swap) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-  });
 });

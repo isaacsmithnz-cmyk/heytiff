@@ -26,7 +26,12 @@ import {
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
-import { pruneObjects, releaseRoomsFromSystems, removedRoomIds } from "@/lib/studio/attach";
+import {
+  pruneObjects,
+  releaseRoomFromSystem,
+  releaseRoomsFromSystems,
+  removedRoomIds,
+} from "@/lib/studio/attach";
 import {
   browserDesignStore,
   designFileName,
@@ -91,7 +96,7 @@ import {
   setFloorApproval,
   simApprovalState,
 } from "@/lib/studio/sim-approval";
-import { SystemCockpit } from "./cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "./cockpit-panel";
 import { RoomModal } from "./room-modal";
 import { ReferenceViewer } from "./reference-viewer";
 import { SimPresentMode } from "./sim-present";
@@ -2062,6 +2067,7 @@ function Editor({
             onRoomCreated={(id) => {
               setEditingRoomId(id);
             }}
+            onOpenRoom={(id) => setEditingRoomId(id)}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={() => setReshapeRoomId(null)}
@@ -2116,8 +2122,6 @@ function Editor({
             selectedId={selectedId}
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
-            onArmPlace={armPlace}
-            onBrowseUnits={setPairBrowse}
             onFloor={setPickedFloorId}
             floor={activeFloor}
             rest={cockpitRest}
@@ -2188,6 +2192,22 @@ function Editor({
             setReshapeRoomId(id);
           }}
           onOpenReference={hasReference ? () => setRefOpen(true) : undefined}
+          unitsSection={
+            <RoomModalUnits
+              doc={doc}
+              pack={pack}
+              systemId={effectiveSystemId}
+              roomId={editingRoomId}
+              onMutate={mutate}
+              onBrowseUnits={(id) => {
+                /* the units modal replaces this one — two stacked dialogs
+                   would leave the room open behind a browser that can re-aim
+                   at a different room entirely */
+                setEditingRoomId(null);
+                setPairBrowse(id);
+              }}
+            />
+          }
         />
       )}
 
@@ -2474,6 +2494,57 @@ const LAYER_LABELS: Record<keyof LayerFlags, string> = {
    react-hooks/refs was pointing at), not a lint technicality. Here the
    derivation happens in this component's render and the handler is just a
    prop. ── */
+/* The room modal's units section.
+
+   A real component, not an inline IIFE in the editor's render: an arrow
+   created during render that hands a callback downwards trips
+   `react-hooks/refs` and CI blocks on it — the exact shape that cost hours
+   when the unit browser was an IIFE (see LensedUnitBrowser below).
+
+   It lives here rather than inside RoomModal because it needs the SYSTEM's
+   shape: the module decides whether a room takes a pair, an indoor head of
+   its own, or spill air. The modal is about the ROOM. */
+function RoomModalUnits({
+  doc,
+  pack,
+  systemId,
+  roomId,
+  onMutate,
+  onBrowseUnits,
+}: {
+  doc: DesignDocument;
+  pack: DataPack | null;
+  systemId: string | null;
+  roomId: string;
+  onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
+  onBrowseUnits: (roomId: string) => void;
+}) {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  const room = doc.objects.find((o) => o.id === roomId);
+  if (!sys || !room || room.geometry.kind !== "polygon") return null;
+  const summary = SYSTEM_MODULES[sys.type].summary;
+  return (
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={sys}
+      room={room as RoomObj}
+      basis={doc.settings.sizingBasis}
+      ducted={summary === "ducted"}
+      perRoom={summary === "capacity"}
+      headless
+      onMutate={onMutate}
+      onBrowseUnits={onBrowseUnits}
+      onRelease={(id) =>
+        onMutate((d) => ({
+          ...d,
+          systems: releaseRoomFromSystem(d.systems, sys.id, id),
+        }))
+      }
+    />
+  );
+}
+
 function LensedUnitBrowser({
   doc,
   pack,
@@ -3264,6 +3335,7 @@ function DesignPanel({
   roomFits,
   onPlaced,
   onRoomCreated,
+  onOpenRoom,
   remarkRoomId,
   onRemarkConsumed,
   reshapeRoomId,
@@ -3314,6 +3386,8 @@ function DesignPanel({
   roomFits: Record<string, "oversized" | "undersized">;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
+  /** double-click a room on the plan → open it */
+  onOpenRoom: (id: string) => void;
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
   reshapeRoomId: string | null;
@@ -3421,11 +3495,16 @@ function DesignPanel({
       <div className="ds-canvas-col">
         {revealTools && (
           <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
-            {/* the bench reads in workflow order: Select, then Room, then the
-                system verbs, then Erase — with history at the far end. The
-                separators alone carry the grouping (the uppercase group titles
-                are gone — Isaac, 2026-08-24). */}
+            {/* The bench reads in workflow order: the two POINTER verbs
+                (Select, Erase) together, then Room, then the system verbs,
+                ending on what the system verbs leave to do — with history at
+                the far end. Erase sits beside Select because both act on what
+                is already drawn rather than adding anything, and Items to
+                place closes the system group because it is that group's
+                outcome (Isaac, 2026-08-25). The separators alone carry the
+                grouping — the uppercase titles went 2026-08-24. */}
             {toolButton(tb("select"))}
+            {toolButton(tb("erase"))}
             <span className="ds-tb-sep" aria-hidden="true" />
             <RoomTool tool={tool} onTool={onTool} disabled={!activeSystemId} />
             <span className="ds-tb-sep" aria-hidden="true" />
@@ -3455,9 +3534,6 @@ function DesignPanel({
               <Icon name="unit" size={15} />
               Units
             </button>
-            {/* directly after Units, because it is what Units leaves behind:
-                choose them there, pick them up here */}
-            <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
             <DrawTool
               tool={tool}
               onTool={onTool}
@@ -3491,9 +3567,11 @@ function DesignPanel({
                 <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
               )}
             </div>
+            {/* last in the system group: it holds what choosing units left to
+                do, so it reads as the end of that run rather than a second
+                thing next to Units */}
+            <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
-            <span className="ds-tb-sep" aria-hidden="true" />
-            {toolButton(tb("erase"))}
             <div className="ds-tb-spring" />
             <button
               className="ds-tool"
@@ -3539,6 +3617,7 @@ function DesignPanel({
             iduSpec={iduSpec}
             oduSpec={oduSpec}
             onRoomCreated={onRoomCreated}
+            onOpenRoom={onOpenRoom}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={onReshapeConsumed}

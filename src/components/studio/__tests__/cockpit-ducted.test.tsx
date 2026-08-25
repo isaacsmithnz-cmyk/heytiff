@@ -7,7 +7,8 @@
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { SystemCockpit } from "../cockpit-panel";
+import { RoomInspectCard, SystemCockpit } from "../cockpit-panel";
+import type { RoomObj } from "@/lib/studio/loads-room";
 import {
   createDesign,
   type DesignDocument,
@@ -103,8 +104,6 @@ function renderCockpit(
       selectedId={null}
       onSelect={() => {}}
       onEditRoom={() => {}}
-      onArmPlace={() => {}}
-      onBrowseUnits={() => {}}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
@@ -115,6 +114,30 @@ function renderCockpit(
 }
 
 const heroState = (c: HTMLElement) => c.querySelector(".ds-ck-caphero")!.getAttribute("data-state");
+
+
+/* The Inspect card left the panel on 2026-08-25 — the room modal hosts it now.
+   The card's behaviour is unchanged, so these render it where it lives. */
+function renderInspect(
+  doc: DesignDocument,
+  roomId: string,
+  handlers: { onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void } = {}
+) {
+  const room = doc.objects.find((o) => o.id === roomId) as RoomObj;
+  return render(
+    <RoomInspectCard
+      doc={doc}
+      pack={pack}
+      system={doc.systems[0]}
+      room={room}
+      basis={doc.settings.sizingBasis}
+      ducted
+      onMutate={handlers.onMutate ?? (() => {})}
+      onBrowseUnits={() => {}}
+      onRelease={() => {}}
+    />
+  );
+}
 
 describe("Cockpit ducted body", () => {
   it("pre-pair: donut hero reads the requirement; Select air handler CTA in the section", () => {
@@ -156,10 +179,15 @@ describe("Cockpit ducted body", () => {
     expect(within(ahu).getByText("567 L/s")).toBeInTheDocument();
     expect(within(ahu).getByText("~7.5 kW")).toBeInTheDocument();
     expect(within(ahu).getByRole("button", { name: /Change/ })).toBeInTheDocument();
-    // the two drag-to-plan cards, unplaced → armed via the UnitRow mechanics
-    expect(within(ahu).getByTestId("unit-card-idu")).toBeInTheDocument();
-    expect(within(ahu).getByTestId("unit-card-odu")).toBeInTheDocument();
-    expect(within(ahu).getAllByText("Drag to place")).toHaveLength(2);
+    /* both cards, unplaced. They REPORT only — placing moved to the bench
+       (Isaac, 2026-08-25) — so the dashed "toplace" skin is what says these
+       are still off the plan, not a caption and not a drag handle. */
+    const idu = within(ahu).getByTestId("unit-card-idu");
+    const odu = within(ahu).getByTestId("unit-card-odu");
+    expect(idu.className).toContain("toplace");
+    expect(odu.className).toContain("toplace");
+    expect(idu.hasAttribute("draggable")).toBe(false);
+    expect(within(ahu).queryByText(/Drag to place/i)).not.toBeInTheDocument();
     // hero follows the pair: 10.0 kW selected over ~7.5 required → ok, Spare
     expect(heroState(container)).toBe("ok");
     expect(screen.getByText("10.0 kW", { selector: ".ds-ck-ledger-row.sel .v" })).toBeInTheDocument();
@@ -203,8 +231,8 @@ describe("Cockpit ducted body", () => {
   });
 
   it("ducted room inspect shows the outlets placeholder and spill toggle, no sub-tabs", () => {
-    renderCockpit(mkDoc({ objects: twoRooms() }));
-    // the Configure/Units/Pipework switcher is gone; Configure moved to the pill
+    renderInspect(mkDoc({ objects: twoRooms() }), "room1");
+    // the Configure/Units/Pipework switcher is gone
     expect(screen.queryByRole("tab", { name: "Configure" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Units" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Pipework" })).toBeNull();

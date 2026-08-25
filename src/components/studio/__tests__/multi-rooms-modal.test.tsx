@@ -72,7 +72,10 @@ const room = (id: string, name: string): DesignObject => ({
     kind: "polygon",
     points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }],
   },
-  plane: "room", props: { name },
+  /* configured: these rooms have been through the heat-load wizard, so the
+     modal opens on its REVIEW face where the units live. A room without it
+     opens straight into the wizard, which deliberately shows no units. */
+  plane: "room", props: { name, configured: true },
 });
 
 function seeded(): DesignDocument {
@@ -101,8 +104,14 @@ async function openEditor() {
   return { store, doc };
 }
 
-/** open the units modal from the room card the cockpit is inspecting */
+/** Open the units modal the way a person does now: click the room's row in
+    the panel, which opens the ROOM modal, and take Select unit from inside it.
+    The cockpit stopped hosting the room's units on 2026-08-25. */
 async function openModal(user: ReturnType<typeof userEvent.setup>) {
+  const row = (await screen.findAllByRole("button", { name: /Lounge/ })).find((b) =>
+    b.classList.contains("ds-ck-rrow")
+  )!;
+  await user.click(row);
   const sub = await screen.findByTestId("multi-unit-sub");
   await user.click(within(sub).getByRole("button", { name: /Select unit/ }));
   return screen.getByRole("dialog", { name: "Choose a unit" });

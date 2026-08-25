@@ -78,6 +78,7 @@ export function RoomModal({
   onRemarkWalls,
   onEditShape,
   onOpenReference,
+  unitsSection,
 }: {
   doc: DesignDocument;
   roomId: string;
@@ -88,6 +89,14 @@ export function RoomModal({
   /** unpin the room on the canvas to resize / move it (saves first) */
   onEditShape?: (roomId: string) => void;
   onOpenReference?: () => void;
+  /** the room's units, rendered by the host. The panel used to unfold an
+      Inspect card under the rooms list; a room click opens this modal instead
+      (Isaac, 2026-08-25), so "everything for that room" has to include what is
+      serving it. Passed as a slot rather than built here: the units section
+      needs the system, the pack and the sizing basis, and this modal is about
+      the ROOM — it should not have to learn the shape of a system to show
+      them. */
+  unitsSection?: React.ReactNode;
 }) {
   const room = useMemo(() => doc.objects.find((o) => o.id === roomId), [doc.objects, roomId]);
   const floor = useMemo(
@@ -153,6 +162,15 @@ export function RoomModal({
     (poly ? orientationFromWalls(poly, markedWalls, floor?.northDeg ?? 0) : null) ??
     (poly ? detectOrientation(poly, floor?.northDeg ?? 0) : null) ??
     "N";
+
+  /* Two faces (Isaac, 2026-08-25). A room fresh off the canvas goes straight
+     into the heat-load wizard — that is the setup. Every visit after that
+     opens on a REVIEW face: what the room is, whether anything is serving it,
+     and what it needs. The wizard is still one press away, unfolding below.
+     Above the early return: a hook cannot sit behind one. */
+  const [editingLoad, setEditingLoad] = useState(
+    () => !doc.objects.find((o) => o.id === roomId)?.props.configured
+  );
 
   const [overridden, setOverridden] = useState<boolean>(
     Boolean(room?.props.orientationLocked)
@@ -288,10 +306,12 @@ export function RoomModal({
       >
         <header className="ds-rm-head ds-rm-drag" onPointerDown={onHeadPointerDown}>
           <div className="ds-rm-title">
+            {/* the name is not repeated here (Isaac, 2026-08-25): the review
+                face carries it on the green banner, and the wizard has it in
+                the Room name field a line below */}
             <span className={`ds-rm-mode${isEdit ? " edit" : ""}`}>
-              {isEdit ? "Edit" : "New"}
+              {isEdit ? "Edit room" : "New room"}
             </span>
-            <b>{draft.name || "Room"}</b>
           </div>
           <button className="ds-ub-close" onClick={onClose} aria-label="Close">
             <Icon name="x" size={16} />
@@ -299,6 +319,41 @@ export function RoomModal({
         </header>
 
         <div className="ds-rm-body">
+          {!editingLoad && (
+            <div className="ds-rm-review">
+              {/* the SAME green banner the wizard ends on, with the room's own
+                  name as its title — so opening a finished room and finishing
+                  the wizard leave you looking at the same object, not two
+                  different treatments of one number (Isaac, 2026-08-25) */}
+              <div className="ds-rm-load">
+                <div>
+                  <div className="ds-rm-load-t">{draft.name || "Room"}</div>
+                  <div className="ds-rm-load-sub">
+                    {areaM2 != null
+                      ? `${trimM(areaM2)} m² · Zone ${activeZone} · ${wm2} W/m²`
+                      : "Calibrate the floor to compute the load"}
+                  </div>
+                </div>
+                <div className="ds-rm-load-kw">
+                  {loadKw != null ? `${loadKw.toFixed(2)} kW` : "—"}
+                </div>
+              </div>
+              {/* the wizard unfolds BELOW this, in place — the same setup the
+                  room was created through, not a second dialog */}
+              <button
+                type="button"
+                className="ds-rm-editload"
+                onClick={() => setEditingLoad(true)}
+                aria-expanded={false}
+              >
+                <Icon name="ruler" size={14} />
+                Edit heat load
+              </button>
+            </div>
+          )}
+
+          {editingLoad && (
+          <>
           {/* name + quick-pick chips */}
           <div className="ds-rm-field">
             <span>Room name</span>
@@ -542,15 +597,42 @@ export function RoomModal({
               {loadKw != null ? `${loadKw.toFixed(2)} kW` : "—"}
             </div>
           </div>
+          </>
+          )}
+
+          {/* What is serving the room, after what the room IS. Hidden while the
+              load is being edited — that is the setup wizard, whether it is the
+              room's first run or a later edit, and units are not part of
+              sizing the space (Isaac, 2026-08-25). */}
+          {/* `dstudio` is load-bearing here, not decoration: this modal
+              portals to BODY, and every `.ds-ck-*` rule the units card is
+              built from is scoped `.dstudio …` and reads tokens declared on
+              that class. Without it the card renders as unstyled stacked
+              text. It goes on THIS wrapper rather than the dialog because
+              `.dstudio` also sets `display:flex` — which the dialog must not
+              inherit. */}
+          {unitsSection && !editingLoad && (
+            <div className="dstudio ds-rm-units">{unitsSection}</div>
+          )}
         </div>
 
         <footer className="ds-rm-foot">
-          <button className="ds-rm-btn secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="ds-rm-btn primary" onClick={save}>
-            Save room
-          </button>
+          {editingLoad ? (
+            <>
+              <button className="ds-rm-btn secondary" onClick={onClose}>
+                Cancel
+              </button>
+              <button className="ds-rm-btn primary" onClick={save}>
+                Save room
+              </button>
+            </>
+          ) : (
+            /* nothing has been edited on the review face, so there is nothing
+               to save or to cancel — the only move is to leave */
+            <button className="ds-rm-btn primary" onClick={onClose}>
+              Done
+            </button>
+          )}
         </footer>
       </div>
     </div>

@@ -128,6 +128,27 @@ describe("the Items to place tray", () => {
     expect(trayButton()).toBeNull();
   });
 
+  it("closes the system group on the bench, after Component", async () => {
+    /* Isaac's order (2026-08-25): the two pointer verbs lead together, then
+       Room, then the system verbs — and the tray ends that run because it
+       holds what choosing units left to do. Pinned by POSITION rather than
+       presence: a control that drifts back next to Units still passes every
+       other test in this file. */
+    await open([room]);
+    await waitFor(() => expect(trayButton()).toBeInTheDocument());
+    const bench = screen.getByRole("toolbar", { name: "Canvas tools" });
+    const labels = [...bench.querySelectorAll("button")]
+      .map((b) => (b.getAttribute("aria-label") || b.textContent || "").trim())
+      .filter(Boolean);
+    const at = (re: RegExp) => labels.findIndex((l) => re.test(l));
+
+    expect(at(/^Erase/)).toBe(at(/^Select$/) + 1);
+    expect(at(/Items to place/)).toBeGreaterThan(at(/^Component$/));
+    /* and it is genuinely the last of the system verbs, not merely after one */
+    expect(at(/Items to place/)).toBeGreaterThan(at(/^Units$/));
+    expect(at(/Items to place/)).toBeGreaterThan(at(/^Duct$/));
+  });
+
   it("opens to name each owed unit, the indoor one against its room", async () => {
     const user = userEvent.setup();
     await open([room]);

@@ -85,7 +85,6 @@ import {
 import { SystemTypeChooser } from "./system-type-chooser";
 import { UnitBrowser } from "./unit-browser";
 import { MultiOduPicker } from "./multi-browser";
-import type { PlacingUnit } from "./canvas";
 
 /* one colour per system, cycled on creation (kept from the old SystemsPanel) */
 const SYSTEM_COLOURS = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "#D63384"];
@@ -173,7 +172,6 @@ export function SystemCockpit({
   selectedId,
   onSelect,
   onEditRoom,
-  onArmPlace,
   onBrowseUnits,
   onFloor,
   floor,
@@ -191,7 +189,6 @@ export function SystemCockpit({
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onEditRoom: (id: string) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
   /** open THE unit browser (the editor's single instance) on this room */
   onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
@@ -371,7 +368,6 @@ export function SystemCockpit({
           onSelect={onSelect}
           onMutate={onMutate}
           onEditRoom={onEditRoom}
-          onArmPlace={onArmPlace}
           onBrowseUnits={onBrowseUnits}
           onFloor={onFloor}
           systemSelector={systemSelector}
@@ -672,7 +668,6 @@ function ActiveCockpit({
   onSelect,
   onMutate,
   onEditRoom,
-  onArmPlace,
   onBrowseUnits,
   onFloor,
   onChangeType,
@@ -688,7 +683,6 @@ function ActiveCockpit({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
   onBrowseUnits: (roomId: string) => void;
   onFloor?: (floorId: string) => void;
   onChangeType: () => void;
@@ -797,7 +791,6 @@ function ActiveCockpit({
             basis={basis}
             req={req}
             onMutate={onMutate}
-            onArmPlace={onArmPlace}
           />
         )}
         {conn && (
@@ -807,7 +800,6 @@ function ActiveCockpit({
             basis={basis}
             conn={conn}
             onMutate={onMutate}
-            onArmPlace={onArmPlace}
           />
         )}
         <SegWindow view={view}>
@@ -826,7 +818,6 @@ function ActiveCockpit({
             onSelect={onSelect}
             onMutate={onMutate}
             onEditRoom={onEditRoom}
-            onArmPlace={onArmPlace}
             onBrowseUnits={onBrowseUnits}
             onFloor={onFloor}
           />
@@ -1193,7 +1184,6 @@ export function AhuSection({
   basis,
   req,
   onMutate,
-  onArmPlace,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -1201,7 +1191,6 @@ export function AhuSection({
   basis: SizingBasis;
   req: DuctedRequirement;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
 }) {
   const [browsing, setBrowsing] = useState(false);
   const { placedIdu, placedOdu, iduModel, oduModel } = ductedPair(doc, system);
@@ -1322,10 +1311,7 @@ export function AhuSection({
             model={iduModel}
             sub={iduSpec ? formFactorLabel(iduSpec.form_factor) : undefined}
             kw={pairRow?.rated_cool_kw ?? iduSpec?.capacity_cool_kw ?? null}
-            widthMm={iduSpec?.width_mm ?? 800}
-            depthMm={iduSpec?.depth_mm ?? 300}
             placed={Boolean(placedIdu)}
-            onArmPlace={onArmPlace}
             onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
           />
           <div className="ds-ck-pairmid">
@@ -1340,10 +1326,7 @@ export function AhuSection({
             model={oduModel}
             sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}` : undefined}
             kw={pairRow?.rated_cool_kw ?? oduSpec?.capacity_cool_kw ?? null}
-            widthMm={oduSpec?.width_mm ?? 900}
-            depthMm={oduSpec?.depth_mm ?? 330}
             placed={Boolean(placedOdu)}
-            onArmPlace={onArmPlace}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
           />
         </>
@@ -1411,14 +1394,12 @@ export function OutdoorSection({
   basis,
   conn,
   onMutate,
-  onArmPlace,
 }: {
   pack: DataPack | null;
   system: DesignSystem;
   basis: SizingBasis;
   conn: MultiConnection;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
 }) {
   const [browsing, setBrowsing] = useState(false);
   const hasOdu = Boolean(conn.oduModel);
@@ -1541,10 +1522,7 @@ export function OutdoorSection({
                 : undefined
             }
             kw={conn.oduKw}
-            widthMm={oduSpec?.width_mm ?? 900}
-            depthMm={oduSpec?.depth_mm ?? 330}
             placed={conn.oduPlaced}
-            onArmPlace={onArmPlace}
             onRecall={conn.placedOduId ? () => recall(conn.placedOduId!) : undefined}
           />
         </>
@@ -1577,7 +1555,6 @@ export function MultiUnitsSub({
   room,
   basis,
   onMutate,
-  onArmPlace,
   onBrowseUnits,
 }: {
   doc: DesignDocument;
@@ -1586,7 +1563,6 @@ export function MultiUnitsSub({
   room: RoomObj;
   basis: SizingBasis;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
   /** open THE units modal on this room. A multi used to open a small picker
       per room, which could only ever see one room at a time; the big modal
       lists every room on the system down its right-hand side, so one visit
@@ -1663,10 +1639,7 @@ export function MultiUnitsSub({
             model={model}
             sub={spec ? formFactorLabel(spec.form_factor) : undefined}
             kw={kw}
-            widthMm={spec?.width_mm ?? 800}
-            depthMm={spec?.depth_mm ?? 300}
             placed={Boolean(placedIdu)}
-            onArmPlace={onArmPlace}
             onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
           />
         </>
@@ -1740,7 +1713,6 @@ function RoomsView({
   onSelect,
   onMutate,
   onEditRoom,
-  onArmPlace,
   onBrowseUnits,
   onFloor,
 }: {
@@ -1758,7 +1730,6 @@ function RoomsView({
   onSelect: (id: string | null) => void;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onEditRoom: (id: string) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
   onBrowseUnits: (roomId: string) => void;
   /** take the canvas to a floor — selecting a room on another storey should
       show you that storey, not leave you looking at a plan it isn't on */
@@ -2017,7 +1988,6 @@ function RoomsView({
           ducted={ducted}
           perRoom={perRoom}
           onMutate={onMutate}
-          onArmPlace={onArmPlace}
           onBrowseUnits={onBrowseUnits}
           onRelease={releaseRoom}
         />
@@ -2037,7 +2007,6 @@ function RoomInspectCard({
   ducted,
   perRoom,
   onMutate,
-  onArmPlace,
   onBrowseUnits,
   onRelease,
 }: {
@@ -2052,7 +2021,6 @@ function RoomInspectCard({
   /** per-room modules (multi / VRF): one indoor unit per room, shared outdoor */
   perRoom?: boolean;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
   onBrowseUnits: (roomId: string) => void;
   onRelease: (roomId: string) => void;
 }) {
@@ -2142,7 +2110,6 @@ function RoomInspectCard({
             room={room}
             basis={basis}
             onMutate={onMutate}
-            onArmPlace={onArmPlace}
             onBrowseUnits={onBrowseUnits}
           />
         ) : (
@@ -2152,7 +2119,6 @@ function RoomInspectCard({
             system={system}
             room={room}
             onMutate={onMutate}
-            onArmPlace={onArmPlace}
             onBrowseUnits={onBrowseUnits}
           />
         )}
@@ -2172,7 +2138,6 @@ export function UnitsSub({
   system,
   room,
   onMutate,
-  onArmPlace,
   onBrowseUnits,
 }: {
   doc: DesignDocument;
@@ -2180,7 +2145,6 @@ export function UnitsSub({
   system: DesignSystem;
   room: RoomObj;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
-  onArmPlace: (p: PlacingUnit | null) => void;
   /** open THE unit browser on this room — the editor owns the one instance
       (Units on the bar, the Next chip and this card all reach the same one) */
   onBrowseUnits: (roomId: string) => void;
@@ -2291,10 +2255,7 @@ export function UnitsSub({
             model={iduModel}
             sub={iduSpec ? formFactorLabel(iduSpec.form_factor) : undefined}
             kw={pairRow?.rated_cool_kw ?? iduSpec?.capacity_cool_kw ?? null}
-            widthMm={iduSpec?.width_mm ?? 800}
-            depthMm={iduSpec?.depth_mm ?? 300}
             placed={Boolean(placedIdu)}
-            onArmPlace={onArmPlace}
             onRecall={placedIdu ? () => recall(placedIdu.id) : undefined}
           />
           <div className="ds-ck-pairmid">
@@ -2309,10 +2270,7 @@ export function UnitsSub({
             model={oduModel}
             sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}` : undefined}
             kw={pairRow?.rated_cool_kw ?? oduSpec?.capacity_cool_kw ?? null}
-            widthMm={oduSpec?.width_mm ?? 900}
-            depthMm={oduSpec?.depth_mm ?? 330}
             placed={Boolean(placedOdu)}
-            onArmPlace={onArmPlace}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
           />
           {/* Same slot as the first-run button above — the action for this
@@ -2343,10 +2301,7 @@ function UnitRow({
   model,
   sub,
   kw,
-  widthMm,
-  depthMm,
   placed,
-  onArmPlace,
   onRecall,
 }: {
   role: "idu" | "odu";
@@ -2354,26 +2309,18 @@ function UnitRow({
   model: string;
   sub?: string;
   kw: number | null;
-  widthMm: number;
-  depthMm: number;
   placed: boolean;
-  onArmPlace: (p: PlacingUnit | null) => void;
   onRecall?: () => void;
 }) {
   return (
+    /* Reports, never places. Placement is the BENCH's job now — the Units
+       verb and the Items-to-place tray — so a card that could also arm the
+       cursor gave the same act two homes and two different gestures. The
+       dashed border still says this one is not on the plan; Recall still
+       takes one back off. */
     <div
       className={`ds-ck-unit${placed ? "" : " toplace"}`}
       data-testid={`unit-card-${role}`}
-      draggable={!placed}
-      onDragStart={(e) => {
-        if (placed) return;
-        if (e.dataTransfer) {
-          e.dataTransfer.setData("text/plain", model);
-          e.dataTransfer.effectAllowed = "copy";
-        }
-        onArmPlace({ role, model, widthMm, depthMm });
-      }}
-      onDragEnd={() => onArmPlace(null)}
     >
       <div className={`ds-ck-uico ${role}`}>
         <Glyph name={role} size={21} />
@@ -2389,7 +2336,7 @@ function UnitRow({
         {placed ? (
           sub && <div className="ds-ck-usub">{sub}</div>
         ) : (
-          <span className="ds-ck-utotag">Drag to place</span>
+          <></>
         )}
       </div>
       {kw != null && (

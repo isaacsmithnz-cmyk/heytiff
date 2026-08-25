@@ -103,7 +103,6 @@ function renderCockpit(
       selectedId={null}
       onSelect={() => {}}
       onEditRoom={() => {}}
-      onArmPlace={() => {}}
       onBrowseUnits={() => {}}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
@@ -156,10 +155,15 @@ describe("Cockpit ducted body", () => {
     expect(within(ahu).getByText("567 L/s")).toBeInTheDocument();
     expect(within(ahu).getByText("~7.5 kW")).toBeInTheDocument();
     expect(within(ahu).getByRole("button", { name: /Change/ })).toBeInTheDocument();
-    // the two drag-to-plan cards, unplaced → armed via the UnitRow mechanics
-    expect(within(ahu).getByTestId("unit-card-idu")).toBeInTheDocument();
-    expect(within(ahu).getByTestId("unit-card-odu")).toBeInTheDocument();
-    expect(within(ahu).getAllByText("Drag to place")).toHaveLength(2);
+    /* both cards, unplaced. They REPORT only — placing moved to the bench
+       (Isaac, 2026-08-25) — so the dashed "toplace" skin is what says these
+       are still off the plan, not a caption and not a drag handle. */
+    const idu = within(ahu).getByTestId("unit-card-idu");
+    const odu = within(ahu).getByTestId("unit-card-odu");
+    expect(idu.className).toContain("toplace");
+    expect(odu.className).toContain("toplace");
+    expect(idu.hasAttribute("draggable")).toBe(false);
+    expect(within(ahu).queryByText(/Drag to place/i)).not.toBeInTheDocument();
     // hero follows the pair: 10.0 kW selected over ~7.5 required → ok, Spare
     expect(heroState(container)).toBe("ok");
     expect(screen.getByText("10.0 kW", { selector: ".ds-ck-ledger-row.sel .v" })).toBeInTheDocument();

@@ -77,7 +77,6 @@ function renderCockpit(
       selectedId={handlers.selectedId ?? null}
       onSelect={handlers.onSelect ?? (() => {})}
       onEditRoom={handlers.onEditRoom ?? (() => {})}
-      onArmPlace={() => {}}
       onBrowseUnits={() => {}}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={handlers.floor ?? doc.floors[0]}

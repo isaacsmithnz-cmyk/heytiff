@@ -12,7 +12,6 @@ import {
   type DesignSystem,
 } from "@/lib/studio/document";
 import type { RoomObj } from "@/lib/studio/loads-room";
-import type { PlacingUnit } from "../canvas";
 
 const room: RoomObj = {
   id: "room1",
@@ -64,7 +63,6 @@ function renderSub(
   extra: DesignObject[] = [],
   handlers: {
     onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
-    onArmPlace?: (p: PlacingUnit | null) => void;
     onBrowseUnits?: (roomId: string) => void;
   } = {}
 ) {
@@ -76,7 +74,6 @@ function renderSub(
       system={system}
       room={room}
       onMutate={handlers.onMutate ?? (() => {})}
-      onArmPlace={handlers.onArmPlace ?? (() => {})}
       onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
     />
   );
@@ -139,18 +136,19 @@ describe("UnitsSub", () => {
     expect(screen.getByRole("button", { name: /Swap units/ })).toBeInTheDocument();
   });
 
-  it("an unplaced row is draggable and arms placement; dragend disarms", () => {
-    const armed: (PlacingUnit | null)[] = [];
-    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), [], {
-      onArmPlace: (p) => armed.push(p),
-    });
-    const card = screen.getByTestId("unit-card-idu");
-    expect(card).toHaveAttribute("draggable", "true");
-    fireEvent.dragStart(card);
-    expect(armed[0]).toMatchObject({ role: "idu", model: "SLZ-M25FA-A" });
-    expect(typeof armed[0]!.widthMm).toBe("number");
-    fireEvent.dragEnd(card);
-    expect(armed[1]).toBeNull();
+  it("offers NO way to place a unit — the panel reports, the bench places", () => {
+    /* Isaac, 2026-08-25: placement belongs to the bench alone (the Units verb
+       and the Items-to-place tray). A card that could also arm the cursor gave
+       one act two homes and two different gestures, and the panel's job is to
+       say what the system HAS, not to put it on the plan. */
+    renderSub(sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }), []);
+    for (const role of ["idu", "odu"]) {
+      const card = screen.getByTestId(`unit-card-${role}`);
+      /* not merely draggable="false" — the attribute is gone entirely */
+      expect(card.hasAttribute("draggable")).toBe(false);
+    }
+    /* and the caption that advertised the gesture goes with it */
+    expect(screen.queryByText(/Drag to place/i)).not.toBeInTheDocument();
   });
 
   /* Recall used to be absolutely positioned at the card's right edge — the
@@ -174,17 +172,12 @@ describe("UnitsSub", () => {
     expect(unplaced.querySelector(".ds-ck-recall")).toBeNull();
   });
 
-  it("a placed row is not draggable and offers Recall", () => {
-    const armed: (PlacingUnit | null)[] = [];
+  it("still takes a placed unit back off the plan — only PLACING moved away", () => {
     renderSub(
       sys({ pairIdu: "SLZ-M25FA-A", pairOdu: "SUZ-M25VAD-A" }),
-      [unit("u_idu", "idu", "SLZ-M25FA-A"), unit("u_odu", "odu", "SUZ-M25VAD-A")],
-      { onArmPlace: (p) => armed.push(p) }
+      [unit("u_idu", "idu", "SLZ-M25FA-A"), unit("u_odu", "odu", "SUZ-M25VAD-A")]
     );
-    const card = screen.getByTestId("unit-card-idu");
-    expect(card).toHaveAttribute("draggable", "false");
-    fireEvent.dragStart(card);
-    expect(armed).toHaveLength(0);
+    expect(screen.getByTestId("unit-card-idu").hasAttribute("draggable")).toBe(false);
     expect(screen.getByRole("button", { name: "Recall Indoor unit" })).toBeInTheDocument();
   });
 
@@ -212,7 +205,6 @@ describe("UnitsSub", () => {
         system={system}
         room={room}
         onMutate={(fn) => (next = fn(d))}
-        onArmPlace={() => {}}
         onBrowseUnits={() => {}}
       />
     );
@@ -244,7 +236,6 @@ describe("UnitsSub", () => {
           system={system}
           room={r}
           onMutate={() => {}}
-          onArmPlace={() => {}}
           onBrowseUnits={() => {}}
         />
       );

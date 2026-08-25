@@ -7330,7 +7330,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-unit + .ds-ck-unit { margin-top: 8px; }
 .dstudio .ds-ck-unit.toplace { border-style: dashed; }
-.dstudio .ds-ck-unit[draggable="true"] { cursor: grab; }
 .dstudio .ds-ck-uico {
   position: relative;
   width: 38px;
@@ -7385,17 +7384,6 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-ck-airflip button:disabled { color: var(--gray400); cursor: default; }
-.dstudio .ds-ck-utotag {
-  display: inline-block;
-  margin-top: 3px;
-  font: 800 8px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ds-amber-d);
-  background: var(--ds-amber-bg);
-  border-radius: 5px;
-  padding: 2px 6px;
-}
 .dstudio .ds-ck-ukw {
   margin-left: auto;
   font: 700 14px var(--font);

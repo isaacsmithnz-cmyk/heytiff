@@ -2116,7 +2116,6 @@ function Editor({
             selectedId={selectedId}
             onSelect={setSelectedId}
             onEditRoom={setEditingRoomId}
-            onArmPlace={armPlace}
             onBrowseUnits={setPairBrowse}
             onFloor={setPickedFloorId}
             floor={activeFloor}
@@ -3421,11 +3420,16 @@ function DesignPanel({
       <div className="ds-canvas-col">
         {revealTools && (
           <div className="ds-toolbar" role="toolbar" aria-label="Canvas tools">
-            {/* the bench reads in workflow order: Select, then Room, then the
-                system verbs, then Erase — with history at the far end. The
-                separators alone carry the grouping (the uppercase group titles
-                are gone — Isaac, 2026-08-24). */}
+            {/* The bench reads in workflow order: the two POINTER verbs
+                (Select, Erase) together, then Room, then the system verbs,
+                ending on what the system verbs leave to do — with history at
+                the far end. Erase sits beside Select because both act on what
+                is already drawn rather than adding anything, and Items to
+                place closes the system group because it is that group's
+                outcome (Isaac, 2026-08-25). The separators alone carry the
+                grouping — the uppercase titles went 2026-08-24. */}
             {toolButton(tb("select"))}
+            {toolButton(tb("erase"))}
             <span className="ds-tb-sep" aria-hidden="true" />
             <RoomTool tool={tool} onTool={onTool} disabled={!activeSystemId} />
             <span className="ds-tb-sep" aria-hidden="true" />
@@ -3455,9 +3459,6 @@ function DesignPanel({
               <Icon name="unit" size={15} />
               Units
             </button>
-            {/* directly after Units, because it is what Units leaves behind:
-                choose them there, pick them up here */}
-            <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
             <DrawTool
               tool={tool}
               onTool={onTool}
@@ -3491,9 +3492,11 @@ function DesignPanel({
                 <ComponentPalette onPick={onArmComponent} onClose={() => onPalette(false)} />
               )}
             </div>
+            {/* last in the system group: it holds what choosing units left to
+                do, so it reads as the end of that run rather than a second
+                thing next to Units */}
+            <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
-            <span className="ds-tb-sep" aria-hidden="true" />
-            {toolButton(tb("erase"))}
             <div className="ds-tb-spring" />
             <button
               className="ds-tool"

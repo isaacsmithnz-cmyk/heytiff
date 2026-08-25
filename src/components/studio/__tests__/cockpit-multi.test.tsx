@@ -127,7 +127,6 @@ function renderCockpit(
       selectedId={null}
       onSelect={() => {}}
       onEditRoom={() => {}}
-      onArmPlace={() => {}}
       onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
@@ -214,8 +213,10 @@ describe("Shared-outdoor section", () => {
     expect(row("Connected")).toHaveTextContent("4.0 kW · 2 units");
     expect(row("Ports")).toHaveTextContent("2 / 2");
     expect(row("Combination")).toHaveTextContent("77%");
-    expect(within(sec).getByTestId("unit-card-odu")).toBeInTheDocument();
-    expect(within(sec).getByText("Drag to place")).toBeInTheDocument();
+    const oduCard = within(sec).getByTestId("unit-card-odu");
+    /* unplaced, and reporting only — the bench places (Isaac, 2026-08-25) */
+    expect(oduCard.className).toContain("toplace");
+    expect(oduCard.hasAttribute("draggable")).toBe(false);
     expect(within(sec).getByRole("button", { name: /Change/ })).toBeInTheDocument();
   });
 
@@ -294,13 +295,15 @@ describe("Per-room Unit tab", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("a chosen unit renders the drag card with its own capacity", () => {
+  it("a chosen unit renders its card with its own capacity", () => {
     renderCockpit(mkDoc({ objects: twoRooms(), settings: bothChosen() }));
     const sub = screen.getByTestId("multi-unit-sub");
     const card = within(sub).getByTestId("unit-card-idu");
     expect(card).toHaveTextContent("MSZ-AP20VGD");
     expect(card).toHaveTextContent("2.0 kW");
-    expect(card).toHaveTextContent("Drag to place");
+    /* the capacity is the head's OWN, not a pairing's — and the card is a
+       report, so it carries no placement gesture */
+    expect(card.hasAttribute("draggable")).toBe(false);
   });
 
   it("recall takes THIS room's unit + its runs off the plan, nothing else", () => {

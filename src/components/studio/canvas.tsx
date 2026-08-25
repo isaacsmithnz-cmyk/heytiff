@@ -110,6 +110,22 @@ import {
   zoomAt,
   type Viewport,
 } from "@/lib/studio/geometry";
+import {
+  cloudPath,
+  createNote,
+  isNote,
+  leaderStart,
+  moveNote,
+  noteBounds,
+  noteHit,
+  noteLeader,
+  noteRect,
+  noteText,
+  noteTextLayout,
+  rectFromDrag,
+  type NoteObject,
+  type NoteRect,
+} from "@/lib/studio/notes";
 import { readWheel, type WheelMode } from "@/lib/studio/wheel";
 
 /* StudioCanvas — the SVG scene per ADR-001. Renders the document, emits
@@ -132,7 +148,8 @@ export type CanvasTool =
   | "drain" // condensate drain — straight segments, size picked at draw
   | "cable" // power/data cable — dots smoothed into a curve
   | "riser"
-  | "component"; // air component armed from the palette (Stage 7 — plenum first)
+  | "component" // air component armed from the palette (Stage 7 — plenum first)
+  | "note"; // markup: a revision cloud round something, with its say in the margin
 
 /** the Draw flyout's armed options — what the next drawn line IS. Soft-drawn
     pipe and cable place dots that render as a smoothed curve; hard-drawn pipe
@@ -211,6 +228,11 @@ export interface ArmedComponent {
 }
 
 const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
+/** the margin text's size on SCREEN. Notes hold a constant screen size the way
+    every other label on this canvas does; the world-space size is derived. */
+const NOTE_FONT_PX = 13;
+/** a cloud smaller than this (screen px, either side) was a stray click */
+const NOTE_MIN_PX = 14;
 const HIT_EDGE_PX = 6;
 const ERASE_HIT_PX = 14; // eraser is more forgiving than select (DUCTR parity)
 
@@ -448,13 +470,28 @@ function defaultViewport(
   points: Point[],
   w: number,
   h: number,
-  grid: number
+  grid: number,
+  notes: NoteObject[] = []
 ): Viewport {
   const b = boundsOfPoints(points);
-  if (b) return fitBounds(b, w, h, 60);
-  // empty floor: centre the origin, one grid cell ≈ 56 screen px
-  const zoom = 56 / grid;
-  return { zoom, x: -w / (2 * zoom), y: -h / (2 * zoom) };
+  if (!b) {
+    // empty floor: centre the origin, one grid cell ≈ 56 screen px
+    const zoom = 56 / grid;
+    return { zoom, x: -w / (2 * zoom), y: -h / (2 * zoom) };
+  }
+  if (notes.length === 0) return fitBounds(b, w, h, 60);
+  /* A note's words hold a constant SCREEN size, so how much WORLD they cover
+     depends on the very zoom the fit is working out. One extra pass settles
+     it — fit the drawing, size the words to that zoom, fit again — which is
+     the same two-pass the print figure runs for the same reason. Without it
+     the margin text is the one thing "fit" reliably leaves off the screen. */
+  const font = NOTE_FONT_PX / Math.max(fitZoom(b, w, h, 60), 1);
+  const pts = [...points];
+  for (const n of notes) {
+    const nb = noteBounds(n, font);
+    pts.push({ x: nb.x, y: nb.y }, { x: nb.x + nb.w, y: nb.y + nb.h });
+  }
+  return fitBounds(boundsOfPoints(pts) ?? b, w, h, 60);
 }
 
 /** How far the pointer may travel and still count as a click, not a drag.
@@ -491,7 +528,16 @@ type Drag =
   | { kind: "unit-rotate"; id: string; center: Point }
   /** the tape measure: a reading, not an object — it lives only for the
       length of the drag and is never written to the document */
-  | { kind: "tape"; from: Point };
+  | { kind: "tape"; from: Point }
+  /** dragging the note's cloud out over what it is about */
+  | { kind: "note-rect"; start: Point }
+  /** sliding a whole note — cloud and margin text travel together */
+  | { kind: "note-move"; id: string; startWorld: Point }
+  /** dragging just the margin end, to re-place the words off the plan.
+      `orig` + the travel, never the raw cursor: you grab the words somewhere
+      in the middle, and snapping the elbow to the grab point would jump the
+      block out from under the pointer on the first pixel. */
+  | { kind: "note-leader"; id: string; startWorld: Point; orig: Point };
 
 /** Re-derive every non-locked room's orientation from the new north bearing
     (DUCTR autoDetectOrientations). Manual per-room overrides (orientationLocked)
@@ -668,6 +714,25 @@ export function StudioCanvas({
   const [tape, setTape] = useState<{ a: Point; b: Point } | null>(null);
   /* the wall-marking / room-sizing panel's measured size, for the same reason
      — it picks the top or bottom slot depending on where the room sits */
+  /* ── markup (the note tool) ──
+     A note is made in two gestures, and both halves live here until it is
+     committed: `noteDraft` is the cloud being dragged out, `notePin` the cloud
+     that has been drawn and is now waiting to be told where its words go. Only
+     `noteEdit` outlives the commit — the note is on the document by then, and
+     this is just the box you type into. */
+  const [noteDraft, setNoteDraft] = useState<{ a: Point; b: Point } | null>(null);
+  const [notePin, setNotePin] = useState<NoteRect | null>(null);
+  const [noteEdit, setNoteEdit] = useState<{ id: string; text: string } | null>(null);
+  /** a note mid-drag: the offset it has travelled, or its live leader end */
+  const [liveNote, setLiveNote] = useState<
+    { id: string; dx: number; dy: number } | { id: string; leader: Point } | null
+  >(null);
+  const [notePanel, setNotePanel] = useState<Size>({ w: 264, h: 172 });
+  const measureNotePanel = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height) setNotePanel({ w: r.width, h: r.height });
+  }, []);
   const [roomPanel, setRoomPanel] = useState<Size>({ w: 360, h: 176 });
   const measureRoomPanel = useCallback((el: HTMLDivElement | null) => {
     if (!el) return;
@@ -751,6 +816,17 @@ export function StudioCanvas({
           inScope(o) && RUN_TYPES.has(o.type) && o.geometry.kind === "polyline"
       ),
     [doc.objects, inScope]
+  );
+
+  /* Notes are FLOOR-wide and system-agnostic (notes.ts): the markup belongs to
+     the drawing, so switching the canvas to another system must never take
+     somebody's note off the plan with it. */
+  const notes = useMemo(
+    () =>
+      doc.objects.filter(
+        (o): o is NoteObject => o.floorId === floor.id && isNote(o)
+      ),
+    [doc.objects, floor.id]
   );
 
   /** live position for point objects (units/risers) while dragging */
@@ -947,6 +1023,15 @@ export function StudioCanvas({
      Plan-sheet corners count as content so plan-backed floors open fitted. */
   const contentPoints = useCallback((): Point[] => {
     const pts = rooms.flatMap((r) => roomPoints(r));
+    /* Notes count as content, and they are the one object type that has to:
+       a note lives in the MARGIN on purpose, so a fit that framed only the
+       plan would hide the very words the note exists to say. The cloud and
+       the leader end go in; the text itself cannot, because it holds a
+       constant SCREEN size and so has no world extent until a zoom exists —
+       the fit's own 60px margin is what carries the first line of it. */
+    for (const n of notes) {
+      pts.push(...n.geometry.points, noteLeader(n));
+    }
     for (const s of floor.plans) {
       const dims = sheetSize(s);
       if (dims) {
@@ -964,12 +1049,12 @@ export function StudioCanvas({
       }
     }
     return pts;
-  }, [rooms, roomPoints, floor.plans, sheetSize, sheetPos]);
+  }, [rooms, roomPoints, notes, floor.plans, sheetSize, sheetPos]);
 
   const [vp, setVp] = useState<Viewport>(() =>
-    defaultViewport(contentPoints(), size.w, size.h, grid)
+    defaultViewport(contentPoints(), size.w, size.h, grid, notes)
   );
-  const mountContent = useRef({ points: contentPoints(), grid });
+  const mountContent = useRef({ points: contentPoints(), grid, notes });
   const measured = useRef(false);
   /* Has the user framed the view themselves (pan, zoom, a drag that moves the
      canvas)? Until they have, the view belongs to the CONTENT: the canvas
@@ -1011,6 +1096,12 @@ export function StudioCanvas({
   useEffect(() => {
     contentPointsRef.current = contentPoints;
   }, [contentPoints]);
+  /* Fit frames the notes too, second pass and all — pressing Fit and losing
+     the margin text is exactly the trap defaultViewport exists to avoid */
+  const fitExtrasRef = useRef({ grid, notes });
+  useEffect(() => {
+    fitExtrasRef.current = { grid, notes };
+  }, [grid, notes]);
   /* the zoom buttons frame the view by hand; Fit hands the framing back to
      the content, so it deliberately does NOT set the flag */
   const zoomBy = useCallback((k: number) => {
@@ -1022,8 +1113,17 @@ export function StudioCanvas({
   const zoomInApi = useCallback(() => zoomBy(1.3), [zoomBy]);
   const zoomOutApi = useCallback(() => zoomBy(1 / 1.3), [zoomBy]);
   const fitApi = useCallback(() => {
-    const b = boundsOfPoints(contentPointsRef.current());
-    if (b) setVp(fitBounds(b, sizeRef.current.w, sizeRef.current.h, 60));
+    const pts = contentPointsRef.current();
+    if (boundsOfPoints(pts))
+      setVp(
+        defaultViewport(
+          pts,
+          sizeRef.current.w,
+          sizeRef.current.h,
+          fitExtrasRef.current.grid,
+          fitExtrasRef.current.notes
+        )
+      );
     userFramed.current = false;
   }, []);
   useEffect(() => {
@@ -1317,7 +1417,15 @@ export function StudioCanvas({
         ? contentPointsRef.current()
         : mountContent.current.points;
       measured.current = true;
-      setVp(defaultViewport(points, r.width, r.height, mountContent.current.grid));
+      setVp(
+        defaultViewport(
+          points,
+          r.width,
+          r.height,
+          mountContent.current.grid,
+          mountContent.current.notes
+        )
+      );
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -1331,8 +1439,17 @@ export function StudioCanvas({
   useEffect(() => {
     if (userFramed.current || !measured.current) return;
     if (Object.keys(sheetDims).length === 0) return;
-    const b = boundsOfPoints(contentPointsRef.current());
-    if (b) setVp(fitBounds(b, sizeRef.current.w, sizeRef.current.h, 60));
+    const pts = contentPointsRef.current();
+    if (boundsOfPoints(pts))
+      setVp(
+        defaultViewport(
+          pts,
+          sizeRef.current.w,
+          sizeRef.current.h,
+          fitExtrasRef.current.grid,
+          fitExtrasRef.current.notes
+        )
+      );
   }, [sheetDims]);
 
   /* ── coordinate helpers ── */
@@ -1424,6 +1541,9 @@ export function StudioCanvas({
         setTape(null);
         // discard an in-progress wall-marking (a fresh draft makes no room)
         setWallSelect(null);
+        // a cloud with nowhere to point is dropped, not stranded
+        setNoteDraft(null);
+        setNotePin(null);
       }
       // [ / ] rotate the selected simple unit in 90° steps
       if ((e.key === "[" || e.key === "]") && !isTyping(e) && selectedId) {
@@ -1741,6 +1861,58 @@ export function StudioCanvas({
       return null;
     };
 
+  /* ── notes (the markup layer) ────────────────────────────────────────────
+     Every measurement of a note — where its words sit, what you can click,
+     what has to fit on paper — goes through ONE font size, so the text you
+     click is always the text you can see. ── */
+  const noteFontW = NOTE_FONT_PX / Math.max(vp.zoom, 1);
+
+  /** a note as it stands RIGHT NOW: mid-drag that is the live position, at
+      rest it is the document's */
+  const noteAt = (o: NoteObject): NoteObject => {
+    if (!liveNote || liveNote.id !== o.id) return o;
+    if ("leader" in liveNote)
+      return { ...o, props: { ...o.props, leader: liveNote.leader } };
+    return moveNote(o, liveNote.dx, liveNote.dy) as NoteObject;
+  };
+
+  /** topmost note under the pointer, and which part of it — newest first, so
+      a note drawn over an older one takes the click */
+  const hitNote = (w: Point, tolPx = HIT_EDGE_PX) => {
+    const tol = tolPx / vp.zoom;
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const part = noteHit(noteAt(notes[i]), w, tol, noteFontW);
+      if (part) return { id: notes[i].id, part };
+    }
+    return null;
+  };
+
+  const commitNote = (rect: NoteRect, leader: Point) => {
+    const note = createNote({ floorId: floor.id, rect, leader });
+    onMutate((d) => ({ ...d, objects: [...d.objects, note] }));
+    onSelect(note.id);
+    // straight into the words: a cloud with nothing to say is not a note
+    setNoteEdit({ id: note.id, text: "" });
+    onToolDone();
+  };
+
+  const saveNoteText = (id: string, text: string) => {
+    const trimmed = text.trim();
+    onMutate((d) => ({
+      ...d,
+      /* a note nobody typed into is not markup, it is a stray cloud — closing
+         the box empty takes it back off the drawing rather than leaving a
+         mystery balloon pointing at nothing */
+      objects: trimmed
+        ? d.objects.map((o) =>
+            o.id === id ? { ...o, props: { ...o.props, text: trimmed } } : o
+          )
+        : d.objects.filter((o) => o.id !== id),
+    }));
+    if (!trimmed && selectedId === id) onSelect(null);
+    setNoteEdit(null);
+  };
+
   /* Eraser: objects only (a room deletes by selecting it and pressing Delete,
      which carries its units — canvas rule #6).
      A pipe loses just its nearest segment (one vertex) unless it's down to a
@@ -1748,7 +1920,16 @@ export function StudioCanvas({
   const eraseAt =
     (w: Point) => {
       const tol = ERASE_HIT_PX / vp.zoom;
-      // units first (on top), then risers
+      // notes sit above the drawing, so the eraser meets them first. A note
+      // goes whole — half a note is a leader pointing at nothing.
+      const note = hitNote(w, ERASE_HIT_PX);
+      if (note) {
+        onMutate((d) => ({ ...d, objects: d.objects.filter((o) => o.id !== note.id) }));
+        if (selectedId === note.id) onSelect(null);
+        if (noteEdit?.id === note.id) setNoteEdit(null);
+        return;
+      }
+      // units next (on top of the plan), then risers
       for (let i = units.length - 1; i >= 0; i--) {
         const u = units[i];
         const at = pointAt(u);
@@ -2045,6 +2226,26 @@ export function StudioCanvas({
 
     switch (tool) {
       case "select": {
+        /* markup first: a note is drawn over the work, so it is what a click
+           on it means. Grabbed by its OUTLINE and its words only — the middle
+           of a cloud is full of the rooms and units it is drawn around, and
+           those still have to be clickable through it. */
+        const nh = hitNote(w);
+        if (nh) {
+          onSelect(nh.id);
+          const grabbed = notes.find((x) => x.id === nh.id)!;
+          setDrag(
+            nh.part === "text"
+              ? {
+                  kind: "note-leader",
+                  id: nh.id,
+                  startWorld: w,
+                  orig: noteLeader(grabbed),
+                }
+              : { kind: "note-move", id: nh.id, startWorld: w }
+          );
+          break;
+        }
         // north arrow: drag the knob to rotate, the body to move (screen-space
         // hit-test so the grab targets match the on-screen glyph)
         if (northArrow) {
@@ -2174,6 +2375,23 @@ export function StudioCanvas({
         setDrag({ kind: "rect", start: w });
         setDraftRect({ a: w, b: w });
         break;
+      /* Two gestures, in the order the drawing is read: cloud what you are
+         talking about, THEN say where the words go. The second click is a tap
+         (so the plan can still be panned between the two) and it is what
+         commits — until then nothing is on the document. */
+      case "note": {
+        if (notePin) {
+          const pin = notePin;
+          tap(() => {
+            setNotePin(null);
+            commitNote(pin, w);
+          });
+        } else {
+          setDrag({ kind: "note-rect", start: w });
+          setNoteDraft({ a: w, b: w });
+        }
+        break;
+      }
       case "calibrate": {
         tap(() =>
           setCalib((c) => (!c.a ? { a: w } : !c.b ? { a: c.a, b: w } : c))
@@ -2309,6 +2527,25 @@ export function StudioCanvas({
       case "rect":
         setDraftRect({ a: drag.start, b: w });
         break;
+      case "note-rect":
+        setNoteDraft({ a: drag.start, b: w });
+        break;
+      case "note-move":
+        setLiveNote({
+          id: drag.id,
+          dx: w.x - drag.startWorld.x,
+          dy: w.y - drag.startWorld.y,
+        });
+        break;
+      case "note-leader":
+        setLiveNote({
+          id: drag.id,
+          leader: {
+            x: drag.orig.x + (w.x - drag.startWorld.x),
+            y: drag.orig.y + (w.y - drag.startWorld.y),
+          },
+        });
+        break;
       case "sheet":
         setLiveSheet({
           id: drag.id,
@@ -2425,6 +2662,34 @@ export function StudioCanvas({
         );
       }
       setDraftRect(null);
+    }
+    /* the cloud is drawn; it now waits to be told where its words go. A drag
+       that never travelled was a stray click, not a cloud. */
+    if (drag.kind === "note-rect" && noteDraft) {
+      const minW = NOTE_MIN_PX / vp.zoom;
+      const rect = rectFromDrag(noteDraft.a, noteDraft.b);
+      setNoteDraft(null);
+      if (rect.w >= minW && rect.h >= minW) setNotePin(rect);
+    }
+    if ((drag.kind === "note-move" || drag.kind === "note-leader") && liveNote) {
+      const live = liveNote;
+      const moved =
+        "leader" in live
+          ? drag.kind === "note-leader" &&
+            (live.leader.x !== drag.orig.x || live.leader.y !== drag.orig.y)
+          : Math.abs(live.dx) > 1e-6 || Math.abs(live.dy) > 1e-6;
+      if (moved) {
+        onMutate((d) => ({
+          ...d,
+          objects: d.objects.map((o) => {
+            if (o.id !== live.id || !isNote(o)) return o;
+            return "leader" in live
+              ? { ...o, props: { ...o.props, leader: { x: live.leader.x, y: live.leader.y } } }
+              : moveNote(o, live.dx, live.dy);
+          }),
+        }));
+      }
+      setLiveNote(null);
     }
     if (drag.kind === "point" && livePoint) {
       const { id, at } = livePoint;
@@ -2549,7 +2814,12 @@ export function StudioCanvas({
   const onContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
     if (sim) return;
     const draftUp =
-      draftPipe.length > 0 || draftPoly.length > 0 || draftRect !== null || wallSelect !== null;
+      draftPipe.length > 0 ||
+      draftPoly.length > 0 ||
+      draftRect !== null ||
+      wallSelect !== null ||
+      noteDraft !== null ||
+      notePin !== null;
     if (tool === "select" && !draftUp) return;
     e.preventDefault();
     setDraftPipe([]);
@@ -2559,6 +2829,8 @@ export function StudioCanvas({
     setCalib({});
     setCalibMeters("");
     setWallSelect(null);
+    setNoteDraft(null);
+    setNotePin(null);
     onToolDone();
   };
 
@@ -2582,9 +2854,21 @@ export function StudioCanvas({
     /* double-click a room to open it (Isaac, 2026-08-25) — the same modal the
        panel's room row opens, and the same one the room was created through.
        Select only: while a tool is armed the gesture belongs to that tool, and
-       the run tools below use a double-click to END a line. */
+       the run tools below use a double-click to END a line.
+
+       Markup is checked FIRST, for the same reason a single click is: a note
+       is drawn over the work, so double-clicking one opens ITS words, not the
+       room it happens to be clouding. */
     if (tool === "select") {
-      const hit = roomAtPoint(doc.objects, floor.id, toWorld(e));
+      const w = toWorld(e);
+      const nh = hitNote(w);
+      const note = nh ? notes.find((x) => x.id === nh.id) : null;
+      if (note) {
+        onSelect(note.id);
+        setNoteEdit({ id: note.id, text: noteText(note) });
+        return;
+      }
+      const hit = roomAtPoint(doc.objects, floor.id, w);
       if (hit) {
         onOpenRoom?.(hit.id);
         return;
@@ -2809,6 +3093,13 @@ export function StudioCanvas({
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
                 ? "Place dots — the line curves through them · Enter, double-click or an anchor ends it · Esc to cancel"
                 : "Click each corner · Enter, double-click or an anchor ends it · Esc to cancel",
+          }
+      : tool === "note"
+        ? {
+            icon: "note",
+            text: notePin
+              ? "Now click where the words go — out past the edge of the plan · Esc to cancel"
+              : "Drag a box around what the note is about · Esc to cancel",
           }
       : tool === "set-north"
         ? floor.northPos
@@ -3734,6 +4025,68 @@ export function StudioCanvas({
               </text>
             </g>
           )}
+
+          {/* ── markup: notes ──
+              Drawn LAST inside the world group, so a note sits over the work
+              it is about rather than under it — which is what a note on a
+              drawing does. Cloud, leader and words are one <g>: the whole
+              thing selects, moves and prints together. */}
+          {notes.map((stored) => {
+            const n = noteAt(stored);
+            const rect = noteRect(n);
+            const leader = noteLeader(n);
+            const lay = noteTextLayout(rect, leader, noteText(n), noteFontW);
+            const start = leaderStart(rect, leader);
+            const on = stored.id === selectedId || noteEdit?.id === stored.id;
+            return (
+              <g key={stored.id} className={`ds-note${on ? " sel" : ""}`}>
+                <path className="ds-note-cloud" d={cloudPath(rect)} />
+                <polyline
+                  className="ds-note-leader"
+                  points={`${start.x},${start.y} ${lay.elbow.x},${lay.elbow.y} ${lay.shoulder.x},${lay.shoulder.y}`}
+                />
+                {/* the dot on the cloud is the drawing convention for "this
+                    leader lands here", and it is also the grab handle */}
+                <circle className="ds-note-dot" cx={start.x} cy={start.y} r={2.6 / vp.zoom} />
+                <text
+                  className="ds-note-text"
+                  x={lay.textX}
+                  y={lay.firstBaseline}
+                  fontSize={noteFontW}
+                  textAnchor={lay.anchor}
+                >
+                  {lay.lines.map((line, i) => (
+                    <tspan key={i} x={lay.textX} dy={i === 0 ? 0 : lay.lineH}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* the cloud being dragged out — it is the shape you will get, not a
+              box that turns into one on release */}
+          {tool === "note" && noteDraft && (
+            <g className="ds-note draft">
+              <path className="ds-note-cloud" d={cloudPath(rectFromDrag(noteDraft.a, noteDraft.b))} />
+            </g>
+          )}
+          {/* cloud drawn, waiting to be told where its words go: the leader
+              rubber-bands to the cursor so the margin lands where you look */}
+          {tool === "note" && notePin && (
+            <g className="ds-note draft">
+              <path className="ds-note-cloud" d={cloudPath(notePin)} />
+              {cursor && (
+                <polyline
+                  className="ds-note-leader"
+                  points={`${leaderStart(notePin, cursor).x},${
+                    leaderStart(notePin, cursor).y
+                  } ${cursor.x},${cursor.y}`}
+                />
+              )}
+            </g>
+          )}
         </g>
 
         {/* metre axis labels along the top edge — SCREEN space, constant size */}
@@ -3866,6 +4219,74 @@ export function StudioCanvas({
                 <button className="ds-calib-ok" onClick={saveRoomAdjust}>
                   {/* not "Save room" — that's the load modal's own button */}
                   {adjust.isNew ? "Save & continue" : "Save shape"}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* the note's words. Anchored at the leader end — you type where the
+          text will sit, so the margin you chose is the margin you see fill up.
+          Absolute within the canvas, never position:fixed. */}
+      {noteEdit &&
+        (() => {
+          const n = notes.find((x) => x.id === noteEdit.id);
+          if (!n) return null;
+          const at = worldToScreen(noteLeader(noteAt(n)), vp);
+          return (
+            <div
+              className="ds-note-editor"
+              ref={measureNotePanel}
+              role="dialog"
+              aria-label="Note"
+              style={anchorFloating({
+                anchor: at,
+                panel: notePanel,
+                box: size,
+                reserveTop: 46,
+                reserveBottom: 40,
+              })}
+            >
+              <div className="ds-calib-t">Note</div>
+              <textarea
+                autoFocus
+                rows={3}
+                aria-label="Note text"
+                value={noteEdit.text}
+                onChange={(e) => setNoteEdit({ id: noteEdit.id, text: e.target.value })}
+                onKeyDown={(e) => {
+                  /* Enter commits, ⇧Enter breaks the line — a note is usually
+                     one sentence, and the list is the exception */
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    saveNoteText(noteEdit.id, noteEdit.text);
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    saveNoteText(noteEdit.id, noteEdit.text);
+                  }
+                }}
+              />
+              <div className="ds-note-actions">
+                <button
+                  className="ds-calib-cancel"
+                  onClick={() => {
+                    onMutate((d) => ({
+                      ...d,
+                      objects: d.objects.filter((o) => o.id !== noteEdit.id),
+                    }));
+                    if (selectedId === noteEdit.id) onSelect(null);
+                    setNoteEdit(null);
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  className="ds-calib-ok"
+                  onClick={() => saveNoteText(noteEdit.id, noteEdit.text)}
+                >
+                  Done
                 </button>
               </div>
             </div>

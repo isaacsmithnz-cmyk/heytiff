@@ -12,7 +12,8 @@
    2. It PINS to the design as it stood. The tick carries a fingerprint of the
       document; any edit to the design makes every tick stale. There is no such
       thing as an approval that survived an edit, so you cannot accidentally
-      send a simulation of a design you have since changed.
+      send a simulation of a design you have since changed. The one exception
+      is markup — see designFingerprint.
    3. The OPTION is all-or-nothing: offered only when every floor that CAN
       simulate has a live tick. A customer cannot tell which floors they are
       missing, so a part-approved design offers nothing at all.
@@ -23,6 +24,7 @@ import type { DesignDocument, SimApproval } from "./document";
 import type { DataPack } from "./packs/schema";
 import { buildSimModel } from "./sim";
 import { floorDisplayName } from "./plans";
+import { isNote } from "./notes";
 
 /* ── the fingerprint ──────────────────────────────────────────────────────
    What "the design changed" MEANS. Everything the simulation and the sheet
@@ -97,7 +99,13 @@ export function designFingerprint(doc: DesignDocument): string {
         brand: s.brand,
         settings: s.settings,
       })),
-      objects: doc.objects.map((o) => ({
+      /* Markup is the ONE exclusion, and it earns it by definition: a note is
+         words in the margin, read by people and by nothing else. Nothing in
+         the model can see it, so no note can make a run simulation wrong —
+         and a tick that fell over because somebody wrote "check bulkhead
+         depth on site" would be a false alarm teaching people to ignore the
+         real ones. Every other object still counts, notes.ts or no. */
+      objects: doc.objects.filter((o) => !isNote(o)).map((o) => ({
         id: o.id,
         type: o.type,
         systemId: o.systemId,

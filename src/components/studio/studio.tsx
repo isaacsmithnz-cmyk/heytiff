@@ -60,7 +60,7 @@ import {
 import { useWheelMode, WheelModeToggle } from "./wheel-toggle";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
-import { isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import {
   itemsToPlace,
@@ -72,8 +72,8 @@ import {
   type UnitsVerb,
 } from "@/lib/studio/next-move";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
-import type { PairProposal } from "@/lib/studio/split";
-import { UnitBrowser } from "./unit-browser";
+import { multiIduSelections } from "@/lib/studio/multi";
+import { UnitBrowser, type UnitChoice } from "./unit-browser";
 import { PlansPanel } from "./plans-panel";
 import { StepPrompt } from "./step-prompt";
 import {
@@ -1411,8 +1411,78 @@ function Editor({
   /* the chip's pair choice — the same write UnitsSub's picker commits: the
      pair models + the room it serves; a CHANGED pair takes the system's
      placed units and plumbing with it */
+  /** does this run attach to that unit at either end? (the cockpit's recall
+      rule — a swapped head takes its own pipework with it, nobody else's) */
+  const runTouchesUnit = useCallback((o: DesignObject, unitId: string): boolean => {
+    const attachId = (v: unknown): string =>
+      v && typeof v === "object" ? String((v as { id?: unknown }).id ?? "") : "";
+    return attachId(o.props.startAttach) === unitId || attachId(o.props.endAttach) === unitId;
+  }, []);
+
+  /* A per-room system records ONE INDOOR HEAD PER ROOM on settings.multiIdus
+     — the map that already drives coverage's pending figure and the Items
+     tray. Swapping a room's model takes that room's placed unit (and only
+     that room's) back off the plan, the same rule the cockpit's per-room
+     picker applied before this modal replaced it. */
+  const assignIduToRoom = useCallback(
+    (idu: IndoorUnit, roomId: string) => {
+      mutate((d) => {
+        const sys = d.systems.find((s) => s.id === effectiveSystemId);
+        const changed = !sys || multiIduSelections(sys)[roomId] !== idu.model;
+        const placedId = d.objects.find(
+          (o) =>
+            o.systemId === effectiveSystemId &&
+            o.type === "unit" &&
+            o.props.role === "idu" &&
+            String(o.props.roomId ?? "") === roomId
+        )?.id;
+        return {
+          ...d,
+          systems: d.systems.map((s) =>
+            s.id === effectiveSystemId
+              ? {
+                  ...s,
+                  settings: {
+                    ...s.settings,
+                    multiIdus: { ...multiIduSelections(s), [roomId]: idu.model },
+                  },
+                }
+              : s
+          ),
+          objects:
+            changed && placedId
+              ? d.objects.filter(
+                  (o) =>
+                    o.id !== placedId &&
+                    !(
+                      o.systemId === effectiveSystemId &&
+                      o.type === "pipe-run" &&
+                      runTouchesUnit(o, placedId)
+                    )
+                )
+              : d.objects,
+        };
+      });
+    },
+    [mutate, effectiveSystemId, runTouchesUnit]
+  );
+
   const choosePairFromChip = useCallback(
-    (pair: PairProposal, roomId: string) => {
+    (choice: UnitChoice, roomId: string) => {
+      /* a per-room system assigns an indoor head to the room and arms it —
+         there is no pairing to record, its outdoor belongs to the system */
+      if (choice.kind === "idu") {
+        assignIduToRoom(choice.idu, roomId);
+        setPairBrowse(null);
+        armPlace({
+          role: "idu",
+          model: choice.idu.model,
+          widthMm: choice.idu.width_mm,
+          depthMm: choice.idu.depth_mm,
+        });
+        return;
+      }
+      const pair = choice.pair;
       /* read the pre-write state for the arm decision below: a re-chosen
          identical pair keeps its placed units, and arming then would offer a
          second indoor unit */
@@ -1468,7 +1538,7 @@ function Editor({
           depthMm: pair.idu.depth_mm,
         });
     },
-    [doc, mutate, effectiveSystemId, armPlace]
+    [doc, mutate, effectiveSystemId, armPlace, assignIduToRoom]
   );
 
   /* Dragging a unit onto a room card ATTRIBUTES it and nothing more. Unlike
@@ -1477,7 +1547,9 @@ function Editor({
      afterwards, so an arm here would fight the next drag. The unit becomes a
      pending item on the room — placement is a separate act. */
   const assignPairToRoom = useCallback(
-    (pair: PairProposal, roomId: string) => {
+    (choice: UnitChoice, roomId: string) => {
+      if (choice.kind === "idu") return assignIduToRoom(choice.idu, roomId);
+      const pair = choice.pair;
       mutate((d) => {
         const sys = d.systems.find((s) => s.id === effectiveSystemId);
         const swap =
@@ -1518,7 +1590,7 @@ function Editor({
          someone mid-way through attributing several rooms — the drop says
          where this unit goes, not what to shop for next. */
     },
-    [mutate, effectiveSystemId]
+    [mutate, effectiveSystemId, assignIduToRoom]
   );
 
   const onNext = useCallback(() => {
@@ -2419,16 +2491,19 @@ function LensedUnitBrowser({
       drop attributes to */
   roomId: string;
   onLens: (roomId: string) => void;
-  onChoose: (pair: PairProposal, roomId: string) => void;
+  onChoose: (choice: UnitChoice, roomId: string) => void;
   /** a unit dragged onto a room card — records the attribution and leaves the
       browser open, unlike onChoose which commits and arms the cursor */
-  onAssign: (pair: PairProposal, roomId: string) => void;
+  onAssign: (choice: UnitChoice, roomId: string) => void;
   onClose: () => void;
 }) {
   const served = roomsServedBy(doc, systemId);
   const room = served.find((r) => r.id === roomId);
   if (!room) return null;
   const sys = doc.systems.find((s) => s.id === systemId);
+  /* which flow the modal is driving: a multi assigns an indoor head per room,
+     a split one pair for the system */
+  const perRoom = !!sys && SYSTEM_MODULES[sys.type].unitFlow === "per-room";
   const rooms = served.map((r) => {
     const placed = doc.objects.find(
       (o) =>
@@ -2436,13 +2511,17 @@ function LensedUnitBrowser({
         o.props.role === "idu" &&
         String(o.props.roomId ?? "") === r.id
     );
-    /* what this room has been given: the unit standing in it, else the pair
-       chosen FOR it and still waiting to be placed (the pending state the
-       toolbar tray will read) */
-    const pending =
-      sys && String(sys.settings.roomId ?? "") === r.id
-        ? String(sys.settings.pairIdu ?? "")
-        : "";
+    /* What this room has been given: the unit standing in it, else the one
+       assigned to it and still waiting to be placed (the pending state the
+       toolbar tray reads). A per-room system holds one PER ROOM; a pair
+       system holds a single pair, against the one room it was sized for. */
+    const pending = !sys
+      ? ""
+      : perRoom
+        ? (multiIduSelections(sys)[r.id] ?? "")
+        : String(sys.settings.roomId ?? "") === r.id
+          ? String(sys.settings.pairIdu ?? "")
+          : "";
     return {
       id: r.id,
       name: String(r.props.name ?? "Room"),
@@ -2460,7 +2539,8 @@ function LensedUnitBrowser({
       rooms={rooms}
       lensId={room.id}
       onLens={onLens}
-      onChoose={(pair) => onChoose(pair, room.id)}
+      mode={perRoom ? "per-room" : "pair"}
+      onChoose={(choice) => onChoose(choice, room.id)}
       onAssign={onAssign}
       onClose={onClose}
     />

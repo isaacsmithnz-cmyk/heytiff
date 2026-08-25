@@ -5047,6 +5047,13 @@ html[data-ds-display] .dstudio.editing {
   z-index: 1;
 }
 .ds-ub-table th.sortable { cursor: pointer; user-select: none; }
+/* per-room flow: the head's own capacity, which the pair flow reads off its
+   pairing column instead (there is no pairing here to read) */
+.ds-ub-capcell {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .ds-ub-table th.sortable:hover { color: #1a1a1a; }
 .ds-ub-table th.on { color: var(--teal-d, #0f766e); }
 .ds-ub-sortmark { margin-left: 4px; }

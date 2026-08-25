@@ -111,7 +111,10 @@ const bothChosen = () => ({
 
 function renderCockpit(
   doc: DesignDocument,
-  handlers: { onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void } = {}
+  handlers: {
+    onMutate?: (fn: (d: DesignDocument) => DesignDocument) => void;
+    onBrowseUnits?: (roomId: string) => void;
+  } = {}
 ) {
   return render(
     <SystemCockpit
@@ -125,7 +128,7 @@ function renderCockpit(
       onSelect={() => {}}
       onEditRoom={() => {}}
       onArmPlace={() => {}}
-      onBrowseUnits={() => {}}
+      onBrowseUnits={handlers.onBrowseUnits ?? (() => {})}
       rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
@@ -272,47 +275,23 @@ describe("Per-room Unit tab", () => {
     expect(screen.getAllByRole("button", { name: "Configure room" }).length).toBeGreaterThan(0);
   });
 
-  it("choosing a unit writes settings.multiIdus for THIS room only", () => {
+  it("hands the room off to THE units modal instead of owning a picker", () => {
+    /* The per-room picker that used to open here could only see one room, so
+       assigning a system meant opening it once per room. The modal lists every
+       room down its right-hand column, so the card's job is now just to say
+       WHICH room the press was about — and it must be this room, or a press on
+       one card would open the modal aimed at another. */
     const doc = mkDoc({ objects: twoRooms() });
-    let next: DesignDocument | undefined;
-    renderCockpit(doc, { onMutate: (fn) => (next = fn(doc)) });
+    const asked: string[] = [];
+    renderCockpit(doc, { onBrowseUnits: (id) => asked.push(id) });
 
     const sub = screen.getByTestId("multi-unit-sub");
     expect(within(sub).getByText("No unit for this room yet")).toBeInTheDocument();
     fireEvent.click(within(sub).getByRole("button", { name: /Select unit/ }));
-    const dialog = screen.getByRole("dialog", { name: "Choose an indoor unit" });
-    // the room load RANKS the list; the smallest suitable unit is marked
-    expect(within(dialog).getByText(/Room load ≈/)).toHaveTextContent("1.7 kW");
-    const rec = within(dialog).getByText("best fit").closest("tr")!;
-    expect(rec).toHaveTextContent("MSZ-AP20VGD");
-    fireEvent.click(within(dialog).getByText("MSZ-AP20VGD"));
 
-    expect(next!.systems[0].settings.multiIdus).toEqual({ room1: "MSZ-AP20VGD" });
-  });
-
-  it("the picker ranks rather than filters — same sections as the split browser", () => {
-    renderCockpit(mkDoc({ objects: twoRooms() }));
-    fireEvent.click(
-      within(screen.getByTestId("multi-unit-sub")).getByRole("button", { name: /Select unit/ })
-    );
-    const dialog = screen.getByRole("dialog", { name: "Choose an indoor unit" });
-
-    // no toggle — capacity never removes a unit here either
-    expect(within(dialog).queryByText(/Include oversized/i)).not.toBeInTheDocument();
-
-    expect(within(dialog).getByText("Recommended")).toBeInTheDocument();
-    expect(within(dialog).getByText("Oversized")).toBeInTheDocument();
-    expect(within(dialog).getByText("Undersized")).toBeInTheDocument();
-
-    // and the units that used to be filtered out are on screen, flagged
-    expect(within(dialog).getAllByText("oversized").length).toBeGreaterThan(0);
-    expect(within(dialog).getAllByText("undersized").length).toBeGreaterThan(0);
-
-    // sections run fits → oversized → undersized
-    const rows = within(dialog).getAllByRole("row");
-    const at = (t: string) => rows.findIndex((r) => r.textContent?.includes(t));
-    expect(at("Recommended")).toBeLessThan(at("Oversized"));
-    expect(at("Oversized")).toBeLessThan(at("Undersized"));
+    expect(asked).toEqual(["room1"]);
+    /* and nothing opens in the panel itself any more */
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("a chosen unit renders the drag card with its own capacity", () => {

@@ -13,6 +13,7 @@ import type { DesignDocument, DesignSystem } from "./document";
 import type {
   CompatibilityRule,
   DataPack,
+  FormFactor,
   IndoorUnit,
   MultiRule,
   OutdoorUnit,
@@ -22,6 +23,12 @@ import { capacityFit, type UnitFit } from "./fit";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { roomsServedBy } from "./coverage";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
+import {
+  FORM_FACTOR_LABELS,
+  type FormFactorCount,
+  type SelectFilters,
+  type SelectSort,
+} from "./select";
 
 /* ─────────────────────────── settings readers ─────────────────────────── */
 
@@ -484,4 +491,119 @@ export function multiConnection(
     placedOduId: placedOdu?.id ?? null,
     findings,
   };
+}
+
+/* ── the per-room selector: the big units modal, in multi's terms ─────────
+   The modal was built for the pair flow, where a row IS an indoor unit plus
+   the outdoor units it can pair with. A multi row has no pairing: the outdoor
+   is chosen ONCE for the whole system, and each room only picks its indoor
+   head. These two functions are the multi equivalents of select.ts's
+   `unitOptions` and `formFactorSummary`, deliberately mirroring their
+   semantics — same filters, same "bestFit is the smallest FITTING option",
+   same sort keys — so the one modal ranks the same way whichever flow is
+   driving it. Eligibility is multi-capability (derived from the outdoor
+   rules' family whitelists, see multiCapableIdus), never the pair table. */
+
+const numOr = (v: number | undefined): number =>
+  typeof v === "number" ? v : Infinity;
+
+export interface MultiSelectCriteria {
+  loadKw: number | null;
+  basis: SizingBasis;
+  /** null = every capable form factor */
+  formFactor?: FormFactor | null;
+  filters?: SelectFilters;
+  sort?: SelectSort;
+}
+
+/** Multi-capable indoor units for ONE room: filtered, ranked and flagged the
+    way the modal's table expects. */
+export function multiUnitOptions(
+  pack: DataPack,
+  criteria: MultiSelectCriteria
+): MultiIduProposal[] {
+  const { loadKw, basis, formFactor = null, filters = {}, sort = "capacity" } = criteria;
+
+  let rows = proposeMultiIdus(pack, loadKw, basis).filter(
+    (p) => formFactor == null || p.idu.form_factor === formFactor
+  );
+
+  const { maxWidthMm, maxDepthMm, maxHeightMm, minAirflowLs } = filters;
+  rows = rows.filter((p) => {
+    if (maxWidthMm != null && numOr(p.idu.width_mm) > maxWidthMm) return false;
+    if (maxDepthMm != null && numOr(p.idu.depth_mm) > maxDepthMm) return false;
+    if (maxHeightMm != null && numOr(p.idu.height_mm) > maxHeightMm) return false;
+    if (minAirflowLs != null && (p.idu.airflow_ls ?? 0) < minAirflowLs) return false;
+    return true;
+  });
+
+  /* proposeMultiIdus flags bestFit across the WHOLE capable catalogue; once a
+     tab or the fit filters have narrowed the view, that flag can point at a
+     row nobody can see — leaving the table with no recommendation at all. So
+     re-derive it here: the smallest FITTING capacity in THIS view, exactly as
+     unitOptions does.
+
+     The clear can't change today's answer — the proposer only ever flags the
+     globally smallest fitting row, which is still the smallest in any subset
+     that contains it — so it is a belt, not the fix. It is here so this
+     function's answer depends on its own view and nothing else, which stops
+     being free the day the proposer flags anything different. The fix is the
+     re-derivation below; delete that and a narrowed tab shows no
+     recommendation at all. */
+  rows = rows.map((p) => ({ ...p, bestFit: false }));
+  if (loadKw != null) {
+    const fitting = rows.filter((p) => p.fit === "fits");
+    if (fitting.length) {
+      let best = fitting[0];
+      for (const p of fitting) if (p.capacityKw < best.capacityKw) best = p;
+      best.bestFit = true;
+    }
+  }
+
+  const key = (p: MultiIduProposal): number => {
+    switch (sort) {
+      case "capacity":
+        return p.capacityKw;
+      case "width":
+        return numOr(p.idu.width_mm);
+      case "depth":
+        return numOr(p.idu.depth_mm);
+      case "height":
+        return numOr(p.idu.height_mm);
+      case "airflow":
+        return -(p.idu.airflow_ls ?? -Infinity);
+    }
+  };
+  rows.sort((a, b) => key(a) - key(b) || a.idu.model.localeCompare(b.idu.model));
+  return rows;
+}
+
+/** Tab counts over the multi-capable catalogue (the pair-flow summary counts
+    pairings, which a multi has none of). */
+export function multiFormFactorSummary(
+  pack: DataPack,
+  loadKw: number | null,
+  basis: SizingBasis
+): FormFactorCount[] {
+  const rows = proposeMultiIdus(pack, loadKw, basis);
+  const counts = new Map<FormFactor, Set<string>>();
+  const fits = new Map<FormFactor, Set<string>>();
+  for (const p of rows) {
+    const set = counts.get(p.idu.form_factor) ?? new Set<string>();
+    set.add(p.idu.model);
+    counts.set(p.idu.form_factor, set);
+    if (p.fit === "fits") {
+      const f = fits.get(p.idu.form_factor) ?? new Set<string>();
+      f.add(p.idu.model);
+      fits.set(p.idu.form_factor, f);
+    }
+  }
+  return (Object.keys(FORM_FACTOR_LABELS) as FormFactor[])
+    .filter((f) => counts.has(f))
+    .map((f) => ({
+      formFactor: f,
+      label: FORM_FACTOR_LABELS[f],
+      count: counts.get(f)!.size,
+      fitCount: fits.get(f)?.size ?? 0,
+    }));
 }

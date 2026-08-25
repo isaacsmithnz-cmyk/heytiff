@@ -308,12 +308,16 @@ describe("UnitBrowser", () => {
     fireEvent.click(radios[1]);
     expect(within(rowOf("WALL-35")).getByText("OD-35B")).toBeInTheDocument();
 
-    // Add commits the picked pairing (single argument — the pair)
+    /* Add commits the picked pairing. The payload names its own kind: the
+       split flow returns a pairing, the per-room flow an indoor head — the
+       host must never have to guess which it was handed. */
     fireEvent.click(within(panel).getByRole("button", { name: /Add to plan/ }));
     expect(onChoose).toHaveBeenCalledTimes(1);
     expect(onChoose.mock.calls[0]).toHaveLength(1);
-    expect(onChoose.mock.calls[0][0].odu.model).toBe("OD-35B");
-    expect(onChoose.mock.calls[0][0].idu.model).toBe("WALL-35");
+    const choice = onChoose.mock.calls[0][0];
+    expect(choice.kind).toBe("pair");
+    expect(choice.pair.odu.model).toBe("OD-35B");
+    expect(choice.pair.idu.model).toBe("WALL-35");
   });
 
   it("sound ranges are attributed: indoor range and outdoor figure live under their sections", () => {
@@ -382,7 +386,7 @@ describe("UnitBrowser", () => {
     expect(rowOf("WALL-35")).toHaveAttribute("aria-selected", "true");
     fireEvent.keyDown(window, { key: "Enter" });
     expect(onChoose).toHaveBeenCalledTimes(1);
-    expect(onChoose.mock.calls[0][0].idu.model).toBe("WALL-35");
+    expect(onChoose.mock.calls[0][0].pair.idu.model).toBe("WALL-35");
   });
 
   it("groups rows by series when there are 2+ series; the toggle flattens", () => {
@@ -447,7 +451,7 @@ describe("UnitBrowser", () => {
         pack={fixturePack()}
         loadKw={null}
         basis="worst-of-both"
-        onChoose={(p) => chosen.push(p.idu.model)}
+        onChoose={(c) => c.kind === "pair" && chosen.push(c.pair.idu.model)}
         onClose={noop}
       />
     );
@@ -633,7 +637,9 @@ describe("UnitBrowser", () => {
           lensId="r2"
           onLens={noop}
           onChoose={noop}
-          onAssign={(pair, roomId) => got.push({ model: pair.idu.model, roomId })}
+          onAssign={(c, roomId) => {
+            if (c.kind === "pair") got.push({ model: c.pair.idu.model, roomId });
+          }}
           onClose={noop}
         />
       );

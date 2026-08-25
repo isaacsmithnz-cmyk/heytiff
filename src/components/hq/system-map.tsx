@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import {
   NODES,
   EDGES,
@@ -166,7 +166,7 @@ export function SystemMap() {
                         key={n.id}
                         type="button"
                         className={nodeClass(n)}
-                        style={{ ["--nk" as string]: km.color }}
+                        style={{ "--nk": km.color } as CSSProperties}
                         ref={(el) => {
                           if (el) nodeRefs.current.set(n.id, el);
                           else nodeRefs.current.delete(n.id);
@@ -251,7 +251,7 @@ function Inspector({
   return (
     <aside className="hq-map-side">
       <div className="hq-map-side-kind">
-        <span className="hq-map-kindchip" style={{ ["--nk" as string]: km.color }}>
+        <span className="hq-map-kindchip" style={{ "--nk": km.color } as CSSProperties}>
           {km.label}
         </span>
         {selected.status === "building" && <i className="hq-map-tag building">building</i>}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { clockLabel } from "@/lib/workboard/schedule";
@@ -96,11 +96,11 @@ export function ScheduleFocus({
         <div
           className="wb2-scfkey"
           style={{
-            ["--fill" as string]: job.paint.fill,
-            ["--bar" as string]: job.paint.bar,
-            ["--pale" as string]: job.paint.pale,
-            ["--pale-edge" as string]: job.paint.paleEdge,
-          }}
+            "--fill": job.paint.fill,
+            "--bar": job.paint.bar,
+            "--pale": job.paint.pale,
+            "--pale-edge": job.paint.paleEdge,
+          } as CSSProperties}
         >
           {job.marks.map((m) => (
             <span key={m.kind}>
@@ -125,10 +125,10 @@ export function ScheduleFocus({
               key={e.key}
               className={"wb2-scfcard" + (e.done ? " done" : "")}
               style={{
-                ["--fill" as string]: e.done ? e.paint.pale : e.paint.fill,
-                ["--bar" as string]: e.paint.bar,
-                ["--btext" as string]: e.paint.ink,
-              }}
+                "--fill": e.done ? e.paint.pale : e.paint.fill,
+                "--bar": e.paint.bar,
+                "--btext": e.paint.ink,
+              } as CSSProperties}
             >
               <b>{e.who}</b>
               <span>

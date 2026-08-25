@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -436,12 +436,12 @@ export function CapacityView({
                  rail's --fill technique */
               const paint = hasPct ? capacityCellPaint(d.fillPct!, d.over) : null;
               const style = paint
-                ? {
-                    ["--capfill" as string]: paint.fill,
-                    ["--caplevel" as string]: `${paint.level}%`,
-                    ["--capink" as string]: paint.ink,
-                    ...(paint.dateInk ? { ["--capdate" as string]: paint.dateInk } : {}),
-                  }
+                ? ({
+                    "--capfill": paint.fill,
+                    "--caplevel": `${paint.level}%`,
+                    "--capink": paint.ink,
+                    ...(paint.dateInk ? { "--capdate": paint.dateInk } : {}),
+                  } as CSSProperties)
                 : undefined;
               /* a rolling window has no month around it, so a month TURN is
                  named on the cell where it happens — and on the first cell,
@@ -559,11 +559,11 @@ export function CapacityView({
                     }}
                     className={"wb2-scdjob" + (row.done ? " done" : "")}
                     style={{
-                      ["--fill" as string]: row.done ? row.paint.pale : row.paint.fill,
-                      ["--bar" as string]: row.paint.bar,
-                      ["--chip" as string]: row.done ? "rgba(5,5,5,.06)" : row.paint.chip,
-                      ["--btext" as string]: row.paint.ink,
-                    }}
+                      "--fill": row.done ? row.paint.pale : row.paint.fill,
+                      "--bar": row.paint.bar,
+                      "--chip": row.done ? "rgba(5,5,5,.06)" : row.paint.chip,
+                      "--btext": row.paint.ink,
+                    } as CSSProperties}
                     onClick={() => setFocusJob(row.id)}
                   >
                     <span className="wb2-scdjh">

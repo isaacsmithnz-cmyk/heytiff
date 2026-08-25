@@ -25,6 +25,7 @@ import {
 } from "@/lib/expenses/claim";
 import { cancelClaim, submitClaim, type ExpenseResult } from "@/app/actions/expenses";
 import { readExpenseReceipt } from "@/app/actions/expense-ai";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* My expenses — money you spent on the job, and want back.
 
@@ -169,32 +170,32 @@ export function MyExpensesFace({
     setError(null);
     attach(picked);
     setScanning(true);
-    try {
-      const b64 = await fileToBase64(picked);
-      const res = await readExpenseReceipt(b64, picked.type);
-      const base = emptyDraft(today, payer);
-      if (res.ok) {
-        setDraft({
-          ...base,
-          expenseDate: res.date ?? base.expenseDate,
-          description: res.description ?? "",
-          category: res.category ?? "materials",
-          amount: res.total !== null ? String(res.total) : "",
-          gstAmount: res.gst !== null ? String(res.gst) : "",
-          supplier: res.supplier ?? "",
-        });
-      } else {
-        // A scan that couldn't read still leaves them with the receipt and a
-        // form — the file stays attached either way.
-        setDraft(base);
-        if (res.reason !== "no-key") setError("Couldn't read that receipt — fill it in below.");
+    await withCleanup(async () => {
+      try {
+        const b64 = await fileToBase64(picked);
+        const res = await readExpenseReceipt(b64, picked.type);
+        const base = emptyDraft(today, payer);
+        if (res.ok) {
+          setDraft({
+            ...base,
+            expenseDate: res.date ?? base.expenseDate,
+            description: res.description ?? "",
+            category: res.category ?? "materials",
+            amount: res.total !== null ? String(res.total) : "",
+            gstAmount: res.gst !== null ? String(res.gst) : "",
+            supplier: res.supplier ?? "",
+          });
+        } else {
+          // A scan that couldn't read still leaves them with the receipt and a
+          // form — the file stays attached either way.
+          setDraft(base);
+          if (res.reason !== "no-key") setError("Couldn't read that receipt — fill it in below.");
+        }
+      } catch {
+        setDraft(emptyDraft(today));
+        setError("Couldn't read that receipt — fill it in below.");
       }
-    } catch {
-      setDraft(emptyDraft(today));
-      setError("Couldn't read that receipt — fill it in below.");
-    } finally {
-      setScanning(false);
-    }
+    }, () => setScanning(false));
   };
 
   const run = (action: () => Promise<ExpenseResult>, onOk?: () => void) => {

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { SaveResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* The avatar, and the camera badge that finally makes it settable.
 
@@ -47,7 +48,7 @@ export function PhotoBadge({
     if (!file) return;
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       /* IMPORTED WHERE IT IS USED, not at the top. upload-client pulls the
          documents actions, which pull auth0's server bundle — statically, that
          puts the whole chain in the module graph of every screen that renders
@@ -62,22 +63,20 @@ export function PhotoBadge({
       }
       const res = await onSet(up.file.documentId);
       if (!res.ok) setError(res.error);
-    } finally {
+    }, () => {
       setBusy(false);
       // let the same file be chosen again after a failure
       if (fileRef.current) fileRef.current.value = "";
-    }
+    });
   };
 
   const clear = async () => {
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onClear();
       if (!res.ok) setError(res.error);
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   return (

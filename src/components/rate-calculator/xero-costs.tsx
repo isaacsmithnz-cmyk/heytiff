@@ -20,6 +20,7 @@ import {
 } from "./state";
 import type { PeriodChoice } from "@/lib/integrations/xero-pl";
 import { useHydrated } from "@/lib/use-hydrated";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Business costs, read from a connected Xero organisation.
 
@@ -87,28 +88,28 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
   const pull = async () => {
     setBusy(true);
     setError(null);
-    try {
-      const res = await onFetch(choice);
-      if (res.ok) {
-        /* A refresh is new AMOUNTS; every judgement made about the old ones —
-           allocations, re-exclusions, inclusions, the annualise answer —
-           survives via the shared merge. */
-        const xeroCosts = mergeSnapshot(snap, res.snapshot);
-        /* The fleet comes along on the FIRST pull only — that is the moment
-           vehicle lines first leave the overhead pool and the mixed state
-           would otherwise be born. On a refresh the fleet source is wherever
-           the user last put it; re-running the convenience default here would
-           override "Enter them myself" every time this button was pressed. */
-        patch({
-          xeroCosts,
-          ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
-        });
-      } else setError(res.error);
-    } catch {
-      setError("Couldn't reach Xero. Try again.");
-    } finally {
-      setBusy(false);
-    }
+    await withCleanup(async () => {
+      try {
+        const res = await onFetch(choice);
+        if (res.ok) {
+          /* A refresh is new AMOUNTS; every judgement made about the old ones —
+             allocations, re-exclusions, inclusions, the annualise answer —
+             survives via the shared merge. */
+          const xeroCosts = mergeSnapshot(snap, res.snapshot);
+          /* The fleet comes along on the FIRST pull only — that is the moment
+             vehicle lines first leave the overhead pool and the mixed state
+             would otherwise be born. On a refresh the fleet source is wherever
+             the user last put it; re-running the convenience default here would
+             override "Enter them myself" every time this button was pressed. */
+          patch({
+            xeroCosts,
+            ...(snap ? { costsSource: "xero" as const } : costsToXeroPatch({ ...s, xeroCosts })),
+          });
+        } else setError(res.error);
+      } catch {
+        setError("Couldn't reach Xero. Try again.");
+      }
+    }, () => setBusy(false));
   };
 
   const cycleAlloc = (i: number) => {

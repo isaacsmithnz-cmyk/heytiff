@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { plusDays } from "@/lib/workboard/dates";
@@ -596,8 +596,8 @@ export function ScheduleTab({
                 className="wb2-schinner"
                 style={{
                   width: ((day.railEnd - day.railStart) / 60) * PX_PER_HOUR,
-                  ["--hr" as string]: `${PX_PER_HOUR}px`,
-                }}
+                  "--hr": `${PX_PER_HOUR}px`,
+                } as CSSProperties}
               >
                 <div className="wb2-schhours">
                   {Array.from(
@@ -650,13 +650,13 @@ export function ScheduleTab({
                               top: LANE_PAD_PX + ri * LANE_ROW_PX,
                               height: LANE_ROW_PX - 6,
                               animationDelay: `${Math.min(bi++ * 14, 400)}ms`,
-                              ["--fill" as string]: paint.fill,
-                              ["--btext" as string]: paint.ink,
-                              ["--chip" as string]: paint.chip,
-                              ["--bar" as string]: paint.bar,
-                              ["--pale" as string]: paint.pale,
-                              ["--pale-edge" as string]: paint.paleEdge,
-                            }}
+                              "--fill": paint.fill,
+                              "--btext": paint.ink,
+                              "--chip": paint.chip,
+                              "--bar": paint.bar,
+                              "--pale": paint.pale,
+                              "--pale-edge": paint.paleEdge,
+                            } as CSSProperties}
                             title={blockTitle(b)}
                             aria-label={`Job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
                               b.clientName ?? ""
@@ -777,7 +777,7 @@ export function ScheduleTab({
                 any more is worse than no key. */}
             {hasIdle && (
               <span>
-                <i className="hollow" style={{ ["--kcap" as string]: NO_CATEGORY_PAINT.bar }} />
+                <i className="hollow" style={{ "--kcap": NO_CATEGORY_PAINT.bar } as CSSProperties} />
                 Not started
               </span>
             )}

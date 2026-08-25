@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { documentTheme } from "@/lib/org/theme";
 import type { SaveResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* THE BRAND COLOUR, AND A DOCUMENT TO CHECK IT AGAINST.
 
@@ -67,25 +68,21 @@ export function BrandColorPicker({
       return;
     }
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onSet(hex);
       if (!res.ok) setError(res.error);
       else setTyped(hex);
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   const clear = async () => {
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onClear();
       if (!res.ok) setError(res.error);
       else setTyped("");
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   return (

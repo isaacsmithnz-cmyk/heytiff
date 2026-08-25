@@ -5,6 +5,7 @@ import { openMicTap, startRealtime, type MicTap, type RealtimeHandle } from "@/l
 import { playChime } from "@/lib/voice/chime";
 import { clearRun, markStopped, markTranscript } from "@/lib/voice/timing";
 import { Orb } from "@/components/ui/orb";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Dictation, extracted from the note pill so every box you'd type a paragraph
    into can have it (Isaac, 2026-08-02: "anywhere that you need to enter notes
@@ -588,7 +589,7 @@ export function useDictation({
           }
 
           setTranscribing(true);
-          try {
+          await withCleanup(async () => {
             /* The live transcript first, because it is already finished.
                `stop()` only flushes the last utterance — it does not wait
                for the whole recording to be processed, which is the entire
@@ -630,14 +631,14 @@ export function useDictation({
               return;
             }
             await upload(blob, mine);
-          } finally {
+          }, () => {
             /* The tracks are held until here so the live path can flush the
                last sentence off a stream that is still open. */
             stream.getTracks().forEach((t) => t.stop());
             setTranscribing(false);
             setHanding(false);
             setInterim("");
-          }
+          });
         };
         recorder.current = rec;
         rec.start();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
@@ -283,8 +283,8 @@ export function ProjectDayModal({
         className="wb2-dc can-open"
         data-tone={vTone}
         style={{
-          ["--lead" as string]: `var(--wb2-${missing[0] === "equipment" ? "eq" : missing[0] === "access" ? "acc" : "crew"})`,
-        }}
+          "--lead": `var(--wb2-${missing[0] === "equipment" ? "eq" : missing[0] === "access" ? "acc" : "crew"})`,
+        } as CSSProperties}
         role="button"
         tabIndex={0}
         aria-label={`Open ${v.projectName} — ${v.label}`}
@@ -338,7 +338,7 @@ export function ProjectDayModal({
                   ))}
                 </select>
               ) : (
-                <span key={g} className="wb2-ck" style={{ ["--as" as string]: "var(--wb2-crew)" }}>
+                <span key={g} className="wb2-ck" style={{ "--as": "var(--wb2-crew)" } as CSSProperties}>
                   <i /> <span>{GATE_LABEL[g]}</span>
                 </span>
               )
@@ -346,7 +346,7 @@ export function ProjectDayModal({
               <button
                 key={g}
                 className="wb2-ck"
-                style={{ ["--as" as string]: `var(--wb2-${g === "equipment" ? "eq" : "acc"})` }}
+                style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : "acc"})` } as CSSProperties}
                 disabled={busy}
                 title={`${GATE_FULL[g]} — not confirmed. Press to confirm.`}
                 onClick={(e) => {

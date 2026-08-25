@@ -7,6 +7,7 @@ import {
   streetLine,
   type StudioJobHit,
 } from "@/lib/studio/job-link";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* The ServiceM8 job picker — the search field and its dropdown, shared by the
    two places that pick a job: the new-design step (naming a design after the
@@ -71,18 +72,20 @@ export function JobSearchField({
       }
       setSearching(true);
       setOpen(true);
-      try {
-        const found = await search(q);
-        if (mine !== seq.current) return;
-        setHits(found);
-      } catch {
-        /* offline, or the action is unreachable — an empty list and "nothing
-           matches" is the honest reading */
-        if (mine !== seq.current) return;
-        setHits([]);
-      } finally {
+      await withCleanup(async () => {
+        try {
+          const found = await search(q);
+          if (mine !== seq.current) return;
+          setHits(found);
+        } catch {
+          /* offline, or the action is unreachable — an empty list and "nothing
+             matches" is the honest reading */
+          if (mine !== seq.current) return;
+          setHits([]);
+        }
+      }, () => {
         if (mine === seq.current) setSearching(false);
-      }
+      });
     },
     [search]
   );

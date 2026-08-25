@@ -8,6 +8,7 @@ import { formatAuDate } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
 import { DateField } from "./fields";
 import type { LicenceInput, SaveResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* Compliance — the licences and tickets, as a wall of credential cards.
 
@@ -60,7 +61,7 @@ export function ComplianceCard({
     }
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onAdd(input);
       if (!res.ok) {
         setError(res.error);
@@ -70,20 +71,16 @@ export function ComplianceCard({
       setCustom("");
       setNumber("");
       setExpiry("");
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   const remove = async (id: string) => {
     setError(null);
     setRemovingId(id);
-    try {
+    await withCleanup(async () => {
       const res = await onRemove(id);
       if (!res.ok) setError(res.error);
-    } finally {
-      setRemovingId(null);
-    }
+    }, () => setRemovingId(null));
   };
 
   return (

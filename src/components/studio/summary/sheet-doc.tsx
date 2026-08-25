@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { DesignDocument } from "@/lib/studio/document";
 import type {
   DesignBasis,
@@ -242,7 +243,7 @@ function SystemBand({ sys }: { sys: SummarySystem }) {
   return (
     <header
       className={`dsd-band${sys.sharedOutdoor ? "" : " solo"}`}
-      style={{ ["--sys" as string]: sys.colour }}
+      style={{ "--sys": sys.colour } as CSSProperties}
     >
       <div className="dsd-band-id">
         <h2>{sys.name}</h2>

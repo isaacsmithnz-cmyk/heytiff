@@ -6,6 +6,7 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { BrandLogo } from "./letterhead";
 import { NO_BRAND } from "@/lib/org/brand";
 import type { SaveResult } from "./types";
+import { withCleanup } from "@/lib/ui/with-cleanup";
 
 /* The company logo.
 
@@ -53,7 +54,7 @@ export function LogoUploader({
     if (!file) return;
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const up = await uploadFile(file, "org_logo");
       if (!up.ok) {
         setError(up.error);
@@ -61,22 +62,20 @@ export function LogoUploader({
       }
       const res = await onSet(up.file.documentId);
       if (!res.ok) setError(res.error);
-    } finally {
+    }, () => {
       setBusy(false);
       // let the same file be chosen again after a failure
       if (fileRef.current) fileRef.current.value = "";
-    }
+    });
   };
 
   const clear = async () => {
     setError(null);
     setBusy(true);
-    try {
+    await withCleanup(async () => {
       const res = await onClear();
       if (!res.ok) setError(res.error);
-    } finally {
-      setBusy(false);
-    }
+    }, () => setBusy(false));
   };
 
   /* A drop is the gesture people reach for with an image, and the tile is

@@ -51,10 +51,20 @@ export default async function StudioPage({
   const asked = params.design;
   const openDesignId = typeof asked === "string" && asked ? asked : undefined;
 
+  /* Which deployment served this page. `VERCEL_DEPLOYMENT_ID` is the same
+     value Skew Protection keys on, and it is read HERE because only the server
+     can see it. The client uses it for one purpose: noticing that a tab has
+     come back on a different build than it left on. Empty off Vercel, or when
+     the project's "Enable access to System Environment Variables" box is
+     unchecked — the breadcrumb then says it cannot tell, rather than guessing. */
+  const buildStamp =
+    process.env.VERCEL_DEPLOYMENT_ID ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "";
+
   return (
     <Studio
       sm8Jobs={sm8Connected && boardAccess}
       openDesignId={openDesignId}
+      buildStamp={buildStamp}
       brand={brand}
     />
   );

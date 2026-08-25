@@ -35,6 +35,13 @@ import {
   type DesignStore,
   type DesignSummary,
 } from "@/lib/studio/store";
+import {
+  noteAlive,
+  noteBoot,
+  setBuildStamp,
+  noteGesture,
+  readTrail,
+} from "@/lib/studio/reload-breadcrumb";
 import { RemoteDesignStore } from "@/lib/studio/remote-store";
 import { History } from "@/lib/studio/history";
 import {
@@ -172,6 +179,7 @@ export function Studio({
   sm8Jobs,
   jobSearch,
   openDesignId,
+  buildStamp,
   brand: servedBrand,
 }: {
   store?: DesignStore;
@@ -184,6 +192,10 @@ export function Studio({
   /** `?design=<id>` — open this design instead of landing on Home. What a
       link from the Workboard's job sheet arrives with. */
   openDesignId?: string;
+  /** Which build this tab is running, READ ON THE SERVER by the route. Only
+      the reload breadcrumb uses it: it is how a tab that came back on a
+      DIFFERENT deployment can say so, rather than guessing from the page. */
+  buildStamp?: string;
   /** The business's letterhead, READ ON THE SERVER by the route. Held here
       rather than in the Summary sheet that renders it, because here is where
       it can be in hand before the sheet is opened — the logo is primed into
@@ -415,6 +427,12 @@ export function Studio({
       });
     return () => {
       live = false;
+      /* and let a re-run try again. The guard above is a ref, so it survives a
+         teardown that the in-flight load does NOT: without this, a double
+         mount (React StrictMode in dev, or any remount) leaves the first load
+         cancelled by `live` and the second refused by the ref, and the design
+         named in the URL silently never opens. */
+      openedOnce.current = false;
     };
   }, [openDesignId, getStore, openDesign]);
 
@@ -450,6 +468,41 @@ export function Studio({
      canvas hoists its setPointerCapture calls out of a try for the same
      reason, and says so at the top of that file. */
   const openId = doc ? doc.id : null;
+
+  /* ── the breadcrumb: why did this tab reload? ──
+     A full document load wipes everything above and drops you on Home, and
+     until now it left no trace — which is exactly why "it jumps back to the
+     studio home page mid-design" could only ever be answered with a shortlist
+     of suspects. Each load now reads what the previous one looked like as it
+     ended and writes down which kind of ending it was, so the NEXT occurrence
+     names the cause instead of us reasoning about it. Local, no network.
+
+     The alive-crumb is rewritten whenever the open design changes and again on
+     the way out; the gesture listeners are what separate a reload the person
+     asked for from one that simply happened to them. */
+  /* the stamp as it was at mount — a document boots once, so the effect must
+     not re-run, and a ref says that without silencing the dependency rule */
+  const stampAtMount = useRef(buildStamp);
+  useEffect(() => {
+    setBuildStamp(stampAtMount.current);
+    noteBoot();
+    window.__htDiag = readTrail;
+    const gesture = () => noteGesture();
+    window.addEventListener("pointerdown", gesture, { passive: true });
+    window.addEventListener("keydown", gesture, { passive: true });
+    return () => {
+      window.removeEventListener("pointerdown", gesture);
+      window.removeEventListener("keydown", gesture);
+    };
+  }, []);
+  useEffect(() => {
+    noteAlive(openId, false);
+    /* pagehide, not beforeunload: it fires for the back/forward cache and on
+       mobile teardowns that never send beforeunload at all. */
+    const bye = () => noteAlive(openId, true);
+    window.addEventListener("pagehide", bye);
+    return () => window.removeEventListener("pagehide", bye);
+  }, [openId]);
   useEffect(() => {
     if (!arrived) return;
     try {

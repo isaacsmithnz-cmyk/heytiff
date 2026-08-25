@@ -2067,6 +2067,7 @@ function Editor({
             onRoomCreated={(id) => {
               setEditingRoomId(id);
             }}
+            onOpenRoom={(id) => setEditingRoomId(id)}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={() => setReshapeRoomId(null)}
@@ -2531,6 +2532,7 @@ function RoomModalUnits({
       basis={doc.settings.sizingBasis}
       ducted={summary === "ducted"}
       perRoom={summary === "capacity"}
+      headless
       onMutate={onMutate}
       onBrowseUnits={onBrowseUnits}
       onRelease={(id) =>
@@ -3333,6 +3335,7 @@ function DesignPanel({
   roomFits,
   onPlaced,
   onRoomCreated,
+  onOpenRoom,
   remarkRoomId,
   onRemarkConsumed,
   reshapeRoomId,
@@ -3383,6 +3386,8 @@ function DesignPanel({
   roomFits: Record<string, "oversized" | "undersized">;
   onPlaced: () => void;
   onRoomCreated: (id: string) => void;
+  /** double-click a room on the plan → open it */
+  onOpenRoom: (id: string) => void;
   remarkRoomId: string | null;
   onRemarkConsumed: () => void;
   reshapeRoomId: string | null;
@@ -3612,6 +3617,7 @@ function DesignPanel({
             iduSpec={iduSpec}
             oduSpec={oduSpec}
             onRoomCreated={onRoomCreated}
+            onOpenRoom={onOpenRoom}
             remarkRoomId={remarkRoomId}
             reshapeRoomId={reshapeRoomId}
             onReshapeConsumed={onReshapeConsumed}

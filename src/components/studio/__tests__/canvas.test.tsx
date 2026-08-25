@@ -238,7 +238,7 @@ describe("Design canvas", () => {
     // Done commits and opens the load modal, orientation now sourced from walls
     await user.click(screen.getByRole("button", { name: "Done" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("New")).toBeInTheDocument(); // mode pill
+    expect(within(dialog).getByText("New room")).toBeInTheDocument(); // mode pill
     expect(screen.getByText("Auto – walls")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));

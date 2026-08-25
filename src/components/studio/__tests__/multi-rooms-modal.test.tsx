@@ -72,7 +72,10 @@ const room = (id: string, name: string): DesignObject => ({
     kind: "polygon",
     points: [{ x: 0, y: 0 }, { x: 400, y: 0 }, { x: 400, y: 300 }, { x: 0, y: 300 }],
   },
-  plane: "room", props: { name },
+  /* configured: these rooms have been through the heat-load wizard, so the
+     modal opens on its REVIEW face where the units live. A room without it
+     opens straight into the wizard, which deliberately shows no units. */
+  plane: "room", props: { name, configured: true },
 });
 
 function seeded(): DesignDocument {

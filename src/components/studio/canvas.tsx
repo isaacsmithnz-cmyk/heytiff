@@ -536,6 +536,7 @@ export function StudioCanvas({
   iduSpec,
   oduSpec,
   onRoomCreated,
+  onOpenRoom,
   remarkRoomId = null,
   onRemarkConsumed,
   reshapeRoomId = null,
@@ -593,6 +594,8 @@ export function StudioCanvas({
   oduSpec?: (model: string) => OutdoorUnit | null;
   /** a room finished wall-marking — open its configuration modal (Slice 2) */
   onRoomCreated?: (id: string) => void;
+  /** double-click a room with Select → open that room's modal */
+  onOpenRoom?: (id: string) => void;
   /** request to re-enter wall-marking for an existing room (from the modal) */
   remarkRoomId?: string | null;
   onRemarkConsumed?: () => void;
@@ -2574,8 +2577,19 @@ export function StudioCanvas({
     addUnit(toWorld(e));
   };
 
-  const onDoubleClick = () => {
+  const onDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (sim) return;
+    /* double-click a room to open it (Isaac, 2026-08-25) — the same modal the
+       panel's room row opens, and the same one the room was created through.
+       Select only: while a tool is armed the gesture belongs to that tool, and
+       the run tools below use a double-click to END a line. */
+    if (tool === "select") {
+      const hit = roomAtPoint(doc.objects, floor.id, toWorld(e));
+      if (hit) {
+        onOpenRoom?.(hit.id);
+        return;
+      }
+    }
     if (tool === "room-poly" && draftPoly.length >= 3) {
       beginRoomAdjust(draftPoly, "poly");
       setDraftPoly([]);

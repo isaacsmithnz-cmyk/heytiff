@@ -158,3 +158,73 @@ describe("RoomModal", () => {
     expect(screen.getByText("Auto – walls")).toBeInTheDocument();
   });
 });
+
+/* Two faces (Isaac, 2026-08-25). A room fresh off the canvas goes straight
+   into the heat-load wizard — that IS the setup, and units have no part in
+   sizing a space. Every visit after that opens on a review face: the same
+   green banner the wizard ends on, titled with the room's own name, then the
+   way back into the wizard, then whatever is serving the room. */
+describe("RoomModal — setup vs review", () => {
+  const configured = () => {
+    const d = docWithRoom();
+    d.objects[0].props.configured = true;
+    return d;
+  };
+  const units = <div data-testid="units-slot">units</div>;
+
+  it("a new room opens in the wizard, with no units in sight", () => {
+    render(
+      <RoomModal
+        doc={docWithRoom()}
+        roomId="room1"
+        onMutate={() => {}}
+        onClose={() => {}}
+        unitsSection={units}
+      />
+    );
+    expect(screen.getByText("New room")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. Living / Dining")).toBeInTheDocument();
+    expect(screen.queryByTestId("units-slot")).not.toBeInTheDocument();
+  });
+
+  it("a configured room opens on the review face: banner, the way back, units", () => {
+    render(
+      <RoomModal
+        doc={configured()}
+        roomId="room1"
+        onMutate={() => {}}
+        onClose={() => {}}
+        unitsSection={units}
+      />
+    );
+    /* the modal PORTALS to body, so query the document — render()'s own
+       container holds nothing */
+    const banner = document.querySelector(".ds-rm-review .ds-rm-load")!;
+    expect(banner).not.toBeNull();
+    expect(banner.querySelector(".ds-rm-load-t")!.textContent).toBe("Lounge");
+    expect(banner.querySelector(".ds-rm-load-kw")!.textContent).toMatch(/kW$/);
+
+    expect(screen.getByTestId("units-slot")).toBeInTheDocument();
+    /* nothing has been edited here, so there is nothing to save or cancel */
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save room" })).toBeNull();
+    /* and the name is not printed twice — the banner carries it, not the head */
+    expect(document.querySelector(".ds-rm-title")!.textContent).not.toContain("Lounge");
+  });
+
+  it("Edit heat load unfolds the wizard in place and takes the units away", () => {
+    render(
+      <RoomModal
+        doc={configured()}
+        roomId="room1"
+        onMutate={() => {}}
+        onClose={() => {}}
+        unitsSection={units}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Edit heat load/ }));
+    expect(screen.getByPlaceholderText("e.g. Living / Dining")).toBeInTheDocument();
+    expect(screen.queryByTestId("units-slot")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save room" })).toBeInTheDocument();
+  });
+});

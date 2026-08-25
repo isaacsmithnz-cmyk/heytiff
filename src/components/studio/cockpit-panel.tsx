@@ -1967,6 +1967,7 @@ export function RoomInspectCard({
   basis,
   ducted,
   perRoom,
+  headless = false,
   onMutate,
   onBrowseUnits,
   onRelease,
@@ -1981,6 +1982,10 @@ export function RoomInspectCard({
   ducted?: boolean;
   /** per-room modules (multi / VRF): one indoor unit per room, shared outdoor */
   perRoom?: boolean;
+  /** drop the header. Inside the room modal the room's name, size and load are
+      already the first thing on the page, and repeating them here printed the
+      SAME load at two different roundings (1.16 vs 1.2 kW). */
+  headless?: boolean;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onBrowseUnits: (roomId: string) => void;
   onRelease: (roomId: string) => void;
@@ -2006,6 +2011,7 @@ export function RoomInspectCard({
 
   return (
     <div className="ds-ck-inspect">
+      {!headless && (
       <div className="ds-ck-ihead">
         <span className={`ds-ck-cdot ${dot}`} />
         <div className="ds-ck-itxt">
@@ -2042,6 +2048,7 @@ export function RoomInspectCard({
           {covered ? "Covered" : "Not complete"}
         </span>
       </div>
+      )}
       {/* the room card carries unit selection only — Configure is on the pill,
           Pipework moved to the Components tab */}
       <div className="ds-ck-ibody">

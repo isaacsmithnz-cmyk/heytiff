@@ -1850,6 +1850,7 @@ function Editor({
         x: "crop",
         m: "arrange",
         e: "erase",
+        a: "note",
         p: "pipe",
         i: "riser",
         k: "measure",
@@ -2470,6 +2471,7 @@ const CANVAS_TOOLS: {
 }[] = [
   { key: "select", icon: "cursor", label: "Select", short: "Select" },
   { key: "erase", icon: "eraser", label: "Eraser", short: "Erase" },
+  { key: "note", icon: "note", label: "Note", short: "Note" },
 ];
 
 /** toolbar lookup by key — a find, not a Record, so a typo'd key fails loudly
@@ -3572,6 +3574,12 @@ function DesignPanel({
                 thing next to Units */}
             <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
+            <span className="ds-tb-sep" aria-hidden="true" />
+            {/* Note gets a group of its own, at the end, because it is the one
+                verb that is not about the SYSTEM at all: it needs no system to
+                arm and it never belongs to one. Last is also workflow order —
+                you draw the design, then you write on it. */}
+            {toolButton(tb("note"))}
             <div className="ds-tb-spring" />
             <button
               className="ds-tool"

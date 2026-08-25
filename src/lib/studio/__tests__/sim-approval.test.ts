@@ -10,6 +10,7 @@ import { createDesign, type DesignDocument, type DesignObject } from "../documen
 import { PACK_SECTIONS, type DataPack, type PackMeta } from "../packs/schema";
 import { assemblePack, type PackSource } from "../packs/loader";
 import { migrateDesign } from "../migrations";
+import { createNote } from "../notes";
 import {
   designFingerprint,
   isFloorApproved,
@@ -129,6 +130,33 @@ describe("designFingerprint", () => {
     const a = simDoc();
     const ticked = setFloorApproval(a, "flr", true, "2026-08-18T00:00:00.000Z");
     expect(designFingerprint(ticked)).toBe(designFingerprint(a));
+  });
+
+  /* the one exclusion, and it earns it: nothing in the model can read a note,
+     so no note can make a run wrong. A tick that fell over because somebody
+     wrote "check bulkhead depth" would be a false alarm teaching people to
+     ignore the real ones. */
+  it("ignores markup — a note cannot make a simulation wrong", () => {
+    const a = simDoc();
+    const noted: DesignDocument = {
+      ...a,
+      objects: [
+        ...a.objects,
+        createNote({
+          floorId: "flr",
+          rect: { x: 0, y: 0, w: 100, h: 100 },
+          leader: { x: 400, y: 0 },
+          text: "Check bulkhead depth on site",
+          id: "note_1",
+        }),
+      ],
+    };
+    expect(designFingerprint(noted)).toBe(designFingerprint(a));
+    expect(isFloorApproved(setFloorApproval(a, "flr", true), "flr")).toBe(true);
+    const ticked = setFloorApproval(a, "flr", true);
+    expect(
+      isFloorApproved({ ...ticked, objects: noted.objects }, "flr")
+    ).toBe(true);
   });
 
   it("changes when a unit moves, a room is renamed, or the basis changes", () => {

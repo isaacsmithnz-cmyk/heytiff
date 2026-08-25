@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { createDesign, type DesignDocument, type DesignObject } from "@/lib/studio/document";
+import { createNote } from "@/lib/studio/notes";
 import { PlanFigure, planFigureBounds } from "../summary/plan-figure";
 
 /* The static print/export plan figure — a self-contained SVG mirror of the
@@ -141,6 +142,76 @@ describe("PlanFigure", () => {
     expect(filter?.getAttribute("values")).toBe("0");
     const g = container.querySelector(`g[filter="url(#pf-f1-desat)"]`);
     expect(g).not.toBeNull();
+  });
+
+  /* Markup prints. A note is a written instruction to whoever builds this —
+     the one thing on the sheet that is worthless if it only exists on screen,
+     and the layer switches turn off DERIVED annotation, not what somebody
+     chose to write. */
+  describe("notes", () => {
+    const withNote = (leader = { x: 900, y: 200 }) => {
+      const d = fixtureDoc();
+      d.objects = [
+        ...d.objects,
+        createNote({
+          floorId: "f1",
+          rect: { x: 100, y: 100, w: 200, h: 150 },
+          leader,
+          text: "Existing unit stays — do not remove",
+          id: "note_1",
+        }),
+      ];
+      return d;
+    };
+
+    it("prints the cloud, the leader and the words", () => {
+      const d = withNote();
+      const { container } = render(
+        <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+      );
+      expect(container.querySelectorAll(".ds-note-cloud")).toHaveLength(1);
+      expect(container.querySelectorAll(".ds-note-leader")).toHaveLength(1);
+      expect(container.querySelector(".ds-note-text")!.textContent).toContain(
+        "Existing unit stays"
+      );
+    });
+
+    it("prints with the labels layer off", () => {
+      const d = withNote();
+      const { container } = render(
+        <PlanFigure
+          doc={d}
+          floor={d.floors[0]}
+          layers={{ ...ALL, labels: false }}
+          grayscale={false}
+          legend={false}
+          urls={{}}
+        />
+      );
+      expect(container.querySelectorAll(".ds-note-cloud")).toHaveLength(1);
+      expect(container.querySelector(".ds-note-text")!.textContent).toContain(
+        "Existing unit stays"
+      );
+    });
+
+    /* the reason bounds needs a second pass: the words are sized to the sheet,
+       so a note in the margin widens the very figure that sizes it. Off the
+       right-hand edge and they are simply not on the drawing. */
+    it("leaves room in the margin for the words", () => {
+      const bare = planFigureBounds(fixtureDoc(), fixtureDoc().floors[0])!;
+      const d = withNote({ x: 2400, y: 200 });
+      const b = planFigureBounds(d, d.floors[0])!;
+      expect(b.x + b.w).toBeGreaterThan(bare.x + bare.w);
+      expect(b.x + b.w).toBeGreaterThan(2400); // past the leader, not just to it
+    });
+
+    it("is not counted as a room", () => {
+      const d = withNote();
+      const { container } = render(
+        <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+      );
+      expect(container.querySelectorAll(".ds-room polygon")).toHaveLength(1);
+    });
   });
 
   it("legend lists the symbol key and this floor's systems", () => {

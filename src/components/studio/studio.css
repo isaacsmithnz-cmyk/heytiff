@@ -2797,6 +2797,55 @@ html[data-ds-display] .dstudio.editing {
 }
 
 /* floating calibration card — absolute inside the canvas, never fixed */
+/* ── Markup: notes (lib/studio/notes.ts) ──
+   A note is the one thing on this canvas that belongs to no system, so it is
+   painted in no system's colour: one markup ink, indigo, which no room (amber),
+   no state (teal/red) and no studio accent (orange) uses. Seeing it means
+   "somebody wrote this", before you have read a word of it. */
+.dstudio .ds-note {
+  --ds-markup: #4338ca;
+  color: var(--ds-markup);
+}
+.dstudio .ds-note-cloud {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-note-leader {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-note-dot {
+  fill: currentColor;
+  stroke: none;
+}
+/* the words carry a white halo, like every other label out on the plan —
+   a note is worthless if the drawing under it wins */
+.dstudio .ds-note-text {
+  fill: var(--ds-markup);
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.dstudio .ds-note.sel .ds-note-cloud {
+  stroke-width: 2.7;
+}
+/* while it is being drawn it is dashed — the same grammar the room tool uses
+   for a shape that is not saved yet */
+.dstudio .ds-note.draft .ds-note-cloud,
+.dstudio .ds-note.draft .ds-note-leader {
+  stroke-dasharray: 7 5;
+}
+
 .dstudio .ds-calib-card {
   position: absolute;
   width: 226px;
@@ -2867,6 +2916,44 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-calib-ok:hover {
   background: #16181f;
+}
+
+/* the note's words, typed where they will sit */
+.dstudio .ds-note-editor {
+  position: absolute;
+  width: 264px;
+  background: #fff;
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
+  padding: 14px;
+  z-index: 6;
+}
+.dstudio .ds-note-editor textarea {
+  display: block;
+  width: 100%;
+  resize: none;
+  padding: 9px 11px;
+  border-radius: 11px;
+  border: 1px solid #e5e7eb;
+  background: #fafbfc;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.dstudio .ds-note-editor textarea:focus {
+  outline: none;
+  border-color: rgba(0, 229, 192, 0.65);
+  box-shadow: 0 0 0 3px rgba(0, 229, 192, 0.15);
+  background: #fff;
+}
+.dstudio .ds-note-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 /* Hovered-unit card — the plan's units carry no text, so what you're pointing

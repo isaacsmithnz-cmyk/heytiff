@@ -12,6 +12,17 @@ import {
   smoothPathD,
   unitsToMeters,
 } from "@/lib/studio/geometry";
+import {
+  cloudPath,
+  isNote,
+  leaderStart,
+  noteBounds,
+  noteLeader,
+  noteRect,
+  noteText,
+  noteTextLayout,
+  type NoteObject,
+} from "@/lib/studio/notes";
 import { unitGlyph, type LayerFlags } from "../canvas";
 
 /* A STATIC plan rendering for print and image export — the same drawing the
@@ -32,6 +43,8 @@ import { unitGlyph, type LayerFlags } from "../canvas";
    one print document. */
 
 const REF_W = 900; // reference width: text sized as if on a 900px-wide sheet
+/** the markup text's size at reference width — the print twin of NOTE_FONT_PX */
+const NOTE_FONT_REF = 11;
 
 export function planFigureBounds(
   doc: DesignDocument,
@@ -77,6 +90,25 @@ export function planFigureBounds(
     eat(floor.northPos.x + r, floor.northPos.y + r);
   }
   if (!Number.isFinite(minX)) return null;
+
+  /* Notes are measured in a SECOND pass, because their words are sized to the
+     sheet: the font is a fraction of the figure's own width, so the width has
+     to exist before the text that widens it can be measured. One extra pass
+     settles it — the text grows by well under the 5% pad the figure already
+     carries, so a third would move nothing. (Pass one has already eaten the
+     cloud itself; its points are ordinary polygon geometry.) */
+  const notes = doc.objects.filter(
+    (o): o is NoteObject => o.floorId === floor.id && isNote(o)
+  );
+  if (notes.length > 0) {
+    const font = (NOTE_FONT_REF * Math.max(maxX - minX, 1)) / REF_W;
+    for (const n of notes) {
+      const b = noteBounds(n, font);
+      eat(b.x, b.y);
+      eat(b.x + b.w, b.y + b.h);
+    }
+  }
+
   const w = Math.max(maxX - minX, 1);
   const h = Math.max(maxY - minY, 1);
   const pad = Math.max(w, h) * 0.05;
@@ -147,6 +179,11 @@ export function PlanFigure({
     (o): o is DesignObject & { geometry: { kind: "point"; at: Point } } =>
       o.type === "riser" && o.geometry.kind === "point"
   );
+  /* markup prints unconditionally: a note is a written instruction, and the
+     layer switches turn off DERIVED annotation (room names, run lengths), not
+     what somebody chose to write on the drawing */
+  const notes = onFloor.filter((o): o is NoteObject => isNote(o));
+  const noteFont = NOTE_FONT_REF * u;
 
   /* legend rows: fixed symbol key + the systems present on this floor */
   const floorSystems = doc.systems.filter((s) =>
@@ -189,6 +226,11 @@ export function PlanFigure({
         .ds-pf .ds-pf-legend rect.card { fill: rgba(255,255,255,0.96); stroke: #d7dbe4; stroke-width: 1; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pf-legend text { fill: #3c4356; font-weight: 700; }
         .ds-pf .ds-pf-legend .swatch-room { fill: rgba(240,164,49,0.35); stroke: #d98f1f; }
+        .ds-pf .ds-note { color: #4338ca; }
+        .ds-pf .ds-note-cloud { fill: none; stroke: currentColor; stroke-width: 1.7px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-note-leader { fill: none; stroke: currentColor; stroke-width: 1.3px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+        .ds-pf .ds-note-dot { fill: currentColor; stroke: none; }
+        .ds-pf .ds-note-text { fill: currentColor; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3.5px; stroke-linejoin: round; stroke-linecap: round; }
       `}</style>
       {grayscale && (
         <filter id={`${pid}-desat`}>
@@ -393,6 +435,37 @@ export function PlanFigure({
               </g>
             );
           })()}
+
+        {/* markup — drawn last, over the work it is about */}
+        {notes.map((n) => {
+          const rect = noteRect(n);
+          const leader = noteLeader(n);
+          const lay = noteTextLayout(rect, leader, noteText(n), noteFont);
+          const start = leaderStart(rect, leader);
+          return (
+            <g key={n.id} className="ds-note">
+              <path className="ds-note-cloud" d={cloudPath(rect)} />
+              <polyline
+                className="ds-note-leader"
+                points={`${start.x},${start.y} ${lay.elbow.x},${lay.elbow.y} ${lay.shoulder.x},${lay.shoulder.y}`}
+              />
+              <circle className="ds-note-dot" cx={start.x} cy={start.y} r={2.6 * u} />
+              <text
+                className="ds-note-text"
+                x={lay.textX}
+                y={lay.firstBaseline}
+                fontSize={noteFont}
+                textAnchor={lay.anchor}
+              >
+                {lay.lines.map((line, i) => (
+                  <tspan key={i} x={lay.textX} dy={i === 0 ? 0 : lay.lineH}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            </g>
+          );
+        })}
       </g>
 
       {/* scale bar — bottom-right, outside the desat group (chrome, not plan) */}

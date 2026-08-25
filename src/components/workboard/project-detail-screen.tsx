@@ -169,7 +169,14 @@ export function ProjectDetailScreen({
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              {manage && <StatusCluster />}
+              {manage && (
+                <StatusCluster
+                  project={project}
+                  busy={busy}
+                  run={run}
+                  onBlock={() => setBlocking(true)}
+                />
+              )}
               {manage && (
                 <button className="pbtn ghost" onClick={() => setEditingMeta(true)}>
                   <Icon name="edit" size={15} />
@@ -210,8 +217,18 @@ export function ProjectDetailScreen({
             <div className="int-note">Archived — hidden from the board entirely.</div>
           )}
 
-          <StageCard />
-          <TripsCard />
+          <StageCard project={project} manage={manage} live={live} busy={busy} run={run} />
+          <TripsCard
+            project={project}
+            trips={trips}
+            openTrips={openTrips}
+            today={today}
+            manage={manage}
+            live={live}
+            busy={busy}
+            run={run}
+            onOpenTrip={(visitId) => setTripSheet({ visitId, closeOut: false })}
+          />
 
           <FlywheelCard project={project} manage={manage} busy={busy} run={run} />
           {/* Money and variations are one grant (`workboard_money`). Without it
@@ -397,9 +414,19 @@ export function ProjectDetailScreen({
             )}
           </div>
 
-          <DocumentsCard />
+          <DocumentsCard
+            project={project}
+            today={today}
+            busy={busy}
+            run={run}
+            onRefresh={() => router.refresh()}
+          />
 
           <JournalCard
+            project={project}
+            entries={entries}
+            busy={busy}
+            run={run}
             kind="progress"
             icon="activity"
             title="Site journal"
@@ -408,6 +435,10 @@ export function ProjectDetailScreen({
           />
 
           <JournalCard
+            project={project}
+            entries={entries}
+            busy={busy}
+            run={run}
             kind="commissioning"
             icon="gauge"
             title="Commissioning"
@@ -544,535 +575,615 @@ export function ProjectDetailScreen({
     </div>
   );
 
-  /* ── header status controls ── */
 
-  function StatusCluster() {
-    if (project.status === "active" || project.status === "blocked") {
-      return (
-        <>
-          {project.status === "active" && (
-            <button className="pbtn ghost" disabled={busy} onClick={() => setBlocking(true)}>
-              Block…
-            </button>
-          )}
-          <button
-            className="pbtn ghost"
-            disabled={busy}
-            onClick={() => run(() => setProjectStatus(project.id, "on_hold"))}
-          >
-            Put on hold
+
+
+
+}
+
+/* ── the project screen's five cards ──
+
+   AT MODULE SCOPE, and they have to stay here. They used to be declared
+   inside ProjectDetailScreen, which meant a NEW component type on every
+   render: React tears the old tree down and mounts a fresh one, so the local
+   state below — a half-typed journal line, a trip being added, an upload in
+   flight — was thrown away every time anything above them changed. That also
+   put a `useState` inside a function defined in a component body, which React
+   Compiler refuses outright, so the parent was never compiled either. */
+
+type RunAction = (fn: () => Promise<{ ok: boolean; error?: string }>) => void;
+
+/* The `??`s read first, into their own names: React Compiler 1.0 refuses a
+   ternary whose test is itself a logical and gives up on the whole
+   component. */
+const mostRecentlyCompleted = (a: ProjectBoardVisit, b: ProjectBoardVisit) => {
+  const at = a.completedAt ?? "";
+  const bt = b.completedAt ?? "";
+  return at < bt ? 1 : -1;
+};
+
+function StatusCluster({
+  project,
+  busy,
+  run,
+  onBlock,
+}: {
+  project: ProjectDetail;
+  busy: boolean;
+  run: RunAction;
+  onBlock: () => void;
+}) {
+  if (project.status === "active" || project.status === "blocked") {
+    return (
+      <>
+        {project.status === "active" && (
+          <button className="pbtn ghost" disabled={busy} onClick={() => onBlock()}>
+            Block…
           </button>
-          {project.stage === "Complete" && (
-            <button
-              className="pbtn ghost"
-              disabled={busy}
-              onClick={() => run(() => setProjectStatus(project.id, "done"))}
-            >
-              Mark done
-            </button>
-          )}
-        </>
-      );
-    }
-    if (project.status === "on_hold") {
-      return (
+        )}
         <button
           className="pbtn ghost"
           disabled={busy}
-          onClick={() => run(() => setProjectStatus(project.id, "active"))}
+          onClick={() => run(() => setProjectStatus(project.id, "on_hold"))}
         >
-          Resume
+          Put on hold
         </button>
-      );
-    }
-    if (project.status === "done") {
-      return (
-        <>
+        {project.stage === "Complete" && (
           <button
             className="pbtn ghost"
             disabled={busy}
-            onClick={() => run(() => setProjectStatus(project.id, "active"))}
+            onClick={() => run(() => setProjectStatus(project.id, "done"))}
           >
-            Reopen
+            Mark done
           </button>
-          <button
-            className="pbtn ghost"
-            disabled={busy}
-            onClick={() => run(() => setProjectStatus(project.id, "archived"))}
-          >
-            Archive
-          </button>
-        </>
-      );
-    }
+        )}
+      </>
+    );
+  }
+  if (project.status === "on_hold") {
     return (
       <button
         className="pbtn ghost"
         disabled={busy}
         onClick={() => run(() => setProjectStatus(project.id, "active"))}
       >
-        Reopen
+        Resume
       </button>
     );
   }
-
-  /* ── stage — manual, checklist-aware (P5) ── */
-
-  function StageCard() {
-    const [pendingStage, setPendingStage] = useState<string | null>(null);
-    const advice = stageAdvice(project.stage, project.checklist);
-    const currentIdx = Math.max(stageIndex(project.stage), 0);
-
-    const move = (target: string) => {
-      setPendingStage(null);
-      run(() => setProjectStage(project.id, target));
-    };
-
-    const tryMove = (target: string) => {
-      if (!manage || busy || target === project.stage) return;
-      // Backward is a correction, not an advance — it never warns.
-      if (stageIndex(target) <= currentIdx) {
-        move(target);
-        return;
-      }
-      const owed = leftBehindFor(target, project.checklist);
-      if (owed === 0) {
-        move(target);
-        return;
-      }
-      setPendingStage(target);
-    };
-
+  if (project.status === "done") {
     return (
-      <div className="card2">
-        <div className="c2h">
-          <span className="ci">
-            <Icon name="activity" size={19} />
-          </span>
-          <div>
-            <b>Stage</b>
-            <em>
-              {manage
-                ? "A person moves the stage — the checklist informs, it never decides."
-                : "Where this project is up to."}
-            </em>
-          </div>
-          {advice.gateSection && advice.sectionTotal > 0 && (
-            <span
-              className={"wb2-chip" + (advice.sectionDone === advice.sectionTotal ? " ok" : "")}
-              style={{ marginLeft: "auto" }}
-            >
-              {advice.gateSection} {advice.sectionDone}/{advice.sectionTotal}
-            </span>
-          )}
-        </div>
-        <div className="wb-stepper">
-          {PROJECT_STAGES.map((s, i) => {
-            const state = i < currentIdx ? "past" : i === currentIdx ? "now" : "todo";
-            return (
-              <button
-                key={s}
-                className={`wb-step ${state}`}
-                disabled={!manage || busy}
-                onClick={() => tryMove(s)}
-              >
-                {s}
-              </button>
-            );
-          })}
-        </div>
-
-        {pendingStage && (
-          <div className="int-note bad" style={{ marginTop: 12 }}>
-            {leftBehindFor(pendingStage, project.checklist)} checklist{" "}
-            {leftBehindFor(pendingStage, project.checklist) === 1 ? "item" : "items"} unticked
-            behind {pendingStage} — the record stays honest either way.
-            <button
-              className="pbtn ghost"
-              style={{ marginLeft: 10 }}
-              disabled={busy}
-              onClick={() => move(pendingStage)}
-            >
-              Advance anyway
-            </button>
-            <button
-              className="pbtn ghost"
-              style={{ marginLeft: 6 }}
-              disabled={busy}
-              onClick={() => setPendingStage(null)}
-            >
-              Not yet
-            </button>
-          </div>
-        )}
-
-        {manage && live && !pendingStage && advice.nudge && advice.next && (
-          <div className="int-note" style={{ marginTop: 12 }}>
-            {advice.gateSection} is all ticked — move to {advice.next}?
-            <button
-              className="pbtn ghost"
-              style={{ marginLeft: 10 }}
-              disabled={busy}
-              onClick={() => move(advice.next!)}
-            >
-              Move to {advice.next}
-            </button>
-          </div>
-        )}
-      </div>
+      <>
+        <button
+          className="pbtn ghost"
+          disabled={busy}
+          onClick={() => run(() => setProjectStatus(project.id, "active"))}
+        >
+          Reopen
+        </button>
+        <button
+          className="pbtn ghost"
+          disabled={busy}
+          onClick={() => run(() => setProjectStatus(project.id, "archived"))}
+        >
+          Archive
+        </button>
+      </>
     );
   }
+  return (
+    <button
+      className="pbtn ghost"
+      disabled={busy}
+      onClick={() => run(() => setProjectStatus(project.id, "active"))}
+    >
+      Reopen
+    </button>
+  );
+}
 
-  /* ── documents & photos — the shared storage system, pointed here ── */
+function StageCard({
+  project,
+  manage,
+  live,
+  busy,
+  run,
+}: {
+  project: ProjectDetail;
+  manage: boolean;
+  live: boolean;
+  busy: boolean;
+  run: RunAction;
+}) {
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const advice = stageAdvice(project.stage, project.checklist);
+  const currentIdx = Math.max(stageIndex(project.stage), 0);
 
-  function DocumentsCard() {
-    const [uploading, setUploading] = useState(false);
-    const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const move = (target: string) => {
+    setPendingStage(null);
+    run(() => setProjectStage(project.id, target));
+  };
 
-    const upload = async (file: File) => {
-      setUploading(true);
-      setUploadErr(null);
-      await withCleanup(async () => {
-        const up = await uploadFile(file, "project_file");
-        if (!up.ok) {
-          setUploadErr(up.error);
-          return;
-        }
-        const attached = await attachDocumentToProject(up.file.documentId, project.id);
-        if (!attached.ok) setUploadErr(attached.error);
-        router.refresh();
-      }, () => setUploading(false));
-    };
+  const tryMove = (target: string) => {
+    if (!manage || busy || target === project.stage) return;
+    // Backward is a correction, not an advance — it never warns.
+    if (stageIndex(target) <= currentIdx) {
+      move(target);
+      return;
+    }
+    const owed = leftBehindFor(target, project.checklist);
+    if (owed === 0) {
+      move(target);
+      return;
+    }
+    setPendingStage(target);
+  };
 
-    return (
-      <div className="card2">
-        <div className="c2h">
-          <span className="ci">
-            <Icon name="folder" size={19} />
-          </span>
-          <div>
-            <b>Documents &amp; photos</b>
-            <em>Before-cover-up shots, the sparky&apos;s CoC, anything worth keeping with the job.</em>
-          </div>
-          <label className="pbtn ghost" style={{ marginLeft: "auto", cursor: "pointer" }}>
-            <Icon name="upload" size={15} />
-            {uploading ? "Uploading…" : "Upload"}
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              style={{ display: "none" }}
-              disabled={uploading}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) void upload(f);
-              }}
-            />
-          </label>
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name="activity" size={19} />
+        </span>
+        <div>
+          <b>Stage</b>
+          <em>
+            {manage
+              ? "A person moves the stage — the checklist informs, it never decides."
+              : "Where this project is up to."}
+          </em>
         </div>
-        {uploadErr && <p className="int-note bad">{uploadErr}</p>}
-        {project.documents.length === 0 ? (
-          <p className="int-hint">
-            Nothing here yet — a photo before the ceiling closes is the one you&apos;ll want later.
-          </p>
-        ) : (
-          project.documents.map((d) => (
-            <div className="wb-row" key={d.id}>
-              <span className="wb-chip">
-                {d.mimeType.startsWith("image/") ? "photo" : "file"}
-              </span>
-              <span className="wb-who">
-                <b>{d.fileName}</b>
-                <em>
-                  {" "}
-                  · {fmtBytes(d.sizeBytes)} · {agoLabel(d.uploadedAt.slice(0, 10), today)}
-                </em>
-              </span>
-              {d.url && (
-                <a className="pbtn ghost" href={d.url} target="_blank" rel="noreferrer">
-                  Open
-                </a>
-              )}
-              <button
-                className="fl-x"
-                aria-label={`Remove ${d.fileName}`}
-                disabled={busy || uploading}
-                onClick={() => run(() => deleteDocument(d.id))}
-              >
-                <Icon name="x" size={13} />
-              </button>
-            </div>
-          ))
+        {advice.gateSection && advice.sectionTotal > 0 && (
+          <span
+            className={"wb2-chip" + (advice.sectionDone === advice.sectionTotal ? " ok" : "")}
+            style={{ marginLeft: "auto" }}
+          >
+            {advice.gateSection} {advice.sectionDone}/{advice.sectionTotal}
+          </span>
         )}
       </div>
-    );
-  }
+      <div className="wb-stepper">
+        {PROJECT_STAGES.map((s, i) => {
+          const state = i < currentIdx ? "past" : i === currentIdx ? "now" : "todo";
+          return (
+            <button
+              key={s}
+              className={`wb-step ${state}`}
+              disabled={!manage || busy}
+              onClick={() => tryMove(s)}
+            >
+              {s}
+            </button>
+          );
+        })}
+      </div>
 
-  /* ── the two journals — one table behind them, told apart by kind ── */
-
-  function JournalCard({
-    kind,
-    icon,
-    title,
-    sub,
-    placeholder,
-    headerExtra,
-  }: {
-    kind: "progress" | "commissioning";
-    icon: string;
-    title: string;
-    sub: string;
-    placeholder: string;
-    headerExtra?: React.ReactNode;
-  }) {
-    const [text, setText] = useState("");
-    const rows = entries.filter((e) => e.kind === kind);
-
-    const addEntry = () => {
-      const body = text.trim();
-      if (!body) return;
-      setText("");
-      run(() => addProjectEntry(project.id, kind, body));
-    };
-
-    return (
-      <div className="card2">
-        <div className="c2h">
-          <span className="ci">
-            <Icon name={icon} size={19} />
-          </span>
-          <div>
-            <b>{title}</b>
-            <em>{sub}</em>
-          </div>
-          {headerExtra}
-        </div>
-        {rows.map((e) => (
-          <div className="wb-row" key={e.id}>
-            <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
-            <span className="wb-who">{e.body}</span>
-          </div>
-        ))}
-        {rows.length === 0 && <p className="int-hint">Nothing recorded yet.</p>}
-        <div className="wb2-dayrow">
-          <input
-            className="wb2-fi"
-            placeholder={placeholder}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addEntry();
-            }}
-          />
-          <button className="pbtn ghost" disabled={busy || !text.trim()} onClick={addEntry}>
-            Add
+      {pendingStage && (
+        <div className="int-note bad" style={{ marginTop: 12 }}>
+          {leftBehindFor(pendingStage, project.checklist)} checklist{" "}
+          {leftBehindFor(pendingStage, project.checklist) === 1 ? "item" : "items"} unticked
+          behind {pendingStage} — the record stays honest either way.
+          <button
+            className="pbtn ghost"
+            style={{ marginLeft: 10 }}
+            disabled={busy}
+            onClick={() => move(pendingStage)}
+          >
+            Advance anyway
+          </button>
+          <button
+            className="pbtn ghost"
+            style={{ marginLeft: 6 }}
+            disabled={busy}
+            onClick={() => setPendingStage(null)}
+          >
+            Not yet
           </button>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  /* ── trips — the same rows the board shows ── */
-
-  function TripsCard() {
-    const [adding, setAdding] = useState(false);
-    const [label, setLabel] = useState("");
-    const [around, setAround] = useState("");
-    const [day, setDay] = useState("");
-
-    const add = () => {
-      const name = label.trim();
-      if (!name || !around) return;
-      setAdding(false);
-      setLabel("");
-      setAround("");
-      setDay("");
-      run(() => createProjectVisit(project.id, { label: name, dueDate: around, bookedDate: day || null }));
-    };
-
-    const done = trips
-      .filter((t) => t.status === "done" || t.status === "skipped")
-      .sort((a, b) => ((a.completedAt ?? "") < (b.completedAt ?? "") ? 1 : -1));
-
-    return (
-      <div className="card2">
-        <div className="c2h">
-          <span className="ci">
-            <Icon name="calendar" size={19} />
-          </span>
-          <div>
-            <b>Trips to site</b>
-            <em>Each trip carries its own gates, crew and bring list — close it out as it runs.</em>
-          </div>
-          {manage && live && (
-            <button
-              className="pbtn ghost"
-              style={{ marginLeft: "auto" }}
-              onClick={() => setAdding((v) => !v)}
-            >
-              <Icon name="plus" size={15} />
-              Add a trip
-            </button>
-          )}
+      {manage && live && !pendingStage && advice.nudge && advice.next && (
+        <div className="int-note" style={{ marginTop: 12 }}>
+          {advice.gateSection} is all ticked — move to {advice.next}?
+          <button
+            className="pbtn ghost"
+            style={{ marginLeft: 10 }}
+            disabled={busy}
+            onClick={() => move(advice.next!)}
+          >
+            Move to {advice.next}
+          </button>
         </div>
+      )}
+    </div>
+  );
+}
 
-        {adding && (
-          <div className="wb2-triprow add">
-            <input
-              className="wb2-fi"
-              autoFocus
-              placeholder="What's the trip for — “Rough-in day 1”"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") add();
-              }}
-            />
-            <label className="wb2-fl">
-              Around
-              <DateField className="wb2-fi" aria-label="Roughly when" clearable value={around || null} onChange={(iso) => setAround(iso ?? "")} />
-            </label>
-            <label className="wb2-fl">
-              Day booked
-              <DateField className="wb2-fi" aria-label="Day" value={day || null} onChange={(iso) => setDay(iso ?? "")} />
-            </label>
-            <button className="pbtn" disabled={busy || !label.trim() || !around} onClick={add}>
-              Add the trip
+function DocumentsCard({
+  project,
+  today,
+  busy,
+  run,
+  onRefresh,
+}: {
+  project: ProjectDetail;
+  today: string;
+  busy: boolean;
+  run: RunAction;
+  onRefresh: () => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  const upload = async (file: File) => {
+    setUploading(true);
+    setUploadErr(null);
+    await withCleanup(async () => {
+      const up = await uploadFile(file, "project_file");
+      if (!up.ok) {
+        setUploadErr(up.error);
+        return;
+      }
+      const attached = await attachDocumentToProject(up.file.documentId, project.id);
+      if (!attached.ok) setUploadErr(attached.error);
+      onRefresh();
+    }, () => setUploading(false));
+  };
+
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name="folder" size={19} />
+        </span>
+        <div>
+          <b>Documents &amp; photos</b>
+          <em>Before-cover-up shots, the sparky&apos;s CoC, anything worth keeping with the job.</em>
+        </div>
+        <label className="pbtn ghost" style={{ marginLeft: "auto", cursor: "pointer" }}>
+          <Icon name="upload" size={15} />
+          {uploading ? "Uploading…" : "Upload"}
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            style={{ display: "none" }}
+            disabled={uploading}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void upload(f);
+            }}
+          />
+        </label>
+      </div>
+      {uploadErr && <p className="int-note bad">{uploadErr}</p>}
+      {project.documents.length === 0 ? (
+        <p className="int-hint">
+          Nothing here yet — a photo before the ceiling closes is the one you&apos;ll want later.
+        </p>
+      ) : (
+        project.documents.map((d) => (
+          <div className="wb-row" key={d.id}>
+            <span className="wb-chip">
+              {d.mimeType.startsWith("image/") ? "photo" : "file"}
+            </span>
+            <span className="wb-who">
+              <b>{d.fileName}</b>
+              <em>
+                {" "}
+                · {fmtBytes(d.sizeBytes)} · {agoLabel(d.uploadedAt.slice(0, 10), today)}
+              </em>
+            </span>
+            {d.url && (
+              <a className="pbtn ghost" href={d.url} target="_blank" rel="noreferrer">
+                Open
+              </a>
+            )}
+            <button
+              className="fl-x"
+              aria-label={`Remove ${d.fileName}`}
+              disabled={busy || uploading}
+              onClick={() => run(() => deleteDocument(d.id))}
+            >
+              <Icon name="x" size={13} />
             </button>
           </div>
-        )}
+        ))
+      )}
+    </div>
+  );
+}
 
-        {openTrips.length === 0 && done.length === 0 && !adding && (
-          <p className="int-hint">
-            No trips yet{manage && live ? " — add the first and its bring list starts there." : "."}
-          </p>
-        )}
+/* ── the two journals — one table behind them, told apart by kind ── */
 
-        {openTrips.map((t) => {
-          const missing = projectMissingOf(t);
-          const placed = projectPlacedDayOf(t);
-          const rel = untilLabel(t.dueDate, today);
-          return (
+function JournalCard({
+  project,
+  entries,
+  busy,
+  run,
+  kind,
+  icon,
+  title,
+  sub,
+  placeholder,
+  headerExtra,
+}: {
+  project: ProjectDetail;
+  entries: ProjectEntry[];
+  busy: boolean;
+  run: RunAction;
+  kind: "progress" | "commissioning";
+  icon: string;
+  title: string;
+  sub: string;
+  placeholder: string;
+  headerExtra?: React.ReactNode;
+}) {
+  const [text, setText] = useState("");
+  const rows = entries.filter((e) => e.kind === kind);
+
+  const addEntry = () => {
+    const body = text.trim();
+    if (!body) return;
+    setText("");
+    run(() => addProjectEntry(project.id, kind, body));
+  };
+
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name={icon} size={19} />
+        </span>
+        <div>
+          <b>{title}</b>
+          <em>{sub}</em>
+        </div>
+        {headerExtra}
+      </div>
+      {rows.map((e) => (
+        <div className="wb-row" key={e.id}>
+          <span className="wb-time">{fmtAuWeekdayDayMonth(e.entryDate)}</span>
+          <span className="wb-who">{e.body}</span>
+        </div>
+      ))}
+      {rows.length === 0 && <p className="int-hint">Nothing recorded yet.</p>}
+      <div className="wb2-dayrow">
+        <input
+          className="wb2-fi"
+          placeholder={placeholder}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") addEntry();
+          }}
+        />
+        <button className="pbtn ghost" disabled={busy || !text.trim()} onClick={addEntry}>
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TripsCard({
+  project,
+  trips,
+  openTrips,
+  today,
+  manage,
+  live,
+  busy,
+  run,
+  onOpenTrip,
+}: {
+  project: ProjectDetail;
+  trips: ProjectBoardVisit[];
+  openTrips: ProjectBoardVisit[];
+  today: string;
+  manage: boolean;
+  live: boolean;
+  busy: boolean;
+  run: RunAction;
+  onOpenTrip: (visitId: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [label, setLabel] = useState("");
+  const [around, setAround] = useState("");
+  const [day, setDay] = useState("");
+
+  const add = () => {
+    const name = label.trim();
+    if (!name || !around) return;
+    setAdding(false);
+    setLabel("");
+    setAround("");
+    setDay("");
+    run(() => createProjectVisit(project.id, { label: name, dueDate: around, bookedDate: day || null }));
+  };
+
+  const done = trips
+    .filter((t) => t.status === "done" || t.status === "skipped")
+    .sort(mostRecentlyCompleted);
+
+  return (
+    <div className="card2">
+      <div className="c2h">
+        <span className="ci">
+          <Icon name="calendar" size={19} />
+        </span>
+        <div>
+          <b>Trips to site</b>
+          <em>Each trip carries its own gates, crew and bring list — close it out as it runs.</em>
+        </div>
+        {manage && live && (
+          <button
+            className="pbtn ghost"
+            style={{ marginLeft: "auto" }}
+            onClick={() => setAdding((v) => !v)}
+          >
+            <Icon name="plus" size={15} />
+            Add a trip
+          </button>
+        )}
+      </div>
+
+      {adding && (
+        <div className="wb2-triprow add">
+          <input
+            className="wb2-fi"
+            autoFocus
+            placeholder="What's the trip for — “Rough-in day 1”"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") add();
+            }}
+          />
+          <label className="wb2-fl">
+            Around
+            <DateField className="wb2-fi" aria-label="Roughly when" clearable value={around || null} onChange={(iso) => setAround(iso ?? "")} />
+          </label>
+          <label className="wb2-fl">
+            Day booked
+            <DateField className="wb2-fi" aria-label="Day" value={day || null} onChange={(iso) => setDay(iso ?? "")} />
+          </label>
+          <button className="pbtn" disabled={busy || !label.trim() || !around} onClick={add}>
+            Add the trip
+          </button>
+        </div>
+      )}
+
+      {openTrips.length === 0 && done.length === 0 && !adding && (
+        <p className="int-hint">
+          No trips yet{manage && live ? " — add the first and its bring list starts there." : "."}
+        </p>
+      )}
+
+      {openTrips.map((t) => {
+        const missing = projectMissingOf(t);
+        const placed = projectPlacedDayOf(t);
+        const rel = untilLabel(t.dueDate, today);
+        return (
+          <div
+            key={t.id}
+            className="wb2-triprow can-open"
+            role="button"
+            tabIndex={0}
+            aria-label={`Open ${t.label}`}
+            data-sev={t.dueDate < today ? "over" : missing.length && rel.tone ? "soon" : undefined}
+            onClick={() => onOpenTrip(t.id)}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                e.preventDefault();
+                onOpenTrip(t.id);
+              }
+            }}
+          >
+            <div className="wb2-trt">
+              <b>{t.label}</b>
+              <em>
+                around {fmtAuWeekdayDayMonth(t.dueDate)}
+                {t.jobNumber ? ` · #${t.jobNumber}` : ""}
+                {t.bringList.length
+                  ? ` · bring ${t.bringList.filter((i) => i.packed).length}/${t.bringList.length}`
+                  : ""}
+              </em>
+            </div>
+            <div className="wb2-trd">
+              {placed ? (
+                <>
+                  <b>{fmtAuWeekdayDayMonth(placed)}</b>
+                  <em>{t.techs.length ? t.techs.map((x) => x.name).join(", ") : "nobody assigned yet"}</em>
+                </>
+              ) : (
+                <span className={"wb2-chip " + (t.dueDate < today ? "dan" : "warn")}>
+                  {t.dueDate < today ? rel.t : "Not placed"}
+                </span>
+              )}
+            </div>
+            <div className="wb2-trck">
+              {missing.length === 0 ? (
+                <span className="wb2-ckall">
+                  <Icon name="check" size={13} />
+                  Ready
+                </span>
+              ) : (
+                (["equipment", "access", "crew"] as const).map((g) => {
+                  const on = !missing.includes(g);
+                  return (
+                    <span
+                      key={g}
+                      className={"wb2-ckq" + (on ? " on" : "")}
+                      style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
+                      title={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
+                    >
+                      {on ? <Icon name="check" size={12} /> : <i />}
+                    </span>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {done.length > 0 && (
+        <>
+          <div className="wb2-wkhd">
+            Ran <em>{done.length}</em>
+          </div>
+          {done.map((t) => (
             <div
               key={t.id}
-              className="wb2-triprow can-open"
+              className="wb2-triprow can-open donerow"
               role="button"
               tabIndex={0}
               aria-label={`Open ${t.label}`}
-              data-sev={t.dueDate < today ? "over" : missing.length && rel.tone ? "soon" : undefined}
-              onClick={() => setTripSheet({ visitId: t.id, closeOut: false })}
+              onClick={() => onOpenTrip(t.id)}
               onKeyDown={(e) => {
                 if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
                   e.preventDefault();
-                  setTripSheet({ visitId: t.id, closeOut: false });
+                  onOpenTrip(t.id);
                 }
               }}
             >
               <div className="wb2-trt">
                 <b>{t.label}</b>
-                <em>
-                  around {fmtAuWeekdayDayMonth(t.dueDate)}
-                  {t.jobNumber ? ` · #${t.jobNumber}` : ""}
-                  {t.bringList.length
-                    ? ` · bring ${t.bringList.filter((i) => i.packed).length}/${t.bringList.length}`
-                    : ""}
-                </em>
+                <em>{t.completionNote || "no close-out note"}</em>
               </div>
               <div className="wb2-trd">
-                {placed ? (
-                  <>
-                    <b>{fmtAuWeekdayDayMonth(placed)}</b>
-                    <em>{t.techs.length ? t.techs.map((x) => x.name).join(", ") : "nobody assigned yet"}</em>
-                  </>
-                ) : (
-                  <span className={"wb2-chip " + (t.dueDate < today ? "dan" : "warn")}>
-                    {t.dueDate < today ? rel.t : "Not placed"}
-                  </span>
-                )}
+                <b>{t.completedAt ? fmtAuWeekdayDayMonth(t.completedAt) : "—"}</b>
+                <em>
+                  {t.status === "skipped"
+                    ? "skipped"
+                    : t.completedAt
+                      ? `ran ${agoLabel(t.completedAt, today)}`
+                      : ""}
+                </em>
               </div>
               <div className="wb2-trck">
-                {missing.length === 0 ? (
-                  <span className="wb2-ckall">
-                    <Icon name="check" size={13} />
-                    Ready
-                  </span>
-                ) : (
-                  (["equipment", "access", "crew"] as const).map((g) => {
-                    const on = !missing.includes(g);
-                    return (
-                      <span
-                        key={g}
-                        className={"wb2-ckq" + (on ? " on" : "")}
-                        style={{ "--as": `var(--wb2-${g === "equipment" ? "eq" : g === "access" ? "acc" : "crew"})` } as CSSProperties}
-                        title={`${GATE_LABEL[g]} — ${on ? "confirmed" : "not yet"}`}
-                      >
-                        {on ? <Icon name="check" size={12} /> : <i />}
-                      </span>
-                    );
-                  })
-                )}
+                <span className={"wb2-chip" + (t.status === "done" ? " ok" : "")}>
+                  {t.status === "done"
+                    ? t.actualHours !== null
+                      ? `${t.actualHours} h on site`
+                      : "Done"
+                    : "Skipped"}
+                </span>
               </div>
             </div>
-          );
-        })}
+          ))}
+        </>
+      )}
 
-        {done.length > 0 && (
-          <>
-            <div className="wb2-wkhd">
-              Ran <em>{done.length}</em>
-            </div>
-            {done.map((t) => (
-              <div
-                key={t.id}
-                className="wb2-triprow can-open donerow"
-                role="button"
-                tabIndex={0}
-                aria-label={`Open ${t.label}`}
-                onClick={() => setTripSheet({ visitId: t.id, closeOut: false })}
-                onKeyDown={(e) => {
-                  if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
-                    e.preventDefault();
-                    setTripSheet({ visitId: t.id, closeOut: false });
-                  }
-                }}
-              >
-                <div className="wb2-trt">
-                  <b>{t.label}</b>
-                  <em>{t.completionNote || "no close-out note"}</em>
-                </div>
-                <div className="wb2-trd">
-                  <b>{t.completedAt ? fmtAuWeekdayDayMonth(t.completedAt) : "—"}</b>
-                  <em>
-                    {t.status === "skipped"
-                      ? "skipped"
-                      : t.completedAt
-                        ? `ran ${agoLabel(t.completedAt, today)}`
-                        : ""}
-                  </em>
-                </div>
-                <div className="wb2-trck">
-                  <span className={"wb2-chip" + (t.status === "done" ? " ok" : "")}>
-                    {t.status === "done"
-                      ? t.actualHours !== null
-                        ? `${t.actualHours} h on site`
-                        : "Done"
-                      : "Skipped"}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {project.hoursBudget !== null && (
-          <p className="int-hint" style={{ marginTop: 8 }}>
-            {project.hoursLogged} of {project.hoursBudget} h used
-            {project.hoursLogged > project.hoursBudget ? " — over the labour budget." : "."}
-          </p>
-        )}
-      </div>
-    );
-  }
+      {project.hoursBudget !== null && (
+        <p className="int-hint" style={{ marginTop: 8 }}>
+          {project.hoursLogged} of {project.hoursBudget} h used
+          {project.hoursLogged > project.hoursBudget ? " — over the labour budget." : "."}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /** '2026-07-29 07:30:00' → '7:30am Wed 29/7' — string maths on the mirror's

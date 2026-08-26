@@ -87,7 +87,12 @@ const reminder = (n: number, over: Partial<DueReminder> = {}): DueReminder => ({
   taskId: `t${n}`,
   title: `Check with Luke about quote ${n}`,
   detail: null,
-  remindAt: "2026-08-24T20:30:00.000Z",
+  /* RELATIVE, NOT A LITERAL. This was a fixed timestamp, and the row's own
+     copy is relative ("just now" / "20m ago" / "yesterday") — so the day the
+     clock passed it the suite started asserting /now|ago/ against
+     "yesterday" and every push in the repo was blocked. Half an hour ago is
+     the case the assertion is actually about. */
+  remindAt: new Date(Date.now() - 30 * 60_000).toISOString(),
   ...over,
 });
 

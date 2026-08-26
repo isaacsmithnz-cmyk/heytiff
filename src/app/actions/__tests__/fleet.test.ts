@@ -101,6 +101,13 @@ describe("register actions need assets_all", () => {
 });
 
 describe("logging is intrinsic", () => {
+  /* THE CLOCK IS PINNED, because two assertions below name the day a service
+     anchors to. Written as the literal date they were authored on, they
+     passed for one day and then blocked every push in the repo. Noon in the
+     yard, so the AU calendar day is unambiguous either side of UTC. */
+  beforeAll(() => jest.useFakeTimers({ now: new Date("2026-08-25T02:00:00.000Z") }));
+  afterAll(() => jest.useRealTimers());
+
   it("a pool fuel log succeeds WITHOUT assets_all — the whole point of the picker", async () => {
     caps = new Set(); // no fleet capability at all
     const res = await addLog({ vehicleId: "v-1", kind: "fuel", litres: 62.4, cost: 158.4, odo: 84800 });

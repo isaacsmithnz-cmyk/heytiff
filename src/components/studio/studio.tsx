@@ -436,6 +436,20 @@ export function Studio({
   /* nothing to say about the URL until an arrival has settled — see the sync
      effect below, which must not clear the very id it is being asked to open */
   const [arrived, setArrived] = useState(!openDesignId);
+  /* ── MID-ARRIVAL: the reload's blank beat ──
+     `doc` is null until the named design has loaded, and the screen below
+     renders `doc ? Editor : Home` — so an arrival used to paint the INDEX
+     first, list of designs and all, and drop the editor over it a moment
+     later. On a reload that reads as "it lost my design", which is exactly
+     how it was reported; the deep link was working the whole time and the
+     flash was the entire bug (Isaac, 2026-08-26).
+
+     Held blank rather than given a skeleton of its own: the store is
+     local-first, so on the reload this exists for the beat is short, and the
+     editor fading up out of nothing is the same motion as opening a design
+     from the index. A failed id is NOT an arrival any more — `arrived` turns
+     true either way — so Home still gets to say the link was dead. */
+  const arriving = Boolean(openDesignId) && !arrived;
   const openedOnce = useRef(false);
   useEffect(() => {
     if (!openDesignId || openedOnce.current) return;
@@ -682,7 +696,7 @@ export function Studio({
             packLoader={packLoader}
             loadVariant={(id) => getStore().load(id)}
           />
-        ) : (
+        ) : arriving ? null : (
           <Home
             recents={recents}
             autoNew={homeAutoNew}

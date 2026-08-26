@@ -5118,6 +5118,23 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: #9a9a9a;
 }
+/* the outdoor line, quieter than the head it pairs with */
+.ds-ub-rcodu {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #5c6068;
+}
+.ds-ub-rcodu i {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+}
 .ds-ub-rcard.has .ds-ub-rcslot {
   border-style: solid;
   border-color: #e0e0de;

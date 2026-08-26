@@ -104,22 +104,23 @@ export function nextMove(
 }
 
 /* ── the Units verb on the toolbar ──────────────────────────────────────
-   One button, whose press means "work on the units": with nothing chosen it
-   opens the browser on the lens room; with a pair chosen it arms whichever
-   unit is still off the plan; with both placed it opens the browser again —
-   the same press is now a swap. Module-gated exactly like the chip. */
+   ONE meaning: open the units modal. It used to arm the next unplaced unit
+   when a pair was already chosen, which put PLACING in two places — the bar
+   and the Items-to-place tray — and, worse, made the browser unreachable
+   between choosing a pair and getting both units down: the press armed, a
+   second press disarmed, and nothing reached the modal. Placement is the
+   tray's alone now (Isaac, 2026-08-25); this button is how you look at units
+   and change them, at any point. */
 
 export type UnitsVerb =
   /* pressable, but not yet — the reason is worn in place */
   | { kind: "off"; reason: string }
   /* open the unit browser ranked against (and attributing to) this room */
-  | { kind: "browse"; roomId: string }
-  /* arm the next unplaced unit on the cursor */
-  | { kind: "arm"; placing: NextPlacing };
+  | { kind: "browse"; roomId: string };
 
 export function unitsVerb(
   doc: DesignDocument,
-  pack: DataPack | null,
+  _pack: DataPack | null,
   systemId: string | null
 ): UnitsVerb | null {
   const sys = doc.systems.find((s) => s.id === systemId);
@@ -131,35 +132,13 @@ export function unitsVerb(
   if (rooms.length === 0) return { kind: "off", reason: "draw a room first" };
   const lens = lensRoom(doc, systemId)!;
 
-  const iduModel = String(sys.settings.pairIdu ?? "");
-  const oduModel = String(sys.settings.pairOdu ?? "");
-  if (!iduModel || !oduModel) return { kind: "browse", roomId: lens.id };
-
-  const units = doc.objects.filter((o) => o.systemId === systemId && o.type === "unit");
-  const idu = units.find((o) => o.props.role === "idu") ?? null;
-  const odu = units.find((o) => o.props.role === "odu") ?? null;
-
-  if (!idu) {
-    const spec = pack?.indoor_units.find((u) => u.model === iduModel);
-    if (!spec) return { kind: "off", reason: "catalogue still loading" };
-    return {
-      kind: "arm",
-      placing: { role: "idu", model: iduModel, widthMm: spec.width_mm, depthMm: spec.depth_mm },
-    };
-  }
-  if (!odu) {
-    const spec = pack?.outdoor_units.find((u) => u.model === oduModel);
-    if (!spec) return { kind: "off", reason: "catalogue still loading" };
-    return {
-      kind: "arm",
-      placing: { role: "odu", model: oduModel, widthMm: spec.width_mm ?? 800, depthMm: spec.depth_mm ?? 300 },
-    };
-  }
-
-  /* both on the plan — the press becomes a swap, ranked against the room the
-     placed indoor unit actually serves (repair follows the unit, not the
-     original choice) */
-  const servedId = String(idu.props.roomId ?? "");
+  /* ranked against the room the PLACED indoor unit actually serves, so a
+     repair follows the unit rather than the original choice; the lens room
+     until there is one */
+  const placedIdu = doc.objects.find(
+    (o) => o.systemId === systemId && o.type === "unit" && o.props.role === "idu"
+  );
+  const servedId = String(placedIdu?.props.roomId ?? "");
   return {
     kind: "browse",
     roomId: rooms.some((r) => r.id === servedId) ? servedId : lens.id,

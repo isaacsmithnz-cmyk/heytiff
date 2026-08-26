@@ -167,25 +167,27 @@ describe("unitsVerb — the Units button's meaning", () => {
     expect(unitsVerb(d, pack(), "sys1")).toEqual({ kind: "browse", roomId: "r2" });
   });
 
-  it("arms the indoor unit first, with the pack's dimensions", () => {
+  /* It used to ARM the next unplaced unit here, which put placing in two
+     places and — worse — made the browser UNREACHABLE between choosing a pair
+     and getting both units down: the press armed, a second press disarmed, and
+     nothing reached the modal. Placement is the Items-to-place tray's alone
+     now (Isaac, 2026-08-25). */
+  it("still browses with a pair chosen and nothing placed", () => {
     expect(unitsVerb(doc([room("r1", "Bedroom")], PAIR), pack(), "sys1")).toEqual({
-      kind: "arm",
-      placing: { role: "idu", model: "IDU-25", widthMm: 798, depthMm: 219 },
+      kind: "browse",
+      roomId: "r1",
     });
   });
 
-  it("is off — never a dead arm — while the pack is still loading", () => {
-    expect(unitsVerb(doc([room("r1", "Bedroom")], PAIR), null, "sys1")).toEqual({
-      kind: "off",
-      reason: "catalogue still loading",
-    });
-  });
-
-  it("arms the outdoor unit once the indoor is down", () => {
+  it("still browses mid-placement, with one unit down", () => {
     const d = doc([room("r1", "Bedroom"), unit("u1", "idu", "IDU-25")], PAIR);
-    expect(unitsVerb(d, pack(), "sys1")).toEqual({
-      kind: "arm",
-      placing: { role: "odu", model: "ODU-25", widthMm: 800, depthMm: 285 },
+    expect(unitsVerb(d, pack(), "sys1")).toEqual({ kind: "browse", roomId: "r1" });
+  });
+
+  it("needs no pack — it opens a modal, it does not size a ghost", () => {
+    expect(unitsVerb(doc([room("r1", "Bedroom")], PAIR), null, "sys1")).toEqual({
+      kind: "browse",
+      roomId: "r1",
     });
   });
 

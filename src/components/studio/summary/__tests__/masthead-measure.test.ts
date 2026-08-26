@@ -77,3 +77,55 @@ describe("the identity column and the mark that fills it", () => {
     }
   });
 });
+
+/* AND THE LINES UNDER THE MARK HANG OFF THE SAME MARGIN.
+
+   The identity block ranges right so its contact lines finish where the mark
+   finishes — the sheet's own right edge. Two rules narrow that, and the order
+   between them is the whole trap:
+
+     @container (max-width: 767px)  ranges it LEFT — stacked, there is no
+                                    opposite column to hang off
+     @media print                   ranges it RIGHT again
+
+   A4 is ~703px, which is UNDER 767, so PAPER MATCHES THE PHONE unless print
+   restates it — and `@media print` adds no specificity, so it only wins by
+   coming later in the file. Reorder the two blocks and every printed sheet
+   quietly goes back to a ragged right edge, which is the one copy nobody
+   re-reads. Read off the stylesheet: jsdom neither cascades nor paginates. */
+describe("the identity block hangs off the right margin", () => {
+  const at = (re: RegExp): number => {
+    const i = css.search(re);
+    expect(i).toBeGreaterThan(-1);
+    return i;
+  };
+  const block = (re: RegExp): string => css.slice(at(re)).match(/\{[\s\S]*?\n\}/)![0];
+
+  it("ranges right on a wide sheet", () => {
+    expect(css.match(/\.dsd-idc\s*\{[^}]*\}/)![0]).toMatch(/text-align:\s*right/);
+  });
+
+  it("ranges left once the masthead stacks, with the rest of the column", () => {
+    expect(block(/@container \(max-width: 767px\)/)).toMatch(
+      /\.dsd-idc\s*\{\s*text-align:\s*left/
+    );
+  });
+
+  it("print restates right, AFTER the stacked block — its only way of winning", () => {
+    const stacked = at(/@container \(max-width: 767px\)/);
+    const print = at(/@media print/);
+    expect(print).toBeGreaterThan(stacked);
+    expect(css.slice(print)).toMatch(/\.dsd-idc\s*\{\s*text-align:\s*right/);
+  });
+
+  it("the initials badge goes with the lines, not against them", () => {
+    /* the one child that does not fill the column: left-parked it would be
+       the only thing in the block off the margin */
+    expect(css.match(/\.dsd-idlogo\.org-initials\s*\{[^}]*\}/)![0]).toMatch(
+      /align-self:\s*flex-end/
+    );
+    expect(block(/@container \(max-width: 767px\)/)).toMatch(
+      /\.dsd-idlogo\.org-initials\s*\{\s*align-self:\s*flex-start/
+    );
+  });
+});

@@ -6040,15 +6040,71 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    prefix is what opts these out (see the carve-out at the top of this file).
    A block rendered transparent in the first prototype is how we know. */
 
-/* ── the week stepper, mid-header ──
-   The window's name between its own arrows, in line with the Day/Capacity
-   switcher. The day-name on the left is a FACT and carries no controls: the
-   old layout hung the ±week arrows off it, which read as "next day" and
-   stepped seven — the two grains live apart now (week here, day on the
-   strip). Both margins are auto so the stepper takes the middle of whatever
-   the chips leave. */
-.wb2-schweek { display:flex; align-items:center; gap:8px; margin-left:auto; flex:none; }
-.wb2-schweek b { font-size:13px; font-weight:800; letter-spacing:-.01em; min-width:74px; text-align:center; }
+/* ── the diary header: three stations, and NOTHING IN IT MOVES ──
+   Worn by BOTH faces — the day board and the capacity window — because they
+   are one header changing its contents, and a control that jumps as the
+   contents change is a control you have to find again every time.
+
+   A grid, not a flex row. As flex items with auto margins the free space was
+   shared out at render time, so every station slid with everything around it:
+   the weekday name is wider on a Wednesday than a Monday, the Today pill
+   comes and goes, and the summary chips disappear completely on a day with
+   nothing booked — which threw the stepper and the switcher hard against the
+   right-hand edge exactly while you were clicking through empty weeks. Three
+   columns can't do that, and minmax(0,1fr) on the flanks keeps the middle one
+   centred on the CARD while letting the chips wrap rather than push. */
+.wb2-schhd { display:grid; grid-template-columns:minmax(min-content,1fr) auto minmax(min-content,1fr);
+  container-type:inline-size; }
+.wb2-schhla { display:flex; align-items:center; gap:13px; min-width:0; }
+.wb2-schhrr { display:flex; align-items:center; justify-content:flex-end; min-width:0; }
+
+/* Nothing sits to the RIGHT of the name inside its station any more, so it
+   takes the width it needs — a name that grows now pushes only air. It still
+   refuses to wrap: two lines would change the header's height as the weekday
+   changed, which is the same crime by another route. */
+.wb2-schhd .wb2-mchead b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* The middle station: a RESERVED SLOT, the stepper, and the same slot again
+   mirrored. The reset pill (Today, or This week on the capacity face) lives
+   in the left slot and comes and goes inside it, so it never shifts an arrow;
+   the empty slot on the right is what keeps the stepper itself on the card's
+   true centre rather than pushed half a pill off it.
+
+   The pill was briefly taken out of flow instead, which locks the arrows just
+   as well and costs no width — but out of flow it has nothing to stop it, and
+   at a laptop's card width it slid straight over the Day/Capacity switcher.
+   Dead space that reserves a place is the cheaper mistake. */
+.wb2-schmid { display:grid; grid-template-columns:92px auto 92px; align-items:center; }
+.wb2-schmid > .wb2-mcnow { grid-column:1; justify-self:end; margin-right:11px; white-space:nowrap; }
+.wb2-schmid > .wb2-schweek { grid-column:2; }
+
+/* ── the stepper itself ──
+   The window's name between its own arrows. The day-name on the left is a
+   FACT and carries no controls: the old layout hung the ±week arrows off it,
+   which read as "next day" and stepped seven — the two grains live apart now
+   (week here, day on the strip).
+
+   THE ARROWS ARE PINNED, NOT PACKED. The stepper holds one width and
+   space-between parks a chevron at each end, so "This week", "Week of 7 Sept"
+   and "23 Sept – 29 Sept" leave the two buttons in exactly the same place. A
+   stepper whose own buttons walk away as you step it is one you have to aim
+   at again on every click, which is what made clicking through weeks feel
+   like chasing it. The label is centred in what is left and is never allowed
+   to wrap. */
+.wb2-schweek { display:flex; align-items:center; justify-content:space-between; gap:8px;
+  width:216px; flex:none; margin-left:0; }
+.wb2-schweek b { flex:1 1 auto; min-width:0; font-size:13px; font-weight:800; letter-spacing:-.01em;
+  text-align:center; white-space:nowrap; }
+
+/* ── the narrow step ──
+   Reserved widths are what makes this header immovable, and on a small card
+   they are also what oversubscribes it — name + slot + stepper + slot + chips
+   against a width nobody promised. The stepper gives back the air it holds
+   for the longest label first. THE HEADER is what's asked, not the viewport,
+   because the nav rail's width is none of this card's business. */
+@container (max-width:900px) {
+  .wb2-schhd .wb2-schweek { width:186px; }
+}
 
 /* the seven-day strip — the timesheet strip's day-pill technique. Its
    flanking arrows SLIDE the window one day at a time; the cards still pick. */
@@ -6444,18 +6500,6 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    rail's do: the `.fg button` reset is (0,1,1) and silently strips the
    background off any single-class button. */
 
-/* the Day/Capacity switcher — segmented, in the header beside the date
-   controls. A tinted well with a white raised thumb, the schday's "on"
-   treatment at header scale. */
-.wb2-schview { display:flex; gap:3px; padding:3px; border-radius:12px; background:rgba(5,5,5,.05);
-  margin-left:14px; flex:none; }
-.wb2-schvb { padding:6px 13px; border-radius:9px; font-size:12px; font-weight:800; color:var(--gray500);
-  cursor:pointer; transition:background .18s, color .18s; }
-.wb2-schvb:hover:not(.on) { color:var(--ink); }
-.wb2-schvb.on { background:#fff; color:var(--ink);
-  box-shadow:0 2px 6px -2px rgba(10,12,20,.25), inset 0 0 0 1px var(--wb2-line); }
-.wb2-schvb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
-
 /* the crew button rides the header's chip cluster — mcnow's shape, plus the
    icon, because it opens the list every number on the month divides by */
 .wb2-scmcrew { display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 12px;
@@ -6631,8 +6675,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 @media (max-width:920px){
   .wb2-scmc { min-height:66px; }
   .wb2-scmp { font-size:25px; }
-  .wb2-schview { margin-left:8px; }
-  .wb2-schvb { padding:5px 9px; }
 }
 @media (prefers-reduced-motion:reduce){
   button.wb2-scmc:hover { transform:none; }

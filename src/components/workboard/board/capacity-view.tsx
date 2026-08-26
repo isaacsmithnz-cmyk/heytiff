@@ -33,6 +33,8 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { capacityCellPaint } from "@/lib/workboard/capacity-paint";
 import { WbModal } from "../wb-modal";
 import { ScheduleFocus } from "./schedule-focus";
+import { Sm8Gap, sm8Gap } from "./sm8-gap";
+import { useNowMin } from "./use-now-min";
 import type { ScheduleJobState } from "./schedule-tab";
 
 /* Capacity — the Schedule tab's other side: how full each day is, one gauge
@@ -80,24 +82,24 @@ type Props = {
   today: string;
   manage: boolean;
   /** Any day in the window on show (its Monday is derived here) — owned by
-      the tab so the choice survives a flip to Day and back. */
+      the BOARD so the choice survives a move to another tab and back. */
   anchor: string;
   onAnchor: (iso: string) => void;
+  /** Connected to ServiceM8 at all, and whether the first backfill is still
+      walking. Capacity is its own tab now, so it explains its own gap — it
+      used to sit behind the rail's check and could never be reached without
+      a mirror. */
+  connected: boolean;
+  syncing: boolean;
   /** Window-start → payload, owned by the tab for the same reason. */
   capCache: { current: Map<string, CapacityPayload> };
   /** THE RAIL'S OWN day cache, shared on purpose: a day opened here is warm
       when the rail visits it, and the panel obeys the same law as the lanes
       because it is literally the same read. */
   dayCache: { current: Map<string, SchedulePayload> };
-  /** The Day/Capacity switcher, built by the tab — it lives in both headers
-      so the header reads as one thing changing its contents. */
-  switcher: React.ReactNode;
   /** ServiceM8 job uuid → the board that owns it. Ownership recolours, here
       exactly as it does on the rail. */
   tracked: Map<string, ScheduleTracked>;
-  /** The browser's clock in minutes, or null when it cannot be trusted — the
-      tab owns the reading, and a day card claims lateness only from it. */
-  nowMin: number | null;
   /** The sheet, opened from a job brought forward — the rail's own door. */
   onOpenJob: (job: AllJobsMirrorJob, state?: ScheduleJobState | null) => void;
 };
@@ -107,13 +109,16 @@ export function CapacityView({
   manage,
   anchor,
   onAnchor,
+  connected,
+  syncing,
   capCache,
   dayCache,
-  switcher,
   tracked,
-  nowMin,
   onOpenJob,
 }: Props) {
+  /* The same minute the rail's now-line is drawn from, from the one hook that
+     owns the rule — a day card claims lateness only from it. */
+  const nowMin = useNowMin(today);
   /* The window starts on a Monday, always — the anchor is any day in it. */
   const start = mondayOf(anchor);
   const [cap, setCap] = useState<CapacityPayload | null>(
@@ -145,7 +150,10 @@ export function CapacityView({
      async callback is where the result lands (the rail's mount effect,
      repeated). */
   const openFirstWindow = useEffectEvent(() => {
-    if (!capCache.current.get(start)) load(start);
+    /* Mid-backfill the read is WRONG to show, not merely wasted: a window
+       scored off half a walk reads as a quiet month rather than an unfinished
+       one. The gap below says so instead — the rail's own rule. */
+    if (!capCache.current.get(start) && connected && !syncing) load(start);
   });
   useEffect(() => {
     openFirstWindow();
@@ -336,16 +344,36 @@ export function CapacityView({
   const rangeLabel = `${fmtAuDayMonth(start)} – ${fmtAuDayMonth(
     plusDays(start, CAPACITY_WINDOW_DAYS - 1)
   )}`;
-  const windowWord = anchored ? "Next four weeks" : "These four weeks";
+  /* The left station names the WINDOW'S GRAIN, and only that. It used to
+     carry "Next four weeks" / "These four weeks" inside the chip, which is
+     seventeen characters of reserved width in a header whose whole point is
+     that its reserved widths never move — and the stepper beside it already
+     says which four weeks these are, down to the day. */
+  const windowWord = "Four weeks";
 
-  return (
+  const head = (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci blue">
-          <Icon name="calendar" size={19} />
-        </span>
-        <div>
+      {/* THE SAME THREE STATIONS AS THE DAY BOARD, to the pixel — the window
+          name on the left, the stepper locked in the middle with its reset
+          pill in the slot beside it, the chips on the right. Two tabs, one
+          header: the arrows you click through weeks with sit in the same
+          place on either, so moving between them moves nothing. */}
+      <div className="wb2-chd wb2-schhd">
+        <div className="wb2-schhla">
+          <span className="wb2-ci blue">
+            <Icon name="calendar" size={19} />
+          </span>
           <div className="wb2-mchead">
+            <b>{windowWord}</b>
+          </div>
+        </div>
+        <div className="wb2-schmid">
+          {!anchored && (
+            <button className="wb2-mcnow" onClick={() => showWindow(mondayOf(today))}>
+              This week
+            </button>
+          )}
+          <div className="wb2-schweek" role="group" aria-label="Window">
             <button
               className="wb2-mcarrow"
               aria-label="The week before"
@@ -361,34 +389,49 @@ export function CapacityView({
             >
               <Icon name="chevR" size={15} />
             </button>
-            {!anchored && (
-              <button className="wb2-mcnow" onClick={() => showWindow(mondayOf(today))}>
-                This week
-              </button>
-            )}
           </div>
         </div>
-        {switcher}
-        <span className="wb2-mcsum">
-          {manage && current && (
-            <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
-              <Icon name="users" size={14} />
-              Crew
-            </button>
-          )}
-          {/* ONE chip, and it says WHAT is 69% full — a bare percentage next
-              to a month name answered a question nobody had asked. The hours
-              behind it live in each cell's title and the day panel. */}
-          {scored && total && (
-            <span className="wb2-chip">
-              {windowWord} · {total.fillPct}% full
-            </span>
-          )}
-          {current && !scored && windowBooked > 0 && (
-            <span className="wb2-chip">{fmtHoursShort(windowBooked)} booked</span>
-          )}
-        </span>
+        <div className="wb2-schhrr">
+          <span className="wb2-mcsum">
+            {manage && current && (
+              <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
+                <Icon name="users" size={14} />
+                Crew
+              </button>
+            )}
+            {/* ONE chip. It used to name the window as well ("Next four weeks
+                · 69% full") because a bare percentage beside a month answered
+                a question nobody had asked — the window's name is the left
+                station's job now, so the chip says only the number and the
+                thing it measures. */}
+            {scored && total && <span className="wb2-chip">{total.fillPct}% full</span>}
+            {current && !scored && windowBooked > 0 && (
+              <span className="wb2-chip">{fmtHoursShort(windowBooked)} booked</span>
+            )}
+          </span>
+        </div>
       </div>
+    </>
+  );
+
+  /* THE GAP IS THIS TAB'S TO EXPLAIN NOW. It used to sit behind the rail's
+     check and could not be reached without a mirror; on a tab of its own it
+     is reachable cold, and four weeks of empty cells is not an answer to "why
+     is there nothing here". The header stays above it, as it does on the
+     rail: the shape of the screen is part of the answer. */
+  const gap = sm8Gap({ connected, syncing });
+  if (gap) {
+    return (
+      <>
+        {head}
+        <Sm8Gap kind={gap} surface="diary" manage={manage} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {head}
 
       {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks…</p>}
 

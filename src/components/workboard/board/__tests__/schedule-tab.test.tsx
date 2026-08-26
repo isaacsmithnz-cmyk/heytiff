@@ -107,6 +107,7 @@ function tab(over: Partial<Parameters<typeof ScheduleTab>[0]> = {}) {
       syncing={false}
       manage
       tracked={new Map()}
+      dayCache={{ current: new Map() }}
       shelfItems={[]}
       waitingCount={0}
       onOpenJob={noop}

@@ -8,6 +8,7 @@
    for someone who can manage the board. Plus the one paint law: the figure's
    ink clears 4.5:1 against whatever ground the gauge actually puts under it. */
 
+import { useState } from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
@@ -25,7 +26,7 @@ jest.mock("@/app/actions/workboard", () => ({
   setScheduleCapacity: (...a: [unknown]) => setScheduleCapacity(...a),
 }));
 
-import { ScheduleTab } from "../schedule-tab";
+import { CapacityView } from "../capacity-view";
 import { capacityCellPaint } from "@/lib/workboard/capacity-paint";
 import { contrastRatio, scheduleBlockPaint } from "@/lib/workboard/schedule-colour";
 
@@ -148,35 +149,46 @@ const capPayload = (over: Partial<CapacityPayload> = {}): CapacityPayload => ({
 
 const noop = () => {};
 
-function tab(over: Partial<Parameters<typeof ScheduleTab>[0]> = {}) {
+/* The caches and the window's anchor belong to the BOARD — Capacity is a tab
+   beside Schedule now, not a face of it, and what the two share is these. The
+   harness owns them exactly as the board does, so a test can seed the day
+   cache the way a visit to the rail would have. */
+let dayCache: { current: Map<string, SchedulePayload> };
+let capCache: { current: Map<string, CapacityPayload> };
+
+type Over = Partial<Parameters<typeof CapacityView>[0]>;
+
+function Harness({ over }: { over: Over }) {
+  const [anchor, setAnchor] = useState(TODAY);
   return (
-    <ScheduleTab
+    <CapacityView
       today={TODAY}
       connected
       syncing={false}
       manage
+      anchor={anchor}
+      onAnchor={setAnchor}
+      capCache={capCache}
+      dayCache={dayCache}
       tracked={new Map()}
-      shelfItems={[]}
-      waitingCount={0}
       onOpenJob={noop}
-      onOpenTracked={noop}
-      onGoWork={noop}
       {...over}
     />
   );
 }
 
-/** Open the tab on its rail, then flip to the window and wait for its DATA —
-    the grid only renders once the payload is in, so it is the honest wait
-    (the header's label is up before anything has loaded). */
-async function openCapacity(over: Partial<Parameters<typeof ScheduleTab>[0]> = {}) {
-  render(tab(over));
-  await screen.findByText("Alex Lorenz");
-  await userEvent.click(screen.getByRole("button", { name: "Capacity" }));
+/** Open the window and wait for its DATA — the grid only renders once the
+    payload is in, so it is the honest wait (the header's label is up before
+    anything has loaded). */
+async function openCapacity(over: Over = {}) {
+  const r = render(<Harness over={over} />);
   await screen.findByRole("group", { name: "How full each day is" });
+  return r;
 }
 
 beforeEach(() => {
+  dayCache = { current: new Map() };
+  capCache = { current: new Map() };
   scheduleDay.mockReset();
   scheduleDay.mockResolvedValue(dayPayload());
   scheduleCapacity.mockReset();
@@ -185,24 +197,50 @@ beforeEach(() => {
   setScheduleCapacity.mockResolvedValue({ ok: true });
 });
 
-it("flips to the four-week window and back without losing either view", async () => {
+it("opens on the current week's Monday and says what it is", async () => {
   await openCapacity();
   // the window is asked for FROM ITS MONDAY — the current week is the top row
   expect(scheduleCapacity).toHaveBeenCalledWith(WINDOW_START);
-  // the Monday's figure is up, and the rail's lane meta is gone
+  // the Monday's figure is up, and the rail's lane meta is nowhere near it
   expect(screen.getByText("25%")).toBeInTheDocument();
   expect(screen.queryByText("2 bookings · 9h")).not.toBeInTheDocument();
-  // ONE chip, and it says what is 7% full — the raw hours line is gone
-  expect(screen.getByText("Next four weeks · 7% full")).toBeInTheDocument();
+  // the header names the window's grain on the left and the stepper says
+  // WHICH four weeks; the chip is left with only the number it measures
+  expect(screen.getByText("Four weeks")).toBeInTheDocument();
+  expect(screen.getByText("10 Aug – 6 Sept")).toBeInTheDocument();
+  expect(screen.getByText("7% full")).toBeInTheDocument();
   expect(screen.queryByText(/\d+h of \d+h/)).not.toBeInTheDocument();
+});
 
-  await userEvent.click(screen.getByRole("button", { name: "Day" }));
-  expect(await screen.findByText("2 bookings · 9h")).toBeInTheDocument();
-  expect(scheduleDay).toHaveBeenCalledTimes(1); // the rail came back from cache
+/* Leaving for another tab UNMOUNTS this — the anchor and both caches live on
+   the board for exactly that reason. Stepping to a window and coming back
+   must not re-read a thing, or every glance at the diary costs a round trip. */
+it("keeps its window and pays nothing to be reopened", async () => {
+  // each window answers for ITSELF here — the payload the view keeps is only
+  // the one whose start matches the window on screen
+  scheduleCapacity.mockImplementation(async (startISO) =>
+    capPayload({ anyDayISO: startISO })
+  );
+  const { unmount } = await openCapacity();
+  await userEvent.click(screen.getByRole("button", { name: "The week after" }));
+  await waitFor(() => expect(scheduleCapacity).toHaveBeenCalledWith("2026-08-17"));
+  expect(scheduleCapacity).toHaveBeenCalledTimes(2);
 
-  await userEvent.click(screen.getByRole("button", { name: "Capacity" }));
+  unmount();
+  render(<Harness over={{ anchor: "2026-08-17", onAnchor: noop }} />);
   await screen.findByRole("group", { name: "How full each day is" });
-  expect(scheduleCapacity).toHaveBeenCalledTimes(1); // and so did the window
+  // the window that was open is still the window, out of the board's cache
+  expect(screen.getByText("17 Aug – 13 Sept")).toBeInTheDocument();
+  expect(scheduleCapacity).toHaveBeenCalledTimes(2);
+});
+
+/* Reachable cold now that it is its own tab: no mirror, no grid, and the
+   reason said in words rather than four weeks of empty cells. */
+it("explains the ServiceM8 gap instead of scoring an account with no mirror", async () => {
+  render(<Harness over={{ connected: false }} />);
+  expect(await screen.findByText("The diary lives in ServiceM8")).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "How full each day is" })).not.toBeInTheDocument();
+  expect(scheduleCapacity).not.toHaveBeenCalled();
 });
 
 it("shows a weekend's cell with NO percentage — the hours live in its title", async () => {
@@ -262,11 +300,13 @@ it("draws the gauge from the day's own fill — the level is the percentage", as
 
 it("opens a day into its jobs, hours and everyone on them — as a card, not a shelf", async () => {
   await openCapacity();
+  // the day is in the board's cache, as it would be after a visit to the rail
+  dayCache.current.set(TODAY, dayPayload());
   const fri = screen.getByRole("button", { name: /Fri 14 Aug/ });
   await userEvent.click(fri);
 
-  // the panel reads through the SAME cache the rail filled on mount
-  expect(scheduleDay).toHaveBeenCalledTimes(1);
+  // the panel reads a day the RAIL had already read — one cache, two tabs
+  expect(scheduleDay).not.toHaveBeenCalled();
   const dayCard = await screen.findByRole("dialog", { name: /Jobs on Fri 14 Aug/ });
   // a card over a scrim is a dialog the keyboard is IN — not a panel in flow
   expect(dayCard).toHaveFocus();

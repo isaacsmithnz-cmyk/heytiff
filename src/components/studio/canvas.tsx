@@ -4284,7 +4284,13 @@ export function StudioCanvas({
         (() => {
           const n = notes.find((x) => x.id === noteEdit.id);
           if (!n) return null;
-          const at = worldToScreen(noteLeader(noteAt(n)), vp);
+          const live = noteAt(n);
+          const at = worldToScreen(noteLeader(live), vp);
+          /* the cloud, in screen px — the card flips around it rather than
+             landing on it. Reading a note means reading what it CIRCLES. */
+          const r = noteRect(live);
+          const c0 = worldToScreen({ x: r.x, y: r.y }, vp);
+          const c1 = worldToScreen({ x: r.x + r.w, y: r.y + r.h }, vp);
           return (
             <div
               className="ds-note-editor"
@@ -4297,6 +4303,12 @@ export function StudioCanvas({
                 box: size,
                 reserveTop: 46,
                 reserveBottom: 40,
+                avoid: {
+                  x0: Math.min(c0.x, c1.x),
+                  y0: Math.min(c0.y, c1.y),
+                  x1: Math.max(c0.x, c1.x),
+                  y1: Math.max(c0.y, c1.y),
+                },
               })}
             >
               <div className="ds-calib-t">Note</div>

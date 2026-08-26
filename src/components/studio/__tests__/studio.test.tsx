@@ -202,10 +202,10 @@ describe("Design Studio shell", () => {
     expect(pill.className).toMatch(/\bon\b/);
   });
 
-  /* The cockpit's two sizes: the FLOW picks. The type chooser needs the full
-     panel; the moment a split exists the room phase belongs to the canvas, so
-     the panel rests as the 46px status tab. Opening it is a PIN (remembered
-     per system type); the foot chevron unpins and lets it rest again. */
+  /* The cockpit's two sizes: the flow picks the OPENING one. The type chooser
+     needs the full panel; the moment a split exists the room phase belongs to
+     the canvas, so the panel rests as the 46px status tab. Either verb pins
+     per system type, and the pin outranks the flow from then on. */
   it("the cockpit rests once a split exists, and the pin overrides both ways", async () => {
     const user = userEvent.setup();
     render(localStudio());
@@ -226,15 +226,39 @@ describe("Design Studio shell", () => {
     await user.click(tab);
     expect(aside().className).not.toContain("rest");
     expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
-      split: true,
+      split: "open",
     });
 
-    // the foot chevron exists exactly because the flow would rest — unpin
+    // and the chevron rests it again — the other half of the same pin
     await user.click(screen.getByRole("button", { name: /Collapse/ }));
     expect(aside().className).toContain("rest");
     expect(JSON.parse(window.localStorage.getItem("ht-ckpin") ?? "{}")).toMatchObject({
-      split: false,
+      split: "rest",
     });
+  });
+
+  /* The Note button opened its ink row and armed NOTHING — the tool only came
+     alive once a swatch was pressed, so the obvious press (the button wearing
+     the tool's name and its current ink) did nothing you could then draw, and
+     parked a menu over the canvas besides. */
+  it("the Note button arms the tool on the press, ink or no ink", async () => {
+    const user = userEvent.setup();
+    render(localStudio());
+    await newDesign(user, "Marking up", "Blank canvas");
+    await screen.findByTestId("studio-canvas");
+    await user.click(screen.getByRole("button", { name: /Split \(1:1\)/ }));
+
+    const note = screen.getByRole("button", { name: "Note" });
+    expect(note.className).not.toMatch(/\bon\b/);
+    await user.click(note);
+    expect(note.className).toMatch(/\bon\b/);
+    // ...and nothing is parked over the canvas it just armed you to draw on
+    expect(screen.queryByRole("menu", { name: "Note colour" })).toBeNull();
+
+    // the ink row belongs to the second press, when there's nothing to arm
+    await user.click(note);
+    expect(screen.getByRole("menu", { name: "Note colour" })).toBeInTheDocument();
+    expect(note.className).toMatch(/\bon\b/);
   });
 
   it("recovers saved designs on a fresh mount (reload survival)", async () => {

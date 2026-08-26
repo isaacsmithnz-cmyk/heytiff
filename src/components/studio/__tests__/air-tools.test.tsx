@@ -4,7 +4,7 @@
    jsdom, so the air-capable-AHU gate stays honestly shut); the palette + HUD
    are driven directly. */
 
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { ComponentPalette, PlenumHud, PALETTE_ENTRIES } from "../air-tools";
@@ -54,12 +54,27 @@ const pt = (x: number, y: number) => ({
 describe("air dock group (studio toolrail)", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("Duct is parked until Step 4; Component gates on a served room first", async () => {
-    await openBlankDesignOnCanvas();
+  /* Duct lives in the Draw flyout now, not on the bench: it is linework like
+     everything else in there, and a permanently disabled BUTTON was holding a
+     whole verb's width on a bar that had started wrapping on a laptop. It is
+     still signposted — a named row that is plainly not ready beats a verb
+     missing from the list with nothing to explain the gap. */
+  it("Duct is parked until Step 4, inside the Draw flyout", async () => {
+    const { user } = await openBlankDesignOnCanvas();
 
-    const duct = screen.getByRole("button", { name: "Duct" });
+    // gone from the bench itself
+    expect(screen.queryByRole("button", { name: "Duct" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Draw" }));
+    const fly = screen.getByRole("menu", { name: "Draw a line" });
+    expect(within(fly).getByText("Duct")).toBeInTheDocument();
+    const duct = within(fly).getByRole("menuitem", { name: /Coming — Step 4/ });
     expect(duct).toBeDisabled();
     expect(duct).toHaveAttribute("title", "Ductwork arrives at Step 4");
+  });
+
+  it("Component gates on a served room first", async () => {
+    await openBlankDesignOnCanvas();
 
     const component = screen.getByRole("button", { name: "Component" });
     expect(component).toBeDisabled();

@@ -62,3 +62,36 @@ describe("note ink swatches win their cascade", () => {
     expect(css.slice(i, i + 260)).toMatch(/padding:\s*0/);
   });
 });
+
+/* The same fight, lost again on the tool bench (2026-08-26).
+
+   `@media` adds NO specificity, so a media block and the plain rule it means
+   to override are (0,2,0) against (0,2,0) and source order alone decides.
+   The bench's narrow-width block sat ABOVE `.ds-tb-sep`'s own margin, so the
+   separator tightening never applied at ANY width — 24px of a bar that had
+   already started wrapping to a second row, spent on three dividers.
+
+   Pinned by POSITION, because that is the whole bug: both orders parse,
+   both validate, and jest renders no CSS. */
+describe("the tool bench's narrow-width tiers win their cascade", () => {
+  const media = (q: string) => at(`@media (max-width: ${q}px) {`);
+
+  it("declares both tiers AFTER the rules they tighten", () => {
+    expect(media("1600")).toBeGreaterThan(at(".ds-tool {"));
+    expect(media("1600")).toBeGreaterThan(at(".ds-tb-sep {"));
+    expect(media("1400")).toBeGreaterThan(at(".ds-tb-sep {"));
+  });
+
+  it("orders the tiers widest-first, so the narrower one wins", () => {
+    expect(media("1400")).toBeGreaterThan(media("1600"));
+  });
+
+  /* the 1400 tier buys its last pixels from the COCKPIT, and it must set the
+     token rather than the width — --ds-syscard-w is derived from it, so the
+     system card and tab switcher follow without a second override */
+  it("narrows the cockpit through its token, not at a use site", () => {
+    const block = css.slice(media("1400"), media("1400") + 420);
+    expect(block).toMatch(/--ds-cockpit-w:\s*\d+px/);
+    expect(block).not.toMatch(/\.ds-sidecol/);
+  });
+});

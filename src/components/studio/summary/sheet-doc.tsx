@@ -51,10 +51,11 @@ import { themeVars } from "@/lib/org/theme";
    screen, live link and paper — in the same place, and the bars that used to
    hold it no longer say the same thing twice.
 
-   The identity block is ranged LEFT inside a column set to the right, which is
-   the rule the addressee block already followed: right-ragged lines read as a
-   caption, and a wordmark logo whose width nobody controls needs a stable edge
-   to start from. */
+   The identity block is ranged RIGHT, hanging off the sheet's own right
+   margin — the mark fills the column and finishes there, and the contact lines
+   under it finish there too. The addressee block opposite still ranges left,
+   because it sits inside the job column with a rule down its left edge and has
+   nothing on its right to hang off. */
 
 function Masthead({
   doc,

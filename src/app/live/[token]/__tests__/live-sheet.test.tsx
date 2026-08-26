@@ -202,11 +202,10 @@ describe("the document", () => {
       expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.getByText("Zone 5")).toBeInTheDocument();
     expect(screen.getByText("Residential")).toBeInTheDocument();
-    /* the basis label reads "Sized on both heating and cooling"; the column
-       already says "Sized on", so only the basis is printed — CAPITALISED,
-       because a lower-case value in a row of capitalised ones reads as a
-       typo */
-    expect(screen.getByText("Both heating and cooling")).toBeInTheDocument();
+    /* the basis label reads "Sized on heat/cool"; the column already says
+       "Sized on", so only the basis is printed — CAPITALISED, because a
+       lower-case value in a row of capitalised ones reads as a typo */
+    expect(screen.getByText("Heat/Cool")).toBeInTheDocument();
   });
 
   it("NAMES THE BRAND, not the slug — the trimmed pack has to carry it", () => {

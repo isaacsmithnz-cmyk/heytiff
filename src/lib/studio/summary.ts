@@ -49,14 +49,18 @@ const BUILDING_LABELS: Record<BuildingType, string> = {
    conservative choice, and the default. What the word "worst" described was
    which of the two ratings we take, not anything about the equipment or the
    design; a customer reading "Sized on worst of both" has no way to know
-   that. Isaac saw it on a printed sheet and it is his wording below.
+   that. Isaac saw it on a printed sheet.
+
+   It was "Both heating and cooling" for one merge (#545) and is "Heat/Cool"
+   now: the long form wrapped to two lines in a column of one-line figures,
+   which is the thing that drew his eye to the label in the first place.
 
    The stored value is untouched — `worst-of-both` is the key everywhere, in
    documents already saved. This is a label, not a migration. */
 const BASIS_LABELS: Record<SizingBasis, string> = {
   cooling: "Sized on cooling",
   heating: "Sized on heating",
-  "worst-of-both": "Sized on both heating and cooling",
+  "worst-of-both": "Sized on heat/cool",
 };
 
 /* The same fact under a column already headed "Sized on", where repeating the
@@ -66,7 +70,7 @@ const BASIS_LABELS: Record<SizingBasis, string> = {
 const BASIS_SHORT: Record<SizingBasis, string> = {
   cooling: "Cooling",
   heating: "Heating",
-  "worst-of-both": "Both heating and cooling",
+  "worst-of-both": "Heat/Cool",
 };
 
 /* ── Design basis — what the loads were computed FROM, for the summary chips

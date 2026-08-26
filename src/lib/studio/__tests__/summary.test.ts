@@ -128,7 +128,7 @@ describe("designBasis", () => {
     expect(b.zoneLabel).toMatch(/Zone 6/);
     expect(b.zoneCity).toBe("Melbourne");
     expect(b.buildingLabel).toBe("Light commercial");
-    expect(b.basisLabel).toBe("Sized on heating");
+    expect(b.basisShort).toBe("Heating");
   });
 
   it("defaults produce the standard basis line", () => {
@@ -137,7 +137,7 @@ describe("designBasis", () => {
     expect(b.zone).toBe(DEFAULT_CLIMATE_ZONE);
     expect(b.zoneCity).toBe("Sydney");
     expect(b.buildingLabel).toBe("Residential");
-    expect(b.basisLabel).toBe("Sized on heat/cool");
+    expect(b.basisShort).toBe("Heat/Cool");
   });
 });
 

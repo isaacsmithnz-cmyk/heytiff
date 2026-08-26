@@ -42,31 +42,32 @@ const BUILDING_LABELS: Record<BuildingType, string> = {
   commercial: "Commercial",
 };
 
-/* "WORST OF BOTH" WAS OUR ARITHMETIC TALKING, on a page a client reads.
+/* THE SIZING BASIS, AS THE COLUMN SAYS IT. One set of words, because there is
+   one place that shows them: the sheet's "Sized on" figure, which already
+   carries the preposition — a value repeating it would stutter.
 
-   The setting means the unit has to satisfy BOTH duties, so it is sized
-   against the SMALLER of its two ratings (sizingCapacityKw, loads.ts) — the
-   conservative choice, and the default. What the word "worst" described was
-   which of the two ratings we take, not anything about the equipment or the
-   design; a customer reading "Sized on worst of both" has no way to know
-   that. Isaac saw it on a printed sheet.
+   THERE WERE TWO SETS UNTIL NOW. `BASIS_LABELS` held a long form ("Sized on
+   heat/cool") for a caller that never existed: nothing outside its own test
+   ever read `basisLabel`, and it was renamed twice in two days chasing wording
+   for a string nobody rendered. Deleted rather than kept in sync — this file's
+   own rule is that a fact lives in one place.
 
-   It was "Both heating and cooling" for one merge (#545) and is "Heat/Cool"
-   now: the long form wrapped to two lines in a column of one-line figures,
-   which is the thing that drew his eye to the label in the first place.
+   These are CAPITALISED because a lower-case value in a row of capitalised
+   ones reads as a typo. That was the reason the two sets diverged in the first
+   place; it is a property of these words, so it lives on these words.
 
-   The stored value is untouched — `worst-of-both` is the key everywhere, in
-   documents already saved. This is a label, not a migration. */
-const BASIS_LABELS: Record<SizingBasis, string> = {
-  cooling: "Sized on cooling",
-  heating: "Sized on heating",
-  "worst-of-both": "Sized on heat/cool",
-};
+   "WORST OF BOTH" WAS OUR ARITHMETIC TALKING, on a page a client reads. The
+   basis means the unit has to satisfy BOTH duties, so it is sized against the
+   SMALLER of its two ratings (sizingCapacityKw, loads.ts) — the conservative
+   choice, and the default. What "worst" described was which of the two
+   ratings we take, not anything about the equipment or the design, and a
+   customer reading it has no way to know that. It was "Both heating and
+   cooling" for one merge (#545) and is "Heat/Cool" now (#546): the long form
+   wrapped to two lines in a column of one-line figures, which is what drew
+   Isaac's eye to the label to begin with.
 
-/* The same fact under a column already headed "Sized on", where repeating the
-   words would read as a stutter. A view that trimmed the prefix off the label
-   above got a lower-case value in a row of capitalised ones, so the wording
-   for both shapes is written here rather than derived at a use site. */
+   THE STORED VALUE IS UNTOUCHED. `worst-of-both` is the key everywhere, in
+   every document already saved. These are labels, not a migration. */
 const BASIS_SHORT: Record<SizingBasis, string> = {
   cooling: "Cooling",
   heating: "Heating",
@@ -84,9 +85,7 @@ export interface DesignBasis {
   buildingType: BuildingType;
   buildingLabel: string;
   basis: SizingBasis;
-  basisLabel: string;
-  /** the label without the "Sized on" prefix, for a column that already
-      carries it — see BASIS_SHORT */
+  /** what the "Sized on" figure prints — see BASIS_SHORT */
   basisShort: string;
 }
 
@@ -101,7 +100,6 @@ export function designBasis(doc: DesignDocument): DesignBasis {
     buildingType,
     buildingLabel: BUILDING_LABELS[buildingType],
     basis: doc.settings.sizingBasis,
-    basisLabel: BASIS_LABELS[doc.settings.sizingBasis],
     basisShort: BASIS_SHORT[doc.settings.sizingBasis],
   };
 }

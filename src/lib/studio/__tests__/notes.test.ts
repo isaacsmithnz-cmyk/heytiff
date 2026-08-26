@@ -18,8 +18,10 @@ import {
   cloudPath,
   createNote,
   DEFAULT_NOTE_INK,
+  isEmptyNote,
   NOTE_INKS,
   noteInkOf,
+  pruneEmptyNotes,
   isNote,
   leaderStart,
   moveNote,
@@ -36,7 +38,7 @@ import {
   type NoteObject,
   type NoteRect,
 } from "../notes";
-import type { Point } from "../document";
+import type { DesignObject, Point } from "../document";
 
 const RECT: NoteRect = { x: 0, y: 0, w: 200, h: 120 };
 
@@ -294,6 +296,50 @@ describe("the ink palette", () => {
   it("keeps an ink that is no longer on the palette", () => {
     const n = mkNote(RECT, { x: 400, y: 60 });
     expect(noteInkOf({ ...n, props: { ...n.props, ink: "#123456" } })).toBe("#123456");
+  });
+});
+
+/* A note reaches the document at the LEADER CLICK, before its words exist.
+   Every ordinary way of closing the editor sweeps an untyped one straight
+   back off; a deploy reload mid-note does not, and that is how one arrived on
+   a real design (prod, 2026-08-26). These pin the sweep that repairs it. */
+describe("wordless notes", () => {
+  const withText = (t: string) =>
+    createNote({ floorId: "flr", rect: RECT, leader: { x: 400, y: 60 }, text: t, id: "n" });
+
+  it("knows a note with nothing on it", () => {
+    expect(isEmptyNote(withText(""))).toBe(true);
+    expect(isEmptyNote(withText("   "))).toBe(true);
+    expect(isEmptyNote(withText("\n\t "))).toBe(true);
+    expect(isEmptyNote(withText("Check on site"))).toBe(false);
+    // a single character IS a note — the bar is "did somebody write anything"
+    expect(isEmptyNote(withText("?"))).toBe(false);
+  });
+
+  it("does not mistake another empty-propped object for one", () => {
+    const room: DesignObject = {
+      id: "r", type: "room", systemId: null, floorId: "flr",
+      geometry: { kind: "polygon", points: rectCorners(RECT) }, plane: "room", props: {},
+    };
+    expect(isEmptyNote(room)).toBe(false);
+  });
+
+  it("sweeps the wordless and keeps the rest, in order", () => {
+    const kept = withText("Existing unit stays");
+    const objs = [withText(""), kept, withText("  ")];
+    expect(pruneEmptyNotes(objs).map((o) => noteText(o))).toEqual(["Existing unit stays"]);
+  });
+
+  /* the identity contract normalizeDesign leans on to tell an open from an
+     edit: nothing to sweep must return the SAME array */
+  it("returns the same array when there is nothing to sweep", () => {
+    const objs = [withText("a"), withText("b")];
+    expect(pruneEmptyNotes(objs)).toBe(objs);
+  });
+
+  it("leaves a document of non-notes untouched by reference", () => {
+    const objs: DesignObject[] = [];
+    expect(pruneEmptyNotes(objs)).toBe(objs);
   });
 });
 

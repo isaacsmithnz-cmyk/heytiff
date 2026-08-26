@@ -86,9 +86,9 @@ describe("the frame on paper", () => {
      content prints under the fixed paint, and nothing on screen can tell. */
   it("holds every spacer open with a selector that beats the reset", () => {
     const spacers = [
-      ...selectorsDeclaring(CSS, /height:\s*var\(--doc-gutter/),
-      ...selectorsDeclaring(CSS, /padding:\s*0\s+var\(--doc-gutter/),
-      ...selectorsDeclaring(CSS, /padding:\s*calc\(var\(--doc-clear/),
+      ...selectorsDeclaring(CSS, /height:\s*calc\(var\(--dsd-edge\)/),
+      ...selectorsDeclaring(CSS, /padding:\s*0\s+calc\(var\(--dsd-edge\)/),
+      ...selectorsDeclaring(CSS, /padding:\s*var\(--doc-clear/),
     ].filter((s) => s.includes(".dsd-frame"));
 
     // the two band rows, the side-padded cell and the well's clear —
@@ -136,37 +136,37 @@ describe("the frame on paper", () => {
     expect(CSS).toMatch(/\.dsd-frame\s*>\s*tfoot\s*\{\s*display:\s*table-footer-group/);
   });
 
-  /* THE FRAME OWNS THE PAPER EDGE, and only when there is one. The themed
-     cover prints on a named page with no margin — inset inside the default
-     margin the frame reads as a border drawn on the paper. The name is the
-     whole mechanism: an @page rule cannot see a CSS variable, so the print
-     chrome injects `@page cover { margin: 0 }` for a themed brand and nothing
-     otherwise. If the cover loses its name, themed sheets quietly go back to
-     floating in a white ring. */
-  it("puts the cover on the named page the themed margin is stripped from", () => {
-    const studio = readFileSync(
-      join(__dirname, "../../studio.css"),
-      "utf8"
+  /* THE SHEET DRAWS ITS OWN PAPER MARGIN. Every chrome prints on a page box
+     with no margin — that is the only place a browser will print its own
+     date/title/URL/page-number furniture, and a customer's copy must not
+     carry ours — so the inset that keeps the frame off the paper's corner has
+     to come from the document. Lose `--dsd-edge` and the band prints bled to
+     all four edges again, which is the shape Isaac asked to be rid of. */
+  it("insets the frame from the paper itself, on both layers and the spacers", () => {
+    const printBlock = CSS.slice(CSS.indexOf("@media print"));
+    const bare = printBlock.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare).toMatch(/\.dsd\s*\{[^}]*--dsd-edge:\s*\d/);
+    // the band sits at the edge, the well one gutter further in
+    expect(bare).toMatch(/\.dsd-bband\s*\{\s*inset:\s*var\(--dsd-edge\)/);
+    expect(bare).toMatch(
+      /\.dsd-bwell\s*\{\s*inset:\s*calc\(\s*var\(--dsd-edge\)\s*\+\s*var\(--doc-gutter/
     );
-    expect(studio).toMatch(/\.ds-print-cover\s*\{[^}]*page:\s*cover/);
+    /* and the table spacers hold the SAME distance open, or the content
+       prints over the band it is meant to clear */
+    for (const re of [
+      /td\.dsd-fr-b\s*\{\s*height:\s*calc\(\s*var\(--dsd-edge\)\s*\+\s*var\(--doc-gutter/,
+      /td\.dsd-fr-c\s*\{\s*padding:\s*0\s+calc\(\s*var\(--dsd-edge\)\s*\+\s*var\(--doc-gutter/,
+    ])
+      expect(bare).toMatch(re);
   });
 
-  /* THE FRAME IS CONCENTRIC WITH ITS WELL, and only a full-bleed print
-     squares it off.
+  /* THE FRAME IS CONCENTRIC WITH ITS WELL, on paper as well as on screen.
 
      The band was a plain rectangle with a rounded well inside it, which reads
      as a block someone has cut a rounded hole in — Isaac called it unfinished
      the first time a real brand colour was set, and it had looked that way
      since the frame shipped. Concentric means outer = radius + gutter, or the
-     frame runs thick at the corners and thin down the sides.
-
-     THE SQUARE-OFF AND THE MARGIN STRIP ARE ONE DECISION. A radius at the
-     paper's own corner draws four white notches, so a chrome that prints full
-     bleed must square the band — and a chrome that does NOT must leave it
-     rounded, or it prints a hard-cornered mat floating in a white margin.
-     Neither is knowable from this stylesheet, so the rule is: whoever injects
-     `margin: 0` injects the square-off with it. Asserted over the source of
-     every chrome that does, so a fourth one cannot quietly land with half. */
+     frame runs thick at the corners and thin down the sides. */
   it("rounds the band concentrically with its well", () => {
     /* comments stripped first: this file's prose quotes CSS, and a `}` inside
        a comment ends a naive `[^}]*` scan of the rule it sits in — which is
@@ -177,26 +177,31 @@ describe("the frame on paper", () => {
     );
   });
 
-  it("squares the band in exactly the chromes that strip the page margin", () => {
+  /* AND NO CHROME SQUARES IT ANY MORE — the reversal, pinned so it cannot
+     drift back one chrome at a time.
+
+     The old law was "whoever injects `@page { margin: 0 }` injects the
+     square-off with it", because the frame bled to the paper and a radius at
+     the paper's own corner draws four white notches. Isaac looked at a real
+     PDF of it and asked for the opposite: the band curved the whole way
+     round, as the Summary screen draws it. So the margin strip is now about
+     the BROWSER'S furniture, not about bleeding, and the inset that keeps the
+     corner off the paper is `--dsd-edge` in the sheet. A square-off in either
+     chrome that renders this document would put the hard corners back. */
+  it("leaves the band rounded in every chrome that renders this sheet", () => {
     const chromes = [
       "src/components/studio/summary/print-doc.tsx",
       "src/app/live/[token]/live-sheet.tsx",
-      "src/app/handover/[id]/sheet-chrome.tsx",
     ];
-    const seen: string[] = [];
     for (const rel of chromes) {
       const src = readFileSync(join(process.cwd(), rel), "utf8");
-      // a chrome that goes full bleed...
-      if (!/@page[^{]*\{\s*margin:\s*0/.test(src)) continue;
-      seen.push(rel);
-      // ...owes the square-off, on the band its own sheet draws
-      expect({ rel, squares: /-b(?:and|band)\s*\{\s*border-radius:\s*0/.test(src) }).toEqual({
+      const bare = src.replace(/\/\*[\s\S]*?\*\//g, "");
+      expect({
         rel,
-        squares: true,
-      });
+        strips: /@page[^{]*\{\s*(?:size:[^;]*;\s*)?margin:\s*0/.test(bare),
+        squares: /dsd-bband\s*\{\s*border-radius:\s*0/.test(bare),
+      }).toEqual({ rel, strips: true, squares: false });
     }
-    // all three, or the loop proved nothing
-    expect(seen).toEqual(chromes);
   });
 
   /* EVERY PAGE CLOSES AS ITS OWN BOX. Without clone, border-radius and

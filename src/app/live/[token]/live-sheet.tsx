@@ -9,7 +9,6 @@ import type {
   SummaryModel,
 } from "@/lib/studio/summary";
 import type { OrgBrand } from "@/lib/org/brand";
-import { documentTheme } from "@/lib/org/theme";
 import { SheetDoc } from "@/components/studio/summary/sheet-doc";
 import { LiveViewer } from "./live-viewer";
 import "./live-sheet.css";
@@ -80,16 +79,19 @@ export function LiveSheet({
 
   return (
     <div className="dsd-page fg dstudio">
-      {/* A THEMED PRINT OWNS THE PAPER EDGE. The customer's Print is the
-          browser dialog, whose default margins would inset the frame into a
-          white ring — a border on the paper, not a ground. Same gate as the
-          frame itself: no derivable colour, no rule, and the plain sheet
-          keeps the browser's own margins. */}
-      {brand.color != null && documentTheme(brand.color) != null && (
-        <style>
-          {`@media print { @page { margin: 0; } .dsd-bband { border-radius: 0; } }`}
-        </style>
-      )}
+      {/* THE PAGE BOX HAS NO MARGIN, whatever the brand — a browser prints its
+          own furniture (date, tab title, the page URL, "1/1") into the page
+          margin and nowhere else, and the URL of a share link is the last
+          thing a customer's copy should carry. The paper margin is held open
+          inside the printed area instead, by the sheet's own `--dsd-edge`
+          (sheet-doc.css), so the frame is a rounded band sitting ON the paper
+          rather than one bled to its corners.
+
+          Unconditional now: it used to be gated on a derivable brand colour,
+          because the margin was stripped for a full-bleed frame that only a
+          themed sheet has. Nothing bleeds any more, and an unthemed sheet
+          wants the URL gone just as much. */}
+      <style>{`@media print { @page { margin: 0; } }`}</style>
       <nav className="dsd-bar">
         {/* THE MARK IS IN THE DOCUMENT NOW, in its masthead, where it sits
             opposite the job it belongs to and survives being printed. This bar

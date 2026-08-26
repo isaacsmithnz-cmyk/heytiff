@@ -7,7 +7,6 @@ import { floorDisplayName } from "@/lib/studio/plans";
 import { PicklistSection, SheetDoc } from "./sheet-doc";
 import { PlanFigure } from "./plan-figure";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
-import { documentTheme } from "@/lib/org/theme";
 
 /* The print document — mounted ON DEMAND by the Export card with a built
    PrintModel and resolved sheet URLs, never rendered on screen. The print
@@ -103,31 +102,30 @@ export function PrintDoc({
 
   /* paper size + orientation ride an injected @page rule while mounted.
 
-     A THEMED COVER PRINTS WITH NO MARGIN AT ALL. Its frame bleeds to the
-     paper edge — inside the default margin the same shape read as a border
-     drawn on the paper, not a ground the page sits in — and the frame's own
-     thickness becomes the margin instead. It is a NAMED page (`cover`, set on
-     .ds-print-cover in studio.css) so the plan pages behind it keep the 12mm
-     they were measured for; and it is gated on the same derivation the frame
-     is, because a margin removed for a frame that is not there would print
-     the plain sheet flush against the paper's edge. */
-  const themed = brand.color != null && documentTheme(brand.color) != null;
+     THE PAGE BOX HAS NO MARGIN, on every page and whatever the brand.
+
+     A browser prints its own furniture — the date, the document title, the
+     page URL, "1/1" — INTO the page margin, and nowhere else. Isaac's copy of
+     85 West St came out with all four on a sheet a customer was meant to
+     receive. With no margin there is nowhere to put them, verified by
+     rendering with the header/footer switch explicitly on.
+
+     What holds the paper margin open instead is the document: the sheet insets
+     its own frame (`--dsd-edge`, sheet-doc.css) and the plan pages carry 12mm
+     of padding (studio.css). Both are inside the printed area, so neither can
+     be mistaken for somewhere to stamp a URL.
+
+     No named page and no brand branch left: `@page cover` existed only to
+     strip the margin from a full-bleed frame, and the frame does not bleed any
+     more — it is a rounded band inset from the paper, the same shape the
+     Summary screen shows. */
   useEffect(() => {
     const el = document.createElement("style");
     el.id = "ds-print-page-size";
-    el.textContent =
-      `@page { size: ${options.paper} ${options.orientation}; margin: 12mm; }` +
-      /* full bleed, so the frame's corners ARE the paper's corners and a
-         radius there would draw four white notches. The square-off ships with
-         the margin strip rather than living in the sheet, so the two can never
-         disagree about whether this document reaches the edge. */
-      (themed
-        ? ` @page cover { margin: 0; }` +
-          ` @media print { .ds-print-cover .dsd-bband { border-radius: 0; } }`
-        : "");
+    el.textContent = `@page { size: ${options.paper} ${options.orientation}; margin: 0; }`;
     document.head.appendChild(el);
     return () => el.remove();
-  }, [options.paper, options.orientation, themed]);
+  }, [options.paper, options.orientation]);
 
   /* fire onReady once every sheet URL is decoded (the SVG <image>s share the
      browser cache, so decoding here means they render). Next paint via rAF,

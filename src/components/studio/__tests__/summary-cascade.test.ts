@@ -132,28 +132,42 @@ describe("Summary sheet cascade", () => {
     expect(css).not.toMatch(/#ds-printdoc \*\s*\{[^}]*visibility:\s*visible/);
   });
 
-  it("the print document stays in NORMAL FLOW — named pages do not apply out of it", () => {
-    /* `page: cover` on the print cover is how a themed sheet sheds its page
-       margin so the frame can bleed. The property only applies to boxes in
-       the normal flow: reintroduce `position: absolute` on #ds-printdoc (or
-       leave body a flex column, whose items are not the plain block boxes
-       named pages are specified against) and the named @page rule silently
-       matches nothing — the frame prints inset in a white ring again, and no
-       screen check can see it. Proved by probe both ways. */
-    /* EVERY `#ds-printdoc { … }` block, because the first one is the screen's
-       `display: none` and a match on it alone would wave the print block's
-       `position: absolute` straight through — which is exactly the mutation
-       this guard exists to catch. */
-    const printdoc = css.match(/#ds-printdoc \{[^}]*\}/g);
-    expect(printdoc).not.toBeNull();
-    expect(printdoc!.length).toBeGreaterThanOrEqual(2);
-    for (const block of printdoc!) {
-      expect(block).not.toMatch(/position:\s*absolute/);
+  it("the print document sheds `.fg` — out of flow it is ONE clipped page", () => {
+    /* THE BUG THIS EXISTS FOR, found by rendering a real PDF: the print
+       document carries `fg dstudio` (for the tokens and Jakarta), and `.fg` is
+       the app's viewport frame — `position: fixed; inset: 0; overflow: hidden`.
+       On paper that is a box one page tall with a scissors on it. A sheet
+       whose content ran past page one printed as a SINGLE page, cut off
+       mid-row, with the browser's own footer reading "1/1" — nothing about the
+       artefact said anything was missing.
+
+       The id outranks `.fg`, so the print block only has to restate what it
+       wants back. `display: block` was already restated; `position` and
+       `overflow` were not, and that is the whole bug. Being out of flow costs
+       the `page` property too, which is where the named-page mechanism used to
+       die silently (there is no named page any more — see studio.css).
+
+       Asserted on the print block specifically: the first `#ds-printdoc` block
+       is the screen's `display: none`, and matching that one alone would wave
+       the mutation straight through. */
+    const printBlock = css.slice(css.indexOf("@media print"));
+    const inPrint = printBlock.match(/#ds-printdoc \{[^}]*\}/);
+    expect(inPrint).not.toBeNull();
+    /* the three `.fg` values it must take back, by name */
+    expect(inPrint![0]).toMatch(/display:\s*block/);
+    expect(inPrint![0]).toMatch(/position:\s*static/);
+    expect(inPrint![0]).toMatch(/overflow:\s*visible/);
+    /* and no block anywhere may put it back out of flow */
+    for (const block of css.match(/#ds-printdoc \{[^}]*\}/g)!) {
+      expect(block).not.toMatch(/position:\s*(?:absolute|fixed)/);
     }
     expect(css).toMatch(/body:has\(#ds-printdoc\)\s*\{[^}]*display:\s*block/);
-    /* the cover carries the name the injected @page rule strips the margin
-       from */
-    expect(css).toMatch(/\.ds-print-cover\s*\{[^}]*page:\s*cover/);
+    /* THE PLAN PAGES PAINT ABOVE THE SHEET'S FIXED WELL. Same family, same
+       render: the well is stamped on every page and is opaque, so an
+       unpositioned plan page prints as an empty frame. */
+    expect(printBlock).toMatch(
+      /#ds-printdoc \.ds-print-page \{[^}]*position:\s*relative/
+    );
   });
 
   it("the recents skeleton PAINTS — its block outranks the card it sits in", () => {

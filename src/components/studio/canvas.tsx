@@ -902,6 +902,31 @@ export function StudioCanvas({
   );
   const pipeStartAttach = useRef<{ kind: "unit" | "riser"; id: string } | null>(null);
 
+  /* IS SOMETHING HALF-DRAWN — the one answer both Esc and right-click ask,
+     named once because they used to disagree. The calibration's first point
+     and a live tape reading count: each is a gesture underway that a cancel
+     has to be able to drop, the same as half a rectangle. */
+  const draftUp =
+    draftPipe.length > 0 ||
+    draftPoly.length > 0 ||
+    draftRect !== null ||
+    wallSelect !== null ||
+    noteDraft !== null ||
+    notePin !== null ||
+    calib.a !== undefined ||
+    tape !== null;
+  /* Esc's listener binds once, so the two things it needs at press time reach
+     it through refs rather than by re-subscribing the window on every stroke.
+     `onToolDone` is an inline arrow at the use site — a new function each
+     render — so it is mirrored here for the same reason. */
+  const draftUpRef = useRef(draftUp);
+  const toolDoneRef = useRef(onToolDone);
+  useEffect(() => {
+    draftUpRef.current = draftUp;
+    toolDoneRef.current = onToolDone;
+  });
+
+
   /** connection anchors of the active system on this floor (units + risers).
       Pipe endpoints snap to these; the nearest within range lights up BEFORE
       the click (the show-the-snap-target-first rule). */
@@ -1551,6 +1576,17 @@ export function StudioCanvas({
         // a cloud with nowhere to point is dropped, not stranded
         setNoteDraft(null);
         setNotePin(null);
+        /* AND THEN IT LETS GO OF THE TOOL. Esc used to clear the draft and
+           stop — so pressing it with nothing half-drawn did nothing at all,
+           while the hint promising "Esc to cancel" sat on screen and the tool
+           stayed armed (Isaac, 2026-08-26). Right-click has always done both;
+           this is the same cancel on the key the hint actually names.
+
+           Two stages, because "cancel" means different things a second apart:
+           mid-gesture it is the shape you are drawing, and the tool stays up
+           so the next attempt costs nothing. With nothing underway there is
+           only the tool left to cancel, so that is what goes. */
+        if (!draftUpRef.current) toolDoneRef.current();
       }
       // [ / ] rotate the selected simple unit in 90° steps
       if ((e.key === "[" || e.key === "]") && !isTyping(e) && selectedId) {
@@ -2829,13 +2865,6 @@ export function StudioCanvas({
      resting Select keeps the browser's own menu. ── */
   const onContextMenu = (e: React.MouseEvent<SVGSVGElement>) => {
     if (sim) return;
-    const draftUp =
-      draftPipe.length > 0 ||
-      draftPoly.length > 0 ||
-      draftRect !== null ||
-      wallSelect !== null ||
-      noteDraft !== null ||
-      notePin !== null;
     if (tool === "select" && !draftUp) return;
     e.preventDefault();
     setDraftPipe([]);

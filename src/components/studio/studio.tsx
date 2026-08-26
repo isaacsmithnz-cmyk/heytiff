@@ -2928,10 +2928,15 @@ function NoteTool({
 }
 
 /* ── the Draw tool: ONE bench button for everything drawn as a line. The
-   flyout names the three families — pipe (soft or hard drawn), drain (size
-   picked at draw), cable (power or data) — and each chip arms its tool with
+   flyout names the families — pipe (soft or hard drawn), drain (size picked
+   at draw), cable (power or data), duct — and each chip arms its tool with
    that option. Soft pipe and cable place dots that smooth into a curve; hard
-   pipe and drain stay orthogonal. P still arms pipe from the keyboard. ── */
+   pipe and drain stay orthogonal. P still arms pipe from the keyboard.
+
+   Duct came in from the bench (2026-08-26): on a laptop the bar had started
+   wrapping to a second row, and a permanently DISABLED button is the first
+   width to give back. It is linework like everything else in here, so it
+   costs the flyout one row and the bench a whole verb's width. ── */
 function DrawTool({
   tool,
   onTool,
@@ -2995,7 +3000,7 @@ function DrawTool({
         title={
           disabled
             ? "Draw — pick a system first"
-            : "Draw — pipe, drain, cable or riser"
+            : "Draw — pipe, drain, cable, duct or riser"
         }
         onClick={() => setOpen((v) => !v)}
       >
@@ -3033,6 +3038,25 @@ function DrawTool({
             <div className="ds-drawchips">
               {chip("Power", draw.cableKind === "power", "cable", { cableKind: "power" })}
               {chip("Data", draw.cableKind === "data", "cable", { cableKind: "data" })}
+            </div>
+          </div>
+          {/* parked until Step 4, and it says so the way the component palette
+              says it — a named row that is plainly not ready, rather than a
+              verb missing from the list with nothing to explain the gap */}
+          <div className="ds-drawrow">
+            <span className="ds-drawk off">
+              <Icon name="wind" size={14} />
+              Duct
+            </span>
+            <div className="ds-drawchips">
+              <button
+                className="ds-drawchip"
+                role="menuitem"
+                disabled
+                title="Ductwork arrives at Step 4"
+              >
+                Coming — Step 4
+              </button>
             </div>
           </div>
           {/* the riser rides along: not linework (a point that joins floors),
@@ -3684,17 +3708,10 @@ function DesignPanel({
               onDraw={setDraw}
               disabled={!activeSystemId}
             />
-            {/* Air group (Stage 7): both tools gate on rooms + an air-capable AHU
-                (spec §2); Duct arms at Step 4, Component opens the palette */}
-            <button
-              className="ds-tool"
-              disabled
-              aria-label="Duct"
-              title="Ductwork arrives at Step 4"
-            >
-              <Icon name="wind" size={15} />
-              Duct
-            </button>
+            {/* Air group (Stage 7): gates on rooms + an air-capable AHU (spec
+                §2). Duct moved into the Draw flyout — it was a disabled button
+                holding a whole verb's width on the bench, and the bar had
+                started wrapping on a laptop. */}
             <div className="ds-pal-wrap">
               <button
                 className={`ds-tool${tool === "component" ? " on" : ""}`}

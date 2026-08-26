@@ -1715,15 +1715,6 @@ html[data-ds-display] .dstudio.editing {
 }
 /* kbd chips and the uppercase group titles are GONE (Isaac, 2026-08-24) —
    the separators alone carry the bar's grouping now */
-@media (max-width: 1600px) {
-  .dstudio .ds-tool {
-    padding: 0 8px;
-    gap: 6px;
-  }
-  .dstudio .ds-tb-sep {
-    margin: 0 2px;
-  }
-}
 /* group dividers — the bar still reads as workflow groups */
 .dstudio .ds-tb-sep {
   width: 1px;
@@ -1734,6 +1725,46 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-tb-spring {
   flex: 1;
+}
+/* ── the bar's two tightenings, and they MUST live after the rules they
+   tighten. A media query adds NO specificity, so an equal-specificity fight
+   is decided by source order alone: this block sat ABOVE `.ds-tb-sep`'s own
+   margin and the separator override did nothing at any width — 24px of a bar
+   that was already wrapping, spent on three dividers. (Third time this file
+   has lost that fight; see `.ds-notefly`.)
+
+   The second tier is for a 1280-class laptop, where the bench is ~700px wide
+   once the rail and the cockpit have taken theirs and one more verb's width
+   is the difference between one row and two. ── */
+@media (max-width: 1600px) {
+  .dstudio .ds-tool {
+    padding: 0 8px;
+    gap: 6px;
+  }
+  .dstudio .ds-tb-sep {
+    margin: 0 2px;
+  }
+}
+@media (max-width: 1400px) {
+  .dstudio .ds-tool {
+    padding: 0 6px;
+    gap: 5px;
+    font-size: 12px;
+  }
+  /* the last 20px come from the COCKPIT, not from the bench. The panel is a
+     reporting surface — its rows reflow and it loses nothing at 264 — while
+     the bench is a fixed row of named verbs where the next 20px costs a whole
+     word. Set here on purpose: --ds-syscard-w is derived from it, so the
+     system card and the tab switcher follow without a second override. */
+  .dstudio {
+    --ds-cockpit-w: 258px;
+  }
+  .dstudio .ds-tb-sep {
+    margin: 0 1px;
+  }
+  .dstudio .ds-toolbar {
+    padding: 6px;
+  }
 }
 /* ── the Next chip: the bar's one resident that isn't a tool. It names the
    system's first unmet requirement and clicking ARMS that move — so it wears
@@ -8356,7 +8387,17 @@ html[data-ds-display] .dstudio.editing {
   background: #fff;
   cursor: pointer;
 }
-.dstudio .ds-drawfly button.ds-drawchip:hover { background: #f3f4f6; }
+.dstudio .ds-drawfly button.ds-drawchip:hover:not(:disabled) { background: #f3f4f6; }
+/* not-yet-built, said in weight and not in opacity: a faded LABEL is unreadable
+   at the exact moment it has something to tell you (see the team-card review).
+   The row's key greys with it, so the whole row reads as one dormant thing. */
+.dstudio .ds-drawfly button.ds-drawchip:disabled {
+  color: var(--gray500);
+  border-color: var(--gray200);
+  background: #fafbfc;
+  cursor: not-allowed;
+}
+.dstudio .ds-drawfly .ds-drawk.off { color: var(--gray500); }
 .dstudio .ds-drawfly button.ds-drawchip.on {
   background: var(--teal-d);
   border-color: var(--teal-d);

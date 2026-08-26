@@ -42,10 +42,21 @@ const BUILDING_LABELS: Record<BuildingType, string> = {
   commercial: "Commercial",
 };
 
+/* "WORST OF BOTH" WAS OUR ARITHMETIC TALKING, on a page a client reads.
+
+   The setting means the unit has to satisfy BOTH duties, so it is sized
+   against the SMALLER of its two ratings (sizingCapacityKw, loads.ts) — the
+   conservative choice, and the default. What the word "worst" described was
+   which of the two ratings we take, not anything about the equipment or the
+   design; a customer reading "Sized on worst of both" has no way to know
+   that. Isaac saw it on a printed sheet and it is his wording below.
+
+   The stored value is untouched — `worst-of-both` is the key everywhere, in
+   documents already saved. This is a label, not a migration. */
 const BASIS_LABELS: Record<SizingBasis, string> = {
   cooling: "Sized on cooling",
   heating: "Sized on heating",
-  "worst-of-both": "Sized on worst of both",
+  "worst-of-both": "Sized on both heating and cooling",
 };
 
 /* The same fact under a column already headed "Sized on", where repeating the
@@ -55,7 +66,7 @@ const BASIS_LABELS: Record<SizingBasis, string> = {
 const BASIS_SHORT: Record<SizingBasis, string> = {
   cooling: "Cooling",
   heating: "Heating",
-  "worst-of-both": "Worst of both",
+  "worst-of-both": "Both heating and cooling",
 };
 
 /* ── Design basis — what the loads were computed FROM, for the summary chips

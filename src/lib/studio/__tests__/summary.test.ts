@@ -137,7 +137,7 @@ describe("designBasis", () => {
     expect(b.zone).toBe(DEFAULT_CLIMATE_ZONE);
     expect(b.zoneCity).toBe("Sydney");
     expect(b.buildingLabel).toBe("Residential");
-    expect(b.basisLabel).toBe("Sized on worst of both");
+    expect(b.basisLabel).toBe("Sized on both heating and cooling");
   });
 });
 

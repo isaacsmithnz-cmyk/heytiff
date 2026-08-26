@@ -2421,7 +2421,7 @@ function StudioMenu({
               >
                 <option value="cooling">Cooling</option>
                 <option value="heating">Heating</option>
-                <option value="worst-of-both">Worst of both</option>
+                <option value="worst-of-both">Both heating and cooling</option>
               </select>
             </label>
           </div>

@@ -6942,6 +6942,73 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
 .wb2-mline.total > b { font-size:11.5px; font-weight:800; letter-spacing:.04em;
   text-transform:uppercase; color:var(--gray500); }
+/* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
+   One job's money, read once. THE JOB TYPE'S COLOUR FRAMES THIS SECTION AND
+   ONLY THIS SECTION — ServiceM8's category palette makes no contrast promise,
+   so it is an edge here and a dot in a chip up top, never a surface and never
+   text. Without a category the block keeps the hairline every other section
+   wears, so nothing is lost. The width is restated as a LONGHAND after
+   .wb2-shsect's shorthand, which is the only reason 1.5px sticks. */
+.wb2-jmoney { display:flex; flex-direction:column; border-width:1.5px; }
+.wb2-jmbig { margin-top:3px; font-size:27px; font-weight:800; letter-spacing:-.03em;
+  line-height:1.15; font-variant-numeric:tabular-nums; }
+.wb2-jmsub { margin-top:2px; font-style:normal; font-size:12px; font-weight:650; color:var(--gray500); }
+/* paid → invoiced-and-awaiting → still to bill: the three states of a job's
+   value, in the order money moves through them */
+.wb2-jmbar { display:flex; gap:2px; height:7px; margin-top:11px; border-radius:99px;
+  overflow:hidden; background:rgba(5,5,5,.06); }
+.wb2-jmbar > i { display:block; height:100%; border-radius:99px; min-width:0; }
+.wb2-jmbar > i.paid { background:var(--wb2-ok); }
+.wb2-jmbar > i.awaiting { background:var(--wb2-warn); }
+.wb2-jmbar > i.tocome { background:rgba(5,5,5,.14); }
+.wb2-jmkey { display:flex; flex-wrap:wrap; gap:4px 15px; margin-top:8px; }
+.wb2-jmkey > span { display:inline-flex; align-items:center; gap:5px; font-size:11px;
+  font-weight:700; color:var(--gray500); }
+.wb2-jmkey > span > i { width:8px; height:8px; border-radius:3px; flex:none; }
+.wb2-jmkey > span > i.paid { background:var(--wb2-ok); }
+.wb2-jmkey > span > i.awaiting { background:var(--wb2-warn); }
+.wb2-jmkey > span > i.tocome { background:rgba(5,5,5,.14); }
+/* WHERE COLLECTION LIVES. The value above is the job's identity and stays
+   ink; chasing is the ledger's business, so it wears the tint. */
+.wb2-mline.head { grid-template-columns:auto minmax(0,1fr) auto auto; margin-top:13px;
+  padding:11px 12px; border-top:0; border-radius:12px; background:rgba(5,5,5,.03); }
+.wb2-mline.head > b { font-size:13.5px; font-weight:800; }
+.wb2-mline.head > span { font-size:15.5px; font-weight:800; }
+.wb2-mline.head.warn { background:rgba(255,138,0,.11); }
+.wb2-mline.head.warn > span { color:var(--wb2-warn-t); }
+.wb2-mline.head.ok { background:rgba(0,163,137,.1); }
+.wb2-mline.head.ok > span { color:#00806b; }
+/* one claim against the job: its name, what it says about itself underneath,
+   the amount, and an inert chip that follows ServiceM8 */
+.wb2-jmclaim { grid-template-columns:minmax(0,1fr) auto auto; align-items:center;
+  padding:9px 2px; row-gap:2px; }
+.wb2-jmclaim > b { grid-column:1; grid-row:1; }
+.wb2-jmclaim > em { grid-column:1; grid-row:2; }
+.wb2-jmclaim > span { grid-column:2; grid-row:1 / span 2; }
+.wb2-jmclaim > i { grid-column:3; grid-row:1 / span 2; }
+.wb2-mline > span.quiet { color:var(--gray500); }
+/* the ways out of the job, behind the ⋯ — a once-per-job act, off the floor */
+.wb2-shmenu { position:relative; margin-left:auto; }
+.wb2-shtop .wb2-shmenu .wb2-ico { margin-left:0; }
+/* sized to its longest item — "Create a maintenance agreement" is one thing
+   to do, and wrapping it over two lines reads as two */
+.wb2-shmpop { position:absolute; top:calc(100% + 6px); right:0; z-index:3;
+  width:max-content; max-width:min(320px, 78vw);
+  display:flex; flex-direction:column; gap:1px; padding:6px; border-radius:14px;
+  background:#fff; border:1px solid var(--wb2-line); box-shadow:0 24px 48px -22px rgba(10,12,20,.42); }
+.wb2-shmpop > button { display:flex; align-items:center; gap:9px; width:100%; padding:9px 10px;
+  border:0; border-radius:10px; background:transparent; color:var(--gray700); font:inherit;
+  font-size:13px; font-weight:700; text-align:left; white-space:nowrap; cursor:pointer; }
+.wb2-shmpop > button:hover:not(:disabled) { background:rgba(5,5,5,.05); }
+/* a disabled item goes GREY, never transparent — opacity is not de-emphasis */
+.wb2-shmpop > button:disabled { color:var(--gray400); cursor:default; }
+.wb2-shmpop > button:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* "All 12 visits" — opens the rest of the list in place, no second screen */
+.wb2-shmore { display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
+  margin-top:8px; padding:5px 2px; border:0; background:none; color:#007fa8; font:inherit;
+  font-size:12.5px; font-weight:800; cursor:pointer; }
+.wb2-shmore:hover { text-decoration:underline; }
+.wb2-shmore:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:7px; }
 /* the job's files: a contact sheet, not a gallery — the grid is for scanning
    "what did they photograph", and a tap opens the real thing */
 .wb2-mgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(74px, 1fr)); gap:7px;

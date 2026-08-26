@@ -21,7 +21,8 @@ import {
   materialsTotalCents,
   paymentsTotalCents,
 } from "@/lib/workboard/job-ledger";
-import { collectionFrom, MONEY_BASIS } from "@/lib/workboard/job-money";
+import { isPartialInvoiceLine } from "@/lib/workboard/job-family";
+import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import {
   listJobPicklist,
@@ -58,6 +59,12 @@ import type { ScheduleJobState } from "./schedule-tab";
 /** Enough rounds for the busiest job in the live account (a few dozen files
     at six a round), and a hard stop against a server that never converges. */
 const MAX_CACHE_ROUNDS = 12;
+
+/** How many visits the card shows before it offers the rest. Live, the median
+    job has 2 sessions, one in ten runs past 12 and the worst runs to 103 — so
+    the list has to hold its shape without a scrollbar of its own. Three is
+    "the last few times we were there", which is the question being asked. */
+const VISITS_SHOWN = 3;
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
@@ -131,10 +138,17 @@ export function JobSheet({
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
-  const [record, setRecord] = useState<JobRecordRead | null>(null);
+  /* UNDEFINED until the record read lands, null when it lands empty. The
+     distinction is load-bearing for the money block: a job ServiceM8 bills
+     across three cards reads as $6,268 until the family arrives and $31,340
+     after, and painting the wrong number first breaks this sheet's own rule
+     that what fills in was ABSENT, not wrong. */
+  const [record, setRecord] = useState<JobRecordRead | null | undefined>(undefined);
   const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [naming, setNaming] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [allVisits, setAllVisits] = useState(false);
   const [name, setName] = useState("");
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -146,11 +160,30 @@ export function JobSheet({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      /* The menu is the innermost thing open, so it is the thing Escape
+         means — closing the whole sheet out from under an open menu is the
+         classic nested-dismiss bug. */
+      if (menuOpen) {
+        setMenuOpen(false);
+        return;
+      }
+      onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, menuOpen]);
+
+  /* A menu that only closes on its own items is a menu you have to fight.
+     Pointerdown rather than click, so it goes before whatever was aimed at. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const away = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.(".wb2-shmenu")) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [menuOpen]);
 
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. Resetting it in the
@@ -240,6 +273,7 @@ export function JobSheet({
   }, [row.id]);
 
   const money = moneyVisible ? (detail?.money ?? null) : null;
+  const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
 
   const makeProject = () => {
     setErr(null);
@@ -272,7 +306,13 @@ export function JobSheet({
           <span className="wb2-shno">{row.number ? `#${row.number}` : "—"}</span>
           <h2 className="wb2-shname">{row.clientName ?? "Unnamed client"}</h2>
           <span className="wb2-shchips">
-            <span className="wb2-chip" title="This job's number in ServiceM8">
+            {/* WAS A WHOLE SECTION AT THE FOOT OF THE CARD — a heading, a
+                paragraph and a border to say one thing nobody had asked. The
+                fact belongs to the badge that already names ServiceM8. */}
+            <span
+              className="wb2-chip"
+              title="ServiceM8 owns this job — HeyTiff only reads it. Edit it over there and the change follows here on the next sync."
+            >
               ServiceM8 job
             </span>
             {/* THE STATUS ALWAYS SHOWS. It used to appear only when it had a
@@ -306,6 +346,52 @@ export function JobSheet({
               </span>
             )}
           </span>
+          {/* THE WAYS OUT OF THIS JOB, off the card floor. They used to be two
+              full-width buttons under everything — the loudest controls on a
+              sheet whose daily job is to be READ. Promotion is a once-per-job
+              act; it belongs behind the ⋯ where a once-per-job act lives. */}
+          {manage && (
+            <span className="wb2-shmenu">
+              <button
+                className="wb2-ico"
+                onClick={() => setMenuOpen((v) => !v)}
+                title="More"
+                aria-label="More actions"
+                aria-expanded={menuOpen}
+              >
+                <Icon name="dots" size={14} />
+              </button>
+              {/* A DISCLOSURE, not an ARIA menu widget: role="menu" promises
+                  arrow-key navigation between menuitems, and promising it
+                  without implementing it is worse for a screen reader than two
+                  plain buttons that behave exactly as they look. */}
+              {menuOpen && (
+                <span className="wb2-shmpop">
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setName(row.clientName ?? "");
+                      setNaming(true);
+                    }}
+                  >
+                    <Icon name="plus" size={14} />
+                    Create a project from this job
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onCreateAgreement(row, detail);
+                    }}
+                  >
+                    <Icon name="file" size={14} />
+                    Create a maintenance agreement
+                  </button>
+                </span>
+              )}
+            </span>
+          )}
           <button
             ref={closeRef}
             className="wb2-ico"
@@ -339,17 +425,6 @@ export function JobSheet({
                 <em>{detail.nextBooking.staffName ?? "Nobody named"}</em>
               </div>
             )}
-            {detail?.timeOnSite && (
-              <div>
-                <span className="wb2-sect">Time on site</span>
-                <b>{fmtMinutesAsHours(detail.timeOnSite.minutes)}</b>
-                <em>
-                  {detail.timeOnSite.sessions === 1
-                    ? "recorded across 1 visit"
-                    : `recorded across ${detail.timeOnSite.sessions} visits`}
-                </em>
-              </div>
-            )}
             {detail?.queue && (
               <div>
                 <span className="wb2-sect">In queue</span>
@@ -364,76 +439,6 @@ export function JobSheet({
                 </em>
               </div>
             )}
-            {moneyVisible && (
-              <div className="wb2-money">
-                {/* The basis is on the LABEL, not the figure: it belongs to
-                    every number in this column, and repeating it beside each
-                    one turns a fact into noise. */}
-                <span className="wb2-sect">
-                  Job value ({MONEY_BASIS})
-                </span>
-                <b>{money?.valueCents != null ? fmtAud(money.valueCents) : "—"}</b>
-                {/* Rendered only when there is something TRUE to say, and the
-                    collection half is counted from PAYMENT ROWS rather than
-                    the flags. `payment_received` is set on 45 jobs while 1,819
-                    completed ones carry payments, so the flag alone called
-                    paid jobs unpaid; `invoice_sent` never arrives at all, and
-                    reading its absence as "no" announced a fact about three
-                    thousand jobs nobody had told us. */}
-                {(() => {
-                  /* ORDER IS THE MEANING HERE, so it is spelt out:
-
-                     1. A QUOTE hasn't been accepted, let alone billed —
-                        "nothing paid yet" would be nonsense on one.
-                     2. "Not invoiced", when ServiceM8 actually says so, beats
-                        any payment reading: the action is to bill it, and
-                        chasing payment on an unbilled job is the wrong move.
-                     3. Otherwise collection, counted from payment rows.
-                     4. Otherwise nothing — see above. */
-                  if (row.statusLabel === "Quote") {
-                    if (money?.quoteSent === true) {
-                      return (
-                        <em>
-                          Quote sent
-                          {money.quoteSentOn ? ` ${fmtAuWeekdayDayMonth(money.quoteSentOn)}` : ""}
-                        </em>
-                      );
-                    }
-                    return money?.quoteSent === false ? <em>Not sent yet</em> : null;
-                  }
-
-                  if (money?.invoiced === false) return <em>Not invoiced</em>;
-
-                  const paidCents = record?.ledger
-                    ? paymentsTotalCents(record.ledger.payments)
-                    : 0;
-                  switch (collectionFrom(money?.valueCents ?? null, paidCents)) {
-                    case "paid":
-                      return <em>Paid in full</em>;
-                    case "part":
-                      return (
-                        <em>Part paid — {fmtAud(money!.valueCents! - paidCents)} still out</em>
-                      );
-                    case "awaiting":
-                      return <em>Nothing paid yet</em>;
-                    /* Money in, but ServiceM8 never said what the job was
-                       worth — the common case here, and "paid in full" would
-                       be a guess. The ledger below shows the amounts. */
-                    case "paid_unknown_total":
-                      return <em>Part or all paid</em>;
-                    default:
-                      /* The flag is the last resort and only when it says
-                         yes: on this account it is set on 45 jobs, so it adds
-                         a little and can't take anything away. */
-                      return money?.paid ? (
-                        <em>
-                          Paid{money.paidOn ? ` ${fmtAuWeekdayDayMonth(money.paidOn)}` : ""}
-                        </em>
-                      ) : null;
-                  }
-                })()}
-              </div>
-            )}
             {detail?.purchaseOrder && (
               <div>
                 <span className="wb2-sect">Their PO</span>
@@ -442,6 +447,49 @@ export function JobSheet({
             )}
           </div>
         </div>
+
+        {/* MONEY READS ONCE, and it reads here. The fact tile this replaces
+            could say one sentence about a job ServiceM8 bills across three
+            cards; the block says what the job is worth, what has been claimed
+            against it, and what is still out — and it counts collection
+            across the FAMILY, which is the difference between "Nothing paid
+            yet" and $9,402 in the bank. */}
+        {moneyVisible && record !== undefined && (
+          <JobMoneyBlock
+            family={record?.family ?? null}
+            money={money}
+            statusLabel={row.statusLabel}
+            categoryColour={row.categoryColour ?? detail?.categoryColour ?? null}
+          />
+        )}
+
+        {/* EVERY TIME SOMEBODY WAS THERE, and who went. These sessions were
+            already being fetched and summed into a single "time on site"
+            figure that answered nobody's question — the question is when we
+            were last there and who it was. */}
+        {detail && detail.visits.length > 0 && (
+          <div className="wb2-shsect">
+            <span className="wb2-sect">
+              {`Visits — ${detail.visits.length}`}
+              {detail.timeOnSite
+                ? ` · ${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site`
+                : ""}
+            </span>
+            {(allVisits ? detail.visits : detail.visits.slice(0, VISITS_SHOWN)).map((v) => (
+              <div className="wb2-mline" key={v.day}>
+                <b>{fmtAuWeekdayDayMonth(v.day)}</b>
+                <em>{v.crew.join(", ") || "Nobody named"}</em>
+                <span>{fmtMinutesAsHours(v.minutes)}</span>
+              </div>
+            ))}
+            {!allVisits && detail.visits.length > VISITS_SHOWN && (
+              <button className="wb2-shmore" onClick={() => setAllVisits(true)}>
+                {`All ${detail.visits.length} visits`}
+                <Icon name="chevR" size={14} />
+              </button>
+            )}
+          </div>
+        )}
 
         {row.tracked && (
           <div className="wb2-shsect">
@@ -526,10 +574,14 @@ export function JobSheet({
 
         {/* Materials and payments arrive null without `workboard_money`, so
             there is nothing here to hide — the server never sent it. */}
-        {record?.ledger && record.ledger.materials.length > 0 && (
+        {/* PARTIAL-INVOICE ROWS LEAVE THIS LIST. "Partial invoice #2380A × −1"
+            is ServiceM8 subtracting one of its own clones out of the parent —
+            bookkeeping, not something that went on the job. It belongs to the
+            money block above, where it IS a claim. */}
+        {materials.length > 0 && (
           <div className="wb2-shsect">
             <span className="wb2-sect">What went on the job</span>
-            {record.ledger.materials.map((m) => (
+            {materials.map((m) => (
               <div className="wb2-mline" key={m.remoteId}>
                 <b>{m.name}</b>
                 <em>{m.quantity !== null ? `× ${fmtQuantity(m.quantity)}` : ""}</em>
@@ -537,8 +589,8 @@ export function JobSheet({
               </div>
             ))}
             {(() => {
-              const total = materialsTotalCents(record.ledger.materials);
-              const mixed = materialsTaxMixed(record.ledger.materials);
+              const total = materialsTotalCents(materials);
+              const mixed = materialsTaxMixed(materials);
               /* No total when a line couldn't be read, and none when the
                  lines disagree about tax — adding an inc-GST line to an
                  ex-GST one and printing one figure would be a lie. */
@@ -553,7 +605,7 @@ export function JobSheet({
                 return <p className="int-hint">Some lines aren&apos;t priced, so there&apos;s no total to show.</p>;
               return (
                 <div className="wb2-mline total">
-                  <b>{record.ledger.materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
+                  <b>{materials[0].taxInclusive ? "Total inc GST" : "Total ex GST"}</b>
                   <em />
                   <span>{fmtAud(total)}</span>
                 </div>
@@ -667,11 +719,28 @@ export function JobSheet({
         {detail && detail.contacts.length > 0 && (
           <div className="wb2-shsect">
             <span className="wb2-sect">Who to ring</span>
+            {/* A PHONE NUMBER ON A JOB CARD IS A BUTTON. It was plain text,
+                and the second number was dropped on the floor by a `||`. */}
             {detail.contacts.map((c, i) => (
               <p className="wb2-shtext" key={`${c.name}-${i}`}>
                 <b>{c.name || "Unnamed"}</b>
                 {c.type ? ` · ${c.type.toLowerCase()}` : ""}
-                {c.phone ? ` · ${c.phone}` : ""}
+                {c.phone ? (
+                  <>
+                    {" · "}
+                    <a className="wb2-colink" href={`tel:${c.phone.replace(/[^+\d]/g, "")}`}>
+                      {c.phone}
+                    </a>
+                  </>
+                ) : null}
+                {c.altPhone ? (
+                  <>
+                    {" · "}
+                    <a className="wb2-colink" href={`tel:${c.altPhone.replace(/[^+\d]/g, "")}`}>
+                      {c.altPhone}
+                    </a>
+                  </>
+                ) : null}
                 {c.email ? (
                   <>
                     {" · "}
@@ -787,21 +856,13 @@ export function JobSheet({
           </div>
         )}
 
-        {/* The read-only fact, said once, where somebody would look for an
-            edit button rather than discovered by pressing one. */}
-        <div className="wb2-shsect">
-          <span className="wb2-sect">Changing it</span>
-          <p className="int-hint">
-            This job belongs to ServiceM8 — HeyTiff only reads it. Edit it over there and the
-            change follows here on the next sync.
-          </p>
-        </div>
-
         {err && <div className="wb2-sherr">{err}</div>}
 
-        {manage && (
+        {/* The floor is EMPTY until something is being typed on it. Its two
+            promote buttons moved into the ⋯ menu at the top right. */}
+        {manage && naming && (
           <div className="wb2-shft">
-            {naming ? (
+            {(
               <>
                 <input
                   className="wb2-fi"
@@ -821,28 +882,6 @@ export function JobSheet({
                 </button>
                 <button className="pbtn ghost" disabled={busy} onClick={() => setNaming(false)}>
                   Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="pbtn ghost"
-                  disabled={busy}
-                  onClick={() => onCreateAgreement(row, detail)}
-                >
-                  <Icon name="file" size={15} />
-                  Create a maintenance agreement
-                </button>
-                <button
-                  className="pbtn"
-                  disabled={busy}
-                  onClick={() => {
-                    setName(row.clientName ?? "");
-                    setNaming(true);
-                  }}
-                >
-                  <Icon name="plus" size={15} />
-                  Create a project from this job
                 </button>
               </>
             )}

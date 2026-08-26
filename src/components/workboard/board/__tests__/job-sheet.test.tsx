@@ -11,6 +11,7 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { CacheJobFilesResult } from "@/app/actions/workboard-media";
 import type { JobRecordRead } from "@/app/actions/workboard";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
+import { deriveFamilyMoney, type FamilyMoney } from "@/lib/workboard/job-family";
 
 const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
@@ -101,6 +102,10 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
     staffName: "Alex Lorenz",
   },
   timeOnSite: { minutes: 1110, sessions: 2 },
+  visits: [
+    { day: "2026-08-14", minutes: 620, crew: ["Alex Lorenz"] },
+    { day: "2026-08-13", minutes: 490, crew: ["Callum Vrieze", "Alex Lorenz"] },
+  ],
   queue: { name: "Parts on Order", expiry: "2026-08-20", staffName: "Luke Ingold" },
   checklist: [
     { name: "Isolate power", itemType: "Todo", section: null, done: true, doneOn: "2026-08-13", doneBy: "Callum Vrieze" },
@@ -108,7 +113,13 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
     { name: "DAS Service Call", itemType: "Form", section: "Handover", done: false, doneOn: null, doneBy: null },
   ],
   contacts: [
-    { name: "Josh", type: "Property Manager", phone: "0426 719 412", email: "josh@lsdb.com.au" },
+    {
+      name: "Josh",
+      type: "Property Manager",
+      phone: "0426 719 412",
+      altPhone: null,
+      email: "josh@lsdb.com.au",
+    },
   ],
   money: null,
   designs: [],
@@ -161,12 +172,38 @@ describe("the sheet renders what the mirror already held", () => {
     expect(within(form as HTMLElement).getByText("Form")).toBeInTheDocument();
   });
 
-  it("says the recorded time in ServiceM8's own billing shape", async () => {
+  /* The sessions used to be summed into one "time on site" figure. The
+     question a job card is actually asked is when we were last there and who
+     went, so the sessions are kept and the sum is the heading. */
+  it("lists every visit with who went, and tallies them in the heading", async () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     render(<JobSheet row={row()} {...props} />);
 
-    expect(await screen.findByText("18h 30m")).toBeInTheDocument();
-    expect(screen.getByText("recorded across 2 visits")).toBeInTheDocument();
+    expect(await screen.findByText("Visits — 2 · 18h 30m on site")).toBeInTheDocument();
+    expect(screen.getByText("Fri 14 Aug")).toBeInTheDocument();
+    // the booking tile names him too, so this counts rather than finds
+    expect(screen.getAllByText("Alex Lorenz").length).toBe(2);
+    expect(screen.getByText("Callum Vrieze, Alex Lorenz")).toBeInTheDocument();
+    expect(screen.getByText("10h 20m")).toBeInTheDocument();
+  });
+
+  /* Live, one job in ten runs past 12 sessions and the worst runs to 103 —
+     the list has to hold its shape without growing a scrollbar of its own. */
+  it("shows the last three visits and opens the rest in place", async () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      day: `2026-08-${String(20 - i).padStart(2, "0")}`,
+      minutes: 60,
+      crew: ["Alex Lorenz"],
+    }));
+    readMirrorJob.mockResolvedValueOnce(detail({ visits: many }));
+    render(<JobSheet row={row()} {...props} />);
+
+    expect(await screen.findByText("Thu 20 Aug")).toBeInTheDocument();
+    expect(screen.queryByText("Sun 16 Aug")).toBeNull();
+
+    await userEvent.click(screen.getByText("All 12 visits"));
+    expect(screen.getByText("Sun 16 Aug")).toBeInTheDocument();
+    expect(screen.queryByText("All 12 visits")).toBeNull();
   });
 
   it("gives the next booking its end time and the queue its own fact", async () => {
@@ -204,7 +241,7 @@ describe("the sheet renders what the mirror already held", () => {
         scheduleState={{ kind: "late", word: "Nothing recorded yet" }}
       />
     );
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.getByText("Work Order")).toBeInTheDocument();
     const chip = screen.getByText("Nothing recorded yet");
     expect(chip).toHaveClass("dan");
@@ -215,11 +252,392 @@ describe("the sheet renders what the mirror already held", () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     const { container } = render(<JobSheet row={row()} {...props} />);
 
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     const dot = document.querySelector(".wb2-catdot") as HTMLElement;
     expect(dot).not.toBeNull();
     expect(dot.style.background).toBe("rgb(231, 181, 255)");
     expect(container).toBeDefined();
+  });
+});
+
+/* ── the money block ──────────────────────────────────────────────────────
+   ServiceM8 bills a progress job by cloning it: #2380's deposit is job
+   #2380A, its progress claim is #2380B, and the parent is netted down to the
+   balance. The block reads the three cards as one job. */
+
+const familyMoney = (over: Partial<FamilyMoney> = {}): FamilyMoney =>
+  deriveFamilyMoney({
+    members: [
+      {
+        remoteId: "j-2380",
+        jobNumber: "2380",
+        totalCents: 626806,
+        paidCents: 0,
+        lastPaidOn: null,
+        lines: null,
+        raisedOn: "2026-08-21",
+      },
+      {
+        remoteId: "j-2380a",
+        jobNumber: "2380A",
+        totalCents: null,
+        paidCents: 940211,
+        lastPaidOn: "2026-04-02",
+        lines: { cents: 854737, taxInclusive: false },
+        raisedOn: "2026-03-27",
+      },
+      {
+        remoteId: "j-2380b",
+        jobNumber: "2380B",
+        totalCents: null,
+        paidCents: 1567018,
+        lastPaidOn: "2026-04-10",
+        lines: { cents: 1424562, taxInclusive: false },
+        raisedOn: "2026-04-02",
+      },
+    ],
+    today: "2026-08-26",
+    termsDays: null,
+    ...over,
+  });
+
+describe("the money block", () => {
+  it("reads three ServiceM8 cards as one job, with the claims numbered", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
+    expect(screen.getByText("Job value (inc GST)")).toBeInTheDocument();
+    expect(screen.getByText("Payment 1 — Deposit")).toBeInTheDocument();
+    expect(screen.getByText("Payment 2 — Progress")).toBeInTheDocument();
+    expect(screen.getByText("Payment 3 — Final")).toBeInTheDocument();
+    expect(
+      screen.getByText("Invoice #2380A · 30% of the job · Raised Fri 27 Mar · Paid Thu 2 Apr")
+    ).toBeInTheDocument();
+  });
+
+  /* Payments join by uuid and never by family, so the parent used to read
+     "Nothing paid yet" with $25,072 already in the bank. */
+  it("counts the money that landed on the clones", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("$31,340.35");
+    const head = document.querySelector(".wb2-mline.head") as HTMLElement;
+    expect(within(head).getByText("Awaiting payment")).toBeInTheDocument();
+    expect(within(head).getByText("$6,268.06")).toBeInTheDocument();
+    expect(within(head).getByText("20% of the job")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+  });
+
+  /* The two axes never share a sentence: this line counts INVOICING. */
+  it("says what has been invoiced and what is still to bill", async () => {
+    const family = familyMoney();
+    family.claims[2].state = "not_invoiced";
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: deriveFamilyMoney({
+        members: [
+          {
+            remoteId: "j-2380",
+            jobNumber: "2380",
+            totalCents: 626806,
+            paidCents: 0,
+            lastPaidOn: null,
+            lines: null,
+            raisedOn: null,
+          },
+          {
+            remoteId: "j-2380a",
+            jobNumber: "2380A",
+            totalCents: null,
+            paidCents: 940211,
+            lastPaidOn: "2026-04-02",
+            lines: { cents: 854737, taxInclusive: false },
+            raisedOn: "2026-03-27",
+          },
+          {
+            remoteId: "j-2380b",
+            jobNumber: "2380B",
+            totalCents: null,
+            paidCents: 1567018,
+            lastPaidOn: "2026-04-10",
+            lines: { cents: 1424562, taxInclusive: false },
+            raisedOn: "2026-04-02",
+          },
+        ],
+        today: "2026-08-26",
+        termsDays: null,
+      }),
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(
+      await screen.findByText("$25,072.29 invoiced so far — $6,268.06 to come")
+    ).toBeInTheDocument();
+    expect(screen.getByText("To come")).toBeInTheDocument();
+  });
+
+  /* GST is never derived, so a family whose claims are stated on different
+     bases gets no single figure — and says which. */
+  it("stands the total down rather than adding ex-GST to inc-GST", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: deriveFamilyMoney({
+        members: [
+          {
+            remoteId: "j-2380",
+            jobNumber: "2380",
+            totalCents: 626806,
+            paidCents: 0,
+            lastPaidOn: null,
+            lines: null,
+            raisedOn: "2026-08-21",
+          },
+          {
+            remoteId: "j-2380a",
+            jobNumber: "2380A",
+            totalCents: null,
+            paidCents: 0,
+            lastPaidOn: null,
+            lines: { cents: 854737, taxInclusive: false },
+            raisedOn: "2026-03-27",
+          },
+        ],
+        today: "2026-08-26",
+        termsDays: null,
+      }),
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText(/different tax bases/)).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+    // no basis is claimed for a figure that isn't there
+    expect(screen.getByText("Job value")).toBeInTheDocument();
+    expect(screen.queryByText("Job value (inc GST)")).toBeNull();
+    // and the ledger is the only answer — no second summary beside it
+    expect(screen.queryByText("Part or all paid")).toBeNull();
+    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+  });
+
+  /* An invoice nobody has raised has no number to name. */
+  it("names no invoice number on the part still to bill", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: deriveFamilyMoney({
+        members: [
+          {
+            remoteId: "j-2380",
+            jobNumber: "2380",
+            totalCents: 626806,
+            paidCents: 0,
+            lastPaidOn: null,
+            lines: null,
+            raisedOn: null,
+          },
+          {
+            remoteId: "j-2380a",
+            jobNumber: "2380A",
+            totalCents: null,
+            paidCents: 940211,
+            lastPaidOn: "2026-04-02",
+            lines: { cents: 854737, taxInclusive: false },
+            raisedOn: "2026-03-27",
+          },
+        ],
+        today: "2026-08-26",
+        termsDays: null,
+      }),
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText("Not yet invoiced")).toBeInTheDocument();
+    expect(screen.queryByText(/Invoice #2380 ·/)).toBeNull();
+  });
+
+  /* The category colour frames the money block and NOTHING else — the card
+     keeps its neutral hairline. */
+  it("wears the job type's colour as the block's edge", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("$31,340.35");
+    const block = document.querySelector(".wb2-jmoney") as HTMLElement;
+    expect(block.style.borderColor).toBe("rgb(231, 181, 255)");
+    expect((document.querySelector(".wb2-sheet") as HTMLElement).style.borderColor).toBe("");
+  });
+
+  /* ServiceM8's own subtraction rows are bookkeeping, not materials. */
+  it("keeps the partial-invoice rows out of what went on the job", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: {
+        materials: [
+          {
+            remoteId: "m-1",
+            name: "As Per Quote",
+            quantity: 1,
+            unitCents: 2796000,
+            taxInclusive: false,
+            lineCents: 2796000,
+          },
+          {
+            remoteId: "m-2",
+            name: "Partial invoice #2380A",
+            quantity: -1,
+            unitCents: 838800,
+            taxInclusive: false,
+            lineCents: -838800,
+          },
+          {
+            remoteId: "m-3",
+            name: "Discount",
+            quantity: -1,
+            unitCents: 10000,
+            taxInclusive: false,
+            lineCents: -10000,
+          },
+        ],
+        payments: [],
+      },
+      family: null,
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText("As Per Quote")).toBeInTheDocument();
+    expect(screen.queryByText("Partial invoice #2380A")).toBeNull();
+    // a discount is a real ledger entry that happens to be negative
+    expect(screen.getByText("Discount")).toBeInTheDocument();
+  });
+
+  /* This sheet's own rule: what fills in was ABSENT, not wrong. A parent
+     ServiceM8 has netted reads $6,268 on its own row and $31,340 as a family,
+     so the block waits rather than painting the wrong number first. */
+  it("shows no figure at all until the family read has landed", async () => {
+    let land: (v: JobRecordRead) => void = () => {};
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockReturnValueOnce(
+      new Promise<JobRecordRead>((res) => {
+        land = res;
+      })
+    );
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("Visits — 2 · 18h 30m on site");
+    expect(document.querySelector(".wb2-jmoney")).toBeNull();
+
+    land({ notes: [], ledger: null, family: familyMoney() });
+    expect(await screen.findByText("$31,340.35")).toBeInTheDocument();
+  });
+});
+
+/* A job ServiceM8 never cloned is the common case — 3,015 of 3,493 rows
+   live — and it wears the same block with the ledger folded away. */
+
+describe("the money block on a job with no clones", () => {
+  const plain = (over: Partial<Parameters<typeof deriveFamilyMoney>[0]["members"][number]> = {}) =>
+    deriveFamilyMoney({
+      members: [
+        {
+          remoteId: "j-2968",
+          jobNumber: "2968",
+          totalCents: 279400,
+          paidCents: 0,
+          lastPaidOn: null,
+          lines: null,
+          raisedOn: null,
+          ...over,
+        },
+      ],
+      today: "2026-08-26",
+      termsDays: null,
+    });
+
+  const jobMoney = {
+    valueCents: 279400,
+    invoiced: null,
+    invoicedOn: null,
+    quoteSent: null,
+    quoteSentOn: null,
+    paid: false,
+    paidOn: null,
+  };
+
+  it("says the value and where collection stands, with no bar to compare", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail({ money: jobMoney }));
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: plain() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText("$2,794")).toBeInTheDocument();
+    expect(screen.getByText("Nothing paid yet")).toBeInTheDocument();
+    // one segment is a rectangle, not a comparison
+    expect(document.querySelector(".wb2-jmbar")).toBeNull();
+    // and no payment schedule for a job that has no schedule
+    expect(screen.queryByText(/^Payment 1/)).toBeNull();
+  });
+
+  it("wears the amber head row once there is something to chase", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail({ money: jobMoney }));
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: plain({ paidCents: 100000, lastPaidOn: "2026-08-07", raisedOn: "2026-08-01" }),
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("$2,794");
+    const head = document.querySelector(".wb2-mline.head") as HTMLElement;
+    expect(within(head).getByText("Awaiting payment")).toBeInTheDocument();
+    expect(within(head).getByText("$1,794")).toBeInTheDocument();
+    expect(document.querySelector(".wb2-jmbar")).not.toBeNull();
+    // the head row IS the sentence — never both
+    expect(screen.queryByText(/Part paid/)).toBeNull();
+  });
+});
+
+/* ── the ways out of the job ── */
+
+describe("the promote actions", () => {
+  it("live behind the ⋯ menu, not on the card floor", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    render(<JobSheet row={row()} {...props} manage />);
+
+    await screen.findByText("Visits — 2 · 18h 30m on site");
+    expect(screen.queryByText("Create a project from this job")).toBeNull();
+
+    await userEvent.click(screen.getByLabelText("More actions"));
+    expect(screen.getByText("Create a project from this job")).toBeInTheDocument();
+    expect(screen.getByText("Create a maintenance agreement")).toBeInTheDocument();
+  });
+
+  it("offers no menu at all to a reader who cannot promote", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    render(<JobSheet row={row()} {...props} />);
+
+    await screen.findByText("Visits — 2 · 18h 30m on site");
+    expect(screen.queryByLabelText("More actions")).toBeNull();
+  });
+
+  it("closes the menu on Escape without closing the sheet", async () => {
+    const onClose = jest.fn();
+    readMirrorJob.mockResolvedValueOnce(detail());
+    render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
+
+    await userEvent.click(await screen.findByLabelText("More actions"));
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.queryByText("Create a maintenance agreement")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 
@@ -253,7 +671,7 @@ describe("money stays behind its grant", () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     render(<JobSheet row={row()} {...props} />);
 
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText(/Job value/)).toBeNull();
   });
 
@@ -338,7 +756,7 @@ describe("the work-order-since fact", () => {
 
     readMirrorJob.mockResolvedValueOnce(detail({ status: "Quote" }));
     render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} />);
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText("Work order")).toBeNull();
   });
 });
@@ -399,7 +817,7 @@ describe("designs started from this job", () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     render(<JobSheet row={row()} {...props} />);
 
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText(/Designed in the Studio/)).toBeNull();
   });
 
@@ -444,7 +862,7 @@ describe("files on the job", () => {
     readJobFiles.mockResolvedValueOnce(files());
     render(<JobSheet row={row()} {...props} />);
 
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText(/Files on this job/)).toBeNull();
   });
 
@@ -568,7 +986,7 @@ describe("bringing the bytes across", () => {
       .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 0, media: null, note: null });
 
     render(<JobSheet row={row()} {...props} />);
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(2));
   });
 
@@ -581,7 +999,7 @@ describe("bringing the bytes across", () => {
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 20, media: null, note: null });
 
     render(<JobSheet row={row()} {...props} />);
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(1));
   });
 
@@ -629,6 +1047,7 @@ describe("what's been written on the job", () => {
           writtenBy: "Luke Ingold",
         },
       ],
+      family: null,
       ledger: null,
     });
     render(<JobSheet row={row()} {...props} />);
@@ -640,10 +1059,10 @@ describe("what's been written on the job", () => {
 
   it("says nothing at all when a job has no notes", async () => {
     readMirrorJob.mockResolvedValueOnce(detail());
-    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null });
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: null });
     render(<JobSheet row={row()} {...props} />);
 
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText("What's been written on it")).toBeNull();
   });
 });
@@ -675,7 +1094,7 @@ describe("the ledger obeys the money grant", () => {
 
   it("shows the lines and their total to a reader who holds money", async () => {
     readMirrorJob.mockResolvedValueOnce(detail());
-    readJobRecord.mockResolvedValueOnce({ notes: [], ledger });
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger, family: null });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
     expect(await screen.findByText("What went on the job")).toBeInTheDocument();
@@ -686,7 +1105,7 @@ describe("the ledger obeys the money grant", () => {
 
   it("shows what's been paid, naming a deposit as one", async () => {
     readMirrorJob.mockResolvedValueOnce(detail());
-    readJobRecord.mockResolvedValueOnce({ notes: [], ledger });
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger, family: null });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
     await screen.findByText("Bank Transfer");
@@ -697,10 +1116,10 @@ describe("the ledger obeys the money grant", () => {
      null, so there is nothing for the component to hide or leak. */
   it("renders no ledger at all when the server sent none", async () => {
     readMirrorJob.mockResolvedValueOnce(detail());
-    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null });
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: null });
     render(<JobSheet row={row()} {...props} />);
 
-    await screen.findByText("18h 30m");
+    await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText("What went on the job")).toBeNull();
     expect(screen.queryByText(/What's been paid/)).toBeNull();
   });
@@ -711,6 +1130,7 @@ describe("the ledger obeys the money grant", () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     readJobRecord.mockResolvedValueOnce({
       notes: [],
+      family: null,
       ledger: {
         payments: [],
         materials: [
@@ -729,6 +1149,7 @@ describe("the ledger obeys the money grant", () => {
     readMirrorJob.mockResolvedValueOnce(detail());
     readJobRecord.mockResolvedValueOnce({
       notes: [],
+      family: null,
       ledger: {
         payments: [],
         materials: [{ ...ledger.materials[0], unitCents: null, lineCents: null }],

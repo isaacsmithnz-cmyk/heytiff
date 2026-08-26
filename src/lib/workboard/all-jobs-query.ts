@@ -24,6 +24,13 @@ import { plusDays } from "./dates";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
 import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
 import {
+  deriveFamilyMoney,
+  isFamilyMember,
+  splitJobNumber,
+  type FamilyLineTotal,
+  type FamilyMoney,
+} from "./job-family";
+import {
   ALL_JOBS_HORIZON_DAYS,
   sm8CategoryColour,
   sm8MinutesBetween,
@@ -280,15 +287,40 @@ export type MirrorJobDetail = {
       which is what ServiceM8's own billing tab calls Job Time. Validated
       against the live account: job #3137 sums to exactly its 18h 30m. */
   timeOnSite: { minutes: number; sessions: number } | null;
+  /** The same sessions, UNAGGREGATED — one row per day somebody was on site,
+      with who went. The card shows the last three and opens the rest in
+      place; the tally above them is `timeOnSite`. Newest first. */
+  visits: JobVisit[];
   /** The dispatch queue this job sits in, if any — mirrored since day one,
       rendered here first. */
   queue: { name: string; expiry: string | null; staffName: string | null } | null;
   checklist: JobChecklistItem[];
-  contacts: { name: string; type: string | null; phone: string | null; email: string | null }[];
+  contacts: {
+    name: string;
+    type: string | null;
+    /** The number to ring first — the mobile when there is one. */
+    phone: string | null;
+    /** The OTHER number, when the contact has two and they differ. The sheet
+        used to keep only the mobile and drop the landline silently. */
+    altPhone: string | null;
+    email: string | null;
+  }[];
   money: ReturnType<typeof jobMoneyOf> | null;
   /** Studio designs started FROM this job. Empty for a reader without
       `studio` — the caller decides, the same way money does. */
   designs: JobDesign[];
+};
+
+/** One day somebody was on site, as the Visits list renders it. */
+export type JobVisit = {
+  /** The day itself — ServiceM8's naive stamp, sliced. */
+  day: string;
+  /** Minutes recorded across every session that day. */
+  minutes: number;
+  /** Who went, in the order they first clocked on. TRAVEL TIME IS ABSENT ON
+      PURPOSE: ServiceM8's own diary shows it, but `sm8_job_activities` has no
+      travel column, so there is nothing here to say. */
+  crew: string[];
 };
 
 /** A Studio design that names this job, slimmed to what a row says. */
@@ -556,15 +588,25 @@ export async function readMirrorJobDetail(
         a.activity_was_scheduled === 1 && a.start_date !== null && a.start_date >= todayFloor
     ) ?? null;
 
+  /* The sessions, counted AND kept. The tally is what the header says; the
+     per-day rows are the Visits list, which is the same read the sheet was
+     already paying for and then throwing away. Two techs on one day are ONE
+     visit with two names on it — that is how a job is talked about. */
   let minutes = 0;
   let sessions = 0;
+  const byDay = new Map<string, { minutes: number; crew: string[] }>();
   for (const a of acts) {
     if (a.activity_was_scheduled !== 0 || !a.start_date || !a.end_date) continue;
     const m = sm8MinutesBetween(a.start_date, a.end_date);
-    if (m !== null && m > 0) {
-      minutes += m;
-      sessions += 1;
-    }
+    if (m === null || m <= 0) continue;
+    minutes += m;
+    sessions += 1;
+    const day = dateOf(a.start_date);
+    if (!day) continue;
+    const entry = byDay.get(day) ?? { minutes: 0, crew: [] };
+    entry.minutes += m;
+    entry.crew.push(a.staff_uuid ?? "");
+    byDay.set(day, entry);
   }
 
   const checks = (checkRows ?? []) as {
@@ -584,6 +626,7 @@ export async function readMirrorJobDetail(
         next?.staff_uuid ?? null,
         job.queue_assigned_staff_uuid,
         ...checks.map((c) => c.completed_by_staff_uuid),
+        ...acts.map((a) => a.staff_uuid),
       ].filter((id): id is string => !!id)
     ),
   ];
@@ -634,6 +677,17 @@ export async function readMirrorJobDetail(
         }
       : null,
     timeOnSite: sessions > 0 ? { minutes, sessions } : null,
+    visits: [...byDay.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([day, v]) => ({
+        day,
+        minutes: v.minutes,
+        crew: [
+          ...new Set(
+            v.crew.map((id) => staffName.get(id) ?? null).filter((n): n is string => !!n)
+          ),
+        ],
+      })),
     queue: queueName
       ? {
           name: queueName,
@@ -667,12 +721,17 @@ export async function readMirrorJobDetail(
       phone: string | null;
       email: string | null;
     }[])
-      .map((c) => ({
-        name: [c.first, c.last].filter(Boolean).join(" ").trim(),
-        type: c.type,
-        phone: c.mobile || c.phone,
-        email: c.email?.trim() || null,
-      }))
+      .map((c) => {
+        const mobile = c.mobile?.trim() || null;
+        const landline = c.phone?.trim() || null;
+        return {
+          name: [c.first, c.last].filter(Boolean).join(" ").trim(),
+          type: c.type,
+          phone: mobile || landline,
+          altPhone: mobile && landline && mobile !== landline ? landline : null,
+          email: c.email?.trim() || null,
+        };
+      })
       .filter((c) => c.name || c.phone || c.email),
     money: includeMoney ? jobMoneyOf(job) : null,
     designs: ((designRows ?? []) as {
@@ -694,6 +753,149 @@ export async function readMirrorJobDetail(
       updatedAt: d.updated_at,
     })),
   };
+}
+
+/* ── the family behind one job ── */
+
+/** Every job row ServiceM8 cloned out of this one, read as ONE ledger.
+
+    THE PREFIX MATCH IS LOOSE AND THE FILTER IS NOT. `ilike '2380%'` is what
+    makes this an index probe rather than a scan of 3,500 rows, but it also
+    finds #23800 and #2380Z-that-isn't — so every row it returns is re-tested
+    against the real shape in isFamilyMember. Asking for #238's family must
+    never bring back #2380's money.
+
+    A HEADLESS FAMILY IS STILL A FAMILY. Live, 42 variants have no active
+    parent — deleted, or never mirrored — and the derivation is built to
+    tolerate it: the members it can see are the claims it speaks for.
+
+    MONEY, so the caller must hold `workboard_money` — the same gate the
+    ledger read is behind, and for the same reason. */
+export async function readJobFamily(
+  orgId: string,
+  remoteId: string,
+  today: string,
+  termsDays: number | null
+): Promise<FamilyMoney | null> {
+  /* The NUMBER is resolved here rather than handed in: the caller holds a
+     uuid the client chose, and a job number arriving from a browser would
+     let someone ask for a family they aren't looking at. */
+  const { data: self } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("generated_job_id")
+    .eq("org_id", orgId)
+    .eq("uuid", remoteId)
+    .eq("active", 1)
+    .maybeSingle();
+
+  const parts = splitJobNumber((self as { generated_job_id: string | null } | null)?.generated_job_id);
+  if (!parts) return null;
+
+  const { data: jobRows } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid, generated_job_id, total_invoice_amount, invoice_date, date")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .ilike("generated_job_id", `${parts.base}%`)
+    .limit(40);
+
+  const members = ((jobRows ?? []) as {
+    uuid: string;
+    generated_job_id: string | null;
+    total_invoice_amount: string | null;
+    invoice_date: string | null;
+    date: string | null;
+  }[]).filter((r) => isFamilyMember(parts.base, r.generated_job_id));
+  if (members.length === 0) return null;
+
+  const ids = members.map((m) => m.uuid);
+  const [{ data: matRows }, { data: payRows }] = await Promise.all([
+    supabaseAdmin
+      .from("sm8_job_materials")
+      .select("uuid, name, quantity, price, displayed_amount, displayed_amount_is_tax_inclusive, job_uuid")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .in("job_uuid", ids)
+      .limit(600),
+    supabaseAdmin
+      .from("sm8_job_payments")
+      .select("amount, timestamp, job_uuid")
+      .eq("org_id", orgId)
+      .eq("active", 1)
+      .in("job_uuid", ids)
+      .limit(300),
+  ]);
+
+  /* One member's lines, netted — and NULL the moment they can't honestly be
+     added: an unpriced line, or two lines that disagree about tax.
+
+     THE PARENT'S NEGATIVE ROWS STAY IN. Dropping them here would be the whole
+     bug back again: "Partial invoice #2380A × −1" is what turns the parent's
+     $27,960 quote into the $6,268 BALANCE, and the balance is exactly what
+     the parent's claim is worth. They are hidden from the materials LIST on
+     the card, which is a different question — see isPartialInvoiceLine. */
+  const linesByJob = new Map<string, FamilyLineTotal | null>();
+  for (const raw of (matRows ?? []) as (Parameters<typeof materialLineOf>[0] & {
+    job_uuid: string;
+  })[]) {
+    const line = materialLineOf(raw);
+    const soFar = linesByJob.get(raw.job_uuid);
+    if (soFar === null) continue; // already unreadable
+    if (line.lineCents === null) {
+      linesByJob.set(raw.job_uuid, null);
+      continue;
+    }
+    if (soFar === undefined) {
+      linesByJob.set(raw.job_uuid, { cents: line.lineCents, taxInclusive: line.taxInclusive });
+      continue;
+    }
+    if (soFar.taxInclusive !== line.taxInclusive) {
+      linesByJob.set(raw.job_uuid, null);
+      continue;
+    }
+    linesByJob.set(raw.job_uuid, {
+      cents: soFar.cents + line.lineCents,
+      taxInclusive: soFar.taxInclusive,
+    });
+  }
+
+  const paidByJob = new Map<string, { cents: number; lastOn: string | null }>();
+  for (const p of (payRows ?? []) as {
+    amount: string | null;
+    timestamp: string | null;
+    job_uuid: string;
+  }[]) {
+    const cents = parseSm8AmountToCents(p.amount);
+    if (cents === null) continue;
+    const day = dateOf(p.timestamp);
+    const soFar = paidByJob.get(p.job_uuid);
+    paidByJob.set(p.job_uuid, {
+      cents: (soFar?.cents ?? 0) + cents,
+      lastOn:
+        day && (!soFar?.lastOn || day > soFar.lastOn) ? day : soFar?.lastOn ?? null,
+    });
+  }
+
+  return deriveFamilyMoney({
+    members: members.map((m) => {
+      const paid = paidByJob.get(m.uuid);
+      return {
+        remoteId: m.uuid,
+        jobNumber: m.generated_job_id,
+        totalCents: parseSm8AmountToCents(m.total_invoice_amount),
+        paidCents: paid?.cents ?? 0,
+        lastPaidOn: paid?.lastOn ?? null,
+        lines: linesByJob.get(m.uuid) ?? null,
+        /* A clone carries no invoice_date of its own (14 of 478 live), and
+           the day it was created IS the day the progress invoice went out. */
+        raisedOn: dateOf(m.invoice_date) ?? (splitJobNumber(m.generated_job_id)?.suffix
+          ? dateOf(m.date)
+          : null),
+      };
+    }),
+    today,
+    termsDays,
+  });
 }
 
 /* ── search, reaching past the loaded window ── */

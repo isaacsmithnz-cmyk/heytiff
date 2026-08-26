@@ -63,7 +63,7 @@ function renderHero(doc: DesignDocument) {
       selectedId={null}
       onSelect={() => {}}
       onEditRoom={() => {}}
-      rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
+      rest={{ rested: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}
@@ -101,6 +101,15 @@ describe("Cockpit hero (capacity donut)", () => {
     const { container } = renderHero(mk({ settings: PAIR, objects: [rect(500, 400)] }));
     expect(heroState(container)).toBe("bad");
     expect(screen.getByText("Short")).toBeInTheDocument();
+  });
+
+  /* The chevron used to be conditional on the flow WANTING to rest, so at the
+     one moment the plan most wants the width — units owed, the flow holding
+     the panel open — there was no way to shut the panel. It is unconditional
+     now: an open panel always offers the way back. */
+  it("an open panel always offers its collapse chevron", () => {
+    renderHero(mk({ settings: PAIR, objects: [rect(200, 200)] }));
+    expect(screen.getByRole("button", { name: "Collapse the panel" })).toBeInTheDocument();
   });
 
   it("an uncalibrated floor → empty state, Calibrate", () => {

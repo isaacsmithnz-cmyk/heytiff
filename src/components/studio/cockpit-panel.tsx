@@ -192,12 +192,11 @@ export function SystemCockpit({
   onFloor?: (floorId: string) => void;
   floor: Floor;
   /** the panel's two sizes (slice 6): `rested` swaps the panel for the 46px
-      status tab; `wouldRest` means the flow would rest were the panel not
-      held open by the pin or a selection — exactly when the foot chevron has
-      something to do. Expanding pins per system type; resting unpins. */
+      status tab. The flow proposes the size and the reader disposes — both
+      verbs are always live, and either one pins per system type until the
+      other is pressed. */
   rest: {
     rested: boolean;
-    wouldRest: boolean;
     onExpand: () => void;
     onRest: () => void;
   };
@@ -322,22 +321,23 @@ export function SystemCockpit({
     />
   );
 
-  /* the collapse chevron appears only when it would DO something: the flow
-     would rest, and the pin or a selection is what's holding the panel open.
-     While the flow itself wants the panel, the flow owns it. It rides the
-     hero's top-right so opening (the rest tab's chevron) and closing live in
-     the same place, instead of a foot the reader finds after scrolling. */
-  const restControl =
-    rest.wouldRest && !rest.rested ? (
-      <button
-        className="ds-ck-caphero-x"
-        onClick={rest.onRest}
-        title="Collapse the panel — it reopens the moment the flow needs it"
-        aria-label="Collapse the panel"
-      >
-        <Glyph name="chev" size={13} />
-      </button>
-    ) : null;
+  /* the collapse chevron, ALWAYS. It was shown only while the flow would have
+     rested anyway — which meant the one moment you most want the plan wide
+     (units owed, the flow holding the panel open) was the one moment the
+     panel could not be shut. The flow still picks the opening size; it no
+     longer gets a veto. It rides the hero's top-right so opening (the rest
+     tab's chevron) and closing live in the same place, instead of a foot the
+     reader finds after scrolling. */
+  const restControl = !rest.rested ? (
+    <button
+      className="ds-ck-caphero-x"
+      onClick={rest.onRest}
+      title="Collapse the panel"
+      aria-label="Collapse the panel"
+    >
+      <Glyph name="chev" size={13} />
+    </button>
+  ) : null;
 
   return (
     <>

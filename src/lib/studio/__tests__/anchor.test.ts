@@ -55,6 +55,62 @@ describe("anchorFloating", () => {
     expect(low.top + panel.h).toBeLessThanOrEqual(box.h - 40);
   });
 
+  /* A note anchors its editor to the LEADER end, which is a short line away
+     from the cloud — so every corner around it is within a panel's reach of
+     the cloud, and near the paper's edge the flip landed the card square on
+     the thing being annotated. The cloud goes in as `avoid`. */
+  describe("avoiding the thing it describes", () => {
+    /* the real shape: a 264×185 note editor, the leader low and right, the
+       cloud up and left of it — bottom-right is the crowded corner */
+    const bigBox = { w: 950, h: 645 };
+    const editor = { w: 264, h: 185 };
+    const cloud = { x0: 316, y0: 257, x1: 505, y1: 390 };
+    const place = (avoid?: typeof cloud) =>
+      anchorFloating({
+        anchor: { x: 734, y: 467 },
+        panel: editor,
+        box: bigBox,
+        reserveTop: 46,
+        reserveBottom: 40,
+        avoid,
+      });
+
+    it("flipped onto the cloud before it was told about it", () => {
+      const on = place();
+      expect(on.left).toBeLessThan(cloud.x1);
+      expect(on.top).toBeLessThan(cloud.y1);
+    });
+
+    it("takes the corner that covers none of it", () => {
+      const off = place(cloud);
+      const covers =
+        Math.max(0, Math.min(cloud.x1, off.left + editor.w) - Math.max(cloud.x0, off.left)) *
+        Math.max(0, Math.min(cloud.y1, off.top + editor.h) - Math.max(cloud.y0, off.top));
+      expect(covers).toBe(0);
+    });
+
+    it("stays inside the canvas doing it", () => {
+      const off = place(cloud);
+      expect(off.left).toBeGreaterThanOrEqual(10);
+      expect(off.top).toBeGreaterThanOrEqual(56);
+      expect(off.left + editor.w).toBeLessThanOrEqual(bigBox.w - 10);
+      expect(off.top + editor.h).toBeLessThanOrEqual(bigBox.h - 50);
+    });
+
+    /* nowhere is clear of a cloud that fills the paper — it must still land
+       somewhere sane rather than give up and return the preferred corner */
+    it("picks the least-covered corner when every corner is covered", () => {
+      const off = anchorFloating({
+        anchor: { x: 475, y: 322 },
+        panel: editor,
+        box: bigBox,
+        avoid: { x0: 0, y0: 0, x1: 950, y1: 645 },
+      });
+      expect(off.left).toBeGreaterThanOrEqual(10);
+      expect(off.top).toBeGreaterThanOrEqual(10);
+    });
+  });
+
   /* a panel with nowhere to fit pins to the top-left rather than being
      centred on nothing — its heading and first control stay reachable */
   it("pins a panel taller than the canvas to the top margin", () => {

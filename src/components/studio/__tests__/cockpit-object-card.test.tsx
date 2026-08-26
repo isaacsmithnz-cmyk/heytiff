@@ -75,7 +75,7 @@ function renderCockpit(
       selectedId={selectedId}
       onSelect={handlers.onSelect ?? (() => {})}
       onEditRoom={() => {}}
-      rest={{ rested: false, wouldRest: false, onExpand: () => {}, onRest: () => {} }}
+      rest={{ rested: false, onExpand: () => {}, onRest: () => {} }}
       floor={floor}
       onAddVariant={() => {}}
       onSwitchVariant={() => {}}

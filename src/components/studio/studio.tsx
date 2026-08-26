@@ -1679,21 +1679,26 @@ function Editor({
   const ckPins = useSyncExternalStore(subscribeCkPins, readCkPins, emptyCkPins);
   const activeSysType = doc.systems.find((s) => s.id === effectiveSystemId)?.type ?? null;
   const ckWouldRest = panelRests(doc, effectiveSystemId);
+  /* The flow PROPOSES the size; the pin, once set, disposes. It holds both
+     answers now, not just "held open": collapsing while the flow wants the
+     panel used to be impossible, and the panel would spring back open on the
+     next mutation. A selection still forces the panel out — the inspector
+     lives in it, and nothing else shows what you just clicked. */
+  const ckPin = activeSysType != null ? ckPins[activeSysType] : undefined;
   const cockpitRested =
-    ckWouldRest && !(activeSysType != null && ckPins[activeSysType]) && selectedId == null;
+    selectedId == null && (ckPin === "rest" || (ckPin !== "open" && ckWouldRest));
   const cockpitRest = useMemo(
     () => ({
       rested: cockpitRested,
-      wouldRest: ckWouldRest,
       onExpand: () => {
-        if (activeSysType) writeCkPin(activeSysType, true);
+        if (activeSysType) writeCkPin(activeSysType, "open");
       },
       onRest: () => {
-        if (activeSysType) writeCkPin(activeSysType, false);
+        if (activeSysType) writeCkPin(activeSysType, "rest");
         setSelectedId(null);
       },
     }),
-    [cockpitRested, ckWouldRest, activeSysType]
+    [cockpitRested, activeSysType]
   );
 
   /* rooms whose PLACED unit missed their load — the verdict that persists on
@@ -2437,12 +2442,15 @@ function StudioMenu({
    open. localStorage-backed, read via useSyncExternalStore — the snapshot is
    cached on the raw string so getSnapshot stays referentially stable. ── */
 const CK_PIN_KEY = "ht-ckpin";
-const emptyCkPinsValue: Record<string, boolean> = {};
+/** what a system type's pin says: nothing (the flow picks), or the reader's
+    own answer, which outranks it until they press the other one */
+type CkPin = "open" | "rest";
+const emptyCkPinsValue: Record<string, CkPin> = {};
 const emptyCkPins = () => emptyCkPinsValue;
 let ckPinsRaw: string | null = null;
-let ckPinsCache: Record<string, boolean> = emptyCkPinsValue;
+let ckPinsCache: Record<string, CkPin> = emptyCkPinsValue;
 const ckPinListeners = new Set<() => void>();
-function readCkPins(): Record<string, boolean> {
+function readCkPins(): Record<string, CkPin> {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem(CK_PIN_KEY);
@@ -2452,14 +2460,25 @@ function readCkPins(): Record<string, boolean> {
   if (raw !== ckPinsRaw) {
     ckPinsRaw = raw;
     try {
-      ckPinsCache = raw ? (JSON.parse(raw) as Record<string, boolean>) : emptyCkPinsValue;
+      ckPinsCache = raw ? readPinRecord(JSON.parse(raw)) : emptyCkPinsValue;
     } catch {
       ckPinsCache = emptyCkPinsValue;
     }
   }
   return ckPinsCache;
 }
-function writeCkPin(type: string, v: boolean) {
+/* the pin was a boolean before it could say "rest": a stored `true` is the
+   same held-open answer, a stored `false` only ever meant "unpinned" */
+function readPinRecord(v: unknown): Record<string, CkPin> {
+  if (!v || typeof v !== "object") return emptyCkPinsValue;
+  const out: Record<string, CkPin> = {};
+  for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
+    if (raw === "open" || raw === "rest") out[k] = raw;
+    else if (raw === true) out[k] = "open";
+  }
+  return out;
+}
+function writeCkPin(type: string, v: CkPin) {
   const next = { ...readCkPins(), [type]: v };
   try {
     localStorage.setItem(CK_PIN_KEY, JSON.stringify(next));
@@ -2821,8 +2840,15 @@ function RoomTool({
 /* ── the Note tool: ONE bench button, and the flyout is the ink. A drawing
    office marks up in more than one colour and the colour carries meaning the
    words don't repeat, so the choice belongs where the tool is armed — the
-   same shape RoomTool and DrawTool use. Picking a swatch arms the tool in
-   that ink; `A` still arms the last one straight from the keyboard. ── */
+   same shape RoomTool and DrawTool use.
+
+   It differs from those two in the one way that matters: Room has no default
+   (square or drawn is a real question), but the note's ink is ALREADY armed
+   and already showing on this button. So the first press ARMS — it used to
+   only open the ink row, which meant the obvious press did nothing you could
+   draw with, and left a menu sitting over the canvas it had just asked you to
+   drag on. The ink row belongs to the second press, when there is nothing
+   left to arm. `A` still arms the last ink straight from the keyboard. ── */
 function NoteTool({
   tool,
   onTool,
@@ -2860,7 +2886,17 @@ function NoteTool({
         aria-haspopup="menu"
         aria-expanded={open}
         title="Note — a cloud round something, with its say in the margin"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          /* the FIRST press arms, and arms alone — the flyout would hang over
+             the canvas the armed tool is asking you to drag on. Once armed,
+             the button has nothing left to arm, so the press is about the ink
+             and the row opens. */
+          if (on) setOpen((v) => !v);
+          else {
+            onTool("note");
+            setOpen(false);
+          }
+        }}
       >
         {/* the button carries the armed ink, so the bench says what the next
             note will be drawn in without opening anything */}

@@ -4443,6 +4443,15 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   gap: 14px;
   min-height: 0;
+  /* OWN a layer, and own it BELOW the canvas column (.ds-editor > .ds-panel is
+     z-index 1). Nothing here is positioned, so the cockpit's inner z-indices
+     — the hero's is 4, to clear its own dropdown — were escaping into the
+     page's stacking context and out-ranking the whole canvas column: a bench
+     flyout wide enough to reach the cockpit was painted UNDER it and lost its
+     last swatches. The column never overlaps the canvas, so containing it
+     costs nothing. */
+  position: relative;
+  z-index: 0;
   width: 0;
   margin-left: 0;
   opacity: 0;
@@ -8291,6 +8300,12 @@ html[data-ds-display] .dstudio.editing {
   min-width: 0;
   gap: 9px;
   padding: 10px;
+  /* Eight swatches in a row is ~261px, and Note is the LAST verb on the bench
+     — hung from the button's left edge the row ran off the paper and over the
+     cockpit. It hangs from the right edge instead, so it opens back across
+     the bench it belongs to. */
+  left: auto;
+  right: 0;
 }
 /* `.dstudio .ds-roomfly button` is (0,2,1) — two classes AND an element — so it
    outranks the two-class swatch rule and hands these buttons a menu-row's

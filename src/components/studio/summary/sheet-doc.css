@@ -81,11 +81,16 @@
      the sides run thin. Square, it read as a block someone had cut a rounded
      hole in — which is what it was.
 
-     A FULL-BLEED PRINT SQUARES THIS OFF AGAIN, and the caller that goes full
-     bleed is the one that does it: at the paper's own corner a radius draws
-     four white notches, and paper does not have rounded corners. Every chrome
-     that injects `@page { margin: 0 }` injects the square-off with it, so the
-     two can never disagree. */
+     IT KEEPS ITS CORNERS ON PAPER TOO, and that is a reversal. The frame used
+     to bleed to the paper's edge and square itself off there, because a radius
+     AT the paper's own corner draws four white notches. What that printed was
+     the shape Isaac described as "rounded inner corners in a square outer
+     corner" — a mat with hard corners, not the outlet the screen shows.
+
+     The band no longer reaches the paper's corner, so there is no notch to
+     avoid: the print block below insets it by `--dsd-edge`, the sheet's own
+     paper margin, and the browser's page box has no margin of its own. One
+     shape in all three chromes, curved the whole way round. */
   border-radius: calc(var(--doc-radius, 0px) + var(--doc-gutter, 0px));
   pointer-events: none;
   /* a fill a browser would otherwise drop to save ink — and this one IS the
@@ -571,8 +576,18 @@
 
    The column shares below are sized so neither model column ever reaches
    this, against the longest names the shipped catalogue actually holds. */
+/* THE OUTDOOR CELL IS THE ONE PREFIXED CLASS AMONG ITS SIBLINGS, and it is
+   prefixed because the bare name was already taken: shell.css carries
+   `.fg .odu` — an unrelated CARD (24px padding, grey fill, rounded, inset
+   shadow) — and this sheet renders inside `.fg` on the owner's Summary and on
+   paper. `.dsd-rt td.odu` out-specifies it on the three properties it
+   restates and inherits the rest, so every Outdoor cell in the rooms table
+   was drawn as a grey card: rows over twice their height, a chain of pale
+   boxes down the middle of a printed table. studio.css:1952 records the same
+   collision hitting the canvas legend — second time, so this one takes a
+   name that cannot be hit. Guarded in bare-class-collisions.test.ts. */
 .dsd-rt td.mdl,
-.dsd-rt td.odu {
+.dsd-rt td.dsd-ou {
   font-weight: 600;
   color: var(--dsd-ink-2);
   overflow-wrap: anywhere;
@@ -823,20 +838,41 @@
    fields and the Add-to-job push — cannot be pressed on paper, so the fields
    print as the text they contain and the push does not print at all. */
 @media print {
+  /* ── THE SHEET DRAWS ITS OWN PAPER MARGIN ──
+     Every chrome prints on a page box with NO margin (`@page { margin: 0 }`),
+     for two reasons that turned out to be one decision:
+
+     1. A browser only draws its own furniture — the date, the document title,
+        the URL, the page number — in the page margin. With no margin there is
+        nowhere to put it, so a customer's copy comes out carrying the
+        business's letterhead and nothing of ours. Verified by rendering with
+        the header/footer explicitly ON: at margin 0 they do not appear.
+     2. A fixed box is clipped to the page box, so inside a browser margin the
+        frame simply cannot reach the paper.
+
+     What replaces it is this: the DOCUMENT insets itself, and the frame is
+     drawn at that inset. So the band is a rounded rectangle on the paper
+     rather than a bled rectangle squared off at the paper's corner — the
+     shape the screen has always shown. Change this one number to move the
+     printed sheet's margin; nothing else knows about it. */
+  .dsd { --dsd-edge: 10mm; }
+
   /* ── THE FRAME PAINTS FIXED, ONCE PER PAGE ──
      The same two layers that draw the frame on screen draw it on paper — as
      `position: fixed`, which a print engine stamps onto EVERY page, full
-     height, clipped to the page box. That clipping is why this failed before
-     the frame owned the edge: inside a 12mm page margin a fixed box cannot
-     reach the paper. With `@page cover { margin: 0 }` the page box IS the
-     paper, and the outlet — band, well, four rounded corners — closes on
-     every page regardless of where the content stops. The tail of a last
-     page whose content ends early stays framed, which is the case the table
-     below cannot cover: a table ends where its rows end.
+     height, clipped to the page box. The outlet — band, well, four rounded
+     corners — closes on every page regardless of where the content stops. The
+     tail of a last page whose content ends early stays framed, which is the
+     case the table below cannot cover: a table ends where its rows end.
 
-     Unthemed both layers are transparent and paint nothing, fixed or not. */
+     Unthemed both layers are transparent and paint nothing, fixed or not —
+     `--dsd-edge` still holds the margin open through the spacers below, so an
+     unthemed sheet keeps its white border rather than printing flush to the
+     paper now that the page box has no margin of its own. */
   .dsd-bband,
   .dsd-bwell { position: fixed; }
+  .dsd-bband { inset: var(--dsd-edge); }
+  .dsd-bwell { inset: calc(var(--dsd-edge) + var(--doc-gutter, 0px)); }
   /* the sheet's own padding was clearing a frame that is now drawn INSIDE it:
      the cell's border is the gutter and the cell's padding is the clear */
   .dsd { padding: 0; }
@@ -873,10 +909,10 @@
      fine. Anchored to the row group each one is (0,2,3). */
   .dsd-frame > thead > tr > td.dsd-fr-t,
   .dsd-frame > tfoot > tr > td.dsd-fr-b {
-    height: var(--doc-gutter, 0px);
+    height: calc(var(--dsd-edge) + var(--doc-gutter, 0px));
   }
   .dsd-frame > tbody > tr > td.dsd-fr-c {
-    padding: 0 var(--doc-gutter, 0px);
+    padding: 0 calc(var(--dsd-edge) + var(--doc-gutter, 0px));
     vertical-align: top;
   }
   /* THE CLEAR, held open on every page: `box-decoration-break: clone` clones
@@ -886,13 +922,18 @@
      band. The paint and the rounding live on the fixed well above, which
      already closes all four corners of every page.
 
-     Twice the clear, deliberately: on screen the frame sits inside the panel
-     card's own padding, on paper it IS the page margin, and text 10mm from
-     the paper edge reads as a compliment slip. ×2 rather than +6mm because a
-     calc() fallback is 6mm when the variable is absent, not 0 — the #470
-     padding bug one layer down. */
+     ONE clear, not two. It was doubled because the frame WAS the page margin
+     — bled to the paper's edge, so text 10mm in read as a compliment slip.
+     `--dsd-edge` is that margin now, so the double would only be spent twice:
+     10mm of paper + 4mm of band + 12mm would push the printed measure to
+     612px, and the rooms table's nine columns and the picklist's model
+     numbers were fitted to ~700. At 20mm a side it keeps 643px.
+
+     Geometrically it is clear of the well's corner either way: the content
+     box's corner escapes a radius r once the clear passes r(1 − 1/√2), which
+     is 2.33mm of the 7.94 — 6mm has room to spare. */
   .dsd-frame > tbody > tr > td.dsd-fr-c > .dsd-fr-w {
-    padding: calc(var(--doc-clear, 0px) * 2);
+    padding: var(--doc-clear, 0px);
     box-decoration-break: clone;
   }
 
@@ -1029,6 +1070,11 @@
   .dsd-grp { break-inside: avoid; }
   .dsd-pick,
   .dsd-mast { break-inside: avoid; }
+  /* THE SIGN-OFF NEVER GETS A PAGE TO ITSELF. One line of 11px type is easy
+     to push over a break, and what it prints then is an otherwise empty
+     framed sheet with "Prepared with HeyTiff Design Studio" at the top of it —
+     seen on a 16-room fixture. It stays with whatever ends the document. */
+  .dsd-close { break-before: avoid; }
   .dsd-rt tr { break-inside: avoid; }
   .dsd-rt thead { break-after: avoid; }
 }

@@ -6330,10 +6330,15 @@ html[data-ds-display] .dstudio.editing {
    sheet; the SVG letterboxes itself inside (preserveAspectRatio). The figure
    root carries NO size of its own — the PNG path injects pixel attributes. */
 #ds-printdoc .ds-print-plan svg.ds-pf { width: 100%; height: 100%; display: block; }
-#ds-printdoc .ds-print-plan { height: 233mm; }
-#ds-printdoc.paper-a4.landscape .ds-print-plan { height: 152mm; }
-#ds-printdoc.paper-a3.portrait .ds-print-plan { height: 362mm; }
-#ds-printdoc.paper-a3.landscape .ds-print-plan { height: 240mm; }
+/* THE PAGE LESS ITS PADDING, less the caption and the slack that was already
+   in these numbers. Each is 16mm shorter than it was: the plan page's padding
+   went from 12mm to 20mm a side so the figure clears the sheet's frame (see
+   the print block), and the figure gives that back rather than running off
+   the sheet. */
+#ds-printdoc .ds-print-plan { height: 217mm; }
+#ds-printdoc.paper-a4.landscape .ds-print-plan { height: 136mm; }
+#ds-printdoc.paper-a3.portrait .ds-print-plan { height: 346mm; }
+#ds-printdoc.paper-a3.landscape .ds-print-plan { height: 224mm; }
 
 /* print: reveal only the print document. The studio grid children are
    display:none'd outright — visibility:hidden alone keeps their layout and
@@ -6379,8 +6384,31 @@ html[data-ds-display] .dstudio.editing {
      are specified against. */
   body:has(#ds-printdoc) { display: block !important; }
   body:has(#ds-printdoc) > *:not(#ds-printdoc) { display: none !important; }
+  /* AND IT SHEDS `.fg`, WHICH IS THE APP FRAME — the bug that ate every page
+     after the first.
+
+     The print document carries `fg dstudio` so the design tokens and Jakarta
+     resolve on it, and `.fg` is `position: fixed; inset: 0; overflow: hidden`
+     — the app's viewport-sized frame. On paper that is a box exactly one page
+     tall with a scissors on it: a themed sheet whose content ran past page one
+     printed as ONE page with the overflow simply cut off mid-row, and the
+     browser's own footer said "1/1", so nothing about the artefact suggested
+     anything was missing. Isaac hit it with two rooms.
+
+     `display: block` was already reset here and hid the rest: the id outranks
+     `.fg`, so whatever this block does not restate keeps the app frame's
+     value. The out-of-flow half is just as costly — the `page` property does
+     not apply outside the normal flow, so a fixed root also silently killed
+     the named page the cover used to shed its margin through (see the note
+     below on why there is no named page any more).
+
+     Guarded in summary-cascade.test.ts, which can read a stylesheet but could
+     never have rendered one. */
   #ds-printdoc {
     display: block;
+    position: static;
+    inset: auto;
+    overflow: visible;
     width: 100%;
     background: #fff;
     print-color-adjust: exact;
@@ -6391,13 +6419,43 @@ html[data-ds-display] .dstudio.editing {
   /* the bench, not the old floating rail — slice 1 replaced .ds-toolrail
      with .ds-toolbar, and print hides whichever chrome exists */
   .dstudio .ds-toolbar { display: none !important; }
-  /* the cover is a NAMED page so the print chrome can strip ITS margin
-     without touching the plan pages' — the themed frame bleeds to the paper
-     edge, and @page rules cannot see a CSS variable, so the name is the only
-     handle. Unthemed nothing selects `cover` and it prints on the default
-     page box, margins intact. */
-  #ds-printdoc .ds-print-cover { break-after: page; page: cover; }
-  #ds-printdoc .ds-print-page { break-after: page; }
+  /* NO NAMED PAGE ANY MORE, and no page margin either.
+
+     The cover used to be `page: cover` so a themed sheet could shed its
+     margin alone and bleed. Two things retired that: the frame no longer
+     bleeds (it draws its own inset — see `--dsd-edge` in sheet-doc.css), and
+     the browser's date/title/URL/page-number furniture only exists where
+     there is a margin to print it in. So EVERY page goes to margin 0 and each
+     one holds its own margin open in CSS — the sheet through `--dsd-edge`,
+     the plan pages through the padding below.
+
+     One page box for the whole document also means no dependency on named
+     pages, which is the feature that silently did nothing while `.fg` held
+     this subtree out of flow. */
+  #ds-printdoc .ds-print-cover { break-after: page; }
+  /* THE PLAN PAGES SIT INSIDE THE SHEET'S FRAME, and they have no choice: the
+     frame is `position: fixed`, and a print engine stamps a fixed box onto
+     EVERY page of the document, not onto the section that declared it. So the
+     branded outlet runs through the whole PDF — which is the right reading of
+     it anyway, since this is one document and not a sheet with attachments.
+
+     `position: relative` is what makes them VISIBLE inside it. Positioned
+     boxes paint above in-flow ones, so the sheet's fixed white well — opaque,
+     stamped on every page — covered a plan page whole: the caption and the
+     figure both vanished under it and the page printed as an empty frame.
+     Positioned and later in tree order, the plan page paints on top. (It only
+     became reachable once the pagination bug above was fixed; before that
+     there was never a second page to cover.)
+
+     20mm of padding rather than the 12mm `@page` used to give: the plan has to
+     clear the frame now, and the frame is 10mm of paper plus a 4mm band. The
+     plan heights below already carry that — they are the page less this
+     padding, less the caption and its slack. */
+  #ds-printdoc .ds-print-page {
+    break-after: page;
+    position: relative;
+    padding: 20mm;
+  }
   #ds-printdoc .ds-print-variant-block:last-child .ds-print-page:last-child { break-after: auto; }
   /* the document keeps its own page-break rules (sheet-doc.css); what is
      left here is the print document's own page structure */

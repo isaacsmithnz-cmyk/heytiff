@@ -360,7 +360,7 @@ function RoomsTable({
             <td className={`sty${r.styleLabel ? "" : " none"}`} data-l="Style">
               {r.styleLabel ?? "—"}
             </td>
-            <td className="odu" data-l="Outdoor">
+            <td className="dsd-ou" data-l="Outdoor">
               {sharedOutdoor ? (
                 /* a fact about the system, not a model number — a quiet pill
                    so it does not compete with the real models beside it */

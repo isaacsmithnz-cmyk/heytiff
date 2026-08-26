@@ -56,14 +56,16 @@ describe("the rooms table's cascade", () => {
   });
 
   it("every emphasis rule carries the element, not just the class", () => {
+    /* `dsd-ou` is the Outdoor cell, prefixed rather than bare because
+       shell.css already owns `.fg .odu` — see bare-class-collisions.test.ts */
     const emphasis = selectors.filter((s) =>
-      /\.(?:rm|mdl|odu|num|sty)(?![\w-])/.test(s)
+      /\.(?:rm|mdl|dsd-ou|num|sty)(?![\w-])/.test(s)
     );
     expect(emphasis.length).toBeGreaterThan(0);
     for (const sel of emphasis)
       for (const one of sel.split(","))
         /* `th.num` shares the class and is legitimately a header rule */
-        expect(one.trim()).toMatch(/t[dh]\.(?:rm|mdl|odu|num|sty)/);
+        expect(one.trim()).toMatch(/t[dh]\.(?:rm|mdl|dsd-ou|num|sty)/);
   });
 
   it("the coverage state outranks the coverage figure's own colour", () => {
@@ -77,7 +79,9 @@ describe("the rooms table's cascade", () => {
     /* it was `nowrap` + `text-overflow: ellipsis`, which silently ate the end
        of every long model below a ~1024px container. Half a model number is
        the one thing on a customer's row they cannot look up. */
-    const modelRule = css.match(/\.dsd-rt td\.mdl,\s*\.dsd-rt td\.odu \{[^}]*\}/);
+    const modelRule = css.match(
+      /\.dsd-rt td\.mdl,\s*\.dsd-rt td\.dsd-ou \{[^}]*\}/
+    );
     expect(modelRule).not.toBeNull();
     expect(modelRule![0]).not.toMatch(/text-overflow/);
     expect(modelRule![0]).not.toMatch(/white-space:\s*nowrap/);

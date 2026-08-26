@@ -110,19 +110,34 @@ function fallbackLine(
 export function JobMoneyBlock({
   family,
   money,
+  ledgerPaidCents,
   statusLabel,
   categoryColour,
 }: {
   family: FamilyMoney | null;
   money: JobMoney | null;
+  /** This job row's OWN payments, for the case where there is no family to
+      count — a job number the family read couldn't parse, or a record read
+      that came back without one. */
+  ledgerPaidCents: number;
   statusLabel: string | null;
   categoryColour: string | null;
 }) {
-  /* Collection is counted across the FAMILY. A parent whose deposit landed on
-     #2380A used to read "Nothing paid yet" while $9,402 was in the bank,
-     because payments join by uuid and never by family. */
-  const paidCents = family?.paidCents ?? 0;
-  const value = family?.valueCents ?? money?.valueCents ?? null;
+  /* Collection is counted across the FAMILY when there is one. A parent whose
+     deposit landed on #2380A used to read "Nothing paid yet" while $9,402 was
+     in the bank, because payments join by uuid and never by family. With NO
+     family the job's own ledger is the whole truth — reading zero there was
+     the same bug pointing the other way, with the payments section three
+     sections down listing the money this block said hadn't arrived. */
+  const paidCents = family ? family.paidCents : ledgerPaidCents;
+
+  /* `family ? … : …`, NEVER `??`. A family that DELIBERATELY stood its total
+     down (mixed bases, an unpriced claim) has valueCents null, and falling
+     through to this row's own figure resurrects the netted parent total this
+     whole feature exists to kill — printing "$6,268.06" above claim rows
+     worth more than it, and above the sentence saying there is no single
+     figure. Only the absence of a family read may fall back. */
+  const value = family ? family.valueCents : money?.valueCents ?? null;
   /* THE BASIS RIDES ON THE LABEL, and only when there is a figure for it to
      be the basis OF. A suppressed total under "Job value (inc GST)" claims a
      tax basis for a number that isn't there. */
@@ -156,7 +171,12 @@ export function JobMoneyBlock({
      a quote, a job ServiceM8 never priced. Never both, and never a second
      summary under a claim ledger that already says it line by line. */
   const showAwaitingHead = awaiting !== null && awaiting > 0;
-  const showPaidHead = awaiting === 0 && paidCents > 0;
+  /* "Paid in full" is about the WHOLE job, so it needs both axes to agree:
+     nothing awaiting on what has been raised (axis 2) AND nothing left to
+     raise (axis 1). awaitingCents counts only raised claims, so on its own it
+     called a job paid in full with a final claim still to bill — directly
+     under a line saying "$6,268.06 to come". */
+  const showPaidHead = awaiting === 0 && paidCents > 0 && (toCome ?? 0) <= 0;
   const fallback =
     !showAwaitingHead && !showPaidHead && !isFamily
       ? fallbackLine(money, statusLabel, paidCents)

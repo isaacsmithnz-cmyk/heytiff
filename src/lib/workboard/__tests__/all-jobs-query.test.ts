@@ -8,17 +8,27 @@
 
 const rowsBy: Record<string, Record<string, unknown>[]> = {};
 const singleBy: Record<string, Record<string, unknown> | null> = {};
+/* The fake honours nothing it is asked — so where the QUESTION is the thing
+   under test (does the family read ask by name or by prefix?), the calls are
+   recorded and asserted directly. */
+const calls: { table: string; method: string; args: unknown[] }[] = [];
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       const sub: Record<string, unknown> = {};
+      const note =
+        (method: string) =>
+        (...args: unknown[]) => {
+          calls.push({ table, method, args });
+          return sub;
+        };
       sub.select = () => sub;
       sub.eq = () => sub;
-      sub.in = () => sub;
-      sub.ilike = () => sub;
+      sub.in = note("in");
+      sub.ilike = note("ilike");
       sub.order = () => sub;
-      sub.limit = () => sub;
+      sub.limit = note("limit");
       sub.maybeSingle = () => Promise.resolve({ data: singleBy[table] ?? null });
       sub.then = (res: (v: { data: unknown[] }) => unknown) =>
         Promise.resolve({ data: rowsBy[table] ?? [] }).then(res);
@@ -68,6 +78,7 @@ const booked = {
 };
 
 beforeEach(() => {
+  calls.length = 0;
   for (const k of Object.keys(rowsBy)) delete rowsBy[k];
   for (const k of Object.keys(singleBy)) delete singleBy[k];
   singleBy["sm8_jobs"] = jobRow;
@@ -225,6 +236,37 @@ describe("readJobFamily", () => {
     const money = await readJobFamily("org-1", "j-238", "2026-08-26", null);
     expect(money?.claims.map((c) => c.jobNumber)).toEqual(["238"]);
     expect(money?.valueCents).toBe(110000);
+  });
+
+  /* `ilike '15%'` asks for #15, #150-#159 and every #15xx in the account —
+     hundreds of rows — and a capped window over them can come back without a
+     single one of #15's own members in it. Twenty-seven exact equalities have
+     no window to overflow. */
+  it("asks for the family by name and never by prefix", async () => {
+    await readJobFamily("org-1", "j-2380", "2026-08-26", null);
+
+    expect(calls.some((c) => c.table === "sm8_jobs" && c.method === "ilike")).toBe(false);
+    const byName = calls.find((c) => c.table === "sm8_jobs" && c.method === "in");
+    expect(byName).toBeDefined();
+    const wanted = byName!.args[1] as string[];
+    expect(wanted).toHaveLength(27);
+    expect(wanted[0]).toBe("2380");
+    expect(wanted).toContain("2380B");
+    expect(wanted).toContain("2380Z");
+    expect(wanted).not.toContain("23800");
+    // and no cap on the job read at all, so no family can be half-read
+    expect(calls.some((c) => c.table === "sm8_jobs" && c.method === "limit")).toBe(false);
+  });
+
+  /* A cap that is reached is a number that is wrong: the rows that went
+     unread are money that went uncounted. Saying nothing beats saying a
+     figure that is quietly short. */
+  it("declines to speak for the family when the ledger read saturates", async () => {
+    rowsBy["sm8_job_materials"] = Array.from({ length: 600 }, (_, i) =>
+      line("j-2380", `Filler ${i}`, "1.0000", "1.0000")
+    );
+
+    expect(await readJobFamily("org-1", "j-2380", "2026-08-26", null)).toBeNull();
   });
 
   it("says nothing at all about a job number it cannot read", async () => {

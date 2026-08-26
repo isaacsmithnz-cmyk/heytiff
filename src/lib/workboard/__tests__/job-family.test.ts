@@ -7,6 +7,7 @@ import {
   daysBetween,
   deriveFamilyMoney,
   familyInvoicedLine,
+  familyNumbersFor,
   isFamilyMember,
   isPartialInvoiceLine,
   splitJobNumber,
@@ -63,8 +64,19 @@ describe("splitJobNumber", () => {
     expect(splitJobNumber(null)).toBeNull();
   });
 
+  it("names every number the family could wear, and nothing else", () => {
+    const wanted = familyNumbersFor("2380");
+    expect(wanted).toHaveLength(27);
+    expect(wanted[0]).toBe("2380");
+    expect(wanted[1]).toBe("2380A");
+    expect(wanted[26]).toBe("2380Z");
+    // the alphabet the numbers are built from and the one splitJobNumber
+    // accepts have to be the same one, or the read and the filter disagree
+    expect(wanted.every((n) => isFamilyMember("2380", n))).toBe(true);
+    expect(wanted).not.toContain("23800");
+  });
+
   it("does not let a shorter number adopt a longer one", () => {
-    // the SQL prefix match finds #2380 when asking for #238's family
     expect(isFamilyMember("238", "2380")).toBe(false);
     expect(isFamilyMember("238", "238A")).toBe(true);
     expect(isFamilyMember("2380", "2380")).toBe(true);
@@ -185,6 +197,60 @@ describe("deriveFamilyMoney — the basis guards", () => {
     const m = derive([parent(), depositA()]);
     expect(m.claims[0].amountCents).toBe(940211);
     expect(m.mixedBasis).toBe(false);
+  });
+});
+
+describe("deriveFamilyMoney — a payment is never the value of a claim it hasn't cleared", () => {
+  /* THE INC-GST CASE IS THE EASY ONE, and it was the one that was wrong.
+     When a member's lines already include tax, `paid >= lines` is a
+     same-basis comparison needing no tax rate at all — so short-circuiting
+     past it turned every deposit against an inc-GST job into that job's
+     whole value, and marked it Paid. */
+  const incLines = (over: Partial<FamilyMemberFacts> = {}): FamilyMemberFacts =>
+    depositA({ lines: { cents: 1100000, taxInclusive: true }, ...over });
+
+  it("keeps the lines as the value when an inc-GST claim is only part paid", () => {
+    const m = derive([incLines({ paidCents: 110000, lastPaidOn: "2026-04-02" })]);
+
+    expect(m.claims[0].amountCents).toBe(1100000);
+    expect(m.claims[0].basis).toBe("inc");
+    expect(m.claims[0].state).toBe("part");
+    expect(m.valueCents).toBe(1100000);
+    expect(m.awaitingCents).toBe(990000);
+  });
+
+  it("still takes the payment once it clears inc-GST lines", () => {
+    const m = derive([incLines({ paidCents: 1100000, lastPaidOn: "2026-04-02" })]);
+
+    expect(m.claims[0].amountCents).toBe(1100000);
+    expect(m.claims[0].state).toBe("paid");
+  });
+});
+
+describe("deriveFamilyMoney — the awaiting rollup keeps to one basis", () => {
+  /* An ex-GST claim amount and an inc-GST payment cannot be subtracted from
+     one another. The per-claim state machine already refuses that comparison;
+     the rollup underneath it must refuse it too, rather than quietly printing
+     a difference between two different bases as "Awaiting payment". */
+  it("states no awaiting figure when an ex-GST claim has money against it", () => {
+    const m = derive([
+      parent({ totalCents: null, lines: { cents: 1000000, taxInclusive: false } }),
+      depositA({ totalCents: null, paidCents: 250000, lines: { cents: 500000, taxInclusive: false } }),
+    ]);
+
+    expect(m.basis).toBe("ex");
+    expect(m.valueCents).toBe(1500000);
+    expect(m.claims.find((c) => c.jobNumber === "2380A")!.state).toBe("part");
+    expect(m.awaitingCents).toBeNull();
+  });
+
+  it("still adds up an ex-GST family that nobody has paid anything on", () => {
+    const m = derive([
+      parent({ totalCents: null, lines: { cents: 1000000, taxInclusive: false } }),
+      depositA({ totalCents: null, paidCents: 0, lastPaidOn: null, lines: { cents: 500000, taxInclusive: false } }),
+    ]);
+
+    expect(m.awaitingCents).toBe(1500000);
   });
 });
 

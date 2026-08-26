@@ -85,12 +85,27 @@ export function splitJobNumber(raw: string | null | undefined): JobNumberParts |
   return { base: m[1], suffix: m[2] ?? null };
 }
 
-/** Does `candidate` belong to `base`'s family? The prefix match that finds
-    them in SQL is deliberately loose — "238%" also finds #2380 — so every
-    row it returns is re-tested here against the real shape. */
+/** Does `candidate` belong to `base`'s family? */
 export function isFamilyMember(base: string, candidate: string | null | undefined): boolean {
   const parts = splitJobNumber(candidate);
   return parts !== null && parts.base === base;
+}
+
+/** EVERY job number this family could possibly wear — the parent and its
+    twenty-six possible clones — so the read can ask for them BY NAME.
+
+    A PREFIX MATCH IS THE WRONG QUESTION and it was a real bug: `ilike '15%'`
+    asks for #15, #150–#159 and every #15xx in the account, hundreds of rows,
+    and a capped window over them can come back without a single one of #15's
+    own members in it. Twenty-seven exact equalities have no window to
+    overflow, hit the same index, and cannot drag in a longer number at all.
+
+    Built from the same alphabet splitJobNumber accepts, so the SQL and the
+    filter cannot drift apart. */
+export function familyNumbersFor(base: string): string[] {
+  const out = [base];
+  for (let c = 0; c < 26; c += 1) out.push(base + String.fromCharCode(65 + c));
+  return out;
 }
 
 /* ── the netting lines ── */
@@ -228,11 +243,18 @@ function amountOf(m: FamilyMemberFacts): { cents: number; basis: MoneyBasis } | 
   if (m.totalCents !== null) return { cents: m.totalCents, basis: "inc" };
 
   if (m.paidCents > 0) {
-    /* Settled? paid >= the ex-GST lines is a tax-rate-free inequality. With
-       no lines at all there is nothing to test against and the payment is
-       the only figure ServiceM8 has ever stated for this claim. */
-    const clearsLines =
-      m.lines === null || m.lines.taxInclusive || m.paidCents >= m.lines.cents;
+    /* Settled? `paid >= the lines` is the test, and it needs no tax rate in
+       EITHER direction. Against ex-GST lines it is the inequality argued in
+       the header: tax is never negative, so an inc-GST invoice is never less
+       than its ex-GST lines. Against INC-GST lines it is simply a same-basis
+       comparison — which is why this must not short-circuit on the flag. It
+       once did, and that made any deposit against a tax-inclusive job the
+       whole value of the job and marked it Paid: $1,100 in on an $11,000 job
+       read as "$1,100 · Paid in full".
+
+       With no lines at all there is nothing to test against, and the payment
+       is the only figure ServiceM8 has ever stated for this claim. */
+    const clearsLines = m.lines === null || m.paidCents >= m.lines.cents;
     if (clearsLines) return { cents: m.paidCents, basis: "inc" };
   }
 
@@ -316,6 +338,11 @@ export function deriveFamilyMoney(input: {
 
   let invoiced = 0;
   let awaiting = 0;
+  /* An ex-GST claim amount minus an inc-GST payment is not a number anybody
+     should read. The per-claim state machine below already refuses that
+     comparison; this is the rollup refusing it too, rather than printing the
+     difference between two bases as "Awaiting payment". */
+  let awaitingUnreadable = false;
 
   const claims: FamilyClaim[] = drafts.map((d, i) => {
     const last = i === drafts.length - 1;
@@ -336,8 +363,12 @@ export function deriveFamilyMoney(input: {
     else state = "awaiting";
 
     if (d.raised && d.amountCents !== null && !mixedBasis && !unknownClaim) {
+      /* Invoicing is axis 1 and every amount here shares one basis, so it
+         adds. What is still OUT needs the payment subtracted from it, and
+         that only works when the two are on the same basis. */
       invoiced += d.amountCents;
-      if (state !== "paid") awaiting += Math.max(0, d.amountCents - d.paidCents);
+      if (d.basis === "ex" && d.paidCents > 0) awaitingUnreadable = true;
+      else if (state !== "paid") awaiting += Math.max(0, d.amountCents - d.paidCents);
     }
 
     /* DUE-NESS NEEDS TERMS, and ServiceM8 does not mirror them. With the
@@ -375,7 +406,7 @@ export function deriveFamilyMoney(input: {
     invoicedCents: valueCents === null ? null : invoiced,
     toComeCents: valueCents === null ? null : valueCents - invoiced,
     paidCents: paidTotal,
-    awaitingCents: valueCents === null ? null : awaiting,
+    awaitingCents: valueCents === null || awaitingUnreadable ? null : awaiting,
   };
 }
 

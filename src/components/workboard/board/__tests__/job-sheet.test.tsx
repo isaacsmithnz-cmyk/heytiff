@@ -541,6 +541,145 @@ describe("the money block", () => {
   });
 });
 
+/* ── what the money block must NOT say ── */
+
+describe("the money block never speaks past what it knows", () => {
+  const mixed = () =>
+    deriveFamilyMoney({
+      members: [
+        {
+          remoteId: "j-2380",
+          jobNumber: "2380",
+          totalCents: 626806,
+          paidCents: 0,
+          lastPaidOn: null,
+          lines: null,
+          raisedOn: "2026-08-21",
+        },
+        {
+          remoteId: "j-2380a",
+          jobNumber: "2380A",
+          totalCents: null,
+          paidCents: 0,
+          lastPaidOn: null,
+          lines: { cents: 854737, taxInclusive: false },
+          raisedOn: "2026-03-27",
+        },
+      ],
+      today: "2026-08-26",
+      termsDays: null,
+    });
+
+  /* The netted parent figure is the exact bug this feature exists to kill.
+     A suppressed family total must not fall back to it — that printed a job
+     value SMALLER than one of its own claims, right above the sentence
+     saying no single figure exists. */
+  it("does not resurrect the job row's own total when the family stood one down", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        money: {
+          valueCents: 626806,
+          invoiced: null,
+          invoicedOn: null,
+          quoteSent: null,
+          quoteSentOn: null,
+          paid: false,
+          paidOn: null,
+        },
+      })
+    );
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: mixed() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText(/different tax bases/);
+    // the headline stands down; the same figure is still legitimately the
+    // parent's own CLAIM amount in the ledger below it
+    expect(document.querySelector(".wb2-jmbig")!.textContent).toBe("—");
+    expect(screen.getByText("Job value")).toBeInTheDocument();
+    const claim = screen.getByText("Payment 2 — Final").closest(".wb2-mline")!;
+    expect(within(claim as HTMLElement).getByText("$6,268.06")).toBeInTheDocument();
+  });
+
+  /* awaitingCents counts only RAISED claims, so "nothing awaiting" and
+     "nothing left to bill" are different facts. */
+  it("does not call a job paid in full while a claim is still to be billed", async () => {
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: deriveFamilyMoney({
+        members: [
+          {
+            remoteId: "j-2380",
+            jobNumber: "2380",
+            totalCents: 626806,
+            paidCents: 0,
+            lastPaidOn: null,
+            lines: null,
+            raisedOn: null,
+          },
+          {
+            remoteId: "j-2380a",
+            jobNumber: "2380A",
+            totalCents: null,
+            paidCents: 940211,
+            lastPaidOn: "2026-04-02",
+            lines: { cents: 854737, taxInclusive: false },
+            raisedOn: "2026-03-27",
+          },
+        ],
+        today: "2026-08-26",
+        termsDays: null,
+      }),
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText(/invoiced so far/)).toBeInTheDocument();
+    expect(screen.queryByText("Paid in full")).toBeNull();
+  });
+
+  /* Collection came only from the family, so a job whose number the family
+     read can't parse reported nothing collected while the payments section
+     on the same card listed the money. */
+  it("counts the ledger's payments when there is no family to count", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        money: {
+          valueCents: 279400,
+          invoiced: null,
+          invoicedOn: null,
+          quoteSent: null,
+          quoteSentOn: null,
+          paid: false,
+          paidOn: null,
+        },
+      })
+    );
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: {
+        materials: [],
+        payments: [
+          {
+            remoteId: "p-1",
+            amountCents: 279400,
+            method: "Bank Transfer",
+            note: null,
+            takenOn: "2026-08-07",
+            isDeposit: false,
+            takenBy: null,
+          },
+        ],
+      },
+      family: null,
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(await screen.findByText("Paid in full")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing paid yet")).toBeNull();
+  });
+});
+
 /* A job ServiceM8 never cloned is the common case — 3,015 of 3,493 rows
    live — and it wears the same block with the ledger folded away. */
 

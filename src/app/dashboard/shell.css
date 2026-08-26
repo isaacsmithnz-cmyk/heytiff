@@ -6990,6 +6990,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 /* the ways out of the job, behind the ⋯ — a once-per-job act, off the floor */
 .wb2-shmenu { position:relative; margin-left:auto; }
 .wb2-shtop .wb2-shmenu .wb2-ico { margin-left:0; }
+/* ONE auto margin per flex line, or the two share the slack. `.wb2-shtop
+   .wb2-ico { margin-left:auto }` above still matches the close button that
+   follows the menu, so both were absorbing half the free space each and the
+   ⋯ drifted away from the ×. The menu takes the slack; the × sits against
+   it. */
+.wb2-shtop > .wb2-shmenu + .wb2-ico { margin-left:0; }
 /* sized to its longest item — "Create a maintenance agreement" is one thing
    to do, and wrapping it over two lines reads as two */
 .wb2-shmpop { position:absolute; top:calc(100% + 6px); right:0; z-index:3;
@@ -7003,6 +7009,14 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 /* a disabled item goes GREY, never transparent — opacity is not de-emphasis */
 .wb2-shmpop > button:disabled { color:var(--gray400); cursor:default; }
 .wb2-shmpop > button:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* THE PORTAL'S OWN RESTATEMENT, and the reason the sheet reuses .wb2-sheet at
+   all. `.int-hint` is only ever declared as `.fg .int-hint` (line 4593), and
+   this sheet portals to document.body — outside `.fg` — so every hint on it
+   was rendering at the body's own 16px/400 full ink: the mixed-tax caveats,
+   the truncation notes, "Already tracked". Same class, same values, stated
+   where the portal can reach them. */
+.wb2-sheet .int-hint { margin:12px 2px 0; font-size:12.5px; font-weight:500;
+  line-height:1.55; color:var(--gray500); }
 /* "All 12 visits" — opens the rest of the list in place, no second screen */
 .wb2-shmore { display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
   margin-top:8px; padding:5px 2px; border:0; background:none; color:#007fa8; font:inherit;

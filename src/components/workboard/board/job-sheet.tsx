@@ -458,6 +458,9 @@ export function JobSheet({
           <JobMoneyBlock
             family={record?.family ?? null}
             money={money}
+            ledgerPaidCents={
+              record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
+            }
             statusLabel={row.statusLabel}
             categoryColour={row.categoryColour ?? detail?.categoryColour ?? null}
           />

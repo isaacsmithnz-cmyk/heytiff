@@ -25,6 +25,7 @@ import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-
 import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
 import {
   deriveFamilyMoney,
+  familyNumbersFor,
   isFamilyMember,
   splitJobNumber,
   type FamilyLineTotal,
@@ -42,6 +43,12 @@ import {
     account has open (the live workspace: 841), and the panel SAYS when it
     binds — a silent truncation reads as "that's everything" when it isn't. */
 export const ALL_JOBS_OPEN_CAP = 1500;
+
+/** How much of one job family's ledger a single read will carry. Live the
+    busiest family holds 36 material lines and 7 payments across its members;
+    these are the walls, not the working numbers — see readJobFamily. */
+const MAX_FAMILY_LINES = 600;
+const MAX_FAMILY_PAYMENTS = 300;
 
 export type AllJobsData = {
   jobs: AllJobsMirrorJob[];
@@ -759,11 +766,13 @@ export async function readMirrorJobDetail(
 
 /** Every job row ServiceM8 cloned out of this one, read as ONE ledger.
 
-    THE PREFIX MATCH IS LOOSE AND THE FILTER IS NOT. `ilike '2380%'` is what
-    makes this an index probe rather than a scan of 3,500 rows, but it also
-    finds #23800 and #2380Z-that-isn't — so every row it returns is re-tested
-    against the real shape in isFamilyMember. Asking for #238's family must
-    never bring back #2380's money.
+    THE FAMILY IS ASKED FOR BY NAME, not by prefix. `ilike '15%'` would ask
+    for #15, #150–#159 and every #15xx in the account — hundreds of rows — and
+    a capped window over them can return without one of #15's own members in
+    it, so the family would read as empty or, worse, partial. The twenty-seven
+    numbers this family could wear are enumerated instead (familyNumbersFor),
+    which has no window to overflow and cannot drag a longer number in.
+    isFamilyMember still re-tests every row, as defence in depth.
 
     A HEADLESS FAMILY IS STILL A FAMILY. Live, 42 variants have no active
     parent — deleted, or never mirrored — and the derivation is built to
@@ -796,8 +805,7 @@ export async function readJobFamily(
     .select("uuid, generated_job_id, total_invoice_amount, invoice_date, date")
     .eq("org_id", orgId)
     .eq("active", 1)
-    .ilike("generated_job_id", `${parts.base}%`)
-    .limit(40);
+    .in("generated_job_id", familyNumbersFor(parts.base));
 
   const members = ((jobRows ?? []) as {
     uuid: string;
@@ -816,14 +824,14 @@ export async function readJobFamily(
       .eq("org_id", orgId)
       .eq("active", 1)
       .in("job_uuid", ids)
-      .limit(600),
+      .limit(MAX_FAMILY_LINES),
     supabaseAdmin
       .from("sm8_job_payments")
       .select("amount, timestamp, job_uuid")
       .eq("org_id", orgId)
       .eq("active", 1)
       .in("job_uuid", ids)
-      .limit(300),
+      .limit(MAX_FAMILY_PAYMENTS),
   ]);
 
   /* One member's lines, netted — and NULL the moment they can't honestly be
@@ -834,6 +842,22 @@ export async function readJobFamily(
      $27,960 quote into the $6,268 BALANCE, and the balance is exactly what
      the parent's claim is worth. They are hidden from the materials LIST on
      the card, which is a different question — see isPartialInvoiceLine. */
+  /* A CAP THAT IS REACHED IS A NUMBER THAT IS WRONG. Live the busiest family
+     holds 36 material lines and 7 payments across its members, so these walls
+     sit at twenty-fold headroom — but if one is ever hit, the rows that went
+     unread are money that went uncounted, and every figure below would be
+     quietly short.
+
+     THE ANSWER IS TO SAY NOTHING, not to patch the inputs. Nulling the lines
+     was tried and is worse: `lines === null` means "this claim has no lines",
+     which lets a PART payment stand as the claim's whole value — the exact
+     misread amountOf exists to prevent. Declining outright drops the sheet
+     back to the job's own labelled total, which is what it showed for two
+     years and cannot be a new wrong number. */
+  if ((matRows ?? []).length >= MAX_FAMILY_LINES || (payRows ?? []).length >= MAX_FAMILY_PAYMENTS) {
+    return null;
+  }
+
   const linesByJob = new Map<string, FamilyLineTotal | null>();
   for (const raw of (matRows ?? []) as (Parameters<typeof materialLineOf>[0] & {
     job_uuid: string;

@@ -2811,7 +2811,7 @@ html[data-ds-display] .dstudio.editing {
 /* the ink arrives as an inline `color` per note (notes.ts holds the palette);
    this is only the fallback for a note drawn before inks existed */
 .dstudio .ds-note {
-  color: #4338ca;
+  color: #222222;
 }
 .dstudio .ds-note-cloud {
   fill: none;

@@ -294,13 +294,13 @@ describe("a note on the drawing", () => {
         rect: { x: 0, y: 0, w: 200, h: 100 },
         leader: { x: 600, y: 0 },
         text: "Query",
-        ink: "#C81E3C",
+        ink: "#9D174D",
         id: "note_1",
       }),
     ];
     const v = renderCanvas({ tool: "select", doc: d });
     expect(v.container.querySelector<SVGGElement>(".ds-note")!.style.color).toBe(
-      "rgb(200, 30, 60)"
+      "rgb(157, 23, 77)"
     );
   });
 
@@ -321,9 +321,9 @@ describe("choosing the ink", () => {
   };
 
   it("draws the next note in the armed ink", () => {
-    const v = renderCanvas({ armedInk: "#15803D" });
+    const v = renderCanvas({ armedInk: "#14532D" });
     make(v);
-    expect(noteInkOf(v.notes[0])).toBe("#15803D");
+    expect(noteInkOf(v.notes[0])).toBe("#14532D");
   });
 
   it("defaults to the ink notes shipped in", () => {
@@ -350,9 +350,9 @@ describe("choosing the ink", () => {
     expect(swatches).toHaveLength(NOTE_INKS.length);
     expect(swatches[0]).toBeChecked();
 
-    fireEvent.click(screen.getByRole("radio", { name: "Red" }));
-    expect(noteInkOf(v.notes[0])).toBe("#C81E3C");
-    expect(screen.getByRole("radio", { name: "Red" })).toBeChecked();
+    fireEvent.click(screen.getByRole("radio", { name: "Wine" }));
+    expect(noteInkOf(v.notes[0])).toBe("#9D174D");
+    expect(screen.getByRole("radio", { name: "Wine" })).toBeChecked();
   });
 
   /* recolouring must not eat the words somebody has already typed */
@@ -362,10 +362,10 @@ describe("choosing the ink", () => {
     fireEvent.change(screen.getByLabelText("Note text"), {
       target: { value: "Existing unit stays" },
     });
-    fireEvent.click(screen.getByRole("radio", { name: "Teal" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Petrol" }));
     fireEvent.click(screen.getByText("Done"));
 
     expect(noteText(v.notes[0])).toBe("Existing unit stays");
-    expect(noteInkOf(v.notes[0])).toBe("#0F766E");
+    expect(noteInkOf(v.notes[0])).toBe("#155E75");
   });
 });

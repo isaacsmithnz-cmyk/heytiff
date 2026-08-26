@@ -262,6 +262,76 @@ describe("the ink palette", () => {
     }
   });
 
+  /* the default is the ONE ink with no hue: whatever colours a design's
+     systems end up wearing, a note in graphite can never be read as one.
+     The old default was an indigo, and on a sheet whose system was blue the
+     two read as the same colour (seen on paper, 2026-08-26). */
+  it("defaults to the hueless one", () => {
+    expect(DEFAULT_NOTE_INK).toBe(NOTE_INKS[0].hex);
+    const n = parseInt(DEFAULT_NOTE_INK.slice(1), 16);
+    expect((n >> 16) & 255).toBe((n >> 8) & 255);
+    expect((n >> 8) & 255).toBe(n & 255);
+  });
+
+  /* the point of the set: a LADDER from a near-black pen to a mid-tone, not
+     eight similar darks */
+  it("spans a real range of darkness rather than clustering", () => {
+    const ratios = NOTE_INKS.map((i) => onWhite(i.hex));
+    expect(Math.max(...ratios)).toBeGreaterThan(12);
+    expect(Math.min(...ratios)).toBeLessThan(5.5);
+  });
+
+  const hue = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => c / 255);
+    const mx = Math.max(r, g, b);
+    const d = mx - Math.min(r, g, b);
+    if (d === 0) return null; // the neutral
+    const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return (((h * 60) % 360) + 360) % 360;
+  };
+  const apart = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+
+  it("spreads its hues instead of stacking up in one corner", () => {
+    const hues = NOTE_INKS.map((i) => hue(i.hex)).filter((h): h is number => h !== null);
+    expect(hues).toHaveLength(7); // exactly one neutral, and it is the default
+    for (const a of hues) {
+      const near = hues.filter((b) => b !== a && apart(a, b) < 20);
+      expect([a, near]).toEqual([a, []]);
+    }
+  });
+
+  /* A note must not read as somebody's pipework — and what makes two marks
+     confusable is hue AND weight together, not either alone. Sharing a hue is
+     fine when the ink is far darker (Navy sits 7° from the system blue and
+     nearly nine stops below it); sharing a weight is fine when the hues are
+     nothing alike (Olive and that same blue are 150° apart). The first draft
+     of this guard tested weight only and failed Olive for looking nothing
+     like a blue, which is how the rule got stated properly. */
+  it("never matches a system colour in both hue and weight", () => {
+    const system = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "#D63384"];
+    const clashes: string[] = [];
+    for (const sys of system) {
+      const sh = hue(sys);
+      for (const ink of NOTE_INKS) {
+        const ih = hue(ink.hex);
+        if (sh === null || ih === null) continue;
+        if (apart(sh, ih) < 25 && Math.abs(onWhite(ink.hex) - onWhite(sys)) < 1)
+          clashes.push(`${ink.label} vs ${sys}`);
+      }
+    }
+    expect(clashes).toEqual([]);
+  });
+
+  /* the tightest pair in the set, pinned so a retune cannot quietly close it:
+     Brick sits almost exactly on the system orange's hue and is kept apart by
+     weight alone */
+  it("keeps its closest call to the system palette honest", () => {
+    const brick = NOTE_INKS.find((i) => i.id === "brick")!;
+    expect(apart(hue(brick.hex)!, hue("#E4572E")!)).toBeLessThan(10);
+    expect(onWhite(brick.hex) - onWhite("#E4572E")).toBeGreaterThan(1.2);
+  });
+
   it("keeps every ink readable as TEXT on white paper", () => {
     // asserted as a map so a failure NAMES the ink that fell short
     const failing = NOTE_INKS.filter((i) => onWhite(i.hex) < 4.5).map(
@@ -280,22 +350,26 @@ describe("the ink palette", () => {
   it("reads a note's ink back, and falls back only on garbage", () => {
     const n = mkNote(RECT, { x: 400, y: 60 });
     expect(noteInkOf(n)).toBe(DEFAULT_NOTE_INK);
-    const red = createNote({
+    const wine = createNote({
       floorId: "flr",
       rect: RECT,
       leader: { x: 400, y: 60 },
-      ink: "#C81E3C",
+      ink: "#9D174D",
     });
-    expect(noteInkOf(red)).toBe("#C81E3C");
+    expect(noteInkOf(wine)).toBe("#9D174D");
     expect(noteInkOf({ ...n, props: { ...n.props, ink: "red" } })).toBe(DEFAULT_NOTE_INK);
     expect(noteInkOf({ ...n, props: { ...n.props, ink: 42 } })).toBe(DEFAULT_NOTE_INK);
   });
 
-  /* the hex is stored, not the palette id — a design printed a year from now
-     must come out the colour it was drawn in, even if this palette is retuned */
+  /* the hex is stored, not the palette id — and this stopped being
+     hypothetical the day the palette was retuned (2026-08-26). Every note
+     drawn before it keeps the colour it was drawn in, the old indigo default
+     included; nothing silently re-tints on a design somebody has printed. */
   it("keeps an ink that is no longer on the palette", () => {
     const n = mkNote(RECT, { x: 400, y: 60 });
     expect(noteInkOf({ ...n, props: { ...n.props, ink: "#123456" } })).toBe("#123456");
+    expect(noteInkOf({ ...n, props: { ...n.props, ink: "#4338CA" } })).toBe("#4338CA");
+    expect(NOTE_INKS.map((i) => i.hex)).not.toContain("#4338CA");
   });
 });
 

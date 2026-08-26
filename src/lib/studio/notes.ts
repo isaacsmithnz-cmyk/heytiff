@@ -28,12 +28,21 @@ export const NOTE_TYPE = "note";
    means something the words don't repeat — this trade's clouds in one ink,
    this revision's in another, a query in red.
 
-   Eight, and deliberately DEEP ones. The system palette (cockpit-panel.ts)
-   is mid-bright because a system is a 2.5px line; a note is TEXT that has to
-   be read off a printed sheet, so every ink here clears 4.5:1 on white and
-   sits darker than any system colour — which is also what keeps a note from
-   reading as somebody's pipework. Amber is missing on purpose: rooms wear it.
-   Guarded in __tests__/notes.test.ts. ── */
+   Eight, laid out as a LADDER rather than a row of eight similar darks: from
+   a near-black pen at 15.9:1 down to a mid olive at 4.75:1, with the hues
+   spread right round the wheel. Two constraints shaped it, and both are real:
+
+   1. **They are TEXT on white paper.** 4.5:1 is the floor, and it is a hard
+      one — a note nobody can read in a van is not a note. That is what stops
+      the ladder going any lighter, and it is also why note inks cannot simply
+      be the system palette: FOUR of those six fail it outright (amber 2.0,
+      teal 3.1, orange 3.7, violet 4.1), as does the rooms' amber at 2.7.
+   2. **A note must not read as somebody's pipework.** Every ink here sits
+      well darker than the system colour nearest its hue, so markup and
+      services never sit at the same weight on a sheet.
+
+   Amber is missing on purpose: rooms wear it. Guarded in notes.test.ts, which
+   holds the whole ladder to those floors. */
 export interface NoteInk {
   id: string;
   label: string;
@@ -41,17 +50,16 @@ export interface NoteInk {
 }
 
 export const NOTE_INKS: readonly NoteInk[] = [
-  { id: "indigo", label: "Indigo", hex: "#4338CA" },
-  { id: "blue", label: "Blue", hex: "#1D4ED8" },
-  { id: "teal", label: "Teal", hex: "#0F766E" },
-  { id: "green", label: "Green", hex: "#15803D" },
-  { id: "red", label: "Red", hex: "#C81E3C" },
-  { id: "orange", label: "Orange", hex: "#C2410C" },
-  { id: "purple", label: "Purple", hex: "#7E22CE" },
-  { id: "graphite", label: "Graphite", hex: "#334155" },
+  { id: "graphite", label: "Graphite", hex: "#222222" },
+  { id: "navy", label: "Navy", hex: "#0F2E5C" },
+  { id: "forest", label: "Forest", hex: "#14532D" },
+  { id: "plum", label: "Plum", hex: "#6B21A8" },
+  { id: "wine", label: "Wine", hex: "#9D174D" },
+  { id: "petrol", label: "Petrol", hex: "#155E75" },
+  { id: "brick", label: "Brick", hex: "#C2410C" },
+  { id: "olive", label: "Olive", hex: "#6B7A16" },
 ];
 
-/** what a note is drawn in when nobody has chosen — the ink notes shipped in */
 export const DEFAULT_NOTE_INK = NOTE_INKS[0].hex;
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;

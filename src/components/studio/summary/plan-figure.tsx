@@ -44,8 +44,14 @@ import { unitGlyph, type LayerFlags } from "../canvas";
    one print document. */
 
 const REF_W = 900; // reference width: text sized as if on a 900px-wide sheet
-/** the markup text's size at reference width — the print twin of NOTE_FONT_PX */
-const NOTE_FONT_REF = 11;
+/** The markup text's size at reference width — the print twin of NOTE_FONT_PX.
+
+    Matches the ROOM NAME (13), not the room's area line (11), and that is the
+    point: a note is a written instruction to whoever builds the job, so it has
+    no business being quieter on paper than a derived measurement. It printed
+    at 11 until a real sheet showed it losing to the labels around it
+    (2026-08-26). The canvas always used 13; this is paper catching up. */
+const NOTE_FONT_REF = 13;
 
 export function planFigureBounds(
   doc: DesignDocument,
@@ -227,7 +233,7 @@ export function PlanFigure({
         .ds-pf .ds-pf-legend rect.card { fill: rgba(255,255,255,0.96); stroke: #d7dbe4; stroke-width: 1; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-pf-legend text { fill: #3c4356; font-weight: 700; }
         .ds-pf .ds-pf-legend .swatch-room { fill: rgba(240,164,49,0.35); stroke: #d98f1f; }
-        .ds-pf .ds-note { color: #4338ca; }
+        .ds-pf .ds-note { color: #222222; }
         .ds-pf .ds-note-cloud { fill: none; stroke: currentColor; stroke-width: 1.7px; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-note-leader { fill: none; stroke: currentColor; stroke-width: 1.3px; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-note-dot { fill: currentColor; stroke: none; }

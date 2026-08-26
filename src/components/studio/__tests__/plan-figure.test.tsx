@@ -212,9 +212,9 @@ describe("PlanFigure", () => {
       d.objects = [
         ...d.objects,
         createNote({ floorId: "f1", rect: { x: 100, y: 100, w: 120, h: 90 },
-          leader: { x: 900, y: 150 }, text: "Query", ink: "#C81E3C", id: "n_red" }),
+          leader: { x: 900, y: 150 }, text: "Query", ink: "#9D174D", id: "n_wine" }),
         createNote({ floorId: "f1", rect: { x: 260, y: 100, w: 120, h: 90 },
-          leader: { x: 900, y: 320 }, text: "Note", ink: "#15803D", id: "n_green" }),
+          leader: { x: 900, y: 320 }, text: "Note", ink: "#14532D", id: "n_forest" }),
       ];
       const { container } = render(
         <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
@@ -222,7 +222,24 @@ describe("PlanFigure", () => {
       const inks = [...container.querySelectorAll<SVGGElement>(".ds-note")].map(
         (g) => g.style.color
       );
-      expect(inks).toEqual(["rgb(200, 30, 60)", "rgb(21, 128, 61)"]);
+      expect(inks).toEqual(["rgb(157, 23, 77)", "rgb(20, 83, 45)"]);
+    });
+
+    /* A note is a written instruction to whoever builds the job, so on paper it
+       has no business being quieter than the labels around it. It printed at 11
+       — the size of the derived area line — until a real exported sheet showed
+       it losing to them (2026-08-26). Asserted against the ROOM NAME rather
+       than against 13, so the rule survives a type-scale change. */
+    it("prints its words as loud as a room's name", () => {
+      const d = withNote();
+      const { container } = render(
+        <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+      );
+      const size = (sel: string) =>
+        Number(container.querySelector(sel)!.getAttribute("fontSize") ??
+               container.querySelector(sel)!.getAttribute("font-size"));
+      expect(size(".ds-note-text")).toBeCloseTo(size(".ds-room-name"), 6);
+      expect(size(".ds-note-text")).toBeGreaterThan(size(".ds-room-area"));
     });
 
     it("is not counted as a room", () => {

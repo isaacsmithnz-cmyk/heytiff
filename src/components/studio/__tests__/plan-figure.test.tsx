@@ -242,6 +242,37 @@ describe("PlanFigure", () => {
       expect(size(".ds-note-text")).toBeGreaterThan(size(".ds-room-area"));
     });
 
+    /* The measure and the size are set on the CANVAS, and a note that only
+       looked right there would be the whole reason both surfaces lay a note
+       out through one function. The sheet's own size is the BASE; the note's
+       scale rides on top of it, so the rule above (as loud as a room's name)
+       still fixes what a default note prints at. */
+    it("prints a note at the measure and the size it was set to", () => {
+      const set = (props: Record<string, unknown>) => {
+        const d = withNote();
+        const i = d.objects.findIndex((o) => o.id === "note_1");
+        d.objects[i] = { ...d.objects[i], props: { ...d.objects[i].props, ...props } };
+        return render(
+          <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+        ).container;
+      };
+      /* against the ROOM NAME, not against a number: a bigger note widens the
+         figure, which changes the zoom the sheet's base size is derived from
+         (the two-pass fit). Both labels ride that same base, so their ratio is
+         the note's scale and nothing else. */
+      const rel = (c: HTMLElement) =>
+        Number(c.querySelector(".ds-note-text")!.getAttribute("font-size")) /
+        Number(c.querySelector(".ds-room-name")!.getAttribute("font-size"));
+      const lines = (c: HTMLElement) => c.querySelectorAll(".ds-note-text tspan").length;
+
+      const plain = set({});
+      expect(rel(plain)).toBeCloseTo(1, 6);
+      expect(rel(set({ textScale: 2 }))).toBeCloseTo(2, 6);
+      // the measure reflows the words and leaves the type alone
+      expect(lines(set({ wrap: 10 }))).toBeGreaterThan(lines(plain));
+      expect(rel(set({ wrap: 10 }))).toBeCloseTo(1, 6);
+    });
+
     it("is not counted as a room", () => {
       const d = withNote();
       const { container } = render(

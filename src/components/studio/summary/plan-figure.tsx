@@ -20,8 +20,7 @@ import {
   noteInkOf,
   noteLeader,
   noteRect,
-  noteText,
-  noteTextLayout,
+  noteLayoutOf,
   type NoteObject,
 } from "@/lib/studio/notes";
 import { unitGlyph, type LayerFlags } from "../canvas";
@@ -447,7 +446,10 @@ export function PlanFigure({
         {notes.map((n) => {
           const rect = noteRect(n);
           const leader = noteLeader(n);
-          const lay = noteTextLayout(rect, leader, noteText(n), noteFont);
+          /* through the SAME door the canvas uses, so a note set wide or set
+             large on screen prints wide and large — `noteFont` is the sheet's
+             base size and the note's own measure and scale ride on top */
+          const lay = noteLayoutOf(n, noteFont);
           const start = leaderStart(rect, leader);
           return (
             <g key={n.id} className="ds-note" style={{ color: noteInkOf(n) }}>
@@ -461,7 +463,7 @@ export function PlanFigure({
                 className="ds-note-text"
                 x={lay.textX}
                 y={lay.firstBaseline}
-                fontSize={noteFont}
+                fontSize={lay.fontSize}
                 textAnchor={lay.anchor}
               >
                 {lay.lines.map((line, i) => (

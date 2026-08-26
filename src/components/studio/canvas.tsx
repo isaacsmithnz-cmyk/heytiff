@@ -122,11 +122,18 @@ import {
   noteInkOf,
   NOTE_INKS,
   DEFAULT_NOTE_INK,
+  noteGripAt,
+  noteGrips,
+  noteLayoutOf,
   noteLeader,
   noteRect,
+  noteScaleOf,
   noteText,
-  noteTextLayout,
+  noteWrapOf,
   rectFromDrag,
+  scaleForGripY,
+  wrapForEdgeX,
+  type NoteGrip,
   type NoteObject,
   type NoteRect,
 } from "@/lib/studio/notes";
@@ -235,6 +242,10 @@ const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 /** the margin text's size on SCREEN. Notes hold a constant screen size the way
     every other label on this canvas does; the world-space size is derived. */
 const NOTE_FONT_PX = 13;
+/** How close the pointer has to be to a note's grip, in screen px. Generous:
+    on a one-line note the two grips sit about a line apart, and the nearest
+    one wins, so a wide radius costs nothing and a narrow one costs the grip. */
+const GRIP_HIT_PX = 10;
 /** a cloud smaller than this (screen px, either side) was a stray click */
 const NOTE_MIN_PX = 14;
 const HIT_EDGE_PX = 6;
@@ -541,7 +552,14 @@ type Drag =
       `orig` + the travel, never the raw cursor: you grab the words somewhere
       in the middle, and snapping the elbow to the grab point would jump the
       block out from under the pointer on the first pixel. */
-  | { kind: "note-leader"; id: string; startWorld: Point; orig: Point };
+  | { kind: "note-leader"; id: string; startWorld: Point; orig: Point }
+  /** pulling the words' outer SIDE: the measure, in characters. The block
+      reflows under the pointer and the type stays the size it was. */
+  | { kind: "note-measure"; id: string }
+  /** pulling the words' outer CORNER: the type size. `from` and `startY` are
+      the drag's own origin — scaling off the live block would compound, since
+      the grip moves as the type grows. */
+  | { kind: "note-size"; id: string; from: number; startY: number; leaderY: number };
 
 /** Re-derive every non-locked room's orientation from the new north bearing
     (DUCTR autoDetectOrientations). Manual per-room overrides (orientationLocked)
@@ -730,9 +748,15 @@ export function StudioCanvas({
   const [noteDraft, setNoteDraft] = useState<{ a: Point; b: Point } | null>(null);
   const [notePin, setNotePin] = useState<NoteRect | null>(null);
   const [noteEdit, setNoteEdit] = useState<{ id: string; text: string } | null>(null);
-  /** a note mid-drag: the offset it has travelled, or its live leader end */
+  /** a note mid-drag: the offset it has travelled, its live leader end, or
+      the live measure/size a grip is pulling. One state for all four so the
+      note is drawn from ONE source while any of them is happening. */
   const [liveNote, setLiveNote] = useState<
-    { id: string; dx: number; dy: number } | { id: string; leader: Point } | null
+    | { id: string; dx: number; dy: number }
+    | { id: string; leader: Point }
+    | { id: string; wrap: number }
+    | { id: string; textScale: number }
+    | null
   >(null);
   const [notePanel, setNotePanel] = useState<Size>({ w: 264, h: 172 });
   const measureNotePanel = useCallback((el: HTMLDivElement | null) => {
@@ -1916,7 +1940,23 @@ export function StudioCanvas({
     if (!liveNote || liveNote.id !== o.id) return o;
     if ("leader" in liveNote)
       return { ...o, props: { ...o.props, leader: liveNote.leader } };
+    if ("wrap" in liveNote)
+      return { ...o, props: { ...o.props, wrap: liveNote.wrap } };
+    if ("textScale" in liveNote)
+      return { ...o, props: { ...o.props, textScale: liveNote.textScale } };
     return moveNote(o, liveNote.dx, liveNote.dy) as NoteObject;
+  };
+
+  /** the grip the pointer is on, if the SELECTED note has one there. Only the
+      selected note carries grips, so this is one note's question, and it is
+      asked before the note hit-test — a grip sits on the block's edge, which
+      is inside the words' own (generous) hit box. */
+  const hitNoteGrip = (w: Point, tolPx = GRIP_HIT_PX): { id: string; grip: NoteGrip } | null => {
+    if (!selectedId) return null;
+    const sel = notes.find((x) => x.id === selectedId);
+    if (!sel) return null;
+    const grip = noteGripAt(noteAt(sel), w, tolPx / vp.zoom, noteFontW);
+    return grip ? { id: sel.id, grip } : null;
   };
 
   /** topmost note under the pointer, and which part of it — newest first, so
@@ -2282,6 +2322,24 @@ export function StudioCanvas({
            on it means. Grabbed by its OUTLINE and its words only — the middle
            of a cloud is full of the rooms and units it is drawn around, and
            those still have to be clickable through it. */
+        /* a grip on the selected note's words beats the words themselves —
+           it lives on their edge, which is inside their own hit box */
+        const gh = hitNoteGrip(w);
+        if (gh) {
+          const held = noteAt(notes.find((x) => x.id === gh.id)!);
+          setDrag(
+            gh.grip === "measure"
+              ? { kind: "note-measure", id: gh.id }
+              : {
+                  kind: "note-size",
+                  id: gh.id,
+                  from: noteScaleOf(held),
+                  startY: noteGrips(held, noteFontW).size.y,
+                  leaderY: noteLeader(held).y,
+                }
+          );
+          break;
+        }
         const nh = hitNote(w);
         if (nh) {
           onSelect(nh.id);
@@ -2598,6 +2656,30 @@ export function StudioCanvas({
           },
         });
         break;
+      /* both grips read off the note AS STORED, never off the live one: the
+         block reflows as it is pulled, so measuring against what the last
+         pointer event produced would chase its own tail */
+      case "note-measure": {
+        const stored = notes.find((x) => x.id === drag.id);
+        if (stored) {
+          setLiveNote({
+            id: drag.id,
+            wrap: wrapForEdgeX(noteLayoutOf(stored, noteFontW), w.x),
+          });
+        }
+        break;
+      }
+      case "note-size":
+        setLiveNote({
+          id: drag.id,
+          textScale: scaleForGripY({
+            from: drag.from,
+            startY: drag.startY,
+            leaderY: drag.leaderY,
+            y: w.y,
+          }),
+        });
+        break;
       case "sheet":
         setLiveSheet({
           id: drag.id,
@@ -2723,21 +2805,56 @@ export function StudioCanvas({
       setNoteDraft(null);
       if (rect.w >= minW && rect.h >= minW) setNotePin(rect);
     }
+    /* the grips write one prop each, and only when the pull actually changed
+       it — a grip pressed and released is a selection, not an edit, and it
+       must not land an undo step that does nothing */
+    if ((drag.kind === "note-measure" || drag.kind === "note-size") && liveNote) {
+      const live = liveNote;
+      const patch =
+        "wrap" in live
+          ? { key: "wrap" as const, value: live.wrap }
+          : "textScale" in live
+            ? { key: "textScale" as const, value: live.textScale }
+            : null;
+      const stored = patch ? notes.find((x) => x.id === live.id) : null;
+      /* the comparison happens HERE, not inside the map: onMutate lands an
+         undo step whether or not the objects come back changed, and a grip
+         pressed and let go must not put a do-nothing entry in the history */
+      const now = stored
+        ? patch!.key === "wrap"
+          ? noteWrapOf(stored)
+          : noteScaleOf(stored)
+        : null;
+      if (patch && stored && now !== patch.value) {
+        onMutate((d) => ({
+          ...d,
+          objects: d.objects.map((o) =>
+            o.id === live.id && isNote(o)
+              ? { ...o, props: { ...o.props, [patch.key]: patch.value } }
+              : o
+          ),
+        }));
+      }
+      setLiveNote(null);
+    }
     if ((drag.kind === "note-move" || drag.kind === "note-leader") && liveNote) {
       const live = liveNote;
+      /* `live` carries four shapes now (move, leader, measure, size), so each
+         branch names the ONE key it reads — an `else` on "leader" would hand
+         a grip's payload to the mover */
       const moved =
-        "leader" in live
-          ? drag.kind === "note-leader" &&
+        drag.kind === "note-leader"
+          ? "leader" in live &&
             (live.leader.x !== drag.orig.x || live.leader.y !== drag.orig.y)
-          : Math.abs(live.dx) > 1e-6 || Math.abs(live.dy) > 1e-6;
+          : "dx" in live && (Math.abs(live.dx) > 1e-6 || Math.abs(live.dy) > 1e-6);
       if (moved) {
         onMutate((d) => ({
           ...d,
           objects: d.objects.map((o) => {
             if (o.id !== live.id || !isNote(o)) return o;
-            return "leader" in live
-              ? { ...o, props: { ...o.props, leader: { x: live.leader.x, y: live.leader.y } } }
-              : moveNote(o, live.dx, live.dy);
+            if ("leader" in live)
+              return { ...o, props: { ...o.props, leader: { x: live.leader.x, y: live.leader.y } } };
+            return "dx" in live ? moveNote(o, live.dx, live.dy) : o;
           }),
         }));
       }
@@ -4083,9 +4200,15 @@ export function StudioCanvas({
             const n = noteAt(stored);
             const rect = noteRect(n);
             const leader = noteLeader(n);
-            const lay = noteTextLayout(rect, leader, noteText(n), noteFontW);
+            const lay = noteLayoutOf(n, noteFontW);
             const start = leaderStart(rect, leader);
             const on = stored.id === selectedId || noteEdit?.id === stored.id;
+            /* the words become a TEXT FRAME once the note is selected: the
+               block outlined, a grip on its outer side for the measure and
+               one at its outer corner for the size. Screen-constant, like the
+               leader dot, so they stay grabbable at any zoom. */
+            const grips = on ? noteGrips(n, noteFontW) : null;
+            const gr = 3.4 / vp.zoom;
             return (
               <g
                 key={stored.id}
@@ -4104,7 +4227,7 @@ export function StudioCanvas({
                   className="ds-note-text"
                   x={lay.textX}
                   y={lay.firstBaseline}
-                  fontSize={noteFontW}
+                  fontSize={lay.fontSize}
                   textAnchor={lay.anchor}
                 >
                   {lay.lines.map((line, i) => (
@@ -4113,6 +4236,34 @@ export function StudioCanvas({
                     </tspan>
                   ))}
                 </text>
+                {grips && (
+                  <g className="ds-note-frame">
+                    <rect
+                      x={lay.box.x}
+                      y={lay.box.y}
+                      width={lay.box.w}
+                      height={lay.box.h}
+                      strokeWidth={1 / vp.zoom}
+                      strokeDasharray={`${3 / vp.zoom} ${3 / vp.zoom}`}
+                    />
+                    {/* the measure: a bar, because it moves along ONE axis */}
+                    <rect
+                      className="ds-note-grip measure"
+                      x={grips.measure.x - gr}
+                      y={grips.measure.y - gr * 2.2}
+                      width={gr * 2}
+                      height={gr * 4.4}
+                      rx={gr}
+                    />
+                    {/* the size: a corner, because it scales the whole block */}
+                    <circle
+                      className="ds-note-grip size"
+                      cx={grips.size.x}
+                      cy={grips.size.y}
+                      r={gr}
+                    />
+                  </g>
+                )}
               </g>
             );
           })}

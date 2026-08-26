@@ -2877,6 +2877,31 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-note.sel .ds-note-cloud {
   stroke-width: 2.7;
 }
+/* ── the selected note's words are a TEXT FRAME ──
+   Outlined so you can see the column you are setting, with two grips on its
+   OUTER edge: a bar for the measure (one axis, so it wears the shape of a
+   slider) and a dot at the corner for the type size. Drawn in the working
+   teal rather than the note's own ink — chrome is chrome, and a grip painted
+   in the markup colour reads as part of the markup.
+
+   `vector-effect` on the frame only: the grips are sized in world units from
+   the zoom (canvas.tsx) so their HIT target and their picture agree. */
+.dstudio .ds-note-frame > rect:first-child {
+  fill: none;
+  stroke: var(--teal-d);
+  opacity: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-note-grip {
+  fill: #fff;
+  stroke: var(--teal-d);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+}
+.dstudio .ds-note-grip.measure { cursor: ew-resize; }
+.dstudio .ds-note-grip.size { cursor: nwse-resize; }
+.dstudio .ds-note-grip:hover { fill: var(--teal-d); }
 /* while it is being drawn it is dashed — the same grammar the room tool uses
    for a shape that is not saved yet */
 .dstudio .ds-note.draft .ds-note-cloud,

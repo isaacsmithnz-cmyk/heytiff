@@ -26,12 +26,24 @@ import {
   leaderStart,
   moveNote,
   noteBounds,
+  noteGripAt,
+  noteGrips,
   noteHit,
+  noteLayoutOf,
   noteLeader,
   noteRect,
+  noteScaleOf,
   noteSide,
   noteText,
   noteTextLayout,
+  noteWrapOf,
+  NOTE_SCALE_MAX,
+  NOTE_SCALE_MIN,
+  NOTE_WRAP_CHARS,
+  NOTE_WRAP_MAX,
+  NOTE_WRAP_MIN,
+  scaleForGripY,
+  wrapForEdgeX,
   rectCorners,
   rectFromDrag,
   wrapNoteText,
@@ -442,5 +454,130 @@ describe("what a note catches", () => {
 
   it("misses everything else", () => {
     expect(noteHit(n, { x: -400, y: -400 }, 6, 12)).toBeNull();
+  });
+});
+
+/* ── the measure and the size (#552) ──────────────────────────────────────
+   A note's words are a text frame: pull the side and they reflow, pull the
+   corner and they scale. Both values live on the NOTE and both are read
+   through a clamp, because a document is data from somewhere else. */
+
+const sized = (props: Record<string, unknown>): NoteObject => {
+  const n = mkNote(RECT, { x: 500, y: 60 }, "one two three four five six seven");
+  return { ...n, props: { ...n.props, ...props } };
+};
+
+describe("a note's own measure and size", () => {
+  it("defaults to the sheet's measure at the sheet's size", () => {
+    const n = mkNote(RECT, { x: 500, y: 60 });
+    expect(noteWrapOf(n)).toBe(NOTE_WRAP_CHARS);
+    expect(noteScaleOf(n)).toBe(1);
+  });
+
+  it("clamps whatever the document says, rather than trusting it", () => {
+    expect(noteWrapOf(sized({ wrap: 2 }))).toBe(NOTE_WRAP_MIN);
+    expect(noteWrapOf(sized({ wrap: 5000 }))).toBe(NOTE_WRAP_MAX);
+    expect(noteWrapOf(sized({ wrap: "wide" }))).toBe(NOTE_WRAP_CHARS);
+    expect(noteWrapOf(sized({ wrap: 31.4 }))).toBe(31);
+    expect(noteScaleOf(sized({ textScale: 0 }))).toBe(1);
+    expect(noteScaleOf(sized({ textScale: -2 }))).toBe(1);
+    expect(noteScaleOf(sized({ textScale: 99 }))).toBe(NOTE_SCALE_MAX);
+    expect(noteScaleOf(sized({ textScale: 0.01 }))).toBe(NOTE_SCALE_MIN);
+  });
+
+  /* the whole point of `noteLayoutOf`: ONE door, so the canvas and the print
+     figure cannot disagree about how wide or how big a note is */
+  it("lays a note out at its own measure and size", () => {
+    const narrow = noteLayoutOf(sized({ wrap: 10 }), 12);
+    const wide = noteLayoutOf(sized({ wrap: 40 }), 12);
+    expect(narrow.lines.length).toBeGreaterThan(wide.lines.length);
+    expect(narrow.fontSize).toBe(12);
+
+    const big = noteLayoutOf(sized({ textScale: 2 }), 12);
+    expect(big.fontSize).toBe(24);
+    // the type scaled, the wrap did NOT — same words, same lines
+    expect(big.lines).toEqual(noteLayoutOf(sized({}), 12).lines);
+    expect(big.box.h).toBeCloseTo(noteLayoutOf(sized({}), 12).box.h * 2, 6);
+  });
+
+  /* the "fit" pass reads these bounds, and it is the one thing that reliably
+     leaves a note's words off the screen when they are not counted */
+  it("carries both onto the bounds a fit has to leave room for", () => {
+    const plain = noteBounds(sized({}), 12);
+    const big = noteBounds(sized({ textScale: 2 }), 12);
+    expect(big.w).toBeGreaterThan(plain.w);
+    // tall enough to break out of the cloud's own 120 before the height moves
+    const narrowAndBig = noteBounds(sized({ textScale: 2, wrap: NOTE_WRAP_MIN }), 12);
+    expect(narrowAndBig.h).toBeGreaterThan(plain.h);
+  });
+
+  it("carries both into what the words CATCH", () => {
+    const big = sized({ textScale: 2.5 });
+    const lay = noteLayoutOf(big, 12);
+    // a point well below the un-scaled block still lands on the scaled one
+    const low = { x: lay.box.x + 2, y: lay.box.y + lay.box.h - 1 };
+    expect(noteHit(big, low, 1, 12)).toBe("text");
+    expect(noteHit(sized({}), low, 1, 12)).toBeNull();
+  });
+});
+
+describe("the grips on a selected note's words", () => {
+  const n = sized({});
+  const lay = noteLayoutOf(n, 12);
+
+  it("sit on the OUTER edge — the inner one already means 'move me'", () => {
+    const g = noteGrips(n, 12);
+    expect(g.measure.x).toBeCloseTo(lay.box.x + lay.box.w, 6);
+    // the measure grip rides the leader's own height: the block is centred on
+    // it, so it is the one point that does not move as lines are added
+    expect(g.measure.y).toBe(60);
+    expect(g.size.y).toBeGreaterThan(lay.box.y + lay.box.h);
+  });
+
+  it("flips with the words when the margin is on the other side", () => {
+    const left = mkNote(RECT, { x: -400, y: 60 }, "one two three four five six");
+    const l = noteLayoutOf(left, 12);
+    expect(noteGrips(left, 12).measure.x).toBeCloseTo(l.box.x, 6);
+  });
+
+  it("hands the pointer the NEARER grip, and nothing at a distance", () => {
+    const g = noteGrips(n, 12);
+    expect(noteGripAt(n, g.measure, 4, 12)).toBe("measure");
+    expect(noteGripAt(n, g.size, 4, 12)).toBe("size");
+    expect(noteGripAt(n, { x: g.size.x, y: g.size.y + 500 }, 4, 12)).toBeNull();
+  });
+});
+
+describe("what a grip drag works out", () => {
+  const lay = noteLayoutOf(sized({}), 12);
+
+  it("reads the measure off the edge the pointer is on", () => {
+    // 20 characters' worth of width past the text's anchored edge
+    const x = lay.textX + lay.side * (20 * lay.fontSize * 0.56);
+    expect(wrapForEdgeX(lay, x)).toBe(20);
+  });
+
+  it("never lets the column collapse or run away", () => {
+    expect(wrapForEdgeX(lay, lay.textX)).toBe(NOTE_WRAP_MIN);
+    expect(wrapForEdgeX(lay, lay.textX - lay.side * 9999)).toBe(NOTE_WRAP_MIN);
+    expect(wrapForEdgeX(lay, lay.textX + lay.side * 999999)).toBe(NOTE_WRAP_MAX);
+  });
+
+  /* the grip stays under the pointer: the block is centred on the leader, so
+     its distance from there IS proportional to the type size */
+  it("doubles the size when the grip is pulled to twice the distance", () => {
+    expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 140 })).toBe(2);
+    expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 90 })).toBe(0.75);
+  });
+
+  it("lands on a size somebody chose, not on a mouse event", () => {
+    // 1.8670251… is what the raw ratio gives; a note stores 1.85
+    expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 134.68 })).toBe(1.85);
+  });
+
+  it("clamps, and survives a grip that began on the leader's own line", () => {
+    expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 9999 })).toBe(NOTE_SCALE_MAX);
+    expect(scaleForGripY({ from: 1, startY: 100, leaderY: 60, y: 60 })).toBe(NOTE_SCALE_MIN);
+    expect(scaleForGripY({ from: 1.4, startY: 60, leaderY: 60, y: 900 })).toBe(1.4);
   });
 });

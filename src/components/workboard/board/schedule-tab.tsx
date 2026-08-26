@@ -9,8 +9,6 @@ import { dowOfISO } from "@/lib/workboard/capacity";
 import { scheduleDay } from "@/app/actions/workboard";
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { SchedulePayload } from "@/lib/workboard/schedule-query";
-import type { CapacityPayload } from "@/lib/workboard/capacity-query";
-import { CapacityView } from "./capacity-view";
 import {
   clockLabel,
   fmtHoursShort,
@@ -33,6 +31,7 @@ import {
   type DayClock,
 } from "@/lib/workboard/focus";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
+import { useNowMin } from "./use-now-min";
 import { ScheduleFocus } from "./schedule-focus";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
@@ -108,6 +107,10 @@ type Props = {
   manage: boolean;
   /** ServiceM8 job uuid → the board that owns it. Ownership recolours. */
   tracked: Map<string, ScheduleTracked>;
+  /** day → payload, owned by the BOARD. Capacity is a tab of its own now, and
+      it opens days out of this same map: a day read on either tab is warm on
+      the other, and coming back here lands on the day you left. */
+  dayCache: { current: Map<string, SchedulePayload> };
   shelfItems: ScheduleShelfItem[];
   /** The Work orders tab's "waiting on a day" count — the dispatch board's
       unscheduled pane, already answered by the tab that owns the list. */
@@ -136,6 +139,7 @@ export function ScheduleTab({
   syncing,
   manage,
   tracked,
+  dayCache,
   shelfItems,
   waitingCount,
   onOpenJob,
@@ -151,27 +155,22 @@ export function ScheduleTab({
   /** Every day-count the session has learned, merged across payloads — the
       sliding window crosses week boundaries, and a count learned last week is
       still the count. */
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [payload, setPayload] = useState<SchedulePayload | null>(null);
+  const [counts, setCounts] = useState<Record<string, number>>(
+    () => dayCache.current.get(today)?.weekCounts ?? {}
+  );
+  const [payload, setPayload] = useState<SchedulePayload | null>(
+    () => dayCache.current.get(today) ?? null
+  );
   /** The job brought forward, by job uuid. Replaces the crew hover. */
   const [focusJob, setFocusJob] = useState<string | null>(null);
   const [loading, startLoad] = useTransition();
-  const cache = useRef(new Map<string, SchedulePayload>());
   /** job uuid → its first block, so closing the stack returns focus there. */
   const blockRefs = useRef(new Map<string, HTMLButtonElement>());
-  /* ── the tab's two sides ──
-     Day is the landing view; Capacity is the same diary read as a month of
-     fill. Its anchor and cache live HERE so flipping back and forth loses
-     nothing — the view component unmounts, the choice and the payloads
-     don't. */
-  const [view, setView] = useState<"day" | "capacity">("day");
-  const [capAnchor, setCapAnchor] = useState(today);
-  const capCache = useRef(new Map<string, CapacityPayload>());
 
   const load = (dayISO: string) => {
     startLoad(async () => {
       const p = await scheduleDay(dayISO);
-      cache.current.set(dayISO, p);
+      dayCache.current.set(dayISO, p);
       setCounts((c) => ({ ...c, ...p.weekCounts }));
       setPayload(p);
     });
@@ -180,7 +179,7 @@ export function ScheduleTab({
   const show = (dayISO: string) => {
     setOpenDay(dayISO);
     setFocusJob(null);
-    const hit = cache.current.get(dayISO);
+    const hit = dayCache.current.get(dayISO);
     if (hit) setPayload(hit);
     else load(dayISO);
   };
@@ -190,11 +189,18 @@ export function ScheduleTab({
      lands. StrictMode double-invoking the effect costs one duplicate read,
      which the cache then absorbs for the session. */
   const openToday = useEffectEvent(() => {
-    /* Mid-backfill the read is not just wasted, it's WRONG to show: a day
+    /* A day the board already holds is not read again — the cache outlives
+       this component now that Capacity is a tab of its own, so coming back
+       from it lands on the day that was already on screen. Both that payload
+       and its week counts are seeded in useState above, where a value that is
+       ALREADY KNOWN belongs: setting them here instead is a second render
+       before first paint, and the linter is right to say so.
+
+       Mid-backfill the read is not just wasted, it's WRONG to show: a day
        drawn from half a walk is a diary with people missing from it, which
        reads as "nobody is on" rather than "not here yet". The gap below says
        so instead, and nothing is fetched to contradict it. */
-    if (connected && !syncing) load(today);
+    if (!dayCache.current.has(today) && connected && !syncing) load(today);
   });
   useEffect(() => {
     openToday();
@@ -257,25 +263,9 @@ export function ScheduleTab({
             ? "Last week"
             : `Week of ${fmtAuDayMonth(stripStart)}`;
 
-  /* "Now" is drawn from the BROWSER's clock, and only when the browser's own
-     date agrees with the board's today — the account's timezone lives on the
-     server, and for a crew in the same country the two clocks agree. When
-     they don't (a viewer overseas), the line simply doesn't draw; a missing
-     mark beats one that's hours wrong. Set in an effect so this subtree
-     could server-render someday without a hydration split. */
-  const [nowMin, setNowMin] = useState<number | null>(null);
-  useEffect(() => {
-    const read = () => {
-      const d = new Date();
-      const localISO = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-        d.getDate()
-      ).padStart(2, "0")}`;
-      setNowMin(localISO === today ? d.getHours() * 60 + d.getMinutes() : null);
-    };
-    read();
-    const t = setInterval(read, 60_000);
-    return () => clearInterval(t);
-  }, [today]);
+  /* The now-line's minute — the same reading the capacity tab takes, from the
+     one hook that owns the rule. */
+  const nowMin = useNowMin(today);
 
   /* ── the rail's scroll: land where the day is, own the edge fade ── */
   const railRef = useRef<HTMLDivElement>(null);
@@ -299,70 +289,61 @@ export function ScheduleTab({
     landRail();
   }, [day, openDay]);
 
-  /* ── the Day / Capacity switcher — one element, rendered into BOTH
-     headers so the header reads as one thing changing its contents ── */
-  const switcher = (
-    <div className="wb2-schview" role="group" aria-label="Day or capacity">
-      <button
-        type="button"
-        className={"wb2-schvb" + (view === "day" ? " on" : "")}
-        aria-pressed={view === "day"}
-        onClick={() => setView("day")}
-      >
-        Day
-      </button>
-      <button
-        type="button"
-        className={"wb2-schvb" + (view === "capacity" ? " on" : "")}
-        aria-pressed={view === "capacity"}
-        onClick={() => setView("capacity")}
-      >
-        Capacity
-      </button>
-    </div>
-  );
-
   /* ── header ──
-     Three stations: the open day's name on the left (a fact, no controls on
-     it), the WEEK stepper in the middle in line with the Day/Capacity
-     switcher, and the summary chips on the right. The day-to-day arrows live
-     on the strip itself, flanking the cards they move. */
+     Three stations, and NOTHING IN IT MAY MOVE AS YOU STEP. Left: the open
+     day's name. Middle: the week stepper, with the Today pill on its left.
+     Right: the day's summary chips. The day-to-day arrows live on the strip
+     itself, flanking the cards they move.
+
+     This was one flex row with auto margins, which centres on THE LEFTOVERS
+     rather than on the card — and the leftovers changed constantly: the
+     weekday name is wider on a Wednesday, the Today pill comes and goes, and
+     the chips vanish entirely on a day with nothing booked, which threw the
+     stepper at the right-hand edge exactly while you were clicking through
+     empty weeks. The three stations are grid columns now, and the middle one
+     is centred on the CARD. The Today pill sits in a reserved slot beside the
+     stepper for the same reason — see the notes over .wb2-schhd.
+
+     The capacity window wears this header too, from its own tab. */
   const head = (
-    <div className="wb2-chd">
-      <span className="wb2-ci blue">
-        <Icon name="calendar" size={19} />
-      </span>
-      <div>
+    <div className="wb2-chd wb2-schhd">
+      <div className="wb2-schhla">
+        <span className="wb2-ci blue">
+          <Icon name="calendar" size={19} />
+        </span>
         <div className="wb2-mchead">
           <b>{fmtAuWeekdayDayMonth(openDay)}</b>
-          {(openDay !== today || stripStart !== thisMon) && (
-            <button className="wb2-mcnow" onClick={goToday}>
-              Today
-            </button>
-          )}
         </div>
       </div>
-      <div className="wb2-schweek" role="group" aria-label="Week">
-        <button className="wb2-mcarrow" aria-label="The week before" onClick={() => goWeek(-1)}>
-          <Icon name="chevL" size={15} />
-        </button>
-        <b>{weekWord}</b>
-        <button className="wb2-mcarrow" aria-label="The week after" onClick={() => goWeek(1)}>
-          <Icon name="chevR" size={15} />
-        </button>
+      <div className="wb2-schmid">
+        {(openDay !== today || stripStart !== thisMon) && (
+          <button className="wb2-mcnow" onClick={goToday}>
+            Today
+          </button>
+        )}
+        <div className="wb2-schweek" role="group" aria-label="Week">
+          <button className="wb2-mcarrow" aria-label="The week before" onClick={() => goWeek(-1)}>
+            <Icon name="chevL" size={15} />
+          </button>
+          <b>{weekWord}</b>
+          <button className="wb2-mcarrow" aria-label="The week after" onClick={() => goWeek(1)}>
+            <Icon name="chevR" size={15} />
+          </button>
+        </div>
       </div>
-      {switcher}
-      {day && day.totalBookings > 0 && (
-        <span className="wb2-mcsum">
-          <span className="wb2-chip">
-            {day.totalBookings} booked · {fmtHoursShort(day.totalMinutes)}
+      <div className="wb2-schhrr">
+        {day && day.totalBookings > 0 && (
+          <span className="wb2-mcsum">
+            <span className="wb2-chip">
+              {day.totalBookings} booked · {fmtHoursShort(day.totalMinutes)}
+            </span>
+            <span className="wb2-chip">{day.lanes.length} on the road</span>
+            <span className="wb2-chip ok">
+              {day.jobCount} {day.jobCount === 1 ? "job" : "jobs"}
+            </span>
           </span>
-          <span className="wb2-chip">{day.lanes.length} on the road</span>
-          <span className="wb2-chip ok">
-            {day.jobCount} {day.jobCount === 1 ? "job" : "jobs"}
-          </span>
-        </span>
-      )}
+        )}
+      </div>
     </div>
   );
 
@@ -419,27 +400,6 @@ export function ScheduleTab({
         {head}
         <Sm8Gap kind={gap} surface="diary" manage={manage} />
       </>
-    );
-  }
-
-  /* The month is the same diary at a different grain — it renders its own
-     header (same shapes, month controls in it) and shares the rail's day
-     cache, so a day opened there is warm here. Only ever reached CONNECTED:
-     the gap return above fires first, and nothing is fetched mid-backfill. */
-  if (view === "capacity") {
-    return (
-      <CapacityView
-        today={today}
-        manage={manage}
-        anchor={capAnchor}
-        onAnchor={setCapAnchor}
-        capCache={capCache}
-        dayCache={cache}
-        switcher={switcher}
-        tracked={tracked}
-        nowMin={nowMin}
-        onOpenJob={onOpenJob}
-      />
     );
   }
 

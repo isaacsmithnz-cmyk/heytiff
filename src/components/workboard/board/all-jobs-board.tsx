@@ -8,6 +8,9 @@ import type { BoardVisit, BoardAgreement, BoardCategory } from "@/lib/workboard/
 import type { BoardProject, ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
 import { WorkOrdersTab, QuotesTab, CompletedJobsTab } from "./all-jobs-tab";
 import { ScheduleTab, type ScheduleJobState, type ScheduleShelfItem } from "./schedule-tab";
+import { CapacityView } from "./capacity-view";
+import type { SchedulePayload } from "@/lib/workboard/schedule-query";
+import type { CapacityPayload } from "@/lib/workboard/capacity-query";
 import { JobSheet } from "./job-sheet";
 import { NewAgreementModal } from "./new-agreement-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
@@ -28,19 +31,27 @@ import { Sm8Chip, type Sm8Health } from "./sm8-chip";
    nothing on this side is urgent — there is no queue and no badge, because
    "everything" is a reference, not a to-do list. */
 
-const TAB_KEYS = ["schedule", "work", "quotes", "completed"] as const;
+const TAB_KEYS = ["schedule", "work", "quotes", "completed", "capacity"] as const;
 export type AllJobsTabKey = (typeof TAB_KEYS)[number];
 
 /* Schedule sits FIRST — today's diary is the question this side gets asked
    every morning; the book of work follows in ServiceM8's own order. It is
    called Schedule, not Calendar: the maintenance board already owns a
    Calendar tab, and ServiceM8's own label for the object behind this one
-   (job_activities) is Schedule. */
+   (job_activities) is Schedule.
+
+   CAPACITY IS LAST, AND IT IS A TAB. It spent its first life as a second face
+   of Schedule behind a Day/Capacity switcher inside the header — which put a
+   second, competing set of controls in a header whose job was already to hold
+   one set still. It is a different question anyway (how full are the coming
+   weeks, not who is on what today), asked at a different grain, and the tab
+   row already has the sliding thumb the switcher was imitating. */
 const TAB_LABEL: Record<AllJobsTabKey, string> = {
   schedule: "Schedule",
   work: "Work orders",
   quotes: "Quotes",
   completed: "Completed",
+  capacity: "Capacity",
 };
 
 export function AllJobsBoard({
@@ -109,6 +120,16 @@ export function AllJobsBoard({
       opened it, cleared with the row. */
   const [sheetState, setSheetState] = useState<ScheduleJobState | null>(null);
   const [agreementFrom, setAgreementFrom] = useState<AllJobRow | null>(null);
+  /* ── the diary's two tabs share their reads ──
+     Schedule and Capacity ask the same server for the same days at two
+     grains, and both unmount when you leave them. The caches and the window's
+     anchor live HERE so moving between the two loses nothing: a day opened in
+     Capacity is warm on the rail, the window you stepped to is still the
+     window when you come back, and neither tab pays twice for a day the other
+     already read. */
+  const dayCache = useRef(new Map<string, SchedulePayload>());
+  const capCache = useRef(new Map<string, CapacityPayload>());
+  const [capAnchor, setCapAnchor] = useState(today);
   const { toasts, toast, dismiss } = useBoardToasts();
 
   /* THE UNION. Native rows are slimmed here rather than in the loader,
@@ -323,6 +344,20 @@ export function AllJobsBoard({
           {tab === "work" && <WorkOrdersTab {...panelProps} />}
           {tab === "quotes" && <QuotesTab {...panelProps} />}
           {tab === "completed" && <CompletedJobsTab {...panelProps} />}
+          {tab === "capacity" && (
+            <CapacityView
+              today={today}
+              manage={manage}
+              connected={connected}
+              syncing={backfilling.schedule}
+              anchor={capAnchor}
+              onAnchor={setCapAnchor}
+              capCache={capCache}
+              dayCache={dayCache}
+              tracked={trackedByJob}
+              onOpenJob={openJob}
+            />
+          )}
           {tab === "schedule" && (
             <ScheduleTab
               today={today}
@@ -330,6 +365,7 @@ export function AllJobsBoard({
               syncing={backfilling.schedule}
               manage={manage}
               tracked={trackedByJob}
+              dayCache={dayCache}
               shelfItems={shelfItems}
               waitingCount={view.work.unbooked.length}
               onOpenJob={openJob}

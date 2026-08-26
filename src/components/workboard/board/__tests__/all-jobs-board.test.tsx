@@ -199,11 +199,14 @@ beforeEach(() => {
 describe("the shell", () => {
   it("leads with the diary, then ServiceM8's three lanes in its order", () => {
     mount();
+    // Capacity brings up the rear: the same diary read as fill, a question
+    // asked of the coming weeks rather than of today
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
       "Schedule",
       "Work orders",
       "Quotes",
       "Completed",
+      "Capacity",
     ]);
   });
 

@@ -37,8 +37,16 @@ function docWithFloors(n: number): DesignDocument {
   return d;
 }
 
-function renderCard(over: { doc?: DesignDocument; empty?: boolean; onExportJson?: () => void } = {}) {
+function renderCard(
+  over: {
+    doc?: DesignDocument;
+    empty?: boolean;
+    onExportJson?: () => void;
+    onClose?: () => void;
+  } = {}
+) {
   const onExportJson = over.onExportJson ?? jest.fn();
+  const onClose = over.onClose ?? jest.fn();
   const view = render(
     <ExportCard
       doc={over.doc ?? docWithFloors(2)}
@@ -47,9 +55,10 @@ function renderCard(over: { doc?: DesignDocument; empty?: boolean; onExportJson?
       empty={over.empty ?? false}
       onExportJson={onExportJson}
       loadVariant={async () => null}
+      onClose={onClose}
     />
   );
-  return { onExportJson, ...view };
+  return { onExportJson, onClose, ...view };
 }
 
 const go = () => screen.getByRole("button", { name: /Print or save|Download/ });
@@ -130,5 +139,44 @@ describe("what an empty design can still send", () => {
     expect(go()).toBeEnabled();
     await user.click(go());
     expect(onExportJson).toHaveBeenCalled();
+  });
+});
+
+/* IT IS A DIALOG, NOT A CARD ABOVE A LONG DOCUMENT. The summary sheet runs
+   several screens; the card used to unfold into the chrome bar at the top of
+   it, so pressing Export after reading to the bottom moved nothing into view.
+   These pin the three ways out and the portal — the shell's `.page` transform
+   traps `position: fixed`, so a modal that renders in place is a modal stuck
+   inside the scroller. */
+describe("export comes to the reader", () => {
+  it("is a modal dialog, portalled out of the summary's own tree", () => {
+    const { container } = renderCard();
+    const dialog = screen.getByRole("dialog", { name: "Export" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(container).not.toContainElement(dialog);
+    expect(document.body).toContainElement(dialog);
+  });
+
+  it("closes on the x, on the scrim, and on Escape", async () => {
+    const user = userEvent.setup();
+
+    const first = renderCard();
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(first.onClose).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    const second = renderCard();
+    await user.keyboard("{Escape}");
+    expect(second.onClose).toHaveBeenCalledTimes(1);
+    second.unmount();
+
+    const third = renderCard();
+    /* the scrim only closes when the press LANDS on it — a drag that starts
+       inside the dialog and finishes over the backdrop must not dismiss */
+    const scrim = screen.getByRole("dialog").parentElement as HTMLElement;
+    await user.click(screen.getByRole("radio", { name: /The design file/ }));
+    expect(third.onClose).not.toHaveBeenCalled();
+    await user.click(scrim);
+    expect(third.onClose).toHaveBeenCalledTimes(1);
   });
 });

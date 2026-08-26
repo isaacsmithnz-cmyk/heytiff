@@ -61,6 +61,7 @@ function renderCard(doc: DesignDocument) {
       empty={false}
       onExportJson={() => {}}
       loadVariant={async () => null}
+      onClose={() => {}}
     />
   );
 }

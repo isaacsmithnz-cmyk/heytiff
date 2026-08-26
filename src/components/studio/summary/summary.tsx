@@ -233,9 +233,15 @@ export function SummaryView({
               <span aria-hidden>▶</span> Simulate
             </button>
           )}
+          {/* Share and Export both OPEN A DIALOG rather than unfolding a card
+              here. This bar sits above a long document, and the cards used to
+              sit with it — so pressing either one once you had read to the
+              bottom put the thing you asked for a screen and a half behind
+              you, with nothing on screen to say it had happened. */}
           <button
             className={`ds-chrome-btn${panel === "share" ? " on" : ""}`}
             onClick={() => setPanel((p) => (p === "share" ? null : "share"))}
+            aria-haspopup="dialog"
             aria-expanded={panel === "share"}
           >
             <Icon name="arrowUR" size={13} />
@@ -244,6 +250,7 @@ export function SummaryView({
           <button
             className={`ds-chrome-btn${panel === "export" ? " on" : ""}`}
             onClick={() => setPanel((p) => (p === "export" ? null : "export"))}
+            aria-haspopup="dialog"
             aria-expanded={panel === "export"}
           >
             <Icon name="download" size={13} />
@@ -263,7 +270,13 @@ export function SummaryView({
         </ul>
       )}
 
-      {panel === "share" && <ShareCard key={doc.id} designId={doc.id} />}
+      {panel === "share" && (
+        <ShareCard
+          key={doc.id}
+          designId={doc.id}
+          onClose={() => setPanel(null)}
+        />
+      )}
       {panel === "export" && (
         <ExportCard
           doc={doc}
@@ -272,6 +285,7 @@ export function SummaryView({
           empty={empty}
           onExportJson={onExportJson}
           loadVariant={loadVariant}
+          onClose={() => setPanel(null)}
         />
       )}
 

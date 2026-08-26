@@ -21,6 +21,7 @@ import {
 } from "@/lib/studio/export-png";
 import { PlanFigure } from "./plan-figure";
 import { PrintDoc } from "./print-doc";
+import { SummaryModal } from "./summary-modal";
 import { NO_BRAND, type OrgBrand } from "@/lib/org/brand";
 
 /* LAZY, like every other server action this screen reaches (share-card,
@@ -50,7 +51,10 @@ const orgActions = () => import("@/app/actions/org");
    its own contents instead.
 
    Three machines still, underneath: the on-demand PrintDoc, PlanFigure →
-   static markup → raster for the images, and the design-file JSON. */
+   static markup → raster for the images, and the design-file JSON.
+
+   AND IT IS A MODAL, not a card that unfolds above the document — see
+   summary-modal.tsx, which Share wears too. */
 
 const PNG_WIDTH_PX = 2600;
 
@@ -115,6 +119,7 @@ export function ExportCard({
   empty,
   onExportJson,
   loadVariant,
+  onClose,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -124,6 +129,8 @@ export function ExportCard({
   onExportJson: () => void;
   /** sibling variant docs load through the store (org-scoped) */
   loadVariant: (id: string) => Promise<DesignDocument | null>;
+  /** dismiss the dialog — scrim, the x, and Escape all land here */
+  onClose: () => void;
 }) {
   const [open, setOpen] = useState(false);
   /* the pick's content, read by startPrint. Written in an effect rather than
@@ -398,170 +405,173 @@ export function ExportCard({
     (pick.how === "png" && opts.floorIds.length === 0);
 
   return (
-    <div className="ds-act-card">
-      <span className="ds-act-t">
-        <Icon name="download" size={14} />
-        Export
-      </span>
-      <span className="ds-act-s">What are you sending?</span>
-
-      <div className="ds-export-picks" role="radiogroup" aria-label="What to export">
-        {PICKS.map((p) => (
+    <>
+      <SummaryModal
+        title="Export"
+        icon="download"
+        onClose={onClose}
+        foot={
           <button
-            key={p.id}
-            role="radio"
-            aria-checked={p.id === pick.id}
-            /* the NAME is the artifact; the line under it is the description.
-               Rolling both into the name would announce "The plans as images
-               A PNG per floor, for dropping into an email or a report" every
-               time the choice moved. */
-            aria-labelledby={`ds-xp-t-${p.id}`}
-            aria-describedby={`ds-xp-s-${p.id}`}
-            className={`ds-export-pick${p.id === pick.id ? " on" : ""}`}
-            onClick={() => setPickId(p.id)}
+            className="ds-tbbtn ds-act-go ds-job-print"
+            onClick={go}
+            disabled={goDisabled}
           >
-            <span className="ds-export-pick-t" id={`ds-xp-t-${p.id}`}>
-              {p.label}
-            </span>
-            <span className="ds-export-pick-s" id={`ds-xp-s-${p.id}`}>
-              {p.detail}
-            </span>
+            <Icon name="download" size={14} />
+            {goLabel}
           </button>
-        ))}
-      </div>
+        }
+      >
+        <span className="ds-act-s">What are you sending?</span>
 
-      {renders &&
-        (showsFloors || showsDrawing || showsPaper || doc.variants.length > 1) && (
-        <button
-          className="ds-export-toggle"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-        >
-          <Icon name={open ? "chevD" : "chevR"} size={12} />
-          How it should look
-        </button>
-      )}
+        <div className="ds-export-picks" role="radiogroup" aria-label="What to export">
+          {PICKS.map((p) => (
+            <button
+              key={p.id}
+              role="radio"
+              aria-checked={p.id === pick.id}
+              /* the NAME is the artifact; the line under it is the description.
+                 Rolling both into the name would announce "The plans as images
+                 A PNG per floor, for dropping into an email or a report" every
+                 time the choice moved. */
+              aria-labelledby={`ds-xp-t-${p.id}`}
+              aria-describedby={`ds-xp-s-${p.id}`}
+              className={`ds-export-pick${p.id === pick.id ? " on" : ""}`}
+              onClick={() => setPickId(p.id)}
+            >
+              <span className="ds-export-pick-t" id={`ds-xp-t-${p.id}`}>
+                {p.label}
+              </span>
+              <span className="ds-export-pick-s" id={`ds-xp-s-${p.id}`}>
+                {p.detail}
+              </span>
+            </button>
+          ))}
+        </div>
 
-      {open && (
-        <div className="ds-export-opts">
-          {showsFloors && (
-            <div className="ds-export-grp">
-              <span className="ds-export-cap">Floors</span>
-              {doc.floors.map((f) => (
-                <label key={f.id} className="ds-export-row">
-                  <input
-                    type="checkbox"
-                    checked={opts.floorIds.includes(f.id)}
-                    onChange={() => toggleFloor(f.id)}
-                  />
-                  {floorDisplayName(f)}
-                </label>
-              ))}
-            </div>
-          )}
+        {renders &&
+          (showsFloors || showsDrawing || showsPaper || doc.variants.length > 1) && (
+          <button
+            className="ds-export-toggle"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+          >
+            <Icon name={open ? "chevD" : "chevR"} size={12} />
+            How it should look
+          </button>
+        )}
 
-          {doc.variants.length > 1 && (
-            <div className="ds-export-grp">
-              <span className="ds-export-cap">Options</span>
-              <label className="ds-export-row">
-                <input
-                  type="checkbox"
-                  checked={allOn}
-                  onChange={toggleAllVariants}
-                />
-                All options
-              </label>
-              {doc.variants.map((v) => {
-                const failed = variantDocs.get(v.id) === "error";
-                return (
-                  <label key={v.id} className="ds-export-row">
+        {open && (
+          <div className="ds-export-opts">
+            {showsFloors && (
+              <div className="ds-export-grp">
+                <span className="ds-export-cap">Floors</span>
+                {doc.floors.map((f) => (
+                  <label key={f.id} className="ds-export-row">
                     <input
                       type="checkbox"
-                      checked={opts.variantIds.includes(v.id)}
-                      disabled={v.id === doc.id}
-                      onChange={() => toggleVariant(v.id)}
+                      checked={opts.floorIds.includes(f.id)}
+                      onChange={() => toggleFloor(f.id)}
                     />
-                    {v.label}
-                    {v.id === doc.id && <em>this one</em>}
-                    {failed && <em className="err">couldn&apos;t load</em>}
+                    {floorDisplayName(f)}
                   </label>
-                );
-              })}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
 
-          {showsDrawing && (
-            <div className="ds-export-grp">
-              <span className="ds-export-cap">Drawing</span>
-              {(
-                [
-                  ["plan", "Floor plan"],
-                  ["units", "Units"],
-                  ["pipes", "Pipework"],
-                  ["labels", "Labels"],
-                ] as [keyof ExportOptions["layers"], string][]
-              ).map(([k, label]) => (
-                <label key={k} className="ds-export-row">
+            {doc.variants.length > 1 && (
+              <div className="ds-export-grp">
+                <span className="ds-export-cap">Options</span>
+                <label className="ds-export-row">
                   <input
                     type="checkbox"
-                    checked={opts.layers[k]}
-                    onChange={() =>
-                      patch({ layers: { ...opts.layers, [k]: !opts.layers[k] } })
-                    }
+                    checked={allOn}
+                    onChange={toggleAllVariants}
                   />
-                  {label}
+                  All options
                 </label>
-              ))}
-              <label className="ds-export-row">
-                <input
-                  type="checkbox"
-                  checked={opts.grayscale}
-                  onChange={() => patch({ grayscale: !opts.grayscale })}
-                />
-                Black &amp; white
-              </label>
-              <label className="ds-export-row">
-                <input
-                  type="checkbox"
-                  checked={opts.legend}
-                  onChange={() => patch({ legend: !opts.legend })}
-                />
-                Legend on the drawing
-              </label>
-            </div>
-          )}
-
-          {showsPaper && (
-            <div className="ds-export-grp">
-              <span className="ds-export-cap">Paper</span>
-              <div className="ds-export-segs">
-                {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
-                {seg("A3", opts.paper === "A3", () => patch({ paper: "A3" }))}
+                {doc.variants.map((v) => {
+                  const failed = variantDocs.get(v.id) === "error";
+                  return (
+                    <label key={v.id} className="ds-export-row">
+                      <input
+                        type="checkbox"
+                        checked={opts.variantIds.includes(v.id)}
+                        disabled={v.id === doc.id}
+                        onChange={() => toggleVariant(v.id)}
+                      />
+                      {v.label}
+                      {v.id === doc.id && <em>this one</em>}
+                      {failed && <em className="err">couldn&apos;t load</em>}
+                    </label>
+                  );
+                })}
               </div>
-              <div className="ds-export-segs">
-                {seg("Portrait", opts.orientation === "portrait", () =>
-                  patch({ orientation: "portrait" })
-                )}
-                {seg("Landscape", opts.orientation === "landscape", () =>
-                  patch({ orientation: "landscape" })
-                )}
+            )}
+
+            {showsDrawing && (
+              <div className="ds-export-grp">
+                <span className="ds-export-cap">Drawing</span>
+                {(
+                  [
+                    ["plan", "Floor plan"],
+                    ["units", "Units"],
+                    ["pipes", "Pipework"],
+                    ["labels", "Labels"],
+                  ] as [keyof ExportOptions["layers"], string][]
+                ).map(([k, label]) => (
+                  <label key={k} className="ds-export-row">
+                    <input
+                      type="checkbox"
+                      checked={opts.layers[k]}
+                      onChange={() =>
+                        patch({ layers: { ...opts.layers, [k]: !opts.layers[k] } })
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+                <label className="ds-export-row">
+                  <input
+                    type="checkbox"
+                    checked={opts.grayscale}
+                    onChange={() => patch({ grayscale: !opts.grayscale })}
+                  />
+                  Black &amp; white
+                </label>
+                <label className="ds-export-row">
+                  <input
+                    type="checkbox"
+                    checked={opts.legend}
+                    onChange={() => patch({ legend: !opts.legend })}
+                  />
+                  Legend on the drawing
+                </label>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
 
-      <div className="ds-act-row">
-        <button
-          className="ds-tbbtn ds-act-go ds-job-print"
-          onClick={go}
-          disabled={goDisabled}
-        >
-          <Icon name="download" size={14} />
-          {goLabel}
-        </button>
-      </div>
+            {showsPaper && (
+              <div className="ds-export-grp">
+                <span className="ds-export-cap">Paper</span>
+                <div className="ds-export-segs">
+                  {seg("A4", opts.paper === "A4", () => patch({ paper: "A4" }))}
+                  {seg("A3", opts.paper === "A3", () => patch({ paper: "A3" }))}
+                </div>
+                <div className="ds-export-segs">
+                  {seg("Portrait", opts.orientation === "portrait", () =>
+                    patch({ orientation: "portrait" })
+                  )}
+                  {seg("Landscape", opts.orientation === "landscape", () =>
+                    patch({ orientation: "landscape" })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </SummaryModal>
 
+      {/* portals to <body> itself and is never on screen — a sibling here so
+          it lives and dies with the dialog without being inside it */}
       {printing && (
         <PrintDoc
           model={printing.model}
@@ -570,6 +580,6 @@ export function ExportCard({
           onReady={() => window.print()}
         />
       )}
-    </div>
+    </>
   );
 }

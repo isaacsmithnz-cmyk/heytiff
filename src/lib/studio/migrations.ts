@@ -10,6 +10,7 @@ import {
   type DesignDocument,
 } from "./document";
 import { attachOf } from "./graph";
+import { pruneEmptyNotes } from "./notes";
 import {
   ATTACHED_RUN_TYPES,
   reconcileAttachedRuns,
@@ -243,20 +244,30 @@ export function migrateDesign(raw: unknown): {
     bump). Documents saved while unit moves stranded attached pipework — or
     while deletes left runs referencing gone objects — get repaired here:
     dead attach refs are stripped, then attached endpoints snap onto their
-    referenced object's current position. Safe as pure repair: no gesture can
-    legitimately separate an attached endpoint from its target while keeping
-    the ref. */
+    referenced object's current position. Wordless notes go too. Safe as pure
+    repair in both cases: no gesture can legitimately separate an attached
+    endpoint from its target while keeping the ref, and none can leave a note
+    with no words on it (notes.ts explains that one).
+
+    OPEN is the right moment for both, and the only safe one: this runs from
+    migrateDesign, which every load path goes through and no save path does —
+    so a repair can never delete something out from under an editor that is
+    still open on it. */
 export function normalizeDesign(doc: DesignDocument): DesignDocument {
-  const ids = new Set(doc.objects.map((o) => o.id));
+  /* the sweep comes first: a wordless note is wreckage, and nothing else in
+     here can reference one (a run attaches to units and risers, never to
+     markup), so removing them cannot strand anything below */
+  const swept = pruneEmptyNotes(doc.objects);
+  const ids = new Set(swept.map((o) => o.id));
   const dead = new Set<string>();
-  for (const o of doc.objects) {
+  for (const o of swept) {
     if (!ATTACHED_RUN_TYPES.has(o.type)) continue;
     for (const key of ["startAttach", "endAttach"] as const) {
       const a = attachOf(o.props?.[key]);
       if (a && !ids.has(a.id)) dead.add(a.id);
     }
   }
-  let objects = dead.size ? stripAttachesTo(doc.objects, dead) : doc.objects;
+  let objects = dead.size ? stripAttachesTo(swept, dead) : swept;
   objects = reconcileAttachedRuns(objects, null);
   return objects === doc.objects ? doc : { ...doc, objects };
 }

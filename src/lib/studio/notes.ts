@@ -176,6 +176,38 @@ export function moveNote(o: NoteObject, dx: number, dy: number): DesignObject {
   };
 }
 
+/* ── orphans ──────────────────────────────────────────────────────────────
+   A note reaches the document at the LEADER CLICK — before a single word of
+   it exists. That ordering is deliberate (the cloud has to be on the drawing
+   to be drawn, and the placement has to be undoable), and closing the editor
+   normally sweeps an untyped one straight back off again.
+
+   But "closing the editor normally" is only Done, Enter and Escape. Anything
+   that takes the editor away WITHOUT going through them leaves a cloud and a
+   leader pointing at nothing, with no words — the exact mystery balloon that
+   sweep exists to prevent. Seen for real on 2026-08-26: a deploy landed
+   mid-note, hard-reloaded the tab, and the empty note was still on the design
+   afterwards.
+
+   So the sweep is also a REPAIR, run on open (normalizeDesign). It is safe as
+   a repair for the same reason the attach repair is: no gesture can leave an
+   empty note behind on purpose — the editor deletes one every way it can be
+   closed by hand — so an empty note in a stored document is always wreckage. */
+
+/** Nothing but a cloud and a leader: a note with no words. Whitespace counts
+    as none, because a space is not a note either. */
+export function isEmptyNote(o: DesignObject): boolean {
+  return isNote(o) && noteText(o).trim() === "";
+}
+
+/** Drop every wordless note. Returns the SAME array when there is nothing to
+    sweep, so callers can keep using identity to tell whether they changed
+    anything (normalizeDesign does). */
+export function pruneEmptyNotes(objects: DesignObject[]): DesignObject[] {
+  const kept = objects.filter((o) => !isEmptyNote(o));
+  return kept.length === objects.length ? objects : kept;
+}
+
 /* ── the cloud ──────────────────────────────────────────────────────────── */
 
 const n2 = (v: number) => Math.round(v * 100) / 100;

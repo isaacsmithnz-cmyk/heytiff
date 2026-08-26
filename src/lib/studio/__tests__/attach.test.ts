@@ -4,7 +4,7 @@
    it. Pure geometry — no pack needed. */
 
 import type { DesignObject } from "../document";
-import { createDesign } from "../document";
+import { createDesign, serializeDesign } from "../document";
 import {
   deleteRoomWithContents,
   moveEndpointTo,
@@ -16,7 +16,8 @@ import {
   stripAttachesTo,
   translateRoomWithContents,
 } from "../attach";
-import { normalizeDesign } from "../migrations";
+import { normalizeDesign, openDesignJson } from "../migrations";
+import { createNote } from "../notes";
 import { buildSystemGraph } from "../graph";
 import { polylineLength } from "../geometry";
 
@@ -415,6 +416,64 @@ describe("normalizeDesign", () => {
     expect(edge).toBeDefined();
     const mm = doc.floors[0].scaleMmPerUnit!;
     expect(edge!.lengthM).toBeCloseTo((polylineLength(ptsOf(doc.objects[2])) * mm) / 1000);
+  });
+
+  /* ── the wordless-note sweep ──
+     A note lands on the document at the leader click, before its words exist.
+     Every normal way of closing the editor removes an untyped one; a DEPLOY
+     RELOAD mid-note does not, and that is how this arrived on a real design
+     (prod, 2026-08-26). Open-time repair is what catches it. */
+  const notedDoc = (text: string) => {
+    const doc = createDesign({ name: "t", mode: "blank", now: "2026-01-01T00:00:00.000Z" });
+    const floorId = doc.floors[0].id;
+    doc.objects = [
+      { ...unit("u1", 0, 0), floorId },
+      createNote({ floorId, rect: { x: 0, y: 0, w: 60, h: 40 }, leader: { x: 200, y: 0 }, text, id: "n1" }),
+    ];
+    return doc;
+  };
+
+  it("sweeps a note that never got its words", () => {
+    const out = normalizeDesign(notedDoc(""));
+    expect(out.objects.map((o) => o.id)).toEqual(["u1"]);
+  });
+
+  it("sweeps one that got only whitespace — a space is not a note", () => {
+    expect(normalizeDesign(notedDoc("   \n  ")).objects.map((o) => o.id)).toEqual(["u1"]);
+  });
+
+  it("keeps a note that has something to say", () => {
+    const out = normalizeDesign(notedDoc("Check bulkhead depth"));
+    expect(out.objects.map((o) => o.id)).toEqual(["u1", "n1"]);
+  });
+
+  /* the identity contract normalizeDesign relies on: a document with nothing
+     to sweep and nothing to repair must come back BY REFERENCE, or every open
+     would look like an edit */
+  it("returns a clean document by reference", () => {
+    const doc = notedDoc("Check bulkhead depth");
+    expect(normalizeDesign(doc)).toBe(doc);
+  });
+
+  /* the whole bug, end to end and through the REAL door: the orphan was saved
+     to the server, and what fixes it is the next open — openDesignJson is the
+     path store.load and the live viewer both take. */
+  it("is gone by the time a saved design is reopened", () => {
+    const stranded = serializeDesign(notedDoc(""));
+    expect(stranded).toContain("\"type\":\"note\""); // it really was stored
+    const { doc } = openDesignJson(stranded);
+    expect(doc.objects.map((o) => o.id)).toEqual(["u1"]);
+  });
+
+  it("leaves everything that is not a note alone", () => {
+    const doc = notedDoc("");
+    const room: DesignObject = {
+      id: "rm1", type: "room", systemId: "sys_a", floorId: doc.floors[0].id,
+      geometry: { kind: "polygon", points: [pt(0, 0), pt(10, 0), pt(10, 10), pt(0, 10)] },
+      plane: "room", props: {},
+    };
+    doc.objects = [...doc.objects, room];
+    expect(normalizeDesign(doc).objects.map((o) => o.id)).toEqual(["u1", "rm1"]);
   });
 
   /* the shape check validates only the top level, so a hand-edited or

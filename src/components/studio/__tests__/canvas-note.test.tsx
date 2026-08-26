@@ -14,13 +14,19 @@ import { createDesign, type DesignDocument, type Floor } from "@/lib/studio/docu
 import {
   createNote,
   isNote,
+  noteGrips,
+  noteLayoutOf,
   noteLeader,
   noteRect,
   noteInkOf,
+  noteScaleOf,
   noteText,
   noteTextLayout,
+  noteWrapOf,
   DEFAULT_NOTE_INK,
   NOTE_INKS,
+  NOTE_WRAP_CHARS,
+  type NoteObject,
 } from "@/lib/studio/notes";
 
 /* the margin text's world size at these fixtures' zoom. Notes hold a constant
@@ -278,6 +284,77 @@ describe("a note on the drawing", () => {
 
     expect(noteLeader(v.notes[0])).toEqual({ x: 600, y: 200 });
     expect(noteRect(v.notes[0])).toEqual({ x: 0, y: 0, w: 200, h: 100 }); // cloud stayed
+  });
+
+  /* ── the words as a TEXT FRAME (#552) ──
+     A selected note's words carry two grips: the outer side sets the measure
+     and the words reflow, the outer corner sets the type size. Neither exists
+     until the note is selected — the grips sit ON the block's edge, which is
+     inside the words' own hit box, so an unselected note must not have them
+     quietly eating the drag that re-places its margin. */
+  describe("its words are a text frame once it is selected", () => {
+    const gripAt = (v: ReturnType<typeof renderCanvas>, which: "measure" | "size") =>
+      noteGrips(v.notes[0] as NoteObject, NOTE_FONT_W)[which];
+
+    it("shows no frame at all until it is selected", () => {
+      const off = renderCanvas({ tool: "select", doc: withNote() });
+      expect(off.container.querySelectorAll(".ds-note-grip")).toHaveLength(0);
+      off.unmount();
+
+      const on = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
+      expect(on.container.querySelectorAll(".ds-note-grip")).toHaveLength(2);
+    });
+
+    it("sets the measure when the side grip is pulled out", () => {
+      const v = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
+      const g = gripAt(v, "measure");
+      const lay = noteLayoutOf(v.notes[0] as NoteObject, NOTE_FONT_W);
+      // pull the edge out to exactly 12 characters' worth of width
+      const to = lay.textX + lay.side * (12 * lay.fontSize * 0.56);
+      fireEvent.pointerDown(v.svg, world(v.svg, g.x, g.y));
+      fireEvent.pointerMove(v.svg, world(v.svg, to, g.y));
+      fireEvent.pointerUp(v.svg, world(v.svg, to, g.y));
+
+      expect(noteWrapOf(v.notes[0])).toBe(12);
+      // the TYPE did not move — the measure reflows, it does not scale
+      expect(noteScaleOf(v.notes[0])).toBe(1);
+    });
+
+    it("sets the type size when the corner grip is pulled down", () => {
+      const v = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
+      const g = gripAt(v, "size");
+      const leaderY = noteLeader(v.notes[0]).y;
+      // twice the distance from the leader = twice the size
+      const to = leaderY + (g.y - leaderY) * 2;
+      fireEvent.pointerDown(v.svg, world(v.svg, g.x, g.y));
+      fireEvent.pointerMove(v.svg, world(v.svg, g.x, to));
+      fireEvent.pointerUp(v.svg, world(v.svg, g.x, to));
+
+      expect(noteScaleOf(v.notes[0])).toBe(2);
+      expect(noteWrapOf(v.notes[0])).toBe(NOTE_WRAP_CHARS);
+    });
+
+    /* a grip pressed and released is a SELECTION, not an edit — landing an
+       undo step that changes nothing would make the history a liar */
+    it("writes nothing when a grip is pressed and let go", () => {
+      const v = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
+      const g = gripAt(v, "size");
+      fireEvent.pointerDown(v.svg, world(v.svg, g.x, g.y));
+      fireEvent.pointerMove(v.svg, world(v.svg, g.x, g.y));
+      fireEvent.pointerUp(v.svg, world(v.svg, g.x, g.y));
+      expect(v.onMutate).not.toHaveBeenCalled();
+    });
+
+    /* the grip beats the words it sits on, or the frame is decoration */
+    it("does not re-place the margin when a grip is what was grabbed", () => {
+      const v = renderCanvas({ tool: "select", doc: withNote(), selectedId: "note_1" });
+      const g = gripAt(v, "measure");
+      const before = noteLeader(v.notes[0]);
+      fireEvent.pointerDown(v.svg, world(v.svg, g.x, g.y));
+      fireEvent.pointerMove(v.svg, world(v.svg, g.x + 60, g.y + 60));
+      fireEvent.pointerUp(v.svg, world(v.svg, g.x + 60, g.y + 60));
+      expect(noteLeader(v.notes[0])).toEqual(before);
+    });
   });
 
   it("opens its words on a double-click", () => {

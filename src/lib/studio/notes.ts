@@ -282,8 +282,48 @@ export function noteSide(rect: NoteRect, leader: Point): 1 | -1 {
 /* ── the margin text ────────────────────────────────────────────────────── */
 
 /** Longest line, in characters, before the text wraps. Chosen so a note reads
-    as a column in the margin rather than a sentence running off the sheet. */
+    as a column in the margin rather than a sentence running off the sheet —
+    and the DEFAULT only, since #552 gave each note its own measure. */
 export const NOTE_WRAP_CHARS = 28;
+
+/* ── the measure and the size ─────────────────────────────────────────────
+   Two things a drawing office has always set per note, by hand: how wide the
+   column of words runs, and how big they are. One note is "existing unit
+   stays" and another is a paragraph of site conditions, and a single sheet
+   convention cannot serve both — a long note at the sheet measure runs down
+   the page in a ribbon, and a short one set wide reads as a stray line.
+
+   Both live on the NOTE, so they travel with it to paper: the canvas and the
+   print figure lay a note out through the same one function, and a per-note
+   value read anywhere else would drift the two apart. Both are read through
+   a clamp rather than validated on the way in, for the same reason the ink
+   is: a document is data from somewhere else, and the drawing has to survive
+   whatever it says. */
+
+/** the narrowest and widest measure a note's words may be set to */
+export const NOTE_WRAP_MIN = 8;
+export const NOTE_WRAP_MAX = 96;
+/** how far a note's type may be scaled off the sheet's own size */
+export const NOTE_SCALE_MIN = 0.6;
+export const NOTE_SCALE_MAX = 3;
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+/** A note's measure, in characters. */
+export function noteWrapOf(o: DesignObject): number {
+  const v = Number(o.props.wrap);
+  return Number.isFinite(v) ? clamp(Math.round(v), NOTE_WRAP_MIN, NOTE_WRAP_MAX) : NOTE_WRAP_CHARS;
+}
+
+/** A note's type size, as a multiple of the surface's own note size. A
+    MULTIPLE and never a px value, because the two surfaces size their notes
+    differently — the canvas holds a constant screen size through the zoom,
+    paper sizes off the fitted figure — and a stored px would be right on one
+    of them and wrong on the other. */
+export function noteScaleOf(o: DesignObject): number {
+  const v = Number(o.props.textScale);
+  return Number.isFinite(v) && v > 0 ? clamp(v, NOTE_SCALE_MIN, NOTE_SCALE_MAX) : 1;
+}
 
 /** Word-wrap for SVG, which has no wrapping of its own. Explicit newlines are
     kept (somebody who typed a list meant a list); a single word longer than
@@ -327,6 +367,9 @@ export interface NoteTextLayout {
   /** baseline of the first line; later lines step down by `lineH` */
   firstBaseline: number;
   lineH: number;
+  /** the size the words are actually set at — the caller's base font times
+      the note's own scale, so nobody has to re-derive it to draw the text */
+  fontSize: number;
   /** the block's bounding box — for hit-testing and for print bounds. Width is
       ESTIMATED from the character count: nothing here can measure a font, and
       a box a few percent wide costs a slightly generous click target and a
@@ -365,6 +408,7 @@ export function noteTextLayout(
     anchor: side === 1 ? "start" : "end",
     firstBaseline,
     lineH,
+    fontSize,
     box: {
       x: side === 1 ? textX : textX - width,
       y: leader.y - blockH / 2,
@@ -374,17 +418,114 @@ export function noteTextLayout(
   };
 }
 
+/** A note laid out AS STORED: its own measure and its own size applied to
+    the surface's base font. Every surface that draws, measures or hit-tests a
+    note goes through this one door — the canvas, the print figure, the bounds
+    the "fit" pass needs and the hit test — so a note cannot be one shape on
+    screen and another on paper.
+
+    `baseFont` is the surface's own note size, in the units it draws in. */
+export function noteLayoutOf(o: NoteObject, baseFont: number): NoteTextLayout {
+  return noteTextLayout(
+    noteRect(o),
+    noteLeader(o),
+    noteText(o),
+    baseFont * noteScaleOf(o),
+    noteWrapOf(o)
+  );
+}
+
 /** Everything a note occupies, cloud + leader + margin text — what the print
     figure has to leave room for, or the words fall off the sheet. */
 export function noteBounds(o: NoteObject, fontSize: number): NoteRect {
   const rect = noteRect(o);
   const leader = noteLeader(o);
-  const lay = noteTextLayout(rect, leader, noteText(o), fontSize);
+  const lay = noteLayoutOf(o, fontSize);
   const x0 = Math.min(rect.x, lay.box.x, leader.x);
   const y0 = Math.min(rect.y, lay.box.y, leader.y);
   const x1 = Math.max(rect.x + rect.w, lay.box.x + lay.box.w, leader.x);
   const y1 = Math.max(rect.y + rect.h, lay.box.y + lay.box.h, leader.y);
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+/* ── the grips on a selected note's words ────────────────────────────────
+   A note's words are a TEXT FRAME, and a text frame is resized the way every
+   drawing tool resizes one: pull its side to change the measure and the words
+   reflow, pull its corner to change the size and they scale. Two grips, two
+   axes of the same block, and neither is a menu you have to go and find.
+
+   They sit on the OUTER edge — the side the words run away from the drawing —
+   because the inner edge is where the leader lands and grabbing there already
+   means "move the words". Geometry lives here, beside the layout it grips, so
+   the canvas has nothing to re-derive and a test can drive it without React. */
+
+export type NoteGrip = "measure" | "size";
+
+/** How far below the block the size grip hangs, in ems of the note's type. */
+const GRIP_DROP_EM = 0.75;
+
+export function noteGrips(o: NoteObject, baseFont: number): Record<NoteGrip, Point> {
+  const lay = noteLayoutOf(o, baseFont);
+  const outerX = lay.side === 1 ? lay.box.x + lay.box.w : lay.box.x;
+  return {
+    /* the measure grip rides the leader's own height: the block is centred on
+       it, so this is the one point that does not move as lines are added */
+    measure: { x: outerX, y: noteLeader(o).y },
+    size: { x: outerX, y: lay.box.y + lay.box.h + lay.fontSize * GRIP_DROP_EM },
+  };
+}
+
+/** Which grip the pointer is on, nearest first — they can sit within a line
+    of each other on a one-line note, and the closer one has to win. */
+export function noteGripAt(
+  o: NoteObject,
+  p: Point,
+  tol: number,
+  baseFont: number
+): NoteGrip | null {
+  const g = noteGrips(o, baseFont);
+  const d = (q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
+  const dm = d(g.measure);
+  const ds = d(g.size);
+  if (Math.min(dm, ds) > tol) return null;
+  return ds < dm ? "size" : "measure";
+}
+
+/** The measure that would put the block's outer edge under `x`. Characters,
+    not world units, because the wrap is counted in characters — the width a
+    layout reports is `chars × fontSize × 0.56` and this is that, inverted. */
+export function wrapForEdgeX(lay: NoteTextLayout, x: number): number {
+  const width = Math.max(0, (x - lay.textX) * lay.side);
+  return Math.min(
+    Math.max(Math.round(width / (lay.fontSize * 0.56)), NOTE_WRAP_MIN),
+    NOTE_WRAP_MAX
+  );
+}
+
+/** The scale that would put the size grip under `y`. Measured as a RATIO of
+    distances from the leader, so the block grows from the point it hangs off
+    instead of sliding away from the pointer. */
+export function scaleForGripY(opts: {
+  /** the note's scale when the drag began */
+  from: number;
+  /** the grip's y when the drag began */
+  startY: number;
+  /** the leader's y — the block is centred on it, so it is the anchor */
+  leaderY: number;
+  /** the pointer now */
+  y: number;
+}): number {
+  const span = opts.startY - opts.leaderY;
+  const now = opts.y - opts.leaderY;
+  /* a grip that began ON the leader's line has no span to scale against (a
+     one-line note at the smallest size); fall back to the scale it had */
+  if (Math.abs(span) < 1e-6) return opts.from;
+  /* the grip stays exactly under the pointer — the block is centred on the
+     leader, so its distance from there IS proportional to the type size — and
+     the value it lands on is rounded to a twentieth. A note that reads 1.85
+     is a size somebody chose; one that reads 1.8670251 is a mouse event. */
+  const next = Math.round(opts.from * (now / span) * 20) / 20;
+  return Math.min(Math.max(next, NOTE_SCALE_MIN), NOTE_SCALE_MAX);
 }
 
 /* ── hit-testing ────────────────────────────────────────────────────────── */
@@ -413,7 +554,7 @@ export function noteHit(
 ): "cloud" | "text" | "leader" | null {
   const rect = noteRect(o);
   const leader = noteLeader(o);
-  const lay = noteTextLayout(rect, leader, noteText(o), fontSize);
+  const lay = noteLayoutOf(o, fontSize);
   if (inRect(p, lay.box, tol) || nearSegment(p, lay.elbow, lay.shoulder, tol)) return "text";
   if (inRect(p, rect, tol) && !inRect(p, rect, -tol)) return "cloud";
   if (nearSegment(p, leaderStart(rect, leader), lay.elbow, tol)) return "leader";

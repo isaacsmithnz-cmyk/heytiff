@@ -70,10 +70,10 @@ describe("the handover sheet's inline stylesheet", () => {
       const css = styleBlock();
       const printBlock = css.slice(css.indexOf("@media print"));
       expect(printBlock).toMatch(
-        /\.ho-fr > thead > tr > td\.ho-fr-t,\s*\n?\s*\.ho-fr > tfoot > tr > td\.ho-fr-b\s*\{\s*height:\s*var\(--doc-gutter/
+        /\.ho-fr > thead > tr > td\.ho-fr-t,\s*\n?\s*\.ho-fr > tfoot > tr > td\.ho-fr-b\s*\{\s*height:\s*calc\(var\(--ho-edge\) \+ var\(--doc-gutter/
       );
       expect(printBlock).toMatch(
-        /\.ho-fr > tbody > tr > td\.ho-fr-c\s*\{\s*padding:\s*0 var\(--doc-gutter/
+        /\.ho-fr > tbody > tr > td\.ho-fr-c\s*\{\s*padding:\s*0 calc\(var\(--ho-edge\) \+ var\(--doc-gutter/
       );
       expect(printBlock).toMatch(/box-decoration-break:\s*clone/);
       // and the spacers carry no paint of their own — a second copy of the
@@ -81,23 +81,52 @@ describe("the handover sheet's inline stylesheet", () => {
       expect(printBlock).not.toMatch(/\.ho-fr[^{]*\{[^}]*background:\s*var\(--doc-ink/);
     });
 
-    it("strips the page margin only for a brand the derivation accepts", () => {
-      // the @page override lives in the COMPONENT, where the brand is —
-      // an @page rule cannot read a CSS variable
-      expect(PAGE).toMatch(/documentTheme\(brand\.color\)/);
-      expect(PAGE).toMatch(/\{themed && \(/);
-      expect(PAGE).toMatch(/@media print \{ @page \{ margin: 0; \}/);
-      /* THE SQUARE-OFF RIDES WITH THE MARGIN STRIP. Full bleed means the
-         band's corners are the paper's corners, and a radius there draws four
-         white notches; inset in a margin it must stay rounded or it prints a
-         hard-cornered mat floating in white. One decision, one place. */
-      expect(PAGE).toMatch(/\.ho-band \{ border-radius: 0; \}/);
-      // and the band is concentric with its well everywhere else
+    /* THE SHEET DRAWS ITS OWN PAPER MARGIN, and the page box has none.
+
+       This replaces a guard that pinned the opposite arrangement: the page
+       margin was stripped only for a themed brand, from a conditional <style>
+       in the component, and the square-off rode along with it because the
+       frame bled to the paper's corners. Isaac looked at a printed design
+       sheet with those corners and asked for the band curved the whole way
+       round, so #539 reversed it there and this does the same here.
+
+       Margin 0 is unconditional now for a second reason, which is the one
+       that shows on every copy: a browser prints its date, tab title, page
+       URL and page number INTO the page margin and nowhere else. */
+    it("prints on a page box with no margin, and insets the frame itself", () => {
+      const css = styleBlock();
+      const printBlock = css.slice(css.indexOf("@media print"));
+      expect(printBlock).toMatch(/@page \{ margin: 0; \}/);
+      // no margin survives anywhere — the old 16mm would put the furniture back
+      expect(css).not.toMatch(/@page \{ margin: (?!0)/);
+      // the inset the frame is drawn at, on both layers
+      expect(printBlock).toMatch(/\.ho-sheet \{ --ho-edge: \d+mm; \}/);
+      expect(printBlock).toMatch(/\.ho-band \{ inset: var\(--ho-edge\); \}/);
+      expect(printBlock).toMatch(
+        /\.ho-well \{ inset: calc\(var\(--ho-edge\) \+ var\(--doc-gutter/
+      );
+    });
+
+    it("NO CHROME SQUARES THE BAND ANY MORE — it is rounded on paper too", () => {
+      /* The square-off was a component-injected `.ho-band { border-radius: 0 }`
+         riding with the margin strip. Nothing bleeds now, so a square-off in
+         either place puts the hard corners straight back. */
+      expect(PAGE).not.toMatch(/\.ho-band \{ border-radius: 0/);
+      expect(styleBlock()).not.toMatch(/\.ho-band[^{]*\{[^}]*border-radius:\s*0\s*[;}]/);
+      // and the band stays concentric with its well
       expect(styleBlock()).toMatch(
         /border-radius:\s*calc\(var\(--doc-radius[^)]*\)\s*\+\s*var\(--doc-gutter/
       );
-      // and the unthemed sheet keeps its own margin in the stylesheet
-      expect(styleBlock()).toMatch(/@page \{ margin: 16mm; \}/);
+    });
+
+    it("KEEPS THE UNTHEMED SHEET OFF THE PAPER'S EDGE", () => {
+      /* The clear used to be the band's, so 0 was the right fallback — room
+         made for a band that is not there is worse than none. It is the
+         document's own inset from the paper now that @page has no margin, and
+         an unthemed sheet needs it just as much: at a 0 fallback a business
+         that has chosen no colour prints its text 10mm from the page edge,
+         where it has always had 16. */
+      expect(styleBlock()).toMatch(/padding:\s*var\(--doc-clear, 6mm\)/);
     });
   });
 });

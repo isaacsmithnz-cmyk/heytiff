@@ -204,6 +204,16 @@ describe("the frame on paper", () => {
     }
   });
 
+  it("KEEPS THE UNTHEMED SHEET OFF THE PAPER'S EDGE", () => {
+    /* The clear used to be the band's, so 0 was the right fallback — room
+       made for a band that is not there is worse than none (#470). It is the
+       document's own inset from the paper now that `@page` has no margin, and
+       an unthemed sheet needs it just as much: at a 0 fallback a business that
+       has chosen no colour prints its text 10mm from the page edge. #539
+       shipped that; this is the correction. */
+    expect(CSS).toMatch(/padding:\s*var\(--doc-clear, 6mm\)/);
+  });
+
   /* EVERY PAGE CLOSES AS ITS OWN BOX. Without clone, border-radius and
      padding exist only at the well's true start and end: every intermediate
      page break is squared off and its content starts flush against the band.

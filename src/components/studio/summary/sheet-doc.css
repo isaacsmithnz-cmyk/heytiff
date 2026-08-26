@@ -931,9 +931,17 @@
 
      Geometrically it is clear of the well's corner either way: the content
      box's corner escapes a radius r once the clear passes r(1 − 1/√2), which
-     is 2.33mm of the 7.94 — 6mm has room to spare. */
+     is 2.33mm of the 7.94 — 6mm has room to spare.
+
+     AND IT FALLS BACK TO A REAL VALUE, which looks like the #470 trap and is
+     its opposite. That trap is room made for a band that did not render. This
+     padding is no longer the band's clear: since `@page` lost its margin it is
+     the DOCUMENT'S OWN inset from the paper, which an unthemed sheet needs
+     exactly as much as a themed one. Without it the fallback is 0 and a
+     business that has chosen no colour prints its text 10mm from the edge of
+     the page — 6mm too tight, and a regression #539 shipped. */
   .dsd-frame > tbody > tr > td.dsd-fr-c > .dsd-fr-w {
-    padding: var(--doc-clear, 0px);
+    padding: var(--doc-clear, 6mm);
     box-decoration-break: clone;
   }
 

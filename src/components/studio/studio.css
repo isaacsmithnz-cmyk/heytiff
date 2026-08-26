@@ -6564,6 +6564,87 @@ html[data-ds-display] .dstudio.editing {
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
 }
 
+/* ═════════ the Summary step's dialogs (Share, Export) ═════════
+   Both were cards that unfolded into the chrome bar at the top of the Summary
+   step. The sheet below it is long, so once you had read the document the
+   card opened off-screen behind you and pressing the button appeared to do
+   nothing. A dialog comes to the reader.
+
+   Portalled to <body>, so two things restart here: the token ramp (`--ink`,
+   the greys and `--font` live on `.fg`) and the `.dstudio` scope the
+   `.ds-export-*` and `.ds-share-*` rules are written against. The ramp is on
+   the scrim so it reaches both boxes; `.dstudio` is on the dialog, and `.ds-xm.dstudio`
+   (0,2,0) puts back the display, padding and min-height the studio's own
+   layout sets on that class. */
+.ds-xm-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(20, 22, 24, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  /* the next/font variable off <html>, not `--font`, which is declared on
+     `.fg` and does not reach a body portal — the same restatement `.tk-sheet`
+     makes for the same reason */
+  font-family: var(--font-jakarta), sans-serif;
+  --ink: #050505;
+  --gray400: #5f6a79;
+  --gray500: #57616f;
+  --gray700: #374151;
+  --teal: #00e5c0;
+  --teal-d: #00a389;
+  color: var(--ink);
+}
+.ds-xm.dstudio {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  min-height: 0;
+  width: min(520px, 100%);
+  max-height: 88vh;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  color: var(--ink);
+}
+.ds-xm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
+  border-bottom: 1px solid #ececec;
+}
+.dstudio .ds-xm-t {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.ds-xm-body {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden auto;
+}
+.ds-xm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 13px 18px;
+  border-top: 1px solid #ececec;
+  background: #fbfbfa;
+}
+/* the ONE thing the dialog exists to do spans the bar; the rest (Copy,
+   Revoke, Keep) sit at their own width beside it */
+.ds-xm-foot .ds-act-go { flex: 1; justify-content: center; }
+
 /* export customizer — collapsed behind Customise (defaults are everything);
    captioned groups of checkbox rows + mini segment pills, all on the light
    card */

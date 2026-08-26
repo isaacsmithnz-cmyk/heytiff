@@ -3,13 +3,20 @@
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { SHARE_TTL_DAYS } from "@/lib/studio/share";
+import { SummaryModal } from "./summary-modal";
 
 /* Share action card — the customer live link. One link per design: create
    rotates a fresh token, Copy puts the URL on the clipboard, Revoke (armed,
    two clicks) kills it dead. The link serves the LATEST saved design — a
    live window, not a snapshot — so the copy says exactly that. Actions load
    lazily (the packActions pattern) so jsdom never parses the auth0 runtime;
-   a session-less context (the dev harness) degrades to a quiet note. */
+   a session-less context (the dev harness) degrades to a quiet note.
+
+   A DIALOG, not a card above the sheet — the same shell Export wears, for the
+   same reason: this opened at the top of a document several screens long, so
+   pressing Share after reading it moved nothing into view. What you DO with
+   the link (Copy, Revoke, Create) sits on the footer bar; the link itself and
+   what it promises stay in the body. */
 
 const shareActions = () => import("@/app/actions/studio-share");
 
@@ -27,7 +34,14 @@ type ShareState =
       daysLeft: number;
     };
 
-export function ShareCard({ designId }: { designId: string }) {
+export function ShareCard({
+  designId,
+  onClose,
+}: {
+  designId: string;
+  /** dismiss the dialog — scrim, the x and Escape all land here */
+  onClose: () => void;
+}) {
   const [state, setState] = useState<ShareState>({ kind: "loading" });
   const [copied, setCopied] = useState(false);
   const [armed, setArmed] = useState(false);
@@ -74,13 +88,55 @@ export function ShareCard({ designId }: { designId: string }) {
     });
   };
 
-  return (
-    <div className="ds-act-card">
-      <span className="ds-act-t">
-        <Icon name="arrowUR" size={14} />
-        Share
-      </span>
+  /* the actions, hoisted onto the dialog's footer bar. A state with nothing
+     to press (loading, and the session-less note) returns null, and the shell
+     leaves the bar off entirely rather than drawing an empty one. */
+  const foot = (() => {
+    if (state.kind === "none" || state.kind === "busy")
+      return (
+        <button
+          className="ds-tbbtn ds-act-go"
+          onClick={create}
+          disabled={state.kind === "busy"}
+        >
+          {state.kind === "busy" ? "Working…" : "Create live link"}
+        </button>
+      );
+    if (state.kind !== "active") return null;
+    const active = state;
+    return (
+      <>
+        {active.expired ? (
+          <button className="ds-tbbtn ds-act-go" onClick={create}>
+            Create a new link
+          </button>
+        ) : (
+          <button className="ds-tbbtn" onClick={() => copy(active.url)}>
+            <Icon name={copied ? "check" : "file"} size={14} />
+            {copied ? "Copied" : "Copy link"}
+          </button>
+        )}
+        {armed ? (
+          <>
+            <button className="ds-tbbtn ds-share-kill" onClick={revoke}>
+              Really revoke
+            </button>
+            <button className="ds-tbbtn" onClick={() => setArmed(false)}>
+              Keep
+            </button>
+          </>
+        ) : (
+          <button className="ds-tbbtn" onClick={() => setArmed(true)}>
+            <Icon name="x" size={13} />
+            Revoke
+          </button>
+        )}
+      </>
+    );
+  })();
 
+  return (
+    <SummaryModal title="Share" icon="arrowUR" onClose={onClose} foot={foot}>
       {state.kind === "loading" && (
         <span className="ds-act-s">Checking for a live link…</span>
       )}
@@ -93,22 +149,11 @@ export function ShareCard({ designId }: { designId: string }) {
       )}
 
       {(state.kind === "none" || state.kind === "busy") && (
-        <>
-          <span className="ds-act-s">
-            Give the customer a live, read-only link: the design summary off
-            the latest save, with the simulation to open if you have ticked it
-            as ready to share. The link works for {SHARE_TTL_DAYS} days.
-          </span>
-          <div className="ds-act-row">
-            <button
-              className="ds-tbbtn ds-act-go"
-              onClick={create}
-              disabled={state.kind === "busy"}
-            >
-              {state.kind === "busy" ? "Working…" : "Create live link"}
-            </button>
-          </div>
-        </>
+        <span className="ds-act-s">
+          Give the customer a live, read-only link: the design summary off the
+          latest save, with the simulation to open if you have ticked it as
+          ready to share. The link works for {SHARE_TTL_DAYS} days.
+        </span>
       )}
 
       {state.kind === "active" && (
@@ -135,35 +180,8 @@ export function ShareCard({ designId }: { designId: string }) {
               ({new Date(state.expiresAt).toLocaleDateString()}).
             </span>
           )}
-          <div className="ds-act-row">
-            {state.expired ? (
-              <button className="ds-tbbtn ds-act-go" onClick={create}>
-                Create a new link
-              </button>
-            ) : (
-              <button className="ds-tbbtn" onClick={() => copy(state.url)}>
-                <Icon name={copied ? "check" : "file"} size={14} />
-                {copied ? "Copied" : "Copy link"}
-              </button>
-            )}
-            {armed ? (
-              <>
-                <button className="ds-tbbtn ds-share-kill" onClick={revoke}>
-                  Really revoke
-                </button>
-                <button className="ds-tbbtn" onClick={() => setArmed(false)}>
-                  Keep
-                </button>
-              </>
-            ) : (
-              <button className="ds-tbbtn" onClick={() => setArmed(true)}>
-                <Icon name="x" size={13} />
-                Revoke
-              </button>
-            )}
-          </div>
         </>
       )}
-    </div>
+    </SummaryModal>
   );
 }

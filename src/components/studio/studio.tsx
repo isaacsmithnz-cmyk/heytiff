@@ -64,6 +64,7 @@ import {
   type ZoomApi,
 } from "./canvas";
 import { useWheelMode, WheelModeToggle } from "./wheel-toggle";
+import { HintsToggle, useHintsOn } from "./hints";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
@@ -3482,6 +3483,7 @@ function DesignPanel({
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
   const wheelMode = useWheelMode();
+  const hintsOn = useHintsOn();
   /* units attributed to a room and still off the plan — the tray's list */
   const toPlace = useMemo(
     () => itemsToPlace(doc, pack, activeSystemId),
@@ -3721,6 +3723,11 @@ function DesignPanel({
             The scroll toggle leads it: what the wheel does is a fact about
             THIS view, and it belongs where the view's other controls are. */}
         <div className="ds-zoomctl" role="group" aria-label="Zoom">
+          {/* the two settings about how THIS machine drives the canvas sit
+              together at the front: what the wheel does, and whether the
+              canvas talks you through the armed tool. Hints are turned off on
+              the hint itself; this is the only way back on. */}
+          <HintsToggle on={hintsOn} />
           <WheelModeToggle value={wheelMode} />
           <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
             −

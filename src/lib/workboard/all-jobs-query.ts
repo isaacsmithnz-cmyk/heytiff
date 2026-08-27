@@ -28,7 +28,7 @@ import {
   familyNumbersFor,
   isFamilyMember,
   splitJobNumber,
-  type FamilyLineTotal,
+  type FamilyLines,
   type FamilyMoney,
 } from "./job-family";
 import {
@@ -858,15 +858,22 @@ export async function readJobFamily(
     return null;
   }
 
-  const linesByJob = new Map<string, FamilyLineTotal | null>();
+  /* "UNREADABLE" IS NOT "NONE". A member with an unpriced row or two rows
+     disagreeing about tax is a member we cannot price; a member with no rows
+     is one ServiceM8 never itemised. amountOf treats the second as "nothing
+     to check a payment against" and lets the payment stand as the claim — so
+     handing it the first under the same name turned a part payment into a
+     claim's whole value, the very misread the cap below declines a read to
+     avoid. */
+  const linesByJob = new Map<string, Exclude<FamilyLines, null>>();
   for (const raw of (matRows ?? []) as (Parameters<typeof materialLineOf>[0] & {
     job_uuid: string;
   })[]) {
     const line = materialLineOf(raw);
     const soFar = linesByJob.get(raw.job_uuid);
-    if (soFar === null) continue; // already unreadable
+    if (soFar === "unreadable") continue; // already so
     if (line.lineCents === null) {
-      linesByJob.set(raw.job_uuid, null);
+      linesByJob.set(raw.job_uuid, "unreadable");
       continue;
     }
     if (soFar === undefined) {
@@ -874,7 +881,7 @@ export async function readJobFamily(
       continue;
     }
     if (soFar.taxInclusive !== line.taxInclusive) {
-      linesByJob.set(raw.job_uuid, null);
+      linesByJob.set(raw.job_uuid, "unreadable");
       continue;
     }
     linesByJob.set(raw.job_uuid, {

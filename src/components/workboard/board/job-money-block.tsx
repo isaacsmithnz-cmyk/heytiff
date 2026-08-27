@@ -42,6 +42,10 @@ function chipOf(claim: FamilyClaim): { word: string; tone: string } {
         : { word: "Awaiting", tone: " warn" };
     case "not_invoiced":
       return { word: "To come", tone: "" };
+    /* Money in, nothing to check it against. Deliberately toneless: green
+       would say settled, amber would say chase it, and neither is known. */
+    case "paid_unknown":
+      return { word: "Part or all paid", tone: "" };
     default:
       return { word: "Amount unknown", tone: "" };
   }
@@ -53,12 +57,15 @@ function metaOf(claim: FamilyClaim): string {
   const bits: string[] = [];
   // an invoice nobody has raised has no number to name
   if (claim.jobNumber && claim.state !== "not_invoiced") bits.push(`Invoice #${claim.jobNumber}`);
-  if (claim.percent !== null) bits.push(`${claim.percent}% of the job`);
+  if (claim.percent !== null) {
+    // a real claim rounded to nothing reads as nothing at all
+    bits.push(claim.percent === 0 ? "<1% of the job" : `${claim.percent}% of the job`);
+  }
   if (claim.state === "not_invoiced") {
     bits.push("Not yet invoiced");
   } else {
     if (claim.raisedOn) bits.push(`Raised ${fmtAuWeekdayDayMonth(claim.raisedOn)}`);
-    if (claim.state === "paid" && claim.paidOn) {
+    if ((claim.state === "paid" || claim.state === "paid_unknown") && claim.paidOn) {
       bits.push(`Paid ${fmtAuWeekdayDayMonth(claim.paidOn)}`);
     } else if (claim.state === "part") {
       bits.push(`Paid ${fmtAud(claim.paidCents)} so far`);
@@ -113,6 +120,7 @@ export function JobMoneyBlock({
   ledgerPaidCents,
   statusLabel,
   categoryColour,
+  unavailable = false,
 }: {
   family: FamilyMoney | null;
   money: JobMoney | null;
@@ -122,6 +130,10 @@ export function JobMoneyBlock({
   ledgerPaidCents: number;
   statusLabel: string | null;
   categoryColour: string | null;
+  /** The record read was refused or failed. The block says so rather than
+      vanishing — and never falls back to this row's own total, which on a
+      family is the netted figure the whole feature exists to stop showing. */
+  unavailable?: boolean;
 }) {
   /* Collection is counted across the FAMILY when there is one. A parent whose
      deposit landed on #2380A used to read "Nothing paid yet" while $9,402 was
@@ -170,34 +182,54 @@ export function JobMoneyBlock({
      sentence is the answer when there isn't — a job nobody has billed yet,
      a quote, a job ServiceM8 never priced. Never both, and never a second
      summary under a claim ledger that already says it line by line. */
-  const showAwaitingHead = awaiting !== null && awaiting > 0;
+  /* ORDER IS THE MEANING, and the head rows must not jump the queue. A quote
+     nobody has accepted cannot be "awaiting payment", and a job ServiceM8
+     says it has not invoiced wants billing, not chasing — both sentences live
+     in fallbackLine, which used to be reached only when no head row fired.
+     Live that silenced #3169: a $4,015 Quote carrying an invoice_date drew an
+     amber "Awaiting payment · 100% of the job" under its Quote chip. */
+  const ladderSpeaksFirst = statusLabel === "Quote" || money?.invoiced === false;
+  const showAwaitingHead = !ladderSpeaksFirst && awaiting !== null && awaiting > 0;
   /* "Paid in full" is about the WHOLE job, so it needs both axes to agree:
      nothing awaiting on what has been raised (axis 2) AND nothing left to
      raise (axis 1). awaitingCents counts only raised claims, so on its own it
      called a job paid in full with a final claim still to bill — directly
      under a line saying "$6,268.06 to come". */
-  const showPaidHead = awaiting === 0 && paidCents > 0 && (toCome ?? 0) <= 0;
+  const showPaidHead =
+    !ladderSpeaksFirst && awaiting === 0 && paidCents > 0 && (toCome ?? 0) <= 0;
   const fallback =
-    !showAwaitingHead && !showPaidHead && !isFamily
+    !showAwaitingHead && !showPaidHead && (!isFamily || ladderSpeaksFirst)
       ? fallbackLine(money, statusLabel, paidCents)
       : null;
 
   /* A bar with one segment in it is a rectangle. It earns its place once
      there is more than one thing to compare. */
-  const showBar = value !== null && value > 0 && segments.length > 1;
+  /* AND NOT ACROSS TWO BASES. When the awaiting figure stood down because an
+     ex-GST claim carries an inc-GST payment, the segments left are a paid
+     figure drawn as a share of a total on the other basis — a picture of a
+     subtraction the derivation just refused to do. */
+  const barBasisSafe = !(family !== null && family.awaitingCents === null && family.paidCents > 0);
+  const showBar = value !== null && value > 0 && segments.length > 1 && barBasisSafe;
 
   return (
     <div
       className="wb2-shsect wb2-jmoney"
       style={categoryColour ? { borderColor: categoryColour } : undefined}
     >
-      <span className="wb2-sect">Job value{basisWord}</span>
-      <b className="wb2-jmbig">{value !== null ? fmtAud(value) : "—"}</b>
+      <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
+      <b className="wb2-jmbig">{!unavailable && value !== null ? fmtAud(value) : "—"}</b>
+
+      {unavailable && (
+        <p className="int-hint">
+          ServiceM8&apos;s figures didn&apos;t load just now. Close the job and open it again to
+          try.
+        </p>
+      )}
 
       {/* axis 1, and only axis 1 */}
-      {isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
+      {!unavailable && isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
 
-      {showBar && (
+      {!unavailable && showBar && (
         <>
           {/* A ZERO-WIDTH SEGMENT IS NOT DRAWN. It still owns the flex gap
               beside it, so a fully paid job grew a grey nub on the end that
@@ -223,11 +255,13 @@ export function JobMoneyBlock({
 
       {/* axis 2 — the head row says where collection stands, in the tinted
           row where chasing belongs. The value above it stays the identity. */}
-      {showAwaitingHead && (
+      {!unavailable && showAwaitingHead && (
         <div className="wb2-mline head warn">
           <b>Awaiting payment</b>
           <em>
-            {value !== null && value > 0 ? `${Math.round((awaiting / value) * 100)}% of the job` : ""}
+            {value !== null && value > 0
+              ? `${Math.max(1, Math.round((awaiting / value) * 100))}% of the job`
+              : ""}
           </em>
           <span>{fmtAud(awaiting)}</span>
           {overdue !== null && (
@@ -237,7 +271,7 @@ export function JobMoneyBlock({
           )}
         </div>
       )}
-      {showPaidHead && (
+      {!unavailable && showPaidHead && (
         <div className="wb2-mline head ok">
           <b>Paid in full</b>
           <em />
@@ -245,7 +279,8 @@ export function JobMoneyBlock({
         </div>
       )}
 
-      {isFamily &&
+      {!unavailable &&
+        isFamily &&
         family!.claims.map((claim) => {
           const chip = chipOf(claim);
           return (
@@ -274,14 +309,14 @@ export function JobMoneyBlock({
           here — ServiceM8&apos;s invoices are the total.
         </p>
       )}
-      {family?.unknownClaim && !family.mixedBasis && (
+      {family?.unknownClaim && !family.mixedBasis && isFamily && (
         <p className="int-hint">
           ServiceM8 hasn&apos;t priced one of this job&apos;s invoices, so there&apos;s no total to
           show.
         </p>
       )}
 
-      {fallback && <em className="wb2-jmsub">{fallback}</em>}
+      {!unavailable && fallback && <em className="wb2-jmsub">{fallback}</em>}
     </div>
   );
 }

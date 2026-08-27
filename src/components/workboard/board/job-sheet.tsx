@@ -110,6 +110,20 @@ function bookingLabel(naive: string, end?: string | null): string {
   return `${endTime ? `${time}–${endTime}` : time} ${fmtAuWeekdayDayMonth(date)}`;
 }
 
+/** A dialable href, or null when the field isn't one number.
+
+    SERVICEM8'S PHONE FIELD IS FREE TEXT. Stripping everything that isn't a
+    digit assumes it holds exactly one number, so "0412 345 678 / 9999 a/h"
+    becomes tel:04123456789999 — a number that is nobody's, offered as if it
+    were the contact's. Punctuation a number legitimately wears comes out;
+    anything left that isn't a plain international-ish number means the field
+    is saying more than one thing, and then it stays text. */
+export function telHref(raw: string | null | undefined): string | null {
+  if (typeof raw !== "string") return null;
+  const bare = raw.replace(/[\s()\-.]/g, "");
+  return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
+}
+
 export function JobSheet({
   row,
   manage,
@@ -144,6 +158,7 @@ export function JobSheet({
      after, and painting the wrong number first breaks this sheet's own rule
      that what fills in was ABSENT, not wrong. */
   const [record, setRecord] = useState<JobRecordRead | null | undefined>(undefined);
+  const [recordFailed, setRecordFailed] = useState(false);
   const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [naming, setNaming] = useState(false);
@@ -237,11 +252,26 @@ export function JobSheet({
   /* Notes and the ledger, on their own clock like the files. `ledger` comes
      back null for a reader without money — the gate is server-side, so this
      component never has numbers it must remember to hide. */
+  /* A REJECTION IS ITS OWN ANSWER, and it needs saying. The money block waits
+     for `record` so a family-billed parent never paints its netted total and
+     then corrects itself — but with no catch, a rejected read left `record`
+     at undefined forever and the whole Job value section simply never
+     appeared, indistinguishable from a reader with no money grant. Falling
+     back to null would be worse than either: that IS the netted total this
+     feature exists to stop showing. So the failure is recorded as a failure
+     and the block says the figures didn't load. */
   useEffect(() => {
     let live = true;
-    void readJobRecord(row.id).then((r) => {
-      if (live) setRecord(r);
-    });
+    /* No reset: the sheet is KEYED BY JOB, so a different job is a different
+       component with this flag already false — the same rule the record's
+       own loading state follows. */
+    void readJobRecord(row.id)
+      .then((r) => {
+        if (live) setRecord(r);
+      })
+      .catch(() => {
+        if (live) setRecordFailed(true);
+      });
     return () => {
       live = false;
     };
@@ -454,9 +484,10 @@ export function JobSheet({
             against it, and what is still out — and it counts collection
             across the FAMILY, which is the difference between "Nothing paid
             yet" and $9,402 in the bank. */}
-        {moneyVisible && record !== undefined && (
+        {moneyVisible && (record !== undefined || recordFailed) && (
           <JobMoneyBlock
             family={record?.family ?? null}
+            unavailable={recordFailed}
             money={money}
             ledgerPaidCents={
               record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
@@ -623,6 +654,13 @@ export function JobSheet({
               What&apos;s been paid —{" "}
               {(() => {
                 const paid = paymentsTotalCents(record.ledger.payments);
+                /* COLLECTION IS SAID ONCE, and the block above says it. This
+                   figure is measured against THIS row's own total — the
+                   parent's, net of its partial invoices — so on a family it
+                   could print "paid in full" directly under a block printing
+                   "Awaiting payment". These are this job's own payments; the
+                   verdict belongs to whoever can see all of them. */
+                if (record.family?.isFamily) return fmtAud(paid);
                 const state = collectionAgainst(paid, money?.valueCents ?? null);
                 if (state === "paid") return `${fmtAud(paid)}, paid in full`;
                 if (state === "part")
@@ -731,17 +769,25 @@ export function JobSheet({
                 {c.phone ? (
                   <>
                     {" · "}
-                    <a className="wb2-colink" href={`tel:${c.phone.replace(/[^+\d]/g, "")}`}>
-                      {c.phone}
-                    </a>
+                    {telHref(c.phone) ? (
+                      <a className="wb2-colink" href={telHref(c.phone)!}>
+                        {c.phone}
+                      </a>
+                    ) : (
+                      c.phone
+                    )}
                   </>
                 ) : null}
                 {c.altPhone ? (
                   <>
                     {" · "}
-                    <a className="wb2-colink" href={`tel:${c.altPhone.replace(/[^+\d]/g, "")}`}>
-                      {c.altPhone}
-                    </a>
+                    {telHref(c.altPhone) ? (
+                      <a className="wb2-colink" href={telHref(c.altPhone)!}>
+                        {c.altPhone}
+                      </a>
+                    ) : (
+                      c.altPhone
+                    )}
                   </>
                 ) : null}
                 {c.email ? (

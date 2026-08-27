@@ -136,8 +136,17 @@ export function isPartialInvoiceLine(line: {
 export type MoneyBasis = "inc" | "ex";
 
 /** One member's material lines, already netted and already agreed on a
-    basis — null when the lines are unreadable or disagree with each other. */
+    basis.
+
+    THREE STATES, NOT TWO, and the third is the whole point. `null` means this
+    member HAS no lines — ServiceM8 never itemised it. `"unreadable"` means it
+    has them and they cannot honestly be added: an unpriced row, or two rows
+    disagreeing about tax. Collapsing those two into one null is how a PART
+    payment came to stand as a claim's whole value — amountOf reads "no lines"
+    as "nothing to test the payment against", which is true of an absence and
+    a lie about a row we simply couldn't read. */
 export type FamilyLineTotal = { cents: number; taxInclusive: boolean };
+export type FamilyLines = FamilyLineTotal | "unreadable" | null;
 
 /** What the mirror knows about one member of the family. */
 export type FamilyMemberFacts = {
@@ -149,8 +158,9 @@ export type FamilyMemberFacts = {
   paidCents: number;
   /** The latest payment's day. */
   lastPaidOn: string | null;
-  /** This member's own lines, partial-invoice rows already removed. */
-  lines: FamilyLineTotal | null;
+  /** This member's own lines. Partial-invoice rows are KEPT on the parent —
+      they are what net its quote down to its balance. */
+  lines: FamilyLines;
   /** The day this claim was raised — invoice_date, else the clone's own day. */
   raisedOn: string | null;
 };
@@ -164,6 +174,9 @@ export type ClaimState =
   | "awaiting"
   /** Still to bill — the parent's remainder before the final invoice. */
   | "not_invoiced"
+  /** Money in, and no way to say whether it is all of it — the claim's amount
+      is the payment itself, with nothing to check it against. */
+  | "paid_unknown"
   /** The mirror can't say what this one is worth. */
   | "unknown";
 
@@ -237,10 +250,24 @@ function orderMembers(members: readonly FamilyMemberFacts[]): FamilyMemberFacts[
   });
 }
 
-/** What one member is worth, and on which basis. See the header for the
-    order and for why a part payment is never an amount. */
-function amountOf(m: FamilyMemberFacts): { cents: number; basis: MoneyBasis } | null {
-  if (m.totalCents !== null) return { cents: m.totalCents, basis: "inc" };
+/** What one member is worth, on which basis, and whether anything CORROBORATES
+    it. See the header for the order and for why a part payment is never an
+    amount.
+
+    CORROBORATED means a second fact agrees with the figure: ServiceM8 stated
+    it, or the member's own lines were readable and the payment cleared them.
+    A payment with nothing to check it against is the only figure we have and
+    is still shown — but it must not also be called settled. */
+function amountOf(
+  m: FamilyMemberFacts
+): { cents: number; basis: MoneyBasis; corroborated: boolean } | null {
+  if (m.totalCents !== null) return { cents: m.totalCents, basis: "inc", corroborated: true };
+
+  /* UNREADABLE IS NOT ABSENT. A member whose lines wouldn't add is a member we
+     cannot price, and no payment against it may stand in for the invoice —
+     the exact misread readJobFamily declines a whole read to avoid when its
+     caps are hit. */
+  if (m.lines === "unreadable") return null;
 
   if (m.paidCents > 0) {
     /* Settled? `paid >= the lines` is the test, and it needs no tax rate in
@@ -252,14 +279,22 @@ function amountOf(m: FamilyMemberFacts): { cents: number; basis: MoneyBasis } | 
        whole value of the job and marked it Paid: $1,100 in on an $11,000 job
        read as "$1,100 · Paid in full".
 
-       With no lines at all there is nothing to test against, and the payment
-       is the only figure ServiceM8 has ever stated for this claim. */
-    const clearsLines = m.lines === null || m.paidCents >= m.lines.cents;
-    if (clearsLines) return { cents: m.paidCents, basis: "inc" };
+       With no lines at all there is nothing to test against. The payment is
+       still the only figure ServiceM8 has ever stated for this claim, so it
+       is what the claim is worth — but UNCORROBORATED, because "some money
+       arrived" is not "this is what it was worth, and it is settled". */
+    if (m.lines === null) return { cents: m.paidCents, basis: "inc", corroborated: false };
+    if (m.paidCents >= m.lines.cents) {
+      return { cents: m.paidCents, basis: "inc", corroborated: true };
+    }
   }
 
   if (m.lines !== null) {
-    return { cents: m.lines.cents, basis: m.lines.taxInclusive ? "inc" : "ex" };
+    return {
+      cents: m.lines.cents,
+      basis: m.lines.taxInclusive ? "inc" : "ex",
+      corroborated: true,
+    };
   }
   return null;
 }
@@ -284,7 +319,7 @@ export function deriveFamilyMoney(input: {
   const memberCount = ordered.length;
   const isFamily = ordered.some((m) => splitJobNumber(m.jobNumber)?.suffix != null);
 
-  type Draft = FamilyClaim & { raised: boolean };
+  type Draft = FamilyClaim & { raised: boolean; corroborated: boolean };
   const drafts: Draft[] = [];
 
   let paidTotal = 0;
@@ -325,6 +360,7 @@ export function deriveFamilyMoney(input: {
       dueOn: null,
       overdueDays: null,
       raised,
+      corroborated: amount?.corroborated ?? false,
     });
   }
 
@@ -352,7 +388,12 @@ export function deriveFamilyMoney(input: {
     let state: ClaimState;
     if (!d.raised) state = "not_invoiced";
     else if (d.amountCents === null) state = d.paidCents > 0 ? "part" : "unknown";
-    else if (d.basis === "ex") {
+    else if (!d.corroborated) {
+      /* The amount IS the payment and nothing agrees with it. Money came in;
+         whether it was all of it is a question the mirror cannot answer, and
+         "Paid in full" would be answering it anyway. */
+      state = d.paidCents > 0 ? "paid_unknown" : "unknown";
+    } else if (d.basis === "ex") {
       /* An ex-GST amount can't be compared with an inc-GST payment. It only
          reaches here when the payment FAILED the settled test, which already
          proved it short — so money in means part paid, and no money means
@@ -368,7 +409,10 @@ export function deriveFamilyMoney(input: {
          that only works when the two are on the same basis. */
       invoiced += d.amountCents;
       if (d.basis === "ex" && d.paidCents > 0) awaitingUnreadable = true;
-      else if (state !== "paid") awaiting += Math.max(0, d.amountCents - d.paidCents);
+      else if (state === "paid" || state === "paid_unknown") {
+        /* Nothing to add: a settled claim is settled, and one whose total
+           nobody stated has no shortfall anyone can name. */
+      } else awaiting += Math.max(0, d.amountCents - d.paidCents);
     }
 
     /* DUE-NESS NEEDS TERMS, and ServiceM8 does not mirror them. With the
@@ -386,14 +430,13 @@ export function deriveFamilyMoney(input: {
       index: i + 1,
       stage,
       state,
-      percent:
-        valueCents !== null && valueCents > 0 && d.amountCents !== null
-          ? Math.round((d.amountCents / valueCents) * 100)
-          : null,
+      percent: null,
       dueOn,
       overdueDays: dueOn !== null && past > 0 ? past : null,
     };
   });
+
+  assignWholePercents(claims, valueCents);
 
   return {
     memberCount,
@@ -408,6 +451,36 @@ export function deriveFamilyMoney(input: {
     paidCents: paidTotal,
     awaitingCents: valueCents === null || awaitingUnreadable ? null : awaiting,
   };
+}
+
+/** Whole-percent shares that ADD UP. Rounding each claim on its own is the
+    obvious way and it is wrong in public: three equal claims read 33/33/33
+    under a total they are supposed to account for, and the reader is the one
+    who notices. Largest remainder hands the spare points to the claims that
+    lost the most in the rounding, so the column sums to exactly 100.
+
+    A claim smaller than half a percent still lands on 0 — the block says
+    "<1%" rather than "0% of the job", which reads as nothing at all. */
+function assignWholePercents(claims: FamilyClaim[], valueCents: number | null): void {
+  if (valueCents === null || valueCents <= 0) return;
+
+  const shares = claims
+    .map((c, i) => ({ i, cents: c.amountCents }))
+    .filter((x): x is { i: number; cents: number } => x.cents !== null && x.cents >= 0)
+    .map((x) => {
+      const exact = (x.cents / valueCents) * 100;
+      const whole = Math.floor(exact);
+      return { i: x.i, whole, remainder: exact - whole };
+    });
+  if (shares.length === 0) return;
+
+  let spare = 100 - shares.reduce((sum, s) => sum + s.whole, 0);
+  for (const s of [...shares].sort((a, b) => b.remainder - a.remainder)) {
+    if (spare <= 0) break;
+    s.whole += 1;
+    spare -= 1;
+  }
+  for (const s of shares) claims[s.i].percent = s.whole;
 }
 
 /** The axis-1 sentence, built one way everywhere — the family shape of

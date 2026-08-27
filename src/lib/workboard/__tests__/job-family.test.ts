@@ -288,6 +288,72 @@ describe("deriveFamilyMoney — the band between a claim's lines and its invoice
   });
 });
 
+describe("deriveFamilyMoney — lines that cannot be read are not lines that aren't there", () => {
+  /* THE MISREAD THIS SEPARATION EXISTS TO STOP. `paid >= lines` needs lines to
+     test against; with none, the payment stood in as the claim's whole value
+     and the claim read Paid. That is right for a member ServiceM8 never
+     itemised and wrong for one whose rows simply wouldn't add — and a single
+     unpriced row is enough to make the difference, because
+     parseSm8AmountToCents("0.0000") is null. */
+
+  it("refuses to price a member whose lines are unreadable, whatever has been paid", () => {
+    const m = derive([
+      parent(),
+      depositA({ paidCents: 250000, lines: "unreadable" }),
+      progressB(),
+    ]);
+    const a = m.claims.find((c) => c.jobNumber === "2380A")!;
+
+    expect(a.amountCents).toBeNull();
+    expect(a.state).toBe("part");
+    expect(m.unknownClaim).toBe(true);
+    expect(m.valueCents).toBeNull();
+  });
+
+  it("takes a payment as the amount when there are truly no lines, but never calls it settled", () => {
+    /* Money arrived and it is the only figure ServiceM8 has ever stated, so
+       it is what the claim is worth. Whether it was ALL of it is a question
+       nothing here can answer — and "Paid in full" answers it anyway. */
+    const m = derive([depositA({ paidCents: 50000, lines: null })]);
+
+    expect(m.claims[0].amountCents).toBe(50000);
+    expect(m.claims[0].state).toBe("paid_unknown");
+    expect(m.awaitingCents).toBe(0);
+  });
+
+  it("still settles a claim whose readable lines the payment cleared", () => {
+    // the 404 clean clones: unchanged by the separation above
+    const m = derive([parent(), depositA(), progressB()]);
+    expect(m.claims[0].state).toBe("paid");
+  });
+});
+
+describe("deriveFamilyMoney — whole-percent shares add up", () => {
+  it("hands the spare points to the biggest remainders rather than printing 99", () => {
+    /* Three equal claims are 33.33% each. Rounded on their own they print
+       33/33/33 under a total they are supposed to account for. */
+    const m = derive([
+      depositA({ totalCents: 100000, lines: null, paidCents: 0 }),
+      progressB({ totalCents: 100000, lines: null, paidCents: 0 }),
+      parent({ totalCents: 100000, lines: null, paidCents: 0 }),
+    ]);
+
+    expect(m.valueCents).toBe(300000);
+    expect(m.claims.map((c) => c.percent)).toEqual([34, 33, 33]);
+    expect(m.claims.reduce((sum, c) => sum + (c.percent ?? 0), 0)).toBe(100);
+  });
+
+  it("rounds a claim smaller than half a percent to zero, for the block to say <1%", () => {
+    const m = derive([
+      depositA({ totalCents: 100, lines: null, paidCents: 0 }),
+      parent({ totalCents: 100000, lines: null, paidCents: 0 }),
+    ]);
+
+    expect(m.claims[0].percent).toBe(0);
+    expect(m.claims.reduce((sum, c) => sum + (c.percent ?? 0), 0)).toBe(100);
+  });
+});
+
 describe("deriveFamilyMoney — the awaiting rollup keeps to one basis", () => {
   /* An ex-GST claim amount and an inc-GST payment cannot be subtracted from
      one another. The per-claim state machine already refuses that comparison;

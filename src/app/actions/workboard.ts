@@ -11,14 +11,22 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { parseSm8AmountToCents } from "@/lib/workboard/job-money";
 import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
+  readJobFamily,
   readJobLedger,
   readJobNotes,
   type JobLedgerRead,
   type JobNoteEntry,
 } from "@/lib/workboard/all-jobs-query";
+import type { FamilyMoney } from "@/lib/workboard/job-family";
 
 /** Notes always; the ledger only for a reader who holds money. */
-export type JobRecordRead = { notes: JobNoteEntry[]; ledger: JobLedgerRead | null };
+export type JobRecordRead = {
+  notes: JobNoteEntry[];
+  ledger: JobLedgerRead | null;
+  /** Every job ServiceM8 cloned out of this one, read as one ledger. Null
+      without `workboard_money`, and null for a job number this can't read. */
+  family: FamilyMoney | null;
+};
 import {
   readMirrorJobDetail,
   searchAllMirrorJobs,
@@ -430,8 +438,19 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
   if (!id) return null;
 
   const notes = await readJobNotes(ctx.orgId, id);
-  if (!(await can("workboard_money"))) return { notes, ledger: null };
-  return { notes, ledger: await readJobLedger(ctx.orgId, id) };
+  if (!(await can("workboard_money"))) return { notes, ledger: null, family: null };
+
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const [ledger, family] = await Promise.all([
+    readJobLedger(ctx.orgId, id),
+    /* PAYMENT TERMS ARE NOT SET ANYWHERE YET. ServiceM8 does not mirror an
+       invoice's terms, so due-ness needs a HeyTiff setting that does not
+       exist — and until it does this stays null, which makes the claim rows
+       say when they were RAISED and say nothing at all about when they were
+       due. An invented fortnight would be a number the screen made up. */
+    readJobFamily(ctx.orgId, id, today, null),
+  ]);
+  return { notes, ledger, family };
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

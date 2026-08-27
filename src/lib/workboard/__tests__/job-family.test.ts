@@ -227,6 +227,133 @@ describe("deriveFamilyMoney — a payment is never the value of a claim it hasn'
   });
 });
 
+describe("deriveFamilyMoney — the band between a claim's lines and its invoice", () => {
+  /* THE ONE PLACE THE SETTLED RULE CANNOT TELL TWO STORIES APART. A claim with
+     no stated total is worth its payment once that payment clears its lines —
+     the inequality argued in the file header. But for EX-GST lines worth L,
+     a payment anywhere in [L, 1.1 × L) has two readings and nothing to choose
+     between them:
+
+       · the invoice was L × 1.1 and this is a PART payment, or
+       · the invoice was discounted and this IS the whole of it.
+
+     The rule takes the second, so the claim reads Paid in full at whatever
+     came in. These tests PIN that choice rather than bless it. The sharp end
+     is a customer who pays the quote figure and leaves the GST behind: the
+     card goes quiet about the tenth still owed.
+
+     Live at the time of writing the band is not a live problem — 404 of the
+     408 clones carrying both payments and ex-GST lines are paid to exactly
+     1.1× them, the one below the band (#1306B, $2,500 against $5,000) is read
+     as part paid, and the band's only occupants are the three #1047 clones,
+     a job with a history of its own. Change the rule and these expectations
+     should change with it, deliberately. */
+
+  it("takes a payment that lands mid-band as the claim's whole value", () => {
+    // $9,000 against $8,547.37 of ex-GST lines — short of the $9,402.11 an
+    // inc-GST invoice for those lines would have asked for.
+    const m = derive([parent(), depositA({ paidCents: 900000 }), progressB()]);
+    const a = m.claims.find((c) => c.jobNumber === "2380A")!;
+
+    expect(a.amountCents).toBe(900000);
+    expect(a.basis).toBe("inc");
+    expect(a.state).toBe("paid");
+  });
+
+  it("does the same when the payment is exactly the ex-GST figure", () => {
+    const m = derive([parent(), depositA({ paidCents: 854737 }), progressB()]);
+    const a = m.claims.find((c) => c.jobNumber === "2380A")!;
+
+    expect(a.amountCents).toBe(854737);
+    expect(a.state).toBe("paid");
+    /* And the family wears it: $854.74 lighter than the same three claims
+       paid in full, while still saying the job is invoiced in full. */
+    expect(m.valueCents).toBe(3048561);
+    expect(familyInvoicedLine(m, fmtAud)).toBe("$30,485.61 invoiced in full");
+  });
+
+  it("falls out of the band one cent lower, and the family total goes with it", () => {
+    /* A single cent is the whole distance between the two readings above and
+       this one: the payment no longer clears the lines, so the claim is worth
+       its LINES on their own basis, that basis disagrees with the rest of the
+       family, and the total stands down rather than adding ex GST to inc. */
+    const m = derive([parent(), depositA({ paidCents: 854736 }), progressB()]);
+    const a = m.claims.find((c) => c.jobNumber === "2380A")!;
+
+    expect(a.amountCents).toBe(854737);
+    expect(a.basis).toBe("ex");
+    expect(a.state).toBe("part");
+    expect(m.mixedBasis).toBe(true);
+    expect(m.valueCents).toBeNull();
+  });
+});
+
+describe("deriveFamilyMoney — lines that cannot be read are not lines that aren't there", () => {
+  /* THE MISREAD THIS SEPARATION EXISTS TO STOP. `paid >= lines` needs lines to
+     test against; with none, the payment stood in as the claim's whole value
+     and the claim read Paid. That is right for a member ServiceM8 never
+     itemised and wrong for one whose rows simply wouldn't add — and a single
+     unpriced row is enough to make the difference, because
+     parseSm8AmountToCents("0.0000") is null. */
+
+  it("refuses to price a member whose lines are unreadable, whatever has been paid", () => {
+    const m = derive([
+      parent(),
+      depositA({ paidCents: 250000, lines: "unreadable" }),
+      progressB(),
+    ]);
+    const a = m.claims.find((c) => c.jobNumber === "2380A")!;
+
+    expect(a.amountCents).toBeNull();
+    expect(a.state).toBe("part");
+    expect(m.unknownClaim).toBe(true);
+    expect(m.valueCents).toBeNull();
+  });
+
+  it("takes a payment as the amount when there are truly no lines, but never calls it settled", () => {
+    /* Money arrived and it is the only figure ServiceM8 has ever stated, so
+       it is what the claim is worth. Whether it was ALL of it is a question
+       nothing here can answer — and "Paid in full" answers it anyway. */
+    const m = derive([depositA({ paidCents: 50000, lines: null })]);
+
+    expect(m.claims[0].amountCents).toBe(50000);
+    expect(m.claims[0].state).toBe("paid_unknown");
+    expect(m.awaitingCents).toBe(0);
+  });
+
+  it("still settles a claim whose readable lines the payment cleared", () => {
+    // the 404 clean clones: unchanged by the separation above
+    const m = derive([parent(), depositA(), progressB()]);
+    expect(m.claims[0].state).toBe("paid");
+  });
+});
+
+describe("deriveFamilyMoney — whole-percent shares add up", () => {
+  it("hands the spare points to the biggest remainders rather than printing 99", () => {
+    /* Three equal claims are 33.33% each. Rounded on their own they print
+       33/33/33 under a total they are supposed to account for. */
+    const m = derive([
+      depositA({ totalCents: 100000, lines: null, paidCents: 0 }),
+      progressB({ totalCents: 100000, lines: null, paidCents: 0 }),
+      parent({ totalCents: 100000, lines: null, paidCents: 0 }),
+    ]);
+
+    expect(m.valueCents).toBe(300000);
+    expect(m.claims.map((c) => c.percent)).toEqual([34, 33, 33]);
+    expect(m.claims.reduce((sum, c) => sum + (c.percent ?? 0), 0)).toBe(100);
+  });
+
+  it("rounds a claim smaller than half a percent to zero, for the block to say <1%", () => {
+    const m = derive([
+      depositA({ totalCents: 100, lines: null, paidCents: 0 }),
+      parent({ totalCents: 100000, lines: null, paidCents: 0 }),
+    ]);
+
+    expect(m.claims[0].percent).toBe(0);
+    expect(m.claims.reduce((sum, c) => sum + (c.percent ?? 0), 0)).toBe(100);
+  });
+});
+
 describe("deriveFamilyMoney — the awaiting rollup keeps to one basis", () => {
   /* An ex-GST claim amount and an inc-GST payment cannot be subtracted from
      one another. The per-claim state machine already refuses that comparison;

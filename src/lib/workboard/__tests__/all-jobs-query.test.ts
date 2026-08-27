@@ -183,6 +183,28 @@ describe("readJobFamily", () => {
     expect(money?.claims.map((c) => c.percent)).toEqual([30, 50, 20]);
   });
 
+  /* A ZERO-PRICED ROW IS AN UNREADABLE MEMBER, NOT AN UNPRICED ONE.
+     parseSm8AmountToCents("0.0000") is null, so one such row makes that
+     member's lines unaddable — and passing that on as "no lines" let its
+     payment stand as the claim's whole value and read Paid. */
+  it("marks a member with an unpriced row unreadable rather than line-less", async () => {
+    rowsBy["sm8_job_materials"] = [
+      line("j-2380a", "Progress payment 30%", "1.0000", "8388.0000"),
+      line("j-2380a", "Site allowance", "1.0000", "0.0000"),
+    ];
+    rowsBy["sm8_job_payments"] = [
+      { job_uuid: "j-2380a", amount: "2500.0000", timestamp: "2026-04-02 09:12:00" },
+    ];
+
+    const money = await readJobFamily("org-1", "j-2380", "2026-08-26", null);
+    const a = money?.claims.find((c) => c.jobNumber === "2380A");
+
+    expect(a?.amountCents).toBeNull();
+    expect(a?.state).toBe("part");
+    expect(money?.unknownClaim).toBe(true);
+    expect(money?.valueCents).toBeNull();
+  });
+
   it("counts the deposit that landed on a clone, which a uuid join never does", async () => {
     const money = await readJobFamily("org-1", "j-2380", "2026-08-26", null);
 

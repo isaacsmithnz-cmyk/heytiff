@@ -265,7 +265,13 @@ describe("the sheet renders what the mirror already held", () => {
    #2380A, its progress claim is #2380B, and the parent is netted down to the
    balance. The block reads the three cards as one job. */
 
-const familyMoney = (over: Partial<FamilyMoney> = {}): FamilyMoney =>
+/* The overrides are the derivation's INPUT, and the type has to say so. Typed
+   as Partial<FamilyMoney> they were spread into {members, today, termsDays},
+   where deriveFamilyMoney ignores them — so a test could ask for a different
+   family, get the default, and pass while asserting nothing it meant to. */
+type FamilyInput = Parameters<typeof deriveFamilyMoney>[0];
+
+const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
   deriveFamilyMoney({
     members: [
       {
@@ -334,8 +340,6 @@ describe("the money block", () => {
 
   /* The two axes never share a sentence: this line counts INVOICING. */
   it("says what has been invoiced and what is still to bill", async () => {
-    const family = familyMoney();
-    family.claims[2].state = "not_invoiced";
     readMirrorJob.mockResolvedValueOnce(detail());
     readJobRecord.mockResolvedValueOnce({
       notes: [],
@@ -804,6 +808,143 @@ describe("money stays behind its grant", () => {
     expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
     expect(screen.getByText("$6,850")).toBeInTheDocument();
     expect(screen.queryByText("Nothing paid yet")).toBeNull();
+  });
+
+  /* THE LADDER OUTRANKS THE HEAD ROWS. readJobFamily answers for EVERY job
+     whose number parses, so a one-member family is the live path — and the
+     old guard test only passed because its mock returned family: null. */
+  it("keeps the quote's own sentence when a family read produces an awaiting figure", async () => {
+    // live #3169: a $4,015 Quote carrying an invoice_date, no payments
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        money: {
+          valueCents: 401500,
+          invoiced: null,
+          invoicedOn: null,
+          quoteSent: true,
+          quoteSentOn: "2026-08-03",
+          paid: false,
+          paidOn: null,
+        },
+      })
+    );
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: familyMoney({
+        members: [
+          {
+            remoteId: "j-3169",
+            jobNumber: "3169",
+            totalCents: 401500,
+            paidCents: 0,
+            lastPaidOn: null,
+            lines: null,
+            raisedOn: "2026-08-10",
+          },
+        ],
+      }),
+    });
+    render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
+
+    expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
+    expect(screen.queryByText("Awaiting payment")).toBeNull();
+  });
+
+  it("says the figures didn't load rather than dropping the money block", async () => {
+    /* The block waits for the record so a family-billed parent never paints
+       its netted total first. With no catch, a rejected read left it waiting
+       for ever and the section vanished — silence a reader cannot tell from
+       having no money grant. */
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockRejectedValueOnce(new Error("boom"));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    expect(
+      await screen.findByText(/ServiceM8's figures didn't load just now/)
+    ).toBeInTheDocument();
+    expect(document.querySelector(".wb2-jmoney")).not.toBeNull();
+    // and never the netted figure the family read exists to replace
+    expect(screen.queryByText("$2,794")).toBeNull();
+  });
+
+  it("draws the paid-in-full head row when both axes agree", async () => {
+    /* Both axes: nothing awaiting on what was raised, and nothing left to
+       raise. The default family still has the parent's balance outstanding,
+       so this one settles it. */
+    readMirrorJob.mockResolvedValueOnce(detail());
+    readJobRecord.mockResolvedValueOnce({
+      notes: [],
+      ledger: null,
+      family: familyMoney({
+        members: [
+          {
+            remoteId: "j-2380",
+            jobNumber: "2380",
+            totalCents: 626806,
+            paidCents: 626806,
+            lastPaidOn: "2026-08-22",
+            lines: null,
+            raisedOn: "2026-08-21",
+          },
+          {
+            remoteId: "j-2380a",
+            jobNumber: "2380A",
+            totalCents: null,
+            paidCents: 940211,
+            lastPaidOn: "2026-04-02",
+            lines: { cents: 854737, taxInclusive: false },
+            raisedOn: "2026-03-27",
+          },
+          {
+            remoteId: "j-2380b",
+            jobNumber: "2380B",
+            totalCents: null,
+            paidCents: 1567018,
+            lastPaidOn: "2026-04-10",
+            lines: { cents: 1424562, taxInclusive: false },
+            raisedOn: "2026-04-02",
+          },
+        ],
+      }),
+    });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    /* The figure appears twice on a settled job — the headline and the head
+       row — which is the point of the row. */
+    expect(await screen.findAllByText("$31,340.35")).toHaveLength(2);
+    const head = document.querySelector(".wb2-mline.head.ok") as HTMLElement;
+    expect(head).not.toBeNull();
+    expect(within(head).getByText("Paid in full")).toBeInTheDocument();
+    expect(within(head).getByText("$31,340.35")).toBeInTheDocument();
+  });
+
+  it("dials a phone number, and refuses a field holding more than one", async () => {
+    /* ServiceM8's phone field is free text. Stripping every non-digit assumes
+       one number, so "0412 345 678 / 9999 a/h" became tel:04123456789999 —
+       nobody's number, offered as the contact's. */
+    readMirrorJob.mockResolvedValueOnce(
+      detail({
+        contacts: [
+          { name: "Josh", type: "JOB", phone: "0426 719 412", altPhone: null, email: null },
+          {
+            name: "Karen",
+            type: "JOB",
+            phone: "0412 345 678 / 9999 a/h",
+            altPhone: null,
+            email: null,
+          },
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+
+    const dialable = await screen.findByText("0426 719 412");
+    expect(dialable.closest("a")).toHaveAttribute("href", "tel:0426719412");
+
+    // the second is still shown in full, just not offered as a number to ring
+    expect(document.body.textContent).toContain("0412 345 678 / 9999 a/h");
+    expect(document.querySelector('a[href="tel:04123456789999"]')).toBeNull();
   });
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {

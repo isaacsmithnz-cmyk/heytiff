@@ -6995,6 +6995,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    wrapped the close button onto its own line the moment it did. */
 .wb2-jcband .wb2-shtop { padding:2px 40px 0 0; }
 .wb2-jcband .wb2-ico { position:absolute; top:12px; right:14px; }
+/* the ⋯ sits BESIDE the pinned ✕, not under it — the band pins every
+   .wb2-ico to the same corner, so the menu wrapper takes its own pin one
+   button-width left and un-pins the icon inside it */
+.wb2-jcband .wb2-shmenu { position:absolute; top:12px; right:52px; margin-left:0; }
+.wb2-jcband .wb2-shmenu .wb2-ico { position:static; }
 /* the chips always take their own line under the identity — a half-wrapped
    chip row (two beside the name, three below) reads as an accident */
 .wb2-jcband .wb2-shchips { flex-basis:100%; margin-top:3px; }

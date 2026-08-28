@@ -5698,9 +5698,13 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   padding:0; background:rgba(5,5,5,.06); color:var(--gray700); cursor:pointer; transition:background .16s, color .16s; }
 .wb2-findx:hover { background:rgba(5,5,5,.12); color:var(--ink); }
 .wb2-findx:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
-/* THE TAB ROW RUNS OUT OF ROOM BEFORE THE SEARCH DOES. Four tabs, the mirror
-   chip and a usable field want about 900px of card between them; under that
-   the field held its 210px floor and hung 37px past the card's right edge.
+/* THE TAB ROW RUNS OUT OF ROOM BEFORE THE SEARCH DOES. Five tabs, the mirror
+   chip and the field's 210px floor want ~955px of CARD, and the shell (rail +
+   paddings) takes ~320px of viewport before the card gets any — so the row is
+   out of room from ~1275px of VIEWPORT. The old 900px breakpoint measured the
+   right number against the wrong ruler: between 901 and ~1275 the field held
+   its floor and hung clipped past the card's right edge, which walked as the
+   search box simply not existing (prod, 2026-08-28, 976px viewport).
 
    So the row WRAPS here and the field takes the line above the tabs — still
    just above the white card, which is the whole point of where it sits, and
@@ -5711,9 +5715,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    edge, measured off one `offsetLeft`.
 
    This block sits after the rules it overrides, not up with the header's own
-   900px breakpoint: every pair here is equal specificity, so the later rule
-   is the one that lands. Placed with the header, all of it lost silently. */
-@media (max-width:900px) {
+   breakpoints: every pair here is equal specificity, so the later rule is the
+   one that lands. Placed with the header, all of it lost silently. */
+@media (max-width:1280px) {
   .wb2-vtabs { flex-wrap:wrap-reverse; padding-left:0; }
   .wb2-vtabs .wb2-vt:first-of-type { margin-left:36px; }
   .wb2-vtcap, .wb2-sm8 + .wb2-vtcap { flex:1 0 100%; margin:0 0 9px; padding-bottom:0; }

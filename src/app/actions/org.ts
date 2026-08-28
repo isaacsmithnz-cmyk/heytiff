@@ -16,6 +16,8 @@ import {
   isValidAbn,
   isValidAcn,
   normalizeAbn,
+  readPaymentTerms,
+  PAYMENT_TERMS_ERROR,
 } from "@/lib/org/settings";
 
 /* Organisation profile persistence. Owner-only — org settings are an
@@ -75,9 +77,20 @@ export async function saveOrgSection(
 
   // gst_registered travels as the segmented control's "Yes"/"No" and is a
   // boolean column; convert (null clears).
-  const { gst_registered: gstRaw, ...rest } = patch;
+  const { gst_registered: gstRaw, payment_terms_days: termsRaw, ...rest } = patch;
   const update: Record<string, unknown> = { ...rest, updated_at: new Date().toISOString() };
   if (gstRaw !== undefined) update.gst_registered = gstRaw === null ? null : gstRaw === "Yes";
+
+  // Payment terms travel as text and are a smallint with a CHECK behind them.
+  // Refusing here rather than letting the constraint do it means the card can
+  // say WHICH field and why; the browser has already run the same rule.
+  if (termsRaw !== undefined) {
+    const days = readPaymentTerms(termsRaw ?? "");
+    if (days === "invalid") {
+      return { ok: false, error: PAYMENT_TERMS_ERROR, fields: ["payment_terms_days"] };
+    }
+    update.payment_terms_days = days;
+  }
 
   if (Object.keys(update).length === 1) return { ok: true }; // only the timestamp
 

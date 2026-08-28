@@ -1240,6 +1240,65 @@ describe("the Money face", () => {
     await openTab("Money");
   };
 
+  /* ── DUE-NESS, the last unwired half of slice 1 ──
+     `deriveFamilyMoney` has taken payment terms since #553 and every caller
+     passed null, because the number existed nowhere in the app. It is the
+     organisation's own setting now, so a raised claim can finally say when it
+     is due — and one that passed that date says so on the head as well.
+
+     #2380's third claim is the unpaid one: raised Fri 21 Aug, today 26 Aug. */
+
+  it("says only when a claim was RAISED while the terms are unset", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const f = face("money");
+    expect(await f.findByText(/Raised Fri 21 Aug/)).toBeInTheDocument();
+    /* NEVER an invented fortnight: with no terms there is no due date, and
+       nobody is called late against a number the screen made up. */
+    expect(f.queryByText(/Due /)).toBeNull();
+    expect(f.queryByText(/overdue/)).toBeNull();
+  });
+
+  it("names the due date once the organisation has set its terms", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 30 }) }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const f = face("money");
+    // raised 21 Aug + 30 days, and today (26 Aug) is well inside it
+    expect(await f.findByText(/Due Sun 20 Sep/)).toBeInTheDocument();
+    expect(f.getByText("Awaiting")).toBeInTheDocument();
+    expect(f.queryByText(/overdue/)).toBeNull();
+  });
+
+  it("calls it overdue, on the claim and on the head, once the date has passed", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 3 }) }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const f = face("money");
+    // raised 21 Aug + 3 days = 24 Aug; today is 26 Aug
+    expect(await f.findByText(/Due Mon 24 Aug/)).toBeInTheDocument();
+    expect(f.getByText("Overdue")).toBeInTheDocument();
+    expect(f.getByText("2 days overdue")).toBeInTheDocument();
+  });
+
+  it("puts a claim due ON RECEIPT at its raise date — 0 is an answer", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ family: familyMoney({ termsDays: 0 }) }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    const f = face("money");
+    expect(await f.findByText(/Due Fri 21 Aug/)).toBeInTheDocument();
+    expect(f.getByText("5 days overdue")).toBeInTheDocument();
+  });
+
   it("reads three ServiceM8 cards as one job, with the claims numbered", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));

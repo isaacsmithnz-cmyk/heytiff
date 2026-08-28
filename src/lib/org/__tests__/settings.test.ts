@@ -8,7 +8,11 @@ import {
   isValidAbn,
   isValidAcn,
   normalizeAbn,
+  paymentTermsLabel,
   preValidateOrg,
+  readPaymentTerms,
+  MAX_PAYMENT_TERMS_DAYS,
+  PAYMENT_TERMS_ERROR,
 } from "../settings";
 
 describe("section guard", () => {
@@ -158,5 +162,81 @@ describe("buildOrgPatch", () => {
 
   it("stores an emptied text field as null", () => {
     expect(buildOrgPatch("contact", [["suburb", "  "]]).patch).toEqual({ suburb: null });
+  });
+});
+
+/* ── payment terms ──────────────────────────────────────────────────────────
+   The number that decides when a raised ServiceM8 claim is overdue. It is the
+   business's own policy — ServiceM8 mirrors no invoice terms — so the whole
+   feature rests on reading one text box correctly, and on UNSET staying
+   unset rather than becoming a guessed fortnight. */
+
+describe("readPaymentTerms", () => {
+  it("reads whole days", () => {
+    expect(readPaymentTerms("14")).toBe(14);
+    expect(readPaymentTerms(" 30 ")).toBe(30);
+    expect(readPaymentTerms(String(MAX_PAYMENT_TERMS_DAYS))).toBe(MAX_PAYMENT_TERMS_DAYS);
+  });
+
+  it("treats 0 as an ANSWER, not an empty box — due on receipt", () => {
+    /* The derivation asks `termsDays !== null`, so zero puts the due date on
+       the raise date. Reading it as "unset" would silently delete the
+       strictest terms a business can have. */
+    expect(readPaymentTerms("0")).toBe(0);
+  });
+
+  it("clears on empty", () => {
+    expect(readPaymentTerms("")).toBeNull();
+    expect(readPaymentTerms("   ")).toBeNull();
+  });
+
+  it("refuses anything that is not a whole number of days", () => {
+    for (const junk of ["14 days", "two weeks", "-7", "7.5", "1e3", "", " 14a"]) {
+      if (junk.trim() === "") continue;
+      expect(readPaymentTerms(junk)).toBe("invalid");
+    }
+    /* Past the CHECK constraint's own ceiling — refused here so the browser
+       answers first and the database never has to. */
+    expect(readPaymentTerms(String(MAX_PAYMENT_TERMS_DAYS + 1))).toBe("invalid");
+    expect(readPaymentTerms("3000")).toBe("invalid");
+  });
+});
+
+describe("paymentTermsLabel", () => {
+  it("says what the number means to a person", () => {
+    expect(paymentTermsLabel(null)).toBe("");
+    expect(paymentTermsLabel(0)).toBe("On receipt");
+    expect(paymentTermsLabel(1)).toBe("1 day");
+    expect(paymentTermsLabel(14)).toBe("14 days");
+  });
+});
+
+describe("the identity card's pre-flight", () => {
+  it("answers a bad terms value on the field", () => {
+    expect(preValidateOrg("identity", { payment_terms_days: "two weeks" })).toEqual({
+      error: PAYMENT_TERMS_ERROR,
+      fields: ["payment_terms_days"],
+    });
+  });
+
+  it("passes a good one, an empty one and a zero", () => {
+    for (const v of ["14", "", "0"]) {
+      expect(preValidateOrg("identity", { payment_terms_days: v })).toBeNull();
+    }
+  });
+});
+
+describe("the terms column is writable from the identity card", () => {
+  it("travels as text and clears on empty", () => {
+    expect(buildOrgPatch("identity", [["payment_terms_days", "14"]]).patch).toEqual({
+      payment_terms_days: "14",
+    });
+    expect(buildOrgPatch("identity", [["payment_terms_days", ""]]).patch).toEqual({
+      payment_terms_days: null,
+    });
+  });
+
+  it("is not reachable from the contact card", () => {
+    expect(buildOrgPatch("contact", [["payment_terms_days", "14"]]).patch).toEqual({});
   });
 });

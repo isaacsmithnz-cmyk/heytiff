@@ -19,6 +19,8 @@ import {
   AU_STATES,
   formatAbn,
   formatAcn,
+  paymentTermsLabel,
+  PAYMENT_TERMS_ERROR,
   preValidateOrg,
   type OrgSettings,
 } from "@/lib/org/settings";
@@ -77,6 +79,8 @@ function identityValues(o: OrgSettings): Record<string, string> {
     abn: o.abn ?? "",
     acn: o.acn ?? "",
     gst_registered: o.gst_registered === true ? "Yes" : o.gst_registered === false ? "No" : "",
+    payment_terms_days:
+      o.payment_terms_days === null ? "" : String(o.payment_terms_days),
     website: o.website ?? "",
   };
 }
@@ -322,8 +326,14 @@ function BrandSection({
 
 /* Company identity — who the business is on paper.
 
-   Read and edit name the same six things in the same order, which is what they
-   did not do before: the read view was a piece of plastic and the edit view was
+   PAYMENT TERMS SIT HERE beside GST for the reason GST sits here at all: this
+   card already carries the money policy a customer meets on a document, and
+   the alternative was a seventh tab holding one number. It is the business's
+   own answer, not ServiceM8's — ServiceM8 mirrors no invoice terms — and it
+   is what lets a raised claim on the job card say when it is DUE.
+
+   Read and edit name the same seven things in the same order, which is what
+   they did not do before: the read view was a piece of plastic and the edit view was
    these boxes, so pressing Edit moved everything. The plastic is on Your
    business now, where the logo that changes it is. */
 function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActions }) {
@@ -345,6 +355,7 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
               : ""
         }
       />
+      <Row label="Payment terms" value={paymentTermsLabel(org.payment_terms_days)} />
       <Row
         label="Website"
         value={
@@ -428,6 +439,23 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
                 onChange={(v) => set("gst_registered", v)}
               />
             </Field>
+            {/* The unit is IN THE LABEL, not under the box: a caption
+                explaining a field is a field that didn't explain itself.
+                "0" is a real answer and the placeholder says so. */}
+            <Field
+              label="Payment terms (days)"
+              error={invalid("payment_terms_days") ? PAYMENT_TERMS_ERROR : null}
+            >
+              <TextInput
+                name="payment_terms_days"
+                placeholder="e.g. 14 — or 0 for on receipt"
+                value={draft.payment_terms_days}
+                invalid={invalid("payment_terms_days")}
+                onChange={(v) => set("payment_terms_days", v)}
+              />
+            </Field>
+          </div>
+          <div className="frow c2">
             <Field label="Website">
               <TextInput
                 name="website"

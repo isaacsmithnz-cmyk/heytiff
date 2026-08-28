@@ -150,6 +150,14 @@ export async function readJobStoryForSummary(
        set; that is the whole coupling. */
     readOurJobNotes(orgId, cardId),
     readJobLedger(orgId, cardId),
+    /* NO PAYMENT TERMS ON THIS PATH, deliberately. The card's read passes
+       the organisation's terms so a claim row can say when it is due; this
+       read exists only to build the story the summary is written from, and
+       the story speaks about claims RAISED and SETTLED — never about
+       due-ness. Reading the setting here would be one more query on the one
+       path whose whole design is cost discipline, to derive two fields
+       nothing downstream looks at. If an entry ever does speak due-ness,
+       this is the line that has to change with it. */
     readJobFamily(orgId, cardId, today, null),
     readJobMediaGroups(orgId, cardId, claims),
     readChecklistRows(orgId, cardId),

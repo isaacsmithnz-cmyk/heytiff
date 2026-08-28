@@ -51,6 +51,7 @@ const ORG: OrgSettings = {
   abn: "51824753556",
   acn: "123456789",
   gst_registered: true,
+  payment_terms_days: 14,
   email: "office@smithair.com.au",
   phone: "(03) 9000 0000",
   website: "smithair.com.au",
@@ -317,7 +318,7 @@ describe("your business", () => {
     );
   });
 
-  /* Read and edit name the same six things in the same order. They did not
+  /* Read and edit name the same seven things in the same order. They did not
      before: read was a piece of plastic, edit was these boxes, so pressing Edit
      replaced the object you were reading with an unrelated form. */
   it("identity reads back the same fields it edits", async () => {
@@ -336,12 +337,21 @@ describe("your business", () => {
       "ABN",
       "ACN",
       "GST",
+      "Payment terms",
       "Website",
     ]);
 
     await user.click(within(identity).getByRole("button", { name: /Edit/ }));
-    // GST is "GST registered" on its own control; the rest are word-for-word
-    expect(labels().map((l) => (l === "GST registered" ? "GST" : l))).toEqual(inRead);
+    /* Two controls name their unit where the read row doesn't need to: GST is
+       "GST registered", and payment terms are "(days)" — a box holding "14"
+       has to say what 14 is, while the row reading "14 days" already has. The
+       PARITY the test is for is the set and the order; the rest are
+       word-for-word. */
+    const RENAMED: Record<string, string> = {
+      "GST registered": "GST",
+      "Payment terms (days)": "Payment terms",
+    };
+    expect(labels().map((l) => RENAMED[l] ?? l)).toEqual(inRead);
   });
 
   /* The hints the redesign deleted. They explained the software to itself; the

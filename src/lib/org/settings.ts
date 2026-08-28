@@ -3,7 +3,8 @@
 
    Field list (grouped by card):
      identity    trading name · legal name · ABN (checksummed) · ACN ·
-                 GST registered · website · logo (a real upload — org_logo)
+                 GST registered · payment terms · website ·
+                 logo (a real upload — org_logo)
      contact     email · phone · street address · suburb · state · postcode
                  (state doubles as the org's home state → public holidays)
 
@@ -29,6 +30,12 @@ export type OrgSettings = {
   abn: string | null;
   acn: string | null;
   gst_registered: boolean | null;
+  /** Days after an invoice is raised before it is overdue — the business's
+      own policy, because ServiceM8 mirrors no invoice terms. NULL is unset
+      and stays unset: the money block then says when a claim was RAISED and
+      nothing about when it is due, rather than inventing a fortnight and
+      calling somebody late against it. 0 is a real answer — due on receipt. */
+  payment_terms_days: number | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -56,6 +63,7 @@ export const ORG_EDITABLE_SECTIONS = {
     "abn",
     "acn",
     "gst_registered",
+    "payment_terms_days",
     "website",
   ],
   contact: ["email", "phone", "address", "suburb", "state", "postcode"],
@@ -75,6 +83,32 @@ const ORG_PATCH_CONFIG: SectionConfig = {
   // both columns are nullable — an empty submission clears them
   nullableEnums: new Set(["state", "gst_registered"]),
 };
+
+/** The terms field, read off the form's text. Three answers, because the
+    caller has to tell them apart: a number, "clear it", or "that isn't a
+    number of days". Whole days only — half a day is not a payment term, and
+    the upper bound only keeps a typo'd 3000 out of a date constructor. It is
+    the CHECK constraint's own range, said here so the browser answers first
+    and the database never has to refuse a write. */
+export const MAX_PAYMENT_TERMS_DAYS = 180;
+
+export function readPaymentTerms(raw: string): number | null | "invalid" {
+  const value = raw.trim();
+  if (!value) return null;
+  if (!/^\d{1,3}$/.test(value)) return "invalid";
+  const days = Number(value);
+  return days <= MAX_PAYMENT_TERMS_DAYS ? days : "invalid";
+}
+
+export const PAYMENT_TERMS_ERROR = `Payment terms are whole days — 0 to ${MAX_PAYMENT_TERMS_DAYS}.`;
+
+/** How the setting reads back on the card: "14 days", and "On receipt" for
+    the zero, which is what nought days actually means to a person. */
+export function paymentTermsLabel(days: number | null): string {
+  if (days === null) return "";
+  if (days === 0) return "On receipt";
+  return days === 1 ? "1 day" : `${days} days`;
+}
 
 export function isOrgSection(v: unknown): v is OrgSection {
   return isSectionOf(ORG_PATCH_CONFIG, v);
@@ -150,6 +184,9 @@ export function preValidateOrg(
   const acn = (fields.acn ?? "").trim();
   if (acn && !isValidAcn(acn)) {
     return { error: "An ACN is 9 digits.", fields: ["acn"] };
+  }
+  if (readPaymentTerms(fields.payment_terms_days ?? "") === "invalid") {
+    return { error: PAYMENT_TERMS_ERROR, fields: ["payment_terms_days"] };
   }
   return null;
 }

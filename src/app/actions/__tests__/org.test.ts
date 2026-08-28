@@ -112,6 +112,34 @@ describe("saveOrgSection", () => {
     expect(update.mock.calls[0][0]).toMatchObject({ abn: "51824753556" });
   });
 
+  /* Payment terms are the number that decides when a ServiceM8 claim is
+     overdue. They travel as text and land in a smallint with a CHECK behind
+     it — so the conversion is the feature, and a string "14" reaching the
+     column would be the database's problem to refuse instead of ours. */
+  it("stores payment terms as a NUMBER, not the text the form sent", async () => {
+    await saveOrgSection("identity", { payment_terms_days: "14" });
+    expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: 14 });
+  });
+
+  it("keeps 0 — due on receipt is an answer, not an empty box", async () => {
+    await saveOrgSection("identity", { payment_terms_days: "0" });
+    expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: 0 });
+  });
+
+  it("clears the terms on empty", async () => {
+    await saveOrgSection("identity", { payment_terms_days: "" });
+    expect(update.mock.calls[0][0]).toMatchObject({ payment_terms_days: null });
+  });
+
+  it("refuses terms that are not whole days, before writing", async () => {
+    for (const junk of ["two weeks", "7.5", "-3", "3000"]) {
+      update.mockClear();
+      const res = await saveOrgSection("identity", { payment_terms_days: junk });
+      expect(res).toMatchObject({ ok: false, fields: ["payment_terms_days"] });
+      expect(update).not.toHaveBeenCalled();
+    }
+  });
+
   it("converts the GST segmented control to a boolean, and empty to null", async () => {
     await saveOrgSection("identity", { gst_registered: "Yes" });
     expect(update.mock.calls[0][0]).toMatchObject({ gst_registered: true });

@@ -6961,7 +6961,18 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    fallbacks, because ServiceM8's palette makes no contrast promise: the
    colour is atmosphere, never the ground text has to survive on. The 3px
    crown is the same var. A job with no category simply sets nothing. */
-.wb2-sheet.jc { display:flex; flex-direction:column; padding:0; gap:0; }
+/* ONE FIXED FRAME, EIGHT FACES. The base sheet is height:max-content and
+   CENTRED, which was fine when its height only changed as data landed —
+   but a tab press must never move the tab row that was just pressed, and a
+   short face (Checklist, Actions) re-centring the card did exactly that:
+   the cursor's next click landed on the scrim and closed it. Walked, not
+   theorised. So the tabbed card holds one height and the faces scroll
+   inside it. */
+.wb2-sheet.jc { display:flex; flex-direction:column; padding:0; gap:0;
+  height:min(820px, calc(100vh - 40px)); overflow:hidden; }
+/* …and the BODY is the scroller, so the band and its tabs never leave
+   reach however long a diary runs. */
+.wb2-sheet.jc .wb2-jcbody { overflow-y:auto; overscroll-behavior:contain; }
 .wb2-jcband { flex:none; padding:14px 20px 0; border-radius:22px 22px 0 0;
   background:linear-gradient(var(--jc-band-a, rgba(5,5,5,.05)), var(--jc-band-b, rgba(5,5,5,.02))), #f2f3f7;
   box-shadow:inset 0 3px 0 var(--jc-crown, rgba(5,5,5,.13)); }

@@ -329,7 +329,7 @@ describe("refreshJobSummary — the cost guard", () => {
       eventLabel: "the final payment",
     });
     expect(upsert).toHaveBeenCalledTimes(1);
-    const rowWritten = upsert.mock.calls[0][0] as Record<string, unknown>;
+    const rowWritten = (upsert.mock.calls[0] as unknown[])[0] as Record<string, unknown>;
     expect(rowWritten.job_uuid).toBe("j-1");
     expect(rowWritten.work_summary).toBe("Fresh words.");
   });

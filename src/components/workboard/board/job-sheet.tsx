@@ -230,6 +230,11 @@ export function JobSheet({
   const alive = useRef(true);
 
   useEffect(() => {
+    /* Set on the way IN, not only initialised: Strict Mode mounts, cleans
+       up and mounts again, and a ref survives that round trip — without
+       this line the second mount inherited `false` and the summary refresh
+       threw its own answer away. */
+    alive.current = true;
     closeRef.current?.focus();
     return () => {
       alive.current = false;

@@ -41,8 +41,10 @@ export function JobSummaryFace({
         {loading && !detail ? (
           <p className="int-hint">Reading it from the mirror…</p>
         ) : (
+          /* trimmed because the office's own words arrive with trailing
+             blank lines, and pre-wrap would render them as a hole */
           <p className="wb2-shtext wb2-jcread">
-            {detail?.description ?? row.title ?? "Nothing written on the job."}
+            {(detail?.description ?? row.title)?.trim() || "Nothing written on the job."}
           </p>
         )}
         {detail?.workDone && (
@@ -50,7 +52,7 @@ export function JobSummaryFace({
             <span className="wb2-sect" style={{ marginTop: 10 }}>
               What was done
             </span>
-            <p className="wb2-shtext wb2-jcread">{detail.workDone}</p>
+            <p className="wb2-shtext wb2-jcread">{detail.workDone.trim()}</p>
           </>
         )}
       </div>

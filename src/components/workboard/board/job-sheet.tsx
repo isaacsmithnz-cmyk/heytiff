@@ -477,14 +477,21 @@ export function JobSheet({
           : p
       )
     );
-    void setPicklistItemPicked(id, next).catch(() => {
-      setPicklist((cur) =>
-        (cur ?? []).map((p) =>
-          p.id === id ? { ...p, picked: !next, pickedAt: null, pickedBy: null } : p
-        )
-      );
-      onToast("Could not save that tick");
-    });
+    void setPicklistItemPicked(id, next)
+      .then((saved) => {
+        /* The SAVED row carries the resolved display name — the client can
+           flip a checkbox but cannot know the name behind its own auth id,
+           and "who ticked it" is the stamp's whole point. */
+        if (saved) setPicklist((cur) => (cur ?? []).map((p) => (p.id === id ? saved : p)));
+      })
+      .catch(() => {
+        setPicklist((cur) =>
+          (cur ?? []).map((p) =>
+            p.id === id ? { ...p, picked: !next, pickedAt: null, pickedBy: null } : p
+          )
+        );
+        onToast("Could not save that tick");
+      });
   };
 
   const removeChecklistItem = (id: string) => {

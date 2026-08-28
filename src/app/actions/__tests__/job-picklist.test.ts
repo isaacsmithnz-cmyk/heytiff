@@ -74,6 +74,16 @@ jest.mock("@/lib/supabase-server", () => ({
           updates.push({ table, patch, eqs: { ...eqs } });
           return Promise.resolve({ error: null }).then(res);
         };
+        // the tick reads its own saved row back, for the stamp's name
+        sub.select = () => ({
+          maybeSingle: () => {
+            updates.push({ table, patch, eqs: { ...eqs } });
+            return Promise.resolve({
+              data: insertedRow ?? { id: eqs.id, name: "X", sub: "", qty: "", kind: "todo", design_id: null, added_at: "2026-08-08T00:00:00Z", added_by: null, ...patch },
+              error: null,
+            });
+          },
+        });
         return sub;
       };
       chain.delete = () => {

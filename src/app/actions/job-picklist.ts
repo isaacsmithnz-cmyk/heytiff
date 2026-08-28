@@ -287,13 +287,18 @@ export async function pushPicklistToJob(
 }
 
 /** Tick or untick one item. Picking is intrinsic to anyone who can read the
-    job card — it is the warehouse's own act, not an administrative one. */
+    job card — it is the warehouse's own act, not an administrative one.
+
+    RETURNS THE SAVED ROW, because the stamp's whole point is WHO: the client
+    can optimistically flip a checkbox, but it cannot know the display name
+    behind its own auth id, and a stamp that reads "9:11pm" until the card is
+    reopened is missing the half that matters. */
 export async function setPicklistItemPicked(
   itemId: string,
   picked: boolean
-): Promise<void> {
+): Promise<JobPicklistItem | null> {
   const { orgId, userId } = await requireOrg("workboard");
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("job_picklist_items")
     .update({
       picked,
@@ -301,8 +306,13 @@ export async function setPicklistItemPicked(
       picked_by: picked ? userId : null,
     })
     .eq("org_id", orgId)
-    .eq("id", itemId);
+    .eq("id", itemId)
+    .select(SELECT)
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) return null;
+  const nameOf = await staffNames([userId]);
+  return toItem(data as Row, nameOf);
 }
 
 /** Remove one item — a picklist is editable; a wrong line should not have to

@@ -53,7 +53,7 @@ jest.mock("@/app/actions/workboard-media", () => ({
   cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...(a as [])),
 }));
 const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
-const setPicklistItemPicked = jest.fn(async () => {});
+const setPicklistItemPicked = jest.fn(async (): Promise<unknown> => null);
 const removePicklistItem = jest.fn(async () => {});
 const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
 jest.mock("@/app/actions/job-picklist", () => ({
@@ -2259,6 +2259,34 @@ describe("the job's own checklist", () => {
     await user.click(box);
     expect(setPicklistItemPicked).toHaveBeenCalledWith("p1", true);
     expect(box).toBeChecked();
+  });
+
+  it("names who ticked it the moment it is ticked, not on the next open", async () => {
+    /* WALK-FOUND: the optimistic flip cannot know the display name behind
+       its own auth id, so the stamp read "9:11pm" with nobody's name until
+       the card was reopened — the half that matters, missing exactly when
+       the person acts. The action returns the saved row now. */
+    const user = userEvent.setup();
+    listJobPicklist.mockResolvedValue([item({ id: "p1", kind: "todo", qty: "" })]);
+    setPicklistItemPicked.mockResolvedValue(
+      item({
+        id: "p1",
+        kind: "todo",
+        qty: "",
+        picked: true,
+        pickedAt: "2026-08-28T11:11:00.000Z",
+        pickedBy: "Isaac Smith",
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    await user.click(await screen.findByLabelText("Done: MSZ-AP25VGD"));
+    const row_ = (await screen.findByText("MSZ-AP25VGD")).closest(".wb2-pkrow")!;
+    await waitFor(() =>
+      expect(within(row_ as HTMLElement).getByText(/Isaac Smith · /)).toBeInTheDocument()
+    );
   });
 
   it("puts the tick back when the save fails, and says so", async () => {

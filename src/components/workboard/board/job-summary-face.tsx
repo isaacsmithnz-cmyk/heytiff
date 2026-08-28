@@ -68,7 +68,17 @@ export function JobSummaryFace({
               </span>
             )}
           </div>
-          <p className="wb2-jcups-bd">{summary.work}</p>
+          {/* STRUCTURED, NOT A PARAGRAPH (Isaac): the lead is the state at
+              a glance; each point is one fact on its own line, scannable
+              past. The money sentence keeps its own line and its own gate. */}
+          <p className="wb2-jcups-lead">{summary.lead}</p>
+          {summary.points.length > 0 && (
+            <ul className="wb2-jcups-pts">
+              {summary.points.map((p, i) => (
+                <li key={i}>{p}</li>
+              ))}
+            </ul>
+          )}
           {summary.money && <p className="wb2-jcups-bd money">{summary.money}</p>}
         </div>
       )}

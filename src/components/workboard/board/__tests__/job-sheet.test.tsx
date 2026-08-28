@@ -337,12 +337,13 @@ describe("the Summary face", () => {
     expect(screen.getByText("Installed and commissioned.")).toBeInTheDocument();
   });
 
-  it("renders the stored paragraph with its stamp — when it changed and why", async () => {
+  it("renders the stored lead and its points with the stamp — when it changed and why", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
       record({
         summary: {
-          work: "First fix done across two visits; the crew returns Thursday.",
+          lead: "First fix done across two visits.",
+          points: ["The crew returns Thursday", 'One loose thread: "check the gyprock"'],
           money: null,
           stamp: "s-1",
           eventOn: "2026-08-13",
@@ -352,11 +353,15 @@ describe("the Summary face", () => {
     );
     render(<JobSheet row={row()} {...props} />);
 
-    expect(
-      await screen.findByText("First fix done across two visits; the crew returns Thursday.")
-    ).toBeInTheDocument();
+    expect(await screen.findByText("First fix done across two visits.")).toBeInTheDocument();
     expect(screen.getByText("Where it’s up to")).toBeInTheDocument();
     expect(screen.getByText("Updated Thu 13 Aug · Nathan's note")).toBeInTheDocument();
+    /* each point is its own list line, not a clause of the lead */
+    const points = document.querySelectorAll(".wb2-jcups-pts li");
+    expect([...points].map((p) => p.textContent)).toEqual([
+      "The crew returns Thursday",
+      'One loose thread: "check the gyprock"',
+    ]);
   });
 
   /* The money sentence is a second stored field, stripped SERVER-side for a
@@ -366,7 +371,8 @@ describe("the Summary face", () => {
     readJobRecord.mockResolvedValueOnce(
       record({
         summary: {
-          work: "Installed and handed over.",
+          lead: "Installed and handed over.",
+          points: [],
           money: "Billed in three claims and paid in full.",
           stamp: "s-1",
           eventOn: "2026-08-22",
@@ -449,7 +455,8 @@ describe("the summary refresh", () => {
   it("kicks once when the stored stamp has fallen behind, and swaps the fresh words in", async () => {
     allLanded({
       summary: {
-        work: "Old words.",
+        lead: "Old words.",
+        points: [],
         money: null,
         stamp: "stale",
         eventOn: "2026-08-01",
@@ -460,7 +467,8 @@ describe("the summary refresh", () => {
       json: async () => ({
         ok: true,
         summary: {
-          work: "Fresh words about the job.",
+          lead: "Fresh words about the job.",
+          points: ["A fresh point"],
           money: null,
           stamp: "fresh",
           eventOn: "2026-08-14",
@@ -508,7 +516,7 @@ describe("the summary refresh", () => {
     );
     expect(stamp).not.toBeNull();
     allLanded({
-      summary: { work: "Current words.", money: null, stamp: stamp!, eventOn: "2026-08-14", eventLabel: "a site visit" },
+      summary: { lead: "Current words.", points: [], money: null, stamp: stamp!, eventOn: "2026-08-14", eventLabel: "a site visit" },
     });
     render(<JobSheet row={row()} {...props} />);
 

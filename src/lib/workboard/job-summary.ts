@@ -47,13 +47,24 @@ import {
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 2000;
 
-/** A summary is a paragraph, not a page. Clamped on our side as well as
-    asked of the model, because a rule the schema can't state is a rule
-    that will eventually be broken. */
-const MAX_SUMMARY_CHARS = 700;
+/* THE SHAPE IS STRUCTURED, NOT A PARAGRAPH (Isaac, 2026-08-28): one LEAD
+   sentence — the job's state at a glance — over a handful of POINTS, each a
+   single fact on its own line. The reader scans the lead, then only the
+   lines that concern them; a wrong line is also easier to trace than a
+   wrong clause buried mid-paragraph. */
+
+/** Clamped on our side as well as asked of the model, because a rule the
+    schema can't state is a rule that will eventually be broken. */
+const MAX_LEAD_CHARS = 200;
+const MAX_POINT_CHARS = 180;
+const MAX_POINTS = 5;
+const MAX_MONEY_CHARS = 300;
 
 export type JobSummaryRead = {
-  work: string;
+  /** One sentence — the job's state at a glance. */
+  lead: string;
+  /** Short single-fact lines under it: progress, what's next, loose ends. */
+  points: string[];
   /** Null for a reader without money — stripped by the caller at the gate —
       and null when the job has no money facts to speak of. */
   money: string | null;
@@ -66,11 +77,18 @@ export type JobSummaryRead = {
 
 type SummaryRow = {
   work_summary: string;
+  work_points: unknown;
   money_summary: string | null;
   story_stamp: string;
   event_on: string | null;
   event_label: string | null;
 };
+
+/** The points column is jsonb; only an array of strings is believed. */
+function pointsOf(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((p): p is string => typeof p === "string" && p.trim().length > 0);
+}
 
 export async function readStoredJobSummary(
   orgId: string,
@@ -78,14 +96,15 @@ export async function readStoredJobSummary(
 ): Promise<JobSummaryRead | null> {
   const { data } = await supabaseAdmin
     .from("job_summaries")
-    .select("work_summary, money_summary, story_stamp, event_on, event_label")
+    .select("work_summary, work_points, money_summary, story_stamp, event_on, event_label")
     .eq("org_id", orgId)
     .eq("job_uuid", jobUuid)
     .maybeSingle();
   const row = data as SummaryRow | null;
   if (!row) return null;
   return {
-    work: row.work_summary,
+    lead: row.work_summary,
+    points: pointsOf(row.work_points),
     money: row.money_summary,
     stamp: row.story_stamp,
     eventOn: row.event_on,
@@ -183,10 +202,11 @@ async function readPicklistStamps(
 const SUMMARY_SCHEMA = {
   type: "object",
   properties: {
-    work: { type: "string" },
+    lead: { type: "string" },
+    points: { type: "array", items: { type: "string" } },
     money: { type: ["string", "null"] },
   },
-  required: ["work", "money"],
+  required: ["lead", "points", "money"],
   additionalProperties: false,
 };
 
@@ -264,27 +284,32 @@ export function summaryPrompt(read: JobStoryServerRead, moneyFacts: string[]): s
 }
 
 const SYSTEM_PROMPT =
-  "You write the short \"Where it's up to\" paragraph at the top of a job card for a small " +
-  "Australian HVAC company. You are handed one job's record — its events newest first, its " +
-  "scope, and sometimes a list of derived money facts.\n\n" +
-  "Write `work`: where the job is up to, in plain Australian trade English, past what the " +
-  "scope already says. Two to four short sentences. It should read like the job: a fresh " +
-  "quote reads like a quote (what's being priced, where it came from), a job mid-install " +
-  "reads like a site report (what's done, what's booked or still owed on site), a finished " +
-  "job reads like a handover. Lead with the freshest state, not the history. Name people " +
-  "only as the record names them. If a recent note leaves a loose thread, you may end with " +
-  "it, quoting briefly. Never invent a fact, a date or a reason the record doesn't state; " +
-  "say less rather than guess. STRICTLY no dollar figures, prices or payment states in " +
-  "`work` — money is not yours to mention there, even when the record shows it.\n\n" +
+  "You write the short, structured \"Where it's up to\" block at the top of a job card for " +
+  "a small Australian HVAC company. You are handed one job's record — its events newest " +
+  "first, its scope, and sometimes a list of derived money facts. Plain Australian trade " +
+  "English throughout.\n\n" +
+  "Write `lead`: ONE short sentence — the job's state at a glance, past what the scope " +
+  "already says. It should read like the job: a fresh quote reads like a quote, a job " +
+  "mid-install reads like a site report, a finished job reads like a handover. The " +
+  "freshest state, not the history.\n\n" +
+  "Write `points`: two to four lines, each ONE concrete fact from the record on its own — " +
+  "never two facts joined into one line. Order them: what's been done or is under way " +
+  "first, then what's booked or coming next, then any loose end last (an open note may be " +
+  "quoted briefly, with who wrote it). Each line under twenty words, no trailing filler. " +
+  "Skip a category that has nothing real in it — fewer good lines beat padding. Name " +
+  "people only as the record names them. Never invent a fact, a date or a reason the " +
+  "record doesn't state; say less rather than guess. STRICTLY no dollar figures, prices " +
+  "or payment states in `lead` or `points` — money is not yours to mention there, even " +
+  "when the record shows it.\n\n" +
   "Write `money`: one sentence on where the money is up to, using ONLY the derived money " +
   "facts, with the figures repeated exactly as given — never recomputed, added or rounded. " +
   "Say how the billing is structured when it is (deposit, progress, final). If no money " +
   "facts were provided, or they say nothing worth a sentence, return null.\n\n" +
-  "No headings, no bullet points, no exclamation marks, and never mention this system, the " +
-  "mirror, ServiceM8's internals, or that anything was generated.";
+  "No headings, no exclamation marks, and never mention this system, the mirror, " +
+  "ServiceM8's internals, or that anything was generated.";
 
 export type SummaryWriteResult =
-  | { ok: true; work: string; money: string | null }
+  | { ok: true; lead: string; points: string[]; money: string | null }
   | { ok: false; reason: string };
 
 function reasonFor(err: unknown): string {
@@ -321,14 +346,24 @@ export async function runSummaryWrite(
     if (!block || block.type !== "text")
       return { ok: false, reason: "The writer returned nothing." };
 
-    const parsed = JSON.parse(block.text) as { work?: unknown; money?: unknown };
-    const work = typeof parsed.work === "string" ? parsed.work.trim().slice(0, MAX_SUMMARY_CHARS) : "";
-    if (!work) return { ok: false, reason: "The writer returned nothing." };
+    const parsed = JSON.parse(block.text) as {
+      lead?: unknown;
+      points?: unknown;
+      money?: unknown;
+    };
+    const lead = typeof parsed.lead === "string" ? parsed.lead.trim().slice(0, MAX_LEAD_CHARS) : "";
+    if (!lead) return { ok: false, reason: "The writer returned nothing." };
+    /* The schema says array-of-strings; the clamps say how many and how
+       long. A lead with no points is a legitimate answer for a quiet job. */
+    const points = (Array.isArray(parsed.points) ? parsed.points : [])
+      .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+      .map((p) => p.trim().slice(0, MAX_POINT_CHARS))
+      .slice(0, MAX_POINTS);
     const money =
       typeof parsed.money === "string" && parsed.money.trim() && moneyFacts.length > 0
-        ? parsed.money.trim().slice(0, MAX_SUMMARY_CHARS)
+        ? parsed.money.trim().slice(0, MAX_MONEY_CHARS)
         : null;
-    return { ok: true, work, money };
+    return { ok: true, lead, points, money };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };
   }
@@ -363,7 +398,8 @@ export async function refreshJobSummary(
 
   const newest = read.entries[0];
   const summary: JobSummaryRead = {
-    work: written.work,
+    lead: written.lead,
+    points: written.points,
     money: written.money,
     stamp: read.stamp,
     eventOn: stampDay(read.stamp) ?? newest.day,
@@ -374,7 +410,8 @@ export async function refreshJobSummary(
     {
       org_id: orgId,
       job_uuid: read.cardId,
-      work_summary: summary.work,
+      work_summary: summary.lead,
+      work_points: summary.points,
       money_summary: summary.money,
       story_stamp: summary.stamp,
       event_on: summary.eventOn,

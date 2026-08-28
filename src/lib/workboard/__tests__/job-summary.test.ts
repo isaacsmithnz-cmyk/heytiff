@@ -198,14 +198,19 @@ const clientSaying = (payload: unknown, stop = "end_turn") =>
   }) as unknown as Anthropic;
 
 describe("runSummaryWrite", () => {
-  it("returns both fields when the record had money facts", async () => {
+  it("returns the structured shape when the record had money facts", async () => {
     const res = await runSummaryWrite(
       serverRead(),
-      clientSaying({ work: "Installed and handed over.", money: "Paid in full across three claims." })
+      clientSaying({
+        lead: "Installed and handed over.",
+        points: ["Seven visits across the install", "One open note from Michael"],
+        money: "Paid in full across three claims.",
+      })
     );
     expect(res).toEqual({
       ok: true,
-      work: "Installed and handed over.",
+      lead: "Installed and handed over.",
+      points: ["Seven visits across the install", "One open note from Michael"],
       money: "Paid in full across three claims.",
     });
   });
@@ -216,20 +221,40 @@ describe("runSummaryWrite", () => {
   it("drops a money sentence the facts can't back", async () => {
     const res = await runSummaryWrite(
       serverRead({ family: null }),
-      clientSaying({ work: "Quoted and waiting.", money: "About $99,999 collected." })
+      clientSaying({ lead: "Quoted and waiting.", points: [], money: "About $99,999 collected." })
     );
-    expect(res).toEqual({ ok: true, work: "Quoted and waiting.", money: null });
+    expect(res).toEqual({ ok: true, lead: "Quoted and waiting.", points: [], money: null });
   });
 
-  it("treats an empty work field as a failure, not a blank paragraph", async () => {
-    const res = await runSummaryWrite(serverRead(), clientSaying({ work: "  ", money: null }));
+  it("keeps only real lines in points, and no more than five", async () => {
+    const res = await runSummaryWrite(
+      serverRead(),
+      clientSaying({
+        lead: "Mid-install.",
+        points: ["one", "  ", 3, "two", "three", "four", "five", "six"],
+        money: null,
+      })
+    );
+    expect(res).toEqual({
+      ok: true,
+      lead: "Mid-install.",
+      points: ["one", "two", "three", "four", "five"],
+      money: null,
+    });
+  });
+
+  it("treats an empty lead as a failure, not a blank block", async () => {
+    const res = await runSummaryWrite(
+      serverRead(),
+      clientSaying({ lead: "  ", points: [], money: null })
+    );
     expect(res).toEqual({ ok: false, reason: "The writer returned nothing." });
   });
 
   it("treats a refusal as a content outcome", async () => {
     const res = await runSummaryWrite(
       serverRead(),
-      clientSaying({ work: "x", money: null }, "refusal")
+      clientSaying({ lead: "x", points: [], money: null }, "refusal")
     );
     expect(res).toEqual({ ok: false, reason: "The writer declined this job." });
   });
@@ -289,20 +314,22 @@ describe("refreshJobSummary — the cost guard", () => {
     maybeSingle.mockResolvedValue({
       data: {
         work_summary: "Stored words.",
+        work_points: ["Stored point"],
         money_summary: "Stored money.",
         story_stamp: read.stamp,
         event_on: "2026-08-22",
         event_label: "the final payment",
       },
     });
-    const client = clientSaying({ work: "should never be asked" });
+    const client = clientSaying({ lead: "should never be asked", points: [], money: null });
     const res = await refreshJobSummary("org-1", "j-1", client);
 
     expect(res).toEqual({
       ok: true,
       wrote: false,
       summary: {
-        work: "Stored words.",
+        lead: "Stored words.",
+        points: ["Stored point"],
         money: "Stored money.",
         stamp: read.stamp,
         eventOn: "2026-08-22",
@@ -315,14 +342,19 @@ describe("refreshJobSummary — the cost guard", () => {
 
   it("writes, stores and stamps when the story has moved", async () => {
     maybeSingle.mockResolvedValue({ data: null });
-    const client = clientSaying({ work: "Fresh words.", money: "Paid in full." });
+    const client = clientSaying({
+      lead: "Fresh words.",
+      points: ["A point about the work"],
+      money: "Paid in full.",
+    });
     const res = await refreshJobSummary("org-1", "j-1", client);
 
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.wrote).toBe(true);
     expect(res.summary).toMatchObject({
-      work: "Fresh words.",
+      lead: "Fresh words.",
+      points: ["A point about the work"],
       money: "Paid in full.",
       /* the newest event here is the claim settling on 22 Aug */
       eventOn: "2026-08-22",
@@ -332,5 +364,6 @@ describe("refreshJobSummary — the cost guard", () => {
     const rowWritten = (upsert.mock.calls[0] as unknown[])[0] as Record<string, unknown>;
     expect(rowWritten.job_uuid).toBe("j-1");
     expect(rowWritten.work_summary).toBe("Fresh words.");
+    expect(rowWritten.work_points).toEqual(["A point about the work"]);
   });
 });

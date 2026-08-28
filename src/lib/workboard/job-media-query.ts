@@ -43,7 +43,18 @@ type AttachmentRow = {
   attachment_source: string | null;
   timestamp: string | null;
   related_object_uuid: string;
+  photo_width: number | null;
+  photo_height: number | null;
 };
+
+/* The DB read's own bound — wide enough that BOTH lenses can fill to their
+   JOB_MEDIA_CAP after the sweep and the dedupe. The biggest live job holds
+   223 photos, so three lenses' worth of headroom covers the account. */
+const FETCH_CAP = JOB_MEDIA_CAP * 3;
+
+/** ServiceM8 sends 0 for a dimension it doesn't know — 4,213 live rows do.
+    Zero is a sentinel, not a size. */
+const px = (v: number | null): number | null => (typeof v === "number" && v > 0 ? v : null);
 
 /** One member of the job's family, as the media read needs to see it. */
 export type MediaSource = {
@@ -82,7 +93,9 @@ export async function readJobMedia(
 
   const { data } = await supabaseAdmin
     .from("sm8_attachments")
-    .select("uuid, attachment_name, file_type, attachment_source, timestamp, related_object_uuid")
+    .select(
+      "uuid, attachment_name, file_type, attachment_source, timestamp, related_object_uuid, photo_width, photo_height"
+    )
     .eq("org_id", orgId)
     .in("related_object_uuid", sources.map((c) => c.remoteId))
     /* MUTATION-CHECKED: remove this line and job-media-query.test.ts fails.
@@ -91,11 +104,11 @@ export async function readJobMedia(
        grid doesn't go stale, it un-deletes. */
     .eq("active", 1)
     .order("timestamp", { ascending: false })
-    .limit(JOB_MEDIA_CAP + 1);
+    .limit(FETCH_CAP + 1);
 
-  /* THE CAP IS APPLIED LAST, after the claim's paperwork is dropped and the
-     copies are deduped — capping first would spend the job's 120 slots on
-     426 partial-invoice PDFs and the same photo twice. */
+  /* Swept and deduped FIRST; the per-lens cap is groupJobMedia's — capping
+     this flat list was the defect that let paperwork crowd a job's photos
+     out of the photo lens. */
   const all = (data ?? []) as AttachmentRow[];
   const seen = new Set<string>();
   const surviving: AttachmentRow[] = [];
@@ -112,8 +125,8 @@ export async function readJobMedia(
     surviving.push(r);
   }
 
-  const truncated = surviving.length > JOB_MEDIA_CAP;
-  const kept = truncated ? surviving.slice(0, JOB_MEDIA_CAP) : surviving;
+  const truncated = surviving.length > FETCH_CAP;
+  const kept = truncated ? surviving.slice(0, FETCH_CAP) : surviving;
   if (kept.length === 0) return EMPTY_JOB_MEDIA;
 
   /* What we already hold. Keyed by the ServiceM8 uuid, which is what
@@ -155,6 +168,8 @@ export async function readJobMedia(
       origin: originLabel(r.attachment_source),
       takenAt: r.timestamp,
       url: ref ? urls.get(ref) ?? null : null,
+      width: px(r.photo_width),
+      height: px(r.photo_height),
       fromClaim: claimOf.get(r.related_object_uuid) ?? null,
     };
   });
@@ -164,12 +179,23 @@ export async function readJobMedia(
 
 export type JobMediaGroupsRead = ReturnType<typeof groupJobMedia> & { truncated: boolean };
 
-/** The sheet's shape — grouped, ready to render. */
+/** The sheet's shape — grouped, then capped PER LENS. `truncated` is true
+    when anything anywhere was left off: the DB window, or either lens. */
 export async function readJobMediaGroups(
   orgId: string,
   jobUuid: string,
   claims: readonly MediaSource[] = []
 ): Promise<JobMediaGroupsRead> {
   const read = await readJobMedia(orgId, jobUuid, claims);
-  return { ...groupJobMedia(read.items), truncated: read.truncated };
+  const groups = groupJobMedia(read.items);
+  const clipped =
+    groups.photos.length > JOB_MEDIA_CAP ||
+    groups.documents.length > JOB_MEDIA_CAP ||
+    groups.elsewhere.length > JOB_MEDIA_CAP;
+  return {
+    photos: groups.photos.slice(0, JOB_MEDIA_CAP),
+    documents: groups.documents.slice(0, JOB_MEDIA_CAP),
+    elsewhere: groups.elsewhere.slice(0, JOB_MEDIA_CAP),
+    truncated: read.truncated || clipped,
+  };
 }

@@ -38,6 +38,8 @@ const photo = (over: Partial<JobMediaItem> = {}): JobMediaItem => ({
   name: "IMG_0001.jpg",
   fileType: "jpg",
   kind: "photo",
+  width: null,
+  height: null,
   origin: null,
   takenAt: "2026-06-12 09:00:00",
   url: null,

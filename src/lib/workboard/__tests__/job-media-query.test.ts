@@ -246,3 +246,41 @@ describe("a job billed in stages gathers its claims' files", () => {
     expect(read.items).toHaveLength(1);
   });
 });
+
+describe("the cap is per lens, after the split", () => {
+  /* THE DEFECT THIS PINS: capping the flat list first made the photo/
+     document split a split of the newest 120 FILES, so a paper-heavy job
+     crowded its own photos out of the photo lens. */
+  it("a wall of paperwork cannot crowd photos out of the photo lens", async () => {
+    attachmentRows = [
+      ...Array.from({ length: 125 }, (_, i) =>
+        attachment({ uuid: `d-${i}`, attachment_name: `Invoice ${i}.pdf`, file_type: ".pdf" })
+      ),
+      ...Array.from({ length: 10 }, (_, i) =>
+        attachment({ uuid: `p-${i}`, attachment_name: `IMG_${i}.jpg` })
+      ),
+    ];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.photos).toHaveLength(10);
+    expect(groups.documents).toHaveLength(120);
+    expect(groups.truncated).toBe(true);
+  });
+
+  it("says nothing was left off when nothing was", async () => {
+    attachmentRows = [attachment({ uuid: "p-1" })];
+    const groups = await readJobMediaGroups("org-1", "job-1");
+    expect(groups.truncated).toBe(false);
+  });
+});
+
+describe("dimensions ride the read", () => {
+  it("passes real pixels through and turns the 0 sentinel into null", async () => {
+    attachmentRows = [
+      attachment({ uuid: "p-1", photo_width: 4032, photo_height: 3024 }),
+      attachment({ uuid: "p-2", attachment_name: "IMG_2.jpg", photo_width: 0, photo_height: 0 }),
+    ];
+    const read = await readJobMedia("org-1", "job-1");
+    expect(read.items[0]).toMatchObject({ width: 4032, height: 3024 });
+    expect(read.items[1]).toMatchObject({ width: null, height: null });
+  });
+});

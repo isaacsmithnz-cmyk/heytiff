@@ -10,7 +10,7 @@ import {
   readMirrorJobDetail,
   resolveJobCard,
 } from "./all-jobs-query";
-import { readJobMedia } from "./job-media-query";
+import { readJobMediaGroups } from "./job-media-query";
 import {
   buildJobStory,
   isMoneyStoryEntry,
@@ -145,7 +145,7 @@ export async function readJobStoryForSummary(
     readJobNotes(orgId, cardId, claims),
     readJobLedger(orgId, cardId),
     readJobFamily(orgId, cardId, today, null),
-    readJobMedia(orgId, cardId, claims),
+    readJobMediaGroups(orgId, cardId, claims),
     readChecklistRows(orgId, cardId),
   ]);
 
@@ -155,7 +155,9 @@ export async function readJobStoryForSummary(
     ledger,
     family,
     invoicedOn: family?.isFamily ? null : detail.money?.invoicedOn ?? null,
-    media: media.items,
+    /* FLATTENED THE SAME WAY THE SHEET FLATTENS ITS GROUPS — the two story
+       readers must hand the merge the same set or the stamp never settles. */
+    media: [...media.photos, ...media.documents, ...media.elsewhere],
     picklist,
     timezone,
   });

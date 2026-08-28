@@ -33,6 +33,7 @@ import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { storageRef } from "@/lib/documents/files";
 import { isCacheableMedia, normaliseFileType } from "@/lib/workboard/job-media";
 import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
+import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 
 /** How many files one call brings across. Small enough that a serverless
     invocation finishes comfortably (a photo is well under a megabyte), big
@@ -86,15 +87,22 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
   const access = await sm8Access(orgId);
   if (!access) return { ...NOTHING, note: "ServiceM8 isn't connected." };
 
+  /* THE CLAIMS' FILES CACHE TOO. The gallery lifts a progress clone's photos
+     onto the parent (622 live), but this cacher used to look only at the
+     parent's own attachments — so every lifted photo sat "pending" forever,
+     and each round's re-read handed the sheet a gallery WITHOUT them. */
+  const claims = await familyMediaSources(orgId, id);
+  const sourceIds = [id, ...claims.map((c) => c.remoteId).filter((r) => r !== id)];
+
   /* Live files on this job, and what we already hold. `active = 1` for the
      same reason the grid filters it: a deleted file must not be fetched back
      into existence. */
   const [{ data: attachRows }, { data: haveRows }] = await Promise.all([
     supabaseAdmin
       .from("sm8_attachments")
-      .select("uuid, attachment_name, file_type")
+      .select("uuid, attachment_name, file_type, related_object_uuid")
       .eq("org_id", orgId)
-      .eq("related_object_uuid", id)
+      .in("related_object_uuid", sourceIds)
       .eq("active", 1)
       .order("timestamp", { ascending: false })
       .limit(200),
@@ -103,7 +111,7 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
       .select("remote_ref")
       .eq("org_id", orgId)
       .eq("source", "servicem8")
-      .eq("sm8_job_uuid", id)
+      .in("sm8_job_uuid", sourceIds)
       .not("uploaded_at", "is", null),
   ]);
 
@@ -115,10 +123,17 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
     uuid: string;
     attachment_name: string | null;
     file_type: string | null;
+    related_object_uuid: string;
   }[]).filter((r) => isCacheableMedia(r.file_type) && !have.has(r.uuid));
 
   if (wanted.length === 0) {
-    return { ok: true, cached: 0, remaining: 0, media: await readJobMediaGroups(orgId, id), note: null };
+    return {
+      ok: true,
+      cached: 0,
+      remaining: 0,
+      media: await readJobMediaGroups(orgId, id, claims),
+      note: null,
+    };
   }
 
   let cached = 0;
@@ -156,7 +171,9 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
           kind: "job_file",
           source: "servicem8",
           remote_ref: row.uuid,
-          sm8_job_uuid: id,
+          /* the OBJECT the file hangs off — a claim's file names the claim,
+             which is how the media read's cached-bytes join finds it */
+          sm8_job_uuid: row.related_object_uuid,
           file_name: row.attachment_name?.trim() || `file.${ext}`,
           mime_type: file.contentType,
           size_bytes: file.bytes.byteLength,
@@ -202,7 +219,7 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
     ok: true,
     cached,
     remaining: Math.max(0, wanted.length - cached),
-    media: await readJobMediaGroups(orgId, id),
+    media: await readJobMediaGroups(orgId, id, claims),
     note,
   };
 }

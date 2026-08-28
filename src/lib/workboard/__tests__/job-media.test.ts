@@ -4,6 +4,7 @@
    than imagined. */
 
 import {
+  documentGroupOf,
   groupJobMedia,
   isCacheableMedia,
   jobMediaKind,
@@ -55,11 +56,14 @@ describe("jobMediaKind", () => {
 
   /* An image a browser won't paint is worse than no image: it renders as a
      broken tile in a grid with no way to explain itself. HEIC is an iPhone's
-     default and WILL arrive; .avif is already in the live account. */
+     default and WILL arrive. AVIF is NOT one of these — Chrome has drawn it
+     since 2020, and classing it a document once cost hundreds of photos a
+     release as bare filenames. */
   it("treats browser-unrenderable images as documents, not photos", () => {
-    for (const ext of [".heic", ".heif", ".avif"]) {
+    for (const ext of [".heic", ".heif"]) {
       expect(jobMediaKind(ext)).toBe("document");
     }
+    expect(jobMediaKind(".avif")).toBe("photo");
   });
 
   it("shrugs at anything unrecognised instead of throwing", () => {
@@ -86,9 +90,11 @@ describe("isCacheableMedia", () => {
   });
 
   it("leaves office files, unrenderable images and unknowns in ServiceM8", () => {
-    for (const ext of [".docx", ".xlsx", ".txt", ".htm", ".heic", ".avif", ".dwg", null]) {
+    for (const ext of [".docx", ".xlsx", ".txt", ".htm", ".heic", ".dwg", null]) {
       expect(isCacheableMedia(ext)).toBe(false);
     }
+    /* a photo the browser can draw is a photo the cache may hold */
+    expect(isCacheableMedia(".avif")).toBe(true);
   });
 });
 
@@ -111,10 +117,13 @@ describe("originLabel", () => {
 
   /* Every one of these is a REAL source in the live account. They stay
      unlabelled until one earns a label — a guessed one is worse than none. */
+  it("names the marked-up photo and the work order's paper", () => {
+    expect(originLabel("PHOTO_MARKUP")).toBe("Marked up");
+    expect(originLabel("WORK_ORDER")).toBe("Work order");
+  });
+
   it("invents no label for the sources that haven't earned one", () => {
     for (const unlabelled of [
-      "WORK_ORDER",
-      "PHOTO_MARKUP",
       "INVOICE_SIGNOFF",
       "IMAGINE",
       "DOCUMENT",
@@ -138,6 +147,8 @@ describe("grouping and the count line", () => {
     fromClaim: null,
     takenAt: null,
     url: null,
+    width: null,
+    height: null,
     ...over,
   });
 
@@ -172,5 +183,30 @@ describe("grouping and the count line", () => {
 
   it("says nothing is attached rather than showing an empty grid", () => {
     expect(mediaCountLine(groupJobMedia([]))).toBe("Nothing attached in ServiceM8");
+  });
+});
+
+describe("documentGroupOf — the Documents face's sections", () => {
+  const item = (over: Partial<JobMediaItem>): JobMediaItem => ({
+    remoteId: "x",
+    name: "f.pdf",
+    fileType: ".pdf",
+    kind: "document",
+    origin: null,
+    fromClaim: null,
+    takenAt: null,
+    url: null,
+    width: null,
+    height: null,
+    ...over,
+  });
+
+  it("groups by what a document IS, never by which system made it", () => {
+    expect(documentGroupOf(item({ origin: "Invoice" }))).toBe("money");
+    expect(documentGroupOf(item({ origin: "Quote" }))).toBe("money");
+    expect(documentGroupOf(item({ origin: "Work order" }))).toBe("money");
+    expect(documentGroupOf(item({ origin: "Emailed in" }))).toBe("client");
+    expect(documentGroupOf(item({ kind: "video", fileType: ".mp4", origin: null }))).toBe("video");
+    expect(documentGroupOf(item({ origin: null }))).toBe("files");
   });
 });

@@ -107,6 +107,21 @@ export type StoryDay = { day: string; entries: StoryEntry[] };
 
 export type StoryFilter = "all" | "notes" | "photos" | "money" | "visits";
 
+/** The checklist rows the merge reads — a structural subset of the action's
+    JobPicklistItem, so BOTH readers (the sheet and the summary writer) can
+    hand their own shape in. `pickedBy` is a display name where the caller
+    resolved one; the summary's server read passes null and the stamp math
+    doesn't care, because a tick's key is its row id. */
+export type JobStoryPicklistRow = {
+  id: string;
+  name: string;
+  kind: "material" | "todo";
+  designId: string | null;
+  addedAt: string;
+  pickedAt: string | null;
+  pickedBy: string | null;
+};
+
 /** What the merge is handed — the sheet's own reads, no more. Money-shaped
     inputs are null for a reader the server refused them to. */
 export type StoryInputs = {
@@ -126,7 +141,7 @@ export type StoryInputs = {
   /** The plain job's invoice date, from the money read. Same gate. */
   invoicedOn: string | null;
   media: readonly JobMediaItem[] | null;
-  picklist: readonly { addedAt: string; pickedAt: string | null }[] | null;
+  picklist: readonly JobStoryPicklistRow[] | null;
   /** The account's own zone, for OUR timestamptz columns (designs, picklist).
       ServiceM8's stamps are already naive account-local strings and never
       pass through this. */
@@ -141,7 +156,7 @@ const dayOf = (naive: string | null | undefined): string | null =>
    YYYY-MM-DD, which keeps this string sortable beside ServiceM8's. Parsing an
    instant is not the hydration trap: that is about reading the CLOCK in a
    render body, and this reads only its argument. */
-function naiveInZone(iso: string, timezone: string | null): string | null {
+export function naiveInZone(iso: string, timezone: string | null): string | null {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
   try {
@@ -314,9 +329,8 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
   }
 
   /* Our own contributions — a Studio design touched, materials pushed onto
-     the picklist. HeyTiff's acts belong in the same stream as ServiceM8's.
-     `picked_by` holds an auth id, not a name, so a picklist tick stays a
-     quiet line rather than printing an identifier at somebody. */
+     the checklist, a row ticked off. HeyTiff's acts belong in the same
+     stream as ServiceM8's. */
   for (const d of detail?.designs ?? []) {
     const at = naiveInZone(d.updatedAt, inputs.timezone);
     const day = dayOf(at);
@@ -325,15 +339,36 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
   }
   const pushDays = new Map<string, { at: string; count: number }>();
   for (const item of inputs.picklist ?? []) {
-    const at = naiveInZone(item.addedAt, inputs.timezone);
-    const day = dayOf(at);
-    if (!at || !day) continue;
-    const cur = pushDays.get(day);
-    if (cur) {
-      cur.count += 1;
-      if (at < cur.at) cur.at = at;
-    } else {
-      pushDays.set(day, { at, count: 1 });
+    /* Only a DESIGN'S rows make a push event — a row somebody typed on the
+       card is the list's own business until it is ticked. */
+    if (item.designId !== null) {
+      const at = naiveInZone(item.addedAt, inputs.timezone);
+      const day = dayOf(at);
+      if (at && day) {
+        const cur = pushDays.get(day);
+        if (cur) {
+          cur.count += 1;
+          if (at < cur.at) cur.at = at;
+        } else {
+          pushDays.set(day, { at, count: 1 });
+        }
+      }
+    }
+    /* A ticked row is a diary entry — the list shows the state, the diary
+       keeps the story. Keyed by the row's id so both story readers agree
+       without agreeing on names. */
+    if (item.pickedAt !== null) {
+      const at = naiveInZone(item.pickedAt, inputs.timezone);
+      const day = dayOf(at);
+      if (!day) continue;
+      entries.push({
+        kind: "tick",
+        key: `pick:${item.id}`,
+        day,
+        at,
+        name: item.name,
+        by: item.pickedBy,
+      });
     }
   }
   for (const [day, p] of pushDays) {

@@ -49,7 +49,7 @@ jest.mock("../all-jobs-query", () => ({
   familyMediaSources: (...a: unknown[]) => familyMediaSources(...(a as [])),
 }));
 jest.mock("../job-media-query", () => ({
-  readJobMedia: async () => ({ items: [], truncated: false }),
+  readJobMediaGroups: async () => ({ photos: [], documents: [], elsewhere: [], truncated: false }),
 }));
 jest.mock("../query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 

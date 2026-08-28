@@ -53,12 +53,14 @@ jest.mock("@/app/actions/workboard-media", () => ({
   cacheJobFiles: (...a: unknown[]) => cacheJobFiles(...(a as [])),
 }));
 const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
-const setPicklistItemPicked = jest.fn(async () => {});
+const setPicklistItemPicked = jest.fn(async (): Promise<unknown> => null);
 const removePicklistItem = jest.fn(async () => {});
+const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
   setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),
   removePicklistItem: (...a: unknown[]) => removePicklistItem(...(a as [])),
+  addJobPicklistItem: (...a: unknown[]) => addJobPicklistItem(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
@@ -220,7 +222,6 @@ describe("the card is tabs", () => {
       "Checklist",
       "Photos",
       "Documents",
-      "Actions",
     ]);
     expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
       "aria-selected",
@@ -238,11 +239,12 @@ describe("the card is tabs", () => {
     expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
   });
 
-  it("has no Actions tab for a reader with nothing to do there", async () => {
+  it("has no Actions tab even for a manager — the acts live behind the ⋯", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<JobSheet row={row()} {...props} manage />);
     await detailLanded();
     expect(screen.queryByRole("tab", { name: "Actions" })).toBeNull();
+    expect(screen.getByLabelText("More actions")).toBeInTheDocument();
   });
 
   it("wears the job type's colour as the band's wash and crown, at fixed alphas", async () => {
@@ -651,6 +653,8 @@ describe("the Diary face", () => {
       name: `IMG_${n}.jpg`,
       fileType: ".jpg",
       kind: "photo",
+      width: null,
+      height: null,
       origin: null,
       takenAt: `2026-08-13 10:0${n}:00`,
       url: null,
@@ -790,7 +794,7 @@ describe("the Checklist face", () => {
     await detailLanded();
     await openTab("Checklist");
 
-    expect(screen.getByText("Their checklist — 1 of 3 done")).toBeInTheDocument();
+    expect(screen.getByText("From ServiceM8 — 1 of 3 done")).toBeInTheDocument();
     expect(screen.getByText("Handover")).toBeInTheDocument();
 
     const done = screen.getByText("Isolate power").closest(".wb2-ckrow")!;
@@ -802,12 +806,16 @@ describe("the Checklist face", () => {
     expect(within(form as HTMLElement).getByText("Form")).toBeInTheDocument();
   });
 
-  it("says so when the job has no list at all", async () => {
+  it("stays writable when the job has no list at all", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ checklist: [] })));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
-    expect(screen.getByText("Nothing on the list for this job.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Nothing on the checklist yet — type the first row above.")
+    ).toBeInTheDocument();
+    /* the composer is the point of the face — it is there even when empty */
+    expect(screen.getByLabelText("Add to the list")).toBeInTheDocument();
   });
 });
 
@@ -1426,6 +1434,8 @@ describe("one claim, opened", () => {
             name: "Partial Invoice #2380A",
             fileType: ".pdf",
             kind: "document" as const,
+            width: null,
+            height: null,
             origin: "Invoice",
             takenAt: null,
             url: null,
@@ -1483,28 +1493,32 @@ describe("one claim, opened", () => {
   });
 });
 
-/* ── the Actions face — where the ⋯ menu retired ── */
+/* ── the ⋯ menu and the tracked chip — the Actions face retired ── */
 
-describe("the Actions face", () => {
-  it("holds the promote actions, off every other face", async () => {
+describe("the band's once-per-job acts", () => {
+  it("holds the promote actions behind the ⋯, manage only", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage />);
     await detailLanded();
-    await openTab("Actions");
 
-    const face = document.querySelector("#jcsec-actions") as HTMLElement;
-    expect(within(face).getByText("Create a project from this job")).toBeInTheDocument();
-    expect(within(face).getByText("Create a maintenance agreement")).toBeInTheDocument();
-    /* the ⋯ menu is gone */
+    await userEvent.click(screen.getByLabelText("More actions"));
+    expect(screen.getByText("Create a project from this job")).toBeInTheDocument();
+    expect(screen.getByText("Create a maintenance agreement")).toBeInTheDocument();
+  });
+
+  it("shows no ⋯ at all without manage", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
     expect(screen.queryByLabelText("More actions")).toBeNull();
   });
 
-  it("names the project inline and creates it", async () => {
+  it("names the project on the floor and creates it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage />);
     await detailLanded();
-    await openTab("Actions");
 
+    await userEvent.click(screen.getByLabelText("More actions"));
     await userEvent.click(screen.getByText("Create a project from this job"));
     const input = screen.getByLabelText("Name the project");
     await userEvent.clear(input);
@@ -1516,7 +1530,20 @@ describe("the Actions face", () => {
     );
   });
 
-  it("opens the board that already tracks the job", async () => {
+  it("Escape in the naming row cancels the naming, not the card", async () => {
+    const onClose = jest.fn();
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
+    await detailLanded();
+
+    await userEvent.click(screen.getByLabelText("More actions"));
+    await userEvent.click(screen.getByText("Create a project from this job"));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByLabelText("Name the project")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("wears the tracked board as a chip in the band, and the chip is the door", async () => {
     const onOpenTracked = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(
@@ -1527,10 +1554,10 @@ describe("the Actions face", () => {
       />
     );
     await detailLanded();
-    await openTab("Actions");
 
-    await userEvent.click(screen.getByText("Open #1021"));
+    await userEvent.click(screen.getByTitle("Open #1021"));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
+    expect(screen.getByText("On the maintenance board")).toBeInTheDocument();
   });
 });
 
@@ -1828,6 +1855,8 @@ describe("files on the job", () => {
     name: "IMG_4021.jpg",
     fileType: ".jpg",
     kind: "photo",
+    width: null,
+    height: null,
     origin: null,
     fromClaim: null,
     takenAt: "2026-08-01 10:00:00",
@@ -1852,7 +1881,7 @@ describe("files on the job", () => {
     expect(await screen.findByText("No photos on this job.")).toBeInTheDocument();
   });
 
-  it("shows a cached photo as a real image, linked to the full size", async () => {
+  it("shows a cached photo as a real image, opening the viewer in the card", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
@@ -1864,7 +1893,16 @@ describe("files on the job", () => {
     /* scoped: the Diary clusters the same photo, so the alt exists twice */
     const img = (await face("photos").findByAltText("IMG_4021.jpg")) as HTMLImageElement;
     expect(img.getAttribute("src")).toBe("https://signed/p-1.jpg");
-    expect(img.closest("a")!.getAttribute("href")).toBe("https://signed/p-1.jpg");
+    /* the tile is a BUTTON into the shared viewer now — a raw storage URL
+       in a new tab loses the job */
+    await userEvent.click(img.closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
+    expect(within(dialog).getByAltText("IMG_4021.jpg")).toBeInTheDocument();
+
+    /* Escape closes the viewer, not the card — innermost first */
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "IMG_4021.jpg" })).toBeNull();
+    expect(face("photos").getByAltText("IMG_4021.jpg")).toBeInTheDocument();
   });
 
   it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {
@@ -1875,11 +1913,12 @@ describe("files on the job", () => {
     await openTab("Photos");
 
     await waitFor(() => expect(face("photos").getByText("1 photo")).toBeInTheDocument());
+    /* an uncached tile is not a door */
     expect(screen.queryByAltText("IMG_4021.jpg")).toBeNull();
     expect(document.querySelector(".wb2-mtile.pending")).not.toBeNull();
   });
 
-  it("names the paperwork and links it once it's cached", async () => {
+  it("names the paperwork and opens it in the card once cached", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
@@ -1899,14 +1938,19 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    const name = await screen.findByText("Invoice #3137.pdf");
-    expect(name.closest("a")!.getAttribute("href")).toBe("https://signed/d-1.pdf");
+    /* an Invoice-sourced PDF files under Money — grouped by what it IS */
+    const moneySec = (await screen.findByText("Money — 1")).closest(".wb2-jcsec")!;
+    const link = within(moneySec as HTMLElement).getByText("Invoice #3137.pdf");
     /* the name already says "Invoice", so the row does NOT say it again —
-       the origin only shows where it adds something (the emailed-in test) */
-    expect(screen.queryByText("Invoice")).toBeNull();
+       #559's meta law survives the grouping */
+    expect(within(moneySec as HTMLElement).queryByText("Invoice")).toBeNull();
+    /* a PDF opens IN the card — the shared viewer's iframe, not a new tab */
+    await userEvent.click(link);
+    const dialog = await screen.findByRole("dialog", { name: "Invoice #3137.pdf" });
+    expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-1.pdf");
   });
 
-  it("chips a document that arrived by email, not just the paperwork", async () => {
+  it("files a document that arrived by email under From the client", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
@@ -1926,8 +1970,8 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    await screen.findByText("Site induction.pdf");
-    expect(screen.getByText("Emailed in")).toBeInTheDocument();
+    const sec = (await screen.findByText("From the client — 1")).closest(".wb2-jcsec")!;
+    expect(within(sec as HTMLElement).getByText("Site induction.pdf")).toBeInTheDocument();
   });
 
   it("puts a photo's origin in its tooltip, where the name already is", async () => {
@@ -1940,6 +1984,7 @@ describe("files on the job", () => {
     await openTab("Photos");
 
     await waitFor(() => expect(face("photos").getByText("1 photo")).toBeInTheDocument());
+    /* an uncached tile is not a door */
     const tile = document.querySelector(".wb2-mtile") as HTMLElement;
     expect(tile.getAttribute("title")).toBe("IMG_4021.jpg — emailed in");
   });
@@ -1957,10 +2002,15 @@ describe("files on the job", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
-    await waitFor(() => expect(face("photos").getByText("2 photos")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(face("photos").getByText("2 photos across 1 day")).toBeInTheDocument()
+    );
 
     await openTab("Documents");
-    expect(face("documents").getByText(/1 file stays in ServiceM8/)).toBeInTheDocument();
+    /* a video is a NAMED ROW now, not an anonymous count — and it says
+       honestly that its bytes stay put */
+    const video = face("documents").getByText("walkthrough.mp4").closest(".wb2-doc")!;
+    expect(within(video as HTMLElement).getByText(/Stays in ServiceM8/)).toBeInTheDocument();
   });
 });
 
@@ -2009,6 +2059,8 @@ describe("bringing the bytes across", () => {
             name: "IMG_4021.jpg",
             fileType: ".jpg",
             kind: "photo" as const,
+            width: null,
+            height: null,
             origin: null,
             fromClaim: null,
             takenAt: null,
@@ -2127,9 +2179,9 @@ describe("the ledger obeys the money grant", () => {
   });
 });
 
-/* ── OUR material picklist, on the Checklist face ── */
+/* ── OUR checklist — writable, two sections, stamped ticks ── */
 
-describe("the material picklist", () => {
+describe("the job's own checklist", () => {
   beforeEach(() => {
     readMirrorJob.mockResolvedValue(card(detail()));
   });
@@ -2139,33 +2191,60 @@ describe("the material picklist", () => {
     name: "MSZ-AP25VGD",
     sub: "wall mounted indoor",
     qty: "3",
+    kind: "material",
     picked: false,
     pickedAt: null,
     pickedBy: null,
+    addedBy: null,
     designId: "dsn_1",
     addedAt: "2026-08-16T00:00:00.000Z",
     ...over,
   });
 
-  it("says the face is empty when the job has no list", async () => {
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await waitFor(() => expect(listJobPicklist).toHaveBeenCalledWith("j-1"));
-    await openTab("Checklist");
-    expect(screen.queryByText(/Material picklist/)).not.toBeInTheDocument();
-  });
-
-  it("lists what was pushed, and counts what is picked", async () => {
+  it("draws the two fixed sections, materials under their own head", async () => {
     listJobPicklist.mockResolvedValue([
       item(),
-      item({ id: "p2", name: "PUHY-P200YNW-A1", qty: "1", picked: true }),
+      item({ id: "p2", name: "Pressure test new lineset", kind: "todo", qty: "", designId: null, addedBy: "Jake Thompson" }),
     ]);
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
-    expect(await screen.findByText(/1 of 2 picked/)).toBeInTheDocument();
-    expect(screen.getByText("MSZ-AP25VGD")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+
+    const ck = face("checklist");
+    expect(await ck.findByText("Materials")).toBeInTheDocument();
+    /* "To do" is also the composer's seg button — ask for the section head */
+    expect(ck.getByText("To do", { selector: ".wb2-sect" })).toBeInTheDocument();
+    const materials = ck.getByText("Materials", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
+    expect(within(materials as HTMLElement).getByText("MSZ-AP25VGD")).toBeInTheDocument();
+    const todos = ck.getByText("To do", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
+    expect(within(todos as HTMLElement).getByText("Pressure test new lineset")).toBeInTheDocument();
+    /* the head counts BOTH lists — ours (2 open) and ServiceM8's (2 open, 1 done) */
+    expect(ck.getByText("4 open · 1 done")).toBeInTheDocument();
+  });
+
+  it("a ticked row STAYS, stamped who and when to the minute", async () => {
+    listJobPicklist.mockResolvedValue([
+      item({
+        id: "p3",
+        name: "Isolate old unit",
+        kind: "todo",
+        qty: "",
+        designId: null,
+        picked: true,
+        /* 01:52Z = 11:52am in Sydney winter */
+        pickedAt: "2026-08-14T01:52:00.000Z",
+        pickedBy: "Jake Thompson",
+      }),
+    ]);
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    const rowEl = (await screen.findByText("Isolate old unit")).closest(".wb2-pkrow")!;
+    expect(rowEl.className).toContain("done");
+    expect(
+      within(rowEl as HTMLElement).getByText("Jake Thompson · 11:52am Fri 14 Aug")
+    ).toBeInTheDocument();
   });
 
   it("ticking saves, and shows immediately rather than waiting on the server", async () => {
@@ -2176,10 +2255,38 @@ describe("the material picklist", () => {
     await detailLanded();
     await openTab("Checklist");
 
-    const box = await screen.findByLabelText("Picked: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
     await user.click(box);
     expect(setPicklistItemPicked).toHaveBeenCalledWith("p1", true);
     expect(box).toBeChecked();
+  });
+
+  it("names who ticked it the moment it is ticked, not on the next open", async () => {
+    /* WALK-FOUND: the optimistic flip cannot know the display name behind
+       its own auth id, so the stamp read "9:11pm" with nobody's name until
+       the card was reopened — the half that matters, missing exactly when
+       the person acts. The action returns the saved row now. */
+    const user = userEvent.setup();
+    listJobPicklist.mockResolvedValue([item({ id: "p1", kind: "todo", qty: "" })]);
+    setPicklistItemPicked.mockResolvedValue(
+      item({
+        id: "p1",
+        kind: "todo",
+        qty: "",
+        picked: true,
+        pickedAt: "2026-08-28T11:11:00.000Z",
+        pickedBy: "Isaac Smith",
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    await user.click(await screen.findByLabelText("Done: MSZ-AP25VGD"));
+    const row_ = (await screen.findByText("MSZ-AP25VGD")).closest(".wb2-pkrow")!;
+    await waitFor(() =>
+      expect(within(row_ as HTMLElement).getByText(/Isaac Smith · /)).toBeInTheDocument()
+    );
   });
 
   it("puts the tick back when the save fails, and says so", async () => {
@@ -2191,10 +2298,70 @@ describe("the material picklist", () => {
     await detailLanded();
     await openTab("Checklist");
 
-    const box = await screen.findByLabelText("Picked: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
     await user.click(box);
     await waitFor(() => expect(box).not.toBeChecked());
     expect(onToast).toHaveBeenCalledWith("Could not save that tick");
+  });
+
+  it("types a row onto the list and swaps in the saved one", async () => {
+    const user = userEvent.setup();
+    listJobPicklist.mockResolvedValue([]);
+    addJobPicklistItem.mockResolvedValue(
+      item({ id: "srv-1", name: "Order PAR-40 controller", kind: "todo", qty: "", designId: null, addedBy: "Isaac Smith" })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    await user.type(screen.getByLabelText("Add to the list"), "Order PAR-40 controller");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    /* optimistic first — the row is on the list before the server answers */
+    expect(screen.getByText("Order PAR-40 controller")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
+        kind: "todo",
+        name: "Order PAR-40 controller",
+        qty: "",
+      })
+    );
+  });
+
+  it("a material row asks for a quantity; a to-do never does", async () => {
+    const user = userEvent.setup();
+    listJobPicklist.mockResolvedValue([]);
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    expect(screen.queryByLabelText("Quantity")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Material" }));
+    await user.type(screen.getByLabelText("Add to the list"), "Linear bar grille");
+    await user.type(screen.getByLabelText("Quantity"), "2");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
+        kind: "material",
+        name: "Linear bar grille",
+        qty: "2",
+      })
+    );
+  });
+
+  it("takes the typed row back off the list when the save fails", async () => {
+    const user = userEvent.setup();
+    const onToast = jest.fn();
+    listJobPicklist.mockResolvedValue([]);
+    addJobPicklistItem.mockRejectedValue(new Error("offline"));
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    await user.type(screen.getByLabelText("Add to the list"), "Ghost row");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(screen.queryByText("Ghost row")).not.toBeInTheDocument());
+    expect(onToast).toHaveBeenCalledWith("Could not add that row");
   });
 
   it("only a manager can remove a line", async () => {
@@ -2212,11 +2379,11 @@ describe("the material picklist", () => {
     expect(await screen.findByLabelText("Remove MSZ-AP25VGD")).toBeInTheDocument();
   });
 
-  it("a picklist that will not load never takes the sheet down", async () => {
+  it("a checklist that will not load never takes the sheet down", async () => {
     listJobPicklist.mockRejectedValue(new Error("offline"));
     render(<JobSheet row={row()} {...props} />);
     expect(await screen.findByText("Scope")).toBeInTheDocument();
     await openTab("Checklist");
-    expect(screen.queryByText(/Material picklist/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Materials")).not.toBeInTheDocument();
   });
 });

@@ -49,15 +49,18 @@ export type JobMediaKind = "photo" | "document" | "video" | "other";
     not. */
 export const JOB_MEDIA_CAP = 120;
 
-/** Extensions we will both SHOW and cache bytes for. */
-const PHOTO_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif"]);
+/** Extensions we will both SHOW and cache bytes for. `.avif` belongs here:
+    an earlier comment claimed Chrome couldn't render it and the account held
+    5 — both stale (Chrome has drawn AVIF in an <img> since 2020, and the
+    account holds hundreds), so those photos spent a release as bare
+    un-clickable filenames in the documents list. */
+const PHOTO_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"]);
 
-/* .heic and .avif are images that Chrome will not render in an <img>, so
-   they are documents here: named and downloadable, never a broken tile in a
-   grid. The live account has 5 .avif and no .heic, but an iPhone left on its
-   default settings produces .heic all day, so this is a case that will
-   arrive rather than one being invented. */
-const UNRENDERABLE_IMAGE_EXTS = new Set([".heic", ".heif", ".avif"]);
+/* .heic really is an image Chrome will not render in an <img>, so it stays a
+   document: named and downloadable, never a broken tile in a grid. An iPhone
+   left on its default settings produces .heic all day, so this is a case
+   that will arrive rather than one being invented. */
+const UNRENDERABLE_IMAGE_EXTS = new Set([".heic", ".heif"]);
 
 const DOCUMENT_EXTS = new Set([
   ".pdf",
@@ -117,10 +120,14 @@ export function isCacheableMedia(fileType: string | null | undefined): boolean {
                         1,150 of them in the live account, 283 of those PDFs
                         on jobs, which is what makes it worth a chip at all.
 
+      PHOTO_MARKUP      somebody DREW on this one — usually the photo worth
+                        finding, which is why the viewer badges it.
+      WORK_ORDER        the work order's own paper — files with the money.
+
     Everything else is left unlabelled. The live account also carries
-    WORK_ORDER, PHOTO_MARKUP, INVOICE_SIGNOFF, IMAGINE, DOCUMENT and
-    SERVICE_QUESTION_CHOICE — each a one-line addition here if it ever earns
-    one, and none of them guessed at in the meantime.
+    INVOICE_SIGNOFF, IMAGINE, DOCUMENT and SERVICE_QUESTION_CHOICE — each a
+    one-line addition here if it ever earns one, and none of them guessed at
+    in the meantime.
 
     CASE IS NOT CONSISTENT ON THE WIRE. Photos alone arrive as `Photo`,
     `PHOTO`, `PHOTO_LIBRARY` and `PHOTO_LIBRARY_ON_CHECKOUT`; `InboxMessage`
@@ -129,7 +136,9 @@ export function originLabel(source: string | null | undefined): string | null {
   const s = typeof source === "string" ? source.trim().toUpperCase() : "";
   if (s === "INVOICE") return "Invoice";
   if (s === "QUOTE") return "Quote";
+  if (s === "WORK_ORDER") return "Work order";
   if (s === "INBOXMESSAGE") return "Emailed in";
+  if (s === "PHOTO_MARKUP") return "Marked up";
   return null;
 }
 
@@ -147,6 +156,10 @@ export type JobMediaItem = {
   takenAt: string | null;
   /** A signed URL when the bytes are cached here, null while they aren't. */
   url: string | null;
+  /** Pixel dimensions when ServiceM8 knows them; null where it sent its 0
+      sentinel. The mosaic shapes a tile by these, square when null. */
+  width: number | null;
+  height: number | null;
   /** The job NUMBER of the progress claim this file was filed against, when
       it wasn't filed against the job itself ("2380A"). ServiceM8 clones a job
       to bill it in stages, and a photo taken on site lands on whichever clone
@@ -165,7 +178,13 @@ export type JobMediaGroups = {
 
 /** Split one job's attachments into the three things the sheet renders.
     Order is preserved inside each group, so whatever the loader sorted by
-    (newest first) survives. */
+    (newest first) survives.
+
+    THE CAP IS PER LENS, applied HERE — after grouping, never before. Capping
+    the flat list first meant the photo/document split was a split of the
+    newest 120 FILES, so a paper-heavy job crowded its own photos out of the
+    photo lens entirely. Each lens keeps its newest JOB_MEDIA_CAP and says
+    so. */
 export function groupJobMedia(items: readonly JobMediaItem[]): JobMediaGroups {
   const groups: JobMediaGroups = { photos: [], documents: [], elsewhere: [] };
   for (const item of items) {
@@ -174,6 +193,19 @@ export function groupJobMedia(items: readonly JobMediaItem[]): JobMediaGroups {
     else groups.elsewhere.push(item);
   }
   return groups;
+}
+
+/** Which section of the Documents face a non-photo file belongs to — grouped
+    by what a document IS, never by which system made it. Compliance joins
+    when HeyTiff generates its first document worth the name. */
+export type JobDocumentGroup = "money" | "client" | "video" | "files";
+
+export function documentGroupOf(item: JobMediaItem): JobDocumentGroup {
+  if (item.kind === "video") return "video";
+  if (item.origin === "Invoice" || item.origin === "Quote" || item.origin === "Work order")
+    return "money";
+  if (item.origin === "Emailed in") return "client";
+  return "files";
 }
 
 /** The one line a media section leads with. Says what's there, and stays

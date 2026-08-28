@@ -15,6 +15,10 @@ const deletes: Record<string, unknown>[] = [];
 
 /** rows the select for existing items finds */
 let existingRows: Record<string, unknown>[] = [];
+/** staff_profiles rows the name resolution finds */
+let staffRows: Record<string, unknown>[] = [];
+/** what insert().select().single() hands back */
+let insertedRow: Record<string, unknown> | null = null;
 
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
@@ -31,14 +35,34 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.order = () => ({
         then: (res: (v: unknown) => unknown) =>
           Promise.resolve({ data: existingRows, error: null }).then(res),
+        // the tail read in addJobPicklistItem
+        limit: () => ({
+          then: (res: (v: unknown) => unknown) =>
+            Promise.resolve({ data: existingRows, error: null }).then(res),
+        }),
+      });
+      // the staff_profiles name read
+      chain.in = () => ({
+        then: (res: (v: unknown) => unknown) =>
+          Promise.resolve({ data: staffRows, error: null }).then(res),
       });
       // the bare `select().eq().eq()` read in pushPicklistToJob
       chain.then = (res: (v: unknown) => unknown) =>
         Promise.resolve({ data: existingRows, error: null }).then(res);
 
-      chain.insert = (payload: Record<string, unknown>[]) => {
+      chain.insert = (payload: Record<string, unknown> | Record<string, unknown>[]) => {
         inserts.push({ table, rows: payload });
-        return Promise.resolve({ error: null });
+        const done = Promise.resolve({ error: null });
+        return {
+          then: done.then.bind(done),
+          select: () => ({
+            single: () =>
+              Promise.resolve({
+                data: insertedRow ?? { id: "new-1", ...(Array.isArray(payload) ? payload[0] : payload) },
+                error: null,
+              }),
+          }),
+        };
       };
       chain.update = (patch: Record<string, unknown>) => {
         const sub: Record<string, unknown> = {};
@@ -50,6 +74,16 @@ jest.mock("@/lib/supabase-server", () => ({
           updates.push({ table, patch, eqs: { ...eqs } });
           return Promise.resolve({ error: null }).then(res);
         };
+        // the tick reads its own saved row back, for the stamp's name
+        sub.select = () => ({
+          maybeSingle: () => {
+            updates.push({ table, patch, eqs: { ...eqs } });
+            return Promise.resolve({
+              data: insertedRow ?? { id: eqs.id, name: "X", sub: "", qty: "", kind: "todo", design_id: null, added_at: "2026-08-08T00:00:00Z", added_by: null, ...patch },
+              error: null,
+            });
+          },
+        });
         return sub;
       };
       chain.delete = () => {
@@ -79,6 +113,7 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 
 import {
+  addJobPicklistItem,
   listJobPicklist,
   pushPicklistToJob,
   removePicklistItem,
@@ -113,6 +148,8 @@ beforeEach(() => {
   updates.length = 0;
   deletes.length = 0;
   existingRows = [];
+  staffRows = [];
+  insertedRow = null;
   caps = new Set(["studio", "workboard"]);
 });
 
@@ -263,6 +300,94 @@ describe("the rest of the list", () => {
     );
     await expect(listJobPicklist("job-uuid")).rejects.toThrow(
       /Insufficient permissions/
+    );
+  });
+});
+
+/* ── the checklist generalisation: kinds, names, the typed row ── */
+
+describe("the checklist's kinds and stamps", () => {
+  it("the push writes its rows as materials, by name", async () => {
+    await pushPicklistToJob("job-9", "dsn_1", rows);
+    const written = (inserts[0].rows as Record<string, unknown>[]) ?? [];
+    expect(written).toHaveLength(3);
+    for (const r of written) expect(r.kind).toBe("material");
+  });
+
+  it("resolves tick and adder stamps to display names, never auth ids", async () => {
+    existingRows = [
+      {
+        id: "id-1",
+        name: "MSZ-AP25VGD",
+        sub: "",
+        qty: "3",
+        kind: "material",
+        picked: true,
+        picked_at: "2026-08-14T01:52:00Z",
+        picked_by: "auth0|jake",
+        added_by: "auth0|me",
+        design_id: "dsn_1",
+        added_at: "2026-08-08T00:00:00Z",
+      },
+    ];
+    staffRows = [
+      { user_id: "auth0|jake", first_name: "Jake", last_name: "Thompson" },
+      { user_id: "auth0|me", first_name: "Isaac", last_name: "Smith", preferred_name: "" },
+    ];
+    const items = await listJobPicklist("job-9");
+    expect(items[0].pickedBy).toBe("Jake Thompson");
+    expect(items[0].addedBy).toBe("Isaac Smith");
+  });
+
+  it("a sub with no staff card resolves to null, not an identifier", async () => {
+    existingRows = [
+      {
+        id: "id-1", name: "X", sub: "", qty: "", kind: "todo", picked: true,
+        picked_at: "2026-08-14T01:52:00Z", picked_by: "auth0|gone",
+        added_by: null, design_id: null, added_at: "2026-08-08T00:00:00Z",
+      },
+    ];
+    const items = await listJobPicklist("job-9");
+    expect(items[0].pickedBy).toBeNull();
+  });
+});
+
+describe("typing a row onto the list", () => {
+  it("appends after the tail, stamped with kind and adder", async () => {
+    existingRows = [{ position: 4 }];
+    await addJobPicklistItem("job-9", { kind: "todo", name: "  Pressure test  " });
+    const written = inserts[0].rows as Record<string, unknown>;
+    expect(written).toMatchObject({
+      sm8_job_uuid: "job-9",
+      kind: "todo",
+      name: "Pressure test",
+      qty: "",
+      position: 5,
+      design_id: null,
+      added_by: "auth0|me",
+    });
+  });
+
+  it("a to-do never keeps a quantity; a material keeps its own", async () => {
+    await addJobPicklistItem("job-9", { kind: "todo", name: "A", qty: "3" });
+    expect((inserts[0].rows as Record<string, unknown>).qty).toBe("");
+    await addJobPicklistItem("job-9", { kind: "material", name: "B", qty: " 2 " });
+    expect((inserts[1].rows as Record<string, unknown>).qty).toBe("2");
+  });
+
+  it("refuses an empty name outright", async () => {
+    await expect(addJobPicklistItem("job-9", { kind: "todo", name: "   " })).rejects.toThrow(
+      "Nothing to add"
+    );
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("needs only workboard — the crew's own act, like ticking", async () => {
+    caps = new Set(["workboard"]);
+    await expect(addJobPicklistItem("job-9", { kind: "todo", name: "A" })).resolves.toBeTruthy();
+    caps = new Set(["studio"]);
+    await expect(addJobPicklistItem("job-9", { kind: "todo", name: "A" })).rejects.toThrow(
+      "Insufficient permissions"
     );
   });
 });

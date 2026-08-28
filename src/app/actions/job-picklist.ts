@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
+import { displayNameOf } from "@/lib/staff/name";
 import type { PicklistRow } from "@/lib/studio/summary";
 
 /* The Material picklist a Studio design pushes onto a HeyTiff job card.
@@ -16,15 +17,22 @@ import type { PicklistRow } from "@/lib/studio/summary";
    Functions are reachable by direct POST, so every function re-checks the
    capability for itself. */
 
+/** One row of the job's own checklist. `kind` is the section it lives in —
+    material (quantity-bearing, what the Studio pushes) or todo (tickable
+    work typed on the card). `addedBy`/`pickedBy` are DISPLAY NAMES, resolved
+    here against staff_profiles — the table stores auth ids, and an auth id
+    printed at somebody is not a stamp. Null when the id has no card. */
 export interface JobPicklistItem {
   id: string;
   name: string;
   sub: string;
   qty: string;
+  kind: "material" | "todo";
   picked: boolean;
   pickedAt: string | null;
   pickedBy: string | null;
-  /** the design it came from; null once that design is deleted */
+  addedBy: string | null;
+  /** the design it came from; null for a typed row or a deleted design */
   designId: string | null;
   addedAt: string;
 }
@@ -34,28 +42,53 @@ type Row = {
   name: string;
   sub: string;
   qty: string;
+  kind: "material" | "todo";
   picked: boolean;
   picked_at: string | null;
   picked_by: string | null;
+  added_by: string | null;
   design_id: string | null;
   added_at: string;
 };
 
-const toItem = (r: Row): JobPicklistItem => ({
+const toItem = (r: Row, nameOf: (sub: string | null) => string | null): JobPicklistItem => ({
   id: r.id,
   name: r.name,
   sub: r.sub,
   qty: r.qty,
+  kind: r.kind,
   picked: r.picked,
   pickedAt: r.picked_at,
-  pickedBy: r.picked_by,
+  pickedBy: nameOf(r.picked_by),
+  addedBy: nameOf(r.added_by),
   designId: r.design_id,
   addedAt: r.added_at,
 });
 
-const SELECT = "id, name, sub, qty, picked, picked_at, picked_by, design_id, added_at";
+const SELECT =
+  "id, name, sub, qty, kind, picked, picked_at, picked_by, added_by, design_id, added_at";
 
-/** Everything on a job's picklist, in the order the sheet listed it. */
+/* One read for every stamp on the list. Deliberately tolerant: a sub with no
+   staff card resolves to null and the row simply goes unattributed. */
+async function staffNames(subs: readonly (string | null)[]): Promise<(s: string | null) => string | null> {
+  const wanted = [...new Set(subs.filter((s): s is string => !!s))];
+  if (wanted.length === 0) return () => null;
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("user_id, first_name, last_name, full_name, preferred_name")
+    .in("user_id", wanted);
+  const byId = new Map<string, string>();
+  type NameRow = { user_id: string | null } & Parameters<typeof displayNameOf>[0];
+  for (const r of (data ?? []) as NameRow[]) {
+    if (r.user_id) {
+      const name = displayNameOf(r, "");
+      if (name) byId.set(r.user_id, name);
+    }
+  }
+  return (s) => (s ? byId.get(s) ?? null : null);
+}
+
+/** Everything on a job's checklist, in the order the sheet listed it. */
 export async function listJobPicklist(
   jobUuid: string
 ): Promise<JobPicklistItem[]> {
@@ -67,7 +100,53 @@ export async function listJobPicklist(
     .eq("sm8_job_uuid", jobUuid)
     .order("position", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data as Row[]).map(toItem);
+  const rows = data as Row[];
+  const nameOf = await staffNames(rows.flatMap((r) => [r.picked_by, r.added_by]));
+  return rows.map((r) => toItem(r, nameOf));
+}
+
+/** Type a row straight onto the job's checklist — the composer at the face's
+    head. Same capability as ticking: writing on the job's own list is the
+    crew's act, not an administrative one. */
+export async function addJobPicklistItem(
+  jobUuid: string,
+  input: { kind: "material" | "todo"; name: string; qty?: string }
+): Promise<JobPicklistItem> {
+  const { orgId, userId } = await requireOrg("workboard");
+  const job = jobUuid.trim();
+  if (!job) throw new Error("No job to add to");
+  const name = input.name.trim();
+  if (!name) throw new Error("Nothing to add");
+  const qty = input.kind === "material" ? (input.qty ?? "").trim() : "";
+
+  /* append after whatever is there — same law as the push */
+  const { data: tail } = await supabaseAdmin
+    .from("job_picklist_items")
+    .select("position")
+    .eq("org_id", orgId)
+    .eq("sm8_job_uuid", job)
+    .order("position", { ascending: false })
+    .limit(1);
+  const base = ((tail ?? [])[0]?.position as number | undefined) ?? -1;
+
+  const { data, error } = await supabaseAdmin
+    .from("job_picklist_items")
+    .insert({
+      org_id: orgId,
+      sm8_job_uuid: job,
+      design_id: null,
+      kind: input.kind,
+      name,
+      sub: "",
+      qty,
+      position: base + 1,
+      added_by: userId,
+    })
+    .select(SELECT)
+    .single();
+  if (error) throw new Error(error.message);
+  const nameOf = await staffNames([userId]);
+  return toItem(data as Row, nameOf);
 }
 
 export interface PushResult {
@@ -168,6 +247,8 @@ export async function pushPicklistToJob(
         org_id: orgId,
         sm8_job_uuid: job,
         design_id: designId,
+        /* the push IS the materials section — see job_checklist_kind.sql */
+        kind: "material",
         name: r.name,
         sub: r.sub,
         qty: r.qty,
@@ -206,13 +287,18 @@ export async function pushPicklistToJob(
 }
 
 /** Tick or untick one item. Picking is intrinsic to anyone who can read the
-    job card — it is the warehouse's own act, not an administrative one. */
+    job card — it is the warehouse's own act, not an administrative one.
+
+    RETURNS THE SAVED ROW, because the stamp's whole point is WHO: the client
+    can optimistically flip a checkbox, but it cannot know the display name
+    behind its own auth id, and a stamp that reads "9:11pm" until the card is
+    reopened is missing the half that matters. */
 export async function setPicklistItemPicked(
   itemId: string,
   picked: boolean
-): Promise<void> {
+): Promise<JobPicklistItem | null> {
   const { orgId, userId } = await requireOrg("workboard");
-  const { error } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from("job_picklist_items")
     .update({
       picked,
@@ -220,8 +306,13 @@ export async function setPicklistItemPicked(
       picked_by: picked ? userId : null,
     })
     .eq("org_id", orgId)
-    .eq("id", itemId);
+    .eq("id", itemId)
+    .select(SELECT)
+    .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) return null;
+  const nameOf = await staffNames([userId]);
+  return toItem(data as Row, nameOf);
 }
 
 /** Remove one item — a picklist is editable; a wrong line should not have to

@@ -10,7 +10,7 @@ import {
   readMirrorJobDetail,
   resolveJobCard,
 } from "./all-jobs-query";
-import { readJobMedia } from "./job-media-query";
+import { readJobMediaGroups } from "./job-media-query";
 import {
   buildJobStory,
   isMoneyStoryEntry,
@@ -18,6 +18,7 @@ import {
   storyEventLabel,
   storyLineOf,
   storyStamp,
+  type JobStoryPicklistRow,
   type StoryEntry,
 } from "./job-story";
 
@@ -144,8 +145,8 @@ export async function readJobStoryForSummary(
     readJobNotes(orgId, cardId, claims),
     readJobLedger(orgId, cardId),
     readJobFamily(orgId, cardId, today, null),
-    readJobMedia(orgId, cardId, claims),
-    readPicklistStamps(orgId, cardId),
+    readJobMediaGroups(orgId, cardId, claims),
+    readChecklistRows(orgId, cardId),
   ]);
 
   const entries = buildJobStory({
@@ -154,7 +155,9 @@ export async function readJobStoryForSummary(
     ledger,
     family,
     invoicedOn: family?.isFamily ? null : detail.money?.invoicedOn ?? null,
-    media: media.items,
+    /* FLATTENED THE SAME WAY THE SHEET FLATTENS ITS GROUPS — the two story
+       readers must hand the merge the same set or the stamp never settles. */
+    media: [...media.photos, ...media.documents, ...media.elsewhere],
     picklist,
     timezone,
   });
@@ -170,18 +173,36 @@ export async function readJobStoryForSummary(
   };
 }
 
-async function readPicklistStamps(
+/* The SAME shape the sheet hands the merge, minus the names: a tick's story
+   key is the row's id, so the stamp math agrees across both readers without
+   this side paying a staff_profiles read. The writer's prompt says "ticked
+   off" unattributed; the diary, which has the name, says who. */
+async function readChecklistRows(
   orgId: string,
   jobUuid: string
-): Promise<{ addedAt: string; pickedAt: string | null }[]> {
+): Promise<JobStoryPicklistRow[]> {
   const { data } = await supabaseAdmin
     .from("job_picklist_items")
-    .select("added_at, picked_at")
+    .select("id, name, kind, design_id, added_at, picked_at")
     .eq("org_id", orgId)
     .eq("sm8_job_uuid", jobUuid);
-  return ((data ?? []) as { added_at: string; picked_at: string | null }[]).map((r) => ({
+  return (
+    (data ?? []) as {
+      id: string;
+      name: string;
+      kind: "material" | "todo";
+      design_id: string | null;
+      added_at: string;
+      picked_at: string | null;
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    name: r.name,
+    kind: r.kind,
+    designId: r.design_id,
     addedAt: r.added_at,
     pickedAt: r.picked_at,
+    pickedBy: null,
   }));
 }
 

@@ -5813,6 +5813,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-chip.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t); }
 .wb2-chip.ok { background:rgba(0,163,137,.11); color:#00806b; }
 .wb2-chip.blue { background:rgba(0,168,224,.1); color:#0089b8; }
+/* a chip that IS a door — a tracked job wears its board in the band and the
+   chip opens it. A real <button>, so the UA face is stripped here (the sheet
+   portals outside .fg, so no house reset reaches it). */
+button.wb2-chip { border:0; font:inherit; font-size:11px; font-weight:800; cursor:pointer; }
+button.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
+button.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-empty { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:38px 20px; color:var(--gray500); }
 .wb2-empty svg { color:var(--q); }
 .wb2-empty b { font-size:13.5px; color:var(--ink); }
@@ -6989,6 +6995,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    wrapped the close button onto its own line the moment it did. */
 .wb2-jcband .wb2-shtop { padding:2px 40px 0 0; }
 .wb2-jcband .wb2-ico { position:absolute; top:12px; right:14px; }
+/* the ⋯ sits BESIDE the pinned ✕, not under it — the band pins every
+   .wb2-ico to the same corner, so the menu wrapper takes its own pin one
+   button-width left and un-pins the icon inside it */
+.wb2-jcband .wb2-shmenu { position:absolute; top:12px; right:52px; margin-left:0; }
+.wb2-jcband .wb2-shmenu .wb2-ico { position:static; }
 /* the chips always take their own line under the identity — a half-wrapped
    chip row (two beside the name, three below) reads as an accident */
 .wb2-jcband .wb2-shchips { flex-basis:100%; margin-top:3px; }
@@ -7001,6 +7012,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-jcband .wb2-chip.dan { background:rgba(224,38,79,.13); }
 .wb2-jcband .wb2-chip.warn { background:rgba(255,138,0,.17); }
 .wb2-jcband .wb2-chip.ok { background:rgba(0,163,137,.14); }
+.wb2-jcband .wb2-chip.blue { background:rgba(0,168,224,.13); }
 .wb2-jcband .wb2-ico { background:#fff; }
 .wb2-jcband .wb2-ico:hover { background:rgba(255,255,255,.75); }
 /* the tabs sit at the band's foot; the band's own padding keeps the first
@@ -7139,10 +7151,6 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-nextv b { font-size:15px; font-weight:800; letter-spacing:-.015em; color:#007fa8; }
 .wb2-nextv em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 /* the Actions face — once-per-job acts, as quiet rows */
-.wb2-jcacts { gap:8px; }
-.wb2-jcacts .pbtn { align-self:flex-start; }
-.wb2-jcname { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.wb2-jcname .wb2-fi { flex:1 1 220px; }
 
 /* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
    One job's money, read once. THE JOB TYPE'S COLOUR FRAMES THIS SECTION AND
@@ -7310,6 +7318,73 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
 .wb2-mtile img { width:100%; height:100%; object-fit:cover; display:block; }
 /* a photo we know about but haven't fetched — says so rather than breaking */
 .wb2-mtile.pending { color:var(--gray400); }
+/* a tile is a BUTTON now (it opens the viewer), so the UA face goes — the
+   sheet portals outside .fg, no house reset reaches it */
+button.wb2-mtile { padding:0; cursor:zoom-in; }
+button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.4); }
+
+/* ── the photos face: day-grouped justified mosaic ─────────────────────
+   Tiles carry aspect-ratio + flex-grow + flex-basis inline (all three
+   proportional to the photo's own ratio), so each row shares its width the
+   way the photos deserve; the trailing spacer stops the last row
+   stretching. */
+.wb2-mday { display:flex; align-items:baseline; gap:9px; margin:2px 0 7px; }
+.wb2-mday b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.wb2-mday em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500); }
+.wb2-mosaic { display:flex; flex-wrap:wrap; gap:5px; }
+.wb2-mosaic .wb2-mtile { min-width:64px; max-height:280px; }
+.wb2-mosaic .wb2-mspace { flex:10 1 0; min-width:0; }
+/* the marked-up badge — the photo somebody drew on is usually the one worth
+   finding, so it says so on the tile, not in a tooltip */
+.wb2-mmark { position:absolute; right:5px; top:5px; z-index:1; font-style:normal;
+  font-size:10px; line-height:1; padding:3px 5px; border-radius:6px;
+  background:rgba(10,12,20,.6); color:#fff; }
+
+/* the claim badge on a document row was invoked as .wb2-chip.cat and never
+   declared — it rendered as a plain grey chip */
+.wb2-chip.cat { background:rgba(122,90,248,.12); color:#5b3fd0; }
+
+/* ── the shared media viewer ───────────────────────────────────────────
+   Same portal as the sheet, same law as the claim modal. THE PAIR IS A
+   WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking context:
+   114/115 sits above the claim modal's 110/111 and under the toasts' 130. */
+.wb2-mvscrim { position:fixed; inset:0; z-index:114; background:rgba(8,10,16,.82); cursor:zoom-out; }
+.wb2-mv { position:fixed; inset:22px; z-index:115; display:flex; flex-direction:column;
+  border-radius:16px; overflow:hidden; background:#0d0e13; box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
+.wb2-mvtop { display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08); min-height:44px; }
+.wb2-mvtop b { font-size:12.5px; font-weight:800; color:#fff; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.wb2-mvtop em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.55); white-space:nowrap; }
+.wb2-mvtop .wb2-chip { background:rgba(255,255,255,.1); color:rgba(255,255,255,.8); }
+.wb2-mvsp { flex:1; }
+.wb2-mvcount { font-variant-numeric:tabular-nums; }
+.wb2-mvtop .wb2-ico { background:rgba(255,255,255,.08); color:#fff; }
+.wb2-mvtop .wb2-ico:hover { background:rgba(255,255,255,.16); }
+.wb2-mvstage { position:relative; flex:1; min-height:0; overflow:hidden; }
+/* FIT BY ABSOLUTE CENTERING, not by a grid: a percentage max-height inside
+   an auto grid row is indefinite and silently never binds — the portrait
+   that taught this filled the full stage width and ran off the bottom. An
+   absolutely-positioned replaced element with inset:0 + margin:auto centers
+   AND contains reliably. */
+.wb2-mvstage img { position:absolute; inset:0; margin:auto;
+  max-width:calc(100% - 16px); max-height:calc(100% - 16px);
+  border-radius:6px; user-select:none; }
+.wb2-mvstage.zoomed { overflow:auto; display:flex; cursor:grab; }
+.wb2-mvstage.zoomed:active { cursor:grabbing; }
+.wb2-mvstage.zoomed img { position:static; margin:auto; max-width:none; max-height:none;
+  border-radius:0; }
+.wb2-mvstage .wb2-mvpending { position:absolute; inset:0; display:grid; place-items:center;
+  margin:0; }
+.wb2-mvframe { width:100%; height:100%; border:0; background:#fff; }
+.wb2-mvpending { font-size:13px; font-weight:600; color:rgba(255,255,255,.55); max-width:36ch; text-align:center; }
+.wb2-mvnav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px;
+  border:0; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:20px;
+  line-height:1; cursor:pointer; display:grid; place-items:center; }
+.wb2-mvnav:hover { background:rgba(255,255,255,.26); }
+.wb2-mvnav:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.5); }
+.wb2-mvnav.prev { left:12px; }
+.wb2-mvnav.next { right:12px; }
 .wb2-shsect > .wb2-shtext > .wb2-chip { margin-left:7px; vertical-align:middle; }
 .wb2-ckrow { display:flex; align-items:center; gap:9px; padding:8px 2px; min-width:0;
   border-top:1px solid var(--wb2-line2); }
@@ -7331,12 +7406,31 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
 .wb2-pkrow .wb2-pkbox input { width:15px; height:15px; accent-color:var(--wb2-ok);
   cursor:pointer; margin:0; }
 .wb2-pkrow .wb2-pkbox input:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,163,137,.35); }
-.wb2-pkname { font-size:13px; font-weight:650; min-width:0; overflow-wrap:anywhere; }
+.wb2-pkname { font-size:13px; font-weight:650; min-width:0; overflow-wrap:anywhere;
+  flex:1 1 140px; }
 .wb2-pkrow.done .wb2-pkname { color:var(--gray500); text-decoration:line-through; }
 .wb2-pksub { font-style:normal; font-size:11.5px; font-weight:500; color:var(--gray500);
   min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-pkqty { margin-left:auto; flex:none; font-size:12.5px; font-weight:700;
+.wb2-pkqty { flex:none; font-size:12.5px; font-weight:700;
   font-variant-numeric:tabular-nums; }
+/* ONE right-side cluster with ONE auto margin — qty, tick stamp and the
+   delete share it, because two `margin-left:auto` on a flex line split the
+   slack (the #553 lesson). */
+.wb2-pkend { margin-left:auto; flex:none; display:flex; align-items:center; gap:8px; }
+.wb2-pkstamp { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500);
+  white-space:nowrap; }
+/* the composer at the face's head — a real form, outside .fg, so the inputs
+   and buttons dress themselves */
+.wb2-ckadd { display:flex; gap:8px; align-items:center; margin:10px 0 2px; flex-wrap:wrap; }
+.wb2-ckadd .wb2-fi { flex:1 1 200px; }
+.wb2-ckadd .wb2-fi.qty { flex:0 1 88px; }
+.wb2-ckseg { display:inline-flex; flex:none; background:rgba(5,5,5,.05); border-radius:9px;
+  padding:3px; gap:2px; }
+.wb2-ckseg button { padding:5px 11px; border-radius:7px; font-size:11.5px; font-weight:700;
+  color:var(--gray500); border:0; background:transparent; cursor:pointer; font-family:inherit; }
+.wb2-ckseg button.on { background:#fff; color:var(--ink); font-weight:800;
+  box-shadow:0 1px 2px rgba(0,0,0,.06); }
+.wb2-ckseg button:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-pkrow.done .wb2-pkqty { color:var(--gray500); }
 .wb2-pkdel { flex:none; opacity:0; color:var(--gray500); padding:2px; border-radius:6px;
   transition:opacity .12s, color .12s; }
@@ -7379,6 +7473,13 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
 .wb2-doc:first-of-type { border-top:0; }
 a.wb2-doc:hover { background:rgba(0,168,224,.06); }
 a.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* a PDF's row is a BUTTON into the in-card viewer — same dress, UA face
+   stripped by hand because the sheet portals outside .fg */
+button.wb2-doc { width:100%; border:0; background:none; font:inherit; text-align:left;
+  cursor:pointer; }
+button.wb2-doc:hover { background:rgba(0,168,224,.06); }
+button.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+button.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }
 .wb2-doc-ic { display:flex; align-items:center; justify-content:center; flex:none;
   width:30px; height:30px; border-radius:9px; background:rgba(5,5,5,.045); color:var(--gray500); }
 a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }

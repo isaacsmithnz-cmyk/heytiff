@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
@@ -31,17 +30,20 @@ import { JobSummaryFace } from "./job-summary-face";
 import { JobDiaryFace } from "./job-diary-face";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import {
+  addJobPicklistItem,
   listJobPicklist,
   removePicklistItem,
   setPicklistItemPicked,
   type JobPicklistItem,
 } from "@/app/actions/job-picklist";
+import { JobChecklistFace } from "./job-checklist-face";
+import { JobPhotosFace } from "./job-photos-face";
+import { JobDocumentsFace } from "./job-documents-face";
+import { JobMediaViewer } from "./job-media-viewer";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
-import { JOB_MEDIA_CAP } from "@/lib/workboard/job-media";
 import {
   fmtMinutesAsHours,
-  groupChecklist,
   sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
@@ -94,28 +96,11 @@ type TabKey =
   | "visits"
   | "checklist"
   | "photos"
-  | "documents"
-  | "actions";
+  | "documents";
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
-/** When a design was last touched. `studio_designs.updated_at` is a real
-    timestamptz — a genuine instant, unlike every ServiceM8 stamp on this
-    sheet — so it is PARSED and shown in the reader's own zone.
-
-    Absolute, not "2 days ago": a relative label needs the clock at render
-    time, and `Date.now()` in a render body breaks hydration for the whole
-    tree. */
-const editedOn = (iso: string): string => {
-  const d = new Date(iso);
-  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
-  // through the sheet's own formatter, so this date wears the same shape as
-  // every other one beside it ("Fri 14 Aug", not en-AU's "Fri, 14 Aug")
-  return fmtAuWeekdayDayMonth(local);
-};
 
 /** "7:30am" from a naive local string, by slicing — never by parsing a wall
     clock into a Date, which would shift it by the browser's offset. */
@@ -217,6 +202,12 @@ export function JobSheet({
   /* Which claim's modal is open, and whether the number's list is showing. */
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  /* The shared viewer: a photo (by its place in the photos lens) or one
+     PDF's paper. Closing it lands the reader exactly where they were. */
+  const [viewer, setViewer] = useState<
+    { kind: "photos"; index: number } | { kind: "paper"; id: string } | null
+  >(null);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
   const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
@@ -246,6 +237,10 @@ export function JobSheet({
       if (e.key !== "Escape") return;
       /* INNERMOST FIRST. Closing the whole card out from under an open claim
          is the classic nested-dismiss bug. */
+      if (viewer) {
+        setViewer(null);
+        return;
+      }
       if (openClaim) {
         setOpenClaim(null);
         return;
@@ -254,11 +249,15 @@ export function JobSheet({
         setNumbersOpen(false);
         return;
       }
+      if (menuOpen) {
+        setMenuOpen(false);
+        return;
+      }
       onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim]);
+  }, [onClose, numbersOpen, openClaim, menuOpen, viewer]);
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -268,6 +267,15 @@ export function JobSheet({
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [numbersOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const away = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.(".wb2-shmenu")) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [menuOpen]);
 
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. */
@@ -458,9 +466,69 @@ export function JobSheet({
     });
   };
 
-  /* THE TAB SET IS FIXED FROM FIRST PAINT — money and manage are known at
-     open, so no face pops in as a read lands and the thumb never jumps. */
-  const showActions = manage || !!row.tracked;
+  /* Checklist writes, optimistic — a crew ticking down a list must not wait
+     on a round trip per line. Reverted with a toast on failure. */
+  const tickChecklistItem = (id: string, next: boolean) => {
+    const stamp = next ? new Date().toISOString() : null;
+    setPicklist((cur) =>
+      (cur ?? []).map((p) =>
+        p.id === id
+          ? { ...p, picked: next, pickedAt: stamp, pickedBy: next ? p.pickedBy : null }
+          : p
+      )
+    );
+    void setPicklistItemPicked(id, next)
+      .then((saved) => {
+        /* The SAVED row carries the resolved display name — the client can
+           flip a checkbox but cannot know the name behind its own auth id,
+           and "who ticked it" is the stamp's whole point. */
+        if (saved) setPicklist((cur) => (cur ?? []).map((p) => (p.id === id ? saved : p)));
+      })
+      .catch(() => {
+        setPicklist((cur) =>
+          (cur ?? []).map((p) =>
+            p.id === id ? { ...p, picked: !next, pickedAt: null, pickedBy: null } : p
+          )
+        );
+        onToast("Could not save that tick");
+      });
+  };
+
+  const removeChecklistItem = (id: string) => {
+    setPicklist((cur) => (cur ?? []).filter((p) => p.id !== id));
+    void removePicklistItem(id).catch(() => onToast("Could not remove that line"));
+  };
+
+  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string }) => {
+    if (!cardId) return;
+    const temp: JobPicklistItem = {
+      id: `tmp-${Date.now()}`,
+      name: input.name,
+      sub: "",
+      qty: input.qty,
+      kind: input.kind,
+      picked: false,
+      pickedAt: null,
+      pickedBy: null,
+      addedBy: null,
+      designId: null,
+      addedAt: new Date().toISOString(),
+    };
+    setPicklist((cur) => [...(cur ?? []), temp]);
+    void addJobPicklistItem(cardId, input)
+      .then((item) => {
+        setPicklist((cur) => (cur ?? []).map((p) => (p.id === temp.id ? item : p)));
+      })
+      .catch(() => {
+        setPicklist((cur) => (cur ?? []).filter((p) => p.id !== temp.id));
+        onToast("Could not add that row");
+      });
+  };
+
+  /* THE TAB SET IS FIXED FROM FIRST PAINT — the money grant is known at
+     open, so no face pops in as a read lands and the thumb never jumps.
+     Once-per-job acts live behind the band's ⋯, not on a face: two buttons
+     never earned one. */
   const tabs: ViewTab[] = [
     { key: "summary", label: "Summary" },
     { key: "diary", label: "Diary" },
@@ -469,7 +537,6 @@ export function JobSheet({
     { key: "checklist", label: "Checklist" },
     { key: "photos", label: "Photos" },
     { key: "documents", label: "Documents" },
-    ...(showActions ? [{ key: "actions", label: "Actions" }] : []),
   ];
 
   const go = (key: string) => {
@@ -605,7 +672,68 @@ export function JobSheet({
                   {categoryName}
                 </span>
               )}
+              {/* A TRACKED JOB WEARS ITS BOARD. The door used to hide on the
+                  Actions face; a fact this useful belongs where the chips
+                  are, and the chip IS the door. */}
+              {row.tracked && (
+                <button
+                  className="wb2-chip blue"
+                  onClick={() => onOpenTracked(row.tracked!)}
+                  title={`Open ${row.tracked.label}`}
+                >
+                  {row.tracked.kind === "visit"
+                    ? "On the maintenance board"
+                    : "On the projects board"}
+                  <i className="wb2-shcar" aria-hidden>
+                    ›
+                  </i>
+                </button>
+              )}
             </span>
+            {/* THE WAYS OUT OF THIS JOB, back behind the ⋯. They spent one
+                release as an Actions face — two ghost buttons alone on a
+                page — and a face that sparse reads as broken. A disclosure,
+                not an ARIA menu widget: role="menu" promises arrow-key
+                navigation, and promising it without implementing it is worse
+                for a screen reader than two plain buttons. */}
+            {manage && (
+              <span className="wb2-shmenu">
+                <button
+                  className="wb2-ico"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  title="More"
+                  aria-label="More actions"
+                  aria-expanded={menuOpen}
+                >
+                  <Icon name="dots" size={14} />
+                </button>
+                {menuOpen && (
+                  <span className="wb2-shmpop">
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setName(row.clientName ?? "");
+                        setNaming(true);
+                      }}
+                    >
+                      <Icon name="plus" size={14} />
+                      Create a project from this job
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onCreateAgreement(row, detail);
+                      }}
+                    >
+                      <Icon name="file" size={14} />
+                      Create a maintenance agreement
+                    </button>
+                  </span>
+                )}
+              </span>
+            )}
             <button
               ref={closeRef}
               className="wb2-ico"
@@ -820,370 +948,76 @@ export function JobSheet({
 
           {panel(
             "checklist",
-            <>
-              {detail && detail.checklist.length > 0 && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    Their checklist —{" "}
-                    {`${detail.checklist.filter((c) => c.done).length} of ${detail.checklist.length} done`}
-                  </span>
-                  {groupChecklist(detail.checklist).map((group, gi) => (
-                    <div key={`${group.section ?? "-"}-${gi}`} className="wb2-ckgroup">
-                      {/* ServiceM8's default section is literally named
-                          "Checklist", and under the eyebrow that already says
-                          so it read as a stutter — a REAL section name
-                          ("Rough-in") still shows. */}
-                      {group.section && group.section.trim().toLowerCase() !== "checklist" && (
-                        <span className="wb2-sect wb2-cksec">{group.section}</span>
-                      )}
-                      {group.items.map((item, i) => (
-                        <div
-                          key={`${item.name}-${i}`}
-                          className={`wb2-ckrow${item.done ? " done" : ""}`}
-                        >
-                          <i className="wb2-ckdot" aria-hidden />
-                          <span className="wb2-ckname">{item.name}</span>
-                          {item.itemType && item.itemType !== "Todo" && (
-                            <i className="wb2-chip">{item.itemType}</i>
-                          )}
-                          <em>
-                            {item.done
-                              ? [
-                                  item.doneBy,
-                                  item.doneOn ? fmtAuWeekdayDayMonth(item.doneOn) : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ") || "done"
-                              : ""}
-                          </em>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* OUR picklist, pushed from a Studio design — distinct from
-                  "Their checklist" above, which is ServiceM8's and read-only.
-                  This is the one we can write, so this is the one that
-                  ticks. */}
-              {picklist && picklist.length > 0 && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    Material picklist —{" "}
-                    {`${picklist.filter((p) => p.picked).length} of ${picklist.length} picked`}
-                  </span>
-                  {picklist.map((item) => (
-                    <div key={item.id} className={`wb2-pkrow${item.picked ? " done" : ""}`}>
-                      <label className="wb2-pkbox">
-                        <input
-                          type="checkbox"
-                          checked={item.picked}
-                          aria-label={`Picked: ${item.name}`}
-                          onChange={(e) => {
-                            const next = e.target.checked;
-                            /* optimistic: a warehouse ticking down a list must
-                               not wait on a round trip per line */
-                            setPicklist((cur) =>
-                              (cur ?? []).map((p) =>
-                                p.id === item.id ? { ...p, picked: next } : p
-                              )
-                            );
-                            void setPicklistItemPicked(item.id, next).catch(() => {
-                              setPicklist((cur) =>
-                                (cur ?? []).map((p) =>
-                                  p.id === item.id ? { ...p, picked: !next } : p
-                                )
-                              );
-                              onToast("Could not save that tick");
-                            });
-                          }}
-                        />
-                      </label>
-                      <span className="wb2-pkname">{item.name}</span>
-                      {item.sub && <em className="wb2-pksub">{item.sub}</em>}
-                      <span className="wb2-pkqty">{item.qty}</span>
-                      {manage && (
-                        <button
-                          className="wb2-pkdel"
-                          aria-label={`Remove ${item.name}`}
-                          onClick={() => {
-                            setPicklist((cur) => (cur ?? []).filter((p) => p.id !== item.id));
-                            void removePicklistItem(item.id).catch(() =>
-                              onToast("Could not remove that line")
-                            );
-                          }}
-                        >
-                          <Icon name="x" size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {(!detail || detail.checklist.length === 0) &&
-                (!picklist || picklist.length === 0) && (
-                  <p className="int-hint">
-                    {loading && !detail
-                      ? "Reading it from the mirror…"
-                      : "Nothing on the list for this job."}
-                  </p>
-                )}
-            </>
+            <JobChecklistFace
+              loading={loading}
+              sm8={detail?.checklist ?? []}
+              items={picklist}
+              timezone={detail?.timezone ?? null}
+              manage={manage}
+              ready={!!cardId}
+              onTick={tickChecklistItem}
+              onRemove={removeChecklistItem}
+              onAdd={addChecklistItem}
+            />
           )}
 
           {panel(
             "photos",
-            <>
-              {media && media.photos.length > 0 ? (
-                <>
-                  <span className="wb2-sect">
-                    {media.photos.length === 1 ? "1 photo" : `${media.photos.length} photos`}
-                  </span>
-                  <div className="wb2-mgrid">
-                    {media.photos.map((p) =>
-                      p.url ? (
-                        <a
-                          key={p.remoteId}
-                          className="wb2-mtile"
-                          href={p.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          /* A grid tile has no room for a chip, so the origin
-                             rides in the tooltip, where the name already is. */
-                          title={[
-                            p.name,
-                            p.origin ? p.origin.toLowerCase() : null,
-                            p.fromClaim ? `filed against invoice #${p.fromClaim}` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" — ")}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.url} alt={p.name} loading="lazy" />
-                          {/* WHERE IT CAME FROM — a photo filed against a
-                              progress invoice wears the claim's number. */}
-                          {p.fromClaim && <u className="wb2-mfrom">{p.fromClaim}</u>}
-                        </a>
-                      ) : (
-                        /* Not cached yet. A tile that says so beats a broken
-                           image, and beats hiding a photo that exists. */
-                        <span
-                          key={p.remoteId}
-                          className="wb2-mtile pending"
-                          title={p.origin ? `${p.name} — ${p.origin.toLowerCase()}` : p.name}
-                        >
-                          <Icon name="cam" size={16} />
-                        </span>
-                      )
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="int-hint">
-                  {media === null ? "Reading the files…" : "No photos on this job."}
-                </p>
-              )}
-              {mediaNote && <p className="int-hint">{mediaNote}</p>}
-              {media?.truncated && (
-                <p className="int-hint">
-                  Showing the newest {JOB_MEDIA_CAP} files — this job has more in ServiceM8.
-                </p>
-              )}
-            </>
+            <JobPhotosFace
+              photos={media ? media.photos : null}
+              loading={media === null}
+              truncated={!!media?.truncated}
+              mediaNote={mediaNote}
+              visits={detail?.visits ?? []}
+              onOpen={(index) => setViewer({ kind: "photos", index })}
+            />
           )}
 
           {panel(
             "documents",
-            <>
-              {/* The other end of the studio's job link — the job's drawings.
-                  Absent for a reader without `studio` (the action doesn't
-                  fetch it) and absent when nobody has designed this job. */}
-              {detail && detail.designs.length > 0 && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    {detail.designs.length === 1
-                      ? "Drawings — designed in the Studio"
-                      : `Drawings — ${detail.designs.length} Studio options`}
-                  </span>
-                  {detail.designs.map((d) => (
-                    <Link
-                      key={d.id}
-                      className="wb2-dsgn"
-                      href={`/dashboard/studio?design=${encodeURIComponent(d.id)}`}
-                    >
-                      <span className="wb2-dsgn-ic">
-                        <Icon name={d.mode === "plan" ? "file" : "square"} size={15} />
-                      </span>
-                      <span className="wb2-dsgn-b">
-                        <b>{d.name}</b>
-                        <em>
-                          {`${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"} · ` +
-                            `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"} · ` +
-                            `edited ${editedOn(d.updatedAt)}`}
-                        </em>
-                      </span>
-                      {/* its own wrapper because <Icon> renders <span><svg/></span> */}
-                      <span className="wb2-dsgn-go">
-                        <Icon name="chevR" size={15} />
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              {media && media.documents.length > 0 ? (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    {media.documents.length === 1
-                      ? "1 document"
-                      : `${media.documents.length} documents`}
-                  </span>
-                  {media.documents.map((d) => {
-                    /* One dress for every document — the same row the design
-                       list wears, never a blue link beside a bold paragraph.
-                       The meta says only what the NAME doesn't already:
-                       "Diamond Air Solutions Invoice #2380B" wearing an
-                       "Invoice" chip and a "#2380B" chip said everything
-                       twice. */
-                    const meta = [
-                      d.origin && !d.name.toLowerCase().includes(d.origin.toLowerCase())
-                        ? d.origin
-                        : null,
-                      d.fromClaim && !d.name.includes(`#${d.fromClaim}`)
-                        ? `on invoice #${d.fromClaim}`
-                        : null,
-                      !d.url ? "not brought across yet" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ");
-                    const inner = (
-                      <>
-                        <span className="wb2-doc-ic">
-                          <Icon name="file" size={15} />
-                        </span>
-                        <span className="wb2-doc-b">
-                          <b>{d.name}</b>
-                          {meta && <em>{meta}</em>}
-                        </span>
-                        {d.url && (
-                          <span className="wb2-doc-go">
-                            <Icon name="chevR" size={15} />
-                          </span>
-                        )}
-                      </>
-                    );
-                    return d.url ? (
-                      <a
-                        key={d.remoteId}
-                        className="wb2-doc"
-                        href={d.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {inner}
-                      </a>
-                    ) : (
-                      <span key={d.remoteId} className="wb2-doc">
-                        {inner}
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                (!detail || detail.designs.length === 0) && (
-                  <p className="int-hint">
-                    {media === null ? "Reading the files…" : "No documents on this job."}
-                  </p>
-                )
-              )}
-
-              {media && media.elsewhere.length > 0 && (
-                <p className="int-hint">
-                  {media.elsewhere.length === 1
-                    ? "1 file stays in ServiceM8"
-                    : `${media.elsewhere.length} files stay in ServiceM8`}{" "}
-                  — video and file types this screen can&apos;t show.
-                </p>
-              )}
-            </>
+            <JobDocumentsFace
+              documents={media ? media.documents : null}
+              elsewhere={media ? media.elsewhere : null}
+              designs={detail?.designs ?? []}
+              loading={media === null}
+              truncated={!!media?.truncated}
+              onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+            />
           )}
 
-          {showActions &&
-            panel(
-              "actions",
-              <>
-                {/* Once-per-job acts on a once-per-job tab — the ⋯ menu
-                    retired in here. Promotion is the funnel the All jobs side
-                    exists for: see an untracked install, put it on a board. */}
-                {row.tracked && (
-                  <div className="wb2-jcsec">
-                    <span className="wb2-sect">Already tracked</span>
-                    <p className="int-hint">
-                      This job is on the{" "}
-                      {row.tracked.kind === "visit" ? "maintenance board" : "projects board"}.
-                    </p>
-                    <button className="pbtn ghost" onClick={() => onOpenTracked(row.tracked!)}>
-                      <Icon name="send" size={15} />
-                      {`Open ${row.tracked.label}`}
-                    </button>
-                  </div>
-                )}
-                {manage && (
-                  <div className="wb2-jcsec wb2-jcacts">
-                    {naming ? (
-                      <div className="wb2-jcname">
-                        <input
-                          className="wb2-fi"
-                          autoFocus
-                          value={name}
-                          placeholder={row.clientName ?? "Project name"}
-                          onChange={(e) => setName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") makeProject();
-                            if (e.key === "Escape") setNaming(false);
-                          }}
-                          aria-label="Name the project"
-                        />
-                        <button className="pbtn" disabled={busy} onClick={makeProject}>
-                          <Icon name="check" size={15} />
-                          Create it
-                        </button>
-                        <button
-                          className="pbtn ghost"
-                          disabled={busy}
-                          onClick={() => setNaming(false)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="pbtn ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          setName(row.clientName ?? "");
-                          setNaming(true);
-                        }}
-                      >
-                        <Icon name="plus" size={15} />
-                        Create a project from this job
-                      </button>
-                    )}
-                    <button
-                      className="pbtn ghost"
-                      disabled={busy}
-                      onClick={() => onCreateAgreement(row, detail)}
-                    >
-                      <Icon name="file" size={15} />
-                      Create a maintenance agreement
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+          {/* No Actions face. The once-per-job acts live behind the band's
+              ⋯; the naming row below is the only floor furniture, and only
+              while a project is being named. */}
         </div>
+
+        {manage && naming && (
+          <div className="wb2-shft">
+            <input
+              className="wb2-fi"
+              autoFocus
+              value={name}
+              placeholder={row.clientName ?? "Project name"}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") makeProject();
+                if (e.key === "Escape") {
+                  /* Cancels the naming, not the card — without this the
+                     document listener closes the whole sheet. */
+                  e.stopPropagation();
+                  setNaming(false);
+                }
+              }}
+              aria-label="Name the project"
+            />
+            <button className="pbtn" disabled={busy} onClick={makeProject}>
+              <Icon name="check" size={15} />
+              Create it
+            </button>
+            <button className="pbtn ghost" disabled={busy} onClick={() => setNaming(false)}>
+              Cancel
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Over the card, inside the SAME portal — a modal on a modal that
@@ -1194,6 +1028,24 @@ export function JobSheet({
           claim={openClaimRow}
           parentNumber={cardNumber}
           onClose={() => setOpenClaim(null)}
+        />
+      )}
+
+      {/* The shared viewer — same portal, same law as the claim modal. */}
+      {viewer && media && (
+        <JobMediaViewer
+          items={
+            viewer.kind === "photos"
+              ? media.photos
+              : media.documents.filter((d) => d.remoteId === viewer.id)
+          }
+          index={
+            viewer.kind === "photos"
+              ? Math.min(viewer.index, Math.max(0, media.photos.length - 1))
+              : 0
+          }
+          onNav={(i) => setViewer(viewer.kind === "photos" ? { kind: "photos", index: i } : viewer)}
+          onClose={() => setViewer(null)}
         />
       )}
     </>,

@@ -45,27 +45,36 @@ export function JobPhotosFace({
   visits,
   onOpen,
 }: {
+  /** Photos AND video — everything shot on site. */
   photos: readonly JobMediaItem[] | null;
   loading: boolean;
   truncated: boolean;
   mediaNote: string | null;
   visits: readonly JobVisit[];
-  onOpen: (index: number) => void;
+  /** By id, not by index: the viewer shows only what it can actually
+      display, so a position in THIS list is not a position in that one. */
+  onOpen: (remoteId: string) => void;
 }) {
   const crewOf = new Map(visits.map((v) => [v.day, v.crew]));
   const days = groupPhotoDays(photos ?? []);
+  const videos = (photos ?? []).filter((p) => p.kind === "video").length;
+  const stills = (photos ?? []).length - videos;
+
+  /* "9 photos and 1 video across 3 days" — video is footage from the same
+     visit, so it counts beside the stills rather than hiding in the paper. */
+  const countLine = () => {
+    const parts: string[] = [];
+    if (stills) parts.push(stills === 1 ? "1 photo" : `${stills} photos`);
+    if (videos) parts.push(videos === 1 ? "1 video" : `${videos} videos`);
+    const what = parts.join(" and ");
+    return days.length > 1 ? `${what} across ${days.length} days` : what;
+  };
 
   return (
     <div className="wb2-jcph">
       <div className="wb2-jcdhead">
         <b>Photos</b>
-        {photos && photos.length > 0 && (
-          <em>
-            {photos.length === 1
-              ? "1 photo"
-              : `${photos.length} photos across ${days.length} ${days.length === 1 ? "day" : "days"}`}
-          </em>
-        )}
+        {photos && photos.length > 0 && <em>{countLine()}</em>}
       </div>
 
       {photos === null || photos.length === 0 ? (
@@ -87,7 +96,7 @@ export function JobPhotosFace({
                 </em>
               </div>
               <div className="wb2-mosaic">
-                {day.entries.map(({ item, index }) => {
+                {day.entries.map(({ item }) => {
                   const ar =
                     item.width !== null && item.height !== null && item.height > 0
                       ? item.width / item.height
@@ -104,6 +113,25 @@ export function JobPhotosFace({
                   ]
                     .filter(Boolean)
                     .join(" — ");
+                  /* VIDEO SITS WITH THE PHOTOS — it is footage from the
+                     same visit, not paperwork. Its bytes stay in ServiceM8
+                     by charter, so the tile is a plate that says so rather
+                     than a door that lies. */
+                  if (item.kind === "video")
+                    return (
+                      <span
+                        key={item.remoteId}
+                        className="wb2-mtile video"
+                        style={shape}
+                        title={`${label} — the video stays in ServiceM8`}
+                      >
+                        <i className="wb2-mplay" aria-hidden>
+                          ▶
+                        </i>
+                        <u className="wb2-mvid">Video · in ServiceM8</u>
+                        {item.fromClaim && <u className="wb2-mfrom">{item.fromClaim}</u>}
+                      </span>
+                    );
                   return item.url ? (
                     <button
                       key={item.remoteId}
@@ -111,7 +139,7 @@ export function JobPhotosFace({
                       style={shape}
                       title={label}
                       aria-label={`Open ${item.name}`}
-                      onClick={() => onOpen(index)}
+                      onClick={() => onOpen(item.remoteId)}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.url} alt={item.name} loading="lazy" />

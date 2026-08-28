@@ -7025,8 +7025,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 }
 /* the white body the thumb fuses into. Its own top border IS the edge the
    thumb carries across the active tab's width. */
+/* The gutter is RESERVED, not reclaimed: without it the face measured 870px
+   on a short tab and 855px on a scrolling one, so every switch between them
+   nudged the content 15px sideways. (macOS overlay scrollbars reserve
+   nothing, so this is invisible there and plain on Windows.) */
 .wb2-jcbody { flex:1; background:#fff; border-top:1px solid var(--wb2-line);
-  border-radius:0 0 22px 22px; padding:18px 24px 24px; }
+  border-radius:0 0 22px 22px; padding:18px 24px 24px; scrollbar-gutter:stable; }
 .wb2-jcface { display:flex; flex-direction:column; gap:18px; }
 .wb2-jcface[hidden] { display:none; }
 /* THE FACES' OWN TYPE RAMP — two sizes, said once. The rows these faces
@@ -7339,6 +7343,14 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 .wb2-mmark { position:absolute; right:5px; top:5px; z-index:1; font-style:normal;
   font-size:10px; line-height:1; padding:3px 5px; border-radius:6px;
   background:rgba(10,12,20,.6); color:#fff; }
+/* a video tile — footage from the visit, sitting with the photos. Its bytes
+   stay in ServiceM8 by charter, so the plate SAYS so instead of pretending
+   to be a door. */
+.wb2-mtile.video { background:linear-gradient(160deg, #2b323c, #171b24); border-color:rgba(5,5,5,.14); }
+.wb2-mplay { font-style:normal; font-size:19px; color:rgba(255,255,255,.9); line-height:1; }
+.wb2-mvid { position:absolute; left:0; right:0; bottom:0; z-index:1; padding:5px 7px;
+  font-size:9.5px; font-weight:700; color:rgba(255,255,255,.82); text-align:center;
+  background:linear-gradient(180deg, transparent, rgba(8,10,16,.62)); }
 
 /* the claim badge on a document row was invoked as .wb2-chip.cat and never
    declared — it rendered as a plain grey chip */
@@ -7348,9 +7360,17 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
    Same portal as the sheet, same law as the claim modal. THE PAIR IS A
    WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking context:
    114/115 sits above the claim modal's 110/111 and under the toasts' 130. */
-.wb2-mvscrim { position:fixed; inset:0; z-index:114; background:rgba(8,10,16,.82); cursor:zoom-out; }
-.wb2-mv { position:fixed; inset:22px; z-index:115; display:flex; flex-direction:column;
-  border-radius:16px; overflow:hidden; background:#0d0e13; box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
+.wb2-mvscrim { position:fixed; inset:0; z-index:114; background:rgba(8,10,16,.62); cursor:zoom-out; }
+/* THE VIEWER WEARS THE CARD'S OWN FRAME (Isaac's call) — the same width and
+   top anchor as `.wb2-sheet.jc`, not the whole screen. A photo opened from
+   the card is still the card talking; swallowing the viewport made it feel
+   like a different surface, and lost the reader's place. */
+.wb2-mv { position:fixed; z-index:115; display:flex; flex-direction:column;
+  width:min(920px, calc(100vw - 40px));
+  inset:32px 0 auto; margin:0 auto;
+  height:min(760px, calc(100vh - 64px));
+  border-radius:22px; overflow:hidden; background:#0d0e13;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
 .wb2-mvtop { display:flex; align-items:center; gap:10px; padding:10px 14px;
   border-bottom:1px solid rgba(255,255,255,.08); min-height:44px; }
 .wb2-mvtop b { font-size:12.5px; font-weight:800; color:#fff; overflow:hidden;
@@ -7475,7 +7495,12 @@ a.wb2-doc:hover { background:rgba(0,168,224,.06); }
 a.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 /* a PDF's row is a BUTTON into the in-card viewer — same dress, UA face
    stripped by hand because the sheet portals outside .fg */
-button.wb2-doc { width:100%; border:0; background:none; font:inherit; text-align:left;
+/* NO `width:100%` here: `.wb2-doc` carries `margin:0 -6px` so the hover
+   bleeds past the face's padding, and a percentage width resolves against
+   the containing block WITHOUT the margins — the row then sat 12px short on
+   the right of its <a> and <span> siblings. `width:auto` on a block-level
+   flex container fills the line, margins included. */
+button.wb2-doc { width:auto; border:0; background:none; font:inherit; text-align:left;
   cursor:pointer; }
 button.wb2-doc:hover { background:rgba(0,168,224,.06); }
 button.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }

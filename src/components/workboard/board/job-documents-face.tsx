@@ -103,15 +103,15 @@ export function JobDocumentsFace({
   onOpen: (item: JobMediaItem) => void;
 }) {
   const docs = documents ?? [];
-  const rest = elsewhere ?? [];
-  const videos = rest.filter((f) => f.kind === "video");
-  const unshowable = rest.length - videos.length;
+  /* Video went where it belongs — the Photos face, with the rest of what
+     was shot on site. What is left here is genuinely unshowable. */
+  const unshowable = (elsewhere ?? []).length;
   const byGroup = new Map<string, JobMediaItem[]>();
   for (const d of docs) {
     const g = documentGroupOf(d);
     byGroup.set(g, [...(byGroup.get(g) ?? []), d]);
   }
-  const total = docs.length + videos.length + designs.length;
+  const total = docs.length + designs.length;
 
   return (
     <div className="wb2-jcdoc">
@@ -165,33 +165,6 @@ export function JobDocumentsFace({
           </div>
         );
       })}
-
-      {videos.length > 0 && (
-        <div className="wb2-jcsec">
-          <span className="wb2-sect">{`Video — ${videos.length}`}</span>
-          {videos.map((v) => (
-            <span className="wb2-doc" key={v.remoteId}>
-              <span className="wb2-doc-ic">
-                <Icon name="file" size={15} />
-              </span>
-              <span className="wb2-doc-b">
-                <b>{v.name}</b>
-                <em>
-                  {[
-                    v.takenAt ? fmtAuWeekdayDayMonth(v.takenAt.slice(0, 10)) : null,
-                    v.fromClaim && !v.name.includes(`#${v.fromClaim}`)
-                      ? `on invoice #${v.fromClaim}`
-                      : null,
-                    "Stays in ServiceM8",
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </em>
-              </span>
-            </span>
-          ))}
-        </div>
-      )}
 
       {total === 0 && (
         <p className="int-hint">

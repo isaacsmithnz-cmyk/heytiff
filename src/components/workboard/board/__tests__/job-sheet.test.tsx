@@ -740,7 +740,7 @@ describe("the Visits face", () => {
     await openTab("Visits");
 
     const f = face("visits");
-    expect(f.getByText("Visits — 2 · 18h 30m on site")).toBeInTheDocument();
+    expect(f.getByText("2 visits · 18h 30m on site")).toBeInTheDocument();
     expect(f.getByText("Fri 14 Aug")).toBeInTheDocument();
     expect(f.getByText("Callum Vrieze, Alex Lorenz")).toBeInTheDocument();
     expect(f.getByText("10h 20m")).toBeInTheDocument();
@@ -1989,12 +1989,15 @@ describe("files on the job", () => {
     expect(tile.getAttribute("title")).toBe("IMG_4021.jpg — emailed in");
   });
 
-  it("counts what stays in ServiceM8 instead of pretending it isn't there", async () => {
+  it("puts a video with the photos, as a plate that says where it lives", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
+      /* the SERVER groups video into the photo lens now — the fixture says
+         what readJobMediaGroups would actually send */
       files({
-        photos: [file({ remoteId: "p-1" }), file({ remoteId: "p-2" })],
-        elsewhere: [
+        photos: [
+          file({ remoteId: "p-1", url: "https://signed/p-1.jpg" }),
+          file({ remoteId: "p-2", name: "IMG_4022.jpg" }),
           file({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4", kind: "video" }),
         ],
       })
@@ -2002,15 +2005,27 @@ describe("files on the job", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
+
+    /* VIDEO IS FOOTAGE, NOT PAPERWORK — it sits in the photo lens and is
+       counted beside the stills; its bytes stay in ServiceM8 by charter, so
+       the tile is a plate that says so, never a door that lies. */
     await waitFor(() =>
-      expect(face("photos").getByText("2 photos across 1 day")).toBeInTheDocument()
+      expect(face("photos").getByText("2 photos and 1 video")).toBeInTheDocument()
     );
+    const tile = document.querySelector("#jcsec-photos .wb2-mtile.video") as HTMLElement;
+    expect(tile).not.toBeNull();
+    expect(within(tile).getByText("Video · in ServiceM8")).toBeInTheDocument();
+    expect(tile.tagName).not.toBe("BUTTON");
+
+    /* AND IT IS NOT A STOP ON THE ARROW KEYS: two stills and a video read
+       "1 / 2", never "1 / 3" — a viewer that could land on the video would
+       promise a file that is never coming. */
+    await userEvent.click(face("photos").getAllByAltText("IMG_4021.jpg")[0].closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
+    expect(within(dialog).getByText("1 / 2")).toBeInTheDocument();
 
     await openTab("Documents");
-    /* a video is a NAMED ROW now, not an anonymous count — and it says
-       honestly that its bytes stay put */
-    const video = face("documents").getByText("walkthrough.mp4").closest(".wb2-doc")!;
-    expect(within(video as HTMLElement).getByText(/Stays in ServiceM8/)).toBeInTheDocument();
+    expect(face("documents").queryByText("walkthrough.mp4")).toBeNull();
   });
 });
 

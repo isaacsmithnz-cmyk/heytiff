@@ -35,7 +35,7 @@ export function groupPhotoDays(photos: readonly JobMediaItem[]): DayGroup[] {
   return groups;
 }
 
-const BASE = 150; // px of flex-basis per unit of aspect ratio
+const BASE = 120; // px of flex-basis per unit of aspect ratio
 
 export function JobPhotosFace({
   photos,

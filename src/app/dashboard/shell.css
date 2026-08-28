@@ -7313,6 +7313,65 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
 .wb2-mtile img { width:100%; height:100%; object-fit:cover; display:block; }
 /* a photo we know about but haven't fetched — says so rather than breaking */
 .wb2-mtile.pending { color:var(--gray400); }
+/* a tile is a BUTTON now (it opens the viewer), so the UA face goes — the
+   sheet portals outside .fg, no house reset reaches it */
+button.wb2-mtile { padding:0; cursor:zoom-in; }
+button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.4); }
+
+/* ── the photos face: day-grouped justified mosaic ─────────────────────
+   Tiles carry aspect-ratio + flex-grow + flex-basis inline (all three
+   proportional to the photo's own ratio), so each row shares its width the
+   way the photos deserve; the trailing spacer stops the last row
+   stretching. */
+.wb2-mday { display:flex; align-items:baseline; gap:9px; margin:2px 0 7px; }
+.wb2-mday b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
+.wb2-mday em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500); }
+.wb2-mosaic { display:flex; flex-wrap:wrap; gap:5px; }
+.wb2-mosaic .wb2-mtile { min-width:64px; max-height:280px; }
+.wb2-mosaic .wb2-mspace { flex:10 1 0; min-width:0; }
+/* the marked-up badge — the photo somebody drew on is usually the one worth
+   finding, so it says so on the tile, not in a tooltip */
+.wb2-mmark { position:absolute; right:5px; top:5px; z-index:1; font-style:normal;
+  font-size:10px; line-height:1; padding:3px 5px; border-radius:6px;
+  background:rgba(10,12,20,.6); color:#fff; }
+
+/* the claim badge on a document row was invoked as .wb2-chip.cat and never
+   declared — it rendered as a plain grey chip */
+.wb2-chip.cat { background:rgba(122,90,248,.12); color:#5b3fd0; }
+
+/* ── the shared media viewer ───────────────────────────────────────────
+   Same portal as the sheet, same law as the claim modal. THE PAIR IS A
+   WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking context:
+   114/115 sits above the claim modal's 110/111 and under the toasts' 130. */
+.wb2-mvscrim { position:fixed; inset:0; z-index:114; background:rgba(8,10,16,.82); cursor:zoom-out; }
+.wb2-mv { position:fixed; inset:22px; z-index:115; display:flex; flex-direction:column;
+  border-radius:16px; overflow:hidden; background:#0d0e13; box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
+.wb2-mvtop { display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08); min-height:44px; }
+.wb2-mvtop b { font-size:12.5px; font-weight:800; color:#fff; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.wb2-mvtop em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.55); white-space:nowrap; }
+.wb2-mvtop .wb2-chip { background:rgba(255,255,255,.1); color:rgba(255,255,255,.8); }
+.wb2-mvsp { flex:1; }
+.wb2-mvcount { font-variant-numeric:tabular-nums; }
+.wb2-mvtop .wb2-ico { background:rgba(255,255,255,.08); color:#fff; }
+.wb2-mvtop .wb2-ico:hover { background:rgba(255,255,255,.16); }
+.wb2-mvstage { position:relative; flex:1; min-height:0; display:grid; place-items:center;
+  overflow:hidden; }
+.wb2-mvstage img { max-width:calc(100% - 16px); max-height:calc(100% - 16px);
+  border-radius:6px; user-select:none; }
+.wb2-mvstage.zoomed { overflow:auto; place-items:start; cursor:grab; }
+.wb2-mvstage.zoomed:active { cursor:grabbing; }
+.wb2-mvstage.zoomed img { border-radius:0; margin:auto; }
+.wb2-mvframe { width:100%; height:100%; border:0; background:#fff; }
+.wb2-mvpending { font-size:13px; font-weight:600; color:rgba(255,255,255,.55); max-width:36ch; text-align:center; }
+.wb2-mvnav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px;
+  border:0; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:20px;
+  line-height:1; cursor:pointer; display:grid; place-items:center; }
+.wb2-mvnav:hover { background:rgba(255,255,255,.26); }
+.wb2-mvnav:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.5); }
+.wb2-mvnav.prev { left:12px; }
+.wb2-mvnav.next { right:12px; }
 .wb2-shsect > .wb2-shtext > .wb2-chip { margin-left:7px; vertical-align:middle; }
 .wb2-ckrow { display:flex; align-items:center; gap:9px; padding:8px 2px; min-width:0;
   border-top:1px solid var(--wb2-line2); }
@@ -7400,6 +7459,13 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
 .wb2-doc:first-of-type { border-top:0; }
 a.wb2-doc:hover { background:rgba(0,168,224,.06); }
 a.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* a PDF's row is a BUTTON into the in-card viewer — same dress, UA face
+   stripped by hand because the sheet portals outside .fg */
+button.wb2-doc { width:100%; border:0; background:none; font:inherit; text-align:left;
+  cursor:pointer; }
+button.wb2-doc:hover { background:rgba(0,168,224,.06); }
+button.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+button.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }
 .wb2-doc-ic { display:flex; align-items:center; justify-content:center; flex:none;
   width:30px; height:30px; border-radius:9px; background:rgba(5,5,5,.045); color:var(--gray500); }
 a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }

@@ -1881,7 +1881,7 @@ describe("files on the job", () => {
     expect(await screen.findByText("No photos on this job.")).toBeInTheDocument();
   });
 
-  it("shows a cached photo as a real image, linked to the full size", async () => {
+  it("shows a cached photo as a real image, opening the viewer in the card", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
@@ -1893,7 +1893,16 @@ describe("files on the job", () => {
     /* scoped: the Diary clusters the same photo, so the alt exists twice */
     const img = (await face("photos").findByAltText("IMG_4021.jpg")) as HTMLImageElement;
     expect(img.getAttribute("src")).toBe("https://signed/p-1.jpg");
-    expect(img.closest("a")!.getAttribute("href")).toBe("https://signed/p-1.jpg");
+    /* the tile is a BUTTON into the shared viewer now — a raw storage URL
+       in a new tab loses the job */
+    await userEvent.click(img.closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
+    expect(within(dialog).getByAltText("IMG_4021.jpg")).toBeInTheDocument();
+
+    /* Escape closes the viewer, not the card — innermost first */
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "IMG_4021.jpg" })).toBeNull();
+    expect(face("photos").getByAltText("IMG_4021.jpg")).toBeInTheDocument();
   });
 
   it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {
@@ -1904,11 +1913,12 @@ describe("files on the job", () => {
     await openTab("Photos");
 
     await waitFor(() => expect(face("photos").getByText("1 photo")).toBeInTheDocument());
+    /* an uncached tile is not a door */
     expect(screen.queryByAltText("IMG_4021.jpg")).toBeNull();
     expect(document.querySelector(".wb2-mtile.pending")).not.toBeNull();
   });
 
-  it("names the paperwork and links it once it's cached", async () => {
+  it("names the paperwork and opens it in the card once cached", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
@@ -1928,14 +1938,19 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    const name = await screen.findByText("Invoice #3137.pdf");
-    expect(name.closest("a")!.getAttribute("href")).toBe("https://signed/d-1.pdf");
+    /* an Invoice-sourced PDF files under Money — grouped by what it IS */
+    const moneySec = (await screen.findByText("Money — 1")).closest(".wb2-jcsec")!;
+    const link = within(moneySec as HTMLElement).getByText("Invoice #3137.pdf");
     /* the name already says "Invoice", so the row does NOT say it again —
-       the origin only shows where it adds something (the emailed-in test) */
-    expect(screen.queryByText("Invoice")).toBeNull();
+       #559's meta law survives the grouping */
+    expect(within(moneySec as HTMLElement).queryByText("Invoice")).toBeNull();
+    /* a PDF opens IN the card — the shared viewer's iframe, not a new tab */
+    await userEvent.click(link);
+    const dialog = await screen.findByRole("dialog", { name: "Invoice #3137.pdf" });
+    expect(dialog.querySelector("iframe")!.getAttribute("src")).toBe("https://signed/d-1.pdf");
   });
 
-  it("chips a document that arrived by email, not just the paperwork", async () => {
+  it("files a document that arrived by email under From the client", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
@@ -1955,8 +1970,8 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    await screen.findByText("Site induction.pdf");
-    expect(screen.getByText("Emailed in")).toBeInTheDocument();
+    const sec = (await screen.findByText("From the client — 1")).closest(".wb2-jcsec")!;
+    expect(within(sec as HTMLElement).getByText("Site induction.pdf")).toBeInTheDocument();
   });
 
   it("puts a photo's origin in its tooltip, where the name already is", async () => {
@@ -1969,6 +1984,7 @@ describe("files on the job", () => {
     await openTab("Photos");
 
     await waitFor(() => expect(face("photos").getByText("1 photo")).toBeInTheDocument());
+    /* an uncached tile is not a door */
     const tile = document.querySelector(".wb2-mtile") as HTMLElement;
     expect(tile.getAttribute("title")).toBe("IMG_4021.jpg — emailed in");
   });
@@ -1986,10 +2002,15 @@ describe("files on the job", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Photos");
-    await waitFor(() => expect(face("photos").getByText("2 photos")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(face("photos").getByText("2 photos across 1 day")).toBeInTheDocument()
+    );
 
     await openTab("Documents");
-    expect(face("documents").getByText(/1 file stays in ServiceM8/)).toBeInTheDocument();
+    /* a video is a NAMED ROW now, not an anonymous count — and it says
+       honestly that its bytes stay put */
+    const video = face("documents").getByText("walkthrough.mp4").closest(".wb2-doc")!;
+    expect(within(video as HTMLElement).getByText(/Stays in ServiceM8/)).toBeInTheDocument();
   });
 });
 

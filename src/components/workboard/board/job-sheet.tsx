@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
@@ -38,9 +37,11 @@ import {
   type JobPicklistItem,
 } from "@/app/actions/job-picklist";
 import { JobChecklistFace } from "./job-checklist-face";
+import { JobPhotosFace } from "./job-photos-face";
+import { JobDocumentsFace } from "./job-documents-face";
+import { JobMediaViewer } from "./job-media-viewer";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
-import { JOB_MEDIA_CAP } from "@/lib/workboard/job-media";
 import {
   fmtMinutesAsHours,
   sm8Tone,
@@ -100,22 +101,6 @@ type TabKey =
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
-/** When a design was last touched. `studio_designs.updated_at` is a real
-    timestamptz — a genuine instant, unlike every ServiceM8 stamp on this
-    sheet — so it is PARSED and shown in the reader's own zone.
-
-    Absolute, not "2 days ago": a relative label needs the clock at render
-    time, and `Date.now()` in a render body breaks hydration for the whole
-    tree. */
-const editedOn = (iso: string): string => {
-  const d = new Date(iso);
-  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
-  // through the sheet's own formatter, so this date wears the same shape as
-  // every other one beside it ("Fri 14 Aug", not en-AU's "Fri, 14 Aug")
-  return fmtAuWeekdayDayMonth(local);
-};
 
 /** "7:30am" from a naive local string, by slicing — never by parsing a wall
     clock into a Date, which would shift it by the browser's offset. */
@@ -218,6 +203,11 @@ export function JobSheet({
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /* The shared viewer: a photo (by its place in the photos lens) or one
+     PDF's paper. Closing it lands the reader exactly where they were. */
+  const [viewer, setViewer] = useState<
+    { kind: "photos"; index: number } | { kind: "paper"; id: string } | null
+  >(null);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
   const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
@@ -247,6 +237,10 @@ export function JobSheet({
       if (e.key !== "Escape") return;
       /* INNERMOST FIRST. Closing the whole card out from under an open claim
          is the classic nested-dismiss bug. */
+      if (viewer) {
+        setViewer(null);
+        return;
+      }
       if (openClaim) {
         setOpenClaim(null);
         return;
@@ -263,7 +257,7 @@ export function JobSheet({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim, menuOpen]);
+  }, [onClose, numbersOpen, openClaim, menuOpen, viewer]);
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -962,179 +956,26 @@ export function JobSheet({
 
           {panel(
             "photos",
-            <>
-              {media && media.photos.length > 0 ? (
-                <>
-                  <span className="wb2-sect">
-                    {media.photos.length === 1 ? "1 photo" : `${media.photos.length} photos`}
-                  </span>
-                  <div className="wb2-mgrid">
-                    {media.photos.map((p) =>
-                      p.url ? (
-                        <a
-                          key={p.remoteId}
-                          className="wb2-mtile"
-                          href={p.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          /* A grid tile has no room for a chip, so the origin
-                             rides in the tooltip, where the name already is. */
-                          title={[
-                            p.name,
-                            p.origin ? p.origin.toLowerCase() : null,
-                            p.fromClaim ? `filed against invoice #${p.fromClaim}` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" — ")}
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={p.url} alt={p.name} loading="lazy" />
-                          {/* WHERE IT CAME FROM — a photo filed against a
-                              progress invoice wears the claim's number. */}
-                          {p.fromClaim && <u className="wb2-mfrom">{p.fromClaim}</u>}
-                        </a>
-                      ) : (
-                        /* Not cached yet. A tile that says so beats a broken
-                           image, and beats hiding a photo that exists. */
-                        <span
-                          key={p.remoteId}
-                          className="wb2-mtile pending"
-                          title={p.origin ? `${p.name} — ${p.origin.toLowerCase()}` : p.name}
-                        >
-                          <Icon name="cam" size={16} />
-                        </span>
-                      )
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="int-hint">
-                  {media === null ? "Reading the files…" : "No photos on this job."}
-                </p>
-              )}
-              {mediaNote && <p className="int-hint">{mediaNote}</p>}
-              {media?.truncated && (
-                <p className="int-hint">
-                  Showing the newest {JOB_MEDIA_CAP} files — this job has more in ServiceM8.
-                </p>
-              )}
-            </>
+            <JobPhotosFace
+              photos={media ? media.photos : null}
+              loading={media === null}
+              truncated={!!media?.truncated}
+              mediaNote={mediaNote}
+              visits={detail?.visits ?? []}
+              onOpen={(index) => setViewer({ kind: "photos", index })}
+            />
           )}
 
           {panel(
             "documents",
-            <>
-              {/* The other end of the studio's job link — the job's drawings.
-                  Absent for a reader without `studio` (the action doesn't
-                  fetch it) and absent when nobody has designed this job. */}
-              {detail && detail.designs.length > 0 && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    {detail.designs.length === 1
-                      ? "Drawings — designed in the Studio"
-                      : `Drawings — ${detail.designs.length} Studio options`}
-                  </span>
-                  {detail.designs.map((d) => (
-                    <Link
-                      key={d.id}
-                      className="wb2-dsgn"
-                      href={`/dashboard/studio?design=${encodeURIComponent(d.id)}`}
-                    >
-                      <span className="wb2-dsgn-ic">
-                        <Icon name={d.mode === "plan" ? "file" : "square"} size={15} />
-                      </span>
-                      <span className="wb2-dsgn-b">
-                        <b>{d.name}</b>
-                        <em>
-                          {`${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"} · ` +
-                            `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"} · ` +
-                            `edited ${editedOn(d.updatedAt)}`}
-                        </em>
-                      </span>
-                      {/* its own wrapper because <Icon> renders <span><svg/></span> */}
-                      <span className="wb2-dsgn-go">
-                        <Icon name="chevR" size={15} />
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              {media && media.documents.length > 0 ? (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    {media.documents.length === 1
-                      ? "1 document"
-                      : `${media.documents.length} documents`}
-                  </span>
-                  {media.documents.map((d) => {
-                    /* One dress for every document — the same row the design
-                       list wears, never a blue link beside a bold paragraph.
-                       The meta says only what the NAME doesn't already:
-                       "Diamond Air Solutions Invoice #2380B" wearing an
-                       "Invoice" chip and a "#2380B" chip said everything
-                       twice. */
-                    const meta = [
-                      d.origin && !d.name.toLowerCase().includes(d.origin.toLowerCase())
-                        ? d.origin
-                        : null,
-                      d.fromClaim && !d.name.includes(`#${d.fromClaim}`)
-                        ? `on invoice #${d.fromClaim}`
-                        : null,
-                      !d.url ? "not brought across yet" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ");
-                    const inner = (
-                      <>
-                        <span className="wb2-doc-ic">
-                          <Icon name="file" size={15} />
-                        </span>
-                        <span className="wb2-doc-b">
-                          <b>{d.name}</b>
-                          {meta && <em>{meta}</em>}
-                        </span>
-                        {d.url && (
-                          <span className="wb2-doc-go">
-                            <Icon name="chevR" size={15} />
-                          </span>
-                        )}
-                      </>
-                    );
-                    return d.url ? (
-                      <a
-                        key={d.remoteId}
-                        className="wb2-doc"
-                        href={d.url}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {inner}
-                      </a>
-                    ) : (
-                      <span key={d.remoteId} className="wb2-doc">
-                        {inner}
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                (!detail || detail.designs.length === 0) && (
-                  <p className="int-hint">
-                    {media === null ? "Reading the files…" : "No documents on this job."}
-                  </p>
-                )
-              )}
-
-              {media && media.elsewhere.length > 0 && (
-                <p className="int-hint">
-                  {media.elsewhere.length === 1
-                    ? "1 file stays in ServiceM8"
-                    : `${media.elsewhere.length} files stay in ServiceM8`}{" "}
-                  — video and file types this screen can&apos;t show.
-                </p>
-              )}
-            </>
+            <JobDocumentsFace
+              documents={media ? media.documents : null}
+              elsewhere={media ? media.elsewhere : null}
+              designs={detail?.designs ?? []}
+              loading={media === null}
+              truncated={!!media?.truncated}
+              onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+            />
           )}
 
           {/* No Actions face. The once-per-job acts live behind the band's
@@ -1180,6 +1021,24 @@ export function JobSheet({
           claim={openClaimRow}
           parentNumber={cardNumber}
           onClose={() => setOpenClaim(null)}
+        />
+      )}
+
+      {/* The shared viewer — same portal, same law as the claim modal. */}
+      {viewer && media && (
+        <JobMediaViewer
+          items={
+            viewer.kind === "photos"
+              ? media.photos
+              : media.documents.filter((d) => d.remoteId === viewer.id)
+          }
+          index={
+            viewer.kind === "photos"
+              ? Math.min(viewer.index, Math.max(0, media.photos.length - 1))
+              : 0
+          }
+          onNav={(i) => setViewer(viewer.kind === "photos" ? { kind: "photos", index: i } : viewer)}
+          onClose={() => setViewer(null)}
         />
       )}
     </>,

@@ -4,6 +4,8 @@ import { Topbar } from "../topbar";
 import { CommandPaletteProvider } from "../command-palette-context";
 import type { ShellUser } from "../sidebar";
 import { actionRequiredItems } from "@/app/actions/action-required";
+import { acknowledgeTask, myNewAssignments } from "@/app/actions/assignments";
+import type { NewAssignment } from "@/lib/dashboard/assignments";
 import { myDueReminders, snoozeReminder } from "@/app/actions/reminders";
 import { completeTask } from "@/app/actions/dashboard";
 import type { ActionChip } from "@/lib/dashboard/chips";
@@ -40,10 +42,16 @@ jest.mock("@/app/actions/reminders", () => ({
   myDueReminders: jest.fn(async () => []),
   snoozeReminder: jest.fn(async () => ({ ok: true })),
 }));
+jest.mock("@/app/actions/assignments", () => ({
+  myNewAssignments: jest.fn(async () => []),
+  acknowledgeTask: jest.fn(async () => ({ ok: true })),
+}));
 jest.mock("@/app/actions/dashboard", () => ({ completeTask: jest.fn(async () => ({ ok: true })) }));
 
 const itemsMock = actionRequiredItems as jest.MockedFunction<typeof actionRequiredItems>;
 const remsMock = myDueReminders as jest.MockedFunction<typeof myDueReminders>;
+const givenMock = myNewAssignments as jest.MockedFunction<typeof myNewAssignments>;
+const ackMock = acknowledgeTask as jest.MockedFunction<typeof acknowledgeTask>;
 const snoozeMock = snoozeReminder as jest.MockedFunction<typeof snoozeReminder>;
 const doneMock = completeTask as jest.MockedFunction<typeof completeTask>;
 
@@ -81,6 +89,19 @@ const bell = () => document.querySelector(".bell") as HTMLElement;
 const panel = () => document.querySelector(".bell-panel") as HTMLElement | null;
 const rows = () => Array.from(document.querySelectorAll(".bp-row")) as HTMLAnchorElement[];
 const remRows = () => Array.from(document.querySelectorAll(".bp-rem")) as HTMLElement[];
+const groupOf = (title: string): HTMLElement | null =>
+  remRows().find((r) => r.textContent?.includes(title))?.parentElement ?? null;
+
+/** One task somebody gave you, as the bell receives it. */
+const assigned = (n: number, over: Partial<NewAssignment> = {}): NewAssignment => ({
+  taskId: `a${n}`,
+  title: `Order the return air box ${n}`,
+  detail: null,
+  fromName: "Luke Ingold",
+  dueDate: "2026-09-04",
+  createdAt: new Date(Date.now() - 20 * 60_000).toISOString(),
+  ...over,
+});
 
 /** One due reminder, as the bell receives it. */
 const reminder = (n: number, over: Partial<DueReminder> = {}): DueReminder => ({
@@ -105,6 +126,10 @@ beforeEach(() => {
   snoozeMock.mockResolvedValue({ ok: true });
   doneMock.mockReset();
   doneMock.mockResolvedValue({ ok: true });
+  givenMock.mockReset();
+  givenMock.mockResolvedValue([]);
+  ackMock.mockReset();
+  ackMock.mockResolvedValue({ ok: true });
 });
 
 describe("the Tiff button", () => {
@@ -446,6 +471,124 @@ describe("reminders in the bell", () => {
   it("does not claim an all-clear while a reminder is showing", async () => {
     itemsMock.mockResolvedValue([]);
     remsMock.mockResolvedValue([reminder(1)]);
+    await openPanel();
+    expect(document.querySelector(".bp-empty")).toBeNull();
+  });
+});
+
+describe("work somebody gave you", () => {
+  const openPanel = async () => {
+    draw();
+    await act(async () => {});
+    await act(async () => {
+      bell().click();
+    });
+  };
+
+  it("rings the moment it exists, with no time on it at all", async () => {
+    /* Isaac's rule: being given a task alerts you, time or no time. Before
+       this the bell rang only `remind_at <= now`, so a plain task sat
+       silently on the Tasks panel until somebody happened to look. */
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([]);
+    givenMock.mockResolvedValue([assigned(1, { dueDate: null })]);
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")?.textContent).toBe("1"));
+  });
+
+  it("counts toward the one badge, beside the reminders and the expiries", async () => {
+    itemsMock.mockResolvedValue(chips(2));
+    remsMock.mockResolvedValue([reminder(1)]);
+    givenMock.mockResolvedValue([assigned(1), assigned(2)]);
+    draw();
+    await waitFor(() => expect(bell().querySelector(".d")?.textContent).toBe("5"));
+  });
+
+  it("says who gave it to you and when it is wanted", async () => {
+    itemsMock.mockResolvedValue([]);
+    givenMock.mockResolvedValue([assigned(1)]);
+    await openPanel();
+    const row = remRows()[0];
+    expect(row.textContent).toContain("Order the return air box 1");
+    expect(row.querySelector(".bp-main em")?.textContent).toBe("From Luke Ingold · Due Fri 4 Sept");
+  });
+
+  it("still rings when nobody can be named, and draws no second line at all", async () => {
+    /* "Assigned to you" under a heading that says "Somebody gave you this"
+       is the same sentence twice. */
+    itemsMock.mockResolvedValue([]);
+    givenMock.mockResolvedValue([assigned(1, { fromName: null, dueDate: null })]);
+    await openPanel();
+    expect(remRows()).toHaveLength(1);
+    expect(remRows()[0].querySelector(".bp-main em")).toBeNull();
+  });
+
+  it("sits UNDER the reminders — due now beats news", async () => {
+    /* A reminder is due by definition; an assignment might be for next week,
+       and a piece of news that isn't urgent must not push a thing that is
+       off the top of the list. */
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1)]);
+    givenMock.mockResolvedValue([assigned(1)]);
+    await openPanel();
+
+    const rem = remRows().find((r) => r.textContent?.includes("Check with Luke"))!;
+    const give = remRows().find((r) => r.textContent?.includes("return air box"))!;
+    expect(
+      rem.compareDocumentPosition(give) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(groupOf("return air box")?.querySelector(".bp-grp")?.textContent).toBe(
+      "Somebody gave you this",
+    );
+  });
+
+  it("shows a task ONCE when it is both news and a due reminder", async () => {
+    /* Somebody gave it to you this morning and set a nudge for lunchtime.
+       One job, one row, and a badge that says one. */
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([reminder(1)]);
+    givenMock.mockResolvedValue([assigned(1, { taskId: "t1" })]);
+    await openPanel();
+    expect(remRows()).toHaveLength(1);
+    expect(bell().querySelector(".d")?.textContent).toBe("1");
+  });
+
+  it("acknowledges without finishing — the bell clears, the task stays", async () => {
+    itemsMock.mockResolvedValue([]);
+    givenMock.mockResolvedValue([assigned(1), assigned(2)]);
+    await openPanel();
+
+    const gotIt = remRows()[0].querySelector(".bp-remsnz") as HTMLButtonElement;
+    expect(gotIt.getAttribute("aria-label")).toBe("Got it — Order the return air box 1");
+
+    givenMock.mockResolvedValue([assigned(2)]);
+    await act(async () => {
+      gotIt.click();
+    });
+
+    expect(ackMock).toHaveBeenCalledWith("a1");
+    /* Acknowledging is NOT doing — nothing was completed. */
+    expect(doneMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(remRows()).toHaveLength(1));
+  });
+
+  it("can also just be finished from the bell", async () => {
+    itemsMock.mockResolvedValue([]);
+    givenMock.mockResolvedValue([assigned(1)]);
+    await openPanel();
+
+    givenMock.mockResolvedValue([]);
+    await act(async () => {
+      (remRows()[0].querySelector(".bp-remdo") as HTMLButtonElement).click();
+    });
+    expect(doneMock).toHaveBeenCalledWith("a1");
+    expect(ackMock).not.toHaveBeenCalled();
+  });
+
+  it("does not claim an all-clear while somebody is waiting on you", async () => {
+    itemsMock.mockResolvedValue([]);
+    remsMock.mockResolvedValue([]);
+    givenMock.mockResolvedValue([assigned(1)]);
     await openPanel();
     expect(document.querySelector(".bp-empty")).toBeNull();
   });

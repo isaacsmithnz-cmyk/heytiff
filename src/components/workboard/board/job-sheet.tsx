@@ -217,8 +217,9 @@ export function JobSheet({
   /* Which claim's modal is open, and whether the number's list is showing. */
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
-  /* The stored paragraph, then the fresh one when a refresh lands. */
-  const [summary, setSummary] = useState<JobSummaryRead | null>(null);
+  /* Only a REFRESHED paragraph lives in state; the stored one rides the
+     record read, so "fresh ?? stored" needs no state mirroring. */
+  const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
   const [name, setName] = useState("");
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -362,11 +363,7 @@ export function JobSheet({
     };
   }, [cardId]);
 
-  /* The stored paragraph arrives with the record. */
-  useEffect(() => {
-    if (record) setSummary(record.summary);
-  }, [record]);
-
+  const summary = freshSummary ?? record?.summary ?? null;
   const money = moneyVisible ? (detail?.money ?? null) : null;
   const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
   const family = record?.family ?? null;
@@ -431,7 +428,7 @@ export function JobSheet({
     })
       .then((r) => r.json())
       .then((res: { ok?: boolean; summary?: JobSummaryRead | null }) => {
-        if (alive.current && res?.ok && res.summary) setSummary(res.summary);
+        if (alive.current && res?.ok && res.summary) setFreshSummary(res.summary);
       })
       .catch(() => {
         /* a summary that won't refresh keeps its stored words */

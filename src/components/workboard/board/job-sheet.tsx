@@ -792,7 +792,7 @@ export function JobSheet({
                       : ""}
                   </span>
                   {(allVisits ? detail.visits : detail.visits.slice(0, VISITS_SHOWN)).map((v) => (
-                    <div className="wb2-mline" key={v.day}>
+                    <div className="wb2-mline visit" key={v.day}>
                       <b>{fmtAuWeekdayDayMonth(v.day)}</b>
                       <em>{v.crew.join(", ") || "Nobody named"}</em>
                       <span>{fmtMinutesAsHours(v.minutes)}</span>
@@ -829,7 +829,13 @@ export function JobSheet({
                   </span>
                   {groupChecklist(detail.checklist).map((group, gi) => (
                     <div key={`${group.section ?? "-"}-${gi}`} className="wb2-ckgroup">
-                      {group.section && <span className="wb2-sect wb2-cksec">{group.section}</span>}
+                      {/* ServiceM8's default section is literally named
+                          "Checklist", and under the eyebrow that already says
+                          so it read as a stutter — a REAL section name
+                          ("Rough-in") still shows. */}
+                      {group.section && group.section.trim().toLowerCase() !== "checklist" && (
+                        <span className="wb2-sect wb2-cksec">{group.section}</span>
+                      )}
                       {group.items.map((item, i) => (
                         <div
                           key={`${item.name}-${i}`}
@@ -1034,19 +1040,56 @@ export function JobSheet({
                       ? "1 document"
                       : `${media.documents.length} documents`}
                   </span>
-                  {media.documents.map((d) => (
-                    <p className="wb2-shtext" key={d.remoteId}>
-                      {d.url ? (
-                        <a className="wb2-colink" href={d.url} target="_blank" rel="noreferrer">
-                          {d.name}
-                        </a>
-                      ) : (
-                        <b>{d.name}</b>
-                      )}
-                      {d.origin ? <i className="wb2-chip">{d.origin}</i> : null}
-                      {d.fromClaim ? <i className="wb2-chip cat">{`#${d.fromClaim}`}</i> : null}
-                    </p>
-                  ))}
+                  {media.documents.map((d) => {
+                    /* One dress for every document — the same row the design
+                       list wears, never a blue link beside a bold paragraph.
+                       The meta says only what the NAME doesn't already:
+                       "Diamond Air Solutions Invoice #2380B" wearing an
+                       "Invoice" chip and a "#2380B" chip said everything
+                       twice. */
+                    const meta = [
+                      d.origin && !d.name.toLowerCase().includes(d.origin.toLowerCase())
+                        ? d.origin
+                        : null,
+                      d.fromClaim && !d.name.includes(`#${d.fromClaim}`)
+                        ? `on invoice #${d.fromClaim}`
+                        : null,
+                      !d.url ? "not brought across yet" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ");
+                    const inner = (
+                      <>
+                        <span className="wb2-doc-ic">
+                          <Icon name="file" size={15} />
+                        </span>
+                        <span className="wb2-doc-b">
+                          <b>{d.name}</b>
+                          {meta && <em>{meta}</em>}
+                        </span>
+                        {d.url && (
+                          <span className="wb2-doc-go">
+                            <Icon name="chevR" size={15} />
+                          </span>
+                        )}
+                      </>
+                    );
+                    return d.url ? (
+                      <a
+                        key={d.remoteId}
+                        className="wb2-doc"
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {inner}
+                      </a>
+                    ) : (
+                      <span key={d.remoteId} className="wb2-doc">
+                        {inner}
+                      </span>
+                    );
+                  })}
                 </div>
               ) : (
                 (!detail || detail.designs.length === 0) && (

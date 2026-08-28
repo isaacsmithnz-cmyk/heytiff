@@ -6961,22 +6961,37 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
    fallbacks, because ServiceM8's palette makes no contrast promise: the
    colour is atmosphere, never the ground text has to survive on. The 3px
    crown is the same var. A job with no category simply sets nothing. */
-/* ONE FIXED FRAME, EIGHT FACES. The base sheet is height:max-content and
-   CENTRED, which was fine when its height only changed as data landed —
-   but a tab press must never move the tab row that was just pressed, and a
-   short face (Checklist, Actions) re-centring the card did exactly that:
-   the cursor's next click landed on the scrim and closed it. Walked, not
-   theorised. So the tabbed card holds one height and the faces scroll
-   inside it. */
-.wb2-sheet.jc { display:flex; flex-direction:column; padding:0; gap:0;
-  height:min(820px, calc(100vh - 40px)); overflow:hidden; }
+/* TOP-ANCHORED, EIGHT FACES. A tab press must never move the tab row that
+   was just pressed — the walked defect was the CENTRED max-content card
+   re-centring on a short face, so the cursor's next click hit the scrim.
+   The first fix froze the whole frame at 820px, which buried a two-button
+   face in a sea of white; anchoring the TOP instead keeps the band and its
+   tabs bolted in place while the card's bottom edge hugs the face. Only
+   the base sheet centres; `.jc` pins top:32px and lets height follow.
+
+   `align-items:stretch` is LOAD-BEARING: the base sheet says
+   `align-items:start` for its two-column grid, and in this flex COLUMN
+   that same word makes every child shrink to its content's width — the
+   walked catastrophe where the body measured 320px inside a 1040px card
+   and every face crammed into the left edge. */
+.wb2-sheet.jc { display:flex; flex-direction:column; align-items:stretch; padding:0; gap:0;
+  width:min(920px, calc(100vw - 40px));
+  inset:32px 0 auto; margin:0 auto;
+  height:auto; min-height:380px; max-height:calc(100vh - 64px); overflow:hidden; }
 /* …and the BODY is the scroller, so the band and its tabs never leave
    reach however long a diary runs. */
 .wb2-sheet.jc .wb2-jcbody { overflow-y:auto; overscroll-behavior:contain; }
-.wb2-jcband { flex:none; padding:14px 20px 0; border-radius:22px 22px 0 0;
+.wb2-jcband { position:relative; flex:none; padding:14px 20px 0; border-radius:22px 22px 0 0;
   background:linear-gradient(var(--jc-band-a, rgba(5,5,5,.05)), var(--jc-band-b, rgba(5,5,5,.02))), #f2f3f7;
   box-shadow:inset 0 3px 0 var(--jc-crown, rgba(5,5,5,.13)); }
-.wb2-jcband .wb2-shtop { padding:2px 0 0; }
+/* The × is PINNED to the band's corner, not the last flex item: the chip row
+   grows with the job (claim, status, schedule, category) and the walked band
+   wrapped the close button onto its own line the moment it did. */
+.wb2-jcband .wb2-shtop { padding:2px 40px 0 0; }
+.wb2-jcband .wb2-ico { position:absolute; top:12px; right:14px; }
+/* the chips always take their own line under the identity — a half-wrapped
+   chip row (two beside the name, three below) reads as an accident */
+.wb2-jcband .wb2-shchips { flex-basis:100%; margin-top:3px; }
 .wb2-jcid { flex:1 1 220px; min-width:0; display:flex; flex-direction:column; gap:1px; }
 .wb2-jcid .wb2-shname { flex:none; }
 .wb2-jcaddr { margin:0; font-size:12px; font-weight:600; color:var(--gray500); text-wrap:pretty; }
@@ -6999,9 +7014,27 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 /* the white body the thumb fuses into. Its own top border IS the edge the
    thumb carries across the active tab's width. */
 .wb2-jcbody { flex:1; background:#fff; border-top:1px solid var(--wb2-line);
-  border-radius:0 0 22px 22px; padding:16px 20px 20px; }
-.wb2-jcface { display:flex; flex-direction:column; gap:14px; }
+  border-radius:0 0 22px 22px; padding:18px 24px 24px; }
+.wb2-jcface { display:flex; flex-direction:column; gap:18px; }
 .wb2-jcface[hidden] { display:none; }
+/* THE FACES' OWN TYPE RAMP — two sizes, said once. The rows these faces
+   borrow were written for half a two-zone card and each brought its own
+   half-pixel (13/650 names beside 13.5/750 figures beside 11.5/600 metas
+   beside 11/600 stamps — the walk counted 22 size/weight pairs on one
+   card). Scoped under the face so the visit sheet keeps its own dress:
+   primary text 13.5, meta 12, and the weights the rows already had. */
+.wb2-jcface .wb2-mline > b { font-size:13.5px; }
+.wb2-jcface .wb2-mline > em { font-size:12px; }
+.wb2-jcface .wb2-mline > span { font-size:13.5px; }
+.wb2-jcface .wb2-ckname, .wb2-jcface .wb2-pkname { font-size:13.5px; }
+.wb2-jcface .wb2-ckrow > em { font-size:12px; }
+.wb2-jcface .wb2-pksub { font-size:12px; }
+.wb2-jcface .wb2-pkqty { font-size:13px; }
+.wb2-jcface .wb2-shtext { font-size:13.5px; }
+.wb2-jcface .wb2-cwho em, .wb2-jcface .wb2-nextv em, .wb2-jcface .wb2-facts em { font-size:12px; }
+/* a visit is date · crew · hours, and the crew reads beside the day it
+   belongs to — not right-clustered against the figure across a full row */
+.wb2-jcface .wb2-mline.visit { grid-template-columns:120px minmax(0,1fr) auto; }
 .wb2-jcgrid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:13px; align-items:start; }
 @media (max-width:900px) { .wb2-jcgrid { grid-template-columns:minmax(0,1fr); } }
 /* an open section of a face — the faces are the panels now, so their
@@ -7065,7 +7098,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-evhd { font-size:13.5px; font-weight:750; letter-spacing:-.01em; }
 .wb2-evhd .wb2-chip { margin-left:7px; vertical-align:middle; }
 .wb2-evamt { color:#00806b; font-variant-numeric:tabular-nums; }
-.wb2-evmeta { margin-top:1px; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.wb2-evmeta { margin-top:1px; font-size:12px; font-weight:600; color:var(--gray500); }
 /* a note's words — bordered like paper, the job type's colour on its spine.
    pre-wrap because a note holds its author's own line breaks. */
 .wb2-evcard { margin-top:6px; background:#fff; border:1px solid var(--wb2-line2);
@@ -7269,6 +7302,9 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
    "what did they photograph", and a tap opens the real thing */
 .wb2-mgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(74px, 1fr)); gap:7px;
   margin:4px 0 12px; }
+/* the tabbed card gives the contact sheet a whole face, so the tiles take a
+   size you can actually read a photo at */
+.wb2-jcface .wb2-mgrid { grid-template-columns:repeat(auto-fill, minmax(108px, 1fr)); gap:8px; }
 .wb2-mtile { position:relative; display:grid; place-items:center; aspect-ratio:1; overflow:hidden;
   border-radius:11px; border:1px solid var(--wb2-line2); background:rgba(5,5,5,.026); }
 .wb2-mtile img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -7333,6 +7369,27 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
    failure mode this codebase validates stylesheets to catch. */
 .wb2-dsgn-go { display:flex; flex:none; color:var(--gray400); transition:transform .16s, color .16s; }
 .wb2-dsgn:hover .wb2-dsgn-go { color:#007fa8; transform:translateX(2px); }
+/* A DOCUMENT IS A ROW, the same bones as the design rows above — the walked
+   face rendered cached files as blue links and uncached ones as bold black
+   paragraphs, two dresses for one kind of thing. One row: icon, name, what
+   it is, and the chevron only where there are bytes to open. */
+.wb2-doc { display:flex; align-items:center; gap:11px; padding:9px 8px; margin:0 -6px; min-width:0;
+  border-top:1px solid var(--wb2-line2); border-radius:10px; color:inherit; text-decoration:none;
+  transition:background .16s; }
+.wb2-doc:first-of-type { border-top:0; }
+a.wb2-doc:hover { background:rgba(0,168,224,.06); }
+a.wb2-doc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-doc-ic { display:flex; align-items:center; justify-content:center; flex:none;
+  width:30px; height:30px; border-radius:9px; background:rgba(5,5,5,.045); color:var(--gray500); }
+a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }
+.wb2-doc-b { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
+.wb2-doc-b b { font-size:13.5px; font-weight:650; letter-spacing:-.01em; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-doc-b em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-doc > .wb2-chip { flex:none; }
+.wb2-doc-go { display:flex; flex:none; color:var(--gray400); transition:transform .16s, color .16s; }
+a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
 .wb2-gates { display:grid; gap:7px; }
 .wb2-gate { border:1px solid var(--wb2-line); border-radius:13px; background:#fff; transition:border-color .2s, background .25s; }
 .wb2-gate.on { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.32); }

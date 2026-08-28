@@ -22,6 +22,10 @@ import {
   type JobNoteEntry,
 } from "@/lib/workboard/all-jobs-query";
 import type { FamilyMoney } from "@/lib/workboard/job-family";
+import {
+  readStoredJobSummary,
+  type JobSummaryRead,
+} from "@/lib/workboard/job-summary";
 
 /** Notes always; the ledger only for a reader who holds money. */
 export type JobRecordRead = {
@@ -30,6 +34,9 @@ export type JobRecordRead = {
   /** Every job ServiceM8 cloned out of this one, read as one ledger. Null
       without `workboard_money`, and null for a job number this can't read. */
   family: FamilyMoney | null;
+  /** The stored "Where it's up to" paragraph, its money sentence already
+      stripped for a reader without the grant. Null until one is written. */
+  summary: JobSummaryRead | null;
 };
 import {
   readMirrorJobDetail,
@@ -411,7 +418,8 @@ export async function readMirrorJob(remoteId: string): Promise<JobCardRead> {
      the component costs no round trip the sheet wasn't already making, and
      means the card never paints the clone's header before correcting itself. */
   const target = await resolveJobCard(ctx.orgId, id);
-  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const timezone = await getSm8Timezone(ctx.orgId);
+  const today = todayInZone(timezone);
   /* Designs ride the same rule money does: the reader's own capability
      decides, asked here and handed down, so the loader never reads what this
      person may not see. `studio` is a staff default and revocable — someone
@@ -424,6 +432,7 @@ export async function readMirrorJob(remoteId: string): Promise<JobCardRead> {
   const detail = await readMirrorJobDetail(ctx.orgId, target.parentRemoteId, today, {
     includeMoney,
     includeDesigns,
+    timezone,
   });
   return { detail, focusRemoteId: target.focusRemoteId };
 }
@@ -472,8 +481,20 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
   const id = trim(remoteId, 80);
   if (!id) return null;
 
-  const notes = await readJobNotes(ctx.orgId, id);
-  if (!(await can("workboard_money"))) return { notes, ledger: null, family: null };
+  /* THE FAMILY'S WRITING IS ONE STREAM. A note typed while a progress
+     invoice was open is about the work — the same rule the gallery's lift
+     follows — so the diary reads the claims' notes beside the job's own,
+     each badged with where it was filed. NOT money-gated, like the files. */
+  const claims = await familyMediaSources(ctx.orgId, id);
+  /* The summary carries no money by design (the Money face says collection
+     once), so it rides ungated beside the notes. */
+  const [notes, summary, moneyVisible] = await Promise.all([
+    readJobNotes(ctx.orgId, id, claims),
+    readStoredJobSummary(ctx.orgId, id),
+    can("workboard_money"),
+  ]);
+
+  if (!moneyVisible) return { notes, ledger: null, family: null, summary };
 
   const today = todayInZone(await getSm8Timezone(ctx.orgId));
   const [ledger, family] = await Promise.all([
@@ -485,7 +506,7 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
        due. An invented fortnight would be a number the screen made up. */
     readJobFamily(ctx.orgId, id, today, null),
   ]);
-  return { notes, ledger, family };
+  return { notes, ledger, family, summary };
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

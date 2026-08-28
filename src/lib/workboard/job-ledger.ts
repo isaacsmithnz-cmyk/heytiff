@@ -107,6 +107,9 @@ export type JobPaymentEntry = {
   note: string | null;
   /** Naive local date part. */
   takenOn: string | null;
+  /** The whole naive stamp, to the minute — the diary orders a day by it.
+      Same string `takenOn` is sliced from; null when ServiceM8 sent none. */
+  takenAt: string | null;
   isDeposit: boolean;
   takenBy: string | null;
 };

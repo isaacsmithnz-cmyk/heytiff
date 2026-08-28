@@ -467,6 +467,7 @@ describe("groupChecklist", () => {
     section,
     done: false,
     doneOn: null,
+    doneAt: null,
     doneBy: null,
   });
 

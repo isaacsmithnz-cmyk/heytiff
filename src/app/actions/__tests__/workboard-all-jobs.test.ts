@@ -210,7 +210,7 @@ describe("reading the book", () => {
       "org-1",
       "j-1",
       expect.any(String),
-      { includeMoney: true, includeDesigns: true }
+      { includeMoney: true, includeDesigns: true, timezone: "Australia/Sydney" }
     );
   });
 
@@ -220,6 +220,7 @@ describe("reading the book", () => {
     expect(readMirrorJobDetail).toHaveBeenCalledWith("org-1", "j-1", expect.any(String), {
       includeMoney: false,
       includeDesigns: false,
+      timezone: "Australia/Sydney",
     });
   });
 
@@ -232,6 +233,7 @@ describe("reading the book", () => {
     expect(readMirrorJobDetail).toHaveBeenCalledWith("org-1", "j-1", expect.any(String), {
       includeMoney: true,
       includeDesigns: false,
+      timezone: "Australia/Sydney",
     });
   });
 

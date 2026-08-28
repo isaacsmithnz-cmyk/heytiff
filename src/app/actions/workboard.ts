@@ -33,6 +33,7 @@ import {
 } from "@/lib/workboard/job-notes-query";
 import type { JobAttention } from "@/lib/workboard/job-attention";
 import { sm8JobIsOpen } from "@/lib/workboard/all-jobs";
+import { orgPaymentTermsDays } from "@/lib/org/query";
 
 /** Notes always; the ledger only for a reader who holds money. */
 export type JobRecordRead = {
@@ -529,14 +530,16 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
     return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary };
   }
 
+  /* PAYMENT TERMS COME FROM THE ORGANISATION'S OWN CARD — ServiceM8 mirrors
+     no invoice terms, so this is the only source there is. UNSET IS STILL
+     THE COMMON CASE and stays honest: null makes the claim rows say when
+     they were RAISED and nothing about when they were due, rather than
+     inventing a fortnight and calling somebody late against it. */
   const [ledger, family] = await Promise.all([
     readJobLedger(ctx.orgId, id),
-    /* PAYMENT TERMS ARE NOT SET ANYWHERE YET. ServiceM8 does not mirror an
-       invoice's terms, so due-ness needs a HeyTiff setting that does not
-       exist — and until it does this stays null, which makes the claim rows
-       say when they were RAISED and say nothing at all about when they were
-       due. An invented fortnight would be a number the screen made up. */
-    readJobFamily(ctx.orgId, id, today, null),
+    orgPaymentTermsDays(ctx.orgId).then((termsDays) =>
+      readJobFamily(ctx.orgId, id, today, termsDays)
+    ),
   ]);
   return { notes, ourNotes, attention, assignable, ledger, family, summary };
 }

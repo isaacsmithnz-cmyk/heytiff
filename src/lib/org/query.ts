@@ -150,6 +150,25 @@ export async function orgSetupPending(orgId: string): Promise<boolean> {
   return data.setup_completed_at == null;
 }
 
+/** WHEN A RAISED INVOICE GOES OVERDUE, for the surfaces that read money out
+    of the ServiceM8 mirror. ServiceM8 mirrors no invoice terms, so this is
+    the only source there is — one number the business set on its own card.
+
+    FAILS SOFT TO NULL, and null is a real answer here rather than a
+    degraded one: unset terms mean the claim rows say when a claim was
+    RAISED and nothing about when it is due. A read that errored must land
+    on the same silence, never on a guessed fortnight that would call
+    somebody late. */
+export async function orgPaymentTermsDays(orgId: string): Promise<number | null> {
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("payment_terms_days")
+    .eq("id", orgId)
+    .maybeSingle();
+  const days = (data as { payment_terms_days: number | null } | null)?.payment_terms_days;
+  return typeof days === "number" ? days : null;
+}
+
 /* The company's face, for a surface a customer receives — see lib/org/brand.ts.
 
    One row, six columns, and the logo signed on the way out. Callers that hold

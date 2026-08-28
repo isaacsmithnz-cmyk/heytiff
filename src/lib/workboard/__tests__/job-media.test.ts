@@ -135,6 +135,7 @@ describe("grouping and the count line", () => {
     fileType: ".jpg",
     kind: jobMediaKind(over.fileType ?? ".jpg"),
     origin: null,
+    fromClaim: null,
     takenAt: null,
     url: null,
     ...over,

@@ -21,6 +21,10 @@ jest.mock("@/lib/supabase-server", () => ({
         filtersBy[table].push({ col, val });
         return sub;
       };
+      sub.in = (col: string, val: unknown) => {
+        filtersBy[table].push({ col: `in:${col}`, val });
+        return sub;
+      };
       sub.not = (col: string, _op: string, val: unknown) => {
         filtersBy[table].push({ col: `not:${col}`, val });
         return sub;
@@ -49,6 +53,7 @@ const attachment = (over: Record<string, unknown> & { uuid: string }) => ({
   file_type: ".jpg",
   attachment_source: "PHOTO",
   timestamp: "2026-08-01 10:00:00",
+  related_object_uuid: "job-1",
   ...over,
 });
 
@@ -68,7 +73,7 @@ describe("deleted files stay deleted", () => {
     expect(applied).toEqual(
       expect.arrayContaining([
         { col: "org_id", val: "org-1" },
-        { col: "related_object_uuid", val: "job-1" },
+        { col: "in:related_object_uuid", val: ["job-1"] },
         // The guard. 414 deleted photos in the live account depend on it.
         { col: "active", val: 1 },
       ])
@@ -84,7 +89,7 @@ describe("deleted files stay deleted", () => {
       expect.arrayContaining([
         { col: "org_id", val: "org-1" },
         { col: "source", val: "servicem8" },
-        { col: "sm8_job_uuid", val: "job-1" },
+        { col: "in:sm8_job_uuid", val: ["job-1"] },
         // A slot handed out and never filled must not render as a broken tile.
         { col: "not:uploaded_at", val: null },
       ])
@@ -148,5 +153,96 @@ describe("what the sheet gets back", () => {
     expect(groups.documents[0]).toMatchObject({ remoteId: "d-1", origin: "Invoice" });
     expect(groups.elsewhere.map((i) => i.remoteId)).toEqual(["v-1"]);
     expect(groups.truncated).toBe(false);
+  });
+});
+
+/* ── files that arrived on a progress claim ──────────────────────────────
+   ServiceM8 bills a staged job by cloning it, and a photo taken on site
+   lands on whichever clone was open: 1,432 files sit on clones live, 622 of
+   them photos. They are about the WORK, so the job's gallery takes them. */
+
+describe("a job billed in stages gathers its claims' files", () => {
+  const CLAIMS = [
+    { remoteId: "job-1a", claimNumber: "2380A" },
+    { remoteId: "job-1b", claimNumber: "2380B" },
+  ];
+
+  it("asks for the job and every claim in one read", async () => {
+    attachmentRows = [attachment({ uuid: "a-1" })];
+    await readJobMedia("org-1", "job-1", CLAIMS);
+
+    expect(filtersBy["sm8_attachments"]).toEqual(
+      expect.arrayContaining([
+        { col: "in:related_object_uuid", val: ["job-1", "job-1a", "job-1b"] },
+        { col: "active", val: 1 },
+      ])
+    );
+    // the cached bytes have to follow the same set or a lifted photo has no URL
+    expect(filtersBy["documents"]).toEqual(
+      expect.arrayContaining([{ col: "in:sm8_job_uuid", val: ["job-1", "job-1a", "job-1b"] }])
+    );
+  });
+
+  it("badges a lifted photo with the claim it came from", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "IMG_1.jpg" }),
+      attachment({ uuid: "a-2", attachment_name: "IMG_2.jpg", related_object_uuid: "job-1a" }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+
+    expect(read.items.map((i) => [i.name, i.fromClaim])).toEqual([
+      ["IMG_1.jpg", null],
+      ["IMG_2.jpg", "2380A"],
+    ]);
+  });
+
+  /* 470 of the 758 liftable files are copies ServiceM8 made when it cloned.
+     Merge them naively and half the gallery appears twice. */
+  it("shows a file copied onto a claim once, keeping the job's own copy", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "IMG_4021.jpg" }),
+      attachment({ uuid: "a-2", attachment_name: "IMG_4021.jpg", related_object_uuid: "job-1a" }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+
+    expect(read.items).toHaveLength(1);
+    expect(read.items[0].remoteId).toBe("a-1");
+    expect(read.items[0].fromClaim).toBeNull();
+  });
+
+  /* A PDF sharing a photo's name is not the same file. */
+  it("does not collapse two different files that share a name", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "Report", file_type: ".pdf" }),
+      attachment({ uuid: "a-2", attachment_name: "Report", file_type: ".jpg", related_object_uuid: "job-1a" }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+    expect(read.items).toHaveLength(2);
+  });
+
+  /* The claim's own paperwork is about the billing, not the work — 426 live. */
+  it("leaves the claim's own partial-invoice PDF with the claim", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "IMG_4021.jpg" }),
+      attachment({
+        uuid: "a-2",
+        attachment_name: "Partial Invoice #2380A",
+        file_type: ".pdf",
+        related_object_uuid: "job-1a",
+      }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+
+    expect(read.items.map((i) => i.name)).toEqual(["IMG_4021.jpg"]);
+  });
+
+  /* The JOB's own partial-invoice paper is a different thing — the parent is
+     a claim too, and its paper is the one the job itself raised. */
+  it("keeps a partial-invoice PDF that belongs to the job itself", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "Partial Invoice #2380", file_type: ".pdf" }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+    expect(read.items).toHaveLength(1);
   });
 });

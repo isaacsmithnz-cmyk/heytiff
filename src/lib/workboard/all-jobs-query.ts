@@ -20,6 +20,11 @@
    handed in, and when it is false the money columns are never selected. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
+import {
+  readJobMediaGroups,
+  type JobMediaGroupsRead,
+  type MediaSource,
+} from "./job-media-query";
 import { plusDays } from "./dates";
 import { jobMoneyOf, parseSm8AmountToCents, SM8_JOB_MONEY_COLUMNS } from "./job-money";
 import { materialLineOf, type JobMaterialLine, type JobPaymentEntry } from "./job-ledger";
@@ -27,6 +32,8 @@ import {
   deriveFamilyMoney,
   familyNumbersFor,
   isFamilyMember,
+  isPartialInvoiceLine,
+  isPartialInvoiceStubNote,
   splitJobNumber,
   type FamilyLines,
   type FamilyMoney,
@@ -34,6 +41,7 @@ import {
 import {
   ALL_JOBS_HORIZON_DAYS,
   sm8CategoryColour,
+  sm8DateFacts,
   sm8MinutesBetween,
   type AllJobsMirrorJob,
   type JobChecklistItem,
@@ -294,6 +302,13 @@ export type MirrorJobDetail = {
       which is what ServiceM8's own billing tab calls Job Time. Validated
       against the live account: job #3137 sums to exactly its 18h 30m. */
   timeOnSite: { minutes: number; sessions: number } | null;
+  /** WHICH DAY THIS CARD IS SHOWN BY, and what to call it — derived here,
+      where the account's own clock is known. The sheet cannot compute it: a
+      clock read in a render body breaks hydration for the whole tree, and the
+      row it was opened from may belong to a different job entirely (a clone
+      opens its parent). Same helper the board row uses. */
+  dateOn: string | null;
+  dateLabel: string;
   /** The same sessions, UNAGGREGATED — one row per day somebody was on site,
       with who went. The card shows the last three and opens the rest in
       place; the tally above them is `timeOnSite`. Newest first. */
@@ -684,6 +699,19 @@ export async function readMirrorJobDetail(
         }
       : null,
     timeOnSite: sessions > 0 ? { minutes, sessions } : null,
+    ...(() => {
+      const facts = sm8DateFacts(
+        {
+          status: job.status,
+          date: job.date,
+          quoteDate: job.quote_date,
+          completionDate: job.completion_date,
+          nextBooking: next?.start_date ?? null,
+        },
+        today
+      );
+      return { dateOn: facts.date, dateLabel: facts.label };
+    })(),
     visits: [...byDay.entries()]
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([day, v]) => ({
@@ -927,6 +955,126 @@ export async function readJobFamily(
     today,
     termsDays,
   });
+}
+
+/* ── which card a job row opens ── */
+
+export type JobCardTarget = {
+  /** The card to open — the job itself, or the parent it is a claim of. */
+  parentRemoteId: string;
+  /** The claim to land on, when the row asked for was one. */
+  focusRemoteId: string | null;
+};
+
+/** A ServiceM8 clone is a CLAIM, not a job, so opening #2380A opens #2380
+    with that claim named in the header.
+
+    AN ORPHAN KEEPS ITS CARD. 44 clones live have no active parent — deleted,
+    or never mirrored — and they are not empty: 674 files sit on them, 92 on
+    #1243A alone. There is nothing to be a claim OF, so they open as
+    themselves and the family derivation already tolerates the headless shape.
+
+    Never throws and never returns nothing: a number this can't read, or a
+    parent that isn't there, both fall back to "this row opens itself", which
+    is exactly today's behaviour. */
+export async function resolveJobCard(orgId: string, remoteId: string): Promise<JobCardTarget> {
+  const here: JobCardTarget = { parentRemoteId: remoteId, focusRemoteId: null };
+
+  const { data: self } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("generated_job_id")
+    .eq("org_id", orgId)
+    .eq("uuid", remoteId)
+    .eq("active", 1)
+    .maybeSingle();
+
+  const parts = splitJobNumber((self as { generated_job_id: string | null } | null)?.generated_job_id);
+  if (!parts || parts.suffix === null) return here;
+
+  const { data: parent } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .eq("generated_job_id", parts.base)
+    .maybeSingle();
+
+  const parentId = (parent as { uuid: string } | null)?.uuid;
+  return parentId ? { parentRemoteId: parentId, focusRemoteId: remoteId } : here;
+}
+
+/** The job's claims, as the media read needs them — uuid and number, nothing
+    else. Its own read rather than a slice of readJobFamily, because the files
+    arrive on their own clock and are NOT money: a reader without
+    `workboard_money` still sees the photographs of their own work. */
+export async function familyMediaSources(
+  orgId: string,
+  remoteId: string
+): Promise<MediaSource[]> {
+  const { data: self } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("generated_job_id")
+    .eq("org_id", orgId)
+    .eq("uuid", remoteId)
+    .eq("active", 1)
+    .maybeSingle();
+
+  const parts = splitJobNumber((self as { generated_job_id: string | null } | null)?.generated_job_id);
+  if (!parts) return [];
+
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("uuid, generated_job_id")
+    .eq("org_id", orgId)
+    .eq("active", 1)
+    .in("generated_job_id", familyNumbersFor(parts.base));
+
+  return ((data ?? []) as { uuid: string; generated_job_id: string | null }[])
+    .filter((r) => r.uuid !== remoteId && isFamilyMember(parts.base, r.generated_job_id))
+    .map((r) => ({ remoteId: r.uuid, claimNumber: r.generated_job_id }));
+}
+
+/* ── one claim, for the modal that opens on it ── */
+
+export type ClaimDetailRead = {
+  ledger: JobLedgerRead;
+  notes: JobNoteEntry[];
+  media: JobMediaGroupsRead;
+};
+
+/** What a progress claim knows about itself — and NOTHING the job owns.
+
+    The modal is deliberately small: lines, money, writing, paper. The moment
+    it grows a description or a visits list it has become a card again, which
+    is the thing this whole slice exists to stop.
+
+    MONEY, so the caller must hold `workboard_money`. */
+export async function readClaimDetail(
+  orgId: string,
+  remoteId: string
+): Promise<ClaimDetailRead> {
+  const [ledger, notes, media] = await Promise.all([
+    readJobLedger(orgId, remoteId),
+    readJobNotes(orgId, remoteId),
+    /* No claims handed in: this reads the claim's OWN files, which is where
+       its "Partial Invoice #2380A" PDF lives — the one file the job's gallery
+       deliberately left behind. */
+    readJobMediaGroups(orgId, remoteId),
+  ]);
+
+  return {
+    ledger: {
+      /* The parent is a claim too, and its lines carry ServiceM8's netting
+         rows. They are bookkeeping about the OTHER claims, so they no more
+         belong in this modal than in the job's materials list. */
+      materials: ledger.materials.filter((m) => !isPartialInvoiceLine(m)),
+      payments: ledger.payments,
+    },
+    /* 406 of the 618 notes on clones are ServiceM8 announcing that it made a
+       clone. The claim ledger says it better. */
+    notes: notes.filter((n) => !isPartialInvoiceStubNote(n.text)),
+    media,
+  };
 }
 
 /* ── search, reaching past the loaded window ── */

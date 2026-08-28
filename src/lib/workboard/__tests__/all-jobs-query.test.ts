@@ -8,6 +8,10 @@
 
 const rowsBy: Record<string, Record<string, unknown>[]> = {};
 const singleBy: Record<string, Record<string, unknown> | null> = {};
+/* Some reads ask the same table twice for different things — resolveJobCard
+   asks for a number and then for that number's parent. A queue lets a test
+   answer the two calls differently; empty, singleBy answers both. */
+const singleQueue: Record<string, (Record<string, unknown> | null)[]> = {};
 /* The fake honours nothing it is asked — so where the QUESTION is the thing
    under test (does the family read ask by name or by prefix?), the calls are
    recorded and asserted directly. */
@@ -29,7 +33,11 @@ jest.mock("@/lib/supabase-server", () => ({
       sub.ilike = note("ilike");
       sub.order = () => sub;
       sub.limit = note("limit");
-      sub.maybeSingle = () => Promise.resolve({ data: singleBy[table] ?? null });
+      sub.maybeSingle = () => {
+        const q = singleQueue[table];
+        if (q && q.length) return Promise.resolve({ data: q.shift() ?? null });
+        return Promise.resolve({ data: singleBy[table] ?? null });
+      };
       sub.then = (res: (v: { data: unknown[] }) => unknown) =>
         Promise.resolve({ data: rowsBy[table] ?? [] }).then(res);
       return sub;
@@ -37,7 +45,11 @@ jest.mock("@/lib/supabase-server", () => ({
   },
 }));
 
-import { readJobFamily, readMirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import {
+  readJobFamily,
+  readMirrorJobDetail,
+  resolveJobCard,
+} from "@/lib/workboard/all-jobs-query";
 
 const TODAY = "2026-08-14";
 
@@ -81,6 +93,7 @@ beforeEach(() => {
   calls.length = 0;
   for (const k of Object.keys(rowsBy)) delete rowsBy[k];
   for (const k of Object.keys(singleBy)) delete singleBy[k];
+  for (const k of Object.keys(singleQueue)) delete singleQueue[k];
   singleBy["sm8_jobs"] = jobRow;
 });
 
@@ -294,5 +307,52 @@ describe("readJobFamily", () => {
   it("says nothing at all about a job number it cannot read", async () => {
     singleBy["sm8_jobs"] = { generated_job_id: "SVC-11" };
     expect(await readJobFamily("org-1", "j-x", "2026-08-26", null)).toBeNull();
+  });
+});
+
+
+/* ── which card a row opens ────────────────────────────────────────────── */
+
+describe("resolveJobCard", () => {
+  it("opens a plain job as itself", async () => {
+    singleQueue["sm8_jobs"] = [{ generated_job_id: "2380" }];
+    expect(await resolveJobCard("org-1", "j-2380")).toEqual({
+      parentRemoteId: "j-2380",
+      focusRemoteId: null,
+    });
+  });
+
+  it("opens a clone as its parent, with the claim to land on", async () => {
+    singleQueue["sm8_jobs"] = [{ generated_job_id: "2380A" }, { uuid: "j-2380" }];
+    expect(await resolveJobCard("org-1", "j-2380a")).toEqual({
+      parentRemoteId: "j-2380",
+      focusRemoteId: "j-2380a",
+    });
+  });
+
+  /* 44 clones live have no active parent, and they are not empty — 674 files
+     sit on them. There is nothing to be a claim OF, so they open as cards. */
+  it("leaves an orphan clone opening as itself", async () => {
+    singleQueue["sm8_jobs"] = [{ generated_job_id: "1243A" }, null];
+    expect(await resolveJobCard("org-1", "j-1243a")).toEqual({
+      parentRemoteId: "j-1243a",
+      focusRemoteId: null,
+    });
+  });
+
+  it("falls back to opening itself for a number it cannot read", async () => {
+    singleQueue["sm8_jobs"] = [{ generated_job_id: "SVC-11" }];
+    expect(await resolveJobCard("org-1", "j-x")).toEqual({
+      parentRemoteId: "j-x",
+      focusRemoteId: null,
+    });
+  });
+
+  it("falls back for a row that is not in this org's mirror at all", async () => {
+    singleQueue["sm8_jobs"] = [null];
+    expect(await resolveJobCard("org-1", "j-nope")).toEqual({
+      parentRemoteId: "j-nope",
+      focusRemoteId: null,
+    });
   });
 });

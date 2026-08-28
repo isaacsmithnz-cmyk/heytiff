@@ -21,7 +21,8 @@ import {
   materialsTotalCents,
   paymentsTotalCents,
 } from "@/lib/workboard/job-ledger";
-import { isPartialInvoiceLine } from "@/lib/workboard/job-family";
+import { claimFor, claimTitle, isPartialInvoiceLine } from "@/lib/workboard/job-family";
+import { JobClaimModal } from "./job-claim-modal";
 import { JobMoneyBlock } from "./job-money-block";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import {
@@ -33,7 +34,12 @@ import {
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JOB_MEDIA_CAP, mediaCountLine } from "@/lib/workboard/job-media";
-import { fmtMinutesAsHours, groupChecklist, type AllJobRow } from "@/lib/workboard/all-jobs";
+import {
+  fmtMinutesAsHours,
+  groupChecklist,
+  sm8Tone,
+  type AllJobRow,
+} from "@/lib/workboard/all-jobs";
 import type { ScheduleJobState } from "./schedule-tab";
 
 /* One ServiceM8 job, read-only — and the two ways out of it.
@@ -164,6 +170,12 @@ export function JobSheet({
   const [naming, setNaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [allVisits, setAllVisits] = useState(false);
+  /* The claim this card was opened FOR, when a clone's row was clicked. It
+     only names the row in the ledger — the card is always the job. */
+  const [focus, setFocus] = useState<string | null>(null);
+  /* Which claim's modal is open, and whether the number's list is showing. */
+  const [openClaim, setOpenClaim] = useState<string | null>(null);
+  const [numbersOpen, setNumbersOpen] = useState(false);
   const [name, setName] = useState("");
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -176,9 +188,17 @@ export function JobSheet({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      /* The menu is the innermost thing open, so it is the thing Escape
-         means — closing the whole sheet out from under an open menu is the
-         classic nested-dismiss bug. */
+      /* INNERMOST FIRST. Closing the whole card out from under an open claim
+         is the classic nested-dismiss bug, and there are three things that
+         can now be open over it. */
+      if (openClaim) {
+        setOpenClaim(null);
+        return;
+      }
+      if (numbersOpen) {
+        setNumbersOpen(false);
+        return;
+      }
       if (menuOpen) {
         setMenuOpen(false);
         return;
@@ -187,7 +207,7 @@ export function JobSheet({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, menuOpen]);
+  }, [onClose, menuOpen, numbersOpen, openClaim]);
 
   /* A menu that only closes on its own items is a menu you have to fight.
      Pointerdown rather than click, so it goes before whatever was aimed at. */
@@ -200,6 +220,15 @@ export function JobSheet({
     return () => document.removeEventListener("pointerdown", away);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!numbersOpen) return;
+    const away = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.(".wb2-shnos")) setNumbersOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [numbersOpen]);
+
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. Resetting it in the
      effect would be state written during an effect for a case that can't
@@ -207,9 +236,10 @@ export function JobSheet({
      sheet follows for its drafts. */
   useEffect(() => {
     let live = true;
-    void readMirrorJob(row.id).then((d) => {
+    void readMirrorJob(row.id).then((res) => {
       if (!live) return;
-      setDetail(d);
+      setDetail(res.detail);
+      setFocus(res.focusRemoteId);
       setLoading(false);
     });
     return () => {
@@ -221,22 +251,31 @@ export function JobSheet({
      the rest of the sheet shouldn't wait behind, and a job with none is the
      common case — so this renders nothing at all until it has something to
      say, rather than a spinner over an empty shelf. */
+  /* THE COMPANION READS FOLLOW THE CARD, not the row that was clicked. A
+     clone's row opens its parent, so asking for the clone's files, ledger or
+     picklist would fetch a different job's answers into this card. They wait
+     one beat for the resolution, which they were already doing — every one of
+     them lands after the detail anyway. */
+  const cardId = detail?.remoteId ?? null;
+
   useEffect(() => {
+    if (!cardId) return;
     let live = true;
-    void readJobFiles(row.id).then((m) => {
+    void readJobFiles(cardId).then((m) => {
       if (live) setMedia(m);
     });
     return () => {
       live = false;
     };
-  }, [row.id]);
+  }, [cardId]);
 
   /* Our OWN material picklist — pushed here from a Studio design. Distinct
      from "Their checklist" above it, which is ServiceM8's and read-only. On
      its own clock like the files; a job with none renders nothing. */
   useEffect(() => {
+    if (!cardId) return;
     let live = true;
-    void listJobPicklist(row.id)
+    void listJobPicklist(cardId)
       .then((p) => {
         if (live) setPicklist(p);
       })
@@ -247,7 +286,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [row.id]);
+  }, [cardId]);
 
   /* Notes and the ledger, on their own clock like the files. `ledger` comes
      back null for a reader without money — the gate is server-side, so this
@@ -261,11 +300,12 @@ export function JobSheet({
      feature exists to stop showing. So the failure is recorded as a failure
      and the block says the figures didn't load. */
   useEffect(() => {
+    if (!cardId) return;
     let live = true;
     /* No reset: the sheet is KEYED BY JOB, so a different job is a different
        component with this flag already false — the same rule the record's
        own loading state follows. */
-    void readJobRecord(row.id)
+    void readJobRecord(cardId)
       .then((r) => {
         if (live) setRecord(r);
       })
@@ -275,7 +315,7 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [row.id]);
+  }, [cardId]);
 
   /* Bringing the bytes across, a few per round, with the BROWSER as the loop
      — there is no server queue, the same reason the knowledge-base backfill
@@ -284,12 +324,13 @@ export function JobSheet({
      server that keeps saying "6 left" while caching none is a bug, not a
      backlog. */
   useEffect(() => {
+    if (!cardId) return;
     let live = true;
     let rounds = 0;
     const pump = async () => {
       while (live && rounds < MAX_CACHE_ROUNDS) {
         rounds += 1;
-        const res = await cacheJobFiles(row.id);
+        const res = await cacheJobFiles(cardId);
         if (!live) return;
         if (res.media) setMedia(res.media);
         if (res.note) setMediaNote(res.note);
@@ -300,15 +341,26 @@ export function JobSheet({
     return () => {
       live = false;
     };
-  }, [row.id]);
+  }, [cardId]);
 
   const money = moneyVisible ? (detail?.money ?? null) : null;
   const materials = (record?.ledger?.materials ?? []).filter((m) => !isPartialInvoiceLine(m));
+  const family = record?.family ?? null;
+  /* The card's own number — the PARENT's, even when a claim's row opened it. */
+  const cardNumber = detail?.jobNumber ?? row.number ?? null;
+  const focusClaim = claimFor(family, focus);
+  /* Every header fact follows the CARD once the detail lands; until then the
+     row's own facts paint, which is what was clicked. */
+  const cardDate = detail ? detail.dateOn : dayOf(row.date);
+  const cardDateLabel = detail?.dateLabel ?? row.dateLabel;
+  const cardStatus = detail?.status ?? row.statusLabel;
+  const cardTone = detail ? sm8Tone(detail.status) : row.tone;
+  const openClaimRow = claimFor(family, openClaim);
 
   const makeProject = () => {
     setErr(null);
     start(async () => {
-      const res = await createProjectFromJob(row.id, {
+      const res = await createProjectFromJob(cardId ?? row.id, {
         name: name.trim() || row.clientName || undefined,
         clientName: row.clientName ?? undefined,
         siteLabel: row.suburb ?? undefined,
@@ -333,9 +385,66 @@ export function JobSheet({
         aria-label={`${row.clientName ?? "Job"}${row.number ? ` — job ${row.number}` : ""}`}
       >
         <div className="wb2-shtop">
-          <span className="wb2-shno">{row.number ? `#${row.number}` : "—"}</span>
-          <h2 className="wb2-shname">{row.clientName ?? "Unnamed client"}</h2>
+          {/* THE NUMBER IS THE NAVIGATION. A job ServiceM8 billed in stages
+              wears a caret that lists its claims; a card opened FROM a claim
+              wears the crumb "#2380 › #2380A" and tapping the parent drops
+              it. Four characters do the work of a back button. */}
+          <span className="wb2-shnos">
+            {family && family.isFamily && family.claims.length > 1 ? (
+              <button
+                className="wb2-shno open"
+                onClick={() => setNumbersOpen((v) => !v)}
+                aria-expanded={numbersOpen}
+                title={`${family.claims.length} invoices on this job`}
+              >
+                {cardNumber ? `#${cardNumber}` : "—"}
+                <i className="wb2-shcar" aria-hidden>
+                  ▾
+                </i>
+              </button>
+            ) : (
+              <span className="wb2-shno">{cardNumber ? `#${cardNumber}` : "—"}</span>
+            )}
+            {focusClaim && (
+              <>
+                <i className="wb2-shcrumb" aria-hidden>
+                  ›
+                </i>
+                <button
+                  className="wb2-shno here"
+                  onClick={() => setOpenClaim(focusClaim.remoteId)}
+                  title={`${claimTitle(focusClaim)} — open it`}
+                >
+                  {focusClaim.jobNumber ? `#${focusClaim.jobNumber}` : "—"}
+                </button>
+              </>
+            )}
+            {numbersOpen && family && (
+              <span className="wb2-shnopop">
+                {family.claims.map((c) => (
+                  <button
+                    key={c.remoteId}
+                    className={c.remoteId === focus ? "on" : undefined}
+                    onClick={() => {
+                      setNumbersOpen(false);
+                      setOpenClaim(c.remoteId);
+                    }}
+                  >
+                    <span className="n">{c.jobNumber ? `#${c.jobNumber}` : "—"}</span>
+                    <span className="t">{claimTitle(c)}</span>
+                    <span className="a">
+                      {c.amountCents !== null ? fmtAud(c.amountCents) : "—"}
+                    </span>
+                  </button>
+                ))}
+              </span>
+            )}
+          </span>
+          <h2 className="wb2-shname">{detail?.clientName ?? row.clientName ?? "Unnamed client"}</h2>
           <span className="wb2-shchips">
+            {focusClaim && (
+              <span className="wb2-chip cat">{claimTitle(focusClaim)}</span>
+            )}
             {/* WAS A WHOLE SECTION AT THE FOOT OF THE CARD — a heading, a
                 paragraph and a border to say one thing nobody had asked. The
                 fact belongs to the badge that already names ServiceM8. */}
@@ -349,9 +458,9 @@ export function JobSheet({
                 tone, which hid exactly the statuses a reader arrives unsure
                 about — a Quote wore its dashed edge on the rail and then
                 nothing up here. Neutral statuses wear the plain chip. */}
-            {row.statusLabel && (
-              <span className={"wb2-chip" + (row.tone ? ` ${row.tone}` : "")}>
-                {row.statusLabel}
+            {cardStatus && (
+              <span className={"wb2-chip" + (cardTone ? ` ${cardTone}` : "")}>
+                {cardStatus}
               </span>
             )}
             {/* what today's diary said, when a schedule block opened this —
@@ -436,10 +545,13 @@ export function JobSheet({
         <div className="wb2-shhd">
           <p>{detail?.address ?? detail?.geoLine ?? row.suburb ?? "No address on the job"}</p>
           <div className="wb2-facts">
+            {/* THE CARD'S OWN DAY, not the row's. A clone opens its parent,
+                and the clone's "completed Fri 27 Mar" is a different job's
+                date — derived server-side, where the account's clock is. */}
             <div>
-              <span className="wb2-sect">{row.dateLabel === "raised" ? "Raised" : "When"}</span>
-              <b>{dayOf(row.date) ? fmtAuWeekdayDayMonth(dayOf(row.date)!) : "—"}</b>
-              <em>{row.dateLabel}</em>
+              <span className="wb2-sect">{cardDateLabel === "raised" ? "Raised" : "When"}</span>
+              <b>{cardDate ? fmtAuWeekdayDayMonth(cardDate) : "—"}</b>
+              <em>{cardDateLabel}</em>
             </div>
             {detail?.workOrderDate && row.statusLabel === "Work Order" && (
               <div>
@@ -486,14 +598,16 @@ export function JobSheet({
             yet" and $9,402 in the bank. */}
         {moneyVisible && (record !== undefined || recordFailed) && (
           <JobMoneyBlock
-            family={record?.family ?? null}
+            family={family}
             unavailable={recordFailed}
             money={money}
             ledgerPaidCents={
               record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
             }
             statusLabel={row.statusLabel}
-            categoryColour={row.categoryColour ?? detail?.categoryColour ?? null}
+            categoryColour={detail?.categoryColour ?? row.categoryColour ?? null}
+            focusRemoteId={focus}
+            onOpenClaim={setOpenClaim}
           />
         )}
 
@@ -704,10 +818,22 @@ export function JobSheet({
                          was EMAILED IN is a different thing from one taken on
                          site — so the origin rides in the tooltip, where the
                          name already is. */
-                      title={p.origin ? `${p.name} — ${p.origin.toLowerCase()}` : p.name}
+                      title={[
+                        p.name,
+                        p.origin ? p.origin.toLowerCase() : null,
+                        p.fromClaim ? `filed against invoice #${p.fromClaim}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" — ")}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.url} alt={p.name} loading="lazy" />
+                      {/* WHERE IT CAME FROM. A photo taken on site lands on
+                          whichever progress invoice happened to be open, and
+                          it belongs to the job — but a tile that says which
+                          claim it arrived on is also how anyone would ever
+                          notice one filed against the wrong invoice. */}
+                      {p.fromClaim && <u className="wb2-mfrom">{p.fromClaim}</u>}
                     </a>
                   ) : (
                     /* Not cached yet. A tile that says so beats a broken
@@ -735,6 +861,7 @@ export function JobSheet({
                   <b>{d.name}</b>
                 )}
                 {d.origin ? <i className="wb2-chip">{d.origin}</i> : null}
+                {d.fromClaim ? <i className="wb2-chip cat">{`#${d.fromClaim}`}</i> : null}
               </p>
             ))}
 
@@ -937,6 +1064,17 @@ export function JobSheet({
           </div>
         )}
       </aside>
+
+      {/* Over the card, inside the SAME portal — a modal on a modal that
+          portals separately is how a scrim ends up above the thing it dims. */}
+      {openClaimRow && (
+        <JobClaimModal
+          key={openClaimRow.remoteId}
+          claim={openClaimRow}
+          parentNumber={cardNumber}
+          onClose={() => setOpenClaim(null)}
+        />
+      )}
     </>,
     document.body
   );

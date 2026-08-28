@@ -55,7 +55,7 @@ export function JobPhotosFace({
       display, so a position in THIS list is not a position in that one. */
   onOpen: (remoteId: string) => void;
 }) {
-  const crewOf = new Map(visits.map((v) => [v.day, v.crew]));
+  const crewOf = new Map(visits.map((v) => [v.day, v.crew.map((c) => c.name)]));
   const days = groupPhotoDays(photos ?? []);
   const videos = (photos ?? []).filter((p) => p.kind === "video").length;
   const stills = (photos ?? []).length - videos;

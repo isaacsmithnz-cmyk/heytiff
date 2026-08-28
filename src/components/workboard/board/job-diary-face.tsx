@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
@@ -44,6 +44,7 @@ export function JobDiaryFace({
   entries,
   loading,
   moneyVisible,
+  focusFlagged = false,
   onOpenClaim,
   onPhotos,
 }: {
@@ -52,6 +53,11 @@ export function JobDiaryFace({
       before it has looked. */
   loading: boolean;
   moneyVisible: boolean;
+  /** Set when the band's flag chip sent the reader here: the flagged notes
+      light up and the newest scrolls into view. The chip says a number; the
+      diary is where the words are, and landing on the feed's head with no
+      idea which note was meant is the version that wastes the trip. */
+  focusFlagged?: boolean;
   onOpenClaim: (remoteId: string) => void;
   /** The "+N" on a photo cluster lands on the Photos tab. */
   onPhotos: () => void;
@@ -61,6 +67,18 @@ export function JobDiaryFace({
   const shown = filterStory(entries, filter);
   const days = groupStoryDays(shown);
   const filters = FILTERS.filter((f) => f.key !== "money" || moneyVisible);
+
+  /* The newest flagged note in what is currently SHOWN — the key, not an
+     index, because a filter change reshuffles the list underneath it. */
+  const flagKey = focusFlagged
+    ? (shown.find((e) => e.kind === "note" && e.actionRequired)?.key ?? null)
+    : null;
+  const flagRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    /* Optional-called: jsdom has no scrollIntoView, and a test that renders
+       this face must not die of a missing browser method. */
+    if (flagKey) flagRef.current?.scrollIntoView?.({ block: "center" });
+  }, [flagKey]);
 
   return (
     <div className="wb2-jcdiary">
@@ -95,6 +113,8 @@ export function JobDiaryFace({
                 <DiaryEntry
                   key={e.key}
                   entry={e}
+                  flagged={focusFlagged && e.kind === "note" && e.actionRequired}
+                  entryRef={e.key === flagKey ? flagRef : undefined}
                   onOpenClaim={onOpenClaim}
                   onPhotos={onPhotos}
                 />
@@ -109,17 +129,22 @@ export function JobDiaryFace({
 
 function DiaryEntry({
   entry,
+  flagged = false,
+  entryRef,
   onOpenClaim,
   onPhotos,
 }: {
   entry: StoryEntry;
+  /** Lit because the band's flag chip sent the reader looking for it. */
+  flagged?: boolean;
+  entryRef?: React.Ref<HTMLDivElement>;
   onOpenClaim: (remoteId: string) => void;
   onPhotos: () => void;
 }) {
   switch (entry.kind) {
     case "note":
       return (
-        <Ev icon="edit">
+        <Ev icon="edit" flag={flagged} innerRef={entryRef}>
           <div className="wb2-evhd">
             Note
             {entry.actionRequired && <i className="wb2-chip warn">Action required</i>}
@@ -245,14 +270,18 @@ const MILESTONE_ICON: Record<string, string> = {
 function Ev({
   icon,
   tone,
+  flag = false,
+  innerRef,
   children,
 }: {
   icon: string;
   tone?: "ok" | "cy";
+  flag?: boolean;
+  innerRef?: React.Ref<HTMLDivElement>;
   children: React.ReactNode;
 }) {
   return (
-    <div className="wb2-ev">
+    <div className={"wb2-ev" + (flag ? " flag" : "")} ref={innerRef}>
       <span className={"wb2-evdot" + (tone ? ` ${tone}` : "")} aria-hidden>
         <Icon name={icon} size={12} />
       </span>

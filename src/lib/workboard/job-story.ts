@@ -243,7 +243,10 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
       day: v.day,
       at: null,
       minutes: v.minutes,
-      crew: [...v.crew],
+      /* The STORY names people, it does not introduce them — a title
+         belongs on the Visits face, where the card is saying who someone
+         is, not in a feed line about a day's work. */
+      crew: v.crew.map((c) => c.name),
     });
   }
 

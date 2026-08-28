@@ -383,6 +383,7 @@ export function AllJobsBoard({
           row={sheetRow}
           manage={manage}
           moneyVisible={moneyVisible}
+          sm8={sm8}
           scheduleState={sheetState}
           onClose={() => {
             setSheetRow(null);

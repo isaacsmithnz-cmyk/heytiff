@@ -297,7 +297,13 @@ export type MirrorJobDetail = {
   quoteDate: string | null;
   workOrderDate: string | null;
   completionDate: string | null;
-  nextBooking: { start: string; end: string | null; staffName: string | null } | null;
+  nextBooking: {
+    start: string;
+    end: string | null;
+    staffName: string | null;
+    /** The booked tech's title, same source and same rule as a visit's crew. */
+    staffTitle: string | null;
+  } | null;
   /** Recorded time across the job — the sum of NON-scheduled activity rows,
       which is what ServiceM8's own billing tab calls Job Time. Validated
       against the live account: job #3137 sums to exactly its 18h 30m. */
@@ -343,10 +349,15 @@ export type JobVisit = {
   day: string;
   /** Minutes recorded across every session that day. */
   minutes: number;
-  /** Who went, in the order they first clocked on. TRAVEL TIME IS ABSENT ON
-      PURPOSE: ServiceM8's own diary shows it, but `sm8_job_activities` has no
-      travel column, so there is nothing here to say. */
-  crew: string[];
+  /** Who went, in the order they first clocked on — and WHAT THEY ARE, off
+      the staff mirror's own `job_title` (18 of the 21 live staff carry one;
+      the words are the account's own free text, trimmed and never re-titled
+      by us). The title rides HERE and nowhere else: this is the one place
+      the card introduces people rather than just naming them. TRAVEL TIME IS
+      ABSENT ON PURPOSE: ServiceM8's own diary shows it, but
+      `sm8_job_activities` has no travel column, so there is nothing here to
+      say. */
+  crew: { name: string; title: string | null }[];
 };
 
 /** A Studio design that names this job, slimmed to what a row says. */
@@ -690,15 +701,27 @@ export async function readMirrorJobDetail(
     ),
   ];
   const staffName = new Map<string, string>();
+  /* The titles ride the SAME read — one column more on a query that was
+     already running, which is the whole cost of naming what a person is. */
+  const staffTitle = new Map<string, string>();
   if (staffIds.length) {
     const { data: staffRows } = await supabaseAdmin
       .from("sm8_staff")
-      .select("uuid, first, last")
+      .select("uuid, first, last, job_title")
       .eq("org_id", orgId)
       .in("uuid", staffIds);
-    for (const s of (staffRows ?? []) as { uuid: string; first: string | null; last: string | null }[]) {
+    for (const s of (staffRows ?? []) as {
+      uuid: string;
+      first: string | null;
+      last: string | null;
+      job_title: string | null;
+    }[]) {
       const name = [s.first, s.last].filter(Boolean).join(" ").trim();
       if (name) staffName.set(s.uuid, name);
+      /* Live titles arrive with trailing spaces ("HVAC ", "Apprentice ") —
+         trim, and an empty one is simply no title. */
+      const title = s.job_title?.trim();
+      if (title) staffTitle.set(s.uuid, title);
     }
   }
 
@@ -733,6 +756,7 @@ export async function readMirrorJobDetail(
           start: next.start_date,
           end: next.end_date,
           staffName: next.staff_uuid ? staffName.get(next.staff_uuid) ?? null : null,
+          staffTitle: next.staff_uuid ? staffTitle.get(next.staff_uuid) ?? null : null,
         }
       : null,
     timeOnSite: sessions > 0 ? { minutes, sessions } : null,
@@ -754,11 +778,13 @@ export async function readMirrorJobDetail(
       .map(([day, v]) => ({
         day,
         minutes: v.minutes,
-        crew: [
-          ...new Set(
-            v.crew.map((id) => staffName.get(id) ?? null).filter((n): n is string => !!n)
-          ),
-        ],
+        /* Two sessions by one person on one day are ONE name on the visit —
+           deduped by the STAFF ID now the row carries a title as well, so a
+           namesake can never collapse two people into one. */
+        crew: [...new Set(v.crew.filter((id) => !!id && staffName.has(id)))].map((id) => ({
+          name: staffName.get(id)!,
+          title: staffTitle.get(id) ?? null,
+        })),
       })),
     queue: queueName
       ? {

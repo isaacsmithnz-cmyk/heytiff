@@ -249,6 +249,20 @@ export function sm8Tone(status: string | null): "" | "ok" | "dan" {
   return status === "Completed" ? "ok" : status === "Unsuccessful" ? "dan" : "";
 }
 
+/** IS THE JOB STILL RUNNING — the one question ServiceM8's "action required"
+    flag needs asked of it before the card repeats it.
+
+    Nobody in ServiceM8 ever clears that flag; closing the job is how you
+    clear it. Measured on the live account: 74 flagged notes across 49 jobs,
+    and 41 of those jobs are already Completed, some flagged in 2024. So a
+    flag is a live signal on an open job and a piece of history on a closed
+    one, and the card says it only in the first case. An unknown fifth status
+    counts as open, for the same reason tabOfSm8 files one under work. */
+export function sm8JobIsOpen(status: string | null): boolean {
+  const tab = tabOfSm8(status);
+  return tab !== "completed" && tab !== "unsuccessful";
+}
+
 function sm8Row(
   job: AllJobsMirrorJob,
   today: string,

@@ -110,6 +110,7 @@ describe("next booking comes only from scheduled rows", () => {
       start: "2026-08-14 11:30:00",
       end: "2026-08-14 14:00:00",
       staffName: null,
+      staffTitle: null,
     });
 
     // The recording still counts where it belongs: time on site.
@@ -125,6 +126,87 @@ describe("next booking comes only from scheduled rows", () => {
 
     expect(detail?.nextBooking).toBeNull();
     expect(detail?.timeOnSite).toEqual({ minutes: 118, sessions: 1 });
+  });
+});
+
+describe("who went, and what they are", () => {
+  /* The titles ride the staff read the detail was already paying for. They
+     appear ONLY on a visit's crew and the next booking — the one place the
+     card introduces people rather than naming them. */
+  const onSite = (staff: string, start: string, end: string) => ({
+    start_date: start,
+    end_date: end,
+    staff_uuid: staff,
+    activity_was_scheduled: 0,
+  });
+
+  it("carries each name with its ServiceM8 job title, trimmed", async () => {
+    rowsBy["sm8_job_activities"] = [
+      onSite("s-1", "2026-08-13 07:00:00", "2026-08-13 11:00:00"),
+      onSite("s-2", "2026-08-13 07:30:00", "2026-08-13 11:30:00"),
+    ];
+    rowsBy["sm8_staff"] = [
+      /* Live titles arrive with trailing spaces — "HVAC " is a real row. */
+      { uuid: "s-1", first: "Oleksii", last: "Ivanov", job_title: "Senior HVAC " },
+      { uuid: "s-2", first: "Sam", last: "Petrie", job_title: null },
+    ];
+
+    const detail = await readMirrorJobDetail("org-1", "j-3188", TODAY, {
+      includeMoney: false,
+    });
+
+    expect(detail?.visits).toEqual([
+      {
+        day: "2026-08-13",
+        minutes: 480,
+        crew: [
+          { name: "Oleksii Ivanov", title: "Senior HVAC" },
+          /* 3 of the 21 live staff have no title; a name alone is the
+             honest answer, never an invented one. */
+          { name: "Sam Petrie", title: null },
+        ],
+      },
+    ]);
+  });
+
+  it("counts one person's two sessions in a day as ONE name on the visit", async () => {
+    rowsBy["sm8_job_activities"] = [
+      onSite("s-1", "2026-08-13 07:00:00", "2026-08-13 11:00:00"),
+      onSite("s-1", "2026-08-13 12:00:00", "2026-08-13 14:00:00"),
+    ];
+    rowsBy["sm8_staff"] = [
+      { uuid: "s-1", first: "Oleksii", last: "Ivanov", job_title: "HVAC" },
+    ];
+
+    const detail = await readMirrorJobDetail("org-1", "j-3188", TODAY, {
+      includeMoney: false,
+    });
+
+    expect(detail?.visits[0].crew).toEqual([{ name: "Oleksii Ivanov", title: "HVAC" }]);
+    expect(detail?.timeOnSite).toEqual({ minutes: 360, sessions: 2 });
+  });
+
+  it("names the booked tech's title too", async () => {
+    rowsBy["sm8_job_activities"] = [
+      {
+        start_date: "2026-08-14 11:30:00",
+        end_date: "2026-08-14 14:00:00",
+        staff_uuid: "s-1",
+        activity_was_scheduled: 1,
+      },
+    ];
+    rowsBy["sm8_staff"] = [
+      { uuid: "s-1", first: "Jack", last: "Reid", job_title: "Apprentice" },
+    ];
+
+    const detail = await readMirrorJobDetail("org-1", "j-3188", TODAY, {
+      includeMoney: false,
+    });
+
+    expect(detail?.nextBooking).toMatchObject({
+      staffName: "Jack Reid",
+      staffTitle: "Apprentice",
+    });
   });
 });
 

@@ -220,7 +220,6 @@ describe("the card is tabs", () => {
       "Checklist",
       "Photos",
       "Documents",
-      "Actions",
     ]);
     expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute(
       "aria-selected",
@@ -238,11 +237,12 @@ describe("the card is tabs", () => {
     expect(screen.queryByRole("tab", { name: "Money" })).toBeNull();
   });
 
-  it("has no Actions tab for a reader with nothing to do there", async () => {
+  it("has no Actions tab even for a manager — the acts live behind the ⋯", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    render(<JobSheet row={row()} {...props} />);
+    render(<JobSheet row={row()} {...props} manage />);
     await detailLanded();
     expect(screen.queryByRole("tab", { name: "Actions" })).toBeNull();
+    expect(screen.getByLabelText("More actions")).toBeInTheDocument();
   });
 
   it("wears the job type's colour as the band's wash and crown, at fixed alphas", async () => {
@@ -1483,28 +1483,32 @@ describe("one claim, opened", () => {
   });
 });
 
-/* ── the Actions face — where the ⋯ menu retired ── */
+/* ── the ⋯ menu and the tracked chip — the Actions face retired ── */
 
-describe("the Actions face", () => {
-  it("holds the promote actions, off every other face", async () => {
+describe("the band's once-per-job acts", () => {
+  it("holds the promote actions behind the ⋯, manage only", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage />);
     await detailLanded();
-    await openTab("Actions");
 
-    const face = document.querySelector("#jcsec-actions") as HTMLElement;
-    expect(within(face).getByText("Create a project from this job")).toBeInTheDocument();
-    expect(within(face).getByText("Create a maintenance agreement")).toBeInTheDocument();
-    /* the ⋯ menu is gone */
+    await userEvent.click(screen.getByLabelText("More actions"));
+    expect(screen.getByText("Create a project from this job")).toBeInTheDocument();
+    expect(screen.getByText("Create a maintenance agreement")).toBeInTheDocument();
+  });
+
+  it("shows no ⋯ at all without manage", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
     expect(screen.queryByLabelText("More actions")).toBeNull();
   });
 
-  it("names the project inline and creates it", async () => {
+  it("names the project on the floor and creates it", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage />);
     await detailLanded();
-    await openTab("Actions");
 
+    await userEvent.click(screen.getByLabelText("More actions"));
     await userEvent.click(screen.getByText("Create a project from this job"));
     const input = screen.getByLabelText("Name the project");
     await userEvent.clear(input);
@@ -1516,7 +1520,20 @@ describe("the Actions face", () => {
     );
   });
 
-  it("opens the board that already tracks the job", async () => {
+  it("Escape in the naming row cancels the naming, not the card", async () => {
+    const onClose = jest.fn();
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
+    await detailLanded();
+
+    await userEvent.click(screen.getByLabelText("More actions"));
+    await userEvent.click(screen.getByText("Create a project from this job"));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByLabelText("Name the project")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("wears the tracked board as a chip in the band, and the chip is the door", async () => {
     const onOpenTracked = jest.fn();
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(
@@ -1527,10 +1544,10 @@ describe("the Actions face", () => {
       />
     );
     await detailLanded();
-    await openTab("Actions");
 
-    await userEvent.click(screen.getByText("Open #1021"));
+    await userEvent.click(screen.getByTitle("Open #1021"));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1", label: "#1021" });
+    expect(screen.getByText("On the maintenance board")).toBeInTheDocument();
   });
 });
 

@@ -94,8 +94,7 @@ type TabKey =
   | "visits"
   | "checklist"
   | "photos"
-  | "documents"
-  | "actions";
+  | "documents";
 
 const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
@@ -217,6 +216,7 @@ export function JobSheet({
   /* Which claim's modal is open, and whether the number's list is showing. */
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
   const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
@@ -254,11 +254,15 @@ export function JobSheet({
         setNumbersOpen(false);
         return;
       }
+      if (menuOpen) {
+        setMenuOpen(false);
+        return;
+      }
       onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim]);
+  }, [onClose, numbersOpen, openClaim, menuOpen]);
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -268,6 +272,15 @@ export function JobSheet({
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [numbersOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const away = (e: PointerEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.(".wb2-shmenu")) setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [menuOpen]);
 
   /* No setLoading(true) here: the sheet is KEYED BY JOB, so a different job
      is a different component with `loading` already true. */
@@ -458,9 +471,10 @@ export function JobSheet({
     });
   };
 
-  /* THE TAB SET IS FIXED FROM FIRST PAINT — money and manage are known at
-     open, so no face pops in as a read lands and the thumb never jumps. */
-  const showActions = manage || !!row.tracked;
+  /* THE TAB SET IS FIXED FROM FIRST PAINT — the money grant is known at
+     open, so no face pops in as a read lands and the thumb never jumps.
+     Once-per-job acts live behind the band's ⋯, not on a face: two buttons
+     never earned one. */
   const tabs: ViewTab[] = [
     { key: "summary", label: "Summary" },
     { key: "diary", label: "Diary" },
@@ -469,7 +483,6 @@ export function JobSheet({
     { key: "checklist", label: "Checklist" },
     { key: "photos", label: "Photos" },
     { key: "documents", label: "Documents" },
-    ...(showActions ? [{ key: "actions", label: "Actions" }] : []),
   ];
 
   const go = (key: string) => {
@@ -605,7 +618,68 @@ export function JobSheet({
                   {categoryName}
                 </span>
               )}
+              {/* A TRACKED JOB WEARS ITS BOARD. The door used to hide on the
+                  Actions face; a fact this useful belongs where the chips
+                  are, and the chip IS the door. */}
+              {row.tracked && (
+                <button
+                  className="wb2-chip blue"
+                  onClick={() => onOpenTracked(row.tracked!)}
+                  title={`Open ${row.tracked.label}`}
+                >
+                  {row.tracked.kind === "visit"
+                    ? "On the maintenance board"
+                    : "On the projects board"}
+                  <i className="wb2-shcar" aria-hidden>
+                    ›
+                  </i>
+                </button>
+              )}
             </span>
+            {/* THE WAYS OUT OF THIS JOB, back behind the ⋯. They spent one
+                release as an Actions face — two ghost buttons alone on a
+                page — and a face that sparse reads as broken. A disclosure,
+                not an ARIA menu widget: role="menu" promises arrow-key
+                navigation, and promising it without implementing it is worse
+                for a screen reader than two plain buttons. */}
+            {manage && (
+              <span className="wb2-shmenu">
+                <button
+                  className="wb2-ico"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  title="More"
+                  aria-label="More actions"
+                  aria-expanded={menuOpen}
+                >
+                  <Icon name="dots" size={14} />
+                </button>
+                {menuOpen && (
+                  <span className="wb2-shmpop">
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setName(row.clientName ?? "");
+                        setNaming(true);
+                      }}
+                    >
+                      <Icon name="plus" size={14} />
+                      Create a project from this job
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onCreateAgreement(row, detail);
+                      }}
+                    >
+                      <Icon name="file" size={14} />
+                      Create a maintenance agreement
+                    </button>
+                  </span>
+                )}
+              </span>
+            )}
             <button
               ref={closeRef}
               className="wb2-ico"
@@ -1110,80 +1184,39 @@ export function JobSheet({
             </>
           )}
 
-          {showActions &&
-            panel(
-              "actions",
-              <>
-                {/* Once-per-job acts on a once-per-job tab — the ⋯ menu
-                    retired in here. Promotion is the funnel the All jobs side
-                    exists for: see an untracked install, put it on a board. */}
-                {row.tracked && (
-                  <div className="wb2-jcsec">
-                    <span className="wb2-sect">Already tracked</span>
-                    <p className="int-hint">
-                      This job is on the{" "}
-                      {row.tracked.kind === "visit" ? "maintenance board" : "projects board"}.
-                    </p>
-                    <button className="pbtn ghost" onClick={() => onOpenTracked(row.tracked!)}>
-                      <Icon name="send" size={15} />
-                      {`Open ${row.tracked.label}`}
-                    </button>
-                  </div>
-                )}
-                {manage && (
-                  <div className="wb2-jcsec wb2-jcacts">
-                    {naming ? (
-                      <div className="wb2-jcname">
-                        <input
-                          className="wb2-fi"
-                          autoFocus
-                          value={name}
-                          placeholder={row.clientName ?? "Project name"}
-                          onChange={(e) => setName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") makeProject();
-                            if (e.key === "Escape") setNaming(false);
-                          }}
-                          aria-label="Name the project"
-                        />
-                        <button className="pbtn" disabled={busy} onClick={makeProject}>
-                          <Icon name="check" size={15} />
-                          Create it
-                        </button>
-                        <button
-                          className="pbtn ghost"
-                          disabled={busy}
-                          onClick={() => setNaming(false)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="pbtn ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          setName(row.clientName ?? "");
-                          setNaming(true);
-                        }}
-                      >
-                        <Icon name="plus" size={15} />
-                        Create a project from this job
-                      </button>
-                    )}
-                    <button
-                      className="pbtn ghost"
-                      disabled={busy}
-                      onClick={() => onCreateAgreement(row, detail)}
-                    >
-                      <Icon name="file" size={15} />
-                      Create a maintenance agreement
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+          {/* No Actions face. The once-per-job acts live behind the band's
+              ⋯; the naming row below is the only floor furniture, and only
+              while a project is being named. */}
         </div>
+
+        {manage && naming && (
+          <div className="wb2-shft">
+            <input
+              className="wb2-fi"
+              autoFocus
+              value={name}
+              placeholder={row.clientName ?? "Project name"}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") makeProject();
+                if (e.key === "Escape") {
+                  /* Cancels the naming, not the card — without this the
+                     document listener closes the whole sheet. */
+                  e.stopPropagation();
+                  setNaming(false);
+                }
+              }}
+              aria-label="Name the project"
+            />
+            <button className="pbtn" disabled={busy} onClick={makeProject}>
+              <Icon name="check" size={15} />
+              Create it
+            </button>
+            <button className="pbtn ghost" disabled={busy} onClick={() => setNaming(false)}>
+              Cancel
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Over the card, inside the SAME portal — a modal on a modal that

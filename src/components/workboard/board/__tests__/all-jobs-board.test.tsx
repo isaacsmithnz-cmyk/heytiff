@@ -547,9 +547,9 @@ describe("promotion", () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: true });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
-    // both live on the Actions tab, last on purpose — a once-per-job act
-    // does not belong on a face whose daily job is to be read
-    await userEvent.click(within(sheet).getByRole("tab", { name: "Actions" }));
+    // both live behind the band's ⋯ — a once-per-job act does not belong
+    // on a face whose daily job is to be read, and it never earned one
+    await userEvent.click(within(sheet).getByLabelText("More actions"));
     expect(
       within(sheet).getByRole("button", { name: /Create a project from this job/ })
     ).toBeInTheDocument();
@@ -558,11 +558,11 @@ describe("promotion", () => {
     ).toBeInTheDocument();
   });
 
-  it("offers no Actions tab to someone who can't manage the board", async () => {
+  it("offers no ⋯ to someone who can't manage the board", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: false });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
-    expect(within(sheet).queryByRole("tab", { name: "Actions" })).not.toBeInTheDocument();
+    expect(within(sheet).queryByLabelText("More actions")).not.toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: /Create a project/ })).not.toBeInTheDocument();
     expect(
       within(sheet).queryByRole("button", { name: /Create a maintenance agreement/ })
@@ -573,7 +573,7 @@ describe("promotion", () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
-    await userEvent.click(within(sheet).getByRole("tab", { name: "Actions" }));
+    await userEvent.click(within(sheet).getByLabelText("More actions"));
     await userEvent.click(
       within(sheet).getByRole("button", { name: /Create a project from this job/ })
     );
@@ -592,7 +592,7 @@ describe("promotion", () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }) });
     await userEvent.click(rows()[0]);
     const sheet = await screen.findByRole("dialog");
-    await userEvent.click(within(sheet).getByRole("tab", { name: "Actions" }));
+    await userEvent.click(within(sheet).getByLabelText("More actions"));
     await userEvent.click(
       within(sheet).getByRole("button", { name: /Create a maintenance agreement/ })
     );

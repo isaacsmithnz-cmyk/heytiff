@@ -5813,6 +5813,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-chip.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t); }
 .wb2-chip.ok { background:rgba(0,163,137,.11); color:#00806b; }
 .wb2-chip.blue { background:rgba(0,168,224,.1); color:#0089b8; }
+/* a chip that IS a door — a tracked job wears its board in the band and the
+   chip opens it. A real <button>, so the UA face is stripped here (the sheet
+   portals outside .fg, so no house reset reaches it). */
+button.wb2-chip { border:0; font:inherit; font-size:11px; font-weight:800; cursor:pointer; }
+button.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
+button.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
 .wb2-empty { display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:38px 20px; color:var(--gray500); }
 .wb2-empty svg { color:var(--q); }
 .wb2-empty b { font-size:13.5px; color:var(--ink); }
@@ -7001,6 +7007,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-jcband .wb2-chip.dan { background:rgba(224,38,79,.13); }
 .wb2-jcband .wb2-chip.warn { background:rgba(255,138,0,.17); }
 .wb2-jcband .wb2-chip.ok { background:rgba(0,163,137,.14); }
+.wb2-jcband .wb2-chip.blue { background:rgba(0,168,224,.13); }
 .wb2-jcband .wb2-ico { background:#fff; }
 .wb2-jcband .wb2-ico:hover { background:rgba(255,255,255,.75); }
 /* the tabs sit at the band's foot; the band's own padding keeps the first
@@ -7139,10 +7146,6 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-nextv b { font-size:15px; font-weight:800; letter-spacing:-.015em; color:#007fa8; }
 .wb2-nextv em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 /* the Actions face — once-per-job acts, as quiet rows */
-.wb2-jcacts { gap:8px; }
-.wb2-jcacts .pbtn { align-self:flex-start; }
-.wb2-jcname { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.wb2-jcname .wb2-fi { flex:1 1 220px; }
 
 /* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
    One job's money, read once. THE JOB TYPE'S COLOUR FRAMES THIS SECTION AND

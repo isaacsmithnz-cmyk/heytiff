@@ -4,12 +4,16 @@
    parent. Every figure below is ServiceM8's own, to the cent. */
 
 import {
+  claimFor,
+  claimTitle,
   daysBetween,
   deriveFamilyMoney,
   familyInvoicedLine,
   familyNumbersFor,
   isFamilyMember,
   isPartialInvoiceLine,
+  isPartialInvoicePaper,
+  isPartialInvoiceStubNote,
   splitJobNumber,
   type FamilyMemberFacts,
 } from "../job-family";
@@ -430,5 +434,63 @@ describe("daysBetween", () => {
     expect(daysBetween("2026-08-28", "2026-09-02")).toBe(5);
     expect(daysBetween("2026-09-02", "2026-08-28")).toBe(-5);
     expect(daysBetween("2026-08-28", "2026-08-28")).toBe(0);
+  });
+});
+
+describe("claimTitle", () => {
+  it("names a claim the way the trade schedules it", () => {
+    const m = derive([parent(), depositA(), progressB()]);
+    expect(m.claims.map(claimTitle)).toEqual([
+      "Payment 1 — Deposit",
+      "Payment 2 — Progress",
+      "Payment 3 — Final",
+    ]);
+  });
+});
+
+describe("claimFor", () => {
+  it("finds the claim a job row is", () => {
+    const m = derive([parent(), depositA(), progressB()]);
+    expect(claimFor(m, "a")?.jobNumber).toBe("2380A");
+    expect(claimFor(m, "p")?.stage).toBe("Final");
+  });
+
+  it("misses honestly for a member that never became a claim", () => {
+    const m = derive([parent({ totalCents: null, lines: { cents: 0, taxInclusive: false } }), depositA()]);
+    expect(claimFor(m, "p")).toBeNull();
+    expect(claimFor(m, null)).toBeNull();
+    expect(claimFor(null, "a")).toBeNull();
+  });
+});
+
+describe("isPartialInvoiceStubNote", () => {
+  it("catches the two sentences ServiceM8 generates", () => {
+    expect(isPartialInvoiceStubNote("This job was created as a Partial Invoice for Job #2380")).toBe(true);
+    expect(isPartialInvoiceStubNote("This job was created as a Partial Invoice for Job #461")).toBe(true);
+    expect(isPartialInvoiceStubNote("Partial invoice #1103A created")).toBe(true);
+    expect(isPartialInvoiceStubNote("  partial invoice  #872A   created.  ")).toBe(true);
+  });
+
+  /* The tempting rule — "a note on a clone is noise" — would bin 212 live
+     notes that are somebody's actual writing. */
+  it("leaves real writing alone, including ServiceM8's other lifecycle note", () => {
+    expect(isPartialInvoiceStubNote("@lukeingold Please order new grill 1687x235")).toBe(false);
+    expect(isPartialInvoiceStubNote("Job was re-opened after being completed.")).toBe(false);
+    expect(isPartialInvoiceStubNote("Partial invoice raised but customer disputes the 30%")).toBe(false);
+    expect(isPartialInvoiceStubNote("")).toBe(false);
+    expect(isPartialInvoiceStubNote(null)).toBe(false);
+  });
+});
+
+describe("isPartialInvoicePaper", () => {
+  it("keeps the claim's own PDF out of the job's gallery", () => {
+    expect(isPartialInvoicePaper("Partial Invoice #2380A")).toBe(true);
+    expect(isPartialInvoicePaper("partial invoice 1194b.pdf")).toBe(true);
+  });
+
+  it("leaves the job's real paper alone", () => {
+    expect(isPartialInvoicePaper("Diamond Air Solutions Pty LTD Invoice #2380")).toBe(false);
+    expect(isPartialInvoicePaper("IMG_4021.jpg")).toBe(false);
+    expect(isPartialInvoicePaper(null)).toBe(false);
   });
 });

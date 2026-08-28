@@ -147,6 +147,13 @@ export type JobMediaItem = {
   takenAt: string | null;
   /** A signed URL when the bytes are cached here, null while they aren't. */
   url: string | null;
+  /** The job NUMBER of the progress claim this file was filed against, when
+      it wasn't filed against the job itself ("2380A"). ServiceM8 clones a job
+      to bill it in stages, and a photo taken on site lands on whichever clone
+      happened to be open — 622 of them live. The photo is about the work, so
+      it rises to the job; this says where it came from, which is also how
+      anyone would ever notice one filed against the wrong invoice. */
+  fromClaim: string | null;
 };
 
 export type JobMediaGroups = {

@@ -13,7 +13,7 @@ import type { BoardProject, ProjectBoardVisit } from "@/lib/workboard/projects-b
 import { jobMoneyOf } from "@/lib/workboard/job-money";
 
 const searchAllJobs = jest.fn(async () => []);
-const readMirrorJob = jest.fn(async () => null);
+const readMirrorJob = jest.fn(async () => ({ detail: null, focusRemoteId: null }));
 const readJobFiles = jest.fn(async () => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
 const scheduleDay = jest.fn(async (dayISO: string) => ({
@@ -26,6 +26,7 @@ const scheduleDay = jest.fn(async (dayISO: string) => ({
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
+  readClaim: async () => null,
   readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   readJobRecord: jest.fn(async () => null),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),

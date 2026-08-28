@@ -6987,6 +6987,79 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-jmclaim > span { grid-column:2; grid-row:1 / span 2; }
 .wb2-jmclaim > i { grid-column:3; grid-row:1 / span 2; }
 .wb2-mline > span.quiet { color:var(--gray500); }
+/* ── THE JOB NUMBER AS NAVIGATION ─────────────────────────────────────────
+   A job ServiceM8 billed in stages wears a caret that lists its claims; a
+   card opened FROM a claim wears the crumb "#2380 › #2380A". Four characters
+   doing the work of a back button, in the one place a reader already looks to
+   find out what they are looking at. */
+.wb2-shnos { position:relative; display:inline-flex; align-items:center; gap:5px; flex:none; }
+.wb2-shnos > button.wb2-shno { border:0; font:inherit; cursor:pointer;
+  font-size:13px; font-weight:800; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+.wb2-shnos > button.wb2-shno:hover { background:rgba(0,168,224,.16); }
+.wb2-shnos > button.wb2-shno:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-shno.here { background:rgba(122,90,248,.12); color:#5b3fd0; }
+.wb2-shnos > button.wb2-shno.here:hover { background:rgba(122,90,248,.2); }
+.wb2-shcar { font-style:normal; font-size:8px; margin-left:4px; vertical-align:middle; }
+.wb2-shcrumb { font-style:normal; color:var(--gray400); font-size:13px; font-weight:800; }
+/* the claims, addressable */
+.wb2-shnopop { position:absolute; top:calc(100% + 6px); left:0; z-index:4; width:max-content;
+  max-width:min(330px, 76vw); display:flex; flex-direction:column; gap:1px; padding:5px;
+  border-radius:13px; background:#fff; border:1px solid var(--wb2-line);
+  box-shadow:0 24px 48px -22px rgba(10,12,20,.42); }
+.wb2-shnopop > button { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px;
+  align-items:center; padding:8px 9px; border:0; border-radius:9px; background:transparent;
+  font:inherit; text-align:left; cursor:pointer; }
+.wb2-shnopop > button:hover { background:rgba(5,5,5,.05); }
+.wb2-shnopop > button.on { background:rgba(122,90,248,.09); }
+.wb2-shnopop > button:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-shnopop .n { font-size:11.5px; font-weight:800; color:#007fa8; font-variant-numeric:tabular-nums; }
+.wb2-shnopop > button.on .n { color:#5b3fd0; }
+.wb2-shnopop .t { font-size:12px; font-weight:700; color:var(--gray700); }
+.wb2-shnopop .a { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+/* a claim row is a door, so it has to look and behave like one */
+button.wb2-jmclaim { width:100%; border:0; background:transparent; font:inherit; text-align:left;
+  cursor:pointer; border-top:1px solid var(--wb2-line2); }
+button.wb2-jmclaim:hover { background:rgba(5,5,5,.032); }
+button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:9px; }
+/* the claim this card was opened for */
+.wb2-jmclaim.here { background:rgba(122,90,248,.07); border-radius:10px; border-top:0;
+  padding-left:11px; box-shadow:inset 3px 0 0 -1px var(--wb2-eq); }
+.wb2-jmclaim.here > b { color:#5b3fd0; }
+/* ── ONE CLAIM, over the card it belongs to ──────────────────────────────
+   Its own scrim so the card dims behind it, and a z-index above the sheet
+   because it renders inside the sheet's portal rather than a second one. */
+/* ABOVE THE SHEET'S OWN PAIR (scrim 100 / sheet 101) — jsdom cannot see a
+   stacking context, so this number is walked, not tested: at 61 the modal
+   opened invisibly UNDER the card. */
+.wb2-clscrim { position:fixed; inset:0; z-index:110; background:rgba(8,10,16,.42);
+  animation:wb2ClIn .2s ease both; }
+.wb2-claim { position:fixed; z-index:111; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:min(440px, calc(100vw - 32px)); max-height:min(78vh, 720px); overflow:auto;
+  display:flex; flex-direction:column; background:#fff; border-radius:20px;
+  border:1px solid var(--wb2-line, rgba(5,5,5,.08));
+  box-shadow:0 40px 90px -40px rgba(10,12,20,.62);
+  animation:wb2ClRise .26s cubic-bezier(.22,1,.36,1) both; }
+@keyframes wb2ClIn { from { opacity:0; } to { opacity:1; } }
+@keyframes wb2ClRise { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
+  to { opacity:1; transform:translate(-50%,-50%); } }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-clscrim, .wb2-claim { animation:none; } }
+.wb2-cltop { display:flex; align-items:center; gap:5px; padding:14px 16px 0; }
+.wb2-clsp { flex:1; }
+.wb2-clhd { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px;
+  padding:10px 16px 14px; border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
+.wb2-clhd > b { grid-column:1; font-size:16px; font-weight:800; letter-spacing:-.025em; }
+.wb2-clhd > em { grid-column:1; font-style:normal; font-size:11.5px; font-weight:600;
+  color:var(--gray500); }
+.wb2-clamt { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:19px;
+  font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.wb2-clbody { display:flex; flex-direction:column; gap:15px; padding:15px 16px 18px; }
+.wb2-clgrp { display:flex; flex-direction:column; }
+.wb2-clgrp > .wb2-sect { margin-bottom:5px; }
+/* a file that arrived on a progress claim and rose to the job */
+.wb2-mfrom { position:absolute; left:4px; bottom:4px; text-decoration:none;
+  background:rgba(122,90,248,.92); color:#fff; font-size:8.5px; font-weight:800;
+  padding:2px 5px; border-radius:5px; letter-spacing:.01em; font-variant-numeric:tabular-nums; }
 /* the ways out of the job, behind the ⋯ — a once-per-job act, off the floor */
 .wb2-shmenu { position:relative; margin-left:auto; }
 .wb2-shtop .wb2-shmenu .wb2-ico { margin-left:0; }

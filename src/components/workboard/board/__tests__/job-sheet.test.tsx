@@ -9,11 +9,15 @@ import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query"
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 import type { CacheJobFilesResult } from "@/app/actions/workboard-media";
-import type { JobRecordRead } from "@/app/actions/workboard";
+import type { JobCardRead, JobRecordRead } from "@/app/actions/workboard";
+import type { ClaimDetailRead } from "@/lib/workboard/all-jobs-query";
 import type { AllJobRow } from "@/lib/workboard/all-jobs";
 import { deriveFamilyMoney, type FamilyMoney } from "@/lib/workboard/job-family";
 
-const readMirrorJob = jest.fn(async (): Promise<MirrorJobDetail | null> => null);
+const readMirrorJob = jest.fn(
+  async (): Promise<JobCardRead> => ({ detail: null, focusRemoteId: null })
+);
+const readClaim = jest.fn(async (): Promise<ClaimDetailRead | null> => null);
 const createProjectFromJob = jest.fn(async () => ({ ok: true as const, id: "p-new" }));
 /* A job with no files is the common case and the default here, so every test
    renders the sheet WITHOUT a files section unless it asks for one. */
@@ -22,6 +26,7 @@ const readJobFiles = jest.fn(async (): Promise<JobMediaGroupsRead | null> => nul
 const readJobRecord = jest.fn(async (): Promise<JobRecordRead | null> => null);
 jest.mock("@/app/actions/workboard", () => ({
   readMirrorJob: (...a: unknown[]) => readMirrorJob(...(a as [])),
+  readClaim: (...a: unknown[]) => readClaim(...(a as [])),
   readJobFiles: (...a: unknown[]) => readJobFiles(...(a as [])),
   readJobRecord: (...a: unknown[]) => readJobRecord(...(a as [])),
   createProjectFromJob: (...a: unknown[]) => createProjectFromJob(...(a as [])),
@@ -102,6 +107,8 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
     staffName: "Alex Lorenz",
   },
   timeOnSite: { minutes: 1110, sessions: 2 },
+  dateOn: "2026-08-08",
+  dateLabel: "raised",
   visits: [
     { day: "2026-08-14", minutes: 620, crew: ["Alex Lorenz"] },
     { day: "2026-08-13", minutes: 490, crew: ["Callum Vrieze", "Alex Lorenz"] },
@@ -130,10 +137,12 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
    a neighbour would read as a loop that ran too many rounds. */
 beforeEach(() => {
   readMirrorJob.mockReset();
+  readClaim.mockReset();
+  readClaim.mockResolvedValue(null);
   readJobFiles.mockReset();
   readJobRecord.mockReset();
   cacheJobFiles.mockReset();
-  readMirrorJob.mockResolvedValue(null);
+  readMirrorJob.mockResolvedValue(card(null));
   readJobFiles.mockResolvedValue(null);
   readJobRecord.mockResolvedValue(null);
   cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
@@ -146,6 +155,13 @@ beforeEach(() => {
 });
 
 const noop = () => {};
+/** The action resolves which CARD a row opens before it reads it, so it hands
+    back the detail AND the claim to land on. A plain job focuses nothing. */
+const card = (d: MirrorJobDetail | null, focusRemoteId: string | null = null) => ({
+  detail: d,
+  focusRemoteId,
+});
+
 const props = {
   manage: false,
   moneyVisible: false,
@@ -157,7 +173,7 @@ const props = {
 
 describe("the sheet renders what the mirror already held", () => {
   it("shows the checklist grouped by section, with who ticked what", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("Their checklist — 1 of 3 done")).toBeInTheDocument();
@@ -176,7 +192,7 @@ describe("the sheet renders what the mirror already held", () => {
      question a job card is actually asked is when we were last there and who
      went, so the sessions are kept and the sum is the heading. */
   it("lists every visit with who went, and tallies them in the heading", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("Visits — 2 · 18h 30m on site")).toBeInTheDocument();
@@ -195,7 +211,7 @@ describe("the sheet renders what the mirror already held", () => {
       minutes: 60,
       crew: ["Alex Lorenz"],
     }));
-    readMirrorJob.mockResolvedValueOnce(detail({ visits: many }));
+    readMirrorJob.mockResolvedValueOnce(card(detail({ visits: many })));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("Thu 20 Aug")).toBeInTheDocument();
@@ -207,7 +223,7 @@ describe("the sheet renders what the mirror already held", () => {
   });
 
   it("gives the next booking its end time and the queue its own fact", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("7:30am–3:30pm Fri 14 Aug")).toBeInTheDocument();
@@ -216,13 +232,13 @@ describe("the sheet renders what the mirror already held", () => {
   });
 
   it("falls back to the geo line when the job has no written address", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail({ address: null }));
+    readMirrorJob.mockResolvedValueOnce(card(detail({ address: null })));
     render(<JobSheet row={row()} {...props} />);
     expect(await screen.findByText("Rose Bay NSW 2029")).toBeInTheDocument();
   });
 
   it("renders a contact's email as a mailto link", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     const link = (await screen.findByText("josh@lsdb.com.au")) as HTMLAnchorElement;
@@ -233,7 +249,7 @@ describe("the sheet renders what the mirror already held", () => {
     /* the status chip used to appear only when it had a tone, which hid
        exactly the statuses a reader arrives unsure about; and a block opened
        from the Schedule hands the day's reading across, "!" included */
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(
       <JobSheet
         row={row()}
@@ -249,7 +265,7 @@ describe("the sheet renders what the mirror already held", () => {
   });
 
   it("wears the category colour as a dot, never as the chip surface", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     const { container } = render(<JobSheet row={row()} {...props} />);
 
     await screen.findByText("Visits — 2 · 18h 30m on site");
@@ -309,7 +325,7 @@ const familyMoney = (over: Partial<FamilyInput> = {}): FamilyMoney =>
 
 describe("the money block", () => {
   it("reads three ServiceM8 cards as one job, with the claims numbered", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -326,7 +342,7 @@ describe("the money block", () => {
   /* Payments join by uuid and never by family, so the parent used to read
      "Nothing paid yet" with $25,072 already in the bank. */
   it("counts the money that landed on the clones", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -340,7 +356,7 @@ describe("the money block", () => {
 
   /* The two axes never share a sentence: this line counts INVOICING. */
   it("says what has been invoiced and what is still to bill", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: null,
@@ -389,7 +405,7 @@ describe("the money block", () => {
   /* GST is never derived, so a family whose claims are stated on different
      bases gets no single figure — and says which. */
   it("stands the total down rather than adding ex-GST to inc-GST", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: null,
@@ -432,7 +448,7 @@ describe("the money block", () => {
 
   /* An invoice nobody has raised has no number to name. */
   it("names no invoice number on the part still to bill", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: null,
@@ -470,7 +486,7 @@ describe("the money block", () => {
   /* The category colour frames the money block and NOTHING else — the card
      keeps its neutral hairline. */
   it("wears the job type's colour as the block's edge", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -482,7 +498,7 @@ describe("the money block", () => {
 
   /* ServiceM8's own subtraction rows are bookkeeping, not materials. */
   it("keeps the partial-invoice rows out of what went on the job", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: {
@@ -529,7 +545,7 @@ describe("the money block", () => {
      so the block waits rather than painting the wrong number first. */
   it("shows no figure at all until the family read has landed", async () => {
     let land: (v: JobRecordRead) => void = () => {};
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockReturnValueOnce(
       new Promise<JobRecordRead>((res) => {
         land = res;
@@ -579,7 +595,7 @@ describe("the money block never speaks past what it knows", () => {
      value SMALLER than one of its own claims, right above the sentence
      saying no single figure exists. */
   it("does not resurrect the job row's own total when the family stood one down", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         money: {
           valueCents: 626806,
@@ -591,7 +607,7 @@ describe("the money block never speaks past what it knows", () => {
           paidOn: null,
         },
       })
-    );
+    ));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: mixed() });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -607,7 +623,7 @@ describe("the money block never speaks past what it knows", () => {
   /* awaitingCents counts only RAISED claims, so "nothing awaiting" and
      "nothing left to bill" are different facts. */
   it("does not call a job paid in full while a claim is still to be billed", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: null,
@@ -646,7 +662,7 @@ describe("the money block never speaks past what it knows", () => {
      read can't parse reported nothing collected while the payments section
      on the same card listed the money. */
   it("counts the ledger's payments when there is no family to count", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         money: {
           valueCents: 279400,
@@ -658,7 +674,7 @@ describe("the money block never speaks past what it knows", () => {
           paidOn: null,
         },
       })
-    );
+    ));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: {
@@ -717,7 +733,7 @@ describe("the money block on a job with no clones", () => {
   };
 
   it("says the value and where collection stands, with no bar to compare", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail({ money: jobMoney }));
+    readMirrorJob.mockResolvedValueOnce(card(detail({ money: jobMoney })));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: plain() });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -730,7 +746,7 @@ describe("the money block on a job with no clones", () => {
   });
 
   it("wears the amber head row once there is something to chase", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail({ money: jobMoney }));
+    readMirrorJob.mockResolvedValueOnce(card(detail({ money: jobMoney })));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: null,
@@ -748,11 +764,218 @@ describe("the money block on a job with no clones", () => {
   });
 });
 
+/* ── a clone opens the job it is a claim of ─────────────────────────────
+   ServiceM8 bills a staged job by cloning it. The clone is a CLAIM, so it
+   stops having a card: searching #2380A lands on #2380 with that claim named
+   in the header and marked in the ledger. */
+
+describe("a card opened from a progress claim", () => {
+  const opened = () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail(), "j-2380a"));
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+  };
+
+  it("wears the crumb and names the claim, keeping the job's own number", async () => {
+    opened();
+    render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible />);
+
+    /* The crumb needs the FAMILY, which lands a beat after the detail — and
+       until it does the header shows the number that was clicked, which is
+       the honest thing to show. */
+    await screen.findByText("$31,340.35");
+    // the card's number is the JOB's, and the caret says how many invoices
+    expect(screen.getByTitle("3 invoices on this job")).toHaveTextContent("#3137");
+    // the claim that was asked for keeps its own place beside it
+    expect(document.querySelector(".wb2-shcrumb")).not.toBeNull();
+    expect(screen.getByTitle(/Payment 1 — Deposit — open it/)).toHaveTextContent("#2380A");
+    expect(screen.getAllByText("Payment 1 — Deposit").length).toBeGreaterThan(0);
+  });
+
+  it("marks the claim it was opened for in the ledger", async () => {
+    opened();
+    render(<JobSheet row={row({ number: "2380A" })} {...props} moneyVisible />);
+
+    await screen.findByText("$31,340.35");
+    const here = document.querySelector(".wb2-jmclaim.here") as HTMLElement;
+    expect(here).not.toBeNull();
+    expect(within(here).getByText("Payment 1 — Deposit")).toBeInTheDocument();
+  });
+
+  /* The card is the job's, so everything that hangs off it must be too — a
+     clone's ledger or picklist would be a different job's answers. */
+  it("reads the job's own record and files, not the claim's", async () => {
+    opened();
+    render(<JobSheet row={row({ id: "j-2380a", number: "2380A" })} {...props} moneyVisible />);
+
+    await screen.findByText("$31,340.35");
+    expect(readJobRecord).toHaveBeenCalledWith("j-1");
+    expect(readJobFiles).toHaveBeenCalledWith("j-1");
+    expect(readJobRecord).not.toHaveBeenCalledWith("j-2380a");
+  });
+
+  /* The row that was clicked is a DIFFERENT JOB from the card. Its status and
+     its date must not survive the resolution — a clone completed in March
+     under a parent completed in August is the same job twice with two
+     different answers. */
+  it("shows the job's own day and status, not the claim's", async () => {
+    readMirrorJob.mockResolvedValueOnce(
+      card(
+        detail({ status: "Completed", dateOn: "2026-08-21", dateLabel: "completed" }),
+        "j-2380a"
+      )
+    );
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(
+      <JobSheet
+        row={row({ number: "2380A", statusLabel: "Quote", tone: "", date: "2026-03-27 00:00:00", dateLabel: "quoted" })}
+        {...props}
+        moneyVisible
+      />
+    );
+
+    await screen.findByText("$31,340.35");
+    expect(screen.getByText("Fri 21 Aug")).toBeInTheDocument();
+    expect(screen.getByText("completed")).toBeInTheDocument();
+    expect(screen.queryByText("quoted")).toBeNull();
+    expect(screen.queryByText("Quote")).toBeNull();
+  });
+
+  it("says nothing about a claim on a job that was never cloned", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: null });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("Visits — 2 · 18h 30m on site");
+    expect(document.querySelector(".wb2-shcrumb")).toBeNull();
+    expect(document.querySelector(".wb2-shcar")).toBeNull();
+  });
+});
+
+describe("the job number lists its claims", () => {
+  it("opens the list and addresses each invoice", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+
+    await screen.findByText("$31,340.35");
+    await userEvent.click(screen.getByTitle("3 invoices on this job"));
+
+    const pop = document.querySelector(".wb2-shnopop") as HTMLElement;
+    expect(within(pop).getByText("#2380A")).toBeInTheDocument();
+    expect(within(pop).getByText("#2380B")).toBeInTheDocument();
+    expect(within(pop).getByText("Payment 3 — Final")).toBeInTheDocument();
+  });
+});
+
+describe("one claim, opened", () => {
+  const openFirstClaim = async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await screen.findByText("$31,340.35");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Payment 1 — Deposit — open this invoice/ })
+    );
+  };
+
+  it("shows the invoice's own lines, money and paper — and nothing the job owns", async () => {
+    readClaim.mockResolvedValue({
+      ledger: {
+        materials: [
+          {
+            remoteId: "m-1",
+            name: "Progress payment 30%",
+            quantity: 1,
+            unitCents: 838800,
+            taxInclusive: false,
+            lineCents: 838800,
+          },
+        ],
+        payments: [
+          {
+            remoteId: "pay-1",
+            amountCents: 940211,
+            method: "Stripe",
+            note: null,
+            takenOn: "2026-04-02",
+            isDeposit: true,
+            takenBy: "Luke Ingold",
+          },
+        ],
+      },
+      notes: [],
+      media: {
+        photos: [],
+        documents: [
+          {
+            remoteId: "f-1",
+            name: "Partial Invoice #2380A",
+            fileType: ".pdf",
+            kind: "document" as const,
+            origin: "Invoice",
+            takenAt: null,
+            url: null,
+            fromClaim: null,
+          },
+        ],
+        elsewhere: [],
+        truncated: false,
+      },
+    });
+    await openFirstClaim();
+
+    const modal = await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ });
+    expect(within(modal).getByText("Progress payment 30%")).toBeInTheDocument();
+    expect(within(modal).getByText("Stripe")).toBeInTheDocument();
+    expect(within(modal).getByText("Partial Invoice #2380A")).toBeInTheDocument();
+    // the job's own things stay on the job
+    expect(within(modal).queryByText(/Visits/)).toBeNull();
+    expect(within(modal).queryByText("Who to ring")).toBeNull();
+  });
+
+  /* ServiceM8 writes "This job was created as a Partial Invoice…" onto every
+     clone — 406 of the 618 notes on clones. It is swept, and the empty state
+     says so rather than reading as "nobody looked". */
+  it("names what was checked when the only note was ServiceM8's own", async () => {
+    readClaim.mockResolvedValue({
+      ledger: { materials: [], payments: [] },
+      notes: [],
+      media: { photos: [], documents: [], elsewhere: [], truncated: false },
+    });
+    await openFirstClaim();
+
+    expect(
+      await screen.findByText(/ServiceM8's own note about raising it isn't repeated here/)
+    ).toBeInTheDocument();
+  });
+
+  it("closes on Escape without closing the card under it", async () => {
+    const onClose = jest.fn();
+    readClaim.mockResolvedValue({
+      ledger: { materials: [], payments: [] },
+      notes: [],
+      media: { photos: [], documents: [], elsewhere: [], truncated: false },
+    });
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: familyMoney() });
+    render(<JobSheet row={row()} {...props} moneyVisible onClose={onClose} />);
+    await screen.findByText("$31,340.35");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Payment 2 — Progress — open this invoice/ })
+    );
+    await screen.findByRole("dialog", { name: /Payment 2 — Progress/ });
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: /Payment 2/ })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
 /* ── the ways out of the job ── */
 
 describe("the promote actions", () => {
   it("live behind the ⋯ menu, not on the card floor", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage />);
 
     await screen.findByText("Visits — 2 · 18h 30m on site");
@@ -764,7 +987,7 @@ describe("the promote actions", () => {
   });
 
   it("offers no menu at all to a reader who cannot promote", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     await screen.findByText("Visits — 2 · 18h 30m on site");
@@ -773,7 +996,7 @@ describe("the promote actions", () => {
 
   it("closes the menu on Escape without closing the sheet", async () => {
     const onClose = jest.fn();
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} manage onClose={onClose} />);
 
     await userEvent.click(await screen.findByLabelText("More actions"));
@@ -789,7 +1012,7 @@ describe("money stays behind its grant", () => {
      quote nobody has accepted can't be "awaiting payment", and saying so
      would send somebody chasing money that was never billed. */
   it("says when the quote went out, for a reader who holds money", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         status: "Quote",
         money: {
@@ -802,7 +1025,7 @@ describe("money stays behind its grant", () => {
           paidOn: null,
         },
       })
-    );
+    ));
     render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} moneyVisible />);
 
     expect(await screen.findByText("Quote sent Mon 3 Aug")).toBeInTheDocument();
@@ -816,17 +1039,19 @@ describe("money stays behind its grant", () => {
   it("keeps the quote's own sentence when a family read produces an awaiting figure", async () => {
     // live #3169: a $4,015 Quote carrying an invoice_date, no payments
     readMirrorJob.mockResolvedValueOnce(
-      detail({
-        money: {
-          valueCents: 401500,
-          invoiced: null,
-          invoicedOn: null,
-          quoteSent: true,
-          quoteSentOn: "2026-08-03",
-          paid: false,
-          paidOn: null,
-        },
-      })
+      card(
+        detail({
+          money: {
+            valueCents: 401500,
+            invoiced: null,
+            invoicedOn: null,
+            quoteSent: true,
+            quoteSentOn: "2026-08-03",
+            paid: false,
+            paidOn: null,
+          },
+        })
+      )
     );
     readJobRecord.mockResolvedValueOnce({
       notes: [],
@@ -856,7 +1081,7 @@ describe("money stays behind its grant", () => {
        its netted total first. With no catch, a rejected read left it waiting
        for ever and the section vanished — silence a reader cannot tell from
        having no money grant. */
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockRejectedValueOnce(new Error("boom"));
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -872,7 +1097,7 @@ describe("money stays behind its grant", () => {
     /* Both axes: nothing awaiting on what was raised, and nothing left to
        raise. The default family still has the parent's balance outstanding,
        so this one settles it. */
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       ledger: null,
@@ -924,18 +1149,20 @@ describe("money stays behind its grant", () => {
        one number, so "0412 345 678 / 9999 a/h" became tel:04123456789999 —
        nobody's number, offered as the contact's. */
     readMirrorJob.mockResolvedValueOnce(
-      detail({
-        contacts: [
-          { name: "Josh", type: "JOB", phone: "0426 719 412", altPhone: null, email: null },
-          {
-            name: "Karen",
-            type: "JOB",
-            phone: "0412 345 678 / 9999 a/h",
-            altPhone: null,
-            email: null,
-          },
-        ],
-      })
+      card(
+        detail({
+          contacts: [
+            { name: "Josh", type: "JOB", phone: "0426 719 412", altPhone: null, email: null },
+            {
+              name: "Karen",
+              type: "JOB",
+              phone: "0412 345 678 / 9999 a/h",
+              altPhone: null,
+              email: null,
+            },
+          ],
+        })
+      )
     );
     render(<JobSheet row={row()} {...props} />);
 
@@ -948,7 +1175,7 @@ describe("money stays behind its grant", () => {
   });
 
   it("renders no money fact at all without the grant, whatever the detail says", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     await screen.findByText("Visits — 2 · 18h 30m on site");
@@ -960,7 +1187,7 @@ describe("money stays behind its grant", () => {
      project's claims and a budget typed on the other basis would misreport
      progress by ten per cent. */
   it("says which basis the figure is on", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         money: {
           valueCents: 148500,
@@ -972,7 +1199,7 @@ describe("money stays behind its grant", () => {
           paidOn: null,
         },
       })
-    );
+    ));
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
     /* Await the FIGURE, not the label: the label renders on the first paint
@@ -987,7 +1214,7 @@ describe("money stays behind its grant", () => {
      "Not invoiced" under a figure nobody had told us anything about. Silence
      is the honest answer; the payments ledger answers properly when it can. */
   it("stays silent about invoicing when ServiceM8 never said", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         money: {
           valueCents: 148500,
@@ -999,7 +1226,7 @@ describe("money stays behind its grant", () => {
           paidOn: null,
         },
       })
-    );
+    ));
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
     await screen.findByText("$1,485");
@@ -1008,7 +1235,7 @@ describe("money stays behind its grant", () => {
   });
 
   it("still says Not invoiced when ServiceM8 actually says so", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         money: {
           valueCents: 148500,
@@ -1020,7 +1247,7 @@ describe("money stays behind its grant", () => {
           paidOn: null,
         },
       })
-    );
+    ));
     render(<JobSheet row={row()} {...props} moneyVisible />);
     expect(await screen.findByText("Not invoiced")).toBeInTheDocument();
   });
@@ -1028,13 +1255,13 @@ describe("money stays behind its grant", () => {
 
 describe("the work-order-since fact", () => {
   it("shows for a work order and stays quiet for anything else", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     const { unmount } = render(<JobSheet row={row()} {...props} />);
     expect(await screen.findByText("Work order")).toBeInTheDocument();
     expect(screen.getByText("Tue 4 Aug")).toBeInTheDocument();
     unmount();
 
-    readMirrorJob.mockResolvedValueOnce(detail({ status: "Quote" }));
+    readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Quote" })));
     render(<JobSheet row={row({ statusLabel: "Quote" })} {...props} />);
     await screen.findByText("Visits — 2 · 18h 30m on site");
     expect(screen.queryByText("Work order")).toBeNull();
@@ -1056,7 +1283,7 @@ describe("designs started from this job", () => {
   });
 
   it("lists each one as a link that opens THAT design", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail({ designs: [design()] }));
+    readMirrorJob.mockResolvedValueOnce(card(detail({ designs: [design()] })));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText("Designed in the Studio")).toBeInTheDocument();
@@ -1067,11 +1294,11 @@ describe("designs started from this job", () => {
   });
 
   it("counts the options in the heading when a job has several", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({
         designs: [design(), design({ id: "dsn_2", name: "12/3 Wallace St — option B" })],
       })
-    );
+    ));
     render(<JobSheet row={row()} {...props} />);
 
     expect(
@@ -1082,9 +1309,9 @@ describe("designs started from this job", () => {
   });
 
   it("says one floor and one system in the singular", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({ designs: [design({ floorCount: 1, systemCount: 1 })] })
-    );
+    ));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByText(/1 floor · 1 system/)).toBeInTheDocument();
@@ -1094,7 +1321,7 @@ describe("designs started from this job", () => {
      and a reader without `studio` never receives the list at all (the action
      doesn't ask for it), which lands here as the same empty array. */
   it("is absent entirely when nothing has been designed", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     render(<JobSheet row={row()} {...props} />);
 
     await screen.findByText("Visits — 2 · 18h 30m on site");
@@ -1104,9 +1331,9 @@ describe("designs started from this job", () => {
   /* An id is a document id, not a URL fragment — encode it or a design whose
      id ever grows a reserved character silently opens nothing. */
   it("encodes the id it puts in the link", async () => {
-    readMirrorJob.mockResolvedValueOnce(
+    readMirrorJob.mockResolvedValueOnce(card(
       detail({ designs: [design({ id: "dsn a&b" })] })
-    );
+    ));
     render(<JobSheet row={row()} {...props} />);
 
     expect(await screen.findByRole("link", { name: /12\/3 Wallace St/ })).toHaveAttribute(
@@ -1124,6 +1351,7 @@ describe("files on the job", () => {
     fileType: ".jpg",
     kind: "photo",
     origin: null,
+    fromClaim: null,
     takenAt: "2026-08-01 10:00:00",
     url: null,
     ...over,
@@ -1138,7 +1366,7 @@ describe("files on the job", () => {
   });
 
   it("says nothing at all when a job has no files", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
     render(<JobSheet row={row()} {...props} />);
 
@@ -1147,7 +1375,7 @@ describe("files on the job", () => {
   });
 
   it("shows a cached photo as a real image, linked to the full size", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
     );
@@ -1161,7 +1389,7 @@ describe("files on the job", () => {
   /* A photo ServiceM8 has that we haven't fetched is neither hidden nor
      broken: the tile says "there is one here", which is the truth. */
   it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files({ photos: [file({ remoteId: "p-1" })] }));
     render(<JobSheet row={row()} {...props} />);
 
@@ -1171,7 +1399,7 @@ describe("files on the job", () => {
   });
 
   it("names the paperwork and links it once it's cached", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
         documents: [
@@ -1194,7 +1422,7 @@ describe("files on the job", () => {
   });
 
   it("chips a document that arrived by email, not just the paperwork", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
         documents: [
@@ -1219,7 +1447,7 @@ describe("files on the job", () => {
      beside the name — a photo the customer emailed is not a photo the tech
      took, and the grid would otherwise flatten the two. */
   it("puts a photo's origin in its tooltip, where the name already is", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({ photos: [file({ remoteId: "p-1", origin: "Emailed in" })] })
     );
@@ -1231,7 +1459,7 @@ describe("files on the job", () => {
   });
 
   it("counts what stays in ServiceM8 instead of pretending it isn't there", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(
       files({
         photos: [file({ remoteId: "p-1" }), file({ remoteId: "p-2" })],
@@ -1259,7 +1487,7 @@ describe("bringing the bytes across", () => {
   });
 
   it("keeps asking while each round makes progress, then stops", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
     cacheJobFiles
       .mockResolvedValueOnce({ ok: true, cached: 6, remaining: 6, media: null, note: null })
@@ -1274,7 +1502,7 @@ describe("bringing the bytes across", () => {
      would otherwise spin until the round cap, hammering ServiceM8 for
      nothing. Progress, not the remaining count, is what earns another round. */
   it("stops immediately when a round caches nothing, even with work left", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
     cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 20, media: null, note: null });
 
@@ -1284,7 +1512,7 @@ describe("bringing the bytes across", () => {
   });
 
   it("says out loud when storage is the thing standing in the way", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
     cacheJobFiles.mockResolvedValueOnce({
       ok: true,
@@ -1300,6 +1528,7 @@ describe("bringing the bytes across", () => {
             fileType: ".jpg",
             kind: "photo" as const,
             origin: null,
+            fromClaim: null,
             takenAt: null,
             url: null,
           },
@@ -1317,7 +1546,7 @@ describe("bringing the bytes across", () => {
 
 describe("what's been written on the job", () => {
   it("lists notes newest-first with who wrote them and when", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [
         {
@@ -1338,7 +1567,7 @@ describe("what's been written on the job", () => {
   });
 
   it("says nothing at all when a job has no notes", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: null });
     render(<JobSheet row={row()} {...props} />);
 
@@ -1373,7 +1602,7 @@ describe("the ledger obeys the money grant", () => {
   };
 
   it("shows the lines and their total to a reader who holds money", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger, family: null });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -1384,7 +1613,7 @@ describe("the ledger obeys the money grant", () => {
   });
 
   it("shows what's been paid, naming a deposit as one", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger, family: null });
     render(<JobSheet row={row()} {...props} moneyVisible />);
 
@@ -1395,7 +1624,7 @@ describe("the ledger obeys the money grant", () => {
   /* The gate is SERVER-side: without the grant the action returns ledger
      null, so there is nothing for the component to hide or leak. */
   it("renders no ledger at all when the server sent none", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({ notes: [], ledger: null, family: null });
     render(<JobSheet row={row()} {...props} />);
 
@@ -1407,7 +1636,7 @@ describe("the ledger obeys the money grant", () => {
   /* Adding an inc-GST line to an ex-GST one and printing one figure would be
      a lie, so the sheet says why there's no total instead of inventing one. */
   it("refuses a total when the lines disagree about tax", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       family: null,
@@ -1426,7 +1655,7 @@ describe("the ledger obeys the money grant", () => {
   });
 
   it("refuses a total when a line couldn't be priced", async () => {
-    readMirrorJob.mockResolvedValueOnce(detail());
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce({
       notes: [],
       family: null,
@@ -1447,6 +1676,13 @@ describe("the ledger obeys the money grant", () => {
    from a Studio design — and it is the one that can actually be ticked. The
    distinction is the whole point, so these tests pin it. */
 describe("the material picklist", () => {
+  /* The picklist follows the CARD, not the row that was clicked — a clone's
+     row opens its parent, and asking for the clone's picklist would pull a
+     different job's lines into this card. So it waits for the resolution. */
+  beforeEach(() => {
+    readMirrorJob.mockResolvedValue(card(detail()));
+  });
+
   const item = (over: Record<string, unknown> = {}) => ({
     id: "p1",
     name: "MSZ-AP25VGD",

@@ -205,30 +205,56 @@ function tabOfSm8(status: string | null): AllJobsTab | "unsuccessful" | null {
   }
 }
 
+/** The four ServiceM8 date fields a row can be dated BY, in the shape both
+    callers hold — the board's slim mirror row and the sheet's full detail. */
+export type Sm8Dated = {
+  status: string | null;
+  date: string | null;
+  quoteDate: string | null;
+  completionDate: string | null;
+  /** The next dispatched booking's start, when there is one. */
+  nextBooking: string | null;
+};
+
+/** WHICH DAY A JOB IS SHOWN BY, and what to call it. Exported because the job
+    SHEET needs the same answer for a card the board never handed it: a
+    ServiceM8 clone opens its parent, and the parent's dates are not the ones
+    on the row that was clicked. Deriving it twice is how the same job comes
+    to be "raised Fri 27 Mar" in one place and "completed Fri 21 Aug" in the
+    other. */
+export function sm8DateFacts(
+  job: Sm8Dated,
+  today: string
+): { date: string | null; label: string; booked: boolean } {
+  const tab = tabOfSm8(job.status);
+  const nextBooking = day(job.nextBooking);
+  const booked = tab === "work" && nextBooking !== null && nextBooking >= today;
+
+  if (tab === "completed" || tab === "unsuccessful") {
+    return {
+      date: day(job.completionDate) ?? day(job.date),
+      label: tab === "completed" ? "completed" : "closed",
+      booked,
+    };
+  }
+  if (tab === "quotes") {
+    return { date: day(job.quoteDate) ?? day(job.date), label: "quoted", booked };
+  }
+  if (booked) return { date: nextBooking, label: "booked", booked };
+  return { date: day(job.date), label: "raised", booked };
+}
+
+/** A ServiceM8 status's tone, said once so a chip and a row agree. */
+export function sm8Tone(status: string | null): "" | "ok" | "dan" {
+  return status === "Completed" ? "ok" : status === "Unsuccessful" ? "dan" : "";
+}
+
 function sm8Row(
   job: AllJobsMirrorJob,
   today: string,
   tracked: AllJobRow["tracked"]
 ): AllJobRow {
-  const tab = tabOfSm8(job.status);
-  const nextBooking = day(job.nextBooking);
-  const booked = tab === "work" && nextBooking !== null && nextBooking >= today;
-
-  let date: string | null;
-  let dateLabel: string;
-  if (tab === "completed" || tab === "unsuccessful") {
-    date = day(job.completionDate) ?? day(job.date);
-    dateLabel = tab === "completed" ? "completed" : "closed";
-  } else if (tab === "quotes") {
-    date = day(job.quoteDate) ?? day(job.date);
-    dateLabel = "quoted";
-  } else if (booked) {
-    date = nextBooking;
-    dateLabel = "booked";
-  } else {
-    date = day(job.date);
-    dateLabel = "raised";
-  }
+  const { date, label: dateLabel, booked } = sm8DateFacts(job, today);
 
   return {
     key: `sm8:${job.remoteId}`,
@@ -242,7 +268,7 @@ function sm8Row(
     categoryName: job.categoryName,
     categoryColour: job.categoryColour,
     statusLabel: job.status ?? "Job",
-    tone: job.status === "Completed" ? "ok" : job.status === "Unsuccessful" ? "dan" : "",
+    tone: sm8Tone(job.status),
     date,
     dateLabel,
     booked,

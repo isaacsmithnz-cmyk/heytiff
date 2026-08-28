@@ -3,7 +3,12 @@
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import { collectionFrom, MONEY_BASIS, type JobMoney } from "@/lib/workboard/job-money";
-import { familyInvoicedLine, type FamilyClaim, type FamilyMoney } from "@/lib/workboard/job-family";
+import {
+  claimTitle,
+  familyInvoicedLine,
+  type FamilyClaim,
+  type FamilyMoney,
+} from "@/lib/workboard/job-family";
 
 /* THE MONEY BLOCK — one job's money, read once.
 
@@ -121,6 +126,8 @@ export function JobMoneyBlock({
   statusLabel,
   categoryColour,
   unavailable = false,
+  focusRemoteId = null,
+  onOpenClaim,
 }: {
   family: FamilyMoney | null;
   money: JobMoney | null;
@@ -134,6 +141,11 @@ export function JobMoneyBlock({
       vanishing — and never falls back to this row's own total, which on a
       family is the netted figure the whole feature exists to stop showing. */
   unavailable?: boolean;
+  /** The claim this card was opened for — marked in the ledger so a reader
+      who searched "2380A" can see which of the three rows they asked for. */
+  focusRemoteId?: string | null;
+  /** Opens one claim's own modal; absent leaves the rows inert. */
+  onOpenClaim?: (remoteId: string) => void;
 }) {
   /* Collection is counted across the FAMILY when there is one. A parent whose
      deposit landed on #2380A used to read "Nothing paid yet" while $9,402 was
@@ -279,15 +291,16 @@ export function JobMoneyBlock({
         </div>
       )}
 
+      {/* A CLAIM ROW IS A DOOR. Each opens that invoice's own modal — its
+          lines, its payment, its writing, its paper — which is where those
+          live now that a clone has stopped being a card of its own. */}
       {!unavailable &&
         isFamily &&
         family!.claims.map((claim) => {
           const chip = chipOf(claim);
-          return (
-            <div className="wb2-mline wb2-jmclaim" key={claim.remoteId}>
-              <b>
-                Payment {claim.index} — {claim.stage}
-              </b>
+          const inner = (
+            <>
+              <b>{claimTitle(claim)}</b>
               <em>{metaOf(claim)}</em>
               <span className={claim.state === "not_invoiced" ? "quiet" : undefined}>
                 {claim.amountCents !== null ? fmtAud(claim.amountCents) : "—"}
@@ -298,6 +311,23 @@ export function JobMoneyBlock({
               >
                 {chip.word}
               </i>
+            </>
+          );
+          const cls =
+            "wb2-mline wb2-jmclaim" + (claim.remoteId === focusRemoteId ? " here" : "");
+          return onOpenClaim ? (
+            <button
+              type="button"
+              className={cls}
+              key={claim.remoteId}
+              onClick={() => onOpenClaim(claim.remoteId)}
+              aria-label={`${claimTitle(claim)} — open this invoice`}
+            >
+              {inner}
+            </button>
+          ) : (
+            <div className={cls} key={claim.remoteId}>
+              {inner}
             </div>
           );
         })}

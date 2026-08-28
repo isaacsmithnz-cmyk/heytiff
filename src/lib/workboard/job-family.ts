@@ -496,3 +496,56 @@ export function familyInvoicedLine(
   if (toCome <= 0) return `${fmt(money.invoicedCents)} invoiced in full`;
   return `${fmt(money.invoicedCents)} invoiced so far — ${fmt(toCome)} to come`;
 }
+
+/* ── a claim's own name, said one way ── */
+
+/** "Payment 1 — Deposit". The header breadcrumb, the number's dropdown, the
+    ledger row and the claim modal all say this, and they say it from here —
+    four surfaces inventing the same label separately is how one of them ends
+    up saying something slightly different on the day it matters. */
+export function claimTitle(claim: Pick<FamilyClaim, "index" | "stage">): string {
+  return `Payment ${claim.index} — ${claim.stage}`;
+}
+
+/** The claim a given job row IS, or null when the family has no row for it —
+    a member worth nothing never became a claim, so this can legitimately miss
+    for a job that is genuinely in the family. */
+export function claimFor(
+  money: FamilyMoney | null,
+  remoteId: string | null | undefined
+): FamilyClaim | null {
+  if (!money || !remoteId) return null;
+  return money.claims.find((c) => c.remoteId === remoteId) ?? null;
+}
+
+/* ── ServiceM8 narrating its own bookkeeping ── */
+
+/** The stub ServiceM8 writes onto a clone the moment it makes one. It says
+    the one thing the claim ledger already says, in worse words, and it is on
+    406 of the 618 notes that live on clones.
+
+    NARROW ON PURPOSE. The tempting rule — "notes on a clone are noise" —
+    would bin 212 notes that are somebody's actual writing: grill sizes to
+    order, a customer's second mobile, what the next visit has to do. So this
+    matches the two SENTENCES ServiceM8 generates and nothing else.
+
+    "Job was re-opened after being completed" is deliberately NOT swept (24
+    live). It is also ServiceM8 talking about itself, but it reports something
+    that happened rather than something the ledger already shows. */
+const STUB_FORMS = [
+  /^this job was created as a partial invoice for job\s*#?\s*\d+[a-z]?\.?$/i,
+  /^partial invoice\s*#?\s*\d+[a-z]?\s+created\.?$/i,
+];
+
+export function isPartialInvoiceStubNote(text: string | null | undefined): boolean {
+  if (typeof text !== "string") return false;
+  const t = text.trim().replace(/\s+/g, " ");
+  return STUB_FORMS.some((re) => re.test(t));
+}
+
+/** The PDF ServiceM8 generates for a partial invoice. It belongs to the claim
+    that raised it and stays in the claim's modal — a job's gallery is about
+    the work, and 426 copies of its own paperwork is not the work. */
+export function isPartialInvoicePaper(name: string | null | undefined): boolean {
+  return typeof name === "string" && /partial\s+invoice/i.test(name);
+}

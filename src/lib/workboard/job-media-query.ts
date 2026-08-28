@@ -19,6 +19,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
+import { isPartialInvoicePaper } from "./job-family";
 import {
   groupJobMedia,
   JOB_MEDIA_CAP,
@@ -41,16 +42,49 @@ type AttachmentRow = {
   file_type: string | null;
   attachment_source: string | null;
   timestamp: string | null;
+  related_object_uuid: string;
 };
 
-/** Every file ServiceM8 holds against one job, newest first, with a signed
-    URL on the ones already cached here. */
-export async function readJobMedia(orgId: string, jobUuid: string): Promise<JobMediaRead> {
+/** One member of the job's family, as the media read needs to see it. */
+export type MediaSource = {
+  remoteId: string;
+  /** Null for the job itself; the claim's number for a progress clone. */
+  claimNumber: string | null;
+};
+
+/** Every file ServiceM8 holds against one job — and, when the job was billed
+    in stages, against its claims too.
+
+    WHY THE CLAIMS ARE READ HERE. ServiceM8 bills a progress job by cloning
+    it, and a photo taken on site lands on whichever clone happened to be
+    open: 1,432 files sit on clones live, 622 of them photos. They are about
+    the WORK, so they belong to the job's gallery — the alternative is 622
+    photographs of real work reachable only through a card that is on its way
+    to not existing.
+
+    TWO THINGS DO NOT RISE. The claim's own "Partial Invoice #2380A" PDF stays
+    with the claim (426 live) — it is about the billing, not the work. And a
+    file already on the parent under the same name is NOT added again: 470 of
+    the 758 liftable files are copies ServiceM8 made when it cloned, so a
+    naive merge shows half the gallery twice. The parent's copy wins, because
+    it is the one whose cached bytes the job already points at. */
+export async function readJobMedia(
+  orgId: string,
+  jobUuid: string,
+  claims: readonly MediaSource[] = []
+): Promise<JobMediaRead> {
+  /* The job first, so its own copy is the one that survives the dedupe. */
+  const sources: MediaSource[] = [
+    { remoteId: jobUuid, claimNumber: null },
+    ...claims.filter((c) => c.remoteId !== jobUuid),
+  ];
+  const claimOf = new Map(sources.map((c) => [c.remoteId, c.claimNumber]));
+
   const { data } = await supabaseAdmin
     .from("sm8_attachments")
-    .select("uuid, attachment_name, file_type, attachment_source, timestamp")
+    .select("uuid, attachment_name, file_type, attachment_source, timestamp, related_object_uuid")
     .eq("org_id", orgId)
-    .eq("related_object_uuid", jobUuid)
+    .in("related_object_uuid", sources.map((c) => c.remoteId))
     /* MUTATION-CHECKED: remove this line and job-media-query.test.ts fails.
        `active = 0` is ServiceM8's delete, and those rows keep arriving — 456
        of them in the live account, 414 photos among them. Without this the
@@ -59,9 +93,27 @@ export async function readJobMedia(orgId: string, jobUuid: string): Promise<JobM
     .order("timestamp", { ascending: false })
     .limit(JOB_MEDIA_CAP + 1);
 
-  const rows = (data ?? []) as AttachmentRow[];
-  const truncated = rows.length > JOB_MEDIA_CAP;
-  const kept = truncated ? rows.slice(0, JOB_MEDIA_CAP) : rows;
+  /* THE CAP IS APPLIED LAST, after the claim's paperwork is dropped and the
+     copies are deduped — capping first would spend the job's 120 slots on
+     426 partial-invoice PDFs and the same photo twice. */
+  const all = (data ?? []) as AttachmentRow[];
+  const seen = new Set<string>();
+  const surviving: AttachmentRow[] = [];
+  for (const r of all) {
+    const claim = claimOf.get(r.related_object_uuid) ?? null;
+    const name = r.attachment_name?.trim() || "Untitled file";
+    if (claim !== null && isPartialInvoicePaper(name)) continue;
+    /* Name AND type together: two different photos are never called the same
+       thing by the same camera, and a PDF sharing a photo's name is not the
+       same file. */
+    const key = `${name.toLowerCase()}|${(r.file_type ?? "").toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    surviving.push(r);
+  }
+
+  const truncated = surviving.length > JOB_MEDIA_CAP;
+  const kept = truncated ? surviving.slice(0, JOB_MEDIA_CAP) : surviving;
   if (kept.length === 0) return EMPTY_JOB_MEDIA;
 
   /* What we already hold. Keyed by the ServiceM8 uuid, which is what
@@ -72,7 +124,7 @@ export async function readJobMedia(orgId: string, jobUuid: string): Promise<JobM
     .select("remote_ref, storage_ref")
     .eq("org_id", orgId)
     .eq("source", "servicem8")
-    .eq("sm8_job_uuid", jobUuid)
+    .in("sm8_job_uuid", sources.map((c) => c.remoteId))
     .not("uploaded_at", "is", null);
 
   const cached = new Map(
@@ -103,6 +155,7 @@ export async function readJobMedia(orgId: string, jobUuid: string): Promise<JobM
       origin: originLabel(r.attachment_source),
       takenAt: r.timestamp,
       url: ref ? urls.get(ref) ?? null : null,
+      fromClaim: claimOf.get(r.related_object_uuid) ?? null,
     };
   });
 
@@ -114,8 +167,9 @@ export type JobMediaGroupsRead = ReturnType<typeof groupJobMedia> & { truncated:
 /** The sheet's shape — grouped, ready to render. */
 export async function readJobMediaGroups(
   orgId: string,
-  jobUuid: string
+  jobUuid: string,
+  claims: readonly MediaSource[] = []
 ): Promise<JobMediaGroupsRead> {
-  const read = await readJobMedia(orgId, jobUuid);
+  const read = await readJobMedia(orgId, jobUuid, claims);
   return { ...groupJobMedia(read.items), truncated: read.truncated };
 }

@@ -11,9 +11,14 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { parseSm8AmountToCents } from "@/lib/workboard/job-money";
 import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
+  familyMediaSources,
+  readClaimDetail,
   readJobFamily,
   readJobLedger,
   readJobNotes,
+  resolveJobCard,
+  type ClaimDetailRead,
+  type JobCardTarget,
   type JobLedgerRead,
   type JobNoteEntry,
 } from "@/lib/workboard/all-jobs-query";
@@ -390,11 +395,23 @@ export async function searchJobs(query: string): Promise<JobSearchHit[]> {
 /** The job sheet's own read. The uuid is a CHOICE the client handed in, so
     the loader re-resolves it inside this org's mirror. Money rides only for a
     reader who holds `workboard_money`. */
-export async function readMirrorJob(remoteId: string): Promise<MirrorJobDetail | null> {
+export type JobCardRead = {
+  detail: MirrorJobDetail | null;
+  /** Set when the row asked for was a progress CLAIM: the card is its parent
+      and this is the claim to land on. Null for a job opened as itself. */
+  focusRemoteId: string | null;
+};
+
+export async function readMirrorJob(remoteId: string): Promise<JobCardRead> {
   const ctx = await context();
-  if (!ctx || !(await can("workboard"))) return null;
+  if (!ctx || !(await can("workboard"))) return { detail: null, focusRemoteId: null };
   const id = trim(remoteId, 80);
-  if (!id) return null;
+  if (!id) return { detail: null, focusRemoteId: null };
+
+  /* A ServiceM8 clone is a CLAIM, not a job. Resolving here rather than in
+     the component costs no round trip the sheet wasn't already making, and
+     means the card never paints the clone's header before correcting itself. */
+  const target = await resolveJobCard(ctx.orgId, id);
   const today = todayInZone(await getSm8Timezone(ctx.orgId));
   /* Designs ride the same rule money does: the reader's own capability
      decides, asked here and handed down, so the loader never reads what this
@@ -405,7 +422,11 @@ export async function readMirrorJob(remoteId: string): Promise<MirrorJobDetail |
     can("workboard_money"),
     can("studio"),
   ]);
-  return readMirrorJobDetail(ctx.orgId, id, today, { includeMoney, includeDesigns });
+  const detail = await readMirrorJobDetail(ctx.orgId, target.parentRemoteId, today, {
+    includeMoney,
+    includeDesigns,
+  });
+  return { detail, focusRemoteId: target.focusRemoteId };
 }
 
 /** The job sheet's files, fetched separately from its detail on purpose: the
@@ -420,7 +441,32 @@ export async function readJobFiles(remoteId: string): Promise<JobMediaGroupsRead
   if (!ctx || !(await can("workboard"))) return null;
   const id = trim(remoteId, 80);
   if (!id) return null;
-  return readJobMediaGroups(ctx.orgId, id);
+  /* A job billed in stages has photographs scattered across its claims — 622
+     live — and they are about the work, so the job's gallery gathers them.
+     NOT money-gated: a reader without `workboard_money` still sees the
+     pictures of their own job. */
+  const claims = await familyMediaSources(ctx.orgId, id);
+  return readJobMediaGroups(ctx.orgId, id, claims);
+}
+
+/** Which card a job row opens. A ServiceM8 clone is a CLAIM, so #2380A opens
+    #2380 with that claim named — see resolveJobCard for the orphan case. */
+export async function readJobCardTarget(remoteId: string): Promise<JobCardTarget | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard"))) return null;
+  const id = trim(remoteId, 80);
+  if (!id) return null;
+  return resolveJobCard(ctx.orgId, id);
+}
+
+/** One claim's own contents, for the modal that opens on it. MONEY — the
+    claim IS an invoice, so this is behind the same grant its amount is. */
+export async function readClaim(remoteId: string): Promise<ClaimDetailRead | null> {
+  const ctx = await context();
+  if (!ctx || !(await can("workboard")) || !(await can("workboard_money"))) return null;
+  const id = trim(remoteId, 80);
+  if (!id) return null;
+  return readClaimDetail(ctx.orgId, id);
 }
 
 /** The job's written record and, for a reader who holds money, its ledger.

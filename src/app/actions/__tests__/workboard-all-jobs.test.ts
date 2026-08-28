@@ -59,13 +59,23 @@ jest.mock("@/lib/workboard/projects-query", () => ({
 
 const readMirrorJobDetail = jest.fn(async () => ({ remoteId: "j-1" }));
 const searchAllMirrorJobs = jest.fn(async () => [{ remoteId: "j-1" }]);
+/* A clone is a CLAIM, so the action resolves which CARD a row opens before it
+   reads anything. Answering "itself" here keeps these tests about the grants. */
+const resolveJobCard = jest.fn(async (_org: string, id: string) => ({
+  parentRemoteId: id,
+  focusRemoteId: null,
+}));
+const readClaimDetail = jest.fn(async () => ({ ledger: { materials: [], payments: [] }, notes: [], media: { photos: [], documents: [], elsewhere: [], truncated: false } }));
 jest.mock("@/lib/workboard/all-jobs-query", () => ({
   readMirrorJobDetail: (...a: unknown[]) => readMirrorJobDetail(...(a as [])),
   searchAllMirrorJobs: (...a: unknown[]) => searchAllMirrorJobs(...(a as [])),
+  resolveJobCard: (...a: unknown[]) => resolveJobCard(...(a as [string, string])),
+  readClaimDetail: (...a: unknown[]) => readClaimDetail(...(a as [])),
 }));
 
 import {
   createProjectFromJob,
+  readClaim,
   readMirrorJob,
   searchAllJobs,
   searchJobs,
@@ -87,6 +97,8 @@ beforeEach(() => {
   rows = {};
   caps = new Set(["workboard", "workboard_manage"]);
   readMirrorJobDetail.mockClear();
+  resolveJobCard.mockClear();
+  readClaimDetail.mockClear();
   searchAllMirrorJobs.mockClear();
   searchMirrorJobs.mockClear();
 });
@@ -174,6 +186,22 @@ describe("createProjectFromJob", () => {
   });
 });
 
+/* A claim IS an invoice, so its modal sits behind the money grant — a reader
+   who can't see the job's total can't see it split into payments either. */
+describe("readClaim", () => {
+  it("refuses a reader without the money grant, never touching the query", async () => {
+    caps = new Set(["workboard"]);
+    expect(await readClaim("j-2380a")).toBeNull();
+    expect(readClaimDetail).not.toHaveBeenCalled();
+  });
+
+  it("reads for a money holder", async () => {
+    caps = new Set(["workboard", "workboard_money"]);
+    await readClaim("j-2380a");
+    expect(readClaimDetail).toHaveBeenCalledWith("org-1", "j-2380a");
+  });
+});
+
 describe("reading the book", () => {
   it("readMirrorJob needs only workboard, and passes the two grants on", async () => {
     caps = new Set(["workboard", "workboard_money", "studio"]);
@@ -209,7 +237,7 @@ describe("reading the book", () => {
 
   it("refuses both reads without workboard at all", async () => {
     caps = new Set();
-    expect(await readMirrorJob("j-1")).toBeNull();
+    expect(await readMirrorJob("j-1")).toEqual({ detail: null, focusRemoteId: null });
     expect(await searchAllJobs("ardex")).toEqual([]);
     expect(readMirrorJobDetail).not.toHaveBeenCalled();
     expect(searchAllMirrorJobs).not.toHaveBeenCalled();

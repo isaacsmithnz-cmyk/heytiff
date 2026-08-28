@@ -138,6 +138,7 @@ describe("payments", () => {
     method: "Bank Transfer",
     note: null,
     takenOn: "2026-08-01",
+    takenAt: "2026-08-01 09:15:00",
     isDeposit: false,
     takenBy: "Luke Ingold",
     ...over,

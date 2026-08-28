@@ -331,6 +331,10 @@ export type MirrorJobDetail = {
   /** Studio designs started FROM this job. Empty for a reader without
       `studio` — the caller decides, the same way money does. */
   designs: JobDesign[];
+  /** The account's own IANA zone, for the diary's handful of timestamptz
+      inputs (designs, picklist). ServiceM8's stamps are already naive
+      account-local strings and never need it. */
+  timezone: string | null;
 };
 
 /** One day somebody was on site, as the Visits list renders it. */
@@ -366,7 +370,14 @@ export type JobNoteEntry = {
   remoteId: string;
   text: string;
   writtenOn: string | null;
+  /** The whole naive stamp, to the minute — the diary orders a day by it. */
+  writtenAt: string | null;
   writtenBy: string | null;
+  /** ServiceM8's own "action required" flag on the note. */
+  actionRequired: boolean;
+  /** The claim's job number when this was written on a clone, null on the
+      job's own notes — the diary badge that says where a note was filed. */
+  fromClaim: string | null;
 };
 
 export type JobLedgerRead = {
@@ -378,13 +389,32 @@ export const EMPTY_LEDGER: JobLedgerRead = { materials: [], payments: [] };
 
 /** What was written on the job. NOT money-gated — a note is the work's own
     record, and the same reader who sees the description should see it.
-    Notes hang off related_object_uuid, not job_uuid. */
-export async function readJobNotes(orgId: string, jobUuid: string): Promise<JobNoteEntry[]> {
+    Notes hang off related_object_uuid, not job_uuid.
+
+    HANDED THE CLAIMS, it reads the family's writing as one stream — a note
+    typed while a progress invoice was open is about the WORK, exactly like
+    the photos the gallery already lifts, and each one says which claim it
+    was filed against. Callers that want one job's own notes (the claim
+    modal) simply pass none. */
+export async function readJobNotes(
+  orgId: string,
+  jobUuid: string,
+  claims: readonly { remoteId: string; claimNumber: string | null }[] = []
+): Promise<JobNoteEntry[]> {
+  const sources = [
+    { remoteId: jobUuid, claimNumber: null },
+    ...claims.filter((c) => c.remoteId !== jobUuid),
+  ];
+  const claimOf = new Map(sources.map((c) => [c.remoteId, c.claimNumber]));
+
   const { data } = await supabaseAdmin
     .from("sm8_job_notes")
-    .select("uuid, note, create_date, edit_by_staff_uuid")
+    .select("uuid, note, create_date, action_required, edit_by_staff_uuid, related_object_uuid")
     .eq("org_id", orgId)
-    .eq("related_object_uuid", jobUuid)
+    .in(
+      "related_object_uuid",
+      sources.map((c) => c.remoteId)
+    )
     .eq("active", 1)
     .order("create_date", { ascending: false })
     .limit(60);
@@ -393,7 +423,9 @@ export async function readJobNotes(orgId: string, jobUuid: string): Promise<JobN
     uuid: string;
     note: string | null;
     create_date: string | null;
+    action_required: string | null;
     edit_by_staff_uuid: string | null;
+    related_object_uuid: string;
   }[];
   const withText = rows.filter((r) => !!r.note?.trim());
   if (withText.length === 0) return [];
@@ -407,7 +439,11 @@ export async function readJobNotes(orgId: string, jobUuid: string): Promise<JobN
     remoteId: r.uuid,
     text: r.note!.trim(),
     writtenOn: dateOf(r.create_date),
+    writtenAt: r.create_date,
     writtenBy: r.edit_by_staff_uuid ? staffName.get(r.edit_by_staff_uuid) ?? null : null,
+    /* ServiceM8 sends the flag as "1"/"0" text, like every boolean it owns. */
+    actionRequired: r.action_required === "1",
+    fromClaim: claimOf.get(r.related_object_uuid) ?? null,
   }));
 }
 
@@ -458,6 +494,7 @@ export async function readJobLedger(orgId: string, jobUuid: string): Promise<Job
       method: p.method?.trim() || null,
       note: p.note?.trim() || null,
       takenOn: dateOf(p.timestamp),
+      takenAt: p.timestamp,
       isDeposit: p.is_deposit === 1,
       takenBy: p.actioned_by_uuid ? staffName.get(p.actioned_by_uuid) ?? null : null,
     })),
@@ -491,7 +528,7 @@ export async function readMirrorJobDetail(
   orgId: string,
   remoteId: string,
   today: string,
-  opts: { includeMoney?: boolean; includeDesigns?: boolean } = {}
+  opts: { includeMoney?: boolean; includeDesigns?: boolean; timezone?: string | null } = {}
 ): Promise<MirrorJobDetail | null> {
   const includeMoney = opts.includeMoney ?? true;
   const includeDesigns = opts.includeDesigns ?? false;
@@ -742,6 +779,7 @@ export async function readMirrorJobDetail(
           section: c.section_name?.trim() || null,
           done,
           doneOn: done ? dateOf(c.completed_timestamp) : null,
+          doneAt: done ? c.completed_timestamp!.trim() : null,
           doneBy:
             done && c.completed_by_staff_uuid
               ? staffName.get(c.completed_by_staff_uuid) ?? null
@@ -787,6 +825,7 @@ export async function readMirrorJobDetail(
       systemCount: d.system_count ?? 0,
       updatedAt: d.updated_at,
     })),
+    timezone: opts.timezone ?? null,
   };
 }
 

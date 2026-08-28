@@ -477,6 +477,8 @@ export type JobChecklistItem = {
   section: string | null;
   done: boolean;
   doneOn: string | null;
+  /** The whole naive stamp, to the minute — the diary orders a day by it. */
+  doneAt: string | null;
   doneBy: string | null;
 };
 

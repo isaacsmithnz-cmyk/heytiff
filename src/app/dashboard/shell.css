@@ -6946,6 +6946,152 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
 .wb2-mline.total > b { font-size:11.5px; font-weight:800; letter-spacing:.04em;
   text-transform:uppercase; color:var(--gray500); }
+/* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────
+   The sheet became ONE CARD OF EIGHT FACES. `.jc` turns the grid modal into
+   a column: a tinted band (identity + the folder tabs) up top, the white
+   body below. The folder tabs are `.wb2-vtabs / .wb2-vt / .wb2-vslide`
+   VERBATIM — the Org and Me cards' borrow, third borrower — legal on the
+   modal because the sheet IS its own card, nothing nests. The thumb fuses
+   with the body exactly as it fuses with `.wb2-card`: the row's -1px
+   overlap lands on the body's own top border, and the radial flares are the
+   white curving up over whatever the band is wearing.
+
+   THE BAND WEARS THE JOB TYPE'S COLOUR AS A WASH — CSS vars set inline from
+   the category hex at FIXED LOW ALPHAS, with the neutral greys here as
+   fallbacks, because ServiceM8's palette makes no contrast promise: the
+   colour is atmosphere, never the ground text has to survive on. The 3px
+   crown is the same var. A job with no category simply sets nothing. */
+.wb2-sheet.jc { display:flex; flex-direction:column; padding:0; gap:0; }
+.wb2-jcband { flex:none; padding:14px 20px 0; border-radius:22px 22px 0 0;
+  background:linear-gradient(var(--jc-band-a, rgba(5,5,5,.05)), var(--jc-band-b, rgba(5,5,5,.02))), #f2f3f7;
+  box-shadow:inset 0 3px 0 var(--jc-crown, rgba(5,5,5,.13)); }
+.wb2-jcband .wb2-shtop { padding:2px 0 0; }
+.wb2-jcid { flex:1 1 220px; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.wb2-jcid .wb2-shname { flex:none; }
+.wb2-jcaddr { margin:0; font-size:12px; font-weight:600; color:var(--gray500); text-wrap:pretty; }
+/* plain chips take a solid white face so they read over the wash; toned
+   chips keep their own tint, which already reads over it */
+.wb2-jcband .wb2-chip { background:#fff; }
+.wb2-jcband .wb2-chip.dan { background:rgba(224,38,79,.13); }
+.wb2-jcband .wb2-chip.warn { background:rgba(255,138,0,.17); }
+.wb2-jcband .wb2-chip.ok { background:rgba(0,163,137,.14); }
+.wb2-jcband .wb2-ico { background:#fff; }
+.wb2-jcband .wb2-ico:hover { background:rgba(255,255,255,.75); }
+/* the tabs sit at the band's foot; the band's own padding keeps the first
+   tab (and its 12px flare) off the card's corner, so the 36px page offset
+   comes off */
+.wb2-jcband .wb2-vtabs { padding-left:0; margin-top:6px; }
+@media (max-width:900px) {
+  .wb2-jcband .wb2-vtabs { overflow-x:auto; scrollbar-width:none; }
+  .wb2-jcband .wb2-vtabs::-webkit-scrollbar { display:none; }
+}
+/* the white body the thumb fuses into. Its own top border IS the edge the
+   thumb carries across the active tab's width. */
+.wb2-jcbody { flex:1; background:#fff; border-top:1px solid var(--wb2-line);
+  border-radius:0 0 22px 22px; padding:16px 20px 20px; }
+.wb2-jcface { display:flex; flex-direction:column; gap:14px; }
+.wb2-jcface[hidden] { display:none; }
+.wb2-jcgrid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:13px; align-items:start; }
+@media (max-width:900px) { .wb2-jcgrid { grid-template-columns:minmax(0,1fr); } }
+/* an open section of a face — the faces are the panels now, so their
+   sections drop the box and keep the eyebrow */
+.wb2-jcsec { display:flex; flex-direction:column; }
+.wb2-jcsec > .wb2-sect { margin-bottom:6px; }
+.wb2-jcread { max-width:68ch; }
+/* "Where it's up to" — eyebrow + right-aligned stamp on one line, a
+   reading-size paragraph, on a whisper of the job's own colour */
+.wb2-jcsec.ups { border-radius:14px; padding:13px 15px 14px;
+  background:linear-gradient(180deg, var(--jc-a05, rgba(5,5,5,.03)) 0, var(--jc-a025, rgba(5,5,5,.015)) 100%), #fff; }
+.wb2-jcsech { display:flex; align-items:baseline; gap:10px; }
+.wb2-jcstamp { margin-left:auto; font-size:10px; font-weight:800; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--q); white-space:nowrap; }
+.wb2-jcups-bd { margin:7px 0 0; font-size:14px; font-weight:500; color:var(--gray700);
+  line-height:1.65; max-width:68ch; text-wrap:pretty; }
+.wb2-jcups-bd.money { margin-top:6px; }
+/* contacts — who to ring, dissolved into Summary */
+.wb2-crow { display:flex; align-items:center; gap:10px; padding:8px 0; }
+.wb2-crow + .wb2-crow { border-top:1px solid var(--wb2-line2); }
+.wb2-cav { width:30px; height:30px; border-radius:10px; background:rgba(0,168,224,.1);
+  color:#007fa8; font-size:11px; font-weight:800; display:inline-flex; align-items:center;
+  justify-content:center; flex:none; }
+.wb2-cwho { min-width:0; flex:1; display:flex; flex-direction:column; }
+.wb2-cwho b { font-size:13.5px; font-weight:750; letter-spacing:-.01em; }
+.wb2-cwho em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.wb2-ccalls { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.wb2-ccall { display:inline-flex; align-items:center; height:26px; padding:0 11px; border-radius:8px;
+  background:rgba(0,127,168,.09); color:#007fa8; font-size:12px; font-weight:800;
+  white-space:nowrap; text-decoration:none; }
+a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
+.wb2-ccall.plain { background:rgba(5,5,5,.05); color:var(--gray700); }
+.wb2-jcpo { margin:8px 0 0; display:flex; align-items:baseline; gap:10px; }
+.wb2-jcpo b { font-size:13.5px; font-weight:750; }
+/* ── the diary ── */
+.wb2-jcdhead { display:flex; align-items:baseline; gap:10px; }
+.wb2-jcdhead b { font-size:16px; font-weight:800; letter-spacing:-.02em; }
+.wb2-jcdhead em { margin-left:auto; font-style:normal; font-size:10px; font-weight:800;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--q); white-space:nowrap; }
+/* the day markers wear a hairline rule out to the card's edge */
+.wb2-jcday { display:flex; align-items:center; gap:9px; margin:16px 0 2px 40px;
+  font-size:10px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; color:var(--q); }
+.wb2-jcday::after { content:""; flex:1; height:1px; background:var(--wb2-line2); }
+.wb2-ev { display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px; padding:8px 0; position:relative; }
+.wb2-ev::before { content:""; position:absolute; left:13px; top:0; bottom:0; width:1px; background:var(--wb2-line2); }
+.wb2-ev:last-child::before { bottom:40%; }
+.wb2-evdot { width:27px; height:27px; border-radius:50%; background:#fff; border:1px solid var(--wb2-line);
+  display:inline-flex; align-items:center; justify-content:center; color:var(--gray500);
+  position:relative; z-index:1; align-self:start; margin-top:1px; }
+.wb2-evdot.ok { background:rgba(0,163,137,.1); border-color:rgba(0,163,137,.25); color:#00806b; }
+.wb2-evdot.cy { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.25); color:#007fa8; }
+.wb2-evb { min-width:0; padding-top:3px; }
+.wb2-evhd { font-size:13.5px; font-weight:750; letter-spacing:-.01em; }
+.wb2-evhd .wb2-chip { margin-left:7px; vertical-align:middle; }
+.wb2-evamt { color:#00806b; font-variant-numeric:tabular-nums; }
+.wb2-evmeta { margin-top:1px; font-size:11.5px; font-weight:600; color:var(--gray500); }
+/* a note's words — bordered like paper, the job type's colour on its spine.
+   pre-wrap because a note holds its author's own line breaks. */
+.wb2-evcard { margin-top:6px; background:#fff; border:1px solid var(--wb2-line2);
+  border-left:2.5px solid var(--jc-soft, rgba(5,5,5,.16)); border-radius:11px; padding:9px 12px;
+  font-size:13.5px; font-weight:500; color:var(--gray700); line-height:1.55; max-width:68ch;
+  overflow-wrap:anywhere; white-space:pre-wrap; }
+.wb2-mention { font-weight:750; color:#007fa8; }
+.wb2-evphotos { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+.wb2-evphotos img, .wb2-evphotos .pending, .wb2-evphotos .more {
+  width:76px; height:76px; border-radius:10px; object-fit:cover; border:1px solid var(--wb2-line2); }
+.wb2-evphotos .pending { display:inline-flex; align-items:center; justify-content:center;
+  background:rgba(5,5,5,.04); color:var(--gray400); }
+.wb2-evphotos .more { display:inline-flex; align-items:center; justify-content:center;
+  background:rgba(5,5,5,.05); color:var(--gray700); font-size:14px; font-weight:800;
+  border:0; cursor:pointer; font-family:inherit; transition:background .16s; }
+.wb2-evphotos .more:hover { background:rgba(5,5,5,.1); }
+.wb2-evdoor { display:inline-flex; align-items:center; gap:4px; margin-top:3px; padding:0;
+  border:0; background:none; font-family:inherit; font-size:11.5px; font-weight:700;
+  color:#007fa8; cursor:pointer; }
+.wb2-evdoor:hover { text-decoration:underline; }
+.wb2-evdoor:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:7px; }
+/* THE DIARY FILTER IS A FaceSwitch, AND THE SHEET IS PORTALLED OUTSIDE
+   `.fg` — so `.fg .seg` and `.fg .me-fshd` never reach it (the exact drift
+   that once rendered nine hints at the body's full ink). Restated here,
+   including the button ground rules `.fg button` used to supply. */
+.wb2-sheet .me-fshd { display:flex; align-items:center; justify-content:space-between;
+  gap:16px; margin:10px 0 0; }
+.wb2-sheet .seg { display:inline-flex; align-self:flex-start; width:fit-content;
+  background:#f3f4f6; border-radius:12px; padding:4px; gap:4px; }
+.wb2-sheet .seg button { padding:7px 14px; border-radius:9px; border:0; background:transparent;
+  font:inherit; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer;
+  transition:all .2s; }
+.wb2-sheet .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.wb2-sheet .seg button:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+/* the next booking, first over the past visits, in the accent */
+.wb2-nextv { display:flex; flex-direction:column; gap:3px; padding:11px 13px;
+  border-radius:13px; background:rgba(0,168,224,.07); }
+.wb2-nextv b { font-size:15px; font-weight:800; letter-spacing:-.015em; color:#007fa8; }
+.wb2-nextv em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+/* the Actions face — once-per-job acts, as quiet rows */
+.wb2-jcacts { gap:8px; }
+.wb2-jcacts .pbtn { align-self:flex-start; }
+.wb2-jcname { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.wb2-jcname .wb2-fi { flex:1 1 220px; }
+
 /* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
    One job's money, read once. THE JOB TYPE'S COLOUR FRAMES THIS SECTION AND
    ONLY THIS SECTION — ServiceM8's category palette makes no contrast promise,

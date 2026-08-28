@@ -42,6 +42,10 @@ jest.mock("@/app/actions/job-picklist", () => ({
   setPicklistItemPicked: jest.fn(async () => {}),
   removePicklistItem: jest.fn(async () => {}),
 }));
+jest.mock("@/app/actions/job-photo-favourites", () => ({
+  listJobPhotoFavourites: jest.fn(async () => []),
+  setJobPhotoFavourite: jest.fn(async () => ({ ok: true, starred: true, note: null })),
+}));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 /* The job card's pen reaches `"use server"` modules through NoteToken, and a
    server-action import pulls `next/cache` — which needs a `Request` global

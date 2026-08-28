@@ -32,17 +32,24 @@ const ZOOM_MAX = 12;
 export function JobMediaViewer({
   items,
   index,
+  favourites,
   onNav,
+  onStar,
   onClose,
 }: {
   /** The lens's own list — photos in day order, or one document. */
   items: readonly JobMediaItem[];
   index: number;
+  /** Starred attachment ids. Null for paper and until the read lands — the
+      showcase is a gallery of the work, so a PDF simply has no star. */
+  favourites?: ReadonlySet<string> | null;
   onNav: (index: number) => void;
+  onStar?: (remoteId: string) => void;
   onClose: () => void;
 }) {
   const item = items[index];
   const stageRef = useRef<HTMLDivElement>(null);
+  const currentThumbRef = useRef<HTMLButtonElement>(null);
   /* Zoom and natural size are KEYED BY INDEX — navigating simply leaves the
      old entry behind, so there is no reset effect to cascade a render. null
      zoom = fit the stage by pure CSS. */
@@ -77,6 +84,13 @@ export function JobMediaViewer({
     };
   }, []);
 
+  /* The strip follows the arrows: whichever way you move — key, arrow
+     button or thumbnail — the open photo stays visible in the strip.
+     scrollIntoView is optional-called; jsdom does not implement it. */
+  useEffect(() => {
+    currentThumbRef.current?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [index]);
+
   const isPdf = ((item?.fileType ?? "").toLowerCase()).endsWith("pdf");
 
   /* A NATIVE wheel listener, passive:false — React 17+ binds onWheel
@@ -92,13 +106,16 @@ export function JobMediaViewer({
       if (g.kind !== "zoom") return;
       setZoomState((prev) => {
         const cur = prev?.index === index ? prev.z : null;
+        /* THE FIT MUST MATCH THE CSS, or the first wheel notch jumps.
+           The stage fits by object-fit:contain, which UPSCALES a small
+           photo — so this is no longer clamped at 1:1. */
         const fit =
           nat === null
             ? 1
             : clamp(
                 Math.min((stage.clientWidth - 16) / nat.w, (stage.clientHeight - 16) / nat.h),
                 ZOOM_MIN,
-                1
+                ZOOM_MAX
               );
         return { index, z: clamp((cur ?? fit) * g.factor, ZOOM_MIN, ZOOM_MAX) };
       });
@@ -155,6 +172,26 @@ export function JobMediaViewer({
           <em>{[when, item.origin].filter(Boolean).join(" · ")}</em>
           {item.fromClaim && <i className="wb2-chip">{`#${item.fromClaim}`}</i>}
           <span className="wb2-mvsp" />
+          {/* THE STAR IS WHERE THE PHOTO IS BIG. Curating from a 66px tile is
+              guessing; this is the size at which somebody can actually decide
+              a photo is worth showing another client. */}
+          {onStar && (
+            <button
+              className={`wb2-ico wb2-mvstar${favourites?.has(item.remoteId) ? " on" : ""}`}
+              onClick={() => onStar(item.remoteId)}
+              aria-pressed={favourites?.has(item.remoteId) ?? false}
+              aria-label={
+                favourites?.has(item.remoteId) ? `Unstar ${item.name}` : `Star ${item.name}`
+              }
+              title={
+                favourites?.has(item.remoteId)
+                  ? "Starred — in the showcase"
+                  : "Star this photo for the showcase"
+              }
+            >
+              <Icon name="star" size={14} />
+            </button>
+          )}
           {items.length > 1 && (
             <em className="wb2-mvcount">{`${index + 1} / ${items.length}`}</em>
           )}
@@ -208,6 +245,45 @@ export function JobMediaViewer({
             </button>
           )}
         </div>
+        {/* THE REST OF THE ROLL, ALWAYS IN SIGHT. Two ‹ › arrows say a
+            neighbour exists; they never say what it is, or how far the day
+            runs. The strip is the mosaic's own order, so the photo you saw
+            in the grid is the thumbnail you reach for.
+
+            Thumbnails carry alt="" — they are the SAME photos already named
+            on the stage and in the mosaic, so a name here would be a third
+            reading of one thing. The button's aria-label does the talking. */}
+        {items.length > 1 && (
+          <div className="wb2-mvstrip" role="tablist" aria-label="Photos on this job">
+            {items.map((it, i) => (
+              <button
+                key={it.remoteId}
+                ref={i === index ? currentThumbRef : undefined}
+                className={`wb2-mvthumb${i === index ? " on" : ""}`}
+                role="tab"
+                aria-selected={i === index}
+                aria-label={it.name}
+                title={it.name}
+                onClick={() => onNav(i)}
+              >
+                {it.url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={it.url} alt="" loading="lazy" draggable={false} />
+                ) : (
+                  <Icon name="cam" size={13} />
+                )}
+                {/* aria-hidden: the button's own label already carries the
+                    name, and the star's state is on the control in the bar.
+                    A pip that announced itself would be a third reading. */}
+                {favourites?.has(it.remoteId) && (
+                  <u className="wb2-mvthumbstar" aria-hidden>
+                    <Icon name="star" size={10} />
+                  </u>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

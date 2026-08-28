@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { JOB_MEDIA_CAP, type JobMediaItem } from "@/lib/workboard/job-media";
@@ -18,6 +19,12 @@ import type { JobVisit } from "@/lib/workboard/all-jobs-query";
    GROUPED BY UPLOAD DAY, the visit named beside it: on these jobs the two
    nearly always coincide, so the day heading answers "what did they see"
    rather than "what got uploaded". */
+
+/* THE SHOWCASE IS A FILTER, NOT A SECOND PLACE. Starred photos are the same
+   photos in the same mosaic on the same days — a separate "Favourites" list
+   beside the gallery would be the same pictures twice, and the day headings
+   (who was on site) are exactly the context that makes a starred photo worth
+   keeping. So the head carries one switch and the grid narrows. */
 
 const dayOf = (naive: string | null): string | null =>
   typeof naive === "string" && naive.length >= 10 ? naive.slice(0, 10) : null;
@@ -43,7 +50,9 @@ export function JobPhotosFace({
   truncated,
   mediaNote,
   visits,
+  favourites,
   onOpen,
+  onStar,
 }: {
   /** Photos AND video — everything shot on site. */
   photos: readonly JobMediaItem[] | null;
@@ -51,14 +60,25 @@ export function JobPhotosFace({
   truncated: boolean;
   mediaNote: string | null;
   visits: readonly JobVisit[];
+  /** Starred attachment ids — null until the read lands, so a star is drawn
+      absent rather than drawn hollow and wrong. */
+  favourites: ReadonlySet<string> | null;
   /** By id, not by index: the viewer shows only what it can actually
       display, so a position in THIS list is not a position in that one. */
   onOpen: (remoteId: string) => void;
+  onStar: (remoteId: string) => void;
 }) {
+  const [onlyStarred, setOnlyStarred] = useState(false);
   const crewOf = new Map(visits.map((v) => [v.day, v.crew.map((c) => c.name)]));
-  const days = groupPhotoDays(photos ?? []);
-  const videos = (photos ?? []).filter((p) => p.kind === "video").length;
-  const stills = (photos ?? []).length - videos;
+  const all = photos ?? [];
+  const starred = all.filter((p) => favourites?.has(p.remoteId));
+  /* The switch turns itself off rather than emptying the grid: unstarring the
+     last photo while filtered would otherwise leave a face saying nothing. */
+  const filtered = onlyStarred && starred.length > 0;
+  const shown = filtered ? starred : all;
+  const days = groupPhotoDays(shown);
+  const videos = shown.filter((p) => p.kind === "video").length;
+  const stills = shown.length - videos;
 
   /* "9 photos and 1 video across 3 days" — video is footage from the same
      visit, so it counts beside the stills rather than hiding in the paper. */
@@ -74,7 +94,17 @@ export function JobPhotosFace({
     <div className="wb2-jcph">
       <div className="wb2-jcdhead">
         <b>Photos</b>
-        {photos && photos.length > 0 && <em>{countLine()}</em>}
+        {shown.length > 0 && <em>{countLine()}</em>}
+        {starred.length > 0 && (
+          <button
+            className={`wb2-mfilt${filtered ? " on" : ""}`}
+            onClick={() => setOnlyStarred((v) => !v)}
+            aria-pressed={filtered}
+          >
+            <Icon name="star" size={13} />
+            {`Starred · ${starred.length}`}
+          </button>
+        )}
       </div>
 
       {photos === null || photos.length === 0 ? (
@@ -116,41 +146,74 @@ export function JobPhotosFace({
                   /* VIDEO SITS WITH THE PHOTOS — it is footage from the
                      same visit, not paperwork. Its bytes stay in ServiceM8
                      by charter, so the tile is a plate that says so rather
-                     than a door that lies. */
+                     than a door that lies. AND IT CANNOT BE STARRED: a
+                     showcase entry we do not hold the bytes of is a promise
+                     of a picture that never comes. */
                   if (item.kind === "video")
                     return (
                       <span
                         key={item.remoteId}
-                        className="wb2-mtile video"
+                        className="wb2-mcell"
                         style={shape}
                         title={`${label} — the video stays in ServiceM8`}
                       >
-                        <i className="wb2-mplay" aria-hidden>
-                          ▶
-                        </i>
-                        <u className="wb2-mvid">Video · in ServiceM8</u>
-                        {item.fromClaim && <u className="wb2-mfrom">{item.fromClaim}</u>}
+                        <span className="wb2-mtile video">
+                          <i className="wb2-mplay" aria-hidden>
+                            ▶
+                          </i>
+                          <u className="wb2-mvid">Video · in ServiceM8</u>
+                          {item.fromClaim && <u className="wb2-mfrom">{item.fromClaim}</u>}
+                        </span>
                       </span>
                     );
-                  return item.url ? (
+                  /* THE TILE IS THE DOOR AND THE STAR IS ITS OWN CONTROL, so
+                     the cell around them is what carries the mosaic's shape:
+                     a button cannot contain a button, and a star that opened
+                     the viewer instead of starring would be worse than no
+                     star at all. */
+                  const star = (
                     <button
-                      key={item.remoteId}
-                      className="wb2-mtile"
-                      style={shape}
-                      title={label}
-                      aria-label={`Open ${item.name}`}
-                      onClick={() => onOpen(item.remoteId)}
+                      className={`wb2-mstar${favourites?.has(item.remoteId) ? " on" : ""}`}
+                      onClick={() => onStar(item.remoteId)}
+                      aria-pressed={favourites?.has(item.remoteId) ?? false}
+                      aria-label={
+                        favourites?.has(item.remoteId)
+                          ? `Unstar ${item.name}`
+                          : `Star ${item.name}`
+                      }
+                      title={
+                        favourites?.has(item.remoteId)
+                          ? "Starred — in the showcase"
+                          : "Star this photo for the showcase"
+                      }
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.url} alt={item.name} loading="lazy" />
-                      {item.origin === "Marked up" && <u className="wb2-mmark">✎</u>}
-                      {item.fromClaim && <u className="wb2-mfrom">{item.fromClaim}</u>}
+                      <Icon name="star" size={13} />
                     </button>
-                  ) : (
-                    /* Not cached yet. A tile that says so beats a broken
-                       image, and beats hiding a photo that exists. */
-                    <span key={item.remoteId} className="wb2-mtile pending" style={shape} title={label}>
-                      <Icon name="cam" size={16} />
+                  );
+                  return (
+                    <span key={item.remoteId} className="wb2-mcell" style={shape}>
+                      {item.url ? (
+                        <button
+                          className="wb2-mtile"
+                          title={label}
+                          aria-label={`Open ${item.name}`}
+                          onClick={() => onOpen(item.remoteId)}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={item.url} alt={item.name} loading="lazy" />
+                          {item.origin === "Marked up" && <u className="wb2-mmark">✎</u>}
+                          {item.fromClaim && <u className="wb2-mfrom">{item.fromClaim}</u>}
+                        </button>
+                      ) : (
+                        /* Not cached yet. A tile that says so beats a broken
+                           image, and beats hiding a photo that exists — and
+                           it can still be starred: the star is what sends
+                           for the bytes. */
+                        <span className="wb2-mtile pending" title={label}>
+                          <Icon name="cam" size={16} />
+                        </span>
+                      )}
+                      {star}
                     </span>
                   );
                 })}

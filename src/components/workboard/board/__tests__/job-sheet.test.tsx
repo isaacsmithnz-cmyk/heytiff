@@ -62,6 +62,25 @@ jest.mock("@/app/actions/job-picklist", () => ({
   removePicklistItem: (...a: unknown[]) => removePicklistItem(...(a as [])),
   addJobPicklistItem: (...a: unknown[]) => addJobPicklistItem(...(a as [])),
 }));
+/* The showcase stars — mocked for their content below, and mocked at all for
+   the same "use server" reason as the two above. */
+const listJobPhotoFavourites = jest.fn(async (): Promise<{ remoteId: string; addedAt: string }[]> => []);
+const setJobPhotoFavourite = jest.fn(
+  async (
+    _job: string,
+    _photo: string,
+    starred: boolean
+  ): Promise<{ ok: boolean; starred: boolean; note: string | null }> => ({
+    ok: true,
+    starred,
+    note: null,
+  })
+);
+jest.mock("@/app/actions/job-photo-favourites", () => ({
+  listJobPhotoFavourites: (...a: unknown[]) => listJobPhotoFavourites(...(a as [])),
+  setJobPhotoFavourite: (...a: unknown[]) =>
+    setJobPhotoFavourite(...(a as [string, string, boolean])),
+}));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
 /* THE SERVER-ACTION IMPORT TRAP, again: `"use server"` modules pull
@@ -213,6 +232,14 @@ beforeEach(() => {
   listJobPicklist.mockResolvedValue([]);
   setPicklistItemPicked.mockResolvedValue(undefined);
   removePicklistItem.mockResolvedValue(undefined);
+  listJobPhotoFavourites.mockReset();
+  setJobPhotoFavourite.mockReset();
+  listJobPhotoFavourites.mockResolvedValue([]);
+  setJobPhotoFavourite.mockImplementation(async (_job, _photo, starred) => ({
+    ok: true,
+    starred,
+    note: null,
+  }));
   fetchMock.mockReset();
   fetchMock.mockResolvedValue({ json: async () => ({ ok: false }) });
   (global as { fetch?: unknown }).fetch = fetchMock;
@@ -2460,6 +2487,179 @@ describe("files on the job", () => {
 
     await openTab("Documents");
     expect(face("documents").queryByText("walkthrough.mp4")).toBeNull();
+  });
+
+  it("carries the rest of the roll into the viewer, and jumps by thumbnail", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(
+      files({
+        photos: [
+          file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" }),
+          file({ remoteId: "p-2", name: "two.jpg", url: "https://signed/p-2.jpg" }),
+          file({ remoteId: "p-3", name: "three.jpg", url: "https://signed/p-3.jpg" }),
+          /* the video is in the lens but never a stop — the strip must not
+             offer a thumbnail for a file that is never coming */
+          file({ remoteId: "v-1", name: "clip.mp4", fileType: ".mp4", kind: "video" }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+
+    await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
+
+    /* THE WHOLE ROLL IS IN THE STRIP, not just the neighbours the two
+       arrows imply — three stills, no video. */
+    const strip = within(dialog).getByRole("tablist", { name: "Photos on this job" });
+    expect(within(strip).getAllByRole("tab").map((t) => t.getAttribute("aria-label"))).toEqual([
+      "one.jpg",
+      "two.jpg",
+      "three.jpg",
+    ]);
+    expect(within(strip).getByRole("tab", { selected: true })).toHaveAttribute(
+      "aria-label",
+      "one.jpg"
+    );
+
+    /* A JUMP, NOT A WALK: the third photo is one click away, where the
+       arrows would have taken two. */
+    await userEvent.click(within(strip).getByRole("tab", { name: "three.jpg" }));
+    const open = await screen.findByRole("dialog", { name: "three.jpg" });
+    expect(within(open).getByText("3 / 3")).toBeInTheDocument();
+    expect(
+      within(within(open).getByRole("tablist")).getByRole("tab", { selected: true })
+    ).toHaveAttribute("aria-label", "three.jpg");
+  });
+
+  /* ── the showcase: starring a photo for other jobs ── */
+
+  it("stars a photo from the mosaic, and the Starred switch narrows to it", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({
+        photos: [
+          file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" }),
+          file({ remoteId: "p-2", name: "two.jpg", url: "https://signed/p-2.jpg" }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+
+    /* NO SWITCH UNTIL THERE IS SOMETHING TO SWITCH TO — an empty filter is
+       furniture. The star on every tile is the affordance that's always
+       there. */
+    expect(face("photos").queryByRole("button", { name: /Starred/ })).toBeNull();
+
+    await userEvent.click(face("photos").getByRole("button", { name: "Star one.jpg" }));
+    expect(setJobPhotoFavourite).toHaveBeenCalledWith(detail().remoteId, "p-1", true);
+
+    /* Optimistic: the star is lit before the server has answered, and the
+       switch it unlocks counts one. */
+    const unstar = await face("photos").findByRole("button", { name: "Unstar one.jpg" });
+    expect(unstar).toHaveAttribute("aria-pressed", "true");
+    const filter = face("photos").getByRole("button", { name: /Starred · 1/ });
+
+    await userEvent.click(filter);
+    expect(face("photos").getByAltText("one.jpg")).toBeInTheDocument();
+    expect(face("photos").queryByAltText("two.jpg")).toBeNull();
+  });
+
+  it("puts the star back when the write is refused", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({ photos: [file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" })] })
+    );
+    /* THE ACTION RETURNS THE TRUTH, not ok/not-ok: a refused star has to
+       settle back to what the server actually holds, or the card shows a
+       curation that isn't there. */
+    setJobPhotoFavourite.mockResolvedValueOnce({ ok: false, starred: false, note: null });
+    const onToast = jest.fn();
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    await detailLanded();
+    await openTab("Photos");
+
+    await userEvent.click(face("photos").getByRole("button", { name: "Star one.jpg" }));
+    await waitFor(() =>
+      expect(face("photos").getByRole("button", { name: "Star one.jpg" })).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      )
+    );
+    expect(onToast).toHaveBeenCalledWith("Could not save that star");
+    expect(face("photos").queryByRole("button", { name: /Starred/ })).toBeNull();
+  });
+
+  it("stars from the viewer, where the photo is big enough to judge", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({
+        photos: [
+          file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" }),
+          file({ remoteId: "p-2", name: "two.jpg", url: "https://signed/p-2.jpg" }),
+        ],
+      })
+    );
+    listJobPhotoFavourites.mockResolvedValue([{ remoteId: "p-2", addedAt: "2026-08-29" }]);
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+
+    await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Star one.jpg" }));
+    expect(setJobPhotoFavourite).toHaveBeenCalledWith(detail().remoteId, "p-1", true);
+    expect(
+      await within(dialog).findByRole("button", { name: "Unstar one.jpg" })
+    ).toBeInTheDocument();
+
+    /* The star travels with the photo, not with the frame: stepping to a
+       photo starred before this card opened shows it lit. */
+    await userEvent.keyboard("{ArrowRight}");
+    const next = await screen.findByRole("dialog", { name: "two.jpg" });
+    expect(within(next).getByRole("button", { name: "Unstar two.jpg" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
+  it("has no star on paper — the showcase is a gallery of the work", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({
+        documents: [
+          file({
+            remoteId: "d-1",
+            name: "report.pdf",
+            fileType: ".pdf",
+            kind: "document",
+            url: "https://signed/d-1.pdf",
+          }),
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Documents");
+    await userEvent.click(await face("documents").findByText("report.pdf"));
+    const dialog = await screen.findByRole("dialog", { name: "report.pdf" });
+    expect(within(dialog).queryByRole("button", { name: /Star/ })).toBeNull();
+  });
+
+  it("keeps the strip out of the way when there is nothing to jump to", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(
+      files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+    await userEvent.click((await face("photos").findByAltText("IMG_4021.jpg")).closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
+    expect(within(dialog).queryByRole("tablist")).toBeNull();
   });
 });
 

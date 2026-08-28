@@ -23,10 +23,14 @@ jest.mock("@/lib/supabase-server", () => ({
           upsert,
         };
       }
-      /* job_picklist_items — a thenable chain with no rows */
+      /* job_picklist_items and workboard_notes — a thenable chain with no
+         rows, tolerant of order/limit so a reader that grew a clause here
+         doesn't take the suite down. */
       const chain = {
         select: () => chain,
         eq: () => chain,
+        order: () => chain,
+        limit: () => chain,
         then: (res: (v: { data: unknown[] }) => void) => res({ data: [] }),
       };
       return chain;
@@ -119,6 +123,7 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
         fromClaim: null,
       },
     ],
+    ourNotes: [],
     ledger: null,
     family: family(),
     invoicedOn: null,

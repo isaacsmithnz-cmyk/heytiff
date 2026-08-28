@@ -11,6 +11,7 @@ import {
   resolveJobCard,
 } from "./all-jobs-query";
 import { readJobMediaGroups } from "./job-media-query";
+import { readOurJobNotes } from "./job-notes-query";
 import {
   buildJobStory,
   isMoneyStoryEntry,
@@ -141,8 +142,13 @@ export async function readJobStoryForSummary(
   if (!detail) return null;
 
   const claims = await familyMediaSources(orgId, cardId);
-  const [notes, ledger, family, media, picklist] = await Promise.all([
+  const [notes, ourNotes, ledger, family, media, picklist] = await Promise.all([
     readJobNotes(orgId, cardId, claims),
+    /* OURS TOO, or the summary would be written from a story with a hole in
+       it — and the stamp would never settle, because the card's merge holds
+       notes this read never saw. The two readers must be handed the same
+       set; that is the whole coupling. */
+    readOurJobNotes(orgId, cardId),
     readJobLedger(orgId, cardId),
     readJobFamily(orgId, cardId, today, null),
     readJobMediaGroups(orgId, cardId, claims),
@@ -152,6 +158,7 @@ export async function readJobStoryForSummary(
   const entries = buildJobStory({
     detail,
     notes,
+    ourNotes,
     ledger,
     family,
     invoicedOn: family?.isFamily ? null : detail.money?.invoicedOn ?? null,

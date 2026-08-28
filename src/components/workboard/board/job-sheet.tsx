@@ -40,11 +40,16 @@ import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobMediaViewer } from "./job-media-viewer";
+import { JobAttentionStrip } from "./job-attention-strip";
+import { useNoteScopeTarget } from "@/components/notes/note-context";
+import { addJobNote, dismissJobNote, removeJobNote, taskFromJobNote } from "@/app/actions/job-notes";
+import { clearFlag } from "@/app/actions/workboard-notes";
+import type { JobAttention } from "@/lib/workboard/job-attention";
+import type { OurJobNote } from "@/lib/workboard/job-notes-query";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   fmtMinutesAsHours,
-  sm8JobIsOpen,
   sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
@@ -200,6 +205,13 @@ export function JobSheet({
   const [record, setRecord] = useState<JobRecordRead | null | undefined>(undefined);
   const [recordFailed, setRecordFailed] = useState(false);
   const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
+  /* OUR OWN WRITING, and what the job still wants — both arrive on the
+     record read and both are then LOCAL, because a note typed at the diary's
+     head and a suggestion just answered have to leave the screen at once.
+     Seeded from the read rather than derived from it for exactly that
+     reason: derived state can't be edited. */
+  const [ourNotes, setOurNotes] = useState<OurJobNote[] | null>(null);
+  const [attention, setAttention] = useState<JobAttention | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>("summary");
   const [naming, setNaming] = useState(false);
@@ -352,7 +364,10 @@ export function JobSheet({
     let live = true;
     void readJobRecord(cardId)
       .then((r) => {
-        if (live) setRecord(r);
+        if (!live) return;
+        setRecord(r);
+        setOurNotes(r?.ourNotes ?? []);
+        setAttention(r?.attention ?? null);
       })
       .catch(() => {
         if (live) setRecordFailed(true);
@@ -399,18 +414,33 @@ export function JobSheet({
   const cardTone = detail ? sm8Tone(detail.status) : row.tone;
   const openClaimRow = claimFor(family, openClaim);
 
-  /* THE FLAG, ONLY WHILE THE JOB IS OPEN. ServiceM8's "action required" is a
-     bookmark somebody left on a note, and nobody ever clears it — closing
-     the job is how it clears. On an open job it is a live signal worth the
-     band; on a closed one it is history, and the diary's own chip keeps it
-     there. Counted off the card's status once the detail lands, the row's
-     until then, so the chip never flickers in on a completed job. */
-  const jobOpen = sm8JobIsOpen(detail?.status ?? row.statusLabel);
-  const flagged = jobOpen ? (record?.notes ?? []).filter((n) => n.actionRequired).length : 0;
-  /* Set by the flag chip, cleared the moment the reader picks a tab
+  /* THE OPEN-JOB RULE MOVED TO THE SERVER with the rest of the strip.
+     ServiceM8's "action required" is a bookmark somebody left on a note and
+     nobody ever clears it — closing the job is how it clears — so on a
+     Completed job it is history and the diary's own chip keeps it there.
+     `readJobRecord` decides that now, beside the flags and the tasks, which
+     is why this component no longer counts anything itself.
+
+     Set by an attention row, cleared the moment the reader picks a tab
      themselves: the diary lights its flagged notes and scrolls to the
      first, and after that it is just the diary again. */
   const [flagFocus, setFlagFocus] = useState(false);
+
+  /* THE JOB IS A CAPTURE SCOPE. Every other sheet on this board has been one
+     since the token was rebuilt; the job card could not be, because
+     `NoteTarget` had no "job" kind — a note dictated with this card open
+     landed on nothing in particular. It does now, and it lands in the diary.
+
+     Pushed against the CARD's id, not the row's: a clone opens its parent,
+     and a note about the work belongs to the job, never to one of its
+     invoices. Null until the detail lands, which the scope reads as "not
+     aimed yet" rather than as a target. */
+  useNoteScopeTarget(
+    { kind: "job", id: cardId },
+    cardNumber
+      ? `#${cardNumber}${detail?.clientName ?? row.clientName ? ` — ${detail?.clientName ?? row.clientName}` : ""}`
+      : undefined
+  );
 
   /* The door back to ServiceM8, and the card's own freshness in the same
      chip — the board's chip says this behind the scrim, and the card is
@@ -450,6 +480,7 @@ export function JobSheet({
             }
           : null,
         notes: record?.notes ?? null,
+        ourNotes,
         ledger: record?.ledger ?? null,
         family,
         invoicedOn: family?.isFamily ? null : (money?.invoicedOn ?? null),
@@ -457,7 +488,7 @@ export function JobSheet({
         picklist,
         timezone: detail?.timezone ?? null,
       }),
-    [detail, record, family, money, media, picklist]
+    [detail, record, ourNotes, family, money, media, picklist]
   );
 
   /* THE REFRESH KICK — once, after every read has landed, and only when the
@@ -531,6 +562,95 @@ export function JobSheet({
         );
         onToast("Could not save that tick");
       });
+  };
+
+  /* THE STRIP'S ANSWERS. Every one of them takes the row off the strip
+     first and asks the server second — the strip is about what is still
+     open, and a row you have just dealt with is not. A failure puts it back
+     with a toast, the same law the checklist's ticks follow. */
+  const dropAttention = (key: string) =>
+    setAttention((cur) =>
+      cur ? { items: cur.items.filter((i) => i.key !== key), total: Math.max(0, cur.total - 1) } : cur
+    );
+
+  const clearJobFlag = (id: string) => {
+    const before = attention;
+    dropAttention(`flag:${id}`);
+    void clearFlag(id).then((res) => {
+      if (res.ok) return;
+      setAttention(before);
+      onToast(res.error);
+    });
+  };
+
+  const answerNote = (noteUuid: string) => {
+    if (!cardId) return;
+    const before = attention;
+    dropAttention(`mention:${noteUuid}`);
+    void dismissJobNote(cardId, noteUuid).catch(() => {
+      setAttention(before);
+      onToast("Could not put that aside");
+    });
+  };
+
+  const makeTaskFromNote = (input: {
+    noteUuid: string;
+    title: string;
+    assigneeId: string;
+    dueDate: string | null;
+  }) => {
+    if (!cardId) return;
+    const before = attention;
+    dropAttention(`mention:${input.noteUuid}`);
+    void taskFromJobNote({ jobUuid: cardId, ...input })
+      .then((res) => {
+        if (res.ok) {
+          onToast("Task saved");
+          return;
+        }
+        setAttention(before);
+        onToast(res.error);
+      })
+      .catch(() => {
+        setAttention(before);
+        onToast("Could not save that task");
+      });
+  };
+
+  /* THE PEN. A note typed at the diary's head is a diary entry the moment it
+     lands — no round trip to look at first, which is what makes it a diary
+     rather than a form. The SAVED row replaces the optimistic one because
+     the browser knows its own auth id and not the display name behind it;
+     slice 3 shipped that defect on the checklist's stamps and this is the
+     same fix, applied before it could happen twice. */
+  const writeNote = (body: string) => {
+    if (!cardId) return;
+    const text = body.trim();
+    if (!text) return;
+    const temp: OurJobNote = {
+      id: `tmp-${Date.now()}`,
+      text,
+      at: new Date().toISOString(),
+      author: null,
+    };
+    setOurNotes((cur) => [temp, ...(cur ?? [])]);
+    void addJobNote(cardId, text)
+      .then((saved) => {
+        setOurNotes((cur) => (cur ?? []).map((n) => (n.id === temp.id ? saved : n)));
+      })
+      .catch(() => {
+        setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== temp.id));
+        onToast("Could not save that note");
+      });
+  };
+
+  const unwriteNote = (id: string) => {
+    const before = ourNotes;
+    setOurNotes((cur) => (cur ?? []).filter((n) => n.id !== id));
+    void removeJobNote(id).catch(() => {
+      setOurNotes(before);
+      onToast("Could not remove that note");
+    });
   };
 
   const removeChecklistItem = (id: string) => {
@@ -703,24 +823,6 @@ export function JobSheet({
                   {sm8Line}
                 </span>
               )}
-              {flagged > 0 && (
-                <button
-                  className="wb2-chip warn"
-                  onClick={() => {
-                    setFlagFocus(true);
-                    go("diary");
-                  }}
-                  title="Flagged in ServiceM8 — someone marked the note action required"
-                >
-                  <i className="wb2-shbang" aria-hidden="true">
-                    !
-                  </i>
-                  {flagged === 1 ? "1 flagged note" : `${flagged} flagged notes`}
-                  <i className="wb2-shcar" aria-hidden>
-                    ›
-                  </i>
-                </button>
-              )}
               {cardStatus && (
                 <span className={"wb2-chip" + (cardTone ? ` ${cardTone}` : "")}>
                   {cardStatus}
@@ -823,6 +925,24 @@ export function JobSheet({
             </button>
           </div>
 
+          {/* ABOVE THE TABS, ON EVERY FACE. The strip outranks the row for
+              the same reason it outranks the summary: what needs you beats
+              where it's up to. It draws nothing at all on a quiet job. */}
+          {attention && (
+            <JobAttentionStrip
+              attention={attention}
+              assignable={record?.assignable ?? []}
+              busy={busy}
+              onClearFlag={clearJobFlag}
+              onOpenNote={() => {
+                setFlagFocus(true);
+                go("diary");
+              }}
+              onMakeTask={makeTaskFromNote}
+              onDismissNote={answerNote}
+            />
+          )}
+
           <ViewTabs
             items={tabs}
             active={tab}
@@ -850,6 +970,11 @@ export function JobSheet({
               moneyVisible={moneyVisible}
               onOpenClaim={setOpenClaim}
               onPhotos={() => go("photos")}
+              /* The pen waits for the card to know WHICH job it is — a note
+                 saved against a guess is worse than a note that waits a
+                 beat. */
+              onWrite={cardId ? writeNote : undefined}
+              onRemoveNote={unwriteNote}
             />
           )}
 

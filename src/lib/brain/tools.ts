@@ -48,7 +48,9 @@ export type JobHistory = {
   recentNotes: string[];
   /** Equipment on site (projects carry a register; visits/agreements don't). */
   equipment: string[];
-  /** The job's own free-text notes column, when it has words. */
+  /** The target's own free text, when it has words — a notes column for the
+      three HeyTiff kinds, and a ServiceM8 job's DESCRIPTION for the fourth,
+      which has no column of ours to hold notes. */
   jobNotes: string | null;
 };
 
@@ -60,10 +62,20 @@ const EMPTY_HISTORY: JobHistory = {
   jobNotes: null,
 };
 
+/* The row whose free text grounds the router, and the column it lives in.
+
+   A SERVICEM8 JOB IS THE ODD ONE OUT, again: it has no `notes` column of
+   ours to read — the mirror is read-only — and the nearest thing it holds is
+   the job's own DESCRIPTION, which is what the work was sold as. That is
+   better grounding than nothing and honest about what it is: the router is
+   being told what this job is FOR, not what somebody wrote on it (our own
+   writing already reaches it through `recentNotes`, which reads
+   `workboard_notes` for every target kind). */
 const TARGET_TABLE = {
-  project: "projects",
-  visit: "maintenance_visits",
-  agreement: "maintenance_agreements",
+  project: { table: "projects", id: "id", text: "notes" },
+  visit: { table: "maintenance_visits", id: "id", text: "notes" },
+  agreement: { table: "maintenance_agreements", id: "id", text: "notes" },
+  job: { table: "sm8_jobs", id: "uuid", text: "job_description" },
 } as const;
 
 /** Everything already on record for a job, in one parallel read. This is the
@@ -71,7 +83,7 @@ const TARGET_TABLE = {
     four cheap indexed reads together, not one expensive one. */
 export async function jobHistory(orgId: string, target: NoteTarget): Promise<JobHistory> {
   if (target.kind === "none" || !target.id) return EMPTY_HISTORY;
-  const table = TARGET_TABLE[target.kind];
+  const source = TARGET_TABLE[target.kind];
 
   const [issues, flagsRes, notesRes, equipRes, rowRes] = await Promise.all([
     listIssues(orgId, target.kind, target.id),
@@ -100,7 +112,12 @@ export async function jobHistory(orgId: string, target: NoteTarget): Promise<Job
           .eq("project_id", target.id)
           .limit(20)
       : Promise.resolve({ data: null }),
-    supabaseAdmin.from(table).select("notes").eq("org_id", orgId).eq("id", target.id).maybeSingle(),
+    supabaseAdmin
+      .from(source.table)
+      .select(source.text)
+      .eq("org_id", orgId)
+      .eq(source.id, target.id)
+      .maybeSingle(),
   ]);
 
   return {
@@ -120,7 +137,10 @@ export async function jobHistory(orgId: string, target: NoteTarget): Promise<Job
     equipment: ((equipRes.data ?? []) as { description: string; model: string | null }[]).map((e) =>
       [e.description, e.model].filter(Boolean).join(" ")
     ),
-    jobNotes: ((rowRes.data as { notes: string | null } | null)?.notes ?? "").trim().slice(0, 600) || null,
+    jobNotes:
+      ((rowRes.data as Record<string, string | null> | null)?.[source.text] ?? "")
+        .trim()
+        .slice(0, 600) || null,
   };
 }
 

@@ -42,7 +42,12 @@ import { fromLines } from "@/lib/workboard/note-lines";
                          the person on site is entitled to record. */
 
 export type NoteTarget = {
-  kind: "none" | "project" | "visit" | "agreement";
+  /** `job` is a SERVICEM8 job, and it is the odd one out: the other three are
+      HeyTiff rows with a `notes` column a note can be appended to, and the
+      mirror is read-only by charter. So a note written on a job stays in
+      `workboard_notes` and the job card's DIARY reads it back — the job's
+      written record is the feed, not a column. */
+  kind: "none" | "project" | "visit" | "agreement" | "job";
   id?: string | null;
 };
 
@@ -131,27 +136,39 @@ async function authorContext(
   return { author, dayStart: day.start, dayEnd: day.end };
 }
 
-/** The row a target names. Three call sites had this ternary written out by
-    hand, which is three chances for one of them to disagree about where a
-    visit lives. */
-function tableFor(kind: Exclude<NoteTarget["kind"], "none">): string {
-  return kind === "project"
-    ? "projects"
-    : kind === "visit"
-      ? "maintenance_visits"
-      : "maintenance_agreements";
+/** The row a target names, and the column that names it. Three call sites had
+    this ternary written out by hand, which is three chances for one of them
+    to disagree about where a visit lives.
+
+    A ServiceM8 job is keyed by `uuid`, not `id` — its table is somebody
+    else's, mirrored. Writing that difference down HERE is the whole reason
+    this map exists: the moment a job became a target, every hand-written
+    `.eq("id", …)` would have quietly matched nothing. */
+const TARGETS = {
+  project: { table: "projects", id: "id" },
+  visit: { table: "maintenance_visits", id: "id" },
+  agreement: { table: "maintenance_agreements", id: "id" },
+  job: { table: "sm8_jobs", id: "uuid" },
+} satisfies Record<Exclude<NoteTarget["kind"], "none">, { table: string; id: string }>;
+
+/** The three targets that own a `notes` column a note can be appended to.
+    A ServiceM8 job is NOT one of them — see the type's own note. */
+function writableNotesTable(kind: NoteTarget["kind"]): string | null {
+  return kind === "project" || kind === "visit" || kind === "agreement"
+    ? TARGETS[kind].table
+    : null;
 }
 
 /** Resolve a note's target inside the caller's org. An id from a browser
     names a CHOICE; this decides whether it's a real one. */
 async function resolveTarget(orgId: string, target: NoteTarget): Promise<NoteTarget | null> {
   if (target.kind === "none" || !target.id) return { kind: "none", id: null };
-  const table = tableFor(target.kind);
+  const { table, id } = TARGETS[target.kind];
   const { data } = await supabaseAdmin
     .from(table)
-    .select("id")
+    .select(id)
     .eq("org_id", orgId)
-    .eq("id", target.id)
+    .eq(id, target.id)
     .maybeSingle();
   return data ? target : null;
 }
@@ -267,6 +284,29 @@ async function targetLabel(orgId: string, target: NoteTarget): Promise<string | 
       .maybeSingle();
     const row = data as { label: string; client_name: string } | null;
     return row ? `${row.label} — ${row.client_name}` : null;
+  }
+  if (target.kind === "job" && target.id) {
+    /* The job's own number is what a tradesperson calls it, so it leads.
+       The client name comes off the mirror's company row, and a job with no
+       readable company is still perfectly nameable by its number. */
+    const { data } = await supabaseAdmin
+      .from("sm8_jobs")
+      .select("generated_job_id, company_uuid")
+      .eq("org_id", orgId)
+      .eq("uuid", target.id)
+      .maybeSingle();
+    const row = data as { generated_job_id: string | null; company_uuid: string | null } | null;
+    if (!row) return null;
+    const number = row.generated_job_id ? `#${row.generated_job_id}` : "ServiceM8 job";
+    if (!row.company_uuid) return number;
+    const { data: co } = await supabaseAdmin
+      .from("sm8_companies")
+      .select("name")
+      .eq("org_id", orgId)
+      .eq("uuid", row.company_uuid)
+      .maybeSingle();
+    const name = (co as { name: string | null } | null)?.name?.trim();
+    return name ? `${number} — ${name}` : number;
   }
   return null;
 }
@@ -601,9 +641,26 @@ export async function applyNote(
         )
         .select("id");
       record("entryIds", ((data ?? []) as { id: string }[]).map((r) => r.id), "entry", "entries");
+    } else if (target.kind === "job") {
+      /* A JOB'S JOURNAL IS ITS DIARY, and the note is already in it.
+
+         Every other target owns a `notes` column these lines are appended
+         to; a ServiceM8 job owns nothing we may write, so the note row
+         itself is the record — and the transcript these bullets were
+         distilled FROM lands there whole, a few lines further down. Writing
+         them anywhere as well would put the same sentence in the feed twice.
+
+         Recorded all the same, so the journal counts the work: the words,
+         not ids, exactly like bring-items and for the same reason. */
+      record(
+        "entryLines",
+        [...progress, ...commissioning.map((b) => `Commissioning: ${b}`)],
+        "entry",
+        "entries"
+      );
     } else {
       const lines = [...progress, ...commissioning.map((b) => `Commissioning: ${b}`)];
-      const table = tableFor(target.kind);
+      const table = writableNotesTable(target.kind)!;
       const { data } = await supabaseAdmin
         .from(table)
         .select("notes")
@@ -734,6 +791,37 @@ export async function applyNote(
         }))
       );
       saved = true;
+    } else if (target.kind === "job") {
+      /* A JOB HAS ITS OWN RUNNING LIST since slice 3 — the picklist
+         generalised — and "bring the 1060 grille" is a MATERIAL on it, which
+         is the same thing an agreement's bring-list is. So bring-items land
+         there and the card shows them the moment it opens, rather than being
+         refused for want of an agreement the job may not have.
+
+         Appended after the tail, the same law `addJobPicklistItem` follows,
+         and never onto a design: these are typed, not pushed. */
+      const { data: tail } = await supabaseAdmin
+        .from("job_picklist_items")
+        .select("position")
+        .eq("org_id", ctx.orgId)
+        .eq("sm8_job_uuid", target.id)
+        .order("position", { ascending: false })
+        .limit(1);
+      const base = ((tail ?? [])[0]?.position as number | undefined) ?? -1;
+      const { error: bringErr } = await supabaseAdmin.from("job_picklist_items").insert(
+        bring.map((name, i) => ({
+          org_id: ctx.orgId,
+          sm8_job_uuid: target.id,
+          design_id: null,
+          kind: "material",
+          name,
+          sub: "",
+          qty: "",
+          position: base + 1 + i,
+          added_by: ctx.userId,
+        }))
+      );
+      saved = !bringErr;
     }
 
     // `applied` records ids everywhere else; bring-items have none of their
@@ -833,6 +921,21 @@ export async function applyNote(
     record("noteLines", lines, "line kept", "lines kept");
     // by name: a revalidate at a moved route clears nothing and says nothing
     revalidatePath(navHref("mynotes"));
+  }
+
+  /* ── the words themselves, when the target is a JOB ──
+     Every other target has somewhere for the transcript to go and a sheet
+     that reads it back; a ServiceM8 job's written record is its DIARY, and
+     the diary reads this row. So a note dictated on a job card lands there
+     whatever else it did — "get Luke to order the grilles" is a task AND a
+     thing that was said on this job, and the feed would be lying if it only
+     showed the half that grew a row of its own.
+
+     `jobNotes` is the group `keepNoteOnJob` already writes and the journal
+     already counts, which is exactly what it means here. */
+  if (target.kind === "job") {
+    const words = trim(note.transcript, 4000);
+    if (words) record("jobNotes", [words], "note on the job", "notes on the job");
   }
 
   const asked =
@@ -953,22 +1056,28 @@ export async function keepNoteOnJob(
   const words = trim(note.transcript, 2000);
   if (!words) return { ok: false, error: "There are no words to keep." };
 
-  const table = tableFor(target.kind);
+  /* A SERVICEM8 JOB HAS NOWHERE TO APPEND TO, and that is not a gap — it is
+     the read charter. The mirror is somebody else's system and we only read
+     it, so the note stays in OUR table and the job card's diary reads it
+     back beside ServiceM8's own notes. Nothing to update; the `applied`
+     write at the foot of this function IS the save. */
+  const table = writableNotesTable(target.kind);
+  if (table) {
+    const { data } = await supabaseAdmin
+      .from(table)
+      .select("notes")
+      .eq("org_id", ctx.orgId)
+      .eq("id", target.id)
+      .maybeSingle();
+    const current = ((data as { notes: string | null } | null)?.notes ?? "").trim();
+    const merged = [current, words].filter(Boolean).join("\n\n").slice(0, 8000);
 
-  const { data } = await supabaseAdmin
-    .from(table)
-    .select("notes")
-    .eq("org_id", ctx.orgId)
-    .eq("id", target.id)
-    .maybeSingle();
-  const current = ((data as { notes: string | null } | null)?.notes ?? "").trim();
-  const merged = [current, words].filter(Boolean).join("\n\n").slice(0, 8000);
-
-  await supabaseAdmin
-    .from(table)
-    .update({ notes: merged, updated_at: new Date().toISOString() })
-    .eq("org_id", ctx.orgId)
-    .eq("id", target.id);
+    await supabaseAdmin
+      .from(table)
+      .update({ notes: merged, updated_at: new Date().toISOString() })
+      .eq("org_id", ctx.orgId)
+      .eq("id", target.id);
+  }
 
   /* IT RECORDS WHAT IT DID, rather than borrowing the discard status. This
      rung used to file the row at `dismissed` — the same status as Escape —
@@ -995,7 +1104,10 @@ export async function keepNoteOnJob(
     .eq("id", noteId);
 
   refresh(target);
-  return { ok: true, summary: "Kept on the job's notes." };
+  return {
+    ok: true,
+    summary: target.kind === "job" ? "Kept on the job's diary." : "Kept on the job's notes.",
+  };
 }
 
 /* THE LAST RUNG. Keep the words for yourself, when no job and no person will

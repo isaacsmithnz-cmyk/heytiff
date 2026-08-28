@@ -25,6 +25,7 @@ import {
   type FamilyMoney,
 } from "./job-family";
 import type { JobLedgerRead, JobNoteEntry, JobVisit } from "./all-jobs-query";
+import type { OurJobNote } from "./job-notes-query";
 import type { JobChecklistItem } from "./all-jobs";
 import type { JobMediaItem } from "./job-media";
 
@@ -51,6 +52,14 @@ export type StoryEntry =
       actionRequired: boolean;
       /** The claim's job number when the note was written on a clone. */
       fromClaim: string | null;
+      /** WHOSE NOTE THIS IS. ServiceM8's live in a mirror we only read; ours
+          live in `workboard_notes` and can be taken back off the job. The
+          feed merges them because they are the same act — somebody wrote on
+          this job — and only the row's ORIGIN says which system holds it. */
+      origin: "servicem8" | "heytiff";
+      /** Our row's id, so the diary can offer to remove it. Null on
+          ServiceM8's, which we may not touch. */
+      id: string | null;
     }
   | { kind: "visit"; key: string; day: string; at: null; minutes: number; crew: string[] }
   | {
@@ -135,6 +144,9 @@ export type StoryInputs = {
     designs: readonly { id: string; name: string; updatedAt: string }[];
   } | null;
   notes: readonly JobNoteEntry[] | null;
+  /** HeyTiff's own notes on this job — the pen at the diary's head. Null
+      before the record read lands, empty on a job nobody has written on. */
+  ourNotes: readonly OurJobNote[] | null;
   /** Null without `workboard_money` — the server never sent it. */
   ledger: JobLedgerRead | null;
   family: FamilyMoney | null;
@@ -230,6 +242,32 @@ export function buildJobStory(inputs: StoryInputs): StoryEntry[] {
       text: n.text,
       actionRequired: n.actionRequired,
       fromClaim: n.fromClaim,
+      origin: "servicem8",
+      id: null,
+    });
+  }
+
+  /* OUR OWN NOTES, in the same feed. A ServiceM8 job has no notes column we
+     may write, so a note typed at the diary's head lives in `workboard_notes`
+     and arrives here — one stream, because the person reading the job does
+     not care which database a sentence is in. Their stamps are instants in
+     OUR columns, so they pass through the zone the way the picklist's do;
+     ServiceM8's are already naive account-local strings and never do. */
+  for (const n of inputs.ourNotes ?? []) {
+    const at = naiveInZone(n.at, inputs.timezone);
+    const day = dayOf(at);
+    if (!day) continue;
+    entries.push({
+      kind: "note",
+      key: `ournote:${n.id}`,
+      day,
+      at,
+      author: n.author,
+      text: n.text,
+      actionRequired: false,
+      fromClaim: null,
+      origin: "heytiff",
+      id: n.id,
     });
   }
 

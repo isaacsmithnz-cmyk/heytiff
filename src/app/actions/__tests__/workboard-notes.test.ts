@@ -593,3 +593,91 @@ describe("the router is grounded — the brain tool layer", () => {
     expect(ctx.equipment).toBeUndefined();
   });
 });
+
+/* ── a SERVICEM8 JOB as a target (slice 5) ──────────────────────────────
+   The odd one out, and every test here is about the same fact: the mirror is
+   read-only, so nothing may be written onto `sm8_jobs`, and the job's written
+   record is the DIARY — a `workboard_notes` row the card reads back. */
+
+describe("a job target", () => {
+  const JOB_NOTE = { ...NOTE, target_kind: "job", target_id: "job-uuid" };
+
+  const patchesTo = (table: string) => updates.filter((u) => u.table === table);
+
+  beforeEach(() => {
+    rows = { workboard_notes: JOB_NOTE, sm8_jobs: { uuid: "job-uuid" } };
+  });
+
+  it("resolves against sm8_jobs by UUID, not by id", async () => {
+    /* Every other target is keyed `id`; a hand-written `.eq("id", …)` here
+       would have matched nothing and refused every note on a job. */
+    const res = await applyNote("n-1", confirmed(), { kind: "job", id: "job-uuid" });
+    expect(res.ok).toBe(true);
+  });
+
+  it("NEVER writes on the mirror — the words land on the note row itself", async () => {
+    const res = await keepNoteOnJob("n-1");
+    expect(res).toEqual({ ok: true, summary: "Kept on the job's diary." });
+    expect(patchesTo("sm8_jobs")).toHaveLength(0);
+    expect(inserts.some((i) => i.table === "sm8_jobs")).toBe(false);
+    /* Filed applied with `jobNotes` — the group the diary reads and the
+       journal already counts. */
+    const patch = patchesTo("workboard_notes")[0]?.patch as Record<string, unknown>;
+    expect(patch.status).toBe("applied");
+    expect(patch.applied).toEqual({ jobNotes: ["…"] });
+  });
+
+  it("puts the words in the diary whatever else the note did", async () => {
+    lists.staff_profiles = [{ id: "s-luke" }];
+    const res = await applyNote(
+      "n-1",
+      confirmed({
+        tasks: [{ title: "Order the grilles", detail: "", assigneeId: "s-luke", dueDate: null }],
+      })
+    );
+    expect(res.ok).toBe(true);
+    const patch = patchesTo("workboard_notes").at(-1)?.patch as Record<string, unknown>;
+    /* "Get Luke to order the grilles" is a task AND a thing that was said on
+       this job; a feed that showed only the half that grew a row would lie. */
+    expect(patch.applied).toMatchObject({ taskIds: expect.any(Array), jobNotes: ["…"] });
+    expect(res).toMatchObject({ summary: expect.stringContaining("note on the job") });
+  });
+
+  it("lands bring-items on the job's own checklist as materials", async () => {
+    const res = await applyNote("n-1", confirmed({ bringItems: ["1060 × 175 linear grille"] }));
+    expect(res.ok).toBe(true);
+    const row = rowsFor("job_picklist_items")[0];
+    expect(row).toMatchObject({
+      org_id: "org-1",
+      sm8_job_uuid: "job-uuid",
+      kind: "material",
+      name: "1060 × 175 linear grille",
+      design_id: null,
+    });
+  });
+
+  it("does not repeat progress bullets anywhere — the transcript is already the entry", async () => {
+    const res = await applyNote(
+      "n-1",
+      confirmed({ progressBullets: ["Bulkheads in"], commissioningEntries: ["Charge 3.1kg"] })
+    );
+    expect(res.ok).toBe(true);
+    /* The three note-owning tables are untouched, and so is the mirror. */
+    expect(patchesTo("sm8_jobs")).toHaveLength(0);
+    expect(patchesTo("maintenance_visits")).toHaveLength(0);
+    expect(inserts.some((i) => i.table === "project_entries")).toBe(false);
+    /* Counted all the same, so the journal sees the work. */
+    const patch = patchesTo("workboard_notes").at(-1)?.patch as Record<string, unknown>;
+    expect(patch.applied).toMatchObject({
+      entryLines: ["Bulkheads in", "Commissioning: Charge 3.1kg"],
+    });
+  });
+
+  it("hangs a flag off the job, like any other target", async () => {
+    await applyNote("n-1", confirmed({ flags: [{ message: "No roof access", severity: "warn" }] }));
+    expect(rowsFor("workboard_flags")[0]).toMatchObject({
+      target_kind: "job",
+      target_id: "job-uuid",
+    });
+  });
+});

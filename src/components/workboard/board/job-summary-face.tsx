@@ -47,14 +47,6 @@ export function JobSummaryFace({
             {(detail?.description ?? row.title)?.trim() || "Nothing written on the job."}
           </p>
         )}
-        {detail?.workDone && (
-          <>
-            <span className="wb2-sect" style={{ marginTop: 10 }}>
-              What was done
-            </span>
-            <p className="wb2-shtext wb2-jcread">{detail.workDone.trim()}</p>
-          </>
-        )}
       </div>
 
       {summary && (
@@ -80,6 +72,18 @@ export function JobSummaryFace({
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {/* AFTER the summary, not between the scope and it: the walked order
+          put this page of verbatim office prose second, which buried the one
+          paragraph the face exists for below the fold and said the same
+          things twice on one screen. The record stays; the reading order is
+          scope → where it's up to → the long form. */}
+      {detail?.workDone && (
+        <div className="wb2-jcsec">
+          <span className="wb2-sect">What was done</span>
+          <p className="wb2-shtext wb2-jcread">{detail.workDone.trim()}</p>
         </div>
       )}
 

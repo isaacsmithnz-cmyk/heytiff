@@ -1899,9 +1899,11 @@ describe("files on the job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    const link = (await screen.findByText("Invoice #3137.pdf")) as HTMLAnchorElement;
-    expect(link.getAttribute("href")).toBe("https://signed/d-1.pdf");
-    expect(screen.getByText("Invoice")).toBeInTheDocument();
+    const name = await screen.findByText("Invoice #3137.pdf");
+    expect(name.closest("a")!.getAttribute("href")).toBe("https://signed/d-1.pdf");
+    /* the name already says "Invoice", so the row does NOT say it again —
+       the origin only shows where it adds something (the emailed-in test) */
+    expect(screen.queryByText("Invoice")).toBeNull();
   });
 
   it("chips a document that arrived by email, not just the paperwork", async () => {

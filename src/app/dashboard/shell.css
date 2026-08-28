@@ -7033,6 +7033,58 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3)
   .wb2-jcband .wb2-vtabs { overflow-x:auto; scrollbar-width:none; }
   .wb2-jcband .wb2-vtabs::-webkit-scrollbar { display:none; }
 }
+/* ── THE ATTENTION STRIP (slice 5) ──────────────────────────────────────
+   Pinned in the band, under the identity and OVER the tabs, so it is on
+   every face and behind no click. A white panel, because the band wears the
+   job type's colour as a wash and rows of text need a ground of their own —
+   the same reason the band's plain chips take a solid white face.
+
+   Absent when quiet: there is no empty state here, and no rule below draws
+   anything when the component returns null. */
+.wb2-jcatt { margin:10px 0 0; padding:9px 12px 10px; border-radius:14px;
+  background:#fff; box-shadow:0 0 0 1px rgba(255,138,0,.22); }
+.wb2-jcatthd { display:flex; align-items:center; gap:8px; margin-bottom:2px; }
+.wb2-jcattrow { display:grid; grid-template-columns:26px minmax(0,1fr) auto; gap:10px;
+  align-items:center; padding:6px 0; border-top:1px solid var(--wb2-line2); }
+.wb2-jcattrow:first-of-type { border-top:0; }
+.wb2-jcatttile { width:26px; height:26px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(5,5,5,.05); color:var(--gray500); }
+.wb2-jcatttile.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
+.wb2-jcatttile.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t, #B45309); }
+.wb2-jcatttile.cy { background:rgba(0,168,224,.1); color:#007fa8; }
+.wb2-jcatttext { min-width:0; display:flex; flex-direction:column; gap:1px; }
+/* ONE LINE EACH. A strip is a glance, and a row that wraps to three lines
+   has become the diary entry it is meant to point at. */
+.wb2-jcatttext b { font-size:13px; font-weight:750; letter-spacing:-.01em; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-jcatttext em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-jcattacts { display:flex; align-items:center; gap:6px; flex:none; }
+/* A DISABLED CHIP MUST NOT READ AS AN ENABLED ONE. Scoped to the whole
+   strip, not just its action row: the miniature review card's "Save the
+   task" is disabled until a person is named, and with only the action row
+   covered it painted in full `.blue` — a live-looking button that does
+   nothing. Muted by its OWN colours, never by opacity (the house ban:
+   opacity is not de-emphasis for text). */
+.wb2-jcatt button.wb2-chip:disabled { background:rgba(5,5,5,.05); color:var(--gray400);
+  cursor:not-allowed; box-shadow:none; }
+.wb2-jcattmore { margin:6px 0 0; font-size:11.5px; font-weight:600; color:var(--gray500); }
+/* the miniature review card — a row that grew a form, so it spans the row's
+   own grid rather than opening a second surface over the card */
+.wb2-jcattform { grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:flex-end; gap:9px;
+  margin-top:7px; padding-top:9px; border-top:1px solid var(--wb2-line2); }
+.wb2-jcattfield { display:flex; flex-direction:column; gap:3px; flex:1 1 220px; min-width:0; }
+.wb2-jcattfield.short { flex:0 1 148px; }
+.wb2-jcattfield > span { font-size:10.5px; font-weight:800; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--q); }
+.wb2-jcattfield .wb2-fi, .wb2-jcattfield .wb2-sel { width:100%; }
+.wb2-jcattsave { display:flex; align-items:center; gap:7px; }
+.wb2-jcattgap { flex-basis:100%; margin:0; font-size:11.5px; font-weight:600; color:var(--gray500); }
+@media (max-width:640px) {
+  .wb2-jcattrow { grid-template-columns:26px minmax(0,1fr); }
+  .wb2-jcattacts { grid-column:2; }
+}
+
 /* the white body the thumb fuses into. Its own top border IS the edge the
    thumb carries across the active tab's width. */
 /* The gutter is RESERVED, not reclaimed: without it the face measured 870px

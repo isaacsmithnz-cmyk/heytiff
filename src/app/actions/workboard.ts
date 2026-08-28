@@ -26,10 +26,26 @@ import {
   readStoredJobSummary,
   type JobSummaryRead,
 } from "@/lib/workboard/job-summary";
+import {
+  readJobAttention,
+  readOurJobNotes,
+  type OurJobNote,
+} from "@/lib/workboard/job-notes-query";
+import type { JobAttention } from "@/lib/workboard/job-attention";
+import { sm8JobIsOpen } from "@/lib/workboard/all-jobs";
 
 /** Notes always; the ledger only for a reader who holds money. */
 export type JobRecordRead = {
   notes: JobNoteEntry[];
+  /** HeyTiff's own writing on this job — the pen at the diary's head, and
+      anything a note routed here kept. ServiceM8 has no idea these exist. */
+  ourNotes: OurJobNote[];
+  /** What the job still wants from you, already decided (slice 5). Never
+      null: a quiet job answers `{ items: [], total: 0 }` and the strip
+      simply isn't drawn. */
+  attention: JobAttention;
+  /** Who a task made from the strip can be given to. */
+  assignable: { id: string; name: string }[];
   ledger: JobLedgerRead | null;
   /** Every job ServiceM8 cloned out of this one, read as one ledger. Null
       without `workboard_money`, and null for a job number this can't read. */
@@ -488,15 +504,31 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
   const claims = await familyMediaSources(ctx.orgId, id);
   /* The summary carries no money by design (the Money face says collection
      once), so it rides ungated beside the notes. */
-  const [notes, summary, moneyVisible] = await Promise.all([
+  const [notes, ourNotes, summary, moneyVisible, timezone, status] = await Promise.all([
     readJobNotes(ctx.orgId, id, claims),
+    readOurJobNotes(ctx.orgId, id),
     readStoredJobSummary(ctx.orgId, id),
     can("workboard_money"),
+    getSm8Timezone(ctx.orgId),
+    jobStatusOf(ctx.orgId, id),
   ]);
 
-  if (!moneyVisible) return { notes, ledger: null, family: null, summary };
+  const today = todayInZone(timezone);
+  /* THE STRIP IS NOT MONEY-GATED. Flags, tasks and ServiceM8's own bookmarks
+     are about the work, and a reader who can open the card can see what it
+     still wants — the same reasoning that keeps the notes and the photos
+     ungated. Built after the notes because the mirror's own two signals are
+     read off them. */
+  const { attention, assignable } = await readJobAttention(ctx.orgId, id, {
+    notes,
+    jobOpen: sm8JobIsOpen(status),
+    today,
+  });
 
-  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  if (!moneyVisible) {
+    return { notes, ourNotes, attention, assignable, ledger: null, family: null, summary };
+  }
+
   const [ledger, family] = await Promise.all([
     readJobLedger(ctx.orgId, id),
     /* PAYMENT TERMS ARE NOT SET ANYWHERE YET. ServiceM8 does not mirror an
@@ -506,7 +538,21 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
        due. An invented fortnight would be a number the screen made up. */
     readJobFamily(ctx.orgId, id, today, null),
   ]);
-  return { notes, ledger, family, summary };
+  return { notes, ourNotes, attention, assignable, ledger, family, summary };
+}
+
+/** ServiceM8's status word for one job — the one fact the strip needs that
+    the record read didn't already hold. A job whose row has gone answers
+    null, which `sm8JobIsOpen` reads as open: the same shrug `tabOfSm8` makes
+    at a status it doesn't recognise. */
+async function jobStatusOf(orgId: string, remoteId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("sm8_jobs")
+    .select("status")
+    .eq("org_id", orgId)
+    .eq("uuid", remoteId)
+    .maybeSingle();
+  return (data as { status: string | null } | null)?.status ?? null;
 }
 
 /** All jobs' own search — reaches the WHOLE mirror, which is how a job that

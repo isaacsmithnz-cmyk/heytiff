@@ -14,6 +14,7 @@ import {
   type StoryFilter,
 } from "@/lib/workboard/job-story";
 import { FaceSwitch } from "@/components/me/face-switch";
+import { NoteToken } from "@/components/notes/note-token";
 
 /* THE DIARY — the whole story on its own tab, newest first, day-marked.
 
@@ -28,9 +29,17 @@ import { FaceSwitch } from "@/components/me/face-switch";
    anyone else the server never sent those events and the filter would be a
    button to an empty room.
 
-   THE PEN ARRIVES WITH SLICE 5. Notes will be written from this feed's head
-   once the job becomes a capture scope; until the composer can actually
-   save, drawing it would be a control that lies. */
+   THE PEN IS HERE (slice 5). The job is a capture scope now, so the token
+   at the feed's head writes on THIS job: press the + and the words are a
+   diary entry immediately — no round trip to wait on, because a diary you
+   have to wait for is a form. The token's own sniff then decides whether
+   what you wrote smells like work and offers to sort it out; that path is
+   Tiff's review card, unchanged, and nothing is created until you say so.
+
+   OUR NOTES AND SERVICEM8'S SIT IN ONE STREAM. They are the same act — a
+   person wrote on this job — and only the entry's `origin` says which
+   system holds the row. Ours can be taken back off; theirs cannot, and the
+   feed says so by simply not offering. */
 
 const FILTERS: { key: StoryFilter; label: string }[] = [
   { key: "all", label: "All" },
@@ -47,22 +56,30 @@ export function JobDiaryFace({
   focusFlagged = false,
   onOpenClaim,
   onPhotos,
+  onWrite,
+  onRemoveNote,
 }: {
   entries: StoryEntry[];
   /** True while the detail read is still out — the feed can't say "empty"
       before it has looked. */
   loading: boolean;
   moneyVisible: boolean;
-  /** Set when the band's flag chip sent the reader here: the flagged notes
-      light up and the newest scrolls into view. The chip says a number; the
-      diary is where the words are, and landing on the feed's head with no
-      idea which note was meant is the version that wastes the trip. */
+  /** Set when an attention row sent the reader here: the flagged notes light
+      up and the newest scrolls into view. The strip says what the note SAID;
+      the diary is where the rest of it is, and landing on the feed's head
+      with no idea which note was meant is the version that wastes the trip. */
   focusFlagged?: boolean;
   onOpenClaim: (remoteId: string) => void;
   /** The "+N" on a photo cluster lands on the Photos tab. */
   onPhotos: () => void;
+  /** Write a note on the job. Absent until the card knows which job it is —
+      the pen waits rather than saving somewhere it has to guess. */
+  onWrite?: (body: string) => void;
+  /** Take one of OUR notes back off. Never offered for ServiceM8's. */
+  onRemoveNote?: (id: string) => void;
 }) {
   const [filter, setFilter] = useState<StoryFilter>("all");
+  const [draft, setDraft] = useState("");
   const since = storySince(entries);
   const shown = filterStory(entries, filter);
   const days = groupStoryDays(shown);
@@ -86,6 +103,20 @@ export function JobDiaryFace({
         <b>Diary</b>
         {since && <em>{`Since ${fmtAuWeekdayDayMonth(since)}`}</em>}
       </div>
+
+      {onWrite && (
+        <NoteToken
+          as="strip"
+          label="a note on this job"
+          value={draft}
+          onChange={setDraft}
+          onCommit={() => {
+            onWrite(draft);
+            setDraft("");
+          }}
+          placeholder="Write on the job, or say it…"
+        />
+      )}
 
       {entries.length > 0 && (
         <FaceSwitch
@@ -117,6 +148,7 @@ export function JobDiaryFace({
                   entryRef={e.key === flagKey ? flagRef : undefined}
                   onOpenClaim={onOpenClaim}
                   onPhotos={onPhotos}
+                  onRemoveNote={onRemoveNote}
                 />
               ))}
             </div>
@@ -133,13 +165,15 @@ function DiaryEntry({
   entryRef,
   onOpenClaim,
   onPhotos,
+  onRemoveNote,
 }: {
   entry: StoryEntry;
-  /** Lit because the band's flag chip sent the reader looking for it. */
+  /** Lit because an attention row sent the reader looking for it. */
   flagged?: boolean;
   entryRef?: React.Ref<HTMLDivElement>;
   onOpenClaim: (remoteId: string) => void;
   onPhotos: () => void;
+  onRemoveNote?: (id: string) => void;
 }) {
   switch (entry.kind) {
     case "note":
@@ -149,9 +183,23 @@ function DiaryEntry({
             Note
             {entry.actionRequired && <i className="wb2-chip warn">Action required</i>}
             {entry.fromClaim && <i className="wb2-chip cat">{`#${entry.fromClaim}`}</i>}
+            {/* NAMED, NOT BADGED, and only on ours: "in HeyTiff" answers the
+                one question the merge raises — why this note is not in
+                ServiceM8 — and every other entry in the feed is theirs, so
+                labelling those would be a badge on the whole diary. */}
+            {entry.origin === "heytiff" && <i className="wb2-chip blue">In HeyTiff</i>}
           </div>
           {entry.author && <div className="wb2-evmeta">{entry.author}</div>}
           <div className="wb2-evcard">{withMentions(entry.text)}</div>
+          {entry.origin === "heytiff" && entry.id && onRemoveNote && (
+            <button
+              className="wb2-evdoor"
+              onClick={() => onRemoveNote(entry.id!)}
+              title="Take this note back off the job"
+            >
+              Remove
+            </button>
+          )}
         </Ev>
       );
     case "visit":

@@ -64,6 +64,39 @@ jest.mock("@/app/actions/job-picklist", () => ({
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
+/* THE SERVER-ACTION IMPORT TRAP, again: `"use server"` modules pull
+   `next/cache`, which needs a `Request` global jsdom hasn't got — so the
+   diary's pen (NoteToken → note-flow → workboard-notes) takes the whole
+   suite down at import time unless both action modules are mocked here. */
+const routeNote = jest.fn(async () => ({ ok: false, error: "no" }));
+const clearFlag = jest.fn(async () => ({ ok: true }));
+jest.mock("@/app/actions/workboard-notes", () => ({
+  routeNote: (...a: unknown[]) => routeNote(...(a as [])),
+  applyNote: jest.fn(async () => ({ ok: true, summary: "" })),
+  answerClarify: jest.fn(async () => ({ ok: false, error: "no" })),
+  dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
+  keepNoteOnJob: jest.fn(async () => ({ ok: true, summary: "" })),
+  keepNoteForMe: jest.fn(async () => ({ ok: true, summary: "" })),
+  clearFlag: (...a: unknown[]) => clearFlag(...(a as [])),
+  restoreFlag: jest.fn(async () => ({ ok: true, summary: "" })),
+}));
+const addJobNote = jest.fn(async (job: string, body: string) => ({
+  id: "our-1",
+  text: body,
+  at: "2026-08-28T09:00:00.000Z",
+  author: "Isaac Smith",
+}));
+const removeJobNote = jest.fn(async () => {});
+const taskFromJobNote = jest.fn(async () => ({ ok: true, taskId: "t-new" }));
+const dismissJobNote = jest.fn(async () => {});
+jest.mock("@/app/actions/job-notes", () => ({
+  addJobNote: (...a: unknown[]) => addJobNote(...(a as [string, string])),
+  removeJobNote: (...a: unknown[]) => removeJobNote(...(a as [])),
+  taskFromJobNote: (...a: unknown[]) => taskFromJobNote(...(a as [])),
+  dismissJobNote: (...a: unknown[]) => dismissJobNote(...(a as [])),
+}));
+
+
 import { JobSheet } from "../job-sheet";
 
 /* The summary refresh posts to a route handler; jsdom has no fetch, and a
@@ -154,6 +187,9 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
 /** A record read with the new summary field defaulted off. */
 const record = (over: Partial<JobRecordRead> = {}): JobRecordRead => ({
   notes: [],
+  ourNotes: [],
+  attention: { items: [], total: 0 },
+  assignable: [],
   ledger: null,
   family: null,
   summary: null,
@@ -492,6 +528,7 @@ describe("the summary refresh", () => {
           designs: d.designs,
         },
         notes: [],
+        ourNotes: [],
         ledger: null,
         family: null,
         invoicedOn: null,
@@ -805,7 +842,7 @@ describe("the ServiceM8 chip", () => {
   });
 });
 
-describe("the flagged-note chip", () => {
+describe("the attention strip", () => {
   const flaggedNote = (over: Record<string, unknown> = {}) => ({
     remoteId: "n-1",
     text: "Send a 20% deposit invoice",
@@ -817,59 +854,244 @@ describe("the flagged-note chip", () => {
     ...over,
   });
 
-  it("rises to the band while the job is OPEN, and opens the diary at the note", async () => {
+  const sm8flag = {
+    kind: "sm8flag" as const,
+    key: "sm8flag:n-1",
+    noteUuid: "n-1",
+    text: "Send a 20% deposit invoice",
+    author: "David Hann",
+    at: "2026-08-27 14:44:40",
+  };
+
+  const mention = {
+    kind: "mention" as const,
+    key: "mention:n-2",
+    noteUuid: "n-2",
+    text: "@lukeingold still need another day on site to finish",
+    author: "David Hann",
+    at: "2026-08-26 09:00:00",
+    named: [{ name: "Luke Ingold", staffId: null }],
+  };
+
+  it("is ABSENT on a quiet job — no header, no empty furniture", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(record({ notes: [flaggedNote()] }));
+    readJobRecord.mockResolvedValueOnce(record());
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(readJobRecord).toHaveBeenCalled());
+    expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull();
+  });
+
+  it("says what ServiceM8's flagged note ACTUALLY SAID, and opens the diary at it", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({ notes: [flaggedNote()], attention: { items: [sm8flag], total: 1 } })
+    );
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
 
-    const chip = await screen.findByRole("button", { name: /1 flagged note/ });
-    await userEvent.click(chip);
+    /* The chip this replaced could only say "1 flagged note" — a number. */
+    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    expect(strip.getByText("“Send a 20% deposit invoice”")).toBeInTheDocument();
+    expect(strip.getByText(/Flagged in ServiceM8/)).toBeInTheDocument();
 
-    /* The Diary is where the words are — landing on the feed's head with no
-       idea which note was meant wastes the trip, so the note is lit. */
+    await userEvent.click(strip.getByRole("button", { name: /Open in the diary/ }));
     expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
     const lit = face("diary").getByText("Send a 20% deposit invoice").closest(".wb2-ev");
     expect(lit).toHaveClass("flag");
   });
 
-  it("counts them, and never appears once ServiceM8 has closed the job", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
-    readJobRecord.mockResolvedValueOnce(
-      record({ notes: [flaggedNote(), flaggedNote({ remoteId: "n-2" })] })
-    );
-    render(<JobSheet row={row({ statusLabel: "Completed", tone: "ok" })} {...props} />);
-    await detailLanded();
-    /* WAIT FOR THE NOTES TO LAND FIRST. Asserting a chip's absence straight
-       after the detail read proves nothing — the record read hadn't
-       answered yet, and the test passed just as happily with the open-job
-       rule deleted. The diary showing both flags is the signal that the
-       notes are in. */
-    await openTab("Diary");
-    await waitFor(() =>
-      expect(face("diary").getAllByText("Action required")).toHaveLength(2)
-    );
-
-    /* 41 of the 49 live flagged jobs are already Completed — nobody clears
-       the flag, closing the job is how you clear it. The diary keeps the
-       record; the band says nothing. */
-    expect(screen.queryByRole("button", { name: /flagged note/ })).toBeNull();
-  });
-
-  it("stays away when nothing is flagged", async () => {
+  it("clears a HeyTiff flag, and the row leaves at once", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(
-      record({ notes: [flaggedNote({ actionRequired: false })] })
+      record({
+        attention: {
+          items: [
+            {
+              kind: "flag",
+              key: "flag:f-1",
+              id: "f-1",
+              message: "Timber needs replacing before the ceiling closes",
+              severity: "urgent",
+              raised: "2026-08-12T00:00:00.000Z",
+            },
+          ],
+          total: 1,
+        },
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+
+    const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+    await userEvent.click(strip.getByRole("button", { name: "Clear" }));
+    expect(clearFlag).toHaveBeenCalledWith("f-1");
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull()
+    );
+  });
+
+  describe("a mention", () => {
+    const withMention = () =>
+      record({
+        attention: { items: [mention], total: 1 },
+        assignable: [{ id: "staff-1", name: "Isaac Smith" }],
+      });
+
+    it("only ever SUGGESTS — the form refuses to save until a person is named", async () => {
+      readMirrorJob.mockResolvedValueOnce(card(detail()));
+      readJobRecord.mockResolvedValueOnce(withMention());
+      render(<JobSheet row={row()} {...props} />);
+      await detailLanded();
+
+      const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+      await userEvent.click(strip.getByRole("button", { name: "Make it a task" }));
+
+      /* The title is drafted from the note's own words with the handle taken
+         out — a mention is addressing, not content. */
+      expect(strip.getByLabelText("What needs doing")).toHaveValue(
+        "Still need another day on site to finish"
+      );
+      /* NOTHING IS PREFILLED WHERE THE LINK IS NOT REAL. integration_links
+         is the only source, and the live account has none — so the card
+         says so instead of guessing a person. */
+      expect(strip.getByLabelText("Who the task is for")).toHaveValue("");
+      expect(strip.getByText(/isn't linked to a HeyTiff staff card yet/)).toBeInTheDocument();
+      expect(strip.getByRole("button", { name: "Save the task" })).toBeDisabled();
+      expect(taskFromJobNote).not.toHaveBeenCalled();
+    });
+
+    it("saves once somebody says who it is for", async () => {
+      readMirrorJob.mockResolvedValueOnce(card(detail()));
+      readJobRecord.mockResolvedValueOnce(withMention());
+      render(<JobSheet row={row()} {...props} />);
+      await detailLanded();
+
+      const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+      await userEvent.click(strip.getByRole("button", { name: "Make it a task" }));
+      await userEvent.selectOptions(strip.getByLabelText("Who the task is for"), "staff-1");
+      await userEvent.click(strip.getByRole("button", { name: "Save the task" }));
+
+      expect(taskFromJobNote).toHaveBeenCalledWith({
+        jobUuid: "j-1",
+        noteUuid: "n-2",
+        title: "Still need another day on site to finish",
+        assigneeId: "staff-1",
+        dueDate: null,
+      });
+    });
+
+    it("stays dismissed when it wasn't work", async () => {
+      readMirrorJob.mockResolvedValueOnce(card(detail()));
+      readJobRecord.mockResolvedValueOnce(withMention());
+      render(<JobSheet row={row()} {...props} />);
+      await detailLanded();
+
+      const strip = within(await screen.findByRole("region", { name: "Needs attention" }));
+      await userEvent.click(strip.getByRole("button", { name: "Not work" }));
+      expect(dismissJobNote).toHaveBeenCalledWith("j-1", "n-2");
+      await waitFor(() =>
+        expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull()
+      );
+    });
+  });
+
+  it("leaves a closed job's flagged notes to the diary alone", async () => {
+    /* The open-job rule is the SERVER's now (job-attention.ts owns it and its
+       own suite proves it). What this pins is the other half: the record
+       stands even when the alarm doesn't. */
+    readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
+    readJobRecord.mockResolvedValueOnce(record({ notes: [flaggedNote()] }));
+    render(<JobSheet row={row({ statusLabel: "Completed", tone: "ok" })} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    await waitFor(() =>
+      expect(face("diary").getByText("Action required")).toBeInTheDocument()
+    );
+    expect(screen.queryByRole("region", { name: "Needs attention" })).toBeNull();
+  });
+});
+
+/* ── the pen at the diary's head ── */
+
+describe("writing on the job", () => {
+  it("lands as a diary entry at once, then wears the name only the server knew", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+
+    const f = face("diary");
+    await userEvent.type(f.getByLabelText("a note on this job"), "Drain kit still to go on");
+    await userEvent.click(f.getByRole("button", { name: "Add a note on this job" }));
+
+    expect(addJobNote).toHaveBeenCalledWith("j-1", "Drain kit still to go on");
+    /* THE SAVED ROW REPLACES THE OPTIMISTIC ONE. A browser knows its own
+       auth id and not the display name behind it — slice 3 shipped that
+       defect on the checklist's stamps, and this is the same fix. */
+    await waitFor(() => expect(f.getByText("Isaac Smith")).toBeInTheDocument());
+    expect(f.getByText("Drain kit still to go on")).toBeInTheDocument();
+    expect(f.getByText("In HeyTiff")).toBeInTheDocument();
+  });
+
+  it("takes one back off when asked", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({
+        ourNotes: [
+          {
+            id: "our-9",
+            text: "Ring the builder about roof access",
+            at: "2026-08-27T23:30:00.000Z",
+            author: "Isaac Smith",
+          },
+        ],
+      })
     );
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Diary");
-    await waitFor(() =>
-      expect(face("diary").getByText("Send a 20% deposit invoice")).toBeInTheDocument()
-    );
 
-    expect(screen.queryByRole("button", { name: /flagged/ })).toBeNull();
-    expect(face("diary").queryByText("Action required")).toBeNull();
+    const f = face("diary");
+    await waitFor(() =>
+      expect(f.getByText("Ring the builder about roof access")).toBeInTheDocument()
+    );
+    await userEvent.click(f.getByRole("button", { name: "Remove" }));
+    expect(removeJobNote).toHaveBeenCalledWith("our-9");
+    await waitFor(() =>
+      expect(f.queryByText("Ring the builder about roof access")).toBeNull()
+    );
+  });
+
+  it("never offers to remove one of ServiceM8's", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({
+        notes: [
+          {
+            remoteId: "n-1",
+            text: "Please make double detection",
+            writtenOn: "2026-08-21",
+            writtenAt: "2026-08-21 16:02:00",
+            writtenBy: "Michael Diamond",
+            actionRequired: false,
+            fromClaim: null,
+          },
+        ],
+      })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+
+    const f = face("diary");
+    await waitFor(() =>
+      expect(f.getByText("Please make double detection")).toBeInTheDocument()
+    );
+    /* The mirror is read-only by charter — offering a Remove we cannot honour
+       is worse than not offering one. */
+    expect(f.queryByRole("button", { name: "Remove" })).toBeNull();
+    expect(f.queryByText("In HeyTiff")).toBeNull();
   });
 });
 

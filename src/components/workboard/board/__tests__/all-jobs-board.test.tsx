@@ -43,6 +43,26 @@ jest.mock("@/app/actions/job-picklist", () => ({
   removePicklistItem: jest.fn(async () => {}),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
+/* The job card's pen reaches `"use server"` modules through NoteToken, and a
+   server-action import pulls `next/cache` — which needs a `Request` global
+   jsdom hasn't got. Mocked here so the board's own suite still boots. */
+jest.mock("@/app/actions/workboard-notes", () => ({
+  routeNote: jest.fn(async () => ({ ok: false, error: "no" })),
+  applyNote: jest.fn(async () => ({ ok: true, summary: "" })),
+  answerClarify: jest.fn(async () => ({ ok: false, error: "no" })),
+  dismissNote: jest.fn(async () => ({ ok: true, summary: "" })),
+  keepNoteOnJob: jest.fn(async () => ({ ok: true, summary: "" })),
+  keepNoteForMe: jest.fn(async () => ({ ok: true, summary: "" })),
+  clearFlag: jest.fn(async () => ({ ok: true, summary: "" })),
+  restoreFlag: jest.fn(async () => ({ ok: true, summary: "" })),
+}));
+jest.mock("@/app/actions/job-notes", () => ({
+  addJobNote: jest.fn(async () => ({ id: "our-1", text: "", at: "", author: null })),
+  removeJobNote: jest.fn(async () => {}),
+  taskFromJobNote: jest.fn(async () => ({ ok: true, taskId: "t" })),
+  dismissJobNote: jest.fn(async () => {}),
+}));
+
 jest.mock("../new-agreement-modal", () => ({
   NewAgreementModal: (p: { initialJob?: { jobNumber: string | null } | null }) => (
     <div data-testid="agmodal">{p.initialJob?.jobNumber ?? "none"}</div>

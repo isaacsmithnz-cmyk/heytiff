@@ -210,3 +210,29 @@ export async function unlinkSm8StaffMember(
   if (error) return { ok: false, error: "Couldn't remove that link." };
   return { ok: true };
 }
+
+/** ServiceM8 staff uuid → HeyTiff staff profile id, for the account this
+    workspace is actually connected to.
+
+    THE TENANT FILTER IS THE POINT, and it is why this lives here rather than
+    in the caller: a workspace that re-granted against a different ServiceM8
+    account still holds the old links, and applying them would put another
+    business's people on this one's work. Reading the active tenant costs one
+    cheap query on a table with a row per provider.
+
+    Empty is an ordinary answer — nobody linked yet — and every caller must
+    treat it as "we don't know who that is", never as "there is no such
+    person". */
+export async function sm8StaffLinkMap(orgId: string): Promise<Map<string, string>> {
+  const { data: conn } = await supabaseAdmin
+    .from("integration_connections")
+    .select("tenant_id")
+    .eq("org_id", orgId)
+    .eq("provider", "servicem8")
+    .maybeSingle();
+  const tenantId = (conn as { tenant_id: string | null } | null)?.tenant_id ?? null;
+  if (!tenantId) return new Map();
+
+  const links = await listSm8StaffLinks(orgId, tenantId);
+  return new Map(links.map((l) => [l.remoteId, l.staffProfileId]));
+}

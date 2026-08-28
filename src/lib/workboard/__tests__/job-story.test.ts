@@ -104,6 +104,7 @@ const detail = (over: Partial<NonNullable<StoryInputs["detail"]>> = {}): StoryIn
 const inputs = (over: Partial<StoryInputs> = {}): StoryInputs => ({
   detail: detail(),
   notes: [],
+  ourNotes: [],
   ledger: null,
   family: null,
   invoicedOn: null,
@@ -205,6 +206,51 @@ describe("buildJobStory — notes", () => {
   it("carries the action-required flag", () => {
     const story = buildJobStory(inputs({ notes: [note({ actionRequired: true })] }));
     expect(story.find((e) => e.kind === "note")).toMatchObject({ actionRequired: true });
+  });
+
+  /* OUR OWN NOTES — a ServiceM8 job has no notes column we may write, so the
+     pen's words live in `workboard_notes` and arrive here as the same kind of
+     entry, told apart only by their origin. */
+  it("merges HeyTiff's own notes into the one stream, in time order", () => {
+    const story = buildJobStory(
+      inputs({
+        notes: [note({ writtenAt: "2026-06-12 09:00:00" })],
+        ourNotes: [
+          {
+            id: "our-1",
+            text: "Ring the builder about roof access",
+            at: "2026-06-12T04:31:00.000Z",
+            author: "Isaac Smith",
+          },
+        ],
+        timezone: "Australia/Sydney",
+      })
+    );
+    const notes = story.filter((e) => e.kind === "note");
+    /* 04:31Z is 14:31 in Sydney — OUR stamps are instants in our own columns
+       and pass through the zone; ServiceM8's are already naive local. */
+    expect(notes.map((n) => (n.kind === "note" ? [n.origin, n.at] : null))).toEqual([
+      ["heytiff", "2026-06-12 14:31"],
+      ["servicem8", "2026-06-12 09:00:00"],
+    ]);
+  });
+
+  it("keys ours by our row id, so the diary can take one back off", () => {
+    const story = buildJobStory(
+      inputs({
+        notes: [],
+        ourNotes: [
+          { id: "our-9", text: "Drain kit still to go on", at: "2026-06-12T04:31:00.000Z", author: null },
+        ],
+        timezone: "Australia/Sydney",
+      })
+    );
+    expect(story[0]).toMatchObject({ key: "ournote:our-9", id: "our-9", origin: "heytiff" });
+  });
+
+  it("gives ServiceM8's notes no id — they are in a mirror we may not touch", () => {
+    const story = buildJobStory(inputs({ notes: [note()] }));
+    expect(story.find((e) => e.kind === "note")).toMatchObject({ origin: "servicem8", id: null });
   });
 });
 

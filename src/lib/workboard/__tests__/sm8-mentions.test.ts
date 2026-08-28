@@ -2,6 +2,7 @@ import {
   mentionedHandles,
   sm8Handle,
   taskTitleFromNote,
+  withoutHandles,
 } from "@/lib/workboard/sm8-mentions";
 
 /* The handles are LIVE FACTS, checked against the mirror before the module
@@ -84,5 +85,26 @@ describe("taskTitleFromNote", () => {
 
   it("is empty when the note was nothing but mentions", () => {
     expect(taskTitleFromNote("@lukeingold @michaeldiamond")).toBe("");
+  });
+});
+
+describe("withoutHandles", () => {
+  it("takes the addressing out and leaves the words alone", () => {
+    /* A walk on live data drew `Luke Ingold — "@LukeIngold Bill 90%"` — the
+       same person named twice in one line, because the row already opens
+       with who it is about. */
+    expect(withoutHandles("@LukeIngold Bill 90%")).toBe("Bill 90%");
+  });
+
+  it("does NOT capitalise or clip — that is the title's job, not a quote's", () => {
+    expect(withoutHandles("@lukeingold can you please order the grille")).toBe(
+      "can you please order the grille",
+    );
+  });
+
+  it("leaves a note with no handles exactly as it was", () => {
+    expect(withoutHandles("Return air box at henry to be picked up")).toBe(
+      "Return air box at henry to be picked up",
+    );
   });
 });

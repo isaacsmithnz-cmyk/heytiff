@@ -486,17 +486,13 @@ export async function readJobRecord(remoteId: string): Promise<JobRecordRead | n
      follows — so the diary reads the claims' notes beside the job's own,
      each badged with where it was filed. NOT money-gated, like the files. */
   const claims = await familyMediaSources(ctx.orgId, id);
-  const [notes, summaryRow, moneyVisible] = await Promise.all([
+  /* The summary carries no money by design (the Money face says collection
+     once), so it rides ungated beside the notes. */
+  const [notes, summary, moneyVisible] = await Promise.all([
     readJobNotes(ctx.orgId, id, claims),
     readStoredJobSummary(ctx.orgId, id),
     can("workboard_money"),
   ]);
-  /* The money sentence rides the same gate the ledger does — stripped here,
-     server-side, so the component never holds words it must remember to
-     hide. */
-  const summary = summaryRow
-    ? { ...summaryRow, money: moneyVisible ? summaryRow.money : null }
-    : null;
 
   if (!moneyVisible) return { notes, ledger: null, family: null, summary };
 

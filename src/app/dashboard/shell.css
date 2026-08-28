@@ -7016,8 +7016,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-jcsech { display:flex; align-items:baseline; gap:10px; }
 .wb2-jcstamp { margin-left:auto; font-size:10px; font-weight:800; letter-spacing:.1em;
   text-transform:uppercase; color:var(--q); white-space:nowrap; }
-.wb2-jcups-bd { margin:7px 0 0; font-size:14px; font-weight:500; color:var(--gray700);
-  line-height:1.65; max-width:68ch; text-wrap:pretty; }
 /* the lead is the verdict — one sentence in ink, a step up from the lines
    under it */
 .wb2-jcups-lead { margin:8px 0 0; font-size:15px; font-weight:700; letter-spacing:-.015em;
@@ -7029,9 +7027,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
   color:var(--gray700); line-height:1.55; text-wrap:pretty; }
 .wb2-jcups-pts li::before { content:""; position:absolute; left:2px; top:.62em; width:5px;
   height:5px; border-radius:50%; background:var(--jc-crown, rgba(5,5,5,.28)); }
-/* the money line reads as the panel's own ledger row — a hairline above it
-   keeps the gated sentence visibly its own thing */
-.wb2-jcups-bd.money { margin-top:10px; padding-top:9px; border-top:1px solid var(--wb2-line2); }
 /* contacts — who to ring, dissolved into Summary */
 .wb2-crow { display:flex; align-items:center; gap:10px; padding:8px 0; }
 .wb2-crow + .wb2-crow { border-top:1px solid var(--wb2-line2); }

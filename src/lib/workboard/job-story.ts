@@ -385,8 +385,20 @@ export function groupStoryDays(entries: readonly StoryEntry[]): StoryDay[] {
   return days;
 }
 
-/** One filter's slice of the feed. "Money" covers the claim events, the
-    payment rows and the invoice milestone — everything the grant gates. */
+/** What counts as a money entry — the claim events, the payment rows and
+    the invoice milestone: everything the grant gates. Said once, because
+    two readers depend on the SAME line: the diary's Money filter shows
+    exactly these, and the summary writer's prompt excludes exactly these
+    (the summary is the overview of everything except money). */
+export function isMoneyStoryEntry(e: StoryEntry): boolean {
+  return (
+    e.kind === "claim" ||
+    e.kind === "payment" ||
+    (e.kind === "milestone" && e.label === "Invoice raised")
+  );
+}
+
+/** One filter's slice of the feed. */
 export function filterStory(
   entries: readonly StoryEntry[],
   filter: StoryFilter
@@ -401,11 +413,7 @@ export function filterStory(
       case "visits":
         return e.kind === "visit";
       case "money":
-        return (
-          e.kind === "claim" ||
-          e.kind === "payment" ||
-          (e.kind === "milestone" && e.label === "Invoice raised")
-        );
+        return isMoneyStoryEntry(e);
     }
   });
 }

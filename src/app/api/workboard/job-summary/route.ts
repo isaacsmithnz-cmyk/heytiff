@@ -8,14 +8,14 @@ import { refreshJobSummary } from "@/lib/workboard/job-summary";
    ceiling and raising that raises it for every action on the screen.
 
    THE ROUTE OWNS THE DECISION. The body names WHICH job; everything else —
-   the story, the stamp, whether the stored paragraph is stale, the figures —
-   is derived here from the mirror. A client that asks when nothing moved
-   costs a re-derive and no model call, so a confused caller cannot spend
-   money, only queries.
+   the story, the stamp, whether the stored summary is stale — is derived
+   here from the mirror. A client that asks when nothing moved costs a
+   re-derive and no model call, so a confused caller cannot spend money,
+   only queries.
 
-   THE MONEY SENTENCE IS STRIPPED AT THIS DOOR. The writer stores both
-   fields; what leaves depends on the caller's own `workboard_money`, the
-   same server-side gate the ledger reads follow. */
+   Nothing here needs a money gate any more: the summary carries no money
+   by design (Isaac's cut — the Money face says collection once), and the
+   writer never even receives the money-shaped story entries. */
 
 export const maxDuration = 120;
 
@@ -42,12 +42,5 @@ export async function POST(req: Request) {
 
   const res = await refreshJobSummary(orgId, job);
   if (!res.ok) return Response.json(res);
-
-  const moneyVisible = await can("workboard_money");
-  return Response.json({
-    ok: true,
-    summary: res.summary
-      ? { ...res.summary, money: moneyVisible ? res.summary.money : null }
-      : null,
-  });
+  return Response.json({ ok: true, summary: res.summary });
 }

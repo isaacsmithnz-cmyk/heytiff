@@ -1,8 +1,9 @@
 /* "Where it's up to" — the writer, and the rules that keep it honest.
 
-   The two laws worth their tests: the model is handed ONLY derived figures
-   and the story's own lines (never raw columns to do arithmetic on), and a
-   stored summary whose stamp still matches the story costs NO model call —
+   The two laws worth their tests: the writer's prompt carries NO MONEY —
+   the money-shaped story entries are excluded before serialisation, so
+   nothing gated can leak into the ungated fields even by prose — and a
+   stored summary whose stamp still matches the story costs NO model call:
    that comparison is the entire cost model. */
 
 import type Anthropic from "@anthropic-ai/sdk";
@@ -53,7 +54,6 @@ jest.mock("../job-media-query", () => ({
 jest.mock("../query", () => ({ getSm8Timezone: async () => "Australia/Sydney" }));
 
 import {
-  moneyFactsFor,
   refreshJobSummary,
   runSummaryWrite,
   summaryPrompt,
@@ -134,55 +134,26 @@ const serverRead = (over: Partial<JobStoryServerRead> = {}): JobStoryServerRead 
     workDone: null,
     status: "Completed",
     clientName: "Susie Peterson",
-    family: family(),
-    money: null,
-    ledgerPaidCents: 0,
     ...over,
   };
 };
 
-describe("moneyFactsFor — the only figures the model may repeat", () => {
-  it("spells the family's value, claims and settlement off the derivation", () => {
-    const facts = moneyFactsFor({ family: family(), money: null, ledgerPaidCents: 0 });
-    expect(facts).toContain("Job value $31,340.35 inc GST");
-    expect(facts).toContain("Paid in full");
-    expect(facts.some((f) => f.startsWith("Payment 1 — Deposit"))).toBe(true);
-    expect(facts.some((f) => f.includes("$6,268.06"))).toBe(true);
-  });
-
-  it("gives a plain job its value and collection state", () => {
-    const facts = moneyFactsFor({
-      family: null,
-      money: {
-        valueCents: 279400,
-        invoiced: null,
-        invoicedOn: null,
-        quoteSent: null,
-        quoteSentOn: null,
-        paid: false,
-        paidOn: null,
-      },
-      ledgerPaidCents: 100000,
-    });
-    /* fmtAud drops the cents on whole dollars — the house style */
-    expect(facts).toContain("Job value $2,794 inc GST");
-    expect(facts).toContain("$1,000 paid so far");
-  });
-
-  it("says nothing at all when no money was on the table", () => {
-    expect(moneyFactsFor({ family: null, money: null, ledgerPaidCents: 0 })).toEqual([]);
-  });
-});
-
-describe("summaryPrompt", () => {
-  it("carries the scope, the story's own lines and the derived figures — nothing else", () => {
+describe("summaryPrompt — the writer never sees money", () => {
+  it("carries the scope and the story's own lines, with every money entry excluded", () => {
     const read = serverRead();
-    const prompt = summaryPrompt(read, moneyFactsFor(read));
+    /* the fixture's story HAS money in it — three claims raised and
+       settled — which is exactly what must not reach the writer */
+    expect(read.entries.some((e) => e.kind === "claim")).toBe(true);
+
+    const prompt = summaryPrompt(read);
     expect(prompt).toContain("Supply and install a new 14kW system");
     expect(prompt).toContain('note by Michael Diamond: "Please make double detection"');
     expect(prompt).toContain("site visit, 4h 20m (David Hann)");
-    expect(prompt).toContain("Job value $31,340.35 inc GST");
     expect(prompt).toContain("Job completed");
+    /* no claim lines, no payment lines, no dollars at all */
+    expect(prompt).not.toContain("Payment 1 — Deposit");
+    expect(prompt).not.toContain("settled");
+    expect(prompt).not.toContain("$");
   });
 });
 
@@ -198,32 +169,19 @@ const clientSaying = (payload: unknown, stop = "end_turn") =>
   }) as unknown as Anthropic;
 
 describe("runSummaryWrite", () => {
-  it("returns the structured shape when the record had money facts", async () => {
+  it("returns the structured shape", async () => {
     const res = await runSummaryWrite(
       serverRead(),
       clientSaying({
         lead: "Installed and handed over.",
         points: ["Seven visits across the install", "One open note from Michael"],
-        money: "Paid in full across three claims.",
       })
     );
     expect(res).toEqual({
       ok: true,
       lead: "Installed and handed over.",
       points: ["Seven visits across the install", "One open note from Michael"],
-      money: "Paid in full across three claims.",
     });
-  });
-
-  /* The model is TOLD not to write a money sentence without facts, but an
-     instruction is not an enforced check — a sentence with no facts behind
-     it is dropped at this door. */
-  it("drops a money sentence the facts can't back", async () => {
-    const res = await runSummaryWrite(
-      serverRead({ family: null }),
-      clientSaying({ lead: "Quoted and waiting.", points: [], money: "About $99,999 collected." })
-    );
-    expect(res).toEqual({ ok: true, lead: "Quoted and waiting.", points: [], money: null });
   });
 
   it("keeps only real lines in points, and no more than five", async () => {
@@ -232,29 +190,24 @@ describe("runSummaryWrite", () => {
       clientSaying({
         lead: "Mid-install.",
         points: ["one", "  ", 3, "two", "three", "four", "five", "six"],
-        money: null,
       })
     );
     expect(res).toEqual({
       ok: true,
       lead: "Mid-install.",
       points: ["one", "two", "three", "four", "five"],
-      money: null,
     });
   });
 
   it("treats an empty lead as a failure, not a blank block", async () => {
-    const res = await runSummaryWrite(
-      serverRead(),
-      clientSaying({ lead: "  ", points: [], money: null })
-    );
+    const res = await runSummaryWrite(serverRead(), clientSaying({ lead: "  ", points: [] }));
     expect(res).toEqual({ ok: false, reason: "The writer returned nothing." });
   });
 
   it("treats a refusal as a content outcome", async () => {
     const res = await runSummaryWrite(
       serverRead(),
-      clientSaying({ lead: "x", points: [], money: null }, "refusal")
+      clientSaying({ lead: "x", points: [] }, "refusal")
     );
     expect(res).toEqual({ ok: false, reason: "The writer declined this job." });
   });
@@ -315,13 +268,12 @@ describe("refreshJobSummary — the cost guard", () => {
       data: {
         work_summary: "Stored words.",
         work_points: ["Stored point"],
-        money_summary: "Stored money.",
         story_stamp: read.stamp,
         event_on: "2026-08-22",
         event_label: "the final payment",
       },
     });
-    const client = clientSaying({ lead: "should never be asked", points: [], money: null });
+    const client = clientSaying({ lead: "should never be asked", points: [] });
     const res = await refreshJobSummary("org-1", "j-1", client);
 
     expect(res).toEqual({
@@ -330,7 +282,6 @@ describe("refreshJobSummary — the cost guard", () => {
       summary: {
         lead: "Stored words.",
         points: ["Stored point"],
-        money: "Stored money.",
         stamp: read.stamp,
         eventOn: "2026-08-22",
         eventLabel: "the final payment",
@@ -342,11 +293,7 @@ describe("refreshJobSummary — the cost guard", () => {
 
   it("writes, stores and stamps when the story has moved", async () => {
     maybeSingle.mockResolvedValue({ data: null });
-    const client = clientSaying({
-      lead: "Fresh words.",
-      points: ["A point about the work"],
-      money: "Paid in full.",
-    });
+    const client = clientSaying({ lead: "Fresh words.", points: ["A point about the work"] });
     const res = await refreshJobSummary("org-1", "j-1", client);
 
     expect(res.ok).toBe(true);
@@ -355,8 +302,8 @@ describe("refreshJobSummary — the cost guard", () => {
     expect(res.summary).toMatchObject({
       lead: "Fresh words.",
       points: ["A point about the work"],
-      money: "Paid in full.",
-      /* the newest event here is the claim settling on 22 Aug */
+      /* the stamp still rides the money event — the claim settling on 22
+         Aug moved the story even though the writer never read it */
       eventOn: "2026-08-22",
       eventLabel: "the final payment",
     });
@@ -365,5 +312,6 @@ describe("refreshJobSummary — the cost guard", () => {
     expect(rowWritten.job_uuid).toBe("j-1");
     expect(rowWritten.work_summary).toBe("Fresh words.");
     expect(rowWritten.work_points).toEqual(["A point about the work"]);
+    expect("money_summary" in rowWritten).toBe(false);
   });
 });

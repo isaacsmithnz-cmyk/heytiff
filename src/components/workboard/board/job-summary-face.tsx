@@ -70,7 +70,8 @@ export function JobSummaryFace({
           </div>
           {/* STRUCTURED, NOT A PARAGRAPH (Isaac): the lead is the state at
               a glance; each point is one fact on its own line, scannable
-              past. The money sentence keeps its own line and its own gate. */}
+              past. NO MONEY in here, ever — the Money face says collection
+              once, and the writer never even sees the money events. */}
           <p className="wb2-jcups-lead">{summary.lead}</p>
           {summary.points.length > 0 && (
             <ul className="wb2-jcups-pts">
@@ -79,7 +80,6 @@ export function JobSummaryFace({
               ))}
             </ul>
           )}
-          {summary.money && <p className="wb2-jcups-bd money">{summary.money}</p>}
         </div>
       )}
 

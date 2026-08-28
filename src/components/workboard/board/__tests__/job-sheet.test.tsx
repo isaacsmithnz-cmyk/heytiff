@@ -344,7 +344,6 @@ describe("the Summary face", () => {
         summary: {
           lead: "First fix done across two visits.",
           points: ["The crew returns Thursday", 'One loose thread: "check the gyprock"'],
-          money: null,
           stamp: "s-1",
           eventOn: "2026-08-13",
           eventLabel: "Nathan's note",
@@ -362,27 +361,6 @@ describe("the Summary face", () => {
       "The crew returns Thursday",
       'One loose thread: "check the gyprock"',
     ]);
-  });
-
-  /* The money sentence is a second stored field, stripped SERVER-side for a
-     reader without the grant — the component simply renders what it got. */
-  it("shows the money sentence only when the server sent one", async () => {
-    readMirrorJob.mockResolvedValueOnce(card(detail()));
-    readJobRecord.mockResolvedValueOnce(
-      record({
-        summary: {
-          lead: "Installed and handed over.",
-          points: [],
-          money: "Billed in three claims and paid in full.",
-          stamp: "s-1",
-          eventOn: "2026-08-22",
-          eventLabel: "the final payment",
-        },
-      })
-    );
-    render(<JobSheet row={row()} {...props} moneyVisible />);
-
-    expect(await screen.findByText("Billed in three claims and paid in full.")).toBeInTheDocument();
   });
 
   it("says nothing where a summary hasn't been written yet", async () => {
@@ -457,7 +435,6 @@ describe("the summary refresh", () => {
       summary: {
         lead: "Old words.",
         points: [],
-        money: null,
         stamp: "stale",
         eventOn: "2026-08-01",
         eventLabel: "a note",
@@ -469,7 +446,6 @@ describe("the summary refresh", () => {
         summary: {
           lead: "Fresh words about the job.",
           points: ["A fresh point"],
-          money: null,
           stamp: "fresh",
           eventOn: "2026-08-14",
           eventLabel: "a site visit",
@@ -516,7 +492,7 @@ describe("the summary refresh", () => {
     );
     expect(stamp).not.toBeNull();
     allLanded({
-      summary: { lead: "Current words.", points: [], money: null, stamp: stamp!, eventOn: "2026-08-14", eventLabel: "a site visit" },
+      summary: { lead: "Current words.", points: [], stamp: stamp!, eventOn: "2026-08-14", eventLabel: "a site visit" },
     });
     render(<JobSheet row={row()} {...props} />);
 

@@ -11,11 +11,9 @@ import {
   resolveJobCard,
 } from "./all-jobs-query";
 import { readJobMedia } from "./job-media-query";
-import { fmtAud } from "./project-money";
-import { claimTitle, type FamilyMoney } from "./job-family";
-import type { JobMoney } from "./job-money";
 import {
   buildJobStory,
+  isMoneyStoryEntry,
   stampDay,
   storyEventLabel,
   storyLineOf,
@@ -32,17 +30,19 @@ import {
    FamilyMoney the money block renders); the model narrates them, it never
    computes them.
 
-   REFRESHED WHEN THE STORY MOVES, NEVER ON OPEN. The stored paragraph
+   REFRESHED WHEN THE STORY MOVES, NEVER ON OPEN. The stored summary
    renders instantly; a write runs only when the story's stamp has left the
    stored one behind. A quiet job costs nothing, a busy one about a cent per
    change — `effort` is the lever, and a long Claude call lives in a route
    handler, both per the fleet-valuations law.
 
-   TWO FIELDS, ONE CALL. The work narrative is for everyone; the money
-   sentence rides the same `workboard_money` gate the Money tab does, so the
-   writer keeps them in separate fields and the reader strips one at the
-   door. The work field is told to carry NO figures at all — a dollar amount
-   in the ungated field would be the gate leaking by prose. */
+   NO MONEY, ANYWHERE (Isaac, 2026-08-28 — a generated money sentence was
+   built, walked and CUT). The Summary is the overview of everything except
+   money; the Money face already says collection once, and saying it twice
+   is how a card stops being trusted. Belt and braces: the money-shaped
+   story entries never enter the writer's prompt (the same isMoneyStoryEntry
+   line the diary's Money filter reads), AND the instructions ban figures —
+   so nothing gated ever reaches the ungated fields even by prose. */
 
 const MODEL = "claude-opus-5";
 const MAX_TOKENS = 2000;
@@ -58,16 +58,12 @@ const MAX_TOKENS = 2000;
 const MAX_LEAD_CHARS = 200;
 const MAX_POINT_CHARS = 180;
 const MAX_POINTS = 5;
-const MAX_MONEY_CHARS = 300;
 
 export type JobSummaryRead = {
   /** One sentence — the job's state at a glance. */
   lead: string;
   /** Short single-fact lines under it: progress, what's next, loose ends. */
   points: string[];
-  /** Null for a reader without money — stripped by the caller at the gate —
-      and null when the job has no money facts to speak of. */
-  money: string | null;
   stamp: string;
   /** The day of the newest event the summary was written at. */
   eventOn: string | null;
@@ -78,7 +74,6 @@ export type JobSummaryRead = {
 type SummaryRow = {
   work_summary: string;
   work_points: unknown;
-  money_summary: string | null;
   story_stamp: string;
   event_on: string | null;
   event_label: string | null;
@@ -96,7 +91,7 @@ export async function readStoredJobSummary(
 ): Promise<JobSummaryRead | null> {
   const { data } = await supabaseAdmin
     .from("job_summaries")
-    .select("work_summary, work_points, money_summary, story_stamp, event_on, event_label")
+    .select("work_summary, work_points, story_stamp, event_on, event_label")
     .eq("org_id", orgId)
     .eq("job_uuid", jobUuid)
     .maybeSingle();
@@ -105,7 +100,6 @@ export async function readStoredJobSummary(
   return {
     lead: row.work_summary,
     points: pointsOf(row.work_points),
-    money: row.money_summary,
     stamp: row.story_stamp,
     eventOn: row.event_on,
     eventLabel: row.event_label,
@@ -123,9 +117,6 @@ export type JobStoryServerRead = {
   workDone: string | null;
   status: string | null;
   clientName: string | null;
-  family: FamilyMoney | null;
-  money: JobMoney | null;
-  ledgerPaidCents: number;
 };
 
 /** The same inputs the card fetches, assembled where the writer runs. The
@@ -176,9 +167,6 @@ export async function readJobStoryForSummary(
     workDone: detail.workDone,
     status: detail.status,
     clientName: detail.clientName,
-    family,
-    money: detail.money,
-    ledgerPaidCents: ledger.payments.reduce((sum, p) => sum + (p.amountCents ?? 0), 0),
   };
 }
 
@@ -204,80 +192,22 @@ const SUMMARY_SCHEMA = {
   properties: {
     lead: { type: "string" },
     points: { type: "array", items: { type: "string" } },
-    money: { type: ["string", "null"] },
   },
-  required: ["lead", "points", "money"],
+  required: ["lead", "points"],
   additionalProperties: false,
 };
 
-/** The derived figures, spelled out for the narrator. Every amount here
-    comes off the same derivation the money block renders — the model is
-    told these are the ONLY figures it may repeat. */
-export function moneyFactsFor(read: {
-  family: FamilyMoney | null;
-  money: JobMoney | null;
-  ledgerPaidCents: number;
-}): string[] {
-  const lines: string[] = [];
-  const family = read.family;
-  if (family?.isFamily) {
-    if (family.valueCents !== null)
-      lines.push(
-        `Job value ${fmtAud(family.valueCents)}${family.basis === "inc" ? " inc GST" : family.basis === "ex" ? " ex GST" : ""}`
-      );
-    if (family.invoicedCents !== null && family.toComeCents !== null && family.toComeCents > 0)
-      lines.push(
-        `${fmtAud(family.invoicedCents)} invoiced so far — ${fmtAud(family.toComeCents)} to come`
-      );
-    if (family.paidCents > 0) lines.push(`${fmtAud(family.paidCents)} paid`);
-    if (family.awaitingCents !== null && family.awaitingCents > 0)
-      lines.push(`${fmtAud(family.awaitingCents)} awaiting payment`);
-    if (
-      family.valueCents !== null &&
-      family.paidCents >= family.valueCents &&
-      family.awaitingCents === 0 &&
-      family.toComeCents === 0
-    )
-      lines.push("Paid in full");
-    for (const c of family.claims) {
-      const bits = [
-        claimTitle(c),
-        c.amountCents !== null ? fmtAud(c.amountCents) : "amount unknown",
-        c.state === "paid"
-          ? "paid"
-          : c.state === "part"
-            ? "part paid"
-            : c.state === "awaiting"
-              ? "awaiting payment"
-              : c.state === "not_invoiced"
-                ? "not yet invoiced"
-                : c.state === "paid_unknown"
-                  ? "part or all paid"
-                  : "amount unknown",
-      ];
-      lines.push(bits.join(" · "));
-    }
-    return lines;
-  }
-  const money = read.money;
-  if (!money) return lines;
-  if (money.valueCents !== null) {
-    /* ServiceM8's job total is inc GST by definition — see JobMoney. */
-    lines.push(`Job value ${fmtAud(money.valueCents)} inc GST`);
-    if (read.ledgerPaidCents >= money.valueCents && money.valueCents > 0) lines.push("Paid in full");
-  }
-  if (read.ledgerPaidCents > 0 && (money.valueCents === null || read.ledgerPaidCents < money.valueCents))
-    lines.push(`${fmtAud(read.ledgerPaidCents)} paid so far`);
-  return lines;
-}
-
-export function summaryPrompt(read: JobStoryServerRead, moneyFacts: string[]): string {
-  const story = read.entries.map(storyLineOf).join("\n");
+export function summaryPrompt(read: JobStoryServerRead): string {
+  /* The money-shaped entries never reach the writer — see the header. What
+     the model never saw it cannot leak, whatever its instructions do. */
+  const story = read.entries
+    .filter((e) => !isMoneyStoryEntry(e))
+    .map(storyLineOf)
+    .join("\n");
   const parts = [
     `Job status: ${read.status ?? "unknown"}`,
     read.scope ? `The job, in the office's own words:\n${read.scope}` : null,
     read.workDone ? `What was done, in the office's own words:\n${read.workDone}` : null,
-    moneyFacts.length > 0 ? `Derived money facts (the ONLY figures you may use):\n${moneyFacts.join("\n")}` : null,
     `The job's record, newest first:\n${story}`,
   ];
   return parts.filter(Boolean).join("\n\n");
@@ -298,18 +228,15 @@ const SYSTEM_PROMPT =
   "quoted briefly, with who wrote it). Each line under twenty words, no trailing filler. " +
   "Skip a category that has nothing real in it — fewer good lines beat padding. Name " +
   "people only as the record names them. Never invent a fact, a date or a reason the " +
-  "record doesn't state; say less rather than guess. STRICTLY no dollar figures, prices " +
-  "or payment states in `lead` or `points` — money is not yours to mention there, even " +
-  "when the record shows it.\n\n" +
-  "Write `money`: one sentence on where the money is up to, using ONLY the derived money " +
-  "facts, with the figures repeated exactly as given — never recomputed, added or rounded. " +
-  "Say how the billing is structured when it is (deposit, progress, final). If no money " +
-  "facts were provided, or they say nothing worth a sentence, return null.\n\n" +
+  "record doesn't state; say less rather than guess.\n\n" +
+  "STRICTLY NO MONEY, anywhere: no dollar figures, prices, quotes' amounts, invoices, " +
+  "deposits or payment states. Money has its own place on the card and it is not here — " +
+  "even when the scope text mentions an amount, leave it out.\n\n" +
   "No headings, no exclamation marks, and never mention this system, the mirror, " +
   "ServiceM8's internals, or that anything was generated.";
 
 export type SummaryWriteResult =
-  | { ok: true; lead: string; points: string[]; money: string | null }
+  | { ok: true; lead: string; points: string[] }
   | { ok: false; reason: string };
 
 function reasonFor(err: unknown): string {
@@ -324,7 +251,6 @@ export async function runSummaryWrite(
   read: JobStoryServerRead,
   client: Anthropic = new Anthropic()
 ): Promise<SummaryWriteResult> {
-  const moneyFacts = moneyFactsFor(read);
   try {
     const response = await client.messages.create({
       model: MODEL,
@@ -336,7 +262,7 @@ export async function runSummaryWrite(
         format: { type: "json_schema", schema: SUMMARY_SCHEMA },
       },
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: summaryPrompt(read, moneyFacts) }],
+      messages: [{ role: "user", content: summaryPrompt(read) }],
     });
 
     if (response.stop_reason === "refusal")
@@ -346,11 +272,7 @@ export async function runSummaryWrite(
     if (!block || block.type !== "text")
       return { ok: false, reason: "The writer returned nothing." };
 
-    const parsed = JSON.parse(block.text) as {
-      lead?: unknown;
-      points?: unknown;
-      money?: unknown;
-    };
+    const parsed = JSON.parse(block.text) as { lead?: unknown; points?: unknown };
     const lead = typeof parsed.lead === "string" ? parsed.lead.trim().slice(0, MAX_LEAD_CHARS) : "";
     if (!lead) return { ok: false, reason: "The writer returned nothing." };
     /* The schema says array-of-strings; the clamps say how many and how
@@ -359,11 +281,7 @@ export async function runSummaryWrite(
       .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
       .map((p) => p.trim().slice(0, MAX_POINT_CHARS))
       .slice(0, MAX_POINTS);
-    const money =
-      typeof parsed.money === "string" && parsed.money.trim() && moneyFacts.length > 0
-        ? parsed.money.trim().slice(0, MAX_MONEY_CHARS)
-        : null;
-    return { ok: true, lead, points, money };
+    return { ok: true, lead, points };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };
   }
@@ -400,7 +318,6 @@ export async function refreshJobSummary(
   const summary: JobSummaryRead = {
     lead: written.lead,
     points: written.points,
-    money: written.money,
     stamp: read.stamp,
     eventOn: stampDay(read.stamp) ?? newest.day,
     eventLabel: storyEventLabel(newest),
@@ -412,7 +329,6 @@ export async function refreshJobSummary(
       job_uuid: read.cardId,
       work_summary: summary.lead,
       work_points: summary.points,
-      money_summary: summary.money,
       story_stamp: summary.stamp,
       event_on: summary.eventOn,
       event_label: summary.eventLabel,

@@ -18,7 +18,6 @@ import {
   readJobNotes,
   resolveJobCard,
   type ClaimDetailRead,
-  type JobCardTarget,
   type JobLedgerRead,
   type JobNoteEntry,
 } from "@/lib/workboard/all-jobs-query";
@@ -447,16 +446,6 @@ export async function readJobFiles(remoteId: string): Promise<JobMediaGroupsRead
      pictures of their own job. */
   const claims = await familyMediaSources(ctx.orgId, id);
   return readJobMediaGroups(ctx.orgId, id, claims);
-}
-
-/** Which card a job row opens. A ServiceM8 clone is a CLAIM, so #2380A opens
-    #2380 with that claim named — see resolveJobCard for the orphan case. */
-export async function readJobCardTarget(remoteId: string): Promise<JobCardTarget | null> {
-  const ctx = await context();
-  if (!ctx || !(await can("workboard"))) return null;
-  const id = trim(remoteId, 80);
-  if (!id) return null;
-  return resolveJobCard(ctx.orgId, id);
 }
 
 /** One claim's own contents, for the modal that opens on it. MONEY — the

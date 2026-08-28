@@ -168,6 +168,11 @@ export const ICON_PATHS: Record<string, string> = {
      for the Xero row — a circled X drawn in this set's own stroke style, tinted
      with their blue, rather than a copy of their mark. `servicem8` follows the
      same rule: a stroke figure-8 (the "M8"), not their logo. */
+  /* The showcase star. Drawn hollow like every glyph here; the FILLED state
+     is CSS (`fill:currentColor` beats the svg's fill="none" presentation
+     attribute), so one path serves both. */
+  star:
+    '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.12 2.12 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.12 2.12 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.12 2.12 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.12 2.12 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.12 2.12 0 0 0 1.597-1.16z"/>',
   plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/>',
   xero: '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/>',
   servicem8: '<circle cx="12" cy="7.25" r="4.25"/><circle cx="12" cy="16.75" r="4.25"/>',

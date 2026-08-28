@@ -40,6 +40,10 @@ import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
 import { JobMediaViewer } from "./job-media-viewer";
+import {
+  listJobPhotoFavourites,
+  setJobPhotoFavourite,
+} from "@/app/actions/job-photo-favourites";
 import { JobAttentionStrip } from "./job-attention-strip";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { addJobNote, dismissJobNote, removeJobNote, taskFromJobNote } from "@/app/actions/job-notes";
@@ -205,6 +209,12 @@ export function JobSheet({
   const [record, setRecord] = useState<JobRecordRead | null | undefined>(undefined);
   const [recordFailed, setRecordFailed] = useState(false);
   const [picklist, setPicklist] = useState<JobPicklistItem[] | null>(null);
+  /* WHICH OF THIS JOB'S PHOTOS ARE STARRED. Its own read on its own clock,
+     like the files — a set of attachment ids, because that is the only
+     question the card asks of it. Null until it lands: an empty Set would
+     draw every star hollow for a moment on a job whose photos are all
+     starred, which is the picture being wrong rather than absent. */
+  const [favourites, setFavourites] = useState<Set<string> | null>(null);
   /* OUR OWN WRITING, and what the job still wants — both arrive on the
      record read and both are then LOCAL, because a note typed at the diary's
      head and a suggestion just answered have to leave the screen at once.
@@ -330,6 +340,25 @@ export function JobSheet({
     void readJobFiles(cardId).then((m) => {
       if (live) setMedia(m);
     });
+    return () => {
+      live = false;
+    };
+  }, [cardId]);
+
+  /* The stars on this job's photos. Ours, not ServiceM8's — see
+     docs/migrations/job_photo_favourites.sql. A read that fails leaves the
+     set EMPTY rather than null: the stars go hollow, which is honest, and
+     the tiles stay clickable. */
+  useEffect(() => {
+    if (!cardId) return;
+    let live = true;
+    void listJobPhotoFavourites(cardId)
+      .then((rows) => {
+        if (live) setFavourites(new Set(rows.map((r) => r.remoteId)));
+      })
+      .catch(() => {
+        if (live) setFavourites(new Set());
+      });
     return () => {
       live = false;
     };
@@ -651,6 +680,47 @@ export function JobSheet({
       setOurNotes(before);
       onToast("Could not remove that note");
     });
+  };
+
+  /* STARRING IS OPTIMISTIC AND REVERSIBLE. The star is a curator's gesture,
+     not a save — it must land the instant it is clicked. A refused write puts
+     the star back where the server says it is, which is why the action
+     returns the truth rather than an ok/not-ok.
+
+     AND IT MAY MAKE A PICTURE APPEAR. Starring an uncached photo triggers the
+     bytes fetch server-side, so the files are re-read on the way back: the
+     showcase's whole point is the picture, and a star that leaves a grey
+     plate behind has done half its job. */
+  const toggleFavourite = (remoteId: string) => {
+    if (!cardId) return;
+    const on = !(favourites?.has(remoteId) ?? false);
+    const paint = (starred: boolean) =>
+      setFavourites((cur) => {
+        const next = new Set(cur ?? []);
+        if (starred) next.add(remoteId);
+        else next.delete(remoteId);
+        return next;
+      });
+    paint(on);
+    void setJobPhotoFavourite(cardId, remoteId, on)
+      .then((res) => {
+        if (!alive.current) return;
+        if (!res.ok) {
+          paint(res.starred);
+          onToast("Could not save that star");
+          return;
+        }
+        if (res.note) onToast(res.note);
+        if (on)
+          void readJobFiles(cardId).then((m) => {
+            if (alive.current && m) setMedia(m);
+          });
+      })
+      .catch(() => {
+        if (!alive.current) return;
+        paint(!on);
+        onToast("Could not save that star");
+      });
   };
 
   const removeChecklistItem = (id: string) => {
@@ -1209,7 +1279,9 @@ export function JobSheet({
               truncated={!!media?.truncated}
               mediaNote={mediaNote}
               visits={detail?.visits ?? []}
+              favourites={favourites}
               onOpen={(id) => setViewer({ kind: "photos", id })}
+              onStar={toggleFavourite}
             />
           )}
 
@@ -1289,6 +1361,9 @@ export function JobSheet({
             <JobMediaViewer
               items={items}
               index={index}
+              /* Paper has no star: the showcase is a gallery of the work. */
+              favourites={viewer.kind === "photos" ? favourites : null}
+              onStar={viewer.kind === "photos" ? toggleFavourite : undefined}
               onNav={(i) =>
                 setViewer({ kind: viewer.kind, id: items[i]?.remoteId ?? viewer.id })
               }

@@ -7421,8 +7421,39 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 .wb2-mday b { font-size:12.5px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
 .wb2-mday em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500); }
 .wb2-mosaic { display:flex; flex-wrap:wrap; gap:5px; }
-.wb2-mosaic .wb2-mtile { min-width:64px; max-height:280px; }
+/* THE CELL CARRIES THE SHAPE, the tile fills it. A button cannot contain a
+   button, so the showcase star had to become the tile's SIBLING — which means
+   the flex ratio, the size bounds and the positioning context all moved out
+   here, one level up, and the tile is simply everything inside. */
+.wb2-mcell { position:relative; display:flex; min-width:64px; max-height:280px; }
+.wb2-mcell > .wb2-mtile { width:100%; height:100%; aspect-ratio:auto; }
 .wb2-mosaic .wb2-mspace { flex:10 1 0; min-width:0; }
+/* THE STAR IS ALWAYS THERE, never a hover secret — a control you have to
+   discover by waving at a photo is one nobody finds, and this is the gesture
+   the whole showcase is built on. Unstarred it is a white outline on a dark
+   pill, which reads on any photograph; starred it fills gold. Gold, not the
+   page accent: a star is not a state of the job. */
+.wb2-mstar { position:absolute; top:5px; right:5px; z-index:2; width:24px; height:24px;
+  display:grid; place-items:center; padding:0; border:0; border-radius:50%;
+  background:rgba(8,10,16,.5); color:#fff; cursor:pointer;
+  transition:background .12s ease, color .12s ease, transform .12s ease; }
+.wb2-mstar:hover { background:rgba(8,10,16,.72); transform:scale(1.08); }
+.wb2-mstar.on { color:#f5b400; }
+/* fill:currentColor beats the glyph's own fill="none" presentation attribute
+   — one path, both states */
+.wb2-mstar.on .i { fill:currentColor; }
+.wb2-mstar:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.55); }
+/* The head's switch. Same chip language as the rest of the card's furniture;
+   `on` is the gold the stars themselves wear, so the filter and the thing it
+   filters read as one idea. */
+.wb2-mfilt { margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+  padding:3px 9px; border:1px solid var(--wb2-line2); border-radius:999px;
+  background:transparent; color:var(--gray600); font-size:11px; font-weight:700;
+  cursor:pointer; transition:background .12s ease, color .12s ease, border-color .12s ease; }
+.wb2-mfilt:hover { background:rgba(5,5,5,.04); }
+.wb2-mfilt.on { border-color:rgba(245,180,0,.5); background:rgba(245,180,0,.14); color:#8a6400; }
+.wb2-mfilt.on .i { fill:currentColor; }
+.wb2-mfilt:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
 /* the marked-up badge — the photo somebody drew on is usually the one worth
    finding, so it says so on the tile, not in a tooltip */
 .wb2-mmark { position:absolute; right:5px; top:5px; z-index:1; font-style:normal;
@@ -7446,15 +7477,14 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
    WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking context:
    114/115 sits above the claim modal's 110/111 and under the toasts' 130. */
 .wb2-mvscrim { position:fixed; inset:0; z-index:114; background:rgba(8,10,16,.62); cursor:zoom-out; }
-/* THE VIEWER WEARS THE CARD'S OWN FRAME (Isaac's call) — the same width and
-   top anchor as `.wb2-sheet.jc`, not the whole screen. A photo opened from
-   the card is still the card talking; swallowing the viewport made it feel
-   like a different surface, and lost the reader's place. */
+/* THE VIEWER TAKES THE SCREEN (Isaac, 2026-08-29 — it replaces the card
+   frame it used to wear). Boxed to the card's 920px the photo was a stamp
+   in the middle of a wide monitor: the reader's place was kept at the cost
+   of the thing they opened it to see. The inset keeps the scrim visible on
+   every edge, so it still reads as a layer over the card, not a new page. */
 .wb2-mv { position:fixed; z-index:115; display:flex; flex-direction:column;
-  width:min(920px, calc(100vw - 40px));
-  inset:32px 0 auto; margin:0 auto;
-  height:min(760px, calc(100vh - 64px));
-  border-radius:22px; overflow:hidden; background:#0d0e13;
+  inset:24px; width:auto; height:auto; margin:0;
+  border-radius:18px; overflow:hidden; background:#0d0e13;
   box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
 .wb2-mvtop { display:flex; align-items:center; gap:10px; padding:10px 14px;
   border-bottom:1px solid rgba(255,255,255,.08); min-height:44px; }
@@ -7467,18 +7497,22 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 .wb2-mvtop .wb2-ico { background:rgba(255,255,255,.08); color:#fff; }
 .wb2-mvtop .wb2-ico:hover { background:rgba(255,255,255,.16); }
 .wb2-mvstage { position:relative; flex:1; min-height:0; overflow:hidden; }
-/* FIT BY ABSOLUTE CENTERING, not by a grid: a percentage max-height inside
+/* FIT IS object-fit:contain ON A STAGE-SIZED BOX, not max-width on a
+   natural-sized one. The old max-* pair only ever shrank: a photo smaller
+   than the stage sat at its own pixels in the middle of the black, which is
+   what "zoomed out too far" was. A sized box + contain scales BOTH ways and
+   still never crops. (Absolute, not a grid: a percentage max-height inside
    an auto grid row is indefinite and silently never binds — the portrait
-   that taught this filled the full stage width and ran off the bottom. An
-   absolutely-positioned replaced element with inset:0 + margin:auto centers
-   AND contains reliably. */
-.wb2-mvstage img { position:absolute; inset:0; margin:auto;
-  max-width:calc(100% - 16px); max-height:calc(100% - 16px);
+   that taught this ran off the bottom of the stage.) */
+.wb2-mvstage img { position:absolute; inset:8px; margin:0;
+  width:calc(100% - 16px); height:calc(100% - 16px); object-fit:contain;
   border-radius:6px; user-select:none; }
 .wb2-mvstage.zoomed { overflow:auto; display:flex; cursor:grab; }
 .wb2-mvstage.zoomed:active { cursor:grabbing; }
-.wb2-mvstage.zoomed img { position:static; margin:auto; max-width:none; max-height:none;
-  border-radius:0; }
+/* Zoomed, the INLINE width rules and height follows the ratio — object-fit
+   has nothing left to do once the box matches the photo. */
+.wb2-mvstage.zoomed img { position:static; margin:auto; height:auto;
+  max-width:none; max-height:none; object-fit:fill; border-radius:0; }
 .wb2-mvstage .wb2-mvpending { position:absolute; inset:0; display:grid; place-items:center;
   margin:0; }
 .wb2-mvframe { width:100%; height:100%; border:0; background:#fff; }
@@ -7490,6 +7524,30 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 .wb2-mvnav:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.5); }
 .wb2-mvnav.prev { left:12px; }
 .wb2-mvnav.next { right:12px; }
+/* THE ROLL ALONG THE BOTTOM. Two arrows say a neighbour exists; the strip
+   says what it is and how far the day runs — and it is the mosaic's own
+   order, so the tile you clicked is where your eye already expects it. */
+.wb2-mvstrip { display:flex; gap:6px; flex:none; padding:8px 10px; overflow-x:auto;
+  overflow-y:hidden; border-top:1px solid rgba(255,255,255,.08);
+  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent; }
+.wb2-mvthumb { flex:none; width:66px; height:48px; padding:0; border:0; border-radius:6px;
+  overflow:hidden; background:rgba(255,255,255,.07); color:rgba(255,255,255,.45);
+  display:grid; place-items:center; cursor:pointer; opacity:.5;
+  transition:opacity .12s ease, box-shadow .12s ease; }
+.wb2-mvthumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.wb2-mvthumb:hover { opacity:.85; }
+.wb2-mvthumb.on { opacity:1; box-shadow:0 0 0 2px #00a8e0; }
+.wb2-mvthumb:focus-visible { outline:none; opacity:1; box-shadow:0 0 0 3px rgba(0,168,224,.55); }
+/* A starred photo says so in the strip, so the roll shows what's already been
+   picked without opening each one. */
+.wb2-mvthumb { position:relative; }
+.wb2-mvthumbstar { position:absolute; top:2px; right:2px; line-height:0; color:#f5b400;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+.wb2-mvthumbstar .i { fill:currentColor; }
+/* The bar's own star. It inherits `.wb2-ico`'s ground; only the lit state and
+   the fill are its own. */
+.wb2-mvtop .wb2-mvstar.on { color:#f5b400; background:rgba(245,180,0,.16); }
+.wb2-mvtop .wb2-mvstar.on .i { fill:currentColor; }
 .wb2-shsect > .wb2-shtext > .wb2-chip { margin-left:7px; vertical-align:middle; }
 .wb2-ckrow { display:flex; align-items:center; gap:9px; padding:8px 2px; min-width:0;
   border-top:1px solid var(--wb2-line2); }

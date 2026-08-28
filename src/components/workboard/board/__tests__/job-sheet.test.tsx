@@ -55,10 +55,12 @@ jest.mock("@/app/actions/workboard-media", () => ({
 const listJobPicklist = jest.fn(async (): Promise<unknown[]> => []);
 const setPicklistItemPicked = jest.fn(async () => {});
 const removePicklistItem = jest.fn(async () => {});
+const addJobPicklistItem = jest.fn(async (): Promise<unknown> => ({}));
 jest.mock("@/app/actions/job-picklist", () => ({
   listJobPicklist: (...a: unknown[]) => listJobPicklist(...(a as [])),
   setPicklistItemPicked: (...a: unknown[]) => setPicklistItemPicked(...(a as [])),
   removePicklistItem: (...a: unknown[]) => removePicklistItem(...(a as [])),
+  addJobPicklistItem: (...a: unknown[]) => addJobPicklistItem(...(a as [])),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
@@ -790,7 +792,7 @@ describe("the Checklist face", () => {
     await detailLanded();
     await openTab("Checklist");
 
-    expect(screen.getByText("Their checklist — 1 of 3 done")).toBeInTheDocument();
+    expect(screen.getByText("From ServiceM8 — 1 of 3 done")).toBeInTheDocument();
     expect(screen.getByText("Handover")).toBeInTheDocument();
 
     const done = screen.getByText("Isolate power").closest(".wb2-ckrow")!;
@@ -802,12 +804,16 @@ describe("the Checklist face", () => {
     expect(within(form as HTMLElement).getByText("Form")).toBeInTheDocument();
   });
 
-  it("says so when the job has no list at all", async () => {
+  it("stays writable when the job has no list at all", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail({ checklist: [] })));
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
-    expect(screen.getByText("Nothing on the list for this job.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Nothing on the checklist yet — type the first row above.")
+    ).toBeInTheDocument();
+    /* the composer is the point of the face — it is there even when empty */
+    expect(screen.getByLabelText("Add to the list")).toBeInTheDocument();
   });
 });
 
@@ -2144,9 +2150,9 @@ describe("the ledger obeys the money grant", () => {
   });
 });
 
-/* ── OUR material picklist, on the Checklist face ── */
+/* ── OUR checklist — writable, two sections, stamped ticks ── */
 
-describe("the material picklist", () => {
+describe("the job's own checklist", () => {
   beforeEach(() => {
     readMirrorJob.mockResolvedValue(card(detail()));
   });
@@ -2156,33 +2162,60 @@ describe("the material picklist", () => {
     name: "MSZ-AP25VGD",
     sub: "wall mounted indoor",
     qty: "3",
+    kind: "material",
     picked: false,
     pickedAt: null,
     pickedBy: null,
+    addedBy: null,
     designId: "dsn_1",
     addedAt: "2026-08-16T00:00:00.000Z",
     ...over,
   });
 
-  it("says the face is empty when the job has no list", async () => {
-    render(<JobSheet row={row()} {...props} />);
-    await detailLanded();
-    await waitFor(() => expect(listJobPicklist).toHaveBeenCalledWith("j-1"));
-    await openTab("Checklist");
-    expect(screen.queryByText(/Material picklist/)).not.toBeInTheDocument();
-  });
-
-  it("lists what was pushed, and counts what is picked", async () => {
+  it("draws the two fixed sections, materials under their own head", async () => {
     listJobPicklist.mockResolvedValue([
       item(),
-      item({ id: "p2", name: "PUHY-P200YNW-A1", qty: "1", picked: true }),
+      item({ id: "p2", name: "Pressure test new lineset", kind: "todo", qty: "", designId: null, addedBy: "Jake Thompson" }),
     ]);
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     await openTab("Checklist");
-    expect(await screen.findByText(/1 of 2 picked/)).toBeInTheDocument();
-    expect(screen.getByText("MSZ-AP25VGD")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+
+    const ck = face("checklist");
+    expect(await ck.findByText("Materials")).toBeInTheDocument();
+    /* "To do" is also the composer's seg button — ask for the section head */
+    expect(ck.getByText("To do", { selector: ".wb2-sect" })).toBeInTheDocument();
+    const materials = ck.getByText("Materials", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
+    expect(within(materials as HTMLElement).getByText("MSZ-AP25VGD")).toBeInTheDocument();
+    const todos = ck.getByText("To do", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
+    expect(within(todos as HTMLElement).getByText("Pressure test new lineset")).toBeInTheDocument();
+    /* the head counts BOTH lists — ours (2 open) and ServiceM8's (2 open, 1 done) */
+    expect(ck.getByText("4 open · 1 done")).toBeInTheDocument();
+  });
+
+  it("a ticked row STAYS, stamped who and when to the minute", async () => {
+    listJobPicklist.mockResolvedValue([
+      item({
+        id: "p3",
+        name: "Isolate old unit",
+        kind: "todo",
+        qty: "",
+        designId: null,
+        picked: true,
+        /* 01:52Z = 11:52am in Sydney winter */
+        pickedAt: "2026-08-14T01:52:00.000Z",
+        pickedBy: "Jake Thompson",
+      }),
+    ]);
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    const rowEl = (await screen.findByText("Isolate old unit")).closest(".wb2-pkrow")!;
+    expect(rowEl.className).toContain("done");
+    expect(
+      within(rowEl as HTMLElement).getByText("Jake Thompson · 11:52am Fri 14 Aug")
+    ).toBeInTheDocument();
   });
 
   it("ticking saves, and shows immediately rather than waiting on the server", async () => {
@@ -2193,7 +2226,7 @@ describe("the material picklist", () => {
     await detailLanded();
     await openTab("Checklist");
 
-    const box = await screen.findByLabelText("Picked: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
     await user.click(box);
     expect(setPicklistItemPicked).toHaveBeenCalledWith("p1", true);
     expect(box).toBeChecked();
@@ -2208,10 +2241,70 @@ describe("the material picklist", () => {
     await detailLanded();
     await openTab("Checklist");
 
-    const box = await screen.findByLabelText("Picked: MSZ-AP25VGD");
+    const box = await screen.findByLabelText("Done: MSZ-AP25VGD");
     await user.click(box);
     await waitFor(() => expect(box).not.toBeChecked());
     expect(onToast).toHaveBeenCalledWith("Could not save that tick");
+  });
+
+  it("types a row onto the list and swaps in the saved one", async () => {
+    const user = userEvent.setup();
+    listJobPicklist.mockResolvedValue([]);
+    addJobPicklistItem.mockResolvedValue(
+      item({ id: "srv-1", name: "Order PAR-40 controller", kind: "todo", qty: "", designId: null, addedBy: "Isaac Smith" })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    await user.type(screen.getByLabelText("Add to the list"), "Order PAR-40 controller");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+
+    /* optimistic first — the row is on the list before the server answers */
+    expect(screen.getByText("Order PAR-40 controller")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
+        kind: "todo",
+        name: "Order PAR-40 controller",
+        qty: "",
+      })
+    );
+  });
+
+  it("a material row asks for a quantity; a to-do never does", async () => {
+    const user = userEvent.setup();
+    listJobPicklist.mockResolvedValue([]);
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    expect(screen.queryByLabelText("Quantity")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Material" }));
+    await user.type(screen.getByLabelText("Add to the list"), "Linear bar grille");
+    await user.type(screen.getByLabelText("Quantity"), "2");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() =>
+      expect(addJobPicklistItem).toHaveBeenCalledWith("j-1", {
+        kind: "material",
+        name: "Linear bar grille",
+        qty: "2",
+      })
+    );
+  });
+
+  it("takes the typed row back off the list when the save fails", async () => {
+    const user = userEvent.setup();
+    const onToast = jest.fn();
+    listJobPicklist.mockResolvedValue([]);
+    addJobPicklistItem.mockRejectedValue(new Error("offline"));
+    render(<JobSheet row={row()} {...props} onToast={onToast} />);
+    await detailLanded();
+    await openTab("Checklist");
+
+    await user.type(screen.getByLabelText("Add to the list"), "Ghost row");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(screen.queryByText("Ghost row")).not.toBeInTheDocument());
+    expect(onToast).toHaveBeenCalledWith("Could not add that row");
   });
 
   it("only a manager can remove a line", async () => {
@@ -2229,11 +2322,11 @@ describe("the material picklist", () => {
     expect(await screen.findByLabelText("Remove MSZ-AP25VGD")).toBeInTheDocument();
   });
 
-  it("a picklist that will not load never takes the sheet down", async () => {
+  it("a checklist that will not load never takes the sheet down", async () => {
     listJobPicklist.mockRejectedValue(new Error("offline"));
     render(<JobSheet row={row()} {...props} />);
     expect(await screen.findByText("Scope")).toBeInTheDocument();
     await openTab("Checklist");
-    expect(screen.queryByText(/Material picklist/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Materials")).not.toBeInTheDocument();
   });
 });

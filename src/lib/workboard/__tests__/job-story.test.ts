@@ -308,6 +308,19 @@ describe("buildJobStory — money is whoever sent it", () => {
   });
 });
 
+const ckRow = (
+  over: Partial<import("@/lib/workboard/job-story").JobStoryPicklistRow> = {}
+): import("@/lib/workboard/job-story").JobStoryPicklistRow => ({
+  id: "pk-1",
+  name: "MSZ-AP25VGD",
+  kind: "material",
+  designId: "d1",
+  addedAt: "2026-06-12T00:30:00Z",
+  pickedAt: null,
+  pickedBy: null,
+  ...over,
+});
+
 describe("buildJobStory — our own contributions", () => {
   it("says a Studio design's day in the account's zone, not UTC", () => {
     /* 2026-06-12T20:30Z is 06:30 on the 13th in Sydney — the day must be
@@ -326,15 +339,65 @@ describe("buildJobStory — our own contributions", () => {
     const story = buildJobStory(
       inputs({
         picklist: [
-          { addedAt: "2026-06-12T00:30:00Z", pickedAt: null },
-          { addedAt: "2026-06-12T00:30:05Z", pickedAt: null },
-          { addedAt: "2026-06-12T00:31:00Z", pickedAt: null },
+          ckRow({ id: "pk-1", addedAt: "2026-06-12T00:30:00Z" }),
+          ckRow({ id: "pk-2", addedAt: "2026-06-12T00:30:05Z" }),
+          ckRow({ id: "pk-3", addedAt: "2026-06-12T00:31:00Z" }),
         ],
       })
     );
     const pushes = story.filter((e) => e.kind === "push");
     expect(pushes).toHaveLength(1);
     expect(pushes[0]).toMatchObject({ count: 3 });
+  });
+
+  it("makes no push event of a typed row — only a design's rows push", () => {
+    const story = buildJobStory(
+      inputs({
+        picklist: [
+          ckRow({ id: "pk-1", designId: null, kind: "todo" }),
+          ckRow({ id: "pk-2", designId: null, kind: "material" }),
+        ],
+      })
+    );
+    expect(story.filter((e) => e.kind === "push")).toHaveLength(0);
+  });
+
+  it("turns a ticked row into a diary entry, keyed by the row's id", () => {
+    const story = buildJobStory(
+      inputs({
+        picklist: [
+          ckRow({
+            id: "pk-9",
+            designId: null,
+            kind: "todo",
+            name: "Isolate old unit",
+            /* 01:52Z = 11:52 in Sydney winter */
+            pickedAt: "2026-08-14T01:52:00Z",
+            pickedBy: "Jake Thompson",
+          }),
+        ],
+      })
+    );
+    const tick = story.find((e) => e.kind === "tick" && e.key === "pick:pk-9");
+    expect(tick).toMatchObject({
+      day: "2026-08-14",
+      name: "Isolate old unit",
+      by: "Jake Thompson",
+    });
+    expect(tick && tick.at).toMatch(/11:52/);
+  });
+
+  it("agrees on the stamp whether or not the reader resolved names", () => {
+    /* The summary's server read passes pickedBy null; the sheet passes the
+       name. The stamp — day|at|key + count — must not care, or the stored
+       summary regenerates forever. */
+    const named = buildJobStory(
+      inputs({ picklist: [ckRow({ pickedAt: "2026-08-14T01:52:00Z", pickedBy: "Jake Thompson" })] })
+    );
+    const anon = buildJobStory(
+      inputs({ picklist: [ckRow({ pickedAt: "2026-08-14T01:52:00Z", pickedBy: null })] })
+    );
+    expect(storyStamp(named)).toEqual(storyStamp(anon));
   });
 });
 

@@ -31,17 +31,18 @@ import { JobSummaryFace } from "./job-summary-face";
 import { JobDiaryFace } from "./job-diary-face";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
 import {
+  addJobPicklistItem,
   listJobPicklist,
   removePicklistItem,
   setPicklistItemPicked,
   type JobPicklistItem,
 } from "@/app/actions/job-picklist";
+import { JobChecklistFace } from "./job-checklist-face";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { JOB_MEDIA_CAP } from "@/lib/workboard/job-media";
 import {
   fmtMinutesAsHours,
-  groupChecklist,
   sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
@@ -471,6 +472,58 @@ export function JobSheet({
     });
   };
 
+  /* Checklist writes, optimistic — a crew ticking down a list must not wait
+     on a round trip per line. Reverted with a toast on failure. */
+  const tickChecklistItem = (id: string, next: boolean) => {
+    const stamp = next ? new Date().toISOString() : null;
+    setPicklist((cur) =>
+      (cur ?? []).map((p) =>
+        p.id === id
+          ? { ...p, picked: next, pickedAt: stamp, pickedBy: next ? p.pickedBy : null }
+          : p
+      )
+    );
+    void setPicklistItemPicked(id, next).catch(() => {
+      setPicklist((cur) =>
+        (cur ?? []).map((p) =>
+          p.id === id ? { ...p, picked: !next, pickedAt: null, pickedBy: null } : p
+        )
+      );
+      onToast("Could not save that tick");
+    });
+  };
+
+  const removeChecklistItem = (id: string) => {
+    setPicklist((cur) => (cur ?? []).filter((p) => p.id !== id));
+    void removePicklistItem(id).catch(() => onToast("Could not remove that line"));
+  };
+
+  const addChecklistItem = (input: { kind: "material" | "todo"; name: string; qty: string }) => {
+    if (!cardId) return;
+    const temp: JobPicklistItem = {
+      id: `tmp-${Date.now()}`,
+      name: input.name,
+      sub: "",
+      qty: input.qty,
+      kind: input.kind,
+      picked: false,
+      pickedAt: null,
+      pickedBy: null,
+      addedBy: null,
+      designId: null,
+      addedAt: new Date().toISOString(),
+    };
+    setPicklist((cur) => [...(cur ?? []), temp]);
+    void addJobPicklistItem(cardId, input)
+      .then((item) => {
+        setPicklist((cur) => (cur ?? []).map((p) => (p.id === temp.id ? item : p)));
+      })
+      .catch(() => {
+        setPicklist((cur) => (cur ?? []).filter((p) => p.id !== temp.id));
+        onToast("Could not add that row");
+      });
+  };
+
   /* THE TAB SET IS FIXED FROM FIRST PAINT — the money grant is known at
      open, so no face pops in as a read lands and the thumb never jumps.
      Once-per-job acts live behind the band's ⋯, not on a face: two buttons
@@ -894,117 +947,17 @@ export function JobSheet({
 
           {panel(
             "checklist",
-            <>
-              {detail && detail.checklist.length > 0 && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    Their checklist —{" "}
-                    {`${detail.checklist.filter((c) => c.done).length} of ${detail.checklist.length} done`}
-                  </span>
-                  {groupChecklist(detail.checklist).map((group, gi) => (
-                    <div key={`${group.section ?? "-"}-${gi}`} className="wb2-ckgroup">
-                      {/* ServiceM8's default section is literally named
-                          "Checklist", and under the eyebrow that already says
-                          so it read as a stutter — a REAL section name
-                          ("Rough-in") still shows. */}
-                      {group.section && group.section.trim().toLowerCase() !== "checklist" && (
-                        <span className="wb2-sect wb2-cksec">{group.section}</span>
-                      )}
-                      {group.items.map((item, i) => (
-                        <div
-                          key={`${item.name}-${i}`}
-                          className={`wb2-ckrow${item.done ? " done" : ""}`}
-                        >
-                          <i className="wb2-ckdot" aria-hidden />
-                          <span className="wb2-ckname">{item.name}</span>
-                          {item.itemType && item.itemType !== "Todo" && (
-                            <i className="wb2-chip">{item.itemType}</i>
-                          )}
-                          <em>
-                            {item.done
-                              ? [
-                                  item.doneBy,
-                                  item.doneOn ? fmtAuWeekdayDayMonth(item.doneOn) : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ") || "done"
-                              : ""}
-                          </em>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* OUR picklist, pushed from a Studio design — distinct from
-                  "Their checklist" above, which is ServiceM8's and read-only.
-                  This is the one we can write, so this is the one that
-                  ticks. */}
-              {picklist && picklist.length > 0 && (
-                <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    Material picklist —{" "}
-                    {`${picklist.filter((p) => p.picked).length} of ${picklist.length} picked`}
-                  </span>
-                  {picklist.map((item) => (
-                    <div key={item.id} className={`wb2-pkrow${item.picked ? " done" : ""}`}>
-                      <label className="wb2-pkbox">
-                        <input
-                          type="checkbox"
-                          checked={item.picked}
-                          aria-label={`Picked: ${item.name}`}
-                          onChange={(e) => {
-                            const next = e.target.checked;
-                            /* optimistic: a warehouse ticking down a list must
-                               not wait on a round trip per line */
-                            setPicklist((cur) =>
-                              (cur ?? []).map((p) =>
-                                p.id === item.id ? { ...p, picked: next } : p
-                              )
-                            );
-                            void setPicklistItemPicked(item.id, next).catch(() => {
-                              setPicklist((cur) =>
-                                (cur ?? []).map((p) =>
-                                  p.id === item.id ? { ...p, picked: !next } : p
-                                )
-                              );
-                              onToast("Could not save that tick");
-                            });
-                          }}
-                        />
-                      </label>
-                      <span className="wb2-pkname">{item.name}</span>
-                      {item.sub && <em className="wb2-pksub">{item.sub}</em>}
-                      <span className="wb2-pkqty">{item.qty}</span>
-                      {manage && (
-                        <button
-                          className="wb2-pkdel"
-                          aria-label={`Remove ${item.name}`}
-                          onClick={() => {
-                            setPicklist((cur) => (cur ?? []).filter((p) => p.id !== item.id));
-                            void removePicklistItem(item.id).catch(() =>
-                              onToast("Could not remove that line")
-                            );
-                          }}
-                        >
-                          <Icon name="x" size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {(!detail || detail.checklist.length === 0) &&
-                (!picklist || picklist.length === 0) && (
-                  <p className="int-hint">
-                    {loading && !detail
-                      ? "Reading it from the mirror…"
-                      : "Nothing on the list for this job."}
-                  </p>
-                )}
-            </>
+            <JobChecklistFace
+              loading={loading}
+              sm8={detail?.checklist ?? []}
+              items={picklist}
+              timezone={detail?.timezone ?? null}
+              manage={manage}
+              ready={!!cardId}
+              onTick={tickChecklistItem}
+              onRemove={removeChecklistItem}
+              onAdd={addChecklistItem}
+            />
           )}
 
           {panel(

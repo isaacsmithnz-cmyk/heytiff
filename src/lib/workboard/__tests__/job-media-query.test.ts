@@ -149,9 +149,11 @@ describe("what the sheet gets back", () => {
     ];
 
     const groups = await readJobMediaGroups("org-1", "job-1");
-    expect(groups.photos.map((i) => i.remoteId)).toEqual(["p-1"]);
+    /* what was SHOT ON SITE goes to one lens — video included, because a
+       walkthrough clip is footage from the visit, not paperwork */
+    expect(groups.photos.map((i) => i.remoteId)).toEqual(["p-1", "v-1"]);
     expect(groups.documents[0]).toMatchObject({ remoteId: "d-1", origin: "Invoice" });
-    expect(groups.elsewhere.map((i) => i.remoteId)).toEqual(["v-1"]);
+    expect(groups.elsewhere).toHaveLength(0);
     expect(groups.truncated).toBe(false);
   });
 });

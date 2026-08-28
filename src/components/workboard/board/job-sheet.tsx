@@ -206,7 +206,7 @@ export function JobSheet({
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
   const [viewer, setViewer] = useState<
-    { kind: "photos"; index: number } | { kind: "paper"; id: string } | null
+    { kind: "photos"; id: string } | { kind: "paper"; id: string } | null
   >(null);
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
@@ -913,12 +913,18 @@ export function JobSheet({
               )}
               {detail && detail.visits.length > 0 ? (
                 <div className="wb2-jcsec">
-                  <span className="wb2-sect">
-                    {`Visits — ${detail.visits.length}`}
-                    {detail.timeOnSite
-                      ? ` · ${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site`
-                      : ""}
-                  </span>
+                  {/* Every single-list face wears the same head — a real
+                      title with its fact at the right. Visits was the one
+                      still dressed as a small-caps eyebrow. */}
+                  <div className="wb2-jcdhead">
+                    <b>Visits</b>
+                    <em>
+                      {`${detail.visits.length} visit${detail.visits.length === 1 ? "" : "s"}`}
+                      {detail.timeOnSite
+                        ? ` · ${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site`
+                        : ""}
+                    </em>
+                  </div>
                   {(allVisits ? detail.visits : detail.visits.slice(0, VISITS_SHOWN)).map((v) => (
                     <div className="wb2-mline visit" key={v.day}>
                       <b>{fmtAuWeekdayDayMonth(v.day)}</b>
@@ -969,7 +975,7 @@ export function JobSheet({
               truncated={!!media?.truncated}
               mediaNote={mediaNote}
               visits={detail?.visits ?? []}
-              onOpen={(index) => setViewer({ kind: "photos", index })}
+              onOpen={(id) => setViewer({ kind: "photos", id })}
             />
           )}
 
@@ -1032,22 +1038,30 @@ export function JobSheet({
       )}
 
       {/* The shared viewer — same portal, same law as the claim modal. */}
-      {viewer && media && (
-        <JobMediaViewer
-          items={
+      {viewer &&
+        media &&
+        (() => {
+          /* THE VIEWER CARRIES ONLY WHAT IT CAN SHOW. A video's bytes stay
+             in ServiceM8 by charter, so it is a plate in the mosaic and not
+             a stop on the arrow keys — otherwise "next" lands on a frame
+             promising a file that is never coming. */
+          const items =
             viewer.kind === "photos"
-              ? media.photos
-              : media.documents.filter((d) => d.remoteId === viewer.id)
-          }
-          index={
-            viewer.kind === "photos"
-              ? Math.min(viewer.index, Math.max(0, media.photos.length - 1))
-              : 0
-          }
-          onNav={(i) => setViewer(viewer.kind === "photos" ? { kind: "photos", index: i } : viewer)}
-          onClose={() => setViewer(null)}
-        />
-      )}
+              ? media.photos.filter((p) => p.kind !== "video")
+              : media.documents.filter((d) => d.remoteId === viewer.id);
+          const index = items.findIndex((i) => i.remoteId === viewer.id);
+          if (index < 0) return null;
+          return (
+            <JobMediaViewer
+              items={items}
+              index={index}
+              onNav={(i) =>
+                setViewer({ kind: viewer.kind, id: items[i]?.remoteId ?? viewer.id })
+              }
+              onClose={() => setViewer(null)}
+            />
+          );
+        })()}
     </>,
     document.body
   );

@@ -170,9 +170,13 @@ export type JobMediaItem = {
 };
 
 export type JobMediaGroups = {
+  /** Photos AND video — everything shot on site. Video's BYTES still never
+      cache (see the header); it is grouped here because a walkthrough clip
+      is footage from the visit, not paperwork, and filing it with the
+      invoices was the old shape's mistake. */
   photos: JobMediaItem[];
   documents: JobMediaItem[];
-  /** Videos and unrecognised files — named, never fetched. */
+  /** Unrecognised files — named, never fetched. */
   elsewhere: JobMediaItem[];
 };
 
@@ -188,7 +192,7 @@ export type JobMediaGroups = {
 export function groupJobMedia(items: readonly JobMediaItem[]): JobMediaGroups {
   const groups: JobMediaGroups = { photos: [], documents: [], elsewhere: [] };
   for (const item of items) {
-    if (item.kind === "photo") groups.photos.push(item);
+    if (item.kind === "photo" || item.kind === "video") groups.photos.push(item);
     else if (item.kind === "document") groups.documents.push(item);
     else groups.elsewhere.push(item);
   }
@@ -198,10 +202,9 @@ export function groupJobMedia(items: readonly JobMediaItem[]): JobMediaGroups {
 /** Which section of the Documents face a non-photo file belongs to — grouped
     by what a document IS, never by which system made it. Compliance joins
     when HeyTiff generates its first document worth the name. */
-export type JobDocumentGroup = "money" | "client" | "video" | "files";
+export type JobDocumentGroup = "money" | "client" | "files";
 
 export function documentGroupOf(item: JobMediaItem): JobDocumentGroup {
-  if (item.kind === "video") return "video";
   if (item.origin === "Invoice" || item.origin === "Quote" || item.origin === "Work order")
     return "money";
   if (item.origin === "Emailed in") return "client";
@@ -215,6 +218,7 @@ export function mediaCountLine(groups: JobMediaGroups): string {
   const n = (count: number, one: string, many: string) =>
     `${count} ${count === 1 ? one : many}`;
   if (groups.photos.length) parts.push(n(groups.photos.length, "photo", "photos"));
+  /* documents and the leftovers keep their own words below */
   if (groups.documents.length) parts.push(n(groups.documents.length, "document", "documents"));
   if (groups.elsewhere.length) parts.push(`${groups.elsewhere.length} left in ServiceM8`);
   if (parts.length === 0) return "Nothing attached in ServiceM8";

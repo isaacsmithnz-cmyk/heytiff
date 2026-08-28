@@ -161,17 +161,24 @@ describe("grouping and the count line", () => {
     item({ remoteId: "v-1", name: "walkthrough.mp4", fileType: ".mp4" }),
   ];
 
-  it("splits into the three things the sheet shows, order preserved", () => {
+  /* VIDEO GOES WITH THE PHOTOS (Isaac's call, walked): a walkthrough clip is
+     footage from the visit, not paperwork. Its bytes still never cache —
+     that is `isCacheableMedia`'s business, not the lens's. */
+  it("puts what was shot on site in one lens, paper in another", () => {
     const g = groupJobMedia(jobShaped);
-    expect(g.photos.map((i) => i.remoteId)).toEqual(["p-1", "p-2"]);
+    expect(g.photos.map((i) => i.remoteId)).toEqual(["p-1", "p-2", "v-1"]);
     expect(g.documents.map((i) => i.remoteId)).toEqual(["d-1"]);
-    expect(g.elsewhere.map((i) => i.remoteId)).toEqual(["v-1"]);
+    expect(g.elsewhere).toHaveLength(0);
+  });
+
+  it("leaves a file it cannot show at all in elsewhere", () => {
+    const g = groupJobMedia([item({ remoteId: "x-1", name: "plan.dwg", fileType: ".dwg" })]);
+    expect(g.elsewhere.map((i) => i.remoteId)).toEqual(["x-1"]);
+    expect(g.photos).toHaveLength(0);
   });
 
   it("says what's there, in a sentence", () => {
-    expect(mediaCountLine(groupJobMedia(jobShaped))).toBe(
-      "2 photos, 1 document and 1 left in ServiceM8"
-    );
+    expect(mediaCountLine(groupJobMedia(jobShaped))).toBe("3 photos and 1 document");
   });
 
   it("stays honest when a job has only one kind", () => {
@@ -206,7 +213,6 @@ describe("documentGroupOf — the Documents face's sections", () => {
     expect(documentGroupOf(item({ origin: "Quote" }))).toBe("money");
     expect(documentGroupOf(item({ origin: "Work order" }))).toBe("money");
     expect(documentGroupOf(item({ origin: "Emailed in" }))).toBe("client");
-    expect(documentGroupOf(item({ kind: "video", fileType: ".mp4", origin: null }))).toBe("video");
     expect(documentGroupOf(item({ origin: null }))).toBe("files");
   });
 });

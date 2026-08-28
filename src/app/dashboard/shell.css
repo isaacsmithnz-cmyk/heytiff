@@ -7013,6 +7013,16 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,22
 .wb2-jcband .wb2-chip.warn { background:rgba(255,138,0,.17); }
 .wb2-jcband .wb2-chip.ok { background:rgba(0,163,137,.14); }
 .wb2-jcband .wb2-chip.blue { background:rgba(0,168,224,.13); }
+/* THE SERVICEM8 CHIP IS A DOOR. An <a> in a portalled sheet inherits the
+   document's own anchor face, and the sheet lives outside `.fg` — so the
+   colour and the underline are stripped here by hand, exactly as the
+   tracked chip's button was. Hover/focus match button.wb2-chip so the two
+   doors in one band cannot behave differently. */
+a.wb2-chip { text-decoration:none; color:var(--gray700); cursor:pointer; }
+a.wb2-chip.dan { color:var(--wb2-dan-t); }
+a.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
+a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); }
+.wb2-chip.door svg { opacity:.6; }
 .wb2-jcband .wb2-ico { background:#fff; }
 .wb2-jcband .wb2-ico:hover { background:rgba(255,255,255,.75); }
 /* the tabs sit at the band's foot; the band's own padding keeps the first
@@ -7105,6 +7115,16 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-ev { display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px; padding:8px 0; position:relative; }
 .wb2-ev::before { content:""; position:absolute; left:13px; top:0; bottom:0; width:1px; background:var(--wb2-line2); }
 .wb2-ev:last-child::before { bottom:40%; }
+/* THE NOTE THE FLAG CHIP SENT YOU TO — lit, not shouted: the chip was
+   amber, so the entry it leads to is the same amber, and the tint sits
+   behind the words rather than replacing their ground. */
+.wb2-ev.flag { background:rgba(255,138,0,.08); border-radius:12px;
+  box-shadow:inset 0 0 0 1px rgba(255,138,0,.22); }
+/* NO horizontal margin or padding on the lit row: `.wb2-ev::before` is the
+   timeline spine, positioned from the row's own left edge, so shifting the
+   box by 6px slid the spine 6px off every dot above and below it. The tint
+   hugs the dot instead — and negative margins on a row have already cost
+   this card a defect once (`.wb2-doc`, #561). */
 .wb2-evdot { width:27px; height:27px; border-radius:50%; background:#fff; border:1px solid var(--wb2-line);
   display:inline-flex; align-items:center; justify-content:center; color:var(--gray500);
   position:relative; z-index:1; align-self:start; margin-top:1px; }
@@ -7154,6 +7174,10 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
   border-radius:13px; background:rgba(0,168,224,.07); }
 .wb2-nextv b { font-size:15px; font-weight:800; letter-spacing:-.015em; color:#007fa8; }
 .wb2-nextv em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+/* WHAT SOMEBODY IS, after their name — quieter than the name, and the
+   separator belongs to the CSS so a title can be absent without leaving a
+   dangling dot in the markup. */
+.wb2-jcrole { font-style:normal; font-weight:600; color:var(--gray500); }
 /* the Actions face — once-per-job acts, as quiet rows */
 
 /* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
@@ -7164,6 +7188,11 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
    wears, so nothing is lost. The width is restated as a LONGHAND after
    .wb2-shsect's shorthand, which is the only reason 1.5px sticks. */
 .wb2-jmoney { display:flex; flex-direction:column; border-width:1.5px; }
+/* THE VALUE SITS ON THE RIGHT (Isaac, 2026-08-28) — every other figure in
+   this face is right-aligned in its own column, so the job's own figure was
+   the one number reading against the grain. Label, figure and the invoiced
+   line move together; the bar and the ledger keep the full width. */
+.wb2-jmhead { display:flex; flex-direction:column; align-items:flex-end; text-align:right; }
 .wb2-jmbig { margin-top:3px; font-size:27px; font-weight:800; letter-spacing:-.03em;
   line-height:1.15; font-variant-numeric:tabular-nums; }
 .wb2-jmsub { margin-top:2px; font-style:normal; font-size:12px; font-weight:650; color:var(--gray500); }
@@ -7285,7 +7314,11 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168
 .wb2-shtop > .wb2-shmenu + .wb2-ico { margin-left:0; }
 /* sized to its longest item — "Create a maintenance agreement" is one thing
    to do, and wrapping it over two lines reads as two */
-.wb2-shmpop { position:absolute; top:calc(100% + 6px); right:0; z-index:3;
+/* ABOVE THE TAB ROW. `.wb2-vtabs` is position:relative z-index:3 and comes
+   LATER in the band's DOM, so a popup at the same level lost the tie and
+   the Documents tab painted straight through the menu. 5 clears the tabs
+   and their focus ring (z-index:4) both. */
+.wb2-shmpop { position:absolute; top:calc(100% + 6px); right:0; z-index:5;
   width:max-content; max-width:min(320px, 78vw);
   display:flex; flex-direction:column; gap:1px; padding:6px; border-radius:14px;
   background:#fff; border:1px solid var(--wb2-line); box-shadow:0 24px 48px -22px rgba(10,12,20,.42); }

@@ -228,8 +228,13 @@ export function JobMoneyBlock({
       className="wb2-shsect wb2-jmoney"
       style={categoryColour ? { borderColor: categoryColour } : undefined}
     >
-      <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
-      <b className="wb2-jmbig">{!unavailable && value !== null ? fmtAud(value) : "—"}</b>
+      {/* The head reads down the RIGHT edge, with the ledger's amounts. */}
+      <div className="wb2-jmhead">
+        <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
+        <b className="wb2-jmbig">{!unavailable && value !== null ? fmtAud(value) : "—"}</b>
+        {/* axis 1, and only axis 1 */}
+        {!unavailable && isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
+      </div>
 
       {unavailable && (
         <p className="int-hint">
@@ -237,9 +242,6 @@ export function JobMoneyBlock({
           try.
         </p>
       )}
-
-      {/* axis 1, and only axis 1 */}
-      {!unavailable && isFamily && invoicedLine && <em className="wb2-jmsub">{invoicedLine}</em>}
 
       {!unavailable && showBar && (
         <>

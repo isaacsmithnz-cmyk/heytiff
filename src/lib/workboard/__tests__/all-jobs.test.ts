@@ -8,6 +8,7 @@ import {
   groupChecklist,
   quotesCountLine,
   sm8CategoryColour,
+  sm8JobIsOpen,
   sm8MinutesBetween,
   workCountLine,
   type AllJobsMirrorJob,
@@ -516,5 +517,27 @@ describe("what an sm8 row carries through", () => {
       quoteSent: true,
       quoteSentOn: "2026-08-03",
     });
+  });
+});
+
+/* ── is the job still running ── */
+
+describe("sm8JobIsOpen", () => {
+  it("says yes for everything that is still work", () => {
+    expect(sm8JobIsOpen("Work Order")).toBe(true);
+    expect(sm8JobIsOpen("Quote")).toBe(true);
+  });
+
+  it("says no once ServiceM8 has closed it, either way", () => {
+    expect(sm8JobIsOpen("Completed")).toBe(false);
+    expect(sm8JobIsOpen("Unsuccessful")).toBe(false);
+  });
+
+  it("treats a status nobody has seen before as open work", () => {
+    /* Same shrug tabOfSm8 gives an unknown status: a fifth state ServiceM8
+       adds is still somebody's job, and the card would rather repeat a live
+       flag than swallow one. */
+    expect(sm8JobIsOpen("On Hold")).toBe(true);
+    expect(sm8JobIsOpen(null)).toBe(true);
   });
 });

@@ -121,7 +121,7 @@ describe("buildJobStory — order", () => {
           note({ remoteId: "n-old", writtenAt: "2026-06-12 08:00:00", writtenOn: "2026-06-12" }),
           note({ remoteId: "n-new", writtenAt: "2026-06-12 16:00:00", writtenOn: "2026-06-12" }),
         ],
-        detail: detail({ visits: [{ day: "2026-06-12", minutes: 260, crew: ["David Hann"] }] }),
+        detail: detail({ visits: [{ day: "2026-06-12", minutes: 260, crew: [{ name: "David Hann", title: "HVAC" }] }] }),
       })
     );
     // one day: the later note, the earlier note, then the date-only visit —

@@ -44,9 +44,13 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   fmtMinutesAsHours,
+  sm8JobIsOpen,
   sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
+import { sm8JobUrl } from "@/lib/integrations/sm8-links";
+import { syncedAgo, type Sm8Health } from "./sm8-chip";
+import { useHydrated } from "@/lib/use-hydrated";
 import type { ScheduleJobState } from "./schedule-tab";
 
 /* One ServiceM8 job, read-only — a CARD OF TABS.
@@ -160,6 +164,7 @@ export function JobSheet({
   row,
   manage,
   moneyVisible,
+  sm8 = null,
   scheduleState = null,
   onClose,
   onCreateAgreement,
@@ -169,6 +174,9 @@ export function JobSheet({
   row: AllJobRow;
   manage: boolean;
   moneyVisible: boolean;
+  /** The mirror's own health — the same object the board's chip reads, so
+      the card and the board can never disagree about how fresh this is. */
+  sm8?: Sm8Health | null;
   /** What today's diary says the job is doing — set only when a schedule
       block opened this sheet, so the header carries the same reading the rail
       drew (the "!" and the hollow cap, in words). */
@@ -390,6 +398,37 @@ export function JobSheet({
   const cardStatus = detail?.status ?? row.statusLabel;
   const cardTone = detail ? sm8Tone(detail.status) : row.tone;
   const openClaimRow = claimFor(family, openClaim);
+
+  /* THE FLAG, ONLY WHILE THE JOB IS OPEN. ServiceM8's "action required" is a
+     bookmark somebody left on a note, and nobody ever clears it — closing
+     the job is how it clears. On an open job it is a live signal worth the
+     band; on a closed one it is history, and the diary's own chip keeps it
+     there. Counted off the card's status once the detail lands, the row's
+     until then, so the chip never flickers in on a completed job. */
+  const jobOpen = sm8JobIsOpen(detail?.status ?? row.statusLabel);
+  const flagged = jobOpen ? (record?.notes ?? []).filter((n) => n.actionRequired).length : 0;
+  /* Set by the flag chip, cleared the moment the reader picks a tab
+     themselves: the diary lights its flagged notes and scrolls to the
+     first, and after that it is just the diary again. */
+  const [flagFocus, setFlagFocus] = useState(false);
+
+  /* The door back to ServiceM8, and the card's own freshness in the same
+     chip — the board's chip says this behind the scrim, and the card is
+     what you are actually reading. The clock is CLIENT-ONLY for the reason
+     sm8-chip.tsx spells out: `syncedAgo` reads Date.now(), and a server that
+     rendered "just now" against a client that renders "1 min ago" is a
+     hydration failure that takes the whole tree down. */
+  const hydrated = useHydrated();
+  const sm8Href = sm8JobUrl(cardId ?? row.id);
+  const sm8Line = !sm8
+    ? "Open in ServiceM8"
+    : sm8.attention
+      ? "ServiceM8 needs attention"
+      : sm8.running
+        ? "ServiceM8 syncing…"
+        : hydrated
+          ? `ServiceM8 · synced ${syncedAgo(sm8.syncedAt)}`
+          : "ServiceM8";
   const categoryColour = detail?.categoryColour ?? row.categoryColour ?? null;
   const categoryName = detail?.categoryName ?? row.categoryName ?? null;
 
@@ -541,6 +580,7 @@ export function JobSheet({
 
   const go = (key: string) => {
     touchedTab.current = true;
+    if (key !== "diary") setFlagFocus(false);
     setTab(key as TabKey);
   };
 
@@ -637,12 +677,50 @@ export function JobSheet({
             </span>
             <span className="wb2-shchips">
               {focusClaim && <span className="wb2-chip cat">{claimTitle(focusClaim)}</span>}
-              <span
-                className="wb2-chip"
-                title="ServiceM8 owns this job — HeyTiff only reads it. Edit it over there and the change follows here on the next sync."
-              >
-                ServiceM8 job
-              </span>
+              {/* THE CHIP IS THE DOOR — the shape the tracked chip proved.
+                  It used to read "ServiceM8 job", which is a fact the reader
+                  already had (every job on this board is one); it says how
+                  fresh the card is instead, and opens the job over there.
+                  NOT in the ⋯: that menu renders only for someone who can
+                  create projects, and getting back to ServiceM8 is not a
+                  manager's action. */}
+              {sm8Href ? (
+                <a
+                  className={"wb2-chip door" + (sm8?.attention ? " dan" : "")}
+                  href={sm8Href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="ServiceM8 owns this job — HeyTiff only reads it. Edit it over there and the change follows here on the next sync. Opens the job in ServiceM8."
+                >
+                  {sm8Line}
+                  <Icon name="arrowUR" size={12} />
+                </a>
+              ) : (
+                <span
+                  className="wb2-chip"
+                  title="ServiceM8 owns this job — HeyTiff only reads it. Edit it over there and the change follows here on the next sync."
+                >
+                  {sm8Line}
+                </span>
+              )}
+              {flagged > 0 && (
+                <button
+                  className="wb2-chip warn"
+                  onClick={() => {
+                    setFlagFocus(true);
+                    go("diary");
+                  }}
+                  title="Flagged in ServiceM8 — someone marked the note action required"
+                >
+                  <i className="wb2-shbang" aria-hidden="true">
+                    !
+                  </i>
+                  {flagged === 1 ? "1 flagged note" : `${flagged} flagged notes`}
+                  <i className="wb2-shcar" aria-hidden>
+                    ›
+                  </i>
+                </button>
+              )}
               {cardStatus && (
                 <span className={"wb2-chip" + (cardTone ? ` ${cardTone}` : "")}>
                   {cardStatus}
@@ -766,6 +844,7 @@ export function JobSheet({
           {panel(
             "diary",
             <JobDiaryFace
+              focusFlagged={flagFocus}
               entries={story}
               loading={loading && !detail}
               moneyVisible={moneyVisible}
@@ -891,7 +970,12 @@ export function JobSheet({
                 <div className="wb2-nextv">
                   <span className="wb2-sect">Next on site</span>
                   <b>{bookingLabel(detail.nextBooking.start, detail.nextBooking.end)}</b>
-                  <em>{detail.nextBooking.staffName ?? "Nobody named"}</em>
+                  <em>
+                    {detail.nextBooking.staffName ?? "Nobody named"}
+                    {detail.nextBooking.staffName && detail.nextBooking.staffTitle && (
+                      <i className="wb2-jcrole">{` · ${detail.nextBooking.staffTitle}`}</i>
+                    )}
+                  </em>
                 </div>
               )}
               {detail?.queue && (
@@ -928,7 +1012,32 @@ export function JobSheet({
                   {(allVisits ? detail.visits : detail.visits.slice(0, VISITS_SHOWN)).map((v) => (
                     <div className="wb2-mline visit" key={v.day}>
                       <b>{fmtAuWeekdayDayMonth(v.day)}</b>
-                      <em>{v.crew.join(", ") || "Nobody named"}</em>
+                      {/* A NAME PLUS WHAT THEY ARE — the only place on the
+                          card a title appears, because this is the only
+                          place the card is introducing people rather than
+                          naming them: an apprentice day and a senior tech
+                          day are different days. */}
+                      <em>
+                        {v.crew.length === 0
+                          ? "Nobody named"
+                          : v.crew.map((c, i) => (
+                              <span key={c.name}>
+                                {/* A comma separates two bare names; once a
+                                    title is in the line a comma cannot say
+                                    where one person ends, so the pair takes
+                                    a dash instead. The dot before a title is
+                                    REAL TEXT, not a CSS ::before — jest
+                                    never loads the stylesheet, so a
+                                    separator that lives only in CSS is one
+                                    nothing here can see fail. */}
+                                {i > 0 ? (v.crew.some((m) => m.title) ? " — " : ", ") : ""}
+                                {c.name}
+                                {c.title && (
+                                  <i className="wb2-jcrole">{` · ${c.title}`}</i>
+                                )}
+                              </span>
+                            ))}
+                      </em>
                       <span>{fmtMinutesAsHours(v.minutes)}</span>
                     </div>
                   ))}

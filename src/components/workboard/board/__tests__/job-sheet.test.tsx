@@ -114,13 +114,21 @@ const detail = (over: Partial<MirrorJobDetail> = {}): MirrorJobDetail => ({
     start: "2026-08-14 07:30:00",
     end: "2026-08-14 15:30:00",
     staffName: "Alex Lorenz",
+    staffTitle: "Senior HVAC",
   },
   timeOnSite: { minutes: 1110, sessions: 2 },
   dateOn: "2026-08-08",
   dateLabel: "raised",
   visits: [
-    { day: "2026-08-14", minutes: 620, crew: ["Alex Lorenz"] },
-    { day: "2026-08-13", minutes: 490, crew: ["Callum Vrieze", "Alex Lorenz"] },
+    { day: "2026-08-14", minutes: 620, crew: [{ name: "Alex Lorenz", title: "Senior HVAC" }] },
+    {
+      day: "2026-08-13",
+      minutes: 490,
+      crew: [
+        { name: "Callum Vrieze", title: null },
+        { name: "Alex Lorenz", title: "Senior HVAC" },
+      ],
+    },
   ],
   queue: { name: "Parts on Order", expiry: "2026-08-20", staffName: "Luke Ingold" },
   checklist: [
@@ -730,7 +738,149 @@ describe("the Diary face", () => {
   });
 });
 
+/* ── the band's two doors, and the flag ── */
+
+describe("the ServiceM8 chip", () => {
+  /* The fixtures' "j-1" is not an id ServiceM8 would ever send, and the URL
+     builder refuses anything that isn't a uuid — so a card with a real one
+     is what proves the door. */
+  const UUID = "0f11827a-29ad-4575-a5a4-21cfb0c5c75b";
+  const realId = () => card(detail({ remoteId: UUID }));
+
+  it("says how fresh the card is, and IS the door back to ServiceM8", async () => {
+    readMirrorJob.mockResolvedValueOnce(realId());
+    render(
+      <JobSheet
+        row={row()}
+        {...props}
+        sm8={{ attention: false, syncedAt: new Date().toISOString(), running: false }}
+      />
+    );
+    await detailLanded();
+
+    const door = await screen.findByRole("link", { name: /ServiceM8/ });
+    expect(door).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${UUID}`);
+    /* A new tab, and never with our opener attached. */
+    expect(door).toHaveAttribute("target", "_blank");
+    expect(door).toHaveAttribute("rel", "noopener noreferrer");
+    expect(door.textContent).toContain("synced just now");
+    /* The chip it replaced said a thing the reader already knew. */
+    expect(screen.queryByText("ServiceM8 job")).toBeNull();
+  });
+
+  it("says the mirror needs attention instead of a clock, and still opens", async () => {
+    readMirrorJob.mockResolvedValueOnce(realId());
+    render(
+      <JobSheet
+        row={row()}
+        {...props}
+        sm8={{ attention: true, syncedAt: null, running: false }}
+      />
+    );
+    await detailLanded();
+
+    const door = await screen.findByRole("link", { name: /ServiceM8 needs attention/ });
+    expect(door).toHaveAttribute("href", `https://go.servicem8.com/OpenJob/${UUID}`);
+  });
+
+  it("is a door with no clock when the board never passed the mirror's health", async () => {
+    readMirrorJob.mockResolvedValueOnce(realId());
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+
+    expect(await screen.findByRole("link", { name: /Open in ServiceM8/ })).toBeInTheDocument();
+  });
+
+  it("opens the CARD's job — a clone's card is showing its parent", async () => {
+    /* The row that was clicked is the clone; readMirrorJob resolved the
+       parent, and the parent is what the reader is looking at. */
+    readMirrorJob.mockResolvedValueOnce(card(detail({ remoteId: UUID, jobNumber: "2380" })));
+    render(<JobSheet row={row({ id: "clone-uuid", number: "2380A" })} {...props} />);
+    await detailLanded();
+
+    expect(await screen.findByRole("link", { name: /ServiceM8/ })).toHaveAttribute(
+      "href",
+      `https://go.servicem8.com/OpenJob/${UUID}`
+    );
+  });
+});
+
+describe("the flagged-note chip", () => {
+  const flaggedNote = (over: Record<string, unknown> = {}) => ({
+    remoteId: "n-1",
+    text: "Send a 20% deposit invoice",
+    writtenOn: "2026-08-27",
+    writtenAt: "2026-08-27 14:44:40",
+    writtenBy: "David Hann",
+    actionRequired: true,
+    fromClaim: null,
+    ...over,
+  });
+
+  it("rises to the band while the job is OPEN, and opens the diary at the note", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(record({ notes: [flaggedNote()] }));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+
+    const chip = await screen.findByRole("button", { name: /1 flagged note/ });
+    await userEvent.click(chip);
+
+    /* The Diary is where the words are — landing on the feed's head with no
+       idea which note was meant wastes the trip, so the note is lit. */
+    expect(screen.getByRole("tab", { name: "Diary", selected: true })).toBeInTheDocument();
+    const lit = face("diary").getByText("Send a 20% deposit invoice").closest(".wb2-ev");
+    expect(lit).toHaveClass("flag");
+  });
+
+  it("counts them, and never appears once ServiceM8 has closed the job", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ status: "Completed" })));
+    readJobRecord.mockResolvedValueOnce(
+      record({ notes: [flaggedNote(), flaggedNote({ remoteId: "n-2" })] })
+    );
+    render(<JobSheet row={row({ statusLabel: "Completed", tone: "ok" })} {...props} />);
+    await detailLanded();
+    /* WAIT FOR THE NOTES TO LAND FIRST. Asserting a chip's absence straight
+       after the detail read proves nothing — the record read hadn't
+       answered yet, and the test passed just as happily with the open-job
+       rule deleted. The diary showing both flags is the signal that the
+       notes are in. */
+    await openTab("Diary");
+    await waitFor(() =>
+      expect(face("diary").getAllByText("Action required")).toHaveLength(2)
+    );
+
+    /* 41 of the 49 live flagged jobs are already Completed — nobody clears
+       the flag, closing the job is how you clear it. The diary keeps the
+       record; the band says nothing. */
+    expect(screen.queryByRole("button", { name: /flagged note/ })).toBeNull();
+  });
+
+  it("stays away when nothing is flagged", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({ notes: [flaggedNote({ actionRequired: false })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Diary");
+    await waitFor(() =>
+      expect(face("diary").getByText("Send a 20% deposit invoice")).toBeInTheDocument()
+    );
+
+    expect(screen.queryByRole("button", { name: /flagged/ })).toBeNull();
+    expect(face("diary").queryByText("Action required")).toBeNull();
+  });
+});
+
 /* ── the Visits face ── */
+
+/** The crew cell of the visit row for a day, read as one string — the names
+    are separate spans so the title can wear its own weight, and getByText
+    matches per element. */
+const crewLine = (f: ReturnType<typeof face>, day: string): string =>
+  f.getByText(day).parentElement?.querySelector("em")?.textContent ?? "";
+
 
 describe("the Visits face", () => {
   it("lists every visit with who went, tallies the heading, and puts the booking first", async () => {
@@ -742,7 +892,10 @@ describe("the Visits face", () => {
     const f = face("visits");
     expect(f.getByText("2 visits · 18h 30m on site")).toBeInTheDocument();
     expect(f.getByText("Fri 14 Aug")).toBeInTheDocument();
-    expect(f.getByText("Callum Vrieze, Alex Lorenz")).toBeInTheDocument();
+    /* A NAME PLUS WHAT THEY ARE, and only on this face: the dash separates
+       the two people because a comma cannot, once a title is in the line;
+       a mate with no title in ServiceM8 keeps just his name. */
+    expect(crewLine(f, "Thu 13 Aug")).toBe("Callum Vrieze — Alex Lorenz · Senior HVAC");
     expect(f.getByText("10h 20m")).toBeInTheDocument();
     /* the next booking leads, with its end time */
     expect(f.getByText("Next on site")).toBeInTheDocument();
@@ -756,7 +909,7 @@ describe("the Visits face", () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       day: `2026-08-${String(20 - i).padStart(2, "0")}`,
       minutes: 60,
-      crew: ["Alex Lorenz"],
+      crew: [{ name: "Alex Lorenz", title: null }],
     }));
     readMirrorJob.mockResolvedValueOnce(card(detail({ visits: many })));
     render(<JobSheet row={row()} {...props} />);

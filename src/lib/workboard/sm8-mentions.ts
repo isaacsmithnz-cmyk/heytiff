@@ -51,6 +51,17 @@ export function mentionedHandles(text: string, known: Iterable<string>): string[
   return found;
 }
 
+/** The note's words with its handles taken out, and nothing else done to
+    them — what a row that has ALREADY NAMED the person should quote.
+
+    A walk on live data caught why this is needed: the strip drew
+    `Luke Ingold — "@LukeIngold Bill 90%"`, which says the same person twice
+    in one line. The handle is addressing, and a row that opens with the name
+    has already done the addressing. */
+export function withoutHandles(text: string): string {
+  return text.replace(TOKEN, " ").replace(/\s+/g, " ").trim();
+}
+
 /** The note's words with its handles taken out — what a task drafted from it
     should be TITLED.
 
@@ -60,10 +71,7 @@ export function mentionedHandles(text: string, known: Iterable<string>): string[
     because a title starts like one, and clipped at a sentence so a rambling
     note doesn't become a rambling title. */
 export function taskTitleFromNote(text: string, limit = 90): string {
-  const stripped = text
-    .replace(TOKEN, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const stripped = withoutHandles(text);
   if (!stripped) return "";
   /* The first sentence, when there is more than one and it is long enough to
      stand alone — otherwise the lot, clipped. A four-word first sentence

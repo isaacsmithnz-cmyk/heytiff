@@ -41,9 +41,16 @@ export async function newAssignments(
     .is("acknowledged_at", null)
     /* A SELF-TASK NEVER RINGS. You were there when it was made, and a bell
        that tells you what you just typed is noise that teaches people to
-       ignore the bell. `neq` leaves a NULL creator IN, which is right: a task
-       whose author has no staff card is still work somebody gave you. */
-    .neq("created_by", staffProfileId)
+       ignore the bell.
+
+       WHY THIS IS AN `or` AND NOT A BARE `neq`, which is what it was until a
+       walk caught it: `created_by` is NULLABLE, and in SQL `null <> 'uuid'`
+       is NULL, not true — so a plain `neq` filters the NULL rows OUT. That
+       is exactly backwards. `staffIdFor` answers null for a signed-in person
+       with no staff card, so a manager without one could assign work and the
+       assignee would never be told: the precise silence this whole slice
+       exists to end. Verified against the database, not assumed. */
+    .or(`created_by.is.null,created_by.neq.${staffProfileId}`)
     .order("created_at", { ascending: false })
     .limit(CAP);
 

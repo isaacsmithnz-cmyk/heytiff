@@ -9,7 +9,7 @@ import {
   type AttentionItem,
   type JobAttention,
 } from "@/lib/workboard/job-attention";
-import { taskTitleFromNote } from "@/lib/workboard/sm8-mentions";
+import { taskTitleFromNote, withoutHandles } from "@/lib/workboard/sm8-mentions";
 
 /* THE ATTENTION STRIP — what this job still wants from you, above the tabs.
 
@@ -340,8 +340,12 @@ function faceOf(item: AttentionItem): Face {
         icon: "user",
         tone: "cy",
         /* The PERSON leads, because that is what makes this row different
-           from every other note in the diary: somebody was asked. */
-        title: `${item.named.map((n) => n.name).join(" and ")} — ${quoted(item.text, 90)}`,
+           from every other note in the diary: somebody was asked — and the
+           quote drops the handles, because a row that opens with the name
+           has already done the addressing. Live data made that obvious:
+           `Luke Ingold — "@LukeIngold Bill 90%"` names him twice in one
+           line. */
+        title: `${item.named.map((n) => n.name).join(" and ")} — ${quoted(withoutHandles(item.text), 90)}`,
         meta: [item.author, dayOf(item.at), "Mentioned in ServiceM8"].filter(Boolean).join(" · "),
       };
   }

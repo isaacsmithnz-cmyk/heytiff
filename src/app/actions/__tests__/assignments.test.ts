@@ -23,6 +23,7 @@ jest.mock("@/lib/supabase-server", () => ({
       chain.select = note("select");
       chain.eq = note("eq");
       chain.neq = note("neq");
+      chain.or = note("or");
       chain.is = note("is");
       chain.in = note("in");
       chain.order = note("order");
@@ -75,8 +76,15 @@ describe("myNewAssignments", () => {
     expect(clause("is", "acknowledged_at", null)).toBe(true);
     /* A SELF-TASK NEVER RINGS — you were there when it was made, and a bell
        that reads back what you just typed is what teaches people to ignore
-       the bell. */
-    expect(clause("neq", "created_by", "staff-me")).toBe(true);
+       the bell.
+
+       AND IT IS AN `or`, NOT A BARE `neq`. `created_by` is nullable, and
+       `null <> 'uuid'` is NULL in SQL — a plain neq drops those rows, so a
+       task from somebody with no staff card would never ring, which is the
+       exact silence this slice exists to end. A walk caught it; this pins
+       the shape that fixed it. */
+    expect(clause("or", "created_by.is.null,created_by.neq.staff-me")).toBe(true);
+    expect(calls.some((c) => c.op === "neq")).toBe(false);
   });
 
   it("resolves the giver's display name, and shrugs when there isn't one", async () => {

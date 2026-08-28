@@ -6,7 +6,14 @@ import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
 import { actionRequiredItems } from "@/app/actions/action-required";
 import { myDueReminders, snoozeReminder } from "@/app/actions/reminders";
+import { acknowledgeTask, myNewAssignments } from "@/app/actions/assignments";
 import { completeTask } from "@/app/actions/dashboard";
+import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
+import {
+  assignmentLine,
+  assignmentsNotAlreadyDue,
+  type NewAssignment,
+} from "@/lib/dashboard/assignments";
 import { GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
 import {
   SNOOZE,
@@ -38,7 +45,26 @@ import {
    way through to the rest. That link is absent when nothing was cut: a "see
    all" under a list that already IS all is a lie about there being more. */
 
-/* WHAT ELSE IS IN HERE NOW: reminders, above the chips and not among them.
+/* AND WORK SOMEBODY GAVE YOU (slice 6).
+
+   Isaac's rule: a new task assignment ALWAYS alerts the assignee, time or no
+   time. Before this, the bell rang only TIMED reminders — so a task somebody
+   assigned you sat silently on the Tasks panel until you happened to look,
+   which is the one secret a task feature must never keep.
+
+   Same law as the reminders, and no new machinery: derived at read, no
+   scheduler, no delivery state. The group is open + given to you by somebody
+   else + not yet acknowledged, and "Got it" stamps one column.
+
+   BELOW THE REMINDERS, not above. A reminder is due NOW by definition — that
+   is what put it in the list — and an assignment might be for next week; a
+   piece of news that isn't urgent must not push a thing that is off the top.
+
+   A task can be both, and appears ONCE: `assignmentsNotAlreadyDue` drops it
+   from this group when its own reminder has already come due, so the badge
+   never counts one job twice.
+
+   WHAT ELSE IS IN HERE NOW: reminders, above the chips and not among them.
 
    An ActionChip is one actionable EXPIRY — a licence, a rego, a claim waiting
    on a decision — and its state is bad | warn, nothing else. A reminder coming
@@ -77,6 +103,7 @@ function panelLabel(count: number | null): string {
 export function Bell() {
   const [items, setItems] = useState<ActionChip[] | null>(null);
   const [rems, setRems] = useState<DueReminder[]>([]);
+  const [given, setGiven] = useState<NewAssignment[]>([]);
   /* Which reminder is showing its snooze choices, by task id. Held HERE rather
      than in the panel so `BellPanel` keeps no state of its own and an inert
      harness route can still render it against the real stylesheet — see the
@@ -112,9 +139,19 @@ export function Bell() {
      screen. So the minute belongs to that one, and the expensive half is asked
      on arrival and on coming back to the tab — the two moments it could
      plausibly have changed since you last saw it. */
+  /* ONE CLOCK FOR BOTH, because they are the same kind of question and the
+     same size of query: "is anything of mine live right now". Read together
+     so the panel can never show a reminder that has come due beside the
+     assignment it belongs to — the dedupe needs both answers from the same
+     instant to be honest. */
   const loadRems = useCallback(async () => {
-    const due = await myDueReminders().catch(() => null);
-    if (live.current && due) setRems(due);
+    const [due, mine] = await Promise.all([
+      myDueReminders().catch(() => null),
+      myNewAssignments().catch(() => null),
+    ]);
+    if (!live.current) return;
+    if (due) setRems(due);
+    if (mine) setGiven(mine);
   }, []);
 
   const loadAll = useCallback(async () => {
@@ -172,6 +209,28 @@ export function Bell() {
     [loadRems],
   );
 
+  /* "Got it" — the row leaves the bell, the task stays open on your list.
+     Optimistic for the same reason the reminder actions are: a one-tap
+     acknowledgement that waits a round trip to admit it happened feels
+     broken, and the re-read afterwards is what keeps the optimism honest. */
+  const gotIt = useCallback(
+    async (taskId: string) => {
+      setGiven((g) => g.filter((x) => x.taskId !== taskId));
+      await acknowledgeTask(taskId).catch(() => {});
+      void loadRems();
+    },
+    [loadRems],
+  );
+
+  const doneGiven = useCallback(
+    async (taskId: string) => {
+      setGiven((g) => g.filter((x) => x.taskId !== taskId));
+      await completeTask(taskId).catch(() => {});
+      void loadRems();
+    },
+    [loadRems],
+  );
+
   const snooze = useCallback(
     async (taskId: string, preset: Snooze) => {
       setRems((r) => r.filter((x) => x.taskId !== taskId));
@@ -203,7 +262,10 @@ export function Bell() {
      question the badge exists to answer. Null only while the first read is in
      flight, so a bell that has never loaded stays silent rather than claiming
      zero. */
-  const count = items === null ? null : items.length + rems.length;
+  /* DEDUPED BEFORE IT IS COUNTED. A task somebody gave you this morning with
+     a nudge set for lunchtime is one job, and the badge must say one. */
+  const news = assignmentsNotAlreadyDue(given, rems.map((r) => r.taskId));
+  const count = items === null ? null : items.length + rems.length + news.length;
   const label = panelLabel(count);
   return (
     <div className="bell-top" ref={wrapRef}>
@@ -232,11 +294,14 @@ export function Bell() {
         <BellPanel
           items={items}
           reminders={rems}
+          assignments={news}
           label={label}
           snoozing={snoozing}
           onSnoozeOpen={(id) => setSnoozing((s) => (s === id ? null : id))}
           onSnooze={snooze}
           onDone={done}
+          onGotIt={gotIt}
+          onDoneAssignment={doneGiven}
           onLeave={() => setOpenedAt(null)}
         />
       )}
@@ -251,27 +316,37 @@ export function Bell() {
 export function BellPanel({
   items,
   reminders = [],
+  assignments = [],
   label,
   snoozing = null,
   onSnoozeOpen,
   onSnooze,
   onDone,
+  onGotIt,
+  onDoneAssignment,
   onLeave,
 }: {
   items: ActionChip[] | null;
   reminders?: DueReminder[];
+  /** Work somebody gave you and you haven't answered for — ALREADY deduped
+      against `reminders` by the caller, because the badge and this list must
+      agree about how many things need you. */
+  assignments?: NewAssignment[];
   label: string;
   /** Task id whose snooze choices are showing, if any. */
   snoozing?: string | null;
   onSnoozeOpen?: (taskId: string) => void;
   onSnooze?: (taskId: string, preset: Snooze) => void;
   onDone?: (taskId: string) => void;
+  onGotIt?: (taskId: string) => void;
+  onDoneAssignment?: (taskId: string) => void;
   onLeave: () => void;
 }) {
-  const count = (items?.length ?? 0) + reminders.length;
+  const count = (items?.length ?? 0) + reminders.length + assignments.length;
   const shown = items?.slice(0, PANEL_CAP) ?? [];
   const cut = (items?.length ?? 0) - shown.length;
-  const empty = items !== null && items.length === 0 && reminders.length === 0;
+  const empty =
+    items !== null && items.length === 0 && reminders.length === 0 && assignments.length === 0;
 
   return (
     <div className="bell-panel" role="dialog" aria-label={label}>
@@ -352,8 +427,63 @@ export function BellPanel({
         </div>
       )}
 
+      {/* WORK SOMEBODY GAVE YOU — under the reminders, above the expiries.
+          Uncapped like the reminders, and for the same reason: there is no
+          board of "things you were given" to send anyone to, so every one of
+          them is already here. */}
+      {assignments.length > 0 && (
+        <div className="bp-rems">
+          <div className="bp-grp">Somebody gave you this</div>
+          {assignments.map((a) => (
+            <div className="bp-rem" key={a.taskId}>
+              <div className="bp-remrow">
+                <span className="bp-ic">
+                  <Icon name="listCheck" size={15} />
+                </span>
+                <span className="bp-main">
+                  <b>{a.title}</b>
+                  {/* No second line when there is nothing to put on it —
+                      "Assigned to you" under a heading that says "Somebody
+                      gave you this" is the same sentence twice. */}
+                  {assignmentLine(a, fmtAuWeekdayDayMonth) && (
+                    <em>{assignmentLine(a, fmtAuWeekdayDayMonth)}</em>
+                  )}
+                </span>
+                <span className="bp-remacts">
+                  <button
+                    type="button"
+                    className="bp-remdo"
+                    onClick={() => onDoneAssignment?.(a.taskId)}
+                    aria-label={`Mark done — ${a.title}`}
+                    title="Mark done"
+                  >
+                    <Icon name="check" size={14} />
+                  </button>
+                  {/* ACKNOWLEDGING IS NOT DOING. This clears the bell and
+                      leaves the task open on your list — the two questions
+                      are "have you seen it" and "have you done it", and a
+                      bell that only clears on the second is one people learn
+                      to ignore. */}
+                  <button
+                    type="button"
+                    className="bp-remsnz"
+                    onClick={() => onGotIt?.(a.taskId)}
+                    aria-label={`Got it — ${a.title}`}
+                    title="Keep the task, stop the bell"
+                  >
+                    Got it
+                  </button>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {items === null ? (
-        reminders.length === 0 ? <div className="bp-quiet">Checking…</div> : null
+        reminders.length === 0 && assignments.length === 0 ? (
+          <div className="bp-quiet">Checking…</div>
+        ) : null
       ) : empty ? (
         <div className="bp-empty">
           <span className="bp-ei">

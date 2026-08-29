@@ -77,10 +77,13 @@ export function ProjectsBoard({
   const { toasts, toast, dismiss } = useBoardToasts();
 
   /* TAKEN DURING RENDER, never in an effect — see the maintenance board for
-     why, and why IDENTITY rather than value is the signal. */
+     why, and why IDENTITY rather than value is the signal. The project card
+     drops too: one sheet at a time, or a search-named trip would stack its
+     sheet over an open card and a single Escape would dismiss both. */
   const [taken, setTaken] = useState<typeof openTarget>(null);
   if (openTarget && openTarget !== taken) {
     setTaken(openTarget);
+    setProjectCard(null);
     setSheet({ visitId: openTarget.id, closeOut: false });
   }
 
@@ -164,6 +167,19 @@ export function ProjectsBoard({
 
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
+
+  /* The open card's project and ITS trips, memoized — filtering inline in
+     the JSX handed the card a fresh array every board render (each toast
+     tick), which defeated the card's own merge memo and remounted every
+     row. */
+  const cardProject = useMemo(
+    () => (projectCard ? data.projects.find((p) => p.id === projectCard) ?? null : null),
+    [data.projects, projectCard]
+  );
+  const cardTrips = useMemo(
+    () => (cardProject ? data.visits.filter((v) => v.projectId === cardProject.id) : []),
+    [data.visits, cardProject]
+  );
 
   /** The carry target: the project's next open trip after the one on show. */
   const nextTripFor = (v: { id: string; projectId: string; dueDate: string }) => {
@@ -257,28 +273,23 @@ export function ProjectsBoard({
         />
       )}
 
-      {projectCard &&
-        (() => {
-          const project = data.projects.find((p) => p.id === projectCard);
-          if (!project) return null;
-          return (
-            <ProjectSheet
-              key={project.id}
-              project={project}
-              trips={data.visits.filter((v) => v.projectId === project.id)}
-              today={today}
-              manage={manage}
-              onOpenTrip={(id) => {
-                /* One sheet at a time — the trip replaces the card, the way
-                   the visit card swaps itself for the agreement. */
-                setProjectCard(null);
-                openSheet(id);
-              }}
-              onToast={toast}
-              onClose={() => setProjectCard(null)}
-            />
-          );
-        })()}
+      {cardProject && (
+        <ProjectSheet
+          key={cardProject.id}
+          project={cardProject}
+          trips={cardTrips}
+          today={today}
+          manage={manage}
+          onOpenTrip={(id) => {
+            /* One sheet at a time — the trip replaces the card, the way
+               the visit card swaps itself for the agreement. */
+            setProjectCard(null);
+            openSheet(id);
+          }}
+          onToast={toast}
+          onClose={() => setProjectCard(null)}
+        />
+      )}
 
       {sheetVisit && (
         <ProjectTripSheet

@@ -19,6 +19,8 @@
    - minutes are what ServiceM8 recorded, stated without clamping — the
      card repeats the mirror, it does not editorialise it. */
 
+import { sm8MinutesBetween } from "./all-jobs";
+
 export type DiaryActivityRow = {
   start_date: string | null;
   end_date: string | null;
@@ -44,16 +46,6 @@ export type ProjectDiaryDay = {
 
 const dayOf = (naive: string | null): string | null =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
-
-/** Minutes between two naive local stamps — same zone both sides, so the
-    parse needs no zone at all. Null when either side won't parse. */
-function minutesBetween(start: string, end: string): number | null {
-  const a = Date.parse(start.replace(" ", "T"));
-  const b = Date.parse(end.replace(" ", "T"));
-  if (Number.isNaN(a) || Number.isNaN(b)) return null;
-  const m = Math.round((b - a) / 60_000);
-  return m > 0 ? m : null;
-}
 
 export function buildProjectDiary(
   activities: readonly DiaryActivityRow[],
@@ -99,8 +91,11 @@ export function buildProjectDiary(
         entry.sessionCrew.push(personOf(a.staff_uuid));
       }
       if (a.start_date && a.end_date) {
-        const m = minutesBetween(a.start_date, a.end_date);
-        if (m !== null) entry.sessionMinutes += m;
+        /* The job card's own arithmetic — UTC on both sides, so a session
+           spanning a DST switch reads the same here as on its Visits face.
+           A first draft parsed local and would have drifted an hour. */
+        const m = sm8MinutesBetween(a.start_date, a.end_date);
+        if (m !== null && m > 0) entry.sessionMinutes += m;
       }
     }
   }

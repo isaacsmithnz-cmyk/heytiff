@@ -373,12 +373,15 @@ describe("pipeline", () => {
     expect(within(rows[0] as HTMLElement).getByText("Blocked on council")).toBeInTheDocument();
   });
 
-  /* The row used to BE the route link; since the project card (2026-08-29)
-     it opens the card, and the route lives behind the card's own door. */
-  it("each row opens the project card, and the route lives inside it", async () => {
+  /* The row is STILL the route link — cmd-click and copy-link keep working —
+     but a plain click opens the project card, and the route also lives
+     behind the card's own door. */
+  it("each row keeps its href, and a plain click opens the card instead", async () => {
     mount(data());
     await toTab("Pipeline");
-    await userEvent.click(screen.getByRole("button", { name: /Bowden St ducted/ }));
+    const row = screen.getByRole("link", { name: /Bowden St ducted/ });
+    expect(row).toHaveAttribute("href", "/dashboard/workboard/projects/p-1");
+    await userEvent.click(row);
     const card = within(screen.getByRole("dialog"));
     expect(card.getByRole("link", { name: /Full project/ })).toHaveAttribute(
       "href",
@@ -551,7 +554,7 @@ describe("the project card — one card, every booking on it", () => {
 
   const openCard = async () => {
     await toTab("Pipeline");
-    await userEvent.click(screen.getByRole("button", { name: /Bowden St ducted/ }));
+    await userEvent.click(screen.getByRole("link", { name: /Bowden St ducted/ }));
     return within(screen.getByRole("dialog"));
   };
 

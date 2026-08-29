@@ -7050,9 +7050,14 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3)
    frame (also squares up the job card's own naming row) */
 .wb2-sheet.jc > .wb2-shft { margin:0; position:static; }
 /* closing out recedes the BODY; the band stays crisp so you can still see
-   which visit you are closing */
+   which visit you are closing. The error line renders OUTSIDE the body so a
+   refused close-out is never its own blurred casualty. */
 .wb2-sheet.jc .wb2-jcbody { transition:opacity .28s cubic-bezier(.4,0,.2,1), filter .28s cubic-bezier(.4,0,.2,1); }
 .wb2-sheet.closingout .wb2-jcbody { filter:blur(1.6px); opacity:.42; pointer-events:none; }
+.wb2-sheet.jc > .wb2-sherr { margin:10px 20px 0; }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-sheet.jc .wb2-jcbody { transition:none; }
+}
 /* the fact tiles were dressed for the old header's shoulder — inside a face
    the face's own gap spaces them, and inside a section the head is closer */
 .wb2-sheet.mv .wb2-jcface > .wb2-facts, .wb2-sheet.pv .wb2-jcface > .wb2-facts { margin-top:0; }
@@ -7062,21 +7067,21 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3)
 /* ── THE PROJECT CARD (.pv) — one site day per row, notes riding under ──
    The date column is the row's spine; whatever hangs off the day (the
    trip's notes, the close-out words, the offer to adopt a diary day) sits
-   in the date's shadow so the days stay scannable. */
+   in the date's shadow so the days stay scannable. The head-adjacent rule
+   does the first-row work — `:first-of-type` counts element TYPE, and the
+   section head is a div like the rows, so it never matched. */
 .wb2-pv { display:flex; flex-direction:column; border-top:1px solid var(--wb2-line2); }
-.wb2-pv:first-of-type { border-top:0; }
-.wb2-pv .wb2-mline, .wb2-pv button.wb2-mline { border-top:0; }
+.wb2-jcdhead + .wb2-pv { border-top:0; }
+.wb2-pv .wb2-mline { border-top:0; }
 .wb2-pvx { padding:0 0 9px 130px; display:flex; flex-direction:column; gap:5px; align-items:flex-start; }
 .wb2-pvnote { margin:0; font-size:12.5px; font-weight:500; color:var(--gray700); line-height:1.5;
   text-wrap:pretty; }
-/* a pipeline row that opens the card instead of the route — same dress,
-   button bones */
-button.wb2-plrow { width:100%; text-align:left; font:inherit; cursor:pointer; }
-/* a past visit is a door — the row shape as a button, UA face stripped by
-   hand because the sheet portals outside `.fg` */
-button.wb2-mline { width:100%; font:inherit; color:inherit; text-align:left; background:none;
-  border:0; border-top:1px solid var(--wb2-line2); cursor:pointer; }
-button.wb2-mline:first-of-type { border-top:0; }
+/* a past visit is a door — the row shape as a button. The UA face is
+   already stripped by the zero-specificity `:where(button[class*="wb2-"])`
+   reset (written for exactly these body-portalled sheets), and the base
+   `.wb2-mline` rules out-rank it for the borders — only the block shape and
+   the door affordances are new here. */
+button.wb2-mline { width:100%; text-align:left; }
 button.wb2-mline:hover { background:rgba(0,168,224,.05); }
 button.wb2-mline:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:8px; }
 /* ── THE ATTENTION STRIP (slice 5) ──────────────────────────────────────

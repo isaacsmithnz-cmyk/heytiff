@@ -7,6 +7,7 @@ import { Icon } from "@/components/shell/icon";
 import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
+  BOARD_DONE_DAYS,
   isWeekendISO,
   placementMismatch,
   rollToBusinessDay,
@@ -114,9 +115,9 @@ export function VisitSheet({
   /** Arriving from an Urgent "Close it out" opens straight onto the form. */
   startClosing?: boolean;
   /** Opens the service agreement behind this visit — the band's chip door. */
-  onOpenAgreement?: (agreementId: string) => void;
+  onOpenAgreement: (agreementId: string) => void;
   /** Opens another visit of this agreement — a History row is a door. */
-  onOpenVisit?: (visitId: string) => void;
+  onOpenVisit: (visitId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
 }) {
@@ -438,18 +439,16 @@ export function VisitSheet({
                   tracked chip proved. This card never had a route to the
                   agreement standing behind it; now the standing service is
                   one click sideways. */}
-              {onOpenAgreement && (
-                <button
-                  className="wb2-chip blue"
-                  onClick={() => onOpenAgreement(visit.agreementId)}
-                  title="Open the service agreement behind this visit"
-                >
-                  Service agreement
-                  <i className="wb2-shcar" aria-hidden>
-                    ›
-                  </i>
-                </button>
-              )}
+              <button
+                className="wb2-chip blue"
+                onClick={() => onOpenAgreement(visit.agreementId)}
+                title="Open the service agreement behind this visit"
+              >
+                Service agreement
+                <i className="wb2-shcar" aria-hidden>
+                  ›
+                </i>
+              </button>
               {visit.jobNumber ? (
                 sm8Href ? (
                   <a
@@ -505,9 +504,12 @@ export function VisitSheet({
           />
         </div>
 
-        <div className="wb2-jcbody">
-          {err && <p className="wb2-sherr">{err}</p>}
+        {/* OUTSIDE the body on purpose: closing out blurs the body, and a
+            failed "Mark it complete" must not paint its one line of feedback
+            at 42% opacity behind the very form the reader is looking at. */}
+        {err && <p className="wb2-sherr">{err}</p>}
 
+        <div className="wb2-jcbody">
           {panel(
             "visit",
             <>
@@ -1001,7 +1003,10 @@ export function VisitSheet({
               <div className="wb2-jcsec">
                 <div className="wb2-jcdhead">
                   <b>Tags</b>
-                  <em>{visit.tags.length ? "On every visit of this agreement" : "None yet"}</em>
+                  {/* The scope warning matters MOST at zero tags — the first
+                      one someone adds meaning "this visit only" lands on
+                      every future visit of the service. Said always. */}
+                  <em>On every visit of this agreement</em>
                 </div>
                 <TagStrip
                   tags={visit.tags}
@@ -1024,36 +1029,29 @@ export function VisitSheet({
                 {lastDone && <em>Last done {fmtAuWeekdayDayMonth(lastDone)}</em>}
               </div>
               {pastVisits.length > 0 ? (
-                pastVisits.map((v) =>
-                  onOpenVisit ? (
-                    <button
-                      key={v.id}
-                      className="wb2-mline visit go"
-                      onClick={() => onOpenVisit(v.id)}
-                      title="Open that visit"
-                    >
-                      <b>{fmtAuWeekdayDayMonth(v.completedAt ?? v.dueDate)}</b>
-                      <em>
-                        {v.completionNote ??
-                          (v.completedSource === "servicem8" ? "Closed from ServiceM8" : "Closed manually")}
-                      </em>
-                      <span>{v.actualHours !== null ? hoursLabel(v.actualHours) : "—"}</span>
-                    </button>
-                  ) : (
-                    <div key={v.id} className="wb2-mline visit">
-                      <b>{fmtAuWeekdayDayMonth(v.completedAt ?? v.dueDate)}</b>
-                      <em>
-                        {v.completionNote ??
-                          (v.completedSource === "servicem8" ? "Closed from ServiceM8" : "Closed manually")}
-                      </em>
-                      <span>{v.actualHours !== null ? hoursLabel(v.actualHours) : "—"}</span>
-                    </div>
-                  )
-                )
+                pastVisits.map((v) => (
+                  <button
+                    key={v.id}
+                    className="wb2-mline visit"
+                    onClick={() => onOpenVisit(v.id)}
+                    title="Open that visit"
+                  >
+                    <b>{fmtAuWeekdayDayMonth(v.completedAt ?? v.dueDate)}</b>
+                    <em>
+                      {v.completionNote ??
+                        (v.completedSource === "servicem8" ? "Closed from ServiceM8" : "Closed manually")}
+                    </em>
+                    <span>{v.actualHours !== null ? hoursLabel(v.actualHours) : "—"}</span>
+                  </button>
+                ))
               ) : (
                 <p className="wb2-hint">
+                  {/* "OTHER", because the head's Last done may be THIS visit —
+                      the one closed-out row an agreement has is the one this
+                      card is standing on. The window is the board's own
+                      constant, never a hand-typed "8". */}
                   {lastDone
-                    ? "Nothing closed out in the last 8 weeks."
+                    ? `No other visits closed out in the last ${BOARD_DONE_DAYS / 7} weeks.`
                     : "This agreement hasn't been serviced yet."}
                 </p>
               )}

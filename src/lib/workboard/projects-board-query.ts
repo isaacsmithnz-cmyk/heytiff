@@ -15,8 +15,6 @@
    NO SESSION HERE — callers establish the right to ask. */
 
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { plusDays } from "./dates";
-import { BOARD_DONE_DAYS } from "./board-status";
 import { readReadiness, type ReadinessKey } from "./visit-schedule";
 import { staffOptions, type BoardTech } from "./board-query";
 import { checklistProgress } from "./stages";
@@ -121,7 +119,8 @@ export type BoardProject = {
 export type ProjectsBoardData = {
   /** active + blocked + on_hold + done — archived is the only thing hidden. */
   projects: BoardProject[];
-  /** Open trips (all of them) + done/skipped inside the history window. */
+  /** Open trips (all of them) + EVERY done/skipped trip — uncapped, because
+      the project card's Visits face holds the whole history. */
   visits: ProjectBoardVisit[];
   staff: BoardTech[];
 };
@@ -224,13 +223,18 @@ export async function loadProjectsBoard(
       .in("project_id", ids)
       .in("status", ["upcoming", "booked"])
       .order("due_date", { ascending: true }),
+    /* UNCAPPED, unlike the maintenance side's 56-day window: project trips
+       are hand-made (or adopted from the linked job's diary) and number in
+       the dozens, and the project CARD's Visits face has to hold the whole
+       history — an adopted 2024 site day that never came back in this read
+       was a door that never opened. Calendar windows itself; Urgent reads
+       open rows only. */
     supabaseAdmin
       .from("maintenance_visits")
       .select(VISIT_COLUMNS)
       .eq("org_id", orgId)
       .in("project_id", ids)
       .in("status", ["done", "skipped"])
-      .gte("completed_at", plusDays(today, -BOARD_DONE_DAYS))
       .order("completed_at", { ascending: false }),
     supabaseAdmin
       .from("project_checklist_items")
@@ -419,19 +423,9 @@ export async function loadProjectsBoard(
     });
   }
 
-  /* Done trips OUTSIDE the display window still burned hours — the budget
-     comparison must never forget them. One extra slim read, open-ended. */
-  const { data: oldDoneRows } = await supabaseAdmin
-    .from("maintenance_visits")
-    .select("project_id, actual_hours")
-    .eq("org_id", orgId)
-    .in("project_id", ids)
-    .eq("status", "done")
-    .lt("completed_at", plusDays(today, -BOARD_DONE_DAYS))
-    .not("actual_hours", "is", null);
-  for (const r of (oldDoneRows ?? []) as { project_id: string; actual_hours: number }[]) {
-    hoursBy.set(r.project_id, (hoursBy.get(r.project_id) ?? 0) + r.actual_hours);
-  }
+  /* Done trips load UNCAPPED now (the project card's Visits face needs the
+     whole history), so the hours ledger above already saw every burned hour
+     — the old outside-the-window supplementary read would double-count. */
 
   const checklistBy = new Map<string, { section: string; done: boolean }[]>();
   for (const r of (checkRows ?? []) as { project_id: string; section: string; done: boolean }[]) {

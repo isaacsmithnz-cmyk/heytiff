@@ -220,15 +220,25 @@ function ProjectRow({
   );
 
   const sev = state ? (state.severity === "danger" ? "dan" : "warn") : undefined;
-  /* The row opens the project CARD when the board offers one; the full
-     screen is a chip-door inside the card. Without the callback the row
-     stays the route link it always was. */
-  return onOpen ? (
-    <button type="button" className="wb2-plrow" data-sev={sev} onClick={() => onOpen(p.id)}>
-      {body}
-    </button>
-  ) : (
-    <Link href={`/dashboard/workboard/projects/${p.id}`} className="wb2-plrow" data-sev={sev}>
+  /* STILL A LINK. A plain click opens the project CARD; a cmd/ctrl/shift
+     click or a middle click keeps its browser meaning — new tab, copy link,
+     prefetch — because turning the row into a button silently killed the
+     open-three-projects-in-tabs triage a real <a> gives for free. */
+  return (
+    <Link
+      href={`/dashboard/workboard/projects/${p.id}`}
+      className="wb2-plrow"
+      data-sev={sev}
+      onClick={
+        onOpen
+          ? (e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+              e.preventDefault();
+              onOpen(p.id);
+            }
+          : undefined
+      }
+    >
       {body}
     </Link>
   );

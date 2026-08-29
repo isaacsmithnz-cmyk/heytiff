@@ -54,6 +54,7 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   fmtMinutesAsHours,
+  sm8TimeOf,
   sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
@@ -116,24 +117,14 @@ const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
 
-/** "7:30am" from a naive local string, by slicing — never by parsing a wall
-    clock into a Date, which would shift it by the browser's offset. */
-function timeOf(naive: string): string | null {
-  const hh = Number(naive.slice(11, 13));
-  const mm = naive.slice(14, 16);
-  if (Number.isNaN(hh) || !/^\d{2}$/.test(mm)) return null;
-  const ampm = hh < 12 ? "am" : "pm";
-  const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  return mm === "00" ? `${h12}${ampm}` : `${h12}:${mm}${ampm}`;
-}
-
 /** "7:30am Thu 14 Aug", or "7:30am–3:30pm Thu 14 Aug" when the booking's end
-    is known and lands on the same day. */
+    is known and lands on the same day. The time itself is the shared
+    `sm8TimeOf` — the project card's day window says it the same way. */
 function bookingLabel(naive: string, end?: string | null): string {
   const date = dayOf(naive);
-  const time = timeOf(naive);
+  const time = sm8TimeOf(naive);
   if (!date || !time) return date ? fmtAuWeekdayDayMonth(date) : naive;
-  const endTime = end && dayOf(end) === date ? timeOf(end) : null;
+  const endTime = end && dayOf(end) === date ? sm8TimeOf(end) : null;
   return `${endTime ? `${time}–${endTime}` : time} ${fmtAuWeekdayDayMonth(date)}`;
 }
 
@@ -149,11 +140,9 @@ export function telHref(raw: string | null | undefined): string | null {
   return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
 }
 
-/* The band's wash moved to lib/workboard/card-tint.ts the day the visit
-   sheet became the dress's second wearer — importing this sheet for a pure
-   helper would have dragged its server actions into that suite. Re-exported
-   so existing importers keep their door. */
-export { catTintVars };
+/* The band's wash lives in lib/workboard/card-tint.ts — the dress has three
+   wearers now, and importing a sheet for a pure helper drags its server
+   actions into every jsdom suite that renders the borrower. */
 
 export function JobSheet({
   row,

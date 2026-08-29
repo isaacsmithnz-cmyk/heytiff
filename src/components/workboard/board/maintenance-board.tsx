@@ -216,19 +216,24 @@ export function MaintenanceBoard({
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
 
   /* The open visit's History face — this agreement's OTHER closed-out rows,
-     from the done window the board already loaded. No new query: the card
-     reads what the Completed tab reads. */
-  const sheetHistory = useMemo(
+     from the done window the board already loaded, plus the agreement's own
+     uncapped last-done fact. One memo for both: the lastDone lookup was an
+     un-memoed find in the JSX, rescanning agreements every render. */
+  const sheetContext = useMemo(
     () =>
       sheetVisit
-        ? data.visits.filter(
-            (v) =>
-              v.agreementId === sheetVisit.agreementId &&
-              v.status === "done" &&
-              v.id !== sheetVisit.id
-          )
-        : [],
-    [data.visits, sheetVisit]
+        ? {
+            history: data.visits.filter(
+              (v) =>
+                v.agreementId === sheetVisit.agreementId &&
+                v.status === "done" &&
+                v.id !== sheetVisit.id
+            ),
+            lastDone:
+              data.agreements.find((a) => a.id === sheetVisit.agreementId)?.lastDone ?? null,
+          }
+        : { history: [], lastDone: null },
+    [data.visits, data.agreements, sheetVisit]
   );
 
   const sheetAgreement = agreementId
@@ -368,10 +373,8 @@ export function MaintenanceBoard({
           tagPool={data.tagPool}
           manage={manage}
           connected={connected}
-          history={sheetHistory}
-          lastDone={
-            data.agreements.find((a) => a.id === sheetVisit.agreementId)?.lastDone ?? null
-          }
+          history={sheetContext.history}
+          lastDone={sheetContext.lastDone}
           startClosing={sheet?.closeOut ?? false}
           onOpenAgreement={(id) => {
             /* One sheet at a time — the agreement replaces the visit, the

@@ -1149,13 +1149,19 @@ export async function readProjectDiary(projectId: string): Promise<ProjectDiaryR
   ].filter((v): v is string => !!v);
   if (remoteIds.length === 0) return { ok: true, days: [] };
 
+  /* NEWEST FIRST with an explicit cap. PostgREST answers at most 1000 rows
+     either way, and an ascending read would spend that budget on the OLDEST
+     rows — a multi-year, multi-crew project would then silently lose the
+     very days the card leads with. The derivation sorts its days itself, so
+     the order here is only about which end survives the cap. */
   const { data: actRows, error } = await supabaseAdmin
     .from("sm8_job_activities")
     .select("start_date, end_date, staff_uuid, activity_was_scheduled")
     .eq("org_id", ctx.orgId)
     .eq("active", 1)
     .in("job_uuid", remoteIds)
-    .order("start_date", { ascending: true });
+    .order("start_date", { ascending: false })
+    .limit(1000);
   if (error) return { ok: false, error: "Couldn't read the site diary." };
   const acts = (actRows ?? []) as DiaryActivityRow[];
 
@@ -1209,12 +1215,19 @@ export async function adoptProjectDiaryDay(
   const iso = isoDate(day);
   if (!iso) return { ok: false, error: "That isn't a day." };
 
+  /* THE SAME DAY THE MERGE WOULD USE. `tripDay` places a closed trip on
+     completed_at ?? booked_date ?? due_date and an open one on booked_date —
+     so the dedupe asks the identical ladder, or a trip booked Monday but
+     closed out as having run Tuesday would satisfy a Monday adopt and the
+     Monday row would "succeed" into nothing forever. */
   const { data: existing } = await supabaseAdmin
     .from("maintenance_visits")
     .select("id")
     .eq("org_id", ctx.orgId)
     .eq("project_id", projectId)
-    .or(`booked_date.eq.${iso},completed_at.eq.${iso}`)
+    .or(
+      `completed_at.eq.${iso},and(completed_at.is.null,booked_date.eq.${iso}),and(status.in.(done,skipped),completed_at.is.null,booked_date.is.null,due_date.eq.${iso})`
+    )
     .limit(1)
     .maybeSingle();
   if (existing) return { ok: true, id: (existing as { id: string }).id };

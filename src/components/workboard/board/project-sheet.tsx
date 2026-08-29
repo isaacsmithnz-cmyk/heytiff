@@ -8,7 +8,7 @@ import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
 import { fmtAuWeekdayDate, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { PROJECT_STAGES, stageIndex } from "@/lib/workboard/stages";
 import { fmtAud } from "@/lib/workboard/project-money";
-import { fmtMinutesAsHours } from "@/lib/workboard/all-jobs";
+import { fmtMinutesAsHours, sm8TimeOf } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import { toLines } from "@/lib/workboard/note-lines";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
@@ -113,8 +113,11 @@ export function ProjectSheet({
     return () => {
       live = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.id]);
+    /* Honest deps, not a disable — a react-hooks disable anywhere in a file
+       makes the React Compiler skip the WHOLE component (the studio's
+       documented lesson). All three are stable primitives per project, and
+       the length dep also covers a job being linked while the card is open. */
+  }, [preloadedDiary, linkedJobs.length, project.id]);
 
   /* Null means "still being read" — but with no linked job there is nothing
      to wait for, and that is a fact a render can derive. Only the waiting
@@ -128,8 +131,26 @@ export function ProjectSheet({
 
   const idx = stageIndex(project.stage);
   const finish = project.promisedFinish ? untilLabel(project.promisedFinish, today) : null;
-  const pastDays = merged.past.length;
-  const pastMinutes = merged.past.reduce((n, r) => n + (r.diary?.sessionMinutes ?? 0), 0);
+  /* The head counts days somebody actually ATTENDED — a crew booked and
+     rained off still lists below, but it is not a day on site. Hours read
+     the mirror's sessions where it has them, else our own closed-out
+     actuals — never both for one day. */
+  const pastDays = merged.past.filter(
+    (r) =>
+      (r.diary?.sessionMinutes ?? 0) > 0 ||
+      (r.diary?.sessionCrew.length ?? 0) > 0 ||
+      (r.trip !== null && r.trip.status === "done")
+  ).length;
+  const pastMinutes = merged.past.reduce(
+    (n, r) =>
+      n +
+      ((r.diary?.sessionMinutes ?? 0) > 0
+        ? (r.diary?.sessionMinutes ?? 0)
+        : r.trip?.status === "done" && r.trip.actualHours !== null
+          ? Math.round(r.trip.actualHours * 60)
+          : 0),
+    0
+  );
 
   /* A diary day becomes OUR trip the moment somebody wants to write on it.
      The card stays open; the row comes back as a trip on the refresh and is
@@ -455,19 +476,31 @@ function DiaryRow({
   onAdopt: (day: string) => void;
 }) {
   const { trip, diary, day } = row;
-  /* The crew line: the past belongs to who TURNED UP; the plan belongs to
-     who is booked — SM8's diary and our assignment, one list, deduped. */
-  const names = past
-    ? (diary && diary.sessionCrew.length > 0 ? diary.sessionCrew : diary?.booked ?? []).map(
-        (p) => p.name
-      )
-    : [
-        ...new Set([
-          ...(trip?.techs.map((t) => t.name) ?? []),
-          ...(diary?.booked.map((p) => p.name) ?? []),
-        ]),
-      ];
-  const em = [trip?.label, names.join(", ")].filter(Boolean).join(" — ");
+  /* The crew line: the past belongs to who TURNED UP (falling back to who
+     was booked, then to our own assignment on a closed trip); the plan
+     belongs to who is booked — SM8's diary and our assignment as one list.
+     Deduped BY NAME, deliberately against the lib's by-id law: our techs
+     and SM8's staff are two id spaces for the same humans, and the greater
+     evil here is the same person listed twice because both systems know
+     them. */
+  const ourCrew: { name: string; title: string | null }[] = (trip?.techs ?? []).map((t) => ({
+    name: t.name,
+    title: null,
+  }));
+  const sourced = past
+    ? diary && diary.sessionCrew.length > 0
+      ? diary.sessionCrew
+      : diary && diary.booked.length > 0
+        ? diary.booked
+        : ourCrew
+    : [...ourCrew, ...(diary?.booked ?? [])];
+  const people: { name: string; title: string | null }[] = [];
+  for (const p of sourced) {
+    const seen = people.find((q) => q.name === p.name);
+    if (!seen) people.push({ name: p.name, title: p.title });
+    else if (!seen.title && p.title) seen.title = p.title;
+  }
+  const anyTitle = people.some((p) => p.title);
 
   const right = past
     ? diary && diary.sessionMinutes > 0
@@ -489,7 +522,21 @@ function DiaryRow({
   const line = (
     <>
       <b>{dayLabel}</b>
-      <em>{em || "Booked in ServiceM8"}</em>
+      <em>
+        {trip?.label ?? (people.length === 0 ? "Booked in ServiceM8" : null)}
+        {trip?.label && people.length > 0 ? " — " : ""}
+        {/* Names wear their titles the job card's way — this face is where
+            the card introduces people. A comma separates bare names; once a
+            title is in the line the pair takes a dash, and the dot before a
+            title is REAL TEXT (the jest-can't-see-CSS law). */}
+        {people.map((p, i) => (
+          <span key={p.name}>
+            {i > 0 ? (anyTitle ? " — " : ", ") : ""}
+            {p.name}
+            {p.title && <i className="wb2-jcrole">{` · ${p.title}`}</i>}
+          </span>
+        ))}
+      </em>
       <span>{right}</span>
     </>
   );
@@ -498,7 +545,7 @@ function DiaryRow({
     <div className="wb2-pv">
       {trip ? (
         <button
-          className="wb2-mline visit go"
+          className="wb2-mline visit"
           onClick={() => onOpenTrip(trip.id)}
           title="Open the visit"
         >
@@ -528,20 +575,13 @@ function DiaryRow({
   );
 }
 
-/** "7am–3pm" from the booking's naive window — sliced, never parsed into a
-    Date, which would shift a wall clock by the browser's offset. */
+/** "7am–3pm" from the booking's naive window. The time itself is the shared
+    `sm8TimeOf` — sliced, never parsed, and said the same way the job card's
+    booking line says it. */
 function windowOf(start: string | null, end: string | null): string | null {
-  const t = (naive: string): string | null => {
-    const hh = Number(naive.slice(11, 13));
-    const mm = naive.slice(14, 16);
-    if (Number.isNaN(hh) || !/^\d{2}$/.test(mm)) return null;
-    const ampm = hh < 12 ? "am" : "pm";
-    const h12 = hh % 12 === 0 ? 12 : hh % 12;
-    return mm === "00" ? `${h12}${ampm}` : `${h12}:${mm}${ampm}`;
-  };
   if (!start) return null;
-  const a = t(start);
+  const a = sm8TimeOf(start);
   if (!a) return null;
-  const b = end && end.slice(0, 10) === start.slice(0, 10) ? t(end) : null;
+  const b = end && end.slice(0, 10) === start.slice(0, 10) ? sm8TimeOf(end) : null;
   return b ? `${a}–${b}` : a;
 }

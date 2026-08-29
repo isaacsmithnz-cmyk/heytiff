@@ -475,6 +475,18 @@ export function sm8MinutesBetween(start: string, end: string): number | null {
   return Math.round((b - a) / 60_000);
 }
 
+/** "7:30am" from a naive local stamp, by slicing — never by parsing a wall
+    clock into a Date, which would shift it by the browser's offset. Shared
+    by the job card's booking line and the project card's day window. */
+export function sm8TimeOf(naive: string): string | null {
+  const hh = Number(naive.slice(11, 13));
+  const mm = naive.slice(14, 16);
+  if (Number.isNaN(hh) || !/^\d{2}$/.test(mm)) return null;
+  const ampm = hh < 12 ? "am" : "pm";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return mm === "00" ? `${h12}${ampm}` : `${h12}:${mm}${ampm}`;
+}
+
 /** "18h 30m" / "3h" / "45m" — the shape ServiceM8's own billing tab uses. */
 export function fmtMinutesAsHours(mins: number): string {
   const h = Math.floor(mins / 60);

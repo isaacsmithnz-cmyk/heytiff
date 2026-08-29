@@ -241,9 +241,9 @@ export function JobSheet({
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
   const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
-  /* True once no further summary can arrive — the skeleton in the "Where
-     it's up to" slot holds the box's ground exactly until then. */
-  const [summarySettled, setSummarySettled] = useState(false);
+  /* The refresh kick ANSWERED (words or not) — the one input to the summary
+     slot's skeleton that a render can't derive from what has landed. */
+  const [kickAnswered, setKickAnswered] = useState(false);
   /* The files read ANSWERED — even empty-handed. `media` alone can't say:
      a failed read leaves it null forever, exactly like one still in flight. */
   const [filesAnswered, setFilesAnswered] = useState(false);
@@ -542,25 +542,11 @@ export function JobSheet({
   const kicked = useRef(false);
   useEffect(() => {
     if (kicked.current) return;
-    if (!cardId || !detail || record === undefined || recordFailed) return;
-    /* Settled = nothing more is coming: a record that landed empty, a story
-       with nothing to derive from, or a stored paragraph already at the
-       story's stamp. Anything else is a kick, settled when it answers. */
-    if (record === null) {
-      setSummarySettled(true);
-      return;
-    }
-    if (media === null || picklist === null) {
-      /* the files read answering EMPTY-HANDED never unblocks this gate, so
-         it settles the slot here instead (the picklist's catch lands []) */
-      if (filesAnswered && picklist !== null) setSummarySettled(true);
-      return;
-    }
+    if (!cardId || !detail || record === undefined || record === null || recordFailed) return;
+    if (media === null || picklist === null) return;
     const stamp = storyStamp(story);
-    if (!stamp || record.summary?.stamp === stamp) {
-      setSummarySettled(true);
-      return;
-    }
+    if (!stamp) return;
+    if (record.summary?.stamp === stamp) return;
     kicked.current = true;
     void fetch("/api/workboard/job-summary", {
       method: "POST",
@@ -575,9 +561,30 @@ export function JobSheet({
         /* a summary that won't refresh keeps its stored words */
       })
       .finally(() => {
-        if (alive.current) setSummarySettled(true);
+        if (alive.current) setKickAnswered(true);
       });
-  }, [cardId, detail, record, recordFailed, media, picklist, story, filesAnswered]);
+  }, [cardId, detail, record, recordFailed, media, picklist, story]);
+
+  /* WHETHER THE SUMMARY SLOT STILL WAITS — derived at render, mirroring the
+     kick's own gates, because every branch but one is knowable from what has
+     already landed. The one fact a render can't derive is whether the kick
+     has answered; that is the only state (`kickAnswered`, set async above —
+     the compiler's no-sync-setState-in-effects rule is why this is not an
+     effect writing a `settled` flag). */
+  const summaryPending = (() => {
+    if (recordFailed || summary !== null) return false;
+    if (record === undefined) return true; // the record read is still out
+    if (record === null) return false; // landed empty — nothing is coming
+    if (media === null || picklist === null) {
+      /* companions still out — unless the files read answered EMPTY-HANDED,
+         which never unblocks the kick's gate (the picklist's catch lands
+         [], so null there always means "not yet") */
+      return !filesAnswered || picklist === null;
+    }
+    const stamp = storyStamp(story);
+    if (!stamp || record.summary?.stamp === stamp) return false; // nothing to derive
+    return !kickAnswered; // the kick is out — words or nothing, shortly
+  })();
 
   const makeProject = () => {
     setErr(null);
@@ -1065,7 +1072,7 @@ export function JobSheet({
               detail={detail}
               row={row}
               summary={summary}
-              pending={!recordFailed && summary === null && !summarySettled}
+              pending={summaryPending}
             />
           )}
 

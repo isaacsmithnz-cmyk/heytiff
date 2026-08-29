@@ -402,7 +402,10 @@ describe("the visit sheet — the editing heart", () => {
   it("notes read once they're written — no edit boxes until you ask", async () => {
     const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821" }));
     await toNotes(sheet);
-    expect(sheet.getByText("Gate code is 4821")).toBeInTheDocument();
+    /* The note also reads on the Summary's Worth knowing list (by design),
+       and jsdom text queries reach hidden panels — scope to the open face. */
+    const face = within(sheet.getByRole("tabpanel", { name: "Notes" }));
+    expect(face.getByText("Gate code is 4821")).toBeInTheDocument();
     expect(sheet.queryByLabelText("Note 1")).not.toBeInTheDocument();
     expect(sheet.queryByLabelText("a note for this visit")).not.toBeInTheDocument();
     await userEvent.click(sheet.getByRole("button", { name: /Edit notes/ }));
@@ -603,9 +606,9 @@ describe("the visit sheet — the editing heart", () => {
 
   /* ── the card of tabs (2026-08-29) — the job card's dress on the visit ── */
 
-  it("is a card of three faces — Visit, Notes, History — with the cadence as a band chip", async () => {
+  it("is a card of three faces — Summary, Notes, History — with the cadence as a band chip", async () => {
     const sheet = await open(visit({ id: "v-1" }));
-    expect(sheet.getByRole("tab", { name: "Visit" })).toBeInTheDocument();
+    expect(sheet.getByRole("tab", { name: "Summary" })).toBeInTheDocument();
     expect(sheet.getByRole("tab", { name: "Notes" })).toBeInTheDocument();
     expect(sheet.getByRole("tab", { name: "History" })).toBeInTheDocument();
     // the cadence moved onto the band — a chip, not a heading and not a hint
@@ -617,7 +620,7 @@ describe("the visit sheet — the editing heart", () => {
     const sheet = await open(visit({ id: "v-1" }), { agreements: [agreementFix()] });
     await userEvent.click(sheet.getByRole("button", { name: /Service agreement/ }));
     // one sheet at a time: the visit card's tabs are gone, the agreement is up
-    expect(screen.queryByRole("tab", { name: "Visit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Summary" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Halston Freight — Rooftop package units" })).toBeInTheDocument();
     expect(screen.getByText("The agreement")).toBeInTheDocument();
   });
@@ -648,6 +651,36 @@ describe("the visit sheet — the editing heart", () => {
     const swapped = within(screen.getByRole("dialog"));
     expect(swapped.getByText("Completed")).toBeInTheDocument();
     expect(swapped.getByText("Closed out")).toBeInTheDocument();
+  });
+
+  it("the Summary reads what a tech needs before the gate — access, site demands, notes, the units", async () => {
+    const sheet = await open(
+      visit({ id: "v-1", accessNotes: "Gate code is 4821", notes: "Roof ladder won't reach" }),
+      {
+        agreements: [
+          agreementFix({
+            siteRequirements: "White card required",
+            equipment: [
+              { id: "e-1", description: "Rooftop package #1", model: "UATYQ250", serial: "K1", location: "East deck" },
+            ],
+          }),
+        ],
+      }
+    );
+    /* The visit note also lives on the Notes tab — scope to the Summary. */
+    const face = within(sheet.getByRole("tabpanel", { name: "Summary" }));
+    expect(face.getByText("Worth knowing")).toBeInTheDocument();
+    expect(face.getByText("Gate code is 4821")).toBeInTheDocument();
+    expect(face.getByText("White card required")).toBeInTheDocument();
+    expect(face.getByText("Roof ladder won't reach")).toBeInTheDocument();
+    expect(face.getByText("Equipment on site")).toBeInTheDocument();
+    expect(face.getByText("Model UATYQ250 · Serial K1 · East deck")).toBeInTheDocument();
+  });
+
+  it("a quiet visit draws no Worth knowing box at all", async () => {
+    const sheet = await open(visit({ id: "v-1" }));
+    expect(sheet.queryByText("Worth knowing")).not.toBeInTheDocument();
+    expect(sheet.queryByText("Equipment on site")).not.toBeInTheDocument();
   });
 
   it("a visit with no history says so honestly, split by whether it has ever run", async () => {

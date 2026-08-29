@@ -13,7 +13,12 @@ import {
   rollToBusinessDay,
 } from "@/lib/workboard/board-status";
 import type { VisitTone } from "@/lib/workboard/board-status";
-import type { BoardTag, BoardTech, BoardVisit } from "@/lib/workboard/board-query";
+import type {
+  BoardEquipment,
+  BoardTag,
+  BoardTech,
+  BoardVisit,
+} from "@/lib/workboard/board-query";
 import { fromLines, linesEqual, toLines } from "@/lib/workboard/note-lines";
 import { NoteToken } from "@/components/notes/note-token";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
@@ -44,6 +49,7 @@ import {
   agoLabel,
   cadenceLabel,
   crewLabel,
+  equipmentLine,
   gatesOf,
   hoursLabel,
   initialsOf,
@@ -93,6 +99,8 @@ export function VisitSheet({
   connected,
   history = [],
   lastDone = null,
+  siteRequirements = null,
+  equipment = [],
   startClosing = false,
   onOpenAgreement,
   onOpenVisit,
@@ -112,6 +120,12 @@ export function VisitSheet({
   /** When this agreement last ran, from the agreement's own uncapped query —
       an annual service's answer is always outside the board's done window. */
   lastDone?: string | null;
+  /** The agreement's standing "before you go" facts — inductions, PPE,
+      white cards. The Summary reads them out loud. */
+  siteRequirements?: string | null;
+  /** The units on this site, from the agreement's register — what the
+      visit is actually there to service. */
+  equipment?: BoardEquipment[];
   /** Arriving from an Urgent "Close it out" opens straight onto the form. */
   startClosing?: boolean;
   /** Opens the service agreement behind this visit — the band's chip door. */
@@ -212,6 +226,16 @@ export function VisitSheet({
   const missing = missingOf(visit);
   /** What's actually stored, which is what the read view shows. */
   const savedNotes = useMemo(() => toLines(visit.notes), [visit.notes]);
+  /* WORTH KNOWING — the Summary's answer to "is there anything I need to
+     know before I'm standing at the gate": how to get in (the agreement's
+     access notes), what the site demands (inductions, PPE), and whatever
+     the crew wrote on this visit. Absent when quiet — an empty warnings box
+     is noise pretending to be diligence. The Notes tab stays the writing
+     surface; this is the read. */
+  const worthKnowing = useMemo(
+    () => [...toLines(visit.accessNotes), ...toLines(siteRequirements), ...savedNotes],
+    [visit.accessNotes, siteRequirements, savedNotes]
+  );
   const open = visit.status === "upcoming" || visit.status === "booked";
   const isQuote = tone === "quote";
   const rel = untilLabel(visit.dueDate, today);
@@ -379,7 +403,11 @@ export function VisitSheet({
      visit, so the thumb never jumps as reads land. No counts on the tabs
      (the job card's law); each face says its own counts inside. */
   const tabs: ViewTab[] = [
-    { key: "visit", label: "Visit" },
+    /* "Summary", not "Visit" — the landing face is the card's overview, and
+       the family lands on Summary everywhere (Isaac, on the harness: "theres
+       no summary on maintenances card"). On a working card the overview and
+       the work share the face; the label says what you LAND on. */
+    { key: "visit", label: "Summary" },
     { key: "notes", label: "Notes" },
     { key: "history", label: "History" },
   ];
@@ -522,6 +550,15 @@ export function VisitSheet({
                       the Closed out section says what actually happened. */}
                   {open && <em className={rel.tone === "dan" ? "dan" : undefined}>{rel.t}</em>}
                 </div>
+                {/* The one History fact the overview owes: when this service
+                    last ran. The face itself keeps the rows. */}
+                {lastDone && (
+                  <div>
+                    <span className="wb2-sect">Last done</span>
+                    <b>{fmtAuWeekdayDayMonth(lastDone)}</b>
+                    <em>ran {agoLabel(lastDone, today)}</em>
+                  </div>
+                )}
                 {/* The two estimates live on the AGREEMENT — how long one
                     visit of this service takes and how many people it takes,
                     both answered when the agreement was written. Isaac,
@@ -609,6 +646,19 @@ export function VisitSheet({
                     ))}
                 </div>
               </div>
+
+              {worthKnowing.length > 0 && (
+                <div className="wb2-jcsec">
+                  <div className="wb2-jcdhead">
+                    <b>Worth knowing</b>
+                  </div>
+                  <ul className="wb2-ul">
+                    {worthKnowing.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {open && !isQuote && (
                 <div className="wb2-jcsec">
@@ -833,6 +883,25 @@ export function VisitSheet({
                   </div>
                 )}
               </div>
+
+              {equipment.length > 0 && (
+                <div className="wb2-jcsec">
+                  {/* WHAT THE VISIT IS THERE TO SERVICE — the agreement's
+                      register, read-only here; the agreement sheet owns the
+                      editing. One dress per unit line, both sheets. */}
+                  <div className="wb2-jcdhead">
+                    <b>Equipment on site</b>
+                    <em>{equipment.length === 1 ? "One unit" : `${equipment.length} units`}</em>
+                  </div>
+                  {equipment.map((e) => (
+                    <div className="wb2-mline" key={e.id}>
+                      <b>{e.description}</b>
+                      <em>{equipmentLine(e)}</em>
+                      <span />
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {visit.status === "done" && (
                 <div className="wb2-jcsec">

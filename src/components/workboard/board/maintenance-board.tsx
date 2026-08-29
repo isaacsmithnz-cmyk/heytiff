@@ -219,22 +219,33 @@ export function MaintenanceBoard({
      from the done window the board already loaded, plus the agreement's own
      uncapped last-done fact. One memo for both: the lastDone lookup was an
      un-memoed find in the JSX, rescanning agreements every render. */
-  const sheetContext = useMemo(
-    () =>
-      sheetVisit
-        ? {
-            history: data.visits.filter(
-              (v) =>
-                v.agreementId === sheetVisit.agreementId &&
-                v.status === "done" &&
-                v.id !== sheetVisit.id
-            ),
-            lastDone:
-              data.agreements.find((a) => a.id === sheetVisit.agreementId)?.lastDone ?? null,
-          }
-        : { history: [], lastDone: null },
-    [data.visits, data.agreements, sheetVisit]
-  );
+  const sheetContext = useMemo(() => {
+    if (!sheetVisit) {
+      return {
+        history: [] as typeof data.visits,
+        lastDone: null as string | null,
+        siteRequirements: null as string | null,
+        equipment: [] as NonNullable<
+          (typeof data.agreements)[number]["equipment"]
+        >,
+      };
+    }
+    const agreement = data.agreements.find((a) => a.id === sheetVisit.agreementId) ?? null;
+    return {
+      history: data.visits.filter(
+        (v) =>
+          v.agreementId === sheetVisit.agreementId &&
+          v.status === "done" &&
+          v.id !== sheetVisit.id
+      ),
+      lastDone: agreement?.lastDone ?? null,
+      /* The agreement's standing facts the SUMMARY reads out loud — what a
+         tech needs to know before the van leaves. Already loaded for the
+         agreements ledger; the card just borrows the row. */
+      siteRequirements: agreement?.siteRequirements ?? null,
+      equipment: agreement?.equipment ?? [],
+    };
+  }, [data.visits, data.agreements, sheetVisit]);
 
   const sheetAgreement = agreementId
     ? data.agreements.find((a) => a.id === agreementId) ?? null
@@ -375,6 +386,8 @@ export function MaintenanceBoard({
           connected={connected}
           history={sheetContext.history}
           lastDone={sheetContext.lastDone}
+          siteRequirements={sheetContext.siteRequirements}
+          equipment={sheetContext.equipment}
           startClosing={sheet?.closeOut ?? false}
           onOpenAgreement={(id) => {
             /* One sheet at a time — the agreement replaces the visit, the

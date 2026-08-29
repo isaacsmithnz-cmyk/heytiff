@@ -7446,7 +7446,10 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 /* The head's switch. Same chip language as the rest of the card's furniture;
    `on` is the gold the stars themselves wear, so the filter and the thing it
    filters read as one idea. */
-.wb2-mfilt { margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+/* NO `margin-left:auto` HERE. `.wb2-jcdhead em` already carries one, and two
+   auto margins SHARE the leftover space — the count line ended up floating in
+   the middle of the head instead of sitting with the chip at the right. */
+.wb2-mfilt { display:inline-flex; align-items:center; gap:5px;
   padding:3px 9px; border:1px solid var(--wb2-line2); border-radius:999px;
   background:transparent; color:var(--gray600); font-size:11px; font-weight:700;
   cursor:pointer; transition:background .12s ease, color .12s ease, border-color .12s ease; }

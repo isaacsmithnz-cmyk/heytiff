@@ -110,18 +110,48 @@ export async function readJobMedia(
      this flat list was the defect that let paperwork crowd a job's photos
      out of the photo lens. */
   const all = (data ?? []) as AttachmentRow[];
-  const seen = new Set<string>();
+
+  /* THE NAME DEDUPE IS ACROSS SOURCES ONLY — and the version that wasn't hid
+     72% of the account's files.
+
+     It exists for one thing: ServiceM8 CLONES a job to bill it in stages, and
+     470 of the 758 liftable files are copies it made in the process, so a
+     naive merge shows half the gallery twice. The parent's copy wins because
+     it is the one whose cached bytes the job already points at.
+
+     The version this replaces keyed one flat Set on `name|file_type` over
+     EVERY row, parent's own included, under the comment "two different photos
+     are never called the same thing by the same camera". That is simply false
+     of ServiceM8: its own app names every phone upload literally `Photo`.
+     Job #907 holds 91 live attachments — 75 `.jpg` and 9 `.avif` all called
+     `Photo` — which collapsed to SIX, so the card offered two pictures of a
+     job that has eighty-four. Across the account: 39,952 attachments, 11,124
+     surviving, **28,828 photographs of real work dropped across 1,815 jobs**.
+
+     So the parent's own files are never deduped against each other — a job
+     may hold two hundred files called `Photo` and every one of them is a
+     different photograph. Only a CLAIM's file is checked, and only against
+     names the parent already has. `sources` puts the job first, so by the
+     time a claim's rows are read the parent's names are all in the set. */
+  const parentNames = new Set<string>();
   const surviving: AttachmentRow[] = [];
+  const nameKey = (name: string, fileType: string | null) =>
+    `${name.toLowerCase()}|${(fileType ?? "").toLowerCase()}`;
   for (const r of all) {
     const claim = claimOf.get(r.related_object_uuid) ?? null;
     const name = r.attachment_name?.trim() || "Untitled file";
-    if (claim !== null && isPartialInvoicePaper(name)) continue;
-    /* Name AND type together: two different photos are never called the same
-       thing by the same camera, and a PDF sharing a photo's name is not the
-       same file. */
-    const key = `${name.toLowerCase()}|${(r.file_type ?? "").toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const key = nameKey(name, r.file_type);
+    if (claim === null) {
+      /* The job's own. Kept unconditionally; its name is what a claim's copy
+         is later measured against. */
+      parentNames.add(key);
+      surviving.push(r);
+      continue;
+    }
+    /* "Partial Invoice #2380A" is about the billing, not the work — it stays
+       on the claim (426 live). */
+    if (isPartialInvoicePaper(name)) continue;
+    if (parentNames.has(key)) continue;
     surviving.push(r);
   }
 

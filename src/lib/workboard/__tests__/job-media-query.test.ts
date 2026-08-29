@@ -212,6 +212,37 @@ describe("a job billed in stages gathers its claims' files", () => {
     expect(read.items[0].fromClaim).toBeNull();
   });
 
+  /* THE BUG THAT HID 72% OF THE ACCOUNT. ServiceM8's own app names every
+     phone upload literally `Photo`, so a flat name dedupe over the job's OWN
+     files collapses a whole day's work into one tile. Job #907 holds 91 live
+     attachments — 75 .jpg and 9 .avif all called `Photo` — and offered two.
+     Account-wide: 28,828 of 39,952 dropped across 1,815 jobs. */
+  it("keeps every one of a job's own files that ServiceM8 called `Photo`", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "Photo" }),
+      attachment({ uuid: "a-2", attachment_name: "Photo" }),
+      attachment({ uuid: "a-3", attachment_name: "Photo" }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+    expect(read.items.map((i) => i.remoteId)).toEqual(["a-1", "a-2", "a-3"]);
+  });
+
+  /* And a claim's own originals are not collapsed against each other either —
+     a photo taken while one clone was open and a photo taken while another
+     was open are two photographs, both called `Photo`. Only a copy of
+     something the PARENT already holds is dropped. */
+  it("keeps same-named originals that live on different claims", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "Photo", related_object_uuid: "job-1a" }),
+      attachment({ uuid: "a-2", attachment_name: "Photo", related_object_uuid: "job-1b" }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", [
+      { remoteId: "job-1a", claimNumber: "2380A" },
+      { remoteId: "job-1b", claimNumber: "2380B" },
+    ]);
+    expect(read.items).toHaveLength(2);
+  });
+
   /* A PDF sharing a photo's name is not the same file. */
   it("does not collapse two different files that share a name", async () => {
     attachmentRows = [

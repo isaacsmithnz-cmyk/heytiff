@@ -9,7 +9,7 @@
    refresh kicks ONCE, only when the story's stamp has left the stored one
    behind. */
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { JobDesign, MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
@@ -2647,6 +2647,65 @@ describe("files on the job", () => {
     await userEvent.click(await face("documents").findByText("report.pdf"));
     const dialog = await screen.findByRole("dialog", { name: "report.pdf" });
     expect(within(dialog).queryByRole("button", { name: /Star/ })).toBeNull();
+  });
+
+  /* ── zoom: the fit is the floor ── */
+
+  it("will not zoom a photo out below the size the stage shows it at", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({ photos: [file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+    await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
+
+    const stage = dialog.querySelector(".wb2-mvstage") as HTMLElement;
+    const img = within(dialog).getByAltText("one.jpg") as HTMLImageElement;
+    /* jsdom reports every box as 0, so the stage and the photo are given
+       sizes by hand — the fit here is 800/1600 = 0.5. */
+    Object.defineProperty(stage, "clientWidth", { value: 816, configurable: true });
+    Object.defineProperty(stage, "clientHeight", { value: 616, configurable: true });
+    Object.defineProperty(img, "naturalWidth", { value: 1600, configurable: true });
+    Object.defineProperty(img, "naturalHeight", { value: 1200, configurable: true });
+    fireEvent.load(img);
+
+    /* Wheel DOWN hard. The old floor was a 0.05 constant, so this landed the
+       photo at a twentieth of its size in a sea of black. */
+    for (let i = 0; i < 12; i++)
+      fireEvent.wheel(stage, { deltaY: 240, ctrlKey: true, cancelable: true });
+
+    /* At the floor the photo goes back to the CSS fit — no inline width, no
+       scroll container with nothing to scroll. */
+    expect(stage.className).not.toContain("zoomed");
+    expect(img.style.width).toBe("");
+  });
+
+  it("zooms in from the fit, and comes back to it", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({ photos: [file({ remoteId: "p-1", name: "one.jpg", url: "https://signed/p-1.jpg" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+    await userEvent.click((await face("photos").findByAltText("one.jpg")).closest("button")!);
+    const dialog = await screen.findByRole("dialog", { name: "one.jpg" });
+
+    const stage = dialog.querySelector(".wb2-mvstage") as HTMLElement;
+    const img = within(dialog).getByAltText("one.jpg") as HTMLImageElement;
+    Object.defineProperty(stage, "clientWidth", { value: 816, configurable: true });
+    Object.defineProperty(stage, "clientHeight", { value: 616, configurable: true });
+    Object.defineProperty(img, "naturalWidth", { value: 1600, configurable: true });
+    Object.defineProperty(img, "naturalHeight", { value: 1200, configurable: true });
+    fireEvent.load(img);
+
+    fireEvent.wheel(stage, { deltaY: -240, ctrlKey: true, cancelable: true });
+    expect(stage.className).toContain("zoomed");
+    /* Bigger than the fit's 0.5 × 1600 = 800px. */
+    expect(parseFloat(img.style.width)).toBeGreaterThan(800);
   });
 
   it("keeps the strip out of the way when there is nothing to jump to", async () => {

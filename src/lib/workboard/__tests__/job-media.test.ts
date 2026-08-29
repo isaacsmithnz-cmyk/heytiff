@@ -9,8 +9,10 @@ import {
   isCacheableMedia,
   jobMediaKind,
   mediaCountLine,
+  mimeForExt,
   normaliseFileType,
   originLabel,
+  storageNote,
   type JobMediaItem,
 } from "@/lib/workboard/job-media";
 
@@ -214,5 +216,63 @@ describe("documentGroupOf — the Documents face's sections", () => {
     expect(documentGroupOf(item({ origin: "Work order" }))).toBe("money");
     expect(documentGroupOf(item({ origin: "Emailed in" }))).toBe("client");
     expect(documentGroupOf(item({ origin: null }))).toBe("files");
+  });
+});
+
+/* ── handing a file to storage, and reading its refusal ── */
+
+describe("mimeForExt", () => {
+  /* The CDN's content-type header is absent often enough that the fallback,
+     `application/octet-stream`, was being handed to a bucket whose allowlist
+     has never contained it. Our own extension already decided the file was
+     cacheable; it is the better witness. */
+  it("names the type our extension implies, dot or no dot", () => {
+    expect(mimeForExt("jpg")).toBe("image/jpeg");
+    expect(mimeForExt(".JPEG")).toBe("image/jpeg");
+    expect(mimeForExt("pdf")).toBe("application/pdf");
+  });
+
+  /* 399 live attachments are .avif and every one was rejected at upload. */
+  it("knows avif, which the bucket used not to allow", () => {
+    expect(mimeForExt("avif")).toBe("image/avif");
+  });
+
+  it("says nothing about a type it does not know", () => {
+    expect(mimeForExt("bin")).toBeNull();
+    expect(mimeForExt("")).toBeNull();
+  });
+});
+
+describe("storageNote", () => {
+  /* THE BUG THIS EXISTS FOR: every upload failure said "Storage is full",
+     so a mime type the bucket didn't allow sent Isaac to check a disk that
+     was 588MB used. Three different problems, one of them about space. */
+  it("does not blame space for a type the bucket refuses", () => {
+    const note = storageNote("mime type image/avif is not supported");
+    expect(note).toBe("Storage wouldn't take that file's type — it needs allowing on the bucket.");
+    expect(note).not.toMatch(/full/i);
+  });
+
+  it("says so when the file is simply too big", () => {
+    expect(storageNote("The object exceeded the maximum allowed size")).toBe(
+      "That file is bigger than storage will take."
+    );
+  });
+
+  it("still says full when it really is full", () => {
+    expect(storageNote("Storage quota exceeded for this project")).toMatch(/full/i);
+  });
+
+  /* An unknown refusal is SAID to be unknown, and points at the log — the
+     invented cause is what created this function. */
+  it("admits when it does not know, rather than guessing again", () => {
+    const note = storageNote("something nobody has seen before");
+    expect(note).toBe("Storage wouldn't accept that file — the log has the reason.");
+    expect(note).not.toMatch(/full|type|bigger/i);
+  });
+
+  it("survives an error with no message at all", () => {
+    expect(storageNote(undefined)).toContain("the log has the reason");
+    expect(storageNote(null)).toContain("the log has the reason");
   });
 });

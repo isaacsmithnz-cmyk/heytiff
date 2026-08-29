@@ -31,7 +31,12 @@ import { sm8Access } from "@/lib/integrations/sm8-store";
 import { fetchSm8AttachmentFile } from "@/lib/integrations/sm8-attachment-file";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { storageRef } from "@/lib/documents/files";
-import { isCacheableMedia, normaliseFileType } from "@/lib/workboard/job-media";
+import {
+  isCacheableMedia,
+  mimeForExt,
+  normaliseFileType,
+  storageNote,
+} from "@/lib/workboard/job-media";
 import { readJobMediaGroups, type JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 
@@ -48,7 +53,8 @@ export type CacheJobFilesResult = {
   /** Cacheable files still without bytes. */
   remaining: number;
   media: JobMediaGroupsRead | null;
-  /** Said out loud when the bucket is full, rather than failing silently. */
+  /** What went wrong, in the sheet's words, rather than failing silently.
+      Read off the actual error — never a guess at which one it was. */
   note: string | null;
 };
 
@@ -154,6 +160,15 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
 
     const ext = (normaliseFileType(row.file_type) ?? ".bin").slice(1);
 
+    /* THE BUCKET CHECKS THE MIME TYPE, AND THE CDN'S HEADER IS NOT RELIABLE.
+       `fetchSm8AttachmentFile` takes the content-type off the download
+       response and falls back to `application/octet-stream` when there isn't
+       one — and `octet-stream` is in no bucket's allowlist, so a header-less
+       response was rejected at upload and reported as a full disk. Our own
+       extension is the better witness: it is what decided the file was
+       cacheable in the first place. */
+    const mime = mimeForExt(ext) ?? file.contentType;
+
     /* The path is named for the SERVICEM8 uuid, not for our row's id — which
        is what lets it be computed before the row exists. `documents_ref_check`
        requires `storage_ref LIKE 'org/%'`, so there is no writing a blank one
@@ -175,7 +190,7 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
              which is how the media read's cached-bytes join finds it */
           sm8_job_uuid: row.related_object_uuid,
           file_name: row.attachment_name?.trim() || `file.${ext}`,
-          mime_type: file.contentType,
+          mime_type: mime,
           size_bytes: file.bytes.byteLength,
           storage_ref: ref,
         },
@@ -195,13 +210,19 @@ async function cacheJobFilesInner(jobUuid: string): Promise<CacheJobFilesResult>
 
     const { error: upErr } = await supabaseAdmin.storage
       .from(DOCUMENTS_BUCKET)
-      .upload(ref, file.bytes, { contentType: file.contentType, upsert: true });
+      .upload(ref, file.bytes, { contentType: mime, upsert: true });
 
     if (upErr) {
-      /* The one failure worth naming out loud. Storage refusing a write is
-         almost always the plan's ceiling, and a silent stall here would look
-         exactly like "the photos just don't load". */
-      note = "Storage is full — photos can't be brought across until there's room.";
+      /* WHAT THE STORAGE ACTUALLY SAID, not what we assumed it meant. This
+         branch used to print "Storage is full" for EVERY upload failure and
+         log nothing — so nine `.avif` photos the bucket's allowlist didn't
+         name sent Isaac to Supabase to look at a disk holding 588MB. The
+         guess cost more than the silence would have.
+
+         The message is now read off the error, and the error is logged
+         either way, because the next cause of this will be a third thing. */
+      console.error(`[job-media] storage refused attachment ${row.uuid} (${mime}):`, upErr);
+      note = storageNote(upErr.message);
       break;
     }
 

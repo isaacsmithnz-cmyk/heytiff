@@ -241,6 +241,12 @@ export function JobSheet({
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
   const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
+  /* The refresh kick ANSWERED (words or not) — the one input to the summary
+     slot's skeleton that a render can't derive from what has landed. */
+  const [kickAnswered, setKickAnswered] = useState(false);
+  /* The files read ANSWERED — even empty-handed. `media` alone can't say:
+     a failed read leaves it null forever, exactly like one still in flight. */
+  const [filesAnswered, setFilesAnswered] = useState(false);
   const [name, setName] = useState("");
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -337,9 +343,18 @@ export function JobSheet({
   useEffect(() => {
     if (!cardId) return;
     let live = true;
-    void readJobFiles(cardId).then((m) => {
-      if (live) setMedia(m);
-    });
+    void readJobFiles(cardId)
+      .then((m) => {
+        if (live) {
+          setMedia(m);
+          setFilesAnswered(true);
+        }
+      })
+      .catch(() => {
+        /* an answered failure still ANSWERS — the summary slot's skeleton
+           must not wait on a derive that can no longer come */
+        if (live) setFilesAnswered(true);
+      });
     return () => {
       live = false;
     };
@@ -544,8 +559,32 @@ export function JobSheet({
       })
       .catch(() => {
         /* a summary that won't refresh keeps its stored words */
+      })
+      .finally(() => {
+        if (alive.current) setKickAnswered(true);
       });
   }, [cardId, detail, record, recordFailed, media, picklist, story]);
+
+  /* WHETHER THE SUMMARY SLOT STILL WAITS — derived at render, mirroring the
+     kick's own gates, because every branch but one is knowable from what has
+     already landed. The one fact a render can't derive is whether the kick
+     has answered; that is the only state (`kickAnswered`, set async above —
+     the compiler's no-sync-setState-in-effects rule is why this is not an
+     effect writing a `settled` flag). */
+  const summaryPending = (() => {
+    if (recordFailed || summary !== null) return false;
+    if (record === undefined) return true; // the record read is still out
+    if (record === null) return false; // landed empty — nothing is coming
+    if (media === null || picklist === null) {
+      /* companions still out — unless the files read answered EMPTY-HANDED,
+         which never unblocks the kick's gate (the picklist's catch lands
+         [], so null there always means "not yet") */
+      return !filesAnswered || picklist === null;
+    }
+    const stamp = storyStamp(story);
+    if (!stamp || record.summary?.stamp === stamp) return false; // nothing to derive
+    return !kickAnswered; // the kick is out — words or nothing, shortly
+  })();
 
   const makeProject = () => {
     setErr(null);
@@ -1028,7 +1067,13 @@ export function JobSheet({
 
           {panel(
             "summary",
-            <JobSummaryFace loading={loading} detail={detail} row={row} summary={summary} />
+            <JobSummaryFace
+              loading={loading}
+              detail={detail}
+              row={row}
+              summary={summary}
+              pending={summaryPending}
+            />
           )}
 
           {panel(

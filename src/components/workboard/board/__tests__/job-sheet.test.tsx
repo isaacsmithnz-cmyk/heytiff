@@ -442,6 +442,21 @@ describe("the Summary face", () => {
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
     expect(screen.queryByText("Where it’s up to")).toBeNull();
+    /* and the slot's skeleton RESOLVES AWAY — the default files read answers
+       empty-handed, so no derive is coming and holding the box would be a
+       promise the card can't keep */
+    await waitFor(() => expect(document.querySelector(".wb2-jcskel")).toBeNull());
+  });
+
+  it("holds a skeleton in the summary's slot while the record read is out", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    /* a record read that never answers — the slot must hold its ground,
+       shapes only, rather than popping the box in below the fold later */
+    readJobRecord.mockImplementationOnce(() => new Promise(() => {}));
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    expect(document.querySelector(".wb2-jcskel")).not.toBeNull();
+    expect(screen.queryByText("Where it’s up to")).toBeNull();
   });
 
   it("renders a contact's email as a mailto link, in Contacts", async () => {

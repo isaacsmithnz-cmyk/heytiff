@@ -7033,6 +7033,52 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3)
   .wb2-jcband .wb2-vtabs { overflow-x:auto; scrollbar-width:none; }
   .wb2-jcband .wb2-vtabs::-webkit-scrollbar { display:none; }
 }
+/* ── THE MAINTENANCE VISIT CARD (.mv) — the dress's second wearer ─────────
+   Same band, same tabs, same body: the visit sheet reuses the job card's
+   classes rather than copying them, because two dresses drift and one
+   doesn't. The few rules here are only where a WORKING card differs from a
+   reading one. */
+/* the Tiff button pins beside the ✕ the way the job card's ⋯ does, and the
+   identity row keeps clear of both */
+.wb2-jcband .tiffbtn-sheet { position:absolute; top:12px; right:52px; margin-left:0; }
+.wb2-sheet.mv .wb2-jcband .wb2-shtop, .wb2-sheet.pv .wb2-jcband .wb2-shtop { padding-right:84px; }
+/* a section head can carry its state chip or its one action at the right —
+   centred against the title, because a padded chip sat low on the baseline */
+.wb2-jcdhead .wb2-chip, .wb2-jcdhead .pbtn { margin-left:auto; align-self:center; }
+/* the footer band is a flex child here, not the grid's sticky last row —
+   the base sheet's negative margins would poke its padding 20px past the
+   frame (also squares up the job card's own naming row) */
+.wb2-sheet.jc > .wb2-shft { margin:0; position:static; }
+/* closing out recedes the BODY; the band stays crisp so you can still see
+   which visit you are closing */
+.wb2-sheet.jc .wb2-jcbody { transition:opacity .28s cubic-bezier(.4,0,.2,1), filter .28s cubic-bezier(.4,0,.2,1); }
+.wb2-sheet.closingout .wb2-jcbody { filter:blur(1.6px); opacity:.42; pointer-events:none; }
+/* the fact tiles were dressed for the old header's shoulder — inside a face
+   the face's own gap spaces them, and inside a section the head is closer */
+.wb2-sheet.mv .wb2-jcface > .wb2-facts, .wb2-sheet.pv .wb2-jcface > .wb2-facts { margin-top:0; }
+.wb2-sheet.mv .wb2-jcsec .wb2-facts, .wb2-sheet.pv .wb2-jcsec .wb2-facts { margin-top:8px; }
+.wb2-sheet.mv .wb2-jcsec .wb2-notetext, .wb2-sheet.pv .wb2-jcsec .wb2-notetext { margin-top:10px; }
+.wb2-sheet.mv .wb2-jcsec .wb2-noteact { margin-top:10px; }
+/* ── THE PROJECT CARD (.pv) — one site day per row, notes riding under ──
+   The date column is the row's spine; whatever hangs off the day (the
+   trip's notes, the close-out words, the offer to adopt a diary day) sits
+   in the date's shadow so the days stay scannable. */
+.wb2-pv { display:flex; flex-direction:column; border-top:1px solid var(--wb2-line2); }
+.wb2-pv:first-of-type { border-top:0; }
+.wb2-pv .wb2-mline, .wb2-pv button.wb2-mline { border-top:0; }
+.wb2-pvx { padding:0 0 9px 130px; display:flex; flex-direction:column; gap:5px; align-items:flex-start; }
+.wb2-pvnote { margin:0; font-size:12.5px; font-weight:500; color:var(--gray700); line-height:1.5;
+  text-wrap:pretty; }
+/* a pipeline row that opens the card instead of the route — same dress,
+   button bones */
+button.wb2-plrow { width:100%; text-align:left; font:inherit; cursor:pointer; }
+/* a past visit is a door — the row shape as a button, UA face stripped by
+   hand because the sheet portals outside `.fg` */
+button.wb2-mline { width:100%; font:inherit; color:inherit; text-align:left; background:none;
+  border:0; border-top:1px solid var(--wb2-line2); cursor:pointer; }
+button.wb2-mline:first-of-type { border-top:0; }
+button.wb2-mline:hover { background:rgba(0,168,224,.05); }
+button.wb2-mline:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3); border-radius:8px; }
 /* ── THE ATTENTION STRIP (slice 5) ──────────────────────────────────────
    Pinned in the band, under the identity and OVER the tabs, so it is on
    every face and behind no click. A white panel, because the band wears the

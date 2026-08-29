@@ -58,6 +58,7 @@ import {
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
+import { catTintVars } from "@/lib/workboard/card-tint";
 import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
 import type { ScheduleJobState } from "./schedule-tab";
@@ -148,26 +149,11 @@ export function telHref(raw: string | null | undefined): string | null {
   return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
 }
 
-/** The band's wash, crown and every echo of the job type's colour, as CSS
-    custom properties — the stylesheet holds the neutral fallbacks, so a job
-    with no category simply doesn't set these and the band stays grey.
-    ServiceM8's palette makes no contrast promise, which is why every alpha
-    here is fixed and low: the colour is atmosphere, never text ground. */
-export function catTintVars(colour: string | null | undefined): React.CSSProperties | undefined {
-  const m = /^#?([0-9a-f]{6})$/i.exec(colour ?? "");
-  if (!m) return undefined;
-  const n = parseInt(m[1], 16);
-  const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-  const a = (alpha: number) => `rgba(${rgb},${alpha})`;
-  return {
-    "--jc-band-a": a(0.18),
-    "--jc-band-b": a(0.1),
-    "--jc-crown": a(0.55),
-    "--jc-soft": a(0.35),
-    "--jc-a05": a(0.05),
-    "--jc-a025": a(0.025),
-  } as React.CSSProperties;
-}
+/* The band's wash moved to lib/workboard/card-tint.ts the day the visit
+   sheet became the dress's second wearer — importing this sheet for a pure
+   helper would have dragged its server actions into that suite. Re-exported
+   so existing importers keep their door. */
+export { catTintVars };
 
 export function JobSheet({
   row,

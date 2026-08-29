@@ -215,6 +215,22 @@ export function MaintenanceBoard({
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
 
+  /* The open visit's History face — this agreement's OTHER closed-out rows,
+     from the done window the board already loaded. No new query: the card
+     reads what the Completed tab reads. */
+  const sheetHistory = useMemo(
+    () =>
+      sheetVisit
+        ? data.visits.filter(
+            (v) =>
+              v.agreementId === sheetVisit.agreementId &&
+              v.status === "done" &&
+              v.id !== sheetVisit.id
+          )
+        : [],
+    [data.visits, sheetVisit]
+  );
+
   const sheetAgreement = agreementId
     ? data.agreements.find((a) => a.id === agreementId) ?? null
     : null;
@@ -352,7 +368,19 @@ export function MaintenanceBoard({
           tagPool={data.tagPool}
           manage={manage}
           connected={connected}
+          history={sheetHistory}
+          lastDone={
+            data.agreements.find((a) => a.id === sheetVisit.agreementId)?.lastDone ?? null
+          }
           startClosing={sheet?.closeOut ?? false}
+          onOpenAgreement={(id) => {
+            /* One sheet at a time — the agreement replaces the visit, the
+               way the job card's tracked chip swaps boards rather than
+               stacking cards. */
+            setSheet(null);
+            setAgreementId(id);
+          }}
+          onOpenVisit={(id) => openSheet(id)}
           onToast={toast}
           onClose={() => setSheet(null)}
         />

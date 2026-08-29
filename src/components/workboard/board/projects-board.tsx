@@ -11,6 +11,7 @@ import { PipelineTab } from "./pipeline-tab";
 import { ProjectCompletedTab } from "./project-completed-tab";
 import { CalendarTab } from "./calendar-tab";
 import { ProjectTripSheet } from "./project-trip-sheet";
+import { ProjectSheet } from "./project-sheet";
 import { ProjectDayModal } from "./project-day-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
 import { Sm8Chip, type Sm8Health } from "./sm8-chip";
@@ -69,6 +70,9 @@ export function ProjectsBoard({
 }) {
   const [tab, setTab] = useState<ProjectsTab>("urgent");
   const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
+  /* The project CARD — the job-card model on a project. A pipeline row opens
+     it; the full screen stays one chip-door away inside it. */
+  const [projectCard, setProjectCard] = useState<string | null>(null);
   const [dayISO, setDayISO] = useState<string | null>(null);
   const { toasts, toast, dismiss } = useBoardToasts();
 
@@ -210,7 +214,12 @@ export function ProjectsBoard({
             />
           )}
           {tab === "pipeline" && (
-            <PipelineTab projects={data.projects} today={today} manage={manage} />
+            <PipelineTab
+              projects={data.projects}
+              today={today}
+              manage={manage}
+              onOpenProject={(id) => setProjectCard(id)}
+            />
           )}
           {tab === "completed" && (
             <ProjectCompletedTab
@@ -247,6 +256,29 @@ export function ProjectsBoard({
           onClose={() => setDayISO(null)}
         />
       )}
+
+      {projectCard &&
+        (() => {
+          const project = data.projects.find((p) => p.id === projectCard);
+          if (!project) return null;
+          return (
+            <ProjectSheet
+              key={project.id}
+              project={project}
+              trips={data.visits.filter((v) => v.projectId === project.id)}
+              today={today}
+              manage={manage}
+              onOpenTrip={(id) => {
+                /* One sheet at a time — the trip replaces the card, the way
+                   the visit card swaps itself for the agreement. */
+                setProjectCard(null);
+                openSheet(id);
+              }}
+              onToast={toast}
+              onClose={() => setProjectCard(null)}
+            />
+          );
+        })()}
 
       {sheetVisit && (
         <ProjectTripSheet

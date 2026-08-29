@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
+import { ViewTabs, type ViewTab } from "@/components/shell/view-tabs";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
   isWeekendISO,
@@ -16,6 +17,8 @@ import { fromLines, linesEqual, toLines } from "@/lib/workboard/note-lines";
 import { NoteToken } from "@/components/notes/note-token";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { TiffButton } from "@/components/notes/tiff-button";
+import { catTintVars } from "@/lib/workboard/card-tint";
+import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import {
   assignVisitTech,
   clearVisitPlacement,
@@ -38,7 +41,7 @@ import { TagStrip } from "./tag-strip";
 import type { TagTone } from "@/lib/workboard/tags";
 import {
   agoLabel,
-  cadencePhrase,
+  cadenceLabel,
   crewLabel,
   gatesOf,
   hoursLabel,
@@ -48,18 +51,36 @@ import {
 } from "./derive";
 import { DateField } from "@/components/ui/date-field";
 
-/* The visit sheet — the editing heart (audit step 2's brief, built whole):
-   gates WITHOUT auto-assign (A12: the Crew gate has no tick — it derives
-   from assignment, and assignment happens here by name), the day picker
-   with the deliberate-weekend choice (B9) and the due/booked mismatch said
-   out loud (K4), technician select, the packing list ticking off as the van
-   loads (B14's chip finally renders), tags wearing their stored colours,
-   notes, and the close-out K1 demanded — date it ran, ACTUAL hours, the
-   technician's note. Completing tops the horizon up so the next visit
-   exists the moment this one is history.
+/* The visit sheet — the editing heart of the maintenance board, wearing the
+   job card's dress.
+
+   A CARD OF TABS, cut from the job card (Isaac, 2026-08-29: "create a
+   maintenance one … from that card"): the tinted band up top — the
+   agreement category's accent as a wash with the 3px crown, the visit's own
+   number and name, the chips — then the folder tabs, then the white body.
+   The chrome is the job card's VERBATIM (`.wb2-jcband / .wb2-vtabs /
+   .wb2-jcbody / .wb2-jcdhead` — same classes, not lookalikes), because two
+   dresses drift and one doesn't.
+
+   THREE FACES, because that is what a visit honestly holds:
+   Visit    — the work: the facts, the three gates (packing rides inside
+              Equipment, as walked), and the day it lands on.
+   Notes    — the visit's own written record, and the agreement's tags.
+   History  — what happened the last times this agreement ran: the board's
+              own done rows, previously unreachable from this card.
+
+   WHAT DID NOT CHANGE IS THE POINT. Gates without auto-assign (A12: the
+   Crew gate has no tick — it derives from assignment), the day picker with
+   the deliberate-weekend choice (B9) and the due/booked mismatch said out
+   loud (K4), the packing list ticking off as the van loads, notes reading
+   by default and editing as a mode, and the close-out K1 demanded — all of
+   it verbatim, in the footer band where it always was. Only the room the
+   work happens in got the new walls.
 
    Portals to <body>: the page-transition wrapper's will-change breaks
    position:fixed (the house modal rule). The board behind stays put. */
+
+type TabKey = "visit" | "notes" | "history";
 
 export function VisitSheet({
   visit,
@@ -69,7 +90,11 @@ export function VisitSheet({
   tagPool,
   manage,
   connected,
+  history = [],
+  lastDone = null,
   startClosing = false,
+  onOpenAgreement,
+  onOpenVisit,
   onToast,
   onClose,
 }: {
@@ -80,14 +105,25 @@ export function VisitSheet({
   tagPool: BoardTag[];
   manage: boolean;
   connected: boolean;
+  /** This agreement's OTHER closed-out visits, from the board's own done
+      window — the History face. The board filters; the sheet only sorts. */
+  history?: BoardVisit[];
+  /** When this agreement last ran, from the agreement's own uncapped query —
+      an annual service's answer is always outside the board's done window. */
+  lastDone?: string | null;
   /** Arriving from an Urgent "Close it out" opens straight onto the form. */
   startClosing?: boolean;
+  /** Opens the service agreement behind this visit — the band's chip door. */
+  onOpenAgreement?: (agreementId: string) => void;
+  /** Opens another visit of this agreement — a History row is a door. */
+  onOpenVisit?: (visitId: string) => void;
   onToast: (message: string, undo?: () => void | Promise<void>) => void;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("visit");
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
   const [pendingDay, setPendingDay] = useState<string>("");
   const [closing, setClosing] = useState(startClosing);
@@ -187,6 +223,15 @@ export function VisitSheet({
     () => staff.filter((s) => !visit.techs.some((t) => t.id === s.id)),
     [staff, visit.techs]
   );
+  /* Newest first — a history reads backwards. Sorted here so the board can
+     hand over its rows unordered. */
+  const pastVisits = useMemo(
+    () =>
+      [...history].sort((a, b) =>
+        (b.completedAt ?? b.dueDate).localeCompare(a.completedAt ?? a.dueDate)
+      ),
+    [history]
+  );
 
   const toneChip = (() => {
     if (visit.status === "done") return <span className="wb2-chip ok">Completed</span>;
@@ -196,6 +241,11 @@ export function VisitSheet({
     if (tone === "go") return <span className="wb2-chip ok">Ready to run</span>;
     return <span className={"wb2-chip" + (tone === "flash" ? " dan" : tone === "soon" ? " warn" : "")}>{rel.t}</span>;
   })();
+
+  /* The linked ServiceM8 job's chip is a DOOR when the mirror knows its
+     uuid — the shape the job card's chips settled. The builder refuses a
+     non-uuid, so a fixture's "j-1" quietly stays a plain chip. */
+  const sm8Href = visit.remoteId ? sm8JobUrl(visit.remoteId) : null;
 
   const place = (day: string) => {
     const from = visit.bookedDate;
@@ -324,582 +374,692 @@ export function VisitSheet({
     </div>
   );
 
+  /* THE TAB SET IS FIXED FROM FIRST PAINT — every face exists for every
+     visit, so the thumb never jumps as reads land. No counts on the tabs
+     (the job card's law); each face says its own counts inside. */
+  const tabs: ViewTab[] = [
+    { key: "visit", label: "Visit" },
+    { key: "notes", label: "Notes" },
+    { key: "history", label: "History" },
+  ];
+
+  const panel = (key: TabKey, body: React.ReactNode) => (
+    <section
+      className="wb2-jcface"
+      id={`mvsec-${key}`}
+      role="tabpanel"
+      aria-labelledby={`mvtab-${key}`}
+      hidden={tab !== key}
+    >
+      {body}
+    </section>
+  );
+
   return createPortal(
     <>
       <div className="wb2-scrim" onClick={onClose} />
-      {/* `closingout` recedes everything above the footer — Isaac asked for
+      {/* `closingout` recedes the body under the footer — Isaac asked for
           "a bit more separation between the close it out card and the
-          remainder of the card". Closing out is a one-thing-at-a-time act. */}
+          remainder of the card". Closing out is a one-thing-at-a-time act;
+          the band stays crisp so you can still see WHICH visit it is. */}
       <aside
-        className={"wb2-sheet" + (closing ? " closingout" : "")}
+        className={"wb2-sheet jc mv" + (closing ? " closingout" : "")}
         role="dialog"
         aria-modal="true"
         aria-label={`${visit.clientName} — ${visit.label}`}
+        style={catTintVars(visit.category?.accent)}
       >
-        {/* The strip says WHAT THIS IS in the words you'd use on the phone:
-            the number, then the name you gave the job. It used to lead with
-            a "Service visit" chip and hold the name a band lower, which
-            meant the first line of the job card was the one thing about it
-            that never varies. Chips keep their place beside it. */}
-        <div className="wb2-shtop">
-          <span className="wb2-shno">{visit.jobNo !== null ? `#${visit.jobNo}` : "—"}</span>
-          <h2 className="wb2-shname">{visit.label}</h2>
-          <span className="wb2-shchips">
-            <span className="wb2-chip blue">Service visit</span>
-            {toneChip}
-            {visit.jobNumber ? (
-              <span className="wb2-chip" title="The job's number in ServiceM8">
-                SM8 #{visit.jobNumber}
+        <div className="wb2-jcband">
+          <div className="wb2-shtop">
+            {/* OUR number first, then the name you gave the service — the two
+                things you'd say on the phone (#258's law, kept through the
+                move onto the band). The client and site ride underneath, the
+                way the job card carries its address. */}
+            <span className="wb2-shno">{visit.jobNo !== null ? `#${visit.jobNo}` : "—"}</span>
+            <span className="wb2-jcid">
+              <h2 className="wb2-shname">{visit.label}</h2>
+              <p className="wb2-jcaddr">
+                {visit.clientName}
+                {visit.siteLabel ? ` · ${visit.siteLabel}` : ""}
+              </p>
+            </span>
+            <span className="wb2-shchips">
+              {toneChip}
+              <span className="wb2-chip" title="How often this service comes round">
+                {cadenceLabel(visit.intervalMonths)}
               </span>
-            ) : (
-              /* Only worth saying when there's a ServiceM8 to raise it in.
-                 Standalone, an agreement visit having no SM8 job is the
-                 normal case and not news. */
-              connected &&
-              open && (
-                <span className="wb2-chip" title="Nothing for it in ServiceM8 yet">
-                  No ServiceM8 job
+              {visit.category && (
+                <span className="wb2-chip">
+                  <i className="wb2-catdot" style={{ background: visit.category.accent }} aria-hidden />
+                  {visit.category.name}
                 </span>
-              )
-            )}
-            {visit.warn && <span className="wb2-chip dan">Went sideways in ServiceM8</span>}
-          </span>
-          {/* ON THE SHEET, because nothing outside its scrim can be clicked
-              — the topbar's button is unreachable the moment this opens, and
-              the context tag could never do the one job it exists for. The
-              sheet already says what it is about (below), so this arrives
-              pointed at the right thing without being told. */}
-          <TiffButton where="sheet" />
-          <button
-            ref={closeRef}
-            className="wb2-ico"
-            onClick={onClose}
-            title="Close"
-            aria-label="Close"
-          >
-            <Icon name="x" size={14} />
-          </button>
-        </div>
-
-        <div className="wb2-shhd">
-          <p>
-            {visit.clientName}
-            {visit.siteLabel ? ` · ${visit.siteLabel}` : ""}
-          </p>
-          <div className="wb2-facts">
-            <div>
-              <span className="wb2-sect">Due</span>
-              <b>{fmtAuWeekdayDayMonth(visit.dueDate)}</b>
-              <em className={rel.tone === "dan" ? "dan" : undefined}>{rel.t}</em>
-            </div>
-            {/* The two estimates live on the AGREEMENT — how long one visit of
-                this service takes and how many people it takes, both answered
-                when the agreement was written. They used to show as one tile
-                called "On site", which named neither: it read as a fact about
-                THIS visit rather than the service. Isaac, 2026-08-04: "it says
-                on site as well, we need to change that to estimated service
-                time, and we'll also have estimated crew size — two fields you
-                enter when creating the service agreement." Changing either one
-                changes it where it lives, for every visit. */}
-            <div>
-              <span className="wb2-sect">Estimated service time</span>
-              {hoursOpen ? (
-                <div className="wb2-inline">
-                  <input
-                    type="number"
-                    className="wb2-fi"
-                    min={0.5}
-                    max={24}
-                    step={0.5}
-                    autoFocus
-                    aria-label="Hours a visit takes"
-                    value={estText}
-                    onChange={(e) => setEstText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        saveEstimate();
-                      }
-                      if (e.key === "Escape") cancelEstimate();
-                    }}
-                  />
-                  <button className="wb2-addgo" disabled={busy} title="Save it" aria-label="Save the estimate" onClick={saveEstimate}>
-                    <Icon name="check" size={13} />
-                  </button>
-                </div>
+              )}
+              {/* THE AGREEMENT IS A CHIP DOOR — the shape the job card's
+                  tracked chip proved. This card never had a route to the
+                  agreement standing behind it; now the standing service is
+                  one click sideways. */}
+              {onOpenAgreement && (
+                <button
+                  className="wb2-chip blue"
+                  onClick={() => onOpenAgreement(visit.agreementId)}
+                  title="Open the service agreement behind this visit"
+                >
+                  Service agreement
+                  <i className="wb2-shcar" aria-hidden>
+                    ›
+                  </i>
+                </button>
+              )}
+              {visit.jobNumber ? (
+                sm8Href ? (
+                  <a
+                    className="wb2-chip door"
+                    href={sm8Href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="ServiceM8 raised this job — opens it over there"
+                  >
+                    {`SM8 #${visit.jobNumber}`}
+                    <Icon name="arrowUR" size={12} />
+                  </a>
+                ) : (
+                  <span className="wb2-chip" title="The job's number in ServiceM8">
+                    SM8 #{visit.jobNumber}
+                  </span>
+                )
               ) : (
-                <b>{visit.hoursEstimate !== null ? hoursLabel(visit.hoursEstimate) : "Not estimated"}</b>
+                /* Only worth saying when there's a ServiceM8 to raise it in.
+                   Standalone, an agreement visit having no SM8 job is the
+                   normal case and not news. */
+                connected &&
+                open && (
+                  <span className="wb2-chip" title="Nothing for it in ServiceM8 yet">
+                    No ServiceM8 job
+                  </span>
+                )
               )}
-              {!hoursOpen &&
-                (manage ? (
-                  <button
-                    className="wb2-colink"
-                    aria-label="Change the estimated service time"
-                    onClick={() => setHoursOpen(true)}
-                  >
-                    every visit of this agreement · change
-                  </button>
-                ) : (
-                  <em>every visit of this agreement</em>
-                ))}
-            </div>
-            <div>
-              <span className="wb2-sect">Estimated crew size</span>
-              {crewOpen ? (
-                <div className="wb2-inline">
-                  <select
-                    className="wb2-sel"
-                    autoFocus
-                    disabled={busy}
-                    aria-label="Technicians a visit takes"
-                    value={visit.techsNeeded}
-                    onChange={(e) => saveCrew(Number(e.target.value))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") setCrewOpen(false);
-                    }}
-                  >
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
-                      <option key={n} value={n}>
-                        {crewLabel(n)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <b>{crewLabel(visit.techsNeeded)}</b>
-              )}
-              {!crewOpen &&
-                (manage ? (
-                  <button
-                    className="wb2-colink"
-                    aria-label="Change the estimated crew size"
-                    onClick={() => setCrewOpen(true)}
-                  >
-                    every visit of this agreement · change
-                  </button>
-                ) : (
-                  <em>every visit of this agreement</em>
-                ))}
-            </div>
-          </div>
-        </div>
-
-        {err && <p className="wb2-sherr">{err}</p>}
-
-        {open && !isQuote && (
-          <div className="wb2-shsect">
-            <div className="wb2-shsh">
-              <span className="wb2-sect">Ready to run</span>
-              <span className={"wb2-chip" + (missing.length ? " warn" : " ok")}>
-                {missing.length
-                  ? `${3 - missing.length} of 3 · waiting on ${missing
-                      .map((g) => (g === "equipment" ? "equipment" : g === "access" ? "access" : "crew"))
-                      .join(", ")}`
-                  : "All three confirmed"}
-              </span>
-            </div>
-            <div className="wb2-gates">
-              {gateRow(
-                0,
-                "Equipment ready",
-                "--wb2-eq",
-                gates.equipment,
-                () => run(() => setVisitReadiness(visit.id, "equipment_ready", !gates.equipment)),
-                gates.equipment ? "Confirmed" : "Not yet",
-                <>
-                  {visit.packing.length > 0 && (
-                    <div className="wb2-shsh sub">
-                      <span className="wb2-sect">To bring</span>
-                      <span className={"wb2-chip" + (packedCount === visit.packing.length ? " ok" : "")}>
-                        {packedCount} of {visit.packing.length} packed
-                      </span>
-                    </div>
-                  )}
-                  <div className="wb2-pklist">
-                    {visit.packing.map((p) => {
-                      const isPacked = visit.packedIds.includes(p.id);
-                      return (
-                        <div className={"wb2-pk" + (isPacked ? " on" : "")} key={p.id}>
-                          <button
-                            className="wb2-bx"
-                            disabled={busy}
-                            aria-label={isPacked ? `${p.label} — packed` : `Mark ${p.label} packed`}
-                            onClick={() => run(() => setVisitPacked(visit.id, p.id, !isPacked))}
-                          >
-                            <Icon name="check" size={11} />
-                          </button>
-                          <span className="wb2-pkl">{p.label}</span>
-                          {manage && (
-                            <button
-                              className="wb2-pkx"
-                              disabled={busy}
-                              title="Remove from the list"
-                              aria-label={`Remove ${p.label}`}
-                              onClick={() => run(() => removePackingItem(p.id))}
-                            >
-                              <Icon name="x" size={11} />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {visit.packing.length === 0 && (
-                      <p className="wb2-hint">Nothing on the packing list for this agreement yet.</p>
-                    )}
-                    {manage && <AddPackRow busy={busy} onAdd={(label) => run(() => addPackingItem(visit.agreementId, label))} />}
-                  </div>
-                </>
-              )}
-              {gateRow(
-                1,
-                "Access confirmed",
-                "--wb2-acc",
-                gates.access,
-                () => run(() => setVisitReadiness(visit.id, "access_confirmed", !gates.access)),
-                gates.access ? "Confirmed" : "Not yet",
-                <ul className="wb2-ul">
-                  <li>
-                    {gates.access
-                      ? `${visit.clientName} knows about this visit`
-                      : `${visit.clientName} hasn't been told yet — one phone call covers telling them and getting in`}
-                  </li>
-                  {visit.accessNotes ? <li>{visit.accessNotes}</li> : <li>No access notes on the agreement.</li>}
-                  <li>{bookedDay ? `Booked for ${fmtAuWeekdayDayMonth(bookedDay)}` : "No day booked yet"}</li>
-                </ul>
-              )}
-              {gateRow(
-                2,
-                "Crew assigned",
-                "--wb2-crew",
-                gates.crew,
-                null,
-                visit.techs.length
-                  ? `${visit.techs.length} of ${visit.techsNeeded}`
-                  : "Nobody yet",
-                <div className="wb2-crew">
-                  {visit.techs.map((t) => (
-                    <div className="wb2-crewrow" key={t.id}>
-                      <span className="wb2-av" aria-hidden="true">{initialsOf(t.name)}</span>
-                      <b>{t.name}</b>
-                      {manage && (
-                        <button
-                          className="wb2-pkx show"
-                          disabled={busy}
-                          title="Take them off this visit"
-                          aria-label={`Unassign ${t.name}`}
-                          onClick={() => run(() => unassignVisitTech(visit.id, t.id))}
-                        >
-                          <Icon name="x" size={11} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {manage && unassigned.length > 0 && (
-                    <select
-                      className="wb2-sel"
-                      disabled={busy}
-                      value=""
-                      aria-label="Assign a technician"
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        if (id) run(() => assignVisitTech(visit.id, id));
-                      }}
-                    >
-                      <option value="">
-                        {visit.techs.length ? "Add another…" : "Nobody yet — pick one"}
-                      </option>
-                      {unassigned.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {visit.techsNeeded > 1 && (
-                    <p className="wb2-hint">
-                      The agreement estimates {crewLabel(visit.techsNeeded)}.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ONE section for when this job happens. There used to be two: a
-            "Day" tile up in the facts saying the date, and a "Day" card down
-            here to change it — the same fact said twice, in two different
-            vocabularies, and neither of them said "scheduled". Isaac,
-            2026-08-03: "surely we can just have a scheduled section… and just
-            incorporate it all to one." */}
-        <div className="wb2-shsect">
-          <div className="wb2-shsh">
-            <span className="wb2-sect">Scheduled</span>
-            {open && !isQuote && manage && visit.bookedDate && (
-              <button
-                className="pbtn ghost"
-                disabled={busy}
-                onClick={() => run(() => clearVisitPlacement(visit.id))}
-              >
-                Unschedule it
-              </button>
-            )}
+              {visit.warn && <span className="wb2-chip dan">Went sideways in ServiceM8</span>}
+            </span>
+            {/* ON THE SHEET, because nothing outside its scrim can be clicked
+                — the topbar's button is unreachable the moment this opens.
+                Pinned beside the ✕ the way the job card pins its ⋯. */}
+            <TiffButton where="sheet" />
+            <button
+              ref={closeRef}
+              className="wb2-ico"
+              onClick={onClose}
+              title="Close"
+              aria-label="Close"
+            >
+              <Icon name="x" size={14} />
+            </button>
           </div>
 
-          <div className="wb2-sched">
-            <b className={bookedDay ? undefined : "none"}>
-              {bookedDay ? fmtAuWeekdayDayMonth(bookedDay) : "No visit scheduled"}
-            </b>
-            <em className={mismatch?.late ? "dan" : undefined}>
-              {bookedDay
-                ? mismatch?.late
-                  ? `${mismatch.daysAfterDue} ${mismatch.daysAfterDue === 1 ? "day" : "days"} after it was due`
-                  : visit.bookedDate
-                    ? "placed on the board"
-                    : "from the ServiceM8 diary"
-                : `Due ${fmtAuWeekdayDayMonth(visit.dueDate)} — putting it on a day is what confirms the time`}
-            </em>
-          </div>
-
-          {open && !isQuote && manage && (
-            <>
-              <div className="wb2-dayrow">
-                <DateField
-                  className="wb2-fi"
-                  aria-label={bookedDay ? "Move it to another day" : "Pick a day"}
-                  today={today}
-                  value={pendingDay || null}
-                  onChange={(iso) => setPendingDay(iso ?? "")}
-                />
-                {pendingDay && isWeekendISO(pendingDay) ? (
-                  <>
-                    <button
-                      className="pbtn"
-                      disabled={busy}
-                      onClick={() => {
-                        const day = rollToBusinessDay(pendingDay);
-                        setPendingDay("");
-                        place(day);
-                      }}
-                    >
-                      Roll to {fmtAuWeekdayDayMonth(rollToBusinessDay(pendingDay))}
-                    </button>
-                    <button
-                      className="pbtn ghost"
-                      disabled={busy}
-                      onClick={() => {
-                        const day = pendingDay;
-                        setPendingDay("");
-                        place(day);
-                      }}
-                    >
-                      Keep the {new Date(`${pendingDay}T12:00:00Z`).getUTCDay() === 6 ? "Saturday" : "Sunday"}
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="pbtn"
-                    disabled={busy || !pendingDay}
-                    onClick={() => {
-                      const day = pendingDay;
-                      setPendingDay("");
-                      place(day);
-                    }}
-                  >
-                    {visit.bookedDate ? "Move it" : "Schedule it"}
-                  </button>
-                )}
-              </div>
-              <p className="wb2-hint">Comes round {cadencePhrase(visit.intervalMonths)}.</p>
-            </>
-          )}
-        </div>
-
-        <div className="wb2-shsect">
-          <div className="wb2-shsh">
-            <span className="wb2-sect">Tags</span>
-            <span className="wb2-chip">{visit.tags.length || "none"}</span>
-          </div>
-          <TagStrip
-            tags={visit.tags}
-            pool={tagPool}
-            manage={manage}
-            busy={busy}
-            hint="Tags live on the agreement — every visit of it wears them."
-            onAdd={addTag}
-            onPick={(tagId) => run(() => tagAgreement(visit.agreementId, tagId))}
-            onRemove={(tagId) => run(() => untagAgreement(visit.agreementId, tagId))}
+          <ViewTabs
+            items={tabs}
+            active={tab}
+            onGo={(key) => setTab(key as TabKey)}
+            ariaLabel="Visit card"
+            idPrefix="mvtab"
+            panelPrefix="mvsec"
           />
         </div>
 
-        <div className="wb2-shsect">
-          <div className="wb2-shsh">
-            <span className="wb2-sect">Notes for the visit</span>
-          </div>
-          {/* One note per line, because that's how they're actually said —
-              "gate code is 4821", "ask for Dave", "roof ladder won't reach".
-              A paragraph made you read all three to find one. Storage didn't
-              change: a line IS a bullet, see lib/workboard/note-lines.
+        <div className="wb2-jcbody">
+          {err && <p className="wb2-sherr">{err}</p>}
 
-              READING is the resting state. The rows used to be single-line
-              inputs that clipped anything longer than the column, so a note
-              you couldn't finish reading was a note you'd typed. Now the
-              stored lines wrap in full, and the two things you might want —
-              one more note, or a go at the lot — are two buttons. */}
-          {manage && notesEditing ? (
+          {panel(
+            "visit",
             <>
-              {noteLines.length > 0 && (
-                <ul className="wb2-blist">
-                  {noteLines.map((line, i) => (
-                    <li key={i}>
-                      <span className="wb2-bdot" aria-hidden="true" />
-                      <NoteRow
-                        value={line}
-                        index={i}
-                        onChange={(next) => {
-                          const rows = [...noteLines];
-                          rows[i] = next;
-                          setNoteLines(rows);
+              <div className="wb2-facts">
+                <div>
+                  <span className="wb2-sect">Due</span>
+                  <b>{fmtAuWeekdayDayMonth(visit.dueDate)}</b>
+                  {/* Urgency is for a visit still on the table. A completed
+                      visit's "86 days over" is history shouted as an alarm —
+                      the Closed out section says what actually happened. */}
+                  {open && <em className={rel.tone === "dan" ? "dan" : undefined}>{rel.t}</em>}
+                </div>
+                {/* The two estimates live on the AGREEMENT — how long one
+                    visit of this service takes and how many people it takes,
+                    both answered when the agreement was written. Isaac,
+                    2026-08-04: "estimated service time, and we'll also have
+                    estimated crew size". Changing either one changes it where
+                    it lives, for every visit. */}
+                <div>
+                  <span className="wb2-sect">Estimated service time</span>
+                  {hoursOpen ? (
+                    <div className="wb2-inline">
+                      <input
+                        type="number"
+                        className="wb2-fi"
+                        min={0.5}
+                        max={24}
+                        step={0.5}
+                        autoFocus
+                        aria-label="Hours a visit takes"
+                        value={estText}
+                        onChange={(e) => setEstText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            saveEstimate();
+                          }
+                          if (e.key === "Escape") cancelEstimate();
                         }}
-                        onBlank={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
                       />
-                      <button
-                        className="wb2-pkx"
-                        title="Take it off"
-                        aria-label={`Remove note ${i + 1}`}
-                        onClick={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
-                      >
-                        <Icon name="x" size={11} />
+                      <button className="wb2-addgo" disabled={busy} title="Save it" aria-label="Save the estimate" onClick={saveEstimate}>
+                        <Icon name="check" size={13} />
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <NoteToken as="line"
-                label="a note for this visit"
-                value={noteDraft}
-                onChange={setNoteDraft}
-                onCommit={commitDraft}
-                placeholder={
-                  noteLines.length
-                    ? "Add another…"
-                    : "Gate codes, who to ask for, what to watch out for…"
-                }
-              />
-              <div className="wb2-noteact">
-                <button
-                  className="pbtn"
-                  disabled={busy || linesEqual(noteLines, savedNotes)}
-                  onClick={() => saveNotes(noteLines, () => setNotesEditing(false))}
-                >
-                  Save the notes
-                </button>
-                <button className="pbtn ghost" disabled={busy} onClick={cancelEditingNotes}>
-                  Cancel
-                </button>
+                    </div>
+                  ) : (
+                    <b>{visit.hoursEstimate !== null ? hoursLabel(visit.hoursEstimate) : "Not estimated"}</b>
+                  )}
+                  {!hoursOpen &&
+                    (manage ? (
+                      <button
+                        className="wb2-colink"
+                        aria-label="Change the estimated service time"
+                        onClick={() => setHoursOpen(true)}
+                      >
+                        every visit of this agreement · change
+                      </button>
+                    ) : (
+                      <em>every visit of this agreement</em>
+                    ))}
+                </div>
+                <div>
+                  <span className="wb2-sect">Estimated crew size</span>
+                  {crewOpen ? (
+                    <div className="wb2-inline">
+                      <select
+                        className="wb2-sel"
+                        autoFocus
+                        disabled={busy}
+                        aria-label="Technicians a visit takes"
+                        value={visit.techsNeeded}
+                        onChange={(e) => saveCrew(Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") setCrewOpen(false);
+                        }}
+                      >
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                          <option key={n} value={n}>
+                            {crewLabel(n)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <b>{crewLabel(visit.techsNeeded)}</b>
+                  )}
+                  {!crewOpen &&
+                    (manage ? (
+                      <button
+                        className="wb2-colink"
+                        aria-label="Change the estimated crew size"
+                        onClick={() => setCrewOpen(true)}
+                      >
+                        every visit of this agreement · change
+                      </button>
+                    ) : (
+                      <em>every visit of this agreement</em>
+                    ))}
+                </div>
               </div>
-            </>
-          ) : (
-            <>
-              {savedNotes.length > 0 ? (
-                <ul className="wb2-blist read">
-                  {savedNotes.map((line, i) => (
-                    <li key={i}>
-                      <span className="wb2-bdot" aria-hidden="true" />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                !manage && <p className="wb2-hint">No notes on this visit.</p>
+
+              {open && !isQuote && (
+                <div className="wb2-jcsec">
+                  <div className="wb2-jcdhead">
+                    <b>Ready to run</b>
+                    <span className={"wb2-chip" + (missing.length ? " warn" : " ok")}>
+                      {missing.length
+                        ? `${3 - missing.length} of 3 · waiting on ${missing
+                            .map((g) => (g === "equipment" ? "equipment" : g === "access" ? "access" : "crew"))
+                            .join(", ")}`
+                        : "All three confirmed"}
+                    </span>
+                  </div>
+                  <div className="wb2-gates">
+                    {gateRow(
+                      0,
+                      "Equipment ready",
+                      "--wb2-eq",
+                      gates.equipment,
+                      () => run(() => setVisitReadiness(visit.id, "equipment_ready", !gates.equipment)),
+                      gates.equipment ? "Confirmed" : "Not yet",
+                      <>
+                        {visit.packing.length > 0 && (
+                          <div className="wb2-shsh sub">
+                            <span className="wb2-sect">To bring</span>
+                            <span className={"wb2-chip" + (packedCount === visit.packing.length ? " ok" : "")}>
+                              {packedCount} of {visit.packing.length} packed
+                            </span>
+                          </div>
+                        )}
+                        <div className="wb2-pklist">
+                          {visit.packing.map((p) => {
+                            const isPacked = visit.packedIds.includes(p.id);
+                            return (
+                              <div className={"wb2-pk" + (isPacked ? " on" : "")} key={p.id}>
+                                <button
+                                  className="wb2-bx"
+                                  disabled={busy}
+                                  aria-label={isPacked ? `${p.label} — packed` : `Mark ${p.label} packed`}
+                                  onClick={() => run(() => setVisitPacked(visit.id, p.id, !isPacked))}
+                                >
+                                  <Icon name="check" size={11} />
+                                </button>
+                                <span className="wb2-pkl">{p.label}</span>
+                                {manage && (
+                                  <button
+                                    className="wb2-pkx"
+                                    disabled={busy}
+                                    title="Remove from the list"
+                                    aria-label={`Remove ${p.label}`}
+                                    onClick={() => run(() => removePackingItem(p.id))}
+                                  >
+                                    <Icon name="x" size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {visit.packing.length === 0 && (
+                            <p className="wb2-hint">Nothing on the packing list for this agreement yet.</p>
+                          )}
+                          {manage && <AddPackRow busy={busy} onAdd={(label) => run(() => addPackingItem(visit.agreementId, label))} />}
+                        </div>
+                      </>
+                    )}
+                    {gateRow(
+                      1,
+                      "Access confirmed",
+                      "--wb2-acc",
+                      gates.access,
+                      () => run(() => setVisitReadiness(visit.id, "access_confirmed", !gates.access)),
+                      gates.access ? "Confirmed" : "Not yet",
+                      <ul className="wb2-ul">
+                        <li>
+                          {gates.access
+                            ? `${visit.clientName} knows about this visit`
+                            : `${visit.clientName} hasn't been told yet — one phone call covers telling them and getting in`}
+                        </li>
+                        {visit.accessNotes ? <li>{visit.accessNotes}</li> : <li>No access notes on the agreement.</li>}
+                        <li>{bookedDay ? `Booked for ${fmtAuWeekdayDayMonth(bookedDay)}` : "No day booked yet"}</li>
+                      </ul>
+                    )}
+                    {gateRow(
+                      2,
+                      "Crew assigned",
+                      "--wb2-crew",
+                      gates.crew,
+                      null,
+                      visit.techs.length
+                        ? `${visit.techs.length} of ${visit.techsNeeded}`
+                        : "Nobody yet",
+                      <div className="wb2-crew">
+                        {visit.techs.map((t) => (
+                          <div className="wb2-crewrow" key={t.id}>
+                            <span className="wb2-av" aria-hidden="true">{initialsOf(t.name)}</span>
+                            <b>{t.name}</b>
+                            {manage && (
+                              <button
+                                className="wb2-pkx show"
+                                disabled={busy}
+                                title="Take them off this visit"
+                                aria-label={`Unassign ${t.name}`}
+                                onClick={() => run(() => unassignVisitTech(visit.id, t.id))}
+                              >
+                                <Icon name="x" size={11} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {manage && unassigned.length > 0 && (
+                          <select
+                            className="wb2-sel"
+                            disabled={busy}
+                            value=""
+                            aria-label="Assign a technician"
+                            onChange={(e) => {
+                              const id = e.target.value;
+                              if (id) run(() => assignVisitTech(visit.id, id));
+                            }}
+                          >
+                            <option value="">
+                              {visit.techs.length ? "Add another…" : "Nobody yet — pick one"}
+                            </option>
+                            {unassigned.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        {visit.techsNeeded > 1 && (
+                          <p className="wb2-hint">
+                            The agreement estimates {crewLabel(visit.techsNeeded)}.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
-              {manage && (
-                <>
-                  {/* Nothing written yet? Then there's nothing to read and the
-                      row you'd type into is the whole section. Once the first
-                      note is down, adding another is a button away. */}
-                  {(adding || savedNotes.length === 0) && (
+
+              {/* ONE section for when this job happens — the fact tile shape
+                  with the picker underneath (Isaac, 2026-08-03: "surely we
+                  can just have a scheduled section… and just incorporate it
+                  all to one"). */}
+              <div className="wb2-jcsec">
+                <div className="wb2-jcdhead">
+                  <b>Scheduled</b>
+                  {open && !isQuote && manage && visit.bookedDate && (
+                    <button
+                      className="pbtn ghost"
+                      disabled={busy}
+                      onClick={() => run(() => clearVisitPlacement(visit.id))}
+                    >
+                      Unschedule it
+                    </button>
+                  )}
+                </div>
+
+                <div className="wb2-sched">
+                  <b className={bookedDay ? undefined : "none"}>
+                    {bookedDay ? fmtAuWeekdayDayMonth(bookedDay) : "No visit scheduled"}
+                  </b>
+                  <em className={mismatch?.late ? "dan" : undefined}>
+                    {bookedDay
+                      ? mismatch?.late
+                        ? `${mismatch.daysAfterDue} ${mismatch.daysAfterDue === 1 ? "day" : "days"} after it was due`
+                        : visit.bookedDate
+                          ? "placed on the board"
+                          : "from the ServiceM8 diary"
+                      : `Due ${fmtAuWeekdayDayMonth(visit.dueDate)} — putting it on a day is what confirms the time`}
+                  </em>
+                </div>
+
+                {open && !isQuote && manage && (
+                  <div className="wb2-dayrow">
+                    <DateField
+                      className="wb2-fi"
+                      aria-label={bookedDay ? "Move it to another day" : "Pick a day"}
+                      today={today}
+                      value={pendingDay || null}
+                      onChange={(iso) => setPendingDay(iso ?? "")}
+                    />
+                    {pendingDay && isWeekendISO(pendingDay) ? (
+                      <>
+                        <button
+                          className="pbtn"
+                          disabled={busy}
+                          onClick={() => {
+                            const day = rollToBusinessDay(pendingDay);
+                            setPendingDay("");
+                            place(day);
+                          }}
+                        >
+                          Roll to {fmtAuWeekdayDayMonth(rollToBusinessDay(pendingDay))}
+                        </button>
+                        <button
+                          className="pbtn ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            const day = pendingDay;
+                            setPendingDay("");
+                            place(day);
+                          }}
+                        >
+                          Keep the {new Date(`${pendingDay}T12:00:00Z`).getUTCDay() === 6 ? "Saturday" : "Sunday"}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="pbtn"
+                        disabled={busy || !pendingDay}
+                        onClick={() => {
+                          const day = pendingDay;
+                          setPendingDay("");
+                          place(day);
+                        }}
+                      >
+                        {visit.bookedDate ? "Move it" : "Schedule it"}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {visit.status === "done" && (
+                <div className="wb2-jcsec">
+                  <div className="wb2-jcdhead">
+                    <b>Closed out</b>
+                    {visit.completedAt && <span className="wb2-chip ok">ran {agoLabel(visit.completedAt, today)}</span>}
+                  </div>
+                  <div className="wb2-facts">
+                    <div>
+                      <span className="wb2-sect">Ran on</span>
+                      <b>{visit.completedAt ? fmtAuWeekdayDayMonth(visit.completedAt) : "—"}</b>
+                      <em>{visit.completedSource === "servicem8" ? "closed from ServiceM8" : "closed manually"}</em>
+                    </div>
+                    <div>
+                      <span className="wb2-sect">On site</span>
+                      <b>{visit.actualHours !== null ? hoursLabel(visit.actualHours) : "—"}</b>
+                      <em>
+                        {visit.hoursEstimate !== null ? `booked ${hoursLabel(visit.hoursEstimate)}` : "actual"}
+                      </em>
+                    </div>
+                  </div>
+                  {visit.completionNote && <p className="wb2-notetext">{visit.completionNote}</p>}
+                  {manage && (
+                    <div className="wb2-noteact">
+                      <button className="pbtn ghost" disabled={busy} onClick={() => run(() => setVisitStatus(visit.id, "upcoming"))}>
+                        Reopen the visit
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {panel(
+            "notes",
+            <>
+              <div className="wb2-jcsec">
+                <div className="wb2-jcdhead">
+                  <b>Notes for the visit</b>
+                  {savedNotes.length > 0 && (
+                    <em>{savedNotes.length === 1 ? "One note" : `${savedNotes.length} notes`}</em>
+                  )}
+                </div>
+                {/* One note per line, because that's how they're actually said —
+                    "gate code is 4821", "ask for Dave", "roof ladder won't
+                    reach". Storage didn't change: a line IS a bullet, see
+                    lib/workboard/note-lines. READING is the resting state;
+                    editing is a mode you ask for. */}
+                {manage && notesEditing ? (
+                  <>
+                    {noteLines.length > 0 && (
+                      <ul className="wb2-blist">
+                        {noteLines.map((line, i) => (
+                          <li key={i}>
+                            <span className="wb2-bdot" aria-hidden="true" />
+                            <NoteRow
+                              value={line}
+                              index={i}
+                              onChange={(next) => {
+                                const rows = [...noteLines];
+                                rows[i] = next;
+                                setNoteLines(rows);
+                              }}
+                              onBlank={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
+                            />
+                            <button
+                              className="wb2-pkx"
+                              title="Take it off"
+                              aria-label={`Remove note ${i + 1}`}
+                              onClick={() => setNoteLines(noteLines.filter((_, j) => j !== i))}
+                            >
+                              <Icon name="x" size={11} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <NoteToken as="line"
                       label="a note for this visit"
                       value={noteDraft}
                       onChange={setNoteDraft}
                       onCommit={commitDraft}
-                      disabled={busy}
                       placeholder={
-                        savedNotes.length
+                        noteLines.length
                           ? "Add another…"
                           : "Gate codes, who to ask for, what to watch out for…"
                       }
                     />
-                  )}
-                  {/* "SORT THIS OUT" IS GONE, and its absence is the point.
-                      It existed because the box you typed notes into and the
-                      thing that could turn notes into tasks were different
-                      components, so a button had to carry text between them.
-                      The token does both, and offers the review itself when
-                      the words look like a job for somebody — see the sniff.
-                      A button asking you to decide whether your own sentence
-                      was interesting was always the wrong question. */}
-                  <div className="wb2-noteact">
-                    {savedNotes.length > 0 &&
-                      (adding ? (
-                        <button
-                          className="pbtn ghost"
-                          disabled={busy}
-                          onClick={() => {
-                            setAdding(false);
-                            setNoteDraft("");
-                          }}
-                        >
-                          Done adding
-                        </button>
-                      ) : (
-                        <button className="pbtn" disabled={busy} onClick={() => setAdding(true)}>
-                          <Icon name="plus" size={15} />
-                          Add note
-                        </button>
-                      ))}
-                    {savedNotes.length > 0 && (
-                      <button className="pbtn ghost" disabled={busy} onClick={startEditingNotes}>
-                        <Icon name="edit" size={15} />
-                        Edit notes
+                    <div className="wb2-noteact">
+                      <button
+                        className="pbtn"
+                        disabled={busy || linesEqual(noteLines, savedNotes)}
+                        onClick={() => saveNotes(noteLines, () => setNotesEditing(false))}
+                      >
+                        Save the notes
                       </button>
+                      <button className="pbtn ghost" disabled={busy} onClick={cancelEditingNotes}>
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {savedNotes.length > 0 ? (
+                      <ul className="wb2-blist read">
+                        {savedNotes.map((line, i) => (
+                          <li key={i}>
+                            <span className="wb2-bdot" aria-hidden="true" />
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      !manage && <p className="wb2-hint">No notes on this visit.</p>
                     )}
-                  </div>
-                </>
-              )}
+                    {manage && (
+                      <>
+                        {/* Nothing written yet? Then there's nothing to read and
+                            the row you'd type into is the whole section. Once the
+                            first note is down, adding another is a button away. */}
+                        {(adding || savedNotes.length === 0) && (
+                          <NoteToken as="line"
+                            label="a note for this visit"
+                            value={noteDraft}
+                            onChange={setNoteDraft}
+                            onCommit={commitDraft}
+                            disabled={busy}
+                            placeholder={
+                              savedNotes.length
+                                ? "Add another…"
+                                : "Gate codes, who to ask for, what to watch out for…"
+                            }
+                          />
+                        )}
+                        <div className="wb2-noteact">
+                          {savedNotes.length > 0 &&
+                            (adding ? (
+                              <button
+                                className="pbtn ghost"
+                                disabled={busy}
+                                onClick={() => {
+                                  setAdding(false);
+                                  setNoteDraft("");
+                                }}
+                              >
+                                Done adding
+                              </button>
+                            ) : (
+                              <button className="pbtn" disabled={busy} onClick={() => setAdding(true)}>
+                                <Icon name="plus" size={15} />
+                                Add note
+                              </button>
+                            ))}
+                          {savedNotes.length > 0 && (
+                            <button className="pbtn ghost" disabled={busy} onClick={startEditingNotes}>
+                              <Icon name="edit" size={15} />
+                              Edit notes
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="wb2-jcsec">
+                <div className="wb2-jcdhead">
+                  <b>Tags</b>
+                  <em>{visit.tags.length ? "On every visit of this agreement" : "None yet"}</em>
+                </div>
+                <TagStrip
+                  tags={visit.tags}
+                  pool={tagPool}
+                  manage={manage}
+                  busy={busy}
+                  onAdd={addTag}
+                  onPick={(tagId) => run(() => tagAgreement(visit.agreementId, tagId))}
+                  onRemove={(tagId) => run(() => untagAgreement(visit.agreementId, tagId))}
+                />
+              </div>
             </>
           )}
-        </div>
 
-        {visit.status === "done" && (
-          <div className="wb2-shsect">
-            <div className="wb2-shsh">
-              <span className="wb2-sect">Closed out</span>
-              {visit.completedAt && <span className="wb2-chip ok">ran {agoLabel(visit.completedAt, today)}</span>}
-            </div>
-            <div className="wb2-facts">
-              <div>
-                <span className="wb2-sect">Ran on</span>
-                <b>{visit.completedAt ? fmtAuWeekdayDayMonth(visit.completedAt) : "—"}</b>
-                <em>{visit.completedSource === "servicem8" ? "closed from ServiceM8" : "closed manually"}</em>
+          {panel(
+            "history",
+            <div className="wb2-jcsec">
+              <div className="wb2-jcdhead">
+                <b>Past visits</b>
+                {lastDone && <em>Last done {fmtAuWeekdayDayMonth(lastDone)}</em>}
               </div>
-              <div>
-                <span className="wb2-sect">On site</span>
-                <b>{visit.actualHours !== null ? hoursLabel(visit.actualHours) : "—"}</b>
-                <em>
-                  {visit.hoursEstimate !== null ? `booked ${hoursLabel(visit.hoursEstimate)}` : "actual"}
-                </em>
-              </div>
+              {pastVisits.length > 0 ? (
+                pastVisits.map((v) =>
+                  onOpenVisit ? (
+                    <button
+                      key={v.id}
+                      className="wb2-mline visit go"
+                      onClick={() => onOpenVisit(v.id)}
+                      title="Open that visit"
+                    >
+                      <b>{fmtAuWeekdayDayMonth(v.completedAt ?? v.dueDate)}</b>
+                      <em>
+                        {v.completionNote ??
+                          (v.completedSource === "servicem8" ? "Closed from ServiceM8" : "Closed manually")}
+                      </em>
+                      <span>{v.actualHours !== null ? hoursLabel(v.actualHours) : "—"}</span>
+                    </button>
+                  ) : (
+                    <div key={v.id} className="wb2-mline visit">
+                      <b>{fmtAuWeekdayDayMonth(v.completedAt ?? v.dueDate)}</b>
+                      <em>
+                        {v.completionNote ??
+                          (v.completedSource === "servicem8" ? "Closed from ServiceM8" : "Closed manually")}
+                      </em>
+                      <span>{v.actualHours !== null ? hoursLabel(v.actualHours) : "—"}</span>
+                    </div>
+                  )
+                )
+              ) : (
+                <p className="wb2-hint">
+                  {lastDone
+                    ? "Nothing closed out in the last 8 weeks."
+                    : "This agreement hasn't been serviced yet."}
+                </p>
+              )}
             </div>
-            {visit.completionNote && <p className="wb2-notetext">{visit.completionNote}</p>}
-            {manage && (
-              <button className="pbtn ghost" disabled={busy} onClick={() => run(() => setVisitStatus(visit.id, "upcoming"))}>
-                Reopen the visit
-              </button>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         {open && manage && (
           <div className={"wb2-shft" + (closing ? "" : " end")}>

@@ -7,6 +7,11 @@ import { can } from "@/lib/permissions-server";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { staffIdFor } from "@/lib/workboard/projects-query";
+import {
+  buildProjectDiary,
+  type DiaryActivityRow,
+  type ProjectDiaryDay,
+} from "@/lib/workboard/project-diary";
 import { createAgreement } from "./workboard-maintenance";
 
 /* Projects-side mutations for the redesigned board — the new tables from the
@@ -1112,4 +1117,127 @@ export async function carryVisitBringItems(
   await touchProject(ctx.orgId, from.project_id);
   refresh(from.project_id);
   return { ok: true };
+}
+
+/* ---------------- the project card's site diary ---------------- */
+
+export type ProjectDiaryRead =
+  | { ok: true; days: ProjectDiaryDay[] }
+  | { ok: false; error: string };
+
+/** The linked jobs' bookings and check-ins, grouped by day — the project
+    card reads ServiceM8's diary as visits (one card, many bookings, the
+    job-card model). Read-only: the mirror never takes a write, which is
+    exactly why a visit's NOTES live on our own trip rows instead. */
+export async function readProjectDiary(projectId: string): Promise<ProjectDiaryRead> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("workboard"))) {
+    return { ok: false, error: "You don't have access to the Workboard." };
+  }
+  const project = await projectIn(ctx.orgId, projectId);
+  if (!project) return { ok: false, error: "That project is no longer here." };
+
+  const { data: jobRows } = await supabaseAdmin
+    .from("project_jobs")
+    .select("remote_id")
+    .eq("org_id", ctx.orgId)
+    .eq("project_id", projectId)
+    .not("remote_id", "is", null);
+  const remoteIds = [
+    ...new Set(((jobRows ?? []) as { remote_id: string | null }[]).map((r) => r.remote_id)),
+  ].filter((v): v is string => !!v);
+  if (remoteIds.length === 0) return { ok: true, days: [] };
+
+  const { data: actRows, error } = await supabaseAdmin
+    .from("sm8_job_activities")
+    .select("start_date, end_date, staff_uuid, activity_was_scheduled")
+    .eq("org_id", ctx.orgId)
+    .eq("active", 1)
+    .in("job_uuid", remoteIds)
+    .order("start_date", { ascending: true });
+  if (error) return { ok: false, error: "Couldn't read the site diary." };
+  const acts = (actRows ?? []) as DiaryActivityRow[];
+
+  const staffIds = [...new Set(acts.map((a) => a.staff_uuid))].filter(
+    (v): v is string => !!v
+  );
+  const staff = new Map<string, { name: string; title: string | null }>();
+  if (staffIds.length > 0) {
+    const { data: staffRows } = await supabaseAdmin
+      .from("sm8_staff")
+      .select("uuid, first, last, job_title")
+      .eq("org_id", ctx.orgId)
+      .in("uuid", staffIds);
+    for (const s of (staffRows ?? []) as {
+      uuid: string;
+      first: string | null;
+      last: string | null;
+      job_title: string | null;
+    }[]) {
+      /* The account's own free text arrives with trailing spaces — trim,
+         the walked staff-titles law. */
+      const name = [s.first, s.last].filter(Boolean).join(" ").trim() || "Somebody";
+      staff.set(s.uuid, { name, title: (s.job_title ?? "").trim() || null });
+    }
+  }
+
+  return { ok: true, days: buildProjectDiary(acts, staff) };
+}
+
+/** A diary day BECOMES one of our trips the moment somebody wants to write
+    on it. Idempotent: a trip already living on that day is simply returned —
+    a double click, or a race with another reader, must not mint twins.
+
+    A PAST day is born DONE (it already happened; an open trip in the past
+    would ring the urgent queue for work that ran months ago), sourced
+    "servicem8" because the diary is what says it ran. Its hours stay NULL —
+    `completeVisit` is the only writer of actual_hours, and the mirror never
+    feeds it; the card still SHOWS the mirror's session minutes beside it. */
+export async function adoptProjectDiaryDay(
+  projectId: string,
+  day: string
+): Promise<ProjectsResult> {
+  const ctx = await context();
+  if (!ctx) return NOT_SIGNED_IN;
+  if (!(await can("workboard_manage"))) return NO_MANAGE;
+  const project = await projectIn(ctx.orgId, projectId);
+  if (!project) return GONE;
+  if (project.status === "done" || project.status === "archived") {
+    return { ok: false, error: "A finished project doesn't take new trips." };
+  }
+  const iso = isoDate(day);
+  if (!iso) return { ok: false, error: "That isn't a day." };
+
+  const { data: existing } = await supabaseAdmin
+    .from("maintenance_visits")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("project_id", projectId)
+    .or(`booked_date.eq.${iso},completed_at.eq.${iso}`)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { ok: true, id: (existing as { id: string }).id };
+
+  const today = todayInZone(await getSm8Timezone(ctx.orgId));
+  const past = iso < today;
+  const { data, error } = await supabaseAdmin
+    .from("maintenance_visits")
+    .insert({
+      org_id: ctx.orgId,
+      project_id: projectId,
+      label: "Site visit",
+      due_date: iso,
+      booked_date: iso,
+      status: past ? "done" : "booked",
+      completed_at: past ? iso : null,
+      completed_source: past ? "servicem8" : null,
+      readiness: {},
+    })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "Couldn't make that day a visit." };
+  await touchProject(ctx.orgId, projectId);
+  refresh(projectId);
+  return { ok: true, id: (data as { id: string }).id };
 }

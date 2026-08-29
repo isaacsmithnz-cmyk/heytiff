@@ -53,6 +53,8 @@ const pact = {
   carryVisitBringItems: jest.fn(async () => ({ ok: true })),
   deleteProjectVisit: jest.fn(async () => ({ ok: true })),
   setProjectVisitLabel: jest.fn(async () => ({ ok: true })),
+  readProjectDiary: jest.fn(async () => ({ ok: true, days: [] as unknown[] })),
+  adoptProjectDiaryDay: jest.fn(async () => ({ ok: true, id: "t-new" })),
 };
 jest.mock("@/app/actions/workboard-projects", () => ({
   addVisitBringItem: (...a: unknown[]) => pact.addVisitBringItem(...(a as [])),
@@ -61,6 +63,8 @@ jest.mock("@/app/actions/workboard-projects", () => ({
   carryVisitBringItems: (...a: unknown[]) => pact.carryVisitBringItems(...(a as [])),
   deleteProjectVisit: (...a: unknown[]) => pact.deleteProjectVisit(...(a as [])),
   setProjectVisitLabel: (...a: unknown[]) => pact.setProjectVisitLabel(...(a as [])),
+  readProjectDiary: (...a: unknown[]) => pact.readProjectDiary(...(a as [])),
+  adoptProjectDiaryDay: (...a: unknown[]) => pact.adoptProjectDiaryDay(...(a as [])),
 }));
 
 const setProjectStatus = jest.fn(async () => ({ ok: true }));
@@ -369,10 +373,14 @@ describe("pipeline", () => {
     expect(within(rows[0] as HTMLElement).getByText("Blocked on council")).toBeInTheDocument();
   });
 
-  it("each row links to its project page", async () => {
+  /* The row used to BE the route link; since the project card (2026-08-29)
+     it opens the card, and the route lives behind the card's own door. */
+  it("each row opens the project card, and the route lives inside it", async () => {
     mount(data());
     await toTab("Pipeline");
-    expect(screen.getByText("Bowden St ducted").closest("a")).toHaveAttribute(
+    await userEvent.click(screen.getByRole("button", { name: /Bowden St ducted/ }));
+    const card = within(screen.getByRole("dialog"));
+    expect(card.getByRole("link", { name: /Full project/ })).toHaveAttribute(
       "href",
       "/dashboard/workboard/projects/p-1"
     );
@@ -527,5 +535,91 @@ describe("the page's search slots", () => {
       openTarget: { kind: "trip", id: "v-1" },
     });
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("the project card — one card, every booking on it", () => {
+  const job279 = {
+    id: "pj-1",
+    jobNumber: "279",
+    role: "primary",
+    provider: "servicem8",
+    remoteId: "e4ba0fc4-2977-4962-b8d6-2147021fda7b",
+    mirrorStatus: "Work Order",
+    mirrorNextStart: null,
+  };
+
+  const openCard = async () => {
+    await toTab("Pipeline");
+    await userEvent.click(screen.getByRole("button", { name: /Bowden St ducted/ }));
+    return within(screen.getByRole("dialog"));
+  };
+
+  it("a pipeline row opens the card — the job card's tabs, the SM8 door, the full-project door", async () => {
+    mount(data({ projects: [projectFix({ id: "p-1", jobs: [job279] })] }));
+    const card = await openCard();
+    expect(card.getByRole("tab", { name: "Summary" })).toBeInTheDocument();
+    expect(card.getByRole("tab", { name: "Visits" })).toBeInTheDocument();
+    expect(card.getByText("SM8 #279")).toBeInTheDocument();
+    expect(card.getByRole("link", { name: /Full project/ })).toHaveAttribute(
+      "href",
+      "/dashboard/workboard/projects/p-1"
+    );
+  });
+
+  it("the Money tab is ABSENT without the grant — the job card's law", async () => {
+    mount(data({ projects: [projectFix({ id: "p-1", money: undefined })] }));
+    const card = await openCard();
+    expect(card.getByRole("tab", { name: "Visits" })).toBeInTheDocument();
+    expect(card.queryByRole("tab", { name: "Money" })).not.toBeInTheDocument();
+  });
+
+  it("the linked job's diary days read as visits, and writing on one adopts it", async () => {
+    pact.readProjectDiary.mockResolvedValueOnce({
+      ok: true,
+      days: [
+        {
+          day: "2026-07-24",
+          booked: [{ id: "s-al", name: "Alex Lorenz", title: null }],
+          bookedStart: "2026-07-24 07:00:00",
+          bookedEnd: "2026-07-24 15:00:00",
+          sessionMinutes: 507,
+          sessionCrew: [{ id: "s-al", name: "Alex Lorenz", title: null }],
+        },
+      ],
+    });
+    mount(data({ projects: [projectFix({ id: "p-1", jobs: [job279] })] }));
+    const card = await openCard();
+    await userEvent.click(card.getByRole("tab", { name: "Visits" }));
+    expect(await card.findByText("Alex Lorenz")).toBeInTheDocument();
+    // the mirror's own session time, stated as recorded
+    expect(card.getByText("8h 27m")).toBeInTheDocument();
+    await userEvent.click(card.getByRole("button", { name: "Write on this day" }));
+    expect(pact.adoptProjectDiaryDay).toHaveBeenCalledWith("p-1", "2026-07-24");
+  });
+
+  it("a trip row carries its own notes, and opening it swaps the card for the trip sheet", async () => {
+    mount(
+      data({
+        projects: [projectFix({ id: "p-1" })],
+        visits: [
+          trip({
+            id: "t-1",
+            bookedDate: "2026-08-05",
+            status: "booked",
+            notes: "Bring the long ladder",
+          }),
+        ],
+      })
+    );
+    const card = await openCard();
+    await userEvent.click(card.getByRole("tab", { name: "Visits" }));
+    expect(card.getByText("Bring the long ladder")).toBeInTheDocument();
+    await userEvent.click(card.getByRole("button", { name: /Rough-in — day 1/ }));
+    // one sheet at a time: the card's tabs are gone, the trip sheet is up
+    expect(screen.queryByRole("tab", { name: "Summary" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Bowden St ducted — Rough-in — day 1" })
+    ).toBeInTheDocument();
   });
 });

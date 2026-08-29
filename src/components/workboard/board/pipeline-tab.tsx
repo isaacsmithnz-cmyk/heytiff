@@ -20,10 +20,14 @@ export function PipelineTab({
   projects,
   today,
   manage,
+  onOpenProject,
 }: {
   projects: BoardProject[];
   today: string;
   manage: boolean;
+  /** A row opens the project CARD when the board offers one — the full
+      screen stays a chip-door inside it. Without it, rows keep the route. */
+  onOpenProject?: (projectId: string) => void;
 }) {
   const groups = useMemo(() => {
     const live = projects.filter(
@@ -112,7 +116,7 @@ export function PipelineTab({
               </em>
             </div>
             {g.list.map((p) => (
-              <ProjectRow key={p.id} p={p} today={today} />
+              <ProjectRow key={p.id} p={p} today={today} onOpen={onOpenProject} />
             ))}
           </div>
         ))
@@ -121,7 +125,15 @@ export function PipelineTab({
   );
 }
 
-function ProjectRow({ p, today }: { p: BoardProject; today: string }) {
+function ProjectRow({
+  p,
+  today,
+  onOpen,
+}: {
+  p: BoardProject;
+  today: string;
+  onOpen?: (projectId: string) => void;
+}) {
   const state = projectStateRow(
     {
       id: p.id,
@@ -146,12 +158,8 @@ function ProjectRow({ p, today }: { p: BoardProject; today: string }) {
      not the reader — so the column simply stays empty. */
   const money = p.money ? claimedLine(p.money) : null;
 
-  return (
-    <Link
-      href={`/dashboard/workboard/projects/${p.id}`}
-      className="wb2-plrow"
-      data-sev={state ? (state.severity === "danger" ? "dan" : "warn") : undefined}
-    >
+  const body = (
+    <>
       <div className="wb2-trt">
         <b>{p.name}</b>
         <em>{[p.clientName, p.siteLabel].filter(Boolean).join(" · ") || "—"}</em>
@@ -208,6 +216,20 @@ function ProjectRow({ p, today }: { p: BoardProject; today: string }) {
           <span className="wb2-chip ok">Moving · {agoLabel(p.updatedAt.slice(0, 10), today)}</span>
         )}
       </div>
+    </>
+  );
+
+  const sev = state ? (state.severity === "danger" ? "dan" : "warn") : undefined;
+  /* The row opens the project CARD when the board offers one; the full
+     screen is a chip-door inside the card. Without the callback the row
+     stays the route link it always was. */
+  return onOpen ? (
+    <button type="button" className="wb2-plrow" data-sev={sev} onClick={() => onOpen(p.id)}>
+      {body}
+    </button>
+  ) : (
+    <Link href={`/dashboard/workboard/projects/${p.id}`} className="wb2-plrow" data-sev={sev}>
+      {body}
     </Link>
   );
 }

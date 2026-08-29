@@ -322,6 +322,13 @@ describe("the visit sheet — the editing heart", () => {
     return within(screen.getByRole("dialog"));
   };
 
+  /** The card is tabs now — notes and tags live on the Notes face, so the
+      tests walk there the way a person does. Role queries can't reach a
+      hidden panel (text queries can), which is exactly right: a button you
+      can't see is a button you can't press. */
+  const toNotes = async (sheet: ReturnType<typeof within>) =>
+    userEvent.click(sheet.getByRole("tab", { name: "Notes" }));
+
   it("opens with the facts, and the Crew gate has NO tick — assignment only (A12)", async () => {
     const sheet = await open(visit({ id: "v-1" }));
     expect(sheet.getByRole("heading", { name: "Rooftop package units" })).toBeInTheDocument();
@@ -394,6 +401,7 @@ describe("the visit sheet — the editing heart", () => {
 
   it("notes read once they're written — no edit boxes until you ask", async () => {
     const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821" }));
+    await toNotes(sheet);
     expect(sheet.getByText("Gate code is 4821")).toBeInTheDocument();
     expect(sheet.queryByLabelText("Note 1")).not.toBeInTheDocument();
     expect(sheet.queryByLabelText("a note for this visit")).not.toBeInTheDocument();
@@ -403,6 +411,7 @@ describe("the visit sheet — the editing heart", () => {
 
   it("with nothing written, the section IS the add row", async () => {
     const sheet = await open(visit({ id: "v-1", notes: null }));
+    await toNotes(sheet);
     await userEvent.type(sheet.getByLabelText("a note for this visit"), "Ask for Dave{Enter}");
     // the first note saves on the spot — there's no draft to lose
     expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Ask for Dave");
@@ -410,6 +419,7 @@ describe("the visit sheet — the editing heart", () => {
 
   it("Add note opens the mic-and-add row, and one more note saves itself", async () => {
     const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821" }));
+    await toNotes(sheet);
     await userEvent.click(sheet.getByRole("button", { name: /Add note/ }));
     await userEvent.type(sheet.getByLabelText("a note for this visit"), "Ask for Dave{Enter}");
     expect(act.setVisitNotes).toHaveBeenCalledWith("v-1", "Gate code is 4821\nAsk for Dave");
@@ -417,6 +427,7 @@ describe("the visit sheet — the editing heart", () => {
 
   it("editing the whole section: a bullet comes off, and Save waits for a change", async () => {
     const sheet = await open(visit({ id: "v-1", notes: "Gate code is 4821\nAsk for Dave" }));
+    await toNotes(sheet);
     await userEvent.click(sheet.getByRole("button", { name: /Edit notes/ }));
     expect(sheet.getByRole("button", { name: "Save the notes" })).toBeDisabled();
     await userEvent.click(sheet.getByRole("button", { name: "Remove note 2" }));
@@ -553,6 +564,7 @@ describe("the visit sheet — the editing heart", () => {
       visit({ id: "v-1", tags: [{ id: "t-1", name: "Our install", color: "violet" }] }),
       { tagPool: [{ id: "t-1", name: "Our install", color: "violet" }, { id: "t-2", name: "HACCP", color: "amber" }] }
     );
+    await toNotes(sheet);
     expect(sheet.getByText("Our install").className).toContain("t-violet");
 
     await userEvent.click(sheet.getByRole("button", { name: /Add tag/ }));
@@ -570,6 +582,7 @@ describe("the visit sheet — the editing heart", () => {
 
   it("a new tag with no colour picked falls back to the name's own tone", async () => {
     const sheet = await open(visit({ id: "v-1" }));
+    await toNotes(sheet);
     await userEvent.click(sheet.getByRole("button", { name: /Add tag/ }));
     await userEvent.type(sheet.getByPlaceholderText("Type or pick a tag"), "Strata{Enter}");
     expect(act.createTag).toHaveBeenCalledWith("Strata", tagToneFor("Strata"));
@@ -584,7 +597,63 @@ describe("the visit sheet — the editing heart", () => {
     expect(sheet.getByLabelText(/Equipment ready — not confirmed/)).toBeEnabled();
     expect(sheet.queryByRole("button", { name: /Mark visit complete/ })).not.toBeInTheDocument();
     expect(sheet.queryByLabelText("Pick a day")).not.toBeInTheDocument();
+    await toNotes(sheet);
     expect(sheet.queryByRole("button", { name: /Add tag/ })).not.toBeInTheDocument();
+  });
+
+  /* ── the card of tabs (2026-08-29) — the job card's dress on the visit ── */
+
+  it("is a card of three faces — Visit, Notes, History — with the cadence as a band chip", async () => {
+    const sheet = await open(visit({ id: "v-1" }));
+    expect(sheet.getByRole("tab", { name: "Visit" })).toBeInTheDocument();
+    expect(sheet.getByRole("tab", { name: "Notes" })).toBeInTheDocument();
+    expect(sheet.getByRole("tab", { name: "History" })).toBeInTheDocument();
+    // the cadence moved onto the band — a chip, not a heading and not a hint
+    expect(sheet.getByText("Quarterly")).toBeInTheDocument();
+    expect(sheet.queryByText(/Comes round/)).not.toBeInTheDocument();
+  });
+
+  it("the agreement is a chip door — it swaps this card for the agreement's", async () => {
+    const sheet = await open(visit({ id: "v-1" }), { agreements: [agreementFix()] });
+    await userEvent.click(sheet.getByRole("button", { name: /Service agreement/ }));
+    // one sheet at a time: the visit card's tabs are gone, the agreement is up
+    expect(screen.queryByRole("tab", { name: "Visit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Halston Freight — Rooftop package units" })).toBeInTheDocument();
+    expect(screen.getByText("The agreement")).toBeInTheDocument();
+  });
+
+  it("History reads the agreement's other closed-out visits, and a row is a door", async () => {
+    mount(
+      data({
+        visits: [
+          visit({ id: "v-1" }),
+          visit({
+            id: "v-old",
+            status: "done",
+            completedAt: "2026-07-01",
+            actualHours: 3.5,
+            completionNote: "Replaced belts, one damper sticking",
+          }),
+        ],
+        agreements: [agreementFix({ lastDone: "2026-07-01" })],
+      })
+    );
+    await toTab(/Upcoming/);
+    await userEvent.click(screen.getByRole("button", { name: "Open Halston Freight — Rooftop package units" }));
+    const sheet = within(screen.getByRole("dialog"));
+    await userEvent.click(sheet.getByRole("tab", { name: "History" }));
+    expect(sheet.getByText("Last done Wed 1 July")).toBeInTheDocument();
+    await userEvent.click(sheet.getByRole("button", { name: /Replaced belts/ }));
+    // the row swapped the card to that visit — closed out, with its note
+    const swapped = within(screen.getByRole("dialog"));
+    expect(swapped.getByText("Completed")).toBeInTheDocument();
+    expect(swapped.getByText("Closed out")).toBeInTheDocument();
+  });
+
+  it("a visit with no history says so honestly, split by whether it has ever run", async () => {
+    const sheet = await open(visit({ id: "v-1" }), { agreements: [agreementFix({ lastDone: null })] });
+    await userEvent.click(sheet.getByRole("tab", { name: "History" }));
+    expect(sheet.getByText("This agreement hasn't been serviced yet.")).toBeInTheDocument();
   });
 });
 

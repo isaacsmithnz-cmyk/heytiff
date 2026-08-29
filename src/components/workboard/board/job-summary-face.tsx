@@ -28,11 +28,14 @@ export function JobSummaryFace({
   detail,
   row,
   summary,
+  pending,
 }: {
   loading: boolean;
   detail: MirrorJobDetail | null;
   row: AllJobRow;
   summary: JobSummaryRead | null;
+  /** The record read (or the first derive) is still out — hold the slot. */
+  pending: boolean;
 }) {
   return (
     <>
@@ -50,6 +53,19 @@ export function JobSummaryFace({
           </p>
         )}
       </div>
+
+      {/* THE SLOT NEVER JUMPS: until the record read (or the first derive)
+          answers, the same tinted box stands in the summary's place wearing
+          the route skeleton's sweep — shapes only. It resolves to the words
+          or to nothing; it never pops content in below the fold. */}
+      {!summary && pending && (
+        <div className="wb2-jcsec ups" aria-hidden="true">
+          <span className="wb2-jcskel t" />
+          <span className="wb2-jcskel l" />
+          <span className="wb2-jcskel p" />
+          <span className="wb2-jcskel p short" />
+        </div>
+      )}
 
       {summary && (
         <div className="wb2-jcsec ups">

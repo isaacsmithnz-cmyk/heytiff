@@ -7127,6 +7127,19 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3)
   background:linear-gradient(180deg, var(--jc-a05, rgba(5,5,5,.03)) 0, var(--jc-a025, rgba(5,5,5,.015)) 100%), #fff; }
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
+/* the summary slot while its read or first derive is still out — the route
+   skeleton's slow sweep at the box's own shapes. Declared bare, not under
+   .fg: the sheet portals to body and never sees .fg's dress. */
+.wb2-jcskel { display:block; border-radius:8px;
+  background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
+  background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
+.wb2-jcskel.t { width:150px; height:16px; }
+.wb2-jcskel.l { margin-top:14px; width:min(430px, 72%); height:14px; }
+.wb2-jcskel.p { margin-top:10px; width:min(310px, 56%); height:11px; }
+.wb2-jcskel.p.short { width:min(230px, 42%); }
+@media (prefers-reduced-motion:reduce) {
+  .wb2-jcskel { animation:none; background:rgba(10,12,20,.06); }
+}
 /* the lead is the verdict — one sentence in ink, a step up from the lines
    under it */
 .wb2-jcups-lead { margin:8px 0 0; font-size:15px; font-weight:700; letter-spacing:-.015em;

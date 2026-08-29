@@ -241,6 +241,12 @@ export function JobSheet({
   /* Only a REFRESHED paragraph lives in state; the stored one rides the
      record read, so "fresh ?? stored" needs no state mirroring. */
   const [freshSummary, setFreshSummary] = useState<JobSummaryRead | null>(null);
+  /* True once no further summary can arrive — the skeleton in the "Where
+     it's up to" slot holds the box's ground exactly until then. */
+  const [summarySettled, setSummarySettled] = useState(false);
+  /* The files read ANSWERED — even empty-handed. `media` alone can't say:
+     a failed read leaves it null forever, exactly like one still in flight. */
+  const [filesAnswered, setFilesAnswered] = useState(false);
   const [name, setName] = useState("");
   const [busy, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -337,9 +343,18 @@ export function JobSheet({
   useEffect(() => {
     if (!cardId) return;
     let live = true;
-    void readJobFiles(cardId).then((m) => {
-      if (live) setMedia(m);
-    });
+    void readJobFiles(cardId)
+      .then((m) => {
+        if (live) {
+          setMedia(m);
+          setFilesAnswered(true);
+        }
+      })
+      .catch(() => {
+        /* an answered failure still ANSWERS — the summary slot's skeleton
+           must not wait on a derive that can no longer come */
+        if (live) setFilesAnswered(true);
+      });
     return () => {
       live = false;
     };
@@ -527,11 +542,25 @@ export function JobSheet({
   const kicked = useRef(false);
   useEffect(() => {
     if (kicked.current) return;
-    if (!cardId || !detail || record === undefined || record === null || recordFailed) return;
-    if (media === null || picklist === null) return;
+    if (!cardId || !detail || record === undefined || recordFailed) return;
+    /* Settled = nothing more is coming: a record that landed empty, a story
+       with nothing to derive from, or a stored paragraph already at the
+       story's stamp. Anything else is a kick, settled when it answers. */
+    if (record === null) {
+      setSummarySettled(true);
+      return;
+    }
+    if (media === null || picklist === null) {
+      /* the files read answering EMPTY-HANDED never unblocks this gate, so
+         it settles the slot here instead (the picklist's catch lands []) */
+      if (filesAnswered && picklist !== null) setSummarySettled(true);
+      return;
+    }
     const stamp = storyStamp(story);
-    if (!stamp) return;
-    if (record.summary?.stamp === stamp) return;
+    if (!stamp || record.summary?.stamp === stamp) {
+      setSummarySettled(true);
+      return;
+    }
     kicked.current = true;
     void fetch("/api/workboard/job-summary", {
       method: "POST",
@@ -544,8 +573,11 @@ export function JobSheet({
       })
       .catch(() => {
         /* a summary that won't refresh keeps its stored words */
+      })
+      .finally(() => {
+        if (alive.current) setSummarySettled(true);
       });
-  }, [cardId, detail, record, recordFailed, media, picklist, story]);
+  }, [cardId, detail, record, recordFailed, media, picklist, story, filesAnswered]);
 
   const makeProject = () => {
     setErr(null);
@@ -1028,7 +1060,13 @@ export function JobSheet({
 
           {panel(
             "summary",
-            <JobSummaryFace loading={loading} detail={detail} row={row} summary={summary} />
+            <JobSummaryFace
+              loading={loading}
+              detail={detail}
+              row={row}
+              summary={summary}
+              pending={!recordFailed && summary === null && !summarySettled}
+            />
           )}
 
           {panel(

@@ -37,7 +37,9 @@ export function JobSummaryFace({
   return (
     <>
       <div className="wb2-jcsec">
-        <span className="wb2-sect">Scope</span>
+        <div className="wb2-jcdhead">
+          <b>Scope</b>
+        </div>
         {loading && !detail ? (
           <p className="int-hint">Reading it from the mirror…</p>
         ) : (
@@ -51,13 +53,13 @@ export function JobSummaryFace({
 
       {summary && (
         <div className="wb2-jcsec ups">
-          <div className="wb2-jcsech">
-            <span className="wb2-sect">Where it&rsquo;s up to</span>
+          <div className="wb2-jcdhead">
+            <b>Where it&rsquo;s up to</b>
             {summary.eventOn && (
-              <span className="wb2-jcstamp">
+              <em>
                 {`Updated ${fmtAuWeekdayDayMonth(summary.eventOn)}`}
                 {summary.eventLabel ? ` · ${summary.eventLabel}` : ""}
-              </span>
+              </em>
             )}
           </div>
           {/* STRUCTURED, NOT A PARAGRAPH (Isaac): the lead is the state at
@@ -82,14 +84,18 @@ export function JobSummaryFace({
           scope → where it's up to → the long form. */}
       {detail?.workDone && (
         <div className="wb2-jcsec">
-          <span className="wb2-sect">What was done</span>
+          <div className="wb2-jcdhead">
+            <b>What was done</b>
+          </div>
           <p className="wb2-shtext wb2-jcread">{detail.workDone.trim()}</p>
         </div>
       )}
 
       {detail && detail.contacts.length > 0 && (
         <div className="wb2-jcsec">
-          <span className="wb2-sect">Contacts</span>
+          <div className="wb2-jcdhead">
+            <b>Contacts</b>
+          </div>
           {detail.contacts.map((c, i) => (
             <div className="wb2-crow" key={`${c.name}-${i}`}>
               <span className="wb2-cav" aria-hidden>

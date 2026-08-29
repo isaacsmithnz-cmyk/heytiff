@@ -7115,18 +7115,18 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.3)
 .wb2-jcface .wb2-mline.visit { grid-template-columns:120px minmax(0,1fr) auto; }
 .wb2-jcgrid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:13px; align-items:start; }
 @media (max-width:900px) { .wb2-jcgrid { grid-template-columns:minmax(0,1fr); } }
-/* an open section of a face — the faces are the panels now, so their
-   sections drop the box and keep the eyebrow */
+/* an open section of a face — the faces are the panels now; section heads
+   wear the same title dress as the Diary/Visits headers (.wb2-jcdhead) */
 .wb2-jcsec { display:flex; flex-direction:column; }
 .wb2-jcsec > .wb2-sect { margin-bottom:6px; }
+.wb2-jcsec > .wb2-jcdhead { margin-bottom:6px; }
 .wb2-jcread { max-width:68ch; }
-/* "Where it's up to" — eyebrow + right-aligned stamp on one line, a
+/* "Where it's up to" — title + right-aligned stamp on one line, a
    reading-size paragraph, on a whisper of the job's own colour */
 .wb2-jcsec.ups { border-radius:14px; padding:13px 15px 14px;
   background:linear-gradient(180deg, var(--jc-a05, rgba(5,5,5,.03)) 0, var(--jc-a025, rgba(5,5,5,.015)) 100%), #fff; }
-.wb2-jcsech { display:flex; align-items:baseline; gap:10px; }
-.wb2-jcstamp { margin-left:auto; font-size:10px; font-weight:800; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--q); white-space:nowrap; }
+/* the lead already carries its own 8px shoulder inside the tinted box */
+.wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
 /* the lead is the verdict — one sentence in ink, a step up from the lines
    under it */
 .wb2-jcups-lead { margin:8px 0 0; font-size:15px; font-weight:700; letter-spacing:-.015em;

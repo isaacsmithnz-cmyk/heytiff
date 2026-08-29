@@ -26,8 +26,31 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
    context. The pair sits at 114/115: above the claim modal's 110/111,
    under the toasts at 130. */
 
-const ZOOM_MIN = 0.05;
+/* THE FLOOR IS THE FIT, NOT A NUMBER (Isaac, 2026-08-29). There is no reason
+   to shrink a photo below the size the stage can show it at — the only thing
+   under `fit` is a smaller picture in more black. So the wheel and the
+   double-click both clamp DOWN to whatever fit currently is, and zooming out
+   past it lands back on the CSS fit rather than on a stamp.
+
+   Which means there is no ZOOM_MIN constant any more: fit is a measurement,
+   not a constant, and it changes with the stage and the photo. */
 const ZOOM_MAX = 12;
+
+/** The scale at which this photo exactly fits the stage — the same number the
+    CSS reaches by `object-fit:contain`, computed here because the wheel needs
+    to know where it is. Upscales as well as down: a small photo fits by
+    growing. 1 when the photo hasn't reported its size yet. */
+function fitScale(
+  stage: { clientWidth: number; clientHeight: number },
+  nat: { w: number; h: number } | null
+): number {
+  if (!nat || nat.w <= 0 || nat.h <= 0) return 1;
+  const pad = 16;
+  return Math.min(
+    (stage.clientWidth - pad) / nat.w,
+    (stage.clientHeight - pad) / nat.h
+  );
+}
 
 export function JobMediaViewer({
   items,
@@ -106,18 +129,14 @@ export function JobMediaViewer({
       if (g.kind !== "zoom") return;
       setZoomState((prev) => {
         const cur = prev?.index === index ? prev.z : null;
-        /* THE FIT MUST MATCH THE CSS, or the first wheel notch jumps.
-           The stage fits by object-fit:contain, which UPSCALES a small
-           photo — so this is no longer clamped at 1:1. */
-        const fit =
-          nat === null
-            ? 1
-            : clamp(
-                Math.min((stage.clientWidth - 16) / nat.w, (stage.clientHeight - 16) / nat.h),
-                ZOOM_MIN,
-                ZOOM_MAX
-              );
-        return { index, z: clamp((cur ?? fit) * g.factor, ZOOM_MIN, ZOOM_MAX) };
+        /* The fit must match the CSS or the first notch jumps — the stage
+           fits by object-fit:contain, so this upscales too. */
+        const fit = fitScale(stage, nat);
+        const next = clamp((cur ?? fit) * g.factor, fit, ZOOM_MAX);
+        /* Back at the floor: hand the photo to the CSS again, so it is
+           centred and contained rather than a scroll container with nothing
+           to scroll. The epsilon is for the wheel's fractional factors. */
+        return next <= fit * 1.001 ? null : { index, z: next };
       });
     };
     stage.addEventListener("wheel", onWheel, { passive: false });
@@ -126,9 +145,18 @@ export function JobMediaViewer({
 
   if (!item) return null;
 
+  /* Double-click is the shortcut to 1:1 — but never BELOW the fit. On a photo
+     whose pixels are smaller than the stage, "actual size" is smaller than
+     fit, and jumping to it would be the zooming-out this no longer does. */
   const onDoubleClick = () => {
     if (isPdf) return;
-    setZoomState(zoom === null ? { index, z: 1 } : null);
+    if (zoom !== null) {
+      setZoomState(null);
+      return;
+    }
+    const stage = stageRef.current;
+    const fit = stage ? fitScale(stage, nat) : 1;
+    setZoomState(1 > fit ? { index, z: 1 } : null);
   };
 
   /* Drag pans a zoomed image — the stage is the scroller. */

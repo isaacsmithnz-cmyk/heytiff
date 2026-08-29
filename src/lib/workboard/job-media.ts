@@ -109,6 +109,53 @@ export function isCacheableMedia(fileType: string | null | undefined): boolean {
   return normaliseFileType(fileType) === ".pdf";
 }
 
+/* ── handing a file to storage, and reading its refusal ── */
+
+/** The mime type our own extension implies. The documents bucket enforces an
+    allowlist, and the download's `content-type` header is NOT dependable —
+    `fetchSm8AttachmentFile` falls back to `application/octet-stream` when the
+    CDN sends no header, and octet-stream is in no allowlist. Our extension is
+    the better witness: it is what decided the file was cacheable at all.
+
+    Only the kinds `isCacheableMedia` admits; anything else returns null and
+    the caller keeps whatever the response said. */
+const MIME_BY_EXT: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  avif: "image/avif",
+  heic: "image/heic",
+  heif: "image/heic",
+  pdf: "application/pdf",
+};
+
+export function mimeForExt(ext: string): string | null {
+  return MIME_BY_EXT[ext.replace(/^\./, "").toLowerCase()] ?? null;
+}
+
+/** Say what storage refused, in words that point at the fix.
+
+    THE MESSAGE USED TO BE A GUESS, AND THE GUESS WAS WRONG. Every upload
+    failure printed "Storage is full", so nine `.avif` photos the bucket's
+    allowlist didn't name sent Isaac to Supabase to look at a disk holding
+    588MB across three buckets. A mime type that isn't allowed, a file over
+    the size limit and a genuinely full bucket are three different problems
+    and only one of them is about space. */
+export function storageNote(message: string | undefined | null): string {
+  const m = (message ?? "").toLowerCase();
+  if (m.includes("mime") || m.includes("content type") || m.includes("content-type"))
+    return "Storage wouldn't take that file's type — it needs allowing on the bucket.";
+  if (m.includes("size") && (m.includes("exceed") || m.includes("larger") || m.includes("limit")))
+    return "That file is bigger than storage will take.";
+  if (m.includes("quota") || m.includes("capacity") || m.includes("full"))
+    return "Storage is full — photos can't be brought across until there's room.";
+  /* Unknown, and SAID to be unknown. The log line beside this carries the
+     real message; inventing a cause here is what created this function. */
+  return "Storage wouldn't accept that file — the log has the reason.";
+}
+
 /* ── where a file came from, in ServiceM8's own words ── */
 
 /** `attachment_source` is ServiceM8's tag for a file's origin. Three values

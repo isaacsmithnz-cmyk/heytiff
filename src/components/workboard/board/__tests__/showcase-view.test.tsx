@@ -1,24 +1,29 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ShowcasePhoto } from "@/app/actions/job-photo-favourites";
+import type { PhotoHit } from "@/app/actions/photo-search";
 
-/* THE SHOWCASE — the starred set, filed by what each picture is of.
+/* THE SHOWCASE — the starred set, drawn with what the bank knows about each
+   picture. It SPENDS NOTHING: reading happens when a job card is opened, not
+   here, so there is only one action to mock.
 
-   Both actions are mocked for their content, and would have to be mocked
-   regardless: a `"use server"` module drags `next/cache` into jsdom, where
-   `Request` is undefined and the suite dies at import time. */
+   Mocked at all for the usual reason: a `"use server"` module drags
+   `next/cache` into jsdom, where `Request` is undefined and the suite dies at
+   import time. */
 const listShowcase = jest.fn(async (): Promise<ShowcasePhoto[]> => []);
-const readShowcasePhotos = jest.fn(
-  async (): Promise<{ ok: boolean; read: number; remaining: number; note: string | null }> => ({
-    ok: true,
-    read: 0,
-    remaining: 0,
-    note: null,
-  })
-);
 jest.mock("@/app/actions/job-photo-favourites", () => ({
   listShowcase: (...a: unknown[]) => listShowcase(...(a as [])),
-  readShowcasePhotos: (...a: unknown[]) => readShowcasePhotos(...(a as [])),
+}));
+const searchPhotos = jest.fn(
+  async (): Promise<{ ok: boolean; hits: PhotoHit[]; banked: number; capped: boolean }> => ({
+    ok: true,
+    hits: [],
+    banked: 0,
+    capped: false,
+  })
+);
+jest.mock("@/app/actions/photo-search", () => ({
+  searchPhotos: (...a: unknown[]) => searchPhotos(...(a as [])),
 }));
 
 import { ShowcaseView } from "../showcase-view";
@@ -33,34 +38,50 @@ const photo = (over: Partial<ShowcasePhoto> & { remoteId: string }): ShowcasePho
   subject: null,
   tags: [],
   caption: "",
-  readAt: null,
+  ocrText: "",
+  read: false,
   addedAt: "2026-08-29T01:29:06Z",
   ...over,
 });
 
+const hit = (over: Partial<PhotoHit> & { remoteId: string }): PhotoHit => ({
+  jobUuid: "job-1",
+  jobNumber: "907",
+  clientName: "Heuvel Construction",
+  name: "Photo",
+  takenAt: "2026-08-28 13:25:00",
+  subject: "dataplate",
+  tags: [],
+  caption: "Mitsubishi outdoor unit rating plate",
+  ocrText: "MODEL PUZ-M125VKA2-A SERIAL 0081 R32 230V",
+  url: "https://signed/p.jpg",
+  readAt: "2026-08-29T02:00:00Z",
+  match: { text: false, transcript: true, caption: false, tag: false },
+  ...over,
+});
+
 beforeEach(() => {
+  jest.useRealTimers();
   listShowcase.mockReset();
-  readShowcasePhotos.mockReset();
   listShowcase.mockResolvedValue([]);
-  readShowcasePhotos.mockResolvedValue({ ok: true, read: 0, remaining: 0, note: null });
+  searchPhotos.mockReset();
+  searchPhotos.mockResolvedValue({ ok: true, hits: [], banked: 0, capped: false });
 });
 
 it("says what the showcase is for when nothing is starred", async () => {
-  render(<ShowcaseView manage />);
+  render(<ShowcaseView />);
   expect(await screen.findByText("Nothing starred yet")).toBeInTheDocument();
-  /* No filter row and no reader on an empty gallery — a row of zero chips
-     and a button that would read nothing are both furniture. */
+  /* No filter row on an empty gallery — a row of zero chips is furniture. */
   expect(screen.queryByRole("tablist")).toBeNull();
-  expect(screen.queryByRole("button", { name: /Read/ })).toBeNull();
 });
 
 it("files the photos under what they are of, and filters to one", async () => {
   listShowcase.mockResolvedValue([
-    photo({ remoteId: "p-1", subject: "dataplate", readAt: "2026-08-29T02:00:00Z", caption: "Rating plate on the outdoor unit" }),
-    photo({ remoteId: "p-2", subject: "ductwork", readAt: "2026-08-29T02:00:00Z", caption: "Flexible duct into a ceiling plenum" }),
-    photo({ remoteId: "p-3", subject: "ductwork", readAt: "2026-08-29T02:00:00Z", caption: "Rigid duct run above the bulkhead" }),
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate on the outdoor unit" }),
+    photo({ remoteId: "p-2", subject: "ductwork", read: true, caption: "Flexible duct into a ceiling plenum" }),
+    photo({ remoteId: "p-3", subject: "ductwork", read: true, caption: "Rigid duct run above the bulkhead" }),
   ]);
-  render(<ShowcaseView manage />);
+  render(<ShowcaseView />);
 
   await screen.findByText("3 starred photos");
   const filters = screen.getByRole("tablist", { name: "What the photo is of" });
@@ -75,67 +96,13 @@ it("files the photos under what they are of, and filters to one", async () => {
   expect(screen.queryByText("Rating plate on the outdoor unit")).toBeNull();
 });
 
-/* MONEY IS NEVER SPENT ON OPEN. Reading is behind a button somebody presses —
-   a gallery that quietly billed for every photo the moment you looked at it
-   would be a surprise on an invoice. */
-it("does not read anything until it is asked to", async () => {
+/* THE GALLERY SPENDS NOTHING. Reading moved to the job card — opening a job
+   is what puts its photographs in the bank — so this screen has no button
+   that costs anything and nothing to disable. The loop and its brake are
+   pinned in job-sheet.test.tsx, where they now live. */
+it("has no reader of its own to press", async () => {
   listShowcase.mockResolvedValue([photo({ remoteId: "p-1" })]);
-  render(<ShowcaseView manage />);
-  await screen.findByRole("button", { name: "Read 1 photo" });
-  expect(readShowcasePhotos).not.toHaveBeenCalled();
-});
-
-it("keeps reading while the outstanding count falls, and repaints as it goes", async () => {
-  listShowcase.mockResolvedValue([photo({ remoteId: "p-1" }), photo({ remoteId: "p-2" })]);
-  readShowcasePhotos
-    .mockResolvedValueOnce({ ok: true, read: 1, remaining: 1, note: null })
-    .mockResolvedValueOnce({ ok: true, read: 1, remaining: 0, note: null });
-
-  render(<ShowcaseView manage />);
-  await userEvent.click(await screen.findByRole("button", { name: "Read 2 photos" }));
-
-  await waitFor(() => expect(readShowcasePhotos).toHaveBeenCalledTimes(2));
-  /* Re-read after every round, not once at the end: a photo that has been
-     placed shows its subject while the rest are still being looked at. */
-  expect(listShowcase.mock.calls.length).toBeGreaterThan(2);
-});
-
-/* THE BRAKE. A server that keeps saying the same number while reading none
-   would loop forever and spend real money doing it, so a count that fails to
-   fall is the loop's signal to stop — not a reason to try again. */
-it("stops when the outstanding count stops falling", async () => {
-  listShowcase.mockResolvedValue([photo({ remoteId: "p-1" }), photo({ remoteId: "p-2" })]);
-  readShowcasePhotos.mockResolvedValue({ ok: true, read: 1, remaining: 2, note: null });
-
-  render(<ShowcaseView manage />);
-  await userEvent.click(await screen.findByRole("button", { name: "Read 2 photos" }));
-
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Read 2 photos" })).toBeEnabled()
-  );
-  expect(readShowcasePhotos.mock.calls.length).toBeLessThanOrEqual(2);
-});
-
-it("stops on a refusal and says what it was told", async () => {
-  listShowcase.mockResolvedValue([photo({ remoteId: "p-1" })]);
-  readShowcasePhotos.mockResolvedValue({
-    ok: false,
-    read: 0,
-    remaining: 1,
-    note: "Tiff is offline — no key.",
-  });
-
-  render(<ShowcaseView manage />);
-  await userEvent.click(await screen.findByRole("button", { name: "Read 1 photo" }));
-
-  expect(await screen.findByText("Tiff is offline — no key.")).toBeInTheDocument();
-  expect(readShowcasePhotos).toHaveBeenCalledTimes(1);
-});
-
-/* A reader without `manage` sees the gallery and cannot spend on it. */
-it("offers the reader only to somebody who manages the board", async () => {
-  listShowcase.mockResolvedValue([photo({ remoteId: "p-1" })]);
-  render(<ShowcaseView manage={false} />);
+  render(<ShowcaseView />);
   await screen.findByText("1 starred photo");
   expect(screen.queryByRole("button", { name: /Read/ })).toBeNull();
 });
@@ -144,13 +111,156 @@ it("offers the reader only to somebody who manages the board", async () => {
    its own way in instead, so the queue is visible rather than invisible. */
 it("keeps the unread ones reachable without inventing a subject for them", async () => {
   listShowcase.mockResolvedValue([
-    photo({ remoteId: "p-1", subject: "fault", readAt: "2026-08-29T02:00:00Z", caption: "Split in the insulation" }),
+    photo({ remoteId: "p-1", subject: "fault", read: true, caption: "Split in the insulation" }),
     photo({ remoteId: "p-2", caption: "" }),
   ]);
-  render(<ShowcaseView manage />);
+  render(<ShowcaseView />);
 
   const filters = await screen.findByRole("tablist", { name: "What the photo is of" });
   expect(within(filters).getByRole("tab", { name: /Damage or fault · 1/ })).toBeInTheDocument();
   await userEvent.click(within(filters).getByRole("tab", { name: "Not read yet · 1" }));
   expect(screen.queryByText("Split in the insulation")).toBeNull();
+});
+
+/* ── searching the bank ────────────────────────────────────────────────── */
+
+/* THE BOX IS ALWAYS THERE. The bank it searches is not the starred set, so an
+   empty showcase says nothing about whether there is anything to find —
+   hiding the box until somebody stars a photo would hide the whole feature
+   behind an unrelated act. */
+it("offers the search box even when nothing has been starred", async () => {
+  listShowcase.mockResolvedValue([]);
+  render(<ShowcaseView />);
+  expect(await screen.findByLabelText("Search photos")).toBeInTheDocument();
+  expect(screen.getByText("Nothing starred yet")).toBeInTheDocument();
+});
+
+/* One character matches most of the bank and tells nobody anything. */
+it("does not ask the server about a single character", async () => {
+  render(<ShowcaseView />);
+  await userEvent.type(await screen.findByLabelText("Search photos"), "d");
+  await new Promise((r) => setTimeout(r, 400));
+  expect(searchPhotos).not.toHaveBeenCalled();
+});
+
+it("searches the whole bank and replaces the curated grid", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "star-1", read: true, subject: "ductwork", caption: "A starred duct" }),
+  ]);
+  searchPhotos.mockResolvedValue({
+    ok: true,
+    hits: [hit({ remoteId: "bank-1" })],
+    banked: 84,
+    capped: false,
+  });
+
+  render(<ShowcaseView />);
+  await screen.findByText("A starred duct");
+  await userEvent.type(await screen.findByLabelText("Search photos"), "PUZ-M125");
+
+  /* The result is a photo that was never starred — the whole point. */
+  expect(await screen.findByText("Mitsubishi outdoor unit rating plate")).toBeInTheDocument();
+  /* And the curated set is GONE, not filtered: mixing them would leave a
+     reader unable to tell which set they were looking at. */
+  expect(screen.queryByText("A starred duct")).toBeNull();
+});
+
+/* "Nothing found" against a bank of twelve means something completely
+   different from nothing found against four thousand. */
+it("says how much has been read, so an empty result is honest", async () => {
+  searchPhotos.mockResolvedValue({ ok: true, hits: [], banked: 84, capped: false });
+  render(<ShowcaseView />);
+  await userEvent.type(await screen.findByLabelText("Search photos"), "kangaroo");
+  expect(await screen.findByText(/84 photos read so far/)).toBeInTheDocument();
+  expect(screen.getByText("No photo matches that")).toBeInTheDocument();
+});
+
+/* An empty bank is a different problem with a different answer, and saying
+   "no match" would send somebody hunting for a better search term when what
+   they actually need is to open a job. */
+it("distinguishes an empty bank from a bad query", async () => {
+  searchPhotos.mockResolvedValue({ ok: true, hits: [], banked: 0, capped: false });
+  render(<ShowcaseView />);
+  await userEvent.type(await screen.findByLabelText("Search photos"), "ductwork");
+  expect(await screen.findByText("Nothing has been read yet")).toBeInTheDocument();
+});
+
+/* A hit on a model number is otherwise invisible — the picture shows a plate
+   and the words that found it are printed on it. */
+it("shows the transcription that matched, not just the picture", async () => {
+  searchPhotos.mockResolvedValue({
+    ok: true,
+    hits: [hit({ remoteId: "bank-1" })],
+    banked: 84,
+    capped: false,
+  });
+  render(<ShowcaseView />);
+  await userEvent.type(await screen.findByLabelText("Search photos"), "PUZ-M125");
+  expect(await screen.findByText(/PUZ-M125VKA2-A/)).toBeInTheDocument();
+});
+
+it("puts the curated set back when the box is cleared", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "star-1", read: true, subject: "ductwork", caption: "A starred duct" }),
+  ]);
+  searchPhotos.mockResolvedValue({
+    ok: true,
+    hits: [hit({ remoteId: "bank-1" })],
+    banked: 84,
+    capped: false,
+  });
+
+  render(<ShowcaseView />);
+  const input = await screen.findByLabelText("Search photos");
+  await userEvent.type(input, "PUZ");
+  await screen.findByText("Mitsubishi outdoor unit rating plate");
+
+  await userEvent.click(screen.getByLabelText("Clear search"));
+  expect(await screen.findByText("A starred duct")).toBeInTheDocument();
+  expect(screen.queryByText("Mitsubishi outdoor unit rating plate")).toBeNull();
+});
+
+/* THE AS-YOU-TYPE RACE. A slow query for "duct" can land AFTER a fast one for
+   "ductwork" and paint the wrong photos under the right word. Only the last
+   query's answer may reach the screen.
+
+   BOTH answers are held open deliberately and released in the wrong order —
+   an earlier version of this test let the debounce cancel the first call
+   before it was ever in flight, so it passed with the guard removed and
+   proved nothing. */
+it("ignores a slow answer that arrives after a newer one", async () => {
+  listShowcase.mockResolvedValue([]);
+  const release: Record<string, (hits: PhotoHit[]) => void> = {};
+  searchPhotos.mockImplementation(
+    (...args: unknown[]) =>
+      new Promise((resolve) => {
+        release[args[0] as string] = (hits) =>
+          resolve({ ok: true, hits, banked: 84, capped: false });
+      })
+  );
+
+  render(<ShowcaseView />);
+  const input = await screen.findByLabelText("Search photos");
+
+  await userEvent.type(input, "duct");
+  await waitFor(() => expect(release["duct"]).toBeDefined());
+  await userEvent.type(input, "work");
+  await waitFor(() => expect(release["ductwork"]).toBeDefined());
+
+  /* The NEWER query answers first... */
+  release["ductwork"]([hit({ remoteId: "fresh", caption: "FRESH ANSWER" })]);
+  expect(await screen.findByText("FRESH ANSWER")).toBeInTheDocument();
+
+  /* ...and the older one only now comes back. It must not overwrite it.
+
+     RELEASED INSIDE `act`, or the assertions below run before React has
+     processed the stale update and the test passes for the wrong reason —
+     which is exactly how the first version of this passed with the guard
+     deleted. */
+  await act(async () => {
+    release["duct"]([hit({ remoteId: "stale", caption: "STALE ANSWER" })]);
+    await Promise.resolve();
+  });
+  expect(screen.queryByText("STALE ANSWER")).toBeNull();
+  expect(screen.getByText("FRESH ANSWER")).toBeInTheDocument();
 });

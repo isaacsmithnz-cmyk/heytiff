@@ -76,6 +76,20 @@ const setJobPhotoFavourite = jest.fn(
     note: null,
   })
 );
+/* Opening a job card is what puts its photographs in the searchable bank, so
+   the reader is part of the card's own loop now. Mocked here for its content,
+   and mocked at all for the "use server" reason as ever. */
+const readJobPhotos = jest.fn(
+  async (): Promise<{ ok: boolean; read: number; remaining: number; note: string | null }> => ({
+    ok: true,
+    read: 0,
+    remaining: 0,
+    note: null,
+  })
+);
+jest.mock("@/app/actions/photo-readings", () => ({
+  readJobPhotos: (...a: unknown[]) => readJobPhotos(...(a as [])),
+}));
 jest.mock("@/app/actions/job-photo-favourites", () => ({
   listJobPhotoFavourites: (...a: unknown[]) => listJobPhotoFavourites(...(a as [])),
   setJobPhotoFavourite: (...a: unknown[]) =>
@@ -232,6 +246,8 @@ beforeEach(() => {
   listJobPicklist.mockResolvedValue([]);
   setPicklistItemPicked.mockResolvedValue(undefined);
   removePicklistItem.mockResolvedValue(undefined);
+  readJobPhotos.mockReset();
+  readJobPhotos.mockResolvedValue({ ok: true, read: 0, remaining: 0, note: null });
   listJobPhotoFavourites.mockReset();
   setJobPhotoFavourite.mockReset();
   listJobPhotoFavourites.mockResolvedValue([]);
@@ -2757,6 +2773,66 @@ describe("bringing the bytes across", () => {
     await detailLanded();
     await waitFor(() => expect(cacheJobFiles).toHaveBeenCalledTimes(2));
   });
+
+  /* ── and then reading them into the bank ── */
+
+  /* OPENING A JOB IS WHAT INDEXES ITS PHOTOGRAPHS. The bank grows along the
+     paths people actually walk — the same lazy rule that keeps the bucket at
+     432MB against ~28GB of originals — rather than through a 32,443-photo
+     backfill where four in five would never be searched. */
+  it("reads the photos into the bank once the bytes have landed", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    readJobPhotos
+      .mockResolvedValueOnce({ ok: true, read: 4, remaining: 4, note: null })
+      .mockResolvedValueOnce({ ok: true, read: 4, remaining: 0, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(readJobPhotos).toHaveBeenCalledTimes(2));
+    expect(readJobPhotos).toHaveBeenCalledWith(detail().remoteId);
+  });
+
+  /* READING NEVER RACES THE TILES. The caching loop is what somebody is
+     watching for their photos to appear; a vision call is seconds and has no
+     business inside it. */
+  it("does not start reading until the caching has finished", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    let cacheDone = false;
+    cacheJobFiles.mockImplementation(async () => {
+      cacheDone = true;
+      return { ok: true, cached: 0, remaining: 0, media: null, note: null };
+    });
+    let readAfterCache: boolean | null = null;
+    readJobPhotos.mockImplementation(async () => {
+      if (readAfterCache === null) readAfterCache = cacheDone;
+      return { ok: true, read: 0, remaining: 0, note: null };
+    });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
+    expect(readAfterCache).toBe(true);
+  });
+
+  /* THE BRAKE, and it is about money. A server reporting the same outstanding
+     count twice cannot read what is in front of it; going round again would
+     spend without progressing. */
+  it("stops reading the moment the outstanding count stops falling", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    readJobPhotos.mockResolvedValue({ ok: true, read: 1, remaining: 9, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
+    /* One round that made no headway is enough — never a third. */
+    await waitFor(() => expect(readJobPhotos.mock.calls.length).toBeLessThanOrEqual(2));
+  });
+
 
   it("stops immediately when a round caches nothing, even with work left", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));

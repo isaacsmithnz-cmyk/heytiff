@@ -1,17 +1,12 @@
 "use server";
 
-import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
 import { DOCUMENTS_BUCKET, SIGNED_URL_SECONDS } from "@/lib/documents/query";
-import { jobMediaKind, mimeForExt, normaliseFileType } from "@/lib/workboard/job-media";
-import {
-  PHOTO_SUBJECTS,
-  SUBJECT_MEANING,
-  isPhotoSubject,
-} from "@/lib/workboard/photo-subjects";
+import { jobMediaKind } from "@/lib/workboard/job-media";
 import { cacheJobFiles } from "./workboard-media";
+import { readJobPhotos } from "./photo-readings";
 
 /* Starring a job photo — the showcase's write side.
    See docs/migrations/job_photo_favourites.sql for why this is its own table
@@ -182,6 +177,22 @@ export async function setJobPhotoFavourite(
     note = cached.note;
   }
 
+  /* A STAR EARNS THE BETTER READING. The bank is read by Haiku, which gets
+     every model number and serial anybody will type but garbles dense small
+     print into confident inventions — `AS/NZS 4755` came back as `ASICS
+     4793`. That is an acceptable trade across thousands of photographs
+     nobody will ever look at twice. It is not the trade for THIS one: a
+     starred photo is the one somebody chose to show a client, and it is
+     worth the exact plate.
+
+     Best-effort and last, like the caching above. `readJobPhotos` reads only
+     what is unread, so a photo Haiku already did keeps its reading unless the
+     re-read below replaces it — and `read_model` on the row records which
+     model produced which, so the two can always be told apart. */
+  void readJobPhotos(job, "showcase").catch((e) => {
+    console.error(`[showcase] re-read failed for ${job}:`, e);
+  });
+
   revalidatePath("/dashboard/workboard");
   return { ok: true, starred: true, note };
 }
@@ -204,13 +215,16 @@ export type ShowcasePhoto = {
   takenAt: string | null;
   /** Signed URL, or null while the bytes are still on their way. */
   url: string | null;
-  /** What the picture is of; null until it has been read. */
+  /** What the picture is of; null until it has been read, and null after a
+      read that could not place it. */
   subject: string | null;
   tags: string[];
   caption: string;
-  /** When it was read. Null means it is still in the reader's queue; non-null
-      with a null subject means it was read and could not be placed. */
-  readAt: string | null;
+  /** Every word visible in the frame. Model numbers and serials live here. */
+  ocrText: string;
+  /** Whether this photo has been looked at. A reading exists or it doesn't —
+      `subject` alone cannot say, because null is also a valid reading. */
+  read: boolean;
   addedAt: string;
 };
 
@@ -222,18 +236,21 @@ type ShowcaseRow = {
   photo_name: string;
   photo_taken_at: string | null;
   document_id: string | null;
-  subject: string | null;
-  tags: string[] | null;
-  caption: string | null;
-  read_at: string | null;
   added_at: string;
 };
 
 /* ONE LITERAL, NOT A CONCATENATION. supabase-js parses the select string at
    the TYPE level; two literals joined with `+` widen to `string` and the
    whole row type collapses to its error branch. */
+/* ONE LITERAL, NOT A CONCATENATION. supabase-js parses the select string at
+   the TYPE level; two literals joined with `+` widen to `string` and the whole
+   row type collapses to its error branch.
+
+   NO subject/tags/caption HERE ANY MORE — the star says a photo is worth
+   showing someone, and `job_photo_readings` says what it is. Two questions,
+   two tables; the showcase joins them. */
 const SHOWCASE_SELECT =
-  "sm8_attachment_uuid, sm8_job_uuid, job_number, client_name, photo_name, photo_taken_at, document_id, subject, tags, caption, read_at, added_at";
+  "sm8_attachment_uuid, sm8_job_uuid, job_number, client_name, photo_name, photo_taken_at, document_id, added_at";
 
 /** The whole showcase, newest star first.
 
@@ -250,6 +267,28 @@ export async function listShowcase(): Promise<ShowcasePhoto[]> {
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as ShowcaseRow[];
   if (rows.length === 0) return [];
+
+  /* What each of these photographs IS — read once when its job was opened,
+     not when it was starred. A starred photo whose job has not finished
+     reading yet simply has no subject here, which is the same "absent, not
+     wrong" the rest of this card follows. */
+  const { data: readingRows } = await supabaseAdmin
+    .from("job_photo_readings")
+    .select("sm8_attachment_uuid, subject, tags, caption, ocr_text")
+    .eq("org_id", orgId)
+    .in(
+      "sm8_attachment_uuid",
+      rows.map((r) => r.sm8_attachment_uuid)
+    );
+  const readings = new Map(
+    ((readingRows ?? []) as {
+      sm8_attachment_uuid: string;
+      subject: string | null;
+      tags: string[] | null;
+      caption: string | null;
+      ocr_text: string | null;
+    }[]).map((r) => [r.sm8_attachment_uuid, r])
+  );
 
   const docIds = [...new Set(rows.map((r) => r.document_id).filter(Boolean))] as string[];
   const refs = new Map<string, string>();
@@ -276,6 +315,7 @@ export async function listShowcase(): Promise<ShowcasePhoto[]> {
 
   return rows.map((r) => {
     const ref = r.document_id ? refs.get(r.document_id) : undefined;
+    const read = readings.get(r.sm8_attachment_uuid);
     return {
       remoteId: r.sm8_attachment_uuid,
       jobUuid: r.sm8_job_uuid,
@@ -284,252 +324,14 @@ export async function listShowcase(): Promise<ShowcasePhoto[]> {
       name: r.photo_name,
       takenAt: r.photo_taken_at,
       url: ref ? urls.get(ref) ?? null : null,
-      subject: r.subject,
-      tags: r.tags ?? [],
-      caption: r.caption ?? "",
-      readAt: r.read_at,
+      subject: read?.subject ?? null,
+      tags: read?.tags ?? [],
+      caption: read?.caption ?? "",
+      ocrText: read?.ocr_text ?? "",
+      /* The READING's existence is what says it was looked at — there is no
+         separate flag, and cannot be one out of step with the row. */
+      read: !!read,
       addedAt: r.added_at,
     };
   });
-}
-
-/* ── reading the picture ── */
-
-const MODEL = "claude-opus-5";
-
-/** The shape Claude must answer in. `subject` is an enum of the closed set
-    plus null: a photo it genuinely cannot place must be able to say so, and a
-    schema without the null forces it to pick the least-wrong one — which is
-    how a filter fills up with confident nonsense. */
-const SUBJECT_SCHEMA = {
-  type: "object",
-  properties: {
-    subject: { anyOf: [{ type: "string", enum: [...PHOTO_SUBJECTS] }, { type: "null" }] },
-    /* NO `maxItems` — the structured-output validator rejects it outright
-       ("For 'array' type, property 'maxItems' is not supported"), and every
-       call 400s. The prompt asks for at most six and the TypeScript re-check
-       below enforces it, which is where a limit belongs anyway: a schema
-       constrains shape, not sense. */
-    tags: { type: "array", items: { type: "string" } },
-    caption: { type: "string" },
-  },
-  required: ["subject", "tags", "caption"],
-  additionalProperties: false,
-};
-
-export type ReadPhotoResult = {
-  ok: boolean;
-  /** How many starred photos are still unread after this call. The gallery
-      loops while this falls and stops the moment it doesn't — a reader that
-      keeps saying "6 left" while reading none is a bug, not a backlog. */
-  remaining: number;
-  read: number;
-  note: string | null;
-};
-
-const NOT_READ: ReadPhotoResult = { ok: false, read: 0, remaining: 0, note: null };
-
-/** How many photos one call reads. One at a time on purpose: a vision call is
-    a few seconds and a few cents, and the gallery paints each result as it
-    lands rather than freezing until a batch finishes. */
-const READ_BATCH = 3;
-
-/** Read the next few unread starred photos.
-
-    THE BROWSER IS THE LOOP, the same shape `cacheJobFiles` uses — there is no
-    server-side queue, so the gallery calls again while the remaining count
-    falls. Nothing here throws: an action that throws returns a bare 503, and
-    the caller then has no result to read and no way to stop its own loop.
-
-    WHAT IT COSTS. One image and a short prompt at `effort: "low"` — cents per
-    photo, spent once per star, and never spent on a photo already read. The
-    starred set is the curator's choice, which is exactly why this is affordable
-    on it and would not be on the account's 32,000. */
-export async function readShowcasePhotos(): Promise<ReadPhotoResult> {
-  try {
-    return await readShowcasePhotosInner();
-  } catch (e) {
-    console.error("[showcase] reading failed:", e);
-    return { ...NOT_READ, note: "Those photos couldn't be read just now." };
-  }
-}
-
-async function readShowcasePhotosInner(): Promise<ReadPhotoResult> {
-  const { orgId } = await requireOrg("workboard");
-  if (!process.env.ANTHROPIC_API_KEY)
-    return { ...NOT_READ, note: "Tiff is offline — no key." };
-
-  /* Only photos we HOLD THE BYTES OF are readable. A starred photo whose
-     cache hasn't landed is not a failure and must not be marked read — it
-     simply isn't its turn yet, and `cacheJobFiles` is still working on it. */
-  const { data } = await supabaseAdmin
-    .from("job_photo_favourites")
-    .select("sm8_attachment_uuid, document_id, photo_name")
-    .eq("org_id", orgId)
-    .is("read_at", null)
-    .not("document_id", "is", null)
-    .order("added_at", { ascending: true })
-    .limit(READ_BATCH);
-
-  const queue = (data ?? []) as {
-    sm8_attachment_uuid: string;
-    document_id: string;
-    photo_name: string;
-  }[];
-
-  const { count } = await supabaseAdmin
-    .from("job_photo_favourites")
-    .select("sm8_attachment_uuid", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .is("read_at", null)
-    .not("document_id", "is", null);
-  const outstanding = count ?? queue.length;
-
-  if (queue.length === 0) return { ok: true, read: 0, remaining: 0, note: null };
-
-  const client = new Anthropic();
-  let read = 0;
-
-  for (const row of queue) {
-    const { data: doc } = await supabaseAdmin
-      .from("documents")
-      .select("storage_ref, file_name, mime_type")
-      .eq("org_id", orgId)
-      .eq("id", row.document_id)
-      .maybeSingle();
-    const file = doc as { storage_ref: string; file_name: string; mime_type: string | null } | null;
-    if (!file) continue;
-
-    const { data: blob } = await supabaseAdmin.storage
-      .from(DOCUMENTS_BUCKET)
-      .download(file.storage_ref);
-    if (!blob) continue;
-
-    const bytes = Buffer.from(await blob.arrayBuffer());
-    /* THE EXTENSION NAMES THE TYPE, not the stored mime — the same rule the
-       uploader learned when a CDN's missing header became "storage is full".
-       Claude's image block takes four types; anything else is left unread
-       rather than sent under a lie. */
-    const ext = normaliseFileType(file.file_name.split(".").pop() ?? "");
-    const mime = (ext && mimeForExt(ext)) || file.mime_type || "";
-    if (!SENDABLE_IMAGE.has(mime)) {
-      await markRead(orgId, row.sm8_attachment_uuid, null, [], "");
-      continue;
-    }
-
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1000,
-      output_config: {
-        effort: "low",
-        format: { type: "json_schema", schema: SUBJECT_SCHEMA },
-      },
-      messages: [
-        {
-          role: "user",
-          content: [
-            /* The picture first, the question second — an image block is read
-               as context for the text that follows it. */
-            {
-              type: "image" as const,
-              source: {
-                type: "base64" as const,
-                media_type: mime as SendableImage,
-                data: bytes.toString("base64"),
-              },
-            },
-            { type: "text", text: READ_PROMPT },
-          ],
-        },
-      ],
-    });
-
-    const parsed = parseReading(response);
-    if (!parsed) {
-      /* Marked read with no subject: it was looked at and could not be
-         placed. Leaving read_at null would queue it forever. */
-      await markRead(orgId, row.sm8_attachment_uuid, null, [], "");
-      read += 1;
-      continue;
-    }
-    await markRead(orgId, row.sm8_attachment_uuid, parsed.subject, parsed.tags, parsed.caption);
-    read += 1;
-  }
-
-  revalidatePath("/dashboard/workboard");
-  return { ok: true, read, remaining: Math.max(0, outstanding - read), note: null };
-}
-
-type SendableImage = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-/* The four the image block accepts. AVIF is a photo we hold and can show in a
-   browser, but it is not one of these — those are marked read and left
-   unplaced rather than sent under a mime type they aren't. */
-const SENDABLE_IMAGE = new Set<string>(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-
-const READ_PROMPT =
-  "This is one photograph from an Australian air-conditioning job — taken on " +
-  "site by the tradesperson, and kept as an example to show a client or brief " +
-  "another tech.\n\n" +
-  "Say what the photo is OF, choosing exactly one subject from this list:\n" +
-  PHOTO_SUBJECTS.map((s) => `- ${s}: ${SUBJECT_MEANING[s]}`).join("\n") +
-  "\n\nRules:\n" +
-  "- subject: the MAIN thing in the frame. If a dataplate fills the picture " +
-  "it is dataplate, even though the plate is on an outdoor unit. If you " +
-  "genuinely cannot tell, return null — a wrong subject is worse than none, " +
-  "because it hides the photo under a filter nobody will look in.\n" +
-  "- tags: up to six short lowercase terms for anything else worth searching " +
-  "— equipment type, mounting, setting, condition (e.g. \"bulkhead\", " +
-  "\"roof mounted\", \"mitsubishi\", \"before\"). Only what you can SEE. Never " +
-  "guess a brand or a model from context.\n" +
-  "- caption: one plain sentence under 90 characters describing the picture, " +
-  "in English. No preamble, no \"this image shows\".\n" +
-  "- Never describe a person, a face, a number plate, or anything written on " +
-  "paperwork that identifies a customer. This collection gets shown to OTHER " +
-  "clients.";
-
-function parseReading(
-  response: Anthropic.Message
-): { subject: string | null; tags: string[]; caption: string } | null {
-  const text = response.content.find((b) => b.type === "text");
-  if (!text || text.type !== "text") return null;
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text.text);
-  } catch {
-    return null;
-  }
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as { subject?: unknown; tags?: unknown; caption?: unknown };
-  /* A SCHEMA CONSTRAINS SHAPE, NOT SENSE — every field is re-checked here,
-     the same rule fleet-ai and expense-ai follow. */
-  const subject = isPhotoSubject(o.subject) ? o.subject : null;
-  const tags = Array.isArray(o.tags)
-    ? o.tags
-        .filter((t): t is string => typeof t === "string")
-        .map((t) => t.trim().toLowerCase().slice(0, 40))
-        .filter(Boolean)
-        .slice(0, 6)
-    : [];
-  const caption = typeof o.caption === "string" ? o.caption.trim().slice(0, 140) : "";
-  return { subject, tags, caption };
-}
-
-async function markRead(
-  orgId: string,
-  attachmentUuid: string,
-  subject: string | null,
-  tags: string[],
-  caption: string
-): Promise<void> {
-  await supabaseAdmin
-    .from("job_photo_favourites")
-    .update({
-      subject,
-      tags,
-      caption,
-      read_at: new Date().toISOString(),
-      read_model: MODEL,
-    })
-    .eq("org_id", orgId)
-    .eq("sm8_attachment_uuid", attachmentUuid);
 }

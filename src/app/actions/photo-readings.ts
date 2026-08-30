@@ -9,6 +9,7 @@ import { mimeForExt, normaliseFileType } from "@/lib/workboard/job-media";
 import {
   READING_SCHEMA,
   READ_PROMPT,
+  isBankablePhoto,
   isSendableImage,
   parseReading,
 } from "@/lib/workboard/photo-reading";
@@ -139,10 +140,10 @@ async function readJobPhotosInner(
     mime_type: string | null;
   }[]).filter((d) => {
     if (!d.remote_ref) return false;
-    const ext = normaliseFileType(d.file_name.split(".").pop() ?? "");
-    /* PHOTOS ONLY. `cacheJobFiles` also brings PDFs across — an invoice is
-       not a photograph and has no business in a picture bank. */
-    return !!ext && (mimeForExt(ext) ?? "").startsWith("image/");
+    /* PHOTOS ONLY, and decided by the MIME TYPE — see isBankablePhoto for
+       why the file name cannot be trusted here. `cacheJobFiles` also brings
+       PDFs across; an invoice is not a photograph. */
+    return isBankablePhoto(d, mimeForExt, normaliseFileType);
   });
 
   if (held.length === 0) return { ok: true, read: 0, remaining: 0, note: null };
@@ -178,7 +179,7 @@ async function readJobPhotosInner(
     if (!blob) continue;
 
     const original = Buffer.from(await blob.arrayBuffer());
-    const prepared = await prepare(original, doc.file_name);
+    const prepared = await prepare(original, doc.mime_type);
     if (!prepared) {
       /* Genuinely not a decodable image. Recorded as looked-at with no
          subject so it leaves the queue instead of being retried on every
@@ -303,7 +304,9 @@ async function jobSnapshot(orgId: string, job: string): Promise<JobSnapshot> {
     exactly like "the reader doesn't work" with nothing in any log. */
 async function prepare(
   bytes: Buffer,
-  fileName: string
+  /** The row's stored mime — NOT derived from the name, which in this mirror
+      is the extensionless string `Photo` for every photograph there is. */
+  storedMime: string | null
 ): Promise<{ bytes: Buffer; mime: "image/jpeg" | "image/png" | "image/webp" | "image/gif" } | null> {
   try {
     const sharp = (await import("sharp")).default;
@@ -315,11 +318,9 @@ async function prepare(
     return { bytes: out, mime: "image/jpeg" };
   } catch (e) {
     console.error("[photo-readings] could not re-encode, sending as-is:", e);
-    const ext = normaliseFileType(fileName.split(".").pop() ?? "");
-    const mime = ext ? mimeForExt(ext) : null;
     /* Only the four the block actually accepts. An AVIF with no sharp to
        decode it has nowhere to go, and says so by being unreadable. */
-    if (isSendableImage(mime)) return { bytes, mime };
+    if (isSendableImage(storedMime)) return { bytes, mime: storedMime };
     return null;
   }
 }

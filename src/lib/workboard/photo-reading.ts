@@ -102,6 +102,35 @@ export type PhotoReading = {
     Returns null only when the answer was not even JSON. A well-formed answer
     with an unusable subject is NOT null: it is a reading with a null subject,
     because the photo was still looked at and must leave the queue. */
+/** Is this cached file a photograph the bank can read?
+
+    DECIDED BY THE MIME TYPE, NEVER BY THE NAME. ServiceM8 names every
+    attachment the literal string `Photo` — with NO EXTENSION — so anything of
+    the form `fileName.split(".").pop()` returns "Photo" and maps to nothing.
+    A first version of the reader filtered on exactly that and excluded every
+    photograph on every job: the bank stayed empty, no error was raised, and
+    the screen simply showed a search that never found anything.
+
+    That is the same ServiceM8 fact for the third time in one day. It also hid
+    28,828 photographs behind a name-based dedupe, and made a `%photo%` search
+    match an entire index. THE FILE NAME IN THIS MIRROR CARRIES NOTHING; the
+    mime type is written by the uploader from the attachment's own file_type.
+
+    The name is consulted only as a fallback, for a row written before that
+    was true — never as the first answer. */
+export function isBankablePhoto(
+  file: { mime_type?: string | null; file_name?: string | null },
+  mimeForExt: (ext: string) => string | null,
+  normaliseFileType: (raw: string | null | undefined) => string | null
+): boolean {
+  const fromName = () => {
+    const ext = normaliseFileType((file.file_name ?? "").split(".").pop() ?? "");
+    return ext ? mimeForExt(ext) : null;
+  };
+  const mime = file.mime_type ?? fromName();
+  return (mime ?? "").startsWith("image/");
+}
+
 export function parseReading(text: string): PhotoReading | null {
   let raw: unknown;
   try {

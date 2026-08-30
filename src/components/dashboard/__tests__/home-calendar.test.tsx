@@ -1,12 +1,11 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render } from "@testing-library/react";
 import { HomeCalendar } from "../home-calendar";
-import { buildCalendar } from "@/lib/dashboard/calendar";
+import { calWindow, buildCalendar } from "@/lib/dashboard/calendar";
 import type { LeaveRequest } from "@/lib/timepay/leave";
 
-/* The grid is the maintenance board's, reused whole. What this suite is for is
-   the three things Home added on top of it and the one thing it deliberately
-   took away — the tones. */
+/* The grid is the maintenance board's, reused whole, and presentational: it
+   draws the days it is handed. What this suite is for is the three things Home
+   added on top of it and the one thing it deliberately took away — the tones. */
 
 const TODAY = "2026-08-10"; // a Monday
 const leave = (over: Partial<LeaveRequest> = {}): LeaveRequest => ({
@@ -25,9 +24,14 @@ const draw = (
   requests: LeaveRequest[] = [],
   holidays: { date: string; name: string }[] = [],
   viewer: string | null = "me",
-) => render(<HomeCalendar cal={buildCalendar(requests, holidays, TODAY, viewer)} today={TODAY} />);
+) =>
+  render(
+    <HomeCalendar
+      days={calWindow(buildCalendar(requests, holidays, TODAY, viewer), TODAY, "grid", 0).days}
+      today={TODAY}
+    />,
+  );
 
-const cells = () => [...document.querySelectorAll<HTMLElement>(".wb2-mc > *")];
 const cellFor = (iso: string) =>
   document.querySelector<HTMLElement>(`.wb2-mc [data-day="${iso}"]`)!;
 
@@ -112,44 +116,6 @@ describe("what it refuses to borrow", () => {
   });
 });
 
-describe("the stepper", () => {
-  it("shows four weeks from this Monday", () => {
-    draw();
-    expect(cells()).toHaveLength(28);
-    expect(screen.getByText("10 Aug – 6 Sept")).toBeInTheDocument();
-  });
-
-  it("stops at the loaded span rather than walking off it", async () => {
-    const user = userEvent.setup();
-    draw();
-    const back = screen.getByLabelText("A week earlier");
-    // one week of history is loaded, so the second press must be impossible
-    await user.click(back);
-    expect(screen.getByText("3 Aug – 30 Aug")).toBeInTheDocument();
-    expect(back).toBeDisabled();
-    // and a way home appears the moment you have moved
-    await user.click(screen.getByRole("button", { name: "Today" }));
-    expect(screen.getByText("10 Aug – 6 Sept")).toBeInTheDocument();
-  });
-
-  it("counts the window it is showing, not the span it loaded", async () => {
-    const user = userEvent.setup();
-    draw([leave({ id: "l2", staffId: "s2", staffName: "Zoe Park", startDate: "2026-10-05", endDate: "2026-10-06" })]);
-    expect(screen.queryByText(/1 person off/)).toBeNull();
-    for (let i = 0; i < 8; i += 1) await user.click(screen.getByLabelText("A week later"));
-    expect(screen.getByText("1 person off")).toBeInTheDocument();
-  });
-});
-
-it("still draws the grid for an org with nothing booked", () => {
-  // the empty four weeks ARE the answer to "is anyone off"
-  draw();
-  expect(cells()).toHaveLength(28);
-  expect(document.querySelectorAll(".hm-calmine, .hm-caloff, .hm-calph")).toHaveLength(0);
-});
-
-it("marks today", () => {
-  draw();
-  expect(cellFor(TODAY).className).toContain("today");
-  expect(cellFor(TODAY).textContent).toContain("Today");
-});
+/* THE STEPPER AND THE SUMMARY LIVE ON THE FACE NOW (./home-calendar-face),
+   because the list views step through the same window and a second set of
+   arrows in here could disagree with them. Their tests moved with them. */

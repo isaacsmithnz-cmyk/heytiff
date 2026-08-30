@@ -53,8 +53,13 @@ const namesFor = (orgId: string, given?: StaffNames): Promise<StaffNames> =>
     queries and wants them to share one read. */
 export const loadStaffNames = staffNames;
 
+/* `remind_at` rides along because Home's day rail needs it: it is the only
+   column on a task that carries a clock time, and a task with an hour on it
+   belongs on the day beside the bookings rather than in a list. Its date part
+   is `due_date` by construction (docs/migrations/task_reminders.sql), so it
+   never disagrees with the due date it was composed from. */
 const TASK_COLUMNS =
-  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by";
+  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by, remind_at";
 
 function toTask(r: Record<string, unknown>, name: (id: string) => string): DashTask {
   const assigneeId = String(r.assigned_to);
@@ -71,6 +76,7 @@ function toTask(r: Record<string, unknown>, name: (id: string) => string): DashT
     createdAt: String(r.created_at),
     doneAt: r.done_at ? String(r.done_at) : null,
     doneByName: doneBy ? name(doneBy) : null,
+    remindAt: r.remind_at ? String(r.remind_at) : null,
   };
 }
 

@@ -23,6 +23,7 @@ const task = (over: Partial<DashTask>): DashTask => ({
   createdAt: "2026-07-01T00:00:00Z",
   doneAt: null,
   doneByName: null,
+  remindAt: null,
   ...over,
 });
 

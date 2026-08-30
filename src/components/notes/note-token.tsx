@@ -45,7 +45,7 @@ import { TiffMark } from "./tiff-mark";
    THE MIC IS ALWAYS AN ENHANCEMENT. No key, no permission, no MediaRecorder —
    every posture is still a control you can type into. */
 
-export type Posture = "strip" | "field" | "line" | "debrief";
+export type Posture = "strip" | "field" | "line" | "debrief" | "entry";
 
 /* ── the surface: ribbon + whatever the stage calls for ── */
 
@@ -717,7 +717,82 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    button is invalid, and `.tiffbtn`'s cursor and lift belong to the bar now.
    Its hovers are re-pointed at `.hm-say:hover` in shell.css. */
 
-function DebriefButton({ flow }: { flow: NoteFlow }) {
+/* THE DIARY'S OWN WAY IN.
+
+   The Diary tab is a record, and a record you cannot add to from where you are
+   reading it sends you somewhere else to write. This is the row that fixes
+   that: a dashed field wearing the mark, with a microphone at its end because
+   most of these arrive spoken from the ute rather than typed.
+
+   It opens the SAME card the debrief opens, in the same slot, minus the
+   debrief flag — so what you say here is read as an ordinary note (it can
+   land on a job, it can ask you a question back), while the Debrief tab's
+   button asks for the whole day at once. One flow, two doors, and neither is
+   a second implementation of capture.
+
+   The mic is its own button rather than a glyph on this one: `flow.talk()`
+   opens the microphone as well as the card, so reaching for it is one press,
+   not a press and then another inside the card that just opened. */
+function EntryRow({ flow }: { flow: NoteFlow }) {
+  const rowRef = useRef<HTMLButtonElement | null>(null);
+  const wasOpen = useRef(false);
+
+  /* Same courtesy the debrief bar pays: the card that replaced this row is
+     gone when it closes, so focus has to come back here rather than fall to
+     the top of the document. */
+  useEffect(() => {
+    if (wasOpen.current && !flow.open) rowRef.current?.focus();
+    wasOpen.current = flow.open;
+  }, [flow.open]);
+
+  if (!flow.open) {
+    return (
+      <div className="hm-adde">
+        <button
+          ref={rowRef}
+          type="button"
+          className="hm-addetx"
+          aria-expanded={false}
+          onClick={() => flow.setOpen(true)}
+        >
+          {/* NOT `.tiffbtn-topbar`: that class is 44px of geometry tuned to the
+              frame's button, and the shared `.tiffbtn-face` is `position:
+              absolute; inset:0` — on a host with no positioning of its own it
+              escapes to the nearest positioned ancestor, which put the mark in
+              the middle of the card. `.hm-addemk` carries its own box. */}
+          <span className="hm-addemk" aria-hidden="true">
+            <TiffMark chevron={16} spark={10} />
+          </span>
+          Add to the diary&hellip;
+        </button>
+        {flow.scope.voiceEnabled && (
+          <button
+            type="button"
+            className="hm-addemic"
+            aria-label="Say it instead"
+            onClick={() => {
+              flow.setOpen(true);
+              flow.talk();
+            }}
+          >
+            <Icon name="mic" size={17} />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <section className="wb2-capcard hm-cap wb2-dusk" aria-label="Add to the diary">
+      <Ribbon flow={flow} />
+      {flow.error && <p className="wb2-sherr">{flow.error}</p>}
+      <JobLine flow={flow} />
+      <Body flow={flow} />
+    </section>
+  );
+}
+
+function DebriefButton({ flow, cta }: { flow: NoteFlow; cta?: string }) {
   const barRef = useRef<HTMLButtonElement | null>(null);
   const wasOpen = useRef(false);
 
@@ -746,7 +821,7 @@ function DebriefButton({ flow }: { flow: NoteFlow }) {
           <span className="hm-saymk tiffbtn-topbar" aria-hidden="true">
             <TiffMark chevron={20} spark={13} halo />
           </span>
-          <span className="hm-saytx">Debrief the day</span>
+          <span className="hm-saytx">{cta ?? "Debrief the day"}</span>
         </button>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}
       </div>
@@ -1099,6 +1174,7 @@ export function NoteToken({
   rows = 3,
   disabled = false,
   className,
+  cta,
 }: {
   /** Where this one is standing. No default: the corner — the only posture
       that was ever the obvious one — is now the Tiff button in the frame. */
@@ -1115,10 +1191,14 @@ export function NoteToken({
   rows?: number;
   disabled?: boolean;
   className?: string;
+  /** debrief only — what the bar says. The same conversation is a brief at
+      dawn and a debrief at knock-off, so Home hands it the hour's word. */
+  cta?: string;
 }) {
   const flow = useNoteFlow({ debrief: as === "debrief" });
 
-  if (as === "debrief") return <DebriefButton flow={flow} />;
+  if (as === "debrief") return <DebriefButton flow={flow} cta={cta} />;
+  if (as === "entry") return <EntryRow flow={flow} />;
   if (as === "strip")
     return (
       <Strip

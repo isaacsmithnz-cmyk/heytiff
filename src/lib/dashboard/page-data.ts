@@ -4,8 +4,8 @@ import { todayInAu } from "@/lib/au-dates";
 import { getOwnVehicle, listFleetStaff, listVehicles, staffProfileIdFor } from "@/lib/fleet/query";
 import type { Vehicle } from "@/components/fleet/logic";
 import type { Capability } from "@/lib/permissions";
-import { getPaySettings, ownSentBackPeriod, sheetStates } from "@/lib/timepay/query";
-import { addDays, periodEnd, periodLabel, periodStartFor } from "@/lib/timepay/period";
+import { getPaySettings, ownSentBackPeriod } from "@/lib/timepay/query";
+import { addDays, periodLabel } from "@/lib/timepay/period";
 import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-query";
 import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
@@ -17,7 +17,6 @@ import { listJournal } from "./journal-query";
 import { jobCandidates } from "./job-candidates";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 import type { JournalEntry } from "./journal";
-import { payRunItem, tallySheets, type MoneyItem } from "./money";
 import {
   myTasks,
   teamTasks,
@@ -32,26 +31,36 @@ import {
 import type { MentionTarget } from "./comments";
 import type { BoardNotice } from "./board";
 import { RECENT_DONE_DAYS, sortNotices, sortTasks, type DashTask } from "./tasks";
+import { getSm8Timezone } from "@/lib/workboard/query";
+import { todayInZone } from "@/lib/workboard/dates";
+import { EMPTY_SCHEDULE, loadScheduleDay } from "@/lib/workboard/schedule-query";
+import { layoutScheduleDay, type ScheduleBlock } from "@/lib/workboard/schedule";
+import { nowMinInZone, railTasksOf, type RailTask } from "./day-rail";
+import { phaseOf, type DayPhase } from "./debrief-voice";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
-   and live in ./assemble, ./calendar and ./money; this file is the thin I/O layer
+   and live in ./assemble and ./calendar; this file is the thin I/O layer
    that resolves the session once, reads only the data the viewer may see, and
    hands it over.
 
-   The three sections mirror the spec:
+   The two sections mirror the spec:
      chips    — action-required expiries. self is intrinsic; team/fleet gated.
      calendar — your leave and the office closures (everyone), plus who else is
                 off (`team` only). It replaced `roster`, which answered the same
                 question for today alone.
-     money    — the pay-run status. `financials` only. */
+
+   MONEY IS NOT HERE ANY MORE. Home carried a pay-run strip under the card
+   until the desk rebuild took it off (Isaac, 2026-08-30) — the day, the
+   record and the work you owe are what this screen is for, and a pay-run
+   status is none of them. The read outlived the strip by a round; a gated
+   query nothing renders is the kind of thing that rots quietly, so it went
+   with `lib/dashboard/money.ts`. Payroll lives on the pay screens. */
 
 export type DashboardData = {
   chips: DashboardChips;
   /** Your leave and the org's closures — for everyone. Colleagues' leave is
       in it only with `team`. */
   calendar: LeaveCalendar;
-  /** Empty unless the viewer holds `financials`. */
-  money: MoneyItem[];
   /** Your open tasks (always), the team's (only with `team`), and your
       recently-completed ones so finishing something leaves a trace. */
   tasks: { mine: DashTask[]; team: DashTask[] | null; done: DashTask[]; reported: DashTask[] };
@@ -72,12 +81,49 @@ export type DashboardData = {
   /** Null when the account has no staff record — no tasks/acks are possible. */
   viewerStaffId: string | null;
   today: string;
+  /** The day beside the diary: today's bookings and the tasks that named an
+      hour. See ./day-rail for what earns a place on it. */
+  rail: HomeRail;
+  /** Which of the day's three questions the Debrief tab is asking. Resolved
+      here, in the workspace's zone, so no component reads a clock. */
+  phase: DayPhase;
+};
+
+export type HomeRail = {
+  /** The day the rail draws. NOT `today`: that one is anchored to Sydney for
+      timesheets and leave, while every ServiceM8 stamp is written in the
+      connected account's own zone — a Brisbane workspace reads an hour
+      different for part of the year, and the bookings must be the ones the
+      dispatcher sees. */
+  dayISO: string;
+  tz: string | null;
+  /** Every booking on the day, chronological. Crew-wide: ServiceM8 staff are
+      not linked to HeyTiff accounts on the live workspace (integration_links
+      holds no staff rows), so "just mine" would show everyone an empty rail.
+      When those links exist this becomes a filter, not a rewrite. */
+  blocks: ScheduleBlock[];
+  /** The viewer's own tasks that named an hour on this day. */
+  tasks: RailTask[];
+  /** Minutes past midnight when the page was built, in `tz`. The live marker
+      is the browser's (see use-now-min); this one dates the rows. */
+  nowMin: number | null;
+  /** False without `workboard`. The rail says so rather than drawing a day
+      that only looks empty. */
+  enabled: boolean;
+};
+
+const EMPTY_RAIL: HomeRail = {
+  dayISO: "",
+  tz: null,
+  blocks: [],
+  tasks: [],
+  nowMin: null,
+  enabled: false,
 };
 
 const EMPTY: DashboardData = {
   chips: { self: [], team: [] },
   calendar: { spanStart: "", spanEnd: "", days: [] },
-  money: [],
   tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
   journal: [],
@@ -86,6 +132,8 @@ const EMPTY: DashboardData = {
   canManage: false,
   viewerStaffId: null,
   today: todayInAu(),
+  rail: EMPTY_RAIL,
+  phase: "morning",
 };
 
 export async function loadDashboard(): Promise<DashboardData> {
@@ -103,12 +151,16 @@ export async function loadDashboard(): Promise<DashboardData> {
      read the whole staff table for itself. Read it once and hand the same map
      round — the names cannot disagree between sections either, which they could
      when five reads raced an edit. */
-  const names = await loadStaffNames(orgId);
+  /* The zone comes from the connected ServiceM8 account, and the rail's day
+     with it. Read alongside the names rather than after them: neither depends
+     on the other, and this one gates a query in the batch below. */
+  const [names, railTz] = await Promise.all([loadStaffNames(orgId), getSm8Timezone(orgId)]);
+  const railDay = todayInZone(railTz);
+  const railNowMin = nowMinInZone(railTz);
 
-  const [chips, calendar, money, tasks, notices, assignable, journal, jobs] = await Promise.all([
+  const [chips, calendar, tasks, notices, assignable, journal, jobs, schedule] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
     loadCalendar(orgId, today, viewerStaffId, canManage),
-    caps.has("financials") ? loadMoney(orgId, today) : Promise.resolve([]),
     loadTasks(orgId, viewerStaffId, canManage, names),
     listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
     // the assign picker only needs names, and only when you can assign
@@ -119,10 +171,38 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* Rides the same Promise.all rather than adding a wait. Absent without
        `workboard` — the same capability the board itself is behind. */
     caps.has("workboard") ? jobCandidates(orgId) : Promise.resolve([] as JobCandidate[]),
+    /* The day rail. Same gate as the board it mirrors — a viewer without
+       `workboard` may not see the crew's bookings, on Home or anywhere. */
+    caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
   ]);
 
+  /* The board's own layout, then flattened: it knows what a block IS — the
+     closure rule, the on-site join, the midnight clamp — and Home differs
+     only in wanting one chronological column instead of a lane per person.
+     `tracked` is not passed: the project/maintenance labels come from board
+     payloads Home doesn't load, so a category name is the honest fallback. */
+  const railBlocks: ScheduleBlock[] = caps.has("workboard")
+    ? layoutScheduleDay({
+        activities: schedule.activities,
+        staff: schedule.staff,
+        jobs: schedule.jobs,
+        onSite: new Set(schedule.onSite),
+      })
+        .lanes.flatMap((lane) => lane.blocks)
+        .sort((a, b) => a.startMin - b.startMin || a.key.localeCompare(b.key))
+    : [];
+
   return {
-    chips, calendar, money, tasks, notices, assignable, journal, jobs, canManage, viewerStaffId, today,
+    chips, calendar, tasks, notices, assignable, journal, jobs, canManage, viewerStaffId, today,
+    rail: {
+      dayISO: railDay,
+      tz: railTz,
+      blocks: railBlocks,
+      tasks: railTasksOf(tasks.mine, railDay, railTz, railNowMin),
+      nowMin: railNowMin,
+      enabled: caps.has("workboard"),
+    },
+    phase: phaseOf(railNowMin),
   };
 }
 
@@ -304,21 +384,3 @@ async function loadCalendar(
   return buildCalendar(visible, holidays, today, viewerStaffId);
 }
 
-/* ---------------- money (pay run) ---------------- */
-
-async function loadMoney(orgId: string, today: string): Promise<MoneyItem[]> {
-  const { settings } = await getPaySettings(orgId);
-  // The current period — informational while open, "due" once it closes. A
-  // just-closed run isn't surfaced separately until pay-run records exist.
-  const start = periodStartFor(today, settings);
-  const sheets = await sheetStates(orgId, start);
-  const { submitted, approved } = tallySheets([...sheets.values()].map((s) => s.status));
-  const item = payRunItem({
-    periodLabel: periodLabel(start, settings),
-    periodEnd: periodEnd(start, settings),
-    today,
-    submitted,
-    approved,
-  });
-  return item ? [item] : [];
-}

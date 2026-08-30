@@ -10500,8 +10500,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-wrap { flex:1; min-height:0; display:flex; flex-direction:column;
   width:100%; margin:0; align-self:center; }
 .fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
-/* the head and the payroll strip hold their size; only the card takes slack */
-.fg .hm-phead, .fg .hm-strip { flex:none; }
+/* the head holds its size; only the desk takes slack. (The payroll strip
+   shared this rule until it was removed with the money loader — Home carries
+   the day, the record and the work you owe, and a pay-run status is none of
+   them.) */
+.fg .hm-phead { flex:none; }
 
 /* The well lights for Home: three soft washes — the frame's own teal, blue
    and violet — under the dot grid, anchored where the card sits so the glass
@@ -10983,37 +10986,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-jro > a:focus-visible, .fg .hm-jro > button:focus-visible {
   outline:none; box-shadow:0 0 0 3px rgba(0,229,192,.35); }
 
-/* ── the strip under the card ──
-   Payroll, and only Payroll: the day's context, not a face of it. The two-column
-   grid and `.hm-ph` went with "Who's about today" — dead rules in this
-   stylesheet have shadowed live components at equal specificity twice, so they
-   are deleted rather than left for the next person to trip over. */
-.fg .hm-strip { margin-top:18px; padding:0 4px; }
-.fg .hm-stripcol { min-width:0; }
-.fg .hm-stripcol .wb2-sect { padding:0 0 4px; }
-.fg .hm-sr { display:flex; align-items:baseline; gap:12px; padding:9px 0; text-decoration:none; color:inherit;
-  border-top:1px solid var(--wb2-line2); }
-.fg .hm-sr b { font-size:13px; font-weight:700; color:var(--ink); }
-.fg .hm-sr em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-left:auto; }
-.fg a.hm-sr:hover b { color:var(--wb2-cy); }
-/* A CLOSED period with work still outstanding is the one actionable state this
-   strip has, and it used to look identical to the open-period status line —
-   `payRunItem` computed warn/ok and the row rendered neither.
-
-   A dot, not a tinted row: the strip sits UNDER the card as the day's context,
-   so it marks the row without competing with the card's own badges. And the
-   label already says which state it is ("Pay run due" vs "Timesheets this
-   period"), so the dot is a second channel rather than the only one.
-
-   `--wb2-warn-t`, NOT `--hm-warn`. Both are declared on `.hm-wrap` and both
-   are amber, but `--hm-warn` (#FFC07A) is a DUSK-SKIN literal for the ink
-   card — pale on purpose, because it is read on near-black glass. This strip
-   is on the light well, where it measures under 2:1. The `-t` variants exist
-   for exactly this ground. */
-.fg .hm-sr[data-state="warn"] b { position:relative; padding-left:14px; }
-.fg .hm-sr[data-state="warn"] b::before { content:""; position:absolute; left:0; top:50%;
-  width:7px; height:7px; margin-top:-3.5px; border-radius:50%; background:var(--wb2-warn-t); }
-
 /* ── the Calendar ──
    The `.wb2-mc*` grid mechanics come from the maintenance board; on the ink
    card every surface value is restated for the ground. What is deliberately
@@ -11089,3 +11061,369 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border-radius:50%; background:rgba(255,255,255,.14); box-shadow:none;
   font-style:normal; font-size:8.5px; font-weight:800; color:rgba(255,255,255,.8); }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HOME — THE DESK (2026-08-30)
+
+   Two rooms. The day down the left in daylight, the record on the right on
+   ink glass. What was six faces of one card is three, because four of them
+   were lists of things that already have a whole screen — and the one thing
+   Home never showed at all, the day itself, now has the column it needs.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* THE DESK TAKES THE SLACK, not the card. The card used to be the flex child
+   that filled the window (see `.hm-card` above, and the 494px arithmetic it
+   replaced); the grid is that child now, and the card fills its track the way
+   a grid item stretches by default. `minmax(0,1fr)` on the right, or a long
+   client name in a rail block sets the column's min-content and pushes the
+   card off the screen. */
+.fg .hm-desk { flex:1; min-height:0; display:grid; gap:26px;
+  grid-template-columns:352px minmax(0,1fr); align-items:stretch; }
+/* Under a laptop's width the rail would be squeezing the record it stands
+   beside, so it goes back to being one column with the day on top. */
+@media (max-width:1180px) {
+  .fg .hm-desk { grid-template-columns:minmax(0,1fr); }
+  /* THE DAY BECOMES A BAND, not a full-width rail. Stacked, it has to keep
+     two things from happening: pushing the record off the bottom of the
+     screen (so it is capped and scrolls — `.hm-day` already carries the
+     scroller), and stretching one booking across a metre of page (so the
+     track keeps a column's width and the rest is margin). */
+  .fg .hm-day { max-height:300px; }
+  .fg .hm-rl { max-width:560px; }
+}
+
+/* ── THE GLANCE ──
+   Urgent and Needs attention were faces of this card wearing badges. They are
+   chips in the page head now, and they are doors: the screens behind them say
+   more than a panel ever did. Absent at zero — five grey noughts is not a
+   glance — which is why there is no "all clear" state to style. */
+.fg .hm-phead { display:flex; align-items:flex-end; gap:22px; flex-wrap:wrap; }
+.fg .hm-phead h1 { flex:1 1 auto; }
+.fg .hm-glance { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding-bottom:2px; }
+.fg .hm-gl { display:inline-flex; align-items:center; gap:7px; padding:7px 13px;
+  border-radius:999px; font-size:12.5px; font-weight:700; letter-spacing:-.005em;
+  background:#fff; border:1px solid rgba(5,5,5,.1); color:var(--ink);
+  transition:box-shadow .15s, transform .12s; }
+.fg .hm-gl:hover { box-shadow:0 6px 16px -8px rgba(10,12,20,.4); transform:translateY(-1px); }
+.fg .hm-gl b { font-weight:800; }
+/* The two tones that mean severity, as text on their own light ground — the
+   `-t` tokens, never the fills of the same name. */
+.fg .hm-gl.dan { color:var(--bad-t); background:rgba(224,38,79,.07);
+  border-color:rgba(224,38,79,.2); }
+.fg .hm-gl.warn { color:var(--warn-t); background:rgba(255,138,0,.09);
+  border-color:rgba(255,138,0,.24); }
+
+/* ── THE DAY RAIL ──
+   Daylight, deliberately: it is the well's own surface with the day drawn on
+   it, and the ink card beside it is the record. Two materials, two jobs. */
+.fg .hm-day { min-height:0; display:flex; flex-direction:column; overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent; padding-right:4px; }
+.fg .hm-day > .wb2-sect { color:var(--q); flex:none; }
+.fg .hm-dayoff { flex:none; margin:2px 0 12px; font-size:12.5px; font-weight:600;
+  color:var(--q); }
+.fg .hm-daynone { margin:0; font-size:12.5px; font-weight:600; color:var(--q); }
+
+/* The rail proper. Every child is placed from the same minutes-to-pixels
+   constant the layout module uses (RAIL_PX_PER_HOUR), so a block and the hour
+   beside it can never disagree. */
+.fg .hm-rl { position:relative; flex:none; }
+/* THE ITEMS HAVE THEIR OWN TRACK, and that is not tidiness. An absolutely
+   positioned child is placed against its ancestor's PADDING box, so blocks in
+   a rail with `padding-left` start at the padding's outer edge and draw over
+   the hour labels — measured: the 11am label vanished under a booking. The
+   gutter is a sibling of the track now, and `left`/`width` percentages inside
+   it mean what the layout module thinks they mean. */
+.fg .hm-rlitems { position:absolute; left:46px; right:0; top:0; bottom:0; }
+/* the spine: one line, and it has to READ on a light ground — the first pass
+   was rgba(5,5,5,.08) and vanished at the artifact's own scale */
+.fg .hm-rl::before { content:""; position:absolute; left:34px; top:4px; bottom:4px;
+  width:2px; border-radius:2px; background:#d5dae2; }
+.fg .hm-rlhr { position:absolute; left:0; width:26px; text-align:right;
+  font-size:11px; font-weight:800; color:#7b8494; font-variant-numeric:tabular-nums;
+  transform:translateY(-6px); }
+.fg .hm-rlhr::after { content:""; position:absolute; right:-15px; top:6px; width:7px;
+  height:2px; border-radius:2px; background:rgba(5,5,5,.16); }
+.fg .hm-rlempty { position:absolute; left:0; top:8px; }
+
+/* A BOOKING. The wash, the ink, the chip and the cap are the Schedule tab's
+   own `blockPaint` — the 94%-light ground, the cap walked down until it
+   clears 3:1 against it, the stated neutral for finished work. Only the
+   geometry is Home's: `.wb2-schb` is positioned for a horizontal rail inside
+   `.wb2`, where `--wb2-dan` and `--ink` resolve, and this is neither. */
+.fg .hm-rlb { position:absolute; display:flex; flex-direction:column; justify-content:center;
+  gap:1px; padding:4px 10px 4px 15px; border-radius:10px; overflow:hidden;
+  background:var(--fill,#f4f5f7); box-shadow:0 3px 10px -5px rgba(10,14,25,.3); }
+.fg .hm-rlb::before { content:""; position:absolute; left:5px; top:7px; bottom:7px;
+  width:4px; border-radius:3px; background:var(--bar,#7a818c); }
+.fg .hm-rlbh { display:flex; align-items:center; gap:7px; min-width:0; }
+.fg .hm-rlb b, .fg .hm-rlb em { color:var(--btext,#0a0b10); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; line-height:1.25; }
+.fg .hm-rlb b { font-size:12.5px; font-weight:800; letter-spacing:-.015em; }
+.fg .hm-rlb em { font-style:normal; font-size:11px; font-weight:600; opacity:.72; }
+.fg .hm-rlb u { flex:none; padding:1px 5px; border-radius:5px; text-decoration:none;
+  font-size:9.5px; font-weight:800; color:var(--btext,#0a0b10);
+  background:var(--chip,rgba(5,5,5,.09)); font-variant-numeric:tabular-nums; }
+/* FINISHED IS NEUTRAL AND CARRIES A TICK — never `opacity`, which was the old
+   bug: colour means "still to do" on this app, so done work gives its hue up
+   entirely rather than fading with its text. */
+.fg .hm-rlb.done { background:var(--pale,#f4f5f7); padding-right:26px;
+  box-shadow:inset 0 0 0 1px var(--pale-edge,#dbdee4); }
+.fg .hm-rlb.done::before { left:auto; right:11px; top:50%; bottom:auto; margin-top:-4px;
+  width:3.5px; height:7px; border-radius:0; background:none; border:solid #fff;
+  border-width:0 2px 2px 0; transform:rotate(40deg); z-index:1; }
+.fg .hm-rlb.done::after { content:""; position:absolute; right:6px; top:50%;
+  margin-top:-7px; width:14px; height:14px; border-radius:50%; background:#00806b; }
+/* a quote is dashed on its own edge, so the mark survives a narrow column */
+.fg .hm-rlb.qt { outline:2px dashed color-mix(in srgb, var(--btext,#050505) 55%, transparent);
+  outline-offset:-4px; }
+/* not started: the cap hollows, and nothing else changes */
+.fg .hm-rlb.idle::before { background:none; box-shadow:inset 0 0 0 1.5px var(--bar,#b9bec7); }
+/* the one alarm on the rail, and it is the board's word for it */
+.fg .hm-rlb.late { padding-right:26px; }
+.fg .hm-rlb.late::after { content:"!"; position:absolute; right:6px; top:50%; margin-top:-7px;
+  width:14px; height:14px; border-radius:50%; background:#e0264f; display:grid;
+  place-items:center; font-size:10px; font-weight:900; line-height:1; color:#fff; }
+.fg .hm-rlb.dan { box-shadow:inset 0 0 0 2px #e0264f; }
+
+/* A TASK THAT NAMED AN HOUR. Deliberately not a booking: white, a slate cap,
+   a clock rather than a job number — it is yours, not ServiceM8's. */
+.fg .hm-rlt { position:absolute; display:flex; align-items:center; gap:8px;
+  padding:0 10px 0 13px; border-radius:10px; background:#fff; overflow:hidden;
+  border:1px solid rgba(5,5,5,.06); box-shadow:0 3px 10px -5px rgba(10,14,25,.25); }
+.fg .hm-rlt::before { content:""; position:absolute; left:5px; top:7px; bottom:7px;
+  width:4px; border-radius:3px; background:#46505f; }
+.fg .hm-rlt svg { flex:none; color:#7b8494; }
+.fg .hm-rlt b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:12.5px; font-weight:700; letter-spacing:-.015em; color:var(--ink); }
+.fg .hm-rlt u { margin-left:auto; flex:none; text-decoration:none; font-size:10.5px;
+  font-weight:800; color:#7b8494; font-variant-numeric:tabular-nums; }
+.fg .hm-rlt.over::before { background:var(--bad-t); }
+.fg .hm-rlt.over u { color:var(--bad-t); }
+
+/* NOW. Teal, not red: red on this app means something is wrong, and the time
+   is not. The label rides `data-now`, so the line and its time can never end
+   up in two places. */
+.fg .hm-rlnow { position:absolute; left:-16px; right:0; height:2px;
+  background:var(--teal-d); z-index:4; pointer-events:none; }
+.fg .hm-rlnow::before { content:attr(data-now); position:absolute; right:0; top:-9px;
+  padding:2px 7px; border-radius:999px; background:var(--teal-d); color:#fff;
+  font-size:9.5px; font-weight:800; letter-spacing:.03em; white-space:nowrap;
+  font-variant-numeric:tabular-nums; }
+.fg .hm-rlnow::after { content:""; position:absolute; left:-4px; top:-4px; width:10px;
+  height:10px; border-radius:50%; background:var(--teal-d); }
+
+/* ── THE DIARY'S WAY IN ──
+   A record you cannot add to from where you read it sends you somewhere else
+   to write. Dashed rather than filled: it is an invitation, not a control
+   competing with the words underneath it. The microphone is its own button —
+   most of these arrive spoken from the ute, and `flow.talk()` opens the mic
+   with the card, so reaching for it is one press rather than two. */
+.fg .hm-adde { width:100%; display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px;
+  border:1.5px dashed rgba(255,255,255,.2); border-radius:14px;
+  background:rgba(255,255,255,.04); transition:border-color .16s, background .16s; }
+.fg .hm-adde:hover, .fg .hm-adde:focus-within { border-color:rgba(0,229,192,.5);
+  background:rgba(255,255,255,.07); }
+.fg .hm-addetx { flex:1; display:flex; align-items:center; gap:10px; min-width:0;
+  padding:8px 0; border:0; background:none; text-align:left; cursor:text;
+  font:600 13.5px var(--font); color:var(--hm-quiet); }
+.fg .hm-adde:hover .hm-addetx { color:#fff; }
+.fg .hm-addemk { position:relative; flex:none; width:26px; height:26px;
+  display:inline-flex; align-items:center; justify-content:center; }
+.fg .hm-addemk .tiffbtn-spark { right:-2px; bottom:-2px; }
+.fg .hm-addemic { flex:none; display:grid; place-items:center; width:34px; height:34px;
+  border:0; border-radius:50%; background:rgba(255,255,255,.07); color:rgba(255,255,255,.7);
+  cursor:pointer; transition:background .16s, color .16s, box-shadow .16s; }
+.fg .hm-addemic:hover { background:rgba(0,229,192,.18); color:#7CEFD9;
+  box-shadow:0 0 0 4px rgba(0,229,192,.1); }
+.fg .hm-addemic:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+
+/* ── THE DEBRIEF, ON ITS OWN FACE ──
+   One question, one button, and the last thing you said underneath. The
+   prompt chips and the "or type it" line were both cut (Isaac, 2026-08-30):
+   the mark, the question and the button carry it. */
+.fg .hm-dbf { display:flex; flex-direction:column; gap:18px; padding:10px 0 4px;
+  max-width:620px; }
+.fg .hm-dbft { margin:0; font-size:21px; font-weight:800; letter-spacing:-.025em;
+  color:#fff; }
+.fg .hm-dbfl { padding-top:16px; border-top:1px solid var(--hm-line); }
+.fg .hm-dbfsaid { margin:6px 0 0; font-size:13px; line-height:1.55;
+  color:var(--hm-quiet); display:-webkit-box; -webkit-box-orient:vertical;
+  -webkit-line-clamp:3; overflow:hidden; }
+
+/* ── THE MARK, THINKING ──
+   The studio's dot cloud, on the card's floor. A ZERO-SIZED ANCHOR with the
+   field centred on it, exactly as `.ds-cloud` does it: a 330px box in the
+   card's flow would set a min-content width and push the panels around, and
+   nothing about a decoration may influence layout. Behind the panels (z0,
+   with the card's two lamps), because it is the surface breathing rather than
+   anything to read. */
+.fg .hm-cloud { position:absolute; right:170px; bottom:130px; width:0; height:0;
+  z-index:0; pointer-events:none; }
+.fg .hm-cloud .dotf { position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%); opacity:.7; }
+@media (prefers-reduced-motion:reduce) { .fg .hm-cloud { display:none; } }
+
+/* THE DEBRIEF'S BUTTON, ON ITS OWN FACE.
+   `.hm-say` was built as a BAR — full width, quiet glass — because it sat at
+   the top of the record it produces and had to not shout over it. On its own
+   panel it is the one thing there, and a full-width quiet bar on a dark card
+   reads as a disabled field rather than the page's primary action. So here,
+   and only here, it is a button: the brand ramp, sized to its words. */
+.fg .hm-dbf .hm-saydock { flex:none; }
+.fg .hm-dbf .hm-say { flex:none; width:auto; min-height:48px; padding:0 22px 0 6px;
+  gap:10px; border-color:transparent;
+  background:linear-gradient(110deg,#00A389,#2b6fd4);
+  box-shadow:0 14px 30px -14px rgba(0,120,140,.75); }
+.fg .hm-dbf .hm-say:hover { border-color:transparent; filter:brightness(1.07);
+  background:linear-gradient(110deg,#00A389,#2b6fd4); }
+.fg .hm-dbf .hm-saytx { flex:none; font-size:14.5px; font-weight:800; color:#fff; }
+
+/* ── THE CALENDAR, AS A LIST ──
+   Four weeks read downward: date on the left, what is on that day to the
+   right of it. The grid it replaces spent seven columns saying which weekday
+   a date was, which the row can say in three letters.
+
+   The whole thing is one grid so every date column lines up — a ragged left
+   edge over 28 rows reads as a mistake, and the eye is scanning that column
+   for "which day", not the pills beside it. */
+.fg .hm-lv { display:flex; flex-direction:column; padding:4px 26px 10px; }
+.fg .hm-lvr { display:grid; grid-template-columns:74px minmax(0,1fr); gap:14px;
+  align-items:center; min-height:38px; padding:3px 0;
+  border-bottom:1px solid var(--hm-line); }
+.fg .hm-lvr:last-child { border-bottom:0; }
+/* The weekend is quieter, not absent: a run of leave crosses it, and a
+   Saturday callout is a real thing that would have nowhere to draw. */
+.fg .hm-lvr.wknd .hm-lvd { opacity:.5; }
+.fg .hm-lvd { display:flex; align-items:baseline; gap:7px; font-variant-numeric:tabular-nums; }
+.fg .hm-lvd b { font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--hm-quiet); min-width:26px; }
+.fg .hm-lvd em { font-style:normal; font-size:15px; font-weight:700; color:rgba(255,255,255,.92); }
+.fg .hm-lvd u { text-decoration:none; font-size:10.5px; font-weight:800; letter-spacing:.05em;
+  text-transform:uppercase; color:var(--hm-quiet); }
+/* TODAY IS THE ONE MARKED ROW, and it is marked with the card's own teal —
+   the same colour the now marker wears on the rail beside it, because both
+   answer "where am I in this". */
+.fg .hm-lvr.today { position:relative; }
+.fg .hm-lvr.today::before { content:""; position:absolute; left:-14px; top:6px; bottom:6px;
+  width:3px; border-radius:3px; background:var(--hm-teal); }
+.fg .hm-lvr.today .hm-lvd em, .fg .hm-lvr.today .hm-lvd b { color:var(--hm-teal); }
+.fg .hm-lvw { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
+/* A colleague: neutral, because it is context rather than your day. */
+.fg .hm-lvp { display:inline-flex; align-items:center; gap:6px; padding:3px 10px;
+  border-radius:999px; background:rgba(255,255,255,.08); font-size:12px; font-weight:700;
+  color:rgba(255,255,255,.82); max-width:100%; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; }
+/* Yours: the teal that means "this one is mine" on this card. */
+.fg .hm-lvp.mine { background:rgba(0,229,192,.16); color:var(--hm-teal); }
+/* Closed: the info blue the public-holiday line already wore. Never a state
+   colour — the office being shut is not a warning. */
+.fg .hm-lvp.closed { background:rgba(46,104,255,.18); color:#A8C4FF; }
+
+/* ── THE CALENDAR FACE: one window, three readings ──
+   The stepper and the view switcher share a row, and both belong to the
+   WINDOW rather than to any one view — the grid had its own arrows once, and
+   a second set inside it could disagree with the list's. */
+.fg .hm-cal { display:flex; flex-direction:column; padding:14px 26px 4px; }
+.fg .hm-calhead { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding-bottom:12px; }
+.fg .hm-calstep { display:flex; align-items:center; gap:10px; }
+.fg .hm-calstep b { font-size:14.5px; font-weight:800; letter-spacing:-.015em; color:#fff;
+  min-width:132px; }
+/* The switcher is a plain pill group, NOT `.wb2-seg`: that control is a light
+   ground with a measured sliding thumb, and this card already carries one
+   sliding strip (the faces). A second would be two thumbs on one surface. */
+.fg .hm-calseg { margin-left:auto; display:inline-flex; gap:2px; padding:3px;
+  border-radius:12px; background:rgba(255,255,255,.06); }
+.fg .hm-calsegb { padding:6px 13px; border:0; border-radius:9px; background:none;
+  font:700 12.5px var(--font); color:var(--hm-quiet); cursor:pointer;
+  transition:color .15s, background .15s; }
+.fg .hm-calsegb:hover { color:#fff; }
+.fg .hm-calsegb.on { background:rgba(255,255,255,.14); color:#fff; }
+.fg .hm-calsegb:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+.fg .hm-calsum { display:flex; flex-wrap:wrap; gap:7px; padding:0 0 14px; }
+/* The list keeps its own inset; the face already carries the panel's. */
+.fg .hm-cal .hm-lv { padding:0; }
+
+/* ═══ THE CALENDAR FACE IS DAYLIGHT (Isaac, 2026-08-30: "it can be light
+   theme too") ═══
+
+   Every other face of this card is ink, and this one is a sheet of daylight
+   laid on it. That is a deliberate exception, not a drift: the other three
+   are things you WROTE or things you OWE — the app's own record, which is
+   what the ink material means — and a month of everybody's leave is a
+   reference table. It reads the way the board's calendar reads because it IS
+   the board's calendar.
+
+   THE VALUES ARE THE BOARD'S, RESTATED — not re-derived. The `.wb2-mc*`
+   family is light by default (it lives on the workboard); what stands in the
+   way is Home's own dark restyle at `.fg .hm-card .wb2-mc*` (0,3,0), written
+   when this face was ink and every value measured for that ground. So each
+   rule below puts back the base light value at (0,4,0) rather than inventing
+   a new one — if the board's calendar changes, the two can be diffed line for
+   line, which a fresh set of numbers could never be.
+
+   Anything NOT restated here is inherited from the base and is correct
+   already; the list rows below are Home's own, so they are simply written
+   for the ground they are now on. */
+.fg .hm-card .hm-cal { margin:6px 20px 16px; padding:14px 16px 8px; border-radius:18px;
+  background:#F6F7F9; color:var(--ink);
+  box-shadow:inset 0 0 0 1px rgba(5,5,5,.06), 0 10px 30px -18px rgba(8,11,20,.5); }
+
+/* the face's own head */
+.fg .hm-card .hm-cal .hm-calstep b { color:var(--ink); }
+.fg .hm-card .hm-cal .hm-calseg { background:rgba(5,5,5,.05); }
+.fg .hm-card .hm-cal .hm-calsegb { color:var(--gray500); }
+.fg .hm-card .hm-cal .hm-calsegb:hover { color:var(--ink); }
+.fg .hm-card .hm-cal .hm-calsegb.on { background:#fff; color:var(--ink);
+  box-shadow:0 3px 10px -4px rgba(10,12,20,.4); }
+.fg .hm-card .hm-cal .wb2-chip { background:rgba(5,5,5,.055); color:var(--gray700); }
+.fg .hm-card .hm-cal .hm-none { color:var(--q); }
+
+/* the stepper — the board's own buttons */
+.fg .hm-card .hm-cal .wb2-mcarrow { background:#fff; border-color:var(--wb2-line);
+  color:var(--gray500); }
+.fg .hm-card .hm-cal .wb2-mcarrow:hover { background:#fbfbfc; border-color:rgba(5,5,5,.24);
+  color:var(--ink); }
+.fg .hm-card .hm-cal .wb2-mcarrow:disabled:hover { background:#fff;
+  border-color:var(--wb2-line); color:var(--gray500); }
+.fg .hm-card .hm-cal .wb2-mcnow { background:#fff; border-color:var(--wb2-line);
+  color:var(--gray500); }
+.fg .hm-card .hm-cal .wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
+
+/* the grid */
+.fg .hm-card .hm-cal .wb2-mcdow { color:var(--q); }
+.fg .hm-card .hm-cal .wb2-mcc { background:#fff; border-color:var(--wb2-line2); }
+.fg .hm-card .hm-cal .wb2-mcc.we { background:rgba(5,5,5,.022); }
+.fg .hm-card .hm-cal .wb2-mcc.past { opacity:.6; }
+.fg .hm-card .hm-cal .wb2-mcc.today { border-color:rgba(5,5,5,.55);
+  box-shadow:0 0 0 1px rgba(5,5,5,.14); }
+.fg .hm-card .hm-cal .wb2-mcn b { color:var(--gray700); }
+.fg .hm-card .hm-cal .wb2-mcn em, .fg .hm-card .hm-cal .wb2-mcn i { color:var(--gray500); }
+.fg .hm-card .hm-cal .wb2-mcc.today .wb2-mcn b { background:rgba(5,5,5,.07); color:var(--ink); }
+.fg .hm-card .hm-cal .wb2-mcc.today .wb2-mcn i { color:var(--gray700); }
+.fg .hm-card .hm-cal .wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
+/* closed: the info blue as it reads on white, which is where it started */
+.fg .hm-card .hm-cal .wb2-mcc.hm-calph { background:rgba(0,168,224,.1);
+  border-color:rgba(0,137,184,.35); }
+.fg .hm-card .hm-cal .hm-calphl { color:#0089b8; }
+/* YOURS IS INK AGAIN. On ink the band was white because white was the
+   strongest material there; on daylight that job returns to ink — the same
+   argument, run the other way. */
+.fg .hm-card .hm-cal .hm-calmine { background:var(--ink2); color:#fff; }
+
+/* the list rows, on daylight */
+.fg .hm-card .hm-cal .hm-lvr { border-bottom-color:rgba(5,5,5,.07); }
+.fg .hm-card .hm-cal .hm-lvd b, .fg .hm-card .hm-cal .hm-lvd u { color:var(--q); }
+.fg .hm-card .hm-cal .hm-lvd em { color:var(--ink); }
+.fg .hm-card .hm-cal .hm-lvr.today::before { background:var(--teal-d); }
+.fg .hm-card .hm-cal .hm-lvr.today .hm-lvd em,
+.fg .hm-card .hm-cal .hm-lvr.today .hm-lvd b { color:var(--teal-d); }
+.fg .hm-card .hm-cal .hm-lvp { background:rgba(5,5,5,.06); color:var(--gray700); }
+.fg .hm-card .hm-cal .hm-lvp.mine { background:rgba(0,163,137,.12); color:#00735f; }
+.fg .hm-card .hm-cal .hm-lvp.closed { background:rgba(0,168,224,.1); color:#0089b8; }
+/* A COLLEAGUE'S PILL, on the sheet. The ink version is white-on-white here —
+   measured by looking: the first four cells came out empty. Same shape, the
+   ground's own values. */
+.fg .hm-card .hm-cal .hm-caloff { background:rgba(5,5,5,.06); color:var(--gray700); }
+.fg .hm-card .hm-cal .hm-caloff i { background:rgba(5,5,5,.1); color:var(--gray700); }

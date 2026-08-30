@@ -28,6 +28,10 @@ export type DashTask = {
       (the creator's, or a manager's) removes a task. */
   doneAt: string | null;
   doneByName: string | null;
+  /** The hour this task named, if it named one — a timestamptz whose date IS
+      `dueDate`. The only thing that can put a task on Home's day rail; null
+      for the ordinary "some time that day" task. */
+  remindAt: string | null;
 };
 
 /* Completing a task hides it from the open list, but it must not vanish: one

@@ -1,3 +1,4 @@
+import { fmtAuDayMonth } from "@/lib/au-dates";
 import { initialsFrom } from "@/lib/staff/derive";
 import { LEAVE_LABEL, type LeaveRequest } from "@/lib/timepay/leave";
 import { plusDays } from "@/lib/workboard/dates";
@@ -130,6 +131,114 @@ export function buildCalendar(
   }
 
   return { spanStart, spanEnd, days };
+}
+
+/* ── WHICH DAYS ARE ON SHOW ──
+
+   Three views, because a month of leave gets read three ways and the app has
+   no business deciding which (Isaac, 2026-08-30): four weeks from here as a
+   list, a whole calendar month as a list, or the grid the card used to wear.
+   All three step, and all three are clamped to the days actually loaded —
+   `calendarSpan` reaches a week back and eight weeks ahead, so an arrow that
+   walked past that would page onto nothing.
+
+   The step means a different thing per view on purpose: a week for the lists
+   and the grid, a month for the month. Pressing "next" on a month view and
+   landing seven days later would be the control lying about its own unit. */
+
+export type CalView = "weeks" | "month" | "grid";
+
+export type CalWindow = {
+  days: CalendarDay[];
+  /** "1 – 28 Sep" · "September 2026" */
+  label: string;
+  canBack: boolean;
+  canForward: boolean;
+};
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** `YYYY-MM`, n months from the one this date is in. Month arithmetic on the
+    STRING, never a Date: `new Date("2026-09-01")` is UTC midnight, which in
+    Australia is the afternoon of August 31st. */
+function monthKey(iso: string, add: number): string {
+  const [y, m] = iso.split("-").map(Number);
+  const t = y * 12 + (m - 1) + add;
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`;
+}
+
+function daysFor(
+  cal: LeaveCalendar,
+  today: string,
+  view: CalView,
+  shift: number,
+): CalendarDay[] {
+  if (view === "grid") return windowFrom(cal, today, shift);
+  if (view === "month") {
+    const key = monthKey(today, shift);
+    return cal.days.filter((d) => d.iso.startsWith(key));
+  }
+  /* The list's own anchor is TODAY, not the Monday a grid has to start on —
+     see `leaveList`. A step moves that anchor a week, so "from here on" stays
+     what the first page says.
+
+     THE ANCHOR IS WHAT IS CLAMPED, not the rows it finds. Filtering `>= from`
+     alone always returns days while any day is left in the span, so a back
+     arrow tested that way never disables — it just stops moving, which reads
+     as a broken button rather than the end of the data. */
+  const from = plusDays(today, shift * 7);
+  if (from < cal.spanStart || from > cal.spanEnd) return [];
+  return cal.days.filter((d) => d.iso >= from).slice(0, WINDOW_DAYS);
+}
+
+export function calWindow(
+  cal: LeaveCalendar,
+  today: string,
+  view: CalView,
+  shift: number,
+): CalWindow {
+  const days = daysFor(cal, today, view, shift);
+  const label =
+    view === "month"
+      ? (() => {
+          const [y, m] = monthKey(today, shift).split("-").map(Number);
+          return `${MONTHS[m - 1]} ${y}`;
+        })()
+      : days.length > 0
+        ? `${fmtAuDayMonth(days[0].iso)} – ${fmtAuDayMonth(days[days.length - 1].iso)}`
+        : "";
+
+  return {
+    days,
+    label,
+    /* An arrow is disabled by asking the window it would open whether it has
+       anything in it — one rule for three views, and it can never disagree
+       with what the step actually does. */
+    canBack: daysFor(cal, today, view, shift - 1).length > 0,
+    canForward: daysFor(cal, today, view, shift + 1).length > 0,
+  };
+}
+
+/** THE LIST — four weeks, one day after the next, starting TODAY.
+
+    The grid this replaces opened on the Monday you were in, because a grid
+    has to start on a whole week or its first row is a part-row. A list has no
+    such constraint, and days that have already gone are not something to
+    scroll past on the way to the answer: what a person wants from leave on a
+    home screen is "who is off, from here on". Ascending, so the nearest thing
+    is the first thing.
+
+    Short by design at the end of the loaded span rather than padded with
+    empty days it has no data for. */
+export function leaveList(
+  cal: LeaveCalendar,
+  today: string,
+  days: number = WINDOW_DAYS,
+): CalendarDay[] {
+  return cal.days.filter((d) => d.iso >= today).slice(0, days);
 }
 
 /** The 28 days on show, starting `weekShift` weeks from this Monday. Clamped to

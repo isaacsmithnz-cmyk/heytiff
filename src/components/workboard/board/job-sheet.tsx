@@ -29,6 +29,7 @@ import { JobMoneyBlock } from "./job-money-block";
 import { JobSummaryFace } from "./job-summary-face";
 import { JobDiaryFace } from "./job-diary-face";
 import { cacheJobFiles } from "@/app/actions/workboard-media";
+import { readJobPhotos } from "@/app/actions/photo-readings";
 import {
   addJobPicklistItem,
   listJobPicklist,
@@ -96,6 +97,10 @@ import type { ScheduleJobState } from "./schedule-tab";
 /** Enough rounds for the busiest job in the live account (a few dozen files
     at six a round), and a hard stop against a server that never converges. */
 const MAX_CACHE_ROUNDS = 12;
+/* Four photos a round. A 90-photo job finishes across a couple of visits,
+   which is the same shape the byte cache already has (12 x 6 = 72 files per
+   open), and it means no single card open can run away with the bill. */
+const MAX_READ_ROUNDS = 12;
 
 /** How many visits the face shows before it offers the rest. Live, the
     median job has 2 sessions, one in ten runs past 12 and the worst runs to
@@ -422,7 +427,17 @@ export function JobSheet({
   }, [cardId]);
 
   /* Bringing the bytes across, a few per round, with the BROWSER as the loop.
-     Two rails: a hard round cap, and STOP ON NO PROGRESS. */
+     Two rails: a hard round cap, and STOP ON NO PROGRESS.
+
+     AND THEN READING WHAT LANDED. Opening a job is what puts its photographs
+     in the searchable bank — the same lazy rule that keeps the bucket at
+     432MB instead of 28GB, applied to the index. Deliberately AFTER the
+     caching drains rather than inside it: this loop is what a reader is
+     waiting on for their tiles to appear, and a vision call is seconds. The
+     reading is nobody's foreground.
+
+     PAID FOR ONCE. `job_photo_readings` is unique per photo, so a job opened
+     twenty times is read once. Nothing is spent on a job nobody opens. */
   useEffect(() => {
     if (!cardId) return;
     let live = true;
@@ -434,7 +449,18 @@ export function JobSheet({
         if (!live) return;
         if (res.media) setMedia(res.media);
         if (res.note) setMediaNote(res.note);
-        if (!res.ok || res.cached === 0 || res.remaining === 0) return;
+        if (!res.ok || res.cached === 0 || res.remaining === 0) break;
+      }
+      /* Same brake as every other loop here: the outstanding count must FALL
+         or this stops. A server reporting the same number twice cannot read
+         what is in front of it, and going round again would only spend. */
+      let last = Number.POSITIVE_INFINITY;
+      for (let round = 0; live && round < MAX_READ_ROUNDS; round++) {
+        const res = await readJobPhotos(cardId);
+        if (!live) return;
+        if (!res.ok || res.read === 0 || res.remaining >= last) break;
+        last = res.remaining;
+        if (res.remaining === 0) break;
       }
     };
     void pump();

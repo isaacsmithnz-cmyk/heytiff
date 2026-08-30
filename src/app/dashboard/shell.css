@@ -7569,6 +7569,19 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
    because these are chosen photographs somebody means to show a client, and
    each one carries a sentence saying what it is. */
 .wb2-show { padding:2px 0 8px; }
+/* THE SEARCH BOX IS `.wb2-find`, the board's own — see showcase-view.tsx.
+   Only its placement here is new: full width above the gallery, because this
+   field is the screen's main verb rather than a filter tucked in a header. */
+.wb2-showfind { width:100%; margin:2px 0 12px; height:40px; }
+.wb2-showfind input { font-size:13.5px; }
+/* WHY A PHOTO MATCHED, when the reason is not the caption — a hit on a model
+   number is otherwise invisible: the picture shows a plate and the words that
+   found it are printed on it. Not a highlight colour; a quiet monospace-free
+   strip, because the house has no mono font. */
+.wb2-showhit { display:block; margin-top:3px; padding:3px 7px; border-radius:6px;
+  background:rgba(245,180,0,.16); color:#7a5a00; font-size:10.5px; font-weight:700;
+  overflow-wrap:anywhere; }
+
 .wb2-showempty { display:grid; place-items:center; gap:8px; padding:44px 20px;
   text-align:center; color:var(--gray500); }
 .wb2-showempty b { font-size:14px; font-weight:800; color:var(--ink); }

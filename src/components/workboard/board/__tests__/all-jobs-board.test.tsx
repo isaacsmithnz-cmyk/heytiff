@@ -45,6 +45,17 @@ jest.mock("@/app/actions/job-picklist", () => ({
 jest.mock("@/app/actions/job-photo-favourites", () => ({
   listJobPhotoFavourites: jest.fn(async () => []),
   setJobPhotoFavourite: jest.fn(async () => ({ ok: true, starred: true, note: null })),
+  listShowcase: jest.fn(async () => []),
+}));
+/* The Showcase tab searches the photo bank, and the job card reads into it —
+   both `"use server"` modules, both of which drag `next/cache` into jsdom
+   where `Request` is undefined and the suite dies at import time. */
+jest.mock("@/app/actions/photo-search", () => ({
+  searchPhotos: jest.fn(async () => ({ ok: true, hits: [], banked: 0, capped: false })),
+  countBankedPhotos: jest.fn(async () => 0),
+}));
+jest.mock("@/app/actions/photo-readings", () => ({
+  readJobPhotos: jest.fn(async () => ({ ok: true, read: 0, remaining: 0, note: null })),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }) }));
 /* The job card's pen reaches `"use server"` modules through NoteToken, and a

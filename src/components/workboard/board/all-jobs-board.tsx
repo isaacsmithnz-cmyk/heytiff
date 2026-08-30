@@ -351,7 +351,7 @@ export function AllJobsBoard({
           {tab === "work" && <WorkOrdersTab {...panelProps} />}
           {tab === "quotes" && <QuotesTab {...panelProps} />}
           {tab === "completed" && <CompletedJobsTab {...panelProps} />}
-          {tab === "showcase" && <ShowcaseView manage={manage} />}
+          {tab === "showcase" && <ShowcaseView />}
           {tab === "capacity" && (
             <CapacityView
               today={today}

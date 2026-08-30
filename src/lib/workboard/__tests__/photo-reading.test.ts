@@ -141,3 +141,48 @@ describe("isSendableImage", () => {
     expect(isSendableImage(null)).toBe(false);
   });
 });
+
+/* ── which cached files the bank will read ── */
+
+import { isBankablePhoto } from "@/lib/workboard/photo-reading";
+import { mimeForExt, normaliseFileType } from "@/lib/workboard/job-media";
+
+const bankable = (f: { mime_type?: string | null; file_name?: string | null }) =>
+  isBankablePhoto(f, mimeForExt, normaliseFileType);
+
+describe("isBankablePhoto", () => {
+  /* THE BUG THIS EXISTS FOR, and it is the same ServiceM8 fact for the third
+     time in one day. Every attachment is named the literal string `Photo`,
+     with NO EXTENSION. A filter of the form `file_name.split(".").pop()`
+     returns "Photo", maps to no mime type, and excludes EVERY photograph on
+     EVERY job — the bank stays empty, nothing errors, and the search simply
+     never finds anything. */
+  it("reads a photo ServiceM8 named `Photo` with no extension", () => {
+    expect(bankable({ file_name: "Photo", mime_type: "image/jpeg" })).toBe(true);
+    expect(bankable({ file_name: "Photo", mime_type: "image/avif" })).toBe(true);
+  });
+
+  /* The name is what it must NOT decide on: on its own it says nothing. */
+  it("does not decide from the name when there is a mime type", () => {
+    expect(bankable({ file_name: "Photo", mime_type: null })).toBe(false);
+    expect(bankable({ file_name: "invoice.pdf", mime_type: "image/jpeg" })).toBe(true);
+  });
+
+  /* An invoice is not a photograph — cacheJobFiles brings PDFs across too. */
+  it("leaves paper out of a picture bank", () => {
+    expect(bankable({ file_name: "Partial Invoice #907A", mime_type: "application/pdf" })).toBe(
+      false
+    );
+  });
+
+  /* The fallback is for rows written before the uploader set a mime type. */
+  it("falls back to the extension only when the mime is missing", () => {
+    expect(bankable({ file_name: "roof.jpg", mime_type: null })).toBe(true);
+    expect(bankable({ file_name: "notes.txt", mime_type: null })).toBe(false);
+  });
+
+  it("survives a row with neither", () => {
+    expect(bankable({})).toBe(false);
+    expect(bankable({ file_name: null, mime_type: null })).toBe(false);
+  });
+});

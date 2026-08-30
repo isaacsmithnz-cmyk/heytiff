@@ -93,18 +93,21 @@ export function HomeJournal({
 
   return (
     <>
-      {/* THE HEADER IS THE CONTROL. Four shapes now: "Say the day" over a
+      {/* THE HEADER IS THE CONTROL. Five shapes now: "Say the day" over a
           coaching line, then the day and date (which went up to the page
           head, where the screen's context belongs), then a lone glass
-          capsule — and now a bar that IS the button, wearing the global Tiff
-          mark (Isaac, 2026-08-12).
+          capsule, then the dark debrief bar wearing the global Tiff mark
+          (Isaac, 2026-08-12) — and now a dashed field with a microphone on
+          it (Isaac, 2026-08-30).
 
-          The capsule died of its own material: it was the topbar button's
-          glass, which composites to 1.29:1 against this card, so all that
-          showed was a gradient rim the card already wears. `NoteToken` owns
-          the whole row now — same sheet, whichever door you came through. */}
+          The bar left because the card went light and it was the one dark
+          thing on it, and because the debrief has its own face now: this
+          record is where a day's words LAND, and what it was missing was a
+          way to add one from where you read them. Same flow either way —
+          `NoteToken` owns both doors, and this one drops the debrief flag so
+          a single thought is read as a single note. */}
       <div className="hm-head">
-        <NoteToken as="debrief" />
+        <NoteToken as="entry" />
       </div>
 
       {days.length === 0 ? (

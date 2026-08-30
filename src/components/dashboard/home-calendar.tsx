@@ -1,16 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Icon } from "@/components/shell/icon";
-import { fmtAuDayMonth } from "@/lib/au-dates";
 import { isWeekendISO } from "@/lib/workboard/board-status";
-import {
-  shiftBounds,
-  windowFrom,
-  windowSummary,
-  type CalendarDay,
-  type LeaveCalendar,
-} from "@/lib/dashboard/calendar";
+import { type CalendarDay } from "@/lib/dashboard/calendar";
 
 /* THE CALENDAR TAB — your leave, who else is off, and the days we're closed.
 
@@ -38,75 +29,16 @@ import {
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function HomeCalendar({ cal, today }: { cal: LeaveCalendar; today: string }) {
-  const [weekShift, setWeekShift] = useState(0);
-  const bounds = useMemo(() => shiftBounds(cal, today), [cal, today]);
-  const days = useMemo(() => windowFrom(cal, today, weekShift), [cal, today, weekShift]);
-  const sum = useMemo(() => windowSummary(days), [days]);
+export function HomeCalendar({ days, today }: { days: readonly CalendarDay[]; today: string }) {
+  /* PRESENTATIONAL NOW. The stepper, the range label and the summary chips
+     moved up to the Calendar face, because they belong to the WINDOW rather
+     than to the grid — the list views step through the same weeks and must
+     not grow a second set of arrows that disagree with these ones.
 
-  /* An org with no leave and no holidays loaded still gets a grid — the empty
-     four weeks ARE the answer to "is anyone off". What it cannot do is render
-     a header counting a window that has no days in it. */
-  if (days.length === 0) {
-    return <p className="hm-none">No dates to show yet.</p>;
-  }
-
-  const rangeLabel = `${fmtAuDayMonth(days[0].iso)} – ${fmtAuDayMonth(days[days.length - 1].iso)}`;
-
+     What is left is the part only a grid does: seven columns, and a cell that
+     knows which day it is. */
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci blue">
-          <Icon name="calendar" size={19} />
-        </span>
-        <div>
-          {/* The arrows belong TO the label, as they do on the board. */}
-          <div className="wb2-mchead">
-            <button
-              className="wb2-mcarrow"
-              aria-label="A week earlier"
-              disabled={weekShift <= bounds.min}
-              onClick={() => setWeekShift((w) => Math.max(bounds.min, w - 1))}
-            >
-              <Icon name="chevL" size={15} />
-            </button>
-            <b>{rangeLabel}</b>
-            <button
-              className="wb2-mcarrow"
-              aria-label="A week later"
-              disabled={weekShift >= bounds.max}
-              onClick={() => setWeekShift((w) => Math.min(bounds.max, w + 1))}
-            >
-              <Icon name="chevR" size={15} />
-            </button>
-            {weekShift !== 0 && (
-              <button className="wb2-mcnow" onClick={() => setWeekShift(0)}>
-                Today
-              </button>
-            )}
-          </div>
-          <em>Your leave, who else is off, and the days the office is closed.</em>
-        </div>
-        {/* What the window counted, never the whole loaded span. */}
-        <span className="wb2-mcsum">
-          {sum.yoursOff > 0 && (
-            <span className="wb2-chip">
-              You&rsquo;re off {sum.yoursOff} {sum.yoursOff === 1 ? "day" : "days"}
-            </span>
-          )}
-          {sum.othersOff > 0 && (
-            <span className="wb2-chip">
-              {sum.othersOff} {sum.othersOff === 1 ? "person" : "people"} off
-            </span>
-          )}
-          {sum.holidays > 0 && (
-            <span className="wb2-chip">
-              {sum.holidays} public {sum.holidays === 1 ? "holiday" : "holidays"}
-            </span>
-          )}
-        </span>
-      </div>
-
       <div className="wb2-mcdow" aria-hidden="true">
         {DOW.map((d) => (
           <span key={d}>{d}</span>
@@ -121,10 +53,6 @@ export function HomeCalendar({ cal, today }: { cal: LeaveCalendar; today: string
   );
 }
 
-/* A day is a `div`, not the board's `button`: there is nothing to open. The
-   board's cell opens the day's visits; leave is read here and booked on the
-   leave screen, and a control that does nothing when pressed is worse than a
-   plain cell. */
 function Day({ day, today }: { day: CalendarDay; today: string }) {
   const dow = new Date(`${day.iso}T12:00:00Z`).getUTCDay();
   const mine = day.mine;

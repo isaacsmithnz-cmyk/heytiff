@@ -1,18 +1,20 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DashboardHome } from "../home";
-import type { DashboardData } from "@/lib/dashboard/page-data";
+import type { DashboardData, HomeRail } from "@/lib/dashboard/page-data";
 import type { ActionChip } from "@/lib/dashboard/chips";
-import type { BoardNotice } from "@/lib/dashboard/board";
-import { HOME_NOTICE_ROWS } from "@/lib/dashboard/home-tabs";
+import type { DashTask } from "@/lib/dashboard/tasks";
 
-/* Home as one card with six faces.
+/* Home as two rooms: the day down the left, one card with four faces on the
+   right.
 
-   The debrief control reaches the note flow and its server actions, and
-   "use server" modules cannot be imported into jsdom. Stubbed so this suite
-   stays about the card; the control has its own suite. */
+   The capture controls reach the note flow and its server actions, and
+   "use server" modules cannot be imported into jsdom. Stubbed by posture so
+   this suite stays about the page; each control has its own suite. */
 jest.mock("@/components/notes/note-token", () => ({
-  NoteToken: () => <button aria-label="Debrief" />,
+  NoteToken: ({ as, cta }: { as: string; cta?: string }) => (
+    <button aria-label={as === "debrief" ? "Debrief" : "Add to the diary"}>{cta}</button>
+  ),
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/dashboard", () => ({
@@ -33,10 +35,35 @@ const chip = (state: "bad" | "warn", key: string): ActionChip => ({
   urgency: state === "bad" ? -4 : 10_014,
 });
 
+const task = (over: Partial<DashTask> = {}): DashTask => ({
+  id: "t1",
+  title: "Order 2× MERV 11 filters",
+  detail: null,
+  assigneeId: "s1",
+  assigneeName: "Isaac Smith",
+  dueDate: null,
+  status: "open",
+  createdBy: "s1",
+  createdAt: "2026-08-01T00:00:00Z",
+  doneAt: null,
+  doneByName: null,
+  remindAt: null,
+  ...over,
+});
+
+const rail = (over: Partial<HomeRail> = {}): HomeRail => ({
+  dayISO: TODAY,
+  tz: "Australia/Brisbane",
+  blocks: [],
+  tasks: [],
+  nowMin: null,
+  enabled: true,
+  ...over,
+});
+
 const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   chips: { self: [], team: [] },
   calendar: { spanStart: "2026-08-03", spanEnd: "2026-11-01", days: [] },
-  money: [],
   tasks: { mine: [], team: null, done: [], reported: [] },
   notices: [],
   journal: [],
@@ -45,6 +72,8 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   canManage: false,
   viewerStaffId: "s1",
   today: TODAY,
+  rail: rail(),
+  phase: "midday",
   ...over,
 });
 
@@ -53,36 +82,39 @@ const tab = (name: RegExp) => screen.getByRole("tab", { name });
 const panel = (key: string) => document.getElementById(`hmsec-${key}`)!;
 
 describe("the card", () => {
-  it("lands on Journal — the other four say for themselves whether they want you", () => {
+  it("lands on Diary — the record is what Home is for", () => {
     draw();
-    expect(tab(/Journal/)).toHaveAttribute("aria-selected", "true");
-    expect(panel("journal")).not.toHaveAttribute("hidden");
+    expect(tab(/Diary/)).toHaveAttribute("aria-selected", "true");
+    expect(panel("diary")).not.toHaveAttribute("hidden");
   });
 
   it("shows exactly ONE panel at a time", async () => {
     /* THE BUG THIS EXISTS FOR. `.wb2-urbody.twocol` sets `display:grid` and is
        (0,2,0); a plain `.wb2-body[hidden]` is (0,2,0) too and loses on source
-       order, so the Tasks panel stayed painted underneath whichever tab was
-       open. The stylesheet answers that at (0,3,0); this pins the markup side
-       — every non-active panel carries `hidden`, so nothing but CSS
-       specificity could ever put two on screen. */
+       order, so a panel stayed painted underneath whichever tab was open. The
+       stylesheet answers that at (0,3,0); this pins the markup side — every
+       non-active panel carries `hidden`, so nothing but CSS specificity could
+       ever put two on screen. */
     const user = userEvent.setup();
-    const keys = ["journal", "urgent", "attention", "board", "tasks"];
+    const keys = ["diary", "tasks", "debrief", "calendar"];
     const shown = () => keys.filter((k) => !panel(k).hasAttribute("hidden"));
 
-    draw({ tasks: { mine: [], team: null, done: [], reported: [] } });
-    expect(shown()).toEqual(["journal"]);
+    draw();
+    expect(shown()).toEqual(["diary"]);
 
     await user.click(tab(/Tasks/));
     expect(shown()).toEqual(["tasks"]);
 
-    await user.click(tab(/Urgent/));
-    expect(shown()).toEqual(["urgent"]);
+    await user.click(tab(/Debrief/));
+    expect(shown()).toEqual(["debrief"]);
+
+    await user.click(tab(/Calendar/));
+    expect(shown()).toEqual(["calendar"]);
   });
 
   it("wires each tab to the panel it controls", () => {
     draw();
-    for (const k of ["journal", "urgent", "attention", "board", "tasks"]) {
+    for (const k of ["diary", "tasks", "debrief", "calendar"]) {
       const t = document.getElementById(`hmtab-${k}`)!;
       expect(t).toHaveAttribute("aria-controls", `hmsec-${k}`);
       expect(panel(k)).toHaveAttribute("aria-labelledby", `hmtab-${k}`);
@@ -91,119 +123,101 @@ describe("the card", () => {
 });
 
 describe("the badges", () => {
-  it("carry the counts, so a hidden tab still says whether it wants you", () => {
-    /* The whole reason Journal can be the landing tab. A tab hides its content
-       by definition; if the number went with it, the glance the counters
-       existed for would be gone. */
+  it("counts the viewer's open tasks, so a hidden face still says how much is on", () => {
+    draw({ tasks: { mine: [task(), task({ id: "t2" })], team: null, done: [], reported: [] } });
+    expect(within(tab(/Tasks/)).getByText("2")).toBeInTheDocument();
+  });
+
+  it("turns red and counts the overdue ones once anything is past its date", () => {
+    /* Red on this app means something is wrong, and a task past its date is
+       exactly that. Six open with two late reads as a red 2, not a grey 6. */
     draw({
-      chips: { self: [chip("bad", "a"), chip("warn", "b")], team: [] },
-      tasks: { mine: [], team: null, done: [], reported: [] },
+      tasks: {
+        mine: [task({ dueDate: "2026-08-01" }), task({ id: "t2" }), task({ id: "t3" })],
+        team: null,
+        done: [],
+        reported: [],
+      },
     });
-    expect(within(tab(/Urgent/)).getByText("1")).toBeInTheDocument();
-    expect(within(tab(/Needs attention/)).getByText("1")).toBeInTheDocument();
+    expect(within(tab(/Tasks/)).getByText("1")).toBeInTheDocument();
+    expect(tab(/Tasks/).textContent).toContain("past its date");
   });
 
-  it("say what the number means, for anyone who can't see the tint", () => {
-    draw({ chips: { self: [chip("bad", "a")], team: [] } });
-    expect(tab(/Urgent/).textContent).toContain("past its date");
-  });
-
-  it("are absent on a clear day rather than showing a grey 0", () => {
+  it("is absent on a clear day rather than showing a grey 0", () => {
     draw();
-    for (const name of [/Urgent/, /Needs attention/, /Noticeboard/, /Tasks/]) {
+    for (const name of [/Diary/, /Tasks/, /Debrief/, /Calendar/]) {
       expect(tab(name).querySelector(".wb2-vtn")).toBeNull();
     }
   });
 });
 
-describe("the panels", () => {
-  it("says what it checked when a view is empty, not just that it is", async () => {
-    const user = userEvent.setup();
-    draw();
-    await user.click(tab(/Urgent/));
-    expect(panel("urgent").textContent).toMatch(/Nothing is past its date/);
+describe("the glance", () => {
+  /* Urgent and Needs attention were faces of this card. They are chips in the
+     page head now — and they are DOORS, because the screens behind them say
+     more than a panel ever did. */
+  it("carries the counts and points at the screens that hold them", () => {
+    draw({
+      chips: { self: [chip("bad", "a"), chip("warn", "b"), chip("warn", "c")], team: [] },
+    });
+    const glance = document.querySelector(".hm-glance")!;
+    expect(glance.textContent).toContain("1");
+    expect(glance.textContent).toContain("past its date");
+    expect(glance.textContent).toContain("2");
+    expect(glance.textContent).toContain("coming up");
+    expect(
+      screen.getByRole("link", { name: /past its date/ }),
+    ).toHaveAttribute("href", "/dashboard/action-required");
   });
 
-  it("renders the urgent chips as rows, worst first", async () => {
-    const user = userEvent.setup();
-    draw({ chips: { self: [chip("warn", "w"), chip("bad", "b")], team: [] } });
-    await user.click(tab(/Urgent/));
-    // only the bad one — warn belongs to the other tab, and the two split one list
-    const rows = panel("urgent").querySelectorAll(".hm-row");
-    expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toContain("Rego expired 4 days ago");
-    expect(rows[0]).toHaveAttribute("data-sev", "over");
+  it("is absent entirely on a clear day — the empty head IS the statement", () => {
+    draw();
+    expect(document.querySelector(".hm-glance")).toBeNull();
   });
 });
 
-/* THE PANEL IS A GLANCE, THE BADGE IS THE COUNT.
-
-   Home used to read 20 notices and the board 100, over the same table with the
-   same read-state join, so the "N unread" badge and the board it links to were
-   counting different sets of rows. They read one window now (NOTICE_WINDOW) —
-   which means the panel has to say when it isn't showing all of it, rather
-   than being the whole board on a thin month and a silent truncation on a
-   busy one. */
-describe("the Noticeboard panel", () => {
-  const notice = (i: number, over: Partial<BoardNotice> = {}): BoardNotice =>
-    ({
-      id: `n${i}`,
-      title: `Notice ${i}`,
-      body: null,
-      pinned: false,
-      postedById: "s2",
-      postedByName: "Dane Whitely",
-      createdAt: `2026-08-0${(i % 9) + 1}T00:00:00Z`,
-      revision: 1,
-      editedAt: null,
-      kind: "notice",
-      expiresAt: null,
-      archivedAt: null,
-      ackedRevision: null,
-      state: "unread",
-      mine: false,
-      readBy: 0,
-      audience: 3,
-      poll: null,
-      event: null,
-      reactions: { counts: [], mine: null },
-      comments: [],
-      mentionsMe: 0,
-      attachments: [],
-      ...over,
-    }) as BoardNotice;
-
-  const many = (n: number) => Array.from({ length: n }, (_, i) => notice(i));
-
-  it("caps its rows and says how many are behind the door", async () => {
-    const user = userEvent.setup();
-    draw({ notices: many(HOME_NOTICE_ROWS + 4) });
-    await user.click(tab(/Noticeboard/));
-    expect(panel("board").querySelectorAll(".hm-row")).toHaveLength(HOME_NOTICE_ROWS);
-    expect(panel("board").textContent).toContain("4 more");
+describe("the day rail", () => {
+  it("stands beside the card, not behind a tab", () => {
+    draw();
+    expect(document.querySelector(".hm-day")).not.toBeNull();
   });
 
-  it("says only 'Open the board' when there is nothing behind it", async () => {
-    const user = userEvent.setup();
-    draw({ notices: many(2) });
-    await user.click(tab(/Noticeboard/));
-    expect(panel("board").querySelectorAll(".hm-row")).toHaveLength(2);
-    expect(panel("board").textContent).not.toMatch(/\bmore\b/);
+  it("leaves who-is-off to the Calendar face, and says it nowhere twice", () => {
+    /* It sat on the rail's head for one round, while four weeks had no home.
+       One fact in two places on one screen is the thing that eventually
+       disagrees with itself. */
+    draw({
+      calendar: {
+        spanStart: "2026-08-03",
+        spanEnd: "2026-11-01",
+        days: [
+          {
+            iso: TODAY,
+            holiday: null,
+            mine: null,
+            others: [
+              {
+                staffId: "s2",
+                name: "Lorenz Weber",
+                firstName: "Lorenz",
+                initials: "LW",
+                label: "Annual leave",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(document.querySelector(".hm-day")!.textContent).not.toContain("Lorenz");
   });
 
-  /* The badge counts the WINDOW, not the panel. A truncated panel that also
-     truncated the count would be the original bug wearing a cap. */
-  it("badges every unread in the window, not just the rows on show", async () => {
-    draw({ notices: many(HOME_NOTICE_ROWS + 4) });
-    expect(within(tab(/Noticeboard/)).getByText(String(HOME_NOTICE_ROWS + 4))).toBeInTheDocument();
+  it("says so plainly when the viewer may not see the bookings", () => {
+    draw({ rail: rail({ enabled: false }) });
+    expect(document.querySelector(".hm-day")!.textContent).toMatch(/workboard/i);
   });
 });
 
 describe("the page head", () => {
   it("names the screen — Home was the only one that didn't", () => {
-    /* The hero was deleted in #321 and nothing replaced it, so the page
-       opened on a tab strip with no name while every other screen has a
-       heading. */
     draw();
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Home");
   });
@@ -213,14 +227,10 @@ describe("the page head", () => {
        Date.now() in a render body is the hydration failure
        project_hydration_clock_trap documents. TODAY is 2026-08-10, a Monday. */
     draw();
-    const head = document.querySelector(".hm-phead")!;
-    expect(head.textContent).toContain("Monday 10 August");
+    expect(document.querySelector(".hm-phead")!.textContent).toContain("Monday 10 August");
   });
 
-  it("says the date ONCE — the journal's header gave it up to the head", () => {
-    /* The date lived in the card's header for one round. With a page head
-       carrying it, that row plus the record's own "Today ·" divider would
-       have made three statements of one date on one screen. */
+  it("says the date ONCE — the diary's header gave it up to the head", () => {
     draw();
     expect(document.querySelector(".hm-head")!.textContent).not.toContain("Monday");
     expect(screen.queryByText("Say the day")).toBeNull();
@@ -230,17 +240,12 @@ describe("the page head", () => {
     /* The board's strip welds the active tab's thumb to the card's top edge,
        which only works while both are opaque: translucent, the 1px weld
        double-paints into a dark band, the corner flares cannot carry the
-       card's blur, and the card's top border cuts the seam. One sheet of
-       glass with the tabs on it is the fix; if the strip escapes the card,
-       the three-materials-at-one-join problem is back. */
+       card's blur, and the card's top border cuts the seam. */
     draw();
-    const card = document.querySelector(".hm-card")!;
-    expect(card.querySelector('[role="tablist"]')).not.toBeNull();
+    expect(document.querySelector(".hm-card")!.querySelector('[role="tablist"]')).not.toBeNull();
   });
 
   it("keeps the card as the material, not a band inside a band", () => {
-    /* `.hm-comp` was the ink console inset in the white card. The card itself
-       is ink glass now; if this class reappears, that doubling is back. */
     draw();
     expect(document.querySelector(".hm-comp")).toBeNull();
   });
@@ -248,34 +253,72 @@ describe("the page head", () => {
 
 describe("Tiff", () => {
   it("has no button of its own — the frame's is the same control, one press away", () => {
-    /* One sat in the tab row's right cap so a debrief was "one press from every
-       face". The topbar's is one press from every SCREEN, and the two were
-       identical 44px glass circles 167px apart in the same corner. If a
-       `.wb2-vtcap` reappears here, that duplicate is back. */
     draw();
     expect(document.querySelector(".wb2-vtcap")).toBeNull();
     expect(screen.queryByLabelText("Ask or tell Tiff")).toBeNull();
   });
 
-  it("keeps the debrief control, inside the Journal panel", () => {
+  it("keeps the debrief, on its own face, asking the hour's question", async () => {
+    /* It was a dark bar at the top of the record it produces. As a face it is
+       what it always was — a room you go into to talk — and the same control
+       is a brief at dawn and a debrief at knock-off. */
+    const user = userEvent.setup();
+    draw({ phase: "morning" });
+    await user.click(tab(/Debrief/));
+    expect(within(panel("debrief")).getByLabelText("Debrief")).toBeInTheDocument();
+    expect(panel("debrief").textContent).toContain("What’s on today?");
+    expect(panel("debrief").textContent).toContain("Start the brief");
+  });
+
+  it("gives the diary its own way in, and it is not the debrief", () => {
+    /* A record you cannot add to from where you read it sends you elsewhere to
+       write. The row drops the debrief flag: one thought is one note. */
     draw();
-    expect(within(panel("journal")).getByLabelText("Debrief")).toBeInTheDocument();
+    expect(within(panel("diary")).getByLabelText("Add to the diary")).toBeInTheDocument();
   });
 });
 
-describe("the strip under the card", () => {
-  it("is absent without `financials`, which is the only thing left in it", () => {
-    /* "Who's about today" shared this strip and is gone — it spent half the
-       page's width to say "Everyone's in today", and the office closure it
-       carried moved onto the Calendar tab. An empty shell is worse than none. */
+describe("the calendar face", () => {
+  it("is where being off lives, four weeks of it", async () => {
+    /* The grid was deleted with the six-tab card and had nowhere to go for a
+       round; this is its home (Isaac, 2026-08-30). A list, not a fortnight of
+       squares — the tab answers "who is off, from here on". */
+    const user = userEvent.setup();
+    draw({
+      calendar: {
+        spanStart: "2026-08-03",
+        spanEnd: "2026-11-01",
+        days: [
+          {
+            iso: TODAY,
+            holiday: null,
+            mine: null,
+            others: [
+              {
+                staffId: "s2",
+                name: "Lorenz Weber",
+                firstName: "Lorenz",
+                initials: "LW",
+                label: "Annual leave",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    await user.click(tab(/Calendar/));
+    expect(panel("calendar").textContent).toContain("Lorenz");
+  });
+});
+
+describe("payroll", () => {
+  it("is not on Home at all — it belongs to the pay screens", () => {
+    /* It was a quiet strip under the card. Home carries the day, the record
+       and the work you owe; a pay-run status is none of those (Isaac,
+       2026-08-30). The loader's money read went with the strip, so there is
+       no longer a field to hand this component either. */
     draw();
     expect(document.querySelector(".hm-strip")).toBeNull();
-    expect(screen.queryByText(/Who.s about today/)).toBeNull();
-  });
-
-  it("appears when there is payroll in it", () => {
-    draw({ money: [{ key: "run", label: "Pay run", detail: "Due Tuesday", href: "/x", state: "warn" }] });
-    expect(document.querySelector(".hm-strip")).not.toBeNull();
-    expect(screen.getByText("Pay run")).toBeInTheDocument();
+    expect(screen.queryByText(/Pay run/)).toBeNull();
   });
 });

@@ -1,94 +1,70 @@
-/* The five faces of Home, and the numbers on them.
+/* The four faces of Home, and the number on them.
 
-   This replaces `hero-stats.ts`. The counters it fed were four tiles that said
-   how many and nothing else, so reading one meant leaving the page; the tabs
-   they became carry the same numbers AND the rows behind them. That is the
-   whole argument for the change: a tab hides its content by definition, so the
-   count has to ride on the tab or the glance — "does anything need me?" — is
-   lost. `.wb2-vtn` already had the badge, danger and warning variants included.
+   It was six — Journal, Urgent, Needs attention, Noticeboard, Tasks,
+   Calendar — and four of those were lists of things that already have a whole
+   screen of their own. A tab hides its content by definition, so six faces
+   meant five hidden ones and a card that could only ever show a sixth of
+   itself. Urgent and Needs attention are now chips in the page head pointing
+   at /dashboard/action-required, and the Noticeboard chip at
+   /dashboard/notices. What is left is what Home is FOR (Isaac, 2026-08-30):
+   the record, the work you owe, the conversation that produces both — and the
+   month ahead.
 
-   Urgent and Needs attention still split the SAME chip list on state, through
-   the same `chipSummary` the topbar bell counts with, which is what keeps the
-   two from ever double-counting an expiry or dropping one between them: a chip
-   is bad or warn, never both.
+   THE CALENDAR CAME BACK as the fourth (Isaac, 2026-08-30) — as a list, not
+   the grid it was, and it is where being off lives now. Four weeks read
+   downward answers "who is off, from here on"; the grid answered "what does
+   this fortnight look like", which is a question this screen never asks.
 
-   TONE IS NOT DECORATION. Only the two tabs whose count means SEVERITY take a
-   colour. Noticeboard and Tasks count places and work, so they wear the plain
-   grey badge — the app's rule is that red and amber never stop meaning
-   "something is wrong". */
+   THE BADGE IS THE GLANCE, and Tasks is the only face that can want you.
+   Overdue takes red because red on this app means "something is wrong" and a
+   task past its date is exactly that; with nothing overdue the same badge
+   falls back to the plain count, which is work rather than a state. Diary is
+   where you land, so a number on it counts what you are already reading;
+   Debrief is a door to a conversation, and a count on a conversation is not a
+   thing that exists. */
 
-import { chipSummary, type ActionChip } from "./chips";
 import type { ViewTab } from "@/components/shell/view-tabs";
 
-export type HomeTabKey = "journal" | "urgent" | "attention" | "board" | "tasks" | "calendar";
+export type HomeTabKey = "diary" | "tasks" | "debrief" | "calendar";
 
-/* `TAB_HOME` lived here — "where a tab's rows live in full, for the see-all
-   door in its panel" — and nothing ever read it. Only the Noticeboard panel
-   has such a door, hardcoded in home.tsx, so the map described three doors
-   that were never built. Deleting it says plainly that Urgent, Needs attention
-   and Tasks have no full view to reach, which is the honest state of things.
-
-   `allClear` went the same way: no callers. "The absence of five numbers IS
-   the statement" is still true and still needs no function. */
-
-/** Journal leads: you land on what you told Tiff, and the badges say whether
-    anything else wants you. That default is only safe BECAUSE of the badges. */
-export const DEFAULT_TAB: HomeTabKey = "journal";
-
-/** How many notice rows the Noticeboard tab shows before deferring to the
-    board itself. The badge counts the whole window; this is what fits on a
-    face of a card without the panel becoming the board. */
-export const HOME_NOTICE_ROWS = 6;
+/** Diary leads: you land on what you told Tiff, with the day beside it. */
+export const DEFAULT_TAB: HomeTabKey = "diary";
 
 export function homeTabs(input: {
-  /** Every action-required chip the viewer may see, self and team. */
-  chips: readonly ActionChip[];
   /** Open tasks assigned to the viewer. */
   openTasks: number;
-  /** Unread notices currently on the board. */
-  unreadNotices: number;
+  /** How many of those are past their date. */
+  overdueTasks: number;
 }): ViewTab[] {
-  const s = chipSummary(input.chips);
+  const overdue = input.overdueTasks > 0;
   return [
     {
-      /* No badge. It is the default tab, so a number on it counts something
-         you are already looking at. */
-      key: "journal",
-      label: "Journal",
-    },
-    {
-      key: "urgent",
-      label: "Urgent",
-      count: s.bad,
-      tone: "dan",
-      countLabel: (n) => `${n} past ${n === 1 ? "its date" : "their date"}`,
-    },
-    {
-      key: "attention",
-      label: "Needs attention",
-      count: s.warn,
-      tone: "warn",
-      countLabel: (n) => `${n} coming up`,
-    },
-    {
-      key: "board",
-      label: "Noticeboard",
-      count: input.unreadNotices,
-      countLabel: (n) => `${n} unread`,
+      key: "diary",
+      label: "Diary",
     },
     {
       key: "tasks",
       label: "Tasks",
-      count: input.openTasks,
-      countLabel: (n) => `${n} open`,
+      count: overdue ? input.overdueTasks : input.openTasks,
+      tone: overdue ? "dan" : undefined,
+      countLabel: overdue
+        ? (n) => `${n} past ${n === 1 ? "its date" : "their date"}`
+        : (n) => `${n} open`,
     },
     {
-      /* No badge, and for the same reason Journal has none: a number here
-         would count people being off, which is not something that needs you.
-         Red and amber especially never appear on this tab — see ./calendar. */
+      /* No badge, ever. The debrief is a conversation you either had or
+         haven't; "1" would be a number on the door of a room, and the room
+         itself says which of the day's three questions it is asking. */
+      key: "debrief",
+      label: "Debrief",
+    },
+    {
+      /* No badge either, and for a reason worth keeping: a number here would
+         count people being off, which is not something that needs you. Red
+         and amber especially never appear on this tab — leave is not a
+         readiness problem. See ./calendar. */
       key: "calendar",
       label: "Calendar",
     },
   ];
 }
-

@@ -224,6 +224,7 @@ export function MaintenanceBoard({
       return {
         history: [] as typeof data.visits,
         lastDone: null as string | null,
+        siteAddress: null as string | null,
         siteRequirements: null as string | null,
         equipment: [] as NonNullable<
           (typeof data.agreements)[number]["equipment"]
@@ -242,6 +243,7 @@ export function MaintenanceBoard({
       /* The agreement's standing facts the SUMMARY reads out loud — what a
          tech needs to know before the van leaves. Already loaded for the
          agreements ledger; the card just borrows the row. */
+      siteAddress: agreement?.siteAddress ?? null,
       siteRequirements: agreement?.siteRequirements ?? null,
       equipment: agreement?.equipment ?? [],
     };
@@ -386,6 +388,7 @@ export function MaintenanceBoard({
           connected={connected}
           history={sheetContext.history}
           lastDone={sheetContext.lastDone}
+          siteAddress={sheetContext.siteAddress}
           siteRequirements={sheetContext.siteRequirements}
           equipment={sheetContext.equipment}
           startClosing={sheet?.closeOut ?? false}

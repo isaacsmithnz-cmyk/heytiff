@@ -24,6 +24,7 @@ import { NoteToken } from "@/components/notes/note-token";
 import { useNoteScopeTarget } from "@/components/notes/note-context";
 import { TiffButton } from "@/components/notes/tiff-button";
 import { catTintVars } from "@/lib/workboard/card-tint";
+import { sm8TimeOf } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
 import {
   assignVisitTech,
@@ -99,6 +100,7 @@ export function VisitSheet({
   connected,
   history = [],
   lastDone = null,
+  siteAddress = null,
   siteRequirements = null,
   equipment = [],
   startClosing = false,
@@ -120,6 +122,9 @@ export function VisitSheet({
   /** When this agreement last ran, from the agreement's own uncapped query —
       an annual service's answer is always outside the board's done window. */
   lastDone?: string | null;
+  /** The site's street address, off the agreement — where the van is
+      actually going; the band's label alone doesn't say. */
+  siteAddress?: string | null;
   /** The agreement's standing "before you go" facts — inductions, PPE,
       white cards. The Summary reads them out loud. */
   siteRequirements?: string | null;
@@ -233,8 +238,15 @@ export function VisitSheet({
      is noise pretending to be diligence. The Notes tab stays the writing
      surface; this is the read. */
   const worthKnowing = useMemo(
-    () => [...toLines(visit.accessNotes), ...toLines(siteRequirements), ...savedNotes],
-    [visit.accessNotes, siteRequirements, savedNotes]
+    () => [
+      /* The street address leads — where the van is going is the first
+         thing to know, and the band's site label alone doesn't say it. */
+      ...(siteAddress ? [siteAddress] : []),
+      ...toLines(visit.accessNotes),
+      ...toLines(siteRequirements),
+      ...savedNotes,
+    ],
+    [siteAddress, visit.accessNotes, siteRequirements, savedNotes]
   );
   const open = visit.status === "upcoming" || visit.status === "booked";
   const isQuote = tone === "quote";
@@ -821,6 +833,10 @@ export function VisitSheet({
                 <div className="wb2-sched">
                   <b className={bookedDay ? undefined : "none"}>
                     {bookedDay ? fmtAuWeekdayDayMonth(bookedDay) : "No visit scheduled"}
+                    {/* the diary's start time, when ServiceM8 knows one */}
+                    {bookedDay && visit.bookedStart && sm8TimeOf(visit.bookedStart)
+                      ? ` · ${sm8TimeOf(visit.bookedStart)}`
+                      : ""}
                   </b>
                   <em className={mismatch?.late ? "dan" : undefined}>
                     {bookedDay
@@ -831,6 +847,16 @@ export function VisitSheet({
                           : "from the ServiceM8 diary"
                       : `Due ${fmtAuWeekdayDayMonth(visit.dueDate)} — putting it on a day is what confirms the time`}
                   </em>
+                  {/* WHO'S GOING, said by name — the Crew gate holds the
+                      controls and the count; the day and the people belong
+                      in one sentence. */}
+                  {open && (
+                    <em>
+                      {visit.techs.length > 0
+                        ? `${visit.techs.map((t) => t.name).join(", ")} — ${visit.techs.length} of ${visit.techsNeeded} assigned`
+                        : "Nobody assigned yet"}
+                    </em>
+                  )}
                 </div>
 
                 {open && !isQuote && manage && (

@@ -224,14 +224,18 @@ beforeEach(() => {
 describe("the shell", () => {
   it("leads with the diary, then ServiceM8's three lanes in its order", () => {
     mount();
-    // Capacity brings up the rear: the same diary read as fill, a question
-    // asked of the coming weeks rather than of today
+    /* Capacity asks the coming weeks a question today's diary can't, so it
+       sits after the three lanes. SHOWCASE IS LAST and it is the odd one
+       out on purpose: every tab before it is work in flight, and this one
+       is the only one that isn't about the present at all — it is what the
+       crew kept, to show somebody later. */
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
       "Schedule",
       "Work orders",
       "Quotes",
       "Completed",
       "Capacity",
+      "Showcase",
     ]);
   });
 

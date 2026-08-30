@@ -7564,6 +7564,52 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
    the fill are its own. */
 .wb2-mvtop .wb2-mvstar.on { color:#f5b400; background:rgba(245,180,0,.16); }
 .wb2-mvtop .wb2-mvstar.on .i { fill:currentColor; }
+/* ── the showcase ──────────────────────────────────────────────────────
+   A gallery, not a grid of job rows: bigger cards than the job card's mosaic,
+   because these are chosen photographs somebody means to show a client, and
+   each one carries a sentence saying what it is. */
+.wb2-show { padding:2px 0 8px; }
+.wb2-showempty { display:grid; place-items:center; gap:8px; padding:44px 20px;
+  text-align:center; color:var(--gray500); }
+.wb2-showempty b { font-size:14px; font-weight:800; color:var(--ink); }
+.wb2-showempty p { font-size:12.5px; font-weight:600; max-width:44ch; line-height:1.5; }
+.wb2-showempty .i { color:var(--gray400); }
+/* THE FILTER ROW IS THE CATEGORIES — a chip per subject, each carrying its
+   own hue through `--sc` so the dot, the lit ground and the card's badge are
+   one colour per kind of photograph. */
+.wb2-showfilters { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 4px; }
+.wb2-showchip { display:inline-flex; align-items:center; gap:6px; padding:5px 11px;
+  border:1px solid var(--wb2-line2); border-radius:999px; background:transparent;
+  color:var(--gray600); font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+  transition:background .12s ease, border-color .12s ease, color .12s ease; }
+.wb2-showchip:hover { background:rgba(5,5,5,.04); }
+.wb2-showchip.on { border-color:color-mix(in srgb, var(--sc, #2E68FF) 45%, transparent);
+  background:color-mix(in srgb, var(--sc, #2E68FF) 12%, #fff);
+  color:color-mix(in srgb, var(--sc, #2E68FF) 72%, #050505); }
+.wb2-showchip:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
+.wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, #2E68FF); flex:none; }
+.wb2-showchip.quiet { border-style:dashed; }
+/* The one place money is spent, and it says so plainly. */
+.wb2-showread { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 2px; }
+.wb2-showread em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
+.wb2-showgrid { display:grid; gap:12px; margin-top:12px;
+  grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
+.wb2-showcard { margin:0; display:flex; flex-direction:column; gap:7px; min-width:0; }
+.wb2-showimg { position:relative; display:block; aspect-ratio:4/3; border-radius:10px;
+  overflow:hidden; background:var(--wb2-line2); }
+.wb2-showimg img { width:100%; height:100%; object-fit:cover; display:block; }
+.wb2-showpending { position:absolute; inset:0; display:grid; place-items:center; color:var(--gray400); }
+.wb2-showtag { position:absolute; left:7px; bottom:7px; padding:3px 8px; border-radius:999px;
+  font-size:10px; font-weight:800; letter-spacing:.02em; color:#fff; text-decoration:none;
+  box-shadow:0 2px 8px rgba(0,0,0,.28); }
+.wb2-showcard figcaption { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.wb2-showcard figcaption b { font-size:12.5px; font-weight:700; line-height:1.35;
+  color:var(--ink); overflow-wrap:anywhere; }
+.wb2-showcard figcaption em { font-style:normal; font-size:11px; font-weight:650; color:var(--gray500); }
+.wb2-showtags { display:flex; flex-wrap:wrap; gap:4px; margin-top:2px; }
+.wb2-showtags i { font-style:normal; font-size:10px; font-weight:700; padding:2px 7px;
+  border-radius:999px; background:rgba(5,5,5,.05); color:var(--gray600); }
+
 .wb2-shsect > .wb2-shtext > .wb2-chip { margin-left:7px; vertical-align:middle; }
 .wb2-ckrow { display:flex; align-items:center; gap:9px; padding:8px 2px; min-width:0;
   border-top:1px solid var(--wb2-line2); }

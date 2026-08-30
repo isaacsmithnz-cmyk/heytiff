@@ -11,6 +11,7 @@ import { PipelineTab } from "./pipeline-tab";
 import { ProjectCompletedTab } from "./project-completed-tab";
 import { CalendarTab } from "./calendar-tab";
 import { ProjectTripSheet } from "./project-trip-sheet";
+import { ProjectSheet } from "./project-sheet";
 import { ProjectDayModal } from "./project-day-modal";
 import { ToastHost, useBoardToasts } from "./toasts";
 import { Sm8Chip, type Sm8Health } from "./sm8-chip";
@@ -69,14 +70,20 @@ export function ProjectsBoard({
 }) {
   const [tab, setTab] = useState<ProjectsTab>("urgent");
   const [sheet, setSheet] = useState<{ visitId: string; closeOut: boolean } | null>(null);
+  /* The project CARD — the job-card model on a project. A pipeline row opens
+     it; the full screen stays one chip-door away inside it. */
+  const [projectCard, setProjectCard] = useState<string | null>(null);
   const [dayISO, setDayISO] = useState<string | null>(null);
   const { toasts, toast, dismiss } = useBoardToasts();
 
   /* TAKEN DURING RENDER, never in an effect — see the maintenance board for
-     why, and why IDENTITY rather than value is the signal. */
+     why, and why IDENTITY rather than value is the signal. The project card
+     drops too: one sheet at a time, or a search-named trip would stack its
+     sheet over an open card and a single Escape would dismiss both. */
   const [taken, setTaken] = useState<typeof openTarget>(null);
   if (openTarget && openTarget !== taken) {
     setTaken(openTarget);
+    setProjectCard(null);
     setSheet({ visitId: openTarget.id, closeOut: false });
   }
 
@@ -161,6 +168,19 @@ export function ProjectsBoard({
   const sheetVisit = sheet ? data.visits.find((v) => v.id === sheet.visitId) ?? null : null;
   const openSheet = (visitId: string, closeOut = false) => setSheet({ visitId, closeOut });
 
+  /* The open card's project and ITS trips, memoized — filtering inline in
+     the JSX handed the card a fresh array every board render (each toast
+     tick), which defeated the card's own merge memo and remounted every
+     row. */
+  const cardProject = useMemo(
+    () => (projectCard ? data.projects.find((p) => p.id === projectCard) ?? null : null),
+    [data.projects, projectCard]
+  );
+  const cardTrips = useMemo(
+    () => (cardProject ? data.visits.filter((v) => v.projectId === cardProject.id) : []),
+    [data.visits, cardProject]
+  );
+
   /** The carry target: the project's next open trip after the one on show. */
   const nextTripFor = (v: { id: string; projectId: string; dueDate: string }) => {
     const later = openVisits
@@ -210,7 +230,12 @@ export function ProjectsBoard({
             />
           )}
           {tab === "pipeline" && (
-            <PipelineTab projects={data.projects} today={today} manage={manage} />
+            <PipelineTab
+              projects={data.projects}
+              today={today}
+              manage={manage}
+              onOpenProject={(id) => setProjectCard(id)}
+            />
           )}
           {tab === "completed" && (
             <ProjectCompletedTab
@@ -245,6 +270,24 @@ export function ProjectsBoard({
           }}
           onToast={toast}
           onClose={() => setDayISO(null)}
+        />
+      )}
+
+      {cardProject && (
+        <ProjectSheet
+          key={cardProject.id}
+          project={cardProject}
+          trips={cardTrips}
+          today={today}
+          manage={manage}
+          onOpenTrip={(id) => {
+            /* One sheet at a time — the trip replaces the card, the way
+               the visit card swaps itself for the agreement. */
+            setProjectCard(null);
+            openSheet(id);
+          }}
+          onToast={toast}
+          onClose={() => setProjectCard(null)}
         />
       )}
 

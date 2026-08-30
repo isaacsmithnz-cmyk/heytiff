@@ -24,7 +24,7 @@ import {
   updateAgreementSchedule,
   type MaintenanceResult,
 } from "@/app/actions/workboard-maintenance";
-import { cadenceLabel, crewLabel, untilLabel } from "./derive";
+import { cadenceLabel, crewLabel, equipmentLine, untilLabel } from "./derive";
 import { TagStrip } from "./tag-strip";
 import type { TagTone } from "@/lib/workboard/tags";
 import { DateField } from "@/components/ui/date-field";
@@ -47,13 +47,8 @@ const INTERVALS: [number, string][] = [
   [24, "Every 2 years"],
 ];
 
-/* What is known about a piece of equipment, or that nothing is. Out here
-   because React Compiler 1.0 refuses a logical whose test is itself a logical
-   and gives up on the whole component when it meets one. */
-const equipmentLine = (e: { model: string | null; serial: string | null; location: string | null }) =>
-  [e.model && `Model ${e.model}`, e.serial && `Serial ${e.serial}`, e.location]
-    .filter(Boolean)
-    .join(" · ") || "no details recorded";
+/* equipmentLine moved to derive.ts the day the visit card's Summary started
+   saying the same line — one dress for a unit's details, both sheets. */
 
 export function AgreementSheet({
   agreement: a,

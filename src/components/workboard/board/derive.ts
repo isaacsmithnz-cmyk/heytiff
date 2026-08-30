@@ -185,15 +185,22 @@ export const GATE_FULL: Record<GateName, string> = {
   crew: "Crew assigned",
 };
 
-/** The same cadence said mid-sentence. `cadenceLabel` is a NAME ("Quarterly")
-    and reads wrong the moment you put it after a verb — "comes round annual".
-    This one is the phrase. */
-export function cadencePhrase(months: number): string {
-  if (months === 1) return "every month";
-  if (months === 12) return "every year";
-  return `every ${months} months`;
-}
+/** What is known about a piece of equipment, or that nothing is — one line
+    under the unit's name, said the same way on the agreement sheet and the
+    visit card's Summary. Out here because React Compiler 1.0 refuses a
+    logical whose test is itself a logical inside a component. */
+export const equipmentLine = (e: {
+  model: string | null;
+  serial: string | null;
+  location: string | null;
+}) =>
+  [e.model && `Model ${e.model}`, e.serial && `Serial ${e.serial}`, e.location]
+    .filter(Boolean)
+    .join(" · ") || "no details recorded";
 
+/* `cadencePhrase` (the mid-sentence form) died with the visit card's
+   "Comes round …" hint — the cadence is a band chip now, and a NAME is all
+   a chip says. */
 export function cadenceLabel(months: number): string {
   if (months === 1) return "Monthly";
   if (months === 2) return "Every 2 months";

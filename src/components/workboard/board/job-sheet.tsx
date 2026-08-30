@@ -55,10 +55,12 @@ import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
 import type { JobMediaGroupsRead } from "@/lib/workboard/job-media-query";
 import {
   fmtMinutesAsHours,
+  sm8TimeOf,
   sm8Tone,
   type AllJobRow,
 } from "@/lib/workboard/all-jobs";
 import { sm8JobUrl } from "@/lib/integrations/sm8-links";
+import { catTintVars } from "@/lib/workboard/card-tint";
 import { syncedAgo, type Sm8Health } from "./sm8-chip";
 import { useHydrated } from "@/lib/use-hydrated";
 import type { ScheduleJobState } from "./schedule-tab";
@@ -120,24 +122,14 @@ const dayOf = (naive: string | null | undefined) =>
   naive && naive.length >= 10 ? naive.slice(0, 10) : null;
 
 
-/** "7:30am" from a naive local string, by slicing — never by parsing a wall
-    clock into a Date, which would shift it by the browser's offset. */
-function timeOf(naive: string): string | null {
-  const hh = Number(naive.slice(11, 13));
-  const mm = naive.slice(14, 16);
-  if (Number.isNaN(hh) || !/^\d{2}$/.test(mm)) return null;
-  const ampm = hh < 12 ? "am" : "pm";
-  const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  return mm === "00" ? `${h12}${ampm}` : `${h12}:${mm}${ampm}`;
-}
-
 /** "7:30am Thu 14 Aug", or "7:30am–3:30pm Thu 14 Aug" when the booking's end
-    is known and lands on the same day. */
+    is known and lands on the same day. The time itself is the shared
+    `sm8TimeOf` — the project card's day window says it the same way. */
 function bookingLabel(naive: string, end?: string | null): string {
   const date = dayOf(naive);
-  const time = timeOf(naive);
+  const time = sm8TimeOf(naive);
   if (!date || !time) return date ? fmtAuWeekdayDayMonth(date) : naive;
-  const endTime = end && dayOf(end) === date ? timeOf(end) : null;
+  const endTime = end && dayOf(end) === date ? sm8TimeOf(end) : null;
   return `${endTime ? `${time}–${endTime}` : time} ${fmtAuWeekdayDayMonth(date)}`;
 }
 
@@ -153,26 +145,9 @@ export function telHref(raw: string | null | undefined): string | null {
   return /^\+?\d{6,15}$/.test(bare) ? `tel:${bare}` : null;
 }
 
-/** The band's wash, crown and every echo of the job type's colour, as CSS
-    custom properties — the stylesheet holds the neutral fallbacks, so a job
-    with no category simply doesn't set these and the band stays grey.
-    ServiceM8's palette makes no contrast promise, which is why every alpha
-    here is fixed and low: the colour is atmosphere, never text ground. */
-export function catTintVars(colour: string | null | undefined): React.CSSProperties | undefined {
-  const m = /^#?([0-9a-f]{6})$/i.exec(colour ?? "");
-  if (!m) return undefined;
-  const n = parseInt(m[1], 16);
-  const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-  const a = (alpha: number) => `rgba(${rgb},${alpha})`;
-  return {
-    "--jc-band-a": a(0.18),
-    "--jc-band-b": a(0.1),
-    "--jc-crown": a(0.55),
-    "--jc-soft": a(0.35),
-    "--jc-a05": a(0.05),
-    "--jc-a025": a(0.025),
-  } as React.CSSProperties;
-}
+/* The band's wash lives in lib/workboard/card-tint.ts — the dress has three
+   wearers now, and importing a sheet for a pure helper drags its server
+   actions into every jsdom suite that renders the borrower. */
 
 export function JobSheet({
   row,

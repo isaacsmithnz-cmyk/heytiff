@@ -96,13 +96,26 @@ import type { ScheduleJobState } from "./schedule-tab";
    OPENS ON WHAT THE ROW ALREADY KNEW, then fills in. Nothing jumps: the
    fields that fill in were absent, not wrong. */
 
-/** Enough rounds for the busiest job in the live account (a few dozen files
-    at six a round), and a hard stop against a server that never converges. */
-const MAX_CACHE_ROUNDS = 12;
-/* Four photos a round. A 90-photo job finishes across a couple of visits,
-   which is the same shape the byte cache already has (12 x 6 = 72 files per
-   open), and it means no single card open can run away with the bill. */
-const MAX_READ_ROUNDS = 12;
+/* THE ROUND CAPS ARE A RUNAWAY GUARD, NOT A BUDGET — and sized as a budget
+   they quietly decided how much of a job got indexed.
+
+   Both were 12. At six files a round that capped caching at 72 and reading at
+   48, and the walk of job #683 hit both: its family holds 73 photos, caching
+   stopped at 63 on the first open, and reading stopped at EXACTLY 48 with the
+   parent's 56 consuming the whole allowance — so the claim's 17 photographs
+   needed a second visit to be looked at, and NOTHING ON SCREEN SAID SO. Open
+   a big job once and never return and its tail stays unsearchable forever.
+
+   The real protection was never the count. It is the FALLING-REMAINDER brake
+   below: a server that reports the same outstanding number twice cannot read
+   what is in front of it, and the loop stops on the spot. These caps only
+   have to be larger than any real job — the biggest in the live account holds
+   223 files — so that they never decide anything, and the brake does.
+
+   A job that still exceeds them says so on the face rather than stopping in
+   silence. */
+const MAX_CACHE_ROUNDS = 60;
+const MAX_READ_ROUNDS = 70;
 
 /** How many visits the face shows before it offers the rest. Live, the
     median job has 2 sessions, one in ten runs past 12 and the worst runs to
@@ -181,6 +194,9 @@ export function JobSheet({
   const [detail, setDetail] = useState<MirrorJobDetail | null>(null);
   const [media, setMedia] = useState<JobMediaGroupsRead | null>(null);
   const [mediaNote, setMediaNote] = useState<string | null>(null);
+  /* Photos cached but not yet looked at. Null until a read reports; 0 once the
+     job is fully in the bank. */
+  const [photosUnread, setPhotosUnread] = useState<number | null>(null);
   /* UNDEFINED until the record read lands, null when it lands empty. The
      distinction is load-bearing for the money block: a job ServiceM8 bills
      across three cards reads as $6,268 until the family arrives and $31,340
@@ -433,6 +449,12 @@ export function JobSheet({
       for (let round = 0; live && round < MAX_READ_ROUNDS; round++) {
         const res = await readJobPhotos(cardId);
         if (!live) return;
+        /* WHAT IS LEFT IS SAID OUT LOUD. The loop can stop for three honest
+           reasons — the cap, a refusal, or a count that would not fall — and
+           in every one of them there is work outstanding that the next open
+           will pick up. Reporting it is the difference between "this job is
+           indexed" and "this job is indexed as far as anyone bothered". */
+        setPhotosUnread(res.remaining);
         if (!res.ok || res.read === 0 || res.remaining >= last) break;
         last = res.remaining;
         if (res.remaining === 0) break;
@@ -1325,6 +1347,7 @@ export function JobSheet({
               truncated={!!media?.truncated}
               mediaNote={mediaNote}
               visits={detail?.visits ?? []}
+              unread={photosUnread}
               favourites={favourites}
               onOpen={(id) => setViewer({ kind: "photos", id })}
               onStar={toggleFavourite}

@@ -243,6 +243,46 @@ describe("a job billed in stages gathers its claims' files", () => {
     expect(read.items).toHaveLength(2);
   });
 
+  /* THE ARRANGEMENT NO TEST EVER MADE, and the one that was broken in
+     production: the parent holds a photo called `Photo` and the claim holds a
+     DIFFERENT photo, also called `Photo`, taken at another moment. Every
+     other test here either put both on the parent or put them on two claims
+     with no parent row — so `parentNames` was empty and nothing was dropped.
+     This arrangement lost 78 photographs across 16 jobs on the live account,
+     none of which had a parent twin sharing its timestamp.
+
+     The fixture's own default name is `IMG_4021.jpg`, which ServiceM8 never
+     produces — that is why a suite of eighteen tests never saw this. */
+  it("keeps a claim's own `Photo` when the parent has a different one", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "Photo", timestamp: "2026-08-01 10:00:00" }),
+      attachment({
+        uuid: "a-2",
+        attachment_name: "Photo",
+        timestamp: "2026-08-04 14:22:07",
+        related_object_uuid: "job-1a",
+      }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+    expect(read.items.map((i) => i.remoteId)).toEqual(["a-1", "a-2"]);
+  });
+
+  /* And the copy it IS meant to drop still goes: ServiceM8 preserves the
+     timestamp when it clones, so a real copy matches on every fact at once. */
+  it("still drops a claim's copy that matches the parent's on every fact", async () => {
+    attachmentRows = [
+      attachment({ uuid: "a-1", attachment_name: "Photo", timestamp: "2026-08-01 10:00:00" }),
+      attachment({
+        uuid: "a-2",
+        attachment_name: "Photo",
+        timestamp: "2026-08-01 10:00:00",
+        related_object_uuid: "job-1a",
+      }),
+    ];
+    const read = await readJobMedia("org-1", "job-1", CLAIMS);
+    expect(read.items.map((i) => i.remoteId)).toEqual(["a-1"]);
+  });
+
   /* A PDF sharing a photo's name is not the same file. */
   it("does not collapse two different files that share a name", async () => {
     attachmentRows = [

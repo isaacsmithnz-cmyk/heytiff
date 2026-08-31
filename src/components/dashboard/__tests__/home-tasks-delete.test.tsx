@@ -32,6 +32,7 @@ const task = (over: Partial<DashTask> = {}): DashTask => ({
   doneAt: null,
   doneByName: null,
   remindAt: null,
+  remindKind: "at" as const,
   ...over,
 });
 

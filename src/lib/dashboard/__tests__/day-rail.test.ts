@@ -227,11 +227,56 @@ describe("what earns a place on the day", () => {
   it("draws a task as a moment, so it never pushes a booking sideways for time nobody claimed", () => {
     const items = railItems(
       [block({ startMin: 9 * 60, endMin: 11 * 60 })],
-      [{ id: "t", title: "Service", atMin: 12 * 60, overdue: false }],
+      [{ id: "t", title: "Service", atMin: 12 * 60, kind: "at", overdue: false }],
     );
     const task = items.find((i) => i.kind === "task")!;
     expect(task.startMin).toBe(task.endMin);
     expect(placeRail(items, railBounds(items)).every((p) => p.cols === 1)).toBe(true);
+  });
+});
+
+describe("at, or by", () => {
+  const TZ = "Australia/Brisbane";
+  const row = (over: Record<string, unknown> = {}) => ({
+    id: "t1",
+    title: "Crane truck back in the yard",
+    remindAt: "2026-09-01T06:00:00Z", // 4pm Brisbane
+    dueDate: "2026-09-01",
+    status: "open",
+    ...over,
+  });
+
+  it("carries a deadline through as a deadline", () => {
+    /* The whole reason the column exists: 4pm on a `by` row is the moment the
+       time is UP, and drawing it as a start time tells you to begin when you
+       should already have finished. */
+    const [t] = railTasksOf([row({ remindKind: "by" as const })], "2026-09-01", TZ, null);
+    expect(t.kind).toBe("by");
+    expect(t.atMin).toBe(16 * 60);
+  });
+
+  it("reads a task with no word on it as an appointment", () => {
+    /* Every reminder written before the column existed came from "remind me
+       Monday morning", which is an `at`. The absence already means the right
+       thing, so nothing was backfilled — see docs/migrations/task_remind_kind.sql. */
+    const [t] = railTasksOf([row()], "2026-09-01", TZ, null);
+    expect(t.kind).toBe("at");
+  });
+
+  it("still marks a passed deadline overdue, on the same arithmetic", () => {
+    /* A missed deadline and a late nudge are the same fact — past its time.
+       `kind` says which it was; it does not get its own lateness rule. */
+    const [t] = railTasksOf([row({ remindKind: "by" as const })], "2026-09-01", TZ, 17 * 60);
+    expect(t.kind).toBe("by");
+    expect(t.overdue).toBe(true);
+  });
+
+  it("keeps a deadline off the rail when it named no hour", () => {
+    /* `by` alone is not a moment. The database refuses the pair outright, and
+       the rail would have nowhere to draw it even if it did not. */
+    expect(
+      railTasksOf([row({ remindAt: null, remindKind: "by" as const })], "2026-09-01", TZ, null),
+    ).toEqual([]);
   });
 });
 

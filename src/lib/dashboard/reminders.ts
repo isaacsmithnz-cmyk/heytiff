@@ -113,6 +113,38 @@ export function remindAtFrom(
   return instantAt(dueDate, h * 60 + m, zoneOf(tz));
 }
 
+/* ── at, or by ────────────────────────────────────────────────────────── */
+
+/** How to read the moment on a task.
+
+    `at` — be doing it then. A service booked for 7:30, a call at two.
+    `by` — have it finished by then. The crane truck back in the yard by four.
+
+    They are the same column and the opposite instruction, which is why the
+    rail could not draw them differently until the word existed: a deadline
+    drawn as an appointment tells you to start when you should already have
+    finished. */
+export const REMIND_KINDS = ["at", "by"] as const;
+export type RemindKind = (typeof REMIND_KINDS)[number];
+
+/** The stored word → the kind, with null reading as `at`.
+
+    THE COALESCE LIVES HERE AND NOWHERE ELSE. Every reminder written before
+    the column existed came from a note asking to be nudged — "remind me
+    Monday morning" — so absence already means `at`, and a backfill would only
+    be writing down what this function can work out. What must not happen is
+    four readers each doing `?? "at"` for themselves: the day they disagree,
+    the same task means two things on two screens. */
+export function remindKindOf(stored: string | null | undefined): RemindKind {
+  return stored === "by" ? "by" : "at";
+}
+
+/** Is this string one of the two words? For the boundary where a value
+    arrives from outside — the model's JSON, a form post — and the database's
+    check constraint is the only other thing standing in its way. */
+export const isRemindKind = (v: unknown): v is RemindKind =>
+  typeof v === "string" && (REMIND_KINDS as readonly string[]).includes(v);
+
 /* ── snoozing ─────────────────────────────────────────────────────────── */
 
 /** The three ways a reminder gets put off. Named after when they land rather

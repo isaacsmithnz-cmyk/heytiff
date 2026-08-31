@@ -26,7 +26,7 @@
    are tested without a network call. */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { HHMM } from "@/lib/dashboard/reminders";
+import { HHMM, isRemindKind, type RemindKind } from "@/lib/dashboard/reminders";
 import { RECORD_IN_ENGLISH } from "@/lib/lang/policy";
 import { englishProposal } from "./note-english";
 
@@ -93,6 +93,14 @@ export type ProposedTask = {
       time is a reminder; a task with only a day is an ordinary task, as it has
       always been. */
   remindTime: string;
+  /** How to read `remindTime`: be doing it THEN, or be finished BY then.
+
+      "Get the crane truck back in the yard by four" and "service the Hilux at
+      half seven" are the same shape of sentence and the opposite instruction,
+      and until this field existed both arrived as a moment with no way to
+      tell them apart. Only meaningful alongside a `remindTime`; `at` when
+      there is none, which is what every reminder written before this meant. */
+  remindKind: RemindKind;
 };
 
 export type ProposedFlag = { message: string; severity: Severity };
@@ -188,6 +196,7 @@ const NOTE_SCHEMA = {
           due_hint: str,
           due_date: str,
           remind_time: str,
+          remind_kind: { type: "string", enum: ["at", "by"] },
         },
         required: [
           "title",
@@ -196,6 +205,7 @@ const NOTE_SCHEMA = {
           "due_hint",
           "due_date",
           "remind_time",
+          "remind_kind",
         ],
         additionalProperties: false,
       },
@@ -343,6 +353,20 @@ export function whenBlock(ctx: NoteContext): string {
     `${start} — they asked for a nudge, so a day with no time is a nudge that`,
     "never comes. When the note is not asking to be reminded, leave",
     "`remind_time` empty: an ordinary task has a due date and no alarm.",
+    "",
+    "`remind_kind` says how to READ that time, and the two are opposites:",
+    "  'at' -> be doing it then. A booking, a call, an appointment, and the",
+    "     plain nudge someone asked for. 'service at half seven', 'ring him",
+    "     at two', 'remind me Monday morning'.",
+    "  'by' -> be FINISHED by then. A deadline, a cut-off, a handback.",
+    "     'crane truck back in the yard by four', 'off site before three',",
+    "     'needs to be done by close of play', 'no later than midday'.",
+    "The words to watch are by, before, no later than, until, deadline, and",
+    "anything naming a moment the work must already be OVER. If the note just",
+    "names when to do the thing, or asks for a nudge, it is 'at'. Use 'at'",
+    "when you are unsure: a deadline drawn as an appointment is late advice,",
+    "and an appointment drawn as a deadline is a false alarm, but the second",
+    "is the one that teaches people to ignore the rail.",
   ].join("\n");
 }
 
@@ -624,6 +648,10 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
          database as a nudge is worse than no nudge at all. Anything that is not
          a 24-hour clock becomes no time, and the task is simply a task. */
       remindTime: HHMM.test(String(row.remind_time ?? "")) ? String(row.remind_time) : "",
+      /* Validated like the two beside it. `at` is the safe default in both
+         directions: it is what an unreadable answer should mean, and it is
+         what the field means when there is no time for it to qualify. */
+      remindKind: isRemindKind(row.remind_kind) ? row.remind_kind : "at",
     });
   }
 

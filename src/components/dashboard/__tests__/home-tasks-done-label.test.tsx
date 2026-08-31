@@ -28,6 +28,7 @@ const doneTask = (doneAt: string): DashTask => ({
   doneAt,
   doneByName: "Isaac Smith",
   remindAt: null,
+  remindKind: "at" as const,
 });
 
 const renderDone = (doneAt: string, today: string) =>

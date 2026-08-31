@@ -154,6 +154,45 @@ describe("tasks", () => {
     });
   });
 
+  it("writes a deadline down and leaves an appointment to be inferred", async () => {
+    /* ONLY "by" IS EVER STORED. A null already reads as "at" everywhere
+       through `remindKindOf`, so writing the word would be a second way to
+       say the identical thing — and a row that can one day disagree with
+       itself. See docs/migrations/task_remind_kind.sql. */
+    lists.staff_profiles = [{ id: "s-luke" }];
+    await applyNote(
+      "n-1",
+      confirmed({
+        tasks: [
+          { title: "Crane truck back", detail: "", assigneeId: "s-luke", dueDate: "2026-08-04", remindTime: "16:00", remindKind: "by" },
+          { title: "Service the Hilux", detail: "", assigneeId: "s-luke", dueDate: "2026-08-04", remindTime: "07:30", remindKind: "at" },
+        ],
+      })
+    );
+    const rows = rowsFor("tasks");
+    expect(rows[0].remind_kind).toBe("by");
+    expect(rows[0].remind_at).not.toBeNull();
+    expect(rows[1].remind_kind).toBeNull();
+  });
+
+  it("never stores a kind on a task that named no hour", async () => {
+    /* The database refuses the pair outright — a deadline with no moment is
+       not a weaker fact, it is a meaningless one — so the action must not
+       offer it one. A browser can POST straight at this function. */
+    lists.staff_profiles = [{ id: "s-luke" }];
+    await applyNote(
+      "n-1",
+      confirmed({
+        tasks: [
+          { title: "Order the grilles", detail: "", assigneeId: "s-luke", dueDate: "2026-08-04", remindTime: null, remindKind: "by" },
+        ],
+      })
+    );
+    const task = rowsFor("tasks")[0];
+    expect(task.remind_at).toBeNull();
+    expect(task.remind_kind).toBeNull();
+  });
+
   it("refuses an assignee who isn't in this org", async () => {
     lists.staff_profiles = []; // the scoped lookup finds nobody
     const res = await applyNote(

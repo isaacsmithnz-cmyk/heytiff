@@ -22,6 +22,7 @@
    block that agrees with the hour beside it is the whole point of the view. */
 
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
+import type { RemindKind } from "./reminders";
 
 /** The zone every ServiceM8 stamp is already written in. Matches
     `todayInZone`'s fallback so an account with no vendor row still lands
@@ -63,6 +64,17 @@ export type RailTask = {
   title: string;
   /** Minutes past midnight, in the workspace's zone. */
   atMin: number;
+  /** Whether `atMin` is when to DO it or when it must be DONE.
+
+      The rail draws the two differently because they are opposite
+      instructions at the same coordinate: an `at` row is a thing to be doing
+      then, and a `by` row is the moment you have run out — which is why it
+      wears the warning colour and says the word. See `remindKindOf`. */
+  kind: RemindKind;
+  /** The clock has gone past `atMin` and the task is still open. For a `by`
+      row that means the deadline was MISSED, which is a stronger statement
+      than an `at` row being late — but it is the same arithmetic, and the
+      difference is said by `kind` rather than by a second flag. */
   overdue: boolean;
 };
 
@@ -230,6 +242,7 @@ export function railTasksOf(
     id: string;
     title: string;
     remindAt: string | null;
+    remindKind?: RemindKind;
     dueDate: string | null;
     status: string;
   }[],
@@ -246,6 +259,7 @@ export function railTasksOf(
       id: t.id,
       title: t.title,
       atMin: at.min,
+      kind: t.remindKind ?? "at",
       overdue: nowMin !== null && at.min < nowMin,
     });
   }

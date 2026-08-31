@@ -36,6 +36,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { EMPTY_SCHEDULE, loadScheduleDay } from "@/lib/workboard/schedule-query";
 import { layoutScheduleDay, type ScheduleBlock } from "@/lib/workboard/schedule";
 import { nowMinInZone, railTasksOf, type RailTask } from "./day-rail";
+import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { phaseOf, type DayPhase } from "./debrief-voice";
 
 /* Dashboard page loader. The capability scoping and every derivation are pure
@@ -97,11 +98,27 @@ export type HomeRail = {
       dispatcher sees. */
   dayISO: string;
   tz: string | null;
-  /** Every booking on the day, chronological. Crew-wide: ServiceM8 staff are
-      not linked to HeyTiff accounts on the live workspace (integration_links
-      holds no staff rows), so "just mine" would show everyone an empty rail.
-      When those links exist this becomes a filter, not a rewrite. */
+  /** The viewer's OWN bookings on the day, chronological.
+
+      It was crew-wide, because nothing linked a HeyTiff account to a
+      ServiceM8 person and "just mine" would have shown everyone an empty
+      rail. Isaac asked for his own day (2026-08-31), and the honest way to
+      give it is to narrow when we know who he is and SAY SO when we don't —
+      never to quietly widen back to everyone, which would make the rail mean
+      two different things depending on a row in a table nobody can see.
+
+      Empty here therefore means "nothing booked for you", and only that. See
+      `linked` for the other case. */
   blocks: ScheduleBlock[];
+  /** Does `integration_links` say which ServiceM8 person the viewer is?
+
+      False is the ordinary answer on a workspace where nobody has linked
+      themselves yet, and it is NOT the same as an empty day: the rail cannot
+      narrow at all, so it says that instead of drawing nothing and letting
+      the reader conclude they are free. */
+  linked: boolean;
+  /** Where to go and fix that, or null for a viewer who may not. */
+  linkHref: string | null;
   /** The viewer's own tasks that named an hour on this day. */
   tasks: RailTask[];
   /** Minutes past midnight when the page was built, in `tz`. The live marker
@@ -116,6 +133,8 @@ const EMPTY_RAIL: HomeRail = {
   dayISO: "",
   tz: null,
   blocks: [],
+  linked: false,
+  linkHref: null,
   tasks: [],
   nowMin: null,
   enabled: false,
@@ -158,7 +177,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, calendar, tasks, notices, assignable, journal, jobs, schedule] = await Promise.all([
+  const [chips, calendar, tasks, notices, assignable, journal, jobs, schedule, sm8Links] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
     loadCalendar(orgId, today, viewerStaffId, canManage),
     loadTasks(orgId, viewerStaffId, canManage, names),
@@ -174,7 +193,21 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* The day rail. Same gate as the board it mirrors — a viewer without
        `workboard` may not see the crew's bookings, on Home or anywhere. */
     caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
+
+    /* WHICH OF THE CREW THE VIEWER IS. One cheap read on the table that is
+       the app's law for it — never a name match, which is exactly the
+       guessing `integration_links` exists to end (see lib/integrations/links
+       and the one-truth-per-staff-member rule). */
+    caps.has("workboard") && viewerStaffId
+      ? sm8StaffLinkMap(orgId)
+      : Promise.resolve(new Map<string, string>()),
   ]);
+
+  /* The map is remote-uuid → staff card, so finding the viewer is a scan of
+     something with one row per linked person: small by construction, and the
+     alternative is a second query for a fact already in hand. */
+  const mineUuid =
+    [...sm8Links.entries()].find(([, staffId]) => staffId === viewerStaffId)?.[0] ?? null;
 
   /* The board's own layout, then flattened: it knows what a block IS — the
      closure rule, the on-site join, the midnight clamp — and Home differs
@@ -188,7 +221,16 @@ export async function loadDashboard(): Promise<DashboardData> {
         jobs: schedule.jobs,
         onSite: new Set(schedule.onSite),
       })
-        .lanes.flatMap((lane) => lane.blocks)
+        /* NARROWED TO ONE LANE — the viewer's. A lane already IS a person's
+           day, so "just mine" is a filter on the board's own answer rather
+           than a second way of deciding who owns a booking.
+
+           An unknown viewer keeps NOTHING, deliberately. Falling back to the
+           whole crew would make the rail mean "my day" or "everyone's day"
+           depending on a table row the reader cannot see, and the two look
+           identical. `linked` says which case this is instead. */
+        .lanes.filter((lane) => mineUuid !== null && lane.staffUuid === mineUuid)
+        .flatMap((lane) => lane.blocks)
         .sort((a, b) => a.startMin - b.startMin || a.key.localeCompare(b.key))
     : [];
 
@@ -198,6 +240,11 @@ export async function loadDashboard(): Promise<DashboardData> {
       dayISO: railDay,
       tz: railTz,
       blocks: railBlocks,
+      linked: mineUuid !== null,
+      /* The door only opens for someone who can walk through it — the
+         ServiceM8 people screen is admin-only, and pointing everyone else at
+         a locked room is worse than saying nothing. */
+      linkHref: canManage ? "/dashboard/admin/integrations/servicem8" : null,
       tasks: railTasksOf(tasks.mine, railDay, railTz, railNowMin),
       nowMin: railNowMin,
       enabled: caps.has("workboard"),

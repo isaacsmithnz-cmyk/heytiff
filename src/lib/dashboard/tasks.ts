@@ -1,4 +1,5 @@
 import { daysUntil, fmtAuDayMonth as fmtDate } from "@/lib/au-dates";
+import type { RemindKind } from "./reminders";
 import { dueIn } from "@/lib/format/duration";
 
 /* Tasks & notices — the two writable dashboard surfaces.
@@ -32,6 +33,11 @@ export type DashTask = {
       `dueDate`. The only thing that can put a task on Home's day rail; null
       for the ordinary "some time that day" task. */
   remindAt: string | null;
+  /** How to read `remindAt`: be doing it THEN (`at`), or be finished BY then
+      (`by`). Always a word, never null — a task with no `remindAt` has no
+      moment for this to qualify, and reads as `at` because that costs nothing
+      and every reminder written before the column existed was one. */
+  remindKind: RemindKind;
 };
 
 /* Completing a task hides it from the open list, but it must not vanish: one

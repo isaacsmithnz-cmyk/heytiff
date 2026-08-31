@@ -436,6 +436,18 @@ describe("a note that asks to be reminded", () => {
       expect(shapeProposal(remindMe({ remind_time: bad }), spoken).tasks[0].remindTime).toBe("");
   });
 
+  it("reads a deadline as a deadline, and anything else as an appointment", () => {
+    /* "Back in the yard by four" and "service at half seven" are the same
+       shape of sentence and the opposite instruction. The word decides which
+       the rail draws, so an unreadable one has to fall to `at`: an
+       appointment shown as a deadline is a false alarm, and false alarms are
+       what teach people to stop reading the rail. */
+    expect(shapeProposal(remindMe({ remind_kind: "by" }), spoken).tasks[0].remindKind).toBe("by");
+    expect(shapeProposal(remindMe({ remind_kind: "at" }), spoken).tasks[0].remindKind).toBe("at");
+    for (const bad of ["BY", "before", "deadline", "", null, 1, true, undefined])
+      expect(shapeProposal(remindMe({ remind_kind: bad }), spoken).tasks[0].remindKind).toBe("at");
+  });
+
   it("leaves an ordinary task without an alarm", () => {
     const p = shapeProposal(
       raw({
@@ -495,6 +507,10 @@ describe("what the router is told about who and when", () => {
       const prompt = systemPrompt(mode);
       expect(prompt).toContain("The person speaking is Isaac Smith");
       expect(prompt).toContain("`remind_time` is the time of day to nudge them at");
+      expect(prompt).toContain("`remind_kind` says how to READ that time");
+      /* The instruction that keeps the rail trustworthy: when the model is
+         unsure it must NOT reach for the louder answer. */
+      expect(prompt).toContain("Use 'at'");
     }
   });
 });

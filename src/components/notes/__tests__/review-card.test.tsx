@@ -42,6 +42,7 @@ const proposal = (task: Partial<NoteProposal["tasks"][number]> = {}): NotePropos
       dueHint: "Monday morning",
       dueDate: "2026-08-24",
       remindTime: "06:30",
+      remindKind: "at" as const,
       ...task,
     },
   ],

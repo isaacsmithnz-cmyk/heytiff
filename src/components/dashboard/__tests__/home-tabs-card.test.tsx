@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DashboardHome } from "../home";
 import type { DashboardData, HomeRail } from "@/lib/dashboard/page-data";
@@ -48,6 +48,7 @@ const task = (over: Partial<DashTask> = {}): DashTask => ({
   doneAt: null,
   doneByName: null,
   remindAt: null,
+  remindKind: "at" as const,
   ...over,
 });
 
@@ -55,6 +56,8 @@ const rail = (over: Partial<HomeRail> = {}): HomeRail => ({
   dayISO: TODAY,
   tz: "Australia/Brisbane",
   blocks: [],
+  linked: true,
+  linkHref: "/dashboard/admin/integrations/servicem8",
   tasks: [],
   nowMin: null,
   enabled: true,
@@ -215,6 +218,39 @@ describe("the day rail", () => {
   it("says so plainly when the viewer may not see the bookings", () => {
     draw({ rail: rail({ enabled: false }) });
     expect(document.querySelector(".hm-day")!.textContent).toMatch(/workboard/i);
+  });
+
+  it("REFUSES to draw an empty day for someone ServiceM8 does not know", () => {
+    /* THE ONE WRONG ANSWER THAT LOOKS LIKE A RIGHT ONE. With no
+       integration_links row there is no lane to narrow to, so the rail has
+       nothing — and nothing drawn as a timeline reads as "you are free". It
+       has to say which of the two it is. */
+    draw({ rail: rail({ linked: false }) });
+    const day = document.querySelector(".hm-day")!;
+    expect(day.textContent).toMatch(/linked to your account/i);
+    expect(day.textContent).not.toMatch(/nothing booked/i);
+    // and no timeline at all, so there is no empty day to misread
+    expect(day.querySelector(".hm-rl")).toBeNull();
+  });
+
+  it("offers the door only to someone who can walk through it", () => {
+    /* The ServiceM8 people screen is admin-only. Pointing everyone else at a
+       locked room is worse than saying nothing. */
+    draw({ rail: rail({ linked: false }) });
+    expect(
+      screen.getByRole("link", { name: /link yourself/i }),
+    ).toHaveAttribute("href", "/dashboard/admin/integrations/servicem8");
+
+    cleanup();
+    draw({ rail: rail({ linked: false, linkHref: null }) });
+    expect(screen.queryByRole("link", { name: /link yourself/i })).toBeNull();
+    // the sentence still explains why the rail is empty
+    expect(document.querySelector(".hm-day")!.textContent).toMatch(/linked to your account/i);
+  });
+
+  it("says the empty day is YOURS once it knows who you are", () => {
+    draw({ rail: rail({ linked: true, blocks: [] }) });
+    expect(document.querySelector(".hm-day")!.textContent).toMatch(/nothing booked for you/i);
   });
 });
 

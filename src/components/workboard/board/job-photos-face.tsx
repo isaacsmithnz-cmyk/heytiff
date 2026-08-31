@@ -50,6 +50,7 @@ export function JobPhotosFace({
   truncated,
   mediaNote,
   visits,
+  unread,
   favourites,
   onOpen,
   onStar,
@@ -60,6 +61,9 @@ export function JobPhotosFace({
   truncated: boolean;
   mediaNote: string | null;
   visits: readonly JobVisit[];
+  /** Photos held here but not yet looked at. Null while no read has reported;
+      0 once the job is wholly in the bank. */
+  unread: number | null;
   /** Starred attachment ids — null until the read lands, so a star is drawn
       absent rather than drawn hollow and wrong. */
   favourites: ReadonlySet<string> | null;
@@ -225,6 +229,24 @@ export function JobPhotosFace({
         })
       )}
 
+      {/* WHAT IS STILL TO BE LOOKED AT, when anything is.
+
+          NOT HINT TEXT: this is a fact about the job's state, not a caption
+          apologising for a design. It exists because the alternative was
+          silence — a job with more photographs than one visit can read left
+          its tail unindexed and said nothing, so a search would quietly miss
+          them and look like the photographs simply were not there.
+
+          It says what will happen rather than asking for anything. Opening
+          the card again is what continues it, and opening the card again is
+          what anybody does anyway. */}
+      {unread !== null && unread > 0 && (
+        <p className="int-hint">
+          {unread === 1
+            ? "1 photo still to be read — it'll be picked up next time this job is opened."
+            : `${unread} photos still to be read — they'll be picked up next time this job is opened.`}
+        </p>
+      )}
       {mediaNote && <p className="int-hint">{mediaNote}</p>}
       {truncated && (
         <p className="int-hint">

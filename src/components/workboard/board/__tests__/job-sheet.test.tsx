@@ -2762,6 +2762,19 @@ describe("bringing the bytes across", () => {
     ...over,
   });
 
+  const file = (over: Partial<JobMediaItem> & { remoteId: string }): JobMediaItem => ({
+    name: "Photo",
+    fileType: ".jpg",
+    kind: "photo",
+    width: null,
+    height: null,
+    origin: null,
+    fromClaim: null,
+    takenAt: "2026-08-01 10:00:00",
+    url: null,
+    ...over,
+  });
+
   it("keeps asking while each round makes progress, then stops", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobFiles.mockResolvedValueOnce(files());
@@ -2792,6 +2805,82 @@ describe("bringing the bytes across", () => {
     await detailLanded();
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalledTimes(2));
     expect(readJobPhotos).toHaveBeenCalledWith(detail().remoteId);
+  });
+
+  /* THE CAPS ARE A RUNAWAY GUARD, NOT A BUDGET — and at 12 rounds they were
+     acting as one. Reading stopped at exactly 48 photographs on job #683,
+     with the parent's 56 consuming the whole allowance, so the claim's 17
+     needed a second visit and nothing said so. A real job has to finish in
+     one open: the biggest in the account holds 223 files. */
+  it("keeps reading past the old 48-photo ceiling", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    /* 60 rounds of four: 240 photographs, more than any live job. */
+    let left = 240;
+    readJobPhotos.mockImplementation(async () => {
+      left = Math.max(0, left - 4);
+      return { ok: true, read: 4, remaining: left, note: null };
+    });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(left).toBe(0), { timeout: 5000 });
+    /* 240 / 4 — comfortably past the twelve rounds that used to bind. */
+    expect(readJobPhotos.mock.calls.length).toBeGreaterThan(12);
+  });
+
+  /* THE FALLING REMAINDER IS THE REAL BRAKE, and raising the cap must not
+     have weakened it: a server that reports the same number twice cannot read
+     what is in front of it, and going round again would only spend money. */
+  it("still stops the moment the outstanding count stops falling", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    readJobPhotos.mockResolvedValue({ ok: true, read: 4, remaining: 40, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 300));
+    expect(readJobPhotos.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+
+  /* AND WHAT IS LEFT IS SAID OUT LOUD. Whatever stops the loop — the cap, a
+     refusal, a count that will not fall — there is work outstanding, and the
+     silence was the actual defect: a search would miss those photographs and
+     look exactly as though they did not exist. */
+  it("says how many photos are still to be read when the loop stops short", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
+    );
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    readJobPhotos.mockResolvedValue({ ok: false, read: 0, remaining: 12, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+    expect(
+      await face("photos").findByText(/12 photos still to be read/)
+    ).toBeInTheDocument();
+  });
+
+  /* A job wholly in the bank says nothing — a line reading "0 still to be
+     read" is furniture. */
+  it("says nothing when the whole job has been read", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValue(
+      files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
+    );
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    readJobPhotos.mockResolvedValue({ ok: true, read: 1, remaining: 0, note: null });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+    await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
+    expect(face("photos").queryByText(/still to be read/)).toBeNull();
   });
 
   /* READING NEVER RACES THE TILES. The caching loop is what somebody is

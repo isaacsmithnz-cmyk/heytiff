@@ -61,3 +61,18 @@ next-env.d.ts
 
 # build output when -o .next-build is used for verification builds
 .next-build/
+
+# iCloud's duplicate files. ~/Desktop is an iCloud folder, so when the daemon
+# resolves a sync conflict it writes a SECOND copy beside the original —
+# `day-rail.test 2.ts` next to `day-rail.test.ts` — with the same contents it
+# had at the moment of the conflict. They are invisible in an editor's file
+# tree and easy to sweep up with `git add -A`; 239 of them reached main that
+# way (#576), including 108 test files, and jest ran every one.
+#
+# A stale copy of a test is worse than dead weight: it goes on asserting the
+# behaviour the real file has since moved away from, so the NEXT change to the
+# real file fails CI in a file nobody edited. That is exactly how it surfaced.
+* [0-9].*
+* [0-9][0-9].*
+* copy.*
+* copy [0-9].*

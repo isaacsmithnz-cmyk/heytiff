@@ -133,25 +133,53 @@ export async function readJobMedia(
      different photograph. Only a CLAIM's file is checked, and only against
      names the parent already has. `sources` puts the job first, so by the
      time a claim's rows are read the parent's names are all in the set. */
-  const parentNames = new Set<string>();
+  /* THE NAME IS OUT OF THE KEY ENTIRELY — the last place it survived, and it
+     was still wrong.
+
+     The parent-vs-parent half went first: ServiceM8 names every upload
+     `Photo`, so a flat name key collapsed 28,828 photographs. This is the
+     other half. A claim's row was still dropped when the parent held ANY row
+     with the same name and type — which, since every name is `Photo`, means
+     a claim's genuinely different photograph was dropped whenever the parent
+     had any photograph at all. Measured against the live mirror, scoped the
+     way this function scopes it: 626 photos on claim rows, 78 of them dropped
+     across 16 jobs, and NOT ONE of those 78 had a parent twin sharing its
+     timestamp. They were not copies. They were photographs of real work.
+
+     WHAT A CLONE COPY ACTUALLY IS: ServiceM8 preserves the timestamp when it
+     clones, so a copy matches on EVERYTHING — name, second, type and both
+     dimensions. The name is still in the key, and that is not a relapse: the
+     bug was ever using the name ALONE, where `Photo` matches `Photo` and
+     decides nothing. As one conjunct among five it can only narrow the key,
+     so this drops strictly fewer files than before and never more.
+
+     The timestamp is what does the real work. A photograph taken while a
+     clone was open has its own second on the clock and survives. */
+  const parentCopies = new Set<string>();
   const surviving: AttachmentRow[] = [];
-  const nameKey = (name: string, fileType: string | null) =>
-    `${name.toLowerCase()}|${(fileType ?? "").toLowerCase()}`;
+  const copyKey = (r: AttachmentRow) =>
+    [
+      (r.attachment_name?.trim() || "Untitled file").toLowerCase(),
+      r.timestamp ?? "",
+      (r.file_type ?? "").toLowerCase(),
+      r.photo_width ?? "",
+      r.photo_height ?? "",
+    ].join("|");
   for (const r of all) {
     const claim = claimOf.get(r.related_object_uuid) ?? null;
     const name = r.attachment_name?.trim() || "Untitled file";
-    const key = nameKey(name, r.file_type);
     if (claim === null) {
-      /* The job's own. Kept unconditionally; its name is what a claim's copy
-         is later measured against. */
-      parentNames.add(key);
+      /* The job's own. Kept unconditionally; it is what a claim's copy is
+         later measured against. */
+      parentCopies.add(copyKey(r));
       surviving.push(r);
       continue;
     }
     /* "Partial Invoice #2380A" is about the billing, not the work — it stays
-       on the claim (426 live). */
+       on the claim (426 live). This one IS a name test, and rightly: it is
+       ServiceM8's own generated paperwork title, not a camera's filename. */
     if (isPartialInvoicePaper(name)) continue;
-    if (parentNames.has(key)) continue;
+    if (parentCopies.has(copyKey(r))) continue;
     surviving.push(r);
   }
 

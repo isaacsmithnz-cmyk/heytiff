@@ -189,7 +189,7 @@ export async function setJobPhotoFavourite(
      what is unread, so a photo Haiku already did keeps its reading unless the
      re-read below replaces it — and `read_model` on the row records which
      model produced which, so the two can always be told apart. */
-  void readJobPhotos(job, "showcase", photo).catch((e) => {
+  void readJobPhotos(job, "showcase").catch((e) => {
     console.error(`[showcase] re-read failed for ${job}:`, e);
   });
 
@@ -290,32 +290,17 @@ export async function listShowcase(): Promise<ShowcasePhoto[]> {
     }[]).map((r) => [r.sm8_attachment_uuid, r])
   );
 
-  /* RESOLVED BY THE ATTACHMENT UUID, NOT THE STORED document_id.
-
-     `document_id` is written once, at starring time, from a lookup made
-     BEFORE the bytes are fetched — so starring an uncached photo stored null
-     and nothing ever went back to fill it in. The star lit, the write
-     reported success, and the showcase kept a grey plate for that photograph
-     forever. The comment promising a backfill described something that did
-     not exist.
-
-     `remote_ref` is the attachment uuid and is what the cacher writes, so
-     asking `documents` directly cannot go stale: a photo cached a minute
-     after it was starred resolves on the next open, and one whose cache is
-     later cleared goes back to a plate honestly. Same join photo-search.ts
-     already uses. */
-  const remoteIds = rows.map((r) => r.sm8_attachment_uuid);
+  const docIds = [...new Set(rows.map((r) => r.document_id).filter(Boolean))] as string[];
   const refs = new Map<string, string>();
-  if (remoteIds.length > 0) {
+  if (docIds.length > 0) {
     const { data: docs } = await supabaseAdmin
       .from("documents")
-      .select("remote_ref, storage_ref")
+      .select("id, storage_ref")
       .eq("org_id", orgId)
-      .eq("source", "servicem8")
-      .in("remote_ref", remoteIds)
+      .in("id", docIds)
       .not("uploaded_at", "is", null);
-    for (const d of (docs ?? []) as { remote_ref: string | null; storage_ref: string }[])
-      if (d.remote_ref) refs.set(d.remote_ref, d.storage_ref);
+    for (const d of (docs ?? []) as { id: string; storage_ref: string }[])
+      refs.set(d.id, d.storage_ref);
   }
 
   const urls = new Map<string, string>();
@@ -329,7 +314,7 @@ export async function listShowcase(): Promise<ShowcasePhoto[]> {
   }
 
   return rows.map((r) => {
-    const ref = refs.get(r.sm8_attachment_uuid);
+    const ref = r.document_id ? refs.get(r.document_id) : undefined;
     const read = readings.get(r.sm8_attachment_uuid);
     return {
       remoteId: r.sm8_attachment_uuid,

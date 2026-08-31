@@ -4,7 +4,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireOrg } from "@/lib/permissions-server";
-import { familyMediaSources } from "@/lib/workboard/all-jobs-query";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { mimeForExt, normaliseFileType } from "@/lib/workboard/job-media";
 import {
@@ -99,18 +98,10 @@ const MAX_EDGE = 1568;
 export async function readJobPhotos(
   jobUuid: string,
   /** Which tier reads. The bank gets Haiku; a star re-reads with Opus. */
-  tier: "bank" | "showcase" = "bank",
-  /** ONE PHOTO, NAMED. Without this the showcase tier was unusable: its queue
-      is photos that are UNREAD, and a starred photo has by definition already
-      been read by the bank — so the star skipped its own photograph and spent
-      Opus money on up to four arbitrary others instead. The advertised
-      feature did not exist and the bill was real. Naming the attachment
-      bypasses the unread filter; the unique index makes the write an
-      overwrite, which is exactly what a re-read should be. */
-  attachmentUuid?: string
+  tier: "bank" | "showcase" = "bank"
 ): Promise<ReadPhotosResult> {
   try {
-    return await readJobPhotosInner(jobUuid, tier, attachmentUuid);
+    return await readJobPhotosInner(jobUuid, tier);
   } catch (e) {
     console.error(`[photo-readings] reading failed for ${jobUuid}:`, e);
     return { ...NOTHING, note: "Those photos couldn't be read just now." };
@@ -119,8 +110,7 @@ export async function readJobPhotos(
 
 async function readJobPhotosInner(
   jobUuid: string,
-  tier: "bank" | "showcase",
-  attachmentUuid?: string
+  tier: "bank" | "showcase"
 ): Promise<ReadPhotosResult> {
   const model = tier === "showcase" ? SHOWCASE_MODEL : BANK_MODEL;
   const { orgId } = await requireOrg("workboard");
@@ -133,25 +123,12 @@ async function readJobPhotosInner(
   /* WHAT WE HOLD THE BYTES OF, on this job. `documents` is the source of
      truth for that — a photo whose cache hasn't landed yet is not unread, it
      is not yet readable, and `cacheJobFiles` is still working on it. */
-  /* THE CLAIMS' PHOTOS ARE THE JOB'S PHOTOS, and this read used to miss every
-     one of them. ServiceM8 bills a progress job by cloning it, and
-     `cacheJobFiles` deliberately files a clone's photo under THE CLAIM's uuid
-     (workboard-media.ts) — so a query scoped to the parent alone found none
-     of them. They were cached, shown in the mosaic, starrable, and
-     permanently outside the bank: the job reported `remaining: 0` while
-     dozens of its photographs had never been looked at. 626 live photos sit
-     on claim rows.
-
-     Same two lines the cacher already uses. */
-  const claims = await familyMediaSources(orgId, job);
-  const sourceIds = [job, ...claims.map((c) => c.remoteId).filter((r) => r !== job)];
-
   const { data: docRows } = await supabaseAdmin
     .from("documents")
     .select("id, remote_ref, storage_ref, file_name, mime_type")
     .eq("org_id", orgId)
     .eq("source", "servicem8")
-    .in("sm8_job_uuid", sourceIds)
+    .eq("sm8_job_uuid", job)
     .not("uploaded_at", "is", null)
     .limit(400);
 
@@ -183,11 +160,7 @@ async function readJobPhotosInner(
     ((doneRows ?? []) as { sm8_attachment_uuid: string }[]).map((r) => r.sm8_attachment_uuid)
   );
 
-  /* A NAMED PHOTO BYPASSES THE UNREAD FILTER — that is the whole point of
-     naming it. Everything else takes the queue of what has never been read. */
-  const queue = attachmentUuid
-    ? held.filter((d) => d.remote_ref === attachmentUuid)
-    : held.filter((d) => !done.has(d.remote_ref as string));
+  const queue = held.filter((d) => !done.has(d.remote_ref as string));
   if (queue.length === 0) return { ok: true, read: 0, remaining: 0, note: null };
 
   /* The job's own facts, snapshotted onto every reading — so a result can
@@ -197,9 +170,6 @@ async function readJobPhotosInner(
 
   const client = new Anthropic();
   let read = 0;
-  /* Stored-nothing failures. A batch that reads and cannot write must SAY so
-     rather than looking like a batch with nothing to do. */
-  let failed = 0;
   let note: string | null = null;
 
   for (const doc of queue.slice(0, BATCH)) {
@@ -214,16 +184,13 @@ async function readJobPhotosInner(
       /* Genuinely not a decodable image. Recorded as looked-at with no
          subject so it leaves the queue instead of being retried on every
          open forever. */
-      /* Counted only if it was actually STORED — see below. */
-      if (
-        await writeReading(model, orgId, doc.remote_ref as string, job, snapshot, doc.file_name, {
-          subject: null,
-          tags: [],
-          caption: "",
-          ocrText: "",
-        })
-      )
-        read += 1;
+      await writeReading(model, orgId, doc.remote_ref as string, job, snapshot, doc.file_name, {
+        subject: null,
+        tags: [],
+        caption: "",
+        ocrText: "",
+      });
+      read += 1;
       continue;
     }
 
@@ -231,14 +198,7 @@ async function readJobPhotosInner(
     try {
       const response = await client.messages.create({
         model,
-        /* 4,000 was too tight and the failure was silent. `ocr_text` is
-           capped at 4,000 CHARACTERS and the prompt asks it to transcribe
-           generously; on the Opus path adaptive thinking bills against this
-           ceiling too. A truncated response is not valid JSON, so it parsed
-           to null and was written as a blank reading the unique index then
-           made permanent. The SDK's own guidance for a non-streaming call is
-           ~16k. */
-        max_tokens: 16000,
+        max_tokens: 4000,
         /* `effort` is an Opus-family parameter — Haiku 4.5 rejects it
            outright ("This model does not support the effort parameter"), so
            it is set only where it exists. */
@@ -265,20 +225,6 @@ async function readJobPhotosInner(
           },
         ],
       });
-      /* WHY THE ANSWER STOPPED, BEFORE READING IT. Two endings must never be
-         written down as "looked at, nothing on it", because the unique index
-         means the photo is then NEVER looked at again:
-           max_tokens — the transcription was cut mid-JSON
-           refusal    — the model declined; on this family `stop_reason` is
-                        the documented thing to check before touching content
-         Both are left in the queue instead, which is the honest state: this
-         photograph has not been read yet. */
-      if (response.stop_reason === "max_tokens" || response.stop_reason === "refusal") {
-        console.error(
-          `[photo-readings] ${doc.remote_ref} stopped on ${response.stop_reason}; left unread`
-        );
-        continue;
-      }
       const block = response.content.find((b) => b.type === "text");
       answer = block && block.type === "text" ? block.text : null;
     } catch (err) {
@@ -300,14 +246,7 @@ async function readJobPhotosInner(
     }
 
     const reading = answer ? parseReading(answer) : null;
-    /* `read` COUNTS WHAT WAS STORED, not what was asked for. Counting the
-       call meant a failing upsert reported `{ok:true, read:4}` with nothing
-       written — and the next round recomputed the queue from an empty table
-       and billed the same four photographs again. Two rounds, eight paid
-       calls, zero rows, and "it worked" printed twice. If the migration were
-       ever missing in a target database, that was every photo on every open,
-       forever, with nothing on screen saying so. */
-    const stored = await writeReading(
+    await writeReading(
       model,
       orgId,
       doc.remote_ref as string,
@@ -316,22 +255,10 @@ async function readJobPhotosInner(
       doc.file_name,
       reading ?? { subject: null, tags: [], caption: "", ocrText: "" }
     );
-    if (stored) read += 1;
-    else failed += 1;
+    read += 1;
   }
 
   revalidatePath("/dashboard/workboard");
-  /* `ok: false` on a total write failure stops the caller's loop dead. The
-     brake in job-sheet.tsx is a FALLING count, and a run that stores nothing
-     leaves the count unchanged — which would stop it too, but only after a
-     second paid round. This stops it after the first. */
-  if (failed > 0 && read === 0)
-    return {
-      ok: false,
-      read: 0,
-      remaining: queue.length,
-      note: "Those readings couldn't be saved — nothing has been recorded.",
-    };
   return { ok: true, read, remaining: Math.max(0, queue.length - read), note };
 }
 
@@ -406,7 +333,7 @@ async function writeReading(
   snap: JobSnapshot,
   fileName: string,
   reading: { subject: string | null; tags: string[]; caption: string; ocrText: string }
-): Promise<boolean> {
+): Promise<void> {
   const { error } = await supabaseAdmin.from("job_photo_readings").upsert(
     {
       org_id: orgId,
@@ -424,9 +351,5 @@ async function writeReading(
     },
     { onConflict: "org_id,sm8_attachment_uuid" }
   );
-  if (error) {
-    console.error(`[photo-readings] could not record ${attachmentUuid}:`, error);
-    return false;
-  }
-  return true;
+  if (error) console.error(`[photo-readings] could not record ${attachmentUuid}:`, error);
 }

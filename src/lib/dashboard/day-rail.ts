@@ -33,10 +33,20 @@ const FALLBACK_TZ = "Australia/Sydney";
     card, so it reads vertically at a little over half that. */
 export const RAIL_PX_PER_HOUR = 64;
 
-/** A booking can be 15 minutes long. Below this it stops being a block and
-    starts being a line with text overflowing it, so short work draws at a
-    floor and says its real time in the label instead. */
+/** EVERY ITEM IS ONE ROW HIGH, and that is a decision rather than a
+    limitation (Isaac, 2026-08-30 — the agreed design, restored).
+
+    The first cut drew each booking at the height of its own hours, on the
+    reasoning that a diary should show duration. What that produced was a
+    column of big empty boxes: a 2½-hour install is 160px of mostly nothing
+    with its name in the top-left corner, and the day stopped reading as a
+    sequence you can scan. The rail answers "where should I be", which is a
+    list of moments in order — the START time is the fact, and the block sits
+    at it. Duration lives on the job card, where there is room to say it. */
 export const RAIL_MIN_BLOCK_PX = 30;
+
+/** One row, whatever the work. */
+export const RAIL_ROW_PX = 30;
 
 /** A task is a moment, not a span — it has a time, never a duration. */
 export const RAIL_TASK_PX = 30;
@@ -167,13 +177,8 @@ export function placeRail(items: readonly RailItem[], bounds: RailBounds): Place
   const placed: PlacedRailItem[] = sorted.map((item) => ({
     item,
     top: railTop(item.startMin, bounds),
-    height:
-      item.kind === "task"
-        ? RAIL_TASK_PX
-        : Math.max(
-            RAIL_MIN_BLOCK_PX,
-            ((item.endMin - item.startMin) / 60) * RAIL_PX_PER_HOUR,
-          ),
+    /* One row for a booking and one for a task alike — see RAIL_ROW_PX. */
+    height: RAIL_ROW_PX,
     col: 0,
     cols: 1,
   }));

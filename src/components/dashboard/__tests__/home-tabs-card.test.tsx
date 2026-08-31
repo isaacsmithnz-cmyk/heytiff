@@ -181,10 +181,11 @@ describe("the day rail", () => {
     expect(document.querySelector(".hm-day")).not.toBeNull();
   });
 
-  it("leaves who-is-off to the Calendar face, and says it nowhere twice", () => {
-    /* It sat on the rail's head for one round, while four weeks had no home.
-       One fact in two places on one screen is the thing that eventually
-       disagrees with itself. */
+  it("does NOT name who is off — leave belongs to the Calendar face", () => {
+    /* The rail is where you have to BE. A colleague's leave is not an
+       appointment of yours, and it already has a home one tab across, where
+       four weeks of it read downward. Isaac has said so twice (2026-08-31):
+       one fact, one home — two would eventually disagree. */
     draw({
       calendar: {
         spanStart: "2026-08-03",
@@ -208,6 +209,7 @@ describe("the day rail", () => {
       },
     });
     expect(document.querySelector(".hm-day")!.textContent).not.toContain("Lorenz");
+    expect(document.querySelector("#hmsec-calendar")!.textContent).toContain("Lorenz");
   });
 
   it("says so plainly when the viewer may not see the bookings", () => {
@@ -253,9 +255,35 @@ describe("the page head", () => {
 
 describe("Tiff", () => {
   it("has no button of its own — the frame's is the same control, one press away", () => {
+    /* One sat in the tab row's cap so a debrief was "one press from every
+       face". The topbar's is one press from every SCREEN, and the two were
+       identical 44px glass circles 167px apart in the same corner.
+
+       The cap itself is allowed — it carries the day the card is showing —
+       so what this pins is that nothing PRESSABLE goes back into it. */
     draw();
-    expect(document.querySelector(".wb2-vtcap")).toBeNull();
+    const cap = document.querySelector(".wb2-vtcap");
+    expect(cap?.querySelector("button")).toBeFalsy();
     expect(screen.queryByLabelText("Ask or tell Tiff")).toBeNull();
+  });
+
+  it("dots the Debrief tab on a day nothing has been written", () => {
+    draw({ journal: [] });
+    expect(tab(/Debrief/).querySelector(".wb2-vtdot")).not.toBeNull();
+  });
+
+  it("takes the dot off once something is in today's record", () => {
+    draw({
+      journal: [
+        { id: "j1", said: "Board corroded.", day: TODAY, at: "11:47", outcomes: [], spoken: true },
+      ],
+    });
+    expect(tab(/Debrief/).querySelector(".wb2-vtdot")).toBeNull();
+  });
+
+  it("says which day the card is showing, in the strip's cap", () => {
+    draw();
+    expect(document.querySelector(".hm-cardday")!.textContent).toContain("Mon");
   });
 
   it("keeps the debrief, on its own face, asking the hour's question", async () => {

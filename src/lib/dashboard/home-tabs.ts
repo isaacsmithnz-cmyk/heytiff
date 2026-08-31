@@ -35,6 +35,8 @@ export function homeTabs(input: {
   openTasks: number;
   /** How many of those are past their date. */
   overdueTasks: number;
+  /** Has anything been filed today? The debrief wears a dot until it has. */
+  debriefedToday?: boolean;
 }): ViewTab[] {
   const overdue = input.overdueTasks > 0;
   return [
@@ -57,6 +59,11 @@ export function homeTabs(input: {
          itself says which of the day's three questions it is asking. */
       key: "debrief",
       label: "Debrief",
+      /* NOT a count — a state. See ViewTab.dot: the debrief is had or it
+         isn't, and the dot goes out the moment something lands in today's
+         record. */
+      dot: !input.debriefedToday,
+      dotLabel: "nothing filed today yet",
     },
     {
       /* No badge either, and for a reason worth keeping: a number here would

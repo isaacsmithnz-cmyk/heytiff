@@ -44,6 +44,18 @@ describe("homeTabs", () => {
     expect(tabs.every((t) => !t.count)).toBe(true);
   });
 
+  it("dots the Debrief until something has been filed today", () => {
+    /* A state, not a count: the debrief is had or it isn't, and "1" would be
+       a number on a conversation. The dot is teal — not writing yet today is
+       not something being wrong. */
+    const fresh = homeTabs({ openTasks: 0, overdueTasks: 0, debriefedToday: false });
+    expect(by(fresh, "debrief").dot).toBe(true);
+    expect(by(fresh, "debrief").count).toBeUndefined();
+
+    const filed = homeTabs({ openTasks: 0, overdueTasks: 0, debriefedToday: true });
+    expect(by(filed, "debrief").dot).toBe(false);
+  });
+
   it("never badges Diary, Debrief or Calendar, whatever else is going on", () => {
     /* Diary is where you land, so a number on it counts what you are already
        reading. Debrief is a door to a conversation, and a count on a

@@ -10546,9 +10546,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
   --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309;
   --wb2-ok:#00A389; --wb2-cy:#007fa8;
-  /* the ink card's own steps — dusk-skin literals, declared once */
-  --hm-ink:rgba(11,14,21,.86); --hm-line:rgba(255,255,255,.07);
-  --hm-teal:#7CEFD9; --hm-dan:#FF9FB3; --hm-warn:#FFC07A;
+  /* THE CARD IS DAYLIGHT (Isaac, 2026-08-30: "the whole thing was that it was
+     supposed to be light themed and you've made it the glass dark card").
+
+     It was smoked glass, and every step below was a dusk-skin literal chosen
+     to be read on near-black. The card is a light sheet on the light well
+     now, so each one becomes its LIGHT-GROUND twin — and they stay tokens
+     rather than being inlined, so the fifty-odd rules that consume them
+     followed this change instead of needing fifty edits.
+
+     The `-t` variants, not the fills: on a light ground the app's rule is
+     that a hue used as TEXT is its own darker value. See the note on `--q`. */
+  --hm-ink:rgba(255,255,255,.78); --hm-line:rgba(5,5,5,.07);
+  --hm-teal:#00806b; --hm-dan:var(--bad-t); --hm-warn:var(--warn-t);
   /* THE QUIET STEP, MEASURED ONCE.
 
      Every secondary label on the ink card — the section headings, the day
@@ -10568,8 +10578,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
      the .92 the journal's own words wear, so the hierarchy is intact.
 
      Anything on this card that is deliberately quiet takes THIS, and is not
-     a new opinion about how quiet. See __tests__/home-card-contrast. */
-  --hm-quiet:rgba(255,255,255,.58);
+     a new opinion about how quiet. See __tests__/home-card-contrast.
+
+     ON DAYLIGHT it is the app's own `--q`, which is already the one measured
+     quiet-text token for a light ground (see the note where it is declared —
+     a single value, not a ramp, because nothing below it clears AA on all six
+     grounds). The white-alpha value above is what it was on ink, kept in the
+     comment because the reasoning is the same and only the ground moved. */
+  --hm-quiet:var(--q);
   padding-top:22px;
   /* `.wrap`'s own 96px bottom was sized for screens that end where their
      content ends. The card ends where the WINDOW does now, so that padding
@@ -10672,9 +10688,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-card .wb2-vtabs { position:relative; z-index:1; flex:none; align-items:center; gap:2px;
   margin-bottom:0; padding:8px 10px 4px; }
 .fg .hm-card .wb2-vt { height:40px; padding:0 15px; border-radius:10px;
-  color:rgba(255,255,255,.55); }
-.fg .hm-card .wb2-vt:hover:not(.on) { background:rgba(255,255,255,.06); color:#fff; }
-.fg .hm-card .wb2-vt.on { color:#fff; }
+  color:var(--hm-quiet); }
+.fg .hm-card .wb2-vt:hover:not(.on) { background:rgba(5,5,5,.04); color:var(--ink); }
+.fg .hm-card .wb2-vt.on { color:var(--ink); }
 .fg .hm-card .wb2-vt:focus-visible { box-shadow:0 0 0 3px rgba(0,229,192,.4); }
 /* the fence posts go with the join: the lit pill is what separates the tabs,
    and ticks between them on one continuous surface are noise */
@@ -10682,21 +10698,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* the pill. `top`, not the base rule's `bottom:-1px` — that offset existed to
    push the thumb THROUGH the card's top edge, which is the join being undone. */
 .fg .hm-card .wb2-vslide { top:8px; bottom:auto; height:40px; border:0;
-  border-radius:10px; background:rgba(255,255,255,.1); box-shadow:none;
+  border-radius:10px; background:#fff; box-shadow:0 3px 10px -4px rgba(10,12,20,.35);
   backdrop-filter:none; }
 .fg .hm-card .wb2-vslide:before, .fg .hm-card .wb2-vslide:after { display:none; }
 /* ONE badge system, because there is now one ground. The active tab used to
    need its own set purely because it stood on ink while its neighbours stood
    on the well; both stand on glass now. Danger and warning still mean what
    they mean — they are just tuned to be read on it. */
-.fg .hm-card .wb2-vtn { background:rgba(255,255,255,.12); color:rgba(255,255,255,.8); }
-.fg .hm-card .wb2-vtn.dan { background:rgba(224,38,79,.28); color:#FFA7B9; }
-.fg .hm-card .wb2-vtn.warn { background:rgba(255,138,0,.26); color:#FFC27D; }
+.fg .hm-card .wb2-vtn { background:rgba(5,5,5,.07); color:var(--gray700); }
+.fg .hm-card .wb2-vtn.dan { background:rgba(224,38,79,.12); color:var(--bad-t); }
+.fg .hm-card .wb2-vtn.warn { background:rgba(255,138,0,.16); color:var(--warn-t); }
 
 /* ── THE CARD — smoked glass, rimmed and washed like the console it absorbed ── */
-.fg .hm-card { position:relative; background:var(--hm-ink); border-color:rgba(255,255,255,.1);
-  backdrop-filter:blur(22px) saturate(140%); color:#fff;
-  box-shadow:0 26px 64px -28px rgba(8,11,20,.55), 0 6px 22px -14px rgba(8,11,20,.35);
+.fg .hm-card { position:relative; background:var(--hm-ink); border-color:rgba(5,5,5,.05);
+  backdrop-filter:blur(22px) saturate(120%); color:var(--ink);
+  box-shadow:0 26px 64px -30px rgba(10,14,25,.3), 0 6px 22px -16px rgba(10,14,25,.18);
   flex:1; display:flex; flex-direction:column;
   /* THE FLOOR IS A FLOOR, NOT A SUBTRACTION, and that distinction is the whole
      lesson of the 494px it replaces. 400 is roughly the tab row, the debrief
@@ -10710,7 +10726,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* the masked 1px gradient rim — the material's signature, card-scale now */
 .fg .hm-card::before { content:""; position:absolute; inset:0; border-radius:inherit;
   padding:1px; pointer-events:none; z-index:6;
-  background:linear-gradient(120deg,#00E5C0,#2E68FF,#8A2BE2); opacity:.32;
+  background:linear-gradient(120deg,#00E5C0,#2E68FF,#8A2BE2); opacity:.45;
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor;
   mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -10719,8 +10735,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-card::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
   border-radius:inherit;
   background:
-    radial-gradient(circle 340px at 6% -10%, rgba(0,229,192,.12), transparent 70%),
-    radial-gradient(circle 420px at 96% 112%, rgba(46,104,255,.10), transparent 70%); }
+    radial-gradient(circle 340px at 6% -10%, rgba(0,229,192,.10), transparent 70%),
+    radial-gradient(circle 420px at 96% 112%, rgba(46,104,255,.08), transparent 70%); }
 .fg .hm-card .hm-panel { position:relative; z-index:1; }
 /* every uppercase section label inside the card, in one place */
 .fg .hm-card .wb2-sect { color:var(--hm-quiet); }
@@ -10737,9 +10753,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    outranks nothing and, crucially, so the hidden rule above still wins on the
    five faces that are closed. */
 .fg .hm-card .hm-panel:not([hidden]) { flex:1; min-height:0; overflow-y:auto;
-  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent; }
+  scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent; }
 .fg .hm-card .hm-panel::-webkit-scrollbar { width:6px; }
-.fg .hm-card .hm-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:99px; }
+.fg .hm-card .hm-panel::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
 /* Journal is the exception: it keeps its OWN scroller because the debrief bar
    is a control, not a record, and must not scroll away from the words it
    files. The panel holds still and `.hm-jscroll` takes the slack instead. */
@@ -10827,7 +10843,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-warm { font-weight:700; color:var(--hm-warn); }
 
 .fg .hm-none { margin:0; padding:16px 26px 20px; font-size:13.5px; font-weight:500;
-  line-height:1.55; color:rgba(255,255,255,.55); max-width:74ch; }
+  line-height:1.55; color:var(--hm-quiet); max-width:74ch; }
 .fg .hm-panelbar { display:flex; align-items:center; gap:12px; padding:12px 26px 4px; }
 /* on ink the accent family is the dusk skin's teal — the light card's link
    cyan #007fa8 is illegible here. State colours are untouched by this. */
@@ -10839,21 +10855,26 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── tasks on ink: the tick leads, the due date answers ── */
 .fg .hm-card .wb2-urbody { padding:12px 24px 18px; }
 .fg .hm-card .wb2-urbody .wb2-sect { padding:6px 2px 3px; }
-.fg .hm-card .wb2-urside:before { background:rgba(255,255,255,.08); }
-.fg .hm-card .wb2-tk:hover { background:rgba(255,255,255,.04); }
-.fg .hm-card .wb2-tkb { border-color:rgba(255,255,255,.3); background:transparent; color:transparent; }
-.fg .hm-card .wb2-tkb:hover:not(:disabled) { border-color:#00E5C0; background:rgba(0,229,192,.1); color:var(--hm-teal); }
-.fg .hm-card .wb2-tkb.on { border-color:rgba(0,229,192,.7); background:rgba(0,229,192,.14); color:var(--hm-teal); cursor:default; }
-.fg .hm-card .wb2-tkt b { color:rgba(255,255,255,.92); }
-.fg .hm-card .wb2-tkt em { color:rgba(255,255,255,.5); }
-.fg .hm-card .wb2-chip { background:rgba(255,255,255,.08); color:rgba(255,255,255,.72); }
-.fg .hm-card .wb2-chip.dan { background:rgba(224,38,79,.18); color:var(--hm-dan); }
-.fg .hm-card .wb2-chip.warn { background:rgba(255,138,0,.16); color:var(--hm-warn); }
-.fg .hm-card .wb2-chip.ok { background:rgba(0,229,192,.14); color:var(--hm-teal); }
-.fg .hm-struck { color:rgba(255,255,255,.45); text-decoration:line-through; text-decoration-thickness:1px; }
+.fg .hm-card .wb2-urside:before { background:rgba(5,5,5,.07); }
+.fg .hm-card .wb2-tk:hover { background:rgba(5,5,5,.025); }
+.fg .hm-card .wb2-tkb { border-color:rgba(5,5,5,.3); background:#fff; color:transparent; }
+.fg .hm-card .wb2-tkb:hover:not(:disabled) { border-color:var(--hm-teal); background:rgba(0,163,137,.1); color:var(--hm-teal); }
+.fg .hm-card .wb2-tkb.on { border-color:rgba(0,128,107,.65); background:rgba(0,163,137,.12); color:var(--hm-teal); cursor:default; }
+.fg .hm-card .wb2-tkt b { color:var(--ink); }
+.fg .hm-card .wb2-tkt em { color:var(--hm-quiet); }
+.fg .hm-card .wb2-chip { background:rgba(5,5,5,.055); color:var(--gray700); }
+.fg .hm-card .wb2-chip.dan { background:rgba(224,38,79,.1); color:var(--hm-dan); }
+.fg .hm-card .wb2-chip.warn { background:rgba(255,138,0,.14); color:var(--hm-warn); }
+.fg .hm-card .wb2-chip.ok { background:rgba(0,163,137,.11); color:var(--hm-teal); }
+/* A DONE TITLE, and why the selector carries `.hm-card`. The rule two lines
+   up sets every `b` in a task row to `--ink` at (0,3,0), so `.fg .hm-struck`
+   at (0,2,0) never won — the strikethrough landed but the de-emphasis never
+   did, on either ground. Matching the winner's weight is the fix; raising the
+   OTHER rule would take the plain titles down with it. */
+.fg .hm-card .wb2-tkt b.hm-struck { color:var(--hm-quiet); text-decoration:line-through; text-decoration-thickness:1px; }
 .fg .hm-undo { flex:none; padding:0; border:0; background:none; font:inherit; font-size:12px;
   font-weight:800; color:var(--hm-teal); cursor:pointer; }
-.fg .hm-undo:hover { color:#A9F5E6; }
+.fg .hm-undo:hover { color:#005f50; }
 
 /* ARRIVING FROM A JOURNAL CHIP. The tab has just changed under the reader, so
    the row has to say "this one" without being mistaken for a state: it is the
@@ -10879,7 +10900,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    tasks block — the bare row hover there is (0,4,0), so the confirm's tint and
    prompt must reach at least that to hold under the pointer. */
 .fg .hm-tkdel { flex:none; display:grid; place-items:center; width:22px; height:22px; padding:0; border:0; border-radius:50%;
-  background:none; color:rgba(255,255,255,.4); cursor:pointer; opacity:0; transition:opacity .15s, background .15s, color .15s; }
+  background:none; color:var(--hm-quiet); cursor:pointer; opacity:0; transition:opacity .15s, background .15s, color .15s; }
 .fg .wb2-tk:hover .hm-tkdel, .fg .hm-tkdel:focus-visible { opacity:1; }
 .fg .hm-tkdel:hover:not(:disabled) { background:rgba(224,38,79,.16); color:var(--hm-dan); }
 .fg .hm-tkdel:disabled { cursor:default; }
@@ -10890,27 +10911,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-tkyes { flex:none; padding:4px 12px; border:0; border-radius:999px; font:inherit; font-size:12px; font-weight:800;
   background:rgba(224,38,79,.22); color:var(--hm-dan); cursor:pointer; }
 .fg .hm-tkyes:hover:not(:disabled) { background:rgba(224,38,79,.32); }
-.fg .hm-tkno { flex:none; padding:3px 12px; border:1px solid rgba(255,255,255,.14); border-radius:999px; font:inherit; font-size:12px;
-  font-weight:800; background:rgba(255,255,255,.06); color:#E8EAED; cursor:pointer; }
-.fg .hm-tkno:hover:not(:disabled) { background:rgba(255,255,255,.12); }
+.fg .hm-tkno { flex:none; padding:3px 12px; border:1px solid rgba(5,5,5,.14); border-radius:999px; font:inherit; font-size:12px;
+  font-weight:800; background:rgba(5,5,5,.04); color:var(--gray700); cursor:pointer; }
+.fg .hm-tkno:hover:not(:disabled) { background:rgba(5,5,5,.08); }
 .fg .hm-tkyes:disabled, .fg .hm-tkno:disabled { opacity:.5; cursor:default; }
 .fg .hm-tkyes:focus-visible, .fg .hm-tkno:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(224,38,79,.35); }
 
-/* the assign form, restyled for the ground it now sits on — dark glass
-   fields, labels lifted to white-alpha, and the dusk skin's gradient primary */
-.fg .hm-card .lv-form { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09);
+/* the assign form. THE OVERRIDES ARE GONE ON PURPOSE. There were nine of
+   them — glass fields, white-alpha labels, a gradient primary — and every one
+   existed to re-dress a light control for a dark card. The card is daylight
+   again, so `.mts-f` and `.fl-btn` are already right where they are defined
+   once, for the whole app. A restatement that agrees with the global is not
+   free: it is the copy that drifts. Only the inset panel is stated here,
+   because its ground is the card and nothing global knows that. */
+.fg .hm-card .lv-form { background:rgba(5,5,5,.025); border:1px solid rgba(5,5,5,.07);
   border-radius:16px; margin:4px 24px 10px; }
-.fg .hm-card .mts-f span { color:rgba(255,255,255,.5); }
-.fg .hm-card .mts-f input, .fg .hm-card .mts-f select {
-  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); color:#fff; }
-.fg .hm-card .mts-f input::placeholder { color:rgba(255,255,255,.35); }
-.fg .hm-card .mts-f input:focus, .fg .hm-card .mts-f select:focus {
-  border-color:rgba(0,229,192,.55); box-shadow:0 0 0 3px rgba(0,229,192,.18); }
-.fg .hm-card .fl-btn.primary { background:linear-gradient(120deg,#00E5C0,#19B8FF);
-  border-color:transparent; color:#04262B; }
-.fg .hm-card .fl-btn.primary:disabled { background:rgba(255,255,255,.07); color:rgba(255,255,255,.35); }
-.fg .hm-card .fl-btn.ghost { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.14); color:#E8EAED; }
-.fg .hm-card .fl-btn.ghost:hover { background:rgba(255,255,255,.12); }
 
 /* ── the Journal ──
    The header is the day, and the record runs under it, newest first. */
@@ -10940,16 +10955,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-saydock { flex:1; min-width:0; display:flex; align-items:center; gap:12px; }
 .fg .hm-say { position:relative; flex:1; min-width:0; display:flex; align-items:center;
   gap:14px; min-height:60px; padding:0 22px 0 8px;
-  border:1px solid rgba(255,255,255,.12); border-radius:16px;
-  background:rgba(255,255,255,.05); box-shadow:inset 0 1px 0 rgba(255,255,255,.1);
-  font:inherit; color:#fff; text-align:left; cursor:pointer;
+  border:1px solid rgba(5,5,5,.09); border-radius:16px;
+  background:rgba(255,255,255,.62); box-shadow:0 1px 2px rgba(10,12,20,.04);
+  font:inherit; color:var(--ink); text-align:left; cursor:pointer;
   transition:background .18s, border-color .18s; }
-.fg .hm-say:hover { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); }
+.fg .hm-say:hover { background:#fff; border-color:rgba(5,5,5,.16); }
 .fg .hm-say:focus-visible { outline:none;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.1), 0 0 0 3px rgba(0,229,192,.45); }
+  box-shadow:0 1px 2px rgba(10,12,20,.04), 0 0 0 3px rgba(0,163,137,.35); }
 .fg .hm-saytx { flex:1; min-width:0; font-size:15px; font-weight:700;
-  letter-spacing:-.01em; color:rgba(255,255,255,.82); }
-.fg .hm-say:hover .hm-saytx { color:#fff; }
+  letter-spacing:-.01em; color:var(--ink); }
+.fg .hm-say:hover .hm-saytx { color:var(--ink); }
 
 /* THE MARK'S HOST IS A SPAN, not a button — a button inside a button is
    invalid markup. It takes `.tiffbtn-topbar` (the 44px box, the bare face,
@@ -11027,15 +11042,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    that takes its slack, so the arithmetic is the browser's. The floor keeps two
    entries readable when the window is too short to give it anything. */
 .fg .hm-jscroll { flex:1; min-height:240px; overflow-y:auto; padding:6px 26px 14px;
-  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent;
+  scrollbar-width:thin; scrollbar-color:var(--hm-quiet) transparent;
   -webkit-mask-image:linear-gradient(#000 90%, transparent 100%);
   mask-image:linear-gradient(#000 90%, transparent 100%); }
 .fg .hm-jscroll::-webkit-scrollbar { width:6px; }
-.fg .hm-jscroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,.2); border-radius:99px; }
+.fg .hm-jscroll::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
 .fg .hm-jdh { display:flex; align-items:center; gap:12px; padding:22px 0 6px; }
 .fg .hm-jd { position:relative; }
 .fg .hm-jd.first .hm-jdh { padding-top:15px; }
-.fg .hm-jdh > span { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:rgba(255,255,255,.85); }
+.fg .hm-jdh > span { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:var(--gray700); }
 /* today gets a live dot, so the day you are adding to is found without reading */
 .fg .hm-jd.first .hm-jdh > span { display:inline-flex; align-items:center; gap:8px; }
 .fg .hm-jd.first .hm-jdh > span::before { content:""; width:6px; height:6px; border-radius:50%;
@@ -11065,7 +11080,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* 78ch, not 96. The old cap was exactly binding at 1500px, which is 96
    characters a line — half again past what anyone reads comfortably. */
 .fg .hm-jrs { margin:0; grid-column:2; font-size:14.5px; font-weight:500; line-height:1.6;
-  color:rgba(255,255,255,.92); max-width:78ch; text-wrap:pretty; }
+  color:var(--ink); max-width:78ch; text-wrap:pretty; }
 
 /* THE OUTCOMES ARE THE PAYOFF — the proof Tiff heard "before Thursday" and made
    a task with a date on it. As 12.5px text they were the quietest thing in the
@@ -11105,38 +11120,38 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    A cell is a div here, not a button: there is nothing to open, so it takes
    no hover lift and no pointer. */
 .fg .hm-card .wb2-chd { border-bottom-color:var(--hm-line); }
-.fg .hm-card .wb2-chd b { color:#fff; }
-.fg .hm-card .wb2-chd em { color:rgba(255,255,255,.5); }
-.fg .hm-card .wb2-ci.blue { background:rgba(46,104,255,.2); color:#9DB9FF; }
-.fg .hm-card .wb2-mchead b { color:#fff; }
-.fg .hm-card .wb2-mcarrow { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.14);
-  color:rgba(255,255,255,.6); }
-.fg .hm-card .wb2-mcarrow:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.24); color:#fff; }
+.fg .hm-card .wb2-chd b { color:var(--ink); }
+.fg .hm-card .wb2-chd em { color:var(--gray500); }
+.fg .hm-card .wb2-ci.blue { background:rgba(0,168,224,.1); color:#0089b8; }
+.fg .hm-card .wb2-mchead b { color:var(--ink); }
+.fg .hm-card .wb2-mcarrow { background:#fff; border-color:var(--wb2-line);
+  color:var(--gray500); }
+.fg .hm-card .wb2-mcarrow:hover { background:#fbfbfc; border-color:rgba(5,5,5,.24); color:var(--ink); }
 .fg .hm-card .wb2-mcarrow:disabled { opacity:.35; cursor:not-allowed; }
-.fg .hm-card .wb2-mcarrow:disabled:hover { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.14);
-  color:rgba(255,255,255,.6); }
-.fg .hm-card .wb2-mcnow { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.14);
-  color:rgba(255,255,255,.7); }
-.fg .hm-card .wb2-mcnow:hover { color:#fff; border-color:rgba(255,255,255,.24); }
+.fg .hm-card .wb2-mcarrow:disabled:hover { background:#fff; border-color:var(--wb2-line);
+  color:var(--gray500); }
+.fg .hm-card .wb2-mcnow { background:#fff; border-color:var(--wb2-line);
+  color:var(--gray500); }
+.fg .hm-card .wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
 /* The Calendar's own two quiet labels, measured with the rest: the weekday
    header came out at 3.01 and the month tag at 3.16, both on 9.5–10px/800 —
    the smallest type on the card. Same step as every other quiet label. */
 .fg .hm-card .wb2-mcdow { color:var(--hm-quiet); }
-.fg .hm-card .wb2-mcc { min-height:104px; cursor:default; border-color:var(--hm-line);
-  background:rgba(255,255,255,.03); }
+.fg .hm-card .wb2-mcc { min-height:104px; cursor:default; border-color:var(--wb2-line2);
+  background:#fff; }
 .fg .hm-card .wb2-mcc:hover { border-color:var(--hm-line); transform:none; }
-.fg .hm-card .wb2-mcc.we { background:rgba(255,255,255,.015); }
+.fg .hm-card .wb2-mcc.we { background:rgba(5,5,5,.022); }
 .fg .hm-card .wb2-mcc.past { opacity:.5; }
-.fg .hm-card .wb2-mcc.today { border-color:rgba(255,255,255,.55); box-shadow:0 0 0 1px rgba(255,255,255,.16); }
-.fg .hm-card .wb2-mcn b { color:rgba(255,255,255,.7); }
+.fg .hm-card .wb2-mcc.today { border-color:rgba(5,5,5,.55); box-shadow:0 0 0 1px rgba(5,5,5,.14); }
+.fg .hm-card .wb2-mcn b { color:var(--gray700); }
 .fg .hm-card .wb2-mcn em, .fg .hm-card .wb2-mcn i { color:var(--hm-quiet); }
-.fg .hm-card .wb2-mcc.today .wb2-mcn b { background:#fff; color:#0B0E15; }
-.fg .hm-card .wb2-mcc.today .wb2-mcn i { color:rgba(255,255,255,.7); }
-.fg .hm-card .wb2-mcc.mstart .wb2-mcn b { color:#fff; }
+.fg .hm-card .wb2-mcc.today .wb2-mcn b { background:rgba(5,5,5,.07); color:var(--ink); }
+.fg .hm-card .wb2-mcc.today .wb2-mcn i { color:var(--gray700); }
+.fg .hm-card .wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
 /* closed: the same info blue, tuned to read on ink instead of on white */
-.fg .hm-calph { background:rgba(64,110,255,.12); border-color:rgba(96,140,255,.35); }
-.fg .hm-card .wb2-mcc.hm-calph { background:rgba(64,110,255,.12); border-color:rgba(96,140,255,.35); }
-.fg .hm-calphl { margin-top:6px; font-size:10.5px; font-weight:800; color:#9DB8FF; line-height:1.3; }
+.fg .hm-calph { background:rgba(0,168,224,.1); border-color:rgba(0,137,184,.35); }
+.fg .hm-card .wb2-mcc.hm-calph { background:rgba(0,168,224,.1); border-color:rgba(0,137,184,.35); }
+.fg .hm-calphl { margin-top:6px; font-size:10.5px; font-weight:800; color:#0089b8; line-height:1.3; }
 
 /* YOURS: a WHITE band now — the materials swapped with the card. On the
    light card ink answered "is it mine" because ink was the strongest thing
@@ -11148,7 +11163,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    the weekend: a Wednesday-to-Tuesday request covers the Saturday and you
    are away on it. */
 .fg .hm-calmine { margin:8px -9px 0; margin-top:auto; padding:5px 9px; min-height:24px;
-  display:flex; align-items:center; background:#fff; color:#0B0E15;
+  display:flex; align-items:center; background:var(--ink2); color:#fff;
   font-size:10.5px; font-weight:800; line-height:1.25; white-space:nowrap; overflow:hidden; }
 .fg .hm-calmine.s { margin-left:-1px; border-radius:8px 0 0 8px; }
 .fg .hm-calmine.e { margin-right:-1px; border-radius:0 8px 8px 0; }
@@ -11161,15 +11176,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-caloffs { margin-top:auto; margin-bottom:6px; display:flex; flex-direction:column;
   gap:4px; padding-top:6px; }
 .fg .hm-caloff { display:inline-flex; align-items:center; gap:6px; padding:3px 8px 3px 3px;
-  border-radius:999px; background:rgba(255,255,255,.08); font-size:11px; font-weight:700;
-  color:rgba(255,255,255,.75); max-width:100%; overflow:hidden; }
+  border-radius:999px; background:rgba(5,5,5,.06); font-size:11px; font-weight:700;
+  color:var(--gray700); max-width:100%; overflow:hidden; }
 /* one line, and an unusually long first name ellipses rather than wrapping the
    pill into a second row and shoving the leave band off the bottom of the cell */
 .fg .hm-caloff b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font-weight:700; }
 .fg .hm-caloff i { flex:none; display:grid; place-items:center; width:18px; height:18px;
-  border-radius:50%; background:rgba(255,255,255,.14); box-shadow:none;
-  font-style:normal; font-size:8.5px; font-weight:800; color:rgba(255,255,255,.8); }
+  border-radius:50%; background:rgba(5,5,5,.1); box-shadow:none;
+  font-style:normal; font-size:8.5px; font-weight:800; color:var(--gray700); }
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -11230,7 +11245,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-day { min-height:0; display:flex; flex-direction:column; overflow-y:auto;
   scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent; padding-right:4px; }
 .fg .hm-day > .wb2-sect { color:var(--q); flex:none; }
-.fg .hm-dayoff { flex:none; margin:2px 0 12px; font-size:12.5px; font-weight:600;
+.fg .hm-dayoff { flex:none; margin:3px 0 14px; font-size:12.5px; font-weight:600;
   color:var(--q); }
 .fg .hm-daynone { margin:0; font-size:12.5px; font-weight:600; color:var(--q); }
 
@@ -11261,36 +11276,42 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    clears 3:1 against it, the stated neutral for finished work. Only the
    geometry is Home's: `.wb2-schb` is positioned for a horizontal rail inside
    `.wb2`, where `--wb2-dan` and `--ink` resolve, and this is neither. */
-.fg .hm-rlb { position:absolute; display:flex; flex-direction:column; justify-content:center;
-  gap:1px; padding:4px 10px 4px 15px; border-radius:10px; overflow:hidden;
-  background:var(--fill,#f4f5f7); box-shadow:0 3px 10px -5px rgba(10,14,25,.3); }
+/* ONE ROW, and the row is the whole block. Height comes from the layout
+   module (RAIL_ROW_PX) so the hour beside it and the block agree; everything
+   in here lays a single line out. */
+.fg .hm-rlb { position:absolute; display:flex; align-items:center; gap:8px;
+  padding:0 10px 0 14px; border-radius:9px; overflow:hidden;
+  background:var(--fill,#f4f5f7); box-shadow:0 2px 8px -5px rgba(10,14,25,.3); }
 .fg .hm-rlb::before { content:""; position:absolute; left:5px; top:7px; bottom:7px;
   width:4px; border-radius:3px; background:var(--bar,#7a818c); }
-.fg .hm-rlbh { display:flex; align-items:center; gap:7px; min-width:0; }
-.fg .hm-rlb b, .fg .hm-rlb em { color:var(--btext,#0a0b10); overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; line-height:1.25; }
-.fg .hm-rlb b { font-size:12.5px; font-weight:800; letter-spacing:-.015em; }
-.fg .hm-rlb em { font-style:normal; font-size:11px; font-weight:600; opacity:.72; }
+.fg .hm-rlb b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--btext,#0a0b10); font-size:12.5px; font-weight:700; letter-spacing:-.015em; }
 .fg .hm-rlb u { flex:none; padding:1px 5px; border-radius:5px; text-decoration:none;
   font-size:9.5px; font-weight:800; color:var(--btext,#0a0b10);
   background:var(--chip,rgba(5,5,5,.09)); font-variant-numeric:tabular-nums; }
 /* FINISHED IS NEUTRAL AND CARRIES A TICK — never `opacity`, which was the old
    bug: colour means "still to do" on this app, so done work gives its hue up
    entirely rather than fading with its text. */
-.fg .hm-rlb.done { background:var(--pale,#f4f5f7); padding-right:26px;
-  box-shadow:inset 0 0 0 1px var(--pale-edge,#dbdee4); }
-.fg .hm-rlb.done::before { left:auto; right:11px; top:50%; bottom:auto; margin-top:-4px;
-  width:3.5px; height:7px; border-radius:0; background:none; border:solid #fff;
-  border-width:0 2px 2px 0; transform:rotate(40deg); z-index:1; }
-.fg .hm-rlb.done::after { content:""; position:absolute; right:6px; top:50%;
-  margin-top:-7px; width:14px; height:14px; border-radius:50%; background:#00806b; }
+/* FINISHED: neutral ground, and a tick where the cap was. The mock puts it
+   at the LEFT, reading "this one is behind you" before the words rather than
+   after them, and a finished job gives its hue up entirely — colour on this
+   rail means still to do. */
+.fg .hm-rlb.done { background:var(--pale,#f4f5f7);
+  box-shadow:inset 0 0 0 1px var(--pale-edge,#dbdee4); padding-left:10px; }
+.fg .hm-rlb.done::before { display:none; }
+.fg .hm-rlbt { flex:none; width:15px; height:15px; border-radius:50%; background:#c9ced8;
+  position:relative; }
+.fg .hm-rlbt::after { content:""; position:absolute; left:4px; top:4.5px; width:6px;
+  height:3px; border-left:1.8px solid #fff; border-bottom:1.8px solid #fff;
+  transform:rotate(-45deg); }
+.fg .hm-rlb.done b { color:#3c434f; font-weight:600; }
 /* a quote is dashed on its own edge, so the mark survives a narrow column */
 .fg .hm-rlb.qt { outline:2px dashed color-mix(in srgb, var(--btext,#050505) 55%, transparent);
   outline-offset:-4px; }
 /* not started: the cap hollows, and nothing else changes */
 .fg .hm-rlb.idle::before { background:none; box-shadow:inset 0 0 0 1.5px var(--bar,#b9bec7); }
 /* the one alarm on the rail, and it is the board's word for it */
-.fg .hm-rlb.late { padding-right:26px; }
+.fg .hm-rlb.late { padding-right:24px; }
 .fg .hm-rlb.late::after { content:"!"; position:absolute; right:6px; top:50%; margin-top:-7px;
   width:14px; height:14px; border-radius:50%; background:#e0264f; display:grid;
   place-items:center; font-size:10px; font-weight:900; line-height:1; color:#fff; }
@@ -11299,8 +11320,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* A TASK THAT NAMED AN HOUR. Deliberately not a booking: white, a slate cap,
    a clock rather than a job number — it is yours, not ServiceM8's. */
 .fg .hm-rlt { position:absolute; display:flex; align-items:center; gap:8px;
-  padding:0 10px 0 13px; border-radius:10px; background:#fff; overflow:hidden;
-  border:1px solid rgba(5,5,5,.06); box-shadow:0 3px 10px -5px rgba(10,14,25,.25); }
+  padding:0 10px 0 13px; border-radius:9px; background:#fff; overflow:hidden;
+  border:1px solid rgba(5,5,5,.06); box-shadow:0 2px 8px -5px rgba(10,14,25,.25); }
 .fg .hm-rlt::before { content:""; position:absolute; left:5px; top:7px; bottom:7px;
   width:4px; border-radius:3px; background:#46505f; }
 .fg .hm-rlt svg { flex:none; color:#7b8494; }
@@ -11330,22 +11351,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    most of these arrive spoken from the ute, and `flow.talk()` opens the mic
    with the card, so reaching for it is one press rather than two. */
 .fg .hm-adde { width:100%; display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px;
-  border:1.5px dashed rgba(255,255,255,.2); border-radius:14px;
-  background:rgba(255,255,255,.04); transition:border-color .16s, background .16s; }
-.fg .hm-adde:hover, .fg .hm-adde:focus-within { border-color:rgba(0,229,192,.5);
-  background:rgba(255,255,255,.07); }
+  border:1.5px dashed rgba(5,5,5,.16); border-radius:14px;
+  background:rgba(255,255,255,.55); transition:border-color .16s, background .16s; }
+.fg .hm-adde:hover, .fg .hm-adde:focus-within { border-color:rgba(0,163,137,.55);
+  background:#fff; }
 .fg .hm-addetx { flex:1; display:flex; align-items:center; gap:10px; min-width:0;
   padding:8px 0; border:0; background:none; text-align:left; cursor:text;
   font:600 13.5px var(--font); color:var(--hm-quiet); }
-.fg .hm-adde:hover .hm-addetx { color:#fff; }
+.fg .hm-adde:hover .hm-addetx { color:var(--ink); }
 .fg .hm-addemk { position:relative; flex:none; width:26px; height:26px;
   display:inline-flex; align-items:center; justify-content:center; }
 .fg .hm-addemk .tiffbtn-spark { right:-2px; bottom:-2px; }
 .fg .hm-addemic { flex:none; display:grid; place-items:center; width:34px; height:34px;
-  border:0; border-radius:50%; background:rgba(255,255,255,.07); color:rgba(255,255,255,.7);
+  border:0; border-radius:50%; background:rgba(5,5,5,.045); color:var(--gray500);
   cursor:pointer; transition:background .16s, color .16s, box-shadow .16s; }
-.fg .hm-addemic:hover { background:rgba(0,229,192,.18); color:#7CEFD9;
-  box-shadow:0 0 0 4px rgba(0,229,192,.1); }
+.fg .hm-addemic:hover { background:rgba(0,163,137,.12); color:var(--hm-teal);
+  box-shadow:0 0 0 4px rgba(0,163,137,.09); }
 .fg .hm-addemic:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 
 /* ── THE DEBRIEF, ON ITS OWN FACE ──
@@ -11355,7 +11376,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-dbf { display:flex; flex-direction:column; gap:18px; padding:10px 0 4px;
   max-width:620px; }
 .fg .hm-dbft { margin:0; font-size:21px; font-weight:800; letter-spacing:-.025em;
-  color:#fff; }
+  color:var(--ink); }
 .fg .hm-dbfl { padding-top:16px; border-top:1px solid var(--hm-line); }
 .fg .hm-dbfsaid { margin:6px 0 0; font-size:13px; line-height:1.55;
   color:var(--hm-quiet); display:-webkit-box; -webkit-box-orient:vertical;
@@ -11383,11 +11404,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-dbf .hm-saydock { flex:none; }
 .fg .hm-dbf .hm-say { flex:none; width:auto; min-height:48px; padding:0 22px 0 6px;
   gap:10px; border-color:transparent;
-  background:linear-gradient(110deg,#00A389,#2b6fd4);
+  background:linear-gradient(110deg,#00A389,#2b6fd4); color:#fff;
   box-shadow:0 14px 30px -14px rgba(0,120,140,.75); }
 .fg .hm-dbf .hm-say:hover { border-color:transparent; filter:brightness(1.07);
   background:linear-gradient(110deg,#00A389,#2b6fd4); }
-.fg .hm-dbf .hm-saytx { flex:none; font-size:14.5px; font-weight:800; color:#fff; }
+.fg .hm-dbf .hm-saytx { flex:none; font-size:14.5px; font-weight:800; color:inherit; }
 
 /* ── THE CALENDAR, AS A LIST ──
    Four weeks read downward: date on the left, what is on that day to the
@@ -11408,7 +11429,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-lvd { display:flex; align-items:baseline; gap:7px; font-variant-numeric:tabular-nums; }
 .fg .hm-lvd b { font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
   color:var(--hm-quiet); min-width:26px; }
-.fg .hm-lvd em { font-style:normal; font-size:15px; font-weight:700; color:rgba(255,255,255,.92); }
+.fg .hm-lvd em { font-style:normal; font-size:15px; font-weight:700; color:var(--ink); }
 .fg .hm-lvd u { text-decoration:none; font-size:10.5px; font-weight:800; letter-spacing:.05em;
   text-transform:uppercase; color:var(--hm-quiet); }
 /* TODAY IS THE ONE MARKED ROW, and it is marked with the card's own teal —
@@ -11421,14 +11442,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-lvw { display:flex; flex-wrap:wrap; gap:6px; min-width:0; }
 /* A colleague: neutral, because it is context rather than your day. */
 .fg .hm-lvp { display:inline-flex; align-items:center; gap:6px; padding:3px 10px;
-  border-radius:999px; background:rgba(255,255,255,.08); font-size:12px; font-weight:700;
-  color:rgba(255,255,255,.82); max-width:100%; overflow:hidden; text-overflow:ellipsis;
+  border-radius:999px; background:rgba(5,5,5,.06); font-size:12px; font-weight:700;
+  color:var(--gray700); max-width:100%; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; }
 /* Yours: the teal that means "this one is mine" on this card. */
-.fg .hm-lvp.mine { background:rgba(0,229,192,.16); color:var(--hm-teal); }
+.fg .hm-lvp.mine { background:rgba(0,163,137,.12); color:var(--hm-teal); }
 /* Closed: the info blue the public-holiday line already wore. Never a state
    colour — the office being shut is not a warning. */
-.fg .hm-lvp.closed { background:rgba(46,104,255,.18); color:#A8C4FF; }
+.fg .hm-lvp.closed { background:rgba(0,168,224,.1); color:#0089b8; }
 
 /* ── THE CALENDAR FACE: one window, three readings ──
    The stepper and the view switcher share a row, and both belong to the
@@ -11438,102 +11459,41 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-calhead { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
   padding-bottom:12px; }
 .fg .hm-calstep { display:flex; align-items:center; gap:10px; }
-.fg .hm-calstep b { font-size:14.5px; font-weight:800; letter-spacing:-.015em; color:#fff;
+.fg .hm-calstep b { font-size:14.5px; font-weight:800; letter-spacing:-.015em; color:var(--ink);
   min-width:132px; }
 /* The switcher is a plain pill group, NOT `.wb2-seg`: that control is a light
    ground with a measured sliding thumb, and this card already carries one
    sliding strip (the faces). A second would be two thumbs on one surface. */
 .fg .hm-calseg { margin-left:auto; display:inline-flex; gap:2px; padding:3px;
-  border-radius:12px; background:rgba(255,255,255,.06); }
+  border-radius:12px; background:rgba(5,5,5,.05); }
 .fg .hm-calsegb { padding:6px 13px; border:0; border-radius:9px; background:none;
-  font:700 12.5px var(--font); color:var(--hm-quiet); cursor:pointer;
+  font:700 12.5px var(--font); color:var(--gray500); cursor:pointer;
   transition:color .15s, background .15s; }
-.fg .hm-calsegb:hover { color:#fff; }
-.fg .hm-calsegb.on { background:rgba(255,255,255,.14); color:#fff; }
+.fg .hm-calsegb:hover { color:var(--ink); }
+.fg .hm-calsegb.on { background:#fff; color:var(--ink); box-shadow:0 3px 10px -4px rgba(10,12,20,.4); }
 .fg .hm-calsegb:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
 .fg .hm-calsum { display:flex; flex-wrap:wrap; gap:7px; padding:0 0 14px; }
 /* The list keeps its own inset; the face already carries the panel's. */
 .fg .hm-cal .hm-lv { padding:0; }
 
-/* ═══ THE CALENDAR FACE IS DAYLIGHT (Isaac, 2026-08-30: "it can be light
-   theme too") ═══
+/* ═══ THE CALENDAR FACE ═══
+   It was a light sheet inset in an ink card, and it needed thirty rules to
+   restate the board's own light values through Home's ink restyle. THE WHOLE
+   CARD IS DAYLIGHT NOW, so the ink restyle is gone and the base `.wb2-mc*`
+   family — which was always light, it lives on the workboard — simply
+   applies. What is left here is the face's own layout, and the two facts the
+   board has no word for: your leave, and a closed office. */
+.fg .hm-card .hm-cal { margin:0; padding:14px 26px 8px; background:none;
+  box-shadow:none; color:inherit; }
 
-   Every other face of this card is ink, and this one is a sheet of daylight
-   laid on it. That is a deliberate exception, not a drift: the other three
-   are things you WROTE or things you OWE — the app's own record, which is
-   what the ink material means — and a month of everybody's leave is a
-   reference table. It reads the way the board's calendar reads because it IS
-   the board's calendar.
-
-   THE VALUES ARE THE BOARD'S, RESTATED — not re-derived. The `.wb2-mc*`
-   family is light by default (it lives on the workboard); what stands in the
-   way is Home's own dark restyle at `.fg .hm-card .wb2-mc*` (0,3,0), written
-   when this face was ink and every value measured for that ground. So each
-   rule below puts back the base light value at (0,4,0) rather than inventing
-   a new one — if the board's calendar changes, the two can be diffed line for
-   line, which a fresh set of numbers could never be.
-
-   Anything NOT restated here is inherited from the base and is correct
-   already; the list rows below are Home's own, so they are simply written
-   for the ground they are now on. */
-.fg .hm-card .hm-cal { margin:6px 20px 16px; padding:14px 16px 8px; border-radius:18px;
-  background:#F6F7F9; color:var(--ink);
-  box-shadow:inset 0 0 0 1px rgba(5,5,5,.06), 0 10px 30px -18px rgba(8,11,20,.5); }
-
-/* the face's own head */
-.fg .hm-card .hm-cal .hm-calstep b { color:var(--ink); }
-.fg .hm-card .hm-cal .hm-calseg { background:rgba(5,5,5,.05); }
-.fg .hm-card .hm-cal .hm-calsegb { color:var(--gray500); }
-.fg .hm-card .hm-cal .hm-calsegb:hover { color:var(--ink); }
-.fg .hm-card .hm-cal .hm-calsegb.on { background:#fff; color:var(--ink);
-  box-shadow:0 3px 10px -4px rgba(10,12,20,.4); }
-.fg .hm-card .hm-cal .wb2-chip { background:rgba(5,5,5,.055); color:var(--gray700); }
-.fg .hm-card .hm-cal .hm-none { color:var(--q); }
-
-/* the stepper — the board's own buttons */
-.fg .hm-card .hm-cal .wb2-mcarrow { background:#fff; border-color:var(--wb2-line);
-  color:var(--gray500); }
-.fg .hm-card .hm-cal .wb2-mcarrow:hover { background:#fbfbfc; border-color:rgba(5,5,5,.24);
-  color:var(--ink); }
-.fg .hm-card .hm-cal .wb2-mcarrow:disabled:hover { background:#fff;
-  border-color:var(--wb2-line); color:var(--gray500); }
-.fg .hm-card .hm-cal .wb2-mcnow { background:#fff; border-color:var(--wb2-line);
-  color:var(--gray500); }
-.fg .hm-card .hm-cal .wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
-
-/* the grid */
-.fg .hm-card .hm-cal .wb2-mcdow { color:var(--q); }
-.fg .hm-card .hm-cal .wb2-mcc { background:#fff; border-color:var(--wb2-line2); }
-.fg .hm-card .hm-cal .wb2-mcc.we { background:rgba(5,5,5,.022); }
-.fg .hm-card .hm-cal .wb2-mcc.past { opacity:.6; }
-.fg .hm-card .hm-cal .wb2-mcc.today { border-color:rgba(5,5,5,.55);
-  box-shadow:0 0 0 1px rgba(5,5,5,.14); }
-.fg .hm-card .hm-cal .wb2-mcn b { color:var(--gray700); }
-.fg .hm-card .hm-cal .wb2-mcn em, .fg .hm-card .hm-cal .wb2-mcn i { color:var(--gray500); }
-.fg .hm-card .hm-cal .wb2-mcc.today .wb2-mcn b { background:rgba(5,5,5,.07); color:var(--ink); }
-.fg .hm-card .hm-cal .wb2-mcc.today .wb2-mcn i { color:var(--gray700); }
-.fg .hm-card .hm-cal .wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
-/* closed: the info blue as it reads on white, which is where it started */
-.fg .hm-card .hm-cal .wb2-mcc.hm-calph { background:rgba(0,168,224,.1);
-  border-color:rgba(0,137,184,.35); }
-.fg .hm-card .hm-cal .hm-calphl { color:#0089b8; }
-/* YOURS IS INK AGAIN. On ink the band was white because white was the
-   strongest material there; on daylight that job returns to ink — the same
-   argument, run the other way. */
-.fg .hm-card .hm-cal .hm-calmine { background:var(--ink2); color:#fff; }
-
-/* the list rows, on daylight */
-.fg .hm-card .hm-cal .hm-lvr { border-bottom-color:rgba(5,5,5,.07); }
-.fg .hm-card .hm-cal .hm-lvd b, .fg .hm-card .hm-cal .hm-lvd u { color:var(--q); }
-.fg .hm-card .hm-cal .hm-lvd em { color:var(--ink); }
-.fg .hm-card .hm-cal .hm-lvr.today::before { background:var(--teal-d); }
-.fg .hm-card .hm-cal .hm-lvr.today .hm-lvd em,
-.fg .hm-card .hm-cal .hm-lvr.today .hm-lvd b { color:var(--teal-d); }
-.fg .hm-card .hm-cal .hm-lvp { background:rgba(5,5,5,.06); color:var(--gray700); }
-.fg .hm-card .hm-cal .hm-lvp.mine { background:rgba(0,163,137,.12); color:#00735f; }
-.fg .hm-card .hm-cal .hm-lvp.closed { background:rgba(0,168,224,.1); color:#0089b8; }
-/* A COLLEAGUE'S PILL, on the sheet. The ink version is white-on-white here —
-   measured by looking: the first four cells came out empty. Same shape, the
-   ground's own values. */
-.fg .hm-card .hm-cal .hm-caloff { background:rgba(5,5,5,.06); color:var(--gray700); }
-.fg .hm-card .hm-cal .hm-caloff i { background:rgba(5,5,5,.1); color:var(--gray700); }
+/* The rail's checkbox — the same square the Tasks face uses, at rail scale. */
+.fg .hm-rltc { flex:none; width:15px; height:15px; padding:0; border-radius:5px;
+  border:1.6px solid #9aa3b1; background:#fff; cursor:pointer;
+  transition:border-color .15s, background .15s; }
+.fg .hm-rltc:hover { border-color:var(--teal-d); background:rgba(0,163,137,.08); }
+.fg .hm-rltc:disabled { opacity:.5; cursor:default; }
+.fg .hm-rltc:focus-visible { outline:2px solid var(--teal-d); outline-offset:2px; }
+/* The day in the strip's cap. Uppercase and quiet: it is the card's context,
+   not a heading — the page head says the date in full. */
+.fg .hm-card .hm-cardday { font-size:10.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--hm-quiet); white-space:nowrap; padding-right:4px; }

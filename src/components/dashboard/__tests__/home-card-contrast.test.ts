@@ -1,7 +1,20 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 
-/* THE QUIET TEXT ON HOME'S INK CARD STAYS READABLE.
+/* THE QUIET TEXT ON HOME'S CARD STAYS READABLE.
+
+   THE CARD IS DAYLIGHT NOW (Isaac, 2026-08-30). It was smoked glass, and the
+   six labels below were measured as WHITE-alpha steps against it. The ground
+   flipped; the failure mode flipped with it, and this suite had to be
+   re-derived rather than deleted — the labels are still the smallest type on
+   the screen, which is still where a guess costs the most.
+
+   What replaces "is the white bright enough" is "is the grey dark enough",
+   plus a new guard the ink version never needed: NO WHITE TEXT MAY SURVIVE on
+   a light card. That is the exact bug this conversion could leave behind, and
+   it is invisible in jsdom.
+
+   The original reasoning, kept because it is the same argument:
 
    Six labels on that card were set by eye and every one came out under AA —
    the section headings at 3.29, the day labels at 3.48, the entry times at
@@ -64,19 +77,56 @@ function declarationsFor(css: string, test: (selector: string) => boolean): stri
   return out;
 }
 
-describe("Home's ink card", () => {
+/** `#rrggbb`, or the rgba(...) a custom property is declared as. */
+function colour(css: string, name: string): number[] {
+  const rgba = new RegExp(`${name}\\s*:\\s*rgba?\\(([^)]+)\\)`).exec(css);
+  if (rgba) return rgba[1].split(",").map((n) => Number(n.trim()));
+  const hex = new RegExp(`${name}\\s*:\\s*#([0-9a-f]{6})`, "i").exec(css);
+  if (hex) return [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16));
+  throw new Error(`${name} is not declared in shell.css`);
+}
+
+describe("Home's card", () => {
   const css = readFileSync(CSS, "utf8");
 
-  it("keeps its quiet text above AA on the lightest ground it can have", () => {
-    const ink = token(css, "--hm-ink");
-    const quiet = token(css, "--hm-quiet");
+  it("keeps its quiet text above AA on the darkest ground the card can have", () => {
+    /* The card is `--hm-ink` — a white glass — over the well, and the well is
+       `#EDEFF4` with three coloured washes on it. For DARK text the hardest
+       case is the darkest the card can paint, which is the card over the
+       well's own base rather than over white. Pass there and it passes
+       wherever on the page the card sits. */
+    const card = colour(css, "--hm-ink");
+    const quiet = colour(css, "--q");
 
-    /* The card over pure white — brighter than any real point on the well,
-       so this is the hardest case for white text and a safe bound. */
-    const ground = over(ink, [255, 255, 255]);
+    const ground = over(card, [237, 239, 244]);
     const ratio = contrast(over(quiet, ground), ground);
 
     expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("leaves no white text sitting on the light card itself", () => {
+    /* THE BUG THIS CONVERSION COULD LEAVE. Every one of these rules used to
+       be correct — white on smoked glass — and each is invisible now. jsdom
+       computes no colour, so only reading the sheet can catch a straggler.
+
+       WHITE IS STILL ALLOWED ON SOMETHING THAT BRINGS ITS OWN GROUND: the
+       debrief's button is a teal-to-blue gradient and its label must be
+       white. So the test is not "no white on Home" — it is "no white on a
+       rule that paints no background of its own", which is exactly the rule
+       whose ground is the card. */
+    const offenders: string[] = [];
+    for (const m of css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const selector = m[1].trim().replace(/\s+/g, " ");
+      const decls = m[2];
+      const onTheCard =
+        /\.hm-(card|jr|jrs|jrt|jro|jd|jdh|none|adde|dbf)/.test(selector) &&
+        !selector.includes(".hm-cal");
+      if (!onTheCard) continue;
+      const white = /color\s*:\s*(#fff\b|rgba\(255,\s*255,\s*255)/.test(decls);
+      const bringsItsOwnGround = /background(-color|-image)?\s*:/.test(decls);
+      if (white && !bringsItsOwnGround) offenders.push(selector);
+    }
+    expect(offenders).toEqual([]);
   });
 
   /* The token only helps while it is the thing being used. Each of these was
@@ -94,6 +144,6 @@ describe("Home's ink card", () => {
     expect(decls).toContain("var(--hm-quiet)");
     /* and not a literal alongside it — a rule can carry both, and the last
        one written is the one that paints */
-    expect(decls).not.toMatch(/color\s*:\s*rgba\(255,\s*255,\s*255,\s*\.[0-4]?\d\)/);
+    expect(decls).not.toMatch(/color\s*:\s*rgba\(\d/);
   });
 });

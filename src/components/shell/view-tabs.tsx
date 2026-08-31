@@ -22,6 +22,11 @@ export type ViewTab = {
   /** Count badge. Absent or zero renders nothing — "checked, none" is what an
       empty tab already says, and a grey 0 on every tab is noise. */
   count?: number;
+  /** A state with no number on it. The debrief is either done today or it
+      isn't, and "1" would be a count of a conversation. */
+  dot?: boolean;
+  /** What the dot means, for anyone who cannot see it. */
+  dotLabel?: string;
   /** Badge tint. Only for tabs whose count means SEVERITY; a tab that counts
       a place ("Noticeboard") takes the plain grey, because red and amber have
       to keep meaning "something is wrong". */
@@ -196,6 +201,16 @@ function Tab({
             {count}
           </i>
           {tab.countLabel && <span className="sr-only"> — {tab.countLabel(count)}</span>}
+        </>
+      )}
+      {/* A DOT IS A STATE, NOT A COUNT. Some faces are either wanting you or
+          not — the debrief is had or not had today — and the badge cannot say
+          that with a number without inventing one. It reads as a word to a
+          screen reader, where a dot is nothing at all. */}
+      {count === 0 && tab.dot && (
+        <>
+          <i className="wb2-vtdot" aria-hidden="true" />
+          <span className="sr-only"> — {tab.dotLabel ?? "not done yet"}</span>
         </>
       )}
     </button>

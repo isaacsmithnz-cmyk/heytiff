@@ -1,6 +1,6 @@
 import {
-  RAIL_MIN_BLOCK_PX,
   RAIL_PX_PER_HOUR,
+  RAIL_ROW_PX,
   placeRail,
   railBounds,
   railHourLabel,
@@ -83,17 +83,22 @@ describe("the hour scale", () => {
 describe("placeRail", () => {
   const bounds = railBounds([]);
 
-  it("gives a booking the height of its own hours", () => {
+  it("puts a booking at its start time, one row high", () => {
+    /* THE HEIGHT IS NOT THE DURATION, and that is the agreed design. Drawing
+       each job at the height of its own hours produced a column of big empty
+       boxes — a 2½-hour install is 160px of mostly nothing with its name in
+       the corner — and the day stopped reading as a sequence you can scan.
+       The start time is the fact the rail is for. */
     const [p] = placeRail([job({ startMin: 8 * 60, endMin: 10 * 60 })], bounds);
-    expect(p.height).toBe(2 * RAIL_PX_PER_HOUR);
     expect(p.top).toBe(RAIL_PX_PER_HOUR);
+    expect(p.height).toBe(RAIL_ROW_PX);
   });
 
-  it("floors a short job so its label still fits", () => {
-    /* A fifteen-minute call is 16px of rail. Below the floor it stops being a
-       block and starts being a line with text overflowing it. */
-    const [p] = placeRail([job({ startMin: 9 * 60, endMin: 9 * 60 + 15 })], bounds);
-    expect(p.height).toBe(RAIL_MIN_BLOCK_PX);
+  it("gives a fifteen-minute call the same row as a full day's install", () => {
+    const short = placeRail([job({ startMin: 9 * 60, endMin: 9 * 60 + 15 })], bounds);
+    const long = placeRail([job({ startMin: 9 * 60, endMin: 17 * 60 })], bounds);
+    expect(short[0].height).toBe(RAIL_ROW_PX);
+    expect(long[0].height).toBe(RAIL_ROW_PX);
   });
 
   it("leaves things that merely follow each other at full width", () => {
@@ -108,41 +113,43 @@ describe("placeRail", () => {
     expect(placeRail(items, bounds).every((p) => p.cols === 1)).toBe(true);
   });
 
-  it("splits the lane when two things really are at once", () => {
+  it("splits the lane when two rows would be drawn on top of each other", () => {
+    /* Overlap is a question about the DRAWING now, not the hours: two jobs
+       starting within half a row of each other collide on screen however long
+       they run. Same times, same start — the second must not hide the first. */
     const items = [
       job({ key: "a", startMin: 8 * 60, endMin: 10 * 60 }),
-      job({ key: "b", startMin: 9 * 60, endMin: 11 * 60 }),
+      job({ key: "b", startMin: 8 * 60, endMin: 11 * 60 }),
     ];
     const placed = placeRail(items, bounds);
     expect(placed.map((p) => p.cols)).toEqual([2, 2]);
     expect(placed.map((p) => p.col)).toEqual([0, 1]);
   });
 
-  it("splits three ways when three overlap, so nothing hides", () => {
+  it("splits three ways when three land on the same slot", () => {
     const items = [
-      job({ key: "a", startMin: 8 * 60, endMin: 11 * 60 }),
-      job({ key: "b", startMin: 9 * 60, endMin: 10 * 60 }),
-      job({ key: "c", startMin: 9 * 60 + 30, endMin: 10 * 60 + 30 }),
+      job({ key: "a", startMin: 9 * 60, endMin: 11 * 60 }),
+      job({ key: "b", startMin: 9 * 60 + 5, endMin: 10 * 60 }),
+      job({ key: "c", startMin: 9 * 60 + 10, endMin: 10 * 60 + 30 }),
     ];
     expect(placeRail(items, bounds).map((p) => p.cols)).toEqual([3, 3, 3]);
   });
 
   it("clusters transitively, and re-uses a column the moment it is free", () => {
-    /* A/B overlap and B/C overlap, so all three are laid out together — but C
-       starts after A has finished, so it takes A's column back rather than
-       opening a third and narrowing the whole run. What must hold is not a
-       column count: it is that nothing shares a column with something it
-       overlaps. */
+    /* Rows that run into each other are laid out together, and a row that
+       starts after an earlier one has finished DRAWING takes its column back
+       rather than opening another and narrowing the whole run. What must hold
+       is not a column count: it is that nothing shares a column with anything
+       it overlaps. */
     const items = [
       job({ key: "a", startMin: 8 * 60, endMin: 9 * 60 }),
-      job({ key: "b", startMin: 8 * 60 + 30, endMin: 9 * 60 + 30 }),
-      job({ key: "c", startMin: 9 * 60 + 10, endMin: 10 * 60 }),
+      job({ key: "b", startMin: 8 * 60 + 10, endMin: 9 * 60 + 30 }),
+      job({ key: "c", startMin: 8 * 60 + 20, endMin: 10 * 60 }),
     ];
     const placed = placeRail(items, bounds);
 
     // one cluster: they all agree on how many columns the run is wide
     expect(new Set(placed.map((p) => p.cols)).size).toBe(1);
-    expect(placed[0].cols).toBe(2);
 
     for (const p of placed) {
       for (const q of placed) {

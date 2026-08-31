@@ -10,7 +10,7 @@ import { HomeJournal } from "./home-journal";
 import { HomeCalendarFace } from "./home-calendar-face";
 import { HomeTasks } from "./home-tasks";
 import { sortChips } from "@/lib/dashboard/chips";
-import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
+import { fmtAuWeekdayDayMonth, fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import { DEFAULT_TAB, homeTabs, type HomeTabKey } from "@/lib/dashboard/home-tabs";
 import { currentUnreadCount } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
@@ -78,7 +78,16 @@ export function DashboardHome({ data }: { data: DashboardData }) {
      that means something is wrong. */
   const overdue = tasks.mine.filter((t) => t.dueDate !== null && t.dueDate < today).length;
 
-  const tabs = homeTabs({ openTasks: tasks.mine.length, overdueTasks: overdue });
+  /* The dot goes out the moment anything lands in today's record — the
+     debrief is one way to file, and a note typed straight into the diary is
+     another. Both count as "you have told it something today". */
+  const debriefedToday = journal.some((e) => e.day === today);
+
+  const tabs = homeTabs({
+    openTasks: tasks.mine.length,
+    overdueTasks: overdue,
+    debriefedToday,
+  });
 
   const panel = (key: HomeTabKey, body: React.ReactNode) => (
     <section
@@ -133,11 +142,12 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 thumb IS the card's top edge, which cannot survive two
                 surfaces meeting. See the HOME section of shell.css. */}
             <div className="wb2-card hm-card">
-              {/* The mark, drifting on the card's floor — the same field the
-                  studio's start screen wears, on its own zero-sized anchor so
-                  it cannot push a panel around. */}
+              {/* The mark, on the card's floor. `mark` and not `cloud`: the
+                  agreed design has the chevron READABLE in the dots — the
+                  dispersed stage read as a random scatter down there, which
+                  is the studio's "thinking" state and not this one. */}
               <span className="hm-cloud" aria-hidden="true">
-                <DotField stage="cloud" size={330} cols={26} />
+                <DotField stage="mark" size={330} cols={26} />
               </span>
 
               <ViewTabs
@@ -147,7 +157,15 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 ariaLabel="Home"
                 idPrefix="hmtab"
                 panelPrefix="hmsec"
-              />
+              >
+                {/* THE DAY THE CARD IS SHOWING, in the strip's cap. The page
+                    head says the date in full; this says it again, short, at
+                    the far end of the tabs — because the faces under it are
+                    all about THIS day, and the card scrolls away from the
+                    head. What may never come back into this cap is a second
+                    Tiff button: the frame's is one press from every screen. */}
+                <span className="hm-cardday">{fmtAuWeekdayDayMonth(today)}</span>
+              </ViewTabs>
 
               {panel(
                 "diary",

@@ -1,6 +1,8 @@
 "use client";
 
-import { Icon } from "@/components/shell/icon";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { completeTask } from "@/app/actions/dashboard";
 import { useNowMin } from "@/components/workboard/board/use-now-min";
 import { blockLabel, blockPaint, blockState } from "@/lib/workboard/focus";
 import { clockLabel } from "@/lib/workboard/schedule";
@@ -46,6 +48,8 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
      date disagrees with the rail's day — a missing mark beats one that is
      hours wrong. Same hook the board's rail uses. */
   const liveNow = useNowMin(rail.dayISO);
+  const router = useRouter();
+  const [pending, start] = useTransition();
 
   const items = railItems(rail.blocks, rail.tasks);
   const bounds = railBounds(items);
@@ -67,10 +71,10 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
 
   return (
     <aside className="hm-day" aria-label="Today">
-      {/* WHO IS OFF IS NOT HERE ANY MORE (Isaac, 2026-08-30). It sat under
-          this label for one round, while the four-week view had no home; the
-          Calendar tab is that home now, and one fact stated in two places on
-          one screen is the thing that eventually disagrees with itself. */}
+      {/* WHO IS OFF IS NOT HERE. It belongs to the Calendar face, and Isaac
+          has now said so twice — the rail is where you have to BE, and a
+          colleague's leave is not an appointment of yours. One fact, one
+          home; two would eventually disagree. */}
       <div className="wb2-sect">The day</div>
 
       {!rail.enabled ? (
@@ -111,7 +115,22 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
                     key={item.key}
                     style={style}
                   >
-                    <Icon name="clock" size={13} />
+                    {/* A REAL CHECKBOX. A drawn one on a row you cannot tick
+                        is a lie, so this runs the same action the Tasks face
+                        runs and refreshes — the row leaves the rail and the
+                        badge next door moves with it. */}
+                    <button
+                      type="button"
+                      className="hm-rltc"
+                      aria-label={`Mark "${item.task.title}" done`}
+                      disabled={pending}
+                      onClick={() =>
+                        start(async () => {
+                          await completeTask(item.task.id);
+                          router.refresh();
+                        })
+                      }
+                    />
                     <b>{item.task.title}</b>
                     <u>{clockLabel(item.task.atMin)}</u>
                   </div>
@@ -133,6 +152,9 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
                     (state.late ? " late" : "")
                   }
                   key={item.key}
+                  title={[b.clientName, b.suburb, blockLabel(b), state.word]
+                    .filter(Boolean)
+                    .join(" · ")}
                   style={
                     {
                       ...style,
@@ -145,14 +167,13 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
                     } as React.CSSProperties
                   }
                 >
-                  <span className="hm-rlbh">
-                    {b.jobNumber && <u>{b.jobNumber}</u>}
-                    <b>{b.clientName ?? "Unnamed client"}</b>
-                  </span>
-                  <em>
-                    {[b.suburb, blockLabel(b)].filter(Boolean).join(" · ")}
-                    {state.word ? ` · ${state.word}` : ""}
-                  </em>
+                  {/* ONE LINE. The suburb, the category and the state word had
+                      a second line to themselves, which is what forced a tall
+                      block — and none of them is what the eye is scanning a
+                      rail for. They ride the row's title instead. */}
+                  {done && <i className="hm-rlbt" aria-hidden="true" />}
+                  {b.jobNumber && <u>{b.jobNumber}</u>}
+                  <b>{b.clientName ?? "Unnamed client"}</b>
                 </div>
               );
             })}

@@ -52,6 +52,7 @@ import { brandAssets, BRAND_FILES } from "../src/lib/brand/auth0/assets.ts";
 import { heytiffTheme, heytiffBranding } from "../src/lib/brand/auth0/theme.ts";
 import { heytiffEmailTemplates } from "../src/lib/brand/auth0/templates.ts";
 import { heytiffPageTemplate } from "../src/lib/brand/auth0/page-template.ts";
+import { signInPreview, signInStatesPreview } from "../src/lib/brand/auth0/preview.ts";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -272,6 +273,16 @@ async function renderLocally() {
     await writeFile(join(OUT, `${t.template}.html`), t.body);
   }
   await writeFile(join(OUT, "page-template.liquid"), pageTemplate);
+  /* The sign-in screen is otherwise unreviewable before it is live — the
+     theme renders only inside Auth0's widget and the template needs a custom
+     domain. Both are built from the very objects above, so the preview
+     cannot drift from what gets pushed. See preview.ts for what is real in
+     it and what is a stand-in. */
+  await writeFile(join(OUT, "sign-in.html"), signInPreview(pageTemplate, theme, assets));
+  await writeFile(
+    join(OUT, "sign-in-states.html"),
+    signInStatesPreview(pageTemplate, theme, assets),
+  );
   await writeFile(
     join(OUT, "theme.json"),
     JSON.stringify({ theme, branding }, null, 2),
@@ -280,8 +291,9 @@ async function renderLocally() {
     join(OUT, "subjects.txt"),
     emails.map((t) => `${t.template}\n  ${t.subject}\n`).join("\n"),
   );
-  console.log(`\n  ${emails.length} letters, the page template and the theme → ${OUT}/`);
-  console.log("  Open the .html files in a browser to read them.\n");
+  console.log(`\n  ${emails.length} letters, the sign-in screen and the theme → ${OUT}/`);
+  console.log("  Open the .html files in a browser. sign-in.html is the page");
+  console.log("  template with a stand-in for Auth0's widget — see preview.ts.\n");
 }
 
 /* ── go ─────────────────────────────────────────────────────────────────── */

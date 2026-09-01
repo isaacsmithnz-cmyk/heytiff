@@ -58,6 +58,15 @@ export function heytiffPageTemplate(assets: BrandAssets): string {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
+      /* z-index -1, NOT 0, and this is the whole reason there is no sibling
+         selector in this file. A fixed element at z-index 0 paints ABOVE
+         static in-flow content, so the glow would cover the widget; the
+         first version fixed that with a .ht-glow ~ * selector, reaching into
+         Auth0's own element by structure — exactly what their docs warn
+         against ("the HTML structure of Universal Login pages is subject to
+         change"). At -1 the glow sits behind everything in the root stacking
+         context and above the body's background, and nothing needs to know
+         what the widget is. */
       .ht-glow {
         position: fixed;
         top: -220px;
@@ -70,7 +79,7 @@ export function heytiffPageTemplate(assets: BrandAssets): string {
         filter: blur(140px);
         opacity: .11;
         pointer-events: none;
-        z-index: 0;
+        z-index: -1;
       }
       .ht-glow.b {
         top: auto;
@@ -78,11 +87,13 @@ export function heytiffPageTemplate(assets: BrandAssets): string {
         background: ${BRAND.blue};
         opacity: .07;
       }
-      /* The widget sits above the light. Auth0 owns everything inside it. */
-      .ht-glow ~ * { position: relative; z-index: 1; }
+      /* AUTH0 DOCUMENTS A FOOTER AFTER THE WIDGET, but does not publish what
+         _widget-auto-layout sets, and a row direction would stand the
+         footer beside the card instead of under it. Stated here rather than
+         assumed: this is the one Auth0 class that is a documented layout
+         hook, not a build-hashed one, so it is safe to name. */
+      body._widget-auto-layout { flex-direction: column; }
       .ht-foot {
-        position: relative;
-        z-index: 1;
         padding: 8px 16px 32px;
         text-align: center;
         font-size: 12px;

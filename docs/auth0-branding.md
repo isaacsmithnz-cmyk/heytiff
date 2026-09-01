@@ -8,8 +8,26 @@ tenant by a script.
 npm run auth0:brand -- --dry-run
 ```
 
-renders all of it into `tmp/auth0-preview/` and changes nothing. Open the
-`.html` files in a browser to read the letters.
+renders all of it into `tmp/auth0-preview/` and changes nothing:
+
+| file | what it is |
+| --- | --- |
+| `sign-in.html` | **the sign-in screen.** The page template verbatim, with a stand-in for Auth0's login prompt dressed in the real theme values |
+| `sign-in-states.html` | the same, showing an error and a social button |
+| seven `*.html` | the letters |
+| `page-template.liquid` | what actually gets `PUT` |
+| `theme.json` | what actually gets `PATCH`ed |
+
+**Why `sign-in.html` exists at all.** Two of the three things this pushes are
+invisible until they are live — the theme renders only inside Auth0's widget,
+and the page template needs a custom domain before Auth0 will accept it. Without
+a local preview the only way to review the sign-in design is to push it to the
+real tenant and sign out, which is reviewing it in front of customers.
+
+Read it for the design, not for Auth0's DOM: the page chrome is the template
+verbatim and every colour, radius and font size is read from the theme object
+that gets pushed, but the widget's *markup* is a stand-in — Auth0 draws that and
+does not publish it. `src/lib/brand/auth0/preview.ts` says which is which.
 
 ```bash
 npm run auth0:brand

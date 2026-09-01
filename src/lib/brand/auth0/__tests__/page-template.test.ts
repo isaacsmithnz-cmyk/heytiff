@@ -45,6 +45,30 @@ describe("the page it draws", () => {
   it("keeps the glow decorative and out of the way", () => {
     expect(template).toContain("pointer-events: none");
     expect(template.match(/ht-glow[^"]*" aria-hidden="true"/g)).toHaveLength(2);
+    // Behind everything, without needing to know what "everything" is.
+    expect(template).toContain("z-index: -1");
+  });
+
+  it("never reaches into Auth0's DOM by structure", () => {
+    // "The HTML structure of Universal Login pages is subject to change" —
+    // so a sibling or descendant selector that lands on the widget is a
+    // break waiting for their next build. The first version had
+    // `.ht-glow ~ *`; z-index: -1 replaced it.
+    // Comments stripped first — the note explaining WHY there is no such
+    // selector names the selector, and matched itself.
+    const css = template
+      .slice(template.indexOf("<style>"), template.indexOf("</style>"))
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(css).not.toMatch(/[~+>]\s*\*/);
+    expect(css).not.toMatch(/\.ht-glow\s*[~+]/);
+  });
+
+  it("states its own stacking direction rather than inheriting a guess", () => {
+    // Auth0 documents a footer after the widget but does not publish what
+    // `_widget-auto-layout` sets. A row would stand the footer beside the
+    // card. This is the one Auth0 class that is a documented layout hook
+    // rather than a build-hashed one, so naming it is safe.
+    expect(template).toContain("body._widget-auto-layout { flex-direction: column; }");
   });
 
   it("serves the font from our own origin, as a file", () => {

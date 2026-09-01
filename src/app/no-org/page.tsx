@@ -33,17 +33,49 @@ type Invite = {
 /* An unaccepted invite for this address, expired or not. The expired case is
    worth SHOWING rather than hiding: it names the company that wanted them and
    turns "this app is broken" into one sentence their admin can act on with the
-   Renew button that already exists on the Team page. */
+   Renew button that already exists on the Team page.
+
+   A LIVE INVITE OUTRANKS A NEWER DEAD ONE, which is why this reads twice
+   instead of sorting once. Newest-first is the obvious ordering and it is
+   wrong here: `created_at` and `expires_at` come apart the moment an invite is
+   renewed, because renewInvite pushes the expiry and leaves the creation
+   stamp alone (actions/invite.ts). Nothing stops the same address holding a
+   pending invite in two companies either — createInvite's duplicate check, and
+   the unique index behind it, are both scoped to one org. So a renewed day-1
+   invite can be live while a lapsed day-3 invite sorts above it, and the
+   single-read version would answer the door with "your invitation has
+   expired" while the one that still works sat one row down, unreachable from
+   this screen.
+
+   The liveness filter also has to go to the DATABASE rather than being sorted
+   for, because `expires_at DESC` picks a winner among the expired too. Reading
+   live-then-any is the whole rule in two lines, and it degrades the right way
+   on a null expiry: `gt` drops those rows from the first read, the second one
+   still finds them, and the render below already reads a null as expired. */
 async function pendingInvite(email: string): Promise<Invite | null> {
-  const { data } = await supabaseAdmin
-    .from("invitations")
-    .select("token, expires_at, org_id")
-    .eq("email", email.toLowerCase())
-    .is("accepted_at", null)
+  const unaccepted = () =>
+    supabaseAdmin
+      .from("invitations")
+      .select("token, expires_at, org_id")
+      .eq("email", email.toLowerCase())
+      .is("accepted_at", null);
+
+  type InviteRow = { token: string; expires_at: string; org_id: string };
+
+  const { data: liveRows } = await unaccepted()
+    .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false })
     .limit(1);
 
-  const row = data?.[0] as { token: string; expires_at: string; org_id: string } | undefined;
+  let row = liveRows?.[0] as InviteRow | undefined;
+
+  if (!row) {
+    const { data: anyRows } = await unaccepted()
+      .order("created_at", { ascending: false })
+      .limit(1);
+    row = anyRows?.[0] as InviteRow | undefined;
+  }
+
   if (!row) return null;
 
   const { data: org } = await supabaseAdmin

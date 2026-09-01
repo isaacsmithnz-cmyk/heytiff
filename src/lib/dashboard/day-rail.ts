@@ -21,7 +21,7 @@
    fixed-height card, the hour lines are drawn from the same constant, and a
    block that agrees with the hour beside it is the whole point of the view. */
 
-import type { ScheduleBlock } from "@/lib/workboard/schedule";
+import { clockLabel, type ScheduleBlock } from "@/lib/workboard/schedule";
 import type { RemindKind } from "./reminders";
 
 /** The zone every ServiceM8 stamp is already written in. Matches
@@ -51,6 +51,15 @@ export const RAIL_ROW_PX = 30;
 
 /** A task is a moment, not a span — it has a time, never a duration. */
 export const RAIL_TASK_PX = 30;
+
+/** Air below the last hour, so the closing line is not the track's own edge.
+
+    48px and not the 20 it was: the scroller wears a fade over its bottom 8%
+    (~41px of a laptop's column), and now that the rail widens to reach the
+    current hour, the now marker can sit in the last few minutes of the last
+    band — where the fade would have swallowed it and the time on it. The tail
+    has to be deeper than the fade it has to clear. */
+export const RAIL_TAIL_PX = 48;
 
 /** The day the rail draws when nothing argues otherwise: a trade day, 7 to 5.
     Real work widens it (see `railBounds`); nothing narrows it, so an empty
@@ -134,15 +143,61 @@ export function nowMinInZone(tz: string | null | undefined, now: Date = new Date
 
 /** The hours the rail draws. Whole hours only — a rail whose first line is
     6:43 reads as a mistake — and it only ever widens: work that starts before
-    seven or runs past five must be ON the rail, not clipped off its ends. */
-export function railBounds(items: readonly RailItem[]): RailBounds {
+    seven or runs past five must be ON the rail, not clipped off its ends.
+
+    NOW COUNTS AS SOMETHING TO FIT (walked on prod, 2026-09-01, 6:07pm). The
+    bounds widened for ITEMS only, so a day with nothing on it was always
+    7-to-5 — and past five the marker fell outside them, `showNow` went false,
+    and the rail drew five hundred pixels of blank column with no sign of
+    where the present was. A rail that does not contain now cannot answer the
+    one question it exists for.
+
+    Passing `null` keeps the item-only bounds, which is what a caller drawing
+    a day that is not today wants. */
+export function railBounds(
+  items: readonly RailItem[],
+  nowMin: number | null = null,
+): RailBounds {
   let start = RAIL_DEFAULT_START;
   let end = RAIL_DEFAULT_END;
   for (const it of items) {
     start = Math.min(start, Math.floor(it.startMin / 60) * 60);
     end = Math.max(end, Math.ceil(it.endMin / 60) * 60);
   }
+  /* The same whole-hour treatment the items get, so the marker lands inside
+     the band it belongs to rather than exactly on a boundary line. */
+  if (nowMin !== null) {
+    start = Math.min(start, Math.floor(nowMin / 60) * 60);
+    end = Math.max(end, Math.ceil(nowMin / 60) * 60);
+  }
   return { startMin: start, endMin: Math.max(end, start + 60) };
+}
+
+/** "7–3pm" · "8–10am" · "9:15–2:45pm" — a booking's span, written on the card
+    because the card does not draw it.
+
+    EVERY ROW ON THIS RAIL IS THE SAME HEIGHT (see RAIL_ROW_PX), which is what
+    keeps a day readable as a sequence instead of a column of tall empty
+    boxes — but it means a job from seven to three looks exactly like a
+    half-hour call, and the length was only ever in the row's hover title,
+    which a phone does not have and a glance does not wait for.
+    Isaac, 2026-09-01: *"just have the card at seven AM and just write down
+    seven to three PM on the card"*. So the card says it.
+
+    THE MERIDIEM IS SPOKEN ONCE, AT THE END — his own example is "seven till
+    three PM", which is how the span is said out loud, and "7am–3pm" is how a
+    form asks for it. It stays unambiguous because a booking runs forwards and
+    inside one day: "7–3pm" cannot mean seven in the evening without running
+    backwards. A span of twelve hours or more is the case where that stops
+    being true, so it keeps both halves. */
+export function railSpanLabel(startMin: number, endMin: number): string {
+  const from = clockLabel(startMin);
+  /* Nothing to span. The board clamps a zero or reversed booking to thirty
+     minutes before it ever reaches here, so this is belt and braces. */
+  if (endMin <= startMin) return from;
+  const to = clockLabel(endMin);
+  if (endMin - startMin >= 12 * 60) return `${from}–${to}`;
+  return `${from.replace(/[ap]m$/, "")}–${to}`;
 }
 
 /** Where the top of a minute sits, in pixels down the rail. */

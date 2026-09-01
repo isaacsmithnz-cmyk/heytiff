@@ -4,6 +4,7 @@ import { DashboardHome } from "../home";
 import type { DashboardData, HomeRail } from "@/lib/dashboard/page-data";
 import type { ActionChip } from "@/lib/dashboard/chips";
 import type { DashTask } from "@/lib/dashboard/tasks";
+import type { ScheduleBlock } from "@/lib/workboard/schedule";
 
 /* Home as two rooms: the day down the left, one card with four faces on the
    right.
@@ -49,6 +50,25 @@ const task = (over: Partial<DashTask> = {}): DashTask => ({
   doneByName: null,
   remindAt: null,
   remindKind: "at" as const,
+  ...over,
+});
+
+const block = (over: Partial<ScheduleBlock> = {}): ScheduleBlock => ({
+  key: "b1",
+  remoteId: "j1",
+  jobNumber: "1042",
+  clientName: "Bayview Apartments",
+  suburb: "Chatswood",
+  status: "Work Order",
+  categoryName: "Service",
+  categoryColour: null,
+  tracked: null,
+  onSite: false,
+  closure: "open",
+  startMin: 8 * 60,
+  endMin: 10 * 60,
+  start: `${TODAY}T08:00:00Z`,
+  end: `${TODAY}T10:00:00Z`,
   ...over,
 });
 
@@ -273,6 +293,35 @@ describe("the day rail", () => {
     expect(screen.queryByRole("link", { name: /link yourself/i })).toBeNull();
     // the sentence still explains what the rail is missing
     expect(document.querySelector(".hm-day")!.textContent).toMatch(/linked to your account/i);
+  });
+
+  it("writes a booking's span on the card, because the card cannot draw it", () => {
+    /* EVERY ROW IS ONE HEIGHT (placeRail's law, tested there), so an eight-hour
+       job looks exactly like a quarter-hour call and the length lived only in
+       a hover title. Isaac, 2026-09-01: "just have the card at seven AM and
+       just write down seven to three PM on the card". */
+    draw({
+      rail: rail({
+        blocks: [
+          block({ key: "long", startMin: 7 * 60, endMin: 15 * 60 }),
+          block({ key: "short", clientName: "Northshore", startMin: 11 * 60, endMin: 11 * 60 + 15 }),
+        ],
+      }),
+    });
+    const spans = [...document.querySelectorAll(".hm-rlbw")].map((e) => e.textContent);
+    expect(spans).toEqual(["7–3pm", "11–11:15am"]);
+  });
+
+  it("stretches the day to reach the hour it is now", () => {
+    /* WALKED ON PROD at 6:07pm: an account with nothing booked drew a blank
+       7-to-5 column and no marker, because the bounds only ever widened for
+       items. The rail has to contain the present or it cannot answer the
+       question it exists for. `nowMin` is the loader's, in the workspace's
+       zone, so this holds in the first paint rather than after an effect. */
+    draw({ rail: rail({ nowMin: 18 * 60 + 7, blocks: [], tasks: [] }) });
+    const hours = [...document.querySelectorAll(".hm-rlhr")].map((e) => e.textContent);
+    expect(hours[0]).toBe("7 am");
+    expect(hours[hours.length - 1]).toBe("7 pm");
   });
 
   it("says the empty day is YOURS once the picture is complete", () => {

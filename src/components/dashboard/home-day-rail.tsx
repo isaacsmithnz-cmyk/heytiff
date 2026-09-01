@@ -14,7 +14,9 @@ import {
   railHourLabel,
   railHours,
   railItems,
+  railSpanLabel,
   railTop,
+  RAIL_TAIL_PX,
 } from "@/lib/dashboard/day-rail";
 import type { HomeRail } from "@/lib/dashboard/page-data";
 
@@ -71,7 +73,21 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
   const [pending, start] = useTransition();
 
   const items = railItems(rail.blocks, rail.tasks);
-  const bounds = railBounds(items);
+
+  /* THE RAIL HAS TO CONTAIN NOW, and which "now" is a real choice.
+
+     `rail.nowMin` is the loader's, in the workspace's zone, and it is what the
+     server rendered — so the bounds are right in the first paint and the rail
+     does not re-lay itself out the moment `useNowMin`'s effect fires.
+     `liveNow` is the browser's, and it is null until that effect runs, so the
+     larger of the two is the server's at first and the browser's afterwards.
+     That is what stops a page left open through the evening from losing its
+     marker off the bottom again: it widens by an hour instead. */
+  const nowForBounds =
+    rail.nowMin !== null && liveNow !== null
+      ? Math.max(rail.nowMin, liveNow)
+      : (liveNow ?? rail.nowMin);
+  const bounds = railBounds(items, nowForBounds);
   const placed = placeRail(items, bounds);
   const hours = railHours(bounds);
 
@@ -163,7 +179,7 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
           what there is too much of. Splitting them is also what lets the rail
           open on the current hour without carrying its own heading away. */}
       <div className="hm-dayrl" ref={scroller}>
-        <div className="hm-rl" style={{ height: railHeight(bounds) + 20 }}>
+        <div className="hm-rl" style={{ height: railHeight(bounds) + RAIL_TAIL_PX }}>
           {hours.map((h) => (
             <span
               className="hm-rlhr"
@@ -291,6 +307,17 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
                   {done && <i className="hm-rlbt" aria-hidden="true" />}
                   {b.jobNumber && <u>{b.jobNumber}</u>}
                   <b>{b.clientName ?? "Unnamed client"}</b>
+                  {/* THE LENGTH, WRITTEN RATHER THAN DRAWN. Every row on this
+                      rail is one height by design, so a job from seven to
+                      three looked exactly like a half-hour call and the only
+                      place its span lived was the hover title — which a phone
+                      has none of and a glance never waits for. It rides the
+                      right of the row, where a task's time already sits, so
+                      the two kinds of thing say when they are in the same
+                      place. */}
+                  <span className="hm-rlbw">
+                    {railSpanLabel(b.startMin, b.endMin)}
+                  </span>
                 </div>
               );
             })}

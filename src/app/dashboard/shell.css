@@ -11257,9 +11257,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   .fg .hm-desk { grid-template-columns:minmax(0,1fr); }
   /* THE DAY BECOMES A BAND, not a full-width rail. Stacked, it has to keep
      two things from happening: pushing the record off the bottom of the
-     screen (so it is capped and scrolls — `.hm-day` already carries the
-     scroller), and stretching one booking across a metre of page (so the
-     track keeps a column's width and the rest is margin). */
+     screen (so it is capped, and `.hm-dayrl` inside it does the scrolling —
+     `.hm-day` is the flex column, not the scroller), and stretching one
+     booking across a metre of page (so the track keeps a column's width and
+     the rest is margin). */
   .fg .hm-day { max-height:300px; }
   .fg .hm-rl { max-width:560px; }
 }
@@ -11370,6 +11371,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-rlb u { flex:none; padding:1px 5px; border-radius:5px; text-decoration:none;
   font-size:9.5px; font-weight:800; color:var(--btext,#0a0b10);
   background:var(--chip,rgba(5,5,5,.09)); font-variant-numeric:tabular-nums; }
+/* THE SPAN, at the right of the row where a task's time already sits, so the
+   two kinds of thing on this rail say WHEN in the same place. Quieter than the
+   client name — the name is what you scan for and the hours are what you check
+   once you have found it — and `flex:none` with `margin-left:auto` so it is
+   the name that ellipses when the column is tight, never the time. It inherits
+   the block's own ink (`--btext`, the cap walked down until it clears its own
+   wash) AT FULL STRENGTH — a stated grey would fail on a dark wash, and alpha
+   is never how text is de-emphasised on this app. The step down is size and
+   weight, which is hierarchy the eye reads without losing contrast. */
+.fg .hm-rlbw { margin-left:auto; flex:none; padding-left:6px;
+  font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums;
+  color:var(--btext,#0a0b10); }
 /* FINISHED IS NEUTRAL AND CARRIES A TICK — never `opacity`, which was the old
    bug: colour means "still to do" on this app, so done work gives its hue up
    entirely rather than fading with its text. */
@@ -11386,6 +11399,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   height:3px; border-left:1.8px solid #fff; border-bottom:1.8px solid #fff;
   transform:rotate(-45deg); }
 .fg .hm-rlb.done b { color:#3c434f; font-weight:600; }
+/* The span follows its own row down. On a finished job the name steps back to
+   the stated neutral, and a time still wearing the live `--btext` was the
+   LOUDEST thing on a row about work that is behind you. */
+.fg .hm-rlb.done .hm-rlbw { color:#3c434f; font-weight:600; }
 /* a quote is dashed on its own edge, so the mark survives a narrow column */
 .fg .hm-rlb.qt { outline:2px dashed color-mix(in srgb, var(--btext,#050505) 55%, transparent);
   outline-offset:-4px; }

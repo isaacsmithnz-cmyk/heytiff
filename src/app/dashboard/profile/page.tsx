@@ -10,6 +10,7 @@ import {
   saveMyProfileSection,
   setMyPhoto,
 } from "@/app/actions/profile";
+import { changeMySignInEmail } from "@/app/actions/account";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
 import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
@@ -68,6 +69,15 @@ export default async function MyProfilePage({
     name: displayName,
     nickname: profile.preferred_name || undefined,
     email,
+    /* THE SAME VALUE AS `email`, TODAY, and named separately anyway. In self
+       mode both are the session's address, so they agree; what they MEAN
+       differs — `email` is "the address on your details", which on an
+       unclaimed card is `contact_email`, while this one is specifically the
+       account you sign in with and is what the Sign-in section moves. Reading
+       the second off the first would tie the two together, and the day an
+       unclaimed card renders here it would offer to change a contact detail
+       in Auth0. */
+    signInEmail: session.user.email ?? null,
     role: profile.job_title || "—",
     employmentType: profile.employment_type || "—",
     started: startedLabel(profile.start_date),
@@ -103,6 +113,10 @@ export default async function MyProfilePage({
         onRemoveLicence: removeMyLicence,
         onSetPhoto: setMyPhoto,
         onClearPhoto: clearMyPhoto,
+        /* Self only, and this page IS the self view. The Team view of a
+           colleague passes no such action, so the section cannot render
+           there even if its tab somehow did. */
+        onChangeSignInEmail: changeMySignInEmail,
       }}
     />
   );

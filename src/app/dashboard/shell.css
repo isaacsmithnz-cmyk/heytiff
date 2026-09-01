@@ -1724,6 +1724,23 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .card2.saving .inp { opacity:.55; }
 .fg .card2 [data-save][disabled] { opacity:.6; cursor:default; }
 .fg .carderr { margin-top:14px; padding:10px 13px; border-radius:11px; font-size:12.5px; font-weight:600; color:var(--bad-t); background:rgba(255,51,102,.08); border:1px solid rgba(255,51,102,.2); }
+
+/* THE SIGN-IN SECTION'S TWO SENTENCES. Both sit at the same weight as
+   `.carderr` above and share its shape on purpose: they are the same KIND of
+   thing — a line the card says back to you about what just happened, or is
+   about to. Amber before, teal after.
+
+   The warning is NOT hint text. It does not explain how to use the form; it
+   states the consequence of using it — that this becomes your sign-in
+   address and nothing in the app can undo it — which is a fact the form
+   itself cannot convey. */
+.fg .pacct-warn, .fg .pacct-ok { display:flex; align-items:flex-start; gap:9px;
+  margin:14px 0 0; padding:11px 13px; border-radius:11px;
+  font-size:12.5px; font-weight:600; line-height:1.5; }
+.fg .pacct-warn svg, .fg .pacct-ok svg { flex:none; margin-top:1px; }
+.fg .pacct-warn { color:var(--warn-t); background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.22); }
+.fg .pacct-ok { color:#00695a; background:rgba(0,163,137,.09); border:1px solid rgba(0,163,137,.22); }
+.fg .pacct-ok b { font-weight:800; }
 .fg .card2.readonly .carderr { display:none; }
 
 .fg .card2:not(.readonly) [data-edit] { display:none; }

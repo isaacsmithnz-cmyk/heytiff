@@ -1,4 +1,5 @@
 import type { Capability } from "@/lib/permissions";
+import type { EmailChangeOutcome } from "@/app/actions/account";
 import type { Role } from "@/lib/roles-shared";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
 
@@ -33,6 +34,10 @@ export type ProfileActions = {
   /** points the card at an already-uploaded staff_photo document */
   onSetPhoto: (documentId: string) => Promise<SaveResult>;
   onClearPhoto: () => Promise<SaveResult>;
+  /** Moves your SIGN-IN address, in self mode only. Optional because the
+      admin view of a colleague has no such thing to offer — see the nav
+      filter in profile-screen. */
+  onChangeSignInEmail?: (next: string) => Promise<EmailChangeOutcome>;
 };
 
 /** "self" = My profile (own staff card). "admin" = Team viewing someone else. */
@@ -45,6 +50,14 @@ export type ProfileHeader = {
   name: string;
   nickname?: string;
   email: string;
+  /** The address this person SIGNS IN with, which is not `email` above.
+
+      `email` is the staff card's contact address — where the business writes
+      to you, and an ordinary editable field. This one is the account, it
+      lives in Auth0 rather than in our tables, and it is only ever set in
+      self mode: on an admin's view of a colleague there is nothing here to
+      show, because the session's address is the admin's own. */
+  signInEmail?: string | null;
   /** job_title, or an em dash */
   role: string;
   employmentType: string;
@@ -115,6 +128,12 @@ export const SECTION_KEYS = [
   "workrights",
   "training",
   "mypay",
+  /* YOUR ACCOUNT, NOT YOUR CARD, and the only section here that writes
+     somewhere other than staff_profiles. Self mode only — see the filter in
+     profile-screen: an admin looking at a colleague's card must not be
+     offered a control that would change their own sign-in address, which is
+     what it would do, because the action reads the session and never an id. */
+  "signin",
   "payroll",
   "permissions",
   "notes",

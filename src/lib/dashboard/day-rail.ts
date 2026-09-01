@@ -200,6 +200,30 @@ export function railSpanLabel(startMin: number, endMin: number): string {
   return `${from.replace(/[ap]m$/, "")}–${to}`;
 }
 
+/** What the rail is missing, when it is missing something. Bookings arrive
+    through ServiceM8 and the workboard; timed tasks do not, so a rail can be
+    complete or short of one layer. `null` is the complete day. */
+export type RailMissing = "workboard" | "link" | null;
+
+/** Does the rail get to say the day is clear?
+
+    ONLY WHEN IT HAS EVERYTHING. Short of a layer, an empty column is a fact
+    about what could be read rather than a fact about the day, and "you are
+    free until Tuesday" is the one wrong answer that looks exactly like a
+    right one.
+
+    IT IS A FUNCTION BECAUSE TWO PLACES ASK IT and they went out of step. The
+    "nothing on your day" line renders on it, and the rail's open-on-now
+    effect skips on it — the line sits at the TOP of the track, so opening
+    three hours down would hide it. The effect had the condition written out a
+    second time as `placed.length === 0`, which is the same thing only while a
+    layer is present; walked on prod at 6:45pm, a rail short of ServiceM8 drew
+    no line, had nothing to protect, and STILL held at the top with the now
+    marker 405px below the fold. One predicate, asked twice. */
+export function railSaysEmpty(itemCount: number, missing: RailMissing): boolean {
+  return itemCount === 0 && missing === null;
+}
+
 /** Where the top of a minute sits, in pixels down the rail. */
 export function railTop(min: number, bounds: RailBounds): number {
   return ((min - bounds.startMin) / 60) * RAIL_PX_PER_HOUR;

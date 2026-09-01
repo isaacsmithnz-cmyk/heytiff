@@ -3,6 +3,7 @@ import {
   RAIL_ROW_PX,
   placeRail,
   railBounds,
+  railSaysEmpty,
   railSpanLabel,
   railHourLabel,
   railHours,
@@ -89,6 +90,21 @@ describe("railBounds", () => {
   it("keeps the item-only bounds for a day that is not today", () => {
     /* `null` is how a caller says "there is no now on this rail". */
     expect(railBounds([], null)).toEqual({ startMin: 7 * 60, endMin: 17 * 60 });
+  });
+});
+
+describe("railSaysEmpty", () => {
+  /* THE LINE AND THE SCROLL GUARD MUST AGREE, which is why this is a function
+     at all — they were written out separately and went out of step. */
+  it("says the day is clear only when nothing is missing from it", () => {
+    expect(railSaysEmpty(0, null)).toBe(true);
+    expect(railSaysEmpty(0, "link")).toBe(false);
+    expect(railSaysEmpty(0, "workboard")).toBe(false);
+  });
+
+  it("never says it about a day with something on it", () => {
+    expect(railSaysEmpty(1, null)).toBe(false);
+    expect(railSaysEmpty(3, "link")).toBe(false);
   });
 });
 

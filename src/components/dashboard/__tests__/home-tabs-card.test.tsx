@@ -324,6 +324,22 @@ describe("the day rail", () => {
     expect(hours[hours.length - 1]).toBe("7 pm");
   });
 
+  it("holds at the top ONLY when it has a clear-day line to protect", () => {
+    /* WALKED ON PROD at 6:45pm. A rail short of ServiceM8 draws no "nothing
+       on your day" line — there is nothing to protect — but the open-on-now
+       guard skipped anyway and left the marker 405px below the fold on the
+       one screen that had nothing else on it. The line and the guard now ask
+       one predicate; this is the pair of states that pulled them apart. */
+    draw({ rail: rail({ linked: true, blocks: [], tasks: [] }) });
+    expect(document.querySelector(".hm-rlempty")).not.toBeNull();
+
+    cleanup();
+    draw({ rail: rail({ linked: false, blocks: [], tasks: [] }) });
+    expect(document.querySelector(".hm-rlempty")).toBeNull();
+    // and the day is still drawn, so there is something for the marker to be on
+    expect(document.querySelector(".hm-rl")).not.toBeNull();
+  });
+
   it("says the empty day is YOURS once the picture is complete", () => {
     draw({ rail: rail({ linked: true, blocks: [], tasks: [] }) });
     const day = document.querySelector(".hm-day")!;

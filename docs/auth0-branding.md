@@ -203,11 +203,39 @@ So the logo says **who** and the line says **what**:
 everywhere else — the front door, the profile's *sign-in address*, the invite
 copy. One flow should not disagree with itself about what the user is doing.
 
-**Only the two wrong keys are sent.** The PUT "replaces all existing
+### The tab title, and why it *does* say HeyTiff
+
+The browser tab read `Log in | Heytiff` — the `pageTitle` key, whose default is
+also templated on `${clientName}`, so it carried the application's misspelled
+name.
+
+Setting it to **`Sign in to HeyTiff`** is not a contradiction of the rule
+above. The subtitle sits directly beneath a lockup that has already said
+HeyTiff in the brand's own letters; a tab title sits in a strip of a dozen
+other tabs with nothing beside it, and one reading only "Sign in" is one
+nobody can find. Same rule — *say it where nothing else is saying it* — with
+the opposite answer.
+
+This is also why the **application does not need renaming** to fix what people
+see. Its name is only visible through `${clientName}`, and every place that
+reached the sign-in screen is now written here instead.
+
+**Only the three wrong keys are sent.** The PUT "replaces all existing
 configuration data" for that prompt and language, and every key left out falls
 back to Auth0's default — which is what is wanted for `title`, `buttonText`
 and `forgotPasswordText`, all of which were already right. Restating them
-would be ten strings to keep in step with a vendor's copy for the sake of two.
+would be ten strings to keep in step with a vendor's copy for the sake of
+three.
+
+### `update:clients` is deliberately NOT in the grant
+
+Renaming the application itself needs `update:clients`, and that scope also
+rewrites an application's **callback and logout URLs**. On the credentials the
+production web server holds, that is a redirect-URI hijack waiting to happen:
+point `callbacks` at another origin and authorization codes go there instead.
+Trading that for a cosmetic rename is a bad deal, so the rename — if it is
+still wanted for the Auth0 dashboard's own listing — is a ten-second field in
+**Applications → Settings → Name**, done by a human.
 
 `signup` and `reset-password` carry the same `${companyName}` default and will
 want the same treatment; each has its own screens and key names, and those get

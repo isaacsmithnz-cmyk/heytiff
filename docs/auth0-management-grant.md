@@ -1,7 +1,7 @@
 # The Auth0 Management API grant
 
-The **Sign-in** section on `/dashboard/profile` lets a person change the
-address they sign in with. Until the step below is done, it renders fine and
+The **Change** action on the Email row of `/dashboard/profile` → Personal lets
+a person change the address they sign in with. Until the step below is done, it renders fine and
 every attempt comes back with:
 
 > HeyTiff isn't allowed to change sign-in addresses yet — the Auth0

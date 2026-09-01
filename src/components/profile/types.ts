@@ -128,12 +128,6 @@ export const SECTION_KEYS = [
   "workrights",
   "training",
   "mypay",
-  /* YOUR ACCOUNT, NOT YOUR CARD, and the only section here that writes
-     somewhere other than staff_profiles. Self mode only — see the filter in
-     profile-screen: an admin looking at a colleague's card must not be
-     offered a control that would change their own sign-in address, which is
-     what it would do, because the action reads the session and never an id. */
-  "signin",
   "payroll",
   "permissions",
   "notes",

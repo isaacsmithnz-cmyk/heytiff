@@ -61,6 +61,12 @@ export const RAIL_TASK_PX = 30;
     has to be deeper than the fade it has to clear. */
 export const RAIL_TAIL_PX = 48;
 
+/** Midnight, as the schedule writes it. `layoutScheduleDay` clamps a booking
+    that ends on a later day to this rather than wrapping it to a smaller
+    number, so an end AT it means "runs past the day" — which is why two of the
+    labels below have to treat it differently from every other end. */
+const DAY_MIN = 24 * 60;
+
 /** The day the rail draws when nothing argues otherwise: a trade day, 7 to 5.
     Real work widens it (see `railBounds`); nothing narrows it, so an empty
     day still looks like a day rather than a blank strip. */
@@ -189,14 +195,25 @@ export function railBounds(
     form asks for it. It stays unambiguous because a booking runs forwards and
     inside one day: "7–3pm" cannot mean seven in the evening without running
     backwards. A span of twelve hours or more is the case where that stops
-    being true, so it keeps both halves. */
+    being true, so it keeps both halves.
+
+    MIDNIGHT IS THE OTHER CASE, and it is the one the "inside one day" argument
+    does not cover. An end of 12am is the only end whose half is EARLIER than
+    every start that can reach it, so the trailing meridiem carries backwards
+    as a lie rather than as the answer: a callout booked at one in the
+    afternoon and running past twelve came out "1–12am", which reads as one in
+    the MORNING and is the same booking twelve hours wrong. It is not a corner
+    case either — `layoutScheduleDay` clamps every booking that ends on a later
+    day to midnight, so any after-lunch job that runs over lands here, and the
+    twelve-hour rule above cannot catch it because those spans are short.
+    Midnight keeps both halves and says "1pm–12am". */
 export function railSpanLabel(startMin: number, endMin: number): string {
   const from = clockLabel(startMin);
   /* Nothing to span. The board clamps a zero or reversed booking to thirty
      minutes before it ever reaches here, so this is belt and braces. */
   if (endMin <= startMin) return from;
   const to = clockLabel(endMin);
-  if (endMin - startMin >= 12 * 60) return `${from}–${to}`;
+  if (endMin - startMin >= 12 * 60 || endMin >= DAY_MIN) return `${from}–${to}`;
   return `${from.replace(/[ap]m$/, "")}–${to}`;
 }
 
@@ -242,12 +259,18 @@ export function railHours(bounds: RailBounds): number[] {
 }
 
 /** "7 am" · "12" · "5 pm" — the ends say which half of the day they are, the
-    middle doesn't need to. */
+    middle doesn't need to.
+
+    HOUR 24 IS MIDNIGHT, NOT NOON. The rail reaches it whenever a booking is
+    clamped to the end of the day, and `hour < 12` is false up there — so the
+    closing line of a rail running into the night read "12 pm", naming the one
+    hour furthest from where it sits. The clock face is already taken modulo
+    twelve; the half has to be taken modulo twenty-four for the same reason. */
 export function railHourLabel(hour: number, bounds: RailBounds): string {
   const first = bounds.startMin / 60;
   const last = bounds.endMin / 60;
   const h12 = hour % 12 === 0 ? 12 : hour % 12;
-  if (hour === first || hour === last) return `${h12} ${hour < 12 ? "am" : "pm"}`;
+  if (hour === first || hour === last) return `${h12} ${hour % 24 < 12 ? "am" : "pm"}`;
   return String(h12);
 }
 

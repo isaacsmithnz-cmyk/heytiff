@@ -131,6 +131,18 @@ describe("railSpanLabel", () => {
     expect(railSpanLabel(9 * 60, 9 * 60)).toBe("9am");
     expect(railSpanLabel(9 * 60, 8 * 60)).toBe("9am");
   });
+
+  /* THE END THAT IS EARLIER THAN EVERY START THAT REACHES IT. The board
+     clamps a booking finishing on a later day to midnight, so an afternoon
+     callout that runs over arrives as 1pm→24:00 — and the trailing "am"
+     carried back over a bare "1" said one in the MORNING. Twelve hours out,
+     on the row telling somebody when they are working tonight. */
+  it("keeps both halves when the booking runs to midnight", () => {
+    expect(railSpanLabel(13 * 60, 24 * 60)).toBe("1pm–12am");
+    expect(railSpanLabel(17 * 60, 24 * 60)).toBe("5pm–12am");
+    /* A morning start was already safe on span alone; it must stay put. */
+    expect(railSpanLabel(8 * 60, 24 * 60)).toBe("8am–12am");
+  });
 });
 
 describe("the hour scale", () => {
@@ -148,6 +160,19 @@ describe("the hour scale", () => {
     expect(railHourLabel(17, b)).toBe("5 pm");
     expect(railHourLabel(12, b)).toBe("12");
     expect(railHourLabel(15, b)).toBe("3");
+  });
+
+  /* A rail that reaches the end of the day closes on hour 24, and 24 is not
+     less than 12 — so the last line of a rail running into the night named
+     noon, the one hour furthest from where it was drawn. */
+  it("closes a night rail on midnight, not noon", () => {
+    const b = railBounds([job({ startMin: 13 * 60, endMin: 24 * 60 })]);
+    expect(b.endMin).toBe(24 * 60);
+    expect(railHours(b).at(-1)).toBe(24);
+    expect(railHourLabel(24, b)).toBe("12 am");
+    /* Midnight at the OTHER end still reads the same way. */
+    const overnight = railBounds([job({ startMin: 0, endMin: 6 * 60 })]);
+    expect(railHourLabel(0, overnight)).toBe("12 am");
   });
 });
 

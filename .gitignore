@@ -15,8 +15,8 @@
 
 # next.js
 /.next/
-/.next-preview/
-/.next-verify/
+/.next-preview.nosync/
+/.next-verify.nosync/
 /out/
 
 # production

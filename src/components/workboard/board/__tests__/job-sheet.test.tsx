@@ -79,8 +79,16 @@ const setJobPhotoFavourite = jest.fn(
 /* Opening a job card is what puts its photographs in the searchable bank, so
    the reader is part of the card's own loop now. Mocked here for its content,
    and mocked at all for the "use server" reason as ever. */
+/* TYPED, and it has to be: jest transpiles without checking, so a mock whose
+   parameters are unstated makes `mock.calls[n][1]` a tuple index that does not
+   exist — an error the test run never sees and CI always does. The tier
+   argument is the whole point of these assertions, so it must be visible. */
 const readJobPhotos = jest.fn(
-  async (): Promise<{ ok: boolean; read: number; remaining: number; note: string | null }> => ({
+  async (
+    _job: string,
+    _tier?: "bank" | "showcase" | "upgrade",
+    _attachment?: string
+  ): Promise<{ ok: boolean; read: number; remaining: number; note: string | null }> => ({
     ok: true,
     read: 0,
     remaining: 0,
@@ -88,7 +96,8 @@ const readJobPhotos = jest.fn(
   })
 );
 jest.mock("@/app/actions/photo-readings", () => ({
-  readJobPhotos: (...a: unknown[]) => readJobPhotos(...(a as [])),
+  readJobPhotos: (...a: unknown[]) =>
+    readJobPhotos(...(a as [string, ("bank" | "showcase" | "upgrade")?, string?])),
 }));
 jest.mock("@/app/actions/job-photo-favourites", () => ({
   listJobPhotoFavourites: (...a: unknown[]) => listJobPhotoFavourites(...(a as [])),
@@ -2803,8 +2812,34 @@ describe("bringing the bytes across", () => {
 
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    await waitFor(() => expect(readJobPhotos).toHaveBeenCalledTimes(2));
+    /* Two BANK rounds. Counting every call would also count the dataplate
+       upgrade pass that follows, which is a different question. */
+    await waitFor(() =>
+      expect(readJobPhotos.mock.calls.filter((c) => c[1] === undefined)).toHaveLength(2)
+    );
     expect(readJobPhotos).toHaveBeenCalledWith(detail().remoteId);
+  });
+
+  /* THE DATAPLATES ARE READ AGAIN, PROPERLY, AND LAST. Haiku gets every
+     subject right but garbles dense small print confidently — two shots of
+     one outdoor unit gave `PUZ-M125VKA2-A` and `PUZ-M125VKA-A`. On ductwork
+     that costs nothing; on a rating plate it costs the model number. */
+  it("re-reads the dataplates after the bank, never before", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(files());
+    cacheJobFiles.mockResolvedValue({ ok: true, cached: 0, remaining: 0, media: null, note: null });
+    const order: (string | undefined)[] = [];
+    readJobPhotos.mockImplementation(async (...a: unknown[]) => {
+      order.push(a[1] as string | undefined);
+      return { ok: true, read: 1, remaining: 0, note: null };
+    });
+
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await waitFor(() => expect(order).toContain("upgrade"));
+    /* The bank first: a photograph nobody has looked at must never wait
+       behind one being looked at a second time. */
+    expect(order.indexOf(undefined)).toBeLessThan(order.indexOf("upgrade"));
   });
 
   /* THE CAPS ARE A RUNAWAY GUARD, NOT A BUDGET — and at 12 rounds they were
@@ -2843,7 +2878,9 @@ describe("bringing the bytes across", () => {
     await detailLanded();
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 300));
-    expect(readJobPhotos.mock.calls.length).toBeLessThanOrEqual(2);
+    /* The BANK pass only. The dataplate upgrade runs its own loop afterwards
+       with its own brake, and counting both would test neither. */
+    expect(readJobPhotos.mock.calls.filter((c) => c[1] === undefined).length).toBeLessThanOrEqual(2);
   });
 
   /* AND WHAT IS LEFT IS SAID OUT LOUD. Whatever stops the loop — the cap, a
@@ -2919,7 +2956,9 @@ describe("bringing the bytes across", () => {
     await detailLanded();
     await waitFor(() => expect(readJobPhotos).toHaveBeenCalled());
     /* One round that made no headway is enough — never a third. */
-    await waitFor(() => expect(readJobPhotos.mock.calls.length).toBeLessThanOrEqual(2));
+    await waitFor(() =>
+      expect(readJobPhotos.mock.calls.filter((c) => c[1] === undefined).length).toBeLessThanOrEqual(2)
+    );
   });
 
 

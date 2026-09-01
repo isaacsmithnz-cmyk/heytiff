@@ -78,6 +78,36 @@ const NOTHING: ReadPhotosResult = { ok: false, read: 0, remaining: 0, note: null
 const BANK_MODEL = "claude-haiku-4-5";
 const SHOWCASE_MODEL = "claude-opus-5";
 
+/** Which reading is being asked for.
+
+      bank      everything, cheaply — Haiku, on every photo a job holds
+      showcase  one named photo, because somebody starred it
+      upgrade   THE DATAPLATES, because that is where Haiku's one real
+                weakness lands
+
+    WHY DATAPLATES GET A SECOND LOOK. Measured on two photographs of the same
+    outdoor unit, read minutes apart:
+
+        PUZ-M125VKA2-A     correct
+        PUZ-M125VKA-A      the `2` dropped
+
+    Haiku gets the subject right every time and gets everything a person is
+    likely to type — brand, capacity, refrigerant — but it garbles dense small
+    print CONFIDENTLY, inventing plausible strings rather than omitting them.
+    On a photograph of ductwork that costs nothing: nobody searches the exact
+    wording of a compliance label. On a DATAPLATE it costs the one thing the
+    picture exists for, because a wrong serial in an index is worse than a
+    missing one — the search finds nothing while the row insists otherwise.
+
+    A prefix search survives it (`PUZ-M125` matches both spellings) but an
+    exact one does not, and an exact model number is precisely what somebody
+    types when they have the part in their hand.
+
+    It is affordable because it is rare: 14 of the first 244 photographs read,
+    5.7%. Reading the whole bank with Opus would be seven times the price for
+    a gain confined to this slice. */
+export type PhotoReadTier = "bank" | "showcase" | "upgrade";
+
 /** How many photos one call reads. Small enough that a serverless invocation
     finishes comfortably — a vision call is a few seconds — and big enough
     that a 90-photo job is a manageable number of rounds. */
@@ -99,7 +129,7 @@ const MAX_EDGE = 1568;
 export async function readJobPhotos(
   jobUuid: string,
   /** Which tier reads. The bank gets Haiku; a star re-reads with Opus. */
-  tier: "bank" | "showcase" = "bank",
+  tier: PhotoReadTier = "bank",
   /** ONE PHOTO, NAMED. Without this the showcase tier was unusable: its queue
       is photos that are UNREAD, and a starred photo has by definition already
       been read by the bank — so the star skipped its own photograph and spent
@@ -119,10 +149,10 @@ export async function readJobPhotos(
 
 async function readJobPhotosInner(
   jobUuid: string,
-  tier: "bank" | "showcase",
+  tier: PhotoReadTier,
   attachmentUuid?: string
 ): Promise<ReadPhotosResult> {
-  const model = tier === "showcase" ? SHOWCASE_MODEL : BANK_MODEL;
+  const model = tier === "bank" ? BANK_MODEL : SHOWCASE_MODEL;
   const { orgId } = await requireOrg("workboard");
   const job = (jobUuid ?? "").trim().slice(0, 80);
   if (!job) return NOTHING;
@@ -183,11 +213,35 @@ async function readJobPhotosInner(
     ((doneRows ?? []) as { sm8_attachment_uuid: string }[]).map((r) => r.sm8_attachment_uuid)
   );
 
+  /* THE UPGRADE TIER READS WHAT IS ALREADY READ — the only queue here that
+     does. Its members are the dataplates the cheap model has looked at, and
+     the unique index makes each re-read an overwrite of the row it improves.
+     Nothing else is touched: a photograph of ductwork read by Haiku stays
+     read by Haiku forever, which is the whole reason this is affordable. */
+  let upgradeIds = new Set<string>();
+  if (tier === "upgrade") {
+    const { data: plates } = await supabaseAdmin
+      .from("job_photo_readings")
+      .select("sm8_attachment_uuid")
+      .eq("org_id", orgId)
+      .eq("subject", "dataplate")
+      .eq("read_model", BANK_MODEL)
+      .in(
+        "sm8_attachment_uuid",
+        held.map((d) => d.remote_ref as string)
+      );
+    upgradeIds = new Set(
+      ((plates ?? []) as { sm8_attachment_uuid: string }[]).map((r) => r.sm8_attachment_uuid)
+    );
+  }
+
   /* A NAMED PHOTO BYPASSES THE UNREAD FILTER — that is the whole point of
      naming it. Everything else takes the queue of what has never been read. */
   const queue = attachmentUuid
     ? held.filter((d) => d.remote_ref === attachmentUuid)
-    : held.filter((d) => !done.has(d.remote_ref as string));
+    : tier === "upgrade"
+      ? held.filter((d) => upgradeIds.has(d.remote_ref as string))
+      : held.filter((d) => !done.has(d.remote_ref as string));
   if (queue.length === 0) return { ok: true, read: 0, remaining: 0, note: null };
 
   /* The job's own facts, snapshotted onto every reading — so a result can

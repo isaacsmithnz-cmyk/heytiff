@@ -459,6 +459,25 @@ export function JobSheet({
         last = res.remaining;
         if (res.remaining === 0) break;
       }
+
+      /* AND THEN THE DATAPLATES, AGAIN, PROPERLY. The cheap model reads every
+         photograph well enough to find it, but it garbles dense small print
+         confidently — two shots of the same unit gave `PUZ-M125VKA2-A` and
+         `PUZ-M125VKA-A`. On ductwork that costs nothing. On a rating plate it
+         costs the model number, which is the one string somebody types with
+         the part in their hand.
+
+         LAST, and deliberately: it is the only pass that re-reads work
+         already done, so it must never delay a photograph that has not been
+         looked at at all. Rare enough to afford — 5.7% of the bank. */
+      let plates = Number.POSITIVE_INFINITY;
+      for (let round = 0; live && round < MAX_READ_ROUNDS; round++) {
+        const res = await readJobPhotos(cardId, "upgrade");
+        if (!live) return;
+        if (!res.ok || res.read === 0 || res.remaining >= plates) break;
+        plates = res.remaining;
+        if (res.remaining === 0) break;
+      }
     };
     void pump();
     return () => {

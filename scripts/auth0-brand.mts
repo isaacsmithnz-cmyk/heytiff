@@ -53,6 +53,7 @@ import { heytiffTheme, heytiffBranding } from "../src/lib/brand/auth0/theme.ts";
 import { heytiffEmailTemplates } from "../src/lib/brand/auth0/templates.ts";
 import { heytiffPageTemplate } from "../src/lib/brand/auth0/page-template.ts";
 import { signInPreview, signInStatesPreview } from "../src/lib/brand/auth0/preview.ts";
+import { PROMPT_TEXT, PROMPT_LANGUAGE } from "../src/lib/brand/auth0/prompts.ts";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -193,6 +194,30 @@ async function pushTheme() {
   record("theme", false, scopeHint("read:branding", found.status, found.text));
 }
 
+/* The widget's words. Separate from the theme because Auth0 keys them by
+   prompt and language, and separate from the page template because they land
+   on a free tenant. */
+async function pushPromptText() {
+  for (const [prompt, text] of Object.entries(PROMPT_TEXT)) {
+    /* PUT, and Auth0's own note is that it "replaces all existing
+       configuration data" for this prompt and language — so what is sent is
+       the whole of what we want customised, and every key left out falls
+       back to Auth0's default on purpose. */
+    const res = await mgmt(
+      "PUT",
+      `/prompts/${prompt}/custom-text/${PROMPT_LANGUAGE}`,
+      text,
+    );
+    record(
+      `prompt text ${prompt}`,
+      res.status === 200 || res.status === 204,
+      res.status < 300
+        ? `updated (${PROMPT_LANGUAGE})`
+        : scopeHint("update:prompts", res.status, res.text),
+    );
+  }
+}
+
 async function pushBranding() {
   const res = await mgmt("PATCH", "/branding", branding);
   record(
@@ -222,14 +247,22 @@ async function pushEmails() {
       continue;
     }
 
-    /* A tenant that has never had this template needs a create, and a create
-       needs `from` and `enabled` — the two fields this script otherwise
-       refuses to decide. Rather than invent them, it says so. */
+    /* AUTH0 DOES NOT SEED THESE. A tenant that has never had a template
+       saved answers 404 here and sends Auth0's own default mail instead —
+       which is the state this tenant is in, so a 404 is normal, not damage.
+
+       Creating one needs `from` AND `enabled`, and `enabled` is the reason
+       this script will not do it unprompted: the letters differ in whether
+       Auth0 sends them by default (the welcome mail is off), so a blanket
+       `enabled: true` would start sending mail nobody asked for and a
+       blanket false would silence a verification people depend on. Saving
+       each once in the dashboard makes that decision explicitly, and
+       everything after that is this script's to keep current. */
     if (existing.status === 404) {
       record(
         `email ${t.template}`,
         false,
-        "not present in the tenant. Creating one requires a `from` address and an enabled/disabled decision, which are yours — open it once in Branding → Email Templates, save, then re-run.",
+        "not in the tenant yet — Auth0 is sending its own default. Open it once in Branding → Email Templates and save (that sets the `from` and the on/off decision, both of which are yours), then re-run and the HeyTiff body lands.",
       );
       continue;
     }
@@ -253,8 +286,18 @@ async function pushPageTemplate() {
   if (res.status === 201 || res.status === 204 || res.status === 200) {
     return record("sign-in page template", true, "updated");
   }
-  /* Auth0 refuses the template outright without a custom domain. That is a
-     prerequisite, not a bug, and it must read like one. */
+  /* TWO PREREQUISITES, AND THE PLAN ONE ANSWERS FIRST. The documented gate is
+     a custom domain — but a free tenant cannot buy one, so it never gets as
+     far as saying so: it answers 402 on this endpoint. Both are
+     configuration rather than bugs, and each names the thing that is
+     actually missing. */
+  if (res.status === 402) {
+    return record(
+      "sign-in page template",
+      false,
+      "skipped — page templates need a PAID Auth0 plan (402). Custom domains, which they also require, are part of the same paid tier. The theme above is live regardless, and is what makes the widget look like HeyTiff.",
+    );
+  }
   if (/custom domain/i.test(res.text)) {
     return record(
       "sign-in page template",
@@ -329,6 +372,7 @@ async function main() {
 
   await pushTheme();
   await pushBranding();
+  await pushPromptText();
   await pushEmails();
   await pushPageTemplate();
 

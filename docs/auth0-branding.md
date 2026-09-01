@@ -54,6 +54,7 @@ argument in full.
 | --- | --- | --- |
 | Widget theme — colours, radii, the Jakarta face, the logo | `PATCH /branding/themes/{id}` | `update:branding` |
 | Logo, favicon, font, primary colour | `PATCH /branding` | `update:branding` |
+| The widget's wording | `PUT /prompts/login/custom-text/en` | `update:prompts` |
 | Seven email templates | `PATCH /email-templates/{name}` | `update:email_templates` |
 | The page around the widget | `PUT /branding/templates/universal-login` | `update:branding` **and a custom domain** |
 
@@ -80,7 +81,7 @@ Auth0 dashboard → **Applications → APIs → Auth0 Management API → Machine
 Machine Applications** → find the application → **Authorized** → tick:
 
 `read:branding`, `update:branding`, `read:email_templates`,
-`update:email_templates`
+`update:email_templates`, `update:prompts`
 
 This is the same grant [the sign-in-address change](./auth0-management-grant.md)
 uses for `update:users`. If a scope is missing the script says which one, by
@@ -114,26 +115,103 @@ and is the wider grant.
 The tenant is on Auth0's built-in development provider, which is rate-limited,
 not for production, and **cannot take a custom template**. Until a real one is
 configured under **Branding → Email Provider**, the letters in this repo are
-written, tested and unsendable, and the script reports that in those words
-rather than as a failure.
+written, tested and unsendable.
 
 This is the same gap that makes an invite a copied link rather than a message
 (`app/actions/invite.ts`). One provider closes both.
 
-### 3. A custom domain, for the page template only
+**Auth0 does not seed the templates, either.** A tenant that has never saved
+one answers `GET /email-templates/{name}` with a 404 and sends Auth0's own
+default mail — which is this tenant's state today. Creating one over the API
+needs a `from` address *and* an `enabled` decision, and the script refuses to
+make the second one: the letters differ in whether Auth0 sends them by
+default (the welcome mail is off), so a blanket `enabled: true` would start
+sending mail nobody asked for and a blanket `false` would silence a
+verification people depend on.
+
+So each template gets opened once in **Branding → Email Templates** and
+saved — that one action sets the `from` and the on/off decision, both of which
+are yours. Every push after that is this script's to keep current.
+
+### 3. A paid plan, for the page template only
+
+Auth0 documents the gate as a custom domain:
 
 > To use customized page templates, you must configure a Custom Domain for
 > your tenant.
 > — [Auth0](https://auth0.com/docs/customize/login-pages/universal-login/customize-templates)
 
-**Everything else lands without one.** The theme — logo, every colour, the
-real Jakarta face, radii, page ground — is not gated, so the sign-in widget
-looks like HeyTiff on the default `*.auth0.com` domain today.
+**In practice the plan answers first.** A free tenant cannot buy a custom
+domain, so it never gets as far as saying so — `PUT
+/branding/templates/universal-login` returns:
 
-What the custom domain adds is `src/lib/brand/auth0/page-template.ts`: the
-page *around* the widget, with the app's own light behind it. It is written
-and tested already; the script attempts it and, on a tenant without a domain,
-skips it with that reason on the line. Nothing else to do afterwards.
+```
+402 {"statusCode":402,"error":"Payment Required",
+     "message":"A paid subscription is required for this feature."}
+```
+
+Confirmed against the live tenant on 2026-09-01.
+
+**Everything else lands without either.** The theme — logo, every colour, the
+real Jakarta face, radii, page ground — is not gated, and is what makes the
+widget look like HeyTiff on the default `*.auth0.com` domain. That part is
+**live now**.
+
+What the paid tier adds is `src/lib/brand/auth0/page-template.ts`: the page
+*around* the widget, with the app's own light behind it. Written and tested
+already; the script attempts it every run and skips with the reason on the
+line. Nothing else to do afterwards.
+
+## The sentence under the logo
+
+The first live push left the widget reading:
+
+> Log in to **dev-zuqpsxjwzz45pr0u** to continue to Heytiff.
+
+That is Auth0's own default, `Log in to ${companyName} to continue to
+${clientName}.` — where `companyName` is the tenant's **Friendly Name**
+(never set, so it falls back to the raw tenant id) and `clientName` is the
+**application's name** (spelled `Heytiff`).
+
+**Two ways to fix it, and this repo takes the second.** Setting the tenant's
+Friendly Name in the dashboard would make the sentence read correctly and
+leave Auth0 owning it — a value typed into an admin UI, invisible from here,
+still phrased in Auth0's voice. Overriding the prompt text moves the sentence
+into `src/lib/brand/auth0/prompts.ts`, where it is reviewed and versioned like
+every other string on the sign-in screen. That is the argument for the whole
+directory, so it holds here too.
+
+It also fixes a **second, invisible copy of the same bug**: `logoAltText`
+defaults to `${companyName}`, so the logo's alternative text — what a screen
+reader announces, and the only HeyTiff anyone gets if the image fails — was
+reading the tenant id too.
+
+### Why the line does not say "HeyTiff"
+
+Correcting both fields would have produced *"Sign in to HeyTiff to continue to
+HeyTiff"*, and the doubling — not the tenant id — is what makes that sentence
+read badly. Even the single-mention version, *"Sign in to HeyTiff."*, is the
+screen saying the same thing twice: the lockup is 40px above it, in the
+brand's own letters.
+
+So the logo says **who** and the line says **what**:
+
+> **Welcome**
+> Sign in to continue.
+
+"Sign in", not Auth0's "Log in", because that is the verb the app uses
+everywhere else — the front door, the profile's *sign-in address*, the invite
+copy. One flow should not disagree with itself about what the user is doing.
+
+**Only the two wrong keys are sent.** The PUT "replaces all existing
+configuration data" for that prompt and language, and every key left out falls
+back to Auth0's default — which is what is wanted for `title`, `buttonText`
+and `forgotPasswordText`, all of which were already right. Restating them
+would be ten strings to keep in step with a vendor's copy for the sake of two.
+
+`signup` and `reset-password` carry the same `${companyName}` default and will
+want the same treatment; each has its own screens and key names, and those get
+read off Auth0's published table rather than guessed.
 
 ## The assets
 

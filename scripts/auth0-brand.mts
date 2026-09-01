@@ -54,6 +54,7 @@ import { heytiffEmailTemplates } from "../src/lib/brand/auth0/templates.ts";
 import { heytiffPageTemplate } from "../src/lib/brand/auth0/page-template.ts";
 import { signInPreview, signInStatesPreview } from "../src/lib/brand/auth0/preview.ts";
 import { PROMPT_TEXT, PROMPT_LANGUAGE } from "../src/lib/brand/auth0/prompts.ts";
+import { resolveTenantDomain } from "../src/lib/integrations/auth0-tenant-domain.ts";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -62,7 +63,11 @@ const OUT = "tmp/auth0-preview";
 
 /* ── environment ────────────────────────────────────────────────────────── */
 
-const DOMAIN = req("AUTH0_DOMAIN");
+/* The Management API's host, which stops being AUTH0_DOMAIN the moment a
+   custom domain exists — see src/lib/integrations/auth0-tenant-domain.ts. */
+const resolved = resolveTenantDomain(process.env);
+if (!resolved.ok) fail(resolved.reason);
+const DOMAIN = resolved.domain;
 const BASE_URL = req("APP_BASE_URL");
 const usingDedicated = Boolean(
   process.env.AUTH0_BRANDING_CLIENT_ID && process.env.AUTH0_BRANDING_CLIENT_SECRET,

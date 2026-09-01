@@ -74,7 +74,9 @@ verify-then-switch dance available without a mailer, so the address changes on
 submit. The guard is that the new address must be typed twice; past that,
 getting it wrong means being unable to sign in.
 
-The session cookie is not reissued, either — it carries the old address until
-the next sign-in. The card shows the new one from its own state after a
-successful change, because the stale prop would otherwise print the old
-address directly above the message saying it had changed.
+The session cookie is not reissued by Auth0 either — `session.user.email` is a
+claim minted at LOGIN. The action rewrites the cookie itself via
+`auth0.updateSession` so the whole app sees the new address immediately;
+before that was added, a real change looked like it had silently failed:
+Auth0 had the new address, `profiles` had it, and every screen still rendered
+the old one until the person signed out and back in.

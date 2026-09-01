@@ -53,10 +53,15 @@ const SAYS: Record<MgmtError, string> = {
 };
 
 export async function changeMySignInEmail(next: string): Promise<EmailChangeOutcome> {
+  /* Narrowed in one step so the session itself stays non-null for
+     `updateSession` below — checking `userId` alone leaves TypeScript
+     believing the session could still be missing when the cookie is
+     rewritten, and the cast that silenced that would be the one place a
+     signed-out caller slipped through. */
   const session = await auth0.getSession();
-  const userId = session?.user?.sub as string | undefined;
-  const current = (session?.user?.email as string | undefined) ?? null;
-  if (!userId) return { ok: false, error: "You need to be signed in." };
+  if (!session?.user?.sub) return { ok: false, error: "You need to be signed in." };
+  const userId = session.user.sub;
+  const current = session.user.email ?? null;
 
   if (!isAuth0ManagementConfigured()) return { ok: false, error: SAYS.NOT_CONFIGURED };
 
@@ -76,6 +81,32 @@ export async function changeMySignInEmail(next: string): Promise<EmailChangeOutc
     await supabaseAdmin.from("profiles").update({ email }).eq("user_id", userId);
   } catch {
     /* The address HAS moved. Failing here would report a lie. */
+  }
+
+  /* THE SESSION COOKIE IS NOT REISSUED BY AN EMAIL CHANGE, and until this
+     was here that made the whole screen look broken: Auth0 had the new
+     address, `profiles` had it, and every page still rendered the old one —
+     because `session.user.email` is a claim minted at LOGIN and nothing had
+     minted a new one. Isaac hit exactly that, changed his address, verified
+     it, and came back to the old one on both Sign-in and Summary.
+
+     `updateSession` rewrites the cookie in place, which the SDK documents as
+     supported in Server Actions. Only `email` is touched — the rest of the
+     claims are still the ones the login issued, and inventing fresher values
+     for them would be guessing. `email_verified` is deliberately NOT written:
+     Auth0 holds the truth about that and it changes again the moment the
+     person clicks the link in the mail.
+
+     Best effort, like the two writes above it. The address HAS moved; a
+     stale cookie is a display problem, and failing here would report that
+     nothing happened when everything did. */
+  try {
+    await auth0.updateSession({
+      ...session,
+      user: { ...session.user, email },
+    });
+  } catch {
+    /* Falls back to what it did before: correct after the next sign-in. */
   }
 
   /* Never fatal: the sign-in address has already changed, and reporting

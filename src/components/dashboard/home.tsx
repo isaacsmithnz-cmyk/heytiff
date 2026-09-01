@@ -111,28 +111,6 @@ export function DashboardHome({ data }: { data: DashboardData }) {
               <span className="hm-pdate">{fmtAuWeekdayDateLong(today)}</span>
             </h1>
 
-            {/* Absent at zero, all three of them. "Nothing is past its date"
-                is what an empty head says, and it says it by being empty —
-                the same argument the badges made on the tabs they replaced. */}
-            {(bad > 0 || warn > 0 || unread > 0) && (
-              <nav className="hm-glance" aria-label="Needs you">
-                {bad > 0 && (
-                  <Link className="hm-gl dan" href="/dashboard/action-required">
-                    <b>{bad}</b> past {bad === 1 ? "its" : "their"} date
-                  </Link>
-                )}
-                {warn > 0 && (
-                  <Link className="hm-gl warn" href="/dashboard/action-required">
-                    <b>{warn}</b> coming up
-                  </Link>
-                )}
-                {unread > 0 && (
-                  <Link className="hm-gl" href="/dashboard/notices">
-                    <b>{unread}</b> unread
-                  </Link>
-                )}
-              </nav>
-            )}
           </header>
 
           <div className="hm-desk">
@@ -158,12 +136,34 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 idPrefix="hmtab"
                 panelPrefix="hmsec"
               >
-                {/* THE DAY THE CARD IS SHOWING, in the strip's cap. The page
-                    head says the date in full; this says it again, short, at
-                    the far end of the tabs — because the faces under it are
-                    all about THIS day, and the card scrolls away from the
-                    head. What may never come back into this cap is a second
-                    Tiff button: the frame's is one press from every screen. */}
+                {/* THE GLANCE LIVES ON THE CARD NOW (Isaac, 2026-09-01) —
+                    floating beside the heading it read as furniture someone
+                    generated, not part of the thing it was counting for.
+                    Absent at zero, all three: "nothing is past its date" is
+                    said by not being here. Still doors — the screens behind
+                    them say more than a panel ever did. */}
+                {(bad > 0 || warn > 0 || unread > 0) && (
+                  <nav className="hm-glance" aria-label="Needs you">
+                    {bad > 0 && (
+                      <Link className="hm-gl dan" href="/dashboard/action-required">
+                        <b>{bad}</b> past {bad === 1 ? "its" : "their"} date
+                      </Link>
+                    )}
+                    {warn > 0 && (
+                      <Link className="hm-gl warn" href="/dashboard/action-required">
+                        <b>{warn}</b> coming up
+                      </Link>
+                    )}
+                    {unread > 0 && (
+                      <Link className="hm-gl" href="/dashboard/notices">
+                        <b>{unread}</b> unread
+                      </Link>
+                    )}
+                  </nav>
+                )}
+                {/* THE DAY THE CARD IS SHOWING, at the strip's far end. What
+                    may never come back into this cap is a second Tiff button:
+                    the frame's is one press from every screen. */}
                 <span className="hm-cardday">{fmtAuWeekdayDayMonth(today)}</span>
               </ViewTabs>
 

@@ -77,4 +77,9 @@ export const okActions = () => ({
   onRemoveLicence: jest.fn().mockResolvedValue({ ok: true }),
   onSetPhoto: jest.fn().mockResolvedValue({ ok: true }),
   onClearPhoto: jest.fn().mockResolvedValue({ ok: true }),
+  /* Self-mode only in the real page. Present here so the screen's own filter
+     is what the tests exercise, rather than the fixture happening to omit it. */
+  onChangeSignInEmail: jest
+    .fn()
+    .mockResolvedValue({ ok: true, email: "new@example.com", verificationSent: true }),
 });

@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { Icon } from "@/components/shell/icon";
 import { AddressField } from "@/components/address/address-field";
+import { SignInEmailModal } from "./signin-email-modal";
+import type { EmailChangeOutcome } from "@/app/actions/account";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
 import { preValidate } from "@/lib/staff/pre-validate";
@@ -51,6 +55,7 @@ export function PersonalCard({
   profile,
   mode,
   email,
+  onChangeSignInEmail,
   addressLookup = false,
   today,
   orgState = null,
@@ -58,6 +63,12 @@ export function PersonalCard({
   onSave,
 }: {
   profile: StaffProfile | null;
+  /* Present only on your OWN card — the action moves whoever the session is,
+     so an admin viewing a colleague is handed nothing and the row stays the
+     read-only fact it has always been. Handed in rather than imported: a
+     client component that imports a `"use server"` module drags Next's
+     server runtime into every jsdom suite that renders this screen. */
+  onChangeSignInEmail?: (next: string) => Promise<EmailChangeOutcome>;
   mode: ProfileMode;
   /** the sign-in address. Shown, never edited: it is the Auth0 identity, not
       a column this card's allowlist can reach. */
@@ -95,6 +106,15 @@ export function PersonalCard({
      There is no empty state. A blank card renders the same four panels with a
      "+ Add" in every value slot, which is strictly more useful than a
      paragraph explaining that it's blank. */
+  /* The new address, held until the session catches up. `email` comes from
+     the Auth0 session, and although the action now rewrites that cookie, the
+     already-rendered server component still holds the claim it was given —
+     so without this the row would show the old address until a navigation. */
+  const [changed, setChanged] = useState<{ email: string; verificationSent: boolean } | null>(
+    null,
+  );
+  const [emailOpen, setEmailOpen] = useState(false);
+
   const body = ({ editing, draft, set, invalid, edit, errorFor }: SectionBodyContext) => (
     <DetailPanels>
       <DetailPanel title="Identity">
@@ -164,8 +184,24 @@ export function PersonalCard({
       </DetailPanel>
 
       <DetailPanel title="Contact">
-        {/* no control: you change this by changing how you sign in */}
-        <Detail label="Email" value={email} small />
+        {/* NOT AN EDITABLE FIELD, and deliberately not part of this card's
+            save. It is the address you SIGN IN with, so moving it moves an
+            account rather than a detail — it goes through its own action,
+            behind its own confirmation, and only on your own card. The row
+            was always read-only here; what is new is that it now says where
+            you go to change it instead of leaving you to guess. */}
+        <Detail
+          label="Email"
+          value={changed?.email ?? email}
+          small
+          action={
+            onChangeSignInEmail && !editing ? (
+              <button type="button" className="pdact" onClick={() => setEmailOpen(true)}>
+                Change
+              </button>
+            ) : undefined
+          }
+        />
         <Detail
           label="Mobile"
           req
@@ -354,16 +390,44 @@ export function PersonalCard({
   );
 
   return (
-    <SectionCard
-      variant="section"
-      icon="user"
-      title="Personal details"
-      sub="Identity, contact, employment & uniform sizes"
-      values={values}
-      startEditing={startEditing}
-      onSave={(fields) => onSave("personal", fields)}
-      validate={(fields) => preValidate(mode, "personal", fields)}
-      body={body}
-    />
+    <>
+      <SectionCard
+        variant="section"
+        icon="user"
+        title="Personal details"
+        sub="Identity, contact, employment & uniform sizes"
+        values={values}
+        startEditing={startEditing}
+        onSave={(fields) => onSave("personal", fields)}
+        validate={(fields) => preValidate(mode, "personal", fields)}
+        body={body}
+      />
+      {emailOpen && onChangeSignInEmail && (
+        <SignInEmailModal
+          current={changed?.email ?? email ?? null}
+          onChange={onChangeSignInEmail}
+          onClose={() => setEmailOpen(false)}
+          onChanged={(email, verificationSent) => setChanged({ email, verificationSent })}
+        />
+      )}
+
+      {/* WHAT STILL HAS TO HAPPEN, and it must outlive the dialog. Closing on
+          success and updating the row silently loses the one instruction that
+          matters — the address has moved, but it is UNVERIFIED until someone
+          opens that inbox, and nothing else on this screen will ever say so.
+          It sits under the card because that is where the eye already is when
+          the dialog gets out of the way. */}
+      {changed && (
+        <p className="pacct-ok">
+          <Icon name="check" size={14} />
+          <span>
+            You sign in as <b>{changed.email}</b> from now on.{" "}
+            {changed.verificationSent
+              ? "Check that inbox for a message asking you to verify it."
+              : "The verification message couldn’t be sent — verify it from Auth0 when you can."}
+          </span>
+        </p>
+      )}
+    </>
   );
 }

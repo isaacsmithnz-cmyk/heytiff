@@ -118,6 +118,12 @@ export function Detail({
   sub,
   /** shown under the control while editing, when the last save rejected it */
   error,
+  /** A control for a row whose value is PRESENT — the way `onAdd` serves a
+      row whose value is missing. It exists for the sign-in email: a fact this
+      card must show but must not edit as part of its nine-field save, because
+      changing it moves an account rather than a detail. Read mode only; a row
+      being edited already has its control. */
+  action,
 }: {
   label: string;
   value?: ReactNode;
@@ -129,6 +135,7 @@ export function Detail({
   small?: boolean;
   sub?: ReactNode;
   error?: string | null;
+  action?: ReactNode;
 }) {
   const empty = value === null || value === undefined || value === "";
   const live = editing && control;
@@ -164,7 +171,10 @@ export function Detail({
         {live ? (
           control
         ) : !empty ? (
-          <span className={small ? "pdv sm" : "pdv"}>{value}</span>
+          <>
+            <span className={small ? "pdv sm" : "pdv"}>{value}</span>
+            {action}
+          </>
         ) : onAdd ? (
           <button type="button" className="padd" onClick={onAdd}>
             <span aria-hidden="true">+</span>

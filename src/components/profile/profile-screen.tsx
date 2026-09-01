@@ -20,7 +20,6 @@ import { PayrollCard } from "./payroll-card";
 import { PermissionsCard } from "./permissions-card";
 import { NotesCard } from "./notes-card";
 import { MyPayCard } from "./my-pay-card";
-import { SignInCard } from "./signin-card";
 import {
   sectionFromParam,
   type AdminExtras,
@@ -75,7 +74,6 @@ const NAV_ITEMS: NavItem[] = [
   { key: "workrights", label: "Work rights" },
   { key: "training", label: "Training" },
   { key: "mypay", label: "My pay" },
-  { key: "signin", label: "Sign-in" },
   { key: "payroll", label: "Payroll", admin: true },
   { key: "permissions", label: "Permissions", admin: true },
   { key: "notes", label: "Notes", admin: true },
@@ -132,11 +130,6 @@ export function ProfileScreen({
     if (n.key === "permissions") return showPermissions;
     if (n.key === "notes") return showNotes;
     if (n.key === "mypay") return showMyPay;
-    /* NEVER ON SOMEBODY ELSE'S CARD. `changeMySignInEmail` acts on the
-       session, so this tab on an admin's view of a colleague would offer to
-       change the ADMIN's address while showing the colleague's name — the
-       most confusing possible way to be wrong. */
-    if (n.key === "signin") return mode === "self";
     return true;
   });
 
@@ -266,6 +259,14 @@ export function ProfileScreen({
                     today={today}
                     orgState={orgState}
                     email={header.email}
+                    /* SELF ONLY, and passing it is the gate. The action moves
+                       whoever the SESSION is, so on an admin's view of a
+                       colleague it would change the admin's own address while
+                       showing the colleague's name. Personal renders the
+                       control only when handed one. */
+                    onChangeSignInEmail={
+                      mode === "self" ? actions.onChangeSignInEmail : undefined
+                    }
                     startEditing={startEditing > 0}
                     onSave={actions.onSave}
                   />
@@ -301,12 +302,7 @@ export function ProfileScreen({
                 )}
                 {active === "training" && <TrainingCard />}
                 {active === "mypay" && myPay && <MyPayCard pay={myPay} />}
-                {active === "signin" && mode === "self" && actions.onChangeSignInEmail && (
-                  <SignInCard
-                    email={header.signInEmail ?? null}
-                    onChange={actions.onChangeSignInEmail}
-                  />
-                )}
+
                 {active === "payroll" && showPayroll && (
                   <PayrollCard
                     pay={extras.payroll ?? null}

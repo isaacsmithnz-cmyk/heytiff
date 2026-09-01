@@ -111,16 +111,25 @@ describe("self mode — My profile", () => {
       "Work rights",
       "Training",
       "My pay",
-      "Sign-in",
     ]);
   });
 
-  it("offers Sign-in — the one section that isn’t part of the staff card", () => {
-    /* Everything before it is a slice of one staff-profile save. This writes
-       to the identity provider, and it is here because "My profile" is the
-       only screen that is unambiguously about YOU. */
+  it("puts Change on the Email row it already had", async () => {
+    /* The address lives with your details, which is where it always was —
+       what changed is that the row now says how to move it. */
     setup();
-    expect(navLabels()).toContain("Sign-in");
+    await userEvent.click(screen.getByRole("tab", { name: /Personal/ }));
+    expect(screen.getByRole("button", { name: /^Change$/ })).toBeInTheDocument();
+  });
+
+  it("has NO tab for the sign-in address", () => {
+    /* It had one, briefly, and it was a section holding a single read-only
+       row — while Personal already showed the same address, because
+       `header.email` IS the account address. One fact, two homes, one of them
+       existing only to hold a form. The row it duplicated opens a dialog
+       instead (Isaac, 2026-09-01). */
+    setup();
+    expect(navLabels()).not.toContain("Sign-in");
   });
 
   it("drops My pay from the nav when there is no pay payload", () => {
@@ -136,13 +145,20 @@ describe("self mode — My profile", () => {
 });
 
 describe("admin mode — Team", () => {
-  it("NEVER offers Sign-in on somebody else’s card", () => {
-    /* `changeMySignInEmail` acts on the session, so this tab on an admin's
-       view of a colleague would offer to change the ADMIN's own address
-       while showing the colleague's name — the most confusing possible way
-       to be wrong, and one nobody would notice until it had happened. */
+  it("NEVER offers to change the sign-in address on somebody else’s card", async () => {
+    /* THE GUARD THAT REPLACED THE TAB FILTER. `changeMySignInEmail` moves
+       whoever the SESSION is, so this control on an admin's view of a
+       colleague would change the admin's own address while showing the
+       colleague's name — the most confusing possible way to be wrong, and one
+       nobody would notice until it had happened. The screen withholds the
+       action; Personal renders the button only when handed one. */
     setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } });
-    expect(navLabels()).not.toContain("Sign-in");
+    /* ON THE PERSONAL TAB, which is the whole point — the first version of
+       this test asserted against the Summary tab, where the row does not
+       render at all, and passed just as happily with the guard removed. */
+    await userEvent.click(screen.getByRole("tab", { name: /Personal/ }));
+    expect(screen.getByText("Email")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Change$/ })).toBeNull();
   });
 
   it("renders an admin section only when the page passed it", () => {

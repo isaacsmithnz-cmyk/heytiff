@@ -10,8 +10,13 @@
 const patched: { userId: string; email: string }[] = [];
 const verified: string[] = [];
 const profileUpdates: { patch: Record<string, unknown>; userId: string }[] = [];
+const sessionWrites: Record<string, unknown>[] = [];
+let sessionWriteThrows = false;
 
-let session: { user: { sub?: string; email?: string } } | null = {
+/* Open on purpose: a real session carries name, picture, email_verified and
+   whatever else the login minted, and the "leaves every other claim alone"
+   test has to be able to put them there. */
+let session: { user: { sub?: string; email?: string; [claim: string]: unknown } } | null = {
   user: { sub: "auth0|isaac", email: "isaac@old.com" },
 };
 let configured = true;
@@ -19,7 +24,18 @@ let setResult: { ok: boolean; error?: string } = { ok: true };
 let verifyResult: { ok: boolean; error?: string } = { ok: true };
 
 jest.mock("@/lib/auth0", () => ({
-  auth0: { getSession: async () => session },
+  auth0: {
+    getSession: async () => session,
+    /* THE MOCK HAS TO HAVE THIS, and the first version of it did not — so
+       `updateSession` was undefined, calling it threw, the action's own
+       try/catch swallowed the TypeError, and every test passed while the
+       cookie was never rewritten. A fake that omits a method does not fail
+       loudly; it fails silently in exactly the shape of a working system. */
+    updateSession: async (next: Record<string, unknown>) => {
+      if (sessionWriteThrows) throw new Error("cookie jar unavailable");
+      sessionWrites.push(next);
+    },
+  },
 }));
 
 jest.mock("next/cache", () => ({ revalidatePath: () => {} }));
@@ -57,6 +73,8 @@ beforeEach(() => {
   patched.length = 0;
   verified.length = 0;
   profileUpdates.length = 0;
+  sessionWrites.length = 0;
+  sessionWriteThrows = false;
   session = { user: { sub: "auth0|isaac", email: "isaac@old.com" } };
   configured = true;
   setResult = { ok: true };
@@ -167,6 +185,42 @@ describe("after it has moved", () => {
     const res = await changeMySignInEmail("new@example.com");
     expect(res).toMatchObject({ ok: true, email: "new@example.com", verificationSent: false });
     expect(patched).toHaveLength(1);
+  });
+
+  it("rewrites the session cookie, because an email change does not reissue it", async () => {
+    /* THE BUG THIS EXISTS FOR (Isaac, prod, 2026-09-01). He changed his
+       address, verified it, came back, and both Sign-in and Summary still
+       showed the old one — Auth0 had the new address and so did `profiles`,
+       but `session.user.email` is a claim minted at LOGIN and nothing had
+       minted a new one. Without this the only cure was signing out and back
+       in, which is not a fix, it is a workaround with instructions. */
+    await changeMySignInEmail("new@example.com");
+    expect(sessionWrites).toHaveLength(1);
+    expect((sessionWrites[0] as { user: { email: string } }).user.email).toBe("new@example.com");
+  });
+
+  it("leaves every other claim in the session alone", async () => {
+    /* Only `email` is known to be stale. The rest are the ones the login
+       issued, and inventing fresher values would be guessing — including
+       `email_verified`, which Auth0 owns and which changes again the moment
+       the person clicks the link in the mail. */
+    session = {
+      user: { sub: "auth0|isaac", email: "isaac@old.com", name: "Isaac Smith", email_verified: true },
+    };
+    await changeMySignInEmail("new@example.com");
+    const written = sessionWrites[0] as { user: Record<string, unknown> };
+    expect(written.user.name).toBe("Isaac Smith");
+    expect(written.user.sub).toBe("auth0|isaac");
+    expect(written.user.email_verified).toBe(true);
+  });
+
+  it("still SUCCEEDS when the cookie cannot be rewritten", async () => {
+    /* The address has already moved. A stale cookie is a display problem
+       that the next sign-in cures; reporting failure would say nothing
+       happened when everything did. */
+    sessionWriteThrows = true;
+    const res = await changeMySignInEmail("new@example.com");
+    expect(res).toMatchObject({ ok: true, email: "new@example.com" });
   });
 
   it("stores the address lowercased, the way it will be compared", async () => {

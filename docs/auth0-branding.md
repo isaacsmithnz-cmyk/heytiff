@@ -72,7 +72,7 @@ so `read:branding` and `read:email_templates` are needed too.
 
 Only `subject`, `body` and `syntax` are written.
 
-## The three things that have to be true first
+## The four things that have to be true first
 
 ### 1. The Management API grant
 
@@ -114,26 +114,65 @@ and is the wider grant.
 The tenant is on Auth0's built-in development provider, which is rate-limited,
 not for production, and **cannot take a custom template**. Until a real one is
 configured under **Branding → Email Provider**, the letters in this repo are
-written, tested and unsendable, and the script reports that in those words
-rather than as a failure.
+written, tested and unsendable.
 
 This is the same gap that makes an invite a copied link rather than a message
 (`app/actions/invite.ts`). One provider closes both.
 
-### 3. A custom domain, for the page template only
+**Auth0 does not seed the templates, either.** A tenant that has never saved
+one answers `GET /email-templates/{name}` with a 404 and sends Auth0's own
+default mail — which is this tenant's state today. Creating one over the API
+needs a `from` address *and* an `enabled` decision, and the script refuses to
+make the second one: the letters differ in whether Auth0 sends them by
+default (the welcome mail is off), so a blanket `enabled: true` would start
+sending mail nobody asked for and a blanket `false` would silence a
+verification people depend on.
+
+So each template gets opened once in **Branding → Email Templates** and
+saved — that one action sets the `from` and the on/off decision, both of which
+are yours. Every push after that is this script's to keep current.
+
+### 3. A paid plan, for the page template only
+
+Auth0 documents the gate as a custom domain:
 
 > To use customized page templates, you must configure a Custom Domain for
 > your tenant.
 > — [Auth0](https://auth0.com/docs/customize/login-pages/universal-login/customize-templates)
 
-**Everything else lands without one.** The theme — logo, every colour, the
-real Jakarta face, radii, page ground — is not gated, so the sign-in widget
-looks like HeyTiff on the default `*.auth0.com` domain today.
+**In practice the plan answers first.** A free tenant cannot buy a custom
+domain, so it never gets as far as saying so — `PUT
+/branding/templates/universal-login` returns:
 
-What the custom domain adds is `src/lib/brand/auth0/page-template.ts`: the
-page *around* the widget, with the app's own light behind it. It is written
-and tested already; the script attempts it and, on a tenant without a domain,
-skips it with that reason on the line. Nothing else to do afterwards.
+```
+402 {"statusCode":402,"error":"Payment Required",
+     "message":"A paid subscription is required for this feature."}
+```
+
+Confirmed against the live tenant on 2026-09-01.
+
+**Everything else lands without either.** The theme — logo, every colour, the
+real Jakarta face, radii, page ground — is not gated, and is what makes the
+widget look like HeyTiff on the default `*.auth0.com` domain. That part is
+**live now**.
+
+What the paid tier adds is `src/lib/brand/auth0/page-template.ts`: the page
+*around* the widget, with the app's own light behind it. Written and tested
+already; the script attempts it every run and skips with the reason on the
+line. Nothing else to do afterwards.
+
+### 4. Two tenant fields the script does not own
+
+The live widget's subtitle currently reads *"Log in to
+**dev-zuqpsxjwzz45pr0u** to continue to Heytiff."* Both halves are tenant
+settings, outside everything this script touches:
+
+- the raw tenant id is the **Friendly Name** — Auth0 → **Settings → General**
+- `Heytiff` is the **application's name** — Auth0 → **Applications →
+  Heytiff → Settings**, where it should read `HeyTiff`
+
+Neither is in the grant this script asks for, deliberately: renaming a tenant
+or an application is not branding.
 
 ## The assets
 

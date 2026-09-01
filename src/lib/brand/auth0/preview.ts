@@ -13,8 +13,9 @@
      REAL  The page template, verbatim — its CSS, its glow, its footer, its
            layout. Only the two `auth0:` tags are swapped out.
      REAL  Every colour, radius, font size and logo below is READ FROM THE
-           THEME OBJECT, the same one that gets PATCHed. Nothing is restated,
-           so this cannot drift from what ships.
+           THEME OBJECT, the same one that gets PATCHed — and the subtitle and
+           logo alt text from the prompt text that gets PUT. Nothing is
+           restated, so this cannot drift from what ships.
      MOCK  The widget's MARKUP. Auth0 draws that and does not publish it, so
            the fields, labels and buttons here are a stand-in of the login
            prompt — right shapes and right dress, not Auth0's exact DOM.
@@ -29,6 +30,7 @@
 
 import type { heytiffTheme } from "./theme";
 import type { BrandAssets } from "./assets";
+import { LOGIN_PROMPT_TEXT } from "./prompts.ts";
 
 type Theme = ReturnType<typeof heytiffTheme>;
 
@@ -158,9 +160,9 @@ function widgetStyles(theme: Theme, assets: BrandAssets): string {
 
 function widgetMarkup(theme: Theme): string {
   return `<main class="ht-w">
-      <img class="logo" src="${theme.widget.logo_url}" alt="HeyTiff" />
+      <img class="logo" src="${theme.widget.logo_url}" alt="${LOGIN_PROMPT_TEXT.login.logoAltText}" />
       <h1>Welcome</h1>
-      <p class="sub">Log in to HeyTiff to continue.</p>
+      <p class="sub">${LOGIN_PROMPT_TEXT.login.description}</p>
       <form onsubmit="return false">
         <label for="e">Email address</label>
         <input id="e" type="email" placeholder="you@company.com.au" />

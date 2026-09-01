@@ -54,6 +54,7 @@ argument in full.
 | --- | --- | --- |
 | Widget theme — colours, radii, the Jakarta face, the logo | `PATCH /branding/themes/{id}` | `update:branding` |
 | Logo, favicon, font, primary colour | `PATCH /branding` | `update:branding` |
+| The widget's wording | `PUT /prompts/login/custom-text/en` | `update:prompts` |
 | Seven email templates | `PATCH /email-templates/{name}` | `update:email_templates` |
 | The page around the widget | `PUT /branding/templates/universal-login` | `update:branding` **and a custom domain** |
 
@@ -72,7 +73,7 @@ so `read:branding` and `read:email_templates` are needed too.
 
 Only `subject`, `body` and `syntax` are written.
 
-## The four things that have to be true first
+## The three things that have to be true first
 
 ### 1. The Management API grant
 
@@ -80,7 +81,7 @@ Auth0 dashboard → **Applications → APIs → Auth0 Management API → Machine
 Machine Applications** → find the application → **Authorized** → tick:
 
 `read:branding`, `update:branding`, `read:email_templates`,
-`update:email_templates`
+`update:email_templates`, `update:prompts`
 
 This is the same grant [the sign-in-address change](./auth0-management-grant.md)
 uses for `update:users`. If a scope is missing the script says which one, by
@@ -161,18 +162,56 @@ What the paid tier adds is `src/lib/brand/auth0/page-template.ts`: the page
 already; the script attempts it every run and skips with the reason on the
 line. Nothing else to do afterwards.
 
-### 4. Two tenant fields the script does not own
+## The sentence under the logo
 
-The live widget's subtitle currently reads *"Log in to
-**dev-zuqpsxjwzz45pr0u** to continue to Heytiff."* Both halves are tenant
-settings, outside everything this script touches:
+The first live push left the widget reading:
 
-- the raw tenant id is the **Friendly Name** — Auth0 → **Settings → General**
-- `Heytiff` is the **application's name** — Auth0 → **Applications →
-  Heytiff → Settings**, where it should read `HeyTiff`
+> Log in to **dev-zuqpsxjwzz45pr0u** to continue to Heytiff.
 
-Neither is in the grant this script asks for, deliberately: renaming a tenant
-or an application is not branding.
+That is Auth0's own default, `Log in to ${companyName} to continue to
+${clientName}.` — where `companyName` is the tenant's **Friendly Name**
+(never set, so it falls back to the raw tenant id) and `clientName` is the
+**application's name** (spelled `Heytiff`).
+
+**Two ways to fix it, and this repo takes the second.** Setting the tenant's
+Friendly Name in the dashboard would make the sentence read correctly and
+leave Auth0 owning it — a value typed into an admin UI, invisible from here,
+still phrased in Auth0's voice. Overriding the prompt text moves the sentence
+into `src/lib/brand/auth0/prompts.ts`, where it is reviewed and versioned like
+every other string on the sign-in screen. That is the argument for the whole
+directory, so it holds here too.
+
+It also fixes a **second, invisible copy of the same bug**: `logoAltText`
+defaults to `${companyName}`, so the logo's alternative text — what a screen
+reader announces, and the only HeyTiff anyone gets if the image fails — was
+reading the tenant id too.
+
+### Why the line does not say "HeyTiff"
+
+Correcting both fields would have produced *"Sign in to HeyTiff to continue to
+HeyTiff"*, and the doubling — not the tenant id — is what makes that sentence
+read badly. Even the single-mention version, *"Sign in to HeyTiff."*, is the
+screen saying the same thing twice: the lockup is 40px above it, in the
+brand's own letters.
+
+So the logo says **who** and the line says **what**:
+
+> **Welcome**
+> Sign in to continue.
+
+"Sign in", not Auth0's "Log in", because that is the verb the app uses
+everywhere else — the front door, the profile's *sign-in address*, the invite
+copy. One flow should not disagree with itself about what the user is doing.
+
+**Only the two wrong keys are sent.** The PUT "replaces all existing
+configuration data" for that prompt and language, and every key left out falls
+back to Auth0's default — which is what is wanted for `title`, `buttonText`
+and `forgotPasswordText`, all of which were already right. Restating them
+would be ten strings to keep in step with a vendor's copy for the sake of two.
+
+`signup` and `reset-password` carry the same `${companyName}` default and will
+want the same treatment; each has its own screens and key names, and those get
+read off Auth0's published table rather than guessed.
 
 ## The assets
 

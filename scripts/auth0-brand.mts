@@ -53,6 +53,7 @@ import { heytiffTheme, heytiffBranding } from "../src/lib/brand/auth0/theme.ts";
 import { heytiffEmailTemplates } from "../src/lib/brand/auth0/templates.ts";
 import { heytiffPageTemplate } from "../src/lib/brand/auth0/page-template.ts";
 import { signInPreview, signInStatesPreview } from "../src/lib/brand/auth0/preview.ts";
+import { PROMPT_TEXT, PROMPT_LANGUAGE } from "../src/lib/brand/auth0/prompts.ts";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -191,6 +192,30 @@ async function pushTheme() {
   }
 
   record("theme", false, scopeHint("read:branding", found.status, found.text));
+}
+
+/* The widget's words. Separate from the theme because Auth0 keys them by
+   prompt and language, and separate from the page template because they land
+   on a free tenant. */
+async function pushPromptText() {
+  for (const [prompt, text] of Object.entries(PROMPT_TEXT)) {
+    /* PUT, and Auth0's own note is that it "replaces all existing
+       configuration data" for this prompt and language — so what is sent is
+       the whole of what we want customised, and every key left out falls
+       back to Auth0's default on purpose. */
+    const res = await mgmt(
+      "PUT",
+      `/prompts/${prompt}/custom-text/${PROMPT_LANGUAGE}`,
+      text,
+    );
+    record(
+      `prompt text ${prompt}`,
+      res.status === 200 || res.status === 204,
+      res.status < 300
+        ? `updated (${PROMPT_LANGUAGE})`
+        : scopeHint("update:prompts", res.status, res.text),
+    );
+  }
 }
 
 async function pushBranding() {
@@ -347,6 +372,7 @@ async function main() {
 
   await pushTheme();
   await pushBranding();
+  await pushPromptText();
   await pushEmails();
   await pushPageTemplate();
 

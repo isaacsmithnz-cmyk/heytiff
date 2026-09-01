@@ -38,6 +38,7 @@ const task = (over: Partial<NoteProposal["tasks"][number]> = {}) => ({
   dueHint: "before Monday",
   dueDate: "2026-08-10",
   remindTime: "",
+  remindKind: "at" as const,
   ...over,
 });
 

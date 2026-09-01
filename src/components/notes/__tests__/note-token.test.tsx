@@ -87,7 +87,7 @@ const task = (over = {}) => ({
   assigneeHint: "Luke",
   dueHint: "",
   dueDate: "",
-  remindTime: "",
+  remindTime: "", remindKind: "at" as const,
   ...over,
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { completeTask } from "@/app/actions/dashboard";
 import { useNowMin } from "@/components/workboard/board/use-now-min";
@@ -37,6 +38,12 @@ import type { HomeRail } from "@/lib/dashboard/page-data";
    of yours that named an hour — the Hilux going in at 7:30 owns that morning
    as much as a job does. What has no clock time stays in the Tasks tab: a due
    date is a day, not an hour.
+
+   IT IS YOUR DAY, NOT THE CREW'S (Isaac, 2026-08-31). The bookings are
+   narrowed to the ServiceM8 person the viewer is linked to. When nothing
+   links them, the rail says THAT rather than drawing an empty day — the two
+   look identical and mean opposite things, and "you are free until Tuesday"
+   is the more dangerous of the two to say by accident.
 
    The rail is a VIEW. Ticking a task off, opening a job, re-dating something —
    all of that lives where its whole flow already lives, one tab across. A
@@ -79,6 +86,17 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
 
       {!rail.enabled ? (
         <p className="hm-daynone">The day’s bookings need the workboard.</p>
+      ) : !rail.linked ? (
+        /* NOT AN EMPTY DAY, and it must never be drawn as one. Nothing in
+           ServiceM8 has been told which of the crew this account is, so the
+           rail has no way to pick a lane — a blank timeline here would read
+           as "you have nothing on", which is the one wrong answer that looks
+           exactly like the right one. */
+        <p className="hm-daynone">
+          Nobody in ServiceM8 is linked to your account yet, so this can’t show
+          your day.{" "}
+          {rail.linkHref && <Link href={rail.linkHref}>Link yourself to the crew</Link>}
+        </p>
       ) : (
         <div className="hm-rl" style={{ height: railHeight(bounds) + 20 }}>
           {hours.map((h) => (
@@ -97,7 +115,10 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
               the padding box, so blocks in a padded rail draw over the hours. */}
           <div className="hm-rlitems">
             {placed.length === 0 && (
-              <p className="hm-daynone hm-rlempty">Nothing booked today.</p>
+              /* Reachable only when the rail KNOWS who the viewer is, so it
+                 can say "you" and mean it. The unlinked case is handled well
+                 above and never falls through to here. */
+              <p className="hm-daynone hm-rlempty">Nothing booked for you today.</p>
             )}
 
             {placed.map(({ item, top, height, col, cols }) => {
@@ -109,11 +130,29 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
               const style = { top, height, width, left } as React.CSSProperties;
 
               if (item.kind === "task") {
+                /* A DEADLINE IS NOT AN APPOINTMENT, and the rail has to say
+                   which it has. `at` is a thing to be doing then — it sits
+                   quietly at its hour like a booking. `by` is the moment you
+                   have RUN OUT, so it wears the warning colour and says the
+                   word: "by 4:00" reads as an instruction, "4:00" reads as a
+                   start time, and the second one arrives too late to act on.
+
+                   Overdue still darkens it to danger. A missed deadline and a
+                   late nudge are both red, because past-its-time is the same
+                   fact whichever question the time was answering. */
+                const by = item.task.kind === "by";
                 return (
                   <div
-                    className={`hm-rlt${item.task.overdue ? " over" : ""}`}
+                    className={
+                      `hm-rlt${by ? " by" : ""}` + (item.task.overdue ? " over" : "")
+                    }
                     key={item.key}
                     style={style}
+                    title={
+                      by
+                        ? `${item.task.title} — finished by ${clockLabel(item.task.atMin)}`
+                        : undefined
+                    }
                   >
                     {/* A REAL CHECKBOX. A drawn one on a row you cannot tick
                         is a lie, so this runs the same action the Tasks face
@@ -132,7 +171,15 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
                       }
                     />
                     <b>{item.task.title}</b>
-                    <u>{clockLabel(item.task.atMin)}</u>
+                    {/* ONE STRING, NOT A SPAN AND A NUMBER. The word was its
+                        own element with a CSS margin, which looks right and
+                        reads as "by4pm" to anything that walks the text —
+                        the gap has to be a real space. */}
+                    <u>
+                      {by
+                        ? `by ${clockLabel(item.task.atMin)}`
+                        : clockLabel(item.task.atMin)}
+                    </u>
                   </div>
                 );
               }

@@ -5384,6 +5384,23 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
    made the card worse to read in order to be easier to reach. */
 .wb2-remindbox { display:flex; flex-direction:column; gap:8px; margin:0 10px 8px; padding:10px; border-radius:12px; background:rgba(5,5,5,.04); }
 .wb2-capcard.wb2-dusk .wb2-remindbox { background:rgba(255,255,255,.05); }
+/* AT, OR BY. Two words above the wheel, because the time underneath means
+   opposite things depending on which is lit — "do it at four" and "be done by
+   four" are the same number and different instructions. The model reads it off
+   the note; this is where someone who was there disagrees.
+
+   A PAIR OF PILLS RATHER THAN A SWITCH. A switch has an off state, and there
+   isn't one: every time is one of the two, so both words are always visible
+   and one is always lit. Nothing here is a hint — the labels ARE the control. */
+.wb2-rkind { display:inline-flex; gap:2px; padding:2px; border-radius:10px; background:rgba(5,5,5,.05); }
+.wb2-rkindb { padding:5px 11px; border:0; border-radius:8px; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; transition:background .15s, color .15s; }
+.wb2-rkindb:hover:not(.on) { color:var(--ink); }
+.wb2-rkindb.on { background:#fff; color:var(--ink); box-shadow:0 2px 6px -3px rgba(10,12,20,.45); }
+.wb2-rkindb:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.35); }
+.wb2-capcard.wb2-dusk .wb2-rkind { background:rgba(255,255,255,.06); }
+.wb2-capcard.wb2-dusk .wb2-rkindb { color:rgba(255,255,255,.62); }
+.wb2-capcard.wb2-dusk .wb2-rkindb:hover:not(.on) { color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-rkindb.on { background:rgba(255,255,255,.16); color:#fff; }
 .wb2-remindoff { align-self:flex-start; padding:6px 10px; border:0; border-radius:8px; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .wb2-remindoff:hover { background:rgba(5,5,5,.06); color:var(--ink); }
 .wb2-capcard.wb2-dusk .wb2-remindoff { color:rgba(255,255,255,.62); }
@@ -11247,7 +11264,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-day > .wb2-sect { color:var(--q); flex:none; }
 .fg .hm-dayoff { flex:none; margin:3px 0 14px; font-size:12.5px; font-weight:600;
   color:var(--q); }
-.fg .hm-daynone { margin:0; font-size:12.5px; font-weight:600; color:var(--q); }
+.fg .hm-daynone { margin:0; font-size:12.5px; font-weight:600; color:var(--q); line-height:1.5; }
+/* The way out of the one empty state that has one. Teal and underlined —
+   quiet text with a door in it has to look like a door, and colour alone is
+   not enough at this weight. */
+.fg .hm-daynone a { color:var(--hm-teal); font-weight:800; text-decoration:underline;
+  text-underline-offset:2px; text-decoration-thickness:1.5px; }
+.fg .hm-daynone a:hover { color:#005f50; }
 
 /* The rail proper. Every child is placed from the same minutes-to-pixels
    constant the layout module uses (RAIL_PX_PER_HOUR), so a block and the hour
@@ -11329,6 +11352,33 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   font-size:12.5px; font-weight:700; letter-spacing:-.015em; color:var(--ink); }
 .fg .hm-rlt u { margin-left:auto; flex:none; text-decoration:none; font-size:10.5px;
   font-weight:800; color:#7b8494; font-variant-numeric:tabular-nums; }
+/* A DEADLINE, not an appointment. `by` is the moment the time is UP, so the
+   row takes the warning tier — amber is the app's "this is closing in", and
+   an amber row at four o'clock reads as a limit where a grey one reads as a
+   start time.
+
+   THE WORD IS DRAWN, not implied by the colour. Colour alone says "something
+   about this row is different" to a reader who can see it and nothing at all
+   to one who cannot; `<i>by</i>` says which. Same reason the confirm rows
+   spell out "Delete for good?" rather than just going red.
+
+   STATED BEFORE `.over`, WHICH IS THE WHOLE POINT OF THE ORDER. Both are
+   (0,3,0), so the later block wins, and the later block must be the red one:
+   a missed deadline and a late nudge are both past their time, which is the
+   fact red is for. Moving these four lines below the two under them would
+   silently make an overdue deadline amber — it would still look deliberate,
+   which is what makes it worth a comment rather than a shrug. */
+.fg .hm-rlt.by { border-color:rgba(255,138,0,.32); background:#fffaf2; }
+.fg .hm-rlt.by::before { background:var(--warn-t); }
+.fg .hm-rlt.by u { color:var(--warn-t); }
+
+/* PAST ITS TIME OUTRANKS WHAT KIND OF TIME IT WAS, and that is why the ground
+   is put back here as well as the bar and the clock. Left alone, an overdue
+   deadline kept the amber ground under a red bar — two urgencies arguing on
+   one row, and the reader has to work out which won. A late nudge and a
+   missed deadline now look identical, because they are the same fact; the
+   word still in the clock says which kind of time was missed. */
+.fg .hm-rlt.over { border-color:rgba(5,5,5,.06); background:#fff; }
 .fg .hm-rlt.over::before { background:var(--bad-t); }
 .fg .hm-rlt.over u { color:var(--bad-t); }
 

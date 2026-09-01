@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { remindKindOf } from "./reminders";
 import { asNoticeKind } from "./notices";
 import { tallyPoll, type PollOptionRow, type PollVoteRow } from "./polls";
 import { asRsvpAnswer, tallyRsvp, type RsvpRow } from "./events";
@@ -59,7 +60,7 @@ export const loadStaffNames = staffNames;
    is `due_date` by construction (docs/migrations/task_reminders.sql), so it
    never disagrees with the due date it was composed from. */
 const TASK_COLUMNS =
-  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by, remind_at";
+  "id, title, detail, assigned_to, created_by, due_date, status, created_at, done_at, done_by, remind_at, remind_kind";
 
 function toTask(r: Record<string, unknown>, name: (id: string) => string): DashTask {
   const assigneeId = String(r.assigned_to);
@@ -77,6 +78,10 @@ function toTask(r: Record<string, unknown>, name: (id: string) => string): DashT
     doneAt: r.done_at ? String(r.done_at) : null,
     doneByName: doneBy ? name(doneBy) : null,
     remindAt: r.remind_at ? String(r.remind_at) : null,
+    /* One reader turns the stored word into a kind, and null into "at" — see
+       `remindKindOf`. Doing that coalesce here as well would be a second
+       opinion about the same absent value. */
+    remindKind: remindKindOf(r.remind_kind as string | null),
   };
 }
 

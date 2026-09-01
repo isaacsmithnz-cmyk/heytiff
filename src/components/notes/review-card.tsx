@@ -3,7 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { TimeWheel, clockParts, formatClock } from "@/components/ui/time-wheel";
-import { toHHMM } from "@/lib/dashboard/reminders";
+import { toHHMM, type RemindKind } from "@/lib/dashboard/reminders";
 import { SEVERITIES, type NoteProposal, type NoteStaff } from "@/lib/workboard/note-brain";
 import { describeJob, searchJobs, type JobCandidate } from "@/lib/workboard/note-match";
 import type { ConfirmedNote, NoteTarget } from "@/app/actions/workboard-notes";
@@ -33,6 +33,10 @@ export type Draft = {
     /** "HH:MM" on the workspace's clock, or "" for an ordinary task. A day
         plus a time IS a reminder — there is no separate switch for one. */
     remindTime: string;
+    /** Whether that time is when to DO it or when it must be DONE. The model
+        proposes it from the note's own words ("back by four" is a deadline,
+        "service at half seven" is not) and this is where a person disagrees. */
+    remindKind: RemindKind;
     hint: string;
     dueHint: string;
   }[];
@@ -62,6 +66,7 @@ export function toDraft(p: NoteProposal): Draft {
          day, so the wheel opens on the time they asked for rather than on one
          the card guessed. */
       remindTime: t.remindTime,
+      remindKind: t.remindKind,
       hint: t.assigneeHint,
       /* What was actually SAID about when — "before Monday's visit (3
          August)". The date box starts empty because that phrase isn't a
@@ -96,6 +101,9 @@ export function toConfirmed(d: Draft): ConfirmedNote {
            `remindAtFrom` would refuse it server-side anyway, and sending it
            would put a value in the payload that cannot become anything. */
         remindTime: (t.dueDate && t.remindTime) || null,
+        /* Travels with the time, for the same reason: a kind with no moment
+           to qualify is refused by the database and means nothing here. */
+        remindKind: (t.dueDate && t.remindTime && t.remindKind) || null,
       })),
     bringItems: d.bringItems.filter((b) => b.on && b.text.trim()).map((b) => b.text),
     flags: d.flags
@@ -320,7 +328,9 @@ export function ReviewRows({
                     aria-expanded={timeOn === i}
                     aria-label={
                       (t.remindTime
-                        ? `Reminder at ${formatClock(clockParts(t.remindTime))} — `
+                        ? `${t.remindKind === "by" ? "Due by" : "Reminder at"} ${formatClock(
+                            clockParts(t.remindTime),
+                          )} — `
                         : "Add a reminder time — ") + t.title
                     }
                     onClick={() => {
@@ -334,15 +344,37 @@ export function ReviewRows({
                     }}
                   >
                     <Icon name="bell" size={12} />
-                    {t.remindTime ? formatClock(clockParts(t.remindTime)) : "Remind"}
+                    {/* THE WORD IS PART OF THE VALUE. A bare "4:00" on this
+                        pill is the ambiguity the column was added to end. */}
+                    {t.remindTime
+                      ? `${t.remindKind === "by" ? "by" : "at"} ${formatClock(clockParts(t.remindTime))}`
+                      : "Remind"}
                   </button>
                 )}
                 {t.dueHint && !t.dueDate && <em className="wb2-capsaid">said: {t.dueHint}</em>}
               </div>
               {timeOn === i && t.dueDate && (
                 <div className="wb2-remindbox">
+                  {/* WHICH QUESTION THE TIME ANSWERS. The model reads it off
+                      the note's own words, and this is where a person who
+                      knows better disagrees — "back in the yard by four" and
+                      "service at half seven" are the same shape of sentence
+                      and the opposite instruction. */}
+                  <div className="wb2-rkind" role="group" aria-label="What this time means">
+                    {(["at", "by"] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        className={"wb2-rkindb" + (t.remindKind === k ? " on" : "")}
+                        aria-pressed={t.remindKind === k}
+                        onClick={() => patch((d) => ((d.tasks[i].remindKind = k), d))}
+                      >
+                        {k === "at" ? "Do it at" : "Done by"}
+                      </button>
+                    ))}
+                  </div>
                   <TimeWheel
-                    label="Remind at"
+                    label={t.remindKind === "by" ? "Done by" : "Remind at"}
                     value={t.remindTime || dayStart}
                     onChange={(v) => patch((d) => ((d.tasks[i].remindTime = toHHMM(v)), d))}
                   />

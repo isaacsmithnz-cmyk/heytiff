@@ -18,7 +18,7 @@ import { todayInZone } from "@/lib/workboard/dates";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { fullNameOf } from "@/lib/staff/name";
 import { NAME_COLUMNS } from "@/lib/dashboard/tasks-query";
-import { remindAtFrom } from "@/lib/dashboard/reminders";
+import { remindAtFrom, isRemindKind } from "@/lib/dashboard/reminders";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { publishFieldNote } from "@/lib/tiff/field-notes";
@@ -415,6 +415,10 @@ export type ConfirmedNote = {
         claim about a moment that nobody here can check. The server composes the
         instant itself from this and the due date, on the account's own zone. */
     remindTime?: string | null;
+    /** "at" or "by" — be doing it then, or be finished by then. Validated on
+        arrival like everything else on this shape; anything else becomes
+        "at", which is also what no time at all means. */
+    remindKind?: string | null;
   }[];
   bringItems: string[];
   flags: { message: string; severity: string }[];
@@ -549,20 +553,30 @@ export async function applyNote(
        whole batch, and only when there are tasks to write. */
     const tz = await getSm8Timezone(ctx.orgId);
 
-    const rows = wanted
-      .map((t) => ({
+    const rows = wanted.map((t) => {
+      /* The nudge, composed here and nowhere else. Null unless the task
+         carries BOTH a day and a time — `remindAtFrom` returns null for
+         either half missing, which is exactly "this is an ordinary task". */
+      const remindAt = remindAtFrom(t.dueDate, t.remindTime, tz);
+      return {
         org_id: ctx.orgId,
         title: trim(t.title, 200),
         detail: trim(t.detail, 1000) || null,
         assigned_to: t.assigneeId,
         created_by: ctx.staffId,
         due_date: typeof t.dueDate === "string" && ISO_DATE.test(t.dueDate) ? t.dueDate : null,
-        /* The nudge, composed here and nowhere else. Null unless the task
-           carries BOTH a day and a time — `remindAtFrom` returns null for
-           either half missing, which is exactly "this is an ordinary task". */
-        remind_at: remindAtFrom(t.dueDate, t.remindTime, tz),
+        remind_at: remindAt,
+        /* ONLY EVER "by" OR NULL, for two reasons that point the same way.
+           The database refuses a kind with no moment to qualify (see
+           docs/migrations/task_remind_kind.sql), and a null already reads as
+           "at" everywhere through `remindKindOf` — so storing the word "at"
+           would add a second way to say the identical thing, and a row that
+           could one day disagree with itself. */
+        remind_kind:
+          remindAt !== null && isRemindKind(t.remindKind) && t.remindKind === "by" ? "by" : null,
         status: "open",
-      }));
+      };
+    });
 
     if (rows.length) {
       const { data } = await supabaseAdmin.from("tasks").insert(rows).select("id");

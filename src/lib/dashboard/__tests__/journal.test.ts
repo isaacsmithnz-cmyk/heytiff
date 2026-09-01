@@ -1,11 +1,4 @@
-import {
-  APPLIED_GROUPS,
-  CHIP_TITLE_MAX,
-  describeApplied,
-  describeAppliedResolved,
-  groupByDay,
-  type JournalEntry,
-} from "../journal";
+import { APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolved, groupByDay, type JournalEntry, topDayAt } from "../journal";
 
 /* The journal reads a table nothing had ever read back to a person:
    `workboard_notes` keeps every transcript verbatim as the evidence for what
@@ -214,5 +207,81 @@ describe("groupByDay", () => {
 
   it("has nothing to group when there is nothing", () => {
     expect(groupByDay([], TODAY, fmt)).toEqual([]);
+  });
+});
+
+describe("topDayAt — which day the diary is showing", () => {
+  /* The page-turner's label reads from this. It is pure because the rule it
+     replaced was WRONG on real data and could only be caught by scrolling a
+     real browser — and both browser surfaces available here report their tab
+     as hidden, which freezes requestAnimationFrame and makes rAF-throttled
+     behaviour unverifiable by looking. Arithmetic belongs in a suite. */
+
+  const order = ["2026-09-01", "2026-08-31", "2026-08-28", "2026-08-22"];
+  /* Each day's offsetTop inside the scroller — a tall list, one day per
+     screenful. */
+  const tall = new Map([
+    ["2026-09-01", 0],
+    ["2026-08-31", 200],
+    ["2026-08-28", 400],
+    ["2026-08-22", 600],
+  ]);
+
+  it("is the newest day before anything has scrolled", () => {
+    expect(topDayAt(order, tall, 0)).toBe("2026-09-01");
+  });
+
+  it("moves to a day the moment its block passes the fold", () => {
+    /* The fold is 44px — the band the sticky heading occupies — so the day
+       becomes current exactly when its heading becomes the stuck one. */
+    expect(topDayAt(order, tall, 155)).toBe("2026-09-01"); // 200 > 155+44
+    expect(topDayAt(order, tall, 156)).toBe("2026-08-31"); // 200 <= 200
+    expect(topDayAt(order, tall, 400)).toBe("2026-08-28");
+    expect(topDayAt(order, tall, 600)).toBe("2026-08-22");
+  });
+
+  it("REPORTS A LATER DAY ON A SHORT LIST, which is the bug it exists for", () => {
+    /* THE FAILURE THAT SHIPPED. Three days in a scroller barely taller than
+       its content: the old rule asked "which is the newest day still
+       intersecting", every day intersected at once, so the answer was pinned
+       to the newest and the label never moved — Isaac scrolled to the bottom
+       of his own diary and it still said the top day.
+
+       Geometry has no such tie: at the bottom of a short list a later day HAS
+       passed the fold, so it wins. */
+    const short = new Map([
+      ["2026-09-01", 0],
+      ["2026-08-31", 60],
+      ["2026-08-28", 118],
+    ]);
+    const shortOrder = ["2026-09-01", "2026-08-31", "2026-08-28"];
+    expect(topDayAt(shortOrder, short, 0)).toBe("2026-09-01");
+    expect(topDayAt(shortOrder, short, 40)).toBe("2026-08-31"); // 60 <= 84
+    /* 118 is the third day's top, so it arrives at scrollTop 74 (74+44) and
+       not a pixel before — checked both sides, because an off-by-one here is
+       a label that changes a scroll-tick early or late and looks like drift. */
+    expect(topDayAt(shortOrder, short, 73)).toBe("2026-08-31"); // 118 > 117
+    expect(topDayAt(shortOrder, short, 74)).toBe("2026-08-28"); // 118 <= 118
+  });
+
+  it("holds at the newest when NO day can reach the fold", () => {
+    /* A list that does not scroll at all. The newest day is the only one at
+       the top, and saying so is not a fallback — it is the answer. */
+    const one = new Map([["2026-09-01", 0]]);
+    expect(topDayAt(["2026-09-01"], one, 0)).toBe("2026-09-01");
+  });
+
+  it("has nothing to say about an empty record", () => {
+    expect(topDayAt([], new Map(), 0)).toBeNull();
+  });
+
+  it("skips a day whose node has not been measured rather than guessing", () => {
+    /* A ref can be null for a frame. A missing offset means "unknown", and an
+       unknown day must not silently read as offset 0 and win. */
+    const gappy = new Map([
+      ["2026-09-01", 0],
+      ["2026-08-28", 400],
+    ]);
+    expect(topDayAt(order, gappy, 400)).toBe("2026-08-28");
   });
 });

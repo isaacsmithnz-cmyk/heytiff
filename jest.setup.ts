@@ -44,28 +44,3 @@ if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
   // @ts-expect-error assigning the stub onto the jsdom window
   window.ResizeObserver = ResizeObserverStub
 }
-
-// jsdom lacks IntersectionObserver too; Home's diary watches its sticky day
-// headings to know which day the reader is actually in, so the page-turner's
-// label can never disagree with the scroll.
-//
-// A STUB THAT NEVER FIRES, deliberately. jsdom has no layout — every element
-// is 0x0 at 0,0 — so a stub that invented intersections would be reporting
-// geometry nothing measured, and a test passing on it would prove nothing
-// about the browser. This exists so the component MOUNTS; what the observer
-// decides is verified by looking, not here.
-if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
-  class IntersectionObserverStub {
-    readonly root = null
-    readonly rootMargin = ''
-    readonly thresholds: readonly number[] = []
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-    takeRecords() {
-      return []
-    }
-  }
-  // @ts-expect-error assigning the stub onto the jsdom window
-  window.IntersectionObserver = IntersectionObserverStub
-}

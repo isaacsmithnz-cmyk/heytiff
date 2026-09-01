@@ -186,6 +186,47 @@ function dayLabel(day: string, today: string, fmt: (iso: string) => string): str
 
     Newest first throughout: what you just said is where your eye already is,
     and the day you are in is the one you are adding to. */
+/** How far under the scroller's top edge a day's block must be before it
+    counts as the one you are reading. The sticky heading occupies that band,
+    so a day is "reached" at the moment its own heading becomes the stuck one. */
+export const DAY_FOLD_PX = 44;
+
+/** Which day the reader is in, from scroll position alone.
+
+    THE RULE THIS REPLACED WAS WRONG, and only real data showed it. It used an
+    IntersectionObserver and took "the newest day with any intersection" —
+    correct exactly while the list is long enough that one day fills the
+    viewport. On a three-day diary in a 361px scroller every day intersects at
+    once, so the newest always won and the label never moved, even scrolled to
+    the bottom. That is why this is a pure function with tests rather than a
+    closure inside an effect: it is arithmetic, and arithmetic that is wrong
+    should fail in a suite rather than in a browser someone happens to open.
+
+    `offsets` is each day's `offsetTop` within the scroller. Days come
+    newest-first, matching the record, and the answer is the LAST one that has
+    already passed the fold — walking in order and stopping at the first that
+    has not, because a list in order cannot have a later one qualify. */
+export function topDayAt(
+  order: readonly string[],
+  offsets: ReadonlyMap<string, number>,
+  scrollTop: number,
+  fold: number = DAY_FOLD_PX,
+): string | null {
+  if (order.length === 0) return null;
+  const line = scrollTop + fold;
+  /* The newest day is the answer before anything has scrolled, and stays the
+     answer for a list too short for any other day to reach the fold — which
+     is honest: no other day IS at the top. */
+  let top = order[0];
+  for (const day of order) {
+    const at = offsets.get(day);
+    if (at === undefined) continue;
+    if (at <= line) top = day;
+    else break;
+  }
+  return top;
+}
+
 export function groupByDay(
   entries: readonly JournalEntry[],
   today: string,

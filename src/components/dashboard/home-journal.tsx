@@ -6,7 +6,7 @@ import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
 import { navHref } from "@/components/shell/nav";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { groupByDay, type JournalEntry, type Outcome } from "@/lib/dashboard/journal";
+import { groupByDay, topDayAt, type JournalEntry, type Outcome } from "@/lib/dashboard/journal";
 
 /* THE JOURNAL — what you told Tiff, and what it became.
 
@@ -48,11 +48,10 @@ import { groupByDay, type JournalEntry, type Outcome } from "@/lib/dashboard/jou
    - a stepper moves a whole day at a time, which is what turning a page in a
      paper diary does.
 
-   The stepper's label is not a guess. It follows the heading that is actually
-   at the top — an IntersectionObserver watching the same sticky headings — so
-   free-scrolling and stepping can never disagree about which day you are on,
-   which is the failure a stored "current day" would have had the moment
-   somebody used the scrollbar. */
+   The stepper's label is not a guess. It is measured from the scroll position
+   every frame it changes, so free-scrolling and stepping can never disagree
+   about which day you are on — the failure a stored "current day" would have
+   had the moment somebody used the scrollbar. */
 
 /* The chip's inside is the same three parts however it is pressed, so the
    glyph and the words are written once and the element around them changes. */
@@ -124,43 +123,59 @@ export function HomeJournal({
     else dayNodes.current.delete(day);
   }, []);
 
-  /* WHICH DAY IS AT THE TOP. The observer's root is the scroller and its top
-     margin pulls the trip line down to just under the sticky heading, so the
-     day that is CURRENTLY stuck is the one reported — without it the day
-     above stays "intersecting" while its last entry is still on screen and
-     the label lags a whole day behind the words.
+  /* WHICH DAY IS AT THE TOP, measured rather than observed.
 
-     Re-run when the day list changes identity, not on every render: the
-     dependency is the joined keys, because `days` is a fresh array each time
-     and depending on it would tear down and rebuild the observer on every
-     keystroke elsewhere in the card. */
+     THE FIRST VERSION USED AN IntersectionObserver AND WAS WRONG, in a way
+     only real data showed. Its rule was "the newest day with any
+     intersection" — which is correct exactly while the list is long enough
+     that one day fills the viewport. Isaac's diary is three days in 433px of
+     a 361px scroller: every day intersects at once, so the newest always won
+     and the label never moved off the top day even scrolled to the bottom.
+
+     Geometry has no such failure mode. The day at the top is the LAST one
+     whose block has already reached the fold — one comparison per day, on a
+     list that is short by definition because it is one person's record.
+
+     rAF-throttled: a scroll handler that measures on every event forces a
+     reflow per frame, and the answer cannot change faster than a frame
+     anyway. In a hidden tab rAF does not run at all, so the label simply
+     holds until the tab is looked at again — which is the correct amount of
+     work to do for a label nobody can see, and it re-measures on the first
+     scroll after. */
   const dayKeys = days.map((d) => d.day).join("|");
   useEffect(() => {
     const root = scroller.current;
-    if (!root || dayNodes.current.size === 0) return;
-    /* Guarded because the record has to render where the API does not exist —
-       jsdom has none, and a screen that throws in a test environment is a
-       screen nobody can test. Without the observer the label simply holds at
-       the newest day and the arrows still step; nothing else is lost. */
-    if (typeof IntersectionObserver === "undefined") return;
+    if (!root) return;
 
-    const seen = new Map<string, number>();
-    const io = new IntersectionObserver(
-      (rows) => {
-        for (const r of rows) {
-          const day = (r.target as HTMLElement).dataset.day;
-          if (day) seen.set(day, r.intersectionRatio);
-        }
-        /* The topmost day still on screen wins. `days` is newest-first, so
-           the first one with any ratio is the one the reader is in. */
-        const order = dayKeys.split("|");
-        const top = order.find((d) => (seen.get(d) ?? 0) > 0) ?? order[0] ?? null;
-        setAtDay(top);
-      },
-      { root, rootMargin: "-44px 0px -70% 0px", threshold: [0, 0.01] },
-    );
-    for (const el of dayNodes.current.values()) io.observe(el);
-    return () => io.disconnect();
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const order = dayKeys ? dayKeys.split("|") : [];
+      /* The RULE is in lib/dashboard/journal — pure, and tested against the
+         short-list case that broke the version this replaced. All that
+         happens here is reading the geometry to feed it. */
+      const offsets = new Map<string, number>();
+      for (const day of order) {
+        const el = dayNodes.current.get(day);
+        if (el) offsets.set(day, el.offsetTop);
+      }
+      setAtDay(topDayAt(order, offsets, root.scrollTop));
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+    /* The day list as a STRING, not the array: `days` is rebuilt every render,
+       so depending on it would tear down and re-attach the listener on every
+       keystroke elsewhere in the card. */
   }, [dayKeys]);
 
   /* A WHOLE DAY AT A TIME. `-1` is up the page, which is towards TODAY

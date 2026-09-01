@@ -255,15 +255,19 @@ it("says nothing and spends nothing without a key", async () => {
 
 /* ── the dataplate upgrade ────────────────────────────────────────────────
    Haiku gets every subject right and everything a person is likely to type,
-   but it garbles dense small print CONFIDENTLY. Two photographs of one
-   outdoor unit, minutes apart:
+   but it garbles dense small print CONFIDENTLY — verified side by side on the
+   SAME photograph:
 
-       PUZ-M125VKA2-A     correct
-       PUZ-M125VKA-A      the `2` dropped
+       AS/NZS 4755 SELV DC Power DRM1   Opus
+       ASICS 4793 BBV L2 DUNet 90       Haiku
 
-   On ductwork that costs nothing. On a rating plate it costs the model
-   number — and a wrong serial in an index is worse than a missing one,
-   because the search finds nothing while the row insists otherwise. */
+   On ductwork that costs nothing. A dataplate is small print end to end, and
+   a confidently wrong serial in an index is worse than a missing one: the
+   search finds nothing while the row insists otherwise.
+
+   NOT the reason first given. That was a model number read two ways across
+   two photographs — which turned out to be two different outdoor units, with
+   two different serials, both read correctly. See photo-readings.ts. */
 
 it("re-reads a dataplate with the better model", async () => {
   docRows = [doc({ remote_ref: "att-1" })];

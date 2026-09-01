@@ -136,14 +136,22 @@ describe("the copy", () => {
     }
   });
 
-  it("offers the raw link wherever there is a button", () => {
-    // Corporate filters strip buttons. A letter whose only route is a
-    // <table> button is a dead end for the person who gets it that way.
+  it("prints the raw link for a one-time token, and only then", () => {
+    // Corporate filters strip buttons, and a single-use link cannot be
+    // retyped — so that letter is a dead end without the URL beside it. The
+    // two whose button just opens the app get no such line: repeating the
+    // front door's address under "Open HeyTiff" is the caption the house
+    // rule deletes.
     for (const t of templates) {
       const href = t.body.match(/<a href="([^"]+)" style="display:inline-block/)?.[1];
       if (!href) continue;
-      expect(t.body).toContain("Or paste this into your browser");
-      expect(t.body.split(href).length - 1).toBeGreaterThanOrEqual(2);
+      if (href.includes("{{")) {
+        expect(t.body).toContain("Or paste this into your browser");
+        expect(t.body.split(href).length - 1).toBeGreaterThanOrEqual(2);
+      } else {
+        expect(t.body).not.toContain("Or paste this into your browser");
+        expect(t.body.split(href).length - 1).toBe(1);
+      }
     }
   });
 

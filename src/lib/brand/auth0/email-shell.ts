@@ -119,7 +119,7 @@ export function renderLetter(letter: Letter, assets: BrandAssets): string {
         ${code ? codeBlock(code) : ""}
         ${action ? actionBlock(action) : ""}
         ${footnotes.length ? footnoteBlock(footnotes) : ""}
-        ${action ? fallbackBlock(action) : ""}
+        ${action && isOneTimeLink(action.href) ? fallbackBlock(action) : ""}
 
         <tr>
           <td class="ht-pad" style="padding:8px 44px 36px 44px;">
@@ -159,12 +159,21 @@ function actionBlock(action: { label: string; href: string }): string {
         </tr>`;
 }
 
-/* A SECOND ROUTE, NOT A HINT. Buttons get stripped by corporate filters and
-   by plain-text views, and a person staring at a mail with no way through
-   has no other move. This is the link itself, not an explanation of the
-   button.
+/* ONLY FOR A ONE-TIME LINK — the ones Auth0 mints and nobody can retype.
 
-   IT GOES LAST, under the footnotes. Sat directly beneath the button it
+   A stripped button is a dead end when the href was a single-use token, so
+   the raw URL is a genuine second route. It is NOT one under "Open HeyTiff",
+   where the href is the app's own front door: printing the address of the
+   place the button plainly goes is the caption that exists because the
+   design didn't explain itself. Spotted in the preview, where the welcome
+   and breach letters were both doing it.
+
+   The tell is Liquid: if Auth0 is substituting the href, it is a token. */
+function isOneTimeLink(href: string): boolean {
+  return href.includes("{{");
+}
+
+/* IT GOES LAST, under the footnotes. Sat directly beneath the button it
    pushed the rules that actually matter — what expires, what happens if this
    wasn't you — into the middle of the letter, behind a URL almost nobody
    needs. Least-wanted, last. */

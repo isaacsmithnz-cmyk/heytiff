@@ -80,3 +80,7 @@ next-env.d.ts
 # rendered previews from `npm run auth0:brand -- --dry-run` — generated, never
 # the source. The source is src/lib/brand/auth0/.
 /tmp/
+
+# a copy of tmp/auth0-preview, served so the letters can be clicked through
+# at localhost while reviewing them. Never part of the app.
+/public/__preview/

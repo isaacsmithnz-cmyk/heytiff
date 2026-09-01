@@ -133,8 +133,10 @@ export function WorkSearchPanel({
   searching,
   connected,
   photos,
+  starred,
   onOpen,
   onOpenPhoto,
+  onStarPhoto,
   onClear,
 }: {
   query: string;
@@ -143,9 +145,14 @@ export function WorkSearchPanel({
   searching: boolean;
   connected: boolean;
   photos: PhotoSearchState;
+  /** Which hits are already in the gallery. Seeded from what each hit
+      reports and then owned by the page, so a star toggled here stays
+      toggled while the results are still on screen. */
+  starred: ReadonlySet<string>;
   onOpen: (hit: WorkHit) => void;
   /** By position in the hit list — the viewer walks the same list. */
   onOpenPhoto: (index: number) => void;
+  onStarPhoto: (remoteId: string) => void;
   onClear: () => void;
 }) {
   const typed = query.trim();
@@ -225,13 +232,13 @@ export function WorkSearchPanel({
               <div className="wb2-showgrid wb2-findgrid">
                 {photoHits.map((h, i) => (
                   <figure key={h.remoteId} className="wb2-showcard">
-                    <button
-                      type="button"
-                      className="wb2-showopen"
-                      onClick={() => onOpenPhoto(i)}
-                      aria-label={`Open ${h.caption || h.name}`}
-                    >
-                      <span className="wb2-showimg">
+                    <span className="wb2-showimg">
+                      <button
+                        type="button"
+                        className="wb2-showopen"
+                        onClick={() => onOpenPhoto(i)}
+                        aria-label={`Open ${h.caption || h.name}`}
+                      >
                         {h.url ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img src={h.url} alt={h.caption || h.name} loading="lazy" />
@@ -240,16 +247,36 @@ export function WorkSearchPanel({
                             <Icon name="cam" size={18} />
                           </i>
                         )}
-                        {h.subject && (
-                          <u
-                            className="wb2-showtag"
-                            style={{ background: subjectColour(h.subject) }}
-                          >
-                            {subjectLabel(h.subject)}
-                          </u>
-                        )}
-                      </span>
-                    </button>
+                      </button>
+                      {h.subject && (
+                        <u
+                          className="wb2-showtag"
+                          style={{ background: subjectColour(h.subject) }}
+                        >
+                          {subjectLabel(h.subject)}
+                        </u>
+                      )}
+                      {/* THE STAR SAYS WHETHER THIS IS ALREADY IN THE GALLERY,
+                          and here — unlike the gallery, where everything is
+                          starred by definition — it genuinely varies. It is
+                          the reason the search can end in a decision: the
+                          photo you were hunting for is kept without opening
+                          anything. */}
+                      <button
+                        type="button"
+                        className={`wb2-showstar${starred.has(h.remoteId) ? " on" : ""}`}
+                        onClick={() => onStarPhoto(h.remoteId)}
+                        aria-pressed={starred.has(h.remoteId)}
+                        aria-label={`${starred.has(h.remoteId) ? "Unstar" : "Star"} ${h.caption || h.name}`}
+                        title={
+                          starred.has(h.remoteId)
+                            ? "Starred — click to take it out of the gallery"
+                            : "Star this photo for the gallery"
+                        }
+                      >
+                        <Icon name="star" size={13} />
+                      </button>
+                    </span>
                     <figcaption>
                       {h.caption && <b>{h.caption}</b>}
                       <em>

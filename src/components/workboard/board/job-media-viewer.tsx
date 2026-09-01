@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { readWheel } from "@/lib/studio/wheel";
 import { clamp } from "@/lib/studio/geometry";
+import {
+  anchoredScroll,
+  readPhotoWheel,
+  type PhotoWheelState,
+} from "@/lib/workboard/photo-zoom";
 import type { JobMediaItem } from "@/lib/workboard/job-media";
 
 /* THE ONE VIEWER — every photo and PDF on the job card opens here, instead
@@ -85,6 +89,17 @@ export function JobMediaViewer({
   const zoom = zoomState?.index === index ? zoomState.z : null;
   const nat = natural?.index === index ? natural : null;
 
+  /* THE WHEEL LISTENER READS THE NATURAL SIZE THROUGH A REF, and binds once
+     per photo rather than once per zoom step. Re-binding on every step would
+     tear down and re-add a listener sixty times during one trackpad flick,
+     and the gesture state the reader keeps is the only thing holding that
+     interaction together. Nothing is lost by reading it late: this is set
+     once, when the image loads, long before any wheel arrives. */
+  const natRef = useRef(nat);
+  useEffect(() => {
+    natRef.current = nat;
+  }, [nat]);
+
   /* Arrow keys only — Escape belongs to the sheet's innermost-first chain. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -119,32 +134,73 @@ export function JobMediaViewer({
 
   const isPdf = ((item?.fileType ?? "").toLowerCase()).endsWith("pdf");
 
-  /* A NATIVE wheel listener, passive:false — React 17+ binds onWheel
+  /* THE WHEEL. A NATIVE listener, passive:false — React 17+ binds onWheel
      passively at the root, so a JSX handler's preventDefault is silently
      dead and the page scrolls under the zoom (the canvas learned this
-     first). Momentum events are non-cancelable; skip those. */
+     first). Momentum events are non-cancelable; skip those.
+
+     WHAT an event means is decided in lib/workboard/photo-zoom, which is
+     where the trackpad reasoning lives and where it can be replayed by a
+     test. Two answers come back:
+
+       zoom   scale, and anchor under the pointer
+       spent  do nothing: this gesture has already had its budget, and
+              swallowing the rest of a momentum tail is the whole point
+
+     Either way the event is consumed — panning a zoomed photo is the DRAG's
+     job (below), not the wheel's. */
+  const gesture = useRef<PhotoWheelState | null>(null);
+  const anchor = useRef<{ x: number; y: number; ratio: number } | null>(null);
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || isPdf) return;
     const onWheel = (e: WheelEvent) => {
+      const read = readPhotoWheel(e, e.timeStamp, gesture.current);
+      gesture.current = read.state;
       if (e.cancelable) e.preventDefault();
-      const g = readWheel(e, "zoom");
-      if (g.kind !== "zoom") return;
+      if (read.gesture.kind === "spent") return;
+
+      const factor = read.gesture.factor;
+      const rect = stage.getBoundingClientRect();
       setZoomState((prev) => {
         const cur = prev?.index === index ? prev.z : null;
         /* The fit must match the CSS or the first notch jumps — the stage
            fits by object-fit:contain, so this upscales too. */
-        const fit = fitScale(stage, nat);
-        const next = clamp((cur ?? fit) * g.factor, fit, ZOOM_MAX);
+        const fit = fitScale(stage, natRef.current);
+        const from = cur ?? fit;
+        const next = clamp(from * factor, fit, ZOOM_MAX);
         /* Back at the floor: hand the photo to the CSS again, so it is
            centred and contained rather than a scroll container with nothing
            to scroll. The epsilon is for the wheel's fractional factors. */
-        return next <= fit * 1.001 ? null : { index, z: next };
+        if (next <= fit * 1.001) return null;
+        anchor.current = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          ratio: next / from,
+        };
+        return { index, z: next };
       });
     };
     stage.addEventListener("wheel", onWheel, { passive: false });
     return () => stage.removeEventListener("wheel", onWheel);
-  }, [isPdf, index, nat]);
+  }, [isPdf, index]);
+
+  /* Put the scroll where the anchor says, BEFORE the browser paints the new
+     size — in an effect that runs after the commit, because the widths this
+     is computed against only exist once React has written them. */
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    anchor.current = null;
+    const stage = stageRef.current;
+    if (!a || !stage) return;
+    const next = anchoredScroll(
+      { left: stage.scrollLeft, top: stage.scrollTop },
+      { x: a.x, y: a.y },
+      a.ratio
+    );
+    stage.scrollLeft = next.left;
+    stage.scrollTop = next.top;
+  }, [zoom]);
 
   if (!item) return null;
 

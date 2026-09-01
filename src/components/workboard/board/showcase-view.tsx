@@ -5,9 +5,14 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import {
+  countByFamily,
   countBySubject,
+  familyOf,
+  FAMILY_COLOUR,
+  FAMILY_LABEL,
   subjectColour,
   subjectLabel,
+  type PhotoFamily,
   type PhotoSubject,
 } from "@/lib/workboard/photo-subjects";
 import {
@@ -24,29 +29,49 @@ import { JobMediaViewer } from "./job-media-viewer";
    IT SHOWS THE FAVOURITES AND NOTHING ELSE. This is the curated set — what
    somebody decided was worth showing a client or sending to whoever is on
    site next. The BANK is larger: every photo on every job anyone has opened
-   has been read, and search spans all of it. Stars are what you would show
-   someone; the bank is what you can find.
+   has been read, and search spans all of it (in the board's one universal
+   field, not here). Stars are what you would show someone; the bank is what
+   you can find.
 
-   THERE IS NO SEARCH BOX HERE ANY MORE. This tab carried its own field for
-   one release, sitting directly under the board's universal search — two
-   boxes a hand's width apart, each answering a different question with the
-   same face. The bank search now lives in the ONE field the whole Workboard
-   already has (see overview-screen), which is also the only way "find a
-   photo" works from any side rather than only from this tab. What is left
-   here is purely the curation.
+   THE ROW ABOVE THE PICTURES IS FIVE TABS, NOT ELEVEN CHIPS. It drew one
+   chip per subject and one more for the unread, which wrapped over three
+   lines on a real gallery — a paragraph of labels standing between somebody
+   and the photographs they came to look at. Isaac: "it shows too many
+   labels ... it should be broken down into broader tabs ... have a filter
+   button instead of just displaying all tags."
 
-   THE CATEGORIES COME FROM THE PICTURE, not from the job's paperwork — also
-   Isaac's call, and the sharper one. A job's category says Install or Service
-   Call; it cannot say that this frame is the dataplate, or the ductwork, or
-   the fault someone photographed to explain it. Those are what the chips
-   filter by.
+   So the vocabulary is cut twice now, and the two cuts have different jobs:
 
-   So this screen spends nothing. It reads `job_photo_readings` through the
+     THE TABS are the broad move, always visible, one word each. They are the
+     FAMILIES (see lib/workboard/photo-subjects), derived from the subject
+     rather than stored beside it.
+
+     THE FILTER BUTTON holds the fine move: the ten subjects themselves,
+     under their family headings, plus the photos nobody has read yet. It is
+     shut by default, which is the whole point — the precision is still there
+     for the day somebody wants only dataplates, and it costs nothing on the
+     day they don't.
+
+   The two never disagree on screen: choosing a subject in the filter lights
+   that subject's tab, because a control that silently contradicts the one
+   next to it is worse than either alone.
+
+   THE TAG CHIPS UNDER EACH CARD ARE GONE, and that is the rest of the
+   "too many labels". They repeated a model name the caption usually already
+   said, in a second typeface, on every card in the grid. Tags were never
+   what you filter by — they are what the search reads — so they lost nothing
+   by leaving the picture alone.
+
+   This screen spends nothing. It reads `job_photo_readings` through the
    showcase query and draws what is already known. A starred photo whose job
    has not finished reading shows as unread rather than as uncategorised —
    absent, not wrong. */
 
-type Filter = { kind: "all" } | { kind: "subject"; subject: string } | { kind: "unread" };
+type Filter =
+  | { kind: "all" }
+  | { kind: "family"; family: PhotoFamily }
+  | { kind: "subject"; subject: string }
+  | { kind: "unread" };
 
 /** What the viewer needs to know about a photo, whichever list it came from —
     the gallery's rows and the universal search's hits both carry this. */
@@ -75,10 +100,19 @@ export function showcaseMediaItem(p: GalleryMediaSource): JobMediaItem {
   };
 }
 
-/* THE CARD IS A DOOR NOW. The grid drew as inert figures for one release —
-   the only screen in the app where a photograph did not open. Clicking any
-   card lands in the same viewer the job card uses, over the same filmstrip,
-   with the star live in its top bar.
+/** Which tab is lit for a filter. A subject lights its family's tab — see the
+    note above about the two controls agreeing. Unread lights none: it is not
+    a family and pretending otherwise would file it under one. */
+export function litFamily(filter: Filter): PhotoFamily | null {
+  if (filter.kind === "family") return filter.family;
+  if (filter.kind === "subject") return familyOf(filter.subject);
+  return null;
+}
+
+/* THE CARD IS A DOOR. The grid drew as inert figures for one release — the
+   only screen in the app where a photograph did not open. Clicking any card
+   lands in the same viewer the job card uses, over the same filmstrip, with
+   the star live in its top bar.
 
    The viewer takes a SNAPSHOT of the shown set: unstarring the photo on the
    stage removes it from the gallery behind the scrim, but the roll under
@@ -99,13 +133,14 @@ export function ShowcaseView({
   ) => Promise<StarPhotoResult>;
 } = {}) {
   const [photos, setPhotos] = useState<ShowcasePhoto[] | null>(null);
-  /* The stars, held apart from the rows: a toggle in the viewer flips this
-     set optimistically and settles to what the server answers, while the
-     rows themselves stay put until the viewer closes. */
+  /* The stars, held apart from the rows: a toggle flips this set
+     optimistically and settles to what the server answers. */
   const [starred, setStarred] = useState<ReadonlySet<string>>(new Set());
   const [filter, setFilter] = useState<Filter>({ kind: "all" });
+  const [menuOpen, setMenuOpen] = useState(false);
   const [view, setView] = useState<{ items: ShowcasePhoto[]; index: number } | null>(null);
   const alive = useRef(true);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     alive.current = true;
@@ -143,6 +178,29 @@ export function ShowcaseView({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [viewOpen]);
+
+  /* The filter menu shuts on Escape or on a click that lands anywhere else —
+     the two ways anybody expects to dismiss a popover. It is NOT portalled:
+     it is absolutely positioned inside the card, so the `.fg` trap that
+     catches fixed children never applies to it. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setMenuOpen(false);
+      }
+    };
+    const onDown = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [menuOpen]);
 
   const toggleStar = (remoteId: string) => {
     const jobUuid = photos?.find((p) => p.remoteId === remoteId)?.jobUuid;
@@ -193,15 +251,34 @@ export function ShowcaseView({
       </div>
     );
 
+  const families = countByFamily(kept);
   const bySubject = countBySubject(kept);
   const unread = kept.filter((p) => !p.read);
+  const lit = litFamily(filter);
   const shown = kept.filter((p) =>
     filter.kind === "all"
       ? true
       : filter.kind === "unread"
         ? !p.read
-        : p.subject === filter.subject
+        : filter.kind === "family"
+          ? familyOf(p.subject) === filter.family
+          : p.subject === filter.subject
   );
+
+  /* The button says what the FINE cut is, when there is one. A family needs
+     no saying — its tab is lit two inches to the left, and repeating it here
+     would be the same word twice on one row. */
+  const fine =
+    filter.kind === "subject"
+      ? subjectLabel(filter.subject)
+      : filter.kind === "unread"
+        ? "Not read yet"
+        : null;
+
+  const pick = (next: Filter) => {
+    setFilter(next);
+    setMenuOpen(false);
+  };
 
   return (
     <div className="wb2-show">
@@ -210,40 +287,114 @@ export function ShowcaseView({
         <em>{kept.length === 1 ? "1 starred photo" : `${kept.length} starred photos`}</em>
       </div>
 
-      {/* The filter row IS the categories. Order is the subject list's own, so
-          it never reshuffles under the cursor as photos are read. */}
-      <div className="wb2-showfilters" role="tablist" aria-label="What the photo is of">
-        <button
-          role="tab"
-          aria-selected={filter.kind === "all"}
-          className={`wb2-showchip${filter.kind === "all" ? " on" : ""}`}
-          onClick={() => setFilter({ kind: "all" })}
-        >
-          {`Everything · ${kept.length}`}
-        </button>
-        {bySubject.map(({ subject, count }) => (
-          <button
-            key={subject}
-            role="tab"
-            aria-selected={filter.kind === "subject" && filter.subject === subject}
-            className={`wb2-showchip${filter.kind === "subject" && filter.subject === subject ? " on" : ""}`}
-            style={{ ["--sc" as string]: subjectColour(subject) }}
-            onClick={() => setFilter({ kind: "subject", subject })}
-          >
-            <i className="wb2-showdot" aria-hidden />
-            {`${subjectLabel(subject)} · ${count}`}
-          </button>
-        ))}
-        {unread.length > 0 && (
+      <div className="wb2-showbar">
+        {/* THE TABS — the broad move. Order is the family list's own, and
+            empty families are absent rather than drawn dead, so the row
+            never reshuffles under the cursor as photos are read. */}
+        <div className="wb2-showfilters" role="tablist" aria-label="What the photo is of">
           <button
             role="tab"
-            aria-selected={filter.kind === "unread"}
-            className={`wb2-showchip quiet${filter.kind === "unread" ? " on" : ""}`}
-            onClick={() => setFilter({ kind: "unread" })}
+            aria-selected={filter.kind === "all"}
+            className={`wb2-showchip${filter.kind === "all" ? " on" : ""}`}
+            onClick={() => pick({ kind: "all" })}
           >
-            {`Not read yet · ${unread.length}`}
+            {`Everything · ${kept.length}`}
           </button>
-        )}
+          {families.map(({ family, count }) => (
+            <button
+              key={family}
+              role="tab"
+              aria-selected={lit === family}
+              className={`wb2-showchip${lit === family ? " on" : ""}`}
+              style={{ ["--sc" as string]: FAMILY_COLOUR[family] }}
+              onClick={() => pick({ kind: "family", family })}
+            >
+              <i className="wb2-showdot" aria-hidden />
+              {`${FAMILY_LABEL[family]} · ${count}`}
+            </button>
+          ))}
+        </div>
+
+        {/* THE FILTER — the fine move, shut until asked for. */}
+        <div className="wb2-showfilt" ref={menuRef}>
+          <button
+            type="button"
+            className={`wb2-showfiltb${fine ? " on" : ""}`}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <Icon name="settings2" size={14} />
+            {fine ?? "Filter"}
+          </button>
+          {fine && (
+            <button
+              type="button"
+              className="wb2-showfiltx"
+              onClick={() => pick({ kind: "all" })}
+              aria-label={`Clear the ${fine} filter`}
+            >
+              <Icon name="x" size={12} />
+            </button>
+          )}
+
+          {menuOpen && (
+            <div className="wb2-showmenu" role="menu" aria-label="Filter by subject">
+              <button
+                role="menuitemradio"
+                aria-checked={filter.kind === "all"}
+                className={`wb2-showmi${filter.kind === "all" ? " on" : ""}`}
+                onClick={() => pick({ kind: "all" })}
+              >
+                Everything
+                <em>{kept.length}</em>
+              </button>
+
+              {/* Grouped under the family headings, so the menu teaches the
+                  tabs rather than presenting a second, flatter vocabulary. */}
+              {families.map(({ family }) => (
+                <div key={family} className="wb2-showmgrp">
+                  <div className="wb2-showmsect">{FAMILY_LABEL[family]}</div>
+                  {bySubject
+                    .filter((s) => familyOf(s.subject) === family)
+                    .map(({ subject, count }) => (
+                      <button
+                        key={subject}
+                        role="menuitemradio"
+                        aria-checked={filter.kind === "subject" && filter.subject === subject}
+                        className={`wb2-showmi${filter.kind === "subject" && filter.subject === subject ? " on" : ""}`}
+                        onClick={() => pick({ kind: "subject", subject })}
+                      >
+                        <i
+                          className="wb2-showdot"
+                          aria-hidden
+                          style={{ ["--sc" as string]: subjectColour(subject) }}
+                        />
+                        {subjectLabel(subject)}
+                        <em>{count}</em>
+                      </button>
+                    ))}
+                </div>
+              ))}
+
+              {/* Not a subject and never filed as one — a photo nobody has
+                  looked at yet has no answer, which is its own way in. */}
+              {unread.length > 0 && (
+                <div className="wb2-showmgrp">
+                  <button
+                    role="menuitemradio"
+                    aria-checked={filter.kind === "unread"}
+                    className={`wb2-showmi${filter.kind === "unread" ? " on" : ""}`}
+                    onClick={() => pick({ kind: "unread" })}
+                  >
+                    Not read yet
+                    <em>{unread.length}</em>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Nothing here spends. A starred photo whose job is still being read
@@ -252,13 +403,16 @@ export function ShowcaseView({
       <div className="wb2-showgrid">
         {shown.map((p, i) => (
           <figure key={p.remoteId} className="wb2-showcard">
-            <button
-              type="button"
-              className="wb2-showopen"
-              onClick={() => setView({ items: shown, index: i })}
-              aria-label={`Open ${p.caption || p.name}`}
-            >
-              <span className="wb2-showimg">
+            <span className="wb2-showimg">
+              <button
+                type="button"
+                className="wb2-showopen"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setView({ items: shown, index: i });
+                }}
+                aria-label={`Open ${p.caption || p.name}`}
+              >
                 {p.url ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={p.url} alt={p.caption || p.name} loading="lazy" />
@@ -267,13 +421,32 @@ export function ShowcaseView({
                     <Icon name="cam" size={18} />
                   </i>
                 )}
-                {p.subject && (
-                  <u className="wb2-showtag" style={{ background: subjectColour(p.subject) }}>
-                    {subjectLabel(p.subject)}
-                  </u>
-                )}
-              </span>
-            </button>
+              </button>
+              {p.subject && (
+                <u className="wb2-showtag" style={{ background: subjectColour(p.subject) }}>
+                  {subjectLabel(p.subject)}
+                </u>
+              )}
+              {/* THE STAR IS ON THE PICTURE, LIT (Isaac: "it should also show
+                  that these are starred on display"). Everything in here is
+                  starred by definition, which is exactly why its absence was
+                  odd: the gallery is the one place the mark had gone quiet.
+                  It doubles as the way OUT — a photograph you no longer want
+                  shown is unstarred where you noticed it, not by finding its
+                  job again. Its own button, outside the door: a button
+                  cannot contain a button, and a star that opened the viewer
+                  would be worse than no star. */}
+              <button
+                type="button"
+                className={`wb2-showstar${starred.has(p.remoteId) ? " on" : ""}`}
+                onClick={() => toggleStar(p.remoteId)}
+                aria-pressed={starred.has(p.remoteId)}
+                aria-label={`Unstar ${p.caption || p.name}`}
+                title="Starred — click to take it out of the gallery"
+              >
+                <Icon name="star" size={13} />
+              </button>
+            </span>
             <figcaption>
               {/* The caption Claude wrote, when there is one — it says what
                   the picture IS, which the filename never did. */}
@@ -287,13 +460,6 @@ export function ShowcaseView({
                   .filter(Boolean)
                   .join(" · ")}
               </em>
-              {p.tags.length > 0 && (
-                <span className="wb2-showtags">
-                  {p.tags.map((t) => (
-                    <i key={t}>{t}</i>
-                  ))}
-                </span>
-              )}
             </figcaption>
           </figure>
         ))}

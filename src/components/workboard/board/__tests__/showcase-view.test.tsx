@@ -71,25 +71,123 @@ it("carries no search box of its own", async () => {
   expect(screen.queryByRole("searchbox")).toBeNull();
 });
 
-it("files the photos under what they are of, and filters to one", async () => {
+/* ── the row above the pictures ───────────────────────────────────────────
+   It drew one chip per subject and one more for the unread — eleven labels
+   wrapping over three lines on a real gallery. Now it is five families, and
+   the subjects live behind the filter button. */
+
+it("puts FAMILIES on the tabs, not the ten subjects", async () => {
   listShowcase.mockResolvedValue([
     photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate on the outdoor unit" }),
     photo({ remoteId: "p-2", subject: "ductwork", read: true, caption: "Flexible duct into a ceiling plenum" }),
-    photo({ remoteId: "p-3", subject: "ductwork", read: true, caption: "Rigid duct run above the bulkhead" }),
+    photo({ remoteId: "p-3", subject: "pipework", read: true, caption: "Lagging on the liquid line" }),
   ]);
   render(<ShowcaseView />);
 
   await screen.findByText("3 starred photos");
-  const filters = screen.getByRole("tablist", { name: "What the photo is of" });
-  /* The COUNT is on the chip: a filter that doesn't say how many it holds
+  const tabs = screen.getByRole("tablist", { name: "What the photo is of" });
+  /* The COUNT is on the tab: a filter that doesn't say how many it holds
      makes you click it to find out it was empty. */
-  expect(within(filters).getByRole("tab", { name: "Everything · 3" })).toBeInTheDocument();
-  expect(within(filters).getByRole("tab", { name: /Ductwork · 2/ })).toBeInTheDocument();
-  expect(within(filters).getByRole("tab", { name: /Dataplate · 1/ })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: "Everything · 3" })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: /Equipment · 1/ })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: /Installation · 2/ })).toBeInTheDocument();
+  /* THE REGRESSION THIS PINS: a subject back on the row is the wall of
+     labels coming back. Ductwork and pipework are one tab now. */
+  expect(within(tabs).queryByRole("tab", { name: /Ductwork/ })).toBeNull();
+  expect(within(tabs).queryByRole("tab", { name: /Dataplate/ })).toBeNull();
+});
 
-  await userEvent.click(within(filters).getByRole("tab", { name: /Ductwork · 2/ }));
+it("narrows to a family when its tab is picked", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate on the outdoor unit" }),
+    photo({ remoteId: "p-2", subject: "ductwork", read: true, caption: "Flexible duct into a ceiling plenum" }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByText("2 starred photos");
+
+  await userEvent.click(screen.getByRole("tab", { name: /Installation · 1/ }));
   expect(screen.getByText("Flexible duct into a ceiling plenum")).toBeInTheDocument();
   expect(screen.queryByText("Rating plate on the outdoor unit")).toBeNull();
+});
+
+/* ── the filter button ─────────────────────────────────────────────────── */
+
+it("keeps the ten subjects behind a filter button, shut until asked for", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate" }),
+    photo({ remoteId: "p-2", subject: "ductwork", read: true, caption: "Flexible duct" }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByText("2 starred photos");
+
+  const button = screen.getByRole("button", { name: "Filter" });
+  expect(button).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("menu")).toBeNull();
+
+  await userEvent.click(button);
+  const menu = screen.getByRole("menu", { name: "Filter by subject" });
+  /* Grouped under the family headings, so the menu teaches the tabs rather
+     than presenting a second, flatter vocabulary. */
+  expect(within(menu).getByText("Equipment")).toBeInTheDocument();
+  expect(within(menu).getByRole("menuitemradio", { name: /Dataplate/ })).toBeInTheDocument();
+  expect(within(menu).getByRole("menuitemradio", { name: /Ductwork/ })).toBeInTheDocument();
+});
+
+/* The two controls must never disagree on screen: a subject is inside a
+   family, so choosing one lights the tab that contains it. */
+it("lights a subject's family tab when the subject is picked", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate" }),
+    photo({ remoteId: "p-2", subject: "outdoor-unit", read: true, caption: "The condenser" }),
+    photo({ remoteId: "p-3", subject: "ductwork", read: true, caption: "Flexible duct" }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByText("3 starred photos");
+
+  await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+  await userEvent.click(screen.getByRole("menuitemradio", { name: /Dataplate/ }));
+
+  // the menu shuts, the button says what the fine cut is
+  expect(screen.queryByRole("menu")).toBeNull();
+  expect(screen.getByRole("button", { name: "Dataplate" })).toBeInTheDocument();
+  // its family's tab is the lit one, and only that photo shows
+  expect(screen.getByRole("tab", { name: /Equipment · 2/ })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  expect(screen.getByText("Rating plate")).toBeInTheDocument();
+  expect(screen.queryByText("The condenser")).toBeNull();
+});
+
+it("gives a fine filter a way back out", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate" }),
+    photo({ remoteId: "p-2", subject: "ductwork", read: true, caption: "Flexible duct" }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByText("2 starred photos");
+
+  await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+  await userEvent.click(screen.getByRole("menuitemradio", { name: /Dataplate/ }));
+  expect(screen.queryByText("Flexible duct")).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Clear the Dataplate filter" }));
+  expect(screen.getByText("Flexible duct")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Everything · 2" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+});
+
+it("shuts the filter menu on Escape", async () => {
+  listShowcase.mockResolvedValue([photo({ remoteId: "p-1", subject: "dataplate", read: true })]);
+  render(<ShowcaseView />);
+  await screen.findByText("1 starred photo");
+
+  await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+  expect(screen.getByRole("menu")).toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("menu")).toBeNull();
 });
 
 /* THE GALLERY SPENDS NOTHING. Reading moved to the job card — opening a job
@@ -103,19 +201,86 @@ it("has no reader of its own to press", async () => {
   expect(screen.queryByRole("button", { name: /Read/ })).toBeNull();
 });
 
-/* An unread photo has no subject, and must not be filed under one. It gets
-   its own way in instead, so the queue is visible rather than invisible. */
-it("keeps the unread ones reachable without inventing a subject for them", async () => {
+/* An unread photo has no subject, and must not be filed under one — so it is
+   not a tab either. It gets its own way in, inside the filter, so the queue
+   is visible rather than invisible. */
+it("keeps the unread ones reachable without inventing a family for them", async () => {
   listShowcase.mockResolvedValue([
     photo({ remoteId: "p-1", subject: "fault", read: true, caption: "Split in the insulation" }),
     photo({ remoteId: "p-2", caption: "" }),
   ]);
   render(<ShowcaseView />);
+  await screen.findByText("2 starred photos");
 
-  const filters = await screen.findByRole("tablist", { name: "What the photo is of" });
-  expect(within(filters).getByRole("tab", { name: /Damage or fault · 1/ })).toBeInTheDocument();
-  await userEvent.click(within(filters).getByRole("tab", { name: "Not read yet · 1" }));
+  const tabs = screen.getByRole("tablist", { name: "What the photo is of" });
+  expect(within(tabs).getByRole("tab", { name: /Faults · 1/ })).toBeInTheDocument();
+  /* Not a family, so not a tab — an unread photo has no answer yet and
+     filing it under one would be inventing it. */
+  expect(within(tabs).queryByRole("tab", { name: /Not read yet/ })).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Filter" }));
+  await userEvent.click(screen.getByRole("menuitemradio", { name: /Not read yet/ }));
   expect(screen.queryByText("Split in the insulation")).toBeNull();
+  expect(screen.getByRole("button", { name: "Not read yet" })).toBeInTheDocument();
+});
+
+/* ── what each card wears ─────────────────────────────────────────────── */
+
+/* THE OTHER HALF OF "too many labels": the tag chips repeated in a second
+   typeface what the caption above them had usually already said, on every
+   card in the grid. Tags are what the SEARCH reads, never what you filter
+   by, so they lost nothing by leaving the picture alone. */
+it("prints no tag chips on the cards", async () => {
+  listShowcase.mockResolvedValue([
+    photo({
+      remoteId: "p-1",
+      subject: "dataplate",
+      read: true,
+      caption: "Rating plate",
+      tags: ["mitsubishi", "puz-m125", "install"],
+    }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByText("Rating plate");
+  expect(screen.queryByText("mitsubishi")).toBeNull();
+  expect(screen.queryByText("install")).toBeNull();
+});
+
+/* Everything in here is starred by definition, which is exactly why the mark
+   going quiet was odd — the gallery was the one place it wasn't shown. */
+it("shows the star lit on every card, and unstars from the grid", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate" }),
+    photo({ remoteId: "p-2", subject: "ductwork", read: true, caption: "Flexible duct" }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByText("2 starred photos");
+
+  const star = screen.getByRole("button", { name: "Unstar Rating plate" });
+  expect(star).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("button", { name: "Unstar Flexible duct" })).toBeInTheDocument();
+
+  /* It doubles as the way OUT — a photograph you no longer want shown is
+     unstarred where you noticed it, not by finding its job again. */
+  await userEvent.click(star);
+  expect(setJobPhotoFavourite).toHaveBeenCalledWith("job-1", "p-1", false);
+  expect(await screen.findByText("1 starred photo")).toBeInTheDocument();
+  expect(screen.queryByText("Rating plate")).toBeNull();
+});
+
+/* The counts on the tabs are of what is actually in the gallery, so taking a
+   photo out has to move them — a tab still promising a photo that is gone is
+   a filter you click into an empty grid. */
+it("re-counts the tabs when a photo leaves the gallery", async () => {
+  listShowcase.mockResolvedValue([
+    photo({ remoteId: "p-1", subject: "dataplate", read: true, caption: "Rating plate" }),
+    photo({ remoteId: "p-2", subject: "outdoor-unit", read: true, caption: "The condenser" }),
+  ]);
+  render(<ShowcaseView />);
+  await screen.findByRole("tab", { name: /Equipment · 2/ });
+
+  await userEvent.click(screen.getByRole("button", { name: "Unstar Rating plate" }));
+  expect(await screen.findByRole("tab", { name: /Equipment · 1/ })).toBeInTheDocument();
 });
 
 /* ── the viewer ───────────────────────────────────────────────────────────
@@ -163,11 +328,13 @@ it("unstars from the viewer without pulling the roll out from under you", async 
   await screen.findByText("3 starred photos");
 
   await userEvent.click(screen.getByRole("button", { name: "Open Second duct" }));
-  await userEvent.click(screen.getByRole("button", { name: "Unstar Second duct" }));
+  /* Scoped to the viewer: the card behind it carries a star with the same
+     name now, which is the point — it is the same act on the same photo. */
+  const viewer = screen.getByRole("dialog");
+  await userEvent.click(within(viewer).getByRole("button", { name: "Unstar Second duct" }));
 
   expect(setJobPhotoFavourite).toHaveBeenCalledWith("job-1", "p-2", false);
   /* Still on the stage — the snapshot holds. */
-  const viewer = screen.getByRole("dialog");
   expect(within(viewer).getByText("Second duct")).toBeInTheDocument();
   /* The gallery behind has already let it go. */
   expect(screen.getByText("2 starred photos")).toBeInTheDocument();
@@ -185,10 +352,11 @@ it("puts the star back when the server refuses the unstar", async () => {
   await screen.findByText("3 starred photos");
 
   await userEvent.click(screen.getByRole("button", { name: "Open Second duct" }));
-  await userEvent.click(screen.getByRole("button", { name: "Unstar Second duct" }));
+  const viewer = screen.getByRole("dialog");
+  await userEvent.click(within(viewer).getByRole("button", { name: "Unstar Second duct" }));
 
   await waitFor(() => expect(screen.getByText("3 starred photos")).toBeInTheDocument());
   expect(
-    screen.getByRole("button", { name: "Unstar Second duct" })
+    within(viewer).getByRole("button", { name: "Unstar Second duct" })
   ).toHaveAttribute("aria-pressed", "true");
 });

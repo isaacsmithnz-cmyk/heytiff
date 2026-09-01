@@ -164,26 +164,32 @@ export async function routeNote(input: {
   if (error || !data) return { ok: false, error: "Couldn't save that note." };
   const noteId = (data as { id: string }).id;
 
-  /* Five independent reads against a remote database, so they go together
-     rather than one after another — the person is watching a spinner. The
-     history read is the router's MEMORY: what this job's issues are already
-     called, what's flagged, what was said last visit. Before it, "tripped
-     again" reached the model with no again. The candidates read is the
-     review card's PICKER: fetched even when the note arrived with a target,
-     because the tag can come off at review and the picker must still have a
-     roster to offer. */
+  const debrief = input.debrief === true;
+
+  /* Independent reads against a remote database, so they go together rather
+     than one after another — the person is watching a spinner. The history
+     read is the router's MEMORY: what this job's issues are already called,
+     what's flagged, what was said last visit. Before it, "tripped again"
+     reached the model with no again. The candidates read is the review card's
+     PICKER: fetched even when the note arrived with a target, because the tag
+     can come off at review and the picker must still have a roster to offer.
+
+     NOT FOR A DEBRIEF, though — that card has no picker to stock, so the
+     roster would be three tables read and thrown away, and paid again when a
+     clarify comes back. This is the path whose reasoning effort was already
+     cut to medium because ten seconds of sorting was too long to watch. */
   const [staff, label, tz, history, jobs] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, target),
     getSm8Timezone(ctx.orgId),
     jobHistory(ctx.orgId, target),
-    jobCandidates(ctx.orgId),
+    debrief ? Promise.resolve<JobCandidate[]>([]) : jobCandidates(ctx.orgId),
   ]);
   const read = await readNote(transcript, {
     staff,
     targetLabel: label ?? undefined,
     todayISO: todayInZone(tz),
-    debrief: input.debrief === true,
+    debrief,
     equipment: history.equipment.length ? history.equipment : undefined,
     history: {
       issues: history.issues.map((i) => ({
@@ -259,6 +265,13 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
   const question = proposal?.clarify?.question;
   if (!question) return { ok: false, error: "There's no question waiting on that note." };
 
+  /* THE MODE HAS TO SURVIVE THE ROUND-TRIP, and it is asked three times below
+     — what to stock, how to read, what to re-stamp — so it is read once.
+     Answering "which Luke?" on a debrief must not re-route the whole thing as
+     a site note and scatter its leftovers into buckets the card no longer
+     shows; routeNote stamped the stored proposal for exactly this. */
+  const debrief = (proposal as { debrief?: boolean } | null)?.debrief === true;
+
   const [staff, label, tz, history, jobs] = await Promise.all([
     assignableStaff(ctx.orgId),
     targetLabel(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
@@ -266,8 +279,9 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
     /* Same memory as the first pass — an answer to "which Luke?" must not
        cost the model everything it knew about the job. */
     jobHistory(ctx.orgId, { kind: note.target_kind, id: note.target_id }),
-    // and the same picker roster, or answering would take the picker away
-    jobCandidates(ctx.orgId),
+    // and the same picker roster, or answering would take the picker away —
+    // except on a debrief, which never had one to take away
+    debrief ? Promise.resolve<JobCandidate[]>([]) : jobCandidates(ctx.orgId),
   ]);
   const read = await readNote(
     note.transcript,
@@ -285,22 +299,17 @@ export async function answerClarify(noteId: string, answer: string): Promise<Rou
         flags: history.flags.map((f) => f.message),
         recentNotes: history.recentNotes,
       },
-      /* The mode has to survive the clarify round-trip, or answering "which
-         Luke?" would re-route the whole debrief as a site note and scatter
-         its leftovers into buckets the card no longer shows. routeNote
-         stamped the stored proposal for exactly this read. */
-      debrief: (proposal as { debrief?: boolean } | null)?.debrief === true,
+      debrief,
     },
     { question, answer: reply }
   );
   if (!read.ok) return { ok: false, error: read.error };
 
-  const wasDebrief = (proposal as { debrief?: boolean } | null)?.debrief === true;
   await supabaseAdmin
     .from("workboard_notes")
     .update({
       // re-stamped, or the mode would only survive ONE clarify round
-      proposal: wasDebrief ? { ...read.proposal, debrief: true } : read.proposal,
+      proposal: debrief ? { ...read.proposal, debrief: true } : read.proposal,
       status: read.proposal.clarify ? "clarifying" : "pending",
     })
     .eq("org_id", ctx.orgId)

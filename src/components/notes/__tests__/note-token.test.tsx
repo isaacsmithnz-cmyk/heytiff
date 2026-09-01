@@ -512,16 +512,20 @@ describe("the field", () => {
 });
 
 describe("the debrief", () => {
-  const openDebrief = async (over: Partial<NoteProposal>) => {
+  const openDebrief = async (
+    over: Partial<NoteProposal>,
+    { jobs = [] as unknown[], words = "everything on my mind" } = {}
+  ) => {
     routeNote.mockResolvedValue({
       ok: true,
       noteId: "n-1",
       proposal: proposal({ plainNote: "", ...over }),
       staff: [{ id: "s-1", fullName: "Luke Mercer" }],
+      jobs,
     });
     mount(<NoteToken as="debrief" />);
     await userEvent.click(screen.getByRole("button", { name: "Debrief" }));
-    await userEvent.type(screen.getByRole("textbox"), "everything on my mind");
+    await userEvent.type(screen.getByRole("textbox"), words);
     await userEvent.click(screen.getByRole("button", { name: "Sort this out" }));
     await screen.findByText("Check it before it saves");
   };
@@ -553,6 +557,36 @@ describe("the debrief", () => {
       expect.objectContaining({ noteLines: ["chase the coil pricing"] }),
       undefined
     );
+  });
+
+  /* THE ONE THAT CAN'T BE TAKEN BACK. Everything else the debrief hides is
+     hidden in the open — no picker drawn, no job named. Pinning is different:
+     it is a WRITE, applyNote rewrites target_kind/target_id from whatever the
+     card hands it, and jobHistory reads those rows back into the routing
+     prompt. A day's braindump that mentions a client in passing would land on
+     that client's card, invisibly, and there is no screen on which to notice
+     it, let alone undo it. The roster only started reaching debriefs when the
+     route began carrying it — before that this fired on nothing. */
+  it("never pins itself to a job the words merely mentioned", async () => {
+    await openDebrief(
+      { noteLines: ["chase the coil pricing before Monday"] },
+      {
+        jobs: [
+          {
+            id: "v-9",
+            kind: "visit",
+            clientName: "Kingsford Medical",
+            label: "Quarterly service",
+            siteLabel: null,
+            jobNumber: "1042",
+          },
+        ],
+        words: "kingsford unit is playing up again, chase the coil pricing before monday",
+      }
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Save these" }));
+    expect(applyNote).toHaveBeenCalledWith("n-1", expect.anything(), undefined);
   });
 
   it("offers no job picker and no keep-elsewhere door — Save is the one path", async () => {

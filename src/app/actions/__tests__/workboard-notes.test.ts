@@ -69,8 +69,17 @@ jest.mock("@/lib/workboard/note-brain", () => ({
   ...jest.requireActual("@/lib/workboard/note-brain"),
   readNote: jest.fn(),
 }));
+/* A SPY OVER THE REAL READ, not a stand-in for it: the roster's own test
+   below asserts what jobCandidates builds out of the tables, and only the
+   count of calls is faked-up here. `jobHistory` runs for real in this suite
+   too and reads `listIssues` out of the same module. */
+jest.mock("@/lib/workboard/notes-query", () => {
+  const actual = jest.requireActual("@/lib/workboard/notes-query");
+  return { ...actual, jobCandidates: jest.fn(actual.jobCandidates) };
+});
 
 import {
+  answerClarify,
   applyNote,
   clearFlag,
   dismissNote,
@@ -78,6 +87,9 @@ import {
   keepNoteOnJob,
   routeNote,
 } from "../workboard-notes";
+const { jobCandidates } = jest.requireMock("@/lib/workboard/notes-query") as {
+  jobCandidates: jest.Mock;
+};
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { readNote } = jest.requireMock("@/lib/workboard/note-brain") as { readNote: jest.Mock };
 
@@ -549,5 +561,87 @@ describe("keeping it for yourself", () => {
     rows.workboard_notes = { ...NOTE, transcript: "the words" };
     await keepNoteForMe("n-1", ["   ", ""]);
     expect(rowsFor("staff_notes")[0].body).toBe("the words");
+  });
+});
+
+describe("the picker roster", () => {
+  const PROPOSAL = {
+    tasks: [],
+    bringItems: [],
+    flags: [],
+    progressBullets: [],
+    commissioningEntries: [],
+    issueEntries: [],
+    kbEntries: [],
+    noteLines: [],
+    plainNote: "noted",
+    clarify: null,
+  };
+
+  const KINGSFORD = {
+    id: "v-9",
+    kind: "visit",
+    clientName: "Kingsford Medical",
+    label: "Quarterly service",
+    siteLabel: null,
+    jobNumber: "1042",
+  };
+
+  beforeEach(() => {
+    jobCandidates.mockClear();
+    jobCandidates.mockResolvedValue([KINGSFORD]);
+    readNote.mockClear();
+    readNote.mockResolvedValue({ ok: true, proposal: PROPOSAL });
+  });
+
+  afterEach(() => {
+    // hand the real read back, or the suite's other roster test is testing this stub
+    jobCandidates.mockImplementation(
+      (jest.requireActual("@/lib/workboard/notes-query") as { jobCandidates: typeof jobCandidates })
+        .jobCandidates
+    );
+  });
+
+  it("is fetched for a site note even when the note already has a target", async () => {
+    rows.maintenance_visits = { id: "v-1" };
+
+    const res = await routeNote({ transcript: "the unit tripped", target: { kind: "visit", id: "v-1" } });
+
+    expect(res.ok && res.jobs).toEqual([KINGSFORD]);
+    expect(jobCandidates).toHaveBeenCalledTimes(1);
+  });
+
+  /* THREE TABLES READ AND THROWN AWAY. The debrief card draws no picker, so
+     the roster it would stock has nowhere to go — and this is the path whose
+     reasoning effort was already cut because the wait was too long to watch. */
+  it("is not fetched for a debrief, which has no picker to stock", async () => {
+    const res = await routeNote({
+      transcript: "everything on my mind",
+      target: { kind: "none" },
+      debrief: true,
+    });
+
+    expect(res.ok && res.jobs).toEqual([]);
+    expect(jobCandidates).not.toHaveBeenCalled();
+  });
+
+  it("is not fetched again when a debrief's clarify is answered", async () => {
+    rows.workboard_notes = {
+      ...NOTE,
+      target_kind: "none",
+      target_id: null,
+      proposal: { ...PROPOSAL, debrief: true, clarify: { question: "Which Luke?" } },
+    };
+
+    const res = await answerClarify("n-1", "Mercer");
+
+    expect(res.ok).toBe(true);
+    expect(jobCandidates).not.toHaveBeenCalled();
+    /* The mode still has to survive the round-trip, or the answer re-routes
+       the whole debrief as a site note. */
+    expect(readNote.mock.calls[0][1].debrief).toBe(true);
+    expect(updates.find((u) => u.table === "workboard_notes")?.patch.proposal).toMatchObject({
+      debrief: true,
+    });
   });
 });

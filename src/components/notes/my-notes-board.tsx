@@ -178,7 +178,9 @@ export function MyNotesBoard({
                   {archived.map((n) => (
                     <li key={n.id} style={{ alignItems: "flex-start", opacity: 0.72 }}>
                       <span className="wb2-bdot" aria-hidden="true" />
-                      <span style={{ flex: 1, minWidth: 0 }}>{n.body}</span>
+                      {/* pre-line here too: putting a grouped note away must
+                          not un-group it on the way into the drawer */}
+                      <span style={{ flex: 1, minWidth: 0, whiteSpace: "pre-line" }}>{n.body}</span>
                       <button
                         className="wb2-ico"
                         title="Bring it back"

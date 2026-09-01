@@ -6,7 +6,7 @@ import { appendSpoken, useDictation } from "./dictation";
 import { askBrain } from "@/lib/brain/ask-client";
 import { looksLikeQuestion } from "@/lib/brain/intent";
 import { clearRun, markProposal } from "@/lib/voice/timing";
-import { matchJob, type JobCandidate } from "@/lib/workboard/note-match";
+import { matchJob, type JobCandidate, type JobMatch } from "@/lib/workboard/note-match";
 import type { NoteProposal, NoteStaff } from "@/lib/workboard/note-brain";
 import type { NoteTarget } from "@/app/actions/workboard-notes";
 import {
@@ -30,6 +30,9 @@ import { blockers, keptLines, toConfirmed, toDraft, targetOf, type Draft } from 
    in this file, which is the test of whether the split was real. */
 
 export type Stage = "idle" | "recording" | "transcribing" | "sorting" | "review" | "answer";
+
+/** Nothing named, nothing to offer — what a capture that doesn't pin looks like. */
+const NO_GUESS: JobMatch = { bestId: null, ranked: [], ambiguous: false };
 
 export function useNoteFlow(opts: { debrief?: boolean } = {}) {
   const debrief = opts.debrief === true;
@@ -265,9 +268,19 @@ export function useNoteFlow(opts: { debrief?: boolean } = {}) {
      push this list up, which silently made pinning a board-screens-only
      feature. */
   const jobs = note?.jobs ?? [];
+  /* A DEBRIEF NEVER GUESSES, because a debrief can never be corrected. The
+     picker doesn't render for one (JobLine), the destination row won't name a
+     job (Cascade), and every job-bound bucket is emptied on the way in
+     (shapeProposal) — so a match made here would pin the note to a card with
+     nothing on screen saying so and no way to unpick it. A whole day's
+     braindump routinely name-checks a client in passing, and `applyNote`
+     rewrites target_kind/target_id from whatever comes back, after which
+     jobHistory feeds that transcript into the routing prompt for a job it was
+     never about. The roster only started arriving on debriefs when the route
+     began carrying it, so this guard comes with it. */
   const guess = useMemo(
-    () => matchJob(text || note?.proposal.plainNote || "", note?.jobs ?? []),
-    [text, note]
+    () => (debrief ? NO_GUESS : matchJob(text || note?.proposal.plainNote || "", note?.jobs ?? [])),
+    [debrief, text, note]
   );
 
   /* The guess is a SUGGESTION, so it seeds the picker and stays overridable —

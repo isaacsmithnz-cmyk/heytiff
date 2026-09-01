@@ -10790,6 +10790,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent; }
 .fg .hm-card .hm-panel::-webkit-scrollbar { width:6px; }
 .fg .hm-card .hm-panel::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
+/* AND IT HAS TO LOOK SCROLLABLE. Tasks and Calendar both outrun the card on a
+   laptop, and what the reader saw was a row sliced in half by the card's own
+   edge with nothing to say the list went on — macOS overlay scrollbars only
+   appear once you have already scrolled, which is after you needed to know.
+   `.hm-jscroll` solved this for the diary and this is its rule, at the same
+   stop; the extra bottom padding is so a list scrolled to its end finishes on
+   air rather than under the fade. Excluded on the faces that hand their
+   scrolling to an inner element — the panel there is `overflow:hidden` and the
+   fade belongs on the scroller, not on the frame around it. */
+.fg .hm-card .hm-panel:not([hidden]):not(:has(> .hm-jscroll)) {
+  padding-bottom:30px;
+  -webkit-mask-image:linear-gradient(#000 92%, transparent 100%);
+  mask-image:linear-gradient(#000 92%, transparent 100%); }
 /* Journal is the exception: it keeps its OWN scroller because the debrief bar
    is a control, not a record, and must not scroll away from the words it
    files. The panel holds still and `.hm-jscroll` takes the slack instead. */
@@ -11276,8 +11289,25 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── THE DAY RAIL ──
    Daylight, deliberately: it is the well's own surface with the day drawn on
    it, and the ink card beside it is the record. Two materials, two jobs. */
-.fg .hm-day { min-height:0; display:flex; flex-direction:column; overflow-y:auto;
-  scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent; padding-right:4px; }
+/* THE FADE IS THE ONLY THING THAT SAYS THERE IS MORE. 64px an hour makes a
+   nine-hour day 600px of column, which no laptop shows whole, and macOS
+   overlay scrollbars are invisible until you already scrolled — so the rail
+   ended at whatever hour the window ran out at, sliced clean, reading as the
+   end of the day. Same idiom as `.hm-jscroll`, same 90% stop. */
+.fg .hm-day { min-height:0; display:flex; flex-direction:column; }
+/* THE TRACK, and the fade is the only thing that says there is more of it.
+   64px an hour makes a nine-hour day 600px of column, which no laptop shows
+   whole, and macOS overlay scrollbars are invisible until you have already
+   scrolled — so the rail ended at whatever hour the window ran out at, sliced
+   clean, reading as the end of the day. Same idiom as `.hm-jscroll`.
+   The column above it holds still: `The day` and the note under it are what
+   the reader needs kept in front of them. */
+.fg .hm-dayrl { flex:1; min-height:0; overflow-y:auto; padding-right:4px;
+  scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent;
+  -webkit-mask-image:linear-gradient(#000 92%, transparent 100%);
+  mask-image:linear-gradient(#000 92%, transparent 100%); }
+.fg .hm-dayrl::-webkit-scrollbar { width:6px; }
+.fg .hm-dayrl::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
 .fg .hm-day > .wb2-sect { color:var(--q); flex:none; }
 .fg .hm-dayoff { flex:none; margin:3px 0 14px; font-size:12.5px; font-weight:600;
   color:var(--q); }
@@ -11288,6 +11318,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-daynone a { color:var(--hm-teal); font-weight:800; text-decoration:underline;
   text-underline-offset:2px; text-decoration-thickness:1.5px; }
 .fg .hm-daynone a:hover { color:#005f50; }
+/* THE LAYER THAT ISN'T THERE, said under the day it is missing from. Quieter
+   than `.hm-daynone` and separated by a hairline, because it is a footnote on
+   the drawing above rather than a replacement for it — the rail always draws
+   now, and this says what it could not put on it. */
+.fg .hm-daynote { flex:none; margin:0 0 12px; padding:9px 11px;
+  border-radius:10px; background:rgba(5,5,5,.035);
+  border:1px solid rgba(5,5,5,.07); font-size:12px; font-weight:600;
+  color:var(--q); line-height:1.5; }
+.fg .hm-daynote a { color:var(--hm-teal); font-weight:800; text-decoration:underline;
+  text-underline-offset:2px; text-decoration-thickness:1.5px; }
+.fg .hm-daynote a:hover { color:#005f50; }
 
 /* The rail proper. Every child is placed from the same minutes-to-pixels
    constant the layout module uses (RAIL_PX_PER_HOUR), so a block and the hour
@@ -11440,7 +11481,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    One question, one button, and the last thing you said underneath. The
    prompt chips and the "or type it" line were both cut (Isaac, 2026-08-30):
    the mark, the question and the button carry it. */
-.fg .hm-dbf { display:flex; flex-direction:column; gap:18px; padding:10px 0 4px;
+/* 26px EACH SIDE, the same inset every other face carries — Diary, Tasks and
+   Calendar all sit 26px off the card's edge and this one sat at 1px, with the
+   question and the last thing you said running into the border. The panel
+   itself has no horizontal padding by design (each face insets its own rows);
+   this face simply never claimed its share. */
+.fg .hm-dbf { display:flex; flex-direction:column; gap:18px; padding:10px 26px 4px;
   max-width:620px; }
 .fg .hm-dbft { margin:0; font-size:21px; font-weight:800; letter-spacing:-.025em;
   color:var(--ink); }

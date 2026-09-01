@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { completeTask } from "@/app/actions/dashboard";
@@ -39,11 +39,23 @@ import type { HomeRail } from "@/lib/dashboard/page-data";
    as much as a job does. What has no clock time stays in the Tasks tab: a due
    date is a day, not an hour.
 
+   SERVICEM8 IS A LAYER ON THIS RAIL, NOT THE RAIL (Isaac, 2026-09-01). It
+   used to be the other way round: no workboard, or no `integration_links`
+   row, and the whole timeline was replaced by a sentence — so an account
+   without the mirror saw nothing of its own day, though every timed task it
+   owned was already loaded and sitting in `rail.tasks`. The day is drawn from
+   whatever has a clock time on it, and what ServiceM8 cannot contribute is
+   said UNDERNEATH.
+
+   THAT KEEPS THE ARGUMENT THE OLD GATE WAS MAKING. "You are free until
+   Tuesday" is still the one wrong answer that looks exactly like a right one,
+   so a rail missing its bookings never says the day is empty — the note below
+   it does the talking, and the "nothing on" line is spoken only when the
+   picture is complete. See `missing`.
+
    IT IS YOUR DAY, NOT THE CREW'S (Isaac, 2026-08-31). The bookings are
-   narrowed to the ServiceM8 person the viewer is linked to. When nothing
-   links them, the rail says THAT rather than drawing an empty day — the two
-   look identical and mean opposite things, and "you are free until Tuesday"
-   is the more dangerous of the two to say by accident.
+   narrowed to the ServiceM8 person the viewer is linked to; an unknown viewer
+   gets none of them rather than all of them.
 
    The rail is a VIEW. Ticking a task off, opening a job, re-dating something —
    all of that lives where its whole flow already lives, one tab across. A
@@ -76,6 +88,43 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
   const showNow =
     liveNow !== null && liveNow >= bounds.startMin && liveNow <= bounds.endMin;
 
+  /* WHAT IS NOT IN THIS PICTURE, as one of three answers rather than a gate.
+     `null` is the complete day — bookings and timed work, both accounted for
+     — and it is the only state that may say the day is empty. */
+  const missing: "workboard" | "link" | null = !rail.enabled
+    ? "workboard"
+    : !rail.linked
+      ? "link"
+      : null;
+
+  /* OPEN ON NOW. The rail is 64px an hour by law, so a nine-hour day is 600px
+     of column and a laptop shows about two thirds of it — which put the
+     afternoon below the fold on a screen whose whole job is "where should I
+     be". It scrolls, and it now scrolls to the right place: the marker lands
+     a third of the way down, so the next thing on is under it.
+
+     Mount only, and guarded — re-running it on every tick would drag the
+     column back under a reader who had scrolled somewhere on purpose. The
+     minute comes from `liveNow`, so this waits for the browser's own clock
+     and never reads one during render (see the hydration trap). */
+  const scroller = useRef<HTMLDivElement | null>(null);
+  const opened = useRef(false);
+  const { startMin, endMin } = bounds;
+  useEffect(() => {
+    const el = scroller.current;
+    /* NOTHING TO SCROLL TO ON AN EMPTY DAY, and scrolling anyway hid the one
+       line that says so: `.hm-rlempty` sits at the top of the track, and the
+       rail opened three hours below it. */
+    if (!el || opened.current || liveNow === null || !showNow) return;
+    if (placed.length === 0) return;
+    opened.current = true;
+    el.scrollTop = Math.max(0, railTop(liveNow, { startMin, endMin }) - el.clientHeight / 3);
+    /* The bounds go in as the two NUMBERS they are. `bounds` is a fresh object
+       every render, so depending on it re-runs this effect on every tick — the
+       `opened` guard would still hold, but a dependency that always changes is
+       a lie about when the effect matters. */
+  }, [liveNow, showNow, startMin, endMin, placed.length]);
+
   return (
     <aside className="hm-day" aria-label="Today">
       {/* WHO IS OFF IS NOT HERE. It belongs to the Calendar face, and Isaac
@@ -84,20 +133,36 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
           home; two would eventually disagree. */}
       <div className="wb2-sect">The day</div>
 
-      {!rail.enabled ? (
-        <p className="hm-daynone">The day’s bookings need the workboard.</p>
-      ) : !rail.linked ? (
-        /* NOT AN EMPTY DAY, and it must never be drawn as one. Nothing in
-           ServiceM8 has been told which of the crew this account is, so the
-           rail has no way to pick a lane — a blank timeline here would read
-           as "you have nothing on", which is the one wrong answer that looks
-           exactly like the right one. */
-        <p className="hm-daynone">
-          Nobody in ServiceM8 is linked to your account yet, so this can’t show
-          your day.{" "}
+      {/* WHAT SERVICEM8 COULDN'T ADD, above the day rather than instead of it.
+          It is not hint text: it is the difference between "nothing is on" and
+          "we could not see what is on", which the drawing below cannot express
+          and which the reader has to have to trust the column. It disappears
+          the moment the picture is complete.
+
+          ABOVE, and outside the scroller, on purpose. Under the rail it was a
+          footnote you had to scroll a whole day to reach — on the one state
+          where the reader most needs it before they read anything. */}
+      {missing === "workboard" && (
+        <p className="hm-daynote">
+          Bookings aren’t in this picture — they need the workboard. Your timed
+          work is.
+        </p>
+      )}
+      {missing === "link" && (
+        <p className="hm-daynote">
+          Bookings aren’t in this picture: nobody in ServiceM8 is linked to your
+          account yet.{" "}
+          {/* The door only opens for someone who can walk through it — see the
+              loader, which is where `linkHref` is decided. */}
           {rail.linkHref && <Link href={rail.linkHref}>Link yourself to the crew</Link>}
         </p>
-      ) : (
+      )}
+
+      {/* THE TRACK SCROLLS, THE COLUMN DOESN'T. `The day` and the note above
+          it are what the reader needs kept in front of them; the hours are
+          what there is too much of. Splitting them is also what lets the rail
+          open on the current hour without carrying its own heading away. */}
+      <div className="hm-dayrl" ref={scroller}>
         <div className="hm-rl" style={{ height: railHeight(bounds) + 20 }}>
           {hours.map((h) => (
             <span
@@ -114,11 +179,16 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
               `.hm-rlitems`: an absolutely positioned child is placed against
               the padding box, so blocks in a padded rail draw over the hours. */}
           <div className="hm-rlitems">
-            {placed.length === 0 && (
-              /* Reachable only when the rail KNOWS who the viewer is, so it
-                 can say "you" and mean it. The unlinked case is handled well
-                 above and never falls through to here. */
-              <p className="hm-daynone hm-rlempty">Nothing booked for you today.</p>
+            {placed.length === 0 && missing === null && (
+              /* ONLY WHEN THE RAIL HAS EVERYTHING. With a layer missing, the
+                 day being blank is not a fact about the day — it is a fact
+                 about what we could read — and the note under the rail is the
+                 one that says so. Two sentences arguing about the same empty
+                 column is how a screen ends up lying by accident.
+
+                 "On" and not "booked": tasks share this column now, so a line
+                 that only mentions bookings would be answering half of it. */
+              <p className="hm-daynone hm-rlempty">Nothing on your day.</p>
             )}
 
             {placed.map(({ item, top, height, col, cols }) => {
@@ -235,7 +305,7 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
             )}
           </div>
         </div>
-      )}
+      </div>
     </aside>
   );
 }

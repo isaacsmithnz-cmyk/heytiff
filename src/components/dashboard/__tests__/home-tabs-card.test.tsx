@@ -215,22 +215,49 @@ describe("the day rail", () => {
     expect(document.querySelector("#hmsec-calendar")!.textContent).toContain("Lorenz");
   });
 
-  it("says so plainly when the viewer may not see the bookings", () => {
-    draw({ rail: rail({ enabled: false }) });
-    expect(document.querySelector(".hm-day")!.textContent).toMatch(/workboard/i);
+  /* SERVICEM8 IS A LAYER, NOT THE RAIL (Isaac, 2026-09-01). Every one of these
+     used to assert the opposite — that a missing mirror replaced the whole
+     timeline with a sentence — which is what hid a viewer's own timed work
+     from them on an account that had never linked anybody. */
+  const timed = { id: "r1", title: "Hilux 60,000km service", atMin: 450, kind: "at" as const, overdue: false };
+
+  it("still draws your timed work when the viewer may not see the bookings", () => {
+    draw({ rail: rail({ enabled: false, linked: false, tasks: [timed] }) });
+    const day = document.querySelector(".hm-day")!;
+    expect(day.querySelector(".hm-rl")).not.toBeNull();
+    expect(day.textContent).toContain("Hilux 60,000km service");
+    expect(day.textContent).toMatch(/workboard/i);
   });
 
-  it("REFUSES to draw an empty day for someone ServiceM8 does not know", () => {
-    /* THE ONE WRONG ANSWER THAT LOOKS LIKE A RIGHT ONE. With no
-       integration_links row there is no lane to narrow to, so the rail has
-       nothing — and nothing drawn as a timeline reads as "you are free". It
-       has to say which of the two it is. */
-    draw({ rail: rail({ linked: false }) });
+  it("still draws your timed work for someone ServiceM8 does not know", () => {
+    draw({ rail: rail({ linked: false, tasks: [timed] }) });
+    const day = document.querySelector(".hm-day")!;
+    expect(day.querySelector(".hm-rl")).not.toBeNull();
+    expect(day.textContent).toContain("Hilux 60,000km service");
+  });
+
+  it("NEVER calls a half-read day an empty one", () => {
+    /* THE ONE WRONG ANSWER THAT LOOKS LIKE A RIGHT ONE, and the reason the old
+       gate existed. The rail draws now, so the safety has to come from the
+       words: with a layer missing it says what is missing and does NOT say the
+       day is clear. */
+    draw({ rail: rail({ linked: false, blocks: [], tasks: [] }) });
     const day = document.querySelector(".hm-day")!;
     expect(day.textContent).toMatch(/linked to your account/i);
-    expect(day.textContent).not.toMatch(/nothing booked/i);
-    // and no timeline at all, so there is no empty day to misread
-    expect(day.querySelector(".hm-rl")).toBeNull();
+    expect(day.textContent).not.toMatch(/nothing on your day/i);
+
+    cleanup();
+    draw({ rail: rail({ enabled: false, linked: false, blocks: [], tasks: [] }) });
+    expect(document.querySelector(".hm-day")!.textContent).not.toMatch(/nothing on your day/i);
+  });
+
+  it("keeps the note out of the scroller, above the day it qualifies", () => {
+    /* Under the rail it was a footnote you had to scroll a whole day to reach,
+       on the one state where the reader needs it before they read anything. */
+    draw({ rail: rail({ linked: false, tasks: [timed] }) });
+    const note = document.querySelector(".hm-daynote")!;
+    expect(note).not.toBeNull();
+    expect(note.closest(".hm-dayrl")).toBeNull();
   });
 
   it("offers the door only to someone who can walk through it", () => {
@@ -244,13 +271,16 @@ describe("the day rail", () => {
     cleanup();
     draw({ rail: rail({ linked: false, linkHref: null }) });
     expect(screen.queryByRole("link", { name: /link yourself/i })).toBeNull();
-    // the sentence still explains why the rail is empty
+    // the sentence still explains what the rail is missing
     expect(document.querySelector(".hm-day")!.textContent).toMatch(/linked to your account/i);
   });
 
-  it("says the empty day is YOURS once it knows who you are", () => {
-    draw({ rail: rail({ linked: true, blocks: [] }) });
-    expect(document.querySelector(".hm-day")!.textContent).toMatch(/nothing booked for you/i);
+  it("says the empty day is YOURS once the picture is complete", () => {
+    draw({ rail: rail({ linked: true, blocks: [], tasks: [] }) });
+    const day = document.querySelector(".hm-day")!;
+    expect(day.textContent).toMatch(/nothing on your day/i);
+    // nothing is missing, so nothing is qualified
+    expect(day.querySelector(".hm-daynote")).toBeNull();
   });
 });
 

@@ -14,9 +14,11 @@ import {
   railHourLabel,
   railHours,
   railItems,
+  railSaysEmpty,
   railSpanLabel,
   railTop,
   RAIL_TAIL_PX,
+  type RailMissing,
 } from "@/lib/dashboard/day-rail";
 import type { HomeRail } from "@/lib/dashboard/page-data";
 
@@ -107,11 +109,14 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
   /* WHAT IS NOT IN THIS PICTURE, as one of three answers rather than a gate.
      `null` is the complete day — bookings and timed work, both accounted for
      — and it is the only state that may say the day is empty. */
-  const missing: "workboard" | "link" | null = !rail.enabled
+  const missing: RailMissing = !rail.enabled
     ? "workboard"
     : !rail.linked
       ? "link"
       : null;
+  /* Asked here once and used in both places that must agree — see
+     `railSaysEmpty`, which is a function for exactly that reason. */
+  const saysEmpty = railSaysEmpty(placed.length, missing);
 
   /* OPEN ON NOW. The rail is 64px an hour by law, so a nine-hour day is 600px
      of column and a laptop shows about two thirds of it — which put the
@@ -128,18 +133,18 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
   const { startMin, endMin } = bounds;
   useEffect(() => {
     const el = scroller.current;
-    /* NOTHING TO SCROLL TO ON AN EMPTY DAY, and scrolling anyway hid the one
-       line that says so: `.hm-rlempty` sits at the top of the track, and the
-       rail opened three hours below it. */
+    /* THE ONE THING WORTH MORE THAN THE MARKER is the line saying the day is
+       clear: it sits at the TOP of the track, so opening three hours down
+       would hide it. Anything else, and the rail opens on now. */
     if (!el || opened.current || liveNow === null || !showNow) return;
-    if (placed.length === 0) return;
+    if (saysEmpty) return;
     opened.current = true;
     el.scrollTop = Math.max(0, railTop(liveNow, { startMin, endMin }) - el.clientHeight / 3);
     /* The bounds go in as the two NUMBERS they are. `bounds` is a fresh object
        every render, so depending on it re-runs this effect on every tick — the
        `opened` guard would still hold, but a dependency that always changes is
        a lie about when the effect matters. */
-  }, [liveNow, showNow, startMin, endMin, placed.length]);
+  }, [liveNow, showNow, startMin, endMin, saysEmpty]);
 
   return (
     <aside className="hm-day" aria-label="Today">
@@ -195,7 +200,7 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
               `.hm-rlitems`: an absolutely positioned child is placed against
               the padding box, so blocks in a padded rail draw over the hours. */}
           <div className="hm-rlitems">
-            {placed.length === 0 && missing === null && (
+            {saysEmpty && (
               /* ONLY WHEN THE RAIL HAS EVERYTHING. With a layer missing, the
                  day being blank is not a fact about the day — it is a fact
                  about what we could read — and the note under the rail is the

@@ -28,5 +28,11 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)"],
+  /* `brand` joins the exclusions because Auth0 and every mail client fetch
+     those files — the logo, the font — while nobody is signed in, from their
+     own servers. Running the session middleware on a PNG request achieved
+     nothing except doing it on every one of them. */
+  matcher: [
+    "/((?!_next/static|_next/image|brand/|favicon.ico|sitemap.xml|robots.txt).*)",
+  ],
 };

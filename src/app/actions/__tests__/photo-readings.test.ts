@@ -23,13 +23,21 @@ const download = jest.fn(async () => ({ data: { arrayBuffer: async () => new Arr
 let docRows: Record<string, unknown>[] = [];
 /** Attachment uuids already in job_photo_readings. */
 let doneRows: { sm8_attachment_uuid: string }[] = [];
+/** Which of those are dataplates still on the cheap model — the upgrade queue. */
+let plateRows: { sm8_attachment_uuid: string }[] = [];
+/** Column filters the readings table was queried with, so a test can prove
+    the upgrade pass asked for dataplates AND for the bank model. */
+let readingFilters: [string, unknown][] = [];
 /** Which sm8_job_uuids the documents read was scoped to. */
 let documentsScopedTo: string[] | null = null;
 
 const table = (name: string) => {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
-  chain.eq = self;
+  chain.eq = (col: string, val: unknown) => {
+    if (name === "job_photo_readings") readingFilters.push([col, val]);
+    return chain;
+  };
   chain.is = self;
   chain.not = self;
   chain.order = self;
@@ -47,7 +55,11 @@ const table = (name: string) => {
   chain.then = (resolve: (v: unknown) => unknown) =>
     resolve(
       name === "job_photo_readings"
-        ? { data: doneRows, error: null }
+        ? {
+            /* The upgrade query is the one that filters on subject. */
+            data: readingFilters.some(([c]) => c === "subject") ? plateRows : doneRows,
+            error: null,
+          }
         : { data: docRows, error: null }
     );
   return chain;
@@ -127,6 +139,8 @@ beforeEach(() => {
   familyMediaSources.mockClear();
   docRows = [doc()];
   doneRows = [];
+  plateRows = [];
+  readingFilters = [];
   documentsScopedTo = null;
 });
 
@@ -235,5 +249,66 @@ it("says nothing and spends nothing without a key", async () => {
   delete process.env.ANTHROPIC_API_KEY;
   const res = await readJobPhotos("job-1");
   expect(res).toMatchObject({ ok: true, read: 0 });
+  expect(messagesCreate).not.toHaveBeenCalled();
+});
+
+
+/* ── the dataplate upgrade ────────────────────────────────────────────────
+   Haiku gets every subject right and everything a person is likely to type,
+   but it garbles dense small print CONFIDENTLY. Two photographs of one
+   outdoor unit, minutes apart:
+
+       PUZ-M125VKA2-A     correct
+       PUZ-M125VKA-A      the `2` dropped
+
+   On ductwork that costs nothing. On a rating plate it costs the model
+   number — and a wrong serial in an index is worse than a missing one,
+   because the search finds nothing while the row insists otherwise. */
+
+it("re-reads a dataplate with the better model", async () => {
+  docRows = [doc({ remote_ref: "att-1" })];
+  doneRows = [{ sm8_attachment_uuid: "att-1" }];
+  plateRows = [{ sm8_attachment_uuid: "att-1" }];
+
+  const res = await readJobPhotos("job-1", "upgrade");
+
+  expect(res.read).toBe(1);
+  expect(messagesCreate.mock.calls[0][0].model).toBe("claude-opus-5");
+});
+
+/* THE ONLY QUEUE HERE THAT READS WHAT IS ALREADY READ, so it has to be
+   narrow: it asks for the subject AND for the cheap model, or it would
+   re-read Opus's own work forever at Opus prices. */
+it("asks only for dataplates the cheap model read", async () => {
+  docRows = [doc({ remote_ref: "att-1" })];
+  plateRows = [{ sm8_attachment_uuid: "att-1" }];
+  await readJobPhotos("job-1", "upgrade");
+
+  expect(readingFilters).toContainEqual(["subject", "dataplate"]);
+  expect(readingFilters).toContainEqual(["read_model", "claude-haiku-4-5"]);
+});
+
+/* A photograph of ductwork read by Haiku stays read by Haiku forever. That
+   is the whole reason this is affordable — dataplates are 5.7% of the bank. */
+it("leaves everything that is not a dataplate alone", async () => {
+  docRows = [doc({ remote_ref: "att-1" }), doc({ id: "d-2", remote_ref: "att-2" })];
+  doneRows = [{ sm8_attachment_uuid: "att-1" }, { sm8_attachment_uuid: "att-2" }];
+  plateRows = [];
+
+  const res = await readJobPhotos("job-1", "upgrade");
+
+  expect(res).toMatchObject({ ok: true, read: 0, remaining: 0 });
+  expect(messagesCreate).not.toHaveBeenCalled();
+});
+
+/* The bank tier must not have acquired the upgrade's appetite. */
+it("does not re-read anything on the ordinary bank pass", async () => {
+  docRows = [doc({ remote_ref: "att-1" })];
+  doneRows = [{ sm8_attachment_uuid: "att-1" }];
+  plateRows = [{ sm8_attachment_uuid: "att-1" }];
+
+  const res = await readJobPhotos("job-1");
+
+  expect(res.read).toBe(0);
   expect(messagesCreate).not.toHaveBeenCalled();
 });

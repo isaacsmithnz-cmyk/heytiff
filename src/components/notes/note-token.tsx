@@ -813,11 +813,13 @@ function DebriefButton({ flow, cta }: { flow: NoteFlow; cta?: string }) {
           aria-expanded={false}
           onClick={() => flow.setOpen(true)}
         >
-          {/* Decorative: the bar's own words are its accessible name, and a
-              mark announced beside them would be the label said twice. */}
-          <span className="hm-saymk tiffbtn-topbar" aria-hidden="true">
-            <TiffMark chevron={20} spark={13} halo />
-          </span>
+          {/* NO MARK IN THE BUTTON (Isaac, 2026-09-01, third report on this
+              control). It was decorative — the words were always the
+              accessible name — but a 26px haloed logo inside a button pushed
+              the label 40px right of where the eye lands and gave the words
+              something to compete with. A button reads best as a button with
+              its label in it. The mark is still on the frame's Tiff button,
+              one press away from every screen. */}
           <span className="hm-saytx">{cta ?? "Debrief the day"}</span>
         </button>
         {flow.done && <span className="wb2-chip ok">{flow.done}</span>}

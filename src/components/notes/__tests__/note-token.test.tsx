@@ -651,7 +651,9 @@ describe("the debrief", () => {
        "What does the sparkle do" stays a question nobody has to ask. */
     mount(<NoteToken as="debrief" />);
     expect(screen.getByRole("button", { name: /Debrief the day/ })).toBeInTheDocument();
-    expect(document.querySelector(".hm-saymk")).toHaveAttribute("aria-hidden", "true");
+    /* The strongest form of the rule: there is no icon in there to be alone
+       WITH. The accessible name is the visible words, exactly. */
+    expect(screen.getByRole("button", { name: "Debrief the day" })).toBeInTheDocument();
   });
 
   /* THE DEFAULT SWITCH IS NOT THIS SHEET'S TO SHOW. Spotted live 2026-08-10:
@@ -692,19 +694,26 @@ describe("the debrief", () => {
     expect(document.querySelectorAll(".hm-say")).toHaveLength(1);
   });
 
-  it("wears the mark, and the words still do the naming", () => {
-    /* REVERSED 2026-08-12 (Isaac): "switch it to the HeyTiff global button".
-       The word-alone capsule died of its own material — the topbar button's
-       `rgba(255,255,255,.08)` glass composites to 1.29:1 against the Journal
-       card, so nothing showed but a gradient rim the card already wears.
-       #327's argument (a mark on an ink console is Tiff said twice) does not
-       carry over: here the mark IS the control's contrast.
+  it("is the words and nothing else — no mark inside the button", () => {
+    /* THE MARK CAME AND WENT, and the reason it could go is that the reason
+       it arrived stopped being true.
 
-       What did NOT change is the rule underneath — never an icon alone. The
-       bar's words are the label and the hit area; the mark is decoration. */
+       2026-08-12 it was added because the word-alone capsule died of its own
+       material: the topbar button's `rgba(255,255,255,.08)` glass composited
+       to 1.29:1 against the then-DARK Journal card, so nothing showed but a
+       gradient rim. The mark was the control's contrast.
+
+       The card is daylight now and the button is a solid teal fill, so the
+       contrast comes from the button. What the mark was left doing was
+       pushing the label 40px right of where the eye lands and giving the
+       words something to compete with — which is what Isaac reported three
+       times running as "hard to read" (2026-09-01).
+
+       The rule underneath never moved: never an icon alone. It is now the
+       stronger version of that — words alone. */
     mount(<NoteToken as="debrief" />);
     const bar = screen.getByRole("button", { name: /Debrief the day/ });
-    expect(bar.querySelector(".hm-saymk svg")).not.toBeNull();
+    expect(bar.querySelector(".hm-saymk")).toBeNull();
     expect(bar.textContent).toMatch(/Debrief the day/);
   });
 

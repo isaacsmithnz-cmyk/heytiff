@@ -10729,7 +10729,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    around chrome that is already inside a box — the last seam left on a
    surface whose whole point is being one piece of glass. */
 .fg .hm-card .wb2-vtabs { position:relative; z-index:1; flex:none; align-items:center; gap:2px;
-  margin-bottom:0; padding:8px 10px 4px; }
+  /* A TRACK, SO THE THUMB READS AS A THUMB (Isaac, 2026-09-01: "the top
+     should be a slider"). The white pill was sliding on near-white glass —
+     mechanically a slider, visibly nothing. The calendar's view switcher
+     already taught this card's readers the grammar: grey recess, white pill.
+     Same grammar, card-wide. */
+  margin:10px 12px 0; padding:4px; border-radius:14px; background:rgba(5,5,5,.045); }
 .fg .hm-card .wb2-vt { height:40px; padding:0 15px; border-radius:10px;
   color:var(--hm-quiet); }
 .fg .hm-card .wb2-vt:hover:not(.on) { background:rgba(5,5,5,.04); color:var(--ink); }
@@ -10740,8 +10745,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-card .wb2-vt:not(.on) + .wb2-vt:not(.on):before { display:none; }
 /* the pill. `top`, not the base rule's `bottom:-1px` — that offset existed to
    push the thumb THROUGH the card's top edge, which is the join being undone. */
-.fg .hm-card .wb2-vslide { top:8px; bottom:auto; height:40px; border:0;
-  border-radius:10px; background:#fff; box-shadow:0 3px 10px -4px rgba(10,12,20,.35);
+.fg .hm-card .wb2-vslide { top:4px; bottom:auto; height:40px;
+  border:1px solid rgba(5,5,5,.06);
+  border-radius:10px; background:#fff; box-shadow:0 3px 10px -4px rgba(10,12,20,.4);
   backdrop-filter:none; }
 .fg .hm-card .wb2-vslide:before, .fg .hm-card .wb2-vslide:after { display:none; }
 /* ONE badge system, because there is now one ground. The active tab used to
@@ -11127,11 +11133,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    the glass is close enough that the seam never shows. */
 .fg .hm-jr { position:relative; display:grid; grid-template-columns:92px minmax(0,1fr);
   column-gap:18px; row-gap:6px; padding:15px 0; }
-.fg .hm-jd::before { content:""; position:absolute; left:100px; top:46px; bottom:12px;
-  width:1.5px; background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.05)); }
-.fg .hm-jr::before { content:""; position:absolute; left:96px; top:21px; width:9px; height:9px;
-  border-radius:50%; background:#3D4453; box-shadow:0 0 0 4px rgba(11,14,21,.92); }
-.fg .hm-jd.first .hm-jr::before { background:linear-gradient(120deg,#00E5C0,#2E68FF); }
+/* NO SPINE, NO NODES (Isaac, 2026-09-01: "a black dot with a blue dot in the
+   middle of it — I don't even know what that means"). The timeline spine was
+   the DARK card's: its connecting line was white-alpha, so daylight erased
+   the line and left unexplained dots whose ring was still the old ink. A
+   decoration that needs its ground to mean anything dies with the ground —
+   the timestamp column already says these are moments in order. */
 .fg .hm-jrt { font-size:12px; font-weight:700; color:var(--hm-quiet); font-variant-numeric:tabular-nums; padding-top:1px; }
 /* 78ch, not 96. The old cap was exactly binding at 1500px, which is 96
    characters a line — half again past what anyone reads comfortably. */
@@ -11281,20 +11288,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    glance — which is why there is no "all clear" state to style. */
 .fg .hm-phead { display:flex; align-items:flex-end; gap:22px; flex-wrap:wrap; }
 .fg .hm-phead h1 { flex:1 1 auto; }
-.fg .hm-glance { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-  padding-bottom:2px; }
-.fg .hm-gl { display:inline-flex; align-items:center; gap:7px; padding:7px 13px;
-  border-radius:999px; font-size:12.5px; font-weight:700; letter-spacing:-.005em;
-  background:#fff; border:1px solid rgba(5,5,5,.1); color:var(--ink);
-  transition:box-shadow .15s, transform .12s; }
-.fg .hm-gl:hover { box-shadow:0 6px 16px -8px rgba(10,12,20,.4); transform:translateY(-1px); }
-.fg .hm-gl b { font-weight:800; }
-/* The two tones that mean severity, as text on their own light ground — the
-   `-t` tokens, never the fills of the same name. */
-.fg .hm-gl.dan { color:var(--bad-t); background:rgba(224,38,79,.07);
-  border-color:rgba(224,38,79,.2); }
-.fg .hm-gl.warn { color:var(--warn-t); background:rgba(255,138,0,.09);
-  border-color:rgba(255,138,0,.24); }
+.fg .hm-glance { display:flex; align-items:center; gap:13px; }
+/* PLAIN WORDS, NOT PILLS (Isaac, 2026-09-01: on the card, and "not look like
+   it's been made by AI"). The floating tinted capsules with a hover-lift were
+   chrome about chrome; on the strip the glance is a coloured number and its
+   words, underlined on hover because it is a door. The colour lives on the
+   NUMBER — the `-t` text tones, never the fills — and the words stay quiet. */
+.fg .hm-gl { display:inline-flex; align-items:baseline; gap:5px; padding:0;
+  border:0; background:none; font-size:12px; font-weight:700;
+  letter-spacing:-.005em; color:var(--gray700); }
+.fg .hm-gl:hover { text-decoration:underline; text-underline-offset:3px; color:var(--ink); }
+.fg .hm-gl b { font-weight:800; font-size:13px; color:var(--ink); }
+.fg .hm-gl.dan b { color:var(--bad-t); }
+.fg .hm-gl.warn b { color:var(--warn-t); }
 
 /* ── THE DAY RAIL ──
    Daylight, deliberately: it is the well's own surface with the day drawn on
@@ -11313,6 +11319,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    The column above it holds still: `The day` and the note under it are what
    the reader needs kept in front of them. */
 .fg .hm-dayrl { flex:1; min-height:0; overflow-y:auto; padding-right:4px;
+  /* THE FOLD FADES (Isaac, 2026-09-01: "it's just got a slash then AM"). A
+     scroller that opens mid-day guillotines whatever label crosses its top
+     edge into half-glyphs. The mask turns both cut edges into fades, so a
+     clipped row reads as "more above" instead of debris — and the opening
+     scroll now snaps to an hour so the first full label is a real one. */
+  mask-image:linear-gradient(180deg, transparent 0, #000 16px, #000 calc(100% - 12px), transparent 100%);
+  /* 18px, and it is the mask's number plus two: the fade reaches full ink at
+     16px, and without this the day's own first label sat inside it at rest —
+     dimmed before anyone had scrolled anywhere. Padding on the SCROLLER moves
+     the whole track down (the track's absolute children position against the
+     track, not the scroller), so 7 am starts life just past the fade. */
+  padding-top:18px;
   scrollbar-width:thin; scrollbar-color:rgba(5,5,5,.18) transparent;
   -webkit-mask-image:linear-gradient(#000 92%, transparent 100%);
   mask-image:linear-gradient(#000 92%, transparent 100%); }
@@ -11493,9 +11511,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   padding:8px 0; border:0; background:none; text-align:left; cursor:text;
   font:600 13.5px var(--font); color:var(--hm-quiet); }
 .fg .hm-adde:hover .hm-addetx { color:var(--ink); }
-.fg .hm-addemk { position:relative; flex:none; width:26px; height:26px;
-  display:inline-flex; align-items:center; justify-content:center; }
-.fg .hm-addemk .tiffbtn-spark { right:-2px; bottom:-2px; }
 .fg .hm-addemic { flex:none; display:grid; place-items:center; width:34px; height:34px;
   border:0; border-radius:50%; background:rgba(5,5,5,.045); color:var(--gray500);
   cursor:pointer; transition:background .16s, color .16s, box-shadow .16s; }
@@ -11543,10 +11558,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .hm-dbf .hm-saydock { flex:none; }
 .fg .hm-dbf .hm-say { flex:none; width:auto; min-height:48px; padding:0 22px 0 6px;
   gap:10px; border-color:transparent;
-  background:linear-gradient(110deg,#00A389,#2b6fd4); color:#fff;
-  box-shadow:0 14px 30px -14px rgba(0,120,140,.75); }
-.fg .hm-dbf .hm-say:hover { border-color:transparent; filter:brightness(1.07);
-  background:linear-gradient(110deg,#00A389,#2b6fd4); }
+  /* THE HOUSE PRIMARY, NOT A GRADIENT OF ITS OWN (Isaac, 2026-09-01: "very
+     hard to read"). The teal-to-blue wash put 800-weight white on the exact
+     mid-tones white fails on; every other primary on this app is the flat
+     accent with ink text (`.fl-btn.primary`, `.pbtn.primary`), and this
+     button being dressed differently made it worse-read, not special. */
+  background:#00E5C0; color:#052b25;
+  box-shadow:0 12px 26px -12px rgba(0,163,137,.7); }
+.fg .hm-dbf .hm-say:hover { border-color:transparent; background:#00A389; color:#fff; }
 .fg .hm-dbf .hm-saytx { flex:none; font-size:14.5px; font-weight:800; color:inherit; }
 
 /* ── THE CALENDAR, AS A LIST ──

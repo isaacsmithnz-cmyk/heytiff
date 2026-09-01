@@ -17,6 +17,7 @@ import {
   railSaysEmpty,
   railSpanLabel,
   railTop,
+  RAIL_PX_PER_HOUR,
   RAIL_TAIL_PX,
   type RailMissing,
 } from "@/lib/dashboard/day-rail";
@@ -139,7 +140,14 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
     if (!el || opened.current || liveNow === null || !showNow) return;
     if (saysEmpty) return;
     opened.current = true;
-    el.scrollTop = Math.max(0, railTop(liveNow, { startMin, endMin }) - el.clientHeight / 3);
+    /* SNAPPED TO AN HOUR, then backed off past the fade. An arbitrary
+       scrollTop guillotines whatever label crosses the fold — the reader met
+       the bottom half of "7 am" and read a slash (Isaac, 2026-09-01). Hour
+       labels sit exactly on 64px boundaries, so flooring to one puts a label
+       AT the fold; the 22px back-off moves it below the mask's fade, where it
+       is the first whole thing the eye meets. */
+    const raw = railTop(liveNow, { startMin, endMin }) - el.clientHeight / 3;
+    el.scrollTop = Math.max(0, Math.floor(raw / RAIL_PX_PER_HOUR) * RAIL_PX_PER_HOUR - 22);
     /* The bounds go in as the two NUMBERS they are. `bounds` is a fresh object
        every render, so depending on it re-runs this effect on every tick — the
        `opened` guard would still hold, but a dependency that always changes is

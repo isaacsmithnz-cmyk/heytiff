@@ -755,14 +755,11 @@ function EntryRow({ flow }: { flow: NoteFlow }) {
           aria-expanded={false}
           onClick={() => flow.setOpen(true)}
         >
-          {/* NOT `.tiffbtn-topbar`: that class is 44px of geometry tuned to the
-              frame's button, and the shared `.tiffbtn-face` is `position:
-              absolute; inset:0` — on a host with no positioning of its own it
-              escapes to the nearest positioned ancestor, which put the mark in
-              the middle of the card. `.hm-addemk` carries its own box. */}
-          <span className="hm-addemk" aria-hidden="true">
-            <TiffMark chevron={16} spark={10} />
-          </span>
+          {/* NO MARK (Isaac, 2026-09-01: "the logo on add to the diary looks
+              weird"). The row says what it is in words, the mic says how, and
+              the frame's Tiff button is one press from every screen — a
+              second rendering of the mark at 26px was branding doing a
+              label's job, badly. */}
           Add to the diary&hellip;
         </button>
         {flow.scope.voiceEnabled && (

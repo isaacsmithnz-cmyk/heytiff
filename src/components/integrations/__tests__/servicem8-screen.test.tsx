@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { Servicem8Screen } from "../servicem8-screen";
 import { toView, type ConnectionRow } from "@/lib/integrations/connection";
@@ -401,5 +402,59 @@ describe("the mirror card, the other three states", () => {
     render(<Servicem8Screen connection={toView(row())} sync={syncView([queued])} {...ready} />);
     expect(tagFor("Queues").textContent).toContain("First sync queued");
     expect(tagFor("Queues").className).not.toContain("warn");
+  });
+});
+
+/* THE BUG THAT BLANKED THIS WHOLE SCREEN ON PROD (2026-09-01).
+
+   `agoLabel` reads `Date.now()`. The server rendered "Last synced 4 min ago"
+   and the client, a moment later across a minute boundary, rendered "5 min
+   ago" — different text in the same node, which is React #418. #418 does not
+   fail politely: it takes the entire tree's hydration with it, so the page
+   came up EMPTY. Nobody could reach the people card below to link themselves
+   to the crew, which is how it was found.
+
+   The board's own chip hit this and wrote down the fix; this screen had the
+   same helper and never got it. */
+describe("the mirror card's clock", () => {
+  const READY = {
+    configured: true,
+    sealed: true,
+    notice: null,
+    connection: toView(row()),
+  };
+
+  it("emits NO relative time on the server — the whole reason it is split", () => {
+    /* renderToString is the only place this is observable: `useHydrated`
+       reports true on a plain client render, so RTL alone would show a time
+       and prove nothing. Asserted across the whole markup rather than on one
+       node, so moving the line cannot quietly hide a regression. */
+    const html = renderToString(
+      <Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} />,
+    );
+    expect(html).toContain("Last synced");
+    expect(html).not.toMatch(/\b(just now|min ago|hours? ago|over a day ago)\b/i);
+  });
+
+  it("fills the freshness in once there is a browser to own it", async () => {
+    render(<Servicem8Screen {...READY} sync={syncView([JOBS_DONE])} />);
+    await waitFor(() =>
+      expect(document.body.textContent).toMatch(
+        /Last synced (just now|\d+ min ago|\d+ hours? ago|over a day ago)/i,
+      ),
+    );
+  });
+
+  it("keeps the branches that cannot drift on the server", () => {
+    /* "Syncing now…" and the still-reading line are facts about the mirror,
+       identical on both sides. Only the clock branch waits. */
+    const running = syncView([JOBS_DONE]);
+    const html = renderToString(
+      <Servicem8Screen
+        {...READY}
+        sync={{ ...running, lastRun: { ...running.lastRun!, running: true } }}
+      />,
+    );
+    expect(html).toContain("Syncing now…");
   });
 });

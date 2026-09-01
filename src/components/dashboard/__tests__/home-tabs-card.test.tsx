@@ -178,18 +178,40 @@ describe("the glance", () => {
   /* Urgent and Needs attention were faces of this card. They are chips in the
      page head now — and they are DOORS, because the screens behind them say
      more than a panel ever did. */
-  it("carries the counts and points at the screens that hold them", () => {
+  it("adds the two dated states into ONE number, and points at the screen holding them", () => {
+    /* It was two chips — "1 past its date" and "2 coming up" — from one list,
+       split on state, both linking to the SAME screen. Two numbers, no extra
+       meaning (Isaac, 2026-09-01: "you can group them together as one thing
+       saying three need attention"). */
     draw({
       chips: { self: [chip("bad", "a"), chip("warn", "b"), chip("warn", "c")], team: [] },
     });
     const glance = document.querySelector(".hm-glance")!;
-    expect(glance.textContent).toContain("1");
-    expect(glance.textContent).toContain("past its date");
-    expect(glance.textContent).toContain("2");
-    expect(glance.textContent).toContain("coming up");
+    expect(glance.textContent).toContain("3");
+    expect(glance.textContent).toContain("need attention");
+    expect(glance.textContent).not.toContain("coming up");
     expect(
-      screen.getByRole("link", { name: /past its date/ }),
+      screen.getByRole("link", { name: /need attention/ }),
     ).toHaveAttribute("href", "/dashboard/action-required");
+  });
+
+  it("keeps the severity on the number's colour, not in a second number", () => {
+    /* Anything past its date makes it red — red on this app means something
+       is wrong. With nothing overdue it falls back to amber, which is
+       "closing in", and the count is the same either way. */
+    draw({ chips: { self: [chip("bad", "a"), chip("warn", "b")], team: [] } });
+    expect(document.querySelector(".hm-gl")).toHaveClass("dan");
+
+    cleanup();
+    draw({ chips: { self: [chip("warn", "b"), chip("warn", "c")], team: [] } });
+    const soon = document.querySelector(".hm-gl")!;
+    expect(soon).toHaveClass("warn");
+    expect(soon).not.toHaveClass("dan");
+  });
+
+  it("says it in the singular for one", () => {
+    draw({ chips: { self: [chip("warn", "b")], team: [] } });
+    expect(document.querySelector(".hm-glance")!.textContent).toContain("1 needs attention");
   });
 
   it("is absent entirely on a clear day — the empty head IS the statement", () => {
@@ -406,7 +428,7 @@ describe("Tiff", () => {
   it("takes the dot off once something is in today's record", () => {
     draw({
       journal: [
-        { id: "j1", said: "Board corroded.", day: TODAY, at: "11:47", outcomes: [], spoken: true },
+        { id: "j1", said: "Board corroded.", day: TODAY, at: "11:47", outcomes: [], spoken: true, isDebrief: false },
       ],
     });
     expect(tab(/Debrief/).querySelector(".wb2-vtdot")).toBeNull();

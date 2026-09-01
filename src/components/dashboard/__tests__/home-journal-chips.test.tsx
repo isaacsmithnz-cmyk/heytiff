@@ -20,7 +20,7 @@ const entry = (outcomes: Outcome[], id = "e1"): JournalEntry => ({
   day: TODAY,
   at: "6:52 am",
   outcomes,
-  spoken: true,
+  spoken: true, isDebrief: false,
 });
 
 const renderJournal = (outcomes: Outcome[], onOpenTask?: (id: string) => void) =>

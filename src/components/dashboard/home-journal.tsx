@@ -1,3 +1,6 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
@@ -31,7 +34,25 @@ import { groupByDay, type JournalEntry, type Outcome } from "@/lib/dashboard/jou
    and an issue deliberately stay counts.
 
    NEWEST FIRST, all the way down, so what you just said is where your eye
-   already is and the day you are adding to is the day on top. */
+   already is and the day you are adding to is the day on top.
+
+   AND YOU MOVE THROUGH IT BY DAYS (Isaac, 2026-09-01: "you need to be able to
+   scroll through the days like a real diary"). It was one long column with
+   day headings buried in it, so a scroll of three months told you what was
+   said and not when — the heading you needed had gone off the top four
+   entries ago.
+
+   Two halves, and they are the same idea:
+   - the day heading STICKS to the top of the scroller, so the day you are
+     reading is always named on screen rather than remembered;
+   - a stepper moves a whole day at a time, which is what turning a page in a
+     paper diary does.
+
+   The stepper's label is not a guess. It follows the heading that is actually
+   at the top — an IntersectionObserver watching the same sticky headings — so
+   free-scrolling and stepping can never disagree about which day you are on,
+   which is the failure a stored "current day" would have had the moment
+   somebody used the scrollbar. */
 
 /* The chip's inside is the same three parts however it is pressed, so the
    glyph and the words are written once and the element around them changes. */
@@ -91,6 +112,72 @@ export function HomeJournal({
 }) {
   const days = groupByDay(entries, today, fmtAuWeekdayDayMonth);
 
+  const scroller = useRef<HTMLDivElement | null>(null);
+  /* One node per day, keyed by its ISO day, populated by the ref callback
+     below. A map rather than an array because `days` re-derives on every
+     render and index identity would drift under it. */
+  const dayNodes = useRef(new Map<string, HTMLDivElement>());
+  const [atDay, setAtDay] = useState<string | null>(null);
+
+  const holdDay = useCallback((day: string) => (el: HTMLDivElement | null) => {
+    if (el) dayNodes.current.set(day, el);
+    else dayNodes.current.delete(day);
+  }, []);
+
+  /* WHICH DAY IS AT THE TOP. The observer's root is the scroller and its top
+     margin pulls the trip line down to just under the sticky heading, so the
+     day that is CURRENTLY stuck is the one reported — without it the day
+     above stays "intersecting" while its last entry is still on screen and
+     the label lags a whole day behind the words.
+
+     Re-run when the day list changes identity, not on every render: the
+     dependency is the joined keys, because `days` is a fresh array each time
+     and depending on it would tear down and rebuild the observer on every
+     keystroke elsewhere in the card. */
+  const dayKeys = days.map((d) => d.day).join("|");
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root || dayNodes.current.size === 0) return;
+    /* Guarded because the record has to render where the API does not exist —
+       jsdom has none, and a screen that throws in a test environment is a
+       screen nobody can test. Without the observer the label simply holds at
+       the newest day and the arrows still step; nothing else is lost. */
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const seen = new Map<string, number>();
+    const io = new IntersectionObserver(
+      (rows) => {
+        for (const r of rows) {
+          const day = (r.target as HTMLElement).dataset.day;
+          if (day) seen.set(day, r.intersectionRatio);
+        }
+        /* The topmost day still on screen wins. `days` is newest-first, so
+           the first one with any ratio is the one the reader is in. */
+        const order = dayKeys.split("|");
+        const top = order.find((d) => (seen.get(d) ?? 0) > 0) ?? order[0] ?? null;
+        setAtDay(top);
+      },
+      { root, rootMargin: "-44px 0px -70% 0px", threshold: [0, 0.01] },
+    );
+    for (const el of dayNodes.current.values()) io.observe(el);
+    return () => io.disconnect();
+  }, [dayKeys]);
+
+  /* A WHOLE DAY AT A TIME. `-1` is up the page, which is towards TODAY
+     because the record runs newest-first — so the arrow that points up moves
+     you forward in time, and both are labelled in words for that reason. */
+  const step = (dir: -1 | 1) => {
+    const order = days.map((d) => d.day);
+    const from = atDay ? order.indexOf(atDay) : 0;
+    const next = order[Math.min(order.length - 1, Math.max(0, from + dir))];
+    const el = next ? dayNodes.current.get(next) : null;
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const order = days.map((d) => d.day);
+  const at = atDay ? order.indexOf(atDay) : 0;
+  const label = days[at < 0 ? 0 : at]?.label ?? "";
+
   return (
     <>
       {/* THE HEADER IS THE CONTROL. Five shapes now: "Say the day" over a
@@ -110,15 +197,53 @@ export function HomeJournal({
         <NoteToken as="entry" />
       </div>
 
+      {/* THE PAGE TURNER. Absent below two days, because a control that can
+          only ever be disabled is furniture — with one day of record there is
+          nowhere to step to and the sticky heading already says the day. */}
+      {days.length > 1 && (
+        <div className="hm-jnav">
+          {/* LEFT IS EARLIER, matching the Calendar's stepper one tab across —
+              which is worth more than matching the scroll direction. The
+              record runs newest-first, so earlier is DOWN the column and a
+              down-arrow would have been honest about the movement and
+              backwards about the time. The two steppers on one card have to
+              mean the same thing by their arrows. */}
+          <button
+            type="button"
+            className="wb2-mcarrow"
+            aria-label="The day before"
+            disabled={at >= days.length - 1}
+            onClick={() => step(1)}
+          >
+            <Icon name="chevL" size={15} />
+          </button>
+          <b className="hm-jnavd">{label}</b>
+          <button
+            type="button"
+            className="wb2-mcarrow"
+            aria-label="The day after"
+            disabled={at <= 0}
+            onClick={() => step(-1)}
+          >
+            <Icon name="chevR" size={15} />
+          </button>
+        </div>
+      )}
+
       {days.length === 0 ? (
         <p className="hm-none">
           Nothing yet. Anything you tell Tiff — typed or spoken, here or from a job — lands
           here with what it turned into.
         </p>
       ) : (
-        <div className="hm-jscroll">
+        <div className="hm-jscroll" ref={scroller}>
           {days.map((d, i) => (
-            <div className={"hm-jd" + (i === 0 ? " first" : "")} key={d.day}>
+            <div
+              className={"hm-jd" + (i === 0 ? " first" : "")}
+              key={d.day}
+              data-day={d.day}
+              ref={holdDay(d.day)}
+            >
               {/* The day and a rule. It used to end in "2 debriefs", which
                   counted the rows you were already looking at — the entries
                   are right there under it, numbered by their own timestamps

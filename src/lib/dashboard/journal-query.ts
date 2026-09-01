@@ -34,7 +34,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { auDayOf, fmtAuTime } from "@/lib/au-dates";
 import { describeAppliedResolved, type JournalEntry } from "./journal";
 
-const COLUMNS = "id, transcript, source, applied, created_at";
+const COLUMNS = "id, transcript, source, applied, created_at, is_debrief";
 
 type Row = {
   id: string;
@@ -42,6 +42,7 @@ type Row = {
   source: string;
   applied: unknown;
   created_at: string;
+  is_debrief: boolean | null;
 };
 
 /** What the chips on this page can be doors to. Everything here was read
@@ -69,6 +70,10 @@ const toEntry = (r: Row, found: Resolved): JournalEntry => ({
     noteId: found.notes.get(r.id) ?? null,
   }),
   spoken: r.source === "voice",
+  /* Null for every row written before the column existed, and read as false —
+     not a guess about the past, just the absence of a claim. See
+     docs/migrations/note_is_debrief.sql. */
+  isDebrief: r.is_debrief === true,
 });
 
 /** The ids a capture recorded under one group. Anything that isn't a string is

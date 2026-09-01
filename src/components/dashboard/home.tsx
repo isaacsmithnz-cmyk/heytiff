@@ -3,7 +3,6 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ViewTabs } from "@/components/shell/view-tabs";
-import { DotField } from "@/components/ui/dot-field";
 import { HomeDayRail } from "./home-day-rail";
 import { HomeDebrief } from "./home-debrief";
 import { HomeJournal } from "./home-journal";
@@ -67,11 +66,26 @@ export function DashboardHome({ data }: { data: DashboardData }) {
   }, []);
   const clearFocusTask = useCallback(() => setFocusTask(null), []);
 
-  /* The same one list the topbar bell counts, split on state, so the two
-     chips can never double-count an expiry or drop one between them. */
+  /* ONE NUMBER, NOT TWO (Isaac, 2026-09-01: "you can group them together as
+     one thing saying three need attention instead of one past state and two
+     coming up").
+
+     They were always one list — the same one the topbar bell counts — split
+     on state purely so each half could have its own chip. Both halves are the
+     same KIND of thing (something dated that wants you) and both chips pointed
+     at the SAME screen, so the split bought two numbers and no extra meaning.
+
+     The severity is not lost: it moves onto the one number's colour. Anything
+     past its date makes it red, because red on this app means something is
+     wrong; otherwise amber, which is "closing in". Unread notices stay their
+     own count — a different screen and a different kind of fact, and merging
+     those really would be adding two unlike things together. */
   const all = sortChips([...chips.self, ...chips.team]);
-  const bad = all.filter((c) => c.state === "bad").length;
-  const warn = all.filter((c) => c.state === "warn").length;
+  /* `chipsOverdue`, not `overdue` — there is a second overdue on this screen
+     below (the viewer's own tasks, which feed the Tasks tab's badge) and the
+     two count different things. */
+  const chipsOverdue = all.filter((c) => c.state === "bad").length;
+  const attention = chipsOverdue + all.filter((c) => c.state === "warn").length;
   const unread = currentUnreadCount(notices, today);
 
   /* Past its date, on the viewer's own tasks — the one number on this card
@@ -120,14 +134,6 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 thumb IS the card's top edge, which cannot survive two
                 surfaces meeting. See the HOME section of shell.css. */}
             <div className="wb2-card hm-card">
-              {/* The mark, on the card's floor. `mark` and not `cloud`: the
-                  agreed design has the chevron READABLE in the dots — the
-                  dispersed stage read as a random scatter down there, which
-                  is the studio's "thinking" state and not this one. */}
-              <span className="hm-cloud" aria-hidden="true">
-                <DotField stage="mark" size={330} cols={26} />
-              </span>
-
               <ViewTabs
                 items={tabs}
                 active={tab}
@@ -142,16 +148,14 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                     Absent at zero, all three: "nothing is past its date" is
                     said by not being here. Still doors — the screens behind
                     them say more than a panel ever did. */}
-                {(bad > 0 || warn > 0 || unread > 0) && (
+                {(attention > 0 || unread > 0) && (
                   <nav className="hm-glance" aria-label="Needs you">
-                    {bad > 0 && (
-                      <Link className="hm-gl dan" href="/dashboard/action-required">
-                        <b>{bad}</b> past {bad === 1 ? "its" : "their"} date
-                      </Link>
-                    )}
-                    {warn > 0 && (
-                      <Link className="hm-gl warn" href="/dashboard/action-required">
-                        <b>{warn}</b> coming up
+                    {attention > 0 && (
+                      <Link
+                        className={"hm-gl" + (chipsOverdue > 0 ? " dan" : " warn")}
+                        href="/dashboard/action-required"
+                      >
+                        <b>{attention}</b> need{attention === 1 ? "s" : ""} attention
                       </Link>
                     )}
                     {unread > 0 && (
@@ -190,7 +194,15 @@ export function DashboardHome({ data }: { data: DashboardData }) {
 
               {panel(
                 "debrief",
-                <HomeDebrief phase={phase} last={journal[0] ?? null} today={today} />,
+                <HomeDebrief
+                  phase={phase}
+                  /* Filtered here rather than loaded separately: the journal
+                     is already in hand (60 entries, whole history), so the
+                     debriefs are a subset of something the page has, not a
+                     second round trip. */
+                  debriefs={journal.filter((e) => e.isDebrief)}
+                  today={today}
+                />,
               )}
 
               {panel("calendar", <HomeCalendarFace cal={calendar} today={today} />)}

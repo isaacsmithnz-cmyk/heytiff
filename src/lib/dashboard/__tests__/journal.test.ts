@@ -169,6 +169,7 @@ describe("describeAppliedResolved", () => {
 const entry = (id: string, day: string, at = "9:00 am"): JournalEntry => ({
   id,
   said: `said ${id}`,
+  isDebrief: false,
   day,
   at,
   outcomes: [],

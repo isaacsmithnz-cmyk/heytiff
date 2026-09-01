@@ -157,6 +157,11 @@ export type JournalEntry = {
   /** What it became, each with the glyph its chip wears. */
   outcomes: Outcome[];
   spoken: boolean;
+  /** Did this come through the Debrief face, or an ordinary note/diary
+      capture? Both write the same row and always did — this is the one thing
+      that tells them apart, and it only exists for rows written after the
+      column did. */
+  isDebrief: boolean;
 };
 
 export type JournalDay = {

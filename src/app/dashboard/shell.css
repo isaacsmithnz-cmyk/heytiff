@@ -10625,6 +10625,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
      The `-t` variants, not the fills: on a light ground the app's rule is
      that a hue used as TEXT is its own darker value. See the note on `--q`. */
   --hm-ink:rgba(255,255,255,.78); --hm-line:rgba(5,5,5,.07);
+  /* WHAT THE CARD COMPOSITES TO, opaque. `--hm-ink` is 78% white over the
+     well, and the well is `rgb(237,239,244)` — so anything that has to be
+     SOLID on top of the card (a sticky heading, which must stop the words
+     running under it) needs the result, not the ingredients. Stacking
+     `--hm-ink` again would double the white and read as a lighter patch.
+
+     Measured, not guessed: .78×255 + .22×(237,239,244). If either input
+     moves, this moves with it — that is the whole reason it is written here
+     beside them rather than as a hex somewhere downstream. The well also
+     carries a faint teal radial at its top-right which this cannot follow;
+     it is a couple of units at the card's far corner and nowhere near the
+     one place this is used. */
+  --hm-solid:rgb(251,251,253);
   --hm-teal:#00806b; --hm-dan:var(--bad-t); --hm-warn:var(--warn-t);
   /* THE QUIET STEP, MEASURED ONCE.
 
@@ -11133,7 +11146,26 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   mask-image:linear-gradient(#000 90%, transparent 100%); }
 .fg .hm-jscroll::-webkit-scrollbar { width:6px; }
 .fg .hm-jscroll::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:99px; }
-.fg .hm-jdh { display:flex; align-items:center; gap:12px; padding:22px 0 6px; }
+/* THE PAGE TURNER, above the scroller so it does not scroll away from the
+   thing it steers. Borrowed whole from the Calendar's stepper — `wb2-mcarrow`
+   is that control, and two steppers on one card that looked different would
+   be two vocabularies for one idea. */
+.fg .hm-jnav { display:flex; align-items:center; gap:10px; padding:2px 26px 8px; }
+.fg .hm-jnavd { font-size:12.5px; font-weight:800; letter-spacing:.02em;
+  color:var(--ink); min-width:118px; }
+
+/* STICKY, and this is the half that makes it a diary rather than a column.
+   The day you are reading is named on screen at all times instead of having
+   scrolled off four entries ago.
+
+   THE BACKGROUND IS NOT OPTIONAL. A sticky element with a transparent ground
+   lets the words it is pinned over run underneath it — the heading and an
+   entry render on top of each other and both become unreadable. The card is
+   translucent glass, so this cannot be `#fff`: it is the card's own ink at
+   full strength, which is what the glass composites to anyway. */
+.fg .hm-jdh { position:sticky; top:0; z-index:2;
+  display:flex; align-items:center; gap:12px; padding:14px 0 6px;
+  background:linear-gradient(var(--hm-solid) 74%, transparent); }
 .fg .hm-jd { position:relative; }
 .fg .hm-jd.first .hm-jdh { padding-top:15px; }
 .fg .hm-jdh > span { font-size:10.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; color:var(--gray700); }
@@ -11551,14 +11583,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    question and the last thing you said running into the border. The panel
    itself has no horizontal padding by design (each face insets its own rows);
    this face simply never claimed its share. */
-.fg .hm-dbf { display:flex; flex-direction:column; gap:18px; padding:10px 26px 4px;
-  max-width:620px; }
+.fg .hm-dbf { display:flex; flex-direction:column; gap:18px; padding:10px 26px 18px;
+  max-width:620px; min-height:0; overflow-y:auto; }
 .fg .hm-dbft { margin:0; font-size:21px; font-weight:800; letter-spacing:-.025em;
   color:var(--ink); }
-.fg .hm-dbfl { padding-top:16px; border-top:1px solid var(--hm-line); }
-.fg .hm-dbfsaid { margin:6px 0 0; font-size:13px; line-height:1.55;
-  color:var(--hm-quiet); display:-webkit-box; -webkit-box-orient:vertical;
-  -webkit-line-clamp:3; overflow:hidden; }
+/* NOT CLAMPED ANY MORE. It was three lines with an ellipsis when this face
+   showed a single entry as a reminder of what you last said. It is a record
+   now, and a record you cannot read to the end is a worse thing than the
+   thing it records. */
+.fg .hm-dbfsaid { margin:0; font-size:13.5px; line-height:1.6;
+  color:var(--ink); text-wrap:pretty; }
 
 /* ── THE MARK, THINKING ──
    The studio's dot cloud, on the card's floor. A ZERO-SIZED ANCHOR with the
@@ -11567,11 +11601,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    nothing about a decoration may influence layout. Behind the panels (z0,
    with the card's two lamps), because it is the surface breathing rather than
    anything to read. */
-.fg .hm-cloud { position:absolute; right:170px; bottom:130px; width:0; height:0;
-  z-index:0; pointer-events:none; }
-.fg .hm-cloud .dotf { position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%); opacity:.7; }
-@media (prefers-reduced-motion:reduce) { .fg .hm-cloud { display:none; } }
+/* NO WATERMARK ON THIS CARD (Isaac, 2026-09-01, twice in one message: "the
+   logo animation makes the text hard to read" and "just sits over top of
+   everything. It makes it so hard to see").
+
+   It was never painted ABOVE the words — z-index:0 under panels that stack
+   later — but at .7 opacity a 330px field of dots behind body text is
+   interference whichever side of the glass it is on. The card's whole job is
+   a record you READ, and nothing decorative gets to make that harder.
+
+   The mark stays where it MEANS something: the studio's start screen (a
+   thinking state), Tiff's composer, and the capture sheet — all places where
+   the dots are the app working, not wallpaper. Home already carries the brand
+   in the rail and on the Tiff button. */
 
 /* THE DEBRIEF'S BUTTON, ON ITS OWN FACE.
    `.hm-say` was built as a BAR — full width, quiet glass — because it sat at
@@ -11580,17 +11622,51 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    reads as a disabled field rather than the page's primary action. So here,
    and only here, it is a button: the brand ramp, sized to its words. */
 .fg .hm-dbf .hm-saydock { flex:none; }
-.fg .hm-dbf .hm-say { flex:none; width:auto; min-height:48px; padding:0 22px 0 6px;
+/* THE THIRD ATTEMPT AT THIS BUTTON, and the first one that stops treating
+   contrast as the whole problem (Isaac, 2026-09-01: "still fucking so hard to
+   read. Surely we can do something better there").
+
+   It went gradient-with-white → bright mint with ink. The mint measured
+   9.4:1, which is excellent, and he still could not read it — because the
+   ratio was never what was wrong. Three other things were:
+
+   - a 26px dotted mark sat inside it, so the words shared the button with a
+     logo and started 40px in from where the eye lands;
+   - a 26px-blur teal glow under a saturated mint slab smeared its own edge,
+     so the button had no crisp boundary to read the words against;
+   - #00E5C0 is the brightest colour on a page whose ground is white, which
+     makes a big fill of it glare rather than read.
+
+   So: one solid AA-safe teal (white on #00806b is 4.89:1, clearing AA for
+   normal text, not just the 3:1 large-text floor), a real edge instead of a
+   halo, and the words alone. It is now the same shape of thing as every
+   other primary in the app — a button with its label in it. */
+.fg .hm-dbf .hm-say { flex:none; width:auto; min-height:46px; padding:0 20px;
   gap:10px; border-color:transparent;
-  /* THE HOUSE PRIMARY, NOT A GRADIENT OF ITS OWN (Isaac, 2026-09-01: "very
-     hard to read"). The teal-to-blue wash put 800-weight white on the exact
-     mid-tones white fails on; every other primary on this app is the flat
-     accent with ink text (`.fl-btn.primary`, `.pbtn.primary`), and this
-     button being dressed differently made it worse-read, not special. */
-  background:#00E5C0; color:#052b25;
-  box-shadow:0 12px 26px -12px rgba(0,163,137,.7); }
-.fg .hm-dbf .hm-say:hover { border-color:transparent; background:#00A389; color:#fff; }
+  background:#00806b; color:#fff;
+  box-shadow:0 2px 4px -1px rgba(0,80,67,.35); }
+.fg .hm-dbf .hm-say:hover { border-color:transparent; background:#00695a;
+  box-shadow:0 4px 10px -3px rgba(0,80,67,.45); }
+.fg .hm-dbf .hm-say:focus-visible { outline:none;
+  box-shadow:0 0 0 3px rgba(0,128,107,.4); }
 .fg .hm-dbf .hm-saytx { flex:none; font-size:14.5px; font-weight:800; color:inherit; }
+/* the mark is not in the button — see note-token's debrief posture */
+.fg .hm-dbf .hm-saymk { display:none; }
+
+/* ── THE DEBRIEFS YOU HAVE FILED ──
+   A log, under the button that makes them. Deliberately plainer than the
+   Diary: no chips, no doors, no spine — this face answers "what have I said
+   at the end of my days", and anything that turned into a task has a home one
+   tab across that says so properly. */
+.fg .hm-dbflog { margin-top:28px; padding-top:20px; border-top:1px solid var(--hm-line); }
+.fg .hm-dbfday { margin-top:18px; }
+.fg .hm-dbfday:first-of-type { margin-top:10px; }
+.fg .hm-dbfdh { font-size:10.5px; font-weight:800; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--hm-quiet); margin-bottom:8px; }
+.fg .hm-dbfe { display:grid; grid-template-columns:74px minmax(0,1fr); column-gap:16px;
+  padding:9px 0; align-items:baseline; }
+.fg .hm-dbfet { font-size:12px; font-weight:700; color:var(--hm-quiet);
+  font-variant-numeric:tabular-nums; }
 
 /* ── THE CALENDAR, AS A LIST ──
    Four weeks read downward: date on the left, what is on that day to the

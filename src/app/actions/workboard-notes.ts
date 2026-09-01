@@ -205,6 +205,12 @@ export async function routeNote(input: {
       target_id: target.id ?? null,
       transcript,
       source: input.source === "voice" ? "voice" : "text",
+      /* WHICH DOOR THE WORDS CAME THROUGH. This flag already decided what the
+         brain was asked for and was then thrown away, so a debrief and a line
+         typed into the diary landed as the same row — which is why the Debrief
+         face could not show you your own debriefs without showing you the
+         whole diary. See docs/migrations/note_is_debrief.sql. */
+      is_debrief: input.debrief === true,
     })
     .select("id")
     .single();

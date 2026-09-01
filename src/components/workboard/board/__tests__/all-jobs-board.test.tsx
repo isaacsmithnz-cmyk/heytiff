@@ -246,7 +246,7 @@ describe("the shell", () => {
       "Quotes",
       "Completed",
       "Capacity",
-      "Showcase",
+      "Gallery",
     ]);
   });
 

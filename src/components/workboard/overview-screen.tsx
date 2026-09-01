@@ -18,10 +18,16 @@ import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { SEARCH_MIN, searchWorkboard, type WorkHit } from "@/lib/workboard/work-search";
 import { searchAllJobs } from "@/app/actions/workboard";
 import { useNoteScopeScreen } from "@/components/notes/note-context";
+import { createPortal } from "react-dom";
+import { searchPhotos, type PhotoHit } from "@/app/actions/photo-search";
+import { setJobPhotoFavourite } from "@/app/actions/job-photo-favourites";
+import { PHOTO_SEARCH_MIN } from "@/lib/workboard/photo-search";
 import { MaintenanceBoard } from "./board/maintenance-board";
 import { ProjectsBoard } from "./board/projects-board";
 import { AllJobsBoard } from "./board/all-jobs-board";
-import { WorkSearchField, WorkSearchPanel } from "./board/work-search";
+import { JobMediaViewer } from "./board/job-media-viewer";
+import { showcaseMediaItem } from "./board/showcase-view";
+import { WorkSearchField, WorkSearchPanel, type PhotoSearchState } from "./board/work-search";
 
 /* The Workboard — a command centre, not a menu.
 
@@ -193,20 +199,141 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const [remote, setRemote] = useState<AllJobsMirrorJob[]>([]);
   const [searching, startSearch] = useTransition();
 
+  /* THE PHOTO BANK'S HALF. The gallery tab used to carry its own box for
+     this, one hand's width under this field — two searches with the same
+     face and different reach. This is the box now, so the bank answers here,
+     from any side and any tab.
+
+     DEBOUNCED, AND THE LAST ANSWER WINS — the same discipline the box had on
+     the gallery, kept for the same reasons: reading a photograph's worth of
+     rows per keystroke is a query per letter, and without the sequence guard
+     a slow answer for "duct" can land after a fast one for "ductwork" and
+     paint the wrong photos under the right word. The debounce hangs off the
+     change handler, where the typing is, not off an effect. */
+  const [photoState, setPhotoState] = useState<PhotoSearchState>({
+    hits: null,
+    banked: 0,
+    capped: false,
+    searching: false,
+  });
+  /* The viewer over a photo hit. A SNAPSHOT of the hits at open, so clearing
+     or retyping the search behind the scrim never reshuffles the roll under
+     the reader's feet — the gallery's own rule. */
+  const [photoView, setPhotoView] = useState<{ items: PhotoHit[]; index: number } | null>(
+    null
+  );
+  const [viewStars, setViewStars] = useState<ReadonlySet<string>>(new Set());
+  const photoSeq = useRef(0);
+  const photoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      if (photoTimer.current) clearTimeout(photoTimer.current);
+    };
+  }, []);
+
+  const PHOTO_DEBOUNCE_MS = 250;
+
   const runQuery = (q: string) => {
     setQuery(q);
     // One character is not a search — it's a keystroke on the way to one, and
     // asking the mirror on every one of them is a query per letter.
     if (q.trim().length < SEARCH_MIN) {
       setRemote([]);
+    } else {
+      startSearch(async () => setRemote(await searchAllJobs(q)));
+    }
+
+    const wanted = q.trim();
+    if (photoTimer.current) clearTimeout(photoTimer.current);
+    /* A too-short term schedules nothing and clears everything: it bumps the
+       sequence so an answer still in flight is discarded rather than painted
+       under a box that no longer asks for it. */
+    const mine = ++photoSeq.current;
+    if (wanted.length < PHOTO_SEARCH_MIN) {
+      setPhotoState({ hits: null, banked: 0, capped: false, searching: false });
       return;
     }
-    startSearch(async () => setRemote(await searchAllJobs(q)));
+    setPhotoState((cur) => ({ ...cur, searching: true }));
+    photoTimer.current = setTimeout(() => {
+      void searchPhotos(wanted)
+        .then((res) => {
+          if (!alive.current || mine !== photoSeq.current) return;
+          setPhotoState({
+            hits: res.hits,
+            banked: res.banked,
+            capped: res.capped,
+            searching: false,
+          });
+        })
+        .catch(() => {
+          if (!alive.current || mine !== photoSeq.current) return;
+          setPhotoState({ hits: [], banked: 0, capped: false, searching: false });
+        });
+    }, PHOTO_DEBOUNCE_MS);
   };
   const clearQuery = useCallback(() => {
     setQuery("");
     setRemote([]);
+    if (photoTimer.current) clearTimeout(photoTimer.current);
+    photoSeq.current += 1;
+    setPhotoState({ hits: null, banked: 0, capped: false, searching: false });
+    /* Leaving the search closes a viewer it opened — the panel under it is
+       gone, so a photo floating over a tab it did not come from would be a
+       layer with no ground. */
+    setPhotoView(null);
   }, []);
+
+  /* Opening a hit freezes the list and seeds the stars from what each hit
+     already knows. The star in the viewer's bar toggles the real favourite —
+     which is how a search that just found the right photo is also the moment
+     it can be kept. */
+  const openPhotoHit = (index: number) => {
+    const items = photoState.hits ?? [];
+    if (!items[index]) return;
+    setViewStars(new Set(items.filter((h) => h.starred).map((h) => h.remoteId)));
+    setPhotoView({ items, index });
+  };
+
+  const toggleHitStar = (remoteId: string) => {
+    const hit = photoView?.items.find((h) => h.remoteId === remoteId);
+    if (!hit) return;
+    const on = !viewStars.has(remoteId);
+    const paint = (next: boolean) =>
+      setViewStars((cur) => {
+        const set = new Set(cur);
+        if (next) set.add(remoteId);
+        else set.delete(remoteId);
+        return set;
+      });
+    paint(on);
+    void setJobPhotoFavourite(hit.jobUuid, remoteId, on)
+      .then((res) => {
+        if (alive.current && !res.ok) paint(res.starred);
+      })
+      .catch(() => {
+        if (alive.current) paint(!on);
+      });
+  };
+
+  /* Escape closes the viewer FIRST — captured before the field's own Esc
+     handler can clear the whole search out from under it. Innermost first,
+     the same order the job sheet keeps. */
+  const photoViewOpen = photoView !== null;
+  useEffect(() => {
+    if (!photoViewOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setPhotoView(null);
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [photoViewOpen]);
 
   const results = useMemo(
     () =>
@@ -273,7 +400,9 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
       result={results}
       searching={searching}
       connected={connected}
+      photos={photoState}
       onOpen={openHit}
+      onOpenPhoto={openPhotoHit}
       onClear={clearQuery}
     />
   ) : null;
@@ -659,6 +788,24 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           </div>
         </div>
       </div>
+
+      {/* The viewer a photo hit opens. PORTALLED TO BODY like every dashboard
+          overlay — the page's own stacking context would trap a fixed layer
+          under the shell. It outlives the panel that opened it on purpose:
+          its list is a snapshot, so reading on while the search behind it
+          changes is safe, and Escape peels the viewer first. */}
+      {photoView &&
+        createPortal(
+          <JobMediaViewer
+            items={photoView.items.map(showcaseMediaItem)}
+            index={photoView.index}
+            favourites={viewStars}
+            onNav={(index) => setPhotoView((cur) => (cur ? { ...cur, index } : cur))}
+            onStar={toggleHitStar}
+            onClose={() => setPhotoView(null)}
+          />,
+          document.body
+        )}
     </div>
   );
 }

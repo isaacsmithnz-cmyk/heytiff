@@ -45,7 +45,10 @@ function fitScale(
   nat: { w: number; h: number } | null
 ): number {
   if (!nat || nat.w <= 0 || nat.h <= 0) return 1;
-  const pad = 16;
+  /* 2 × the stage's 20px inset — .wb2-mvstage img in shell.css. The two
+     numbers are one fact written twice: this is what makes the wheel's
+     zoom-out floor land exactly on the CSS fit. */
+  const pad = 40;
   return Math.min(
     (stage.clientWidth - pad) / nat.w,
     (stage.clientHeight - pad) / nat.h
@@ -213,8 +216,8 @@ export function JobMediaViewer({
               }
               title={
                 favourites?.has(item.remoteId)
-                  ? "Starred — in the showcase"
-                  : "Star this photo for the showcase"
+                  ? "Starred — in the gallery"
+                  : "Star this photo for the gallery"
               }
             >
               <Icon name="star" size={14} />

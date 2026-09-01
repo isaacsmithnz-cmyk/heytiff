@@ -53,6 +53,10 @@ export type PhotoHit = {
   /** Which of the three matchers fired — the rank is derived from this, and
       the UI can say what it matched on rather than leaving it a mystery. */
   match: PhotoMatch;
+  /** Whether this photo is in the gallery already. The viewer a hit opens
+      carries a star, and a star that draws hollow on a starred photo is a
+      lie — so the truth rides out with the hit. */
+  starred: boolean;
 };
 
 export type PhotoSearchResult = {
@@ -146,6 +150,22 @@ async function searchPhotosInner(term: string): Promise<PhotoSearchResult> {
   /* The function already ranked these. `rankPhotos` re-sorts on the same
      weights so the two can never silently disagree — and so the ordering is
      covered by a test that needs no database. */
+  /* Which of these are already in the gallery — one IN over the kept set, so
+     the star in the viewer a hit opens starts at the truth. */
+  const { data: starRows } = await supabaseAdmin
+    .from("job_photo_favourites")
+    .select("sm8_attachment_uuid")
+    .eq("org_id", orgId)
+    .in(
+      "sm8_attachment_uuid",
+      kept.map((r) => r.sm8_attachment_uuid)
+    );
+  const starredIds = new Set(
+    ((starRows ?? []) as { sm8_attachment_uuid: string }[]).map(
+      (r) => r.sm8_attachment_uuid
+    )
+  );
+
   const scored = kept.map((r) => ({
     remoteId: r.sm8_attachment_uuid,
     jobUuid: r.sm8_job_uuid,
@@ -165,6 +185,7 @@ async function searchPhotosInner(term: string): Promise<PhotoSearchResult> {
       caption: !!r.m_caption,
       tag: !!r.m_tag,
     },
+    starred: starredIds.has(r.sm8_attachment_uuid),
   }));
 
   const ranked = rankPhotos(scored);

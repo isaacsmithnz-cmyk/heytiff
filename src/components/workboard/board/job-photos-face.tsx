@@ -187,8 +187,8 @@ export function JobPhotosFace({
                       }
                       title={
                         favourites?.has(item.remoteId)
-                          ? "Starred — in the showcase"
-                          : "Star this photo for the showcase"
+                          ? "Starred — in the gallery"
+                          : "Star this photo for the gallery"
                       }
                     >
                       <Icon name="star" size={13} />

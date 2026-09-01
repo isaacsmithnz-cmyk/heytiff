@@ -4,7 +4,7 @@
    its per-side counts, the scope it reports to the Tiff button, mirror health reaching
    both rows, and the flag ROUTING that keeps a flag on exactly one board. */
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
 import { NoteScopeProvider, useNoteScope } from "@/components/notes/note-context";
@@ -23,6 +23,31 @@ jest.mock("next/navigation", () => ({
 const searchAllJobs = jest.fn(async () => [] as unknown[]);
 jest.mock("@/app/actions/workboard", () => ({
   searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
+}));
+
+/* The photo bank's half of the universal search, and the star a hit's viewer
+   carries. Both are `"use server"` modules — unmocked, they drag `next/cache`
+   into jsdom and the suite dies at import time. */
+const searchPhotos = jest.fn(
+  async (): Promise<{
+    ok: boolean;
+    hits: unknown[];
+    banked: number;
+    capped: boolean;
+  }> => ({ ok: true, hits: [], banked: 0, capped: false })
+);
+jest.mock("@/app/actions/photo-search", () => ({
+  searchPhotos: (...a: unknown[]) => searchPhotos(...(a as [])),
+}));
+const setJobPhotoFavourite = jest.fn(async (_j: string, _a: string, starred: boolean) => ({
+  ok: true,
+  starred,
+  note: null,
+}));
+jest.mock("@/app/actions/job-photo-favourites", () => ({
+  listShowcase: async () => [],
+  setJobPhotoFavourite: (...a: unknown[]) =>
+    setJobPhotoFavourite(...(a as [string, string, boolean])),
 }));
 
 /* Both boards are stubbed — here we only pin that the switcher mounts each
@@ -554,10 +579,14 @@ describe("the universal search", () => {
       ],
     },
   };
-  const box = () => screen.getByRole("searchbox", { name: "Search the whole workboard" });
+  const box = () =>
+    screen.getByRole("searchbox", { name: "Search the whole workboard, including photos" });
 
   beforeEach(() => {
     searchAllJobs.mockClear();
+    searchPhotos.mockReset();
+    searchPhotos.mockResolvedValue({ ok: true, hits: [], banked: 0, capped: false });
+    setJobPhotoFavourite.mockClear();
     push.mockClear();
   });
 
@@ -676,6 +705,181 @@ describe("the universal search", () => {
     render(<OverviewScreen data={loaded} />);
     await userEvent.type(box(), "zzzz");
     expect(await screen.findByText(/Nothing matches/)).toBeInTheDocument();
+  });
+
+  /* ── the photo bank's half ──────────────────────────────────────────────
+     The gallery tab used to carry its own box for this, a hand's width under
+     the universal field. This is the box now, so the behaviours the old box
+     pinned — the debounce, the last-answer-wins guard, the honesty about how
+     much has been read — are pinned here, on the field that owns them. */
+
+  const photoHit = (over: Partial<Record<string, unknown>> & { remoteId: string }) => ({
+    jobUuid: "job-1",
+    jobNumber: "907",
+    clientName: "Heuvel Construction",
+    name: "Photo",
+    takenAt: "2026-08-28 13:25:00",
+    subject: "dataplate",
+    tags: [],
+    caption: "Mitsubishi outdoor unit rating plate",
+    ocrText: "MODEL PUZ-M125VKA2-A SERIAL 0081 R32 230V",
+    url: "https://signed/p.jpg",
+    readAt: "2026-08-29T02:00:00Z",
+    match: { text: false, transcript: true, caption: false, tag: false },
+    starred: false,
+    ...over,
+  });
+
+  it("answers with photos beside the work, under one headline", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "b-1" })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "kingsford");
+
+    /* Three work rows at once, then the photo lands a debounce later and the
+       headline count follows it up. */
+    expect(screen.getByText(/3 matches for/)).toBeInTheDocument();
+    expect(await screen.findByText("Mitsubishi outdoor unit rating plate")).toBeInTheDocument();
+    expect(screen.getByText(/4 matches for/)).toBeInTheDocument();
+    /* And the group says what the count was measured against. */
+    expect(screen.getByText(/out of 84 photos read so far/)).toBeInTheDocument();
+  });
+
+  it("shows the transcription that matched, not just the picture", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "b-1" })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+    expect(await screen.findByText(/PUZ-M125VKA2-A/)).toBeInTheDocument();
+  });
+
+  /* One character matches most of the bank and tells nobody anything. */
+  it("does not ask the photo bank about a single character", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "k");
+    await new Promise((r) => setTimeout(r, 400));
+    expect(searchPhotos).not.toHaveBeenCalled();
+  });
+
+  /* An empty bank is a different problem from a bad query, and the empty
+     state has to say which one the reader is looking at. */
+  it("tells an empty bank apart from a query nothing matches", async () => {
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "zzzz");
+    expect(await screen.findByText(/no photos have been read yet/)).toBeInTheDocument();
+  });
+
+  it("counts the bank in the empty state once photos exist", async () => {
+    searchPhotos.mockResolvedValue({ ok: true, hits: [], banked: 84, capped: false });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "zzzz");
+    expect(await screen.findByText(/84 photos read so far/)).toBeInTheDocument();
+  });
+
+  /* THE AS-YOU-TYPE RACE, kept from the old box: a slow query for "duct" can
+     land AFTER a fast one for "ductwork" and paint the wrong photos under the
+     right word. Only the last query's answer may reach the screen. Both
+     answers are held open deliberately and released in the wrong order. */
+  it("ignores a slow photo answer that arrives after a newer one", async () => {
+    const release: Record<string, (hits: unknown[]) => void> = {};
+    searchPhotos.mockImplementation(
+      (...args: unknown[]) =>
+        new Promise((resolve) => {
+          release[args[0] as string] = (hits) =>
+            resolve({ ok: true, hits, banked: 84, capped: false });
+        })
+    );
+
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "duct");
+    await waitFor(() => expect(release["duct"]).toBeDefined());
+    await userEvent.type(box(), "work");
+    await waitFor(() => expect(release["ductwork"]).toBeDefined());
+
+    release["ductwork"]([photoHit({ remoteId: "fresh", caption: "FRESH ANSWER" })]);
+    expect(await screen.findByText("FRESH ANSWER")).toBeInTheDocument();
+
+    /* Released inside `act`, or the assertions run before React has processed
+       the stale update and the test passes for the wrong reason. */
+    await act(async () => {
+      release["duct"]([photoHit({ remoteId: "stale", caption: "STALE ANSWER" })]);
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("STALE ANSWER")).toBeNull();
+    expect(screen.getByText("FRESH ANSWER")).toBeInTheDocument();
+  });
+
+  /* ── the viewer a photo hit opens ── */
+
+  it("opens a hit in the viewer and stars it from there", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "b-1" })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Open Mitsubishi outdoor unit rating plate" })
+    );
+
+    const viewer = screen.getByRole("dialog");
+    expect(within(viewer).getByText(/#907 · Heuvel Construction/)).toBeInTheDocument();
+    /* The hit said it was not starred, so the star draws ready to keep it —
+       a search that just found the right photo is also the moment to keep it. */
+    await userEvent.click(
+      within(viewer).getByRole("button", { name: /Star Mitsubishi outdoor unit rating plate/ })
+    );
+    expect(setJobPhotoFavourite).toHaveBeenCalledWith("job-1", "b-1", true);
+  });
+
+  /* Escape peels the viewer FIRST; the search under it survives to be read
+     again. A second Escape is the one that clears the field. */
+  it("closes the viewer on Escape without tearing the search down with it", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "b-1" })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Open Mitsubishi outdoor unit rating plate" })
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText(/1 match for/)).toBeInTheDocument();
+    expect(box()).toHaveValue("PUZ-M125");
+  });
+
+  it("takes the viewer down with the search when the search is cleared", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "b-1" })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Open Mitsubishi outdoor unit rating plate" })
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText(/matches for/)).toBeNull();
   });
 });
 

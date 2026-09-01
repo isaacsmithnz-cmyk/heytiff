@@ -7596,8 +7596,8 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
   inset:24px; width:auto; height:auto; margin:0;
   border-radius:18px; overflow:hidden; background:#0d0e13;
   box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
-.wb2-mvtop { display:flex; align-items:center; gap:10px; padding:10px 14px;
-  border-bottom:1px solid rgba(255,255,255,.08); min-height:44px; }
+.wb2-mvtop { display:flex; align-items:center; gap:10px; padding:12px 20px;
+  border-bottom:1px solid rgba(255,255,255,.08); min-height:48px; }
 .wb2-mvtop b { font-size:12.5px; font-weight:800; color:#fff; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .wb2-mvtop em { font-style:normal; font-size:11px; font-weight:600; color:rgba(255,255,255,.55); white-space:nowrap; }
@@ -7614,8 +7614,13 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
    still never crops. (Absolute, not a grid: a percentage max-height inside
    an auto grid row is indefinite and silently never binds — the portrait
    that taught this ran off the bottom of the stage.) */
-.wb2-mvstage img { position:absolute; inset:8px; margin:0;
-  width:calc(100% - 16px); height:calc(100% - 16px); object-fit:contain;
+/* 20px OF AIR ON EVERY SIDE, and the number is load-bearing twice: the
+   viewer's fitScale() pads by the same 40 (2×20) so the wheel's floor lands
+   exactly where the CSS fit does. Change one, change both. It was 8px, and
+   Isaac's read of the whole box was "everything is very close to the edge" —
+   a photograph needs a mat, not a bleed. */
+.wb2-mvstage img { position:absolute; inset:20px; margin:0;
+  width:calc(100% - 40px); height:calc(100% - 40px); object-fit:contain;
   border-radius:6px; user-select:none; }
 .wb2-mvstage.zoomed { overflow:auto; display:flex; cursor:grab; }
 .wb2-mvstage.zoomed:active { cursor:grabbing; }
@@ -7632,12 +7637,12 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
   line-height:1; cursor:pointer; display:grid; place-items:center; }
 .wb2-mvnav:hover { background:rgba(255,255,255,.26); }
 .wb2-mvnav:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,224,.5); }
-.wb2-mvnav.prev { left:12px; }
-.wb2-mvnav.next { right:12px; }
+.wb2-mvnav.prev { left:20px; }
+.wb2-mvnav.next { right:20px; }
 /* THE ROLL ALONG THE BOTTOM. Two arrows say a neighbour exists; the strip
    says what it is and how far the day runs — and it is the mosaic's own
    order, so the tile you clicked is where your eye already expects it. */
-.wb2-mvstrip { display:flex; gap:6px; flex:none; padding:8px 10px; overflow-x:auto;
+.wb2-mvstrip { display:flex; gap:6px; flex:none; padding:10px 16px 12px; overflow-x:auto;
   overflow-y:hidden; border-top:1px solid rgba(255,255,255,.08);
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent; }
 .wb2-mvthumb { flex:none; width:66px; height:48px; padding:0; border:0; border-radius:6px;
@@ -7662,12 +7667,23 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
    A gallery, not a grid of job rows: bigger cards than the job card's mosaic,
    because these are chosen photographs somebody means to show a client, and
    each one carries a sentence saying what it is. */
-.wb2-show { padding:2px 0 8px; }
-/* THE SEARCH BOX IS `.wb2-find`, the board's own — see showcase-view.tsx.
-   Only its placement here is new: full width above the gallery, because this
-   field is the screen's main verb rather than a filter tucked in a header. */
-.wb2-showfind { width:100%; margin:2px 0 12px; height:40px; }
-.wb2-showfind input { font-size:13.5px; }
+/* The tab's own gutter — the grid used to sit 1px off the card's edge, which
+   read as pictures glued to the frame. 20px is the panel's own inset, so the
+   gallery hangs level with every other face of this card. */
+.wb2-show { padding:14px 20px 22px; }
+/* THE SEARCH BOX IS GONE FROM THIS TAB — it sat a hand's width under the
+   board's universal field with the same face and different reach. The bank
+   search lives in the one field now (see work-search.tsx); what is left here
+   is purely the curated grid. */
+/* THE CARD IS A DOOR. The button wraps only the picture, not the caption —
+   a click lands in the shared viewer. Fully self-dressed because its class
+   carries `wb2-` and is therefore exempt from the `.fg button` reset. */
+.wb2-showcard .wb2-showopen { display:block; width:100%; margin:0; padding:0; border:0;
+  background:none; font:inherit; text-align:inherit; cursor:zoom-in; border-radius:10px; }
+.wb2-showcard .wb2-showopen:focus-visible { outline:none;
+  box-shadow:0 0 0 3px rgba(0,168,224,.45); }
+.wb2-showcard .wb2-showopen:hover .wb2-showimg img { transform:scale(1.03); }
+.wb2-showimg img { transition:transform .18s ease; }
 /* WHY A PHOTO MATCHED, when the reason is not the caption — a hit on a model
    number is otherwise invisible: the picture shows a plate and the words that
    found it are printed on it. Not a highlight colour; a quiet monospace-free
@@ -7701,6 +7717,10 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 .wb2-showread em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .wb2-showgrid { display:grid; gap:12px; margin-top:12px;
   grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
+/* The same cards inside the universal search panel — inset to the panel's
+   own 20px gutter, and a notch smaller: results sit beside ledger rows, not
+   alone on their own tab. */
+.wb2-findgrid { margin:4px 20px 16px; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); }
 .wb2-showcard { margin:0; display:flex; flex-direction:column; gap:7px; min-width:0; }
 .wb2-showimg { position:relative; display:block; aspect-ratio:4/3; border-radius:10px;
   overflow:hidden; background:var(--wb2-line2); }
@@ -8169,6 +8189,10 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    lines up with the rows under it (the shared `.wb2-sect` sits at 2px, right
    when it heads a strip and wrong when it heads a ledger). */
 .wb2-fgrp > .wb2-sect { padding:10px 20px 6px; }
+/* The panel's asides — "still looking", "first N shown" — sit in the same
+   20px gutter as everything else on it, not against the card's edge. */
+.wb2-panel > .int-hint { margin:12px 20px 16px; }
+.wb2-fgrp > .int-hint { margin:0 20px 14px; }
 /* Air BETWEEN groups, not above the first — `:first-of-type` can't say that
    here, because the card head is a div too and would take the match. */
 .wb2-fgrp + .wb2-fgrp > .wb2-sect { padding-top:18px; }

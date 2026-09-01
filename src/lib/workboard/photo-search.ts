@@ -117,6 +117,19 @@ export function rankPhotos<T extends { match: PhotoMatch; readAt: string }>(rows
   });
 }
 
+/** The stretch of transcription around what was typed, so a hit on a model
+    number shows the words that found it rather than leaving the reader to
+    guess why a photograph of a plate came back. Lives here, not in the view —
+    the universal panel and any future surface render hits from one rule. */
+export function snippet(text: string, term: string, width = 64): string {
+  if (!text) return "";
+  const at = text.toLowerCase().indexOf(term.toLowerCase());
+  if (at < 0) return text.slice(0, width);
+  const from = Math.max(0, at - Math.floor((width - term.length) / 2));
+  const cut = text.slice(from, from + width);
+  return `${from > 0 ? "…" : ""}${cut}${from + width < text.length ? "…" : ""}`;
+}
+
 /** The phrase a result list leads with. Says what was searched and how much
     came back, because "23 results" alone does not tell you whether the bank
     is small or your query was narrow. */

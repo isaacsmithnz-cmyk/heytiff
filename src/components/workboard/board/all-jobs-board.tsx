@@ -32,11 +32,15 @@ import { Sm8Chip, type Sm8Health } from "./sm8-chip";
    nothing on this side is urgent — there is no queue and no badge, because
    "everything" is a reference, not a to-do list. */
 
-/* Showcase is last, after Capacity (Isaac). Everything before it is work in
-   flight — what is booked, quoted, done, how full the weeks are. The showcase
-   is the only tab that does not ask about the present: it is what the crew
-   kept, to show somebody later. That is why it sits at the far end rather
-   than beside the job lists it draws from. */
+/* The gallery is last, after Capacity (Isaac). Everything before it is work
+   in flight — what is booked, quoted, done, how full the weeks are. The
+   gallery is the only tab that does not ask about the present: it is what the
+   crew kept, to show somebody later. That is why it sits at the far end
+   rather than beside the job lists it draws from.
+
+   ITS KEY IS STILL `showcase` — the label was renamed to Gallery (Isaac,
+   2026-09-01: the everyday word for a wall of pictures) but the key, the
+   files and the actions keep the name the tables were built under. */
 const TAB_KEYS = ["schedule", "work", "quotes", "completed", "capacity", "showcase"] as const;
 export type AllJobsTabKey = (typeof TAB_KEYS)[number];
 
@@ -58,7 +62,7 @@ const TAB_LABEL: Record<AllJobsTabKey, string> = {
   quotes: "Quotes",
   completed: "Completed",
   capacity: "Capacity",
-  showcase: "Showcase",
+  showcase: "Gallery",
 };
 
 export function AllJobsBoard({

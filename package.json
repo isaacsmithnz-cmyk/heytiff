@@ -14,7 +14,9 @@
     "validate:packs": "PACK_REPORT=1 jest installed-packs",
     "bakeoff": "BAKEOFF=1 jest src/lib/voice/bakeoff/__tests__/bakeoff.test.ts --verbose --silent=false",
     "dev:preview": "NEXT_DIST_DIR=.next-preview next dev",
-    "dev:verify": "NEXT_DIST_DIR=.next-verify next dev -p 3200"
+    "dev:verify": "NEXT_DIST_DIR=.next-verify next dev -p 3200",
+    "auth0:brand": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/auth0-brand.mts",
+    "auth0:brand:preview": "npm run auth0:brand -- --dry-run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",

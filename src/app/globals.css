@@ -23,6 +23,18 @@
   /* Light surfaces */
   --color-surface: #f0f2f5; /* app page background */
   --color-surface-line: #f0f0f2; /* card / hairline borders */
+
+  /* QUIET TEXT, for the screens that live OUTSIDE the app shell — the front
+     door, and anything else not wrapped in `.fg`. Those screens had no quiet
+     tier at all, so each one reached for a Tailwind grey: the sign-in door
+     was on text-zinc-400 at 2.5:1. This is shell.css's `--q`, the measured
+     lightest grey that clears AA on every ground the app puts it over; the
+     long argument for the value lives there and is not repeated here.
+
+     It is the SAME value deliberately, and a mirror is only safe if
+     something checks it — src/lib/brand/auth0/__tests__/palette.test.ts
+     asserts this and `--q` are equal, and fails by name if either moves. */
+  --color-quiet: #5f6a79;
 }
 
 /* Page chrome. HeyTiff is a LIGHT design — the only dark surfaces are ones

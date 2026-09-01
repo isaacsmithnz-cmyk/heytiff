@@ -76,3 +76,7 @@ next-env.d.ts
 * [0-9][0-9].*
 * copy.*
 * copy [0-9].*
+
+# rendered previews from `npm run auth0:brand -- --dry-run` — generated, never
+# the source. The source is src/lib/brand/auth0/.
+/tmp/

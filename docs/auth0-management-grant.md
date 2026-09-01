@@ -63,6 +63,11 @@ depends on the tenant's own email provider:
 - Configure a real provider under **Branding → Email Provider** before anyone
   relies on it.
 
+That provider is also what unblocks the *look* of the mail: Auth0 refuses a
+custom email template on the built-in provider, so until it is configured the
+HeyTiff-branded verification letter in `src/lib/brand/auth0/` cannot be pushed
+at all. See [the branding doc](./auth0-branding.md).
+
 If the send fails the change still succeeds and the screen says so, rather than
 reporting failure for an address that has in fact already moved — the worst of
 both, because the person would not go looking for the mail either.

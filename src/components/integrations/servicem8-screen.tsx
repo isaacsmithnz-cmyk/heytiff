@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { auDayOf, fmtAuWeekdayDate } from "@/lib/au-dates";
+import { useHydrated } from "@/lib/use-hydrated";
 import { providerById, SM8_SCOPES } from "@/lib/integrations/providers";
 import type { ConnectionView } from "@/lib/integrations/connection";
 import type { Sm8ObjectStatus, Sm8SyncStatusView } from "@/lib/integrations/sm8-sync";
@@ -51,7 +52,14 @@ export type Servicem8ScreenProps = {
 
 /** "just now" / "4 min ago" / "3 hours ago" — the board's staleness language,
     deliberately vague past a day because a mirror that old is the story, not
-    the minutes. */
+    the minutes.
+
+    IT READS THE CLOCK, so whatever renders it must wait for the browser —
+    see `MirrorCard`. The board's own chip learned this the hard way and wrote
+    it down (components/workboard/board/sm8-chip); this screen had the same
+    helper and never got the same treatment, so it threw React #418 on every
+    load and took the whole page's hydration with it. A blank admin screen is
+    what that looks like from the outside. */
 function agoLabel(iso: string | null): string {
   if (!iso) return "never";
   const ms = Date.now() - Date.parse(iso);
@@ -348,6 +356,20 @@ function MirrorCard({
   busy: boolean;
   onSync: () => void;
 }) {
+  /* THE ONLY BRANCH BELOW THAT READS A CLOCK WAITS FOR THE BROWSER. The
+     server rendered "Last synced 4 min ago" and the client, a moment later
+     across a minute boundary, rendered "5 min ago" — different text in the
+     same node, which is React #418, and #418 does not fail politely: it takes
+     the whole tree's hydration down, so THIS ENTIRE ADMIN SCREEN RENDERED
+     BLANK. Found on prod 2026-09-01, and it is why nobody could reach the
+     people card to link themselves to the crew.
+
+     Not `suppressHydrationWarning` — that hides the error and keeps the
+     SERVER's text until something else re-renders, so the card would sit
+     there lying about how fresh the mirror is. The server sends the half of
+     the sentence that cannot drift and the browser finishes it, which is the
+     board chip's rule verbatim. */
+  const hydrated = useHydrated();
   const reading = sync.objects.filter((o) => o.phase === "reading");
   const readingRows = reading.reduce((n, o) => n + o.rowsPulled, 0);
 
@@ -361,7 +383,7 @@ function MirrorCard({
           readingRows === 1 ? "" : "s"
         } so far. Each sync picks up where the last one stopped.`
       : sync.lastRun?.finishedAt
-        ? `Last synced ${agoLabel(sync.lastRun.finishedAt)}${
+        ? `Last synced${hydrated ? ` ${agoLabel(sync.lastRun.finishedAt)}` : ""}${
             sync.lastRun.note ? ` — ${sync.lastRun.note}` : ""
           }`
         : "Waiting for the first sync.";

@@ -3,6 +3,7 @@ import {
   RAIL_ROW_PX,
   placeRail,
   railBounds,
+  railSpanLabel,
   railHourLabel,
   railHours,
   railItems,
@@ -59,6 +60,60 @@ describe("railBounds", () => {
       startMin: 7 * 60,
       endMin: 17 * 60,
     });
+  });
+
+  /* FOUND BY WALKING PROD at 6:07pm on an account with nothing booked: the
+     bounds widened for items only, so the rail was always 7-to-5, the marker
+     fell outside it, and the column drew five hundred blank pixels with no
+     sign of where the present was. */
+  it("makes room for now, so the marker can never fall off the rail", () => {
+    expect(railBounds([], 18 * 60 + 7)).toEqual({ startMin: 7 * 60, endMin: 19 * 60 });
+    expect(railBounds([], 5 * 60 + 40)).toEqual({ startMin: 5 * 60, endMin: 17 * 60 });
+  });
+
+  it("leaves the day alone when now is already inside it", () => {
+    expect(railBounds([], 11 * 60 + 30)).toEqual({ startMin: 7 * 60, endMin: 17 * 60 });
+    // exactly on the closing hour is inside, not past it
+    expect(railBounds([], 17 * 60)).toEqual({ startMin: 7 * 60, endMin: 17 * 60 });
+  });
+
+  it("takes the wider of the work and the hour, never one instead of the other", () => {
+    // work runs past now
+    const late = job({ key: "l", startMin: 19 * 60, endMin: 20 * 60 });
+    expect(railBounds([late], 8 * 60)).toEqual({ startMin: 7 * 60, endMin: 20 * 60 });
+    // now runs past the work
+    const early = job({ key: "e", startMin: 6 * 60, endMin: 7 * 60 });
+    expect(railBounds([early], 18 * 60 + 30)).toEqual({ startMin: 6 * 60, endMin: 19 * 60 });
+  });
+
+  it("keeps the item-only bounds for a day that is not today", () => {
+    /* `null` is how a caller says "there is no now on this rail". */
+    expect(railBounds([], null)).toEqual({ startMin: 7 * 60, endMin: 17 * 60 });
+  });
+});
+
+describe("railSpanLabel", () => {
+  /* EVERY ROW IS ONE HEIGHT, so the length has to be words. Isaac,
+     2026-09-01: "just have the card at seven AM and just write down seven to
+     three PM on the card". */
+  it("speaks the meridiem once, at the end — his own example", () => {
+    expect(railSpanLabel(7 * 60, 15 * 60)).toBe("7–3pm");
+    expect(railSpanLabel(8 * 60, 10 * 60)).toBe("8–10am");
+    expect(railSpanLabel(7 * 60 + 30, 9 * 60)).toBe("7:30–9am");
+    expect(railSpanLabel(12 * 60, 13 * 60)).toBe("12–1pm");
+    expect(railSpanLabel(9 * 60 + 15, 14 * 60 + 45)).toBe("9:15–2:45pm");
+  });
+
+  it("keeps both halves once the span is long enough to be ambiguous", () => {
+    /* Under twelve hours, "7–3pm" cannot mean seven in the evening without
+       running backwards. At twelve or more it can, so it says so. */
+    expect(railSpanLabel(7 * 60, 19 * 60)).toBe("7am–7pm");
+    expect(railSpanLabel(6 * 60, 20 * 60)).toBe("6am–8pm");
+  });
+
+  it("says one time when there is no span to speak of", () => {
+    expect(railSpanLabel(9 * 60, 9 * 60)).toBe("9am");
+    expect(railSpanLabel(9 * 60, 8 * 60)).toBe("9am");
   });
 });
 

@@ -462,10 +462,12 @@ export function JobSheet({
 
       /* AND THEN THE DATAPLATES, AGAIN, PROPERLY. The cheap model reads every
          photograph well enough to find it, but it garbles dense small print
-         confidently — two shots of the same unit gave `PUZ-M125VKA2-A` and
-         `PUZ-M125VKA-A`. On ductwork that costs nothing. On a rating plate it
-         costs the model number, which is the one string somebody types with
-         the part in their hand.
+         confidently — `AS/NZS 4755 SELV DC Power DRM1` came back as
+         `ASICS 4793 BBV L2 DUNet 90` off the same plate Opus read correctly.
+         On ductwork that costs nothing. A dataplate is small print end to
+         end, and a confidently wrong serial is worse than a missing one.
+         (An earlier version of this comment blamed a garbled MODEL number;
+         see photo-readings.ts — that turned out to be two different units.)
 
          LAST, and deliberately: it is the only pass that re-reads work
          already done, so it must never delay a photograph that has not been

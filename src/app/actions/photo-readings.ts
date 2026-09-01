@@ -57,7 +57,7 @@ const NOTHING: ReadPhotosResult = { ok: false, read: 0, remaining: 0, note: null
 
    Both models were run on the same real dataplate with this exact prompt:
 
-     Haiku 4.5   0.47c   subject right, PUZ-M125VKA2-A right, serial right,
+     Haiku 4.5   0.47c   subject right, model number right, serial right,
                          230V / R32 3.6kg right
      Opus 5      3.53c   the same, plus the dense small print
 
@@ -85,23 +85,32 @@ const SHOWCASE_MODEL = "claude-opus-5";
       upgrade   THE DATAPLATES, because that is where Haiku's one real
                 weakness lands
 
-    WHY DATAPLATES GET A SECOND LOOK. Measured on two photographs of the same
-    outdoor unit, read minutes apart:
+    WHY DATAPLATES GET A SECOND LOOK — and a correction, because the first
+    reason given here was wrong.
 
-        PUZ-M125VKA2-A     correct
-        PUZ-M125VKA-A      the `2` dropped
+    This tier was built on a claim that Haiku had garbled a model number: two
+    photographs on job #907 read `PUZ-M125VKA2-A` and `PUZ-M125VKA-A`, and I
+    called one a misread. It was not. The job has TWO outdoor units, and the
+    serials say so — 65P 00811 against 4XP 02410, each consistent across both
+    photographs of its own unit. Opus, reading independently, produced exactly
+    the same pairing. Haiku had read both plates correctly. (The mistake was
+    comparing an aggregate of model numbers instead of rows; the serial beside
+    each one would have settled it immediately.)
 
-    Haiku gets the subject right every time and gets everything a person is
-    likely to type — brand, capacity, refrigerant — but it garbles dense small
-    print CONFIDENTLY, inventing plausible strings rather than omitting them.
+    THE REAL REASON, verified side by side on the SAME photograph: Haiku
+    degrades on dense small print and degrades CONFIDENTLY, inventing
+    plausible strings rather than omitting them.
+
+        AS/NZS 4755 SELV DC Power DRM1   Opus
+        ASICS 4793 BBV L2 DUNet 90       Haiku, same plate
+
     On a photograph of ductwork that costs nothing: nobody searches the exact
-    wording of a compliance label. On a DATAPLATE it costs the one thing the
-    picture exists for, because a wrong serial in an index is worse than a
-    missing one — the search finds nothing while the row insists otherwise.
+    wording of a compliance label. On a DATAPLATE the whole picture is small
+    print, and a confidently wrong serial in an index is worse than a missing
+    one — the search finds nothing while the row insists otherwise.
 
-    A prefix search survives it (`PUZ-M125` matches both spellings) but an
-    exact one does not, and an exact model number is precisely what somebody
-    types when they have the part in their hand.
+    So the tier is worth keeping, but for accuracy on the plate as a whole
+    rather than for a model-number bug that turned out not to exist.
 
     It is affordable because it is rare: 14 of the first 244 photographs read,
     5.7%. Reading the whole bank with Opus would be seven times the price for

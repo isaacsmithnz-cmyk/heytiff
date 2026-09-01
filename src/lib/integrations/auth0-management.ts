@@ -23,8 +23,22 @@
    be an account-takeover endpoint. */
 
 import "server-only";
+import { resolveTenantDomain } from "./auth0-tenant-domain";
 
-const DOMAIN = process.env.AUTH0_DOMAIN ?? "";
+/* NOT `AUTH0_DOMAIN`, and the difference only appears the day a custom domain
+   does. Auth0 keeps the Management API on the canonical tenant name even
+   after login moves to auth.example.com, so the two names split and this one
+   must follow the tenant. `auth0-tenant-domain.ts` carries the argument and
+   refuses to guess when it cannot. */
+const resolved = resolveTenantDomain(process.env);
+const DOMAIN = resolved.ok ? resolved.domain : "";
+/* A misconfiguration is not a missing configuration: NOT_CONFIGURED means "no
+   tenant wired up", which is a fine state for a local checkout, and it must
+   not silently swallow "you pointed this at a custom domain". Said once, at
+   boot, naming the variable. */
+if (!resolved.ok && process.env.AUTH0_DOMAIN) {
+  console.error(`Auth0 Management API disabled — ${resolved.reason}`);
+}
 const CLIENT_ID = process.env.AUTH0_CLIENT_ID ?? "";
 const CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET ?? "";
 

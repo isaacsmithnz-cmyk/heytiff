@@ -29,7 +29,7 @@
    "Welcome", "Continue", "Forgot password?" are Auth0's and need no help.
    Only the keys that were WRONG are overridden. A file that restated all ten
    would be ten strings to keep in step with a vendor's copy for the sake of
-   two. */
+   three. */
 
 /** The app says "Sign in", everywhere — the front door's link, the profile's
     "sign-in address", the invite copy. Auth0 says "Log in". Since the
@@ -53,6 +53,17 @@ export const LOGIN_PROMPT_TEXT = {
     description: "Sign in to continue.",
     /* Was: "${companyName}" — the tenant id, announced aloud. */
     logoAltText: "HeyTiff",
+    /* The browser tab, which was "Log in | Heytiff" — `${clientName}`, the
+       application's name, misspelled in a field this repo does not own.
+
+       AND HERE THE PRODUCT *IS* NAMED, WHICH IS NOT A CONTRADICTION OF THE
+       LINE ABOVE. The subtitle sits directly under a lockup that has already
+       said HeyTiff in the brand's own letters, so saying it again is the
+       screen repeating itself. A tab title has no lockup beside it — it sits
+       in a strip of a dozen other tabs, and a tab reading only "Sign in" is
+       one nobody can find. Same rule, opposite answer: say it where nothing
+       else is saying it. */
+    pageTitle: "Sign in to HeyTiff",
   },
 } as const;
 

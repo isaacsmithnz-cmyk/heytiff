@@ -33,6 +33,22 @@ describe("no Auth0 variable survives", () => {
   });
 });
 
+describe("the tab title names the product, and that is the same rule", () => {
+  it("says HeyTiff, because nothing beside it does", () => {
+    // The subtitle must NOT name the product and the tab title MUST. Both
+    // follow from the same test — say it where nothing else is saying it.
+    // The tab sits in a strip of a dozen others with no lockup beside it.
+    expect(login.pageTitle).toMatch(/HeyTiff/);
+  });
+
+  it("is not left as Auth0's ${clientName}", () => {
+    // The default rendered "Log in | Heytiff" — the application's name,
+    // misspelled, in a field this repo does not own.
+    expect(login.pageTitle).not.toMatch(/Heytiff/);
+    expect(login.pageTitle).not.toMatch(/Log in/i);
+  });
+});
+
 describe("the line does not repeat the lockup", () => {
   it("never names the product — the logo above it already did", () => {
     // "Sign in to HeyTiff to continue to HeyTiff" is the obvious failure.
@@ -58,8 +74,8 @@ describe("what gets sent", () => {
     // The PUT replaces all custom text for the prompt, and every key left out
     // falls back to Auth0's default. "Welcome", "Continue" and "Forgot
     // password?" are already right; restating them would be ten strings to
-    // keep in step with a vendor's copy for the sake of two.
-    expect(Object.keys(login).sort()).toEqual(["description", "logoAltText"]);
+    // keep in step with a vendor's copy for the sake of three.
+    expect(Object.keys(login).sort()).toEqual(["description", "logoAltText", "pageTitle"]);
   });
 
   it("targets prompts Auth0 publishes", () => {

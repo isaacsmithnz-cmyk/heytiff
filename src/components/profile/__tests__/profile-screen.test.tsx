@@ -111,7 +111,16 @@ describe("self mode — My profile", () => {
       "Work rights",
       "Training",
       "My pay",
+      "Sign-in",
     ]);
+  });
+
+  it("offers Sign-in — the one section that isn’t part of the staff card", () => {
+    /* Everything before it is a slice of one staff-profile save. This writes
+       to the identity provider, and it is here because "My profile" is the
+       only screen that is unambiguously about YOU. */
+    setup();
+    expect(navLabels()).toContain("Sign-in");
   });
 
   it("drops My pay from the nav when there is no pay payload", () => {
@@ -127,6 +136,15 @@ describe("self mode — My profile", () => {
 });
 
 describe("admin mode — Team", () => {
+  it("NEVER offers Sign-in on somebody else’s card", () => {
+    /* `changeMySignInEmail` acts on the session, so this tab on an admin's
+       view of a colleague would offer to change the ADMIN's own address
+       while showing the colleague's name — the most confusing possible way
+       to be wrong, and one nobody would notice until it had happened. */
+    setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } });
+    expect(navLabels()).not.toContain("Sign-in");
+  });
+
   it("renders an admin section only when the page passed it", () => {
     setup({ mode: "admin", adminExtras: { payroll: {}, permissions: ownerCtx, notes: {} } });
     expect(navLabels()).toContain("Payroll");

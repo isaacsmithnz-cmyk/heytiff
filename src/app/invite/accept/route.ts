@@ -92,10 +92,42 @@ export async function GET(request: NextRequest) {
      right tab beats a lookup on every invite click. */
   const session = await auth0.getSession();
   if (!session) {
-    const returnTo = encodeURIComponent(`/invite/accept?token=${token}`);
-    return NextResponse.redirect(
-      new URL(`/auth/login?screen_hint=signup&returnTo=${returnTo}`, request.url)
-    );
+    /* AND THE ADDRESS IS FILLED IN FOR THEM.
+
+       An invitation is BOUND to one address — the check below refuses any
+       other signed-in identity — and the screen it opens was asking the
+       invitee to type it from memory, with a refusal at the end of the flow
+       if they reached for a different one of their own. The invite knows the
+       answer, so the screen should too.
+
+       `login_hint` is the OIDC parameter for it, and it needs no plumbing:
+       the SDK forwards every /auth/login query param except `returnTo`
+       straight into the authorize call (auth-client.js, the same path
+       `screen_hint` already rides). It is Auth0's own field, so the address
+       leaves us only to the identity provider that is about to ask for it.
+
+       BEST EFFORT, AND SILENT WHEN IT MISSES. A token that matches nothing
+       falls through to exactly the old redirect rather than an error: the
+       hint is a convenience, and this branch runs on anonymous traffic where
+       a dead token should still land on the same screen it always did. The
+       row is read by token alone — no filter on expiry or acceptance —
+       because a spent invitation's address is still the right one to prefill,
+       and it is the guard further down, not this hint, that decides whether
+       the invitation works. */
+    const { data: invited } = await supabaseAdmin
+      .from("invitations")
+      .select("email")
+      .eq("token", token)
+      .maybeSingle();
+
+    const to = new URL("/auth/login", request.url);
+    to.searchParams.set("screen_hint", "signup");
+    const hint = invited?.email as string | undefined;
+    if (hint) to.searchParams.set("login_hint", hint);
+    // set LAST and via searchParams, so its own `?token=` is encoded rather
+    // than read as another parameter of this URL
+    to.searchParams.set("returnTo", `/invite/accept?token=${token}`);
+    return NextResponse.redirect(to);
   }
 
   const errRedirect = (msg: string) =>

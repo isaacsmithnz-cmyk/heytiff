@@ -68,6 +68,8 @@ const table = (name: string) => {
     data:
       name === "staff_profiles" ? existingStaffCard
       : name === "memberships" ? existingMembership
+      // the login_hint lookup reads the invitation by token this way
+      : name === "invitations" ? inviteRow
       : null,
     error: null,
   });
@@ -318,6 +320,34 @@ describe("the guards still hold", () => {
     expect(staffInserts()).toHaveLength(0);
   });
 
+  /* THE INVITATION IS BOUND TO ONE ADDRESS — the guard below refuses any
+     other signed-in identity — and the screen was asking the invitee to type
+     it from memory, with the refusal waiting at the end of the flow if they
+     reached for a different one of their own. */
+  it("fills the invited address in for them", async () => {
+    sessionValue = null;
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(to.searchParams.get("login_hint")).toBe(EMAIL);
+    expect(to.searchParams.get("screen_hint")).toBe("signup");
+    expect(to.searchParams.get("returnTo")).toBe("/invite/accept?token=tok-1");
+  });
+
+  /* A convenience, not a gate: a token matching nothing lands on the same
+     screen it always did rather than an error, because this branch runs on
+     anonymous traffic. */
+  it("still sends them to sign up when the token matches nothing", async () => {
+    sessionValue = null;
+    inviteRow = null;
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(to.searchParams.get("login_hint")).toBeNull();
+    expect(to.searchParams.get("screen_hint")).toBe("signup");
+    expect(to.searchParams.get("returnTo")).toBe("/invite/accept?token=tok-1");
+  });
+
   it("refuses an invite addressed to somebody else — and seats nothing", async () => {
     sessionValue = { user: { sub: USER, email: "someone.else@example.com" } };
     const res = await GET(req());
@@ -436,3 +466,10 @@ describe("accepting when you are already a member", () => {
     expect((seat?.payload as Row)?.role).toBe("staff");
   });
 });
+
+/** The Location header, which is always present on these redirects. */
+function res_location(res: { headers: { get(k: string): string | null } }): string {
+  const to = res.headers.get("location");
+  if (!to) throw new Error("expected a redirect");
+  return to;
+}

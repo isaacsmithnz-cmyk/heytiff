@@ -1,4 +1,4 @@
-import { APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolved, groupByDay, type JournalEntry, topDayAt } from "../journal";
+import { canPageDays, APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolved, groupByDay, type JournalEntry, topDayAt } from "../journal";
 
 /* The journal reads a table nothing had ever read back to a person:
    `workboard_notes` keeps every transcript verbatim as the evidence for what
@@ -283,5 +283,48 @@ describe("topDayAt — which day the diary is showing", () => {
       ["2026-08-28", 400],
     ]);
     expect(topDayAt(order, gappy, 400)).toBe("2026-08-28");
+  });
+});
+
+describe("canPageDays — whether the stepper earns its place", () => {
+  /* Found on prod: the whole three-day record fitted the card, so nothing
+     scrolled and "the day before" was a control that did nothing at all. The
+     first fix asked "does it scroll", which is not the same question — a list
+     can scroll 57px and still never bring its second day to the fold. */
+
+  const order = ["2026-09-01", "2026-08-31", "2026-08-28"];
+
+  it("is false when the record fits and nothing scrolls", () => {
+    const offs = new Map([["2026-09-01", 6], ["2026-08-31", 149], ["2026-08-28", 291]]);
+    expect(canPageDays(order, offs, 0)).toBe(false);
+  });
+
+  it("is FALSE when it scrolls but not far enough to reach the second day", () => {
+    /* THE CASE THE CRUDE VERSION GOT WRONG. 57px of travel against a second
+       day at 149: the page moves, the answer never changes, and the arrow is
+       still furniture. */
+    const offs = new Map([["2026-09-01", 6], ["2026-08-31", 149], ["2026-08-28", 291]]);
+    expect(canPageDays(order, offs, 57)).toBe(false);
+  });
+
+  it("is true the moment the second day can reach the fold", () => {
+    const offs = new Map([["2026-09-01", 6], ["2026-08-31", 149], ["2026-08-28", 291]]);
+    /* 149 <= 104 + 44 exactly — checked on both sides, because this decides
+       whether a control exists at all. */
+    expect(canPageDays(order, offs, 104)).toBe(false);
+    expect(canPageDays(order, offs, 105)).toBe(true);
+    expect(canPageDays(order, offs, 484)).toBe(true);
+  });
+
+  it("is false for a record of one day, however tall", () => {
+    /* Nowhere to step, whatever the geometry says. */
+    expect(canPageDays(["2026-09-01"], new Map([["2026-09-01", 6]]), 9999)).toBe(false);
+    expect(canPageDays([], new Map(), 9999)).toBe(false);
+  });
+
+  it("is false when the second day has not been measured", () => {
+    /* A ref can be null for a frame. Unknown is not "yes". */
+    const gappy = new Map([["2026-09-01", 6], ["2026-08-28", 291]]);
+    expect(canPageDays(order, gappy, 9999)).toBe(false);
   });
 });

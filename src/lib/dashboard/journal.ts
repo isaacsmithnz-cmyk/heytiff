@@ -227,6 +227,29 @@ export function topDayAt(
   return top;
 }
 
+/** Can the arrows actually change which day is on top?
+
+    NOT "does it scroll" — that was the first answer and it was too crude. A
+    record can scroll 57px and still never bring its second day past the fold,
+    which leaves a control that moves the page a little and answers nothing.
+    The question the stepper exists for is whether ANOTHER day can become the
+    current one, so that is the question asked here: is the second day
+    reachable at full scroll?
+
+    `maxScroll` is `scrollHeight - clientHeight`. Days are newest-first, so
+    the second is the nearest one the arrow could reach. */
+export function canPageDays(
+  order: readonly string[],
+  offsets: ReadonlyMap<string, number>,
+  maxScroll: number,
+  fold: number = DAY_FOLD_PX,
+): boolean {
+  if (order.length < 2) return false;
+  const second = offsets.get(order[1]);
+  if (second === undefined) return false;
+  return second <= maxScroll + fold;
+}
+
 export function groupByDay(
   entries: readonly JournalEntry[],
   today: string,

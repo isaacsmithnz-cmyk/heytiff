@@ -6,7 +6,13 @@ import { Icon } from "@/components/shell/icon";
 import { NoteToken } from "@/components/notes/note-token";
 import { navHref } from "@/components/shell/nav";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
-import { groupByDay, topDayAt, type JournalEntry, type Outcome } from "@/lib/dashboard/journal";
+import {
+  canPageDays,
+  groupByDay,
+  topDayAt,
+  type JournalEntry,
+  type Outcome,
+} from "@/lib/dashboard/journal";
 
 /* THE JOURNAL — what you told Tiff, and what it became.
 
@@ -117,6 +123,10 @@ export function HomeJournal({
      render and index identity would drift under it. */
   const dayNodes = useRef(new Map<string, HTMLDivElement>());
   const [atDay, setAtDay] = useState<string | null>(null);
+  /* Whether the record is long enough to page through at all. Measured, not
+     assumed: with three days on a tall card the whole diary fits and there is
+     nowhere for an arrow to go. See the stepper below. */
+  const [canPage, setCanPage] = useState(false);
 
   const holdDay = useCallback((day: string) => (el: HTMLDivElement | null) => {
     if (el) dayNodes.current.set(day, el);
@@ -151,15 +161,30 @@ export function HomeJournal({
     const measure = () => {
       frame = 0;
       const order = dayKeys ? dayKeys.split("|") : [];
-      /* The RULE is in lib/dashboard/journal — pure, and tested against the
-         short-list case that broke the version this replaced. All that
-         happens here is reading the geometry to feed it. */
+      /* MEASURED FROM THE SCROLLER, and the first version was not — which is
+         the bug that survived a green unit test. `offsetTop` is relative to
+         the nearest POSITIONED ancestor, and `.hm-jscroll` is static, so it
+         came back relative to the panel: the first day read 123 when its true
+         offset inside the scroller was 6. Every comparison against
+         `scrollTop` was then two coordinate systems apart, and the label only
+         looked right because the rule falls back to the newest day.
+
+         Rects are correct whatever the CSS does. Deriving it from
+         `offsetParent` would have worked too, right up until somebody gave
+         the scroller a `position` — a correctness bug hiding inside a
+         stylistic change. */
+      const top = root.getBoundingClientRect().top;
       const offsets = new Map<string, number>();
       for (const day of order) {
         const el = dayNodes.current.get(day);
-        if (el) offsets.set(day, el.offsetTop);
+        if (el) offsets.set(day, el.getBoundingClientRect().top - top + root.scrollTop);
       }
       setAtDay(topDayAt(order, offsets, root.scrollTop));
+      /* A stepper with nowhere to step is furniture — the same argument that
+         keeps it away from a single-day record. The rule is in
+         lib/dashboard/journal, and it asks the real question: can another day
+         reach the top, not merely does the list move. */
+      setCanPage(canPageDays(order, offsets, root.scrollHeight - root.clientHeight));
     };
 
     const onScroll = () => {
@@ -169,8 +194,19 @@ export function HomeJournal({
 
     measure();
     root.addEventListener("scroll", onScroll, { passive: true });
+
+    /* A RESIZE CHANGES THE ANSWER WITHOUT A SCROLL. Narrow the window and a
+       record that fitted starts scrolling; widen it and the stepper has
+       nowhere to go again. Without this, `canPage` is only ever as true as it
+       was on mount — and the control would linger, dead, exactly as it did on
+       prod. */
+    const ro =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(onScroll);
+    ro?.observe(root);
+
     return () => {
       root.removeEventListener("scroll", onScroll);
+      ro?.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
     /* The day list as a STRING, not the array: `days` is rebuilt every render,
@@ -215,7 +251,7 @@ export function HomeJournal({
       {/* THE PAGE TURNER. Absent below two days, because a control that can
           only ever be disabled is furniture — with one day of record there is
           nowhere to step to and the sticky heading already says the day. */}
-      {days.length > 1 && (
+      {days.length > 1 && canPage && (
         <div className="hm-jnav">
           {/* LEFT IS EARLIER, matching the Calendar's stepper one tab across —
               which is worth more than matching the scroll direction. The

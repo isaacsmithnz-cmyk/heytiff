@@ -2,16 +2,27 @@
 
 import { Icon } from "@/components/shell/icon";
 import type { Capability } from "@/lib/permissions";
-import type { Role } from "@/lib/roles-shared";
+import { ROLE_COPY, ROLE_ORDER, type Role } from "@/lib/roles-shared";
 import { SectionCard, StaticCard, type SectionBodyContext } from "./section-card";
 import { Detail, DetailPanel, DetailPanels } from "./detail";
 import type { PermissionsCtx, SaveSection } from "./types";
 
-const ROLES: [Role, string, string, string][] = [
-  ["staff", "Staff", "Field worker — own data only", "#00A389"],
-  ["admin", "Admin", "Manage the team — approve & assign", "#2E68FF"],
-  ["owner", "Owner", "Full access incl. pay & financials", "#8A2BE2"],
-];
+/* The words come from ROLE_COPY now — the same sentences the invite modal
+   shows, because the choice is made THERE and explained here, and two
+   descriptions of one grant is how they drift. Only the dot colour is this
+   screen's own; it is decoration on a swatch, not state. */
+const ROLE_DOT: Record<Role, string> = {
+  staff: "#00A389",
+  admin: "#2E68FF",
+  owner: "#8A2BE2",
+};
+
+const ROLES: [Role, string, string, string][] = ROLE_ORDER.map((r) => [
+  r,
+  ROLE_COPY[r].label,
+  ROLE_COPY[r].blurb,
+  ROLE_DOT[r],
+]);
 
 /* Labels say "everyone's" where the capability gates the team-wide view only —
    revoking it never touches the person's own timesheet or own vehicle, which

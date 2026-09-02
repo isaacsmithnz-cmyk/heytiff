@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { getCapabilities, getDbRole } from "@/lib/permissions-server";
+import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { invitableRoles } from "@/lib/permissions";
 import { inviteLetter } from "@/lib/email/invite-letter";
 import { sendEmail } from "@/lib/email/send";
+import { normEmail } from "@/lib/integrations/match";
+import { PROVIDER_LABEL } from "@/lib/staff/query";
 import type { Role } from "@/lib/roles-shared";
 
 /* Invitations — created, renewed and revoked from the Team page.
@@ -69,7 +71,9 @@ type Ctx = {
      them as its reply-to. A cold invitation from a no-reply address with no
      human attached is indistinguishable from a phish, and "your administrator
      has invited you" is the wording that makes it one. */
-  inviterName: string;
+  /** Null when nothing could give us a name that is a name — see
+      inviterDisplayName. The letter names the company instead. */
+  inviterName: string | null;
   inviterEmail: string | null;
 };
 
@@ -88,9 +92,60 @@ async function inviterContext(): Promise<Ctx | null> {
     orgId,
     userId,
     allowedRoles,
-    inviterName: (session?.user?.name as string | undefined) ?? email ?? "Someone",
+    inviterName: await inviterDisplayName(orgId, userId, session?.user?.name),
     inviterEmail: email,
   };
+}
+
+/** A name is a name. Never an address, whatever column it arrived in. */
+function asPersonName(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  /* THE GUARD THAT MATTERS, and it is on the VALUE, not the source. Auth0's
+     `name` claim is the sign-in address for identities that never set one, so
+     `profiles.name` — written from that claim on every login — holds an email
+     for those people too. The first invitation ever sent went out reading
+     "isaacsmithnz1@gmail.com has invited you", auto-linked by the mail client,
+     while its reply-to carried a DIFFERENT address (the account's real one).
+     Two addresses, neither labelled, one of them wrong. */
+  if (!s || s.includes("@")) return null;
+  return s;
+}
+
+/* Who the letter says invited you.
+
+   ORDER IS BY WHO DECIDED IT. The staff card is the org's own answer to who
+   this person is — typed by someone here, correctable here — so it wins over
+   anything the identity provider relayed. `profiles.name` and the session
+   claim are the same value from Auth0 and come after it, and each is dropped
+   if it turns out to be an address.
+
+   NULL IS A SUPPORTED ANSWER. When nothing survives, the letter names the
+   COMPANY as the inviter instead of printing an address where a person should
+   be — see inviteLetter. Reply-to still carries the real human either way. */
+async function inviterDisplayName(
+  orgId: string,
+  userId: string,
+  sessionName: unknown
+): Promise<string | null> {
+  const { data: card } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("full_name, first_name, last_name")
+    .eq("org_id", orgId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const fromCard =
+    asPersonName(card?.full_name) ??
+    asPersonName([card?.first_name, card?.last_name].filter(Boolean).join(" "));
+  if (fromCard) return fromCard;
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("name")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return asPersonName(profile?.name) ?? asPersonName(sessionName);
 }
 
 /* The origin the accept link is built from.
@@ -330,4 +385,100 @@ export async function renewInvite(id: string): Promise<InviteResult> {
 
   revalidatePath("/dashboard/team");
   return { ok: true, delivery };
+}
+
+/* WHAT THAT ADDRESS ALREADY MEANS HERE — the modal's resolution.
+
+   The invite screen used to take an address and say nothing about it until
+   after the invite was pressed, when the action would refuse with "they
+   already have an account here" or "that address already has a pending
+   invite". Worse, an unclaimed card holding that address — someone imported
+   from ServiceM8, or pre-seeded before onboarding — was invisible, so the
+   only way to attach an invite to their card was to remember to start from
+   the row in the directory rather than the button at the top. Two doors, and
+   the difference between them was a duplicate person.
+
+   Now the field resolves as it is typed and says what it found, before
+   anything is committed. It reveals nothing createInvite's own refusals do
+   not already reveal to the same caller — except the NAME, which is gated on
+   `team`, the capability that governs reading other people's cards.
+
+   AMBIGUITY IS REPORTED, NOT GUESSED. Two unclaimed cards holding one address
+   is an admin mess this cannot resolve, and the accept route already refuses
+   to pick between them (it creates fresh instead). Saying so is the whole
+   value; blocking would leave the reader stuck with no way forward. */
+
+export type InviteeLookup =
+  /** Nothing known — a genuinely new person. */
+  | { kind: "new" }
+  /** An unclaimed card holds this address; the invite will attach to it. */
+  | { kind: "card"; staffProfileId: string; name: string | null; importedFrom: string | null }
+  /** More than one unclaimed card holds it. Nothing will attach. */
+  | { kind: "ambiguous"; count: number }
+  /** They already have an account in this workspace. */
+  | { kind: "member"; name: string | null }
+  /** An invitation is already open for this address. */
+  | { kind: "pending" };
+
+export async function lookupInvitee(email: string): Promise<InviteeLookup> {
+  const ctx = await inviterContext();
+  if (!ctx) return { kind: "new" };
+
+  const wanted = normEmail(email);
+  if (!wanted) return { kind: "new" };
+
+  /* Names are the one thing here that is not already discoverable through
+     createInvite's refusals, so they ride on `team` — the capability that
+     governs reading other people's cards. An inviter without it still gets
+     the resolution, just not the person. */
+  const mayName = await can("team");
+
+  const { data: open } = await supabaseAdmin
+    .from("invitations")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("email", wanted)
+    .is("accepted_at", null)
+    .limit(1);
+  if (open?.[0]) return { kind: "pending" };
+
+  /* Compared in JS, not with `ilike`: `_` is a wildcard there and common in
+     real addresses, and normEmail on both sides beats trusting every writer
+     to have lowercased. Team-sized list. Mirrors the accept route exactly —
+     the two must agree on what "this person's card" means. */
+  const { data: cards } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("id, user_id, contact_email, full_name")
+    .eq("org_id", ctx.orgId);
+
+  const rows = (cards ?? []) as {
+    id: string;
+    user_id: string | null;
+    contact_email: string | null;
+    full_name: string | null;
+  }[];
+  const holders = rows.filter((r) => normEmail(r.contact_email) === wanted);
+
+  const claimed = holders.find((r) => r.user_id);
+  if (claimed) return { kind: "member", name: mayName ? claimed.full_name : null };
+
+  const unclaimed = holders.filter((r) => !r.user_id);
+  if (unclaimed.length > 1) return { kind: "ambiguous", count: unclaimed.length };
+  if (unclaimed.length === 1) {
+    const card = unclaimed[0];
+    const { data: link } = await supabaseAdmin
+      .from("integration_links")
+      .select("provider")
+      .eq("org_id", ctx.orgId)
+      .eq("staff_profile_id", card.id)
+      .limit(1);
+    return {
+      kind: "card",
+      staffProfileId: card.id,
+      name: mayName ? card.full_name : null,
+      importedFrom: PROVIDER_LABEL[(link?.[0]?.provider as string) ?? ""] ?? null,
+    };
+  }
+
+  return { kind: "new" };
 }

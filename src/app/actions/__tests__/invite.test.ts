@@ -28,6 +28,15 @@ let orgRow: Record<string, unknown> | null = { trading_name: "Diamond Air", lega
 let renewedRow: Record<string, unknown> | null = LETTER_ROW;
 /** make the insert fail, to pin that a dead write never posts a letter */
 let insertFails = false;
+/** every card in the org — what lookupInvitee reads to resolve an address */
+let staffRows: Record<string, unknown>[] = [];
+/** integration_links rows, so a resolved card can say where it came from */
+let linkRows: Record<string, unknown>[] = [];
+/** whether the caller may read other people's cards (`team`) */
+let canTeam = true;
+/** the INVITER's own staff card and profile row — the letter's name sources */
+let inviterCard: Record<string, unknown> | null = { full_name: "Isaac Smith" };
+let inviterProfile: Record<string, unknown> | null = { name: "Isaac Smith" };
 
 let role: string | null = "owner";
 let caps: Set<Capability> = new Set(CAPABILITIES);
@@ -72,6 +81,11 @@ const table = (name: string) => {
   };
   c.single = () => Promise.resolve({ data: insertFails ? null : LETTER_ROW, error: insertFails ? { message: "nope" } : null });
   c.maybeSingle = () => {
+    // the inviter's OWN card and profile — where the letter gets a NAME. The
+    // card lookup is told from the invitee's by its user_id filter.
+    if (name === "staff_profiles" && call.filters.user_id !== undefined)
+      return Promise.resolve({ data: inviterCard, error: null });
+    if (name === "profiles") return Promise.resolve({ data: inviterProfile, error: null });
     if (name === "staff_profiles") return Promise.resolve({ data: staffCardRow, error: null });
     /* The company the letter names. Its own branch because `invitations` and
        `organizations` both answer maybeSingle here and they are different
@@ -89,7 +103,9 @@ const table = (name: string) => {
     if (call.op === "select") {
       calls.push(call);
       const rows =
-        name !== "invitations" ? []
+        name === "staff_profiles" ? staffRows
+        : name === "integration_links" ? linkRows
+        : name !== "invitations" ? []
         : call.filters.staff_profile_id !== undefined ? cardOpenInvites
         : openInvites;
       return Promise.resolve({ data: rows, error: null }).then(res);
@@ -104,6 +120,7 @@ jest.mock("@/lib/auth0", () => ({ auth0: { getSession: jest.fn(async () => sessi
 jest.mock("@/lib/permissions-server", () => ({
   getDbRole: jest.fn(async () => role),
   getCapabilities: jest.fn(async () => caps),
+  can: jest.fn(async (c: string) => (c === "team" ? canTeam : caps.has(c as Capability))),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("next/headers", () => ({
@@ -123,7 +140,7 @@ jest.mock("@/lib/email/send", () => ({
   }),
 }));
 
-import { createInvite, renewInvite, revokeInvite } from "../invite";
+import { createInvite, lookupInvitee, renewInvite, revokeInvite } from "../invite";
 
 const DAY = 86_400_000;
 /* The action keeps its window private — a "use server" module may only export
@@ -142,6 +159,11 @@ beforeEach(() => {
   staffCardRow = null;
   cardOpenInvites = [];
   orgRow = { trading_name: "Diamond Air", legal_name: null, name: null };
+  staffRows = [];
+  linkRows = [];
+  canTeam = true;
+  inviterCard = { full_name: "Isaac Smith" };
+  inviterProfile = { name: "Isaac Smith" };
   renewedRow = LETTER_ROW;
   insertFails = false;
   role = "owner";
@@ -364,8 +386,10 @@ describe("the invitation is posted", () => {
   it("names the company and the inviter, and replies to the inviter", async () => {
     await createInvite({ email: "new@hire.com", role: "staff" });
 
-    expect(sent[0].subject).toBe("Bossy Boots invited you to Diamond Air on HeyTiff");
-    expect(sent[0].html).toContain("Bossy Boots");
+    /* The STAFF CARD is the name, not the session claim — the org's own answer
+       to who this person is beats anything the identity provider relayed. */
+    expect(sent[0].subject).toBe("Isaac Smith invited you to Diamond Air on HeyTiff");
+    expect(sent[0].html).toContain("Isaac Smith");
     expect(sent[0].html).toContain("Diamond Air");
     expect(sent[0].replyTo).toBe("boss@example.com");
   });
@@ -449,5 +473,194 @@ describe("the invitation is posted", () => {
   it("revoking posts nothing", async () => {
     expect((await revokeInvite("inv-1")).ok).toBe(true);
     expect(sent).toHaveLength(0);
+  });
+});
+
+/* WHAT THE TYPED ADDRESS ALREADY MEANS HERE.
+
+   The modal used to say nothing until the action refused, and an unclaimed
+   card holding the address was invisible from that screen — so attaching to it
+   meant knowing to start from the directory row instead. Two doors, and the
+   difference between them was a duplicate person. */
+describe("lookupInvitee", () => {
+  const card = (over: Record<string, unknown> = {}) => ({
+    id: "card-1",
+    user_id: null,
+    contact_email: "dan@reilly.com",
+    full_name: "Dan Reilly",
+    ...over,
+  });
+
+  it("says nothing useful to someone who may not invite", async () => {
+    role = "staff";
+    caps = new Set(["toolbox"] as Capability[]);
+    staffRows = [card()];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({ kind: "new" });
+  });
+
+  it("finds the unclaimed card holding that address, and where it came from", async () => {
+    staffRows = [card()];
+    linkRows = [{ provider: "servicem8" }];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({
+      kind: "card",
+      staffProfileId: "card-1",
+      name: "Dan Reilly",
+      importedFrom: "ServiceM8",
+    });
+  });
+
+  /* No `ilike` anywhere near this: `_` is a wildcard there and common in real
+     addresses, so it can invent a match. Both sides go through normEmail —
+     the same comparison the accept route makes, because the two have to agree
+     on what "this person's card" means. */
+  it("matches on the normalised address, whatever case was typed", async () => {
+    staffRows = [card({ contact_email: "Dan@Reilly.com  " })];
+
+    expect((await lookupInvitee("  DAN@reilly.COM ")).kind).toBe("card");
+  });
+
+  it("does not match a neighbouring address that differs by an underscore", async () => {
+    staffRows = [card({ contact_email: "dan_reilly@example.com" })];
+
+    expect(await lookupInvitee("danxreilly@example.com")).toEqual({ kind: "new" });
+  });
+
+  it("reports a claimed card as somebody who is already here", async () => {
+    staffRows = [card({ user_id: "auth0|dan" })];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({
+      kind: "member",
+      name: "Dan Reilly",
+    });
+  });
+
+  /* Two cards holding one address is an admin mess this cannot resolve, and
+     the accept route already refuses to pick between them. Saying so is the
+     value; guessing would be the bug. */
+  it("refuses to guess between two unclaimed cards", async () => {
+    staffRows = [card(), card({ id: "card-2" })];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({ kind: "ambiguous", count: 2 });
+  });
+
+  it("reports an invitation that is already open, before anything is pressed", async () => {
+    openInvites = [{ id: "inv-1" }];
+    staffRows = [card()];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({ kind: "pending" });
+  });
+
+  /* The name is the one thing here that createInvite's own refusals do not
+     already give the same caller, so it rides on `team` — the capability that
+     governs reading other people's cards. The resolution still arrives. */
+  it("withholds the name from an inviter who may not read cards", async () => {
+    canTeam = false;
+    staffRows = [card()];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({
+      kind: "card",
+      staffProfileId: "card-1",
+      name: null,
+      importedFrom: null,
+    });
+  });
+
+  it("says nothing about an address that is not one", async () => {
+    staffRows = [card()];
+
+    expect(await lookupInvitee("   ")).toEqual({ kind: "new" });
+  });
+});
+
+/* WHO THE LETTER SAYS INVITED YOU.
+
+   The first invitation ever sent from production went out reading
+   "isaacsmithnz1@gmail.com has invited you to join Diamond Air Solutions",
+   twice, auto-linked by the mail client — while its reply-to carried
+   isaac@diamondairsolutions.com, a DIFFERENT address. Two addresses, neither
+   labelled, one of them not even the account's.
+
+   The cause was reaching for Auth0's `name` claim, which for an identity that
+   never set one IS the sign-in address — and `profiles.name`, written from
+   that claim on every login, holds the same address. The staff card said
+   "Isaac Smith" the whole time. */
+describe("the letter names a person, not an address", () => {
+  it("prefers the staff card — the org's own answer to who someone is", async () => {
+    inviterCard = { full_name: "Isaac Smith" };
+    inviterProfile = { name: "isaacsmithnz1@gmail.com" };
+
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].subject).toBe("Isaac Smith invited you to Diamond Air on HeyTiff");
+    expect(sent[0].html).toContain("Isaac Smith has invited you");
+  });
+
+  it("falls back to first + last when the card has no full name", async () => {
+    inviterCard = { full_name: null, first_name: "Isaac", last_name: "Smith" };
+
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].html).toContain("Isaac Smith has invited you");
+  });
+
+  /* THE GUARD IS ON THE VALUE, NOT THE SOURCE. Any column can hold an address;
+     none of them may print one where a person belongs. */
+  it.each([
+    ["a card whose name is an address", { full_name: "isaacsmithnz1@gmail.com" }],
+    ["a card with nothing on it", { full_name: null, first_name: null, last_name: null }],
+  ])("names the company instead, given %s", async (_label, card) => {
+    inviterCard = card;
+    inviterProfile = { name: "isaacsmithnz1@gmail.com" };
+    /* The whole chain has to be addresses for the fallback to be reached, and
+       in production it WAS: Auth0's `name` claim is the sign-in address for an
+       identity that never set one, and profiles.name is written from it. */
+    session = {
+      orgId: "org-1",
+      user: {
+        sub: "auth0|boss",
+        email: "isaac@diamondairsolutions.com",
+        name: "isaacsmithnz1@gmail.com",
+      },
+    };
+
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].html).not.toContain("isaacsmithnz1@gmail.com");
+    expect(sent[0].subject).not.toContain("@");
+    expect(sent[0].subject).toBe("You've been invited to Diamond Air on HeyTiff");
+    expect(sent[0].html).toContain("You've been invited to join Diamond Air");
+    // and the renew footnote cannot say "ask <nobody>"
+    expect(sent[0].html).toContain("ask the person who invited you to renew it");
+  });
+
+  /* The human is still reachable with no name printed — that is what makes
+     the company framing honest rather than evasive. */
+  it("still replies to the real person when it cannot name them", async () => {
+    inviterCard = { full_name: "isaacsmithnz1@gmail.com" };
+    inviterProfile = { name: "isaacsmithnz1@gmail.com" };
+    session = {
+      orgId: "org-1",
+      user: {
+        sub: "auth0|boss",
+        email: "isaac@diamondairsolutions.com",
+        name: "isaacsmithnz1@gmail.com",
+      },
+    };
+
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].html).not.toContain("isaacsmithnz1@gmail.com");
+    expect(sent[0].replyTo).toBe("isaac@diamondairsolutions.com");
+  });
+
+  it("takes the profile name when the card has none and it is a real name", async () => {
+    inviterCard = null;
+    inviterProfile = { name: "Isaac Smith" };
+
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].html).toContain("Isaac Smith has invited you");
   });
 });

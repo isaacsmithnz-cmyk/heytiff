@@ -76,10 +76,26 @@ export async function GET(request: NextRequest) {
 
   if (!token) return NextResponse.redirect(new URL("/dashboard", request.url));
 
+  /* SIGN-UP, NOT SIGN-IN, is the screen an invitation should open.
+
+     This redirected to Auth0's login tab, which is the wrong half of the
+     widget for almost everybody who follows an invite link: they are being
+     invited to join, so they do not have an account yet, and the screen asked
+     them for a password they had never set. Nothing said "create one" — the
+     way through was to notice the small link under the form.
+
+     `screen_hint=signup` opens the other tab, and Auth0's signup screen keeps
+     its own "Already have an account? Log in" for the minority who do. That
+     minority is the reason this is a hint rather than a separate route: we
+     cannot know from here whether the address has an account without asking
+     the Management API on anonymous traffic, and being one click from the
+     right tab beats a lookup on every invite click. */
   const session = await auth0.getSession();
   if (!session) {
     const returnTo = encodeURIComponent(`/invite/accept?token=${token}`);
-    return NextResponse.redirect(new URL(`/auth/login?returnTo=${returnTo}`, request.url));
+    return NextResponse.redirect(
+      new URL(`/auth/login?screen_hint=signup&returnTo=${returnTo}`, request.url)
+    );
   }
 
   const errRedirect = (msg: string) =>

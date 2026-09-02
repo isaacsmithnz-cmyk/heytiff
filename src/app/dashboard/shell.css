@@ -3885,6 +3885,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .invbtns .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); }
 .fg .invbtns .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
 .fg .invmsg { padding:12px 24px; font-size:12.5px; font-weight:600; color:var(--bad-t); border-bottom:1px solid #f5f6f8; }
+/* The same slot saying a letter went. --ok-t, not the page accent: this is
+   state, and state is never the accent (feedback: design-system state colours). */
+.fg .invmsg.ok { color:var(--ok-t); }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
 .fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; font-weight:600; color:var(--bad-t); }

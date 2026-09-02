@@ -53,6 +53,10 @@ export function TeamDirectory({
   const [busy, startInvite] = useTransition();
   const [armed, setArmed] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  /* What the letter did, when there is something to say about it. Separate
+     from the error above because "sent to dan@…" and "that didn't work" are
+     not the same colour and must not share one slot. */
+  const [inviteNote, setInviteNote] = useState<string | null>(null);
   /* Deactivating arms before it fires, the way Revoke does two rows down —
      it's the one row action that changes what somebody may do tomorrow.
      Separate from `armed` so the invite button's blur handler can't disarm it
@@ -64,10 +68,24 @@ export function TeamDirectory({
 
   const runInvite = (action: () => Promise<InviteResult>) => {
     setInviteError(null);
+    setInviteNote(null);
     startInvite(async () => {
       const res = await action();
-      if (res.ok) router.refresh();
-      else setInviteError(res.error);
+      if (!res.ok) return setInviteError(res.error);
+      /* A send that failed is not an action that failed — the invite is
+         renewed either way and the link in this row still works. So it reads
+         as a note about the post, and it names the alternative that is sitting
+         right beside it rather than describing one. */
+      if (res.delivery && !res.delivery.sent) {
+        setInviteError(
+          res.delivery.reason === "unconfigured"
+            ? `Renewed. Email isn't set up in this environment — copy the link instead.`
+            : `Renewed, but the email to ${res.delivery.to} didn't send. Copy the link instead.`
+        );
+      } else if (res.delivery) {
+        setInviteNote(`Sent to ${res.delivery.to}.`);
+      }
+      router.refresh();
     });
   };
 
@@ -82,6 +100,7 @@ export function TeamDirectory({
      A new action would have been a second copy of all three. */
   const setActive = (staffId: string, active: boolean) => {
     setInviteError(null);
+    setInviteNote(null);
     startInvite(async () => {
       const res = await saveStaffSection(staffId, "personal", {
         status: active ? "Active" : "Inactive",
@@ -180,6 +199,7 @@ export function TeamDirectory({
       {view === "pending" ? (
         <div className="dir" id="dirpanel-pending" role="tabpanel" aria-labelledby="dirtab-pending">
           {inviteError && <div className="invmsg">{inviteError}</div>}
+          {inviteNote && <div className="invmsg ok">{inviteNote}</div>}
           {pending.length === 0 && <div className="direm on">No invites waiting.</div>}
           {pending.map((p) => (
             <div key={p.id} className={`invrow${p.state === "expired" ? " expired" : ""}`}>
@@ -197,24 +217,28 @@ export function TeamDirectory({
                 <Icon name={p.state === "expired" ? "alert" : "clock"} size={12} />
                 {p.note}
               </span>
-              {/* No email sending yet: the link IS the invite, so whoever may
-                  invite gets it, plus the two things they can do about a row
-                  that's gone stale. token/id are non-null exactly when the
-                  page asked withLinks — i.e. when canInvite. */}
+              {/* The letter is posted now, but Copy link stays: an address can
+                  bounce, a letter can land in spam, and the link is the one
+                  route that does not depend on mail arriving. token/id are
+                  non-null exactly when the page asked withLinks — i.e. when
+                  canInvite.
+
+                  RESEND IS OFFERED ON A LIVE INVITE TOO, not only an expired
+                  one. It was expired-only while renewing was all it could do;
+                  now the commonest thing to want is "send that again", and
+                  waiting for the invite to die first is not a workflow. */}
               {canInvite && p.token != null && p.id != null && (
                 <div className="invtools">
                   <CopyLink url={`${appUrl}/invite/accept?token=${p.token}`} />
                   <div className="invbtns">
-                    {p.state === "expired" && (
-                      <button
-                        className="fl-btn tiny"
-                        disabled={busy}
-                        onClick={() => runInvite(() => renewInvite(p.id!))}
->
-                        <Icon name="rotate" size={13} />
-                        Renew
-                      </button>
-                    )}
+                    <button
+                      className="fl-btn tiny"
+                      disabled={busy}
+                      onClick={() => runInvite(() => renewInvite(p.id!))}
+                    >
+                      <Icon name="rotate" size={13} />
+                      {p.state === "expired" ? "Renew & resend" : "Resend"}
+                    </button>
                     <button
                       className={`fl-btn tiny danger${armed === p.id ? " arm" : ""}`}
                       disabled={busy}

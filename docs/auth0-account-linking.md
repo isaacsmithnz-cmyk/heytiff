@@ -23,28 +23,46 @@ already holds that address, it links the Google identity into that user.
 From then on the Google identity **is** that user: same `sub`, same
 membership, same staff card, nothing to choose and nothing to explain.
 
-### Why it asks for a second click
+### Why there is a redirect in the middle
 
 Linking mid-login does not change who the login is *for*. Auth0's own note:
 it "does not automatically change to the correct primary user after Account
-Linking."
+Linking." Left there, the person finishes signed in as the throwaway Google
+user — which by then has no identities of its own — and lands on `/start`,
+having gained nothing.
 
-The supported fix is `api.authentication.setPrimaryUser()` — but that is
-**only available inside `onContinuePostLogin`**, which means redirecting out
-to a page we host and back, with a session token to validate. That is an
-endpoint and a class of bug to own forever, and Auth0 publishes a support
-article about the primary-user update getting lost between those redirects.
+`api.authentication.setPrimaryUser()` is the fix, and it is **only callable
+from `onContinuePostLogin`**, which only runs after the Action has sent the
+browser out and got it back. So the flow bounces through
+[`/link-account`](../src/app/link-account/route.ts) — a route that renders
+nothing and exists solely to hand Auth0's `state` to `/continue`. The person
+sees a redirect flash.
 
-So the Action links, then stops, and the person presses Continue with Google
-once more. The second attempt needs no special handling at all — by then the
-Google identity genuinely belongs to the primary account.
+**The first version did not bounce.** It linked, then refused the login with
+*"press Continue with Google once more"* — which worked, cost no endpoint, and
+spent a click of every person's patience to save one file. One route handler
+is cheaper than a click each, forever.
 
-**Cost: one extra click, once, per person who ever uses Google.** It renders
-as an error page, which is a shame for what is actually a success, so the copy
-carries the whole meaning:
+### The bounce is the open-redirect surface, and is treated as one
 
-> Your Google sign-in is now connected to your HeyTiff account. Press Continue
-> with Google once more to finish.
+`/link-account` takes a value off the query string and puts it in a URL it
+redirects to. That is the shape of every open redirect ever written, so two
+independent guards keep the host out of the caller's hands:
+
+- `state` must match `^[A-Za-z0-9._~-]{1,512}$` — no `:`, `/`, `@` or `#` can
+  survive it, and it is bounded so it cannot amplify a URL
+- the destination is built from `AUTH0_DOMAIN` and a fixed path, with the
+  state set as a query **value** via `searchParams`, never interpolated into
+  the string
+
+Either alone defeats the attack; removing one still leaves the tests green on
+the host assertion, which is the point of having both. `?state=https://evil.test`,
+`//evil.test`, `abc@evil.test` and a CRLF injection are each pinned by a test.
+
+**`AUTH0_DOMAIN`, not `AUTH0_TENANT_DOMAIN`** — `/continue` belongs to the
+login transaction, so it lives on whichever domain the person is
+authenticating against. The tenant domain is for the Management API alone
+(see `lib/integrations/auth0-tenant-domain.ts`).
 
 ## The security argument
 
@@ -85,7 +103,7 @@ in, then under the Action's own settings:
 
 | | |
 | --- | --- |
-| **Secrets** | `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` |
+| **Secrets** | `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `APP_BASE_URL` |
 | **Dependencies** | `auth0` (latest) |
 
 Those credentials need **`read:users`** and **`update:users`**. `read:users`
@@ -93,6 +111,10 @@ is not on the app's existing grant — and this is a good reason to give the
 Action **its own M2M application** rather than reuse the app's, the same
 argument as `docs/auth0-branding.md` makes about `update:branding`: the
 running web server has no need to read every user in the tenant.
+
+`APP_BASE_URL` is the origin the redirect bounces through —
+`https://go.hey-tiff.com`. It must also be listed in the tenant's **Allowed
+Web Origins**, or Auth0 will refuse the round trip.
 
 Then drag it into the **Login** flow and Apply.
 

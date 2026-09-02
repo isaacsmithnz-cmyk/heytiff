@@ -15,21 +15,25 @@
    Google identity IS that user: same sub, same membership, same staff card,
    nothing to choose.
 
-   ── WHY IT ASKS FOR A SECOND CLICK ────────────────────────────────────────
+   ── WHY THERE IS A REDIRECT IN THE MIDDLE ─────────────────────────────────
 
-   Linking mid-login does not change who this login is FOR. Auth0's own note:
+   Linking mid-login does not change who the login is FOR. Auth0's own note:
    it "does not automatically change to the correct primary user after Account
-   Linking". The fix for that is `api.authentication.setPrimaryUser()`, which
-   is only available inside `onContinuePostLogin` — i.e. after a redirect out
-   to a page we host and back, with a session token to validate. That is a
-   whole flow to build and maintain, and Auth0 publishes a support article
-   about the primary-user update getting lost between those redirects.
+   Linking". Left there, the person would finish signed in as the throwaway
+   Google user — which by then has no identities of its own — and land on
+   /start, having gained nothing.
 
-   The alternative is this: link, then stop, and let them start again. The
-   second attempt resolves to the primary with no special handling at all,
-   because by then the Google identity genuinely belongs to it. The cost is
-   one extra click, once, for each person who ever uses Google. The redirect
-   flow costs an endpoint and a class of bug, forever.
+   `api.authentication.setPrimaryUser()` is the fix, and it is only callable
+   from `onContinuePostLogin`. That handler only runs after the Action has
+   sent the browser out and got it back, so this one bounces through
+   `/link-account`, a route that renders nothing and exists solely to hand
+   Auth0's `state` back to `/continue`.
+
+   THE FIRST VERSION OF THIS DID NOT BOUNCE. It linked, then refused the login
+   with "press Continue with Google once more", which worked and cost no
+   endpoint — and spent a click of every person's patience to save one file.
+   Isaac asked why, which was the right question. One route handler is cheaper
+   than a click each, forever.
 
    ── THE SECURITY ARGUMENT, WRITTEN DOWN ───────────────────────────────────
 
@@ -55,6 +59,9 @@
 
      Secrets      AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET
                   — an M2M application with `read:users` and `update:users`
+                  APP_BASE_URL — https://go.hey-tiff.com, the origin the
+                  redirect bounces through. It must ALSO be listed under the
+                  tenant's Allowed Web Origins / login URLs.
      Dependencies auth0  (latest)
 
    Then drag it into the Login flow and Apply. docs/auth0-account-linking.md
@@ -150,15 +157,67 @@ exports.onExecutePostLogin = async (event, api) => {
     return;
   }
 
-  /* Linked. This login still belongs to the identity that started it, so it
-     is stopped rather than allowed through as the wrong user — see the note
-     at the top about setPrimaryUser and onContinuePostLogin. The next press
-     of the Google button lands in the real account.
-
-     `deny` is the only way to say this, and it renders as an error, which is
-     a shame for what is actually a success. The copy carries the whole
-     meaning because it is the only thing the person will see. */
-  api.access.deny(
-    "Your Google sign-in is now connected to your HeyTiff account. Press Continue with Google once more to finish.",
-  );
+  /* Linked — but this login still belongs to the identity that started it,
+     and letting it through would sign them in as a user that no longer has
+     any identities of its own. `setPrimaryUser` is the fix and is only legal
+     in `onContinuePostLogin`, so the browser goes out and comes straight
+     back. `link-account` renders nothing; it exists to hand Auth0's `state`
+     to `/continue`. See src/app/link-account/route.ts. */
+  api.redirect.sendUserTo(`${event.secrets.APP_BASE_URL}/link-account`);
 };
+
+/* Runs after the bounce, and is the ONLY place the subject of a login can be
+   changed. */
+exports.onContinuePostLogin = async (event, api) => {
+  /* eslint-disable-next-line @typescript-eslint/no-require-imports */
+  const { ManagementClient } = require("auth0");
+
+  try {
+    const management = new ManagementClient({
+      domain: event.secrets.AUTH0_DOMAIN,
+      clientId: event.secrets.AUTH0_CLIENT_ID,
+      clientSecret: event.secrets.AUTH0_CLIENT_SECRET,
+    });
+
+    /* THE PRIMARY IS RE-READ RATHER THAN CARRIED ACROSS THE REDIRECT. It
+       could have been put in the URL, but then it would be a user-supplied
+       user id deciding whose account this login becomes — the one value in
+       this whole flow that must not be tamperable. Asking Auth0 again costs a
+       call and cannot be forged.
+
+       By this point the link has already happened, so the address resolves to
+       exactly one user: the primary, now holding the Google identity too. */
+    const { data } = await management.usersByEmail.getByEmail({
+      email: event.user.email,
+    });
+    const primary = primaryAfterLink(data, event.user.user_id);
+
+    /* No primary means the link did not take, or somebody unpicked it in the
+       moment between. Falling through leaves them signed in as the Google
+       user and sent to /start — exactly where they were before this Action
+       existed, which is a poor outcome but never a locked door. */
+    if (primary) api.authentication.setPrimaryUser(primary);
+  } catch (err) {
+    console.log("setPrimaryUser failed, continuing login:", err && err.message);
+  }
+};
+
+/** Which user this login should belong to, once linking has happened.
+
+    Pure and exported for the same reason `linkDecision` is: it decides whose
+    account somebody ends up in, and that is worth a test rather than a
+    read-through. */
+function primaryAfterLink(matches, currentUserId) {
+  const holders = (matches || []).filter((u) =>
+    (u.identities || []).some((i) => i.provider === DATABASE_STRATEGY),
+  );
+  /* Exactly one, or nothing. Two would mean the address is shared by two
+     database accounts, which `linkDecision` already refuses to act on — and
+     choosing between them here would be the same guess wearing a later
+     timestamp. */
+  if (holders.length !== 1) return null;
+  const primary = holders[0].user_id;
+  return primary === currentUserId ? null : primary;
+}
+
+exports.primaryAfterLink = primaryAfterLink;

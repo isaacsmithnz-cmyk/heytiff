@@ -33,10 +33,23 @@ import type { BrandAssets } from "./assets.ts";
 const FONT =
   "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-/** The lockup's aspect is 1123x256; 158x36 is the kit's minimum lockup width
-    cleared with room, at the same height the sign-in widget uses. */
-const LOGO_W = 158;
-const LOGO_H = 36;
+/* THE WORDMARK IS LIVE TEXT, AND THE MARK ALONE IS THE IMAGE. This was one
+   PNG of the whole lockup, and Gmail on Android broke it: that client
+   force-inverts a light email to dark and DOES NOT invert images, so the ink
+   "Hey" stayed ink on a card that had become near-black and simply vanished.
+   Seen on a real phone; the `color-scheme` meta below does not stop it.
+
+   Splitting it fixes the cause rather than the symptom. The chevron is a
+   teal-to-blue gradient that reads on white and on near-black alike, so it
+   stays an image. The word is HTML, so a client that inverts the card
+   inverts "Hey" along with it — the same way it already handles the body
+   copy — while "Tiff" keeps its teal, which survives inversion untouched.
+
+   THE COST IS THE TYPEFACE, and it is worth paying. Most clients will not
+   load a webfont, so the word renders in the system sans rather than
+   Jakarta. A wordmark half a shade off-brand is a smaller failure than a
+   logo nobody can see. */
+const MARK = 34;
 
 export type Letter = {
   /** The line the inbox shows beside the subject before anything is opened.
@@ -100,7 +113,16 @@ export function renderLetter(letter: Letter, assets: BrandAssets): string {
 
         <tr>
           <td class="ht-pad" align="center" style="padding:40px 44px 8px 44px;">
-            <img src="${assets.lockup}" width="${LOGO_W}" height="${LOGO_H}" alt="HeyTiff" style="display:block; width:${LOGO_W}px; height:${LOGO_H}px; border:0; outline:none; text-decoration:none;" />
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+              <tr>
+                <td style="padding-right:9px; font-size:0; line-height:0;">
+                  <img src="${assets.chevron}" width="${MARK}" height="${MARK}" alt="" style="display:block; width:${MARK}px; height:${MARK}px; border:0; outline:none;" />
+                </td>
+                <td style="font-family:${FONT}; font-size:27px; line-height:${MARK}px; font-weight:800; letter-spacing:-0.03em; white-space:nowrap;">
+                  <span style="color:${BRAND.ink};">Hey</span><span style="color:${BRAND.tealDark};">Tiff</span>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
 

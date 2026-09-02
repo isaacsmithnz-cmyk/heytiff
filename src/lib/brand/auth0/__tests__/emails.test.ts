@@ -80,18 +80,43 @@ describe("what mail clients actually render", () => {
     expect(body).not.toMatch(/display:\s*(flex|grid)/i);
     expect(body).toContain("<table");
 
-    // The logo is a PNG on our own https origin.
-    expect(body).toContain(assets.lockup);
+    // The mark is a PNG on our own https origin.
+    expect(body).toContain(assets.chevron);
   });
 
   it.each(templates.map((t) => t.template))(
-    "%s tells the client not to invert it",
+    "%s asks the client not to invert it — where asking works",
     (name) => {
-      // HeyTiff has no dark half (globals.css). Without these, Gmail and
-      // Apple Mail invert the card and put the ink wordmark on ink.
+      // HeyTiff has no dark half (globals.css). Apple Mail and Outlook.com
+      // honour these and leave the letter alone.
+      //
+      // GMAIL ON ANDROID DOES NOT, and an earlier version of this comment
+      // claimed otherwise. It force-inverts regardless, which is why the
+      // header no longer depends on an image that cannot follow — see the
+      // wordmark test below. These stay because they still work everywhere
+      // else, not because they are a defence.
       const { body } = get(name);
       expect(body).toContain('name="color-scheme" content="light"');
       expect(body).toContain('name="supported-color-schemes" content="light"');
+    },
+  );
+
+  it.each(templates.map((t) => t.template))(
+    "%s survives a client that force-inverts the card",
+    (name) => {
+      const { body } = get(name);
+
+      // THE WORDMARK MUST BE TEXT. As part of the logo PNG its ink "Hey"
+      // vanished on Gmail Android's near-black card, because that client
+      // inverts the page and not the images on it. Caught on a real phone.
+      expect(body).toContain(">Hey</span>");
+      expect(body).toContain(">Tiff</span>");
+
+      // ...and the image beside it must be the gradient mark, which reads on
+      // white and near-black alike — never the full lockup, whose wordmark
+      // is baked ink.
+      expect(body).toContain(assets.chevron);
+      expect(body).not.toContain(assets.lockup);
     },
   );
 

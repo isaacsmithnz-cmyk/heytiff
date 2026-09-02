@@ -58,6 +58,7 @@ describe("your own vehicle", () => {
     const cols = selected[0];
     expect(cols).toContain("rego_expiry");
     expect(cols).toContain("insurance_expiry");
+    expect(cols).toContain("ctp_expiry");
     expect(cols).toContain("service_interval_km");
     // your own vehicle still isn't a valuation, an assignment or a note
     expect(cols).not.toContain("value");

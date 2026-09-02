@@ -30,6 +30,7 @@ import {
   type VehicleLog,
   type RenewalKind,
   RENEWAL_DOC_KIND,
+  RENEWAL_KINDS,
   currentRenewalDocIds,
   serviceDueKm,
   serviceDueText,
@@ -59,11 +60,12 @@ const DOC_KIND_LABEL: Partial<Record<StoredDocument["kind"], string>> = {
   fuel_receipt: "Fuel docket",
   insurance_policy: "Insurance policy",
   rego_notice: "Rego notice",
+  green_slip: "Green slip",
 };
 
 /* The kinds that supersede each other, and so carry a Current/Previous tag.
    A fuel docket doesn't — every one of them stands on its own. */
-const RENEWAL_KINDS = new Set<StoredDocument["kind"]>(["insurance_policy", "rego_notice"]);
+const RENEWAL_DOC_KINDS = new Set<StoredDocument["kind"]>(Object.values(RENEWAL_DOC_KIND));
 
 function fmtDocDate(iso: string): string {
   const d = new Date(iso);
@@ -177,6 +179,7 @@ export function VehicleFormModal({
           odometer: String(initial.odometer),
           rego: dateFromDays(initial.regoDays, today),
           insurance: dateFromDays(initial.insuranceDays, today),
+          ctp: dateFromDays(initial.ctpDays, today),
           intervalKm: initial.serviceIntervalKm == null ? "" : String(initial.serviceIntervalKm),
           lastServiceOdo: String(initial.lastServiceOdo),
           intervalMonths:
@@ -201,6 +204,7 @@ export function VehicleFormModal({
           odometer: "",
           rego: "",
           insurance: "",
+          ctp: "",
           intervalKm: "",
           lastServiceOdo: "",
           intervalMonths: "",
@@ -294,6 +298,7 @@ export function VehicleFormModal({
       purchaseDateDays: f.purchaseDate ? Math.max(0, -daysUntil(f.purchaseDate, today)) : 0,
       regoDays: f.rego ? daysUntil(f.rego, today) : 365,
       insuranceDays: f.insurance ? daysUntil(f.insurance, today) : 365,
+      ctpDays: f.ctp ? daysUntil(f.ctp, today) : 365,
       /* Blank means "no distance limit", which is the whole point of the
          column being nullable — defaulting it back to 10,000 would give a
          trailer a cycle it can never reach. No motor forces it either way. */
@@ -390,6 +395,9 @@ export function VehicleFormModal({
         </Field>
         <Field label="Insurance expiry">
           <DateField size="lg" clearable today={today} value={f.insurance || null} onChange={setDate("insurance")} />
+        </Field>
+        <Field label="Green slip expiry" hint="CTP. Usually the same day as the rego, but not always.">
+          <DateField size="lg" clearable today={today} value={f.ctp || null} onChange={setDate("ctp")} />
         </Field>
         <Field label="Motor">
           <select
@@ -1185,6 +1193,23 @@ export function LogRow({
 
 /* ---------------- renewal (Update) ---------------- */
 
+/** How each kind reads mid-sentence: "Update <label>", "Save <label>". */
+const RENEWAL_LABEL: Record<RenewalKind, string> = {
+  insurance: "insurance",
+  rego: "rego",
+  ctp: "green slip",
+};
+
+/* Who the paper is FROM differs by kind, and the placeholder is doing real
+   work: a green slip comes from an insurer, not from Transport for NSW, and
+   the rego notice next to it does. Getting that wrong in the hint is how a
+   provider field ends up filled with the wrong sort of name. */
+const RENEWAL_PROVIDER: Record<RenewalKind, { label: string; placeholder: string }> = {
+  insurance: { label: "Insurer", placeholder: "e.g. NRMA" },
+  rego: { label: "Issued by", placeholder: "e.g. Transport for NSW" },
+  ctp: { label: "CTP insurer", placeholder: "e.g. QBE" },
+};
+
 /* Isaac's ask: when a document is near expiry an Update button appears, you
    drop the new one in, it is scanned, the expiry updates and the previous one
    becomes history. This modal is the middle of that: drop → read → confirm.
@@ -1200,10 +1225,10 @@ export function RenewalModal({
   onClose,
 }: {
   vehicle: Vehicle;
-  kind: "insurance" | "rego";
+  kind: RenewalKind;
   today: string;
   onSave: (input: {
-    kind: "insurance" | "rego";
+    kind: RenewalKind;
     expiresOn: string;
     startsOn: string | null;
     provider: string | null;
@@ -1212,7 +1237,7 @@ export function RenewalModal({
   }) => void;
   onClose: () => void;
 }) {
-  const label = kind === "insurance" ? "insurance" : "rego";
+  const label = RENEWAL_LABEL[kind];
   const [doc, setDoc] = useState<{ name: string; documentId: string } | null>(null);
   const [reading, setReading] = useState(false);
   const [readErr, setReadErr] = useState<string | null>(null);
@@ -1224,7 +1249,7 @@ export function RenewalModal({
     setReading(true);
     setReadErr(null);
     const [up, scan] = await Promise.all([
-      uploadFile(file, kind === "insurance" ? "insurance_policy" : "rego_notice").catch(
+      uploadFile(file, RENEWAL_DOC_KIND[kind]).catch(
         () => ({ ok: false, error: "upload" }) as const,
       ),
       fileToUprightBase64(file)
@@ -1294,10 +1319,10 @@ export function RenewalModal({
       {readErr && <div className="fl-aierr">{readErr}</div>}
 
       <div className="fl-grid">
-        <Field label={kind === "insurance" ? "Insurer" : "Issued by"}>
+        <Field label={RENEWAL_PROVIDER[kind].label}>
           <input
             className="fl-i"
-            placeholder={kind === "insurance" ? "e.g. NRMA" : "e.g. Transport for NSW"}
+            placeholder={RENEWAL_PROVIDER[kind].placeholder}
             value={f.provider}
             onChange={(e) => setF((p) => ({ ...p, provider: e.target.value }))}
           />
@@ -1346,7 +1371,11 @@ export function RenewalModal({
 
 /* ---------------- renewal history (the fact's own paperwork) ---------------- */
 
-const RENEWAL_TITLE: Record<RenewalKind, string> = { insurance: "Insurance", rego: "Registration" };
+const RENEWAL_TITLE: Record<RenewalKind, string> = {
+  insurance: "Insurance",
+  rego: "Registration",
+  ctp: "Green slip",
+};
 
 /* Everything on file for ONE renewal kind: what it cost, what period it
    covered, and the paper it was read from — newest first.
@@ -1402,7 +1431,7 @@ export function RenewalHistoryModal({
               : `to ${fmtDocDate(pl.expiresOn)}`;
             return (
               <div key={pl.id} className="fl-renrow">
-                <Icon name={kind === "insurance" ? "shield" : "file"} size={15} />
+                <Icon name={kind === "rego" ? "file" : "shield"} size={15} />
                 <span className="fl-renwho">
                   <b>{pl.provider ?? RENEWAL_TITLE[kind]}</b>
                   <i>{period}</i>
@@ -1556,7 +1585,7 @@ export function DetailModal({
   /** Renewals on file, newest first — the first of each kind is current. */
   policies?: VehiclePolicy[];
   /** Opens the Update flow for a document that is near or past expiry. */
-  onRenew?: (kind: "insurance" | "rego") => void;
+  onRenew?: (kind: RenewalKind) => void;
   /** Opens everything on file for one renewal kind — its papers and its costs. */
   onHistory?: (kind: RenewalKind) => void;
   /** Opens the services behind the cycle. Separate from onHistory because a
@@ -1627,7 +1656,7 @@ export function DetailModal({
           /* The Update button rides the fact's OWN state — the same rule the
              chips use — so "near expiry" is decided in one place and can't
              drift between the warning and the fix for it. */
-          const isRenewal = fa.key === "rego" || fa.key === "insurance";
+          const isRenewal = (RENEWAL_KINDS as readonly string[]).includes(fa.key);
           const kind = fa.key as RenewalKind;
           const renewable = onRenew && isRenewal;
           const due = fa.state !== "ok";
@@ -1787,7 +1816,7 @@ export function DetailModal({
               <a key={d.id} className="fl-docrow" href={d.url ?? undefined} target="_blank" rel="noreferrer">
                 <Icon name="file" size={15} />
                 <b>{d.fileName}</b>
-                {RENEWAL_KINDS.has(d.kind) && (
+                {RENEWAL_DOC_KINDS.has(d.kind) && (
                   <span className={`fl-doctag${current ? " now" : ""}`}>
                     {current ? "Current" : "Previous"}
                   </span>

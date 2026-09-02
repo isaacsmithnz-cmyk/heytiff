@@ -39,6 +39,13 @@ export type VehicleIdentity = {
 export type VehicleWithFacts = VehicleIdentity & {
   regoDays: number; // days until rego expires (negative = expired)
   insuranceDays: number; // days until insurance expires
+  /* CTP — the green slip in NSW. A THIRD date rather than a flavour of
+     insurance: it is the cover the state makes you carry to be registered, it
+     comes from an insurer who need not be the comprehensive one, and it runs
+     to its own expiry on its own certificate. Folding it into insuranceDays
+     would let a green slip retire the comprehensive warning, which is the one
+     that costs real money when it lapses unnoticed. */
+  ctpDays: number; // days until CTP / green slip expires
   /* The service cycle has TWO limits and falls due on whichever arrives first.
      Either may be null, which means that limit does not apply to this vehicle
      — a trailer has no distance limit, a vehicle nobody has given a time
@@ -179,6 +186,7 @@ export type StatusChip = { label: string; state: ChipState };
 
 export const REGO_WARN_DAYS = 30;
 export const INSURANCE_WARN_DAYS = 30;
+export const CTP_WARN_DAYS = 30;
 export const SERVICE_WARN_KM = 1500;
 export const SERVICE_WARN_DAYS = 30;
 
@@ -254,6 +262,13 @@ export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChi
   if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
   else if (v.insuranceDays <= INSURANCE_WARN_DAYS)
     chips.push({ label: `Insurance ${expiryClause(v.insuranceDays)}`, state: "warn" });
+  /* Its own chip beside rego's, not folded into it. They usually fall on the
+     same day and the rego chip would be right most of the time — but an
+     unrenewed green slip is what stops the rego renewing at all, and "most of
+     the time" is not a warning. */
+  if (v.ctpDays < 0) chips.push({ label: "Green slip expired", state: "bad" });
+  else if (v.ctpDays <= CTP_WARN_DAYS)
+    chips.push({ label: `Green slip ${expiryClause(v.ctpDays)}`, state: "warn" });
   /* One chip for the cycle, reading whichever limit is worse — the vehicle is
      due on the first of them, so two chips would be two ways of saying it. */
   const svc = serviceDue(v);
@@ -315,6 +330,12 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
       text: v.insuranceDays < 0 ? "expired" : `renews ${inLabel(v.insuranceDays)}`,
       state: v.insuranceDays < 0 ? "bad" : v.insuranceDays <= INSURANCE_WARN_DAYS ? "warn" : "ok",
     },
+    {
+      key: "ctp",
+      label: "Green slip",
+      text: v.ctpDays < 0 ? "expired" : `renews ${inLabel(v.ctpDays)}`,
+      state: v.ctpDays < 0 ? "bad" : v.ctpDays <= CTP_WARN_DAYS ? "warn" : "ok",
+    },
   ];
 }
 
@@ -330,7 +351,7 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
    print one: never derived, for the same reason fuel GST isn't. */
 export type VehiclePolicy = {
   id: string;
-  kind: "insurance" | "rego";
+  kind: RenewalKind;
   provider: string | null;
   premium: number | null;
   startsOn: string | null;
@@ -342,9 +363,24 @@ export type VehiclePolicy = {
 export const RENEWAL_DOC_KIND = {
   insurance: "insurance_policy",
   rego: "rego_notice",
+  ctp: "green_slip",
 } as const;
 
 export type RenewalKind = keyof typeof RENEWAL_DOC_KIND;
+
+/** Every renewal kind, once, in the order they read on a vehicle. Derived from
+    the map above so a fourth kind can never be half-added: adding it there is
+    what makes it appear in the facts, the history and the current-document
+    rule. */
+export const RENEWAL_KINDS = Object.keys(RENEWAL_DOC_KIND) as readonly RenewalKind[];
+
+/** Which vehicle column caches a kind's newest expiry. The policy rows are the
+    record; these are the cache every chip, filter and attention count reads. */
+export const RENEWAL_EXPIRY_COLUMN: Record<RenewalKind, string> = {
+  insurance: "insurance_expiry",
+  rego: "rego_expiry",
+  ctp: "ctp_expiry",
+};
 
 /* WHICH DOCUMENT IS ACTUALLY IN FORCE.
 
@@ -367,7 +403,7 @@ export function currentRenewalDocIds(
   documents: readonly { id: string; kind: string }[],
 ): Set<string> {
   const out = new Set<string>();
-  for (const kind of ["insurance", "rego"] as const) {
+  for (const kind of RENEWAL_KINDS) {
     const filed = policies.filter((p) => p.kind === kind);
     const inForce = filed
       .filter((p) => p.documentId)

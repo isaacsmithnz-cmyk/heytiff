@@ -47,6 +47,7 @@ const van: Vehicle = {
   odometer: 100000,
   regoDays: 200,
   insuranceDays: 200,
+  ctpDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 95000,
   serviceIntervalMonths: null,
@@ -159,12 +160,13 @@ it("marks the newest of each kind current and the rest previous", () => {
       doc({ id: "new", fileName: "policy-2027.pdf", createdAt: "2026-08-20T00:00:00Z" }),
       doc({ id: "old", fileName: "policy-2026.pdf", createdAt: "2025-08-20T00:00:00Z" }),
       doc({ id: "rego", kind: "rego_notice", fileName: "rego.pdf", createdAt: "2026-01-01T00:00:00Z" }),
+      doc({ id: "ctp", kind: "green_slip", fileName: "greenslip.jpg", createdAt: "2026-02-01T00:00:00Z" }),
       doc({ id: "fuel", kind: "fuel_receipt", fileName: "docket.jpg", createdAt: "2026-08-22T00:00:00Z" }),
     ],
   });
 
-  // one Current per renewal kind — insurance and rego — and no more
-  expect(screen.getAllByText("Current")).toHaveLength(2);
+  // one Current per renewal kind — insurance, rego and CTP — and no more
+  expect(screen.getAllByText("Current")).toHaveLength(3);
   expect(screen.getAllByText("Previous")).toHaveLength(1);
   // a docket supersedes nothing, so it carries no tag at all
   const docket = screen.getByText("docket.jpg").closest("a")!;
@@ -198,6 +200,66 @@ it("scans the dropped document into the fields, then saves what was confirmed", 
   await user.click(screen.getByRole("button", { name: /save insurance/i }));
   expect(onSave).toHaveBeenCalledWith(
     expect.objectContaining({ kind: "insurance", expiresOn: "2027-09-01", premium: 1240.5, documentId: "doc-9" }),
+  );
+});
+
+/* ---- CTP: the green slip is not the comprehensive policy ---- */
+
+/* The document that found this gap: a QBE green slip for the Triton, 30/09/26
+   to 29/09/27, $945.54. There was nowhere correct to file it. As `insurance`
+   it retired the comprehensive expiry — the warning that costs real money when
+   a truck is written off uninsured. As `rego` it wrote a CTP period into the
+   rego column, and the reader was asked to find a road authority on a
+   certificate issued by an insurer. */
+
+it("warns on the green slip while the comprehensive cover is still in force", () => {
+  const chips = vehicleChips({ ...van, insuranceDays: 200, ctpDays: 9 }, 0);
+  expect(chips.map((c) => c.label)).toContain("Green slip expires in 9 days");
+  expect(chips.some((c) => c.label.startsWith("Insurance"))).toBe(false);
+});
+
+it("offers Update on the green slip, as its own kind", async () => {
+  const { onRenew, user } = detail({ ...van, ctpDays: 12 });
+  const buttons = screen.getAllByRole("button", { name: "Update" });
+  expect(buttons).toHaveLength(1); // rego and insurance are both clear
+  await user.click(buttons[0]);
+  expect(onRenew).toHaveBeenCalledWith("ctp");
+});
+
+it("reads a green slip photo into the fields and files it against CTP", async () => {
+  readRenewalDocument.mockResolvedValue({
+    ok: true,
+    provider: "QBE",
+    premium: 945.54,
+    startsOn: "2026-09-30",
+    expiresOn: "2027-09-29",
+  });
+  const onSave = jest.fn();
+  render(<RenewalModal vehicle={van} kind="ctp" today={TODAY} onSave={onSave} onClose={jest.fn()} />);
+  const user = userEvent.setup();
+
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  await user.upload(input, new File(["x"], "greenslip.jpg", { type: "image/jpeg" }));
+
+  /* The insurer, asked for as an insurer. The rego wording ("Issued by",
+     "e.g. Transport for NSW") is what a green slip reads as the wrong document
+     against — and the prompt's last line then returns nulls for a certificate
+     that was perfectly readable. */
+  await waitFor(() => expect(screen.getByPlaceholderText("e.g. QBE")).toHaveValue("QBE"));
+  expect(screen.getByLabelText(/^Expires/)).toHaveTextContent("29/09/2027");
+  expect(readRenewalDocument).toHaveBeenCalledWith(expect.any(String), expect.any(String), "ctp");
+  // its own document kind: a green slip must not be adoptable as the policy
+  expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "green_slip");
+
+  await user.click(screen.getByRole("button", { name: /save green slip/i }));
+  expect(onSave).toHaveBeenCalledWith(
+    expect.objectContaining({
+      kind: "ctp",
+      startsOn: "2026-09-30",
+      expiresOn: "2027-09-29",
+      premium: 945.54,
+      documentId: "doc-9",
+    }),
   );
 });
 

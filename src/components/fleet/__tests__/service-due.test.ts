@@ -32,6 +32,7 @@ const van: Vehicle = {
   odometer: 100000,
   regoDays: 200,
   insuranceDays: 200,
+  ctpDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 95000,
   serviceIntervalMonths: 12,

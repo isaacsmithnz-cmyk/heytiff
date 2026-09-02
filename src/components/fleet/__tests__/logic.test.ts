@@ -42,6 +42,7 @@ const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   lastServiceDays: null,
   regoDays: 200,
   insuranceDays: 200,
+  ctpDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 80000,
   serviceIntervalMonths: null,
@@ -102,11 +103,21 @@ describe("vehicleChips", () => {
 });
 
 describe("vehicleFacts", () => {
-  it("returns the four shared facts with severity states", () => {
+  it("returns the five shared facts with severity states", () => {
     const facts = vehicleFacts(vehicle({ regoDays: 21, insuranceDays: -1 }));
-    expect(facts.map((f) => f.key)).toEqual(["odo", "service", "rego", "insurance"]);
+    expect(facts.map((f) => f.key)).toEqual(["odo", "service", "rego", "insurance", "ctp"]);
     expect(facts.find((f) => f.key === "rego")).toMatchObject({ state: "warn", text: "renews in 3 weeks" });
     expect(facts.find((f) => f.key === "insurance")).toMatchObject({ state: "bad", text: "expired" });
+  });
+
+  /* CTP is a THIRD date, not a flavour of insurance. Reading it off the
+     insurance fact would mean a lapsed green slip showed as comprehensive
+     cover lapsing — and, worse, a renewed green slip silencing a
+     comprehensive warning that is still real. */
+  it("reads the green slip off its own date, not the insurance one", () => {
+    const facts = vehicleFacts(vehicle({ insuranceDays: 200, ctpDays: -1 }));
+    expect(facts.find((f) => f.key === "insurance")).toMatchObject({ state: "ok" });
+    expect(facts.find((f) => f.key === "ctp")).toMatchObject({ label: "Green slip", state: "bad", text: "expired" });
   });
 });
 

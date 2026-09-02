@@ -29,6 +29,7 @@ const vehicle = (id: string, assignedTo: string | null): Vehicle => ({
   odometer: 90_000,
   regoDays: -10, // expired → a bad chip
   insuranceDays: 200,
+  ctpDays: 200,
   serviceIntervalKm: 10_000,
   lastServiceOdo: 88_000,
   serviceIntervalMonths: null,

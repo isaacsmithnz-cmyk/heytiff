@@ -26,7 +26,7 @@ function stubCanvas(): { width: () => number; height: () => number } {
       drawn.w = this.width;
       drawn.h = this.height;
       return { fillStyle: "", fillRect: jest.fn(), drawImage: jest.fn() } as unknown as CanvasRenderingContext2D;
-    } as typeof HTMLCanvasElement.prototype.getContext);
+    } as unknown as typeof HTMLCanvasElement.prototype.getContext);
   jest
     .spyOn(HTMLCanvasElement.prototype, "toDataURL")
     .mockReturnValue(`data:image/jpeg;base64,${B64_HELLO}`);

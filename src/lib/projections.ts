@@ -31,6 +31,7 @@ export const VEHICLE_SENSITIVE_FIELDS = [
   "purchaseDateDays",
   "regoDays",
   "insuranceDays",
+  "ctpDays",
   "serviceIntervalKm",
   "lastServiceOdo",
   "assignedTo", // who drives what is register knowledge; your own is on My vehicle

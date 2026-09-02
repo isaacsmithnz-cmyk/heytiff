@@ -12,7 +12,10 @@ import {
   odoEffect,
   odoRecompute,
   odoRejection,
+  RENEWAL_DOC_KIND,
+  RENEWAL_EXPIRY_COLUMN,
   type NewLog,
+  type RenewalKind,
   type Vehicle,
 } from "@/components/fleet/logic";
 
@@ -52,7 +55,9 @@ function refresh() {
 async function vehicleIn(orgId: string, vehicleId: string) {
   const { data } = await supabaseAdmin
     .from("vehicles")
-    .select("id, status, odometer, last_service_odo, assigned_to, rego_expiry, insurance_expiry")
+    .select(
+      "id, status, odometer, last_service_odo, assigned_to, rego_expiry, insurance_expiry, ctp_expiry",
+    )
     .eq("org_id", orgId)
     .eq("id", vehicleId)
     .maybeSingle();
@@ -535,7 +540,7 @@ export async function resolveIssue(logId: string): Promise<FleetResult> {
    the vehicle's expiry backwards and raise a false warning. */
 export type RenewalInput = {
   vehicleId: string;
-  kind: "insurance" | "rego";
+  kind: RenewalKind;
   expiresOn: string;
   startsOn?: string | null;
   provider?: string | null;
@@ -569,7 +574,7 @@ export async function recordRenewal(input: RenewalInput): Promise<FleetResult> {
   if (error) return { ok: false, error: "Couldn't record that renewal." };
 
   // cache the newest expiry on the vehicle — never backwards
-  const column = input.kind === "insurance" ? "insurance_expiry" : "rego_expiry";
+  const column = RENEWAL_EXPIRY_COLUMN[input.kind];
   const current = (vehicle as Record<string, unknown>)[column] as string | null | undefined;
   if (!current || input.expiresOn > current) {
     await supabaseAdmin
@@ -593,7 +598,7 @@ async function adoptRenewalDocument(
   ctx: Ctx,
   vehicleId: string,
   documentId: string,
-  kind: "insurance" | "rego",
+  kind: RenewalKind,
   policyId: string,
 ): Promise<void> {
   if (!ctx.staffId) return;
@@ -603,7 +608,7 @@ async function adoptRenewalDocument(
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
-    .eq("kind", kind === "insurance" ? "insurance_policy" : "rego_notice")
+    .eq("kind", RENEWAL_DOC_KIND[kind])
     .not("uploaded_at", "is", null)
     .is("vehicle_id", null)
     .select("id");

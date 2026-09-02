@@ -18,6 +18,7 @@
    on the dashboard and the same chip in Assets can't drift apart. */
 
 import {
+  CTP_WARN_DAYS,
   INSURANCE_WARN_DAYS,
   REGO_WARN_DAYS,
   SERVICE_WARN_KM,
@@ -36,6 +37,7 @@ export type ChipKind =
   | "work-rights"
   | "rego"
   | "insurance"
+  | "ctp"
   | "service"
   | "org-insurance"
   | "expenses"
@@ -77,6 +79,7 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   "work-rights": "People",
   rego: "Fleet",
   insurance: "Fleet",
+  ctp: "Fleet",
   service: "Fleet",
   "org-insurance": "Business",
   /* All three money-and-hours sources file under Pay, including the approver's
@@ -253,6 +256,30 @@ export function insuranceChip(
   };
 }
 
+/* CTP expiry chip — the green slip, and its own chip rather than rego's.
+
+   They usually fall on the same day, so folding the two would be right most of
+   the time. But the green slip is what the rego renewal DEPENDS on: let it
+   lapse and the rego cannot be renewed at all, and the chip that would have
+   said so was the one we didn't send. */
+export function ctpChip(
+  v: Pick<VehicleWithFacts, "id" | "status" | "ctpDays">,
+  ctx: { subject: string; href: string },
+): ActionChip | null {
+  if (v.status === "sold") return null;
+  if (v.ctpDays > CTP_WARN_DAYS) return null;
+  const state: ActionState = v.ctpDays < 0 ? "bad" : "warn";
+  return {
+    key: `ctp:${v.id}`,
+    kind: "ctp",
+    state,
+    label: expiryLabel("Green slip", v.ctpDays),
+    subject: ctx.subject,
+    href: ctx.href,
+    urgency: urgency(state, v.ctpDays),
+  };
+}
+
 /** Service-due chip for a vehicle — distance or time, whichever arrives first. */
 export function serviceChip(
   v: Pick<
@@ -307,7 +334,7 @@ export function vehicleChips(
   ctx: { subject: string; href: string },
 ): ActionChip[] {
   return sortChips(
-    [regoChip(v, ctx), insuranceChip(v, ctx), serviceChip(v, ctx)].filter(
+    [regoChip(v, ctx), insuranceChip(v, ctx), ctpChip(v, ctx), serviceChip(v, ctx)].filter(
       (c): c is ActionChip => c !== null,
     ),
   );

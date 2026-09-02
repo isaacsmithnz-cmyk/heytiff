@@ -6,11 +6,13 @@ import type {
   AiValuation,
   VehiclePolicy,
   FleetStaff,
+  RenewalKind,
   Vehicle,
   VehicleIdentity,
   VehicleLog,
   VehicleWithFacts,
 } from "@/components/fleet/logic";
+import { RENEWAL_KINDS } from "@/components/fleet/logic";
 /* The Assigned-vehicle join this module resolves. It lived in
    components/shell/profile.ts (the injected-HTML renderer) until that module
    was deleted; the staff card's own types module already carried an identical
@@ -36,7 +38,7 @@ import { toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from ".
 const PICKER_COLUMNS = "id, name, plate, plate_state, make, model, year, status, odometer";
 
 const FACTS_COLUMNS =
-  `${PICKER_COLUMNS}, rego_expiry, insurance_expiry, service_interval_km, last_service_odo` +
+  `${PICKER_COLUMNS}, rego_expiry, insurance_expiry, ctp_expiry, service_interval_km, last_service_odo` +
   `, service_interval_months, last_service_on, motorised`;
 
 const FULL_COLUMNS =
@@ -206,6 +208,13 @@ export const staffProfileIdFor = cache(
   }
 );
 
+/** A stored kind as the app's union. Anything unrecognised reads as insurance
+    rather than throwing: a row written by a newer deploy must not take out the
+    whole register's renewal panel on an older one. */
+function asRenewalKind(value: unknown): RenewalKind {
+  return RENEWAL_KINDS.includes(value as RenewalKind) ? (value as RenewalKind) : "insurance";
+}
+
 /* Every renewal a fleet has on file, newest first, keyed by vehicle.
 
    This is the record; `vehicles.insurance_expiry` is a cache of the newest
@@ -224,7 +233,7 @@ export async function listPolicies(orgId: string): Promise<Record<string, Vehicl
     const key = String(r.vehicle_id);
     (out[key] ??= []).push({
       id: String(r.id),
-      kind: r.kind === "rego" ? "rego" : "insurance",
+      kind: asRenewalKind(r.kind),
       provider: (r.provider as string) ?? null,
       premium: r.premium === null || r.premium === undefined ? null : Number(r.premium),
       startsOn: (r.starts_on as string) ?? null,

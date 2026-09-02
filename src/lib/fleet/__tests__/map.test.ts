@@ -19,6 +19,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   purchase_date: "2022-05-19",
   rego_expiry: "2026-09-30",
   insurance_expiry: "2026-08-01",
+  ctp_expiry: "2026-10-15",
   service_interval_km: 10000,
   last_service_odo: 80000,
   notes: "Pool ute",
@@ -30,15 +31,20 @@ describe("dates in, day-counts out", () => {
     const v = toVehicle(row(), TODAY);
     expect(v.regoDays).toBe(70);
     expect(v.insuranceDays).toBe(10);
+    expect(v.ctpDays).toBe(85);
     expect(v.purchaseDateDays).toBe(1525); // days SINCE purchase, never negative
   });
 
   it("an unset expiry reads as 'not soon', never as expired", () => {
     // the trap: null -> 0 days would render "Rego expires today" on every
     // vehicle whose paperwork simply hasn't been entered yet
-    const v = toVehicle(row({ rego_expiry: null, insurance_expiry: null }), TODAY);
+    const v = toVehicle(
+      row({ rego_expiry: null, insurance_expiry: null, ctp_expiry: null }),
+      TODAY,
+    );
     expect(v.regoDays).toBe(365);
     expect(v.insuranceDays).toBe(365);
+    expect(v.ctpDays).toBe(365);
     expect(vehicleChips(v, 0)).toEqual([]);
   });
 
@@ -67,6 +73,7 @@ describe("dates in, day-counts out", () => {
     const back = vehicleRow(v, TODAY);
     expect(back.rego_expiry).toBe("2026-09-30");
     expect(back.insurance_expiry).toBe("2026-08-01");
+    expect(back.ctp_expiry).toBe("2026-10-15");
     expect(back.purchase_date).toBe("2022-05-19");
     expect(back.plate_state).toBe("VIC");
   });

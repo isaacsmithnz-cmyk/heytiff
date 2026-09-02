@@ -61,6 +61,7 @@ export function toVehicleWithFacts(r: Row, today: string): VehicleWithFacts {
     // an unset expiry must not read as "expired" — it reads as "not soon"
     regoDays: daysFrom(r.rego_expiry, today, 365),
     insuranceDays: daysFrom(r.insurance_expiry, today, 365),
+    ctpDays: daysFrom(r.ctp_expiry, today, 365),
     /* Null now means "no distance limit" — a trailer has none — so it must
        survive the mapping rather than being defaulted back into one. */
     serviceIntervalKm: r.service_interval_km == null ? null : num(r.service_interval_km),
@@ -171,6 +172,7 @@ export function vehicleRow(v: Vehicle, today: string): Row {
     purchase_date: v.purchaseDateDays ? dateFromDays(-v.purchaseDateDays, today) : null,
     rego_expiry: dateFromDays(v.regoDays, today),
     insurance_expiry: dateFromDays(v.insuranceDays, today),
+    ctp_expiry: dateFromDays(v.ctpDays, today),
     service_interval_km: v.serviceIntervalKm,
     last_service_odo: v.lastServiceOdo,
     service_interval_months: v.serviceIntervalMonths,

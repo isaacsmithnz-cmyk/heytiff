@@ -106,3 +106,52 @@ describe("the refusals", () => {
     expect(linkDecision(googleLogin(), null).link).toBe(false);
   });
 });
+
+/* WHOSE ACCOUNT THIS LOGIN BECOMES.
+
+   `setPrimaryUser` is the one call in the flow that changes the subject of a
+   login, so what it is handed decides whose company somebody ends up inside.
+   It is re-read from Auth0 after the link rather than carried across the
+   redirect, precisely so it can never be a value the browser supplied — and
+   these are the cases where it must refuse to answer. */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { primaryAfterLink } = require("../link-google-to-password.js");
+
+describe("choosing the primary after linking", () => {
+  it("returns the single database account holding the address", () => {
+    expect(primaryAfterLink([passwordUser("auth0|abc")], "google-oauth2|111")).toBe(
+      "auth0|abc",
+    );
+  });
+
+  it("REFUSES when two database accounts hold it", () => {
+    // linkDecision already refuses to act on this; choosing here would be the
+    // same guess wearing a later timestamp.
+    expect(
+      primaryAfterLink([passwordUser("auth0|a"), passwordUser("auth0|b")], "google-oauth2|111"),
+    ).toBeNull();
+  });
+
+  it("REFUSES when the only match is the current user", () => {
+    // Setting yourself as your own primary is a no-op at best; at worst it
+    // masks a link that never happened.
+    expect(primaryAfterLink([passwordUser("google-oauth2|111")], "google-oauth2|111")).toBeNull();
+  });
+
+  it("REFUSES a social-only match", () => {
+    expect(
+      primaryAfterLink(
+        [{ user_id: "windowslive|222", identities: [{ provider: "windowslive" }] }],
+        "google-oauth2|111",
+      ),
+    ).toBeNull();
+  });
+
+  it("REFUSES when the lookup came back empty or broken", () => {
+    // The link did not take, or somebody unpicked it in between. Returning
+    // null leaves the login alone rather than pointing it somewhere.
+    expect(primaryAfterLink([], "google-oauth2|111")).toBeNull();
+    expect(primaryAfterLink(undefined, "google-oauth2|111")).toBeNull();
+    expect(primaryAfterLink(null, "google-oauth2|111")).toBeNull();
+  });
+});

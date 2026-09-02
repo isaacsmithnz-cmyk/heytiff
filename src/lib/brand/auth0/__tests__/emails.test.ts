@@ -117,6 +117,16 @@ describe("what mail clients actually render", () => {
       // is baked ink.
       expect(body).toContain(assets.chevron);
       expect(body).not.toContain(assets.lockup);
+
+      // THE BUTTON NEEDS AN EDGE. Gmail leaves this ink fill roughly alone
+      // while darkening the card around it, so without a border it is
+      // black-on-black and reads only by its label. A mid-tone survives the
+      // inversion, which is why it is `--q` and not white or ink.
+      if (/background-color:#0A0B10/.test(body)) {
+        expect(body).toMatch(
+          new RegExp(`background-color:${BRAND.ink};\\s*border:1px solid ${BRAND.quiet}`),
+        );
+      }
     },
   );
 

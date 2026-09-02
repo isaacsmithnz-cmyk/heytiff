@@ -76,10 +76,19 @@ export const auth0 = new Auth0Client({
       console.error("Failed to sync profile:", e);
     }
 
+    /* ORDERED, because one person can hold several memberships and this pick
+       decides which workspace they open in. Unordered `limit(1)` let Postgres
+       answer with whatever row it reached first, so somebody who had been
+       invited to a second org could sign in to a different one than they did
+       yesterday. Oldest first — the workspace they have had longest — with id
+       as the tiebreak so two rows written in the same tick still resolve the
+       same way every time. */
     const { data: memberships } = await supabaseAdmin
       .from("memberships")
       .select("org_id, role")
       .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
       .limit(1);
 
     const existing = memberships?.[0];
@@ -89,41 +98,22 @@ export const auth0 = new Auth0Client({
       return { ...session, orgId: existing.org_id, orgRole: existing.role };
     }
 
-    // If there's a pending invite for this email, don't auto-create an org —
-    // the invite accept flow will create the membership and set orgId.
-    // Lowercased to match the write side: createInvite normalises on insert,
-    // but Auth0 relays whatever casing the identity provider holds, and a
-    // missed match here strands the invitee as owner of a phantom org.
-    if (session.user.email) {
-      const { data: pendingInvite } = await supabaseAdmin
-        .from("invitations")
-        .select("id")
-        .eq("email", session.user.email.toLowerCase())
-        .is("accepted_at", null)
-        .gt("expires_at", new Date().toISOString())
-        .limit(1);
+    /* NO MEMBERSHIP, NO ORG — and signing in does not mint one.
 
-      if (pendingInvite?.[0]) return session;
-    }
+       This used to call create_org_for_owner for anyone who arrived without a
+       membership, which made "sign in" and "found a company" the same act. The
+       cost was paid by invited people: whoever signed up BEFORE their invite
+       existed became the owner of an empty company named after their gmail,
+       and the invite then made them a member of a second one. A guard read the
+       invitations table to spot that case, which only narrowed the window — it
+       could not close it, because an invite that has not been created yet
+       cannot be found. So the order in which two people did two things decided
+       whether the product worked, and nothing on screen said so.
 
-    // First login with no invite — create the org and owner membership.
-    // organizations.primary_owner_user_id is NOT NULL and its composite FK onto
-    // memberships is DEFERRABLE INITIALLY DEFERRED: the org row and the owner
-    // membership can only land together, in one transaction, with the owner
-    // named at insert time. Two sequential inserts can never satisfy that, so
-    // the pair is written by one RPC (docs/migrations/create_org_for_owner.sql).
-    const { data: orgId, error } = await supabaseAdmin.rpc("create_org_for_owner", {
-      p_user_id: userId,
-      p_name: session.user.email ?? userId,
-    });
-
-    if (error || !orgId) {
-      console.error("Failed to create organisation:", error);
-      return session;
-    }
-
-    await ensureStaffCard(orgId, userId, session);
-
-    return { ...session, orgId, orgRole: "owner" };
+       An org is founded on /start now, by pressing a button that says it. A
+       session with no orgId is a real, supported state: the proxy sends it to
+       /start, which offers the invite waiting for this address or the door to
+       create a company. */
+    return session;
   },
 });

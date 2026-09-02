@@ -56,6 +56,7 @@ const table = (name: string) => {
   chain.not = self;
   chain.gt = self;
   chain.limit = self;
+  chain.order = self;
   chain.select = self;
   chain.single = async () => ({
     data: name === "invitations" ? inviteRow : null,
@@ -343,38 +344,29 @@ describe("the guards still hold", () => {
 });
 
 /* The reason the route has to do this at all: updateSession does NOT run the
-   beforeSessionSaved hook, and the sign-in that precedes an accept bails out
-   before ensureStaffCard for exactly the case an invite is pending. */
+   beforeSessionSaved hook, and the sign-in that precedes an accept leaves an
+   invitee with nothing — no org, no membership, no staff card.
+
+   THAT EMPTINESS IS THE POINT NOW. The hook used to found a company for
+   anybody arriving without a membership, and only a pending-invitation lookup
+   held it back for invitees; sign up before the invite existed and there was
+   nothing to find. Signing in mints nothing at all today (lib/auth0.ts, and
+   lib/__tests__/auth0-signup.test.ts pins it), so the accept route is the only
+   thing that can seat this person's card — which is exactly what it does. */
 describe("why the hook cannot be relied on here", () => {
-  it("beforeSessionSaved skips seating a card while an invite is pending", async () => {
+  it("beforeSessionSaved seats no card for someone with no membership", async () => {
     const hook = capturedOptions.beforeSessionSaved as (
       s: Record<string, unknown>,
     ) => Promise<Record<string, unknown>>;
     expect(typeof hook).toBe("function");
 
-    // no membership yet, but a pending invite exists → returns the session
-    // untouched, with no orgId and no staff card
+    // no membership: the session comes back with no orgId and no staff card,
+    // whether or not an invitation is waiting for this address
     listRows = { memberships: [], invitations: [{ id: "inv-1" }] };
     calls.length = 0;
     const out = await hook({ user: { sub: USER, email: EMAIL } });
 
     expect(out.orgId).toBeUndefined();
     expect(staffInserts()).toHaveLength(0);
-  });
-
-  it("looks the pending invite up in lowercase, whatever case Auth0 sends", async () => {
-    /* The other half of the case bug: a MixedCase login whose invite the check
-       missed fell through to org creation — the invitee became owner of a
-       phantom org and the accept route then refused them. The mock returns
-       rows regardless of filters, so the recorded .eq() value IS the test. */
-    const hook = capturedOptions.beforeSessionSaved as (
-      s: Record<string, unknown>,
-    ) => Promise<Record<string, unknown>>;
-
-    listRows = { memberships: [], invitations: [{ id: "inv-1" }] };
-    const out = await hook({ user: { sub: USER, email: "NewHire@Example.COM" } });
-
-    expect(eqCalls).toContainEqual({ table: "invitations", col: "email", val: EMAIL });
-    expect(out.orgId).toBeUndefined();
   });
 });

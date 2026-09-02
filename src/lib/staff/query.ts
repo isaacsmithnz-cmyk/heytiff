@@ -109,7 +109,10 @@ export async function emailsByUser(userIds: string[]): Promise<Map<string, strin
    link both answer "which system already knows this person". First link
    wins; a card in two systems is still one card, and the chip is a hint,
    not an inventory. */
-const PROVIDER_LABEL: Record<string, string> = { servicem8: "ServiceM8", xero: "Xero" };
+/** How a provider is spelt in a sentence. Exported because the invite
+    modal's resolution says where a card came from too, and two spellings of
+    "ServiceM8" is how one of them ends up wrong. */
+export const PROVIDER_LABEL: Record<string, string> = { servicem8: "ServiceM8", xero: "Xero" };
 
 async function importSourceByStaff(
   orgId: string,

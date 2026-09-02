@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { InviteModal } from "../invite-modal";
 
@@ -6,7 +6,14 @@ import { InviteModal } from "../invite-modal";
    whole job is: offer only the roles the server allowed, hand the action the
    two values, and be honest about what came back. */
 const createInvite = jest.fn(async () => ({ ok: true }) as { ok: boolean; error?: string });
-jest.mock("@/app/actions/invite", () => ({ createInvite: (...a: unknown[]) => createInvite(...(a as [])) }));
+/* The address resolution — what the typed address already means in this
+   workspace. Mocked here for the same reason createInvite is: the modal's job
+   is to ASK and to be honest about the answer, not to know the answer. */
+const lookupInvitee = jest.fn(async () => ({ kind: "new" }) as Record<string, unknown>);
+jest.mock("@/app/actions/invite", () => ({
+  createInvite: (...a: unknown[]) => createInvite(...(a as [])),
+  lookupInvitee: (...a: unknown[]) => lookupInvitee(...(a as [])),
+}));
 
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
@@ -14,12 +21,17 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refre
 beforeEach(() => {
   createInvite.mockClear();
   createInvite.mockResolvedValue({ ok: true });
+  lookupInvitee.mockClear();
+  lookupInvitee.mockResolvedValue({ kind: "new" });
   refresh.mockClear();
 });
 
-function setup(roles: string[] = ["admin", "staff"]) {
+function setup(
+  roles: string[] = ["admin", "staff"],
+  prefill?: { email?: string; staffProfileId?: string; name?: string },
+) {
   const onClose = jest.fn();
-  render(<InviteModal roles={roles} onClose={onClose} />);
+  render(<InviteModal roles={roles} onClose={onClose} prefill={prefill} />);
   return { onClose, user: userEvent.setup() };
 }
 
@@ -159,5 +171,153 @@ describe("InviteModal — what the letter did", () => {
     await user.click(screen.getByRole("button", { name: /Send invitation/ }));
 
     expect(screen.getByText(/Email isn't set up in this environment/)).toBeInTheDocument();
+  });
+});
+
+/* THE ADDRESS RESOLVES BEFORE ANYTHING IS COMMITTED.
+
+   The screen used to take an address and say nothing about it until the action
+   refused, and an unclaimed card holding that address — imported from
+   ServiceM8, or pre-seeded — was invisible from here. Attaching to it meant
+   knowing to start from the directory row instead: two doors whose difference
+   was a duplicate person. */
+describe("InviteModal — what that address already means", () => {
+  const type = async (user: ReturnType<typeof userEvent.setup>, v: string) =>
+    user.type(screen.getByPlaceholderText("name@company.com"), v);
+
+  it("says nothing for an address it knows nothing about", async () => {
+    const { user } = setup();
+    await type(user, "new@hire.com");
+
+    await waitFor(() => expect(lookupInvitee).toHaveBeenCalledWith("new@hire.com"));
+    expect(document.body.textContent).not.toMatch(/Attaches to/);
+  });
+
+  it("does not ask until the address could be one", async () => {
+    const { user } = setup();
+    await type(user, "dan@");
+
+    expect(lookupInvitee).not.toHaveBeenCalled();
+  });
+
+  it("names the card it will attach to, and where that card came from", async () => {
+    lookupInvitee.mockResolvedValue({
+      kind: "card",
+      staffProfileId: "card-1",
+      name: "Dan Reilly",
+      importedFrom: "ServiceM8",
+    });
+    const { user } = setup();
+    await type(user, "dan@reilly.com");
+
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(
+        "Attaches to Dan Reilly's card (from ServiceM8) — no second record.",
+      ),
+    );
+  });
+
+  /* The button that says "attaches to Dan's card" has to be the button that
+     does it — otherwise the line is a description of something else. */
+  it("carries the resolved card on the submit", async () => {
+    lookupInvitee.mockResolvedValue({
+      kind: "card",
+      staffProfileId: "card-1",
+      name: "Dan Reilly",
+      importedFrom: null,
+    });
+    const { user } = setup();
+    await type(user, "dan@reilly.com");
+    await waitFor(() => expect(document.body.textContent).toMatch(/Attaches to/));
+
+    await user.click(screen.getByRole("button", { name: /Send invitation/ }));
+
+    expect(createInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "dan@reilly.com", staffProfileId: "card-1" }),
+    );
+  });
+
+  /* A row the reader pointed at is a stronger statement of intent than an
+     address lookup, and the action re-checks anything that has gone stale. */
+  it("prefers the card the row named over the one the address found", async () => {
+    lookupInvitee.mockResolvedValue({
+      kind: "card",
+      staffProfileId: "found-by-address",
+      name: "Someone Else",
+      importedFrom: null,
+    });
+    const { user } = setup(["staff"], { staffProfileId: "from-the-row", name: "Dan Reilly" });
+    await type(user, "dan@reilly.com");
+    await waitFor(() => expect(lookupInvitee).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: /Send invitation/ }));
+
+    expect(createInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ staffProfileId: "from-the-row" }),
+    );
+  });
+
+  it.each([
+    [{ kind: "member", name: "Dan Reilly" }, "Dan Reilly already has an account here."],
+    [{ kind: "pending" }, "An invitation is already open for this address"],
+    [{ kind: "ambiguous", count: 2 }, "2 unclaimed cards hold this address"],
+  ])("warns before the press, not after the refusal (%#)", async (found, said) => {
+    lookupInvitee.mockResolvedValue(found as Record<string, unknown>);
+    const { user } = setup();
+    await type(user, "dan@reilly.com");
+
+    await waitFor(() => expect(document.body.textContent).toContain(said));
+    expect(document.querySelector(".fl-res.warn")).toBeTruthy();
+  });
+
+  /* THE RACE THIS SCREEN WOULD OTHERWISE LOSE. A slow reply for a half-typed
+     address lands after the reply for the finished one and describes somebody
+     else — confidently, in a line the reader believes. */
+  it("drops an answer that arrives for an address no longer typed", async () => {
+    let releaseFirst: (v: Record<string, unknown>) => void = () => {};
+    lookupInvitee
+      .mockImplementationOnce(
+        () => new Promise<Record<string, unknown>>((res) => (releaseFirst = res)),
+      )
+      .mockResolvedValue({ kind: "new" });
+
+    const { user } = setup();
+    await type(user, "dan@reilly.com");
+    await waitFor(() => expect(lookupInvitee).toHaveBeenCalledTimes(1));
+
+    // keep typing: the first request is now for an address nobody is asking about
+    await type(user, "x");
+    await waitFor(() => expect(lookupInvitee).toHaveBeenCalledTimes(2));
+
+    /* ORDER IS THE WHOLE TEST. The stale answer is released only AFTER the
+       fresh one has landed, because that is the sequence that hurts — a reply
+       arriving last and overwriting a correct line with somebody else's name.
+       Released before it, the fresh answer simply overwrites the stale one and
+       the assertion passes whether the guard exists or not. */
+    await act(async () => {
+      releaseFirst({
+        kind: "card",
+        staffProfileId: "stale",
+        name: "Stale Person",
+        importedFrom: null,
+      });
+    });
+
+    expect(document.body.textContent).not.toContain("Stale Person");
+  });
+});
+
+/* Two bare words are not a description of a permission, and the choice is made
+   HERE — often by someone who has never opened a staff card, which is the only
+   other place these sentences appear. */
+describe("InviteModal — the roles explain themselves", () => {
+  it("describes the selected role, and re-describes it when it changes", async () => {
+    const { user } = setup();
+    expect(screen.getByText("Field worker — own data only")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByRole("combobox"), "admin");
+
+    expect(screen.getByText("Manage the team — approve & assign")).toBeInTheDocument();
+    expect(screen.queryByText("Field worker — own data only")).not.toBeInTheDocument();
   });
 });

@@ -296,11 +296,19 @@ describe("claiming a pre-seeded card", () => {
 });
 
 describe("the guards still hold", () => {
-  it("sends an unauthenticated visitor to log in, preserving the token", async () => {
+  /* SIGN-UP, NOT SIGN-IN. This sent people to Auth0's login tab, which is the
+     wrong half of the widget for almost everyone following an invitation:
+     they are being invited to JOIN, so they have no account yet, and the
+     screen asked for a password they had never set. The way through was to
+     notice the small link under the form. Auth0's signup screen keeps its own
+     "Already have an account? Log in" for the minority who do. */
+  it("sends an unauthenticated visitor to SIGN UP, preserving the token", async () => {
     sessionValue = null;
     const res = await GET(req());
-    expect(res.headers.get("location")).toContain("/auth/login?returnTo=");
-    expect(res.headers.get("location")).toContain("invite%2Faccept%3Ftoken%3Dtok-1");
+    const to = res.headers.get("location") ?? "";
+    expect(to).toContain("/auth/login?");
+    expect(to).toContain("screen_hint=signup");
+    expect(to).toContain("invite%2Faccept%3Ftoken%3Dtok-1");
     expect(staffInserts()).toHaveLength(0);
   });
 

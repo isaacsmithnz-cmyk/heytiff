@@ -32,9 +32,12 @@ export type InviteLetterInput = {
   token: string;
   /** Trading name, or null for an org that has not set one yet. */
   company: string | null;
-  /** The inviter, as a person: their name if we have one, their address if
-      not. Never "your administrator" — the recipient knows a name. */
-  inviterName: string;
+  /** The inviter, as a person — or NULL when nobody could give us a name that
+      is a name. Never their address standing in for one: the first invitation
+      ever sent read "isaacsmithnz1@gmail.com has invited you", auto-linked,
+      beside a reply-to holding a different address. Never "your administrator"
+      either — that is the wording that makes a real letter read as a phish. */
+  inviterName: string | null;
   inviterEmail: string | null;
   /** "Admin" or "Staff", already in the spelling the screens use. */
   role: string;
@@ -52,14 +55,17 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
      trading name is a real state (the owner skipped setup), and "join null" or
      an empty gap is worse than naming the product they are joining on. */
   const companyText = company ?? "a team on HeyTiff";
-  const inviterText = input.inviterName.trim() || "Someone";
+  /* Blank AND an address both mean "no name" by the time it gets here — the
+     action drops anything with an @ in it — but this restates the emptiness
+     check because a letter is the last place to discover a null. */
+  const inviterText = input.inviterName?.trim() || null;
 
   /* TWO SPELLINGS OF EVERY NAME, and they are not interchangeable. The body
      is HTML and must be escaped; the SUBJECT is not, and an escaped one puts
      a literal "Smith &amp; Sons" in the inbox. Real trade names contain
      ampersands often enough that this is the common case, not the edge. */
   const named = escapeHtml(companyText);
-  const inviter = escapeHtml(inviterText);
+  const inviter = inviterText ? escapeHtml(inviterText) : null;
   const role = escapeHtml(input.role);
 
   const expiryDay = fmtAuWeekdayDateLong(auDayOf(input.expiresAt));
@@ -70,16 +76,24 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
     preheader: `Accept and you're in — the link is good until ${expiryDay || "it expires"}.`,
     heading: company ? `Join ${named} on HeyTiff` : "You've been invited to HeyTiff",
     body: [
-      `${inviter} has invited you to join ${named} as <b>${role}</b>.`,
+      /* WITH NO NAME, THE COMPANY IS THE ACTOR — not an address wearing one.
+         "You've been invited to join Diamond Air Solutions" is true, complete
+         and says nothing it cannot stand behind; the human is still reachable,
+         because reply-to carries their real address either way. */
+      inviter
+        ? `${inviter} has invited you to join ${named} as <b>${role}</b>.`
+        : `You've been invited to join ${named} as <b>${role}</b>.`,
       /* One line of what the thing IS. A recipient who has never heard of
          HeyTiff cannot tell an invitation from a phish without it. */
       `HeyTiff is where the team's jobs, timesheets, photos and documents live.`,
     ],
     action: { label: "Accept invitation", href: `${home}/invite/accept?token=${input.token}` },
     footnotes: [
+      // "them" needs an antecedent the reader can see; without a name, the
+      // person who sent it is the only honest way to refer to them
       expiryDay
-        ? `This invitation expires on ${expiryDay}. After that, ask ${inviter} to renew it.`
-        : `Ask ${inviter} to renew this invitation if it stops working.`,
+        ? `This invitation expires on ${expiryDay}. After that, ask ${inviter ?? "the person who invited you"} to renew it.`
+        : `Ask ${inviter ?? "the person who invited you"} to renew this invitation if it stops working.`,
       /* THE RULE THAT COSTS THE MOST WHEN IT IS UNSAID. The accept route
          refuses a signed-in identity whose address is not this one, and the
          person hitting that refusal has no way to know it was a rule rather
@@ -90,9 +104,12 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
   };
 
   return {
-    subject: company
-      ? `${inviterText} invited you to ${companyText} on HeyTiff`
-      : "You've been invited to HeyTiff",
+    subject:
+      company && inviterText
+        ? `${inviterText} invited you to ${companyText} on HeyTiff`
+        : company
+          ? `You've been invited to ${companyText} on HeyTiff`
+          : "You've been invited to HeyTiff",
     html: renderLetter(letter, brandAssets(home)),
   };
 }

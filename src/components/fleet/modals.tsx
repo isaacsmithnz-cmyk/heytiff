@@ -177,9 +177,12 @@ export function VehicleFormModal({
           model: initial.model,
           year: initial.year ? String(initial.year) : "",
           odometer: String(initial.odometer),
-          rego: dateFromDays(initial.regoDays, today),
-          insurance: dateFromDays(initial.insuranceDays, today),
-          ctp: dateFromDays(initial.ctpDays, today),
+          /* Blank stays blank. Pre-filling an unset expiry with a date a year
+             out put a figure nobody entered in front of someone about to press
+             Save, which is how a stand-in becomes a stored date. */
+          rego: initial.regoDays == null ? "" : dateFromDays(initial.regoDays, today),
+          insurance: initial.insuranceDays == null ? "" : dateFromDays(initial.insuranceDays, today),
+          ctp: initial.ctpDays == null ? "" : dateFromDays(initial.ctpDays, today),
           intervalKm: initial.serviceIntervalKm == null ? "" : String(initial.serviceIntervalKm),
           lastServiceOdo: String(initial.lastServiceOdo),
           intervalMonths:
@@ -296,9 +299,9 @@ export function VehicleFormModal({
       value: num(f.value),
       purchasePrice: num(f.purchasePrice),
       purchaseDateDays: f.purchaseDate ? Math.max(0, -daysUntil(f.purchaseDate, today)) : 0,
-      regoDays: f.rego ? daysUntil(f.rego, today) : 365,
-      insuranceDays: f.insurance ? daysUntil(f.insurance, today) : 365,
-      ctpDays: f.ctp ? daysUntil(f.ctp, today) : 365,
+      regoDays: f.rego ? daysUntil(f.rego, today) : null,
+      insuranceDays: f.insurance ? daysUntil(f.insurance, today) : null,
+      ctpDays: f.ctp ? daysUntil(f.ctp, today) : null,
       /* Blank means "no distance limit", which is the whole point of the
          column being nullable — defaulting it back to 10,000 would give a
          trailer a cycle it can never reach. No motor forces it either way. */

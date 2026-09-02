@@ -224,7 +224,8 @@ export function regoChip(
   ctx: { subject: string; href: string },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.regoDays > REGO_WARN_DAYS) return null;
+  // no date entered, nothing to chase — see expiryState in fleet/logic.ts
+  if (v.regoDays == null || v.regoDays > REGO_WARN_DAYS) return null;
   const state: ActionState = v.regoDays < 0 ? "bad" : "warn";
   return {
     key: `rego:${v.id}`,
@@ -243,7 +244,7 @@ export function insuranceChip(
   ctx: { subject: string; href: string },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.insuranceDays > INSURANCE_WARN_DAYS) return null;
+  if (v.insuranceDays == null || v.insuranceDays > INSURANCE_WARN_DAYS) return null;
   const state: ActionState = v.insuranceDays < 0 ? "bad" : "warn";
   return {
     key: `insurance:${v.id}`,
@@ -267,7 +268,7 @@ export function ctpChip(
   ctx: { subject: string; href: string },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.ctpDays > CTP_WARN_DAYS) return null;
+  if (v.ctpDays == null || v.ctpDays > CTP_WARN_DAYS) return null;
   const state: ActionState = v.ctpDays < 0 ? "bad" : "warn";
   return {
     key: `ctp:${v.id}`,

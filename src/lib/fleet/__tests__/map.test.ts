@@ -1,4 +1,4 @@
-import { serviceKmLeft, vehicleChips } from "@/components/fleet/logic";
+import { serviceKmLeft, vehicleChips, vehicleFacts } from "@/components/fleet/logic";
 import { dateFromDays, toIdentity, toLog, toValuation, toVehicle, vehicleRow, whenLabel } from "../map";
 
 const TODAY = "2026-07-22";
@@ -35,17 +35,40 @@ describe("dates in, day-counts out", () => {
     expect(v.purchaseDateDays).toBe(1525); // days SINCE purchase, never negative
   });
 
-  it("an unset expiry reads as 'not soon', never as expired", () => {
-    // the trap: null -> 0 days would render "Rego expires today" on every
-    // vehicle whose paperwork simply hasn't been entered yet
+  /* Two traps, one either side of the answer. Null -> 0 days would render
+     "Rego expires today" on every vehicle whose paperwork simply hasn't been
+     entered. Null -> 365 (what this used to do) reads as a real date a year
+     out: harmless on the chip, and a fabricated fact everywhere it is shown or
+     written back. The honest answer is null, and every consumer treats it as
+     silent. */
+  it("an unset expiry stays unset — neither expired nor a date a year out", () => {
     const v = toVehicle(
       row({ rego_expiry: null, insurance_expiry: null, ctp_expiry: null }),
       TODAY,
     );
-    expect(v.regoDays).toBe(365);
-    expect(v.insuranceDays).toBe(365);
-    expect(v.ctpDays).toBe(365);
+    expect(v.regoDays).toBeNull();
+    expect(v.insuranceDays).toBeNull();
+    expect(v.ctpDays).toBeNull();
     expect(vehicleChips(v, 0)).toEqual([]);
+    // and it says so rather than counting down to something nobody entered
+    expect(vehicleFacts(v).find((f) => f.key === "rego")).toMatchObject({
+      text: "Not set",
+      state: "ok",
+    });
+  });
+
+  /* The write half, and the whole point of the change: an unset expiry used to
+     come back out as today+365, so merely opening a vehicle's form and saving
+     it stamped an invented renewal date on the column. */
+  it("writes an unset expiry back as null, not as a date it made up", () => {
+    const v = toVehicle(
+      row({ rego_expiry: null, insurance_expiry: null, ctp_expiry: null }),
+      TODAY,
+    );
+    const back = vehicleRow(v, TODAY);
+    expect(back.rego_expiry).toBeNull();
+    expect(back.insurance_expiry).toBeNull();
+    expect(back.ctp_expiry).toBeNull();
   });
 
   it("a past expiry goes negative so the chip reads as expired", () => {

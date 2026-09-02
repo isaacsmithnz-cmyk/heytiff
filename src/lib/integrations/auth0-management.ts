@@ -120,10 +120,20 @@ async function token(): Promise<MgmtResult<string>> {
     `email_verified: false` IS PART OF THE CHANGE, not a nicety beside it. An
     address nobody has proved they can read is not yet an identity, and
     leaving the flag true would let a typo become a verified login. Auth0
-    treats the pair as one write. */
+    treats the pair as one write.
+
+    `name` IS OPTIONAL AND ALMOST ALWAYS OMITTED. Auth0 seeds `name` with the
+    email address when a database user is created, so somebody who never
+    typed a real name is left displaying their OLD address as their name
+    forever after a move — which is exactly what happened to the first person
+    to use this screen. The caller decides whether that applies; this
+    function only carries the value, because "is this name really just the
+    old email" is a product question and not an HTTP one. See
+    app/actions/account.ts. */
 export async function setUserEmail(
   userId: string,
   email: string,
+  name?: string,
 ): Promise<MgmtResult<{ email: string }>> {
   const t = await token();
   if (!t.ok) return t;
@@ -133,7 +143,7 @@ export async function setUserEmail(
     res = await fetch(`https://${DOMAIN}/api/v2/users/${encodeURIComponent(userId)}`, {
       method: "PATCH",
       headers: { authorization: `Bearer ${t.value}`, "content-type": "application/json" },
-      body: JSON.stringify({ email, email_verified: false }),
+      body: JSON.stringify(name === undefined ? { email, email_verified: false } : { email, email_verified: false, name }),
       cache: "no-store",
     });
   } catch {

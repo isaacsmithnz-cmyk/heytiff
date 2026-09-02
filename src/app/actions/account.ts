@@ -69,7 +69,30 @@ export async function changeMySignInEmail(next: string): Promise<EmailChangeOutc
   if (!verdict.ok) return { ok: false, error: verdict.error };
   const email = verdict.email;
 
-  const moved = await setUserEmail(userId, email);
+  /* THE NAME FOLLOWS THE ADDRESS, BUT ONLY WHEN IT WAS THE ADDRESS.
+
+     Auth0 seeds `name` with the email when it creates a database user, so
+     anybody who never typed a real name has their address doing double duty
+     as their display name. Move the email on its own and that name is frozen
+     as the OLD address — and because `beforeSessionSaved` copies the name
+     claim into `profiles` on every login, the stale address then spreads to
+     the profile card, the team list and HQ. Isaac hit exactly this: Auth0
+     held isaac@diamondairsolutions.com as the email and
+     isaacsmithnz1@gmail.com as the name.
+
+     The test is deliberately narrow: rename ONLY if the current name is the
+     old address. A real name is a fact the person chose, and clobbering it
+     with an email address would be a far worse bug than the one being fixed
+     — so anything that is not literally the old address is left alone.
+     Compared through `normaliseEmail` so casing and stray spaces do not make
+     a match look like a real name. */
+  const currentName = typeof session.user.name === "string" ? session.user.name : null;
+  const nameWasTheAddress =
+    Boolean(currentName && current) &&
+    normaliseEmail(currentName!) === normaliseEmail(current!);
+  const nextName = nameWasTheAddress ? email : undefined;
+
+  const moved = await setUserEmail(userId, email, nextName);
   if (!moved.ok) return { ok: false, error: SAYS[moved.error] };
 
   /* OUR COPY, BROUGHT LEVEL. `profiles` is a mirror of the identity provider
@@ -78,7 +101,10 @@ export async function changeMySignInEmail(next: string): Promise<EmailChangeOutc
      the old address until the person signs out and back in, and look like the
      change had failed. Best effort for the same reason it is not the truth. */
   try {
-    await supabaseAdmin.from("profiles").update({ email }).eq("user_id", userId);
+    await supabaseAdmin
+      .from("profiles")
+      .update(nextName ? { email, name: nextName } : { email })
+      .eq("user_id", userId);
   } catch {
     /* The address HAS moved. Failing here would report a lie. */
   }
@@ -91,11 +117,13 @@ export async function changeMySignInEmail(next: string): Promise<EmailChangeOutc
      it, and came back to the old one on both Sign-in and Summary.
 
      `updateSession` rewrites the cookie in place, which the SDK documents as
-     supported in Server Actions. Only `email` is touched — the rest of the
-     claims are still the ones the login issued, and inventing fresher values
-     for them would be guessing. `email_verified` is deliberately NOT written:
-     Auth0 holds the truth about that and it changes again the moment the
-     person clicks the link in the mail.
+     supported in Server Actions. Only `email` is touched — plus `name`, and
+     only in the case above where the name WAS the old address, so the cookie
+     agrees with what Auth0 was just told. The rest of the claims are still
+     the ones the login issued, and inventing fresher values for them would be
+     guessing. `email_verified` is deliberately NOT written: Auth0 holds the
+     truth about that and it changes again the moment the person clicks the
+     link in the mail.
 
      Best effort, like the two writes above it. The address HAS moved; a
      stale cookie is a display problem, and failing here would report that
@@ -103,7 +131,9 @@ export async function changeMySignInEmail(next: string): Promise<EmailChangeOutc
   try {
     await auth0.updateSession({
       ...session,
-      user: { ...session.user, email },
+      user: nextName
+        ? { ...session.user, email, name: nextName }
+        : { ...session.user, email },
     });
   } catch {
     /* Falls back to what it did before: correct after the next sign-in. */

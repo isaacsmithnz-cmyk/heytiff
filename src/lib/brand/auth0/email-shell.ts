@@ -166,13 +166,27 @@ export function renderLetter(letter: Letter, assets: BrandAssets): string {
    widget's — Auth0 caps `button_border_radius` at 10, so the mail matches
    the screen rather than the app's own 16px. Outlook desktop ignores
    border-radius and draws it square; that is a squarer button, not a broken
-   one, and is the reason no VML fallback is worth its weight here. */
+   one, and is the reason no VML fallback is worth its weight here.
+
+   THE 1px BORDER IS THE WHOLE REASON THIS IS STILL A BUTTON IN GMAIL. That
+   client force-inverts the card to near-black and — unlike the text around
+   it — leaves this ink fill roughly where it was, so an unbordered button
+   became black-on-black and read only by its white label. Seen on a real
+   phone, and NOT predicted by the inversion harness, which wrongly flipped
+   the fill to white: a stand-in is evidence about layout, not about what a
+   vendor chooses to invert.
+
+   `--q` is the colour because it is a MID-TONE, and mid-tones are what
+   survive an inversion pass unchanged — the same property that keeps "Tiff"
+   teal beside a wordmark that flips. On the white card it is a barely-there
+   edge on an ink button; on a dark one it is the only thing giving the
+   button a shape. */
 function actionBlock(action: { label: string; href: string }): string {
   return `<tr>
           <td class="ht-pad" style="padding:14px 44px 0 44px;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td align="center" bgcolor="${BRAND.ink}" style="background-color:${BRAND.ink}; border-radius:10px;">
+                <td align="center" bgcolor="${BRAND.ink}" style="background-color:${BRAND.ink}; border:1px solid ${BRAND.quiet}; border-radius:10px;">
                   <a href="${action.href}" style="display:inline-block; padding:14px 26px; font-family:${FONT}; font-size:14px; line-height:14px; font-weight:700; color:${WHITE}; text-decoration:none; border-radius:10px;">${escapeHtml(action.label)}</a>
                 </td>
               </tr>

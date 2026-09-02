@@ -9,6 +9,7 @@ import {
   leaveQueueChip,
   timesheetChip,
   summaryLine,
+  ctpChip,
   insuranceChip,
   licenceChip,
   orgInsuranceChip,
@@ -44,6 +45,7 @@ const vehicle = (over: Partial<VehicleWithFacts> = {}): VehicleWithFacts => ({
   odometer: 90_000,
   regoDays: 200,
   insuranceDays: 200,
+  ctpDays: 200,
   serviceIntervalKm: 10_000,
   lastServiceOdo: 88_000,
   serviceIntervalMonths: null,
@@ -152,6 +154,25 @@ describe("vehicle chips", () => {
     expect(insuranceChip(vehicle({ insuranceDays: -1 }), vCtx)).toMatchObject({ state: "bad", label: "Insurance expired yesterday" });
   });
 
+  /* The green slip gets its own chip because the rego renewal DEPENDS on it:
+     a lapsed one is why the rego cannot be renewed, and folding the two would
+     have sent the rego warning and swallowed the reason for it. */
+  it("warns on the green slip separately from rego and insurance", () => {
+    const clear = { regoDays: 200, insuranceDays: 200 };
+    expect(ctpChip(vehicle({ ...clear, ctpDays: 9 }), vCtx)).toMatchObject({
+      kind: "ctp",
+      state: "warn",
+      label: "Green slip expires in 9 days",
+    });
+    expect(ctpChip(vehicle({ ...clear, ctpDays: -2 }), vCtx)).toMatchObject({ state: "bad" });
+    expect(ctpChip(vehicle({ ...clear, ctpDays: 90 }), vCtx)).toBeNull();
+    expect(ctpChip(vehicle({ status: "sold", ctpDays: -50 }), vCtx)).toBeNull();
+  });
+
+  it("puts the green slip in the Fleet group, beside the rego it gates", () => {
+    expect(chipGroup("ctp")).toBe("Fleet");
+  });
+
   it("warn inside the service window and go bad once overdue", () => {
     // due at 98,000; odo 97,000 → 1,000 km left (inside the 1,500 window)
     expect(serviceChip(vehicle({ odometer: 97_000 }), vCtx)).toMatchObject({ state: "warn", label: "Service in 1,000 km" });
@@ -219,18 +240,24 @@ describe("chipGroup", () => {
   it("gives every kind a group and every group a real icon", () => {
     /* Exhaustive by construction: a new ChipKind that nobody files fails to
        compile here rather than rendering with a blank tag and no glyph. */
-    const kinds: ChipKind[] = [
-      "licence",
-      "work-rights",
-      "rego",
-      "insurance",
-      "service",
-      "org-insurance",
-      "expenses",
-      "timesheet",
-      "claim",
-    ];
-    for (const k of kinds) {
+    /* A Record, not an array: an array typed ChipKind[] compiles happily when
+       a kind is MISSING, which is the only failure this test exists to catch —
+       it was already short two kinds when a third was added. */
+    const filed: Record<ChipKind, true> = {
+      licence: true,
+      "work-rights": true,
+      rego: true,
+      insurance: true,
+      ctp: true,
+      service: true,
+      "org-insurance": true,
+      expenses: true,
+      timesheet: true,
+      claim: true,
+      "leave-queue": true,
+      "leave-declined": true,
+    };
+    for (const k of Object.keys(filed) as ChipKind[]) {
       const g = chipGroup(k);
       expect(g).toBeTruthy();
       expect(ICON_PATHS[GROUP_ICON[g]]).toBeTruthy();

@@ -27,10 +27,12 @@ const str = (v: unknown): string => (typeof v === "string" ? v : "");
 const dateStr = (v: unknown): string | null =>
   typeof v === "string" && v.length >= 10 ? v.slice(0, 10) : null;
 
-/** ISO date -> whole days from `today` (null = unknown, treated as far off). */
-function daysFrom(iso: unknown, today: string, unknown: number): number {
+/** ISO date -> whole days from `today`. Null column, null answer: every number
+    here is a claim about a date, and there is no number that honestly stands
+    for one nobody entered. */
+function daysFrom(iso: unknown, today: string): number | null {
   const d = dateStr(iso);
-  return d ? daysUntil(d, today) : unknown;
+  return d ? daysUntil(d, today) : null;
 }
 
 /** Days-from-today -> ISO date, the inverse of daysFrom. */
@@ -58,9 +60,11 @@ export function toIdentity(r: Row): VehicleIdentity {
 export function toVehicleWithFacts(r: Row, today: string): VehicleWithFacts {
   return {
     ...toIdentity(r),
-    // an unset expiry must not read as "expired" — it reads as "not soon"
-    regoDays: daysFrom(r.rego_expiry, today, 365),
-    insuranceDays: daysFrom(r.insurance_expiry, today, 365),
+    // an unset expiry must not read as "expired", and must not read as a date
+    // either — it reads as nothing, and every consumer treats null as silent
+    regoDays: daysFrom(r.rego_expiry, today),
+    insuranceDays: daysFrom(r.insurance_expiry, today),
+    ctpDays: daysFrom(r.ctp_expiry, today),
     /* Null now means "no distance limit" — a trailer has none — so it must
        survive the mapping rather than being defaulted back into one. */
     serviceIntervalKm: r.service_interval_km == null ? null : num(r.service_interval_km),
@@ -169,8 +173,12 @@ export function vehicleRow(v: Vehicle, today: string): Row {
     value: v.value,
     purchase_price: v.purchasePrice,
     purchase_date: v.purchaseDateDays ? dateFromDays(-v.purchaseDateDays, today) : null,
-    rego_expiry: dateFromDays(v.regoDays, today),
-    insurance_expiry: dateFromDays(v.insuranceDays, today),
+    /* A cleared field writes NULL, not a date a year out. This is the write
+       half of the same rule: the form can no longer hand back a stand-in, so
+       the column can no longer be filled with one. */
+    rego_expiry: v.regoDays == null ? null : dateFromDays(v.regoDays, today),
+    insurance_expiry: v.insuranceDays == null ? null : dateFromDays(v.insuranceDays, today),
+    ctp_expiry: v.ctpDays == null ? null : dateFromDays(v.ctpDays, today),
     service_interval_km: v.serviceIntervalKm,
     last_service_odo: v.lastServiceOdo,
     service_interval_months: v.serviceIntervalMonths,

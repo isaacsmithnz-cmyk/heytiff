@@ -64,6 +64,7 @@ import {
 } from "./project-money-cards";
 import { DateField } from "@/components/ui/date-field";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { fileToUprightBase64 } from "@/lib/images/upright";
 
 /* One project, stacked cards — the whole start-to-finish story on one page,
    now in the redesigned board's language: the stage is manual but
@@ -1652,18 +1653,6 @@ function AttachJobModal({
 }
 
 /** Reads a File into the base64 body Claude's image blocks want. */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const s = String(reader.result ?? "");
-      resolve(s.slice(s.indexOf(",") + 1));
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 function AddEquipmentModal({
   onClose,
   onAdd,
@@ -1695,7 +1684,8 @@ function AddEquipmentModal({
     if (!file.type.startsWith("image/")) return;
     setScanning(true);
     await withCleanup(async () => {
-      const res = await readEquipmentPhoto(await fileToBase64(file), file.type);
+      const img = await fileToUprightBase64(file);
+      const res = await readEquipmentPhoto(img.data, img.mediaType);
       if (res.ok) {
         // A DRAFT, never a decision: prefill only what's empty, and say so.
         if (res.read.description && !description) setDescription(res.read.description);

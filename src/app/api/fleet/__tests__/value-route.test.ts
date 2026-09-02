@@ -53,6 +53,7 @@ function vehicle(over: Partial<Vehicle>): Vehicle {
     odometer: 55500,
     regoDays: 100,
     insuranceDays: 100,
+    ctpDays: 100,
     serviceIntervalKm: 10000,
     lastServiceOdo: 50000,
     serviceIntervalMonths: null,

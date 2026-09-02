@@ -2,6 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { can, getDbRole } from "@/lib/permissions-server";
+import type { RenewalKind } from "@/components/fleet/logic";
 
 /* Fleet ← Tiff: live AU-market vehicle valuations + fuel-receipt reading.
    First real Claude integration in the app. Role rules are enforced HERE, not
@@ -266,8 +267,6 @@ export async function readPurchaseInvoice(
    scan-then-confirm contract as the invoice: this fills a form the person
    then saves. */
 
-export type RenewalKind = "insurance" | "rego";
-
 export type ReadRenewalResult =
   | { ok: true; provider: string | null; premium: number | null; startsOn: string | null; expiresOn: string | null }
   | { ok: false; reason: string };
@@ -282,6 +281,41 @@ const RENEWAL_SCHEMA = {
   },
   required: ["provider", "premium", "startsOn", "expiresOn"],
   additionalProperties: false,
+};
+
+/* What each kind of paper is, and who it comes FROM.
+
+   The third row is not a variation on the first. A green slip is CTP — the
+   personal-injury cover the state makes you carry to be registered — and it
+   is issued by an INSURER, while the rego notice beside it comes from the road
+   authority. Asked for "the issuing road authority" a green slip reads as the
+   wrong document entirely, and the last line of the prompt then (correctly)
+   returns nulls for a document that was in fact perfectly readable.
+
+   The premium note is there because a real green slip prints FOUR figures —
+   the insurer's premium, GST, a fund levy, and the total of the three. Only
+   the last is what the renewal cost, and it is not the one nearest the word
+   "premium". */
+const RENEWAL_PROMPT: Record<RenewalKind, { what: string; providerHint: string; note: string }> = {
+  insurance: {
+    what: "an Australian motor-vehicle insurance policy schedule or certificate of currency",
+    providerHint: 'the insurer\'s name (e.g. "NRMA", "Allianz")',
+    note: "",
+  },
+  rego: {
+    what: "an Australian vehicle registration renewal notice or certificate",
+    providerHint: 'the issuing road authority (e.g. "Transport for NSW")',
+    note: "",
+  },
+  ctp: {
+    what:
+      "an Australian compulsory third party (CTP) personal injury insurance certificate — " +
+      "in NSW this is called a Green Slip",
+    providerHint: 'the CTP insurer\'s name (e.g. "QBE", "AAMI", "Allianz")',
+    note:
+      ". A green slip usually itemises the insurer's premium, GST and a fund or levy " +
+      "line separately and then totals them — take the TOTAL, not the premium line",
+  },
 };
 
 export async function readRenewalDocument(
@@ -299,14 +333,7 @@ export async function readRenewalDocument(
     return { ok: false, reason: "That file is too large to read." };
   }
 
-  const what =
-    kind === "insurance"
-      ? "an Australian motor-vehicle insurance policy schedule or certificate of currency"
-      : "an Australian vehicle registration renewal notice or certificate";
-  const providerHint =
-    kind === "insurance"
-      ? "the insurer's name (e.g. \"NRMA\", \"Allianz\")"
-      : "the issuing road authority (e.g. \"Transport for NSW\")";
+  const { what, providerHint, note } = RENEWAL_PROMPT[kind];
 
   try {
     const client = new Anthropic();
@@ -339,7 +366,7 @@ export async function readRenewalDocument(
               text:
                 `This is ${what}. Extract:\n` +
                 `- provider: ${providerHint}\n` +
-                "- premium: the total amount payable in AUD, GST inclusive\n" +
+                `- premium: the total amount payable in AUD, GST inclusive${note}\n` +
                 "- startsOn: the date cover/registration BEGINS, as yyyy-mm-dd\n" +
                 "- expiresOn: the date cover/registration ENDS or is due for renewal, as yyyy-mm-dd\n\n" +
                 "expiresOn is the important one — it is the date the vehicle's record will be " +

@@ -43,12 +43,19 @@ export type DocumentKind =
      purchase paperwork and land a $45,000 vehicle in someone's
      reimbursements. Owned by the VEHICLE (documents.vehicle_id), not a log. */
   | "purchase_invoice"
-  /* Renewal paperwork. Two kinds, not one "renewal" with a flag, for the
+  /* Renewal paperwork. Three kinds, not one "renewal" with a flag, for the
      standing reason — and because they land on different expiry dates. Each
      upload is a NEW document: the newest is current and the ones under it are
-     the history, so nothing is ever overwritten. */
+     the history, so nothing is ever overwritten.
+
+     A green slip is its own kind rather than a second insurance policy. It is
+     CTP — the cover the state makes you carry to be registered — and it runs
+     to its own date on its own certificate, from an insurer who is not
+     necessarily the comprehensive one. Filing it as `insurance_policy` would
+     silently retire the comprehensive expiry the fleet actually warns on. */
   | "insurance_policy"
   | "rego_notice"
+  | "green_slip"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -65,6 +72,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "purchase_invoice",
   "insurance_policy",
   "rego_notice",
+  "green_slip",
   "other",
 ];
 

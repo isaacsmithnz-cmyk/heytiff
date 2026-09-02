@@ -26,6 +26,7 @@ import {
 import { cancelClaim, submitClaim, type ExpenseResult } from "@/app/actions/expenses";
 import { readExpenseReceipt, type ReadExpenseResult } from "@/app/actions/expense-ai";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { fileToUprightBase64 } from "@/lib/images/upright";
 
 /* My expenses — money you spent on the job, and want back.
 
@@ -68,15 +69,6 @@ function describe(j: JobCandidate): string {
 
 /** A PDF has no thumbnail, so the strip names it instead of showing it. */
 const isPdf = (f: File) => f.type === RECEIPT_PDF_TYPE;
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
 
 /* "What am I owed" · "where's the docket for the thing on the card" · "did my
    claim get paid". Three questions, three faces — see the split below. */
@@ -186,8 +178,8 @@ export function MyExpensesFace({
     setScanning(true);
     await withCleanup(async () => {
       try {
-        const b64 = await fileToBase64(picked);
-        const res = await readExpenseReceipt(b64, picked.type);
+        const img = await fileToUprightBase64(picked);
+        const res = await readExpenseReceipt(img.data, img.mediaType);
         const base = emptyDraft(today, payer);
         if (res.ok) {
           setDraft(draftFromRead(base, res));

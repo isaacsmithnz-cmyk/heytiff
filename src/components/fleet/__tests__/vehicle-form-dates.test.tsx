@@ -30,7 +30,36 @@ function setup() {
   return { onSave, onClose, user: userEvent.setup() };
 }
 
-const field = (label: string) => screen.getByLabelText(label);
+/* RegExp as well as string: a Field's <label> wraps its hint, so a field that
+   carries one has the hint in its accessible name — which is right for a
+   screen reader and means an exact-string query misses it. */
+const field = (label: string | RegExp) => screen.getByLabelText(label);
+
+const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
+  id: "v1",
+  name: "VRF-04",
+  make: "Toyota",
+  model: "Hiace",
+  year: 2022,
+  plate: "MKT482",
+  plateState: "NSW",
+  status: "active",
+  odometer: 84120,
+  regoDays: 70,
+  insuranceDays: 70,
+  ctpDays: 70,
+  serviceIntervalKm: 10000,
+  lastServiceOdo: 80000,
+  serviceIntervalMonths: null,
+  serviceDays: null,
+  motorised: true,
+  assignedTo: null,
+  value: 52000,
+  purchasePrice: 0,
+  purchaseDateDays: 0,
+  lastServiceDays: null,
+  ...over,
+});
 
 it("takes no typed dates at all — every date field is a picker", () => {
   setup();
@@ -54,8 +83,38 @@ it("opens the calendar over the modal and saves the pick as a day count", async 
   await user.click(screen.getByRole("button", { name: /add vehicle/i }));
   const saved = onSave.mock.calls[0][0] as Vehicle;
   expect(saved.regoDays).toBe(6); // 25 -> 31 July
-  expect(saved.insuranceDays).toBe(365); // untouched fields keep their defaults
+  // a field nobody filled in saves as nothing — not as a date a year out
+  expect(saved.insuranceDays).toBeNull();
+  expect(saved.ctpDays).toBeNull();
   expect(saved.purchaseDateDays).toBe(0);
+});
+
+/* The bug this closes: an unset expiry used to reach the form as today+365 and
+   render as a real date in the picker. Someone opening a vehicle to change its
+   odometer saw renewal dates nobody had entered, and pressing Save wrote them.
+   Blank in, blank shown, blank out. */
+it("leaves an expiry nobody has entered blank, and saves it that way", async () => {
+  const onSave = jest.fn();
+  render(
+    <VehicleFormModal
+      initial={vehicle({ regoDays: null, insuranceDays: null, ctpDays: null })}
+      staff={[]}
+      today={TODAY}
+      onSave={onSave}
+      onClose={jest.fn()}
+    />,
+  );
+  const user = userEvent.setup();
+
+  for (const label of ["Rego expiry", "Insurance expiry", /^Green slip expiry/]) {
+    expect(field(label)).toHaveTextContent("dd/mm/yyyy");
+  }
+
+  await user.click(screen.getByRole("button", { name: /save/i }));
+  const saved = onSave.mock.calls[0][0] as Vehicle;
+  expect(saved.regoDays).toBeNull();
+  expect(saved.insuranceDays).toBeNull();
+  expect(saved.ctpDays).toBeNull();
 });
 
 it("Escape shuts the calendar, not the form behind it", async () => {

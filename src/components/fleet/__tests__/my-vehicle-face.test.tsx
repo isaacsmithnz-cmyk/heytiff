@@ -54,6 +54,7 @@ const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
   lastServiceDays: null,
   regoDays: 200,
   insuranceDays: 200,
+  ctpDays: 200,
   serviceIntervalKm: 10000,
   lastServiceOdo: 80000,
   serviceIntervalMonths: null,

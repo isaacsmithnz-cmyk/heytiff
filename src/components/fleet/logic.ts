@@ -16,7 +16,8 @@ export type VehicleStatus = "active" | "offroad" | "sold";
 
    Day-counts (regoDays, insuranceDays) are a VIEW of real `date` columns,
    derived once at the query boundary against an AU calendar date. Nothing
-   below this line knows a date exists. */
+   below this line knows a date exists. They are nullable because the columns
+   are: an absent date is not a number, and no number can stand in for one. */
 
 /** What anyone may see about a vehicle they're allowed to act on — the pool
     picker's payload, and nothing more (VEHICLE_PICKER_FIELDS). */
@@ -37,8 +38,24 @@ export type VehicleIdentity = {
 /** Your own vehicle: identity plus the compliance facts My vehicle exists to
     show. Still no money and no assignment — those are register knowledge. */
 export type VehicleWithFacts = VehicleIdentity & {
-  regoDays: number; // days until rego expires (negative = expired)
-  insuranceDays: number; // days until insurance expires
+  /* NULL IS UNKNOWN, and it is not the same thing as "far off".
+
+     These carried 365 for both, which made an unstated expiry indistinguishable
+     from one a year out. Two things went wrong with that. A vehicle whose
+     paperwork nobody had entered rendered "renews in 12 months" — a fact no
+     document supports — and opening the edit form on it pre-filled that
+     invented date, so SAVING wrote it to the column. The stand-in became data.
+
+     Null says nothing, warns about nothing, and round-trips as null. */
+  regoDays: number | null; // days until rego expires (negative = expired)
+  insuranceDays: number | null; // days until insurance expires
+  /* CTP — the green slip in NSW. A THIRD date rather than a flavour of
+     insurance: it is the cover the state makes you carry to be registered, it
+     comes from an insurer who need not be the comprehensive one, and it runs
+     to its own expiry on its own certificate. Folding it into insuranceDays
+     would let a green slip retire the comprehensive warning, which is the one
+     that costs real money when it lapses unnoticed. */
+  ctpDays: number | null; // days until CTP / green slip expires
   /* The service cycle has TWO limits and falls due on whichever arrives first.
      Either may be null, which means that limit does not apply to this vehicle
      — a trailer has no distance limit, a vehicle nobody has given a time
@@ -177,8 +194,21 @@ export function serviceKmLeft(v: VehicleWithFacts): number | null {
 export type ChipState = "ok" | "warn" | "bad";
 export type StatusChip = { label: string; state: ChipState };
 
+/** The state an expiry day-count puts a vehicle in. Null — nobody has entered
+    the date — is silent rather than "ok": it warns about nothing, because the
+    paperwork may well be in order and this is not evidence either way. The
+    fact row says so in words instead of counting down to a made-up date. */
+export function expiryState(days: number | null, warnAt: number): ChipState {
+  if (days == null) return "ok";
+  return days < 0 ? "bad" : days <= warnAt ? "warn" : "ok";
+}
+
+/** What a fact row says where no date has been entered. */
+const NOT_SET = "Not set";
+
 export const REGO_WARN_DAYS = 30;
 export const INSURANCE_WARN_DAYS = 30;
+export const CTP_WARN_DAYS = 30;
 export const SERVICE_WARN_KM = 1500;
 export const SERVICE_WARN_DAYS = 30;
 
@@ -249,11 +279,25 @@ export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChi
   const chips: StatusChip[] = [];
   if (v.status === "offroad") chips.push({ label: "Off road", state: "bad" });
   // one label for both tenses now that expiryClause carries the tense itself
-  if (v.regoDays <= REGO_WARN_DAYS)
+  /* A date nobody has entered raises no chip. It is tempting to warn on the
+     blank — but the register is filled in over time, and a fleet that shouts
+     about every unentered field teaches people to ignore the shouting. */
+  if (v.regoDays != null && v.regoDays <= REGO_WARN_DAYS)
     chips.push({ label: `Rego ${expiryClause(v.regoDays)}`, state: v.regoDays < 0 ? "bad" : "warn" });
-  if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
-  else if (v.insuranceDays <= INSURANCE_WARN_DAYS)
-    chips.push({ label: `Insurance ${expiryClause(v.insuranceDays)}`, state: "warn" });
+  if (v.insuranceDays != null) {
+    if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
+    else if (v.insuranceDays <= INSURANCE_WARN_DAYS)
+      chips.push({ label: `Insurance ${expiryClause(v.insuranceDays)}`, state: "warn" });
+  }
+  /* Its own chip beside rego's, not folded into it. They usually fall on the
+     same day and the rego chip would be right most of the time — but an
+     unrenewed green slip is what stops the rego renewing at all, and "most of
+     the time" is not a warning. */
+  if (v.ctpDays != null) {
+    if (v.ctpDays < 0) chips.push({ label: "Green slip expired", state: "bad" });
+    else if (v.ctpDays <= CTP_WARN_DAYS)
+      chips.push({ label: `Green slip ${expiryClause(v.ctpDays)}`, state: "warn" });
+  }
   /* One chip for the cycle, reading whichever limit is worse — the vehicle is
      due on the first of them, so two chips would be two ways of saying it. */
   const svc = serviceDue(v);
@@ -306,14 +350,31 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
     {
       key: "rego",
       label: "Rego",
-      text: v.regoDays < 0 ? `expired ${agoLabel(v.regoDays)}` : `renews ${inLabel(v.regoDays)}`,
-      state: v.regoDays < 0 ? "bad" : v.regoDays <= REGO_WARN_DAYS ? "warn" : "ok",
+      text:
+        v.regoDays == null
+          ? NOT_SET
+          : v.regoDays < 0
+            ? `expired ${agoLabel(v.regoDays)}`
+            : `renews ${inLabel(v.regoDays)}`,
+      state: expiryState(v.regoDays, REGO_WARN_DAYS),
     },
     {
       key: "insurance",
       label: "Insurance",
-      text: v.insuranceDays < 0 ? "expired" : `renews ${inLabel(v.insuranceDays)}`,
-      state: v.insuranceDays < 0 ? "bad" : v.insuranceDays <= INSURANCE_WARN_DAYS ? "warn" : "ok",
+      text:
+        v.insuranceDays == null
+          ? NOT_SET
+          : v.insuranceDays < 0
+            ? "expired"
+            : `renews ${inLabel(v.insuranceDays)}`,
+      state: expiryState(v.insuranceDays, INSURANCE_WARN_DAYS),
+    },
+    {
+      key: "ctp",
+      label: "Green slip",
+      text:
+        v.ctpDays == null ? NOT_SET : v.ctpDays < 0 ? "expired" : `renews ${inLabel(v.ctpDays)}`,
+      state: expiryState(v.ctpDays, CTP_WARN_DAYS),
     },
   ];
 }
@@ -330,7 +391,7 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
    print one: never derived, for the same reason fuel GST isn't. */
 export type VehiclePolicy = {
   id: string;
-  kind: "insurance" | "rego";
+  kind: RenewalKind;
   provider: string | null;
   premium: number | null;
   startsOn: string | null;
@@ -342,9 +403,24 @@ export type VehiclePolicy = {
 export const RENEWAL_DOC_KIND = {
   insurance: "insurance_policy",
   rego: "rego_notice",
+  ctp: "green_slip",
 } as const;
 
 export type RenewalKind = keyof typeof RENEWAL_DOC_KIND;
+
+/** Every renewal kind, once, in the order they read on a vehicle. Derived from
+    the map above so a fourth kind can never be half-added: adding it there is
+    what makes it appear in the facts, the history and the current-document
+    rule. */
+export const RENEWAL_KINDS = Object.keys(RENEWAL_DOC_KIND) as readonly RenewalKind[];
+
+/** Which vehicle column caches a kind's newest expiry. The policy rows are the
+    record; these are the cache every chip, filter and attention count reads. */
+export const RENEWAL_EXPIRY_COLUMN: Record<RenewalKind, string> = {
+  insurance: "insurance_expiry",
+  rego: "rego_expiry",
+  ctp: "ctp_expiry",
+};
 
 /* WHICH DOCUMENT IS ACTUALLY IN FORCE.
 
@@ -367,7 +443,7 @@ export function currentRenewalDocIds(
   documents: readonly { id: string; kind: string }[],
 ): Set<string> {
   const out = new Set<string>();
-  for (const kind of ["insurance", "rego"] as const) {
+  for (const kind of RENEWAL_KINDS) {
     const filed = policies.filter((p) => p.kind === kind);
     const inForce = filed
       .filter((p) => p.documentId)

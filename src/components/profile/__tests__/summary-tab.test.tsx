@@ -38,6 +38,7 @@ const VEHICLE: AssignedVehicle = {
     odometer: 82_000,
     regoDays: 120,
     insuranceDays: 200,
+    ctpDays: 200,
     serviceIntervalKm: 10_000,
     lastServiceOdo: 78_000,
     serviceIntervalMonths: null,

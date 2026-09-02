@@ -84,7 +84,12 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
   if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");
   // A vehicle's purchase paperwork is register knowledge — the same tier that
   // may enter the purchase price it substantiates.
-  if (kind === "purchase_invoice" || kind === "insurance_policy" || kind === "rego_notice")
+  if (
+    kind === "purchase_invoice" ||
+    kind === "insurance_policy" ||
+    kind === "rego_notice" ||
+    kind === "green_slip"
+  )
     return can("assets_all");
   // Site photos and job paperwork come from whoever is ON the job — the
   // board's tick tier, same doctrine as the checklists they sit beside.

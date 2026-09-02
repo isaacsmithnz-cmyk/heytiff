@@ -7,7 +7,7 @@
    first test, and it is written as "whatever you pass, the id sent to Auth0
    is the session's" rather than as a happy path that happens to work. */
 
-const patched: { userId: string; email: string }[] = [];
+const patched: { userId: string; email: string; name?: string }[] = [];
 const verified: string[] = [];
 const profileUpdates: { patch: Record<string, unknown>; userId: string }[] = [];
 const sessionWrites: Record<string, unknown>[] = [];
@@ -55,9 +55,12 @@ jest.mock("@/lib/supabase-server", () => ({
 
 jest.mock("@/lib/integrations/auth0-management", () => ({
   isAuth0ManagementConfigured: () => configured,
-  setUserEmail: async (userId: string, email: string) => {
+  /* `name` IS CAPTURED, and the first version of this mock dropped it — which
+     would have let "the name follows the address" pass while nothing was ever
+     sent to Auth0. A fake that quietly ignores an argument tests the fake. */
+  setUserEmail: async (userId: string, email: string, name?: string) => {
     if (!setResult.ok) return { ok: false, error: setResult.error };
-    patched.push({ userId, email });
+    patched.push({ userId, email, name });
     return { ok: true, value: { email } };
   },
   sendVerificationEmail: async (userId: string) => {
@@ -226,5 +229,82 @@ describe("after it has moved", () => {
   it("stores the address lowercased, the way it will be compared", async () => {
     await changeMySignInEmail("  New.Person@Example.COM ");
     expect(patched[0].email).toBe("new.person@example.com");
+  });
+});
+
+/* THE NAME THAT WAS AN ADDRESS.
+
+   Auth0 seeds `name` with the email when it creates a database user, so a
+   person who never typed a real name has their address doing double duty.
+   Moving the email alone froze that name as the OLD address — and
+   `beforeSessionSaved` copies the name claim into `profiles` on every login,
+   so it spread to the profile card, the team list and HQ. Isaac hit it live:
+   email isaac@diamondairsolutions.com, name isaacsmithnz1@gmail.com.
+
+   The dangerous half of this fix is the other direction. A real name is a
+   fact the person chose, and overwriting it with an email address would be a
+   worse bug than the one being fixed — so "leaves a real name alone" is the
+   test that matters most here. */
+describe("the name follows the address, but only when it WAS the address", () => {
+  it("renames when the name is the old address", async () => {
+    session = {
+      user: { sub: "auth0|isaac", email: "isaac@old.com", name: "isaac@old.com" },
+    };
+    const res = await changeMySignInEmail("isaac@new.com");
+    expect(res).toMatchObject({ ok: true });
+    expect(patched.at(-1)).toEqual({
+      userId: "auth0|isaac",
+      email: "isaac@new.com",
+      name: "isaac@new.com",
+    });
+  });
+
+  it("LEAVES A REAL NAME ALONE", async () => {
+    session = {
+      user: { sub: "auth0|isaac", email: "isaac@old.com", name: "Isaac Smith" },
+    };
+    await changeMySignInEmail("isaac@new.com");
+    // undefined, not the email — the PATCH must not carry `name` at all.
+    expect(patched.at(-1)?.name).toBeUndefined();
+  });
+
+  it("matches the old address through the same normalisation as the email", async () => {
+    // Casing and padding are not a different name.
+    session = {
+      user: { sub: "auth0|isaac", email: "isaac@old.com", name: "  Isaac@OLD.com " },
+    };
+    await changeMySignInEmail("isaac@new.com");
+    expect(patched.at(-1)?.name).toBe("isaac@new.com");
+  });
+
+  it("does nothing when there is no name claim at all", async () => {
+    session = { user: { sub: "auth0|isaac", email: "isaac@old.com" } };
+    await changeMySignInEmail("isaac@new.com");
+    expect(patched.at(-1)?.name).toBeUndefined();
+  });
+
+  it("carries the new name into our own copy and the cookie, together", async () => {
+    // All three have to agree, or the screen shows one of them stale until
+    // the next sign-in — which is the bug this whole action exists to avoid.
+    session = {
+      user: { sub: "auth0|isaac", email: "isaac@old.com", name: "isaac@old.com" },
+    };
+    await changeMySignInEmail("isaac@new.com");
+    expect(profileUpdates.at(-1)?.patch).toEqual({
+      email: "isaac@new.com",
+      name: "isaac@new.com",
+    });
+    expect((sessionWrites.at(-1) as { user: Record<string, unknown> }).user).toMatchObject({
+      email: "isaac@new.com",
+      name: "isaac@new.com",
+    });
+  });
+
+  it("does not write a name into profiles when the name was real", async () => {
+    session = {
+      user: { sub: "auth0|isaac", email: "isaac@old.com", name: "Isaac Smith" },
+    };
+    await changeMySignInEmail("isaac@new.com");
+    expect(profileUpdates.at(-1)?.patch).toEqual({ email: "isaac@new.com" });
   });
 });

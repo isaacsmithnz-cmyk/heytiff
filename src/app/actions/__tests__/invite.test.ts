@@ -6,6 +6,14 @@ import { CAPABILITIES, type Capability } from "@/lib/permissions";
 type Call = { table: string; op: string; payload?: Record<string, unknown>; filters: Record<string, unknown> };
 
 const calls: Call[] = [];
+/** The row an insert or a guarded update hands back — what the letter is
+    built from. Its token is the secret that write minted. */
+const LETTER_ROW = {
+  email: "new@hire.com",
+  role: "staff",
+  token: "tok-abc",
+  expires_at: "2026-09-09T00:00:00.000Z",
+};
 /** what a select on `invitations` finds — null = no such row for this org */
 let inviteRow: { id: string; accepted_at: string | null } | null = { id: "inv-1", accepted_at: null };
 /** what createInvite's duplicate check finds — [] = no open invite for the address yet */
@@ -14,10 +22,19 @@ let openInvites: Record<string, unknown>[] = [];
 let staffCardRow: { id: string; user_id: string | null } | null = null;
 /** open invites already holding the card — the one-per-card twin of openInvites */
 let cardOpenInvites: Record<string, unknown>[] = [];
+/** the org the letter names */
+let orgRow: Record<string, unknown> | null = { trading_name: "Diamond Air", legal_name: null, name: null };
+/** what renewInvite's guarded update matches — null = accepted in between */
+let renewedRow: Record<string, unknown> | null = LETTER_ROW;
+/** make the insert fail, to pin that a dead write never posts a letter */
+let insertFails = false;
 
 let role: string | null = "owner";
 let caps: Set<Capability> = new Set(CAPABILITIES);
-let session: unknown = { orgId: "org-1", user: { sub: "auth0|boss" } };
+let session: unknown = {
+  orgId: "org-1",
+  user: { sub: "auth0|boss", email: "boss@example.com", name: "Bossy Boots" },
+};
 
 const table = (name: string) => {
   const call: Call = { table: name, op: "select", filters: {} };
@@ -33,11 +50,14 @@ const table = (name: string) => {
   };
   c.select = () => chain();
   c.limit = () => chain();
+  /* The insert RETURNS ITS ROW now — the letter needs the token this write
+     minted, and reading it back afterwards would be a second chance to fetch
+     the wrong one. So the builder continues instead of resolving. */
   c.insert = (row: Record<string, unknown>) => {
     call.op = "insert";
     call.payload = row;
     calls.push(call);
-    return Promise.resolve({ error: null });
+    return chain();
   };
   c.update = (row: Record<string, unknown>) => {
     call.op = "update";
@@ -50,10 +70,17 @@ const table = (name: string) => {
     calls.push(call);
     return chain();
   };
-  c.maybeSingle = () =>
-    name === "staff_profiles"
-      ? Promise.resolve({ data: staffCardRow, error: null })
-      : Promise.resolve({ data: inviteRow, error: inviteRow ? null : { message: "no rows" } });
+  c.single = () => Promise.resolve({ data: insertFails ? null : LETTER_ROW, error: insertFails ? { message: "nope" } : null });
+  c.maybeSingle = () => {
+    if (name === "staff_profiles") return Promise.resolve({ data: staffCardRow, error: null });
+    /* The company the letter names. Its own branch because `invitations` and
+       `organizations` both answer maybeSingle here and they are different
+       shapes — before this, deliver() read an invite row as an org. */
+    if (name === "organizations") return Promise.resolve({ data: orgRow, error: null });
+    // a write that asked for its row back (renew) vs. the open-invite lookup
+    if (call.op === "update") return Promise.resolve({ data: renewedRow, error: null });
+    return Promise.resolve({ data: inviteRow, error: inviteRow ? null : { message: "no rows" } });
+  };
   /* Awaiting the chain resolves it: a still-`select` chain is a LIST read
      (a duplicate check), recorded so its filters can be asserted; anything
      else (delete/update, already recorded) resolves like a write. The two
@@ -79,6 +106,22 @@ jest.mock("@/lib/permissions-server", () => ({
   getCapabilities: jest.fn(async () => caps),
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+jest.mock("next/headers", () => ({
+  headers: async () => new Map([["host", "go.hey-tiff.com"]]),
+}));
+
+/* The transport is stubbed, not the letter: what gets POSTED is the thing
+   worth asserting, and rendering it for real is what catches a link built
+   against the wrong origin or a token that never reached the envelope. */
+const sent: { to: string; subject: string; html: string; replyTo?: string }[] = [];
+let sendResult: unknown = { ok: true };
+jest.mock("@/lib/email/send", () => ({
+  isEmailConfigured: () => true,
+  sendEmail: jest.fn(async (letter: { to: string; subject: string; html: string; replyTo?: string }) => {
+    sent.push(letter);
+    return sendResult;
+  }),
+}));
 
 import { createInvite, renewInvite, revokeInvite } from "../invite";
 
@@ -92,13 +135,21 @@ const payloadOf = (c: Call): Record<string, string> => (c.payload ?? {}) as Reco
 
 beforeEach(() => {
   calls.length = 0;
+  sent.length = 0;
+  sendResult = { ok: true };
   inviteRow = { id: "inv-1", accepted_at: null };
   openInvites = [];
   staffCardRow = null;
   cardOpenInvites = [];
+  orgRow = { trading_name: "Diamond Air", legal_name: null, name: null };
+  renewedRow = LETTER_ROW;
+  insertFails = false;
   role = "owner";
   caps = new Set(CAPABILITIES);
-  session = { orgId: "org-1", user: { sub: "auth0|boss" } };
+  session = {
+    orgId: "org-1",
+    user: { sub: "auth0|boss", email: "boss@example.com", name: "Bossy Boots" },
+  };
 });
 
 describe("createInvite — who may invite, and at what role", () => {
@@ -291,5 +342,112 @@ describe("renewInvite", () => {
     const ahead = new Date(payloadOf(up).expires_at).getTime() - Date.now();
     expect(ahead).toBeGreaterThan((INVITE_WINDOW_DAYS - 0.1) * DAY);
     expect(ahead).toBeLessThanOrEqual(INVITE_WINDOW_DAYS * DAY);
+  });
+});
+
+/* THE LETTER. It replaced a link the inviter had to copy and paste somewhere
+   themselves, so what matters is that it carries the exact token the write
+   minted, points at the right deployment, and reports honestly when it does
+   not go — the row is the invitation, the post is only its delivery. */
+describe("the invitation is posted", () => {
+  it("sends to the invited address, with the token in an absolute accept link", async () => {
+    const res = await createInvite({ email: "New@Hire.com", role: "staff" });
+
+    expect(res).toEqual({ ok: true, delivery: { sent: true, to: "new@hire.com" } });
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe("new@hire.com");
+    expect(sent[0].html).toContain("https://go.hey-tiff.com/invite/accept?token=tok-abc");
+  });
+
+  /* A no-reply address with no human behind it is indistinguishable from a
+     phish, which is the whole reason the inviter is carried through. */
+  it("names the company and the inviter, and replies to the inviter", async () => {
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].subject).toBe("Bossy Boots invited you to Diamond Air on HeyTiff");
+    expect(sent[0].html).toContain("Bossy Boots");
+    expect(sent[0].html).toContain("Diamond Air");
+    expect(sent[0].replyTo).toBe("boss@example.com");
+  });
+
+  /* The address the invite is bound to is a RULE the recipient cannot see:
+     the accept route refuses any other signed-in identity, and someone
+     hitting that has no way to tell a rule from a broken link. */
+  it("tells the recipient which address it works for", async () => {
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].html).toContain("new@hire.com");
+    expect(sent[0].html).toContain("sign in with that address");
+  });
+
+  /* The body is HTML and the subject is not, and a trade name with an
+     ampersand in it is the common case, not the edge. */
+  it("escapes the company in the body and leaves the subject alone", async () => {
+    orgRow = { trading_name: "Smith & <b>Sons</b>", legal_name: null, name: null };
+
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].subject).toContain("Smith & <b>Sons</b>");
+    expect(sent[0].html).toContain("Smith &amp; &lt;b&gt;Sons&lt;/b&gt;");
+    expect(sent[0].html).not.toContain("<b>Sons</b>");
+  });
+
+  it("posts nothing when the invite was never written", async () => {
+    insertFails = true;
+
+    expect((await createInvite({ email: "new@hire.com", role: "staff" })).ok).toBe(false);
+    expect(sent).toHaveLength(0);
+  });
+
+  /* Local checkouts, previews and CI have no key. The invite still exists and
+     the Pending tab's link still works, so this is a fact to report, not a
+     failure to raise. */
+  it("still creates the invite when the mailer is unconfigured, and says so", async () => {
+    sendResult = { ok: false, reason: "unconfigured" };
+
+    const res = await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(res).toEqual({
+      ok: true,
+      delivery: { sent: false, to: "new@hire.com", reason: "unconfigured" },
+    });
+    expect(writes("insert")).toHaveLength(1);
+  });
+
+  it("reports a provider refusal without leaking its words to the screen", async () => {
+    const quiet = jest.spyOn(console, "error").mockImplementation(() => {});
+    sendResult = { ok: false, reason: "failed", detail: "422 address suppressed" };
+
+    const res = await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(res).toEqual({
+      ok: true,
+      delivery: { sent: false, to: "new@hire.com", reason: "failed" },
+    });
+    expect(quiet).toHaveBeenCalled();
+    quiet.mockRestore();
+  });
+
+  /* Renewing without resending leaves a live invitation nobody has been told
+     about — the two were only separable while there was no mailer. */
+  it("renew posts the letter again, on the unchanged token", async () => {
+    expect((await renewInvite("inv-1")).ok).toBe(true);
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].html).toContain("token=tok-abc");
+  });
+
+  it("renew posts nothing when the invite was accepted between check and write", async () => {
+    renewedRow = null;
+
+    const res = await renewInvite("inv-1");
+
+    expect(res).toEqual({ ok: false, error: "That invite has already been accepted." });
+    expect(sent).toHaveLength(0);
+  });
+
+  it("revoking posts nothing", async () => {
+    expect((await revokeInvite("inv-1")).ok).toBe(true);
+    expect(sent).toHaveLength(0);
   });
 });

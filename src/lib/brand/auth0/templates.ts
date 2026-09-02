@@ -9,11 +9,12 @@
 
    NOT WRITTEN, DELIBERATELY:
 
-     user_invitation   Auth0 Organizations invites. HeyTiff issues its own
-                       (`invitations` table, `app/actions/invite.ts`) and
-                       hands over a COPIED LINK, precisely because it has no
-                       mailer. Templating this would dress a flow that has
-                       never fired.
+     user_invitation   Auth0 Organizations invites — a flow this tenant does
+                       not run. HeyTiff issues its own (`invitations` table,
+                       `app/actions/invite.ts`) and now POSTS them itself
+                       through `lib/email`, which renders the letter with the
+                       shell next door. Dressing Auth0's version would still
+                       be dressing a flow that has never fired.
      enrollment_email  MFA enrolment. No MFA in the tenant.
      mfa_oob_code      MFA codes. Same — and its Liquid variable is not in
                        Auth0's published table, so writing one would be

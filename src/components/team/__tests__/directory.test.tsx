@@ -332,7 +332,7 @@ describe("TeamDirectory unclaimed cards", () => {
     const email = screen.getByPlaceholderText("name@company.com") as HTMLInputElement;
     expect(email.value).toBe("dan@acme.com");
 
-    await userEvent.click(screen.getByRole("button", { name: /Create invite/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Send invitation/ }));
     expect(createInvite).toHaveBeenCalledWith({
       email: "dan@acme.com",
       role: "staff",

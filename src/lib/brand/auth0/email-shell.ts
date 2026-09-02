@@ -204,9 +204,13 @@ function actionBlock(action: { label: string; href: string }): string {
    design didn't explain itself. Spotted in the preview, where the welcome
    and breach letters were both doing it.
 
-   The tell is Liquid: if Auth0 is substituting the href, it is a token. */
+   The tell is Liquid: if Auth0 is substituting the href, it is a token. The
+   app mints its own single-use links too (an invitation's `?token=`), and
+   they are one-time by exactly the same argument — a 64-character secret is
+   the definition of a URL nobody can retype from memory. No Auth0 letter
+   carries a `token` parameter, so this second clause changes none of them. */
 function isOneTimeLink(href: string): boolean {
-  return href.includes("{{");
+  return href.includes("{{") || /[?&]token=/.test(href);
 }
 
 /* IT GOES LAST, under the footnotes. Sat directly beneath the button it
@@ -244,11 +248,17 @@ function footnoteBlock(notes: string[]): string {
         </tr>`;
 }
 
-/** Used ONLY where the value cannot carry Liquid — the `<title>` and the
+/** Used here for the values that cannot carry Liquid — the `<title>` and the
     button label. Body copy, headings and hrefs go through raw on purpose:
-    `{{ url }}` and `{{ user.email }}` have to reach Auth0 unmangled, and
-    every string in `templates.ts` is ours, not a user's. */
-function escapeHtml(s: string): string {
+    `{{ url }}` and `{{ user.email }}` have to reach Auth0 unmangled.
+
+    EXPORTED BECAUSE THAT LAST REASON HAS AN EXPIRY. It held while every
+    string reaching this shell came from `templates.ts` and was ours. The
+    app's own letters (lib/email) put a company name and a person's name into
+    body copy, both typed by a user, and raw interpolation of those is an
+    injection into everybody's inbox. A letter built from user input escapes
+    at its own edge, with this. */
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

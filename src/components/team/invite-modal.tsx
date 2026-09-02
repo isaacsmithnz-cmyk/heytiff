@@ -60,11 +60,27 @@ export function InviteModal({
     setError(null);
     start(async () => {
       const res = await createInvite({ email, role, staffProfileId: prefill?.staffProfileId });
-      if (res.ok) {
-        onClose();
-        // the new row belongs on the Pending tab straight away
+      if (!res.ok) return setError(res.error);
+
+      /* SILENT ON SUCCESS, LOUD ONLY WHERE SOMEBODY HAS TO ACT. A letter that
+         went needs no confirmation panel — the invite appears on the Pending
+         tab behind this modal, which is the receipt. A letter that did NOT go
+         changes what the inviter must do next, so the modal stays open and
+         says so: the invitation exists either way, and the link on that tab
+         is the route that does not depend on mail. */
+      if (res.delivery && !res.delivery.sent) {
+        setError(
+          res.delivery.reason === "unconfigured"
+            ? "Invite created. Email isn't set up in this environment — copy the link from the Pending invites tab."
+            : `Invite created, but the email to ${res.delivery.to} didn't send. Copy the link from the Pending invites tab.`
+        );
         router.refresh();
-      } else setError(res.error);
+        return;
+      }
+
+      onClose();
+      // the new row belongs on the Pending tab straight away
+      router.refresh();
     });
   };
 
@@ -77,7 +93,7 @@ export function InviteModal({
             <em>
               {prefill?.name
                 ? `Their account attaches to ${prefill.name}'s card when they accept`
-                : "They join your organisation when they open the link"}
+                : "We'll email them a link to join your organisation"}
             </em>
           </span>
           <button className="fl-x" aria-label="Close" onClick={onClose}>
@@ -111,10 +127,6 @@ export function InviteModal({
                   </option>
                 ))}
               </select>
-              <em className="fl-hint">
-                Email sending isn&rsquo;t wired up yet — copy the link off the Pending tab and send
-                it yourself.
-              </em>
             </label>
           </div>
           <div className="fl-foot">
@@ -123,7 +135,7 @@ export function InviteModal({
             </button>
             <button className="fl-btn primary" disabled={busy || !email.trim()} onClick={submit}>
               <Icon name="mail" size={15} />
-              Create invite
+              {busy ? "Sending…" : "Send invitation"}
             </button>
           </div>
         </div>

@@ -34,6 +34,9 @@ let staffRows: Record<string, unknown>[] = [];
 let linkRows: Record<string, unknown>[] = [];
 /** whether the caller may read other people's cards (`team`) */
 let canTeam = true;
+/** the org's memberships and their profiles — who ALREADY has a login here */
+let memberRows: Record<string, unknown>[] = [];
+let profileRows: Record<string, unknown>[] = [];
 /** the INVITER's own staff card and profile row — the letter's name sources */
 let inviterCard: Record<string, unknown> | null = { full_name: "Isaac Smith" };
 let inviterProfile: Record<string, unknown> | null = { name: "Isaac Smith" };
@@ -59,6 +62,7 @@ const table = (name: string) => {
   };
   c.select = () => chain();
   c.limit = () => chain();
+  c.in = () => chain();
   /* The insert RETURNS ITS ROW now — the letter needs the token this write
      minted, and reading it back afterwards would be a second chance to fetch
      the wrong one. So the builder continues instead of resolving. */
@@ -103,7 +107,9 @@ const table = (name: string) => {
     if (call.op === "select") {
       calls.push(call);
       const rows =
-        name === "staff_profiles" ? staffRows
+        name === "memberships" ? memberRows
+        : name === "profiles" ? profileRows
+        : name === "staff_profiles" ? staffRows
         : name === "integration_links" ? linkRows
         : name !== "invitations" ? []
         : call.filters.staff_profile_id !== undefined ? cardOpenInvites
@@ -164,6 +170,8 @@ beforeEach(() => {
   canTeam = true;
   inviterCard = { full_name: "Isaac Smith" };
   inviterProfile = { name: "Isaac Smith" };
+  memberRows = [];
+  profileRows = [];
   renewedRow = LETTER_ROW;
   insertFails = false;
   role = "owner";
@@ -662,5 +670,83 @@ describe("the letter names a person, not an address", () => {
     await createInvite({ email: "new@hire.com", role: "staff" });
 
     expect(sent[0].html).toContain("Isaac Smith has invited you");
+  });
+});
+
+/* AN INVITATION MAY NOT BE A ROLE CHANGE.
+
+   The accept route upserts memberships on (user_id, org_id), so an invitation
+   aimed at an address somebody already signs in with rewrites their role: send
+   an existing admin a `staff` invite, they press the button in good faith, and
+   they are demoted. `invitableRoles` keeps role changes owner-only, and a
+   delegated inviter holding `invites` can create `staff` invites — so without
+   this the limit IS the attack.
+
+   Found in production, where an invitation had been created for an address
+   already holding a staff membership and nothing refused it.
+
+   THE MEMBERSHIP IS THE TEST, NOT THE STAFF CARD. A member can have no card —
+   the live workspace has exactly that — so a card-shaped check reads them as a
+   stranger, which is how this got written in the first place. */
+describe("an address that already has a login here", () => {
+  const asMember = (email: string, name: string | null = "Dan Reilly") => {
+    memberRows = [{ user_id: "auth0|dan" }];
+    profileRows = [{ user_id: "auth0|dan", email, name }];
+  };
+
+  it("is refused, by name, before any invitation is written", async () => {
+    asMember("dan@reilly.com");
+
+    const res = await createInvite({ email: "dan@reilly.com", role: "staff" });
+
+    expect(res).toEqual({ ok: false, error: "Dan Reilly already has an account here." });
+    expect(writes("insert")).toHaveLength(0);
+    expect(sent).toHaveLength(0);
+  });
+
+  /* The member has NO staff card here — the shape that made the original bug
+     invisible to a card-based check. */
+  it("is refused even when they have no staff card at all", async () => {
+    asMember("dan@reilly.com");
+    staffRows = [];
+
+    expect((await createInvite({ email: "dan@reilly.com", role: "staff" })).ok).toBe(false);
+    expect(writes("insert")).toHaveLength(0);
+  });
+
+  /* profiles.name holds an ADDRESS for identities that never set a name, and
+     "isaacsmithnz1@gmail.com already has an account here" is the same bug as
+     the letter's, in a sentence. */
+  it("does not put an address where a name goes", async () => {
+    asMember("dan@reilly.com", "dan@reilly.com");
+
+    const res = await createInvite({ email: "dan@reilly.com", role: "staff" });
+
+    expect(res).toEqual({ ok: false, error: "That address already has an account here." });
+  });
+
+  it("matches however the address was cased or spaced on either side", async () => {
+    asMember("  Dan@Reilly.COM ");
+
+    expect((await createInvite({ email: "DAN@reilly.com", role: "staff" })).ok).toBe(false);
+  });
+
+  /* The refusal and the modal's warning have to agree, or the screen promises
+     something the button then contradicts. */
+  it("is what the resolution says too, card or no card", async () => {
+    asMember("dan@reilly.com");
+    staffRows = [];
+
+    expect(await lookupInvitee("dan@reilly.com")).toEqual({
+      kind: "member",
+      name: "Dan Reilly",
+    });
+  });
+
+  it("leaves a genuine stranger alone", async () => {
+    asMember("someone.else@example.com");
+
+    expect((await createInvite({ email: "dan@reilly.com", role: "staff" })).ok).toBe(true);
+    expect(writes("insert")).toHaveLength(1);
   });
 });

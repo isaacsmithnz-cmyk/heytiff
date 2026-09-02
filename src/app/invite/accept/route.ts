@@ -119,12 +119,40 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  await supabaseAdmin
+  /* AN INVITATION MAY NOT REWRITE AN EXISTING MEMBERSHIP'S ROLE.
+
+     This was a bare upsert on (user_id, org_id), which made an invitation aimed
+     at somebody already in the workspace into a role assignment: send an
+     existing admin a `staff` invite, they press the button in good faith, and
+     they are demoted. Role changes are owner-only by `invitableRoles`, and a
+     delegated inviter holding `invites` can create `staff` invites — so the
+     bare upsert turned that limit into the attack.
+
+     createInvite refuses to write such an invitation now, but that only helps
+     invitations written from today: one was already open in production when
+     this was found, and a token in an inbox outlives the code that minted it.
+     So the role is decided HERE, where the membership can actually be seen.
+
+     The invite is still consumed and the card still adopted — they followed a
+     real link and it should stop working afterwards — they simply keep the
+     role they already had. */
+  const { data: already } = await supabaseAdmin
     .from("memberships")
-    .upsert(
-      { user_id: session.user.sub, org_id: invite.org_id, role: invite.role },
-      { onConflict: "user_id,org_id" }
-    );
+    .select("role")
+    .eq("org_id", invite.org_id)
+    .eq("user_id", session.user.sub)
+    .maybeSingle();
+
+  const role = (already?.role as string | undefined) ?? invite.role;
+
+  if (!already) {
+    await supabaseAdmin
+      .from("memberships")
+      .upsert(
+        { user_id: session.user.sub, org_id: invite.org_id, role: invite.role },
+        { onConflict: "user_id,org_id" }
+      );
+  }
 
   await supabaseAdmin
     .from("invitations")
@@ -146,10 +174,14 @@ export async function GET(request: NextRequest) {
      employee, which is the one path every real staff member takes. */
   await ensureStaffCard(invite.org_id, session.user.sub, session);
 
+  /* The role they ACTUALLY hold, which is not the invited one when they were
+     already a member — the session must not claim otherwise. (Every gate reads
+     the DB per request anyway, so a wrong value here would be a lie the screens
+     tell rather than an escalation; it is still a lie.) */
   await auth0.updateSession({
     ...session,
     orgId: invite.org_id,
-    orgRole: invite.role,
+    orgRole: role,
   });
 
   return NextResponse.redirect(new URL("/dashboard", request.url));

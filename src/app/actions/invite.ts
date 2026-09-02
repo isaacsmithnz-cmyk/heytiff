@@ -163,6 +163,42 @@ async function appOrigin(): Promise<string> {
   return host ? `${proto}://${host}` : "http://localhost:3000";
 }
 
+/* IS THIS ADDRESS ALREADY SOMEBODY'S LOGIN HERE?
+
+   THE MEMBERSHIP IS THE ANSWER, NOT THE STAFF CARD. A card can hold a work
+   address its owner never signs in with, and — as production showed — a member
+   can have no card at all (`isaacsmithnz@gmail.com` holds a staff membership in
+   the live org with no `staff_profiles` row). So a check that reads cards misses
+   real members in both directions, which is exactly how an invitation came to be
+   created for somebody who was already in the workspace.
+
+   ORG-SCOPED, THEN COMPARED IN JS. `profiles.email` is written straight from
+   the session on every login and is NOT normalised, so an `eq` misses the
+   mixed-case rows and `ilike` would treat the `_` in a real address as a
+   wildcard. The roster is team-sized; the addresses are compared with the same
+   normEmail both sides that the accept route uses. */
+async function memberWithEmail(
+  orgId: string,
+  wanted: string
+): Promise<{ userId: string; name: string | null } | null> {
+  const { data: members } = await supabaseAdmin
+    .from("memberships")
+    .select("user_id")
+    .eq("org_id", orgId);
+  const ids = (members ?? []).map((m) => m.user_id as string);
+  if (ids.length === 0) return null;
+
+  const { data: profs } = await supabaseAdmin
+    .from("profiles")
+    .select("user_id, email, name")
+    .in("user_id", ids);
+
+  const hit = ((profs ?? []) as { user_id: string; email: string | null; name: string | null }[])
+    .find((p) => normEmail(p.email) === wanted);
+  if (!hit) return null;
+  return { userId: hit.user_id, name: asPersonName(hit.name) };
+}
+
 /** The company as the recipient should read it. `name` is the legacy signup
     seed — somebody's email address often enough to be the last resort. */
 async function companyName(orgId: string): Promise<string | null> {
@@ -282,6 +318,30 @@ export async function createInvite(input: {
         error: "That person already has a pending invite — renew it from the Pending tab instead.",
       };
     }
+  }
+
+  /* ALREADY A MEMBER — REFUSE, because accepting would REWRITE THEIR ROLE.
+
+     The accept route upserts `memberships` on (user_id, org_id), so an
+     invitation aimed at an address somebody already signs in with is a role
+     assignment wearing an invitation's clothes: send an existing admin a
+     `staff` invite, they press the button in good faith, and they are demoted.
+     `invitableRoles` exists precisely to keep role changes owner-only, and a
+     delegated inviter holding `invites` can only create `staff` invites — so
+     without this check that limit is the attack, not the guard.
+
+     Found in production: an invitation had been created for an address that
+     already held a staff membership, and nothing anywhere refused it. The
+     accept route now leaves an existing membership's role alone as well; this
+     is the half that stops the invitation being written in the first place. */
+  const member = await memberWithEmail(ctx.orgId, email);
+  if (member) {
+    return {
+      ok: false,
+      error: member.name
+        ? `${member.name} already has an account here.`
+        : "That address already has an account here.",
+    };
   }
 
   /* One open invite per address. The Pending tab already shows this person —
@@ -441,6 +501,15 @@ export async function lookupInvitee(email: string): Promise<InviteeLookup> {
     .is("accepted_at", null)
     .limit(1);
   if (open?.[0]) return { kind: "pending" };
+
+  /* THE MEMBERSHIP IS ASKED FIRST, and asking it at all is the fix. This read
+     used to be the claimed-card scan below, which misses a member who has no
+     card — and the live workspace has one. So the screen said "new" about
+     somebody who was already in the org, and createInvite went on to write the
+     invitation. Same check the action makes, so the warning and the refusal
+     cannot disagree. */
+  const member = await memberWithEmail(ctx.orgId, wanted);
+  if (member) return { kind: "member", name: mayName ? member.name : null };
 
   /* Compared in JS, not with `ilike`: `_` is a wildcard there and common in
      real addresses, and normEmail on both sides beats trusting every writer

@@ -50,6 +50,22 @@ export function HomeDebrief({
 
       <NoteToken as="debrief" cta={voice.cta} />
 
+      {/* WHAT THE EMPTY FACE SAYS, and why it says anything at all. The
+          no-hint-text rule kills captions that exist because the design
+          failed to explain itself — it does not kill a line that states a
+          FACT the screen cannot show, and "these are kept" is exactly that:
+          without it a first-time debrief looks like it went nowhere, because
+          the face it was filed from is blank.
+
+          The Diary has the same line for the same reason (`.hm-none`), and
+          this borrows its class rather than growing a second empty state. */}
+      {days.length === 0 && (
+        <p className="hm-none">
+          Nothing filed yet. Every debrief is kept here, in your words, under the
+          day you gave it.
+        </p>
+      )}
+
       {days.length > 0 && (
         <div className="hm-dbflog">
           {/* NAMED, because a list of past conversations appearing under a

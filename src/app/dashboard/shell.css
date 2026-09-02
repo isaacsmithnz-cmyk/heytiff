@@ -11715,6 +11715,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    Diary: no chips, no doors, no spine — this face answers "what have I said
    at the end of my days", and anything that turned into a task has a home one
    tab across that says so properly. */
+/* `.hm-none` is the Diary's, and it carries that face's 26px inset — this
+   one is already inside `.hm-dbf`, which insets itself. Zero it out rather
+   than restating the rule: the words, the size and the colour are the shared
+   thing and must stay shared. */
+.fg .hm-dbf .hm-none { padding:4px 0 0; }
 .fg .hm-dbflog { margin-top:28px; padding-top:20px; border-top:1px solid var(--hm-line); }
 .fg .hm-dbfday { margin-top:18px; }
 .fg .hm-dbfday:first-of-type { margin-top:10px; }

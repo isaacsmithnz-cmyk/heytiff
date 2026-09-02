@@ -22,6 +22,8 @@ const calls: { table: string; op: string; payload?: unknown }[] = [];
 
 let inviteRow: Row | null = null;
 let existingStaffCard: Row | null = null;
+/** the membership this accepter ALREADY holds, or null for a first-timer */
+let existingMembership: Record<string, unknown> | null = null;
 let sessionValue: Row | null = null;
 let staffInsertFails = false;
 /* Rows the LIST-style reads return (awaited builders, no .single()). The
@@ -63,7 +65,10 @@ const table = (name: string) => {
     error: name === "invitations" && !inviteRow ? { message: "not found" } : null,
   });
   chain.maybeSingle = async () => ({
-    data: name === "staff_profiles" ? existingStaffCard : null,
+    data:
+      name === "staff_profiles" ? existingStaffCard
+      : name === "memberships" ? existingMembership
+      : null,
     error: null,
   });
   chain.upsert = async (payload: unknown) => {
@@ -159,6 +164,7 @@ beforeEach(() => {
   updateSessionSpy.mockClear();
   inviteRow = validInvite();
   existingStaffCard = null;
+  existingMembership = null;
   staffInsertFails = false;
   listRows = {};
   adoptResult = [];
@@ -376,5 +382,57 @@ describe("why the hook cannot be relied on here", () => {
 
     expect(out.orgId).toBeUndefined();
     expect(staffInserts()).toHaveLength(0);
+  });
+});
+
+/* AN INVITATION MAY NOT REWRITE AN EXISTING MEMBERSHIP'S ROLE.
+
+   This route upserted memberships on (user_id, org_id), which made an
+   invitation aimed at somebody already in the workspace a role assignment:
+   send an existing admin a `staff` invite, they press the button in good
+   faith, and they are demoted. Role changes are owner-only by invitableRoles,
+   and a delegated inviter holding `invites` can create `staff` invites — so
+   the bare upsert turned that limit into the attack.
+
+   createInvite refuses to write such an invitation now, but that only covers
+   invitations written from today. One was already open in production when this
+   was found, and a token in an inbox outlives the code that minted it. So the
+   role is decided HERE, where the membership can be seen. */
+describe("accepting when you are already a member", () => {
+  it("does not touch the role they already hold", async () => {
+    existingMembership = { role: "admin" };
+
+    await GET(req());
+
+    expect(calls.filter((c) => c.table === "memberships" && c.op === "upsert")).toHaveLength(0);
+  });
+
+  /* The link was real and they followed it; it should stop working afterwards
+     rather than sit there re-offering a demotion. */
+  it("still consumes the invitation", async () => {
+    existingMembership = { role: "admin" };
+
+    await GET(req());
+
+    const used = calls.find((c) => c.table === "invitations" && c.op === "update");
+    expect((used?.payload as Row)?.accepted_at).toEqual(expect.any(String));
+  });
+
+  it("still lands them in the workspace", async () => {
+    existingMembership = { role: "admin" };
+
+    const res = await GET(req());
+
+    expect(res.headers.get("location")).toContain("/dashboard");
+  });
+
+  /* A first-timer is the whole point of the route and must be untouched. */
+  it("a first-time accepter still gets the invited role", async () => {
+    existingMembership = null;
+
+    await GET(req());
+
+    const seat = calls.find((c) => c.table === "memberships" && c.op === "upsert");
+    expect((seat?.payload as Row)?.role).toBe("staff");
   });
 });

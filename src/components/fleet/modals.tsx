@@ -7,6 +7,7 @@ import { Chevron } from "@/components/logo";
 import { DateField } from "@/components/ui/date-field";
 import { readFuelReceipt, readPurchaseInvoice, readRenewalDocument } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
+import { fileToUprightBase64 } from "@/lib/images/upright";
 import { dateFromDays } from "@/lib/fleet/map";
 import type { StoredDocument } from "@/lib/documents/query";
 import { MAKE_NOT_LISTED, VEHICLE_MAKES, canonicalMake } from "@/lib/fleet/makes";
@@ -67,15 +68,6 @@ const RENEWAL_KINDS = new Set<StoredDocument["kind"]>(["insurance_policy", "rego
 function fmtDocDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
 }
 
 export function FleetModal({
@@ -245,8 +237,8 @@ export function VehicleFormModal({
     setInvoice({ state: "reading", name: file.name });
     const [up, scan] = await Promise.all([
       uploadFile(file, "purchase_invoice").catch(() => ({ ok: false, error: "upload" }) as const),
-      fileToBase64(file)
-        .then((b64) => readPurchaseInvoice(b64, file.type))
+      fileToUprightBase64(file)
+        .then((img) => readPurchaseInvoice(img.data, img.mediaType))
         .catch(() => ({ ok: false, reason: "read" }) as const),
     ]);
     if (!up.ok) {
@@ -640,8 +632,8 @@ export function LogModal({
        not cost the reading. Promise.all, not a chain. */
     const [stored, read] = await Promise.all([
       uploadFile(file, "fuel_receipt").catch(() => ({ ok: false, error: "upload" }) as const),
-      fileToBase64(file)
-        .then((b64) => readFuelReceipt(b64, file.type))
+      fileToUprightBase64(file)
+        .then((img) => readFuelReceipt(img.data, img.mediaType))
         .catch(() => ({ ok: false, reason: "offline" }) as const),
     ]);
 
@@ -1235,8 +1227,8 @@ export function RenewalModal({
       uploadFile(file, kind === "insurance" ? "insurance_policy" : "rego_notice").catch(
         () => ({ ok: false, error: "upload" }) as const,
       ),
-      fileToBase64(file)
-        .then((b64) => readRenewalDocument(b64, file.type, kind))
+      fileToUprightBase64(file)
+        .then((img) => readRenewalDocument(img.data, img.mediaType, kind))
         .catch(() => ({ ok: false, reason: "read" }) as const),
     ]);
     if (up.ok) setDoc({ name: file.name, documentId: up.file.documentId });

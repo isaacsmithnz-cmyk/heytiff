@@ -220,6 +220,43 @@ describe("the glance", () => {
   });
 });
 
+describe("the debrief", () => {
+  it("keeps only the debriefs — not the whole diary", () => {
+    /* Both doors write the same row and always did; `is_debrief` is the one
+       thing that tells them apart. Without the filter this face would be a
+       second copy of the tab next door. */
+    draw({
+      journal: [
+        { id: "d1", said: "Long day at Sunbird.", day: "2026-08-31", at: "6:02 pm", outcomes: [], spoken: true, isDebrief: true },
+        { id: "n1", said: "Order the grilles.", day: "2026-08-31", at: "7:10 am", outcomes: [], spoken: true, isDebrief: false },
+      ],
+    });
+    const face = document.getElementById("hmsec-debrief")!;
+    expect(face.textContent).toContain("Long day at Sunbird.");
+    expect(face.textContent).not.toContain("Order the grilles.");
+  });
+
+  it("says the debriefs are kept when there are none yet", () => {
+    /* NOT hint text. A first debrief filed from a face that then shows
+       nothing reads as having gone nowhere — this states where they go,
+       which the blank screen cannot. */
+    draw({ journal: [] });
+    const face = document.getElementById("hmsec-debrief")!;
+    expect(face.textContent).toMatch(/nothing filed yet/i);
+    expect(face.textContent).toMatch(/kept here/i);
+  });
+
+  it("drops that line the moment there is one to show", () => {
+    draw({
+      journal: [
+        { id: "d1", said: "Long day at Sunbird.", day: "2026-08-31", at: "6:02 pm", outcomes: [], spoken: true, isDebrief: true },
+      ],
+    });
+    const face = document.getElementById("hmsec-debrief")!;
+    expect(face.textContent).not.toMatch(/nothing filed yet/i);
+  });
+});
+
 describe("the day rail", () => {
   it("stands beside the card, not behind a tab", () => {
     draw();

@@ -819,6 +819,70 @@ describe("the universal search", () => {
 
   /* ── the viewer a photo hit opens ── */
 
+  /* THE STAR ON A RESULT CARD says whether that photo is already in the
+     gallery — and here, unlike the gallery where everything is starred by
+     definition, it genuinely varies. It is what lets a search end in a
+     decision without opening anything. */
+  it("says on each result whether it is already in the gallery", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [
+        photoHit({ remoteId: "kept", caption: "Already kept", starred: true }),
+        photoHit({ remoteId: "loose", caption: "Not kept", starred: false }),
+      ],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+
+    expect(await screen.findByRole("button", { name: "Unstar Already kept" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Star Not kept" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
+
+  it("keeps a photo straight off the results card", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "loose", caption: "Not kept", starred: false })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Star Not kept" }));
+    expect(setJobPhotoFavourite).toHaveBeenCalledWith("job-1", "loose", true);
+    expect(screen.getByRole("button", { name: "Unstar Not kept" })).toBeInTheDocument();
+  });
+
+  /* The card and the viewer over it are two views of one photograph, so the
+     star has to read the same in both — a mark that flips depending on which
+     one you are looking at is a bug with two right answers. */
+  it("shows one star state on the card and in the viewer over it", async () => {
+    searchPhotos.mockResolvedValue({
+      ok: true,
+      hits: [photoHit({ remoteId: "b-1", caption: "The plate", starred: false })],
+      banked: 84,
+      capped: false,
+    });
+    render(<OverviewScreen data={loaded} />);
+    await userEvent.type(box(), "PUZ-M125");
+    await userEvent.click(await screen.findByRole("button", { name: "Star The plate" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Open The plate" }));
+    const viewer = screen.getByRole("dialog");
+    expect(within(viewer).getByRole("button", { name: "Unstar The plate" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
   it("opens a hit in the viewer and stars it from there", async () => {
     searchPhotos.mockResolvedValue({
       ok: true,

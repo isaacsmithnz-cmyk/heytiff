@@ -222,7 +222,12 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
   const [photoView, setPhotoView] = useState<{ items: PhotoHit[]; index: number } | null>(
     null
   );
-  const [viewStars, setViewStars] = useState<ReadonlySet<string>>(new Set());
+  /* WHICH HITS ARE ALREADY IN THE GALLERY — one set for the results panel and
+     the viewer over it, because they are two views of the same photograph and
+     a star that reads differently depending on which one you are looking at
+     is a bug with two right answers. Seeded from what each hit reports, then
+     owned here so a toggle survives closing the viewer. */
+  const [photoStars, setPhotoStars] = useState<ReadonlySet<string>>(new Set());
   const photoSeq = useRef(0);
   const photoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const alive = useRef(true);
@@ -267,6 +272,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
             capped: res.capped,
             searching: false,
           });
+          /* The server's truth about each hit replaces whatever this set was
+             holding: these are a new set of photographs, and the answer for
+             them comes back with them. */
+          setPhotoStars(new Set(res.hits.filter((h) => h.starred).map((h) => h.remoteId)));
         })
         .catch(() => {
           if (!alive.current || mine !== photoSeq.current) return;
@@ -286,23 +295,28 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     setPhotoView(null);
   }, []);
 
-  /* Opening a hit freezes the list and seeds the stars from what each hit
-     already knows. The star in the viewer's bar toggles the real favourite —
-     which is how a search that just found the right photo is also the moment
-     it can be kept. */
+  /* Opening a hit FREEZES the list — the viewer walks a snapshot, so a
+     result set changing underneath (a keystroke, a slow answer landing)
+     cannot reshuffle the roll somebody is standing on. */
   const openPhotoHit = (index: number) => {
     const items = photoState.hits ?? [];
     if (!items[index]) return;
-    setViewStars(new Set(items.filter((h) => h.starred).map((h) => h.remoteId)));
     setPhotoView({ items, index });
   };
 
+  /* Starring a search result — from the card in the panel or from the bar in
+     the viewer over it, which is the same act on the same photograph and so
+     is the same handler. A search that just found the right photo is also
+     the moment it can be kept. The hit is looked up in the SNAPSHOT as well
+     as the live hits: the viewer outlives a query that has moved on. */
   const toggleHitStar = (remoteId: string) => {
-    const hit = photoView?.items.find((h) => h.remoteId === remoteId);
+    const hit =
+      (photoState.hits ?? []).find((h) => h.remoteId === remoteId) ??
+      photoView?.items.find((h) => h.remoteId === remoteId);
     if (!hit) return;
-    const on = !viewStars.has(remoteId);
+    const on = !photoStars.has(remoteId);
     const paint = (next: boolean) =>
-      setViewStars((cur) => {
+      setPhotoStars((cur) => {
         const set = new Set(cur);
         if (next) set.add(remoteId);
         else set.delete(remoteId);
@@ -401,8 +415,10 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
       searching={searching}
       connected={connected}
       photos={photoState}
+      starred={photoStars}
       onOpen={openHit}
       onOpenPhoto={openPhotoHit}
+      onStarPhoto={toggleHitStar}
       onClear={clearQuery}
     />
   ) : null;
@@ -799,7 +815,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           <JobMediaViewer
             items={photoView.items.map(showcaseMediaItem)}
             index={photoView.index}
-            favourites={viewStars}
+            favourites={photoStars}
             onNav={(index) => setPhotoView((cur) => (cur ? { ...cur, index } : cur))}
             onStar={toggleHitStar}
             onClose={() => setPhotoView(null)}

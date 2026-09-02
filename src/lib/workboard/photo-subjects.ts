@@ -85,8 +85,92 @@ export const SUBJECT_COLOUR = {
   finished: "#00A389",
 } satisfies Record<PhotoSubject, string>;
 
+/* ── THE FAMILIES ──────────────────────────────────────────────────────────
+   Ten subjects is the right vocabulary for a READER and the wrong one for a
+   filter row. Drawn as one chip each they were eleven labels wrapping over
+   three lines above the pictures — a wall of words you have to read in full
+   before you can look at a single photograph, which is backwards for a
+   gallery (Isaac: "it shows too many labels ... it should be broken down
+   into broader tabs").
+
+   So the row is now FIVE broad cuts, and the ten subjects moved into the
+   filter behind them. Each family is a word somebody says out loud on a job:
+
+     Equipment      the machines, and the plates that identify them
+     Installation   the runs that connect them — duct, pipe, wiring
+     Site           the building and the way in
+     Faults         what was wrong
+     Finished       what it looks like done
+
+   FAULTS AND FINISHED STAYED APART, though a tidier grouping would have
+   folded both into one "condition" family and given a round four. They are
+   the two ends of a job and the two things people go looking for by name —
+   the fault to explain a bill, the finished head to show a client — and a
+   bucket that answers both questions answers neither. A family invented to
+   make the row shorter is a label about this list, not about the work.
+
+   THE FAMILY IS DERIVED, NEVER STORED. Nothing writes a family to a row: it
+   is a view of the subject the reader already chose, so re-cutting the
+   gallery tomorrow costs an edit here and no migration. */
+
+export const PHOTO_FAMILIES = [
+  "equipment",
+  "installation",
+  "site",
+  "faults",
+  "finished",
+] as const;
+
+export type PhotoFamily = (typeof PHOTO_FAMILIES)[number];
+
+export const FAMILY_LABEL = {
+  equipment: "Equipment",
+  installation: "Installation",
+  site: "Site",
+  faults: "Faults",
+  finished: "Finished",
+} satisfies Record<PhotoFamily, string>;
+
+/* `satisfies` again, for the reason above the labels: this map must fail to
+   compile the day a subject is added and left unfiled, because the failure
+   it prevents is a photograph reachable from no tab at all. */
+export const SUBJECT_FAMILY = {
+  "outdoor-unit": "equipment",
+  "indoor-unit": "equipment",
+  controller: "equipment",
+  dataplate: "equipment",
+  ductwork: "installation",
+  pipework: "installation",
+  electrical: "installation",
+  site: "site",
+  fault: "faults",
+  finished: "finished",
+} satisfies Record<PhotoSubject, PhotoFamily>;
+
+/** The family's colour, taken from a member rather than invented, so a tab
+    and the badges under it are visibly the same thing. */
+export const FAMILY_COLOUR = {
+  equipment: SUBJECT_COLOUR["outdoor-unit"],
+  installation: SUBJECT_COLOUR.ductwork,
+  site: SUBJECT_COLOUR.site,
+  faults: SUBJECT_COLOUR.fault,
+  finished: SUBJECT_COLOUR.finished,
+} satisfies Record<PhotoFamily, string>;
+
 export function isPhotoSubject(v: unknown): v is PhotoSubject {
   return typeof v === "string" && (PHOTO_SUBJECTS as readonly string[]).includes(v);
+}
+
+/** Which family a subject belongs to — null for an unread photo, and for a
+    subject this build no longer knows. Both are "not filed", which is the
+    honest answer and keeps such a photo out of a family it never chose. */
+export function familyOf(subject: string | null): PhotoFamily | null {
+  return subject && isPhotoSubject(subject) ? SUBJECT_FAMILY[subject] : null;
+}
+
+/** The subjects inside one family, in the vocabulary's own order. */
+export function subjectsInFamily(family: PhotoFamily): PhotoSubject[] {
+  return PHOTO_SUBJECTS.filter((s) => SUBJECT_FAMILY[s] === family);
 }
 
 /** A subject's label — falling back to the stored string for anything this
@@ -114,5 +198,27 @@ export function countBySubject(
   return PHOTO_SUBJECTS.filter((s) => counts.has(s)).map((s) => ({
     subject: s,
     count: counts.get(s) as number,
+  }));
+}
+
+/** How many starred photos sit under each family, in the family list's own
+    order and skipping the empty ones — an empty tab is furniture, and a row
+    that reshuffles as photos are read is a row you cannot aim at.
+
+    Unread photos are NOT counted here, for the same reason they were never
+    counted under a subject: a photo nobody has looked at has no family, and
+    filing it under one would be inventing the answer. The gallery gives them
+    their own way in. */
+export function countByFamily(
+  photos: readonly { subject: string | null }[]
+): { family: PhotoFamily; count: number }[] {
+  const counts = new Map<PhotoFamily, number>();
+  for (const p of photos) {
+    const f = familyOf(p.subject);
+    if (f) counts.set(f, (counts.get(f) ?? 0) + 1);
+  }
+  return PHOTO_FAMILIES.filter((f) => counts.has(f)).map((f) => ({
+    family: f,
+    count: counts.get(f) as number,
   }));
 }

@@ -71,3 +71,17 @@ export type PendingInviteRow = {
   /** raw ISO timestamp behind `note`, for anything that needs the date itself */
   expiresAt: string;
 };
+
+/** A membership with no staff card — a person who signs in and cannot be
+    seen. `staffProfileIdFor` returns null without a card, which refuses
+    commenting, reacting, RSVPs, poll votes and every document upload, and the
+    Team directory reads `staff_profiles`, so they are absent from it too.
+    Absence is the worst way to show a broken account, hence this row. */
+export type MemberWithoutCardRow = {
+  /** the Auth0 sub — the only identity they have here */
+  userId: string;
+  /** their name if anything holds a real one, else null; never an address */
+  name: string | null;
+  email: string;
+  role: string;
+};

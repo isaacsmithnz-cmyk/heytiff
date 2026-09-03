@@ -199,6 +199,41 @@ async function memberWithEmail(
   return { userId: hit.user_id, name: asPersonName(hit.name) };
 }
 
+/* Who the letter greets.
+
+   THE CARD WINS, AND THAT IS THE SAME ORDER AS THE INVITER'S NAME. An invite
+   that claims a staff card carries no name of its own on purpose: the card is
+   the org's own answer to who this person is — imported or typed by someone
+   here, and correctable here — so a second copy on the invitation would be a
+   second thing to keep in step, and the two would disagree the first time
+   anybody fixed a spelling.
+
+   IT RESOLVES ON EVERY SEND, NOT ONCE. renewInvite posts the letter again, so
+   reading the card here rather than at creation means a name corrected in the
+   directory is the name the renewed letter carries.
+
+   NULL IS A SUPPORTED ANSWER — every invitation written before this column
+   existed has no name, and the letter simply does not greet them, exactly as
+   it did not yesterday. */
+async function inviteeDisplayName(
+  orgId: string,
+  invite: { name: string | null; staff_profile_id: string | null }
+): Promise<string | null> {
+  const typed = asPersonName(invite.name);
+  if (typed) return typed;
+  if (!invite.staff_profile_id) return null;
+
+  const { data: card } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("full_name, preferred_name")
+    .eq("org_id", orgId)
+    .eq("id", invite.staff_profile_id)
+    .maybeSingle();
+  return (
+    asPersonName(card?.preferred_name) ?? asPersonName(card?.full_name) ?? null
+  );
+}
+
 /** The company as the recipient should read it. `name` is the legacy signup
     seed — somebody's email address often enough to be the last resort. */
 async function companyName(orgId: string): Promise<string | null> {
@@ -220,9 +255,20 @@ async function companyName(orgId: string): Promise<string | null> {
    reports what the post did. */
 async function deliver(
   ctx: Ctx,
-  invite: { email: string; role: string; token: string; expires_at: string }
+  invite: {
+    email: string;
+    role: string;
+    token: string;
+    expires_at: string;
+    name: string | null;
+    staff_profile_id: string | null;
+  }
 ): Promise<InviteDelivery> {
-  const [origin, company] = await Promise.all([appOrigin(), companyName(ctx.orgId)]);
+  const [origin, company, invitee] = await Promise.all([
+    appOrigin(),
+    companyName(ctx.orgId),
+    inviteeDisplayName(ctx.orgId, invite),
+  ]);
 
   const { subject, html } = inviteLetter({
     baseUrl: origin,
@@ -232,6 +278,7 @@ async function deliver(
     inviterEmail: ctx.inviterEmail,
     role: invite.role === "admin" ? "Admin" : "Staff",
     email: invite.email,
+    inviteeName: invitee,
     expiresAt: invite.expires_at,
   });
 
@@ -250,6 +297,15 @@ async function deliver(
   console.error("Failed to send invite email:", res.detail);
   return { sent: false, to: invite.email, reason: "failed" };
 }
+
+/* Everything the letter needs, named once.
+
+   RENEW IS THE ONE THAT BITES. It re-posts the letter through the same
+   `deliver`, and its result is cast to deliver's parameter type — so a column
+   added to the create path and forgotten here compiles clean and silently
+   drops the greeting from every renewed invitation. One constant, both
+   call sites. */
+const INVITE_LETTER_COLUMNS = "email, role, token, expires_at, name, staff_profile_id";
 
 /** now + the invite window, as an ISO timestamp. */
 function expiryFrom(now = new Date()): string {
@@ -275,6 +331,10 @@ async function openInvite(ctx: Ctx, id: string): Promise<InviteResult> {
 export async function createInvite(input: {
   email: string;
   role: string;
+  /** The person, as the inviter knows them. Optional: an invitation with no
+      name is what every invitation was until now, and still works. Ignored
+      when `staffProfileId` is set — the card already holds the answer. */
+  name?: string;
   /** Unclaimed staff card this invite claims on acceptance — the bridge from
       an imported or pre-seeded card to a real login. Org-scoped below. */
   staffProfileId?: string;
@@ -289,6 +349,13 @@ export async function createInvite(input: {
   if (!ctx.allowedRoles.includes(input.role as Role)) {
     return { ok: false, error: "You can't invite someone at that role." };
   }
+
+  /* A NAME IS OPTIONAL, AND AN ADDRESS IS NOT A NAME. Same guard the inviter's
+     name goes through, on the value rather than the source, because a Name
+     field is exactly where somebody pastes an email by reflex. Dropping it
+     to null costs the greeting; storing it would put an address back in the
+     column this whole change exists to empty. */
+  const name = input.staffProfileId ? null : asPersonName(input.name);
 
   /* A card-claiming invite: the card must be OURS and still unclaimed. A
      claimed card means that person already has an account — re-inviting them
@@ -379,8 +446,11 @@ export async function createInvite(input: {
       // Spread, not always-null: a plain invite's insert payload stays exactly
       // what it was before cards could be claimed.
       ...(input.staffProfileId ? { staff_profile_id: input.staffProfileId } : {}),
+      // Spread for the same reason as the line above: an invitation nobody
+      // named writes the payload it always wrote.
+      ...(name ? { name } : {}),
     })
-    .select("email, role, token, expires_at")
+    .select(INVITE_LETTER_COLUMNS)
     .single();
   if (error || !created) return { ok: false, error: "Couldn't create that invite." };
 
@@ -434,7 +504,7 @@ export async function renewInvite(id: string): Promise<InviteResult> {
     .eq("org_id", ctx.orgId)
     .eq("id", id)
     .is("accepted_at", null)
-    .select("email, role, token, expires_at")
+    .select(INVITE_LETTER_COLUMNS)
     .maybeSingle();
   if (error) return { ok: false, error: "Couldn't renew that invite." };
   /* No row means it was accepted between the check above and this write — the

@@ -49,13 +49,19 @@ describe("InviteModal", () => {
     expect([...select.options].map((o) => o.textContent)).toEqual(["Staff"]);
   });
 
-  it("submits the email and role, then closes and refreshes", async () => {
+  it("submits the name, email and role, then closes and refreshes", async () => {
     const { onClose, user } = setup();
+    await user.type(screen.getByPlaceholderText("Dan Whitfield"), "Dan Whitfield");
     await user.type(screen.getByPlaceholderText("name@company.com"), "new@heytiff.co");
     await user.selectOptions(screen.getByRole("combobox"), "admin");
     await user.click(screen.getByRole("button", { name: /Send invitation/ }));
 
-    expect(createInvite).toHaveBeenCalledWith({ email: "new@heytiff.co", role: "admin" });
+    expect(createInvite).toHaveBeenCalledWith({
+      email: "new@heytiff.co",
+      role: "admin",
+      name: "Dan Whitfield",
+      staffProfileId: undefined,
+    });
     expect(onClose).toHaveBeenCalled();
     expect(refresh).toHaveBeenCalled();
   });
@@ -84,8 +90,35 @@ describe("InviteModal", () => {
     expect(createInvite).toHaveBeenCalledWith({
       email: "dan.personal@gmail.com",
       role: "staff",
+      name: undefined,
       staffProfileId: "card-7",
     });
+  });
+
+  it("offers no name field when the invite claims a card", () => {
+    // The card is the org's own answer to who this person is, and the action
+    // discards anything typed here — so the field is absent rather than
+    // ignored. The header already says whose card it attaches to.
+    render(
+      <InviteModal
+        roles={["staff"]}
+        onClose={jest.fn()}
+        prefill={{ email: "dan@acme.com", staffProfileId: "card-7", name: "Dan Whitfield" }}
+      />,
+    );
+    expect(screen.queryByPlaceholderText("Dan Whitfield")).toBeNull();
+  });
+
+  it("sends no name rather than an empty one", async () => {
+    // "" is a value the action would have to decide about; nobody typing a
+    // name is an absence.
+    const { user } = setup(["staff"]);
+    await user.type(screen.getByPlaceholderText("name@company.com"), "new@heytiff.co");
+    await user.click(screen.getByRole("button", { name: /Send invitation/ }));
+
+    expect(createInvite).toHaveBeenCalledWith(
+      expect.objectContaining({ name: undefined }),
+    );
   });
 
   it("a plain invite still submits without any card id", async () => {
@@ -96,6 +129,7 @@ describe("InviteModal", () => {
     expect(createInvite).toHaveBeenCalledWith({
       email: "new@heytiff.co",
       role: "staff",
+      name: undefined,
       staffProfileId: undefined,
     });
   });

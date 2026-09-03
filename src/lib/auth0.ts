@@ -13,7 +13,11 @@ import { splitName } from "./staff/name";
 export async function ensureStaffCard(
   orgId: string,
   userId: string,
-  session: { user: { name?: unknown; email?: string | null; picture?: unknown } }
+  session: { user: { name?: unknown; email?: string | null; picture?: unknown } },
+  /** What the org already calls this person — today, the name typed on their
+      invitation. Beats the identity provider because somebody here decided
+      it; see the seed below for why the provider often has nothing. */
+  knownAs?: string | null
 ) {
   try {
     const { data } = await supabaseAdmin
@@ -24,8 +28,32 @@ export async function ensureStaffCard(
       .maybeSingle();
     if (data) return;
 
+    /* AN ADDRESS IS NOT A NAME, AND AUTH0'S CLAIM IS OFTEN ONE. For any
+       identity that never set a name — every fresh database sign-up — the
+       `name` claim IS the sign-in address. The old seed was written to fall
+       back to the local part and never got there: `??` only steps past null,
+       and the claim is not null, it is the whole address. So production holds
+       a card whose full_name reads 'isaacsmithnz+test@gmail.com'.
+
+       THE FALLBACK IS THE LOCAL PART, NOT NULL, AND THAT IS A DELIBERATE
+       SECOND CHOICE. Null is the cleaner record — it makes "nobody has ever
+       told us this person's name" a state you can see — but only ONE reader
+       in the app can survive it. `toStaffRow` splits the address for its own
+       display; the other fifteen resolve a card through `displayNameOf` /
+       `fullNameOf`, which have no address to fall back to and answer
+       "Unnamed". Two nameless people then become two identical rows in every
+       assignee picker, on Time & Pay, on the job sheet — indistinguishable,
+       which is worse than an ugly handle. `ben` is not their name; it is a
+       handle nobody can mistake for one, and it is what those screens have
+       always drawn anyway.
+
+       WHAT ACTUALLY FIXES THE NAME IS `knownAs` — the invitation carrying who
+       the inviter is inviting. This line is the last resort behind it, and it
+       is still reached by the founder at /start and by anyone signing in
+       without an invitation. */
     const seedName =
-      (session.user.name as string | undefined) ??
+      personName(knownAs) ??
+      personName(session.user.name) ??
       session.user.email?.split("@")[0] ??
       null;
     /* Seed the holiday state from the org so every calendar consumer — the
@@ -50,6 +78,14 @@ export async function ensureStaffCard(
   } catch (e) {
     console.error("Failed to ensure staff card:", e);
   }
+}
+
+/** A name is a name — never an address, whatever claim it arrived in. Mirrors
+    `asPersonName` in the invite action; kept local because this module is
+    imported by the Auth0 client itself and must stay free of app actions. */
+function personName(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  return !s || s.includes("@") ? null : s;
 }
 
 export const auth0 = new Auth0Client({

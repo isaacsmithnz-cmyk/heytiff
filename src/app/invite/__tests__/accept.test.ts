@@ -213,10 +213,50 @@ describe("accepting an invite seats a staff card", () => {
     expect(staffInserts()).toHaveLength(0);
   });
 
-  it("falls back to the email local-part when Auth0 sends no name", async () => {
-    sessionValue = { user: { sub: USER, email: EMAIL } };
+  it("names the card from the invitation, not from Auth0's claim", async () => {
+    // The whole of #614: the inviter knew who they were inviting, and until
+    // now that never reached the card. Auth0's claim is still there and is
+    // still an address — the invitation outranks it.
+    inviteRow = validInvite({ name: "Dan Whitfield" });
+    sessionValue = { user: { sub: USER, email: EMAIL, name: EMAIL } };
+
     await GET(req());
-    expect((staffInserts()[0].payload as Row).full_name).toBe("newhire");
+
+    const row = staffInserts()[0].payload as Row;
+    expect(row.full_name).toBe("Dan Whitfield");
+    expect(row.first_name).toBe("Dan");
+    expect(row.last_name).toBe("Whitfield");
+  });
+
+  it("never stores the address, even when that is all Auth0 sends", async () => {
+    /* WHAT THIS REPLACES. The seed was written as `claim ?? local-part` and
+       never reached the fallback: `??` only steps past null, and for a fresh
+       database sign-up the claim is not null — it IS the sign-in address. So
+       the card was written holding the whole thing, and production still has
+       one: full_name 'isaacsmithnz+test@gmail.com'.
+
+       The local part is the deliberate second choice over null. Null is the
+       cleaner record, but only `toStaffRow` can survive it — every other
+       reader resolves a card through `displayNameOf`/`fullNameOf` and answers
+       "Unnamed", which turns two nameless people into two identical rows in
+       every assignee picker. */
+    inviteRow = validInvite({ name: null });
+    sessionValue = { user: { sub: USER, email: EMAIL, name: EMAIL } };
+
+    await GET(req());
+
+    const row = staffInserts()[0].payload as Row;
+    expect(row.full_name).toBe("newhire");
+    expect(row.full_name).not.toContain("@");
+    expect(row.first_name).toBe("newhire");
+  });
+
+  it("keeps Auth0's claim when it is a real name", async () => {
+    // Google and any identity that set one hand over a person's actual name,
+    // and an invitation with no name must not throw that away.
+    inviteRow = validInvite({ name: null });
+    await GET(req());
+    expect((staffInserts()[0].payload as Row).full_name).toBe("Sam Rivers");
   });
 
   it("still lands them on the dashboard if seating the card fails", async () => {

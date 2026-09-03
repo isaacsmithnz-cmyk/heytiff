@@ -43,6 +43,14 @@ export type InviteLetterInput = {
   role: string;
   /** The address the invite is bound to. Must be signed in with. */
   email: string;
+  /** The invitee, as a person — typed by whoever invited them, or NULL for
+      every invitation written before a name could ride along. Same rule as
+      `inviterName` and for a sharper reason: this letter goes to someone who
+      may never have heard of HeyTiff, and a stranger who knows your name is
+      the one signal a bulk phish cannot cheaply fake. Never their address —
+      it is already on the line that says which address to sign in with, and
+      putting it where a name goes is the defect this field exists to end. */
+  inviteeName: string | null;
   /** ISO timestamp from invitations.expires_at. */
   expiresAt: string;
 };
@@ -59,6 +67,7 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
      action drops anything with an @ in it — but this restates the emptiness
      check because a letter is the last place to discover a null. */
   const inviterText = input.inviterName?.trim() || null;
+  const inviteeText = input.inviteeName?.trim() || null;
 
   /* TWO SPELLINGS OF EVERY NAME, and they are not interchangeable. The body
      is HTML and must be escaped; the SUBJECT is not, and an escaped one puts
@@ -66,6 +75,7 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
      ampersands often enough that this is the common case, not the edge. */
   const named = escapeHtml(companyText);
   const inviter = inviterText ? escapeHtml(inviterText) : null;
+  const invitee = inviteeText ? escapeHtml(inviteeText) : null;
   const role = escapeHtml(input.role);
 
   const expiryDay = fmtAuWeekdayDateLong(auDayOf(input.expiresAt));
@@ -80,9 +90,17 @@ export function inviteLetter(input: InviteLetterInput): { subject: string; html:
          "You've been invited to join Diamond Air Solutions" is true, complete
          and says nothing it cannot stand behind; the human is still reachable,
          because reply-to carries their real address either way. */
-      inviter
-        ? `${inviter} has invited you to join ${named} as <b>${role}</b>.`
-        : `You've been invited to join ${named} as <b>${role}</b>.`,
+      /* THE GREETING IS FOLDED IN, not stacked above. "Hi Dan," on its own
+         line is a paragraph carrying one word, and this letter's rule is that
+         every line earns its place. Read aloud, the joined version is also
+         the sentence a person would actually say. */
+      invitee
+        ? inviter
+          ? `Hi ${invitee} — ${inviter} has invited you to join ${named} as <b>${role}</b>.`
+          : `Hi ${invitee} — you've been invited to join ${named} as <b>${role}</b>.`
+        : inviter
+          ? `${inviter} has invited you to join ${named} as <b>${role}</b>.`
+          : `You've been invited to join ${named} as <b>${role}</b>.`,
       /* One line of what the thing IS. A recipient who has never heard of
          HeyTiff cannot tell an invitation from a phish without it. */
       `HeyTiff is where the team's jobs, timesheets, photos and documents live.`,

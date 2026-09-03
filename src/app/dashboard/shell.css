@@ -3430,6 +3430,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .invwho {display:flex; align-items:center; gap:13px; min-width:0;}
 .fg .invav {width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:rgba(46,104,255,.1);}
 .fg .invrow.expired .invav {color:var(--bad-t); background:rgba(255,51,102,.1);}
+/* A member with no staff card — a row that is not an invite, in a row shape
+   that is. Colour only: the four tracks, the paddings and the phone rules
+   are `.invrow`'s and this must not fork them. `.invexp` is already
+   --warn-t, so the state text needs nothing. */
+.fg .dirnocards {border-bottom:1px solid #f5f6f8;}
+.fg .invrow.nocard .invav {color:var(--warn-t); background:rgba(164,75,8,.1);}
 .fg .invwho b {font-size:14px; font-weight:700; color:var(--ink); display:block;}
 .fg .invwho em {font-style:normal; font-size:12px; color:var(--q); display:block;}
 .fg .invrole {font-size:13.5px; color:var(--gray500); font-weight:600;}

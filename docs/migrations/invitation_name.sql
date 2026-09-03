@@ -1,0 +1,56 @@
+-- invitation_name — an invitation carries who, not just where.
+--
+-- WHY: an invitation held an address and a role and nothing else, so nobody
+-- knew the invitee's name until they arrived — and then it was Auth0's `name`
+-- claim, which for a fresh sign-up IS the address. The live workspace already
+-- holds the result: a staff card whose full_name is
+-- 'isaacsmithnz+test@gmail.com'. The Pending tab, having nothing better, split
+-- the address at the '@' and printed the left half where a name belongs.
+--
+-- WHY ON THE INVITATION AND NOT ON A FIRST-RUN SCREEN. The inviter already
+-- knows the name — they are inviting a specific person — and asking them costs
+-- one field on a form they are already filling in. Asking the invitee instead
+-- means the Team page shows 'ben.fletcher' for however many days the invitation
+-- is pending, and puts a form between someone and the app on their first
+-- minute. The name is also the strongest anti-phish signal a cold invitation
+-- can carry: a letter that greets you by name is one a stranger could not have
+-- addressed.
+--
+-- WHY NOT A CARD CREATED AT INVITE TIME, which needs no migration and reuses
+-- the claim path unchanged: it mints a directory row for someone who may never
+-- accept, and revokeInvite deletes nothing else, so a revoked invitation would
+-- leave a person in the org's staff list who was never in the org. The claim
+-- path stays what it is — the bridge from an IMPORTED card to a login.
+--
+-- NULLABLE, AND IT STAYS NULLABLE. Every invitation written before this is one
+-- with no name, and there is nothing to backfill them from: the address is the
+-- very thing that must stop standing in for a name. Readers fall back to the
+-- old '@' split for those rows, which is exactly today's behaviour, so the
+-- pending list is unchanged for every existing invite and better for every new
+-- one. Invites created from an unclaimed staff card also leave this null on
+-- purpose — the card already holds the org's own answer to who that person is,
+-- and a second copy here is a second thing to keep in step.
+--
+-- NOT AN ADDRESS. The app already refuses to print an address as a name
+-- (asPersonName, src/app/actions/invite.ts) because profiles.name holds one for
+-- these same users. The same guard runs on this column's input: an inviter who
+-- types an email into a Name field gets a null, not a second copy of the bug.
+--
+-- FAILS SOFT ON THE READ SIDE, AND NOT ON THE WRITE SIDE — said plainly rather
+-- than claimed in general, because "the code fails soft" is the sentence that
+-- makes somebody skip applying it. The Team page's Pending tab RETRIES without
+-- the column and falls back to the old '@' split, so it lists exactly what it
+-- lists today; the accept route reads `select("*")` and simply finds no name.
+-- But createInvite and renewInvite name the column in the select that feeds the
+-- letter, so until this is applied THEY FAIL and no invitation can be sent.
+-- That is the right way round: a tab that silently blanks is a bug nobody
+-- notices, and an invite that refuses is one somebody reports in a minute.
+--
+-- POSTURE: RLS unchanged — invitations stays deny-all, all access through the
+-- service-role client behind app-layer gates.
+--
+-- APPLY THIS BEFORE MERGING THE PR. Re-runnable; the column is additive and
+-- nullable, so live code is indifferent until the PR lands.
+
+alter table public.invitations
+  add column if not exists name text;

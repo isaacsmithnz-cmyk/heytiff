@@ -136,7 +136,11 @@ Legend: ✓ = full · ◐ = own/limited · ✗ = no access (enforce server-side)
   (NOT NULL, composite FK → memberships): the master owner, undeletable until
   ownership is transferred. Legacy `name` = signup-email seed, never displayed.
 - **memberships** *(exists)* — `user_id` ↔ `org_id` + `role` (owner/admin/manager/staff).
-- **invitations** *(exists)* — pending invites by email + role.
+- **invitations** *(exists)* — pending invites by `email` + `role`, plus
+  `name` (nullable — the person as the inviter typed them; null for every
+  invite written before it existed, and for one that claims a card, because
+  the card already holds the answer) and `staff_profile_id` (the unclaimed
+  card this invite binds on acceptance).
 - **staff** *(new)* — the profile record per person. Likely links 1:1 to a
   membership (the login) but may exist before a login (invited / not yet joined).
   Holds: personal details, emergency contact, employment, work-rights/visa.

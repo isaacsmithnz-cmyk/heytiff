@@ -3,23 +3,37 @@
 
 import { CAPABILITIES, type Capability } from "@/lib/permissions";
 
-type Call = { table: string; op: string; payload?: Record<string, unknown>; filters: Record<string, unknown> };
+type Call = { table: string; op: string; payload?: Record<string, unknown>; filters: Record<string, unknown>; cols?: string };
+
+/* THE MOCK HANDS BACK WHAT WAS ASKED FOR, and that is load-bearing rather than
+   fussy. `deliver` is fed the row an insert or a guarded update returned, and
+   renewInvite CASTS its result to deliver's parameter type — so a column added
+   to one select and forgotten in the other compiles clean, and the only
+   symptom is a renewed invitation quietly losing its greeting. A mock that
+   returns every column regardless makes that bug untestable. */
+const project = (row: Record<string, unknown> | null, cols?: string) => {
+  if (!row || !cols || cols.trim() === "*") return row;
+  const want = cols.split(",").map((c) => c.trim());
+  return Object.fromEntries(Object.entries(row).filter(([k]) => want.includes(k)));
+};
 
 const calls: Call[] = [];
 /** The row an insert or a guarded update hands back — what the letter is
     built from. Its token is the secret that write minted. */
-const LETTER_ROW = {
+const LETTER_ROW: Record<string, unknown> = {
   email: "new@hire.com",
   role: "staff",
   token: "tok-abc",
   expires_at: "2026-09-09T00:00:00.000Z",
+  name: null,
+  staff_profile_id: null,
 };
 /** what a select on `invitations` finds — null = no such row for this org */
 let inviteRow: { id: string; accepted_at: string | null } | null = { id: "inv-1", accepted_at: null };
 /** what createInvite's duplicate check finds — [] = no open invite for the address yet */
 let openInvites: Record<string, unknown>[] = [];
 /** what a card-claiming invite's staff_profiles lookup finds — null = not ours / gone */
-let staffCardRow: { id: string; user_id: string | null } | null = null;
+let staffCardRow: { id: string; user_id: string | null; full_name?: string | null } | null = null;
 /** open invites already holding the card — the one-per-card twin of openInvites */
 let cardOpenInvites: Record<string, unknown>[] = [];
 /** the org the letter names */
@@ -60,7 +74,10 @@ const table = (name: string) => {
     call.filters[k] = v;
     return chain();
   };
-  c.select = () => chain();
+  c.select = (cols?: string) => {
+    call.cols = cols;
+    return chain();
+  };
   c.limit = () => chain();
   c.in = () => chain();
   /* The insert RETURNS ITS ROW now — the letter needs the token this write
@@ -83,7 +100,11 @@ const table = (name: string) => {
     calls.push(call);
     return chain();
   };
-  c.single = () => Promise.resolve({ data: insertFails ? null : LETTER_ROW, error: insertFails ? { message: "nope" } : null });
+  c.single = () =>
+    Promise.resolve({
+      data: insertFails ? null : project(LETTER_ROW, call.cols),
+      error: insertFails ? { message: "nope" } : null,
+    });
   c.maybeSingle = () => {
     // the inviter's OWN card and profile — where the letter gets a NAME. The
     // card lookup is told from the invitee's by its user_id filter.
@@ -96,7 +117,8 @@ const table = (name: string) => {
        shapes — before this, deliver() read an invite row as an org. */
     if (name === "organizations") return Promise.resolve({ data: orgRow, error: null });
     // a write that asked for its row back (renew) vs. the open-invite lookup
-    if (call.op === "update") return Promise.resolve({ data: renewedRow, error: null });
+    if (call.op === "update")
+      return Promise.resolve({ data: project(renewedRow, call.cols), error: null });
     return Promise.resolve({ data: inviteRow, error: inviteRow ? null : { message: "no rows" } });
   };
   /* Awaiting the chain resolves it: a still-`select` chain is a LIST read
@@ -748,5 +770,135 @@ describe("an address that already has a login here", () => {
 
     expect((await createInvite({ email: "dan@reilly.com", role: "staff" })).ok).toBe(true);
     expect(writes("insert")).toHaveLength(1);
+  });
+});
+
+
+/* WHO THE LETTER GREETS — #614.
+
+   An invitation used to carry an address and a role and nothing else, so the
+   staff card it produced was named from Auth0's `name` claim, which for a
+   fresh sign-up IS the address. Production holds the proof: a card whose
+   full_name reads 'isaacsmithnz+test@gmail.com'. The name now rides on the
+   invitation, which also lets the letter address a person and the Pending tab
+   show one. */
+describe("an invitation carries the person's name", () => {
+  const lastInsert = () => calls.find((c) => c.table === "invitations" && c.op === "insert");
+
+  /* LETTER_ROW is the row the INSERT hands back, shared and mutable — the
+     tests below rewrite it to stand for what the database stored, so it is
+     restored here rather than leaking a name into the next case. */
+  beforeEach(() => {
+    LETTER_ROW.name = null;
+    LETTER_ROW.staff_profile_id = null;
+  });
+
+  it("stores the name the inviter typed", async () => {
+    await createInvite({ email: "new@hire.com", role: "staff", name: "Dan Whitfield" });
+
+    expect(lastInsert()?.payload).toMatchObject({
+      email: "new@hire.com",
+      role: "staff",
+      name: "Dan Whitfield",
+    });
+  });
+
+  it("writes no name key at all when nobody typed one", async () => {
+    // The payload an unnamed invitation writes is the payload it always wrote.
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(lastInsert()?.payload).not.toHaveProperty("name");
+  });
+
+  /* THE GUARD IS ON THE VALUE, NOT THE SOURCE — the same rule the inviter's
+     name goes through, and a Name field is exactly where somebody pastes an
+     address by reflex. Storing it would put an address back in the column this
+     change exists to empty. */
+  it.each([
+    ["an address", "dan@whitfield.com"],
+    ["whitespace", "   "],
+  ])("refuses %s as a name, and still sends", async (_label, typed) => {
+    const res = await createInvite({ email: "new@hire.com", role: "staff", name: typed });
+
+    expect(res.ok).toBe(true);
+    expect(lastInsert()?.payload).not.toHaveProperty("name");
+  });
+
+  it("greets the invitee by name in the letter", async () => {
+    LETTER_ROW.name = "Dan Whitfield";
+
+    await createInvite({ email: "new@hire.com", role: "staff", name: "Dan Whitfield" });
+
+    expect(sent[0].html).toContain("Hi Dan Whitfield — Isaac Smith has invited you");
+  });
+
+  it("greets nobody when the invitation has no name", async () => {
+    await createInvite({ email: "new@hire.com", role: "staff" });
+
+    expect(sent[0].html).not.toMatch(/Hi [^<]* — /);
+    expect(sent[0].html).toContain("Isaac Smith has invited you");
+  });
+
+  /* THE CARD WINS, AND CARRIES THROUGH RENEW. An invite that claims a card
+     stores no name of its own — the card is the org's own answer — so the
+     greeting is resolved on every send. A name corrected in the directory is
+     the name the renewed letter carries. */
+  it("takes the name off the claimed card instead of the invitation", async () => {
+    staffCardRow = { id: "card-7", user_id: null, full_name: "Dan Whitfield" };
+    LETTER_ROW.staff_profile_id = "card-7";
+
+    await createInvite({
+      email: "new@hire.com",
+      role: "staff",
+      name: "Typed Over",
+      staffProfileId: "card-7",
+    });
+
+    expect(lastInsert()?.payload).not.toHaveProperty("name");
+    expect(sent[0].html).toContain("Hi Dan Whitfield —");
+    expect(sent[0].html).not.toContain("Typed Over");
+  });
+
+  it("asks for the name on both letter-bearing reads", async () => {
+    // One constant feeds the insert and the renew update; this is the test
+    // that notices if it stops.
+    await createInvite({ email: "new@hire.com", role: "staff", name: "Dan Whitfield" });
+    await renewInvite("inv-1");
+
+    const letterReads = calls.filter(
+      (c) => c.table === "invitations" && (c.op === "insert" || c.op === "update"),
+    );
+    expect(letterReads).toHaveLength(2);
+    for (const r of letterReads) {
+      expect(r.cols).toContain("name");
+      expect(r.cols).toContain("staff_profile_id");
+    }
+  });
+
+  it("renews with the greeting the first letter had", async () => {
+    /* renewInvite re-posts through the same `deliver`, and its result is CAST
+       to deliver's parameter type — so a column added to the create path and
+       forgotten here would compile clean and silently drop the greeting. */
+    renewedRow = { ...LETTER_ROW, name: "Dan Whitfield" };
+
+    const res = await renewInvite("inv-1");
+
+    expect(res.ok).toBe(true);
+    expect(sent[0].html).toContain("Hi Dan Whitfield —");
+  });
+});
+
+/* THE NAME REACHES HTML, so it goes through the same two spellings the company
+   name does — escaped in the body, raw in the subject. It is free text typed by
+   whoever sent the invitation. */
+describe("the invitee's name is escaped like every other name", () => {
+  it("escapes markup in the greeting", async () => {
+    LETTER_ROW.name = 'Dan <b>"Danger"</b> & Sons';
+
+    await createInvite({ email: "new@hire.com", role: "staff", name: "x" });
+
+    expect(sent[0].html).toContain("Dan &lt;b&gt;&quot;Danger&quot;&lt;/b&gt; &amp; Sons");
+    expect(sent[0].html).not.toContain("<b>\"Danger\"</b>");
+    LETTER_ROW.name = null;
   });
 });

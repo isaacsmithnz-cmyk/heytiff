@@ -3,7 +3,12 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { expiresIn } from "@/lib/format/duration";
 import { deriveCompliance, initialsFrom, startedLabel, yearsSince } from "./derive";
 import { firstNameOf, fullNameOf } from "./name";
-import type { PendingInviteRow, StaffLicence, StaffRow } from "./types";
+import type {
+  MemberWithoutCardRow,
+  PendingInviteRow,
+  StaffLicence,
+  StaffRow,
+} from "./types";
 import type { Role } from "@/lib/roles-shared";
 
 /* Team queries. Every one of these is scoped by org_id from the session —
@@ -147,6 +152,94 @@ async function rolesByUser(
     .in("user_id", userIds);
   for (const r of data ?? []) out.set(r.user_id as string, r.role as Role);
   return out;
+}
+
+/* THE ROSTER IS `memberships`, AND THE DIRECTORY HAS NEVER READ IT.
+
+   listStaff reads `staff_profiles` and then decorates those rows with roles —
+   card → membership, never membership → card. So a member with no card
+   contributes no row and cannot even be counted: the workspace looks like it
+   has one person when it has two. Production has exactly that. Nothing in the
+   app compares the two tables, so the only symptom is an absence, and an
+   absence is indistinguishable from "they were never here".
+
+   WHY A MEMBER CAN HAVE NO CARD. Nothing in the database ties the two — no
+   foreign key, no trigger, no constraint. `ensureStaffCard` runs on a fresh
+   login, at /start and on invite-accept, and the live orphan predates all
+   three: its membership was written 2026-06-23, and `staff_profiles` did not
+   exist until the migration on 2026-07-19. Newer ones are possible too — the
+   accept route writes the membership first and the card last, untransacted, so
+   anything that ends the request in between commits one without the other.
+
+   IT MAY HEAL ITSELF, WHICH IS NOT A REASON NOT TO SHOW IT. Their next sign-in
+   mints the card, as does opening their own profile. Someone who does neither
+   stays broken and invisible indefinitely. */
+export async function listMembersWithoutCard(
+  orgId: string
+): Promise<MemberWithoutCardRow[]> {
+  const [members, cards] = await Promise.all([
+    supabaseAdmin.from("memberships").select("user_id, role").eq("org_id", orgId),
+    supabaseAdmin.from("staff_profiles").select("user_id").eq("org_id", orgId),
+  ]);
+
+  /* EITHER READ FAILING MEANS SAY NOTHING, and the asymmetry is why this is
+     not the file's usual `?? []`. Every other read here degrades by OMISSION —
+     a missing licence, a missing role — and shows less. This one degrades by
+     INVENTION: a failed CARDS read leaves `claimed` empty, every membership
+     falls through the filter, and the page accuses the whole workspace,
+     the owner included, of having no staff card. An advisory that cannot read
+     its evidence must not guess; it must be absent. */
+  if (members.error || cards.error) return [];
+
+  /* `.not("user_id", "is", null)` would have been the obvious filter on the
+     cards read and it is the wrong one — an unclaimed card's user_id IS null,
+     and a bare filter on a nullable column is the trap that hides rows. The
+     nulls are simply never in the Set, so they cannot match anybody. */
+  const claimed = new Set(
+    ((cards.data ?? []) as Record<string, unknown>[])
+      .map((c) => c.user_id as string | null)
+      .filter((u): u is string => Boolean(u))
+  );
+
+  const orphans = ((members.data ?? []) as Record<string, unknown>[]).filter(
+    (m) => !claimed.has(m.user_id as string)
+  );
+  if (orphans.length === 0) return [];
+
+  const userIds = orphans.map((m) => m.user_id as string);
+  const { data: profiles, error: profilesError } = await supabaseAdmin
+    .from("profiles")
+    .select("user_id, email, name")
+    .in("user_id", userIds);
+
+  /* THE READ FAILING AND ONE ROW BEING ABSENT ARE DIFFERENT ANSWERS. A missing
+     row for one member is an anomaly of the same vintage as their missing card,
+     and the sub below is a real if ugly handle for them. A failed READ means
+     nothing can be said about ANY of them, and a strip of subs is not a
+     surface — same rule as above: be absent rather than guess. */
+  if (profilesError) return [];
+
+  const byUser = new Map(
+    ((profiles ?? []) as Record<string, unknown>[]).map((p) => [p.user_id as string, p])
+  );
+
+  return orphans.map((m) => {
+    const p = byUser.get(m.user_id as string);
+    return {
+      userId: m.user_id as string,
+      /* profiles.name is written from Auth0's claim on every login, and that
+         claim IS the sign-in address for an identity that never set one — so
+         the same guard the invite action applies runs here. */
+      name: personName(p?.name),
+      /* `profiles` is written on every login, so a membership without one is
+         the same vintage of anomaly as the missing card — and the row still
+         has to identify SOMEBODY. Empty here would draw an alert avatar, a
+         role and nothing else; the renderer falls through to `userId`, which
+         the type calls the only identity they have. */
+      email: (p?.email as string) ?? "",
+      role: (m.role as string) === "admin" ? "Admin" : (m.role as string) === "owner" ? "Owner" : "Staff",
+    };
+  });
 }
 
 /** One person's sparse capability overrides, for rendering their card. */
@@ -321,6 +414,14 @@ export const getViewerName = cache(
     invite (possessing the link is what joins someone to the org), so it is
     selected only for a viewer who may invite — absent from the payload, not
     hidden in the UI. Same for `id`, which renew/revoke act on. */
+/** A name is a name — never an address, whatever column it arrived in. The
+    same rule the invite action applies on the way in, restated on the way out
+    because rows written before that guard existed are still in the table. */
+function personName(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  return !s || s.includes("@") ? null : s;
+}
+
 export async function listPendingInvites(
   orgId: string,
   opts: { withLinks?: boolean } = {},
@@ -328,25 +429,67 @@ export async function listPendingInvites(
 ): Promise<PendingInviteRow[]> {
   const withLinks = opts.withLinks === true;
   // plain `string` so supabase-js doesn't try to parse the union literal
-  const cols: string = withLinks
+  const base: string = withLinks
     ? "id, email, role, token, expires_at, accepted_at"
     : "email, role, expires_at, accepted_at";
-  const { data } = await supabaseAdmin
+
+  const rows = await supabaseAdmin
     .from("invitations")
-    .select(cols)
+    .select(`${base}, name, staff_profile_id`)
     .eq("org_id", orgId)
     .is("accepted_at", null)
     .order("created_at", { ascending: false });
 
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => {
+  /* FAILS SOFT ONTO YESTERDAY, and this one has to. The house rule is that a
+     screen behaves exactly as it did until its migration lands — but here
+     "the read errored, so show nothing" would BLANK a populated tab, which is
+     worse than the '@' split it replaces. So the second attempt asks for the
+     columns that have always existed and the mapper falls back per row. */
+  const { data } = rows.error
+    ? await supabaseAdmin
+        .from("invitations")
+        .select(base)
+        .eq("org_id", orgId)
+        .is("accepted_at", null)
+        .order("created_at", { ascending: false })
+    : rows;
+
+  const invites = (data ?? []) as unknown as Record<string, unknown>[];
+
+  /* An invite that claims a card carries no name of its own — the card holds
+     it. Read in one batch rather than per row, and only when there is one. */
+  const cardIds = invites
+    .map((r) => r.staff_profile_id as string | null)
+    .filter((id): id is string => Boolean(id));
+  const cardNames = new Map<string, string>();
+  if (cardIds.length) {
+    const { data: cards } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id, full_name, preferred_name")
+      .eq("org_id", orgId)
+      .in("id", cardIds);
+    for (const c of (cards ?? []) as Record<string, unknown>[]) {
+      const n = personName(c.preferred_name) ?? personName(c.full_name);
+      if (n) cardNames.set(c.id as string, n);
+    }
+  }
+
+  return invites.map((r) => {
     const expiresAt = r.expires_at as string;
     const expires = new Date(expiresAt);
     const days = Math.round((expires.getTime() - now.getTime()) / 86_400_000);
     const live = days >= 0;
     return {
       id: withLinks ? (r.id as string) : null,
-      // no name until they accept — the email is the only thing we know
-      name: (r.email as string).split("@")[0],
+      /* THE ADDRESS IS THE LAST RESORT, NOT THE ANSWER. It used to be the
+         only one — "ben.fletcher" sat where a name belongs, above
+         "ben.fletcher@gmail.com" — because an invitation carried no name.
+         Now it carries one, or points at a card that does; the split survives
+         for every invitation written before either was true. */
+      name:
+        personName(r.name) ??
+        cardNames.get((r.staff_profile_id as string | null) ?? "") ??
+        (r.email as string).split("@")[0],
       email: r.email as string,
       role: r.role === "admin" ? "Admin" : "Staff",
       state: live ? ("live" as const) : ("expired" as const),

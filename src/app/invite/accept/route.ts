@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
      for this account"), and leaves them out of the team list so they can't even
      be assigned a task. That's the whole first session for every invited
      employee, which is the one path every real staff member takes. */
-  await ensureStaffCard(invite.org_id, session.user.sub, session);
+  await ensureStaffCard(invite.org_id, session.user.sub, session, invite.name);
 
   /* The role they ACTUALLY hold, which is not the invited one when they were
      already a member — the session must not claim otherwise. (Every gate reads

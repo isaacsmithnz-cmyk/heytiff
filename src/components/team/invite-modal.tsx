@@ -98,6 +98,7 @@ export function InviteModal({
   prefill?: InvitePrefill;
 }) {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState(prefill?.email ?? "");
   const [role, setRole] = useState(roles.includes("staff") ? "staff" : (roles[0] ?? "staff"));
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +139,16 @@ export function InviteModal({
     };
   }, [email]);
 
+  /* THE CARD, IF THERE IS ONE, DECIDES THE NAME — so the field disappears
+     rather than being ignored. `prefill` means the reader started from a row
+     in the directory; `found.kind === "card"` means the address they typed
+     resolved to one. Either way the org already holds this person's name, the
+     action discards anything typed here, and a field whose value is thrown
+     away is the screen telling a small lie. The line under the address, and
+     the header, already say whose card it attaches to. */
+  const attachTo =
+    prefill?.staffProfileId ?? (found?.kind === "card" ? found.staffProfileId : undefined);
+
   const submit = () => {
     if (!email.trim() || busy) return;
     setError(null);
@@ -148,9 +159,14 @@ export function InviteModal({
          a stronger statement of intent than an address lookup — and if they
          edited the address away from that card, the action's own org-scoped
          checks still refuse anything that has stopped being true. */
-      const attachTo =
-        prefill?.staffProfileId ?? (found?.kind === "card" ? found.staffProfileId : undefined);
-      const res = await createInvite({ email, role, staffProfileId: attachTo });
+      /* Trimmed to undefined, never "": an empty string is a value the action
+         would have to decide about, and "nobody typed a name" is an absence. */
+      const res = await createInvite({
+        email,
+        role,
+        name: name.trim() || undefined,
+        staffProfileId: attachTo,
+      });
       if (!res.ok) return setError(res.error);
 
       /* SILENT ON SUCCESS, LOUD ONLY WHERE SOMEBODY HAS TO ACT. A letter that
@@ -196,6 +212,21 @@ export function InviteModal({
         <div className="fl-mb">
           {error && <div className="fl-err">{error}</div>}
           <div className="fl-grid">
+            {!attachTo && (
+              <label className="fl-f span">
+                <span>Name</span>
+                <input
+                  className="fl-i"
+                  type="text"
+                  placeholder="Dan Whitfield"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submit();
+                  }}
+                />
+              </label>
+            )}
             <label className="fl-f span">
               <span>
                 Email address<i>*</i>

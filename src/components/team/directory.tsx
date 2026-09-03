@@ -9,7 +9,7 @@ import { CopyLink } from "@/components/shell/copy-link";
 import { InviteModal } from "@/components/team/invite-modal";
 import { renewInvite, revokeInvite, type InviteResult } from "@/app/actions/invite";
 import { saveStaffSection } from "@/app/actions/staff";
-import type { PendingInviteRow, StaffRow } from "@/lib/staff/types";
+import type { MemberWithoutCardRow, PendingInviteRow, StaffRow } from "@/lib/staff/types";
 
 type View = "active" | "warn" | "pending";
 type Sort = "name" | "role" | "exp";
@@ -28,6 +28,9 @@ function hue(name: string) {
 export function TeamDirectory({
   staff,
   pending,
+  /** memberships with no staff card — people the directory could not show at
+      all until now, because it reads cards and they have none */
+  orphans = [],
   /** viewer holds `invites` — the link, Renew and Revoke are theirs alone */
   canInvite = false,
   /** origin the invite links are built from, resolved server-side */
@@ -37,6 +40,7 @@ export function TeamDirectory({
 }: {
   staff: StaffRow[];
   pending: PendingInviteRow[];
+  orphans?: MemberWithoutCardRow[];
   canInvite?: boolean;
   appUrl?: string;
   inviteRoles?: string[];
@@ -264,6 +268,50 @@ export function TeamDirectory({
               readable from this view — the message used to live only in the
               pending-invites branch. */}
           {inviteError && <div className="invmsg">{inviteError}</div>}
+          {/* ABOVE THE SEARCH, BECAUSE SEARCH CANNOT FIND THEM.
+
+              These people are in the workspace and have no staff card, so they
+              are in no list on this page: the directory reads `staff_profiles`
+              and decorates those rows with roles, never the other way round.
+              Filtering and sorting operate on cards too, so a row placed below
+              the toolbar would disappear the moment anybody typed. It sits
+              above, outside both.
+
+              IT SAYS THE FACT, NOT THE REMEDY. "No staff card" is what is true
+              and it is what stops them being assigned work, commenting, or
+              uploading anything. The card appears by itself the next time they
+              sign in — a line saying so would be a caption apologising for a
+              row, and would go stale the day that stops being the only way. */}
+          {view === "active" && orphans.length > 0 && (
+            <div className="dirnocards">
+              {orphans.map((m) => (
+                <div key={m.userId} className="invrow nocard">
+                  <span className="invwho">
+                    <span className="invav">
+                      <Icon name="alert" size={16} />
+                    </span>
+                    <span>
+                      {/* The address's local part is the last resort here for
+                          the same reason it is on a card with no stored name —
+                          it is the only thing anybody knows. And when even
+                          that is missing (no `profiles` row, the same vintage
+                          of anomaly as the missing card) the Auth0 sub is what
+                          is left: ugly, and the only handle an admin has. A
+                          row that identifies nobody is not a surface. */}
+                      <b>{m.name ?? (m.email ? m.email.split("@")[0] : "Unnamed account")}</b>
+                      <em>{m.email || m.userId}</em>
+                    </span>
+                  </span>
+                  <span className="invrole">{m.role}</span>
+                  <span className="invexp">
+                    <Icon name="alert" size={13} />
+                    No staff card
+                  </span>
+                  <span />
+                </div>
+              ))}
+            </div>
+          )}
           {/* The card's own toolbar — it sat between the tabs and the card,
               which the joined strip leaves no room for. */}
           <div className="dirtools">
@@ -442,7 +490,16 @@ export function TeamDirectory({
               );
             })}
           </div>
-          {rows.length === 0 && <div className="direm on">No staff match your filters.</div>}
+          {/* "No match" is a statement about a SEARCH, and it is a lie when
+              there was nothing to search. The panel is now reachable with no
+              staff cards at all — a workspace whose members have none, or one
+              that has only sent invitations — and telling that reader to adjust
+              filters they never set sends them looking for a control. */}
+          {rows.length === 0 && (
+            <div className="direm on">
+              {staff.length === 0 ? "No staff cards yet." : "No staff match your filters."}
+            </div>
+          )}
         </div>
       )}
 

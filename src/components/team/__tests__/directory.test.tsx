@@ -414,3 +414,75 @@ function menuButtonOf(name: string): HTMLElement {
 function cleanupMenus() {
   document.body.innerHTML = "";
 }
+
+
+/* A MEMBER WITH NO STAFF CARD (#611).
+
+   They sign in, hold a role, and appear in no panel on this page: the
+   directory reads `staff_profiles`, the Pending tab reads unaccepted invites,
+   and someone who accepted one and never got a card is in neither. */
+describe("members with no staff card", () => {
+  const orphan = {
+    userId: "auth0|orphan",
+    name: "Sam Rivers",
+    email: "sam@rivers.com",
+    role: "Staff",
+  };
+
+  it("shows them, with the fact that stops them working", () => {
+    render(<TeamDirectory staff={[]} pending={[]} orphans={[orphan]} />);
+
+    expect(screen.getByText("Sam Rivers")).toBeInTheDocument();
+    expect(screen.getByText("sam@rivers.com")).toBeInTheDocument();
+    expect(screen.getByText("No staff card")).toBeInTheDocument();
+  });
+
+  it("sits above the search, which could never find them", () => {
+    // Filtering and sorting operate on cards; a row below the toolbar would
+    // vanish the moment anybody typed.
+    const { container } = render(
+      <TeamDirectory staff={[]} pending={[]} orphans={[orphan]} />,
+    );
+    const block = container.querySelector(".dirnocards");
+    const tools = container.querySelector(".dirtools");
+    expect(block).not.toBeNull();
+    expect(block!.compareDocumentPosition(tools!)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("falls back to the address when nothing holds a real name", () => {
+    render(
+      <TeamDirectory staff={[]} pending={[]} orphans={[{ ...orphan, name: null }]} />,
+    );
+    expect(screen.getByText("sam")).toBeInTheDocument();
+  });
+
+  it("identifies them by their sub when no profile row survives", () => {
+    // profiles is written on every login, so a membership without one is the
+    // same vintage of anomaly as the missing card — and a row that identifies
+    // nobody is not a surface.
+    render(
+      <TeamDirectory
+        staff={[]}
+        pending={[]}
+        orphans={[{ ...orphan, name: null, email: "" }]}
+      />,
+    );
+    expect(screen.getByText("auth0|orphan")).toBeInTheDocument();
+    expect(screen.getByText("Unnamed account")).toBeInTheDocument();
+  });
+
+  it("says the list is empty, not that a filter matched nothing", () => {
+    // The panel is reachable now with no staff cards at all. "No staff match
+    // your filters" is a statement about a search nobody ran.
+    render(<TeamDirectory staff={[]} pending={[]} orphans={[orphan]} />);
+    expect(screen.getByText("No staff cards yet.")).toBeInTheDocument();
+    expect(screen.queryByText("No staff match your filters.")).toBeNull();
+  });
+
+  it("adds nothing to a workspace where every member has a card", () => {
+    const { container } = render(<TeamDirectory staff={[]} pending={[]} />);
+    expect(container.querySelector(".dirnocards")).toBeNull();
+  });
+});

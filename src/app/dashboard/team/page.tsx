@@ -6,7 +6,7 @@ import { TeamDirectory } from "@/components/team/directory";
 import { InviteButton } from "@/components/team/invite-modal";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { invitableRoles } from "@/lib/permissions";
-import { listPendingInvites, listStaff } from "@/lib/staff/query";
+import { listMembersWithoutCard, listPendingInvites, listStaff } from "@/lib/staff/query";
 
 // Capability-gated (`team`, default admin+): the directory exposes every staff
 // member's card. The nav entry is hidden for staff too, but this is the check
@@ -27,8 +27,13 @@ export default async function TeamPage() {
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const [staff, actorRole, caps] = await Promise.all([
+  const [staff, orphans, actorRole, caps] = await Promise.all([
     listStaff(orgId),
+    /* A member with no staff card is invisible in every panel on this page —
+       the directory reads cards, and the Pending tab reads unaccepted invites,
+       so somebody who accepted one and never got a card is in neither. Read
+       the roster directly and show them. */
+    listMembersWithoutCard(orgId),
     getDbRole(),
     getCapabilities(),
   ]);
@@ -59,7 +64,17 @@ export default async function TeamPage() {
             {canInvite ? <InviteButton roles={invitableAt} /> : null}
           </div>
 
-          {staff.length === 0 ? (
+          {/* THE EMPTY BOX HID THE ONLY THINGS THAT COULD FILL IT.
+
+              It gated on `staff.length` alone — the count of staff CARDS — so a
+              workspace whose every member has no card (this feature's own worst
+              case) read "No staff yet" while people were signed into it, and a
+              workspace that had invited its first person could not reach the
+              Pending tab at all. That second one is a dead end the invite modal
+              points AT: when mail is unconfigured it says "copy the link from
+              the Pending invites tab", and in a brand-new org that tab was not
+              on screen. Empty means all three are empty. */}
+          {staff.length === 0 && orphans.length === 0 && pending.length === 0 ? (
             <div className="emptybox">
               <span className="ei">
                 <Icon name="users" size={24} />
@@ -70,6 +85,7 @@ export default async function TeamPage() {
           ) : (
             <TeamDirectory
               staff={staff}
+              orphans={orphans}
               pending={pending}
               canInvite={canInvite}
               appUrl={appUrl}

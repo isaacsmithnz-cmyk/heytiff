@@ -54,7 +54,7 @@ argument in full.
 | --- | --- | --- |
 | Widget theme — colours, radii, the Jakarta face, the logo | `PATCH /branding/themes/{id}` | `update:branding` |
 | Logo, favicon, font, primary colour | `PATCH /branding` | `update:branding` |
-| The widget's wording | `PUT /prompts/login/custom-text/en` | `update:prompts` |
+| The widget's wording | `PUT /prompts/{login,signup}/custom-text/en` | `update:prompts` |
 | Seven email templates | `PATCH /email-templates/{name}` | `update:email_templates` |
 | The page around the widget | `PUT /branding/templates/universal-login` | `update:branding` **and a custom domain** |
 
@@ -237,9 +237,51 @@ Trading that for a cosmetic rename is a bad deal, so the rename — if it is
 still wanted for the Auth0 dashboard's own listing — is a ten-second field in
 **Applications → Settings → Name**, done by a human.
 
-`signup` and `reset-password` carry the same `${companyName}` default and will
-want the same treatment; each has its own screens and key names, and those get
-read off Auth0's published table rather than guessed.
+### The same sentence on the sign-up screen
+
+Until an invitation started landing people on Auth0's sign-up tab, nobody ever
+saw that screen, and it still read `Sign Up to dev-zuqpsxjwzz45pr0u to continue
+to Heytiff.` — the identical fault, plus a tab title of `Sign up | Heytiff` and
+a logo announced as the tenant id. `signup` is now written alongside `login`.
+
+**A wrong key name is the failure mode to design against.** Auth0's request
+schema is `additionalProperties: true`: a misspelled key is accepted, the
+script prints `✔ prompt text signup — updated (en)`, and the screen does not
+change. So the names are not written from memory. They came off Auth0's own
+published table — the current source, `auth0/docs-v2`, cross-checked against
+the legacy `auth0/docs` per-prompt markdown and a JSON fixture in
+`auth0/auth0-cli`. Note that Auth0's *rendered* table silently drops
+`pageTitle` from every screen: its default value contains an unescaped `|`,
+which splits the row into three cells in a two-column table and the third is
+discarded. Read the markdown source, not the page.
+
+**And check the screen, not the response.** The sign-up screen is public and
+unauthenticated, so the push is falsifiable in one command — the transaction
+cookie matters, `curl -L` alone gets a 400:
+
+```bash
+curl -sL -c /tmp/j -b /tmp/j -A Mozilla \
+  "https://$AUTH0_DOMAIN/authorize?client_id=$AUTH0_CLIENT_ID&response_type=code\
+&redirect_uri=$APP_BASE_URL/auth/callback&scope=openid&screen_hint=signup&state=x&nonce=x" \
+  | grep -o '<title>[^<]*</title>\|Create your account[^<]*'
+```
+
+A key that did nothing leaves the old sentence standing where a diff of the
+request body cannot see it. The grant has `update:prompts` but **not**
+`read:prompts`, so the API cannot be asked what it stored — the page is the
+only way to know, and it is the better one, because it is what a person sees.
+
+**Which sign-up screen renders depends on a tenant setting.** `signup` is the
+classic one-page form and is what this tenant serves. Turning on
+identifier-first swaps it for `signup-id` then `signup-password`, which carry
+the same defaults under their own key sets and are deliberately not written —
+text pushed to a screen that does not render is text nobody can check.
+
+`reset-password` is still unwritten. It is one prompt spanning five screens
+that a single PUT replaces together, so every screen wanted has to go in one
+call — and unlike `signup` it has never been looked at, so there is nothing yet
+to say is wrong with it. Reaching it needs a real password-reset transaction,
+which sends a real letter.
 
 ## The assets
 

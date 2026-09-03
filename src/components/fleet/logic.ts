@@ -459,6 +459,8 @@ export type VehiclePolicy = {
   inspectionOn?: string | null;
   /** How the row got here. Scanned and typed are different levels of trust. */
   source?: PolicySource | null;
+  /** When it was filed, ISO. Optional for the same reason as the rest. */
+  createdAt?: string;
 };
 
 export const INSURANCE_COVERS = [

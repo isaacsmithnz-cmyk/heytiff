@@ -228,7 +228,7 @@ export async function listPolicies(orgId: string): Promise<Record<string, Vehicl
     .from("vehicle_policies")
     .select(
       "id, vehicle_id, kind, provider, premium, starts_on, expires_on, document_id" +
-        ", policy_number, cover, excess, term_months, garaging_postcode, inspection_on, source",
+        ", policy_number, cover, excess, term_months, garaging_postcode, inspection_on, source, created_at",
     )
     .eq("org_id", orgId)
     .order("expires_on", { ascending: false });
@@ -245,6 +245,7 @@ export async function listPolicies(orgId: string): Promise<Record<string, Vehicl
       expiresOn: String(r.expires_on),
       documentId: (r.document_id as string) ?? null,
       ...policyDetail(r),
+      createdAt: typeof r.created_at === "string" ? r.created_at : undefined,
     });
   }
   return out;

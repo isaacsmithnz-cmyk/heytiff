@@ -1,4 +1,10 @@
-import { parseRegoCertificate, parseRenewalRead, renewalPrompt } from "../readers";
+import {
+  parseFinanceRead,
+  parsePurchaseInvoice,
+  parseRegoCertificate,
+  parseRenewalRead,
+  renewalPrompt,
+} from "../readers";
 
 /* The model's answer is INPUT. These pin what we believe of it, field by
    field, against the two real documents that drove the work: the Triton's
@@ -166,5 +172,84 @@ describe("renewalPrompt", () => {
     // the one rule every kind shares
     for (const k of ["rego", "insurance", "ctp"] as const)
       expect(renewalPrompt(k)).toMatch(/the LATER date is expiresOn/);
+  });
+});
+
+/* ---- phase 2: the finance agreement and the fuller invoice ---- */
+
+const AGREEMENT = {
+  lender: "Macquarie Leasing",
+  agreementNo: "402193",
+  kind: "chattel_mortgage",
+  startsOn: "2022-09-01",
+  termMonths: 60,
+  repayment: 742.18,
+  frequency: "monthly",
+  ratePct: 7.45,
+  balloon: 12000,
+  amountFinanced: 38500,
+};
+
+describe("parseFinanceRead", () => {
+  it("reads an agreement as the record panel will receive it", () => {
+    expect(parseFinanceRead(AGREEMENT)).toEqual(AGREEMENT);
+  });
+
+  it("believes only a kind and a frequency the table has a check for", () => {
+    expect(parseFinanceRead({ ...AGREEMENT, kind: "personal loan", frequency: "quarterly" })).toMatchObject({
+      kind: null,
+      frequency: null,
+    });
+  });
+
+  it("keeps a rate as a percentage and refuses one that cannot be", () => {
+    expect(parseFinanceRead({ ...AGREEMENT, ratePct: 7.4549 }).ratePct).toBe(7.455);
+    expect(parseFinanceRead({ ...AGREEMENT, ratePct: 120 }).ratePct).toBeNull();
+    expect(parseFinanceRead({ ...AGREEMENT, ratePct: "7.45%" }).ratePct).toBeNull();
+  });
+
+  it("refuses a term no lender writes, and a negative money figure", () => {
+    expect(parseFinanceRead({ ...AGREEMENT, termMonths: 600 }).termMonths).toBeNull();
+    expect(parseFinanceRead({ ...AGREEMENT, termMonths: 0 }).termMonths).toBeNull();
+    expect(parseFinanceRead({ ...AGREEMENT, balloon: -1 }).balloon).toBeNull();
+  });
+
+  it("returns nulls, not a crash, for an answer that isn't an object", () => {
+    expect(Object.values(parseFinanceRead(null)).every((v) => v === null)).toBe(true);
+    expect(Object.values(parseFinanceRead("nope")).every((v) => v === null)).toBe(true);
+  });
+});
+
+const INVOICE = {
+  cost: 41990,
+  purchasedOn: "2025-01-14",
+  supplier: "Sydney City Mitsubishi",
+  invoiceNo: "TI-88213",
+  exGst: 36354.55,
+  gst: 3635.45,
+  onRoadCosts: 2000,
+  deposit: 4000,
+  odometer: 12,
+};
+
+describe("parsePurchaseInvoice", () => {
+  it("reads the dealer's invoice as printed", () => {
+    expect(parsePurchaseInvoice(INVOICE)).toEqual(INVOICE);
+  });
+
+  it("keeps a zero odometer — a new vehicle's — and drops a negative one", () => {
+    expect(parsePurchaseInvoice({ ...INVOICE, odometer: 0 }).odometer).toBe(0);
+    expect(parsePurchaseInvoice({ ...INVOICE, odometer: -5 }).odometer).toBeNull();
+    expect(parsePurchaseInvoice({ ...INVOICE, odometer: 12.4 }).odometer).toBe(12);
+  });
+
+  it("never derives GST or a total from the other lines", () => {
+    expect(parsePurchaseInvoice({ ...INVOICE, gst: null })).toMatchObject({ gst: null, cost: 41990 });
+    expect(parsePurchaseInvoice({ ...INVOICE, cost: null, exGst: 36354.55, gst: 3635.45 }).cost).toBeNull();
+  });
+
+  it("still carries the three fields the form always read", () => {
+    const r = parsePurchaseInvoice({ cost: 30000, purchasedOn: "2024-03-01", supplier: "Private sale" });
+    expect(r).toMatchObject({ cost: 30000, purchasedOn: "2024-03-01", supplier: "Private sale", invoiceNo: null, exGst: null });
   });
 });

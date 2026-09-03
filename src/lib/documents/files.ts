@@ -60,6 +60,10 @@ export type DocumentKind =
      picture of a van as a receipt, and so the card can find its photo by kind
      rather than by guessing which image among the paperwork is the vehicle. */
   | "vehicle_photo"
+  /* The finance agreement behind a vehicle's repayments. Its own kind for the
+     standing reason — a loan contract must not be adoptable as a receipt —
+     and so the Financials screen can file it under the agreement it states. */
+  | "finance_agreement"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -78,6 +82,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "rego_notice",
   "green_slip",
   "vehicle_photo",
+  "finance_agreement",
   "other",
 ];
 

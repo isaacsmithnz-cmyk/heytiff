@@ -73,6 +73,9 @@ function fleet(): FleetActions {
     recordRenewal: jest.fn(),
     attachPolicyDocument: jest.fn(),
     setVehiclePhoto: jest.fn(),
+    recordFinance: jest.fn(),
+    attachFinanceDocument: jest.fn(),
+    attachPurchaseDocument: jest.fn(),
     removeVehicle: jest.fn(),
     assignVehicle: jest.fn(),
     addLog: jest.fn(),
@@ -95,6 +98,7 @@ function mount(over: Partial<Vehicle> = {}) {
       eco={{}}
       documents={[]}
       policies={[slip]}
+      finance={[]}
       staff={[{ id: "s1", name: "Dane Poulos", status: "Active" }]}
       today={TODAY}
       fleet={f}
@@ -217,4 +221,17 @@ it("assigning a driver reaches the action, and the pool is a real option", async
   const { user, f } = mount();
   await user.selectOptions(screen.getByRole("combobox", { name: "Driver" }), "s1");
   expect(f.assignVehicle).toHaveBeenCalledWith("v1", "s1");
+});
+
+/* ---- phase 2: the money has its own screen ---- */
+
+it("the FINANCIALS card is the door to the Financials screen, and Back returns", async () => {
+  mount();
+  const user = userEvent.setup();
+  expect(screen.getByText("No finance agreement recorded")).toBeInTheDocument(); // the card's third column
+  await user.click(screen.getByRole("button", { name: "Financials" }));
+  expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
+  expect(screen.getByText("COST TO RUN · LAST 12 MONTHS")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByText("VEHICLE DETAILS")).toBeInTheDocument();
 });

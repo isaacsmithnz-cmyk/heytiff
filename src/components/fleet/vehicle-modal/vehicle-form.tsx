@@ -75,6 +75,8 @@ type Fields = {
   lastServiceOn: string;
   purchaseDate: string;
   purchasePrice: string;
+  purchaseSupplier: string;
+  purchaseInvoiceNo: string;
   value: string;
   status: VehicleStatus;
   assignedTo: string;
@@ -117,6 +119,8 @@ function fromVehicle(v: Vehicle, today: string): Fields {
     lastServiceOn: v.lastServiceDays == null ? "" : dateFromDays(-v.lastServiceDays, today),
     purchaseDate: v.purchaseDateDays ? dateFromDays(-v.purchaseDateDays, today) : "",
     purchasePrice: v.purchasePrice ? String(v.purchasePrice) : "",
+    purchaseSupplier: s(v.purchaseSupplier),
+    purchaseInvoiceNo: s(v.purchaseInvoiceNo),
     value: String(v.value),
     status: v.status,
     assignedTo: v.assignedTo ?? "",
@@ -153,6 +157,8 @@ const BLANK: Fields = {
   lastServiceOn: "",
   purchaseDate: "",
   purchasePrice: "",
+  purchaseSupplier: "",
+  purchaseInvoiceNo: "",
   value: "",
   status: "active",
   assignedTo: "",
@@ -210,6 +216,9 @@ export function VehicleForm({
   const [cert, setCert] = useState<Cert>({ state: "idle" });
   const [certWarn, setCertWarn] = useState<string | null>(null);
   const [invoice, setInvoice] = useState<Invoice>({ state: "none" });
+  const [invoiceExtras, setInvoiceExtras] = useState<
+    Partial<Pick<Vehicle, "purchaseExGst" | "purchaseGst" | "purchaseOnRoad" | "purchaseDeposit" | "purchaseOdometer">>
+  >({});
   const certInput = useRef<HTMLInputElement>(null);
   const invoiceInput = useRef<HTMLInputElement>(null);
 
@@ -303,11 +312,22 @@ export function VehicleForm({
       return;
     }
     let read: string | null = null;
-    if (scan.ok && (scan.cost || scan.purchasedOn)) {
+    if (scan.ok && (scan.cost || scan.purchasedOn || scan.supplier)) {
       setF((p) => ({
         ...p,
         purchasePrice: scan.cost ? String(scan.cost) : p.purchasePrice,
         purchaseDate: scan.purchasedOn ?? p.purchaseDate,
+        purchaseSupplier: scan.supplier ?? p.purchaseSupplier,
+        purchaseInvoiceNo: scan.invoiceNo ?? p.purchaseInvoiceNo,
+      }));
+      /* The rest of the invoice has no field on this form — it is read on the
+         Financials screen — but it was read now, so it is kept and saved. */
+      setInvoiceExtras((x) => ({
+        purchaseExGst: scan.exGst ?? x.purchaseExGst,
+        purchaseGst: scan.gst ?? x.purchaseGst,
+        purchaseOnRoad: scan.onRoadCosts ?? x.purchaseOnRoad,
+        purchaseDeposit: scan.deposit ?? x.purchaseDeposit,
+        purchaseOdometer: scan.odometer ?? x.purchaseOdometer,
       }));
       read = [scan.cost ? fmtMoney(scan.cost) : null, scan.purchasedOn, scan.supplier].filter(Boolean).join(" · ");
     }
@@ -334,6 +354,14 @@ export function VehicleForm({
       value: num(f.value),
       purchasePrice: num(f.purchasePrice),
       purchaseDateDays: f.purchaseDate ? Math.max(0, -daysUntil(f.purchaseDate, today)) : 0,
+      purchaseSupplier: f.purchaseSupplier.trim() || null,
+      purchaseInvoiceNo: f.purchaseInvoiceNo.trim() || null,
+      // read off the invoice here, or carried from the record — never typed on this form
+      purchaseExGst: invoiceExtras.purchaseExGst ?? initial?.purchaseExGst ?? null,
+      purchaseGst: invoiceExtras.purchaseGst ?? initial?.purchaseGst ?? null,
+      purchaseOnRoad: invoiceExtras.purchaseOnRoad ?? initial?.purchaseOnRoad ?? null,
+      purchaseDeposit: invoiceExtras.purchaseDeposit ?? initial?.purchaseDeposit ?? null,
+      purchaseOdometer: invoiceExtras.purchaseOdometer ?? initial?.purchaseOdometer ?? null,
       /* The dates are the card's. Editing keeps whatever the vehicle had;
          adding files the first rego as a RECORD below, and the cache follows. */
       regoDays: initial ? initial.regoDays : f.regoExpiry ? daysUntil(f.regoExpiry, today) : null,
@@ -641,6 +669,12 @@ export function VehicleForm({
             </Field>
             <Field label="Book value ($)" hint="What it's worth today — the fleet total adds these up.">
               <input className="vm-input" type="number" placeholder="What it's worth now" value={f.value} onChange={set("value")} />
+            </Field>
+            <Field label="Supplier">
+              <input className="vm-input" placeholder="Dealer or seller" value={f.purchaseSupplier} onChange={set("purchaseSupplier")} />
+            </Field>
+            <Field label="Invoice no.">
+              <input className="vm-input" placeholder="On the tax invoice" value={f.purchaseInvoiceNo} onChange={set("purchaseInvoiceNo")} />
             </Field>
             <div className="vm-ffield wide3">
               <input

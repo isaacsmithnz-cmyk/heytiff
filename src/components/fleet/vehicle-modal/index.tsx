@@ -9,12 +9,13 @@ import type {
   AiValuation,
   FleetStaff,
   LogKind,
-  RenewalKind,
   Vehicle,
+  VehicleFinance,
   VehicleLog,
   VehiclePolicy,
 } from "../logic";
 import type { Screen } from "./derive";
+import { FinancialsScreen } from "./financials-screen";
 import { MainScreen } from "./main-screen";
 import { RenewalScreen } from "./renewal-screen";
 
@@ -42,6 +43,7 @@ export function VehicleModal({
   valuationIsStale,
   documents,
   policies,
+  finance,
   staff,
   today,
   fleet,
@@ -59,6 +61,7 @@ export function VehicleModal({
   valuationIsStale?: boolean;
   documents: StoredDocument[];
   policies: VehiclePolicy[];
+  finance: VehicleFinance[];
   staff: FleetStaff[];
   today: string;
   fleet: FleetActions;
@@ -101,10 +104,11 @@ export function VehicleModal({
             valuationIsStale={valuationIsStale}
             documents={documents}
             policies={policies}
+            finance={finance}
             staff={staff}
             today={today}
             error={fleet.error}
-            onOpen={(kind: RenewalKind) => setScreen(kind)}
+            onOpen={(s) => setScreen(s)}
             onServiceHistory={onServiceHistory}
             onEdit={onEdit}
             onRemove={() => {
@@ -119,6 +123,27 @@ export function VehicleModal({
             onPhoto={(file) => void setPhoto(file)}
             onResolve={fleet.resolveIssue}
             onCorrect={onCorrect}
+          />
+        ) : screen === "financials" ? (
+          <FinancialsScreen
+            vehicle={vehicle}
+            today={today}
+            valuation={valuation}
+            valuationIsStale={valuationIsStale}
+            documents={documents}
+            policies={policies}
+            logs={logs}
+            finance={finance}
+            pending={fleet.pending}
+            error={fleet.error}
+            onBack={() => setScreen("main")}
+            onSaveVehicle={(v) => fleet.saveVehicle(v)}
+            onRecordFinance={(input) => {
+              fleet.recordFinance({ ...input, vehicleId: vehicle.id });
+              setScreen("main");
+            }}
+            onAttachFinance={fleet.attachFinanceDocument}
+            onAttachInvoice={(documentId) => fleet.attachPurchaseDocument(vehicle.id, documentId)}
           />
         ) : (
           <RenewalScreen

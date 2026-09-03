@@ -9,14 +9,18 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { vehicleRow } from "@/lib/fleet/map";
 import { fuelTaxColumns } from "@/lib/fleet/receipt";
 import {
+  FINANCE_KINDS,
   INSURANCE_COVERS,
   odoEffect,
   odoRecompute,
   odoRejection,
+  PAYMENT_FREQUENCIES,
   RENEWAL_DOC_KIND,
   RENEWAL_EXPIRY_COLUMN,
+  type FinanceKind,
   type InsuranceCover,
   type NewLog,
+  type PaymentFrequency,
   type PolicySource,
   type RenewalKind,
   type Vehicle,
@@ -751,6 +755,164 @@ export async function setVehiclePhoto(vehicleId: string, documentId: string): Pr
     .eq("org_id", ctx.orgId)
     .eq("id", vehicleId);
   if (error) return { ok: false, error: "Couldn't set that photo." };
+  refresh();
+  return { ok: true };
+}
+
+/* ---------------- finance (assets_all) ---------------- */
+
+/* The agreement behind the repayments (vehicle modal v2, phase 2). Same shape
+   as a renewal: a row per agreement, the newest schedule in force, the paper
+   filed under it. Lender, start and term are required because without them
+   there is no schedule to show; every money figure is optional and never
+   invented — a contract that doesn't print a balloon has none recorded. */
+
+export type FinanceInput = {
+  vehicleId: string;
+  lender: string;
+  agreementNo?: string | null;
+  kind?: FinanceKind | null;
+  startsOn: string;
+  termMonths: number;
+  repayment?: number | null;
+  frequency?: PaymentFrequency | null;
+  ratePct?: number | null;
+  balloon?: number | null;
+  amountFinanced?: number | null;
+  documentId?: string;
+  source?: PolicySource | null;
+};
+
+const asFinanceKind = (v: unknown): FinanceKind | null =>
+  typeof v === "string" && (FINANCE_KINDS as readonly string[]).includes(v) ? (v as FinanceKind) : null;
+const asFrequency = (v: unknown): PaymentFrequency =>
+  typeof v === "string" && (PAYMENT_FREQUENCIES as readonly string[]).includes(v)
+    ? (v as PaymentFrequency)
+    : "monthly";
+
+export async function recordFinance(input: FinanceInput): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+  if (!(await vehicleIn(ctx.orgId, input.vehicleId))) return GONE;
+
+  const lender = input.lender?.trim();
+  if (!lender) return { ok: false, error: "A finance agreement needs a lender." };
+  if (!input.startsOn || !/^\d{4}-\d{2}-\d{2}$/.test(input.startsOn))
+    return { ok: false, error: "A finance agreement needs a start date." };
+  const term = Math.round(Number(input.termMonths));
+  if (!Number.isFinite(term) || term <= 0 || term > 240)
+    return { ok: false, error: "A finance agreement needs a term in months." };
+  const rate =
+    typeof input.ratePct === "number" && Number.isFinite(input.ratePct) && input.ratePct >= 0 && input.ratePct < 100
+      ? Math.round(input.ratePct * 1000) / 1000
+      : null;
+
+  const { data: row, error } = await supabaseAdmin
+    .from("vehicle_finance")
+    .insert({
+      org_id: ctx.orgId,
+      vehicle_id: input.vehicleId,
+      lender,
+      agreement_no: input.agreementNo?.trim() || null,
+      kind: asFinanceKind(input.kind),
+      starts_on: input.startsOn,
+      term_months: term,
+      repayment: moneyOrNull(input.repayment),
+      frequency: asFrequency(input.frequency),
+      rate_pct: rate,
+      balloon: moneyOrNull(input.balloon),
+      amount_financed: moneyOrNull(input.amountFinanced),
+      document_id: input.documentId ?? null,
+      source: asSource(input.source),
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: "Couldn't record that agreement." };
+
+  if (input.documentId) await adoptFinanceDocument(ctx, input.vehicleId, input.documentId, row.id as string);
+  refresh();
+  return { ok: true };
+}
+
+/* Same adoption contract as a renewal's paper: only the uploader's own,
+   confirmed, still-orphaned finance_agreement may land, and a document that
+   refused must not be claimed by the row. */
+async function adoptFinanceDocument(ctx: Ctx, vehicleId: string, documentId: string, financeId: string): Promise<boolean> {
+  if (!ctx.staffId) return false;
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: vehicleId, finance_id: financeId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", "finance_agreement")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null)
+    .select("id");
+  const landed = !!data && data.length > 0;
+  if (!landed) {
+    await supabaseAdmin
+      .from("vehicle_finance")
+      .update({ document_id: null })
+      .eq("org_id", ctx.orgId)
+      .eq("id", financeId);
+  }
+  return landed;
+}
+
+/** The schedule, the payout letter, the amendment — more paper under an
+    agreement that already exists. Nothing is read; the row is left alone. */
+export async function attachFinanceDocument(financeId: string, documentId: string): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+  if (!ctx.staffId) return { ok: false, error: "Only a staff member can file documents." };
+
+  const { data: fin } = await supabaseAdmin
+    .from("vehicle_finance")
+    .select("id, vehicle_id")
+    .eq("org_id", ctx.orgId)
+    .eq("id", financeId)
+    .maybeSingle();
+  if (!fin) return { ok: false, error: "That agreement is no longer on file." };
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: fin.vehicle_id as string, finance_id: financeId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", "finance_agreement")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null)
+    .select("id");
+  if (!data || data.length === 0) return { ok: false, error: "That document couldn't be filed." };
+  refresh();
+  return { ok: true };
+}
+
+/** A purchase invoice filed against the vehicle after the fact — the dealer's
+    tax invoice that turned up a week later. Same contract as the one adopted
+    on save: the uploader's own, confirmed, orphaned purchase_invoice. */
+export async function attachPurchaseDocument(vehicleId: string, documentId: string): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+  if (!ctx.staffId) return { ok: false, error: "Only a staff member can file documents." };
+  if (!(await vehicleIn(ctx.orgId, vehicleId))) return GONE;
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: vehicleId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", "purchase_invoice")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null)
+    .select("id");
+  if (!data || data.length === 0) return { ok: false, error: "That document couldn't be filed." };
   refresh();
   return { ok: true };
 }

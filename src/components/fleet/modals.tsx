@@ -287,7 +287,8 @@ export function LogModal({
       vehicleId: target.id,
       kind,
       litres: kind === "fuel" ? num(litres) : undefined,
-      cost: kind === "fuel" && cost.trim() ? num(cost) : undefined,
+      // fuel and servicing are the two things a vehicle costs that get logged
+      cost: (kind === "fuel" || kind === "service") && cost.trim() ? num(cost) : undefined,
       odo: kind !== "issue" && odo.trim() ? num(odo) : undefined,
       note: note.trim() || undefined,
       station: kind === "fuel" && station.trim() ? station.trim() : undefined,
@@ -476,6 +477,17 @@ export function LogModal({
                 placeholder={`Currently ${fmtKm(target.odometer)}`}
                 value={odo}
                 onChange={(e) => setOdo(e.target.value)}
+              />
+            </Field>
+          )}
+          {kind === "service" && (
+            <Field label="Cost ($)" hint="What the service cost — it feeds the card's cost to run">
+              <input
+                className="fl-i"
+                type="number"
+                placeholder="e.g. 480"
+                value={cost}
+                onChange={(e) => setCost(e.target.value)}
               />
             </Field>
           )}

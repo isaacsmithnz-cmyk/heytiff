@@ -8,6 +8,7 @@ import type {
   FleetStaff,
   RenewalKind,
   Vehicle,
+  VehicleFinance,
   VehicleIdentity,
   VehicleLog,
   VehicleWithFacts,
@@ -19,7 +20,7 @@ import { RENEWAL_KINDS } from "@/components/fleet/logic";
    copy, so the type now has ONE home — the card that renders it — and this is
    the same direction as the VehicleWithFacts import above. */
 import type { AssignedVehicle } from "@/components/profile/types";
-import { policyDetail, toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from "./map";
+import { policyDetail, toFinance, toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from "./map";
 
 /* Fleet queries. Every one is scoped by org_id, like lib/staff/query.ts, and
    there is no unscoped read in this file.
@@ -44,7 +45,8 @@ const FACTS_COLUMNS =
 const FULL_COLUMNS =
   `${FACTS_COLUMNS}, assigned_to, value, purchase_price, purchase_date, notes, ai_value` +
   `, body_type, colour, vin, engine_number, engine_capacity_cc, seating, tare_kg, gvm_kg, atm_kg` +
-  `, variant, rego_customer_no, photo_document_id`;
+  `, variant, rego_customer_no, photo_document_id` +
+  `, purchase_supplier, purchase_invoice_no, purchase_ex_gst, purchase_gst, purchase_on_road, purchase_deposit, purchase_odometer`;
 
 /** The roster the register's driver picker needs — names and nothing else.
     This is minimum-identity: assigning a vehicle doesn't entitle you to HR. */
@@ -247,6 +249,26 @@ export async function listPolicies(orgId: string): Promise<Record<string, Vehicl
       ...policyDetail(r),
       createdAt: typeof r.created_at === "string" ? r.created_at : undefined,
     });
+  }
+  return out;
+}
+
+/** Finance agreements on file, per vehicle, newest schedule first. */
+export async function listFinance(orgId: string): Promise<Record<string, VehicleFinance[]>> {
+  const { data } = await supabaseAdmin
+    .from("vehicle_finance")
+    .select(
+      "id, vehicle_id, lender, agreement_no, kind, starts_on, term_months, repayment, frequency" +
+        ", rate_pct, balloon, amount_financed, document_id, source, created_at",
+    )
+    .eq("org_id", orgId)
+    .order("starts_on", { ascending: false });
+
+  const out: Record<string, VehicleFinance[]> = {};
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const f = toFinance(r);
+    if (!f) continue;
+    (out[String(r.vehicle_id)] ??= []).push(f);
   }
   return out;
 }

@@ -27,6 +27,8 @@ export type StoredDocument = {
   /** The renewal this document is filed under, when it is one of a policy's
       papers rather than the vehicle's own (a purchase invoice, the photo). */
   policyId: string | null;
+  /** The finance agreement this document is filed under, if any. */
+  financeId: string | null;
 };
 
 const COLUMNS =
@@ -49,7 +51,7 @@ export async function documentsForVehicles(
   const [own, onLogs] = await Promise.all([
     supabaseAdmin
       .from("documents")
-      .select(`${COLUMNS}, vehicle_id, policy_id`)
+      .select(`${COLUMNS}, vehicle_id, policy_id, finance_id`)
       .eq("org_id", orgId)
       .in("vehicle_id", [...vehicleIds])
       .not("uploaded_at", "is", null),
@@ -129,6 +131,7 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
     url: urls.get(String(r.storage_ref)) ?? null,
     image: isImage(mimeType),
     policyId: typeof r.policy_id === "string" ? r.policy_id : null,
+    financeId: typeof r.finance_id === "string" ? r.finance_id : null,
   };
 }
 

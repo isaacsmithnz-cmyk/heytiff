@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   addLog as addLogAction,
   assignVehicle as assignVehicleAction,
+  attachPolicyDocument as attachPolicyDocumentAction,
   deleteLog as deleteLogAction,
   editLog as editLogAction,
   recordRenewal as recordRenewalAction,
   removeVehicle as removeVehicleAction,
   resolveIssue as resolveIssueAction,
   saveVehicle as saveVehicleAction,
+  setVehiclePhoto as setVehiclePhotoAction,
 } from "@/app/actions/fleet";
 import type { LogEdit, RenewalInput } from "@/app/actions/fleet";
 import type { StoredDocument } from "@/lib/documents/query";
@@ -31,8 +33,12 @@ export type FleetActions = {
   pending: boolean;
   error: string | null;
   clearError: () => void;
-  saveVehicle: (v: Vehicle, purchaseInvoiceId?: string) => void;
+  saveVehicle: (v: Vehicle, purchaseInvoiceId?: string, initialRenewal?: Omit<RenewalInput, "vehicleId">) => void;
   recordRenewal: (input: RenewalInput) => void;
+  /** Files another piece of paper under a renewal that already exists. */
+  attachPolicyDocument: (policyId: string, documentId: string) => void;
+  /** The photo on the card — an already-uploaded vehicle_photo document. */
+  setVehiclePhoto: (vehicleId: string, documentId: string) => void;
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: NewLog) => void;
@@ -76,7 +82,16 @@ export function useFleetActions(): FleetActions {
     clearError: useCallback(() => setError(null), []),
     recordRenewal: useCallback((input: RenewalInput) => run(() => recordRenewalAction(input)), [run]),
     saveVehicle: useCallback(
-      (v: Vehicle, purchaseInvoiceId?: string) => run(() => saveVehicleAction(v, purchaseInvoiceId)),
+      (v: Vehicle, purchaseInvoiceId?: string, initialRenewal?: Omit<RenewalInput, "vehicleId">) =>
+        run(() => saveVehicleAction(v, purchaseInvoiceId, initialRenewal)),
+      [run],
+    ),
+    attachPolicyDocument: useCallback(
+      (policyId: string, documentId: string) => run(() => attachPolicyDocumentAction(policyId, documentId)),
+      [run],
+    ),
+    setVehiclePhoto: useCallback(
+      (vehicleId: string, documentId: string) => run(() => setVehiclePhotoAction(vehicleId, documentId)),
       [run],
     ),
     removeVehicle: useCallback((id: string) => run(() => removeVehicleAction(id)), [run]),

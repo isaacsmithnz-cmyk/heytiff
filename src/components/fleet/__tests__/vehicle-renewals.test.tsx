@@ -372,6 +372,8 @@ it("Update opens the renewal flow from the real register, not just the empty sta
     clearError: noop,
     saveVehicle: noop,
     recordRenewal: noop,
+    attachPolicyDocument: noop,
+    setVehiclePhoto: noop,
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,

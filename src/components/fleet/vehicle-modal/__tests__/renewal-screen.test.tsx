@@ -101,6 +101,8 @@ function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; po
       today={TODAY}
       documents={over.documents ?? [slipDoc]}
       policies={over.policies ?? [greenSlip, rego]}
+      reminders={[]}
+      onRemind={jest.fn()}
       pending={false}
       error={null}
       onBack={onBack}

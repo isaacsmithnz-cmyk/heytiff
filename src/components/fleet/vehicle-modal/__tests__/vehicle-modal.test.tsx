@@ -76,6 +76,7 @@ function fleet(): FleetActions {
     recordFinance: jest.fn(),
     attachFinanceDocument: jest.fn(),
     attachPurchaseDocument: jest.fn(),
+    setRenewalReminder: jest.fn(),
     removeVehicle: jest.fn(),
     assignVehicle: jest.fn(),
     addLog: jest.fn(),
@@ -99,6 +100,7 @@ function mount(over: Partial<Vehicle> = {}) {
       documents={[]}
       policies={[slip]}
       finance={[]}
+      reminders={[]}
       staff={[{ id: "s1", name: "Dane Poulos", status: "Active" }]}
       today={TODAY}
       fleet={f}

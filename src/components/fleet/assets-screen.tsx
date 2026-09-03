@@ -15,6 +15,7 @@ import type {
   VehicleWithFacts,
 } from "./logic";
 import type { StoredDocument } from "@/lib/documents/query";
+import type { RenewalReminder } from "@/lib/fleet/reminders";
 import { MyVehicle } from "./my-vehicle";
 import { FleetRegister } from "./register";
 
@@ -57,6 +58,8 @@ export type Register = {
   policies: Record<string, VehiclePolicy[]>;
   /** Finance agreements on file, per vehicle, newest first. */
   finance: Record<string, VehicleFinance[]>;
+  /** The viewer's own renewal reminders, per vehicle — the REMIND ME chips. */
+  reminders: Record<string, RenewalReminder[]>;
 };
 
 type AssetsView = "fleet" | "equipment";

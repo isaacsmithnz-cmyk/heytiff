@@ -15,11 +15,13 @@ import {
   removeVehicle as removeVehicleAction,
   resolveIssue as resolveIssueAction,
   saveVehicle as saveVehicleAction,
+  setRenewalReminder as setRenewalReminderAction,
   setVehiclePhoto as setVehiclePhotoAction,
 } from "@/app/actions/fleet";
 import type { FinanceInput, LogEdit, RenewalInput } from "@/app/actions/fleet";
 import type { StoredDocument } from "@/lib/documents/query";
-import type { AiValuation, NewLog, Vehicle, VehicleFinance, VehicleLog, VehiclePolicy } from "./logic";
+import type { RenewalReminder } from "@/lib/fleet/reminders";
+import type { AiValuation, NewLog, RenewalKind, Vehicle, VehicleFinance, VehicleLog, VehiclePolicy } from "./logic";
 
 /* Fleet state. The localStorage overlay (ht_fleet_v1) is gone — server data
    arrives as props and every mutation is a server action followed by
@@ -48,6 +50,8 @@ export type FleetActions = {
   attachFinanceDocument: (financeId: string, documentId: string) => void;
   /** A purchase invoice filed against the vehicle from the Financials screen. */
   attachPurchaseDocument: (vehicleId: string, documentId: string) => void;
+  /** A REMIND ME chip: on creates the viewer's reminder task, off deletes it. */
+  setRenewalReminder: (vehicleId: string, kind: RenewalKind, leadDays: number, on: boolean) => void;
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: NewLog) => void;
@@ -66,6 +70,8 @@ export type FleetState = FleetActions & {
   policies: Record<string, VehiclePolicy[]>;
   /** Finance agreements on file, per vehicle, newest first. */
   finance: Record<string, VehicleFinance[]>;
+  /** The viewer's own renewal reminders, per vehicle. */
+  reminders: Record<string, RenewalReminder[]>;
 };
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -112,6 +118,11 @@ export function useFleetActions(): FleetActions {
     ),
     attachPurchaseDocument: useCallback(
       (vehicleId: string, documentId: string) => run(() => attachPurchaseDocumentAction(vehicleId, documentId)),
+      [run],
+    ),
+    setRenewalReminder: useCallback(
+      (vehicleId: string, kind: RenewalKind, leadDays: number, on: boolean) =>
+        run(() => setRenewalReminderAction(vehicleId, kind, leadDays, on)),
       [run],
     ),
     removeVehicle: useCallback((id: string) => run(() => removeVehicleAction(id)), [run]),

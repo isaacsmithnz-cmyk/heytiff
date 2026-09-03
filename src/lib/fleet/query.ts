@@ -21,6 +21,7 @@ import { RENEWAL_KINDS } from "@/components/fleet/logic";
    the same direction as the VehicleWithFacts import above. */
 import type { AssignedVehicle } from "@/components/profile/types";
 import { policyDetail, toFinance, toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from "./map";
+import type { RenewalReminder } from "./reminders";
 
 /* Fleet queries. Every one is scoped by org_id, like lib/staff/query.ts, and
    there is no unscoped read in this file.
@@ -269,6 +270,39 @@ export async function listFinance(orgId: string): Promise<Record<string, Vehicle
     const f = toFinance(r);
     if (!f) continue;
     (out[String(r.vehicle_id)] ??= []).push(f);
+  }
+  return out;
+}
+
+/** The viewer's own open renewal reminders, per vehicle — what the REMIND ME
+    chips read. Personal by construction (assigned_to is the viewer), and
+    tolerant of its own migration like the bell's read: a workspace whose
+    database has not taken renewal_reminders.sql gets no chips on, not a broken
+    register. */
+export async function listRenewalReminders(
+  orgId: string,
+  staffId: string | null,
+): Promise<Record<string, RenewalReminder[]>> {
+  if (!staffId) return {};
+  const { data, error } = await supabaseAdmin
+    .from("tasks")
+    .select("id, vehicle_id, renewal_kind, lead_days, due_date")
+    .eq("org_id", orgId)
+    .eq("assigned_to", staffId)
+    .eq("status", "open")
+    .not("vehicle_id", "is", null);
+  if (error) return {};
+
+  const out: Record<string, RenewalReminder[]> = {};
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const kind = String(r.renewal_kind);
+    if (!(RENEWAL_KINDS as readonly string[]).includes(kind)) continue;
+    (out[String(r.vehicle_id)] ??= []).push({
+      taskId: String(r.id),
+      kind: kind as RenewalKind,
+      leadDays: Math.max(0, Math.round(Number(r.lead_days)) || 0),
+      dueDate: r.due_date ? String(r.due_date).slice(0, 10) : null,
+    });
   }
   return out;
 }

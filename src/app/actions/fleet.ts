@@ -8,6 +8,10 @@ import { todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { vehicleRow } from "@/lib/fleet/map";
 import { fuelTaxColumns } from "@/lib/fleet/receipt";
+import { isReminderLead, reminderDetail, reminderDueDate, reminderTitle } from "@/lib/fleet/reminders";
+import { remindAtFrom } from "@/lib/dashboard/reminders";
+import { workdayHours } from "@/lib/dashboard/reminders-query";
+import { getSm8Timezone } from "@/lib/workboard/query";
 import {
   FINANCE_KINDS,
   INSURANCE_COVERS,
@@ -649,6 +653,8 @@ async function fileRenewal(
       .update({ [RENEWAL_EXPIRY_COLUMN[input.kind]]: input.expiresOn, updated_at: new Date().toISOString() })
       .eq("org_id", ctx.orgId)
       .eq("id", vehicleId);
+    // and every reminder counting down to it counts down to the new date
+    await rescheduleRenewalReminders(ctx, vehicleId, input.kind, input.expiresOn);
   }
 
   if (input.documentId) {
@@ -915,4 +921,133 @@ export async function attachPurchaseDocument(vehicleId: string, documentId: stri
   if (!data || data.length === 0) return { ok: false, error: "That document couldn't be filed." };
   refresh();
   return { ok: true };
+}
+
+/* ---------------- renewal reminders (assets_all) ---------------- */
+
+/* "Remind me 30 days before the rego expires" is a TASK — see
+   docs/migrations/renewal_reminders.sql. Turning a chip on creates one open
+   task of the caller's own for (vehicle, kind, lead), titled for the vehicle,
+   due `lead` days before the expiry and nudged that morning through the bell
+   like every other reminder. Turning it off deletes that task. Personal, like
+   every other reminder: the chips show YOUR reminders, and nobody else's are
+   touched. Register tier, because the renewal it counts down to is. */
+export async function setRenewalReminder(
+  vehicleId: string,
+  kind: RenewalKind,
+  leadDays: number,
+  on: boolean,
+): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+  if (!ctx.staffId) return { ok: false, error: "Only a staff member can set a reminder." };
+  if (!(kind in RENEWAL_DOC_KIND) || !isReminderLead(leadDays)) {
+    return { ok: false, error: "Couldn't set that reminder." };
+  }
+
+  const { data: vehicle } = await supabaseAdmin
+    .from("vehicles")
+    .select("id, name, plate, make, model, rego_expiry, insurance_expiry, ctp_expiry")
+    .eq("org_id", ctx.orgId)
+    .eq("id", vehicleId)
+    .maybeSingle();
+  if (!vehicle) return GONE;
+  const v = vehicle as Record<string, unknown>;
+
+  if (!on) {
+    const { error } = await supabaseAdmin
+      .from("tasks")
+      .delete()
+      .eq("org_id", ctx.orgId)
+      .eq("assigned_to", ctx.staffId)
+      .eq("vehicle_id", vehicleId)
+      .eq("renewal_kind", kind)
+      .eq("lead_days", leadDays)
+      .eq("status", "open");
+    if (error) return { ok: false, error: "Couldn't clear that reminder." };
+    refreshReminders();
+    return { ok: true };
+  }
+
+  const expiry = v[RENEWAL_EXPIRY_COLUMN[kind]];
+  const expiresOn = typeof expiry === "string" ? expiry.slice(0, 10) : null;
+  if (!expiresOn) {
+    return { ok: false, error: "Record the renewal first — a reminder needs an expiry to count from." };
+  }
+
+  // already on: the chip is derived from this row, so a second press is a no-op
+  const { data: existing } = await supabaseAdmin
+    .from("tasks")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("assigned_to", ctx.staffId)
+    .eq("vehicle_id", vehicleId)
+    .eq("renewal_kind", kind)
+    .eq("lead_days", leadDays)
+    .eq("status", "open")
+    .limit(1);
+  if (existing && existing.length > 0) return { ok: true };
+
+  const dueDate = reminderDueDate(expiresOn, leadDays);
+  const [tz, day] = await Promise.all([getSm8Timezone(ctx.orgId), workdayHours(ctx.orgId, ctx.staffId)]);
+  const { error } = await supabaseAdmin.from("tasks").insert({
+    org_id: ctx.orgId,
+    title: reminderTitle(
+      { name: String(v.name ?? ""), plate: String(v.plate ?? ""), make: String(v.make ?? ""), model: String(v.model ?? "") },
+      kind,
+    ),
+    detail: reminderDetail(expiresOn, leadDays),
+    assigned_to: ctx.staffId,
+    created_by: ctx.staffId,
+    due_date: dueDate,
+    status: "open",
+    // the morning of the day — the person's own start, on the workspace's clock
+    remind_at: remindAtFrom(dueDate, day.start, tz),
+    remind_kind: "at",
+    vehicle_id: vehicleId,
+    renewal_kind: kind,
+    lead_days: leadDays,
+  });
+  if (error) return { ok: false, error: "Couldn't set that reminder." };
+  refreshReminders();
+  return { ok: true };
+}
+
+/** A reminder is a task, so the task list and the bell change too. */
+function refreshReminders() {
+  refresh();
+  revalidatePath("/dashboard");
+}
+
+/* A recorded renewal moves the expiry, so every open reminder about it moves
+   with it — for everyone who asked, because the date is the vehicle's and not
+   the asker's. A moved reminder is a new nudge, so the mailer's stamp clears. */
+async function rescheduleRenewalReminders(ctx: Ctx, vehicleId: string, kind: RenewalKind, expiresOn: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("id, assigned_to, lead_days")
+    .eq("org_id", ctx.orgId)
+    .eq("vehicle_id", vehicleId)
+    .eq("renewal_kind", kind)
+    .eq("status", "open");
+  if (!data || data.length === 0) return;
+
+  const tz = await getSm8Timezone(ctx.orgId);
+  for (const t of data as Record<string, unknown>[]) {
+    const lead = Math.max(0, Math.round(Number(t.lead_days)) || 0);
+    const dueDate = reminderDueDate(expiresOn, lead);
+    const day = await workdayHours(ctx.orgId, typeof t.assigned_to === "string" ? t.assigned_to : null);
+    await supabaseAdmin
+      .from("tasks")
+      .update({
+        due_date: dueDate,
+        remind_at: remindAtFrom(dueDate, day.start, tz),
+        detail: reminderDetail(expiresOn, lead),
+        reminder_emailed_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("org_id", ctx.orgId)
+      .eq("id", String(t.id));
+  }
 }

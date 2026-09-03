@@ -12073,3 +12073,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .vm-histr { display:flex; gap:12px; align-items:center; font-size:12.5px; font-weight:600; color:var(--q); flex:none; }
 .vm-histbody { display:flex; flex-direction:column; gap:10px; padding:2px 0 14px; }
 .vm-inset { background:#fff; border:1px solid var(--vm-line2); border-radius:10px; padding:10px 12px; }
+
+/* ---- add / edit vehicle ---- */
+.vm-photo.static { cursor:default; }
+.vm-form { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px 14px; }
+.vm-ffield.wide { grid-column:span 2; }
+.vm-ffield.wide3 { grid-column:1 / -1; }
+.vm-hint { font-style:normal; font-size:11.5px; color:var(--vm-muted); line-height:1.35; }
+.vm-input.mono { letter-spacing:.04em; text-transform:uppercase; }
+.vm-textarea { min-height:72px; resize:vertical; line-height:1.4; }
+.vm-quiet { flex-direction:row; align-items:center; gap:10px; font-size:13px; color:var(--q); }
+.vm-attachbtn { display:inline-flex; align-items:center; gap:8px; align-self:flex-start; font-size:12.5px; font-weight:700; color:var(--ok-t); padding:0; }
+.vm-attachbtn:hover { color:var(--ink); }
+.vm-attachbtn:disabled { color:var(--vm-muted); cursor:default; }
+.vm-attached { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--ink); }
+.vm-attached i { font-style:normal; font-weight:600; color:var(--vm-muted); }

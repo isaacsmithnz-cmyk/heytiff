@@ -24,17 +24,10 @@ import {
   valuationStale,
   vehicleChips,
   worstState,
-  type RenewalKind,
 } from "./logic";
-import {
-  DetailModal,
-  EditLogModal,
-  LogModal,
-  RenewalHistoryModal,
-  RenewalModal,
-  ServiceHistoryModal,
-  VehicleFormModal,
-} from "./modals";
+import { EditLogModal, LogModal, ServiceHistoryModal } from "./modals";
+import { VehicleModal, type Screen } from "./vehicle-modal";
+import { VehicleForm } from "./vehicle-modal/vehicle-form";
 import { Plate } from "./plate";
 
 /* Fleet register — the Manager/Owner view: whole fleet, assignment, service
@@ -47,19 +40,18 @@ function driverHue(name: string) {
   return h;
 }
 
+/* The vehicle card is ONE modal with its own screens (vehicle-modal/): the
+   renewal and history flows that used to be modals of their own are `screen`
+   values inside it, so this state no longer knows them. `screen` is only set
+   when something outside the card wants it opened on a particular record. */
 type ModalState =
   | { t: "none" }
   | { t: "add" }
   | { t: "edit"; id: string }
-  | { t: "detail"; id: string }
+  | { t: "detail"; id: string; screen?: Screen }
   | { t: "log"; id: string; kind: LogKind; back?: "service" }
   | { t: "fix"; id: string; log: VehicleLog }
-  | { t: "history"; id: string; kind: RenewalKind }
-  | { t: "services"; id: string }
-  /* `back` is where Cancel and Save return to. Filing from the history popup
-     lands back in it, so the row you just added is visible rather than taken
-     on trust. */
-  | { t: "renew"; id: string; kind: RenewalKind; back: "detail" | "history" };
+  | { t: "services"; id: string };
 
 /* The reason a refused valuation gave, or a plain one. Read inside a
    try/catch, where a `??` is a value block React Compiler 1.0 cannot lower —
@@ -231,12 +223,12 @@ export function FleetRegister({
           </button>
         </div>
         {modal.t === "add" && (
-          <VehicleFormModal
+          <VehicleForm
             initial={null}
             staff={staff}
             today={today}
-            onSave={(v, invoiceId) => {
-              fleet.saveVehicle(v, invoiceId);
+            onSave={(v, invoiceId, renewal) => {
+              fleet.saveVehicle(v, invoiceId, renewal);
               setModal({ t: "none" });
             }}
             onClose={() => setModal({ t: "none" })}
@@ -456,19 +448,19 @@ export function FleetRegister({
       </div>
 
       {modal.t === "add" && (
-        <VehicleFormModal
+        <VehicleForm
           initial={null}
           staff={staff}
           today={today}
-          onSave={(v, invoiceId) => {
-            fleet.saveVehicle(v, invoiceId);
+          onSave={(v, invoiceId, renewal) => {
+            fleet.saveVehicle(v, invoiceId, renewal);
             setModal({ t: "none" });
           }}
           onClose={() => setModal({ t: "none" })}
         />
       )}
       {modal.t === "edit" && openVehicle && (
-        <VehicleFormModal
+        <VehicleForm
           initial={openVehicle}
           staff={staff}
           today={today}
@@ -480,43 +472,23 @@ export function FleetRegister({
         />
       )}
       {modal.t === "detail" && openVehicle && (
-        <DetailModal
+        <VehicleModal
           vehicle={openVehicle}
-          chips={vehicleChips(openVehicle, openIssueCount(logs, openVehicle.id))}
           logs={logsFor(logs, openVehicle.id)}
           eco={fuelEconomy(logsFor(logs, openVehicle.id))}
           valuation={fleet.aiValues[openVehicle.id]}
           valuationIsStale={valuationStale(openVehicle, fleet.aiValues[openVehicle.id])}
           documents={fleet.documents[openVehicle.id] ?? []}
           policies={fleet.policies[openVehicle.id] ?? []}
-          onRenew={(kind) => setModal({ t: "renew", id: openVehicle.id, kind, back: "detail" })}
-          onHistory={(kind) => setModal({ t: "history", id: openVehicle.id, kind })}
-          onServiceHistory={() => setModal({ t: "services", id: openVehicle.id })}
           staff={staff}
-          manager
+          today={today}
+          fleet={fleet}
+          initialScreen={modal.screen}
           onClose={() => setModal({ t: "none" })}
           onEdit={() => setModal({ t: "edit", id: openVehicle.id })}
-          onAssign={(sid) => fleet.assignVehicle(openVehicle.id, sid)}
-          onStatus={(status) => fleet.saveVehicle({ ...openVehicle, status })}
           onLog={(kind) => setModal({ t: "log", id: openVehicle.id, kind })}
-          onResolve={fleet.resolveIssue}
           onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
-          onRemove={() => {
-            fleet.removeVehicle(openVehicle.id);
-            setModal({ t: "none" });
-          }}
-        />
-      )}
-      {modal.t === "history" && openVehicle && (
-        <RenewalHistoryModal
-          vehicle={openVehicle}
-          kind={modal.kind}
-          documents={fleet.documents[openVehicle.id] ?? []}
-          policies={fleet.policies[openVehicle.id] ?? []}
-          onAdd={() =>
-            setModal({ t: "renew", id: openVehicle.id, kind: modal.kind, back: "history" })
-          }
-          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+          onServiceHistory={() => setModal({ t: "services", id: openVehicle.id })}
         />
       )}
       {modal.t === "services" && openVehicle && (
@@ -528,28 +500,6 @@ export function FleetRegister({
           }
           onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
           onClose={() => setModal({ t: "detail", id: openVehicle.id })}
-        />
-      )}
-      {modal.t === "renew" && openVehicle && (
-        <RenewalModal
-          vehicle={openVehicle}
-          kind={modal.kind}
-          today={today}
-          onSave={(input) => {
-            fleet.recordRenewal({ ...input, vehicleId: openVehicle.id });
-            setModal(
-              modal.back === "history"
-                ? { t: "history", id: openVehicle.id, kind: modal.kind }
-                : { t: "detail", id: openVehicle.id },
-            );
-          }}
-          onClose={() =>
-            setModal(
-              modal.back === "history"
-                ? { t: "history", id: openVehicle.id, kind: modal.kind }
-                : { t: "detail", id: openVehicle.id },
-            )
-          }
         />
       )}
       {modal.t === "fix" && openVehicle && (

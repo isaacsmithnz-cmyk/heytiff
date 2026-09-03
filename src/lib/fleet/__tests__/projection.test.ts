@@ -79,6 +79,10 @@ describe("the register", () => {
     const cols = selected[0];
     expect(cols).toContain("value");
     expect(cols).toContain("purchase_price");
+    // the certificate's specs ride the register payload and no narrower one
+    for (const spec of ["vin", "engine_number", "tare_kg", "gvm_kg", "body_type", "colour"]) {
+      expect(cols).toContain(spec);
+    }
     expect(cols).toContain("assigned_to");
     expect(cols).toContain("ai_value");
   });

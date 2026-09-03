@@ -56,6 +56,10 @@ export type DocumentKind =
   | "insurance_policy"
   | "rego_notice"
   | "green_slip"
+  /* The photo on a vehicle's card. Its own kind so nothing else can adopt a
+     picture of a van as a receipt, and so the card can find its photo by kind
+     rather than by guessing which image among the paperwork is the vehicle. */
+  | "vehicle_photo"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -73,6 +77,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "insurance_policy",
   "rego_notice",
   "green_slip",
+  "vehicle_photo",
   "other",
 ];
 

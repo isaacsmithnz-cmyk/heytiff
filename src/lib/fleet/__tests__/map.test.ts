@@ -1,5 +1,14 @@
 import { serviceKmLeft, vehicleChips, vehicleFacts } from "@/components/fleet/logic";
-import { dateFromDays, toIdentity, toLog, toValuation, toVehicle, vehicleRow, whenLabel } from "../map";
+import {
+  dateFromDays,
+  policyDetail,
+  toIdentity,
+  toLog,
+  toValuation,
+  toVehicle,
+  vehicleRow,
+  whenLabel,
+} from "../map";
 
 const TODAY = "2026-07-22";
 
@@ -91,6 +100,62 @@ describe("dates in, day-counts out", () => {
     expect(serviceKmLeft(v)).toBe(5880);
   });
 
+  /* The certificate's specs. Every one nullable, and the read must keep the
+     null: `num()` defaults a missing NOT NULL column to 0 because that row is
+     malformed, but a spec nobody entered is ABSENT, and "0 kg" is a claim. */
+  it("reads the specs the registration certificate carries, and keeps an unset one unset", () => {
+    const v = toVehicle(
+      row({
+        body_type: "ute",
+        colour: "White",
+        vin: "MMAWLKL10NH035826",
+        engine_number: "4N15ULB0443",
+        engine_capacity_cc: 2442,
+        seating: 4,
+        tare_kg: 2180,
+        gvm_kg: 2900,
+        atm_kg: null,
+        variant: "MR4W30-",
+        rego_customer_no: "21970756",
+        photo_document_id: null,
+      }),
+      TODAY,
+    );
+    expect(v).toMatchObject({
+      bodyType: "ute",
+      colour: "White",
+      vin: "MMAWLKL10NH035826",
+      engineNumber: "4N15ULB0443",
+      engineCapacityCc: 2442,
+      seating: 4,
+      tareKg: 2180,
+      gvmKg: 2900,
+      atmKg: null,
+      variant: "MR4W30-",
+      regoCustomerNo: "21970756",
+      photoDocumentId: null,
+    });
+    // a row from before the columns existed reads as nothing recorded, not as zeros
+    const bare = toVehicle(row(), TODAY);
+    expect(bare.vin).toBeNull();
+    expect(bare.tareKg).toBeNull();
+    expect(bare.bodyType).toBeNull();
+    // and an unknown body type is not a body type
+    expect(toVehicle(row({ body_type: "spaceship" }), TODAY).bodyType).toBeNull();
+  });
+
+  it("writes the specs back as columns, and never the photo pointer", () => {
+    const v = toVehicle(row({ vin: "MMAWLKL10NH035826", gvm_kg: 2900, photo_document_id: "doc-1" }), TODAY);
+    const back = vehicleRow(v, TODAY);
+    expect(back.vin).toBe("MMAWLKL10NH035826");
+    expect(back.gvm_kg).toBe(2900);
+    expect(back.tare_kg).toBeNull();
+    /* The photo is set by its own action, which adopts the document at the
+       same time; a form save carrying the pointer would let a stale form
+       detach a photo somebody just set. */
+    expect("photo_document_id" in back).toBe(false);
+  });
+
   it("round-trips a vehicle back to dates against the same anchor", () => {
     const v = toVehicle(row(), TODAY);
     const back = vehicleRow(v, TODAY);
@@ -141,5 +206,48 @@ describe("identity width", () => {
     expect(Object.keys(toIdentity(row())).sort()).toEqual(
       ["id", "make", "model", "name", "odometer", "plate", "plateState", "status", "year"].sort(),
     );
+  });
+});
+
+describe("policyDetail", () => {
+  it("reads what the certificate said, and leaves what it didn't print as null", () => {
+    expect(
+      policyDetail({
+        policy_number: "36-01023321955",
+        cover: null,
+        excess: null,
+        term_months: 12,
+        garaging_postcode: "2031",
+        inspection_on: null,
+        source: "scan",
+      }),
+    ).toEqual({
+      policyNumber: "36-01023321955",
+      cover: null,
+      excess: null,
+      termMonths: 12,
+      garagingPostcode: "2031",
+      inspectionOn: null,
+      source: "scan",
+    });
+  });
+
+  it("refuses a cover or source that isn't one of ours", () => {
+    const d = policyDetail({ cover: "gold", source: "guessed", excess: "800.00" });
+    expect(d.cover).toBeNull();
+    expect(d.source).toBeNull();
+    expect(d.excess).toBe(800); // numeric arrives as a string from postgres
+  });
+
+  it("reads a row from before the columns existed as all-null, not as an error", () => {
+    expect(policyDetail({})).toEqual({
+      policyNumber: null,
+      cover: null,
+      excess: null,
+      termMonths: null,
+      garagingPostcode: null,
+      inspectionOn: null,
+      source: null,
+    });
   });
 });

@@ -3,6 +3,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { can, getDbRole } from "@/lib/permissions-server";
 import type { RenewalKind } from "@/components/fleet/logic";
+import {
+  parseRegoCertificate,
+  parseRenewalRead,
+  REGO_CERT_PROMPT,
+  REGO_CERT_SCHEMA,
+  RENEWAL_READ_SCHEMA,
+  renewalPrompt,
+  type RegoCertificateRead,
+  type RenewalRead,
+} from "@/lib/fleet/readers";
 
 /* Fleet ← Tiff: live AU-market vehicle valuations + fuel-receipt reading.
    First real Claude integration in the app. Role rules are enforced HERE, not
@@ -260,63 +270,15 @@ export async function readPurchaseInvoice(
 
 /* ---------------- renewal reading (assets_all) ---------------- */
 
-/* The paper behind an expiry date (issue #509, slice 2). One reader for both
-   renewal kinds: an insurance schedule and a rego notice carry the same three
-   facts — who it is with, what it cost, when it runs out — and the only thing
-   that differs is which expiry column the answer updates. Same
-   scan-then-confirm contract as the invoice: this fills a form the person
-   then saves. */
+/* The paper behind an expiry date (issue #509, slice 2). One reader for all
+   three renewal kinds: an insurance schedule, a rego notice and a green slip
+   carry the same core facts — who it is with, what it cost, from when, until
+   when — and differ only in the extras each kind prints. What to ask for and
+   what to believe live in lib/fleet/readers.ts, where they are tested without
+   a key; this is the call. Same scan-then-confirm contract as the invoice:
+   this fills a form the person then saves. */
 
-export type ReadRenewalResult =
-  | { ok: true; provider: string | null; premium: number | null; startsOn: string | null; expiresOn: string | null }
-  | { ok: false; reason: string };
-
-const RENEWAL_SCHEMA = {
-  type: "object",
-  properties: {
-    provider: { type: ["string", "null"] },
-    premium: { type: ["number", "null"] },
-    startsOn: { type: ["string", "null"] },
-    expiresOn: { type: ["string", "null"] },
-  },
-  required: ["provider", "premium", "startsOn", "expiresOn"],
-  additionalProperties: false,
-};
-
-/* What each kind of paper is, and who it comes FROM.
-
-   The third row is not a variation on the first. A green slip is CTP — the
-   personal-injury cover the state makes you carry to be registered — and it
-   is issued by an INSURER, while the rego notice beside it comes from the road
-   authority. Asked for "the issuing road authority" a green slip reads as the
-   wrong document entirely, and the last line of the prompt then (correctly)
-   returns nulls for a document that was in fact perfectly readable.
-
-   The premium note is there because a real green slip prints FOUR figures —
-   the insurer's premium, GST, a fund levy, and the total of the three. Only
-   the last is what the renewal cost, and it is not the one nearest the word
-   "premium". */
-const RENEWAL_PROMPT: Record<RenewalKind, { what: string; providerHint: string; note: string }> = {
-  insurance: {
-    what: "an Australian motor-vehicle insurance policy schedule or certificate of currency",
-    providerHint: 'the insurer\'s name (e.g. "NRMA", "Allianz")',
-    note: "",
-  },
-  rego: {
-    what: "an Australian vehicle registration renewal notice or certificate",
-    providerHint: 'the issuing road authority (e.g. "Transport for NSW")',
-    note: "",
-  },
-  ctp: {
-    what:
-      "an Australian compulsory third party (CTP) personal injury insurance certificate — " +
-      "in NSW this is called a Green Slip",
-    providerHint: 'the CTP insurer\'s name (e.g. "QBE", "AAMI", "Allianz")',
-    note:
-      ". A green slip usually itemises the insurer's premium, GST and a fund or levy " +
-      "line separately and then totals them — take the TOTAL, not the premium line",
-  },
-};
+export type ReadRenewalResult = ({ ok: true } & RenewalRead) | { ok: false; reason: string };
 
 export async function readRenewalDocument(
   fileBase64: string,
@@ -333,8 +295,6 @@ export async function readRenewalDocument(
     return { ok: false, reason: "That file is too large to read." };
   }
 
-  const { what, providerHint, note } = RENEWAL_PROMPT[kind];
-
   try {
     const client = new Anthropic();
     const response = await client.messages.create({
@@ -342,39 +302,14 @@ export async function readRenewalDocument(
       max_tokens: 16000,
       output_config: {
         effort: "low",
-        format: { type: "json_schema", schema: RENEWAL_SCHEMA },
+        format: { type: "json_schema", schema: RENEWAL_READ_SCHEMA },
       },
       messages: [
         {
           role: "user",
           content: [
-            isPdf
-              ? {
-                  type: "document" as const,
-                  source: { type: "base64" as const, media_type: "application/pdf" as const, data: fileBase64 },
-                }
-              : {
-                  type: "image" as const,
-                  source: {
-                    type: "base64" as const,
-                    media_type: mediaType as ReceiptMedia,
-                    data: fileBase64,
-                  },
-                },
-            {
-              type: "text",
-              text:
-                `This is ${what}. Extract:\n` +
-                `- provider: ${providerHint}\n` +
-                `- premium: the total amount payable in AUD, GST inclusive${note}\n` +
-                "- startsOn: the date cover/registration BEGINS, as yyyy-mm-dd\n" +
-                "- expiresOn: the date cover/registration ENDS or is due for renewal, as yyyy-mm-dd\n\n" +
-                "expiresOn is the important one — it is the date the vehicle's record will be " +
-                "updated to. If the document shows a period like \"01/09/2026 to 01/09/2027\", " +
-                "the LATER date is expiresOn. Use null for anything not clearly readable; a " +
-                "guessed expiry is worse than a blank one, because it silences a real warning. " +
-                "If this is not that kind of document at all, return null for every field.",
-            },
+            documentBlock(fileBase64, mediaType, isPdf),
+            { type: "text", text: renewalPrompt(kind) },
           ],
         },
       ],
@@ -383,14 +318,77 @@ export async function readRenewalDocument(
       return { ok: false, reason: "Tiff declined to read this document." };
     }
     const text = response.content.find((b) => b.type === "text")?.text ?? "";
-    const parsed = JSON.parse(text) as {
-      provider: string | null;
-      premium: number | null;
-      startsOn: string | null;
-      expiresOn: string | null;
-    };
-    return { ok: true, ...parsed };
+    return { ok: true, ...parseRenewalRead(JSON.parse(text), kind) };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };
   }
+}
+
+/* ---------------- the certificate of registration (assets_all) ---------------- */
+
+/* Adding a vehicle by scanning its rego certificate. The certificate is the
+   closest thing a vehicle has to a birth certificate — plate, make, model,
+   variant, year, VIN, engine number, weights, seating, expiry — and typing
+   all of that off a photo is how a VIN gets a digit wrong. The reader fills
+   the form; the person checks it against the paper and saves. Register tier,
+   because adding vehicles is. */
+
+export type ReadRegoResult =
+  | ({ ok: true } & RegoCertificateRead)
+  | { ok: false; reason: string };
+
+export async function readRegoCertificate(
+  fileBase64: string,
+  mediaType: string,
+): Promise<ReadRegoResult> {
+  if (!(await can("assets_all"))) return { ok: false, reason: "Adding vehicles needs the register." };
+  if (offline()) return { ok: false, reason: "no-key" };
+  const isPdf = mediaType === "application/pdf";
+  if (!isPdf && !RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
+    return { ok: false, reason: "Unsupported file type." };
+  }
+  if (!fileBase64 || fileBase64.length > 14_000_000) {
+    return { ok: false, reason: "That file is too large to read." };
+  }
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: REGO_CERT_SCHEMA },
+      },
+      messages: [
+        {
+          role: "user",
+          content: [
+            documentBlock(fileBase64, mediaType, isPdf),
+            { type: "text", text: REGO_CERT_PROMPT },
+          ],
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal") {
+      return { ok: false, reason: "Tiff declined to read this document." };
+    }
+    const text = response.content.find((b) => b.type === "text")?.text ?? "";
+    return { ok: true, ...parseRegoCertificate(JSON.parse(text)) };
+  } catch (err) {
+    return { ok: false, reason: reasonFor(err) };
+  }
+}
+
+/** A PDF goes as a document block, a photo as an image block. */
+function documentBlock(fileBase64: string, mediaType: string, isPdf: boolean) {
+  return isPdf
+    ? {
+        type: "document" as const,
+        source: { type: "base64" as const, media_type: "application/pdf" as const, data: fileBase64 },
+      }
+    : {
+        type: "image" as const,
+        source: { type: "base64" as const, media_type: mediaType as ReceiptMedia, data: fileBase64 },
+      };
 }

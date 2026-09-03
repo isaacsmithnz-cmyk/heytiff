@@ -8,14 +8,22 @@
 
 import type {
   AiValuation,
+  BodyType,
+  InsuranceCover,
   LogKind,
+  PolicySource,
   Vehicle,
   VehicleIdentity,
   VehicleLog,
   VehicleStatus,
   VehicleWithFacts,
 } from "@/components/fleet/logic";
-import { daysUntil, serviceDaysUntil } from "@/components/fleet/logic";
+import {
+  BODY_TYPES,
+  INSURANCE_COVERS,
+  daysUntil,
+  serviceDaysUntil,
+} from "@/components/fleet/logic";
 
 export type Row = Record<string, unknown>;
 
@@ -26,6 +34,15 @@ const num = (v: unknown, fallback = 0): number => {
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
 const dateStr = (v: unknown): string | null =>
   typeof v === "string" && v.length >= 10 ? v.slice(0, 10) : null;
+/* Nullable columns keep their null. `num`/`str` above default a missing value
+   to 0/"" because the columns they read are NOT NULL and a fallback is the
+   honest shape of "the row is malformed"; a spec nobody entered is not
+   malformed, it is absent, and 0 kg would be a claim. */
+const numN = (v: unknown): number | null => (v == null ? null : num(v));
+const strN = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() ? v.trim() : null;
+const oneOf = <T extends string>(v: unknown, list: readonly T[]): T | null =>
+  typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null;
 
 /** ISO date -> whole days from `today`. Null column, null answer: every number
     here is a claim about a date, and there is no number that honestly stands
@@ -90,6 +107,19 @@ export function toVehicle(r: Row, today: string): Vehicle {
   return {
     ...toVehicleWithFacts(r, today),
     assignedTo: typeof r.assigned_to === "string" ? r.assigned_to : null,
+    // the certificate's facts — see VehicleSpecs for why every one is nullable
+    bodyType: oneOf<BodyType>(r.body_type, BODY_TYPES),
+    colour: strN(r.colour),
+    vin: strN(r.vin),
+    engineNumber: strN(r.engine_number),
+    engineCapacityCc: numN(r.engine_capacity_cc),
+    seating: numN(r.seating),
+    tareKg: numN(r.tare_kg),
+    gvmKg: numN(r.gvm_kg),
+    atmKg: numN(r.atm_kg),
+    variant: strN(r.variant),
+    regoCustomerNo: strN(r.rego_customer_no),
+    photoDocumentId: strN(r.photo_document_id),
     value: num(r.value),
     purchasePrice: num(r.purchase_price),
     // stored as a date; the UI thinks in "days since"
@@ -185,5 +215,40 @@ export function vehicleRow(v: Vehicle, today: string): Row {
     last_service_on: v.lastServiceDays == null ? null : dateFromDays(-v.lastServiceDays, today),
     motorised: v.motorised,
     notes: v.notes ?? null,
+    body_type: v.bodyType ?? null,
+    colour: v.colour ?? null,
+    vin: v.vin ?? null,
+    engine_number: v.engineNumber ?? null,
+    engine_capacity_cc: v.engineCapacityCc ?? null,
+    seating: v.seating ?? null,
+    tare_kg: v.tareKg ?? null,
+    gvm_kg: v.gvmKg ?? null,
+    atm_kg: v.atmKg ?? null,
+    variant: v.variant ?? null,
+    rego_customer_no: v.regoCustomerNo ?? null,
+    /* Deliberately NOT written here: the photo is set by its own action, which
+       adopts the document at the same time. A form save that carried the
+       pointer would let a stale form detach a photo somebody just set. */
+  };
+}
+
+/** A policy row as the app's record, detail columns included. */
+export function policyDetail(r: Row): {
+  policyNumber: string | null;
+  cover: InsuranceCover | null;
+  excess: number | null;
+  termMonths: number | null;
+  garagingPostcode: string | null;
+  inspectionOn: string | null;
+  source: PolicySource | null;
+} {
+  return {
+    policyNumber: strN(r.policy_number),
+    cover: oneOf<InsuranceCover>(r.cover, INSURANCE_COVERS),
+    excess: numN(r.excess),
+    termMonths: numN(r.term_months),
+    garagingPostcode: strN(r.garaging_postcode),
+    inspectionOn: dateStr(r.inspection_on),
+    source: oneOf<PolicySource>(r.source, ["scan", "manual"] as const),
   };
 }

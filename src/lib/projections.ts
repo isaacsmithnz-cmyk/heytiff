@@ -36,4 +36,18 @@ export const VEHICLE_SENSITIVE_FIELDS = [
   "lastServiceOdo",
   "assignedTo", // who drives what is register knowledge; your own is on My vehicle
   "notes",
+  /* The certificate's specs. Not money, but not the picker's business either:
+     a driver fuelling a pool ute needs its plate, not its engine number. */
+  "bodyType",
+  "colour",
+  "vin",
+  "engineNumber",
+  "engineCapacityCc",
+  "seating",
+  "tareKg",
+  "gvmKg",
+  "atmKg",
+  "variant",
+  "regoCustomerNo",
+  "photoDocumentId",
 ] as const;

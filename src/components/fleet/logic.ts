@@ -7,7 +7,47 @@
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
 import { daysUntil } from "@/lib/au-dates";
 
-export type VehicleStatus = "active" | "offroad" | "sold";
+/* Four states, and the third is not a softer fourth. A vehicle FOR SALE is
+   still in the fleet — it needs rego, it needs insurance, someone may drive it
+   to the buyer — so every warning still applies. SOLD is the exit: gone from
+   the working fleet, kept in the register for its paper trail. */
+export type VehicleStatus = "active" | "offroad" | "for_sale" | "sold";
+
+/** What shape of thing a vehicle is. Drives the placeholder illustration and
+    the CTP vehicle class. `motorised` stays the truth about whether it has an
+    engine — a trailer is the common case, not the only one. */
+export const BODY_TYPES = ["van", "ute", "car", "truck", "trailer"] as const;
+export type BodyType = (typeof BODY_TYPES)[number];
+export const BODY_TYPE_LABEL: Record<BodyType, string> = {
+  van: "Van",
+  ute: "Ute",
+  car: "Car",
+  truck: "Truck",
+  trailer: "Trailer",
+};
+
+/* What the registration certificate says the vehicle IS. Optional AND
+   nullable: none of it existed before the certificate could be scanned in,
+   and an unrecorded spec is "not recorded", never a value — the rule the
+   expiry dates learned the hard way. Register width only: the picker names a
+   vehicle by its plate, and the driver's own screen has not asked for these. */
+export type VehicleSpecs = {
+  bodyType?: BodyType | null;
+  colour?: string | null;
+  vin?: string | null;
+  engineNumber?: string | null;
+  engineCapacityCc?: number | null;
+  seating?: number | null;
+  tareKg?: number | null;
+  gvmKg?: number | null;
+  /** Trailers: aggregate trailer mass, the figure on their compliance plate. */
+  atmKg?: number | null;
+  variant?: string | null;
+  /** The road authority's customer number for this registration. */
+  regoCustomerNo?: string | null;
+  /** The document row behind the photo on the card, once one has been set. */
+  photoDocumentId?: string | null;
+};
 
 /* The vehicle type comes in three widths, and they are the projection boundary
    (lib/projections.ts) written as types — a function that only needs identity
@@ -72,7 +112,7 @@ export type VehicleWithFacts = VehicleIdentity & {
 };
 
 /** The full register record — `assets_all` only. */
-export type Vehicle = VehicleWithFacts & {
+export type Vehicle = VehicleWithFacts & VehicleSpecs & {
   assignedTo: string | null; // staff_profiles.id; null = pool / unassigned
   value: number; // $ book value
   purchasePrice: number; // $ — 0 = unknown; feeds the Tiff estimate
@@ -163,6 +203,7 @@ export type VehicleLog = {
 export const STATUS_LABEL: Record<VehicleStatus, string> = {
   active: "In service",
   offroad: "Off road",
+  for_sale: "For sale",
   sold: "Sold",
 };
 
@@ -396,8 +437,36 @@ export type VehiclePolicy = {
   premium: number | null;
   startsOn: string | null;
   expiresOn: string;
+  /** The ONE document this row was read from; null if entered by hand. The
+      rest of a policy's paperwork is filed against it via documents.policy_id. */
   documentId: string | null;
+  /* What else the certificate said. Optional because rows that predate the
+     scan have none of it; nullable because a document may not print it — a
+     rego notice has no policy number, a green slip has no excess. */
+  policyNumber?: string | null;
+  cover?: InsuranceCover | null;
+  excess?: number | null;
+  termMonths?: number | null;
+  garagingPostcode?: string | null;
+  /** Rego: the safety check (pink slip) date, where one was required. */
+  inspectionOn?: string | null;
+  /** How the row got here. Scanned and typed are different levels of trust. */
+  source?: PolicySource | null;
 };
+
+export const INSURANCE_COVERS = [
+  "comprehensive",
+  "third_party_property",
+  "third_party_fire_theft",
+] as const;
+export type InsuranceCover = (typeof INSURANCE_COVERS)[number];
+export const INSURANCE_COVER_LABEL: Record<InsuranceCover, string> = {
+  comprehensive: "Comprehensive",
+  third_party_property: "Third party property",
+  third_party_fire_theft: "Third party, fire & theft",
+};
+
+export type PolicySource = "scan" | "manual";
 
 /** The document kind each renewal kind arrives as. */
 export const RENEWAL_DOC_KIND = {

@@ -19,7 +19,7 @@ import { RENEWAL_KINDS } from "@/components/fleet/logic";
    copy, so the type now has ONE home — the card that renders it — and this is
    the same direction as the VehicleWithFacts import above. */
 import type { AssignedVehicle } from "@/components/profile/types";
-import { toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from "./map";
+import { policyDetail, toIdentity, toLog, toValuation, toVehicle, toVehicleWithFacts } from "./map";
 
 /* Fleet queries. Every one is scoped by org_id, like lib/staff/query.ts, and
    there is no unscoped read in this file.
@@ -42,7 +42,9 @@ const FACTS_COLUMNS =
   `, service_interval_months, last_service_on, motorised`;
 
 const FULL_COLUMNS =
-  `${FACTS_COLUMNS}, assigned_to, value, purchase_price, purchase_date, notes, ai_value`;
+  `${FACTS_COLUMNS}, assigned_to, value, purchase_price, purchase_date, notes, ai_value` +
+  `, body_type, colour, vin, engine_number, engine_capacity_cc, seating, tare_kg, gvm_kg, atm_kg` +
+  `, variant, rego_customer_no, photo_document_id`;
 
 /** The roster the register's driver picker needs — names and nothing else.
     This is minimum-identity: assigning a vehicle doesn't entitle you to HR. */
@@ -224,12 +226,15 @@ function asRenewalKind(value: unknown): RenewalKind {
 export async function listPolicies(orgId: string): Promise<Record<string, VehiclePolicy[]>> {
   const { data } = await supabaseAdmin
     .from("vehicle_policies")
-    .select("id, vehicle_id, kind, provider, premium, starts_on, expires_on, document_id")
+    .select(
+      "id, vehicle_id, kind, provider, premium, starts_on, expires_on, document_id" +
+        ", policy_number, cover, excess, term_months, garaging_postcode, inspection_on, source",
+    )
     .eq("org_id", orgId)
     .order("expires_on", { ascending: false });
 
   const out: Record<string, VehiclePolicy[]> = {};
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
     const key = String(r.vehicle_id);
     (out[key] ??= []).push({
       id: String(r.id),
@@ -239,6 +244,7 @@ export async function listPolicies(orgId: string): Promise<Record<string, Vehicl
       startsOn: (r.starts_on as string) ?? null,
       expiresOn: String(r.expires_on),
       documentId: (r.document_id as string) ?? null,
+      ...policyDetail(r),
     });
   }
   return out;

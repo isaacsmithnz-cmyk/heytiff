@@ -71,6 +71,7 @@ function doc(over: Partial<StoredDocument>): StoredDocument {
     createdAt: "2026-08-01T00:00:00Z",
     url: "https://x/y",
     image: false,
+    policyId: null,
     ...over,
   };
 }

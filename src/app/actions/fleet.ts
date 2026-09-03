@@ -9,12 +9,15 @@ import { staffProfileIdFor } from "@/lib/fleet/query";
 import { vehicleRow } from "@/lib/fleet/map";
 import { fuelTaxColumns } from "@/lib/fleet/receipt";
 import {
+  INSURANCE_COVERS,
   odoEffect,
   odoRecompute,
   odoRejection,
   RENEWAL_DOC_KIND,
   RENEWAL_EXPIRY_COLUMN,
+  type InsuranceCover,
   type NewLog,
+  type PolicySource,
   type RenewalKind,
   type Vehicle,
 } from "@/components/fleet/logic";
@@ -72,6 +75,13 @@ export async function saveVehicle(
       vehicle once the row exists — same orphan-then-adopt shape as the fuel
       docket, because a NEW vehicle has no id until the insert. */
   purchaseInvoiceId?: string,
+  /** The registration the vehicle arrived with. Adding a vehicle by scanning
+      its certificate of registration reads the expiry off the same document
+      as the VIN, and that expiry is a RENEWAL — a policy row with the
+      certificate filed under it — not a bare date typed into a column. Only
+      honoured on insert: an existing vehicle's renewals go through
+      recordRenewal, where the current cache is known and never dragged back. */
+  initialRenewal?: Omit<RenewalInput, "vehicleId">,
 ): Promise<FleetResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Not signed in." };
@@ -115,6 +125,10 @@ export async function saveVehicle(
     return { ok: false, error: "Couldn't save that vehicle." };
   }
   if (purchaseInvoiceId && savedId) await adoptPurchaseInvoice(ctx, savedId, purchaseInvoiceId);
+  if (!existing && initialRenewal && savedId) {
+    const filed = await fileRenewal(ctx, savedId, null, { ...initialRenewal, vehicleId: savedId });
+    if (!filed.ok) return filed;
+  }
   refresh();
   return { ok: true };
 }
@@ -546,6 +560,15 @@ export type RenewalInput = {
   provider?: string | null;
   premium?: number | null;
   documentId?: string;
+  /* What else the certificate said — see VehiclePolicy. All optional; a
+     document that doesn't print a field leaves it null rather than guessed. */
+  policyNumber?: string | null;
+  cover?: InsuranceCover | null;
+  excess?: number | null;
+  termMonths?: number | null;
+  garagingPostcode?: string | null;
+  inspectionOn?: string | null;
+  source?: PolicySource | null;
 };
 
 export async function recordRenewal(input: RenewalInput): Promise<FleetResult> {
@@ -555,39 +578,78 @@ export async function recordRenewal(input: RenewalInput): Promise<FleetResult> {
 
   const vehicle = await vehicleIn(ctx.orgId, input.vehicleId);
   if (!vehicle) return GONE;
+
+  const column = RENEWAL_EXPIRY_COLUMN[input.kind];
+  const current = ((vehicle as Record<string, unknown>)[column] as string | null | undefined) ?? null;
+  const filed = await fileRenewal(ctx, input.vehicleId, current, input);
+  if (!filed.ok) return filed;
+  refresh();
+  return { ok: true };
+}
+
+/** A stored kind of cover, or null — a Server Function is reachable by direct
+    POST, so the list is checked here and not only in the select that offers it. */
+const asCover = (v: unknown): InsuranceCover | null =>
+  typeof v === "string" && (INSURANCE_COVERS as readonly string[]).includes(v)
+    ? (v as InsuranceCover)
+    : null;
+const asSource = (v: unknown): PolicySource | null =>
+  v === "scan" || v === "manual" ? v : null;
+const moneyOrNull = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+
+/* The three writes behind a renewal, for both doors it can arrive through —
+   the Update flow on an existing vehicle, and a new vehicle whose certificate
+   of registration was scanned on the way in. `current` is the vehicle's cached
+   expiry for this kind (null for a vehicle that has none, or doesn't exist
+   yet), so the cache is only ever advanced. */
+async function fileRenewal(
+  ctx: Ctx,
+  vehicleId: string,
+  current: string | null,
+  input: RenewalInput,
+): Promise<FleetResult> {
   if (!input.expiresOn) return { ok: false, error: "A renewal needs an expiry date." };
 
   const { data: policy, error } = await supabaseAdmin
     .from("vehicle_policies")
     .insert({
       org_id: ctx.orgId,
-      vehicle_id: input.vehicleId,
+      vehicle_id: vehicleId,
       kind: input.kind,
       provider: input.provider?.trim() || null,
-      premium: input.premium ?? null,
+      premium: moneyOrNull(input.premium),
       starts_on: input.startsOn || null,
       expires_on: input.expiresOn,
       document_id: input.documentId ?? null,
+      policy_number: input.policyNumber?.trim() || null,
+      // cover is an insurance fact; a rego notice or green slip carries none
+      cover: input.kind === "insurance" ? asCover(input.cover) : null,
+      excess: moneyOrNull(input.excess),
+      term_months:
+        typeof input.termMonths === "number" && input.termMonths > 0
+          ? Math.round(input.termMonths)
+          : null,
+      garaging_postcode: input.garagingPostcode?.trim() || null,
+      inspection_on: input.inspectionOn || null,
+      source: asSource(input.source),
     })
     .select("id")
     .single();
   if (error) return { ok: false, error: "Couldn't record that renewal." };
 
   // cache the newest expiry on the vehicle — never backwards
-  const column = RENEWAL_EXPIRY_COLUMN[input.kind];
-  const current = (vehicle as Record<string, unknown>)[column] as string | null | undefined;
   if (!current || input.expiresOn > current) {
     await supabaseAdmin
       .from("vehicles")
-      .update({ [column]: input.expiresOn, updated_at: new Date().toISOString() })
+      .update({ [RENEWAL_EXPIRY_COLUMN[input.kind]]: input.expiresOn, updated_at: new Date().toISOString() })
       .eq("org_id", ctx.orgId)
-      .eq("id", input.vehicleId);
+      .eq("id", vehicleId);
   }
 
   if (input.documentId) {
-    await adoptRenewalDocument(ctx, input.vehicleId, input.documentId, input.kind, policy.id as string);
+    await adoptRenewalDocument(ctx, vehicleId, input.documentId, input.kind, policy.id as string);
   }
-  refresh();
   return { ok: true };
 }
 
@@ -604,7 +666,9 @@ async function adoptRenewalDocument(
   if (!ctx.staffId) return;
   const { data } = await supabaseAdmin
     .from("documents")
-    .update({ vehicle_id: vehicleId })
+    // vehicle_id says whose paper it is; policy_id says which renewal it sits
+    // under. Both, so the vehicle's trail and the policy's file agree.
+    .update({ vehicle_id: vehicleId, policy_id: policyId })
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
@@ -620,4 +684,73 @@ async function adoptRenewalDocument(
       .eq("org_id", ctx.orgId)
       .eq("id", policyId);
   }
+}
+
+/* A second, third, fourth piece of paper for a renewal that already exists —
+   the schedule behind the certificate, the receipt for the premium. Same
+   adoption contract as the scanned one (the uploader's own, confirmed, still
+   orphaned, of the policy's kind); the difference is that nothing was read
+   from it and the policy row is left alone. */
+export async function attachPolicyDocument(policyId: string, documentId: string): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+  if (!ctx.staffId) return { ok: false, error: "Only a staff member can file documents." };
+
+  const { data: policy } = await supabaseAdmin
+    .from("vehicle_policies")
+    .select("id, vehicle_id, kind")
+    .eq("org_id", ctx.orgId)
+    .eq("id", policyId)
+    .maybeSingle();
+  if (!policy) return { ok: false, error: "That renewal is no longer on file." };
+  const kind = policy.kind as RenewalKind;
+  if (!(kind in RENEWAL_DOC_KIND)) return { ok: false, error: "That renewal is no longer on file." };
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: policy.vehicle_id as string, policy_id: policyId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", RENEWAL_DOC_KIND[kind])
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null)
+    .select("id");
+  if (!data || data.length === 0) return { ok: false, error: "That document couldn't be filed." };
+  refresh();
+  return { ok: true };
+}
+
+/* The photo on the card. Adopt-then-point, in that order: the document row is
+   claimed by the vehicle first (same orphan contract as every other file), and
+   only a document that accepted adoption becomes the pointer. A photo that
+   refused — wrong kind, someone else's upload — leaves the card as it was. */
+export async function setVehiclePhoto(vehicleId: string, documentId: string): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("assets_all"))) return DENIED;
+  if (!ctx.staffId) return { ok: false, error: "Only a staff member can set a photo." };
+  if (!(await vehicleIn(ctx.orgId, vehicleId))) return GONE;
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_id: vehicleId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", "vehicle_photo")
+    .not("uploaded_at", "is", null)
+    .is("vehicle_id", null)
+    .select("id");
+  if (!data || data.length === 0) return { ok: false, error: "That photo couldn't be attached." };
+
+  const { error } = await supabaseAdmin
+    .from("vehicles")
+    .update({ photo_document_id: documentId, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", vehicleId);
+  if (error) return { ok: false, error: "Couldn't set that photo." };
+  refresh();
+  return { ok: true };
 }

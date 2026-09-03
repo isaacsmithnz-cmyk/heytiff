@@ -11880,7 +11880,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .vm { width:720px; max-width:100%; background:#fff; border-radius:28px; box-shadow:0 32px 80px rgba(0,0,0,.45); overflow:hidden;
   animation:flPop .3s cubic-bezier(.22,1,.36,1); color:var(--ink); }
 .vm *, .vm *::before, .vm *::after { box-sizing:border-box; }
-.vm button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+/* :where() keeps this reset at zero specificity, so any one class on a button — the dashed scan zone, a door card — paints over it. */
+:where(.vm) button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 .vm select, .vm input { font-family:inherit; }
 .vm svg.i { display:block; flex:0 0 auto; }
 

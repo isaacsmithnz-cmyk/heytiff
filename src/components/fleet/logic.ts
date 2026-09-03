@@ -13,6 +13,13 @@ import { daysUntil } from "@/lib/au-dates";
    the working fleet, kept in the register for its paper trail. */
 export type VehicleStatus = "active" | "offroad" | "for_sale" | "sold";
 
+/** An AU rego plate is only unique within its state or territory, so the
+    register stores which one it came from — matching the DB check constraint.
+    Shared here because the form's picker, the certificate reader and the
+    mapper all need the same eight codes. */
+export const AU_STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
+export type AuState = (typeof AU_STATES)[number];
+
 /** What shape of thing a vehicle is. Drives the placeholder illustration and
     the CTP vehicle class. `motorised` stays the truth about whether it has an
     engine — a trailer is the common case, not the only one. */

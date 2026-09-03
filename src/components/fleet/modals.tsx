@@ -29,6 +29,7 @@ import {
   type VehicleStatus,
   type VehicleLog,
   type RenewalKind,
+  AU_STATES,
   RENEWAL_DOC_KIND,
   RENEWAL_KINDS,
   currentRenewalDocIds,
@@ -144,9 +145,6 @@ function Field({
 
 /* ---------------- add / edit vehicle ---------------- */
 
-/** An AU rego plate is only unique within its state or territory, so the
-    register stores which one it came from (matching the DB check constraint). */
-const AU_STATES = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"] as const;
 
 export function VehicleFormModal({
   initial,

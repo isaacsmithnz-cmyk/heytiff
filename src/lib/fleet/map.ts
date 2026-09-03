@@ -9,10 +9,13 @@
 import type {
   AiValuation,
   BodyType,
+  FinanceKind,
   InsuranceCover,
   LogKind,
+  PaymentFrequency,
   PolicySource,
   Vehicle,
+  VehicleFinance,
   VehicleIdentity,
   VehicleLog,
   VehicleStatus,
@@ -20,7 +23,9 @@ import type {
 } from "@/components/fleet/logic";
 import {
   BODY_TYPES,
+  FINANCE_KINDS,
   INSURANCE_COVERS,
+  PAYMENT_FREQUENCIES,
   daysUntil,
   serviceDaysUntil,
 } from "@/components/fleet/logic";
@@ -122,6 +127,14 @@ export function toVehicle(r: Row, today: string): Vehicle {
     photoDocumentId: strN(r.photo_document_id),
     value: num(r.value),
     purchasePrice: num(r.purchase_price),
+    // the invoice's own fields — nullable, like the specs, and for the same reason
+    purchaseSupplier: strN(r.purchase_supplier),
+    purchaseInvoiceNo: strN(r.purchase_invoice_no),
+    purchaseExGst: numN(r.purchase_ex_gst),
+    purchaseGst: numN(r.purchase_gst),
+    purchaseOnRoad: numN(r.purchase_on_road),
+    purchaseDeposit: numN(r.purchase_deposit),
+    purchaseOdometer: numN(r.purchase_odometer),
     // stored as a date; the UI thinks in "days since"
     purchaseDateDays: purchase ? Math.max(0, -daysUntil(purchase, today)) : 0,
     lastServiceDays: lastService ? -daysUntil(lastService, today) : null,
@@ -226,6 +239,13 @@ export function vehicleRow(v: Vehicle, today: string): Row {
     atm_kg: v.atmKg ?? null,
     variant: v.variant ?? null,
     rego_customer_no: v.regoCustomerNo ?? null,
+    purchase_supplier: v.purchaseSupplier ?? null,
+    purchase_invoice_no: v.purchaseInvoiceNo ?? null,
+    purchase_ex_gst: v.purchaseExGst ?? null,
+    purchase_gst: v.purchaseGst ?? null,
+    purchase_on_road: v.purchaseOnRoad ?? null,
+    purchase_deposit: v.purchaseDeposit ?? null,
+    purchase_odometer: v.purchaseOdometer ?? null,
     /* Deliberately NOT written here: the photo is set by its own action, which
        adopts the document at the same time. A form save that carried the
        pointer would let a stale form detach a photo somebody just set. */
@@ -250,5 +270,30 @@ export function policyDetail(r: Row): {
     garagingPostcode: strN(r.garaging_postcode),
     inspectionOn: dateStr(r.inspection_on),
     source: oneOf<PolicySource>(r.source, ["scan", "manual"] as const),
+  };
+}
+
+/** A finance row as the app's record — or null when the row cannot state a
+    schedule, because an agreement with no lender, start or term is not one. */
+export function toFinance(r: Row): VehicleFinance | null {
+  const lender = strN(r.lender);
+  const startsOn = dateStr(r.starts_on);
+  const termMonths = numN(r.term_months);
+  if (!lender || !startsOn || !termMonths || termMonths <= 0) return null;
+  return {
+    id: String(r.id),
+    lender,
+    agreementNo: strN(r.agreement_no),
+    kind: oneOf<FinanceKind>(r.kind, FINANCE_KINDS),
+    startsOn,
+    termMonths: Math.round(termMonths),
+    repayment: numN(r.repayment),
+    frequency: oneOf<PaymentFrequency>(r.frequency, PAYMENT_FREQUENCIES) ?? "monthly",
+    ratePct: numN(r.rate_pct),
+    balloon: numN(r.balloon),
+    amountFinanced: numN(r.amount_financed),
+    documentId: strN(r.document_id),
+    source: oneOf<PolicySource>(r.source, ["scan", "manual"] as const),
+    createdAt: typeof r.created_at === "string" ? r.created_at : undefined,
   };
 }

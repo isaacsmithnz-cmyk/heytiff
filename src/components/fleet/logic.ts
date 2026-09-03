@@ -118,8 +118,23 @@ export type VehicleWithFacts = VehicleIdentity & {
   motorised: boolean;
 };
 
+/** The purchase as the invoice prints it. All optional and nullable: the
+    register held a price and a date for years, and a vehicle that has only
+    those reads as "not recorded" everywhere else — never as $0 GST. */
+export type VehiclePurchase = {
+  purchaseSupplier?: string | null;
+  purchaseInvoiceNo?: string | null;
+  purchaseExGst?: number | null;
+  purchaseGst?: number | null;
+  /** Stamp duty, rego and CTP on the purchase, dealer delivery — as one figure. */
+  purchaseOnRoad?: number | null;
+  /** Paid up front. The rest was financed, if there is an agreement. */
+  purchaseDeposit?: number | null;
+  purchaseOdometer?: number | null;
+};
+
 /** The full register record — `assets_all` only. */
-export type Vehicle = VehicleWithFacts & VehicleSpecs & {
+export type Vehicle = VehicleWithFacts & VehicleSpecs & VehiclePurchase & {
   assignedTo: string | null; // staff_profiles.id; null = pool / unassigned
   value: number; // $ book value
   purchasePrice: number; // $ — 0 = unknown; feeds the Tiff estimate
@@ -437,6 +452,50 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
    expires_on is current; the rest are the history, and the vehicle's expiry
    column is a cache of the newest. `premium` is null when the document didn't
    print one: never derived, for the same reason fuel GST isn't. */
+/* ---- finance ---- */
+
+export const FINANCE_KINDS = ["chattel_mortgage", "finance_lease", "novated_lease", "hire_purchase", "loan"] as const;
+export type FinanceKind = (typeof FINANCE_KINDS)[number];
+export const FINANCE_KIND_LABEL: Record<FinanceKind, string> = {
+  chattel_mortgage: "Chattel mortgage",
+  finance_lease: "Finance lease",
+  novated_lease: "Novated lease",
+  hire_purchase: "Hire purchase",
+  loan: "Loan",
+};
+
+export const PAYMENT_FREQUENCIES = ["monthly", "fortnightly", "weekly"] as const;
+export type PaymentFrequency = (typeof PAYMENT_FREQUENCIES)[number];
+export const PAYMENT_FREQUENCY_LABEL: Record<PaymentFrequency, string> = {
+  monthly: "Monthly",
+  fortnightly: "Fortnightly",
+  weekly: "Weekly",
+};
+/** How many repayments a year at each frequency — the schedule's own arithmetic. */
+export const PAYMENTS_PER_YEAR: Record<PaymentFrequency, number> = { monthly: 12, fortnightly: 26, weekly: 52 };
+
+/** A finance agreement as the lender wrote it. The newest `startsOn` is the
+    one in force; older rows are the history. Nothing here is derived — the
+    end date and the position on the schedule are computed on the card from
+    these fields and labelled as estimates. */
+export type VehicleFinance = {
+  id: string;
+  lender: string;
+  agreementNo: string | null;
+  kind: FinanceKind | null;
+  startsOn: string; // yyyy-mm-dd
+  termMonths: number;
+  /** One repayment, in dollars, at `frequency`. Null = the agreement didn't say. */
+  repayment: number | null;
+  frequency: PaymentFrequency;
+  ratePct: number | null;
+  balloon: number | null;
+  amountFinanced: number | null;
+  documentId: string | null;
+  source: PolicySource | null;
+  createdAt?: string;
+};
+
 export type VehiclePolicy = {
   id: string;
   kind: RenewalKind;

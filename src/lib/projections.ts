@@ -50,4 +50,13 @@ export const VEHICLE_SENSITIVE_FIELDS = [
   "variant",
   "regoCustomerNo",
   "photoDocumentId",
+  /* The invoice's fields. Money, and the register's business like the price
+     they detail. */
+  "purchaseSupplier",
+  "purchaseInvoiceNo",
+  "purchaseExGst",
+  "purchaseGst",
+  "purchaseOnRoad",
+  "purchaseDeposit",
+  "purchaseOdometer",
 ] as const;

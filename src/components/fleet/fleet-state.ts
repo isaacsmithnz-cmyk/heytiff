@@ -5,18 +5,21 @@ import { useRouter } from "next/navigation";
 import {
   addLog as addLogAction,
   assignVehicle as assignVehicleAction,
+  attachFinanceDocument as attachFinanceDocumentAction,
   attachPolicyDocument as attachPolicyDocumentAction,
+  attachPurchaseDocument as attachPurchaseDocumentAction,
   deleteLog as deleteLogAction,
   editLog as editLogAction,
+  recordFinance as recordFinanceAction,
   recordRenewal as recordRenewalAction,
   removeVehicle as removeVehicleAction,
   resolveIssue as resolveIssueAction,
   saveVehicle as saveVehicleAction,
   setVehiclePhoto as setVehiclePhotoAction,
 } from "@/app/actions/fleet";
-import type { LogEdit, RenewalInput } from "@/app/actions/fleet";
+import type { FinanceInput, LogEdit, RenewalInput } from "@/app/actions/fleet";
 import type { StoredDocument } from "@/lib/documents/query";
-import type { AiValuation, NewLog, Vehicle, VehicleLog, VehiclePolicy } from "./logic";
+import type { AiValuation, NewLog, Vehicle, VehicleFinance, VehicleLog, VehiclePolicy } from "./logic";
 
 /* Fleet state. The localStorage overlay (ht_fleet_v1) is gone — server data
    arrives as props and every mutation is a server action followed by
@@ -39,6 +42,12 @@ export type FleetActions = {
   attachPolicyDocument: (policyId: string, documentId: string) => void;
   /** The photo on the card — an already-uploaded vehicle_photo document. */
   setVehiclePhoto: (vehicleId: string, documentId: string) => void;
+  /** A finance agreement, scanned or typed; the newest becomes the one in force. */
+  recordFinance: (input: FinanceInput) => void;
+  /** Another piece of paper under an agreement that already exists. */
+  attachFinanceDocument: (financeId: string, documentId: string) => void;
+  /** A purchase invoice filed against the vehicle from the Financials screen. */
+  attachPurchaseDocument: (vehicleId: string, documentId: string) => void;
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: NewLog) => void;
@@ -55,6 +64,8 @@ export type FleetState = FleetActions & {
   aiValues: Record<string, AiValuation>;
   documents: Record<string, StoredDocument[]>;
   policies: Record<string, VehiclePolicy[]>;
+  /** Finance agreements on file, per vehicle, newest first. */
+  finance: Record<string, VehicleFinance[]>;
 };
 
 type Result = { ok: true } | { ok: false; error: string };
@@ -92,6 +103,15 @@ export function useFleetActions(): FleetActions {
     ),
     setVehiclePhoto: useCallback(
       (vehicleId: string, documentId: string) => run(() => setVehiclePhotoAction(vehicleId, documentId)),
+      [run],
+    ),
+    recordFinance: useCallback((input: FinanceInput) => run(() => recordFinanceAction(input)), [run]),
+    attachFinanceDocument: useCallback(
+      (financeId: string, documentId: string) => run(() => attachFinanceDocumentAction(financeId, documentId)),
+      [run],
+    ),
+    attachPurchaseDocument: useCallback(
+      (vehicleId: string, documentId: string) => run(() => attachPurchaseDocumentAction(vehicleId, documentId)),
       [run],
     ),
     removeVehicle: useCallback((id: string) => run(() => removeVehicleAction(id)), [run]),

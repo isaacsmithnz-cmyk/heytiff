@@ -23,10 +23,14 @@
 import {
   AU_STATES,
   BODY_TYPES,
+  FINANCE_KINDS,
   INSURANCE_COVERS,
+  PAYMENT_FREQUENCIES,
   type AuState,
   type BodyType,
+  type FinanceKind,
   type InsuranceCover,
+  type PaymentFrequency,
   type RenewalKind,
 } from "@/components/fleet/logic";
 import { canonicalMake } from "./makes";
@@ -390,5 +394,166 @@ export function parseRegoCertificate(raw: unknown, now = new Date()): RegoCertif
     renewalAmount: money(r.renewalAmount),
     customerNo: text(r.customerNo, 30),
     issuer: text(r.issuer, 60),
+  };
+}
+
+/* ---------------- the finance agreement ---------------- */
+
+/* A chattel mortgage, a lease, a loan contract or its schedule. What the
+   Financials screen shows of it is what the lender wrote — lender, agreement
+   number, type, start, term, repayment and its frequency, rate, balloon,
+   amount financed — and nothing else, because the position on the schedule
+   is arithmetic on these and the payout figure is the lender's to confirm. */
+
+export type FinanceRead = {
+  lender: string | null;
+  agreementNo: string | null;
+  kind: FinanceKind | null;
+  startsOn: string | null;
+  termMonths: number | null;
+  repayment: number | null;
+  frequency: PaymentFrequency | null;
+  ratePct: number | null;
+  balloon: number | null;
+  amountFinanced: number | null;
+};
+
+export const FINANCE_READ_SCHEMA = {
+  type: "object",
+  properties: {
+    lender: nullable("string"),
+    agreementNo: nullable("string"),
+    kind: { anyOf: [{ type: "string", enum: [...FINANCE_KINDS] }, { type: "null" }] },
+    startsOn: nullable("string"),
+    termMonths: nullable("integer"),
+    repayment: nullable("number"),
+    frequency: { anyOf: [{ type: "string", enum: [...PAYMENT_FREQUENCIES] }, { type: "null" }] },
+    ratePct: nullable("number"),
+    balloon: nullable("number"),
+    amountFinanced: nullable("number"),
+  },
+  required: [
+    "lender",
+    "agreementNo",
+    "kind",
+    "startsOn",
+    "termMonths",
+    "repayment",
+    "frequency",
+    "ratePct",
+    "balloon",
+    "amountFinanced",
+  ],
+  additionalProperties: false,
+} as const;
+
+export const FINANCE_PROMPT =
+  "This is an Australian vehicle finance agreement — a chattel mortgage, finance lease, " +
+  "novated lease, hire purchase or loan contract, or the schedule that goes with one. Extract:\n" +
+  '- lender: the financier\'s name (e.g. "Macquarie Leasing", "Toyota Finance")\n' +
+  "- agreementNo: the agreement / contract / account number as printed\n" +
+  '- kind: "chattel_mortgage", "finance_lease", "novated_lease", "hire_purchase" or "loan"; null if the document doesn\'t say\n' +
+  "- startsOn: the date the agreement commences, as yyyy-mm-dd\n" +
+  "- termMonths: the term in months (48, 60)\n" +
+  "- repayment: ONE regular repayment in AUD, GST inclusive where GST applies\n" +
+  '- frequency: how often that repayment falls due — "monthly", "fortnightly" or "weekly"\n' +
+  "- ratePct: the annual interest rate as a plain number (7.45 for 7.45% p.a.)\n" +
+  "- balloon: the balloon / residual / final payment in AUD; null if there is none\n" +
+  "- amountFinanced: the amount financed in AUD\n\n" +
+  "Use null for anything not clearly readable — a guessed repayment is worse than a blank " +
+  "one, because it is the figure someone will budget against. If this is not a vehicle " +
+  "finance document at all, return null for every field.";
+
+/** A rate as a percentage per annum: 0 ≤ r < 100, to three decimals. A
+    figure written as a fraction (0.0745) is not corrected — it is not clearly
+    a rate, and a guessed rate is worse than none. */
+const percent = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v >= 0 && v < 100 ? Math.round(v * 1000) / 1000 : null;
+
+export function parseFinanceRead(raw: unknown): FinanceRead {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    lender: text(r.lender, 80),
+    agreementNo: text(r.agreementNo, 40),
+    kind: oneOf(r.kind, FINANCE_KINDS),
+    startsOn: isoDate(r.startsOn),
+    termMonths: positiveInt(r.termMonths, 240),
+    repayment: money(r.repayment),
+    frequency: oneOf(r.frequency, PAYMENT_FREQUENCIES),
+    ratePct: percent(r.ratePct),
+    balloon: money(r.balloon),
+    amountFinanced: money(r.amountFinanced),
+  };
+}
+
+/* ---------------- the purchase invoice ---------------- */
+
+/* The invoice used to be read for three things — the price, the date and the
+   seller — and the form dropped the seller on the floor. The Financials screen
+   renders the invoice as the dealer prints it, so the reader now asks for the
+   lines that are actually on one. Still scan-then-confirm: this fills a form. */
+
+export type PurchaseInvoiceRead = {
+  cost: number | null;
+  purchasedOn: string | null;
+  supplier: string | null;
+  invoiceNo: string | null;
+  exGst: number | null;
+  gst: number | null;
+  onRoadCosts: number | null;
+  deposit: number | null;
+  odometer: number | null;
+};
+
+export const INVOICE_READ_SCHEMA = {
+  type: "object",
+  properties: {
+    cost: nullable("number"),
+    purchasedOn: nullable("string"),
+    supplier: nullable("string"),
+    invoiceNo: nullable("string"),
+    exGst: nullable("number"),
+    gst: nullable("number"),
+    onRoadCosts: nullable("number"),
+    deposit: nullable("number"),
+    odometer: nullable("integer"),
+  },
+  required: ["cost", "purchasedOn", "supplier", "invoiceNo", "exGst", "gst", "onRoadCosts", "deposit", "odometer"],
+  additionalProperties: false,
+} as const;
+
+export const INVOICE_PROMPT =
+  "This is the invoice or receipt for a vehicle purchase (Australian). Extract:\n" +
+  "- cost: the TOTAL purchase price in AUD, GST inclusive, on-road costs included if the invoice totals them in\n" +
+  "- purchasedOn: the purchase/invoice date as yyyy-mm-dd\n" +
+  "- supplier: a short seller name (dealer or private seller)\n" +
+  "- invoiceNo: the invoice / tax invoice number as printed\n" +
+  "- exGst: the vehicle price before GST, if shown as its own line\n" +
+  "- gst: the GST amount as printed — never a calculated eleventh\n" +
+  "- onRoadCosts: stamp duty, registration, CTP and dealer delivery as one figure, if the invoice groups them\n" +
+  "- deposit: any deposit or trade-in credit paid up front, if shown\n" +
+  "- odometer: the odometer reading at delivery in km, if printed\n\n" +
+  "Use null for anything not clearly readable — a guessed figure is worse than a blank " +
+  "one. If this is not a vehicle purchase document at all, return null for every field.";
+
+/** An odometer at delivery: zero is a real reading on a new vehicle. */
+const nonNegInt = (v: unknown, max = 2_000_000): number | null => {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  const n = Math.round(v);
+  return n >= 0 && n <= max ? n : null;
+};
+
+export function parsePurchaseInvoice(raw: unknown): PurchaseInvoiceRead {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    cost: money(r.cost),
+    purchasedOn: isoDate(r.purchasedOn),
+    supplier: text(r.supplier, 80),
+    invoiceNo: text(r.invoiceNo, 40),
+    exGst: money(r.exGst),
+    gst: money(r.gst),
+    onRoadCosts: money(r.onRoadCosts),
+    deposit: money(r.deposit),
+    odometer: nonNegInt(r.odometer),
   };
 }

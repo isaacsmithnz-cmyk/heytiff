@@ -8,6 +8,7 @@ import type {
   AiValuation,
   FleetStaff,
   Vehicle,
+  VehicleFinance,
   VehicleIdentity,
   VehiclePolicy,
   VehicleLog,
@@ -54,6 +55,8 @@ export type Register = {
   documents: Record<string, StoredDocument[]>;
   /** Renewals on file, per vehicle, newest first. */
   policies: Record<string, VehiclePolicy[]>;
+  /** Finance agreements on file, per vehicle, newest first. */
+  finance: Record<string, VehicleFinance[]>;
 };
 
 type AssetsView = "fleet" | "equipment";

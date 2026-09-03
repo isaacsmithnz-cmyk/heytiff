@@ -4,12 +4,20 @@ import Anthropic from "@anthropic-ai/sdk";
 import { can, getDbRole } from "@/lib/permissions-server";
 import type { RenewalKind } from "@/components/fleet/logic";
 import {
+  FINANCE_PROMPT,
+  FINANCE_READ_SCHEMA,
+  INVOICE_PROMPT,
+  INVOICE_READ_SCHEMA,
+  parseFinanceRead,
+  parsePurchaseInvoice,
   parseRegoCertificate,
   parseRenewalRead,
   REGO_CERT_PROMPT,
   REGO_CERT_SCHEMA,
   RENEWAL_READ_SCHEMA,
   renewalPrompt,
+  type FinanceRead,
+  type PurchaseInvoiceRead,
   type RegoCertificateRead,
   type RenewalRead,
 } from "@/lib/fleet/readers";
@@ -182,20 +190,9 @@ export async function readFuelReceipt(
    accepted here because purchase invoices usually ARE PDFs, where a docket is
    a photo of thermal paper. */
 
-export type ReadInvoiceResult =
-  | { ok: true; cost: number | null; purchasedOn: string | null; supplier: string | null }
-  | { ok: false; reason: string };
-
-const INVOICE_SCHEMA = {
-  type: "object",
-  properties: {
-    cost: { type: ["number", "null"] },
-    purchasedOn: { type: ["string", "null"] },
-    supplier: { type: ["string", "null"] },
-  },
-  required: ["cost", "purchasedOn", "supplier"],
-  additionalProperties: false,
-};
+/* What to ask for and what to believe live in lib/fleet/readers.ts with the
+   other document readers, tested without a key. */
+export type ReadInvoiceResult = ({ ok: true } & PurchaseInvoiceRead) | { ok: false; reason: string };
 
 export async function readPurchaseInvoice(
   fileBase64: string,
@@ -219,37 +216,12 @@ export async function readPurchaseInvoice(
       max_tokens: 16000,
       output_config: {
         effort: "low",
-        format: { type: "json_schema", schema: INVOICE_SCHEMA },
+        format: { type: "json_schema", schema: INVOICE_READ_SCHEMA },
       },
       messages: [
         {
           role: "user",
-          content: [
-            isPdf
-              ? {
-                  type: "document" as const,
-                  source: { type: "base64" as const, media_type: "application/pdf" as const, data: fileBase64 },
-                }
-              : {
-                  type: "image" as const,
-                  source: {
-                    type: "base64" as const,
-                    media_type: mediaType as ReceiptMedia,
-                    data: fileBase64,
-                  },
-                },
-            {
-              type: "text",
-              text:
-                "This is the invoice or receipt for a vehicle purchase (Australian). Extract:\n" +
-                "- cost: the total purchase price in AUD, GST inclusive\n" +
-                "- purchasedOn: the purchase/invoice date as yyyy-mm-dd\n" +
-                "- supplier: a short seller name (dealer or private seller)\n\n" +
-                "Use null for anything not clearly readable — a guessed figure is worse than " +
-                "a blank one. If this is not a vehicle purchase document at all, return null " +
-                "for every field.",
-            },
-          ],
+          content: [documentBlock(fileBase64, mediaType, isPdf), { type: "text", text: INVOICE_PROMPT }],
         },
       ],
     });
@@ -257,12 +229,7 @@ export async function readPurchaseInvoice(
       return { ok: false, reason: "Tiff declined to read this document." };
     }
     const text = response.content.find((b) => b.type === "text")?.text ?? "";
-    const parsed = JSON.parse(text) as {
-      cost: number | null;
-      purchasedOn: string | null;
-      supplier: string | null;
-    };
-    return { ok: true, ...parsed };
+    return { ok: true, ...parsePurchaseInvoice(JSON.parse(text)) };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };
   }
@@ -391,4 +358,49 @@ function documentBlock(fileBase64: string, mediaType: string, isPdf: boolean) {
         type: "image" as const,
         source: { type: "base64" as const, media_type: mediaType as ReceiptMedia, data: fileBase64 },
       };
+}
+
+/* ---------------- the finance agreement (assets_all) ---------------- */
+
+/* The contract behind the repayments. Same scan-then-confirm contract as the
+   renewals: Tiff fills the form, the person checks it against the paper and
+   saves. Register tier, because the vehicle's money is. */
+
+export type ReadFinanceResult = ({ ok: true } & FinanceRead) | { ok: false; reason: string };
+
+export async function readFinanceAgreement(fileBase64: string, mediaType: string): Promise<ReadFinanceResult> {
+  if (!(await can("assets_all"))) return { ok: false, reason: "Reading finance agreements needs the register." };
+  if (offline()) return { ok: false, reason: "no-key" };
+  const isPdf = mediaType === "application/pdf";
+  if (!isPdf && !RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
+    return { ok: false, reason: "Unsupported file type." };
+  }
+  if (!fileBase64 || fileBase64.length > 14_000_000) {
+    return { ok: false, reason: "That file is too large to read." };
+  }
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: FINANCE_READ_SCHEMA },
+      },
+      messages: [
+        {
+          role: "user",
+          content: [documentBlock(fileBase64, mediaType, isPdf), { type: "text", text: FINANCE_PROMPT }],
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal") {
+      return { ok: false, reason: "Tiff declined to read this document." };
+    }
+    const text = response.content.find((b) => b.type === "text")?.text ?? "";
+    return { ok: true, ...parseFinanceRead(JSON.parse(text)) };
+  } catch (err) {
+    return { ok: false, reason: reasonFor(err) };
+  }
 }

@@ -89,7 +89,8 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
     kind === "insurance_policy" ||
     kind === "rego_notice" ||
     kind === "green_slip" ||
-    kind === "vehicle_photo"
+    kind === "vehicle_photo" ||
+    kind === "finance_agreement"
   )
     return can("assets_all");
   // Site photos and job paperwork come from whoever is ON the job — the

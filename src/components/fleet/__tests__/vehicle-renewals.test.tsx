@@ -104,6 +104,9 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
     recordRenewal: noop,
     attachPolicyDocument: noop,
     setVehiclePhoto: noop,
+    recordFinance: noop,
+    attachFinanceDocument: noop,
+    attachPurchaseDocument: noop,
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
@@ -115,6 +118,7 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
     aiValues: {},
     documents: {},
     policies: {},
+    finance: {},
   };
 }
 

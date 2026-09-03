@@ -17,8 +17,8 @@ import {
   type AiValuation,
   type FleetStaff,
   type LogKind,
-  type RenewalKind,
   type Vehicle,
+  type VehicleFinance,
   type VehicleLog,
   type VehiclePolicy,
   type VehicleStatus,
@@ -26,6 +26,8 @@ import {
 import {
   STATUS_DOT,
   complianceRows,
+  currentFinance,
+  financePosition,
   fmtDay,
   historyEvents,
   historyLine,
@@ -33,8 +35,10 @@ import {
   logKinds,
   photoSrc,
   regoAlert,
+  repaymentLabel,
   specRows,
   type HistoryTab,
+  type Screen,
 } from "./derive";
 import { Btn, Card, DetailGrid, Eyebrow, IconBtn, Inline, Segmented } from "./parts";
 
@@ -73,6 +77,7 @@ export function MainScreen({
   valuationIsStale,
   documents,
   policies,
+  finance,
   staff,
   today,
   error,
@@ -96,11 +101,12 @@ export function MainScreen({
   valuationIsStale?: boolean;
   documents: StoredDocument[];
   policies: VehiclePolicy[];
+  finance: VehicleFinance[];
   staff: FleetStaff[];
   today: string;
   error?: string | null;
-  /** Opens a renewal screen. */
-  onOpen: (kind: RenewalKind) => void;
+  /** Opens a renewal screen, or the money. */
+  onOpen: (screen: Exclude<Screen, "main">) => void;
   onServiceHistory: () => void;
   onEdit: () => void;
   onRemove: () => void;
@@ -129,6 +135,9 @@ export function MainScreen({
   const events = historyEvents(logs, tab);
   const photo = photoSrc(vehicle, documents);
   const service = serviceDueText(vehicle);
+  const fin = currentFinance(finance);
+  const finPos = fin ? financePosition(fin, today) : null;
+  const moneyDocs = documents.filter((d) => d.kind === "purchase_invoice" || d.kind === "finance_agreement").length;
 
   const startOdo = () => {
     setOdoDraft(String(vehicle.odometer));
@@ -342,10 +351,15 @@ export function MainScreen({
           </Card>
         </div>
 
-        {/* ---- money, as it stands: no forecast, no invented figure ---- */}
-        <Card className="vm-money">
+        {/* ---- money, as it stands: no forecast, no invented figure. The card
+             is the door to the Financials screen. ---- */}
+        <Card className="vm-money" onClick={() => onOpen("financials")} ariaLabel="Financials">
           <div className="vm-cardhead">
             <Eyebrow>FINANCIALS</Eyebrow>
+            <span className="vm-doccount">
+              {moneyDocs === 1 ? "1 document" : `${moneyDocs} documents`}
+              <Icon name="chevR" size={14} />
+            </span>
           </div>
           <div className="vm-moneycols">
             <div>
@@ -383,9 +397,21 @@ export function MainScreen({
               )}
             </div>
             <div>
-              <span className="vm-fl">BOOK VALUE</span>
-              <b>{fmtMoney(vehicle.value)}</b>
-              <em>As entered in the register</em>
+              <span className="vm-fl">FINANCE</span>
+              {fin ? (
+                <>
+                  <b>{repaymentLabel(fin) ?? fin.lender}</b>
+                  <em>
+                    {repaymentLabel(fin) ? `${fin.lender} · ` : ""}
+                    {finPos?.ended ? "schedule ended" : `${finPos?.made ?? 0} of ${finPos?.total ?? 0} on schedule`}
+                  </em>
+                </>
+              ) : (
+                <>
+                  <b className="faint">—</b>
+                  <em>No finance agreement recorded</em>
+                </>
+              )}
             </div>
           </div>
         </Card>

@@ -65,6 +65,7 @@ const doc = (over: Partial<StoredDocument>): StoredDocument => ({
   url: "https://x/y",
   image: true,
   policyId: null,
+  financeId: null,
   ...over,
 });
 

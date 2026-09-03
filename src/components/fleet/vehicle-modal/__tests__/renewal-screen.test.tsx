@@ -87,6 +87,7 @@ const slipDoc: StoredDocument = {
   url: "https://signed/slip.jpg",
   image: true,
   policyId: "p-ctp",
+  financeId: null,
 };
 
 function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; policies?: VehiclePolicy[]; documents?: StoredDocument[] } = {}) {

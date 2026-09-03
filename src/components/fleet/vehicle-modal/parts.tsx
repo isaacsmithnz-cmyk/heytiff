@@ -181,3 +181,38 @@ export function SubHeader({
     </div>
   );
 }
+
+/* ---- form atoms shared by the record panels ---- */
+
+/** A labelled field in a record panel's grid. */
+export function Field({ label, req, children }: { label: string; req?: boolean; children: ReactNode }) {
+  return (
+    <label className="vm-ffield">
+      <span className="vm-fl">
+        {label}
+        {req && <i aria-hidden>*</i>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+/** A dollar figure, typed as digits. */
+export function MoneyInput({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  return (
+    <span className="vm-money-in">
+      <span>$</span>
+      <input inputMode="decimal" value={value} placeholder={placeholder} aria-label={ariaLabel} onChange={(e) => onChange(e.target.value)} />
+    </span>
+  );
+}

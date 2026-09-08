@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -89,16 +90,15 @@ import { DayLegend, legendFor } from "./tiles";
    isn't hidden at render time — `getMyWeek` doesn't select the column, so the
    payload has nothing to print. Multipliers and hours only. */
 
-/* What you can say a day was. Leave, sick and public holidays are NOT here:
-   they are booked in the leave module or set on the org's calendar, and they
-   arrive on this screen already marked. A timesheet that could also declare
-   annual leave would be a second place to record the same day — the exact
-   double-entry this screen is meant to end.
+/* What you can say a day was — the two seats of the switch that sits where
+   the day's state was already being named. Leave, sick and public holidays
+   are NOT here: they are booked in the leave module or set on the org's
+   calendar, and they arrive on this screen already marked. A timesheet that
+   could also declare annual leave would be a second place to record the same
+   day — the exact double-entry this screen is meant to end.
 
-   The two answers, in the words the states are called everywhere else —
-   `DAY_WORD.off` rather than a third phrasing of it. The button that SETS a
-   day and the pill that then NAMES it used to disagree ("Didn't work" →
-   "Not worked"), which reads as two different things having happened. */
+   Both words come from `DAY_WORD`, so the control that SETS a day and every
+   other place that NAMES it cannot drift apart. */
 const KINDS: { t: "work" | "off"; label: string }[] = [
   { t: "work", label: "Worked" },
   { t: "off", label: DAY_WORD.off },
@@ -195,6 +195,201 @@ function daySummary(d: DayEntry): string {
   return `${fmtH(d.h)}h`;
 }
 
+/* ---------------- the day's head, and the answer that lives in it ----------------
+
+   THE PILL WAS NAMING THE STATE WHILE SOMETHING ELSE SET IT. The panel said
+   `Overtime` at the top and carried a separate control further down for
+   whether the day was worked at all — the same fact in two places, and the
+   setting half kept ending up somewhere awkward (Isaac, 2026-09-08: "have a
+   tab switcher in place of where it says overtime").
+
+   So a day you can assert gets the switch here. A day owned by the leave
+   module keeps a plain pill, because there is nothing to flick. */
+
+function DayHead({
+  label,
+  holidayName,
+  right,
+}: {
+  label: string;
+  holidayName?: string;
+  right: React.ReactNode;
+}) {
+  return (
+    <div className="mts2-phead">
+      <span className="mts2-pd">{label}</span>
+      {right}
+      {holidayName && (
+        <span className="mts2-ehol">
+          <Icon name="calendar" size={11} />
+          {holidayName}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Worked / Off, on the house tray. A radio group, not two toggles: exactly
+    one of them is true of a day, and `aria-pressed` on each said neither. */
+function DaySwitch({
+  value,
+  onGo,
+  disabled,
+}: {
+  value: "work" | "off";
+  onGo: (k: "work" | "off") => void;
+  disabled: boolean;
+}) {
+  const seats = useRef<(HTMLButtonElement | null)[]>([]);
+  return (
+    <div
+      className="mts2-dsw"
+      role="radiogroup"
+      aria-label="What this day was"
+      onKeyDown={(e) => {
+        const fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
+        const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+        if (!fwd && !back) return;
+        e.preventDefault();
+        const at = KINDS.findIndex((k) => k.t === value);
+        const to = (at + (fwd ? 1 : -1) + KINDS.length) % KINDS.length;
+        onGo(KINDS[to]!.t);
+        seats.current[to]?.focus();
+      }}
+    >
+      {KINDS.map((k, i) => (
+        <button
+          key={k.t}
+          ref={(el) => {
+            seats.current[i] = el;
+          }}
+          type="button"
+          role="radio"
+          aria-checked={value === k.t}
+          className={`mts2-dswb${value === k.t ? " on" : ""}`}
+          tabIndex={value === k.t ? 0 : -1}
+          disabled={disabled}
+          onClick={() => onGo(k.t)}
+        >
+          {k.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- one time, and the clock that drops out of it ----------------
+
+   Two wheels side by side were six scroll columns told apart by an 11px
+   label — you had to read to know which one you were turning. So the two
+   times are two separate fields, and only one clock is ever on screen.
+
+   THE DROP PORTALS TO BODY, and it has to: `.wb2-card` is `overflow:hidden`,
+   so anything absolutely positioned inside the panel is sliced off at the
+   card's edge. That also means the `.fg` scope does not reach it — every rule
+   for `.mts2-drop` is written unscoped, with literal fallbacks beside the
+   tokens, and it restates the button ground rules `.fg button` would have
+   supplied. See [[project-fg-scoped-tokens-portal]].
+
+   It closes on scroll rather than following: the field it belongs to is
+   inside a scrolling outlet, and a drop that tracks its anchor through a
+   scroll is a lot of machinery for a gesture nobody makes mid-answer. */
+function TimeField({
+  label,
+  wheelLabel,
+  value,
+  onChange,
+  open,
+  onToggle,
+  onOk,
+  okLabel,
+  disabled,
+}: {
+  label: string;
+  /** the clock's own name — "Start", as My normal hours calls it, so one
+      control does not answer to two names across the screen */
+  wheelLabel: string;
+  value: string;
+  onChange: (v: string) => void;
+  open: boolean;
+  onToggle: () => void;
+  onOk: () => void;
+  okLabel: string;
+  disabled: boolean;
+}) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  /* MEASURED ON THE PRESS, not in an effect. An effect runs after paint, so
+     placing it there gives the drop one frame at the previous field's
+     position — and it is a setState in an effect, which is the shape the
+     lint rule exists to stop. The press is the only moment the position can
+     change anyway: scrolling and resizing close it. */
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!btn.current?.contains(t) && !pop.current?.contains(t)) onToggle();
+    };
+    const key = (e: KeyboardEvent) => e.key === "Escape" && onToggle();
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key);
+    window.addEventListener("resize", onToggle);
+    window.addEventListener("scroll", onToggle, true);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", key);
+      window.removeEventListener("resize", onToggle);
+      window.removeEventListener("scroll", onToggle, true);
+    };
+  }, [open, onToggle]);
+
+  return (
+    <div className={`mts2-field${open ? " open" : ""}`}>
+      <button
+        ref={btn}
+        type="button"
+        className="mts2-fieldhd"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => {
+          const r = btn.current?.getBoundingClientRect();
+          if (r) setBox({ top: r.bottom + 6, left: r.left, width: r.width });
+          onToggle();
+        }}
+      >
+        <span className="mts2-fieldv">
+          <span className="mts2-fieldl">{label}</span>
+          <b className="mts2-fieldt">{value}</b>
+        </span>
+        <Icon name={open ? "chevU" : "chevD"} size={15} />
+      </button>
+      {open &&
+        box &&
+        createPortal(
+          <div
+            ref={pop}
+            className="mts2-drop"
+            style={{ top: box.top, left: box.left, width: box.width }}
+          >
+            {/* OK AT THE TOP, beside the field it belongs to. At the bottom it
+                would sit under 132px of scrolling numbers, away from the thing
+                it confirms. */}
+            <div className="mts2-drophd">
+              <span>{label}</span>
+              <button type="button" className="mts2-ok" onClick={onOk}>
+                {okLabel}
+              </button>
+            </div>
+            <TimeWheel label={wheelLabel} value={value} onChange={onChange} disabled={disabled} />
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 /* ---------------- the one editor ---------------- */
 
 /* It opens in a single panel below the strip — the day you clicked, and only
@@ -251,20 +446,37 @@ function DayEditor({
      the period was the one requiring the least intent. On a weekday still to
      come it offered to log hours nobody had worked yet.
 
-     So an empty day opens with neither answer chosen and Save disabled until
-     one is. The wheels stay seeded from your normal hours — once you say you
-     worked it, the ordinary day is still the right starting point — they just
-     don't appear until you've said so. Every other day keeps its stored
-     answer, because there the software is showing you what it has, not
-     guessing on your behalf. */
+     So an empty day gets no switch and no times at all — just the two things
+     it could become, as two buttons. The clocks stay seeded from your normal
+     hours (once you say you worked it, the ordinary day is still the right
+     starting point) and simply do not appear until you have said so. Every
+     other day keeps its stored answer, because there the software is showing
+     you what it has rather than guessing on your behalf.
+
+     The switch that used to sit in the body, unanswered and wearing a ring to
+     say so, is now in the head — and it is only there once there IS an
+     answer, which is what stops it pre-answering a day nobody has worked. */
   const [kind, setKind] = useState<"work" | "off" | null>(
     entry.t === "empty" ? null : entry.t === "off" ? "off" : "work",
   );
-  /* the two seats, so an arrow press can move focus with the selection */
-  const seats = useRef<(HTMLButtonElement | null)[]>([]);
+  /* which field's clock is down — never both */
+  const [open, setOpen] = useState<null | "start" | "finish">(null);
+  /* Save exists once there is something to save, and not before. A panel that
+     opens at rest has nothing to confirm until you have changed something. */
+  const [dirty, setDirty] = useState(false);
+  const touch = () => setDirty(true);
   const [start, setStart] = useState(entry.t === "work" ? entry.in : normal.start);
   const [end, setEnd] = useState(entry.t === "work" ? entry.out : normal.end);
   const [breakMin, setBreakMin] = useState(() => seedBreakMinutes(entry, settings));
+
+  /* the head's plain-pill case — a day the leave module owns, or one with no
+     answer to switch between */
+  const cls = dayClass(entry, index, settings, ctx);
+  const pillClass = cls;
+  const pillWord = pillLabel(entry, cls, dowOf(w), settings);
+  /* a day that arrived with nothing runs the two clocks in order the first
+     time; a day that already had an answer does not */
+  const wasEmpty = entry.t === "empty";
 
   const hasBreak = settings.breakMinutes > 0;
   const adjustable = hasBreak && !settings.breakPaid;
@@ -283,14 +495,41 @@ function DayEditor({
   });
   const short = kind === "work" && expected && derived < settings.standard;
 
+  /* Cancel puts the day back to what is stored, which is the only honest
+     meaning of the word next to an unsaved edit. */
+  const reset = () => {
+    setDirty(false);
+    setOpen(null);
+    setKind(entry.t === "empty" ? null : entry.t === "off" ? "off" : "work");
+    setStart(entry.t === "work" ? entry.in : normal.start);
+    setEnd(entry.t === "work" ? entry.out : normal.end);
+    setBreakMin(seedBreakMinutes(entry, settings));
+  };
+
   const commit = () => {
     if (kind === null) return;
     onSave(index, kind === "off" ? { t: "off" } : { t: "work", in: start, out: end, h: derived });
   };
 
+  const headRight =
+    locked || kind === null ? (
+      <span className={`mts2-pill ${pillClass}`}>{pillWord}</span>
+    ) : (
+      <DaySwitch
+        value={kind}
+        disabled={busy}
+        onGo={(k) => {
+          touch();
+          setOpen(null);
+          setKind(k);
+        }}
+      />
+    );
+
   if (locked) {
     return (
       <div className="mts2-edit">
+        <DayHead label={dayLabel(w)} holidayName={holidayName} right={headRight} />
         <div className="mts2-elock">
           <Icon name={entry.t === "ph" ? "calendar" : "check"} size={16} />
           <span>
@@ -326,76 +565,71 @@ function DayEditor({
 
   return (
     <div className="mts2-edit">
+      <DayHead label={dayLabel(w)} holidayName={holidayName} right={headRight} />
       <div className={`mts2-esrc ${source}`}>
         <Icon name={source === "presumed" ? "check" : "clock"} size={12} />
         {SOURCE_NOTE[source]}
       </div>
 
-      {/* THE UNANSWERED STATE IS ON THE CONTROL, not in a sentence beside the
-          button it disables. An empty day used to open with neither answer
-          chosen, a dead Save, and "Say what this day was first." printed next
-          to it — a caption explaining a control four pixels away, which is the
-          screen admitting the control didn't read as unanswered. `ask` gives
-          it the ring instead, and the sentence is gone.
-
-          AND IT IS A RADIOGROUP, NOT TWO TOGGLES. Worked and Not worked are
-          alternatives — exactly one of them is true of a day — but this was
-          `role="group"` with an `aria-pressed` on each, which announces two
-          independent switches that happen to sit together, both off, with
-          nothing tying them to the same question. That is the same thing the
-          LOOK of it was saying, and the fix for that half is `.mts2-kinds` in
-          shell.css. `aria-checked` says one question with two answers, and
-          the arrows move between them the way a radio group's do. */}
-      <div
-        className={`mts2-kinds${kind === null ? " ask" : ""}`}
-        role="radiogroup"
-        aria-label="What this day was"
-        onKeyDown={(e) => {
-          const fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
-          const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
-          if (!fwd && !back) return;
-          e.preventDefault();
-          /* Nothing chosen yet is a real position here, not an error: the
-             first arrow press picks the end you arrowed towards rather than
-             silently starting from the left both ways. */
-          const at = KINDS.findIndex((k) => k.t === kind);
-          const to =
-            at < 0
-              ? fwd
-                ? 0
-                : KINDS.length - 1
-              : (at + (fwd ? 1 : -1) + KINDS.length) % KINDS.length;
-          setKind(KINDS[to]!.t);
-          seats.current[to]?.focus();
-        }}
-      >
-        {KINDS.map((k, i) => (
+      {/* A DAY WITH NO ANSWER OFFERS THE TWO IT COULD HAVE, and nothing else.
+          There is no switch to leave unanswered and no clock to leave seeded,
+          which is what stops the most expensive day in the period being one
+          press from real. */}
+      {kind === null && (
+        <div className="mts2-eacts">
           <button
-            key={k.t}
-            ref={(el) => {
-              seats.current[i] = el;
+            className="mts2-btn primary"
+            disabled={busy}
+            onClick={() => {
+              touch();
+              setKind("work");
+              setOpen("start");
             }}
-            type="button"
-            role="radio"
-            className={`mts2-kind${kind === k.t ? " on" : ""}`}
-            aria-checked={kind === k.t}
-            /* One tab stop for the question, as a radio group has. With
-               nothing chosen the group still has to be reachable, so the
-               first seat holds it. */
-            tabIndex={kind === null ? (i === 0 ? 0 : -1) : kind === k.t ? 0 : -1}
-            onClick={() => setKind(k.t)}
           >
-            {k.label}
+            <Icon name="clock" size={14} />
+            {expected ? "Log hours" : "Add this day"}
           </button>
-        ))}
-      </div>
+          <button
+            className="mts2-btn"
+            disabled={busy}
+            onClick={() => {
+              touch();
+              setKind("off");
+            }}
+          >
+            Mark as {DAY_WORD.off.toLowerCase()}
+          </button>
+        </div>
+      )}
 
       {/* the times, scrolled. There is no text input on this screen. */}
       {kind === "work" && (
         <>
-          <div className="mts2-wheels">
-            <TimeWheel label="Start" value={start} onChange={setStart} disabled={busy} />
-            <TimeWheel label="Finish" value={end} onChange={setEnd} disabled={busy} />
+          {/* TWO FIELDS, NOT TWO WHEELS. They are separate cards with air
+              between them rather than one box with a seam down it, because
+              they are two facts about the day, and pressing one drops its
+              clock below it while the other holds its place. */}
+          <div className="mts2-fields">
+            {(["start", "finish"] as const).map((which) => (
+              <TimeField
+                key={which}
+                label={which === "start" ? "Started" : "Finished"}
+                wheelLabel={which === "start" ? "Start" : "Finish"}
+                value={which === "start" ? start : end}
+                onChange={(v) => {
+                  touch();
+                  (which === "start" ? setStart : setEnd)(v);
+                }}
+                open={open === which}
+                onToggle={() => setOpen((o) => (o === which ? null : which))}
+                /* the pair runs in order for a day being added from nothing;
+                   for a day that already has an answer each end is its own
+                   way in, and OK just closes the one you opened */
+                onOk={() => setOpen(which === "start" && wasEmpty ? "finish" : null)}
+                okLabel={which === "start" && wasEmpty ? "Next" : "OK"}
+                disabled={busy}
+              />
+            ))}
           </div>
 
           {/* the break, only when this workspace has one. Paid breaks are on
@@ -475,22 +709,40 @@ function DayEditor({
           disabled. So you press Save, the card doesn't move, and you conclude
           it didn't work; the honest reading of "nothing happened" is that the
           screen said nothing for two and a half seconds. */}
-      <div className={`mts2-eacts${busy ? " busy" : ""}`} aria-busy={busy}>
-        <button className="mts2-btn primary" disabled={busy || kind === null} onClick={commit}>
-          <Icon name={busy ? "clock" : "check"} size={14} />
-          {busy ? "Saving…" : "Save day"}
-        </button>
-        {source === "entered" && (
-          <button
-            className="mts2-btn"
-            disabled={busy}
-            onClick={() => onSave(index, { t: "empty" })}
-            title={expected ? "Go back to your normal day" : "Take this day off the timesheet"}
-          >
-            {expected ? "Back to normal" : "Remove day"}
-          </button>
-        )}
-      </div>
+      {/* SAVE EXISTS ONCE THERE IS SOMETHING TO SAVE. A panel that opens at
+          rest has nothing to confirm until you change something, and a Save
+          button standing over an untouched day invites a round trip that
+          writes what is already there.
+
+          "Back to normal" is NOT gated the same way: it is not a confirmation
+          of an edit, it is the way to undo one you made earlier, and gating it
+          behind `dirty` would make it reachable only by first changing the day
+          you were trying to clear. */}
+      {(dirty || busy || source === "entered") && (
+        <div className={`mts2-eacts${busy ? " busy" : ""}`} aria-busy={busy}>
+          {(dirty || busy) && (
+            <button className="mts2-btn primary" disabled={busy || kind === null} onClick={commit}>
+              <Icon name={busy ? "clock" : "check"} size={14} />
+              {busy ? "Saving…" : "Save day"}
+            </button>
+          )}
+          {dirty && !busy && (
+            <button className="mts2-btn" onClick={reset}>
+              Cancel
+            </button>
+          )}
+          {source === "entered" && !dirty && (
+            <button
+              className="mts2-btn"
+              disabled={busy}
+              onClick={() => onSave(index, { t: "empty" })}
+              title={expected ? "Go back to your normal day" : "Take this day off the timesheet"}
+            >
+              {expected ? "Back to normal" : "Remove day"}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1034,25 +1286,30 @@ export function MyTimesheet({
                     {/* the panel the tabs open onto — one day, never seven */}
                     {holdsSelection && (
                       <div className="mts2-panel" role="tabpanel">
-                        <div className="mts2-phead">
-                          <span className="mts2-pd">{dayLabel(week[selected])}</span>
-                          <span className={`mts2-pill ${dayClass(me.days[selected], selected, settings, ctx)}`}>
-                            {pillLabel(
-                              me.days[selected],
-                              dayClass(me.days[selected], selected, settings, ctx),
-                              dowOf(week[selected]),
-                              settings,
-                            )}
-                          </span>
-                          {holidayByDate.get(dateOfDay(periodStart, selected)) && (
-                            <span className="mts2-ehol">
-                              <Icon name="calendar" size={11} />
-                              {holidayByDate.get(dateOfDay(periodStart, selected))}
-                            </span>
-                          )}
-                        </div>
+                        {/* THE HEAD MOVED INSIDE. It used to sit above both
+                            branches with a pill in it, but the pill is the
+                            switch now and the switch belongs to whoever owns
+                            the day's pending answer — which is the editor. A
+                            period that is sent, closed or salaried still gets
+                            a plain pill, because there is nothing to flick. */}
                         {locked ? (
                           <>
+                            <DayHead
+                              label={dayLabel(week[selected])}
+                              holidayName={holidayByDate.get(dateOfDay(periodStart, selected))}
+                              right={
+                                <span
+                                  className={`mts2-pill ${dayClass(me.days[selected], selected, settings, ctx)}`}
+                                >
+                                  {pillLabel(
+                                    me.days[selected],
+                                    dayClass(me.days[selected], selected, settings, ctx),
+                                    dowOf(week[selected]),
+                                    settings,
+                                  )}
+                                </span>
+                              }
+                            />
                             <div className="mts2-elock">
                               <Icon name="check" size={16} />
                               <span>

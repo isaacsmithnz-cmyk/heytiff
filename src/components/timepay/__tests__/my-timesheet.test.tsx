@@ -146,7 +146,18 @@ function renderSheet(over: Partial<React.ComponentProps<typeof MyTimesheet>> = {
 const tab = (name: RegExp) => screen.getByRole("tab", { name });
 /** The open day, as its own scope — the rail has wheels of its own. */
 const panel = () => screen.getByRole("tabpanel");
-/** Pick a value on a wheel inside the given scope (the day panel by default). */
+/** The two time fields the day panel rests on. Pressing one drops its clock. */
+const field = (which: "Start" | "Finish", scope: HTMLElement = panel()) =>
+  within(scope).getByRole("button", {
+    name: new RegExp(`^${which === "Start" ? "Started" : "Finished"} `),
+  });
+
+/** Pick a value on a wheel, opening the field it lives in first.
+
+    THE DROP IS PORTALLED TO BODY — `.wb2-card` is `overflow:hidden`, so a
+    clock positioned inside the panel is sliced off at the card's edge. Which
+    is why the wheel is looked up on the SCREEN rather than within `scope`:
+    it is not a descendant of the panel any more. */
 const spin = async (
   user: ReturnType<typeof userEvent.setup>,
   wheel: "Start" | "Finish",
@@ -154,7 +165,12 @@ const spin = async (
   option: string,
   scope: HTMLElement = panel(),
 ) => {
-  const group = within(scope).getByRole("group", { name: wheel });
+  const own = within(scope).queryByRole("group", { name: wheel });
+  if (!own) {
+    const f = field(wheel, scope);
+    if (f.getAttribute("aria-expanded") === "false") await user.click(f);
+  }
+  const group = own ?? screen.getByRole("group", { name: wheel });
   const list = within(group).getByRole("listbox", { name: column });
   await user.click(within(list).getByRole("option", { name: option }));
 };
@@ -316,9 +332,11 @@ describe("the week is ONE strip of day tabs", () => {
     expect(screen.queryByRole("button", { name: "Add Saturday" })).toBeNull();
     await user.click(tab(/Sat 4 Jul/));
     expect(screen.getByText("Sat 4 Jul")).toBeInTheDocument();
-    // …and once you say you worked it, the wheels are right there
-    await user.click(within(panel()).getByText("Worked"));
-    expect(screen.getByRole("group", { name: "Start" })).toBeInTheDocument();
+    /* …and once you say you worked it, the two fields are right there. A
+       weekend has no switch to flick until it has an answer. */
+    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
+    expect(field("Start")).toBeInTheDocument();
+    expect(field("Finish")).toBeInTheDocument();
   });
 
   /* EVERY COLOUR DRAWN IS EXPLAINED, AND NOTHING ELSE IS — the invariant, in
@@ -355,7 +373,7 @@ describe("the week is ONE strip of day tabs", () => {
     });
     const legend = container.querySelector(".legend") as HTMLElement;
     expect(within(legend).getByText("Missing")).toBeInTheDocument();
-    expect(within(legend).getByText("Not worked")).toBeInTheDocument();
+    expect(within(legend).getByText("Off")).toBeInTheDocument();
     // and every caption it draws is one of the shared list's, never a new word
     const known = DAY_LEGEND.map(([, c]) => c);
     for (const c of captions(legend)) expect(known).toContain(c);
@@ -372,8 +390,8 @@ describe("a normal week takes no input", () => {
        The times are read off the two wheel HEADINGS — the line beneath them
        used to restate both and now carries only what they come to, which is
        the one thing the wheels can't say themselves. */
-    expect(screen.getByRole("group", { name: "Start" }).textContent).toContain("7:00 AM");
-    expect(screen.getByRole("group", { name: "Finish" }).textContent).toContain("3:00 PM");
+    expect(field("Start").textContent).toContain("7:00 AM");
+    expect(field("Finish").textContent).toContain("3:00 PM");
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("8h");
   });
 
@@ -394,7 +412,7 @@ describe("a normal week takes no input", () => {
     expect(screen.getByText(/came from your leave/)).toBeInTheDocument();
     // nothing to edit, and nothing to save over the booking
     expect(screen.queryByText("Save day")).toBeNull();
-    expect(screen.queryByRole("group", { name: "Start" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Started / })).toBeNull();
   });
 
   it("a public holiday is read only too, and names itself", async () => {
@@ -419,14 +437,14 @@ describe("a normal week takes no input", () => {
     const p = panel();
     expect(within(p).queryByText("Annual leave")).toBeNull();
     expect(within(p).queryByText("Public holiday")).toBeNull();
-    expect(within(p).getByText("Worked")).toBeInTheDocument();
-    /* "Not worked", not "Didn't work" — the button that SETS a day and the
-       pill that then NAMES it read the same word now. See DAY_WORD.
+    expect(within(p).getByRole("radio", { name: "Worked" })).toBeInTheDocument();
+    /* "Off" — the switch that SETS a day and every place that NAMES it read
+       one word, because both come from DAY_WORD.
 
        A RADIO, not a toggle button: the two answers are alternatives to one
        question, and announcing them as two independent pressed/unpressed
        switches said nothing about that. */
-    expect(within(p).getByRole("radio", { name: "Not worked" })).toBeInTheDocument();
+    expect(within(p).getByRole("radio", { name: "Off" })).toBeInTheDocument();
   });
 
   /* ONE QUESTION, TWO ANSWERS — and the assistive reading of it has to say so.
@@ -437,11 +455,15 @@ describe("a normal week takes no input", () => {
      the checked one always returns exactly one of them. */
   it("is one radio group, not two toggles that happen to be adjacent", async () => {
     const user = userEvent.setup();
-    renderSheet();
+    const { container } = renderSheet();
     await user.click(tab(/Mon 29 Jun/)); // presumed, so "Worked" is the answer
     const group = screen.getByRole("radiogroup", { name: "What this day was" });
+    /* IT SITS IN THE DAY'S HEAD, where the pill used to NAME the state this
+       control SETS — the same fact in two places, with the setting half in
+       the awkward one. */
+    expect(container.querySelector(".mts2-phead")?.contains(group)).toBe(true);
     const seats = within(group).getAllByRole("radio");
-    expect(seats.map((b) => b.textContent)).toEqual(["Worked", "Not worked"]);
+    expect(seats.map((b) => b.textContent)).toEqual(["Worked", "Off"]);
     expect(within(group).getAllByRole("radio", { checked: true })).toHaveLength(1);
 
     /* One tab stop for the question, on the answer — a radio group's roving
@@ -459,16 +481,23 @@ describe("a normal week takes no input", () => {
 
   /* With NOTHING chosen there is no answer to arrow away from, and starting
      from the left whichever way you pressed would ignore half the input. */
-  it("takes the first arrow press as the end it was aimed at", async () => {
+  it("offers a day with no answer the two it could become, and no switch", async () => {
     const user = userEvent.setup();
     renderSheet();
     await user.click(tab(/Sat 4 Jul/)); // empty — neither answer given
-    const group = screen.getByRole("radiogroup", { name: "What this day was" });
-    expect(within(group).queryAllByRole("radio", { checked: true })).toHaveLength(0);
+    /* A DAY WITH NO ANSWER HAS NO SWITCH. It used to be there wearing a ring
+       to say it was unanswered, and the ring existed because a two-seat
+       control with neither seat lit does not read as a question. Two buttons
+       for the two things the day could become say it without explanation. */
+    expect(screen.queryByRole("radiogroup", { name: "What this day was" })).toBeNull();
+    const p = panel();
+    expect(within(p).getByRole("button", { name: "Add this day" })).toBeInTheDocument();
+    expect(within(p).getByRole("button", { name: "Mark as off" })).toBeInTheDocument();
 
-    within(group).getAllByRole("radio")[0]!.focus();
-    await user.keyboard("{ArrowLeft}");
-    expect(within(group).getByRole("radio", { name: "Not worked" })).toHaveAttribute(
+    /* saying which one it was brings the switch with it, already answered */
+    await user.click(within(p).getByRole("button", { name: "Mark as off" }));
+    const group = screen.getByRole("radiogroup", { name: "What this day was" });
+    expect(within(group).getByRole("radio", { name: "Off" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
@@ -480,24 +509,33 @@ describe("a normal week takes no input", () => {
      pixels away, which is the screen admitting the control didn't read as
      unanswered. The ring says it where it is true, and it comes off the moment
      either answer is given. */
-  it("marks the unanswered choice rather than captioning the dead button", async () => {
+  it("seeds nothing and offers no Save until the day has been answered", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
     await user.click(tab(/Sat 4 Jul/)); // empty, nothing presumed onto it
-    expect(container.querySelector(".mts2-kinds")?.className).toContain("ask");
-    expect(screen.getByText("Save day").closest("button")).toBeDisabled();
+    /* The caption went first ("Say what this day was first."), then the ring
+       that replaced it, and now the control itself. What survives all three is
+       the rule underneath: nothing is seeded and there is nothing to save
+       until the person says which it was — which is what stopped the most
+       expensive day in the period being one press from real. */
+    expect(screen.queryByText("Save day")).toBeNull();
     expect(screen.queryByText(/Say what this day was/)).toBeNull();
+    expect(container.querySelector(".mts2-kinds")).toBeNull();
+    expect(within(panel()).queryByRole("button", { name: /^Started / })).toBeNull();
 
-    await user.click(within(panel()).getByText("Worked"));
-    expect(container.querySelector(".mts2-kinds")?.className).not.toContain("ask");
+    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
     expect(screen.getByText("Save day").closest("button")).toBeEnabled();
   });
 
-  it("an answered day never wears the ring", async () => {
+  it("an answered day rests, with no Save standing over it", async () => {
     const user = userEvent.setup();
     const { container } = renderSheet();
     await user.click(tab(/Mon 29 Jun/)); // presumed, so "Worked" is already on
-    expect(container.querySelector(".mts2-kinds")?.className).not.toContain("ask");
+    /* The panel opens at REST. A Save button over an untouched day invites a
+       round trip that writes what is already there. */
+    expect(container.querySelector(".mts2-kinds")).toBeNull();
+    expect(screen.queryByText("Save day")).toBeNull();
+    expect(field("Start").textContent).toContain("7:00 AM");
   });
 });
 
@@ -548,6 +586,7 @@ describe("a time is scrolled, never typed", () => {
     const user = userEvent.setup();
     renderSheet();
     await user.click(tab(/Mon 29 Jun/));
+    await user.click(field("Start"));
     const group = screen.getByRole("group", { name: "Start" });
     const minutes = within(group).getByRole("listbox", { name: "Minute" });
     const options = within(minutes).getAllByRole("option");
@@ -575,11 +614,11 @@ describe("a day that was different", () => {
     });
   });
 
-  it("'Not worked' saves a day off, and LINKS to leave for a paid one", async () => {
+  it("'Off' saves a day off, and LINKS to leave for a paid one", async () => {
     const user = userEvent.setup();
     renderSheet();
     await user.click(tab(/Mon 29 Jun/));
-    await user.click(screen.getByRole("radio", { name: "Not worked" }));
+    await user.click(screen.getByRole("radio", { name: "Off" }));
     expect(screen.getByText(/book it in/)).toBeInTheDocument();
     /* a link, not bold text naming a screen — this sentence is the one place
        the app sends you somewhere else to finish a thought */
@@ -613,7 +652,7 @@ describe("a day that was different", () => {
       sources: ["entered", ...SOURCES.slice(1)] as DaySource[],
     });
     await user.click(tab(/Mon 29 Jun/));
-    expect(screen.getByRole("radio", { name: "Not worked" }).className).toContain("on");
+    expect(screen.getByRole("radio", { name: "Off" }).className).toContain("on");
 
     // the server sends the day back as an ordinary presumed day
     rerender(
@@ -625,9 +664,9 @@ describe("a day that was different", () => {
     );
 
     // the panel must follow the day, not its own stale state
-    expect(screen.getByText("Worked").className).toContain("on");
-    expect(screen.getByRole("radio", { name: "Not worked" }).className).not.toContain("on");
-    expect(screen.getByRole("group", { name: "Start" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Worked" }).className).toContain("on");
+    expect(screen.getByRole("radio", { name: "Off" }).className).not.toContain("on");
+    expect(field("Start")).toBeInTheDocument();
     expect(screen.queryByText(/book it in/)).toBeNull();
   });
 
@@ -671,7 +710,7 @@ describe("a casual", () => {
     const user = userEvent.setup();
     const { container } = renderSheet(CASUAL);
     await user.click(tab(/Tue 30 Jun/));
-    await user.click(within(panel()).getByText("Worked"));
+    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
     await spin(user, "Finish", "Hour", "11");
     await spin(user, "Finish", "AM/PM", "AM");
     expect(container.querySelector(".mts2-derv")?.className).not.toContain("short");
@@ -807,7 +846,7 @@ describe("the break", () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, false) });
     await user.click(tab(/Sat 4 Jul/));
-    await user.click(within(panel()).getByText("Worked"));
+    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
     expect(screen.getByText("30 min unpaid break")).toBeInTheDocument();
     expect(container.querySelector(".mts2-derv")?.textContent).toContain("7.5h");
     await user.click(screen.getByText("Save day"));
@@ -823,7 +862,7 @@ describe("the break", () => {
     const user = userEvent.setup();
     const { container } = renderSheet({ settings: withBreak(30, false) });
     await user.click(tab(/Sat 4 Jul/));
-    await user.click(within(panel()).getByText("Worked"));
+    await user.click(within(panel()).getByRole("button", { name: "Add this day" }));
     await user.click(screen.getByLabelText("Shorter break"));
     await user.click(screen.getByLabelText("Shorter break"));
     expect(screen.getByText("20 min unpaid break")).toBeInTheDocument();
@@ -1168,14 +1207,20 @@ describe("a salaried week pays itself", () => {
     const user = userEvent.setup();
     renderSheet({ salaried: true, today: 5, through: 4 });
     await user.click(tab(/Mon 29/));
-    expect(screen.queryByText("Save day")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Started / })).toBeNull();
 
+    /* Unlocking hands you the day's two times. There is still no Save until
+       you change one of them — the panel rests like every other day, and a
+       salaried day that already reads right has nothing to write. */
     await user.click(screen.getByText(/This day ran long/));
+    expect(field("Start")).toBeInTheDocument();
+    expect(screen.queryByText("Save day")).toBeNull();
+    await spin(user, "Finish", "Hour", "6");
     expect(screen.getByText("Save day")).toBeInTheDocument();
 
     // the NEXT day is still read-only — unlocking Monday unlocked Monday
     await user.click(tab(/Tue 30/));
-    expect(screen.queryByText("Save day")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Started / })).toBeNull();
     expect(screen.getByText(/this day pays itself/)).toBeInTheDocument();
   });
 

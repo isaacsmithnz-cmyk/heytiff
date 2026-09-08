@@ -3,7 +3,7 @@ import path from "node:path";
 
 /* ── A SEGMENTED CONTROL NEEDS A TRAY YOU CAN SEE ──
 
-   The timesheet's Worked / Not worked switch read as ONE button (#621). The
+   The timesheet's Worked / Off switch read as ONE button (#621). The
    largest of its three causes was that its track, `#f4f5f7`, sat inside a
    panel that composites to `#f8f8f8` — **a contrast ratio of 1.027**. With no
    tray there is nothing holding two seats together, so the white pill under
@@ -129,8 +129,8 @@ describe("a tint tray survives any ground it is put on", () => {
    move shows up as a wrong answer here rather than as a control that quietly
    stops having a shape. */
 const FIXED: [string, string, RGBA[]][] = [
-  // MyTimesheet → .mts2-panel inside a white card
-  [".fg .mts2-kinds", "worked / not worked, in the day panel", [bgOf(".fg .mts2-panel")]],
+  // MyTimesheet → the day's head, inside .mts2-panel inside a white card
+  [".fg .mts2-dsw", "worked / off, in the day's head", [bgOf(".fg .mts2-panel")]],
   // FaceSwitch on .wb2-card, the profile/org Seg on .card2 — both white
   [".fg .seg", "FaceSwitch and the profile Seg, on a white card", []],
   // the diary filter, portalled outside .fg into a white sheet

@@ -86,7 +86,7 @@ describe("DayLegend", () => {
     expect(container.querySelector(".sw.miss")).not.toBeNull();
     expect(container.querySelector(".sw.off")).not.toBeNull();
     expect(screen.getByText("Missing")).toBeInTheDocument();
-    expect(screen.getByText("Not worked")).toBeInTheDocument();
+    expect(screen.getByText("Off")).toBeInTheDocument();
     expect(screen.getByText("Day colour")).toBeInTheDocument();
   });
 

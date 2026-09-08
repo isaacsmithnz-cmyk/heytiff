@@ -23,8 +23,42 @@ const protectedRoutes = ["/dashboard", "/hq", "/welcome", "/start"];
    for it. /start is absent for the obvious reason. */
 const orgRoutes = ["/dashboard", "/welcome"];
 
+/* THE APP HAS ONE ADDRESS, AND SIGN-IN ONLY WORKS FROM IT.
+
+   The Auth0 SDK builds the callback from APP_BASE_URL — `go.hey-tiff.com` —
+   whichever host served the page. The transaction cookie that proves the
+   callback is ours is set on the host that STARTED the sign-in. So a sign-in
+   begun on `www.hey-tiff.com` or `heytiff.vercel.app` (both still answer, one
+   is an old bookmark, one is the future marketing site) sets its cookie
+   there, comes back to `go.`, finds nothing, and the SDK answers "The state
+   parameter is invalid." — a 500 with a sentence on it. Isaac read that as
+   the website being down (2026-09-08).
+
+   Send every other host to the canonical one first, path and query intact,
+   before the SDK sees the request. Production only: preview deployments share
+   the same APP_BASE_URL and would otherwise redirect themselves to prod. 308
+   so the method survives, and so browsers cache the move. */
+function canonicalHostRedirect(request: NextRequest): NextResponse | null {
+  if (process.env.VERCEL_ENV !== "production") return null;
+  const base = process.env.APP_BASE_URL;
+  if (!base) return null;
+  let canonical: URL;
+  try {
+    canonical = new URL(base);
+  } catch {
+    return null;
+  }
+  const host = request.headers.get("host");
+  if (!host || host === canonical.host) return null;
+  const to = new URL(request.nextUrl.pathname + request.nextUrl.search, canonical);
+  return NextResponse.redirect(to, 308);
+}
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  const moved = canonicalHostRedirect(request);
+  if (moved) return moved;
 
   // Auth0 handles /auth/* routes and maintains rolling sessions on all routes
   const authResponse = await auth0.middleware(request);

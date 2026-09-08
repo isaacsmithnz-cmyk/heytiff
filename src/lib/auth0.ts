@@ -1,4 +1,10 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
+import {
+  InvalidStateError,
+  MissingStateError,
+  type SdkError,
+} from "@auth0/nextjs-auth0/errors";
+import type { NextResponse } from "next/server";
 import { supabaseAdmin } from "./supabase-server";
 import { splitName } from "./staff/name";
 
@@ -88,8 +94,40 @@ function personName(v: unknown): string | null {
   return !s || s.includes("@") ? null : s;
 }
 
+/* A CALLBACK WITH NO TRANSACTION IS NOT A SERVER ERROR.
+
+   The SDK's default answers "The state parameter is invalid." as a bare 500,
+   which is what a person sees when /auth/callback arrives without the
+   transaction cookie that /auth/login set: the sign-in was started on
+   another host (see canonicalHostRedirect in proxy.ts), or the login screen
+   sat open past the cookie's hour, or the URL is a stale one from history.
+   None of those is broken — the sign-in just has to be started again, from
+   here. So send them to the front door, whose Sign in button starts a fresh
+   transaction on this host; Auth0 still holds their session, so it is one
+   click and no password. The door, not /auth/login: with cookies blocked
+   outright, that would loop through Auth0 forever.
+
+   Every OTHER callback failure keeps the SDK's default — a code exchange
+   that fails will fail again, and a redirect would only hide it. */
+export async function onCallback(
+  error: SdkError | null,
+  ctx: { returnTo?: string; appBaseUrl?: string }
+): Promise<NextResponse> {
+  /* Loaded here, not at the top: `next/server` reaches for the `Request`
+     global on import, which jsdom does not have, and this module is imported
+     by jsdom suites that only want ensureStaffCard. */
+  const { NextResponse } = await import("next/server");
+  const base = process.env.APP_BASE_URL ?? ctx.appBaseUrl ?? "/";
+  if (error instanceof InvalidStateError || error instanceof MissingStateError) {
+    return NextResponse.redirect(new URL("/", base));
+  }
+  if (error) return new NextResponse(error.message, { status: 500 });
+  return NextResponse.redirect(new URL(ctx.returnTo || "/", base));
+}
+
 export const auth0 = new Auth0Client({
   signInReturnToPath: "/dashboard",
+  onCallback,
   beforeSessionSaved: async (session) => {
     const userId = session.user.sub;
 

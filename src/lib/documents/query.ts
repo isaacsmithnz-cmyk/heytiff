@@ -31,6 +31,8 @@ export type StoredDocument = {
   financeId: string | null;
   /** The term of a business licence/insurance this document is filed under. */
   credentialRecordId: string | null;
+  /** The term of a STAFF licence this document is filed under. */
+  licenceRecordId: string | null;
 };
 
 const COLUMNS =
@@ -136,7 +138,45 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
     financeId: typeof r.finance_id === "string" ? r.finance_id : null,
     credentialRecordId:
       typeof r.credential_record_id === "string" ? r.credential_record_id : null,
+    licenceRecordId: typeof r.licence_record_id === "string" ? r.licence_record_id : null,
   };
+}
+
+/* The paperwork behind one person's licences and tickets, keyed by licence.
+
+   ONE OWNER COLUMN, like the org credentials': nothing hangs a licence scan
+   off anything but the licence itself. Confirmed uploads only.
+
+   THE CALLER HAS ALREADY DECIDED WHO MAY SEE THESE. A licence scan is a
+   document about one named person — often a government ID — so this takes the
+   licence ids the screen is already entitled to render and nothing wider;
+   there is no "every licence document in the org" read here, and there should
+   not be one. */
+export async function documentsForStaffLicences(
+  orgId: string,
+  licenceIds: readonly string[],
+): Promise<Map<string, StoredDocument[]>> {
+  const out = new Map<string, StoredDocument[]>();
+  if (licenceIds.length === 0) return out;
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select(`${COLUMNS}, staff_licence_id, licence_record_id`)
+    .eq("org_id", orgId)
+    .in("staff_licence_id", [...licenceIds])
+    .not("uploaded_at", "is", null);
+
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const urls = await signMany(rows.map((r) => String(r.storage_ref)));
+
+  for (const r of rows) {
+    const key = String(r.staff_licence_id);
+    const list = out.get(key) ?? [];
+    list.push(toStored(r, urls));
+    out.set(key, list);
+  }
+  for (const list of out.values()) list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return out;
 }
 
 /* The paperwork behind the business's own licences and insurance, keyed by

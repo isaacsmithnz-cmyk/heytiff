@@ -11,6 +11,14 @@ import {
 } from "@/lib/staff/profile";
 import { splitName, withDerivedFullName } from "@/lib/staff/name";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
+import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
+import {
+  attachTermDocument,
+  recordTerm,
+  removeTerm,
+  seedFirstTerm,
+  setLicenceReminder,
+} from "@/lib/staff/licence-writes";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 
 /* My profile persistence — your own staff card.
@@ -181,23 +189,136 @@ export async function clearMyPhoto(): Promise<SaveResult> {
    re-resolve your own staff card server-side and scope every write to it: a
    forged post can only ever touch your own licences, never another person's. */
 
-/** Add a licence to your own Compliance card. */
-export async function addMyLicence(input: LicenceInput): Promise<SaveResult> {
+/** Add a licence to your own Compliance card — with its first TERM when the
+    card was scanned on the way in, so one save records both what the ticket is
+    and the period it is currently good for. */
+export async function addMyLicence(
+  input: LicenceInput,
+  term?: LicenceTermInput
+): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const built = buildLicenceRow(input);
+  if ("error" in built) return { ok: false, error: built.error };
+
+  /* The term is validated BEFORE the licence is written, so an impossible date
+     cannot leave a nameless half-card behind. */
+  const first = term ? buildLicenceTermRow(term) : null;
+  if (first && "error" in first) return { ok: false, error: first.error };
+
+  const row = { ...built.row };
+  if (first) {
+    // the two cached columns come from the term the ticket was born with
+    row.expiry_date = first.row.expires_on;
+    row.licence_number = first.row.number ?? row.licence_number;
+  }
+
+  const me = await loadMyProfile();
+  const { data, error } = await supabaseAdmin
+    .from("staff_licences")
+    .insert({ org_id: orgId, staff_profile_id: me.id, ...row })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "Couldn't add that licence." };
+
+  if (first) await seedFirstTerm(orgId, me.id, me.id, String(data.id), first.row);
+
+  revalidateMine();
+  return { ok: true };
+}
+
+/* WHAT THE TICKET IS — its name and its colour. Its NUMBER and EXPIRY are not
+   here once a term exists: they are a cache of the newest term
+   (docs/migrations/staff_licence_records.sql), the modal stops offering them
+   at that point, and writing them from an empty draft would blank the columns
+   the dashboard chip and the completeness strip read. */
+export async function updateMyLicence(
+  licenceId: string,
+  input: LicenceInput
+): Promise<SaveResult> {
   const { orgId } = await requireOrg();
   const built = buildLicenceRow(input);
   if ("error" in built) return { ok: false, error: built.error };
 
   const me = await loadMyProfile();
-  const { error } = await supabaseAdmin.from("staff_licences").insert({
-    org_id: orgId,
-    staff_profile_id: me.id,
-    ...built.row,
-  });
-  if (error) return { ok: false, error: "Couldn't add that licence." };
+  const { count } = await supabaseAdmin
+    .from("staff_licence_records")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("licence_id", licenceId);
 
+  const { type_name, color, ...cached } = built.row;
+  const patch = (count ?? 0) > 0 ? { type_name, color } : { type_name, color, ...cached };
+
+  const { error } = await supabaseAdmin
+    .from("staff_licences")
+    .update(patch)
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", me.id)
+    .eq("id", licenceId);
+  if (error) return { ok: false, error: "Couldn't save that licence." };
+
+  revalidateMine();
+  return { ok: true };
+}
+
+/* ---- your own licence's terms ----
+
+   Every one of these re-resolves your own staff card server-side and hands
+   that id to the shared writer (lib/staff/licence-writes.ts), so a forged post
+   can only ever reach your own ticket. The gate here is simply "this is your
+   card"; the SQL is the same the admin path runs. */
+
+export async function recordMyLicenceTerm(
+  licenceId: string,
+  input: LicenceTermInput
+): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await recordTerm(orgId, me.id, me.id, licenceId, input);
+  if (res.ok) revalidateMine();
+  return res;
+}
+
+export async function attachMyLicenceDocument(
+  termId: string,
+  documentId: string
+): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await attachTermDocument(orgId, me.id, me.id, termId, documentId);
+  if (res.ok) revalidateMine();
+  return res;
+}
+
+export async function removeMyLicenceTerm(termId: string): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await removeTerm(orgId, me.id, termId);
+  if (res.ok) revalidateMine();
+  return res;
+}
+
+/** A reminder about your OWN ticket, so the title carries no name. */
+export async function setMyLicenceReminder(
+  licenceId: string,
+  leadDays: number,
+  on: boolean
+): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await setLicenceReminder(orgId, me.id, me.id, licenceId, null, leadDays, on);
+  if (res.ok) {
+    revalidateMine();
+    // a reminder is a task, so the surfaces that show tasks change too
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workboard");
+  }
+  return res;
+}
+
+function revalidateMine() {
   revalidatePath("/dashboard/profile");
   revalidatePath("/dashboard/team");
-  return { ok: true };
 }
 
 /** Remove a licence from your own card — only ever your own. */

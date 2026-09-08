@@ -3,85 +3,81 @@
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { LicenceCard } from "@/components/cards/licence-card";
-import { buildLicenceRow, licenceStatus } from "@/lib/staff/licence";
+import type { StoredDocument } from "@/lib/documents/query";
+import { licenceStatus } from "@/lib/staff/licence";
+import { termState, type LicenceTermInput, type StaffLicenceRecord } from "@/lib/staff/licence-records";
 import { formatAuDate } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
-import { DateField } from "./fields";
+import { LicenceModal } from "./licence-modal";
 import type { LicenceInput, SaveResult } from "./types";
-import { withCleanup } from "@/lib/ui/with-cleanup";
 
-/* Compliance — the licences and tickets, as a wall of credential cards.
+/* Compliance — the licences and tickets, as a wall of cards you can open.
 
-   This card has no read/edit cycle: adding and removing are the edit. It also
-   no longer calls router.refresh() after a write — every one of these actions
-   revalidates the two paths that render this screen, so the RSC payload that
-   comes back with the action result already carries the new list. The explicit
-   refresh was a second round trip that did the same job, later. */
+   WHAT CHANGED. This tab used to be an inline add-form over a wall of cards
+   with a remove × on each. That made a ticket a thing you ADD and DELETE, and
+   nothing else — so recording a renewal meant deleting the licence and adding
+   it back, which threw the previous term away with it. There was no answer to
+   "was this person ticketed on the day of that job".
 
-export type LicType = { name: string; sub?: string; color?: string };
+   Now a card is a DOOR. Behind it: the term in force, the photo of the card it
+   was read from, reminders before it lapses, a scan panel that files the next
+   term, and the history underneath. Every card says how many terms it has, so
+   there is a reason to open it.
 
-export const LIC_TYPES: LicType[] = [
-  { name: "Driver’s licence", sub: "State driver licence", color: "#2E68FF" },
-  { name: "ARC licence", sub: "Refrigerant handling", color: "#00A389" },
-  { name: "White card", sub: "Construction induction", color: "#8A2BE2" },
-  { name: "Contractor licence", sub: "Trade contractor", color: "#F0A431" },
-];
-
-const CUSTOM = "__custom";
+   Still no read/edit cycle here — each card owns its own modal and each write
+   is its own action. And still no router.refresh() after a write: every one of
+   these actions revalidates the two paths that render this screen, so the RSC
+   payload that comes back already carries the new list. */
 
 export function ComplianceCard({
   licences,
+  staffId,
+  records = {},
+  documents = {},
+  reminders = {},
   today,
   onAdd,
+  onUpdate,
   onRemove,
+  onRecordTerm,
+  onAttachDoc,
+  onRemoveTerm,
+  onRemind,
 }: {
   licences: StaffLicence[];
+  /** Whose card this is — the scan action and every write are scoped to it. */
+  staffId: string;
+  /* The terms behind the cards, their paperwork, and the VIEWER's own
+     reminders, all keyed by licence id and all loaded once for the wall.
+     Defaulted so a caller that only wants the old add/remove behaviour need
+     not supply three empty maps. */
+  records?: Record<string, StaffLicenceRecord[]>;
+  documents?: Record<string, StoredDocument[]>;
+  reminders?: Record<string, number[]>;
   today: string;
-  onAdd: (input: LicenceInput) => Promise<SaveResult>;
+  onAdd: (input: LicenceInput, term?: LicenceTermInput) => Promise<SaveResult>;
+  onUpdate: (licenceId: string, input: LicenceInput) => Promise<SaveResult>;
   onRemove: (licenceId: string) => Promise<SaveResult>;
+  onRecordTerm: (licenceId: string, input: LicenceTermInput) => Promise<SaveResult>;
+  onAttachDoc: (termId: string, documentId: string) => Promise<SaveResult>;
+  onRemoveTerm: (termId: string) => Promise<SaveResult>;
+  onRemind: (licenceId: string, leadDays: number, on: boolean) => Promise<SaveResult>;
 }) {
-  const [type, setType] = useState("");
-  const [custom, setCustom] = useState("");
-  const [number, setNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [removingId, setRemovingId] = useState<string | null>(null);
+  // null = closed. A row = opened on it; "new" = adding one.
+  const [open, setOpen] = useState<StaffLicence | "new" | null>(null);
 
-  const typeName = type === CUSTOM ? custom.trim() : type;
+  const editing = open === "new" ? null : open;
+  const openId = editing?.id ?? "";
 
-  const add = async () => {
-    const color = type === CUSTOM ? "" : (LIC_TYPES.find((t) => t.name === type)?.color ?? "");
-    const input: LicenceInput = { typeName, licenceNumber: number, expiryDate: expiry, color };
-    // the same pure validator the action runs — a bad date never leaves here
-    const built = buildLicenceRow(input);
-    if ("error" in built) {
-      setError(built.error);
-      return;
-    }
-    setError(null);
-    setBusy(true);
-    await withCleanup(async () => {
-      const res = await onAdd(input);
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      setType("");
-      setCustom("");
-      setNumber("");
-      setExpiry("");
-    }, () => setBusy(false));
-  };
+  /* The one number: how many tickets are inside the warning window or already
+     past it. Counted from the same rule the cards' own pills use, so the line
+     can never disagree with the wall under it. */
+  const attention = licences.filter((l) => {
+    const state = termState(l.expiryDate, today);
+    return state === "warn" || state === "bad";
+  }).length;
 
-  const remove = async (id: string) => {
-    setError(null);
-    setRemovingId(id);
-    await withCleanup(async () => {
-      const res = await onRemove(id);
-      if (!res.ok) setError(res.error);
-    }, () => setRemovingId(null));
-  };
+  const ok = async () => ({ ok: true as const });
 
   return (
     <div className="psec-body" data-live>
@@ -89,99 +85,72 @@ export function ComplianceCard({
           section-card for why the framed header went. */}
       <div className="psechd">
         <em>
-          Licences &amp; tickets — each one tracks its number and expiry, and warns on your
-          dashboard before it lapses
+          {licences.length === 0
+            ? "Licences & tickets — each one tracks its number and expiry, and warns on your dashboard before it lapses"
+            : attention === 0
+              ? "Licences & tickets — nothing expiring"
+              : attention === 1
+                ? "Licences & tickets — 1 needs attention"
+                : `Licences & tickets — ${attention} need attention`}
         </em>
       </div>
 
-      <div className="licadd">
-        {type === CUSTOM ? (
-          <input
-            className="inp"
-            style={{ flex: 1, minWidth: 0 }}
-            placeholder="Name this licence / ticket…"
-            value={custom}
-            autoFocus
-            onChange={(e) => setCustom(e.target.value)}
-          />
-        ) : (
-          <div className="selwrap" style={{ flex: 1, minWidth: 0 }}>
-            <select
-              className="inp"
-              aria-label="Licence type"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value="" disabled>
-                Choose a licence to add…
-              </option>
-              {LIC_TYPES.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.name}
-                </option>
-              ))}
-              <option value={CUSTOM}>Custom…</option>
-            </select>
-            <span className="chev">
-              <Icon name="chevD" size={16} />
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="licadd" style={{ marginTop: 10 }}>
-        <input
-          className="inp"
-          style={{ flex: 1, minWidth: 0 }}
-          placeholder="Licence number (optional)"
-          aria-label="Licence number"
-          value={number}
-          onChange={(e) => setNumber(e.target.value)}
-        />
-        {/* picked, not typed — like every other date in the app. The label is
-            explicit because a bare calendar in a row of text boxes doesn't say
-            what it is for. */}
-        <label className="licexp">
-          <span>Expiry</span>
-          <DateField name="lic-expiry" value={expiry} onChange={setExpiry} today={today} />
-        </label>
-        <button
-          className="pbtn primary"
-          type="button"
-          style={{ height: 46, flex: "0 0 auto" }}
-          disabled={busy}
-          onClick={add}
-        >
-          <Icon name="plus" size={16} />
-          Add
-        </button>
-      </div>
-      {error && <div className="carderr">{error}</div>}
-
-      {licences.length > 0 ? (
-        <div className="liccards">
-          {licences.map((l) => (
+      <div className="liccards">
+        {licences.map((l) => {
+          const terms = records[l.id]?.length ?? 0;
+          return (
             <LicenceCard
               key={l.id}
               typeName={l.typeName}
               licenceNumber={l.licenceNumber}
               expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
               status={licenceStatus(l.expiryDate, today)}
-              removing={removingId === l.id}
-              onRemove={() => remove(l.id)}
+              note={terms > 1 ? `${terms} terms on file` : terms === 1 ? "1 term on file" : undefined}
+              onOpen={() => setOpen(l)}
             />
-          ))}
-        </div>
-      ) : (
+          );
+        })}
+
+        <button className="licadd-tile" type="button" onClick={() => setOpen("new")}>
+          <span className="ci">
+            <Icon name="plus" size={18} />
+          </span>
+          <b>Add a licence or ticket</b>
+          <em>Scan the card — driver licence, ARC, white card…</em>
+        </button>
+      </div>
+
+      {licences.length === 0 && (
         <div className="ro-empty" style={{ marginTop: 18 }}>
           <span className="ei">
             <Icon name="shield" size={20} />
           </span>
           <b>No licences added yet</b>
           <em>
-            Anything added here tracks its expiry, and raises a reminder on your dashboard
-            before it lapses.
+            Anything added here tracks its expiry, keeps every renewal on file, and raises a reminder on your
+            dashboard before it lapses.
           </em>
         </div>
+      )}
+
+      {open && (
+        <LicenceModal
+          key={openId || "new"}
+          licence={editing}
+          staffId={staffId}
+          records={records[openId] ?? []}
+          documents={documents[openId] ?? []}
+          reminders={reminders[openId] ?? []}
+          today={today}
+          onAdd={onAdd}
+          onSaveIdentity={(input) => (editing ? onUpdate(editing.id, input) : onAdd(input))}
+          onDelete={() => (editing ? onRemove(editing.id) : ok())}
+          onRecord={(input) => (editing ? onRecordTerm(editing.id, input) : ok())}
+          onAttach={onAttachDoc}
+          onRemoveTerm={onRemoveTerm}
+          onRemind={(lead, on) => (editing ? onRemind(editing.id, lead, on) : ok())}
+          onClose={() => setOpen(null)}
+        />
       )}
     </div>
   );

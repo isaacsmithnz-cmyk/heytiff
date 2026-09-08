@@ -74,7 +74,12 @@ export const TODAY = "2026-07-24";
 export const okActions = () => ({
   onSave: jest.fn().mockResolvedValue({ ok: true }),
   onAddLicence: jest.fn().mockResolvedValue({ ok: true }),
+  onUpdateLicence: jest.fn().mockResolvedValue({ ok: true }),
   onRemoveLicence: jest.fn().mockResolvedValue({ ok: true }),
+  onRecordLicenceTerm: jest.fn().mockResolvedValue({ ok: true }),
+  onAttachLicenceDoc: jest.fn().mockResolvedValue({ ok: true }),
+  onRemoveLicenceTerm: jest.fn().mockResolvedValue({ ok: true }),
+  onLicenceReminder: jest.fn().mockResolvedValue({ ok: true }),
   onSetPhoto: jest.fn().mockResolvedValue({ ok: true }),
   onClearPhoto: jest.fn().mockResolvedValue({ ok: true }),
   /* Self-mode only in the real page. Present here so the screen's own filter

@@ -17,6 +17,16 @@ import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admi
 import { withDerivedFullName } from "@/lib/staff/name";
 import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
+import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
+import {
+  attachTermDocument,
+  recordTerm,
+  removeTerm,
+  seedFirstTerm,
+  setLicenceReminder,
+} from "@/lib/staff/licence-writes";
+import { staffProfileIdFor } from "@/lib/fleet/query";
+import { fullNameOf } from "@/lib/staff/name";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 import type { Role } from "@/lib/roles-shared";
 
@@ -186,7 +196,11 @@ export async function saveStaffSection(
    qualifications text), and every write is scoped to the org AND that person,
    resolved server-side, so a forged post can't reach a third party's licences. */
 
-export async function addStaffLicence(staffId: string, input: LicenceInput): Promise<SaveResult> {
+export async function addStaffLicence(
+  staffId: string,
+  input: LicenceInput,
+  term?: LicenceTermInput,
+): Promise<SaveResult> {
   const ctx = await context();
   if (!ctx) throw new Error("Not authenticated");
   if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
@@ -195,14 +209,157 @@ export async function addStaffLicence(staffId: string, input: LicenceInput): Pro
   const built = buildLicenceRow(input);
   if ("error" in built) return { ok: false, error: built.error };
 
+  // validated before the licence is written, so an impossible date cannot
+  // leave a half-card behind on someone else's record
+  const first = term ? buildLicenceTermRow(term) : null;
+  if (first && "error" in first) return { ok: false, error: first.error };
+
+  const row = { ...built.row };
+  if (first) {
+    row.expiry_date = first.row.expires_on;
+    row.licence_number = first.row.number ?? row.licence_number;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("staff_licences")
+    .insert({ org_id: ctx.orgId, staff_profile_id: staffId, ...row })
+    .select("id")
+    .single();
+  if (error || !data) return { ok: false, error: "Couldn't add that licence." };
+
+  if (first) {
+    await seedFirstTerm(ctx.orgId, staffId, await actorStaffId(ctx), String(data.id), first.row);
+  }
+
+  revalidateStaff(staffId);
+  return { ok: true };
+}
+
+/* WHAT THE TICKET IS — its name and its colour. Number and expiry are a cache
+   of the newest term once one exists; see the self-side twin in
+   actions/profile.ts for the argument. */
+export async function updateStaffLicence(
+  staffId: string,
+  licenceId: string,
+  input: LicenceInput,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const built = buildLicenceRow(input);
+  if ("error" in built) return { ok: false, error: built.error };
+
+  const { count } = await supabaseAdmin
+    .from("staff_licence_records")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", ctx.orgId)
+    .eq("licence_id", licenceId);
+
+  const { type_name, color, ...cached } = built.row;
+  const patch = (count ?? 0) > 0 ? { type_name, color } : { type_name, color, ...cached };
+
   const { error } = await supabaseAdmin
     .from("staff_licences")
-    .insert({ org_id: ctx.orgId, staff_profile_id: staffId, ...built.row });
-  if (error) return { ok: false, error: "Couldn't add that licence." };
+    .update(patch)
+    .eq("org_id", ctx.orgId)
+    .eq("staff_profile_id", staffId)
+    .eq("id", licenceId);
+  if (error) return { ok: false, error: "Couldn't save that licence." };
 
+  revalidateStaff(staffId);
+  return { ok: true };
+}
+
+/* ---- someone else's licence terms ----
+
+   `team` for all of them, and every one scoped to the org AND that person,
+   resolved server-side, so a forged post can't reach a third party's record.
+   The SQL is the shared writer's — the same one your own card runs — because
+   two copies of "advance the cache, move the reminders" is one copy too many.
+
+   The UPLOADER is the actor, not the subject: a manager scanning Bob's ticket
+   uploaded that file, and adoption only ever accepts the uploader's own. */
+
+async function actorStaffId(ctx: Ctx): Promise<string | null> {
+  return staffProfileIdFor(ctx.orgId, ctx.actorId);
+}
+
+/** The name that goes in a reminder's title — it is a manager's bell, and
+    "Renew ARC licence" with no name on it is useless in one. */
+async function subjectName(orgId: string, staffId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("staff_profiles")
+    .select("first_name, last_name, full_name, preferred_name")
+    .eq("org_id", orgId)
+    .eq("id", staffId)
+    .maybeSingle();
+  return data ? fullNameOf(data) || null : null;
+}
+
+export async function recordStaffLicenceTerm(
+  staffId: string,
+  licenceId: string,
+  input: LicenceTermInput,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const res = await recordTerm(ctx.orgId, staffId, await actorStaffId(ctx), licenceId, input);
+  if (res.ok) revalidateStaff(staffId);
+  return res;
+}
+
+export async function attachStaffLicenceDocument(
+  staffId: string,
+  termId: string,
+  documentId: string,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const res = await attachTermDocument(ctx.orgId, staffId, await actorStaffId(ctx), termId, documentId);
+  if (res.ok) revalidateStaff(staffId);
+  return res;
+}
+
+export async function removeStaffLicenceTerm(staffId: string, termId: string): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const res = await removeTerm(ctx.orgId, staffId, termId);
+  if (res.ok) revalidateStaff(staffId);
+  return res;
+}
+
+/** A manager's OWN reminder about somebody else's ticket. Theirs to turn off,
+    and turning it off does not touch the ticket holder's. */
+export async function setStaffLicenceReminder(
+  staffId: string,
+  licenceId: string,
+  leadDays: number,
+  on: boolean,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const [viewer, subject] = await Promise.all([actorStaffId(ctx), subjectName(ctx.orgId, staffId)]);
+  const res = await setLicenceReminder(ctx.orgId, viewer, staffId, licenceId, subject, leadDays, on);
+  if (res.ok) {
+    revalidateStaff(staffId);
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workboard");
+  }
+  return res;
+}
+
+function revalidateStaff(staffId: string) {
   revalidatePath(`/dashboard/team/${staffId}`);
   revalidatePath("/dashboard/team");
-  return { ok: true };
 }
 
 export async function removeStaffLicence(staffId: string, licenceId: string): Promise<SaveResult> {

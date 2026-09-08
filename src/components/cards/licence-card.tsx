@@ -26,6 +26,12 @@ import { IdCard } from "./id-card";
    one, so a wall of them never lined up. The status moves into the corner the
    issuer gave up, wearing its colour, and the two facts left sit on a grid.
 
+   IT IS A DOOR NOW. A ticket carries a history of terms
+   (docs/migrations/staff_licence_records.sql), so the whole card opens the
+   licence modal and the remove × is gone from it — deleting a ticket is a
+   deliberate act behind Edit details, not a hover target on a wall. `onRemove`
+   stays for any caller that still shows a card it may only remove.
+
    Presentational. The status is worked out by licenceStatus() and handed in, so
    this card and the dashboard's expiry chip can never disagree about what is
    about to lapse. */
@@ -35,6 +41,8 @@ export function LicenceCard({
   /** already formatted dd/mm/yyyy, or null for one with no expiry */
   expiry,
   status,
+  note,
+  onOpen,
   onRemove,
   removing,
 }: {
@@ -42,6 +50,10 @@ export function LicenceCard({
   licenceNumber: string | null;
   expiry: string | null;
   status: LicenceStatus;
+  /** "3 terms on file" — the history, visible from outside the card. */
+  note?: string;
+  /** Opens the licence modal; makes the whole card the target. */
+  onOpen?: () => void;
   onRemove?: () => void;
   removing?: boolean;
 }) {
@@ -53,6 +65,9 @@ export function LicenceCard({
       badge={{ label: stamp.code, color: stamp.color }}
       state={{ label: status.label, tone: status.tone }}
       name={typeName}
+      sub={note}
+      onOpen={onOpen}
+      openLabel={onOpen ? `Open ${typeName}` : undefined}
       /* the date stays untinted — the pill above is carrying the colour, and
          two things going amber for one fact is one too many */
       facts={[
@@ -60,6 +75,7 @@ export function LicenceCard({
         { em: "Expires", b: expiry || "—" },
       ]}
       action={
+        !onOpen &&
         onRemove && (
           <button
             className="idc-del"

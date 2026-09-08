@@ -4354,19 +4354,70 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-ph-worked:hover:not(:disabled) { border-color:var(--gray300); color:var(--ink); }
 .fg .mts2-ph-worked:disabled { opacity:.5; cursor:default; }
 
-/* worked / didn't work — the only choice a person makes on a day */
-.fg .mts2-kinds { display:inline-flex; gap:3px; margin-top:12px; padding:3px; border-radius:12px; background:#f4f5f7; }
-.fg .mts2-kind { height:31px; padding:0 14px; border-radius:9px; font-size:12.5px; font-weight:800; color:var(--gray500); transition:all .16s; }
-.fg .mts2-kind:hover { color:var(--ink); }
-.fg .mts2-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(10,12,20,.1); }
+/* worked / not worked — the only choice a person makes on a day.
+
+   IT READ AS ONE BUTTON, which is what Isaac called it. Three things did
+   that. The first two are the complaint `.wb2-seg` was rebuilt for (see
+   seg-even-seats.test.ts — "maintenance is much bigger than projects… I just
+   wanna have an even spacing"); this control never got that treatment. The
+   third is pure cascade and nothing about looking at the rules shows it.
+
+   1. THERE WAS NO TRAY. The track was `#f4f5f7` and it sits inside
+      `.mts2-panel`, whose `rgba(5,5,5,.03)` composites to #f8f8f8 — a
+      three-value difference. So at rest there were two words on the panel and
+      nothing around them, and the moment one was chosen the white pill under
+      it became the ONLY shape in the control: one button, with a word beside
+      it. The tray is now the Workboard's `#e6eaf1` and carries its hairline.
+   2. THE SEATS WERE CONTENT-SIZED — 76.7px and 100.3px measured — so the two
+      answers were two differently-sized objects rather than two seats of one
+      switch, and the white pill changed size as you pressed across it. Equal
+      columns the `.wb2-seg` way: `grid-auto-columns:1fr` sizes both to the
+      wider. `1fr` and not `minmax(0,1fr)` for the reason it gives there.
+   3. NOTHING MOVED UNDER THE POINTER IN THE STATE THAT ASKS. `.fg
+      .mts2-kinds.ask .mts2-kind` is (0,4,0) and `.fg .mts2-kind:hover` was
+      (0,3,0), and the hover set nothing but a colour — so the ask colour beat
+      it outright and the unanswered control, the one moment the panel is
+      waiting on a press, was the only state that never acknowledged the
+      pointer. The hover now lifts a BACKGROUND, which `.ask` does not set and
+      therefore cannot take away, and `.fg .mts2-kinds.ask .mts2-kind:hover`
+      (0,5,0) carries the ink so the amber survives the press. */
+.fg .mts2-kinds { display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr;
+  gap:3px; margin-top:12px; padding:3px; border-radius:12px;
+  background:#e6eaf1; border:1px solid rgba(10,12,20,.06); }
+.fg .mts2-kind { position:relative; display:inline-flex; align-items:center; justify-content:center;
+  height:31px; padding:0 14px; border-radius:9px; font-size:12.5px; font-weight:800;
+  color:var(--gray700); transition:color .2s, background .2s, box-shadow .2s; }
+/* the resting seat is TRACK — it lifts only under the pointer, as the
+   Workboard's does. Its BACKGROUND is what has to land in every state; the
+   ink it sets here ties with `.ask`'s and loses on source order, which is
+   why the ask state gets a hover rule of its own further down. */
+.fg .mts2-kinds .mts2-kind:hover { background:rgba(255,255,255,.75); color:var(--ink); }
+/* …and the chosen seat has to out-rank that hover, or pressing the answer you
+   already gave fades it to three-quarter white. */
+.fg .mts2-kinds .mts2-kind.on, .fg .mts2-kinds .mts2-kind.on:hover {
+  background:#fff; color:var(--ink); box-shadow:0 2px 7px -3px rgba(10,12,20,.45); }
+.fg .mts2-kind:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(46,104,255,.3); }
 /* NOTHING CHOSEN YET — the state that used to be described in a sentence next
    to the dead Save button. A ring on the control, and a slow pulse the first
    time it is drawn, so the one thing the panel is waiting for is the one thing
    moving on it. `outline` rather than a border: the strip is 37px of packed
-   pills and a border would resize them. */
-.fg .mts2-kinds.ask { outline:1.5px solid rgba(240,164,49,.55); outline-offset:0;
-  background:rgba(240,164,49,.1); animation:mtsAsk 1.6s ease-out 2; }
+   pills and a border would resize them.
+
+   THE AMBER IS ON THE RING, NOT IN THE TRAY. Washing the track with
+   `rgba(240,164,49,.1)` replaced the one surface that told the two seats
+   apart, so the unanswered control — the state that most needs to read as a
+   choice between two things — was a single amber lozenge with two words on
+   it. The tray keeps its own colour and the ring does the asking. */
+.fg .mts2-kinds.ask { outline:1.5px solid rgba(240,164,49,.7); outline-offset:0;
+  border-color:rgba(240,164,49,.5); animation:mtsAsk 1.6s ease-out 2; }
 .fg .mts2-kinds.ask .mts2-kind { color:var(--warn-t); }
+.fg .mts2-kinds.ask .mts2-kind:hover { background:rgba(255,255,255,.8); color:var(--warn-t); }
+/* the seam, and ONLY while nothing is chosen. With an answer given, the white
+   pill is the boundary — a rule beside it would be drawing the same edge
+   twice. It sits in the 3px gap rather than in either seat, so it separates
+   them without either owning it. */
+.fg .mts2-kinds.ask .mts2-kind + .mts2-kind::before { content:""; position:absolute;
+  left:-2px; top:6px; bottom:6px; width:1px; background:rgba(10,12,20,.2); }
 @keyframes mtsAsk { 0%,100%{ box-shadow:0 0 0 0 rgba(240,164,49,0) } 40%{ box-shadow:0 0 0 5px rgba(240,164,49,.16) } }
 @media (prefers-reduced-motion:reduce){ .fg .mts2-kinds.ask { animation:none; } }
 .fg .mts2-brk { display:flex; align-items:center; gap:10px; margin-top:13px; }

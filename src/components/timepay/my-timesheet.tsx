@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -260,6 +260,8 @@ function DayEditor({
   const [kind, setKind] = useState<"work" | "off" | null>(
     entry.t === "empty" ? null : entry.t === "off" ? "off" : "work",
   );
+  /* the two seats, so an arrow press can move focus with the selection */
+  const seats = useRef<(HTMLButtonElement | null)[]>([]);
   const [start, setStart] = useState(entry.t === "work" ? entry.in : normal.start);
   const [end, setEnd] = useState(entry.t === "work" ? entry.out : normal.end);
   const [breakMin, setBreakMin] = useState(() => seedBreakMinutes(entry, settings));
@@ -334,18 +336,53 @@ function DayEditor({
           chosen, a dead Save, and "Say what this day was first." printed next
           to it — a caption explaining a control four pixels away, which is the
           screen admitting the control didn't read as unanswered. `ask` gives
-          it the ring instead, and the sentence is gone. */}
+          it the ring instead, and the sentence is gone.
+
+          AND IT IS A RADIOGROUP, NOT TWO TOGGLES. Worked and Not worked are
+          alternatives — exactly one of them is true of a day — but this was
+          `role="group"` with an `aria-pressed` on each, which announces two
+          independent switches that happen to sit together, both off, with
+          nothing tying them to the same question. That is the same thing the
+          LOOK of it was saying, and the fix for that half is `.mts2-kinds` in
+          shell.css. `aria-checked` says one question with two answers, and
+          the arrows move between them the way a radio group's do. */}
       <div
         className={`mts2-kinds${kind === null ? " ask" : ""}`}
-        role="group"
+        role="radiogroup"
         aria-label="What this day was"
+        onKeyDown={(e) => {
+          const fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
+          const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+          if (!fwd && !back) return;
+          e.preventDefault();
+          /* Nothing chosen yet is a real position here, not an error: the
+             first arrow press picks the end you arrowed towards rather than
+             silently starting from the left both ways. */
+          const at = KINDS.findIndex((k) => k.t === kind);
+          const to =
+            at < 0
+              ? fwd
+                ? 0
+                : KINDS.length - 1
+              : (at + (fwd ? 1 : -1) + KINDS.length) % KINDS.length;
+          setKind(KINDS[to]!.t);
+          seats.current[to]?.focus();
+        }}
       >
-        {KINDS.map((k) => (
+        {KINDS.map((k, i) => (
           <button
             key={k.t}
+            ref={(el) => {
+              seats.current[i] = el;
+            }}
             type="button"
+            role="radio"
             className={`mts2-kind${kind === k.t ? " on" : ""}`}
-            aria-pressed={kind === k.t}
+            aria-checked={kind === k.t}
+            /* One tab stop for the question, as a radio group has. With
+               nothing chosen the group still has to be reachable, so the
+               first seat holds it. */
+            tabIndex={kind === null ? (i === 0 ? 0 : -1) : kind === k.t ? 0 : -1}
             onClick={() => setKind(k.t)}
           >
             {k.label}

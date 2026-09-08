@@ -39,7 +39,12 @@ export type ProfileActions = {
   /** Files the next term. The ticket's expiry follows it; nothing is overwritten. */
   onRecordLicenceTerm: (licenceId: string, input: LicenceTermInput) => Promise<SaveResult>;
   /** Files another document under a term after the fact. */
-  onAttachLicenceDoc: (termId: string, documentId: string) => Promise<SaveResult>;
+  /** Files a document against the ticket; a null term means the card itself. */
+  onAttachLicenceDoc: (
+    licenceId: string,
+    termId: string | null,
+    documentId: string,
+  ) => Promise<SaveResult>;
   /** Removes one term — a scan filed against the wrong ticket. */
   onRemoveLicenceTerm: (termId: string) => Promise<SaveResult>;
   /** The VIEWER's own reminder about this ticket, `lead` days before expiry. */

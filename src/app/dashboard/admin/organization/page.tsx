@@ -23,7 +23,7 @@ import {
 } from "@/app/actions/org";
 import {
   addOrgCredential,
-  attachCredentialDocument,
+  fileCredentialDocument,
   recordCredentialTerm,
   removeCredentialTerm,
   removeOrgCredential,
@@ -125,7 +125,7 @@ export default async function OrganizationPage({
         onUpdateCredential: updateOrgCredential,
         onRemoveCredential: removeOrgCredential,
         onRecordTerm: recordCredentialTerm,
-        onAttachCredentialDoc: attachCredentialDocument,
+        onAttachCredentialDoc: fileCredentialDocument,
         onRemoveTerm: removeCredentialTerm,
         onCredentialReminder: setCredentialReminder,
         onSetLogo: setOrgLogo,

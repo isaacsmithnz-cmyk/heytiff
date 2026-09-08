@@ -13,7 +13,7 @@ import { splitName, withDerivedFullName } from "@/lib/staff/name";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
-  attachTermDocument,
+  fileLicenceDocument,
   recordTerm,
   removeTerm,
   seedFirstTerm,
@@ -279,13 +279,16 @@ export async function recordMyLicenceTerm(
   return res;
 }
 
+/** A null term files it against the ticket itself — a white card holds no term
+    to file under, and its photo is the only thing it will ever carry. */
 export async function attachMyLicenceDocument(
-  termId: string,
+  licenceId: string,
+  termId: string | null,
   documentId: string
 ): Promise<SaveResult> {
   const { orgId } = await requireOrg();
   const me = await loadMyProfile();
-  const res = await attachTermDocument(orgId, me.id, me.id, termId, documentId);
+  const res = await fileLicenceDocument(orgId, me.id, me.id, licenceId, termId, documentId);
   if (res.ok) revalidateMine();
   return res;
 }

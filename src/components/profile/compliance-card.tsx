@@ -59,7 +59,8 @@ export function ComplianceCard({
   onUpdate: (licenceId: string, input: LicenceInput) => Promise<SaveResult>;
   onRemove: (licenceId: string) => Promise<SaveResult>;
   onRecordTerm: (licenceId: string, input: LicenceTermInput) => Promise<SaveResult>;
-  onAttachDoc: (termId: string, documentId: string) => Promise<SaveResult>;
+  /** Files a document against the ticket; a null term means the card itself. */
+  onAttachDoc: (licenceId: string, termId: string | null, documentId: string) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
   onRemind: (licenceId: string, leadDays: number, on: boolean) => Promise<SaveResult>;
 }) {
@@ -146,7 +147,7 @@ export function ComplianceCard({
           onSaveIdentity={(input) => (editing ? onUpdate(editing.id, input) : onAdd(input))}
           onDelete={() => (editing ? onRemove(editing.id) : ok())}
           onRecord={(input) => (editing ? onRecordTerm(editing.id, input) : ok())}
-          onAttach={onAttachDoc}
+          onAttach={(termId, documentId) => (editing ? onAttachDoc(editing.id, termId, documentId) : ok())}
           onRemoveTerm={onRemoveTerm}
           onRemind={(lead, on) => (editing ? onRemind(editing.id, lead, on) : ok())}
           onClose={() => setOpen(null)}

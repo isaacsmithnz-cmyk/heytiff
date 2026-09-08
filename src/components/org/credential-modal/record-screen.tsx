@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { readOrgCredentialDocument, type ReadOrgCredResult } from "@/app/actions/org-credential-ai";
 import type { StoredDocument } from "@/lib/documents/query";
-import { uploadFile } from "@/lib/documents/upload-client";
 import { fmtDay } from "@/lib/format/day";
 import { REMINDER_LEADS, leadLabel } from "@/lib/fleet/reminders";
-import { Btn, Card, DetailGrid, Eyebrow, Inline, type DetailItem } from "@/components/record-modal/parts";
+import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
+import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import type { OrgCredKind, OrgCredential } from "@/lib/org/credentials";
@@ -93,7 +93,8 @@ export function RecordScreen({
   pending: boolean;
   error: string | null;
   onRecord: (input: CredentialRecordInput) => void;
-  onAttach: (recordId: string, documentId: string) => void;
+  /** Files a document against the card; a null term means the card itself. */
+  onAttach: (recordId: string | null, documentId: string) => void;
   onRemoveTerm: (recordId: string) => void;
   onRemind: (leadDays: number, on: boolean) => void;
   onEdit: () => void;
@@ -118,7 +119,6 @@ export function RecordScreen({
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [armedTerm, setArmedTerm] = useState<string | null>(null);
-  const attachInput = useRef<HTMLInputElement>(null);
 
   const showFields = mode === "scanned" || mode === "manual";
   const canSave = term.expiresOn.trim().length > 0 && !pending;
@@ -191,21 +191,7 @@ export function RecordScreen({
             <DetailGrid items={facts} />
             <div className="vm-divider">
               <Eyebrow>DOCUMENTS</Eyebrow>
-              <Inline onClick={() => attachInput.current?.click()}>Add document</Inline>
-              <input
-                ref={attachInput}
-                type="file"
-                accept="image/*,application/pdf"
-                aria-label="Add document"
-                hidden
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file) return;
-                  const up = await uploadFile(file, CREDENTIAL_DOC_KIND[kind]).catch(() => null);
-                  if (up?.ok) onAttach(current.id, up.file.documentId);
-                }}
-              />
+              <AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(current.id, id)} />
             </div>
             <DocRows
               docs={currentDocs}
@@ -215,6 +201,32 @@ export function RecordScreen({
                 if (id) setOpenHist(null);
               }}
               emptyText="No paperwork filed under this term yet."
+            />
+          </Card>
+        )}
+
+        {/* THE CARD'S OWN PAPERWORK, when it has no term to file it under.
+
+            A term is a PERIOD and expires_on is NOT NULL, so a licence with no
+            renewal date on it can hold no term at all — and a certificate is
+            exactly the thing a person opens that card to keep. Until this card
+            existed there was nowhere to put it: the one "Add document" on the
+            screen lived inside the current term's.
+
+            It takes the current term's slot because it is what the screen has
+            instead of one, and because a person who has just found Save
+            disabled for want of an expiry has to be able to SEE it. */}
+        {!current && (
+          <Card>
+            <div className="vm-cardhead">
+              <Eyebrow>DOCUMENTS</Eyebrow>
+              <AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(null, id)} />
+            </div>
+            <DocRows
+              docs={loose}
+              openId={openDoc}
+              onOpen={setOpenDoc}
+              emptyText="No paperwork filed against this card yet."
             />
           </Card>
         )}
@@ -336,8 +348,9 @@ export function RecordScreen({
         {/* Paperwork that belongs to the card but sits under no term — filed
             before the first renewal was recorded, or attached to the card
             itself. It would otherwise be invisible, which is the one thing a
-            document store must never be. */}
-        {loose.length > 0 && (
+            document store must never be. Only when there IS a term: with none,
+            the DOCUMENTS card above is already showing every one of these. */}
+        {current && loose.length > 0 && (
           <Card>
             <div className="vm-cardhead">
               <Eyebrow>OTHER DOCUMENTS</Eyebrow>

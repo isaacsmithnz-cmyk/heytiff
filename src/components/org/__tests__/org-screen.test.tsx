@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import userEvent from "@testing-library/user-event";
 import type { OrgAccount } from "@/lib/org/account";
 import type { OwnerCandidate } from "@/lib/org/ownership";
+import type { StoredDocument } from "@/lib/documents/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import type { OrgCredentialRecord } from "@/lib/org/credential-records";
 import type { OrgSettings } from "@/lib/org/settings";
@@ -123,6 +124,8 @@ function setup(
     onCredentialReminder?: jest.Mock;
     /** the terms behind the cards, keyed by credential id */
     records?: Record<string, OrgCredentialRecord[]>;
+    /** the paperwork behind the cards, keyed by credential id */
+    documents?: Record<string, StoredDocument[]>;
     /** which tab to land on — the page's own `?sec=`, so a test that wants a
         section says which one instead of counting cards down a page */
     sec?: string;
@@ -154,6 +157,7 @@ function setup(
       org={{ ...ORG, ...(over.org ?? {}) }}
       credentials={over.credentials ?? CREDENTIALS}
       credentialRecords={over.records ?? {}}
+      credentialDocuments={over.documents ?? {}}
       account={over.account === undefined ? ACCOUNT : over.account}
       ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
@@ -1134,5 +1138,130 @@ describe("handing the account over", () => {
     expect(screen.getByText("There is nobody else signed in")).toBeInTheDocument();
     expect(screen.getByText(/accepted their invite and signed in/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hand over the account/ })).toBeDisabled();
+  });
+});
+
+/* A CARD THAT CAN NEVER HOLD A TERM STILL HAS TO KEEP ITS CERTIFICATE.
+
+   A term is a PERIOD and expires_on is NOT NULL, so a licence with no renewal
+   date on it can hold no term at all. The screen shipped with its only "Add
+   document" inside the CURRENT POLICY card, so a card with no expiry — and a
+   certificate is exactly the thing a person opens one to keep — had nowhere to
+   put it. Everything below fails on that screen.
+
+   C2 is the fixture with `expiryDate: null`. */
+describe("filing a document against a card with no expiry", () => {
+  const doc = (over: Partial<StoredDocument> = {}): StoredDocument => ({
+    id: "doc-9",
+    kind: "org_insurance",
+    fileName: "certificate.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 2048,
+    uploadedById: "staff-1",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    url: "https://signed.example/certificate.pdf",
+    image: false,
+    policyId: null,
+    financeId: null,
+    credentialRecordId: null,
+    licenceRecordId: null,
+    ...over,
+  });
+
+  const file = () => new File(["x"], "certificate.pdf", { type: "application/pdf" });
+
+  beforeEach(() => uploadFile.mockReset());
+
+  it("offers the door on the card itself, where the term card would be", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+
+    expect(within(dialog).queryByText("CURRENT POLICY")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("DOCUMENTS")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Add document")).toBeInTheDocument();
+  });
+
+  /* The card OWNS it; nothing owns the filing. That null is the whole fix —
+     documents.credential_record_id has always been allowed to be one, and
+     looseDocuments already reads exactly those rows back. */
+  it("files the upload against the CARD, under no term", async () => {
+    const user = userEvent.setup();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
+    const { actions } = setup({ sec: "credentials" });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.upload(within(screen.getByRole("dialog")).getByLabelText("Add document"), file());
+
+    // the kind is the ownership guard: an insurance card files org_insurance
+    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "org_insurance");
+    expect(actions.onAttachCredentialDoc).toHaveBeenCalledWith("C2", null, "doc-9");
+  });
+
+  it("lists what has been filed against it", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", documents: { C2: [doc()] } });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/certificate\.pdf/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/No paperwork filed/)).not.toBeInTheDocument();
+  });
+
+  it("says plainly when nothing has been filed yet", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    expect(
+      within(screen.getByRole("dialog")).getByText("No paperwork filed against this card yet.")
+    ).toBeInTheDocument();
+  });
+
+  it("files nothing when the upload itself refuses", async () => {
+    const user = userEvent.setup();
+    uploadFile.mockResolvedValue({ ok: false, error: "That upload didn't finish." });
+    const { actions } = setup({ sec: "credentials" });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    await user.upload(within(screen.getByRole("dialog")).getByLabelText("Add document"), file());
+    expect(actions.onAttachCredentialDoc).not.toHaveBeenCalled();
+  });
+
+  /* And the term's own door is untouched: ONE "Add document" on a screen that
+     has a term, and it names that term. Two would be a question the person
+     shouldn't have to answer. */
+  it("still files under the term in force, when there is one", async () => {
+    const user = userEvent.setup();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
+    const { actions } = setup({
+      sec: "credentials",
+      records: {
+        C2: [
+          {
+            id: "R1",
+            credentialId: "C2",
+            issuer: "QBE",
+            number: "PL-9",
+            cover: null,
+            sumInsured: null,
+            premium: null,
+            excess: null,
+            startsOn: null,
+            expiresOn: "2026-08-07",
+            documentId: null,
+            source: "manual",
+            createdAt: null,
+          },
+        ],
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByLabelText("Add document")).toHaveLength(1);
+
+    await user.upload(within(dialog).getByLabelText("Add document"), file());
+    expect(actions.onAttachCredentialDoc).toHaveBeenCalledWith("C2", "R1", "doc-9");
   });
 });

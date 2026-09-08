@@ -148,28 +148,50 @@ export async function seedFirstTerm(
   await insertTerm(orgId, staffId, licenceId, uploaderStaffId, row);
 }
 
-/** Filing another document under a term after the fact. */
-export async function attachTermDocument(
+/* FILING A DOCUMENT AGAINST A TICKET: under a TERM when there is one, and
+   against the ticket itself when there is not.
+
+   THE TERM IS OPTIONAL BECAUSE A TICKET NEED NOT HAVE ONE. A term is a period
+   and `expires_on` is NOT NULL, so a ticket that never lapses — a white card —
+   can hold no term at all, and while this took only a term id that was the one
+   kind of ticket whose photo had nowhere to go. `staff_licence_id` is the
+   OWNER and `licence_record_id` the FILING; the second has always been allowed
+   to be null, and looseTermDocuments already renders exactly those rows.
+
+   Adoption is the codebase's standing contract either way: only the uploader's
+   own, confirmed, still-unowned file of the right KIND may land. */
+export async function fileLicenceDocument(
   orgId: string,
   staffId: string,
   uploaderStaffId: string | null,
-  termId: string,
+  licenceId: string,
+  /** null files it against the ticket itself. */
+  termId: string | null,
   documentId: string,
 ): Promise<WriteResult> {
   if (!uploaderStaffId) return { ok: false, error: "Only a staff member can file documents." };
 
-  const { data: term } = await supabaseAdmin
-    .from(TERMS)
-    .select("id, licence_id")
-    .eq("org_id", orgId)
-    .eq("staff_profile_id", staffId)
-    .eq("id", termId)
-    .maybeSingle();
-  if (!term) return { ok: false, error: "That term is no longer on file." };
+  const licence = await licenceIn(orgId, staffId, licenceId);
+  if (!licence) return { ok: false, error: "That licence is no longer on file." };
+
+  /* A term is checked against THIS licence and not merely against the org: a
+     document filed under somebody else's term would sit in a history it does
+     not belong to, and the term id comes from a client. */
+  if (termId) {
+    const { data: term } = await supabaseAdmin
+      .from(TERMS)
+      .select("id")
+      .eq("org_id", orgId)
+      .eq("staff_profile_id", staffId)
+      .eq("licence_id", licenceId)
+      .eq("id", termId)
+      .maybeSingle();
+    if (!term) return { ok: false, error: "That term is no longer on file." };
+  }
 
   const { data } = await supabaseAdmin
     .from("documents")
-    .update({ staff_licence_id: String(term.licence_id), licence_record_id: termId })
+    .update({ staff_licence_id: licenceId, licence_record_id: termId })
     .eq("org_id", orgId)
     .eq("id", documentId)
     .eq("uploaded_by", uploaderStaffId)

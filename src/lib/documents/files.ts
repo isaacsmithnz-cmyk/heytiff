@@ -64,6 +64,14 @@ export type DocumentKind =
      standing reason — a loan contract must not be adoptable as a receipt —
      and so the Financials screen can file it under the agreement it states. */
   | "finance_agreement"
+  /* The business's OWN papers — its licence certificates and its insurance
+     certificates of currency. Two kinds, and neither reuses an existing one,
+     for the standing reason: `licence` is a STAFF ticket, so sharing it would
+     let the company's contractor licence be adopted onto a person's card, and
+     `insurance_policy` belongs to a VEHICLE, so the business's public
+     liability filed there would surface on a van's renewal screen. */
+  | "org_licence"
+  | "org_insurance"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -83,6 +91,8 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "green_slip",
   "vehicle_photo",
   "finance_agreement",
+  "org_licence",
+  "org_insurance",
   "other",
 ];
 

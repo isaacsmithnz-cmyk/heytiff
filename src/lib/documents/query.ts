@@ -29,6 +29,8 @@ export type StoredDocument = {
   policyId: string | null;
   /** The finance agreement this document is filed under, if any. */
   financeId: string | null;
+  /** The term of a business licence/insurance this document is filed under. */
+  credentialRecordId: string | null;
 };
 
 const COLUMNS =
@@ -132,7 +134,44 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
     image: isImage(mimeType),
     policyId: typeof r.policy_id === "string" ? r.policy_id : null,
     financeId: typeof r.finance_id === "string" ? r.finance_id : null,
+    credentialRecordId:
+      typeof r.credential_record_id === "string" ? r.credential_record_id : null,
   };
+}
+
+/* The paperwork behind the business's own licences and insurance, keyed by
+   credential.
+
+   ONE OWNER COLUMN, unlike a vehicle's two: nothing hangs a credential
+   document off anything but the credential itself, so this is a single select
+   and a single signing pass. Confirmed uploads only, for the same reason as
+   everywhere else — a slot that was handed out and never used would render as
+   a row nobody can open. */
+export async function documentsForOrgCredentials(
+  orgId: string,
+  credentialIds: readonly string[],
+): Promise<Map<string, StoredDocument[]>> {
+  const out = new Map<string, StoredDocument[]>();
+  if (credentialIds.length === 0) return out;
+
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select(`${COLUMNS}, org_credential_id, credential_record_id`)
+    .eq("org_id", orgId)
+    .in("org_credential_id", [...credentialIds])
+    .not("uploaded_at", "is", null);
+
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const urls = await signMany(rows.map((r) => String(r.storage_ref)));
+
+  for (const r of rows) {
+    const key = String(r.org_credential_id);
+    const list = out.get(key) ?? [];
+    list.push(toStored(r, urls));
+    out.set(key, list);
+  }
+  for (const list of out.values()) list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return out;
 }
 
 /* A single link — the org logo, on the sidebar and on the company card.

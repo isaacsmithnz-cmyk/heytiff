@@ -31,9 +31,9 @@ import {
   renewalState,
   renewalStatusText,
 } from "./derive";
-import { DocRows } from "./doc-rows";
-import { Btn, Card, DetailGrid, Eyebrow, Inline, SubHeader, type DetailItem } from "./parts";
-import { ScanCard, type ScanMode } from "./scan-card";
+import { DocRows } from "@/components/record-modal/doc-rows";
+import { Btn, Card, DetailGrid, Eyebrow, Inline, SubHeader, type DetailItem } from "@/components/record-modal/parts";
+import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 
 /* One screen for the three renewal kinds — registration, insurance, green
    slip — because they are the same shape: a status, the record in force with

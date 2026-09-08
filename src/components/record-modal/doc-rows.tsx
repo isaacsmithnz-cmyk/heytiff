@@ -3,7 +3,7 @@
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtBytes } from "@/lib/documents/files";
 import { Icon } from "@/components/shell/icon";
-import { fmtDay } from "./derive";
+import { fmtDay } from "@/lib/format/day";
 
 /* A policy's paperwork: a two-column grid of rows, one open at a time, with
    the open one previewed inline underneath.
@@ -20,6 +20,8 @@ const TITLE: Partial<Record<StoredDocument["kind"], string>> = {
   insurance_policy: "Certificate of insurance",
   purchase_invoice: "Purchase invoice",
   finance_agreement: "Finance agreement",
+  org_licence: "Licence certificate",
+  org_insurance: "Certificate of insurance",
   fuel_receipt: "Fuel docket",
   vehicle_photo: "Photo",
   receipt: "Receipt",

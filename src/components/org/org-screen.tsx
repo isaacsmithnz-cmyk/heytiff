@@ -12,7 +12,9 @@ import { SectionCard } from "@/components/profile/section-card";
 import { Field, SelectInput, Seg, TextInput } from "@/components/profile/fields";
 import { auDayOf, formatAuDate } from "@/lib/au-dates";
 import { licenceStatus } from "@/lib/staff/licence";
-import { orgCredBadge, type OrgCredential, type OrgCredentialInput } from "@/lib/org/credentials";
+import { ORG_CRED_KINDS, orgCredBadge, type OrgCredential } from "@/lib/org/credentials";
+import { credentialState, type OrgCredentialRecord } from "@/lib/org/credential-records";
+import type { StoredDocument } from "@/lib/documents/query";
 import { ownerLabel, planLabel, type OrgAccount } from "@/lib/org/account";
 import type { OwnerCandidate } from "@/lib/org/ownership";
 import {
@@ -24,7 +26,7 @@ import {
   preValidateOrg,
   type OrgSettings,
 } from "@/lib/org/settings";
-import { OrgCredentialModal } from "./org-credential-modal";
+import { CredentialModal } from "./credential-modal";
 import { TransferOwnerModal } from "./transfer-owner-modal";
 import { LogoUploader } from "./logo-uploader";
 import { BrandColorPicker } from "./brand-color";
@@ -109,6 +111,9 @@ function orgInitials(name: string): string {
 export function OrgScreen({
   org,
   credentials,
+  credentialRecords = {},
+  credentialDocuments = {},
+  credentialReminders = {},
   account,
   ownerCandidates = [],
   logoUrl,
@@ -119,6 +124,13 @@ export function OrgScreen({
 }: {
   org: OrgSettings;
   credentials: OrgCredential[];
+  /* The terms behind the cards, their paperwork, and the viewer's own
+     reminders — all keyed by credential id, all loaded once for the wall
+     rather than per card. Defaulted so a caller that only wants the company
+     profile (a test, the welcome flow) need not supply three empty maps. */
+  credentialRecords?: Record<string, OrgCredentialRecord[]>;
+  credentialDocuments?: Record<string, StoredDocument[]>;
+  credentialReminders?: Record<string, number[]>;
   /** whose account this is — owner, size, age, plan. Optional so a caller that
       has no session to resolve "is that you" against can leave it out. */
   account?: OrgAccount | null;
@@ -231,6 +243,9 @@ export function OrgScreen({
                   {tab === "credentials" && (
                     <CredentialsSection
                       credentials={credentials}
+                      records={credentialRecords}
+                      documents={credentialDocuments}
+                      reminders={credentialReminders}
                       today={today}
                       actions={actions}
                     />
@@ -614,67 +629,125 @@ function ContactSection({
 
    There is no Edit / Save / Cancel on this tab because there is nothing on it
    to hold in a draft: each card opens its own modal and each write is its own
-   action. That is the same bargain the staff Compliance tab makes. */
+   action. That is the same bargain the staff Compliance tab makes.
+
+   WHAT CHANGED. The wall used to be one flat grid and the modal behind it a
+   six-field form, so a renewal overwrote the term before it. The cards are
+   grouped by kind now and each one says how many terms it has on file — the
+   history is the point, so it has to be visible from the outside — and the
+   modal is the fleet's vehicle card: scan the certificate, check what Tiff
+   read, save a NEW term, keep the old one.
+
+   THE SUMMARY LINE IS ONE NUMBER, not four. What an owner opening this tab
+   wants to know is whether anything is about to lapse; the cards answer
+   everything else. */
 function CredentialsSection({
   credentials,
+  records,
+  documents,
+  reminders,
   today,
   actions,
 }: {
   credentials: OrgCredential[];
+  records: Record<string, OrgCredentialRecord[]>;
+  documents: Record<string, StoredDocument[]>;
+  reminders: Record<string, number[]>;
   today: string;
   actions: OrgActions;
 }) {
-  // null = closed. A row = editing it; "new" = adding one.
+  // null = closed. A row = opened on it; "new" = adding one.
   const [open, setOpen] = useState<OrgCredential | "new" | null>(null);
 
   const editing = open === "new" ? null : open;
+  const openId = editing?.id ?? "";
 
-  /* Every write happens inside the modal, so the modal owns the failure too —
-     a refusal is shown where the fields are, and only there. Printing it on the
-     card as well put the same sentence on the screen twice. */
-  const save = (input: OrgCredentialInput) =>
-    open && open !== "new"
-      ? actions.onUpdateCredential(open.id, input)
-      : actions.onAddCredential(input);
+  const groups = ORG_CRED_KINDS.map((kind) => ({
+    kind,
+    label: kind === "licence" ? "Licences" : "Insurance",
+    rows: credentials.filter((c) => c.kind === kind),
+  })).filter((g) => g.rows.length > 0);
 
-  const remove = async () =>
-    !open || open === "new" ? { ok: true as const } : actions.onRemoveCredential(open.id);
+  /* The one number: how many cards are inside the warning window or already
+     past it. Counted from the same rule the cards' own status chips use, so
+     the headline can never disagree with the wall under it. */
+  const attention = credentials.filter((c) => {
+    const state = credentialState(c.expiryDate, today);
+    return state === "warn" || state === "bad";
+  }).length;
 
   return (
     <div className="psec-body" data-live>
       <div className="psechd">
-        <em>What lets the business trade</em>
+        <em>
+          {credentials.length === 0
+            ? "What lets the business trade"
+            : attention === 0
+              ? "What lets the business trade — nothing expiring"
+              : attention === 1
+                ? "What lets the business trade — 1 needs attention"
+                : `What lets the business trade — ${attention} need attention`}
+        </em>
       </div>
 
+      {groups.map((g) => (
+        <div key={g.kind} className="credgroup">
+          <span className="credgroup-h">{g.label}</span>
+          <div className="credgrid">
+            {g.rows.map((c) => {
+              const terms = records[c.id]?.length ?? 0;
+              return (
+                <CredentialCard
+                  key={c.id}
+                  typeName={c.name}
+                  licenceNumber={c.number}
+                  issuer={c.issuer}
+                  expiry={c.expiryDate ? formatAuDate(c.expiryDate) : null}
+                  status={licenceStatus(c.expiryDate, today)}
+                  badge={orgCredBadge(c)}
+                  note={terms > 1 ? `${terms} terms on file` : terms === 1 ? "1 term on file" : undefined}
+                  onOpen={() => setOpen(c)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
       <div className="credgrid">
-        {credentials.map((c) => (
-          <CredentialCard
-            key={c.id}
-            typeName={c.name}
-            licenceNumber={c.number}
-            issuer={c.issuer}
-            expiry={c.expiryDate ? formatAuDate(c.expiryDate) : null}
-            status={licenceStatus(c.expiryDate, today)}
-            badge={orgCredBadge(c)}
-            onOpen={() => setOpen(c)}
-          />
-        ))}
         <button className="cred-add" type="button" onClick={() => setOpen("new")}>
           <span className="ci">
             <Icon name="plus" size={18} />
           </span>
           <b>Add licence or insurance</b>
-          <em>ARC, contractor licence, public liability…</em>
+          <em>Scan the certificate — ARC, contractor licence, public liability…</em>
         </button>
       </div>
 
       {open && (
-        <OrgCredentialModal
+        <CredentialModal
+          key={openId || "new"}
           credential={editing}
-          onSave={save}
-          onDelete={editing ? remove : undefined}
-          onClose={() => setOpen(null)}
+          records={records[openId] ?? []}
+          documents={documents[openId] ?? []}
+          reminders={reminders[openId] ?? []}
           today={today}
+          onAdd={actions.onAddCredential}
+          onSaveIdentity={(input) =>
+            editing ? actions.onUpdateCredential(editing.id, input) : actions.onAddCredential(input)
+          }
+          onDelete={() => (editing ? actions.onRemoveCredential(editing.id) : Promise.resolve({ ok: true as const }))}
+          onRecord={(input) =>
+            editing ? actions.onRecordTerm(editing.id, input) : Promise.resolve({ ok: true as const })
+          }
+          onAttach={actions.onAttachCredentialDoc}
+          onRemoveTerm={actions.onRemoveTerm}
+          onRemind={(lead, on) =>
+            editing
+              ? actions.onCredentialReminder(editing.id, lead, on)
+              : Promise.resolve({ ok: true as const })
+          }
+          onClose={() => setOpen(null)}
         />
       )}
     </div>

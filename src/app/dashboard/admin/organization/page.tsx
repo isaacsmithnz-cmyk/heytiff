@@ -4,8 +4,15 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole, isMaster } from "@/lib/permissions-server";
 import { OrgScreen } from "@/components/org/org-screen";
-import { listOrgCredentials, listOwnerCandidates, orgAccount } from "@/lib/org/query";
-import { signOne } from "@/lib/documents/query";
+import {
+  listCredentialReminders,
+  listOrgCredentialRecords,
+  listOrgCredentials,
+  listOwnerCandidates,
+  orgAccount,
+} from "@/lib/org/query";
+import { documentsForOrgCredentials, signOne } from "@/lib/documents/query";
+import { staffProfileIdFor } from "@/lib/fleet/query";
 import { todayInAu } from "@/lib/au-dates";
 import {
   clearOrgBrandColor,
@@ -16,7 +23,11 @@ import {
 } from "@/app/actions/org";
 import {
   addOrgCredential,
+  attachCredentialDocument,
+  recordCredentialTerm,
+  removeCredentialTerm,
   removeOrgCredential,
+  setCredentialReminder,
   updateOrgCredential,
 } from "@/app/actions/org-credentials";
 import { transferOwnership } from "@/app/actions/org-ownership";
@@ -62,8 +73,10 @@ export default async function OrganizationPage({
      master and nobody else: a co-owner's render makes one query fewer and
      ships no list of user ids to a client that has no control to use it. */
   const master = await isMaster();
-  const [credentials, account, logoUrl, ownerCandidates, params] = await Promise.all([
+  const [credentials, records, account, logoUrl, ownerCandidates, staffId, params] = await Promise.all([
     listOrgCredentials(orgId),
+    // the terms behind the cards — the history the modal reads
+    listOrgCredentialRecords(orgId),
     // whose account this is — owner, size, age, plan. The viewer's sub goes in
     // so the card can say "You" rather than printing a co-owner their own
     // name as if it were someone else's.
@@ -74,15 +87,30 @@ export default async function OrganizationPage({
     master
       ? listOwnerCandidates(orgId, session.user.sub as string)
       : Promise.resolve([]),
+    // whose reminders to light up: the viewer's own staff card, or null for an
+    // owner who has never been given one (the chips then simply stay off)
+    staffProfileIdFor(orgId, session.user.sub as string),
     // which tab a shared link asks for — read here rather than with
     // useSearchParams, so the screen needs no Suspense boundary around it
     searchParams,
+  ]);
+
+  /* The paperwork and the chips need the cards first, so they come after —
+     two more reads rather than two per card, and both skipped entirely for a
+     business that has recorded nothing. */
+  const ids = credentials.map((c) => c.id);
+  const [credentialDocuments, credentialReminders] = await Promise.all([
+    documentsForOrgCredentials(orgId, ids),
+    listCredentialReminders(orgId, staffId),
   ]);
 
   return (
     <OrgScreen
       org={org}
       credentials={credentials}
+      credentialRecords={records}
+      credentialDocuments={Object.fromEntries(credentialDocuments)}
+      credentialReminders={credentialReminders}
       account={account}
       ownerCandidates={ownerCandidates}
       logoUrl={logoUrl}
@@ -96,6 +124,10 @@ export default async function OrganizationPage({
         onAddCredential: addOrgCredential,
         onUpdateCredential: updateOrgCredential,
         onRemoveCredential: removeOrgCredential,
+        onRecordTerm: recordCredentialTerm,
+        onAttachCredentialDoc: attachCredentialDocument,
+        onRemoveTerm: removeCredentialTerm,
+        onCredentialReminder: setCredentialReminder,
         onSetLogo: setOrgLogo,
         onClearLogo: clearOrgLogo,
         onSetBrandColor: setOrgBrandColor,

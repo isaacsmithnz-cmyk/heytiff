@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { OrgAccount } from "@/lib/org/account";
 import type { OwnerCandidate } from "@/lib/org/ownership";
 import type { OrgCredential } from "@/lib/org/credentials";
+import type { OrgCredentialRecord } from "@/lib/org/credential-records";
 import type { OrgSettings } from "@/lib/org/settings";
 
 /* The uploader's helper is stubbed: it exists to reach a signed slot and PUT
@@ -12,6 +13,14 @@ import type { OrgSettings } from "@/lib/org/settings";
 const uploadFile = jest.fn();
 jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: (...a: unknown[]) => uploadFile(...a),
+}));
+
+/* Tiff's reader is stubbed for the same reason, and it has to be: it is a
+   `"use server"` module, so importing it for real pulls Auth0 and next/server
+   into a jsdom suite and the whole file fails to LOAD rather than to pass. */
+const readOrgCredentialDocument = jest.fn();
+jest.mock("@/app/actions/org-credential-ai", () => ({
+  readOrgCredentialDocument: (...a: unknown[]) => readOrgCredentialDocument(...a),
 }));
 
 import { OrgScreen } from "../org-screen";
@@ -110,6 +119,10 @@ function setup(
     account?: OrgAccount | null;
     candidates?: OwnerCandidate[];
     onTransferOwnership?: jest.Mock;
+    onRecordTerm?: jest.Mock;
+    onCredentialReminder?: jest.Mock;
+    /** the terms behind the cards, keyed by credential id */
+    records?: Record<string, OrgCredentialRecord[]>;
     /** which tab to land on — the page's own `?sec=`, so a test that wants a
         section says which one instead of counting cards down a page */
     sec?: string;
@@ -124,6 +137,10 @@ function setup(
     onClearLogo: jest.fn().mockResolvedValue({ ok: true }),
     onSetBrandColor: jest.fn().mockResolvedValue({ ok: true }),
     onClearBrandColor: jest.fn().mockResolvedValue({ ok: true }),
+    onRecordTerm: over.onRecordTerm ?? jest.fn().mockResolvedValue({ ok: true }),
+    onAttachCredentialDoc: jest.fn().mockResolvedValue({ ok: true }),
+    onRemoveTerm: jest.fn().mockResolvedValue({ ok: true }),
+    onCredentialReminder: over.onCredentialReminder ?? jest.fn().mockResolvedValue({ ok: true }),
     /* Present = "you are the master". The page passes it only for the master
        owner, so a test for a co-owner's screen passes `onTransferOwnership:
        undefined` rather than a stub that refuses. */
@@ -136,6 +153,7 @@ function setup(
     <OrgScreen
       org={{ ...ORG, ...(over.org ?? {}) }}
       credentials={over.credentials ?? CREDENTIALS}
+      credentialRecords={over.records ?? {}}
       account={over.account === undefined ? ACCOUNT : over.account}
       ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
@@ -305,6 +323,10 @@ describe("your business", () => {
           onAddCredential: jest.fn(),
           onUpdateCredential: jest.fn(),
           onRemoveCredential: jest.fn(),
+          onRecordTerm: jest.fn(),
+          onAttachCredentialDoc: jest.fn(),
+          onRemoveTerm: jest.fn(),
+          onCredentialReminder: jest.fn(),
           onSetLogo: jest.fn(),
           onClearLogo: jest.fn(),
           onSetBrandColor: jest.fn(),
@@ -433,7 +455,41 @@ describe("the credential grid", () => {
   });
 });
 
+/* THE CREDENTIAL MODAL — the vehicle card's shape, one level up.
+
+   The contract this file pins changed with the rebuild, and deliberately:
+
+     OPENING A CARD LANDS ON ITS RECORD, not on a form. What an owner wants
+     when they click "Public liability" is the cover they hold and the paper
+     behind it; renaming the card is a door off that screen, not the screen.
+
+     A RENEWAL IS A NEW TERM. Recording one calls onRecordTerm with the card's
+     id — it never calls onUpdateCredential, because nothing about the card
+     itself changed and the term before it is still on file.
+
+     THE HISTORY IS VISIBLE FROM OUTSIDE. A card says how many terms it has,
+     so there is a reason to open it.
+
+     THE NAME IS STILL REQUIRED, and still refused in the browser rather than
+     after a round trip — the modal runs the very validator the action runs. */
 describe("the credential modal", () => {
+  const term = (over: Partial<OrgCredentialRecord> = {}): OrgCredentialRecord => ({
+    id: "R1",
+    credentialId: "C2",
+    issuer: "QBE",
+    number: "PL-9",
+    cover: "Public and products liability",
+    sumInsured: 20_000_000,
+    premium: 2400,
+    excess: 500,
+    startsOn: "2025-08-07",
+    expiresOn: "2026-08-07",
+    documentId: null,
+    source: "manual",
+    createdAt: "2025-08-01T00:00:00.000Z",
+    ...over,
+  });
+
   it("adds one from the tile", async () => {
     const user = userEvent.setup();
     const { actions } = setup({ sec: "credentials", credentials: [] });
@@ -442,27 +498,94 @@ describe("the credential modal", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/^Name/), "Working at Heights");
     await user.type(within(dialog).getByLabelText("Number"), "WAH-1");
-    await user.click(within(dialog).getByRole("button", { name: /Save/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Add card" }));
 
     expect(actions.onAddCredential).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "licence", name: "Working at Heights", number: "WAH-1" })
+      expect.objectContaining({ kind: "licence", name: "Working at Heights", number: "WAH-1" }),
+      // nothing was scanned, so the card is born without a term
+      undefined
     );
     // it saved, so it closed
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("opens on a card with that credential's values, and updates it by id", async () => {
+  it("opens a card on the term in force, with its facts and its history", async () => {
+    const user = userEvent.setup();
+    setup({
+      sec: "credentials",
+      records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07", startsOn: "2024-08-07", premium: 2100 })] },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+
+    // the term in force, as the certificate prints it
+    expect(within(dialog).getByText("CURRENT POLICY")).toBeInTheDocument();
+    expect(within(dialog).getByText("Public and products liability")).toBeInTheDocument();
+    expect(within(dialog).getByText("$20m")).toBeInTheDocument();
+    expect(within(dialog).getByText("7 Aug 2026")).toBeInTheDocument();
+
+    // and the one before it, which the old modal would have destroyed
+    const history = within(dialog).getByText("POLICY HISTORY").closest(".vm-card") as HTMLElement;
+    expect(within(history).getByText("7 Aug 2025")).toBeInTheDocument();
+    expect(within(history).getByText("$2,100")).toBeInTheDocument();
+  });
+
+  it("says on the card how many terms are on file", () => {
+    setup({ sec: "credentials", records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07" })] } });
+    expect(screen.getByText("2 terms on file")).toBeInTheDocument();
+  });
+
+  it("records a renewal as a NEW term, never as an edit of the card", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "credentials", records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Record renewal" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+
+    await user.type(within(dialog).getByLabelText("Insurer"), "CGU");
+    // no expiry yet: nothing to save
+    expect(within(dialog).getByRole("button", { name: "Save policy" })).toBeDisabled();
+
+    // the expiry is picked, never typed — the calendar is the only way in
+    await user.click(within(dialog).getByLabelText("Expiry"));
+    await user.click(await screen.findByRole("button", { name: "Friday 24 July 2026" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save policy" }));
+
+    expect(actions.onRecordTerm).toHaveBeenCalledWith(
+      "C2",
+      expect.objectContaining({ issuer: "CGU", expiresOn: "2026-07-24", source: "manual" })
+    );
+    expect(actions.onUpdateCredential).not.toHaveBeenCalled();
+  });
+
+  it("opens straight onto the record panel when nothing has been filed", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    // no terms in this setup, so the panel is the screen and there is nothing
+    // to press to reach it
+    expect(within(dialog).getByText("RECORD POLICY")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Record renewal" })).not.toBeInTheDocument();
+  });
+
+  it("renames a card behind the Edit details door, and updates it by id", async () => {
     const user = userEvent.setup();
     const { actions } = setup({ sec: "credentials" });
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
+
     expect(within(dialog).getByLabelText(/^Name/)).toHaveValue("Public liability");
-    expect(within(dialog).getByLabelText("Insurer")).toHaveValue("QBE");
+    expect(within(dialog).getByLabelText("Issuer")).toHaveValue("QBE");
 
     await user.clear(within(dialog).getByLabelText("Number"));
     await user.type(within(dialog).getByLabelText("Number"), "PL-10");
-    await user.click(within(dialog).getByRole("button", { name: /Save/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     expect(actions.onUpdateCredential).toHaveBeenCalledWith(
       "C2",
@@ -471,11 +594,29 @@ describe("the credential modal", () => {
     expect(actions.onAddCredential).not.toHaveBeenCalled();
   });
 
+  /* Once a term owns the number, the issuer and the expiry, the details screen
+     stops offering them — they are a cache of the term now, and a blank draft
+     saved over them would wipe the very columns the dashboard chip reads. */
+  it("stops offering the term's own fields once a term exists", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
+
+    expect(within(dialog).getByLabelText(/^Name/)).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Issuer")).not.toBeInTheDocument();
+  });
+
   it("asks for the expiry with a calendar, never a text box", async () => {
     const user = userEvent.setup();
     setup({ sec: "credentials" });
-    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+
     // the shared popover picker: a button that opens the drawn calendar —
     // there is nothing to type a date into, well- or ill-formatted
     expect(within(dialog).getByLabelText("Expiry")).toHaveAttribute("type", "button");
@@ -488,6 +629,7 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /Edit details/ }));
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(actions.onRemoveCredential).not.toHaveBeenCalled();
 
@@ -509,9 +651,10 @@ describe("the credential modal", () => {
     const { actions } = setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: /Save/ }));
 
-    expect(await within(dialog).findByText("Give this licence or policy a name.")).toBeInTheDocument();
+    // the name is the one thing the card cannot be without, so the button that
+    // would save it is not a live button at all
+    expect(within(dialog).getByRole("button", { name: "Add card" })).toBeDisabled();
     expect(actions.onAddCredential).not.toHaveBeenCalled();
   });
 
@@ -523,21 +666,41 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/^Name/), "ARC");
-    await user.click(within(dialog).getByRole("button", { name: /Save/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Add card" }));
 
     expect(await screen.findByText("Couldn't add that.")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("closes on Cancel without writing", async () => {
+  it("closes on the header X without writing", async () => {
     const user = userEvent.setup();
     const { actions } = setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" })
-    );
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(actions.onAddCredential).not.toHaveBeenCalled();
+  });
+
+  /* REMIND ME is the fleet's chips, and it needs an expiry to count from —
+     a card with nothing on file offers them switched off and unpressable
+     rather than creating a task with no date. */
+  it("sets a reminder against the card, and cannot before there is an expiry", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "credentials", records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "30 days before" }));
+    expect(actions.onCredentialReminder).toHaveBeenCalledWith("C2", 30, true);
+  });
+
+  it("leaves the reminder chips dead until a term is on file", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", credentials: [{ ...CREDENTIALS[1], expiryDate: null }] });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "30 days before" })).toBeDisabled();
   });
 });
 

@@ -44,12 +44,29 @@ export function WorkRightsCard({
   mode,
   today,
   startEditing,
+  checkCount = 0,
+  onOpenChecks,
   onSave,
 }: {
   profile: StaffProfile | null;
   mode: ProfileMode;
   today: string;
   startEditing?: boolean;
+  /* HOW MANY CHECKS ARE ON FILE, and the reason this card can be read-only.
+
+     These five columns are a CACHE of the newest check
+     (docs/migrations/staff_work_rights_records.sql). Once a check exists,
+     editing them here would write values no check supports and the next check
+     recorded would silently overwrite them — two doors telling different
+     stories about whether somebody may legally work. So the edit cycle is
+     withdrawn and the modal becomes the only door. Both section-savers refuse
+     the fields as well, because a Server Function is reachable by direct POST.
+
+     Zero checks — every workspace on the day this ships — leaves the card
+     exactly as it has always been. */
+  checkCount?: number;
+  /** Opens the checks modal. Absent means the caller has not wired it. */
+  onOpenChecks?: () => void;
   onSave: SaveSection;
 }) {
   const values = workRightsValues(profile);
@@ -87,6 +104,23 @@ export function WorkRightsCard({
     const showVisa = editing ? !liveNoVisa : Boolean(liveStatus) && !liveNoVisa;
 
     return (
+      <>
+      {onOpenChecks && (
+        <div className="wr-checks">
+          <span className="wr-checksl">
+            <b>{checkCount === 0 ? "No checks recorded" : checkCount === 1 ? "1 check on file" : `${checkCount} checks on file`}</b>
+            <em>
+              {checkCount === 0
+                ? "Scan a VEVO result or grant notice to start the record"
+                : "The status above is the newest check"}
+            </em>
+          </span>
+          <button type="button" className="pbtn" onClick={onOpenChecks}>
+            <Icon name="shield" size={15} />
+            {checkCount === 0 ? "Record a check" : "Checks"}
+          </button>
+        </div>
+      )}
       <DetailPanels>
         <DetailPanel title="Right to work" wide={liveNoVisa || !liveStatus}>
           <Detail
@@ -202,6 +236,7 @@ export function WorkRightsCard({
           </DetailPanel>
         )}
       </DetailPanels>
+      </>
     );
   };
 
@@ -216,6 +251,7 @@ export function WorkRightsCard({
       onSave={(fields) => onSave("workrights", fields)}
       validate={(fields) => preValidate(mode, "workrights", fields)}
       transform={workRightsPayload}
+      editable={checkCount === 0}
       body={body}
     />
   );

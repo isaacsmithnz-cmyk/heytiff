@@ -70,6 +70,9 @@ jest.mock('@/app/actions/org-credential-ai', () => ({
 jest.mock('@/app/actions/staff-licence-ai', () => ({
   readStaffLicenceDocument: jest.fn(async () => ({ ok: false, reason: 'no-key' })),
 }))
+jest.mock('@/app/actions/work-rights-ai', () => ({
+  readWorkRightsDocument: jest.fn(async () => ({ ok: false, reason: 'no-key' })),
+}))
 
 /* The uploader's browser half, for the same reason and by the same route: it
    imports `@/app/actions/documents` to ask for a signed slot, which is a

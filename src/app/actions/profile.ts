@@ -19,6 +19,13 @@ import {
   seedFirstTerm,
   setLicenceReminder,
 } from "@/lib/staff/licence-writes";
+import { WORK_RIGHTS_LOCKED, type WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
+import {
+  attachCheckDocument,
+  recordCheck,
+  removeCheck,
+  setWorkRightsReminder,
+} from "@/lib/staff/work-rights-writes";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 
 /* My profile persistence — your own staff card.
@@ -126,6 +133,10 @@ export async function saveMyProfileSection(
   // Make sure the row exists before updating. It also supplies the half of the
   // name the form didn't send, so the derived full_name stays whole.
   const current = await loadMyProfile();
+
+  if (section === "workrights" && (await workRightsLocked(orgId, current.id))) {
+    return { ok: false, error: WORK_RIGHTS_LOCKED };
+  }
 
   const { error } = await supabaseAdmin
     .from("staff_profiles")
@@ -339,4 +350,78 @@ export async function removeMyLicence(licenceId: string): Promise<SaveResult> {
   revalidatePath("/dashboard/profile");
   revalidatePath("/dashboard/team");
   return { ok: true };
+}
+
+/* ---- your own right-to-work checks ----
+
+   Intrinsic, like the rest of your own card: nothing here asks for a
+   capability, and every call re-resolves YOUR staff id server-side and hands
+   that to the shared writer, so a forged post can only ever reach your own
+   record.
+
+   Recording a check about yourself is a real thing people do — a student on a
+   500 whose visa was just renewed, updating their own card before their
+   manager asks. The evidence upload was already intrinsic
+   (actions/documents.ts); this is the rest of that door. */
+
+export async function recordMyWorkRightsCheck(input: WorkRightsCheckInput): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await recordCheck(orgId, me.id, me.id, input);
+  if (res.ok) revalidateMine();
+  return res;
+}
+
+export async function attachMyWorkRightsDocument(
+  recordId: string,
+  documentId: string
+): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await attachCheckDocument(orgId, me.id, me.id, recordId, documentId);
+  if (res.ok) revalidateMine();
+  return res;
+}
+
+export async function removeMyWorkRightsCheck(recordId: string): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await removeCheck(orgId, me.id, recordId);
+  if (res.ok) revalidateMine();
+  return res;
+}
+
+/** A reminder about your OWN visa, so the title carries no name. */
+export async function setMyWorkRightsReminder(leadDays: number, on: boolean): Promise<SaveResult> {
+  const { orgId } = await requireOrg();
+  const me = await loadMyProfile();
+  const res = await setWorkRightsReminder(orgId, me.id, me.id, null, leadDays, on);
+  if (res.ok) {
+    revalidateMine();
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workboard");
+  }
+  return res;
+}
+
+/* WORK RIGHTS BECOMES READ-ONLY ONCE A CHECK IS ON FILE, and this is the
+   server half of that rule.
+
+   Those five columns are a CACHE of the newest check
+   (docs/migrations/staff_work_rights_records.sql). Editing them in place would
+   write values no check supports, and the next check to be recorded would
+   silently overwrite them — two doors telling different stories about whether
+   somebody may legally work. The card stops offering the fields; a Server
+   Function is reachable by direct POST, so it is refused here as well.
+
+   Before the first check there is nothing to disagree with, so the card
+   behaves exactly as it always has — which is what keeps every existing
+   workspace working the day this ships. */
+async function workRightsLocked(orgId: string, staffId: string): Promise<boolean> {
+  const { count } = await supabaseAdmin
+    .from("staff_work_rights_records")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffId);
+  return (count ?? 0) > 0;
 }

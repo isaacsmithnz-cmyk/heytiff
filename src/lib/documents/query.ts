@@ -33,6 +33,8 @@ export type StoredDocument = {
   credentialRecordId: string | null;
   /** The term of a STAFF licence this document is filed under. */
   licenceRecordId: string | null;
+  /** The right-to-work CHECK this document is the evidence for. */
+  workRightsRecordId: string | null;
 };
 
 const COLUMNS =
@@ -139,7 +141,31 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
     credentialRecordId:
       typeof r.credential_record_id === "string" ? r.credential_record_id : null,
     licenceRecordId: typeof r.licence_record_id === "string" ? r.licence_record_id : null,
+    workRightsRecordId:
+      typeof r.work_rights_record_id === "string" ? r.work_rights_record_id : null,
   };
+}
+
+/* One person's right-to-work evidence.
+
+   SCOPED TO ONE PERSON AND NOTHING WIDER, and more pointedly than the licence
+   read: these are immigration documents about one named individual. There is
+   no "every work-rights document in the org" query here and there should not
+   be one. The caller has already decided the viewer may open this card. */
+export async function documentsForWorkRights(
+  orgId: string,
+  staffProfileId: string,
+): Promise<StoredDocument[]> {
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select(`${COLUMNS}, work_rights_staff_id, work_rights_record_id`)
+    .eq("org_id", orgId)
+    .eq("work_rights_staff_id", staffProfileId)
+    .not("uploaded_at", "is", null);
+
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const urls = await signMany(rows.map((r) => String(r.storage_ref)));
+  return rows.map((r) => toStored(r, urls)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 /* The paperwork behind one person's licences and tickets, keyed by licence.

@@ -9,8 +9,12 @@ import {
   loadMyProfile,
   recordMyLicenceTerm,
   removeMyLicence,
+  attachMyWorkRightsDocument,
+  recordMyWorkRightsCheck,
   removeMyLicenceTerm,
+  removeMyWorkRightsCheck,
   saveMyProfileSection,
+  setMyWorkRightsReminder,
   setMyLicenceReminder,
   setMyPhoto,
   updateMyLicence,
@@ -19,8 +23,14 @@ import { changeMySignInEmail } from "@/app/actions/account";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
 import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
-import { listLicenceReminders, listLicenceTerms, listLicences } from "@/lib/staff/query";
-import { documentsForStaffLicences } from "@/lib/documents/query";
+import {
+  listLicenceReminders,
+  listLicenceTerms,
+  listLicences,
+  listWorkRightsChecks,
+  listWorkRightsReminders,
+} from "@/lib/staff/query";
+import { documentsForStaffLicences, documentsForWorkRights } from "@/lib/documents/query";
 import { getMyPay } from "@/lib/staff/my-pay";
 import { getOrgName, getOrgState } from "@/lib/permissions-server";
 import { signPhotoUrl } from "@/lib/staff/photo";
@@ -65,11 +75,15 @@ export default async function MyProfilePage({
      entirely for someone with no licences on file. The reminders are the
      VIEWER's own, which on this page is always the card's owner. */
   const licenceIds = licences.map((l) => l.id);
-  const [licenceTerms, licenceDocuments, licenceReminders] = await Promise.all([
-    orgId ? listLicenceTerms(orgId, profile.id) : Promise.resolve({}),
-    orgId ? documentsForStaffLicences(orgId, licenceIds) : Promise.resolve(new Map()),
-    orgId ? listLicenceReminders(orgId, profile.id, licenceIds) : Promise.resolve({}),
-  ]);
+  const [licenceTerms, licenceDocuments, licenceReminders, workRightsChecks, workRightsDocuments, workRightsReminders] =
+    await Promise.all([
+      orgId ? listLicenceTerms(orgId, profile.id) : Promise.resolve({}),
+      orgId ? documentsForStaffLicences(orgId, licenceIds) : Promise.resolve(new Map()),
+      orgId ? listLicenceReminders(orgId, profile.id, licenceIds) : Promise.resolve({}),
+      orgId ? listWorkRightsChecks(orgId, profile.id) : Promise.resolve([]),
+      orgId ? documentsForWorkRights(orgId, profile.id) : Promise.resolve([]),
+      orgId ? listWorkRightsReminders(orgId, profile.id, profile.id) : Promise.resolve([]),
+    ]);
 
   const email = session.user.email ?? "";
   const displayName =
@@ -118,6 +132,9 @@ export default async function MyProfilePage({
       licenceTerms={licenceTerms}
       licenceDocuments={Object.fromEntries(licenceDocuments)}
       licenceReminders={licenceReminders}
+      workRightsChecks={workRightsChecks}
+      workRightsDocuments={workRightsDocuments}
+      workRightsReminders={workRightsReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
       org={orgName}
@@ -135,6 +152,10 @@ export default async function MyProfilePage({
         onAttachLicenceDoc: attachMyLicenceDocument,
         onRemoveLicenceTerm: removeMyLicenceTerm,
         onLicenceReminder: setMyLicenceReminder,
+        onRecordWorkRightsCheck: recordMyWorkRightsCheck,
+        onAttachWorkRightsDoc: attachMyWorkRightsDocument,
+        onRemoveWorkRightsCheck: removeMyWorkRightsCheck,
+        onWorkRightsReminder: setMyWorkRightsReminder,
         onRemoveLicence: removeMyLicence,
         onSetPhoto: setMyPhoto,
         onClearPhoto: clearMyPhoto,

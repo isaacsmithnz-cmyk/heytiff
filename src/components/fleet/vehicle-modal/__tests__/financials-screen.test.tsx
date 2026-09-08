@@ -87,6 +87,7 @@ const contract: StoredDocument = {
   financeId: "f1",
   credentialRecordId: null,
   licenceRecordId: null,
+  workRightsRecordId: null,
 };
 
 function mount(over: { finance?: VehicleFinance[]; documents?: StoredDocument[]; valuation?: boolean; vehicle?: Partial<Vehicle> } = {}) {

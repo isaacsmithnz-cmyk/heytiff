@@ -19,13 +19,15 @@ const onVisa = {
   vevo_checked_at: "2026-06-01",
 };
 
-function setup(profile = blankProfile) {
+function setup(profile = blankProfile, over: { checkCount?: number; onOpenChecks?: () => void } = {}) {
   const actions = okActions();
   render(
     <WorkRightsCard
       profile={profile}
       mode="self"
       today={TODAY}
+      checkCount={over.checkCount}
+      onOpenChecks={over.onOpenChecks}
       onSave={actions.onSave}
     />
   );
@@ -179,5 +181,60 @@ describe("workRightsPayload", () => {
         vevo_checked_at: "",
       });
     }
+  });
+});
+
+/* ONCE A CHECK IS ON FILE THE FIELDS BELONG TO IT.
+
+   The five columns this card edits are a CACHE of the newest check
+   (docs/migrations/staff_work_rights_records.sql). Two doors writing them
+   would tell different stories about whether somebody may legally work: an
+   in-place edit would write values no check supports, and the next check
+   recorded would silently overwrite them. So the edit cycle is withdrawn and
+   the modal becomes the only door. Both section-savers refuse the fields too,
+   because a Server Function is reachable by direct POST.
+
+   ZERO CHECKS LEAVES THE CARD EXACTLY AS IT WAS — which is what keeps every
+   existing workspace working on the day this ships, and is why every test
+   above still passes without knowing this feature exists. */
+describe("the checks strip", () => {
+  it("is absent entirely until a caller wires the door", () => {
+    setup(onVisa);
+    expect(screen.queryByRole("button", { name: /Record a check|Checks/ })).not.toBeInTheDocument();
+    // and the card still edits, exactly as it always has
+    expect(edit()).toBeInTheDocument();
+  });
+
+  it("offers to record the first check, and still edits, when none exist", () => {
+    setup(onVisa, { checkCount: 0, onOpenChecks: jest.fn() });
+    expect(screen.getByText("No checks recorded")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Record a check/ })).toBeInTheDocument();
+    expect(edit()).toBeInTheDocument();
+  });
+
+  it("withdraws the edit cycle once a check exists", () => {
+    setup(onVisa, { checkCount: 2, onOpenChecks: jest.fn() });
+    expect(screen.getByText("2 checks on file")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit$/ })).not.toBeInTheDocument();
+    expect(screen.getByText("The status above is the newest check")).toBeInTheDocument();
+  });
+
+  it("counts one check without pluralising it", () => {
+    setup(onVisa, { checkCount: 1, onOpenChecks: jest.fn() });
+    expect(screen.getByText("1 check on file")).toBeInTheDocument();
+  });
+
+  it("opens the checks door", async () => {
+    const user = userEvent.setup();
+    const onOpenChecks = jest.fn();
+    setup(onVisa, { checkCount: 1, onOpenChecks });
+    await user.click(screen.getByRole("button", { name: /Checks/ }));
+    expect(onOpenChecks).toHaveBeenCalled();
+  });
+
+  it("still reads the current values while locked — it is a summary, not a blank", () => {
+    setup(onVisa, { checkCount: 1, onOpenChecks: jest.fn() });
+    expect(screen.getByText("Full working rights (visa)")).toBeInTheDocument();
+    expect(screen.getByText("482 TSS")).toBeInTheDocument();
   });
 });

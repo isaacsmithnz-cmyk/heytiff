@@ -2909,6 +2909,79 @@ html[data-ds-display] .dstudio.editing {
   stroke-dasharray: 7 5;
 }
 
+/* ── unit callouts ──────────────────────────────────────────────────────
+   A unit's own name at the end of a leader, placed by hand. Same grammar as
+   the note above — that is the point of it, since it is the same job — but a
+   BOXED bubble rather than bare words, which is what tells a reader at a
+   glance that this is the machine's own data and not somebody's handwriting.
+
+   THE SYSTEM COLOUR IS ON THE EDGE, NEVER ON THE WORDS, and that is a hard
+   rule rather than a preference: a callout prints, so its text is text on
+   white paper and the note palette's 4.5:1 floor applies — and FOUR of the six
+   system colours fail it outright (amber 2.0, teal 3.1, orange 3.7, violet
+   4.1). Border and leader carry the identity; the words stay graphite, which
+   is also the ink notes default to, so the two conventions read as one hand. */
+.dstudio .ds-callout {
+  color: #888;
+}
+.dstudio .ds-callout-leader {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-callout-box {
+  fill: #fff;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-callout-line {
+  fill: #222222;
+  font-weight: 600;
+}
+.dstudio .ds-callout-line.head {
+  font-weight: 800;
+}
+.dstudio .ds-callout.sel .ds-callout-box {
+  stroke-width: 2.2;
+}
+/* NOT YET PART OF THE DRAWING. The bubble a selected unit shows before anyone
+   has placed one is a preview — nothing about it has reached the document, and
+   dragging it is what commits it. Said in a dashed edge, the same grammar the
+   room and note tools use for a shape that is not saved yet, and NEVER in
+   opacity: de-emphasis by transparency is what the design system forbids for
+   text, and these words have to stay as readable as any other. */
+.dstudio .ds-callout.pre .ds-callout-box,
+.dstudio .ds-callout.pre .ds-callout-leader {
+  stroke-dasharray: 6 4;
+}
+.dstudio .ds-callout.pre .ds-callout-box {
+  fill: #fbfbfd;
+}
+/* the way back off the drawing, on the selected unit's callout only */
+.dstudio .ds-callout-x circle {
+  fill: #fff;
+  stroke: #6b7280;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-callout-x path {
+  fill: none;
+  stroke: #374151;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+.dstudio .ds-callout-x:hover circle {
+  fill: #e0264f;
+  stroke: #e0264f;
+}
+.dstudio .ds-callout-x:hover path {
+  stroke: #fff;
+}
+
 .dstudio .ds-calib-card {
   position: absolute;
   width: 226px;

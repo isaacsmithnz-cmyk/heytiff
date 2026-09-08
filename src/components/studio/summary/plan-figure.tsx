@@ -23,6 +23,12 @@ import {
   noteLayoutOf,
   type NoteObject,
 } from "@/lib/studio/notes";
+import {
+  calloutBounds,
+  calloutContent,
+  calloutLayout,
+  calloutOf,
+} from "@/lib/studio/callouts";
 import { unitGlyph, type LayerFlags } from "../canvas";
 
 /* A STATIC plan rendering for print and image export — the same drawing the
@@ -51,6 +57,9 @@ const REF_W = 900; // reference width: text sized as if on a 900px-wide sheet
     at 11 until a real sheet showed it losing to the labels around it
     (2026-08-26). The canvas always used 13; this is paper catching up. */
 const NOTE_FONT_REF = 13;
+/* one step below a written note, the same gap the canvas keeps: an instruction
+   somebody typed must not be quieter than the machine's own data */
+const CALLOUT_FONT_REF = 11;
 
 export function planFigureBounds(
   doc: DesignDocument,
@@ -88,6 +97,13 @@ export function planFigureBounds(
       const h = scale ? Number(o.props.depthMm ?? 300) / scale : 20;
       eat(at.x - w, at.y - h);
       eat(at.x + w, at.y + h);
+      /* A callout's leader END is an ordinary world point — it is the BUBBLE
+         that is sized to the sheet — so it belongs in pass one beside the
+         footprint. Placed clear of the plan on purpose, exactly like a note's
+         margin text, and a figure that framed only the plan would crop the
+         label somebody put where it could be read. */
+      const c = calloutOf(o);
+      if (c) eat(at.x + c.x, at.y + c.y);
     }
   }
   if (floor.northPos) {
@@ -113,6 +129,30 @@ export function planFigureBounds(
       eat(b.x, b.y);
       eat(b.x + b.w, b.y + b.h);
     }
+  }
+  /* Callout BUBBLES ride the same second pass and for the same reason: their
+     type is a fraction of the figure's width, so the width has to exist before
+     the box that widens it can be measured. */
+  for (const o of doc.objects) {
+    if (o.floorId !== floor.id || o.type !== "unit" || o.geometry.kind !== "point") continue;
+    const off = calloutOf(o);
+    if (!off) continue;
+    const at = o.geometry.at;
+    const font = (CALLOUT_FONT_REF * Math.max(maxX - minX, 1)) / REF_W;
+    const fp = scale
+      ? { w: Number(o.props.widthMm ?? 800) / scale, h: Number(o.props.depthMm ?? 300) / scale }
+      : { w: 40, h: 20 };
+    const b = calloutBounds(
+      calloutLayout({
+        at,
+        footprint: fp,
+        offset: off,
+        content: calloutContent(o, null),
+        fontSize: font,
+      })
+    );
+    eat(b.x, b.y);
+    eat(b.x + b.w, b.y + b.h);
   }
 
   const w = Math.max(maxX - minX, 1);
@@ -190,6 +230,7 @@ export function PlanFigure({
      what somebody chose to write on the drawing */
   const notes = onFloor.filter((o): o is NoteObject => isNote(o));
   const noteFont = NOTE_FONT_REF * u;
+  const calloutFont = CALLOUT_FONT_REF * u;
 
   /* legend rows: fixed symbol key + the systems present on this floor */
   const floorSystems = doc.systems.filter((s) =>
@@ -220,6 +261,14 @@ export function PlanFigure({
         .ds-pf .ds-unit-hub { fill: currentColor; stroke: none; }
         .ds-pf .ds-unit-role { fill: currentColor; text-anchor: middle; font-weight: 800; }
         .ds-pf .ds-unit-model { fill: #3c4356; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; font-weight: 700; }
+        /* A CALLOUT PRINTS, so its words are text on white paper and the note
+           palette's 4.5:1 floor applies — which four of the six system colours
+           fail (amber 2.0, teal 3.1, orange 3.7, violet 4.1). The identity
+           rides the EDGE; the words stay graphite. */
+        .ds-pf .ds-callout-leader { fill: none; stroke: currentColor; stroke-width: 1.1px; stroke-linecap: round; }
+        .ds-pf .ds-callout-box { fill: #fff; stroke: currentColor; stroke-width: 1.2px; }
+        .ds-pf .ds-callout-text { fill: #222222; font-weight: 600; }
+        .ds-pf .ds-callout-text .head { font-weight: 800; }
         .ds-pf .ds-riser circle { fill: #fff; stroke: currentColor; stroke-width: 2px; vector-effect: non-scaling-stroke; }
         .ds-pf .ds-riser text { fill: currentColor; text-anchor: middle; font-weight: 800; }
         .ds-pf .ds-north-ring { fill: rgba(255,255,255,0.9); stroke: #64748b; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
@@ -382,14 +431,24 @@ export function PlanFigure({
                     >
                       {role.toUpperCase()}
                     </text>
-                    <text
-                      x={at.x}
-                      y={at.y + fp.h / 2 + 13 * u}
-                      fontSize={10 * u}
-                      className="ds-unit-model"
-                    >
-                      {String(o.props.model ?? "")}
-                    </text>
+                    {/* A UNIT THAT CARRIES A CALLOUT STOPS SAYING ITS OWN
+                        MODEL. Paper keeps the labels the canvas dropped
+                        because paper cannot be hovered — but the moment
+                        somebody has placed a callout, that IS the label, and
+                        printing both puts the model on the sheet twice, once
+                        squeezed under a footprint and once where it was put on
+                        purpose. The ROLE stays: it is one word, it sits inside
+                        the glyph, and the callout does not repeat it. */}
+                    {!calloutOf(o) && (
+                      <text
+                        x={at.x}
+                        y={at.y + fp.h / 2 + 13 * u}
+                        fontSize={10 * u}
+                        className="ds-unit-model"
+                      >
+                        {String(o.props.model ?? "")}
+                      </text>
+                    )}
                   </>
                 )}
               </g>
@@ -441,6 +500,71 @@ export function PlanFigure({
               </g>
             );
           })()}
+
+        {/* unit callouts — through the SAME two functions the canvas uses
+            (`calloutContent` for the words, `calloutLayout` for the shape), so
+            a label placed on screen prints exactly where it was put. That one
+            door is the whole reason the geometry lives in lib and not here. */}
+        {layers.units &&
+          units.map((o) => {
+            const off = calloutOf(o);
+            if (!off) return null;
+            const at = o.geometry.at;
+            const widthMm = Number(o.props.widthMm ?? 800);
+            const depthMm = Number(o.props.depthMm ?? 300);
+            const fp = scale
+              ? { w: widthMm / scale, h: depthMm / scale }
+              : { w: 45 * u, h: 45 * u * (depthMm / Math.max(widthMm, 1)) };
+            const room = o.props.roomId
+              ? ((rooms.find((r) => r.id === String(o.props.roomId))?.props.name as
+                  | string
+                  | undefined) ?? null)
+              : null;
+            const lay = calloutLayout({
+              at,
+              footprint: fp,
+              offset: off,
+              content: calloutContent(o, room),
+              fontSize: calloutFont,
+            });
+            return (
+              <g key={`co-${o.id}`} className="ds-callout" style={{ color: colourOf(o) }}>
+                <line
+                  className="ds-callout-leader"
+                  x1={lay.start.x}
+                  y1={lay.start.y}
+                  x2={lay.end.x}
+                  y2={lay.end.y}
+                />
+                <rect
+                  className="ds-callout-box"
+                  x={lay.box.x}
+                  y={lay.box.y}
+                  width={lay.box.w}
+                  height={lay.box.h}
+                  rx={lay.fontSize * 0.4}
+                />
+                <text
+                  className="ds-callout-text"
+                  x={lay.textX}
+                  y={lay.firstBaseline}
+                  fontSize={lay.fontSize}
+                  textAnchor={lay.anchor}
+                >
+                  {lay.lines.map((line, i) => (
+                    <tspan
+                      key={i}
+                      x={lay.textX}
+                      dy={i === 0 ? 0 : lay.lineH}
+                      className={i === 0 ? "head" : undefined}
+                    >
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+              </g>
+            );
+          })}
 
         {/* markup — drawn last, over the work it is about */}
         {notes.map((n) => {

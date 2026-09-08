@@ -23,7 +23,7 @@ import {
   type DesignSettings,
   type DesignVariantRef,
 } from "@/lib/studio/document";
-import { DEFAULT_NOTE_INK, NOTE_INKS } from "@/lib/studio/notes";
+import { NOTE_INKS } from "@/lib/studio/notes";
 import { CLIMATE_ZONES, sizingCapacityKw, type SizingBasis } from "@/lib/studio/loads";
 import { effectiveClimateZone, effectiveBuildingType } from "@/lib/studio/summary";
 import { openDesignJson, DesignDocumentError } from "@/lib/studio/migrations";
@@ -66,6 +66,7 @@ import {
 import { useWheelMode, setWheelMode } from "./wheel-mode";
 import type { WheelMode } from "@/lib/studio/wheel";
 import { useHintsOn, setHintsOn } from "./hints";
+import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
@@ -3625,10 +3626,12 @@ function DesignPanel({
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
   const [draw, setDraw] = useState<DrawOptions>(DEFAULT_DRAW);
-  /* the armed note ink. Transient like DrawOptions, not stored on the design:
-     it is "what I am marking up in right now", and every note keeps its own
-     colour on the document once drawn. */
-  const [noteInk, setNoteInk] = useState<string>(DEFAULT_NOTE_INK);
+  /* The armed note ink — "what I am marking up in right now". Not on the
+     design (every note keeps its own colour once drawn) but not component
+     state either: it used to be, and it died on every reload AND was deaf to
+     the swatch row inside an open note, which is where the colour is actually
+     chosen. See note-ink.ts. */
+  const noteInk = useArmedInk();
   /* pairing line sizes per system — what a drawn pipe autosizes its label to
      (per-run props override in the object card) */
   const runSizes = useMemo(() => {
@@ -3783,7 +3786,7 @@ function DesignPanel({
                 verb that is not about the SYSTEM at all: it needs no system to
                 arm and it never belongs to one. Last is also workflow order —
                 you draw the design, then you write on it. */}
-            <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setNoteInk} />
+            <NoteTool tool={tool} onTool={onTool} ink={noteInk} onInk={setArmedInk} />
             <div className="ds-tb-spring" />
             <button
               className="ds-tool"

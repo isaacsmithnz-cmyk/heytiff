@@ -159,6 +159,57 @@ describe("designFingerprint", () => {
     ).toBe(true);
   });
 
+  /* THE SECOND SHAPE OF MARKUP. A note is markup all the way down and drops
+     out whole; a unit's CALLOUT is markup living on an object that is not, so
+     the object stays and only that key comes off. Where a label sits is a
+     drawing decision — dragging one somewhere legible must not quietly retract
+     an approved tick, which is the false alarm this whole module exists to
+     avoid. */
+  it("ignores where a unit's label was dragged to", () => {
+    const a = simDoc();
+    const labelled: DesignDocument = {
+      ...a,
+      objects: a.objects.map((o) =>
+        o.type === "unit"
+          ? { ...o, props: { ...o.props, callout: { dx: 320, dy: -180 } } }
+          : o
+      ),
+    };
+    expect(labelled.objects.some((o) => "callout" in o.props)).toBe(true);
+    expect(designFingerprint(labelled)).toBe(designFingerprint(a));
+
+    const ticked = setFloorApproval(a, "flr", true);
+    expect(isFloorApproved({ ...ticked, objects: labelled.objects }, "flr")).toBe(true);
+
+    // and moving it again is still not a design change
+    const moved: DesignDocument = {
+      ...labelled,
+      objects: labelled.objects.map((o) =>
+        o.type === "unit" ? { ...o, props: { ...o.props, callout: { dx: -90, dy: 40 } } } : o
+      ),
+    };
+    expect(designFingerprint(moved)).toBe(designFingerprint(labelled));
+  });
+
+  /* The exclusion is NAMED, one key at a time — it must not have become "any
+     prop that looks like decoration". Everything else on a unit is
+     load-bearing and has to keep counting. */
+  it("still counts every other prop on the object it strips a callout from", () => {
+    const a = simDoc();
+    const withCallout = (props: Record<string, unknown>): DesignDocument => ({
+      ...a,
+      objects: a.objects.map((o) => (o.type === "unit" ? { ...o, props } : o)),
+    });
+    const unit = a.objects.find((o) => o.type === "unit")!;
+    const base = withCallout({ ...unit.props, callout: { dx: 10, dy: 10 } });
+    const remodelled = withCallout({
+      ...unit.props,
+      callout: { dx: 10, dy: 10 },
+      model: "MSZ-AP80VGKD",
+    });
+    expect(designFingerprint(remodelled)).not.toBe(designFingerprint(base));
+  });
+
   it("changes when a unit moves, a room is renamed, or the basis changes", () => {
     const base = simDoc();
     const fp = designFingerprint(base);

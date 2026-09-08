@@ -92,6 +92,7 @@ import {
   dist,
   distToSegment,
   fitBounds,
+  clampViewport,
   fitZoom,
   formatArea,
   formatMeters,
@@ -110,6 +111,7 @@ import {
   worldToScreen,
   zoomAt,
   type Viewport,
+  type Bounds,
 } from "@/lib/studio/geometry";
 import {
   cloudPath,
@@ -137,7 +139,11 @@ import {
   type NoteObject,
   type NoteRect,
 } from "@/lib/studio/notes";
-import { readWheel, type WheelMode } from "@/lib/studio/wheel";
+import { type WheelMode } from "@/lib/studio/wheel";
+import {
+  readCanvasWheel,
+  type WheelGestureState,
+} from "@/lib/studio/wheel-gesture";
 
 /* StudioCanvas — the SVG scene per ADR-001. Renders the document, emits
    intents via onMutate; it never mutates the document itself. World space is
@@ -1137,6 +1143,9 @@ export function StudioCanvas({
 
   /* the wheel listener binds once (it has to be non-passive), so the setting
      reaches it through a ref rather than by re-binding on every change */
+  /* what this wheel gesture has spent so far — the only wheel state that
+     survives an event, deliberately outside the pure reader */
+  const gestureRef = useRef<WheelGestureState | null>(null);
   const wheelModeRef = useRef(wheelMode);
   useEffect(() => {
     wheelModeRef.current = wheelMode;
@@ -1158,20 +1167,76 @@ export function StudioCanvas({
   useEffect(() => {
     fitExtrasRef.current = { grid, notes };
   }, [grid, notes]);
+
+  /* ── where the view is allowed to go ──
+     Zoom has had a floor since the beginning: you cannot zoom out past roughly
+     fit, so the drawing never shrinks into a speck. Pan had no matching rule,
+     so the plan could be dragged off into empty grid indefinitely and Fit was
+     the only way back to it.
+
+     The bounds are deliberately a SUPERSET of what `fit` frames. Two reasons,
+     and both are failures if they are got wrong:
+
+       · `contentPoints` counts rooms, notes and plan sheets — not units. An
+         outdoor unit dropped on bare grid outside every room is invisible to
+         it, and a clamp built on it alone could hold the view somewhere that
+         unit is unreachable. Every object on the floor goes in.
+       · It is scoped to the FLOOR, never to the active system, for the same
+         reason a note is: switching systems must not move the walls of the
+         world. `units` above is system-scoped and is the wrong list here.
+
+     Being a superset is also what stops the clamp fighting Fit — a viewport
+     that frames the content is inside a box drawn round more of it. */
+  const panBounds = useMemo((): Bounds => {
+    const pts = contentPoints();
+    for (const o of doc.objects) {
+      if (o.floorId !== floor.id) continue;
+      if (o.geometry.kind === "point") pts.push(o.geometry.at);
+      else pts.push(...o.geometry.points);
+    }
+    // a blank floor has no bounds at all; a zero-size box at the origin makes
+    // clampViewport degenerate into "the origin stays on screen"
+    return boundsOfPoints(pts) ?? { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }, [contentPoints, doc.objects, floor.id]);
+  const panBoundsRef = useRef(panBounds);
+  useEffect(() => {
+    panBoundsRef.current = panBounds;
+  }, [panBounds]);
+
+  /** ONE DOOR onto the viewport. Every pan, zoom and fit is committed through
+      here, so no gesture — present or future — can leave the drawing behind.
+      `box` is for the callers that already know a size the ref has not caught
+      up to yet (the resize observer measures and re-frames in one go). */
+  const commitVp = useCallback(
+    (
+      next: Viewport | ((v: Viewport) => Viewport),
+      box?: { w: number; h: number }
+    ) => {
+      setVp((v) => {
+        const n = typeof next === "function" ? next(v) : next;
+        const s = box ?? sizeRef.current;
+        return clampViewport(n, panBoundsRef.current, s.w, s.h);
+      });
+    },
+    []
+  );
   /* the zoom buttons frame the view by hand; Fit hands the framing back to
      the content, so it deliberately does NOT set the flag */
-  const zoomBy = useCallback((k: number) => {
-    userFramed.current = true;
-    setVp((v) =>
-      zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, k, minZoomRef.current)
-    );
-  }, []);
+  const zoomBy = useCallback(
+    (k: number) => {
+      userFramed.current = true;
+      commitVp((v) =>
+        zoomAt(v, { x: sizeRef.current.w / 2, y: sizeRef.current.h / 2 }, k, minZoomRef.current)
+      );
+    },
+    [commitVp]
+  );
   const zoomInApi = useCallback(() => zoomBy(1.3), [zoomBy]);
   const zoomOutApi = useCallback(() => zoomBy(1 / 1.3), [zoomBy]);
   const fitApi = useCallback(() => {
     const pts = contentPointsRef.current();
     if (boundsOfPoints(pts))
-      setVp(
+      commitVp(
         defaultViewport(
           pts,
           sizeRef.current.w,
@@ -1181,7 +1246,7 @@ export function StudioCanvas({
         )
       );
     userFramed.current = false;
-  }, []);
+  }, [commitVp]);
   useEffect(() => {
     onZoomApi?.({ zoomIn: zoomInApi, zoomOut: zoomOutApi, fit: fitApi });
   }, [onZoomApi, zoomInApi, zoomOutApi, fitApi]);
@@ -1473,19 +1538,22 @@ export function StudioCanvas({
         ? contentPointsRef.current()
         : mountContent.current.points;
       measured.current = true;
-      setVp(
+      commitVp(
         defaultViewport(
           points,
           r.width,
           r.height,
           mountContent.current.grid,
           mountContent.current.notes
-        )
+        ),
+        { w: r.width, h: r.height }
       );
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+    // commitVp is stable (useCallback with no deps); naming it keeps the
+    // exhaustive-deps rule quiet without letting the observer re-bind
+  }, [commitVp]);
 
   /* A plan sheet saved without stored dimensions only reports its size once
      the raster decodes, which is after the first fit — so the sheet was not
@@ -1497,7 +1565,7 @@ export function StudioCanvas({
     if (Object.keys(sheetDims).length === 0) return;
     const pts = contentPointsRef.current();
     if (boundsOfPoints(pts))
-      setVp(
+      commitVp(
         defaultViewport(
           pts,
           sizeRef.current.w,
@@ -1506,7 +1574,7 @@ export function StudioCanvas({
           fitExtrasRef.current.notes
         )
       );
-  }, [sheetDims]);
+  }, [sheetDims, commitVp]);
 
   /* ── coordinate helpers ── */
   const toWorld = useCallback(
@@ -1540,18 +1608,29 @@ export function StudioCanvas({
          preventDefault on one is a no-op that Chrome warns about */
       if (e.cancelable) e.preventDefault();
       userFramed.current = true;
-      const g = readWheel(e, wheelModeRef.current);
+      /* A trackpad flick is not one delta — sixty-odd events of ~5% each,
+         still arriving through the momentum tail after the fingers have gone.
+         With the wheel set to zoom that asks for a factor in the hundreds and
+         buries the plan at MAX_ZOOM every time. The budget bounds ONE gesture
+         (see wheel-gesture.ts); the event's own timeStamp is the clock, so a
+         flick is replayable in a test with no device and no real clock. */
+      const read = readCanvasWheel(e, wheelModeRef.current, e.timeStamp, gestureRef.current);
+      gestureRef.current = read.state;
+      const g = read.gesture;
+      if (g.kind === "spent") return;
       if (g.kind === "pan") {
-        setVp((v) => ({ ...v, x: v.x + g.dx / v.zoom, y: v.y + g.dy / v.zoom }));
+        commitVp((v) => ({ ...v, x: v.x + g.dx / v.zoom, y: v.y + g.dy / v.zoom }));
         return;
       }
       const r = svg.getBoundingClientRect();
       const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
-      setVp((v) => zoomAt(v, screen, g.factor, minZoomRef.current));
+      commitVp((v) => zoomAt(v, screen, g.factor, minZoomRef.current));
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
-  }, []);
+    /* commitVp is stable, so naming it cannot cost the rebind this listener
+       must not have — the mode and the min-zoom still arrive through refs */
+  }, [commitVp]);
 
   /* ── stop a sideways pan from navigating the BROWSER back ──
      Now that a two-finger scroll pans, a leftward pan across a plan is also
@@ -2586,7 +2665,7 @@ export function StudioCanvas({
         const dx = (e.clientX - drag.startScreen.x) / vp.zoom;
         const dy = (e.clientY - drag.startScreen.y) / vp.zoom;
         if (dx || dy) userFramed.current = true;
-        setVp({ ...vp, x: drag.origVp.x - dx, y: drag.origVp.y - dy });
+        commitVp({ ...vp, x: drag.origVp.x - dx, y: drag.origVp.y - dy });
         break;
       }
       /* the gesture is still undecided — the moment it travels past the slop
@@ -2598,7 +2677,7 @@ export function StudioCanvas({
         if (Math.abs(dxs) <= TAP_SLOP_PX && Math.abs(dys) <= TAP_SLOP_PX) break;
         userFramed.current = true;
         setDrag({ kind: "pan", startScreen: drag.startScreen, origVp: drag.origVp });
-        setVp({
+        commitVp({
           ...vp,
           x: drag.origVp.x - dxs / vp.zoom,
           y: drag.origVp.y - dys / vp.zoom,

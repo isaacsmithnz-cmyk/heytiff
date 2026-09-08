@@ -63,8 +63,9 @@ import {
   type PlacingUnit,
   type ZoomApi,
 } from "./canvas";
-import { useWheelMode, WheelModeToggle } from "./wheel-toggle";
-import { HintsToggle, useHintsOn } from "./hints";
+import { useWheelMode, setWheelMode } from "./wheel-mode";
+import type { WheelMode } from "@/lib/studio/wheel";
+import { useHintsOn, setHintsOn } from "./hints";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
 import { isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
@@ -3088,6 +3089,15 @@ function DrawTool({
    menu is nudged. */
 const MENU_EDGE_GAP = 8;
 
+/* What a bare scroll does, said as OUTCOMES rather than as device names.
+   "Zoom / Pan" is exactly as opaque as the two icons this replaced; a line
+   that has to be captioned with the device it suits has not explained
+   itself. */
+const SCROLL_CHOICES: { mode: WheelMode; label: string }[] = [
+  { mode: "zoom", label: "Zoom in and out" },
+  { mode: "pan", label: "Move around the plan" },
+];
+
 function useClampedMenu(open: boolean) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -3156,6 +3166,10 @@ function CanvasControls({
   simOn: boolean;
   onToggleSim: () => void;
 }) {
+  /* Both of these are GLOBAL machine settings, read straight from their own
+     stores rather than threaded down: nothing above this owns them. */
+  const wheelMode = useWheelMode();
+  const hintsOn = useHintsOn();
   const sorted = [...floors].sort((a, b) => a.level - b.level);
   // two-step delete of a floor — armed per floor id so switching floors
   // mid-arm can't delete the wrong one
@@ -3433,6 +3447,39 @@ function CanvasControls({
               />
               <span>Show legend</span>
             </label>
+            {/* The canvas's own guidance, and it sits with Show legend because
+                it is the same kind of thing: a piece of the drawing surface you
+                either want on screen or don't. It used to be a lone info glyph
+                on the zoom strip, reported as doing nothing — accurately, since
+                its only feedback is a window that exists just while a tool is
+                armed, and with Select active pressing it changes nothing. */}
+            <label className="ds-layer-row">
+              <input
+                type="checkbox"
+                checked={hintsOn}
+                onChange={(e) => setHintsOn(e.target.checked)}
+              />
+              <span>Show tool hints</span>
+            </label>
+            <div className="ds-view-sep" />
+            {/* WHAT A BARE SCROLL DOES, IN WORDS. Reading the device off the
+                wheel event was tried twice and wrong twice on Isaac's own
+                hardware, so the canvas asks instead — but the asking was a pair
+                of 28px icons whose "zooms" half was an EXPAND mark two buttons
+                from Fit, and it was never found. Named as OUTCOMES rather than
+                as devices, so neither line needs a caption explaining it. */}
+            <div className="ds-view-grp">Scrolling</div>
+            {SCROLL_CHOICES.map((c) => (
+              <label key={c.mode} className="ds-layer-row">
+                <input
+                  type="radio"
+                  name="ds-wheel-mode"
+                  checked={wheelMode === c.mode}
+                  onChange={() => setWheelMode(c.mode)}
+                />
+                <span>{c.label}</span>
+              </label>
+            ))}
           </div>
         )}
       </div>
@@ -3570,7 +3617,6 @@ function DesignPanel({
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
   const [zoomPct, setZoomPct] = useState(100);
   const wheelMode = useWheelMode();
-  const hintsOn = useHintsOn();
   /* units attributed to a room and still off the plan — the tray's list */
   const toPlace = useMemo(
     () => itemsToPlace(doc, pack, activeSystemId),
@@ -3801,12 +3847,6 @@ function DesignPanel({
             The scroll toggle leads it: what the wheel does is a fact about
             THIS view, and it belongs where the view's other controls are. */}
         <div className="ds-zoomctl" role="group" aria-label="Zoom">
-          {/* the two settings about how THIS machine drives the canvas sit
-              together at the front: what the wheel does, and whether the
-              canvas talks you through the armed tool. Hints are turned off on
-              the hint itself; this is the only way back on. */}
-          <HintsToggle on={hintsOn} />
-          <WheelModeToggle value={wheelMode} />
           <button aria-label="Zoom out" onClick={() => zoomApi?.zoomOut()}>
             −
           </button>

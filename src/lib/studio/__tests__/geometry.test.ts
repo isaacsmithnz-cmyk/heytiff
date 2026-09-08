@@ -16,6 +16,8 @@ import {
   zoomAt,
   fitBounds,
   fitZoom,
+  clampViewport,
+  PAN_KEEP_PX,
   mmPerUnitFromCalibration,
   areaUnitsToM2,
   unitsToMeters,
@@ -26,6 +28,7 @@ import {
   smoothedLength,
   distToSmoothed,
   type Viewport,
+  type Bounds,
 } from "../geometry";
 
 const rect = (w: number, h: number, x = 0, y = 0) => [
@@ -284,6 +287,144 @@ describe("viewport", () => {
     // try to zoom way out; clamps at min, not the absolute MIN_ZOOM
     const out = zoomAt(start, { x: 400, y: 300 }, 1e-6, min);
     expect(out.zoom).toBe(min);
+  });
+});
+
+/* ── The pan clamp ──
+   Zoom has always had a floor; pan had none, so the drawing could be dragged
+   into empty grid until only Fit could find it again. These pin the rule from
+   its SPEC — "a strip of the drawing this many screen px wide stays visible" —
+   by measuring the overlap that comes back, never by rebuilding the formula.
+   That is what lets them fail when the arithmetic is wrong rather than when it
+   merely changes. */
+describe("pan clamp", () => {
+  const W = 800;
+  const H = 600;
+  const PLAN: Bounds = { minX: 0, minY: 0, maxX: 1000, maxY: 700 };
+
+  /** how much of `b` the view actually shows, in SCREEN px on each axis */
+  const stripPx = (vp: Viewport, b: Bounds) => {
+    const overlap = (lo: number, hi: number, from: number, span: number) =>
+      Math.max(0, Math.min(from + span / vp.zoom, hi) - Math.max(from, lo)) * vp.zoom;
+    return {
+      x: overlap(b.minX, b.maxX, vp.x, W),
+      y: overlap(b.minY, b.maxY, vp.y, H),
+    };
+  };
+
+  const runaway = (zoom: number, sx: number, sy: number): Viewport => ({
+    zoom,
+    x: sx * 1e6,
+    y: sy * 1e6,
+  });
+
+  it("leaves a view that already frames the drawing exactly where it was", () => {
+    const fitted = fitBounds(PLAN, W, H, 60);
+    expect(clampViewport(fitted, PLAN, W, H)).toEqual(fitted);
+  });
+
+  it("stops a runaway pan in every direction with the drawing still on screen", () => {
+    for (const [sx, sy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+    ]) {
+      const strip = stripPx(clampViewport(runaway(1, sx, sy), PLAN, W, H), PLAN);
+      expect(strip.x).toBeGreaterThan(0);
+      expect(strip.y).toBeGreaterThan(0);
+    }
+  });
+
+  /* And the amount is the stated one. Only the axis actually run away on is
+     held — travelling straight down must not drag the view sideways, which is
+     why the directions above can only promise "something is visible". */
+  it("leaves exactly the stated strip on the axis it stopped", () => {
+    const right = stripPx(clampViewport(runaway(1, 1, 0), PLAN, W, H), PLAN);
+    expect(right.x).toBeCloseTo(PAN_KEEP_PX, 6);
+    const down = stripPx(clampViewport(runaway(1, 0, 1), PLAN, W, H), PLAN);
+    expect(down.y).toBeCloseTo(PAN_KEEP_PX, 6);
+  });
+
+  it("does not touch the axis that never moved", () => {
+    const start: Viewport = { x: 120, y: 1e6, zoom: 1 };
+    expect(clampViewport(start, PLAN, W, H).x).toBe(120);
+  });
+
+  /* THE POINT OF A SCREEN MEASURE. A cap in plan-widths is a fraction of the
+     screen at 12x and many screens at 0.1x — it would clamp hard while you
+     work on detail and not at all while you travel. */
+  it("keeps the same strip at every zoom, which a world-measured cap cannot", () => {
+    // 0.3x and up: the plan is wider than the strip, so the strip is the rule
+    for (const zoom of [0.3, 1, 4, 12]) {
+      const strip = stripPx(clampViewport(runaway(zoom, 1, 1), PLAN, W, H), PLAN);
+      expect(strip.x).toBeCloseTo(PAN_KEEP_PX, 6);
+      expect(strip.y).toBeCloseTo(PAN_KEEP_PX, 6);
+    }
+  });
+
+  /* Zoomed far enough out, the WHOLE plan is narrower than the strip — 96px is
+     more than there is to give. The requirement caps at the drawing's own size
+     and the answer gets better rather than unsatisfiable: all of it stays. */
+  it("keeps the whole drawing when the drawing is smaller than the strip", () => {
+    const zoom = 0.05; // a 1000-unit plan is 50px wide here
+    const strip = stripPx(clampViewport(runaway(zoom, 1, 1), PLAN, W, H), PLAN);
+    expect(strip.x).toBeCloseTo((PLAN.maxX - PLAN.minX) * zoom, 6);
+    expect(strip.y).toBeCloseTo((PLAN.maxY - PLAN.minY) * zoom, 6);
+  });
+
+  /* A blank floor has no bounds at all; the caller hands over a zero-size box
+     at the origin and the same arithmetic degenerates into "the origin stays
+     touching the viewport". No special case, and no way to get lost. */
+  it("won't let a blank grid lose the origin either", () => {
+    const nothing: Bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    for (const [sx, sy] of [
+      [1, 1],
+      [-1, -1],
+    ]) {
+      const held = clampViewport(runaway(0.56, sx, sy), nothing, W, H);
+      const at = worldToScreen({ x: 0, y: 0 }, held);
+      expect(at.x).toBeGreaterThanOrEqual(-1e-6);
+      expect(at.x).toBeLessThanOrEqual(W + 1e-6);
+      expect(at.y).toBeGreaterThanOrEqual(-1e-6);
+      expect(at.y).toBeLessThanOrEqual(H + 1e-6);
+    }
+  });
+
+  /* One small room at low zoom is narrower than the strip, so the requirement
+     caps at the content's own size instead of becoming unsatisfiable. */
+  it("asks for no more than the drawing has to give", () => {
+    const speck: Bounds = { minX: 0, minY: 0, maxX: 4, maxY: 4 };
+    const held = clampViewport(runaway(1, 1, 1), speck, W, H);
+    const strip = stripPx(held, speck);
+    expect(strip.x).toBeCloseTo(4, 6);
+    expect(strip.y).toBeCloseTo(4, 6);
+  });
+
+  it("holds still once held — clamping again changes nothing", () => {
+    const once = clampViewport(runaway(2, -1, 1), PLAN, W, H);
+    expect(clampViewport(once, PLAN, W, H)).toEqual(once);
+  });
+
+  it("never moves the zoom", () => {
+    for (const zoom of [0.02, 1, 12]) {
+      expect(clampViewport(runaway(zoom, 1, -1), PLAN, W, H).zoom).toBe(zoom);
+    }
+  });
+
+  /* The clamp and the fit have to agree, or pressing Fit would land the view
+     somewhere the clamp immediately drags it away from. Guaranteed by the
+     caller passing a SUPERSET of the fit's own content — pinned here on the
+     plain case so a change to either function has to face it. */
+  it("cannot fight Fit", () => {
+    for (const pad of [40, 60, 120]) {
+      const fitted = fitBounds(PLAN, W, H, pad);
+      expect(clampViewport(fitted, PLAN, W, H)).toEqual(fitted);
+    }
   });
 });
 

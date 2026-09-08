@@ -421,8 +421,57 @@ describe("a normal week takes no input", () => {
     expect(within(p).queryByText("Public holiday")).toBeNull();
     expect(within(p).getByText("Worked")).toBeInTheDocument();
     /* "Not worked", not "Didn't work" — the button that SETS a day and the
-       pill that then NAMES it read the same word now. See DAY_WORD. */
-    expect(within(p).getByRole("button", { name: "Not worked" })).toBeInTheDocument();
+       pill that then NAMES it read the same word now. See DAY_WORD.
+
+       A RADIO, not a toggle button: the two answers are alternatives to one
+       question, and announcing them as two independent pressed/unpressed
+       switches said nothing about that. */
+    expect(within(p).getByRole("radio", { name: "Not worked" })).toBeInTheDocument();
+  });
+
+  /* ONE QUESTION, TWO ANSWERS — and the assistive reading of it has to say so.
+     It was `role="group"` with an `aria-pressed` on each seat, which announces
+     two independent switches that happen to sit together, both off, with
+     nothing tying them to the same question or ruling out pressing both. A
+     radio group is what this is: the arrows move the answer, and asking for
+     the checked one always returns exactly one of them. */
+  it("is one radio group, not two toggles that happen to be adjacent", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/)); // presumed, so "Worked" is the answer
+    const group = screen.getByRole("radiogroup", { name: "What this day was" });
+    const seats = within(group).getAllByRole("radio");
+    expect(seats.map((b) => b.textContent)).toEqual(["Worked", "Not worked"]);
+    expect(within(group).getAllByRole("radio", { checked: true })).toHaveLength(1);
+
+    /* One tab stop for the question, on the answer — a radio group's roving
+       focus, not two stops that make the second answer feel optional. */
+    expect(seats.map((b) => b.tabIndex)).toEqual([0, -1]);
+
+    seats[0]!.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(seats[1]).toHaveAttribute("aria-checked", "true");
+    expect(seats[1]).toHaveFocus();
+    expect(within(group).getAllByRole("radio", { checked: true })).toHaveLength(1);
+    await user.keyboard("{ArrowLeft}");
+    expect(seats[0]).toHaveAttribute("aria-checked", "true");
+  });
+
+  /* With NOTHING chosen there is no answer to arrow away from, and starting
+     from the left whichever way you pressed would ignore half the input. */
+  it("takes the first arrow press as the end it was aimed at", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Sat 4 Jul/)); // empty — neither answer given
+    const group = screen.getByRole("radiogroup", { name: "What this day was" });
+    expect(within(group).queryAllByRole("radio", { checked: true })).toHaveLength(0);
+
+    within(group).getAllByRole("radio")[0]!.focus();
+    await user.keyboard("{ArrowLeft}");
+    expect(within(group).getByRole("radio", { name: "Not worked" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
   /* THE UNANSWERED STATE IS ON THE CONTROL. An empty day opens with neither
@@ -530,7 +579,7 @@ describe("a day that was different", () => {
     const user = userEvent.setup();
     renderSheet();
     await user.click(tab(/Mon 29 Jun/));
-    await user.click(screen.getByRole("button", { name: "Not worked" }));
+    await user.click(screen.getByRole("radio", { name: "Not worked" }));
     expect(screen.getByText(/book it in/)).toBeInTheDocument();
     /* a link, not bold text naming a screen — this sentence is the one place
        the app sends you somewhere else to finish a thought */
@@ -564,7 +613,7 @@ describe("a day that was different", () => {
       sources: ["entered", ...SOURCES.slice(1)] as DaySource[],
     });
     await user.click(tab(/Mon 29 Jun/));
-    expect(screen.getByRole("button", { name: "Not worked" }).className).toContain("on");
+    expect(screen.getByRole("radio", { name: "Not worked" }).className).toContain("on");
 
     // the server sends the day back as an ordinary presumed day
     rerender(
@@ -577,7 +626,7 @@ describe("a day that was different", () => {
 
     // the panel must follow the day, not its own stale state
     expect(screen.getByText("Worked").className).toContain("on");
-    expect(screen.getByRole("button", { name: "Not worked" }).className).not.toContain("on");
+    expect(screen.getByRole("radio", { name: "Not worked" }).className).not.toContain("on");
     expect(screen.getByRole("group", { name: "Start" })).toBeInTheDocument();
     expect(screen.queryByText(/book it in/)).toBeNull();
   });

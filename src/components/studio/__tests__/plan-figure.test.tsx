@@ -293,3 +293,89 @@ describe("PlanFigure", () => {
     expect(legend?.textContent).toContain("System 1");
   });
 });
+
+/* ── unit callouts on paper ──
+   The sheet is where a callout earns its keep: paper cannot be hovered, so
+   until now a unit's model was stamped under its footprint whether there was
+   room for it or not. A placed callout IS that label, put where somebody
+   decided it should go — and it has to print through the same two functions
+   the canvas draws it with, or the two surfaces drift. */
+describe("unit callouts", () => {
+  const withCallout = (at: { x: number; y: number }) => {
+    const d = fixtureDoc();
+    d.objects = d.objects.map((o) =>
+      o.id === "i1" ? { ...o, props: { ...o.props, callout: at } } : o
+    );
+    return d;
+  };
+
+  it("prints the bubble, its leader and the model", () => {
+    const d = withCallout({ x: 260, y: -180 });
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    expect(container.querySelectorAll(".ds-callout")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-callout-box")).toHaveLength(1);
+    expect(container.querySelectorAll(".ds-callout-leader")).toHaveLength(1);
+    expect(container.querySelector(".ds-callout-text")?.textContent).toContain(
+      "MSZ-AP25VGD"
+    );
+  });
+
+  /* THE DOUBLING. Paper keeps the labels the canvas dropped because paper
+     cannot be hovered — but once somebody has placed a callout, printing the
+     model under the footprint too puts it on the sheet twice, once squeezed
+     into the drawing and once where it was put on purpose. */
+  it("stops stamping the model under a unit that carries one", () => {
+    const plain = render(
+      <PlanFigure doc={fixtureDoc()} floor={fixtureDoc().floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    expect(plain.container.querySelectorAll(".ds-unit-model")).toHaveLength(1);
+
+    const d = withCallout({ x: 260, y: -180 });
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    expect(container.querySelectorAll(".ds-unit-model")).toHaveLength(0);
+    // the ROLE stays: one word, inside the glyph, and the callout never repeats it
+    expect(container.querySelectorAll(".ds-unit-role")).toHaveLength(1);
+  });
+
+  it("says nothing at all when nobody has placed one", () => {
+    const d = fixtureDoc();
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    expect(container.querySelectorAll(".ds-callout")).toHaveLength(0);
+  });
+
+  /* A callout is placed CLEAR of the plan on purpose — the same reason a
+     note's words are — so a figure that framed only the drawing would crop
+     the very label somebody moved somewhere it could be read. */
+  it("is framed by the sheet, however far out it was dragged", () => {
+    const far = { x: 2600, y: -1800 };
+    const d = withCallout(far);
+    const b = planFigureBounds(d, d.floors[0])!;
+    const unit = d.objects.find((o) => o.id === "i1")!;
+    const at = (unit.geometry as { at: { x: number; y: number } }).at;
+    expect(b.x + b.w).toBeGreaterThan(at.x + far.x);
+    expect(b.y).toBeLessThan(at.y + far.y);
+  });
+
+  /* THE IDENTITY RIDES THE EDGE, NEVER THE WORDS: this prints, so its text is
+     text on white paper and the note palette's 4.5:1 floor applies — which
+     four of the six system colours fail outright. */
+  it("keeps the system colour off the text", () => {
+    const d = withCallout({ x: 260, y: -180 });
+    const { container } = render(
+      <PlanFigure doc={d} floor={d.floors[0]} layers={ALL} grayscale={false} legend={false} urls={{}} />
+    );
+    const css = container.querySelector("style")!.textContent!;
+    expect(css).toMatch(/\.ds-pf \.ds-callout-box \{[^}]*stroke: currentColor/);
+    expect(css).toMatch(/\.ds-pf \.ds-callout-text \{[^}]*fill: #222222/);
+    // and the group carries the system colour for the edge to read
+    expect(container.querySelector(".ds-callout")!.getAttribute("style")).toContain(
+      "rgb(46, 104, 255)"
+    );
+  });
+});

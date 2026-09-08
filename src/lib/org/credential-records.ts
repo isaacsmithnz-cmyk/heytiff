@@ -48,6 +48,21 @@ export const CREDENTIAL_DOC_KIND: Record<OrgCredKind, DocumentKind> = {
   insurance: "org_insurance",
 };
 
+/* BOTH OF THE ORG'S OWN KINDS, because the file is stamped before the card is
+   named. The scan panel uploads the moment a certificate is dropped, and the
+   kind it stamps is whatever the Type box said at that instant — so a person
+   who drops a certificate of currency and then sets Type to Insurance has
+   already filed it as `org_licence`. Adoption used to demand the one exact
+   kind, found none, and left the certificate owned by nothing: it happened to
+   Isaac's icare workers-compensation certificate on 2026-09-08, which reads
+   "scanned from the document" above "No paperwork filed under this term yet".
+
+   So adoption takes EITHER of the two and corrects the stamp on the way in.
+   The guard that matters is untouched — a staff `licence` or a vehicle
+   `insurance_policy` is still refused, and that is the boundary the kind was
+   made to hold (lib/documents/files.ts). These two are the same owner. */
+export const ORG_CREDENTIAL_DOC_KINDS: readonly DocumentKind[] = ["org_licence", "org_insurance"];
+
 /** What the paper is CALLED, per kind. */
 export const CREDENTIAL_PAPER: Record<OrgCredKind, string> = {
   licence: "Licence certificate",

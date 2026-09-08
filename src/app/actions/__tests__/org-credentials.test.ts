@@ -12,7 +12,16 @@
    that scoped it. */
 
 type Row = Record<string, unknown>;
-type Write = { op: "insert" | "update" | "delete"; table: string; payload?: Row; eq: [string, unknown][] };
+type Write = {
+  op: "insert" | "update" | "delete";
+  table: string;
+  payload?: Row;
+  eq: [string, unknown][];
+  /* `.in` IS RECORDED, not swallowed. Document adoption's ownership guard moved
+     from one exact kind to the org's two, and a fake that answered `.in` with
+     itself would have let that guard vanish while every test still passed. */
+  in: [string, unknown[]][];
+};
 
 /** What a select on each table finds. A table with nothing set finds nothing. */
 let tables: Record<string, Row[]> = {};
@@ -22,6 +31,7 @@ const from = jest.fn();
 
 function builder(table: string) {
   const eq: [string, unknown][] = [];
+  const ins: [string, unknown[]][] = [];
   let op: Write["op"] | null = null;
   let payload: Row | undefined;
   let limit: number | null = null;
@@ -30,6 +40,7 @@ function builder(table: string) {
   const rows = () => {
     let list = tables[table] ?? [];
     for (const [col, val] of eq) list = list.filter((r) => r[col] === val);
+    for (const [col, vals] of ins) list = list.filter((r) => vals.includes(r[col]));
     if (order) {
       const { col, asc } = order;
       list = [...list].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")) * (asc ? 1 : -1));
@@ -38,7 +49,7 @@ function builder(table: string) {
   };
   const settle = (single: boolean) => {
     if (op) {
-      writes.push({ op, table, payload, eq: [...eq] });
+      writes.push({ op, table, payload, eq: [...eq], in: [...ins] });
       /* A delete really removes the rows, so a read that follows one sees what
          is left. removeCredentialTerm recomputes the card's cache from exactly
          that read, and a fake that kept the row would let a broken recompute
@@ -63,7 +74,10 @@ function builder(table: string) {
   };
   chain.not = self;
   chain.is = self;
-  chain.in = self;
+  chain.in = (col: string, vals: unknown[]) => {
+    ins.push([col, vals]);
+    return chain;
+  };
   chain.order = (col: string, opts?: { ascending?: boolean }) => {
     order = { col, asc: opts?.ascending !== false };
     return chain;
@@ -373,15 +387,34 @@ describe("recordCredentialTerm", () => {
     expect(adoption.payload).toEqual({
       org_credential_id: "cred-1",
       credential_record_id: "new-org_credential_records",
+      kind: "org_insurance",
     });
     expect(adoption.eq).toEqual(
       expect.arrayContaining([
         ["org_id", "org-1"],
         ["id", "doc-9"],
         ["uploaded_by", "staff-1"],
-        ["kind", "org_insurance"],
       ])
     );
+    /* EITHER of the org's own kinds is adopted and the stamp is corrected on
+       the way in — the file is uploaded before the card is named, so the Type
+       box can still move under it. Isaac's icare certificate of currency was
+       stamped `org_licence` by a scan panel that had not been told what it was
+       holding; the insurance card it created could not adopt it, and the term
+       read "scanned from the document" over "No paperwork filed under this
+       term yet" with the file owned by nothing. */
+    expect(adoption.in).toEqual([["kind", ["org_licence", "org_insurance"]]]);
+  });
+
+  it("adopts a certificate stamped the OTHER org kind, and corrects the stamp", async () => {
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+    const adoption = only("update", "documents");
+    // the card is insurance; the scan panel had stamped org_licence
+    expect(adoption.payload).toMatchObject({ kind: "org_insurance" });
+    expect(adoption.in[0][1]).toContain("org_licence");
+    // and the boundary that matters is untouched: no staff or vehicle kind
+    expect(adoption.in[0][1]).not.toContain("licence");
+    expect(adoption.in[0][1]).not.toContain("insurance_policy");
   });
 
   it("moves every reminder counting down to the old date", async () => {
@@ -446,8 +479,12 @@ describe("fileCredentialDocument", () => {
   it("files a document under a term, on the kind the card is", async () => {
     expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({ ok: true });
     const write = only("update", "documents");
-    expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: "R1" });
-    expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
+    expect(write.payload).toEqual({
+      org_credential_id: "cred-1",
+      credential_record_id: "R1",
+      kind: "org_insurance",
+    });
+    expect(write.in).toEqual([["kind", ["org_licence", "org_insurance"]]]);
   });
 
   /* A CARD WITH NO EXPIRY. It owns the document; nothing owns the filing,
@@ -456,8 +493,12 @@ describe("fileCredentialDocument", () => {
     tables.org_credential_records = [];
     expect(await fileCredentialDocument("cred-1", null, "doc-9")).toEqual({ ok: true });
     const write = only("update", "documents");
-    expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: null });
-    expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
+    expect(write.payload).toEqual({
+      org_credential_id: "cred-1",
+      credential_record_id: null,
+      kind: "org_insurance",
+    });
+    expect(write.in).toEqual([["kind", ["org_licence", "org_insurance"]]]);
   });
 
   it("refuses a card that isn't in the caller's org, term or no term", async () => {

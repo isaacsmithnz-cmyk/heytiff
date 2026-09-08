@@ -678,6 +678,13 @@ function CredentialsSection({
 
   return (
     <div className="psec-body" data-live>
+      {/* ADD IS IN THE HEADER, not at the end of the wall. It was a dashed
+          tile in a `.credgrid` of its own below the groups, which put the one
+          control on the tab underneath every card — and, with a single group
+          on screen, made it look like a third insurance card that had lost its
+          heading. `.psechd` was built with an `.acts` slot for exactly this and
+          the Account tab two sections down already uses it, so this is the
+          panel's own furniture rather than a new one. */}
       <div className="psechd">
         <em>
           {credentials.length === 0
@@ -688,7 +695,23 @@ function CredentialsSection({
                 ? "What lets the business trade — 1 needs attention"
                 : `What lets the business trade — ${attention} need attention`}
         </em>
+        <span className="acts">
+          <button className="pbtn ghost" type="button" onClick={() => setOpen("new")}>
+            <Icon name="plus" size={14} />
+            Add licence or insurance
+          </button>
+        </span>
       </div>
+
+      {credentials.length === 0 && (
+        <div className="ro-empty" style={{ marginTop: 18 }}>
+          <span className="ei">
+            <Icon name="shield" size={20} />
+          </span>
+          <b>Nothing on file</b>
+          <em>ARC authorisations, contractor licences and policies are added here.</em>
+        </div>
+      )}
 
       {groups.map((g) => (
         <div key={g.kind} className="credgroup">
@@ -713,16 +736,6 @@ function CredentialsSection({
           </div>
         </div>
       ))}
-
-      <div className="credgrid">
-        <button className="cred-add" type="button" onClick={() => setOpen("new")}>
-          <span className="ci">
-            <Icon name="plus" size={18} />
-          </span>
-          <b>Add licence or insurance</b>
-          <em>Scan the certificate — ARC, contractor licence, public liability…</em>
-        </button>
-      </div>
 
       {open && (
         <CredentialModal

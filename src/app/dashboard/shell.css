@@ -558,7 +558,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .nb-whensum { font-size:12.5px; font-weight:600; color:var(--gray400); padding-left:22px; }
 
 /* composer: what am I posting, and (for a poll) the answers */
-.fg .nb-kinds { display:inline-flex; gap:4px; padding:3px; border-radius:12px; background:#eef0f4; margin-bottom:4px; }
+/* THE TRAY IS A TINT OF ITS GROUND, NOT A FIXED GREY. `#eef0f4` was chosen
+   against a white card, but `.lv-form` is the only thing under it and that
+   sits straight on `.stg` — so the tray was 3% lighter than a ground that is
+   already tinted, and came out at 1.075 against it. A `rgba(5,5,5,.05)` tray
+   is 1.114 on ANY light ground, which is what `.hm-calseg`, `.wb2-filters`
+   and `.wb2-ckseg` already do and the reason none of them could drift. */
+.fg .nb-kinds { display:inline-flex; gap:4px; padding:3px; border-radius:12px; background:rgba(5,5,5,.05); margin-bottom:4px; }
 .fg .nb-kind { padding:6px 16px; border:0; border-radius:9px; background:none; cursor:pointer; font-family:var(--font); font-size:12.5px; font-weight:700; color:var(--gray500); transition:background .15s, color .15s; }
 .fg .nb-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.07); }
 .fg .nb-optedit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:14px; }
@@ -926,11 +932,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .odu .of { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
 .fg .odu .of .a { font-size:11px; font-weight:700; color:var(--gray400); }
 .fg .odu .of .b { font-size:11px; font-weight:800; color:var(--ok-t); font-family:var(--mono); }
-.fg .dtabs { display:flex; padding:6px; background:#f3f4f6; border-radius:16px; margin-bottom:24px; box-shadow:inset 0 1px 2px rgba(0,0,0,.05); }
-.fg .dtab { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border-radius:12px; font-size:13px; font-weight:800; color:var(--gray500); text-transform:capitalize; transition:all .3s; }
-.fg .dtab.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
-.fg .dtab .dc { font-size:10px; font-weight:700; padding:2px 6px; border-radius:6px; font-family:var(--mono); background:#e5e7eb; color:var(--gray400); }
-.fg .dtab.on .dc { background:rgba(0,229,192,.15); color:var(--ok-t); }
 .fg .droom { display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; background:#f9fafb; border:1px solid #f3f4f6; cursor:pointer; transition:all .2s; }
 .fg .droom + .droom { margin-top:8px; }
 .fg .droom:hover { border-color:rgba(0,229,192,.4); background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); }
@@ -1781,7 +1782,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .card2.readonly .selwrap .chev { display:none; }
 .fg .card2.readonly .drop, .fg .card2.readonly .licadd, .fg .card2.readonly .licdel, .fg .card2.readonly .docact, .fg .card2.readonly .pphoto .cam, .fg .card2.readonly #lic-empty { display:none; }
 .fg .card2.readonly .seg, .fg .card2.readonly .toggle { pointer-events:none; }
-.fg .card2.readonly .seg { background:transparent; padding:0; }
+/* `border:0`, not a transparent one: this variant collapses the tray to
+   nothing (`padding:0`) and shows the answer alone, so a 1px transparent edge
+   would leave the read-only card inset a pixel from the editable one. */
+.fg .card2.readonly .seg { background:transparent; border:0; padding:0; }
 .fg .card2.readonly .seg button:not(.on) { display:none; }
 .fg .card2.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--ok-t); font-weight:700; }
 .fg .card2.readonly .docrow { background:transparent; border-color:#f0f0f2; }
@@ -1811,7 +1815,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .infobtn:hover .tip, .fg .infobtn:focus .tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
 
 /* status segmented */
-.fg .seg { display:inline-flex; align-self:flex-start; width:fit-content; background:#f3f4f6; border-radius:12px; padding:4px; gap:4px; }
+/* THE HOUSE TRAY. `#f3f4f6` measured 1.101 against the white cards it
+   happens to sit on — a thousandth above the floor, with no border behind it
+   — and 1.03–1.07 on any tinted panel. It is the same generation as the
+   `#f4f5f7` that made the timesheet's switch read as one button, and it was
+   one placement away from doing it again. `#e6eaf1` plus `.wb2-seg`'s
+   hairline is 1.207, and it is now the one tray value in the app. */
+.fg .seg { display:inline-flex; align-self:flex-start; width:fit-content; background:#e6eaf1; border:1px solid rgba(10,12,20,.06); border-radius:12px; padding:4px; gap:4px; }
 .fg .seg button { padding:9px 18px; border-radius:9px; font-size:13px; font-weight:700; color:var(--gray500); transition:all .2s; }
 .fg .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.1); }
 .fg .seg button.on.green { color:var(--ok-t); }
@@ -2652,9 +2662,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 @keyframes tprPulse { 0%{box-shadow:0 0 0 0 rgba(0,229,192,.5)} 70%{box-shadow:0 0 0 6px rgba(0,229,192,0)} 100%{box-shadow:0 0 0 0 rgba(0,229,192,0)} }
 .fg .tpr .autosub { font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:11px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
-.fg .tpr .rhead .cyc { display:inline-flex; gap:3px; padding:4px; border-radius:13px; background:#e6e8ee; margin-bottom:12px; }
-.fg .tpr .rhead .cyc button { padding:8px 15px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--gray500); transition:all .2s; }
-.fg .tpr .rhead .cyc button.on { background:#fff; color:var(--ink); box-shadow:0 3px 8px -3px rgba(10,12,20,.25); }
 .fg .tpr .rhead .racts { display:flex; align-items:center; gap:11px; flex-wrap:wrap; justify-content:flex-end; }
 
 /* big buttons */
@@ -3125,10 +3132,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .tset-row .tr-l b { display:block; font-size:14px; font-weight:800; letter-spacing:-.01em; }
 .fg .tpr .tset-row .tr-l em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; display:block; }
 .fg .tpr .tset-row .tr-c { flex:0 0 auto; }
-.fg .tpr .seg { display:inline-flex; gap:3px; padding:3px; border-radius:11px; background:#eceef1; }
-.fg .tpr .seg .segb { padding:8px 13px; border-radius:8px; font-size:12.5px; font-weight:700; color:var(--gray500); white-space:nowrap; transition:all .15s; }
-.fg .tpr .seg .segb.on { background:#fff; color:var(--ink); box-shadow:0 2px 6px -2px rgba(10,12,20,.25); }
-.fg .tpr .seg .segb:hover:not(.on) { color:var(--ink); }
+/* `.fg .tpr .seg` IS GONE, and it was doing more than it looked like. Its
+   three `.segb` children were dead — nothing in the app renders that class —
+   but the tray override was live: it out-ranks `.fg .seg` (0,3,0 to 0,2,0),
+   so every FaceSwitch on a `.tpr` screen was painted `#eceef1` while the same
+   control on the staff card was `#f3f4f6`. One control, two trays, decided by
+   which screen you were on. There is one tray value in this app now. */
 .fg .tpr .tset-foot { display:flex; justify-content:flex-end; gap:10px; padding:18px 26px 24px; border-top:1px solid #f0f1f5; position:sticky; bottom:0; background:#fff; }
 .fg .tpr .tset-foot .bbtn { height:44px; }
 
@@ -7417,7 +7426,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-sheet .me-fshd { display:flex; align-items:center; justify-content:space-between;
   gap:16px; margin:10px 0 0; }
 .wb2-sheet .seg { display:inline-flex; align-self:flex-start; width:fit-content;
-  background:#f3f4f6; border-radius:12px; padding:4px; gap:4px; }
+  background:#e6eaf1; border:1px solid rgba(10,12,20,.06); border-radius:12px; padding:4px; gap:4px; }
 .wb2-sheet .seg button { padding:7px 14px; border-radius:9px; border:0; background:transparent;
   font:inherit; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer;
   transition:all .2s; }
@@ -12003,7 +12012,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* history */
 .vm-history { gap:0; }
 .vm-histtools { display:flex; align-items:center; gap:8px; }
-.vm-seg { display:flex; gap:2px; background:var(--vm-line2); border-radius:9px; padding:2px; }
+/* NOT `--vm-line2`. That token is a BORDER colour in eight other rules, and
+   as a tray it landed on `.vm-card`'s `--vm-sunk` at 1.093 — a switch you
+   could not see the shape of. A tint of the ground holds 1.114 on the sunk
+   card and on white, and leaves the eight borders alone. */
+.vm-seg { display:flex; gap:2px; background:rgba(5,5,5,.05); border-radius:9px; padding:2px; }
 .vm-segbtn { border-radius:7px; padding:4px 9px; font-size:11.5px; font-weight:700; color:var(--vm-muted); }
 .vm-segbtn.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
 .vm-menuwrap { position:relative; }

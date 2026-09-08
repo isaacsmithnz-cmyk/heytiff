@@ -3,6 +3,7 @@ import type { EmailChangeOutcome } from "@/app/actions/account";
 import type { Role } from "@/lib/roles-shared";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
 import type { LicenceTermInput } from "@/lib/staff/licence-records";
+import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 
 /* Shared prop shapes for the staff card. Kept in their own module so the
    server pages can import the types without pulling a "use client" module
@@ -49,6 +50,14 @@ export type ProfileActions = {
   onRemoveLicenceTerm: (termId: string) => Promise<SaveResult>;
   /** The VIEWER's own reminder about this ticket, `lead` days before expiry. */
   onLicenceReminder: (licenceId: string, leadDays: number, on: boolean) => Promise<SaveResult>;
+  /* Right to work is a history of CHECKS, not a set of fields
+     (docs/migrations/staff_work_rights_records.sql). Optional as a group: a
+     caller that has not wired them gets the card exactly as it was, with no
+     door and no strip. */
+  onRecordWorkRightsCheck?: (input: WorkRightsCheckInput) => Promise<SaveResult>;
+  onAttachWorkRightsDoc?: (recordId: string, documentId: string) => Promise<SaveResult>;
+  onRemoveWorkRightsCheck?: (recordId: string) => Promise<SaveResult>;
+  onWorkRightsReminder?: (leadDays: number, on: boolean) => Promise<SaveResult>;
   /** points the card at an already-uploaded staff_photo document */
   onSetPhoto: (documentId: string) => Promise<SaveResult>;
   onClearPhoto: () => Promise<SaveResult>;

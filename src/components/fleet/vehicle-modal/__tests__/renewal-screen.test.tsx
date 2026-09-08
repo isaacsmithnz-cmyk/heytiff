@@ -90,6 +90,7 @@ const slipDoc: StoredDocument = {
   financeId: null,
   credentialRecordId: null,
   licenceRecordId: null,
+  workRightsRecordId: null,
 };
 
 function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; policies?: VehiclePolicy[]; documents?: StoredDocument[] } = {}) {

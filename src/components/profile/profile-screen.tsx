@@ -21,6 +21,8 @@ import { PermissionsCard } from "./permissions-card";
 import { NotesCard } from "./notes-card";
 import { MyPayCard } from "./my-pay-card";
 import type { StaffLicenceRecord } from "@/lib/staff/licence-records";
+import type { WorkRightsRecord } from "@/lib/staff/work-rights-records";
+import { WorkRightsModal } from "./work-rights-modal";
 import type { StoredDocument } from "@/lib/documents/query";
 import {
   sectionFromParam,
@@ -89,6 +91,9 @@ export function ProfileScreen({
   licenceTerms = {},
   licenceDocuments = {},
   licenceReminders = {},
+  workRightsChecks = [],
+  workRightsDocuments = [],
+  workRightsReminders = [],
   vehicle,
   today,
   org,
@@ -109,6 +114,11 @@ export function ProfileScreen({
   licenceTerms?: Record<string, StaffLicenceRecord[]>;
   licenceDocuments?: Record<string, StoredDocument[]>;
   licenceReminders?: Record<string, number[]>;
+  /* One person's right-to-work checks, their evidence, and the VIEWER's own
+     reminders. Not keyed by anything — a person has exactly one right to work. */
+  workRightsChecks?: WorkRightsRecord[];
+  workRightsDocuments?: StoredDocument[];
+  workRightsReminders?: number[];
   vehicle: AssignedVehicle | null;
   /** AU calendar date, so licence status agrees with the dashboard */
   today: string;
@@ -160,6 +170,9 @@ export function ProfileScreen({
      outgoing panel drifts up and the incoming rises. No View Transitions
      support and the panel simply re-keys with the same vertical entrance. */
   const [fallbackSwap, setFallbackSwap] = useState(0);
+  /* The checks modal. Its own state rather than a section, because right to
+     work stays ONE tab — the checks are what is behind it, not a sibling. */
+  const [checksOpen, setChecksOpen] = useState(false);
 
   const go = (key: SectionKey, withEdit = false) => {
     const apply = () => {
@@ -313,6 +326,8 @@ export function ProfileScreen({
                 )}
                 {active === "workrights" && (
                   <WorkRightsCard
+                    checkCount={workRightsChecks.length}
+                    onOpenChecks={actions.onRecordWorkRightsCheck ? () => setChecksOpen(true) : undefined}
                     profile={profile}
                     mode={mode}
                     today={today}
@@ -337,6 +352,23 @@ export function ProfileScreen({
                   <NotesCard notes={extras.notes ?? null} onSave={actions.onSave} />
                 )}
               </section>
+
+                {checksOpen && actions.onRecordWorkRightsCheck && (
+                  <WorkRightsModal
+                    staffId={header.id}
+                    subject={mode === "admin" ? header.name : null}
+                    records={workRightsChecks}
+                    documents={workRightsDocuments}
+                    reminders={workRightsReminders}
+                    today={today}
+                    onRecord={actions.onRecordWorkRightsCheck}
+                    onAttach={actions.onAttachWorkRightsDoc ?? (async () => ({ ok: true as const }))}
+                    onRemoveCheck={actions.onRemoveWorkRightsCheck ?? (async () => ({ ok: true as const }))}
+                    onRemind={actions.onWorkRightsReminder ?? (async () => ({ ok: true as const }))}
+                    onClose={() => setChecksOpen(false)}
+                  />
+                )}
+
             </div>
           </div>
         </div>

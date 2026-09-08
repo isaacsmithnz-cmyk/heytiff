@@ -393,6 +393,7 @@ describe("filing a document against a ticket with no expiry", () => {
     financeId: null,
     credentialRecordId: null,
     licenceRecordId: null,
+    workRightsRecordId: null,
     ...over,
   });
 

@@ -17,6 +17,7 @@ import { buildAdminPatch, capabilityFor, isAdminSection } from "@/lib/staff/admi
 import { withDerivedFullName } from "@/lib/staff/name";
 import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
+import { WORK_RIGHTS_LOCKED } from "@/lib/staff/work-rights-records";
 import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
   fileLicenceDocument,
@@ -25,6 +26,13 @@ import {
   seedFirstTerm,
   setLicenceReminder,
 } from "@/lib/staff/licence-writes";
+import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
+import {
+  attachCheckDocument,
+  recordCheck,
+  removeCheck,
+  setWorkRightsReminder,
+} from "@/lib/staff/work-rights-writes";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import { fullNameOf } from "@/lib/staff/name";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
@@ -128,6 +136,17 @@ export async function saveStaffSection(
 
   if (!isAdminSection(section)) {
     return { ok: false, error: "That section can't be edited here." };
+  }
+  /* The admin half of the work-rights lock — see actions/profile.ts for the
+     argument. Those five columns are a cache of the newest check, and a direct
+     POST must not be able to write values no check supports. */
+  if (section === "workrights") {
+    const { count } = await supabaseAdmin
+      .from("staff_work_rights_records")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", ctx.orgId)
+      .eq("staff_profile_id", staffId);
+    if ((count ?? 0) > 0) return { ok: false, error: WORK_RIGHTS_LOCKED };
   }
   const needed = capabilityFor(section);
   if (!ctx.caps.has(needed)) {
@@ -555,4 +574,74 @@ async function savePermissions(
   revalidatePath(`/dashboard/team/${staffId}`);
   revalidatePath("/dashboard/team");
   return { ok: true };
+}
+
+/* ---- somebody else's right-to-work checks ----
+
+   `team`, the same gate the rest of their card carries — a deliberate choice
+   over a tighter one, so the tab appears for exactly the admins who can
+   already open the record rather than for a subset nobody could predict.
+
+   The UPLOADER is the actor, not the subject: a manager scanning a grant
+   notice uploaded that file, and adoption only ever accepts the uploader's
+   own. */
+
+export async function recordStaffWorkRightsCheck(
+  staffId: string,
+  input: WorkRightsCheckInput,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const res = await recordCheck(ctx.orgId, staffId, await actorStaffId(ctx), input);
+  if (res.ok) revalidateStaff(staffId);
+  return res;
+}
+
+export async function attachStaffWorkRightsDocument(
+  staffId: string,
+  recordId: string,
+  documentId: string,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const res = await attachCheckDocument(ctx.orgId, staffId, await actorStaffId(ctx), recordId, documentId);
+  if (res.ok) revalidateStaff(staffId);
+  return res;
+}
+
+export async function removeStaffWorkRightsCheck(
+  staffId: string,
+  recordId: string,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const res = await removeCheck(ctx.orgId, staffId, recordId);
+  if (res.ok) revalidateStaff(staffId);
+  return res;
+}
+
+/** A manager's OWN reminder about somebody else's visa expiry. */
+export async function setStaffWorkRightsReminder(
+  staffId: string,
+  leadDays: number,
+  on: boolean,
+): Promise<SaveResult> {
+  const ctx = await context();
+  if (!ctx) throw new Error("Not authenticated");
+  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
+
+  const [viewer, subject] = await Promise.all([actorStaffId(ctx), subjectName(ctx.orgId, staffId)]);
+  const res = await setWorkRightsReminder(ctx.orgId, viewer, staffId, subject, leadDays, on);
+  if (res.ok) {
+    revalidateStaff(staffId);
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/workboard");
+  }
+  return res;
 }

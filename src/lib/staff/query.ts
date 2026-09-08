@@ -11,6 +11,7 @@ import type {
 } from "./types";
 import type { Role } from "@/lib/roles-shared";
 import type { StaffLicenceRecord } from "./licence-records";
+import type { WorkRightsRecord } from "./work-rights-records";
 import { isReminderLead } from "@/lib/fleet/reminders";
 
 /* Team queries. Every one of these is scoped by org_id from the session —
@@ -143,6 +144,71 @@ export async function listLicenceTerms(
     });
   }
   return out;
+}
+
+/* ONE PERSON'S RIGHT-TO-WORK CHECKS, newest check first.
+
+   Sorted by `checked_on` and NOT by expiry — see work-rights-records.ts for
+   why the rule is inverted here. Scoped to one person and offered no wider:
+   these are immigration records about a named individual.
+
+   Tolerant of its own migration, like every other read of this shape: a
+   workspace that has not taken staff_work_rights_records.sql gets an empty
+   history and a card that still works. */
+export async function listWorkRightsChecks(
+  orgId: string,
+  staffProfileId: string
+): Promise<WorkRightsRecord[]> {
+  const { data, error } = await supabaseAdmin
+    .from("staff_work_rights_records")
+    .select(
+      "id, staff_profile_id, status, visa_type, hours_condition, expires_on" +
+        ", checked_on, source, document_id, created_at"
+    )
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .order("checked_on", { ascending: false });
+  if (error) return [];
+
+  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
+  const src = (v: unknown): WorkRightsRecord["source"] =>
+    v === "vevo" || v === "scan" || v === "manual" ? v : null;
+
+  return ((data ?? []) as unknown as Record<string, unknown>[])
+    .filter((r) => r.checked_on)
+    .map((r) => ({
+      id: String(r.id),
+      staffProfileId: String(r.staff_profile_id),
+      status: String(r.status ?? ""),
+      visaType: str(r.visa_type),
+      hoursCondition: str(r.hours_condition),
+      expiresOn: r.expires_on ? String(r.expires_on).slice(0, 10) : null,
+      checkedOn: String(r.checked_on).slice(0, 10),
+      source: src(r.source),
+      documentId: str(r.document_id),
+      createdAt: r.created_at ? String(r.created_at) : null,
+    }));
+}
+
+/** The VIEWER's own open work-rights reminders about one person — which chips
+    are lit. Personal by construction, and tolerant of its own migration. */
+export async function listWorkRightsReminders(
+  orgId: string,
+  viewerStaffId: string | null,
+  staffProfileId: string
+): Promise<number[]> {
+  if (!viewerStaffId) return [];
+  const { data, error } = await supabaseAdmin
+    .from("tasks")
+    .select("lead_days")
+    .eq("org_id", orgId)
+    .eq("assigned_to", viewerStaffId)
+    .eq("work_rights_staff_id", staffProfileId)
+    .eq("status", "open");
+  if (error) return [];
+  return ((data ?? []) as Record<string, unknown>[])
+    .map((r) => Math.round(Number(r.lead_days)))
+    .filter(isReminderLead);
 }
 
 /** The VIEWER's own open reminders about these licences — what the REMIND ME

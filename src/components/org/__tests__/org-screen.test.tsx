@@ -1165,6 +1165,7 @@ describe("filing a document against a card with no expiry", () => {
     financeId: null,
     credentialRecordId: null,
     licenceRecordId: null,
+    workRightsRecordId: null,
     ...over,
   });
 

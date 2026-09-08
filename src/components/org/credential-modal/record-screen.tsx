@@ -1,15 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/shell/icon";
-import { readOrgCredentialDocument, type ReadOrgCredResult } from "@/app/actions/org-credential-ai";
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtDay } from "@/lib/format/day";
 import { REMINDER_LEADS, leadLabel } from "@/lib/fleet/reminders";
 import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
 import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
-import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import type { OrgCredKind, OrgCredential } from "@/lib/org/credentials";
 import {
   CREDENTIAL_DOC_KIND,
@@ -25,22 +23,21 @@ import {
   recordDocuments,
   recordEvent,
   recordFacts,
-  type CredentialRecordInput,
   type OrgCredentialRecord,
 } from "@/lib/org/credential-records";
-import { SCAN_COPY, TermFields, emptyTerm, termInput, type Term } from "./term-fields";
 
 /* ONE CARD'S TERMS — the screen the whole rebuild is for.
 
    It is the fleet's renewal screen, one level up and with the vocabulary
    changed: a status, the term in force with its paperwork, the reminders each
-   person set for themselves, a way to file the next term by scanning it, and
-   the history underneath. Nothing is overwritten — a renewal is a new row, and
-   the card's expiry follows the newest one.
+   person set for themselves, and the history underneath. Nothing is
+   overwritten — a new term is a new row, and the card's expiry follows the
+   newest one.
 
-   WHAT THE TWO KINDS DON'T SHARE is two boxes and a handful of words, both
-   tables (see term-fields.tsx). A policy screen and a licence screen would
-   have been the same file twice. */
+   WHAT THIS SCREEN NO LONGER DOES is file the next term. That unrolled here as
+   a panel below the history, off the bottom of a long modal; it is its own
+   screen now (update-screen.tsx), reached by the one button in the status
+   card. */
 
 const CURRENT_LABEL: Record<OrgCredKind, string> = {
   insurance: "CURRENT POLICY",
@@ -50,23 +47,12 @@ const HISTORY_LABEL: Record<OrgCredKind, string> = {
   insurance: "POLICY HISTORY",
   licence: "LICENCE HISTORY",
 };
-const RECORD_LABEL: Record<OrgCredKind, { fresh: string; again: string; button: string; save: string }> = {
-  insurance: {
-    fresh: "RECORD POLICY",
-    again: "RENEW POLICY",
-    button: "Record renewal",
-    save: "Save policy",
-  },
-  licence: {
-    fresh: "RECORD LICENCE",
-    again: "RENEW LICENCE",
-    button: "Record renewal",
-    save: "Save licence",
-  },
-};
-const EMPTY_HISTORY: Record<OrgCredKind, string> = {
-  insurance: "No previous policy terms recorded.",
-  licence: "No previous licence terms recorded.",
+/* ONE VERB, BOTH STATES. "Record renewal" was wrong the first time anything
+   was filed — nothing had renewed — and wrong again when a broker reissues a
+   certificate mid-term. Updating is what the person is doing either way. */
+const UPDATE_LABEL: Record<OrgCredKind, string> = {
+  insurance: "Update policy",
+  licence: "Update licence",
 };
 
 export function RecordScreen({
@@ -77,10 +63,10 @@ export function RecordScreen({
   today,
   pending,
   error,
-  onRecord,
   onAttach,
   onRemoveTerm,
   onRemind,
+  onUpdate,
   onEdit,
   onClose,
 }: {
@@ -92,11 +78,11 @@ export function RecordScreen({
   today: string;
   pending: boolean;
   error: string | null;
-  onRecord: (input: CredentialRecordInput) => void;
   /** Files a document against the card; a null term means the card itself. */
   onAttach: (recordId: string | null, documentId: string) => void;
   onRemoveTerm: (recordId: string) => void;
   onRemind: (leadDays: number, on: boolean) => void;
+  onUpdate: () => void;
   onEdit: () => void;
   onClose: () => void;
 }) {
@@ -108,49 +94,15 @@ export function RecordScreen({
   const state = credentialState(expiry, today);
   const recorded = current !== null;
 
-  /* Open by default when there is nothing on file — the panel IS the screen
-     for a card nobody has filed a certificate against. Opened on demand once a
-     term exists, so the screen leads with the cover you hold rather than with
-     a form. */
-  const [panelOpen, setPanelOpen] = useState(!recorded);
-  const [mode, setMode] = useState<ScanMode>("idle");
-  const [term, setTerm] = useState<Term>(emptyTerm);
-  const [docId, setDocId] = useState<string | null>(null);
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [armedTerm, setArmedTerm] = useState<string | null>(null);
 
-  const showFields = mode === "scanned" || mode === "manual";
-  const canSave = term.expiresOn.trim().length > 0 && !pending;
-
-  const fill = (r: ReadOrgCredResult) => {
-    if (!r.ok) return;
-    setTerm((p) => ({
-      issuer: r.issuer ?? p.issuer,
-      number: r.number ?? p.number,
-      cover: r.cover ?? p.cover,
-      sumInsured: r.sumInsured != null ? String(r.sumInsured) : p.sumInsured,
-      premium: r.premium != null ? String(r.premium) : p.premium,
-      excess: r.excess != null ? String(r.excess) : p.excess,
-      startsOn: r.startsOn ?? p.startsOn,
-      expiresOn: r.expiresOn ?? p.expiresOn,
-    }));
-  };
-
-  const save = () => {
-    if (!canSave) return;
-    onRecord({
-      ...termInput(term),
-      documentId: docId,
-      source: mode === "scanned" ? "scan" : "manual",
-    });
-  };
-
   const headline = credentialHeadline(kind, expiry, today);
   const subline = !recorded
     ? credential.expiryDate
-      ? `Expires ${fmtDay(credential.expiryDate)} — scan the ${SCAN_COPY[kind].prompt.replace(/^Scan or upload the /, "")} to start the history.`
-      : `Scan the ${SCAN_COPY[kind].prompt.replace(/^Scan or upload the /, "")} or enter the details below.`
+      ? `Expires ${fmtDay(credential.expiryDate)} — nothing filed against it yet`
+      : "Nothing filed against this card yet"
     : [
         current?.issuer,
         current?.number ? `No. ${current.number}` : null,
@@ -160,7 +112,7 @@ export function RecordScreen({
         .join(" · ") || credentialStatusText(days);
   const tone = state === "none" ? "neutral" : state;
 
-  const facts: DetailItem[] = current ? recordFacts(kind, current, state) : [];
+  const facts: DetailItem[] = current ? recordFacts(kind, current, state, credential.name) : [];
   const currentDocs = current ? recordDocuments(documents, current) : [];
   const loose = looseDocuments(documents, records);
 
@@ -175,11 +127,12 @@ export function RecordScreen({
             <span className="vm-headline">{headline}</span>
             <span className="vm-subline">{subline}</span>
           </div>
-          {recorded && !panelOpen && (
-            <Btn kind="primary" onClick={() => setPanelOpen(true)}>
-              {RECORD_LABEL[kind].button}
+          <div className="vm-statusr">
+            <RemindMenu reminders={reminders} expiry={expiry} pending={pending} onRemind={onRemind} />
+            <Btn kind="primary" onClick={onUpdate}>
+              {UPDATE_LABEL[kind]}
             </Btn>
-          )}
+          </div>
         </div>
 
         {current && (
@@ -209,13 +162,7 @@ export function RecordScreen({
 
             A term is a PERIOD and expires_on is NOT NULL, so a licence with no
             renewal date on it can hold no term at all — and a certificate is
-            exactly the thing a person opens that card to keep. Until this card
-            existed there was nowhere to put it: the one "Add document" on the
-            screen lived inside the current term's.
-
-            It takes the current term's slot because it is what the screen has
-            instead of one, and because a person who has just found Save
-            disabled for want of an expiry has to be able to SEE it. */}
+            exactly the thing a person opens that card to keep. */}
         {!current && (
           <Card>
             <div className="vm-cardhead">
@@ -231,70 +178,18 @@ export function RecordScreen({
           </Card>
         )}
 
-        {/* ---- remind me: each chip is a task of your own ---- */}
-        <Card>
-          <div className="vm-cardhead">
-            <Eyebrow>REMIND ME</Eyebrow>
-            <span className="vm-caption">{expiry ? "Before it expires" : "Record the term first"}</span>
-          </div>
-          <div className="vm-chips" role="group" aria-label="Remind me">
-            {REMINDER_LEADS.map((lead) => {
-              const on = reminders.includes(lead);
-              return (
-                <button
-                  key={lead}
-                  type="button"
-                  className={`vm-chip${on ? " on" : ""}`}
-                  aria-pressed={on}
-                  disabled={!expiry || pending}
-                  onClick={() => onRemind(lead, !on)}
-                >
-                  {leadLabel(lead)}
-                </button>
-              );
-            })}
-          </div>
-          <span className="vm-hint">
-            Each one is a task on your dashboard — the bell nudges you the morning it falls due, and it goes out in
-            that day&apos;s reminder email. They move with the expiry when you record a renewal.
-          </span>
-        </Card>
-
-        {panelOpen && (
-          <ScanCard<ReadOrgCredResult>
-            heading={current ? RECORD_LABEL[kind].again : RECORD_LABEL[kind].fresh}
-            prompt={SCAN_COPY[kind].prompt}
-            hint={SCAN_COPY[kind].hint}
-            attachLabel={SCAN_COPY[kind].attach}
-            docKind={CREDENTIAL_DOC_KIND[kind]}
-            read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind)}
-            onRead={(r, id) => {
-              fill(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            onCancel={recorded ? () => setPanelOpen(false) : undefined}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setTerm(emptyTerm);
-                setDocId(null);
-              }
-            }}
-          >
-            <TermFields kind={kind} value={term} onChange={setTerm} today={today} />
-          </ScanCard>
-        )}
-
-        <Card className="vm-histcard">
-          <div className="vm-cardhead">
-            <Eyebrow>{HISTORY_LABEL[kind]}</Eyebrow>
-          </div>
-          {history.length === 0 ? (
-            <div className="vm-empty">{EMPTY_HISTORY[kind]}</div>
-          ) : (
-            history.map((r) => {
+        {/* ONLY WHEN THERE IS ONE. A card holding its first term was showing a
+            full-width panel headed POLICY HISTORY whose only content was the
+            sentence "No previous policy terms recorded" — a heading, a border
+            and a shadow spent on the absence of a thing. The history appears
+            the moment there is history, which is also the moment it means
+            something. */}
+        {history.length > 0 && (
+          <Card className="vm-histcard">
+            <div className="vm-cardhead">
+              <Eyebrow>{HISTORY_LABEL[kind]}</Eyebrow>
+            </div>
+            {history.map((r) => {
               const expanded = openHist === r.id;
               const docs = recordDocuments(documents, r);
               return (
@@ -322,7 +217,7 @@ export function RecordScreen({
                   {expanded && (
                     <div className="vm-histbody">
                       <div className="vm-inset">
-                        <DetailGrid dense items={recordFacts(kind, r, "ok")} />
+                        <DetailGrid dense items={recordFacts(kind, r, "ok", credential.name)} />
                       </div>
                       <span className="vm-fl">DOCUMENTS</span>
                       <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
@@ -341,15 +236,14 @@ export function RecordScreen({
                   )}
                 </div>
               );
-            })
-          )}
-        </Card>
+            })}
+          </Card>
+        )}
 
         {/* Paperwork that belongs to the card but sits under no term — filed
-            before the first renewal was recorded, or attached to the card
-            itself. It would otherwise be invisible, which is the one thing a
-            document store must never be. Only when there IS a term: with none,
-            the DOCUMENTS card above is already showing every one of these. */}
+            before the first term was recorded, or attached to the card itself.
+            It would otherwise be invisible, which is the one thing a document
+            store must never be. */}
         {current && loose.length > 0 && (
           <Card>
             <div className="vm-cardhead">
@@ -365,17 +259,101 @@ export function RecordScreen({
         <Btn kind="outline" onClick={onEdit} icon="edit">
           Edit details
         </Btn>
-        <span style={{ display: "flex", gap: 10 }}>
-          <Btn kind="outline" onClick={onClose}>
-            Close
-          </Btn>
-          {showFields && (
-            <Btn kind="primary" onClick={save} disabled={!canSave}>
-              {pending ? "Saving…" : RECORD_LABEL[kind].save}
-            </Btn>
-          )}
-        </span>
+        <Btn kind="outline" onClick={onClose}>
+          Close
+        </Btn>
       </div>
     </>
+  );
+}
+
+/* REMINDERS, FOLDED INTO A MENU.
+
+   Four chips, a heading, a caption and two lines of explanation used a whole
+   card near the bottom of the screen to hold what is, on most cards, one
+   switched-on lead. It is a menu on the status card now, beside the one button
+   that matters, and its label carries the answer — "Remind me" when none is
+   set, the lead itself when one is, a count when there are several — so the
+   state is legible without opening anything.
+
+   The leads are not exclusive, so these are checkboxes and the menu stays open
+   as they are pressed. It closes on Escape or on a click outside it, which is
+   the same contract every other `.vm-menu` in this codebase keeps. */
+function RemindMenu({
+  reminders,
+  expiry,
+  pending,
+  onRemind,
+}: {
+  reminders: number[];
+  expiry: string | null;
+  pending: boolean;
+  onRemind: (leadDays: number, on: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => {
+      /* Stops at this menu rather than reaching the modal's own Escape
+         handler, which would close the whole card behind it. */
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key, true);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", key, true);
+    };
+  }, [open]);
+
+  const on = REMINDER_LEADS.filter((l) => reminders.includes(l));
+  const label =
+    on.length === 0 ? "Remind me" : on.length === 1 ? leadLabel(on[0]) : `${on.length} reminders`;
+
+  return (
+    <div className="vm-menuwrap" ref={wrap}>
+      <button
+        type="button"
+        className={`vm-remind${on.length ? " on" : ""}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        disabled={!expiry}
+        title={expiry ? undefined : "Record a term first — a reminder counts down to an expiry"}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Icon name="bell" size={14} />
+        {label}
+        <Icon name={open ? "chevU" : "chevD"} size={12} />
+      </button>
+      {open && (
+        <div className="vm-menu" role="menu" aria-label="Remind me">
+          {REMINDER_LEADS.map((lead) => {
+            const set = reminders.includes(lead);
+            return (
+              <button
+                key={lead}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={set}
+                className={set ? "on" : undefined}
+                disabled={pending}
+                onClick={() => onRemind(lead, !set)}
+              >
+                <Icon name={set ? "check" : "circle"} size={14} />
+                {leadLabel(lead)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

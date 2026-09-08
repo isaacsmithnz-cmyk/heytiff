@@ -4,7 +4,7 @@ import { fmtDay } from "@/lib/format/day";
 import type { DocumentKind } from "@/lib/documents/files";
 import type { StoredDocument } from "@/lib/documents/query";
 import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
-import type { OrgCredKind } from "./credentials";
+import { termFieldsFor, type OrgCredKind, type TermField } from "./credentials";
 
 /* One TERM of a business licence or insurance policy — the pure rules.
 
@@ -179,13 +179,26 @@ export function fmtSumInsured(n: number): string {
 /** The record in force, as label-over-value pairs. Only what a real
     certificate prints and the table holds — an empty field reads as a dash in
     the quiet tone, never as an invented value. */
+/* THE SAME NARROWING THE FORM DOES, on the read-only side.
+
+   A cell that reads "—" says the document was silent about something it could
+   have said, and on a public liability policy an em-dash under LIMIT is a real
+   problem — the business cannot prove the number a head contractor asked for.
+   That reading only survives if a dash is never printed for a fact the paper
+   was incapable of carrying, which is exactly what LIMIT, PREMIUM and EXCESS
+   did on every workers compensation policy. `name` is optional so the two
+   history callers that only have a kind still work; without it the kind's full
+   set is shown, which is the old behaviour. */
 export function recordFacts(
   kind: OrgCredKind,
   r: OrgCredentialRecord,
-  state: CredentialState
+  state: CredentialState,
+  name = ""
 ): RecordFact[] {
   const faint = (v: unknown): RecordFact["tone"] => (v ? undefined : "faint");
   const money = (n: number | null) => (n != null ? fmtCredMoney(n) : dash);
+  const fields = termFieldsFor(kind, name);
+  const has = (f: TermField) => fields.includes(f);
   const expiry: RecordFact = {
     label: "EXPIRY",
     value: fmtDay(r.expiresOn),
@@ -196,22 +209,26 @@ export function recordFacts(
     return [
       { label: "INSURER", value: r.issuer ?? dash, tone: faint(r.issuer) },
       { label: "POLICY NO.", value: r.number ?? dash, tone: faint(r.number) },
-      { label: "COVER", value: r.cover ?? dash, tone: faint(r.cover) },
-      { label: "LIMIT", value: r.sumInsured != null ? fmtSumInsured(r.sumInsured) : dash, tone: faint(r.sumInsured) },
+      has("cover") && { label: "COVER", value: r.cover ?? dash, tone: faint(r.cover) },
+      has("sumInsured") && {
+        label: "LIMIT",
+        value: r.sumInsured != null ? fmtSumInsured(r.sumInsured) : dash,
+        tone: faint(r.sumInsured),
+      },
       { label: "STARTS", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
       expiry,
-      { label: "PREMIUM", value: money(r.premium), tone: faint(r.premium) },
-      { label: "EXCESS", value: money(r.excess), tone: faint(r.excess) },
-    ];
+      has("premium") && { label: "PREMIUM", value: money(r.premium), tone: faint(r.premium) },
+      has("excess") && { label: "EXCESS", value: money(r.excess), tone: faint(r.excess) },
+    ].filter((f): f is RecordFact => f !== false);
   }
   return [
     { label: "ISSUED BY", value: r.issuer ?? dash, tone: faint(r.issuer) },
     { label: "LICENCE NO.", value: r.number ?? dash, tone: faint(r.number) },
-    { label: "CLASSES", value: r.cover ?? dash, tone: faint(r.cover) },
+    has("cover") && { label: "CLASSES", value: r.cover ?? dash, tone: faint(r.cover) },
     { label: "ISSUED", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
     expiry,
-    { label: "FEE PAID", value: money(r.premium), tone: faint(r.premium) },
-  ];
+    has("premium") && { label: "FEE PAID", value: money(r.premium), tone: faint(r.premium) },
+  ].filter((f): f is RecordFact => f !== false);
 }
 
 /** The one-line summary on a history row. */

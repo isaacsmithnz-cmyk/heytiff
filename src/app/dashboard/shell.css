@@ -12068,11 +12068,33 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ---- footer ---- */
 .vm-foot { display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-top:20px; padding:16px 32px; border-top:1px solid var(--vm-line); background:#fbfcfd; }
 .vm-foot.between { justify-content:space-between; }
+/* A fact about what the button is going to do to the data, sitting with the
+   button rather than as a caption higher up the screen. `margin-right:auto`
+   rather than `.between`, so it takes the room the buttons don't and the two
+   buttons stay a pair. */
+.vm-footnote { margin-right:auto; font-size:12px; color:var(--vm-muted); }
 
 /* ---- renewal screens ---- */
 .vm-status { display:flex; align-items:center; justify-content:space-between; gap:16px; border-radius:16px; padding:18px 20px; border:1px solid var(--vm-line2); background:var(--vm-sunk); }
 .vm-status.ok { background:var(--vm-ok-bg); border-color:var(--vm-ok-line); }
 .vm-status.warn, .vm-status.bad { background:var(--vm-warn-bg); border-color:var(--vm-warn-line); }
+/* The status card's right-hand pair: the reminder menu and the one button that
+   changes anything. Both live up here now — the reminders used to be four
+   chips in a card of their own near the bottom, which spent a whole panel on
+   what is usually a single switched-on lead. */
+.vm-statusr { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.vm-remind { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 13px; border-radius:12px;
+  border:1px solid var(--vm-border); background:#fff; font-size:13px; font-weight:700; color:var(--q);
+  transition:background .15s, color .15s, border-color .15s; }
+.vm-remind:hover:not(:disabled) { background:var(--vm-chip); color:var(--ink); }
+/* Set reminders make it an INK button, not an ok-teal one: how many nudges you
+   asked for is not a state of the policy, and this sits inches from a chip
+   whose colour is. */
+.vm-remind.on { border-color:var(--ink); color:var(--ink); }
+.vm-remind:disabled { opacity:.5; cursor:default; }
+.vm-menu button.on { color:var(--ink); }
+.vm-menu button.on svg { color:var(--ok-t); }
+.vm-menu button:disabled { opacity:.5; cursor:default; }
 .vm-statusl { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .vm-headline { font-size:24px; font-weight:800; color:var(--ink); line-height:1.1; }
 .vm-subline { font-size:13px; color:var(--q); }

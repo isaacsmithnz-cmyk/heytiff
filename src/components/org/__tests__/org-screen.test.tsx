@@ -126,6 +126,8 @@ function setup(
     records?: Record<string, OrgCredentialRecord[]>;
     /** the paperwork behind the cards, keyed by credential id */
     documents?: Record<string, StoredDocument[]>;
+    /** the reminder leads the viewer has switched on, keyed by credential id */
+    reminders?: Record<string, number[]>;
     /** which tab to land on — the page's own `?sec=`, so a test that wants a
         section says which one instead of counting cards down a page */
     sec?: string;
@@ -158,6 +160,7 @@ function setup(
       credentials={over.credentials ?? CREDENTIALS}
       credentialRecords={over.records ?? {}}
       credentialDocuments={over.documents ?? {}}
+      credentialReminders={over.reminders ?? {}}
       account={over.account === undefined ? ACCOUNT : over.account}
       ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
@@ -501,11 +504,10 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText(/^Name/), "Working at Heights");
-    await user.type(within(dialog).getByLabelText("Number"), "WAH-1");
     await user.click(within(dialog).getByRole("button", { name: "Add card" }));
 
     expect(actions.onAddCredential).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "licence", name: "Working at Heights", number: "WAH-1" }),
+      expect.objectContaining({ kind: "licence", name: "Working at Heights" }),
       // nothing was scanned, so the card is born without a term
       undefined
     );
@@ -546,7 +548,7 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Record renewal" }));
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
 
     await user.type(within(dialog).getByLabelText("Insurer"), "CGU");
@@ -565,15 +567,24 @@ describe("the credential modal", () => {
     expect(actions.onUpdateCredential).not.toHaveBeenCalled();
   });
 
-  it("opens straight onto the record panel when nothing has been filed", async () => {
+  /* FILING A TERM IS ITS OWN SCREEN. It used to unroll as a panel below the
+     history, off the bottom of a long modal — pressed, nothing visibly
+     happened. Now the card hands over to a screen with a back chevron, and the
+     card behind it is gone while you are on it. */
+  it("hands over to a screen to file a term, and comes back on the chevron", async () => {
     const user = userEvent.setup();
-    setup({ sec: "credentials" });
+    setup({ sec: "credentials", records: { C2: [term()] } });
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
-    // no terms in this setup, so the panel is the screen and there is nothing
-    // to press to reach it
-    expect(within(dialog).getByText("RECORD POLICY")).toBeInTheDocument();
-    expect(within(dialog).queryByRole("button", { name: "Record renewal" })).not.toBeInTheDocument();
+
+    expect(within(dialog).getByText("CURRENT POLICY")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+
+    expect(within(dialog).getByText("THE NEW CERTIFICATE")).toBeInTheDocument();
+    expect(within(dialog).queryByText("CURRENT POLICY")).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Back" }));
+    expect(within(dialog).getByText("CURRENT POLICY")).toBeInTheDocument();
   });
 
   it("renames a card behind the Edit details door, and updates it by id", async () => {
@@ -619,6 +630,7 @@ describe("the credential modal", () => {
     setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
 
     // the shared popover picker: a button that opens the drawn calendar —
@@ -677,21 +689,27 @@ describe("the credential modal", () => {
      issuer itself, so leaving them on the identity card printed "Licence no."
      and "Issued by" twice on one screen with nothing to say which won — and
      the term's copy silently did. */
-  it("stops asking for the number and issuer twice once a term is being entered", async () => {
+  /* ONE QUESTION, ASKED ONCE — AND NOT BY HAND. Adding a card asks what it is
+     and what to call it; the number and the issuer are what the scan is about
+     to hand over, and the term panel asks for them there. They were on the
+     identity card too, so with the panel open they appeared twice on one
+     screen with nothing to say which won — and the term's copy silently did. */
+  it("never asks for the number or the issuer by hand while adding", async () => {
     const user = userEvent.setup();
     setup({ sec: "credentials" });
     await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
     const dialog = screen.getByRole("dialog");
 
-    expect(within(dialog).getByLabelText("Number")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText("Issuer")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Issuer")).not.toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
 
-    expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
-    expect(within(dialog).queryByLabelText("Issuer")).not.toBeInTheDocument();
+    // exactly one of each, and it is the TERM's
     expect(within(dialog).getByLabelText("Licence no.")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Issued by")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Issuer")).not.toBeInTheDocument();
   });
 
   it("refuses an unnamed credential without calling anything", async () => {
@@ -738,17 +756,84 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "30 days before" }));
+    await user.click(within(dialog).getByRole("button", { name: /Remind me/ }));
+    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: "30 days before" }));
     expect(actions.onCredentialReminder).toHaveBeenCalledWith("C2", 30, true);
   });
 
-  it("leaves the reminder chips dead until a term is on file", async () => {
+  it("leaves the reminder menu shut until a term is on file", async () => {
     const user = userEvent.setup();
     setup({ sec: "credentials", credentials: [{ ...CREDENTIALS[1], expiryDate: null }] });
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByRole("button", { name: "30 days before" })).toBeDisabled();
+    // a reminder counts down to an expiry; with none there is nothing to count
+    expect(within(dialog).getByRole("button", { name: /Remind me/ })).toBeDisabled();
+  });
+
+  /* THE MENU CARRIES ITS OWN ANSWER, so what you asked for is legible without
+     opening it. Four chips in a card of their own said the same thing with a
+     whole panel. */
+  /* WHAT THE PAPER CAN CARRY, ON THE SCREEN.
+
+     "Limit of liability" and "Excess" are public-liability facts. A workers
+     compensation policy has neither — the employer's liability under the state
+     Act is uncapped — so both sat empty on every one of them. That matters
+     more than it looks: on a PUBLIC LIABILITY policy an em-dash under LIMIT
+     means the business cannot prove the number a head contractor asked for,
+     and that reading only survives if a dash is never printed for a fact the
+     document was incapable of carrying. */
+  it("does not offer a workers compensation policy a limit or an excess", async () => {
+    const user = userEvent.setup();
+    const wc: OrgCredential = { ...CREDENTIALS[1], name: "Workers compensation" };
+    setup({ sec: "credentials", credentials: [wc], records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
+    const dialog = screen.getByRole("dialog");
+    // not in the facts it reads back
+    expect(within(dialog).queryByText("LIMIT")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("EXCESS")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("INSURER")).toBeInTheDocument();
+
+    // nor in the boxes it asks for
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(within(dialog).queryByLabelText("Limit of liability")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Excess")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Insurer")).toBeInTheDocument();
+  });
+
+  it("still offers them to the policy that prints them", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("LIMIT")).toBeInTheDocument();
+    expect(within(dialog).getByText("EXCESS")).toBeInTheDocument();
+  });
+
+  /* A HEADING, A BORDER AND A SHADOW SPENT ON THE ABSENCE OF A THING. A card
+     holding its first term showed a full-width POLICY HISTORY panel whose only
+     content was "No previous policy terms recorded". */
+  it("shows no history panel until there is history", async () => {
+    const user = userEvent.setup();
+    const { unmount } = setup({ sec: "credentials", records: { C2: [term()] } });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    expect(within(screen.getByRole("dialog")).queryByText("POLICY HISTORY")).not.toBeInTheDocument();
+    unmount();
+
+    setup({ sec: "credentials", records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07" })] } });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    expect(within(screen.getByRole("dialog")).getByText("POLICY HISTORY")).toBeInTheDocument();
+  });
+
+  it("says on the button which reminders are set", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", records: { C2: [term()] }, reminders: { C2: [30, 7] } });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: /2 reminders/ })).toBeInTheDocument();
   });
 });
 

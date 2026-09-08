@@ -17,8 +17,9 @@ import type {
 import type { CredResult } from "../types";
 import { IdentityScreen, type IdentityDraft } from "./identity-screen";
 import { RecordScreen } from "./record-screen";
+import { UpdateScreen } from "./update-screen";
 
-/* The credential modal: one modal, two screens, one `screen` value.
+/* The credential modal: one modal, three screens, one `screen` value.
 
    It replaces the flat six-field form that WAS the whole feature. That form
    could only ever describe the term the business is in right now, and saving a
@@ -28,8 +29,8 @@ import { RecordScreen } from "./record-screen";
 
    Now the card is an identity and its terms are a history, and the modal wears
    the vehicle card's own clothes: the `.vm` shell, its cards, its detail
-   grids, its scan panel, its remind-me chips. Deliberately literal — an owner
-   who has recorded a rego renewal already knows how to record a policy.
+   grids, its scan panel, its menus. Deliberately literal — an owner who has
+   recorded a rego renewal already knows how to update a policy.
 
    PORTALLED TO <body>, and that is not a preference: the shell keeps
    `will-change` on `.page.in`, which makes it a containing block for
@@ -40,7 +41,9 @@ import { RecordScreen } from "./record-screen";
    owns and every write is one of its actions followed by router.refresh(),
    the same as the fleet and the same as everywhere else. */
 
-export type Screen = "record" | "details";
+/* Three, and the two that are not "record" both wear a back chevron: the
+   card's own details, and filing its next term. */
+export type Screen = "record" | "details" | "update";
 
 export function CredentialModal({
   credential,
@@ -80,13 +83,13 @@ export function CredentialModal({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* Escape leaves the way the back chevron does: the details screen of an
-     existing card goes home, everything else closes. Never a surprise
-     dismissal mid-form. */
+  /* Escape leaves the way the back chevron does: a sub-screen of an existing
+     card goes home, everything else closes. Never a surprise dismissal
+     mid-form. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (screen === "details" && !adding) setScreen("record");
+      if (screen !== "record" && !adding) setScreen("record");
       else onClose();
     };
     document.addEventListener("keydown", onKey);
@@ -117,12 +120,23 @@ export function CredentialModal({
       : run(() => onSaveIdentity(draft.identity), () => setScreen("record"));
 
   const badge = credential ? orgCredBadge(credential) : null;
-  const title = adding ? "Add licence or insurance" : credential.name;
+  const sub = screen !== "record" && !adding;
+  const title = adding
+    ? "Add licence or insurance"
+    : screen === "details"
+      ? "Card details"
+      : screen === "update"
+        ? credential.kind === "insurance"
+          ? "Update policy"
+          : "Update licence"
+        : credential.name;
   const eyebrow = adding
     ? "LICENCES & INSURANCE"
-    : credential.kind === "insurance"
-      ? "INSURANCE POLICY"
-      : "BUSINESS LICENCE";
+    : sub
+      ? credential.name.toUpperCase()
+      : credential.kind === "insurance"
+        ? "INSURANCE POLICY"
+        : "BUSINESS LICENCE";
 
   return createPortal(
     <div className="vm-ov" onClick={onClose}>
@@ -135,12 +149,12 @@ export function CredentialModal({
       >
         <div className="vm-head sub">
           <div className="vm-headl">
-            {screen === "details" && !adding ? (
+            {sub ? (
               <IconBtn icon="chevL" label="Back" onClick={() => setScreen("record")} size={18} />
             ) : null}
             <div className="vm-titles">
               <span className="vm-eyebrow">{eyebrow}</span>
-              <h2 className="vm-title sub">{screen === "details" && !adding ? "Card details" : title}</h2>
+              <h2 className="vm-title sub">{title}</h2>
             </div>
           </div>
           <div className="vm-headr">
@@ -155,7 +169,22 @@ export function CredentialModal({
           </div>
         </div>
 
-        {screen === "details" || !credential ? (
+        {screen === "update" && credential ? (
+          <UpdateScreen
+            credential={credential}
+            records={records}
+            today={today}
+            pending={pending}
+            error={error}
+            /* Saved, it goes back to the card it just changed rather than
+               closing — the new term is the thing the person came to see. */
+            onRecord={(input) => void run(() => onRecord(input), () => setScreen("record"))}
+            onCancel={() => {
+              setError(null);
+              setScreen("record");
+            }}
+          />
+        ) : screen === "details" || !credential ? (
           <>
             {error && (
               <div className="vm-body">
@@ -180,10 +209,13 @@ export function CredentialModal({
             today={today}
             pending={pending}
             error={error}
-            onRecord={(input) => void run(() => onRecord(input), () => undefined)}
             onAttach={(recordId, documentId) => void run(() => onAttach(recordId, documentId), () => undefined)}
             onRemoveTerm={(recordId) => void run(() => onRemoveTerm(recordId), () => undefined)}
             onRemind={(lead, on) => void run(() => onRemind(lead, on), () => undefined)}
+            onUpdate={() => {
+              setError(null);
+              setScreen("update");
+            }}
             onEdit={() => {
               setError(null);
               setScreen("details");

@@ -650,6 +650,50 @@ describe("the credential modal", () => {
     ).not.toBeInTheDocument();
   });
 
+  /* THE TYPE IS ASKED BEFORE THE SCANNER. The scan panel picks Tiff's reader,
+     the words on the drop zone and the kind the file is stamped with, all from
+     whatever Type says at that instant — so a screen that opens on a scanner
+     headed "the licence certificate" has already answered for the person
+     holding a certificate of currency. It is a segmented control, and it comes
+     first in the document. */
+  it("asks what it is before it offers the scanner, and the scanner follows", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const dialog = screen.getByRole("dialog");
+
+    const type = within(dialog).getByRole("tablist", { name: "Type" });
+    const scan = within(dialog).getByText(/Scan or upload the/);
+    expect(type.compareDocumentPosition(scan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    expect(within(dialog).getByText("Scan or upload the licence certificate")).toBeInTheDocument();
+    await user.click(within(type).getByRole("tab", { name: "Insurance" }));
+    expect(
+      within(dialog).getByText("Scan or upload the certificate of currency")
+    ).toBeInTheDocument();
+  });
+
+  /* ONE QUESTION, ASKED ONCE. The term panel asks for the number and the
+     issuer itself, so leaving them on the identity card printed "Licence no."
+     and "Issued by" twice on one screen with nothing to say which won — and
+     the term's copy silently did. */
+  it("stops asking for the number and issuer twice once a term is being entered", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const dialog = screen.getByRole("dialog");
+
+    expect(within(dialog).getByLabelText("Number")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Issuer")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+
+    expect(within(dialog).queryByLabelText("Number")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Issuer")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Licence no.")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Issued by")).toBeInTheDocument();
+  });
+
   it("refuses an unnamed credential without calling anything", async () => {
     const user = userEvent.setup();
     const { actions } = setup({ sec: "credentials" });

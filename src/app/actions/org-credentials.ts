@@ -13,6 +13,7 @@ import { isReminderLead, reminderDueDate } from "@/lib/fleet/reminders";
 import { buildOrgCredentialRow, isCredKind, type OrgCredKind, type OrgCredentialInput } from "@/lib/org/credentials";
 import {
   CREDENTIAL_DOC_KIND,
+  ORG_CREDENTIAL_DOC_KINDS,
   buildCredentialRecordRow,
   credentialReminderDetail,
   credentialReminderTitle,
@@ -183,10 +184,14 @@ async function fileTerm(
 }
 
 /** Adoption, on the same contract as every other document in this codebase:
-    only the uploader's own, confirmed, still-unowned file OF THE RIGHT KIND
-    may land. The kind check is what stops a staff licence scan being filed as
-    the company's. A file that refuses adoption must not be claimed by the
-    record either, or the term would point at paperwork it doesn't own. */
+    only the uploader's own, confirmed, still-unowned file OF THE ORG'S OWN
+    KIND may land. The kind check is what stops a staff licence scan being
+    filed as the company's. A file that refuses adoption must not be claimed by
+    the record either, or the term would point at paperwork it doesn't own.
+
+    EITHER org kind is taken and the stamp is CORRECTED here, because the file
+    is uploaded before the card is named and the Type box can still move under
+    it — see ORG_CREDENTIAL_DOC_KINDS for the certificate this lost. */
 async function adoptCredentialDocument(
   ctx: Ctx,
   credentialId: string,
@@ -197,11 +202,15 @@ async function adoptCredentialDocument(
   if (!ctx.staffId) return;
   const { data } = await supabaseAdmin
     .from("documents")
-    .update({ org_credential_id: credentialId, credential_record_id: recordId })
+    .update({
+      org_credential_id: credentialId,
+      credential_record_id: recordId,
+      kind: CREDENTIAL_DOC_KIND[kind],
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
-    .eq("kind", CREDENTIAL_DOC_KIND[kind])
+    .in("kind", ORG_CREDENTIAL_DOC_KINDS)
     .not("uploaded_at", "is", null)
     .is("org_credential_id", null)
     .select("id");
@@ -305,11 +314,15 @@ export async function fileCredentialDocument(
 
   const { data } = await supabaseAdmin
     .from("documents")
-    .update({ org_credential_id: credentialId, credential_record_id: recordId })
+    .update({
+      org_credential_id: credentialId,
+      credential_record_id: recordId,
+      kind: CREDENTIAL_DOC_KIND[cred.kind as OrgCredKind],
+    })
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
-    .eq("kind", CREDENTIAL_DOC_KIND[cred.kind as OrgCredKind])
+    .in("kind", ORG_CREDENTIAL_DOC_KINDS)
     .not("uploaded_at", "is", null)
     .is("org_credential_id", null)
     .select("id");

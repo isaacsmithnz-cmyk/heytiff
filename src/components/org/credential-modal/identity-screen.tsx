@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DateField } from "@/components/ui/date-field";
-import { Btn, Field } from "@/components/record-modal/parts";
+import { Btn, Field, Segmented } from "@/components/record-modal/parts";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import { readOrgCredentialDocument, type ReadOrgCredResult } from "@/app/actions/org-credential-ai";
 import {
@@ -17,24 +17,42 @@ import { KIND_LABEL, SCAN_COPY, TermFields, emptyTerm, termInput, type Term } fr
 /* WHAT THE CARD IS — its name, its kind and the colour it wears.
 
    Two jobs in one screen, because they are the same conversation at different
-   moments. ADDING starts here with the scan panel open: drop the certificate
-   in, Tiff reads the term off it, and one Save writes both the card and its
-   first term — the same two-in-one the fleet's Add vehicle makes from a rego
-   certificate. EDITING an existing card shows only the identity, because by
-   then the numbers and dates belong to the terms and are changed by recording
-   a renewal, not by retyping them here.
+   moments. ADDING answers "what is this" and THEN offers the scan: drop the
+   certificate in, Tiff reads the term off it, and one Save writes both the
+   card and its first term — the same two-in-one the fleet's Add vehicle makes
+   from a rego certificate. EDITING an existing card shows only the identity,
+   because by then the numbers and dates belong to the terms and are changed by
+   recording a renewal, not by retyping them here.
+
+   THE TYPE IS ASKED BEFORE THE SCANNER, and that ordering is load-bearing.
+   The scan panel is not neutral: it picks the reader Tiff uses, the words on
+   the drop zone, and the kind the uploaded file is stamped with — all from
+   whatever Type says at that instant. Scanner-first meant a person met a panel
+   headed "SCAN THE LICENCE CERTIFICATE" before anyone had asked what they were
+   holding, and the default answered for them. Isaac's icare certificate of
+   currency went in that way on 2026-09-08: read by the licence reader, so
+   "Cover" came out as the industry classification "423300 Air Conditioning and
+   Heating Services", and stamped `org_licence`, so the card it created could
+   not adopt it. Two boxes and one plain question, first, and none of that
+   happens.
 
    THE NAME IS NEVER SCANNED (see lib/org/cred-readers.ts): it is the person's
    word for the thing, it is what the history hangs off, and one badly-worded
    certificate must not be able to split a policy's history in two. */
 
+/* The colours a card may wear. NO STATE COLOUR IS OFFERED HERE: a card's badge
+   says what the thing IS and its chip says how it is DOING, so danger red on a
+   badge put "#e0264f INS" one line above a teal "Valid" on the same card and
+   made the wall unreadable at a glance. Slate takes red's slot. Teal stays
+   because the registry itself issues it to the ARC authorisation — but it is
+   the registry's to give, not a decoration to pick. */
 const SWATCHES: { label: string; value: string }[] = [
   { label: "Auto", value: "" },
   { label: "Teal", value: "#00A389" },
   { label: "Blue", value: "#2E68FF" },
   { label: "Amber", value: "#F0A431" },
   { label: "Violet", value: "#8A2BE2" },
-  { label: "Red", value: "#e0264f" },
+  { label: "Slate", value: "#5B6478" },
 ];
 
 export type IdentityDraft = {
@@ -123,50 +141,33 @@ export function IdentityScreen({
   return (
     <>
       <div className="vm-body">
-        {adding && (
-          <ScanCard<ReadOrgCredResult>
-            heading={`SCAN THE ${KIND_LABEL[kind].toUpperCase()}`}
-            prompt={SCAN_COPY[kind].prompt}
-            hint={SCAN_COPY[kind].hint}
-            attachLabel={SCAN_COPY[kind].attach}
-            docKind={CREDENTIAL_DOC_KIND[kind]}
-            read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind)}
-            onRead={(r, id) => {
-              fill(r);
-              setDocId(id);
-            }}
-            onAttached={(id) => setDocId(id)}
-            mode={mode}
-            onMode={(m) => {
-              setMode(m);
-              if (m === "idle") {
-                setTerm(emptyTerm);
-                setDocId(null);
-              }
-            }}
-          >
-            <TermFields kind={kind} value={term} onChange={setTerm} today={today} />
-          </ScanCard>
-        )}
-
         <div className="vm-card">
           <div className="vm-cardhead">
             <span className="vm-eyebrow">WHAT IT IS</span>
-            {adding && scanned && <span className="vm-caption">Name it — the scan doesn&apos;t</span>}
           </div>
 
-          <div className="vm-fields">
-            <Field label="Type">
-              <select
-                className="vm-input"
-                value={kind}
-                aria-label="Type"
-                onChange={(e) => setKind(e.target.value === "insurance" ? "insurance" : "licence")}
-              >
-                <option value="licence">Licence</option>
-                <option value="insurance">Insurance</option>
-              </select>
-            </Field>
+          {/* Its own row above the boxes, because it is not one more field: it
+              chooses the reader, the words and the filing kind for everything
+              under it. A two-value choice is a segmented control everywhere
+              else in this app, and `.vm-seg` is the portalled twin of `.seg` —
+              `.fg` never reaches a modal on <body>. */}
+          <div className="vm-typerow">
+            <span className="vm-fl">Type</span>
+            <Segmented<OrgCredKind>
+              items={[
+                { key: "licence", label: "Licence" },
+                { key: "insurance", label: "Insurance" },
+              ]}
+              active={kind}
+              onSelect={setKind}
+              ariaLabel="Type"
+            />
+          </div>
+
+          {/* SOLO when the boxes below own the number and the issuer: one
+              narrow field with two empty thirds beside it reads as a form that
+              lost its other fields, so Name takes the room they left. */}
+          <div className={`vm-fields${!hasTerms && !scanned ? "" : " solo"}`}>
             <Field label="Name" req>
               <input
                 className="vm-input"
@@ -183,10 +184,15 @@ export function IdentityScreen({
               </datalist>
             </Field>
 
-            {/* Offered only while no term owns them. Once a renewal is on file
-                these three are a cache of it, and typing over them here would
-                describe a term that does not exist. */}
-            {!hasTerms && (
+            {/* Offered only while NOTHING ELSE OWNS THEM. Once a renewal is on
+                file these three are a cache of it, and typing over them here
+                would describe a term that does not exist. The same is true the
+                moment the panel below is open: it asks for the number and the
+                issuer itself, so leaving them here printed "Licence no." and
+                "Issued by" twice on one screen with nothing to say which won —
+                and the term's copy silently did (addOrgCredential coalesces the
+                term over the identity). One question, asked once. */}
+            {!hasTerms && !scanned && (
               <>
                 <Field label={kind === "insurance" ? "Policy no." : "Licence no."}>
                   <input
@@ -221,7 +227,40 @@ export function IdentityScreen({
             )}
           </div>
 
-          <div className="vm-divider">
+        </div>
+
+        {adding && (
+          <ScanCard<ReadOrgCredResult>
+            heading={`SCAN THE ${KIND_LABEL[kind].toUpperCase()}`}
+            prompt={SCAN_COPY[kind].prompt}
+            hint={SCAN_COPY[kind].hint}
+            attachLabel={SCAN_COPY[kind].attach}
+            docKind={CREDENTIAL_DOC_KIND[kind]}
+            read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind)}
+            onRead={(r, id) => {
+              fill(r);
+              setDocId(id);
+            }}
+            onAttached={(id) => setDocId(id)}
+            mode={mode}
+            onMode={(m) => {
+              setMode(m);
+              if (m === "idle") {
+                setTerm(emptyTerm);
+                setDocId(null);
+              }
+            }}
+          >
+            <TermFields kind={kind} value={term} onChange={setTerm} today={today} />
+          </ScanCard>
+        )}
+
+        {/* LAST, and its own card. It is the only cosmetic choice on the
+            screen, and while it lived inside "What it is" it sat between the
+            two questions that matter and the certificate drop zone — a colour
+            picker standing between a person and the thing they came to do. */}
+        <div className="vm-card">
+          <div className="vm-cardhead">
             <span className="vm-eyebrow">COLOUR</span>
           </div>
           <div className="vm-sw" role="group" aria-label="Colour">

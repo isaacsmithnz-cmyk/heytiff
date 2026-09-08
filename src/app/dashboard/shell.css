@@ -4835,11 +4835,6 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
 /* The add tile lives IN the grid, so "one more" is the same shape as the
    things it joins. */
-.fg .cred-add { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:7px; min-height:132px; padding:16px; border-radius:16px; border:1.5px dashed #d8dde6; background:#fafbfc; text-align:left; transition:all .2s; }
-.fg .cred-add:hover { border-color:var(--teal); background:rgba(0,229,192,.04); }
-.fg .cred-add .ci { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ok-t); border:1px solid #eef0f4; }
-.fg .cred-add b { font-size:13.5px; font-weight:800; color:var(--gray700); }
-.fg .cred-add em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
 
 /* ===== ORGANISATION — the company profile =================================
 
@@ -12105,6 +12100,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* the form */
 .vm-fields { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+
+/* The one question a form is ASKED BEFORE its boxes — the credential modal's
+   Type. Full width above `.vm-fields` because it governs every label under it,
+   and a size up from the header segmented it borrows: `.vm-seg` was drawn to
+   ride inside a card head at 11.5px, which reads as a filter beside a 14px
+   input rather than as the choice the screen turns on. The tray keeps its
+   ALPHA tint, so it stays a tray on `--vm-sunk` and on white alike. */
+.vm-typerow { display:flex; flex-direction:column; align-items:flex-start; gap:5px; margin-bottom:12px; }
+.vm-fields.solo > .vm-ffield { grid-column:span 2; }
+.vm-typerow .vm-seg { padding:3px; border-radius:11px; }
+.vm-typerow .vm-segbtn { padding:7px 16px; font-size:13px; border-radius:9px; }
 .vm-ffield { display:flex; flex-direction:column; gap:5px; min-width:0; }
 .vm-ffield .vm-fl i { font-style:normal; color:var(--bad-t); margin-left:2px; }
 .vm-input, .vm-money-in, .vm-pct-in { width:100%; border:1px solid var(--vm-border); background:#fff; border-radius:10px; padding:9px 12px; font-size:14px; font-weight:600; color:var(--ink); outline:none; font-family:inherit; }
@@ -12267,7 +12273,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* The "add a ticket" tile, sitting in the licence wall as a card-shaped
    invitation rather than as a form above it. Same CR80 footprint as the cards
    beside it (`.liccards` sizes the track), dashed so it reads as an empty
-   slot. Mirrors the organisation wall's `.cred-add`. */
+   slot. The organisation wall no longer has a twin — its Add moved into the
+   panel header's `.acts` slot, which is where this one probably belongs too. */
 .fg .licadd-tile { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px;
   min-height:150px; padding:22px; border:1.5px dashed #d7dbe2; border-radius:20px; background:#fff;
   text-align:left; transition:border-color .15s, background .15s; }

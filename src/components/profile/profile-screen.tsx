@@ -20,6 +20,8 @@ import { PayrollCard } from "./payroll-card";
 import { PermissionsCard } from "./permissions-card";
 import { NotesCard } from "./notes-card";
 import { MyPayCard } from "./my-pay-card";
+import type { StaffLicenceRecord } from "@/lib/staff/licence-records";
+import type { StoredDocument } from "@/lib/documents/query";
 import {
   sectionFromParam,
   type AdminExtras,
@@ -84,6 +86,9 @@ export function ProfileScreen({
   header,
   profile,
   licences,
+  licenceTerms = {},
+  licenceDocuments = {},
+  licenceReminders = {},
   vehicle,
   today,
   org,
@@ -98,6 +103,12 @@ export function ProfileScreen({
   header: ProfileHeader;
   profile: StaffProfile | null;
   licences: StaffLicence[];
+  /* The terms behind the tickets, their paperwork, and the VIEWER's own
+     reminders — keyed by licence id, loaded once for the wall rather than per
+     card. Defaulted so a caller that has none of it still renders. */
+  licenceTerms?: Record<string, StaffLicenceRecord[]>;
+  licenceDocuments?: Record<string, StoredDocument[]>;
+  licenceReminders?: Record<string, number[]>;
   vehicle: AssignedVehicle | null;
   /** AU calendar date, so licence status agrees with the dashboard */
   today: string;
@@ -284,9 +295,18 @@ export function ProfileScreen({
                   <>
                     <ComplianceCard
                       licences={licences}
+                      staffId={header.id}
+                      records={licenceTerms}
+                      documents={licenceDocuments}
+                      reminders={licenceReminders}
                       today={today}
                       onAdd={actions.onAddLicence}
+                      onUpdate={actions.onUpdateLicence}
                       onRemove={actions.onRemoveLicence}
+                      onRecordTerm={actions.onRecordLicenceTerm}
+                      onAttachDoc={actions.onAttachLicenceDoc}
+                      onRemoveTerm={actions.onRemoveLicenceTerm}
+                      onRemind={actions.onLicenceReminder}
                     />
                     <QualificationsCard profile={profile} mode={mode} onSave={actions.onSave} />
                   </>

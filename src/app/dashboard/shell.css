@@ -12255,3 +12255,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    status chip may be saying the opposite. It is separated from the issuer line
    above it by weight, not by hue. */
 .fg .cred-note { margin-top:6px; font-size:11.5px; font-weight:700; color:var(--q); }
+
+/* A licence card that is a DOOR — stretched over the whole surface, above the
+   sheen and the mesh but below nothing else, because there is nothing else on
+   it to click. Focus is drawn on the button so the ring follows the card. */
+.fg .idc.clickable { cursor:pointer; transition:transform .15s, box-shadow .15s; }
+.fg .idc.clickable:hover { transform:translateY(-2px); box-shadow:0 20px 44px -20px rgba(10,12,20,.34); }
+.fg .idc-open { position:absolute; inset:0; z-index:3; background:none; border:none; border-radius:20px; cursor:pointer; }
+.fg .idc-open:focus-visible { outline:2px solid var(--ok-t); outline-offset:-3px; }
+
+/* The "add a ticket" tile, sitting in the licence wall as a card-shaped
+   invitation rather than as a form above it. Same CR80 footprint as the cards
+   beside it (`.liccards` sizes the track), dashed so it reads as an empty
+   slot. Mirrors the organisation wall's `.cred-add`. */
+.fg .licadd-tile { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px;
+  min-height:150px; padding:22px; border:1.5px dashed #d7dbe2; border-radius:20px; background:#fff;
+  text-align:left; transition:border-color .15s, background .15s; }
+.fg .licadd-tile:hover { border-color:var(--ok-t); background:var(--ok-bg, rgba(0,229,192,.06)); }
+.fg .licadd-tile .ci { display:flex; align-items:center; justify-content:center; width:34px; height:34px;
+  border-radius:11px; background:#f4f6f8; color:var(--ink); margin-bottom:6px; }
+.fg .licadd-tile b { font-size:14.5px; font-weight:700; color:var(--ink); }
+.fg .licadd-tile em { font-style:normal; font-size:12px; font-weight:600; color:var(--q); }

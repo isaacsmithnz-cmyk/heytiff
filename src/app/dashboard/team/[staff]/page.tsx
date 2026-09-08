@@ -18,16 +18,28 @@ import {
   resolve,
   type Capability,
 } from "@/lib/permissions";
-import { getStaff, permissionsOf } from "@/lib/staff/query";
+import {
+  getStaff,
+  listLicenceReminders,
+  listLicenceTerms,
+  permissionsOf,
+} from "@/lib/staff/query";
+import { documentsForStaffLicences } from "@/lib/documents/query";
+import { staffProfileIdFor } from "@/lib/fleet/query";
 import { signPhotoUrl } from "@/lib/staff/photo";
 import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
 import { rosteredWeekHours } from "@/components/timepay/logic";
 import { classifyEmployment } from "@/lib/staff/employment";
 import {
   addStaffLicence,
+  attachStaffLicenceDocument,
   clearStaffPhoto,
+  recordStaffLicenceTerm,
   removeStaffLicence,
+  removeStaffLicenceTerm,
   saveStaffSection,
+  setStaffLicenceReminder,
+  updateStaffLicence,
   setStaffPhoto,
 } from "@/app/actions/staff";
 import type { StaffProfile } from "@/lib/staff/profile";
@@ -89,6 +101,18 @@ export default async function StaffProfilePage({
   // into a private bucket is minted per render
   const photoUrl = await signPhotoUrl(profile.photo_url as string | null | undefined);
 
+  /* The terms behind this person's tickets, their paperwork, and the REMINDERS
+     OF WHOEVER IS LOOKING — a manager's chips are their own tasks about
+     somebody else's ticket, so they resolve against the viewer's staff card,
+     not the subject's. */
+  const licenceIds = licences.map((l) => l.id);
+  const viewerStaffId = await staffProfileIdFor(orgId, ownership.userId);
+  const [licenceTerms, licenceDocuments, licenceReminders] = await Promise.all([
+    listLicenceTerms(orgId, staffId),
+    documentsForStaffLicences(orgId, licenceIds),
+    listLicenceReminders(orgId, viewerStaffId, licenceIds),
+  ]);
+
   /* Only for a viewer who can see the Payroll card, since that is the only
      place it is shown — and it exists to keep the typed `contracted_hours`
      honest about the week Time & Pay actually fills in. Both reads are
@@ -142,6 +166,9 @@ export default async function StaffProfilePage({
       header={{ ...row, photoUrl }}
       profile={profile as unknown as StaffProfile}
       licences={licences}
+      licenceTerms={licenceTerms}
+      licenceDocuments={Object.fromEntries(licenceDocuments)}
+      licenceReminders={licenceReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
       org={orgName}
@@ -159,7 +186,12 @@ export default async function StaffProfilePage({
       actions={{
         onSave: saveStaffSection.bind(null, staffId),
         onAddLicence: addStaffLicence.bind(null, staffId),
+        onUpdateLicence: updateStaffLicence.bind(null, staffId),
         onRemoveLicence: removeStaffLicence.bind(null, staffId),
+        onRecordLicenceTerm: recordStaffLicenceTerm.bind(null, staffId),
+        onAttachLicenceDoc: attachStaffLicenceDocument.bind(null, staffId),
+        onRemoveLicenceTerm: removeStaffLicenceTerm.bind(null, staffId),
+        onLicenceReminder: setStaffLicenceReminder.bind(null, staffId),
         onSetPhoto: setStaffPhoto.bind(null, staffId),
         onClearPhoto: clearStaffPhoto.bind(null, staffId),
       }}

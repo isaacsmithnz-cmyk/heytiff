@@ -10,6 +10,28 @@ import { EXPIRY_WARN_DAYS } from "./derive";
    A licence is a row in `staff_licences`, not a column, so it never rides the
    flat section-save; the actions in app/actions/{profile,staff} call these. */
 
+/* The tickets worth NAMING — the handful nearly every trades business holds,
+   so they arrive spelled and coloured consistently instead of as four
+   spellings of "ARC". Everything else is free text: this is a set of
+   suggestions and a badge lookup, never an allowlist.
+
+   It lived in components/profile/compliance-card.tsx until the licence modal
+   needed it too. A list of domain facts is not a component's to own. */
+export type LicType = { name: string; sub?: string; color?: string };
+
+export const LIC_TYPES: readonly LicType[] = [
+  { name: "Driver’s licence", sub: "State driver licence", color: "#2E68FF" },
+  { name: "ARC licence", sub: "Refrigerant handling", color: "#00A389" },
+  { name: "White card", sub: "Construction induction", color: "#8A2BE2" },
+  { name: "Contractor licence", sub: "Trade contractor", color: "#F0A431" },
+];
+
+/** The colour a newly-picked type suggests, or "" for a custom one. */
+export function defaultLicenceColor(typeName: string): string {
+  const wanted = typeName.trim().toLowerCase();
+  return LIC_TYPES.find((t) => t.name.toLowerCase() === wanted)?.color ?? "";
+}
+
 export type LicenceInput = {
   typeName: string;
   licenceNumber?: string;

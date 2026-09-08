@@ -2,6 +2,7 @@ import type { Capability } from "@/lib/permissions";
 import type { EmailChangeOutcome } from "@/app/actions/account";
 import type { Role } from "@/lib/roles-shared";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
+import type { LicenceTermInput } from "@/lib/staff/licence-records";
 
 /* Shared prop shapes for the staff card. Kept in their own module so the
    server pages can import the types without pulling a "use client" module
@@ -29,8 +30,20 @@ export type LicenceInput = {
 
 export type ProfileActions = {
   onSave: SaveSection;
-  onAddLicence: (input: LicenceInput) => Promise<SaveResult>;
+  /* A ticket can be born with its first TERM — the card that was scanned on
+     the way in — so the add takes both. Everything after that is a renewal,
+     which is a term of its own and never an edit of the last one. */
+  onAddLicence: (input: LicenceInput, term?: LicenceTermInput) => Promise<SaveResult>;
+  onUpdateLicence: (licenceId: string, input: LicenceInput) => Promise<SaveResult>;
   onRemoveLicence: (licenceId: string) => Promise<SaveResult>;
+  /** Files the next term. The ticket's expiry follows it; nothing is overwritten. */
+  onRecordLicenceTerm: (licenceId: string, input: LicenceTermInput) => Promise<SaveResult>;
+  /** Files another document under a term after the fact. */
+  onAttachLicenceDoc: (termId: string, documentId: string) => Promise<SaveResult>;
+  /** Removes one term — a scan filed against the wrong ticket. */
+  onRemoveLicenceTerm: (termId: string) => Promise<SaveResult>;
+  /** The VIEWER's own reminder about this ticket, `lead` days before expiry. */
+  onLicenceReminder: (licenceId: string, leadDays: number, on: boolean) => Promise<SaveResult>;
   /** points the card at an already-uploaded staff_photo document */
   onSetPhoto: (documentId: string) => Promise<SaveResult>;
   onClearPhoto: () => Promise<SaveResult>;

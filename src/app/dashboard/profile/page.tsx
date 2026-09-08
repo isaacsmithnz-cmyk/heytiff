@@ -4,17 +4,23 @@ import { ProfileScreen } from "@/components/profile/profile-screen";
 import type { ProfileHeader } from "@/components/profile/types";
 import {
   addMyLicence,
+  attachMyLicenceDocument,
   clearMyPhoto,
   loadMyProfile,
+  recordMyLicenceTerm,
   removeMyLicence,
+  removeMyLicenceTerm,
   saveMyProfileSection,
+  setMyLicenceReminder,
   setMyPhoto,
+  updateMyLicence,
 } from "@/app/actions/profile";
 import { changeMySignInEmail } from "@/app/actions/account";
 import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
 import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
-import { listLicences } from "@/lib/staff/query";
+import { listLicenceReminders, listLicenceTerms, listLicences } from "@/lib/staff/query";
+import { documentsForStaffLicences } from "@/lib/documents/query";
 import { getMyPay } from "@/lib/staff/my-pay";
 import { getOrgName, getOrgState } from "@/lib/permissions-server";
 import { signPhotoUrl } from "@/lib/staff/photo";
@@ -53,6 +59,17 @@ export default async function MyProfilePage({
       signPhotoUrl(profile.photo_url),
       searchParams,
     ]);
+
+  /* The terms and the paperwork need the ticket ids, so they come after — two
+     more reads for the whole wall rather than two per card, and both skipped
+     entirely for someone with no licences on file. The reminders are the
+     VIEWER's own, which on this page is always the card's owner. */
+  const licenceIds = licences.map((l) => l.id);
+  const [licenceTerms, licenceDocuments, licenceReminders] = await Promise.all([
+    orgId ? listLicenceTerms(orgId, profile.id) : Promise.resolve({}),
+    orgId ? documentsForStaffLicences(orgId, licenceIds) : Promise.resolve(new Map()),
+    orgId ? listLicenceReminders(orgId, profile.id, licenceIds) : Promise.resolve({}),
+  ]);
 
   const email = session.user.email ?? "";
   const displayName =
@@ -98,6 +115,9 @@ export default async function MyProfilePage({
       header={header}
       profile={profile}
       licences={licences}
+      licenceTerms={licenceTerms}
+      licenceDocuments={Object.fromEntries(licenceDocuments)}
+      licenceReminders={licenceReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
       org={orgName}
@@ -110,6 +130,11 @@ export default async function MyProfilePage({
       actions={{
         onSave: saveMyProfileSection,
         onAddLicence: addMyLicence,
+        onUpdateLicence: updateMyLicence,
+        onRecordLicenceTerm: recordMyLicenceTerm,
+        onAttachLicenceDoc: attachMyLicenceDocument,
+        onRemoveLicenceTerm: removeMyLicenceTerm,
+        onLicenceReminder: setMyLicenceReminder,
         onRemoveLicence: removeMyLicence,
         onSetPhoto: setMyPhoto,
         onClearPhoto: clearMyPhoto,

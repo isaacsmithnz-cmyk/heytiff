@@ -44,6 +44,8 @@ export function IdCard({
   sub,
   facts,
   action,
+  onOpen,
+  openLabel,
   children,
 }: {
   variant?: "dark" | "light";
@@ -82,17 +84,33 @@ export function IdCard({
   facts?: IdCardFact[];
   /** a control in the card's bottom-right corner — the licence wall's remove × */
   action?: ReactNode;
+  /* Makes the WHOLE card a door.
+
+     A stretched, labelled button rather than a click handler on the card: it
+     keeps the entire surface clickable without inventing a div that behaves
+     like a button for a mouse and like nothing for a keyboard. Same device the
+     organisation's `.cred-open` uses, for the same reason.
+
+     Mutually exclusive with `action` in practice — a card is either a thing
+     you open or a thing you remove from where it sits, and offering both puts
+     two targets on one surface. */
+  onOpen?: () => void;
+  /** what the door is for, for a screen reader: "Open ARC licence". */
+  openLabel?: string;
   children?: ReactNode;
 }) {
   const accent = badge?.color ?? "#00E5C0";
   const hasFace = Boolean(photoUrl || initials);
   return (
-    <div className={`idc ${variant}${hasFace ? "" : " faceless"}${credential ? " cred" : ""}`}>
+    <div className={`idc ${variant}${hasFace ? "" : " faceless"}${credential ? " cred" : ""}${onOpen ? " clickable" : ""}`}>
       <span className="idc-sheen" aria-hidden="true" />
       <span className="idc-mesh" aria-hidden="true">
         <i className="m1" />
         <i className="m2" />
       </span>
+      {onOpen && (
+        <button className="idc-open" type="button" aria-label={openLabel} onClick={onOpen} />
+      )}
       {action ? <div className="idc-action">{action}</div> : null}
       <div className="idc-in">
         {/* `.idc-top` is space-between, so with the issuer line suppressed the

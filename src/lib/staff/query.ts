@@ -10,6 +10,8 @@ import type {
   StaffRow,
 } from "./types";
 import type { Role } from "@/lib/roles-shared";
+import type { StaffLicenceRecord } from "./licence-records";
+import { isReminderLead } from "@/lib/fleet/reminders";
 
 /* Team queries. Every one of these is scoped by org_id from the session —
    there is no unscoped read in this file, deliberately.
@@ -89,6 +91,86 @@ async function licencesByStaff(
 /** One staff member's licences, org-scoped — for their own Compliance card. */
 export async function listLicences(orgId: string, staffProfileId: string): Promise<StaffLicence[]> {
   return (await licencesByStaff(orgId, [staffProfileId])).get(staffProfileId) ?? [];
+}
+
+/* THE TERMS BEHIND ONE PERSON'S TICKETS, keyed by licence.
+
+   The wall reads the licence's cached columns; the modal reads these. Sorted
+   newest-expiry-first so "current" is the head of the list wherever it is
+   read, and one round trip for the whole wall rather than one per card.
+
+   SCOPED TO ONE PERSON, and deliberately not offered any wider. A licence
+   term is a record about one named individual, and there is no screen that
+   wants every term in the org.
+
+   TOLERANT OF ITS OWN MIGRATION, like the fleet's reminder read: a workspace
+   whose database has not taken staff_licence_records.sql gets an empty history
+   and a Compliance tab that still works, not a 500 on the staff card. */
+export async function listLicenceTerms(
+  orgId: string,
+  staffProfileId: string
+): Promise<Record<string, StaffLicenceRecord[]>> {
+  const { data, error } = await supabaseAdmin
+    .from("staff_licence_records")
+    .select(
+      "id, licence_id, issuer, number, classes, issuing_state, starts_on, expires_on" +
+        ", document_id, source, created_at"
+    )
+    .eq("org_id", orgId)
+    .eq("staff_profile_id", staffProfileId)
+    .order("expires_on", { ascending: false });
+  if (error) return {};
+
+  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
+
+  const out: Record<string, StaffLicenceRecord[]> = {};
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const expiresOn = String(r.expires_on ?? "").slice(0, 10);
+    if (!expiresOn) continue;
+    const licenceId = String(r.licence_id);
+    (out[licenceId] ??= []).push({
+      id: String(r.id),
+      licenceId,
+      issuer: str(r.issuer),
+      number: str(r.number),
+      classes: str(r.classes),
+      issuingState: str(r.issuing_state),
+      startsOn: r.starts_on ? String(r.starts_on).slice(0, 10) : null,
+      expiresOn,
+      documentId: str(r.document_id),
+      source: r.source === "scan" ? "scan" : r.source === "manual" ? "manual" : null,
+      createdAt: r.created_at ? String(r.created_at) : null,
+    });
+  }
+  return out;
+}
+
+/** The VIEWER's own open reminders about these licences — what the REMIND ME
+    chips read. Personal by construction (assigned_to is the viewer), so a
+    manager sees their own chips on a colleague's card and not that person's.
+    Tolerant of its own migration the same way. */
+export async function listLicenceReminders(
+  orgId: string,
+  viewerStaffId: string | null,
+  licenceIds: readonly string[]
+): Promise<Record<string, number[]>> {
+  if (!viewerStaffId || licenceIds.length === 0) return {};
+  const { data, error } = await supabaseAdmin
+    .from("tasks")
+    .select("staff_licence_id, lead_days")
+    .eq("org_id", orgId)
+    .eq("assigned_to", viewerStaffId)
+    .eq("status", "open")
+    .in("staff_licence_id", [...licenceIds]);
+  if (error) return {};
+
+  const out: Record<string, number[]> = {};
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const lead = Math.round(Number(r.lead_days));
+    if (!isReminderLead(lead)) continue;
+    (out[String(r.staff_licence_id)] ??= []).push(lead);
+  }
+  return out;
 }
 
 /** Emails live on `profiles` (written at login), keyed by Auth0 sub.

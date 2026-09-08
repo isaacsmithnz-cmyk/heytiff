@@ -49,6 +49,19 @@ import { Icon } from "@/components/shell/icon";
 import { orientationFromWalls } from "@/lib/studio/loads";
 import { lensRoom, roomAtPoint } from "@/lib/studio/coverage";
 import { setHintsOn, useHintsOn } from "./hints";
+import { setArmedInk } from "./note-ink";
+import {
+  calloutCloseAt,
+  calloutContent,
+  calloutLayout,
+  calloutOf,
+  defaultCalloutOffset,
+  hitCallout,
+  withCallout,
+  withoutCallout,
+  type CalloutLayout,
+  type CalloutPlacement,
+} from "@/lib/studio/callouts";
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
@@ -248,6 +261,12 @@ const CLOSE_SNAP_PX = 12; // screen px to close a polygon on its first vertex
 /** the margin text's size on SCREEN. Notes hold a constant screen size the way
     every other label on this canvas does; the world-space size is derived. */
 const NOTE_FONT_PX = 13;
+/* A callout's type, one step below a note's. Both hold a constant SCREEN size
+   on the canvas and the sheet's own size on paper, and the gap between them is
+   the hierarchy: a written instruction must not be quieter than machine data.
+   11 is the area line's size, which is what the rest of the derived text on a
+   plan already uses. */
+const CALLOUT_FONT_PX = 11;
 /** How close the pointer has to be to a note's grip, in screen px. Generous:
     on a one-line note the two grips sit about a line apart, and the nearest
     one wins, so a wide radius costs nothing and a narrow one costs the grip. */
@@ -559,6 +578,11 @@ type Drag =
       in the middle, and snapping the elbow to the grab point would jump the
       block out from under the pointer on the first pixel. */
   | { kind: "note-leader"; id: string; startWorld: Point; orig: Point }
+  /** sliding a unit's callout to where there is room for it. `orig` + the
+      travel, never the raw cursor, for the same reason `note-leader` does it:
+      you grab the bubble somewhere in the middle, and snapping its anchor to
+      the grab point would jump it out from under the pointer on pixel one. */
+  | { kind: "callout"; id: string; startWorld: Point; orig: CalloutPlacement }
   /** pulling the words' outer SIDE: the measure, in characters. The block
       reflows under the pointer and the type stays the size it was. */
   | { kind: "note-measure"; id: string }
@@ -763,6 +787,11 @@ export function StudioCanvas({
     | { id: string; wrap: number }
     | { id: string; textScale: number }
     | null
+  >(null);
+  /* a callout mid-drag — the placement the pointer is currently asking for,
+     never written to the document until the gesture ends */
+  const [liveCallout, setLiveCallout] = useState<
+    { id: string; at: CalloutPlacement } | null
   >(null);
   const [notePanel, setNotePanel] = useState<Size>({ w: 264, h: 172 });
   const measureNotePanel = useCallback((el: HTMLDivElement | null) => {
@@ -1094,6 +1123,17 @@ export function StudioCanvas({
     for (const n of notes) {
       pts.push(...n.geometry.points, noteLeader(n));
     }
+    /* A CALLOUT'S LEADER END COUNTS, for exactly the reason a note's does: it
+       is placed AWAY from the unit on purpose, so a fit that framed only the
+       plan would leave the label somebody moved somewhere legible off screen.
+       The bubble itself cannot go in — like the note's words it holds a
+       constant SCREEN size and so has no world extent until a zoom exists, and
+       the fit's own 60px margin is what carries it. */
+    for (const o of doc.objects) {
+      if (o.floorId !== floor.id || o.type !== "unit" || o.geometry.kind !== "point") continue;
+      const c = calloutOf(o);
+      if (c) pts.push({ x: o.geometry.at.x + c.x, y: o.geometry.at.y + c.y });
+    }
     for (const s of floor.plans) {
       const dims = sheetSize(s);
       if (dims) {
@@ -1111,7 +1151,7 @@ export function StudioCanvas({
       }
     }
     return pts;
-  }, [rooms, roomPoints, notes, floor.plans, sheetSize, sheetPos]);
+  }, [rooms, roomPoints, notes, doc.objects, floor.id, floor.plans, sheetSize, sheetPos]);
 
   const [vp, setVp] = useState<Viewport>(() =>
     defaultViewport(contentPoints(), size.w, size.h, grid, notes)
@@ -2466,6 +2506,43 @@ export function StudioCanvas({
             }
           }
         }
+        /* A CALLOUT BEATS EVERYTHING UNDER IT, including the unit it names.
+           It is drawn on top and it is text, so grabbing what you can see is
+           the only rule that reads honestly — and the unit is still reachable
+           by its own footprint, which the bubble never covers by default. It
+           loses to the rotate knob above, which belongs to the selected unit
+           and sits outside the footprint where a bubble might be dragged. */
+        /* the remove mark beats the bubble it sits on, the way a note's grips
+           beat the words they sit inside */
+        const cx = callouts.find(
+          (c) =>
+            c.placed &&
+            c.id === selectedId &&
+            dist(worldToScreen(calloutCloseAt(c.lay), vp), worldToScreen(w, vp)) <= 11
+        );
+        if (cx) {
+          onMutate((d) => ({
+            ...d,
+            objects: d.objects.map((o) => (o.id === cx.id ? withoutCallout(o) : o)),
+          }));
+          break;
+        }
+        const co = hitCalloutAt(w);
+        if (co) {
+          onSelect(co.id);
+          const u = units.find((x) => x.id === co.id)!;
+          const fp = footprint(
+            Number(u.props.widthMm ?? 800),
+            Number(u.props.depthMm ?? 300)
+          );
+          setDrag({
+            kind: "callout",
+            id: co.id,
+            startWorld: w,
+            orig: calloutOf(u) ?? defaultCalloutOffset(fp),
+          });
+          break;
+        }
         const sys = hitSystemObject(w);
         if (sys) {
           onSelect(sys.id);
@@ -2735,6 +2812,15 @@ export function StudioCanvas({
           },
         });
         break;
+      case "callout":
+        setLiveCallout({
+          id: drag.id,
+          at: {
+            x: drag.orig.x + (w.x - drag.startWorld.x),
+            y: drag.orig.y + (w.y - drag.startWorld.y),
+          },
+        });
+        break;
       /* both grips read off the note AS STORED, never off the live one: the
          block reflows as it is pulled, so measuring against what the last
          pointer event produced would chase its own tail */
@@ -2938,6 +3024,37 @@ export function StudioCanvas({
         }));
       }
       setLiveNote(null);
+    }
+    /* THE DRAG IS THE COMMIT. A callout appears on selection as a PREVIEW —
+       drawn, but nowhere in the document — and only a deliberate placement
+       writes it. That is what keeps this out of the orphan class the note tool
+       shipped with (#541): there, the object reached the document at the
+       leader click before its words existed, so anything that killed the
+       editor another way left a cloud pointing at nothing and it took a repair
+       pass on load to sweep them. Nothing here can be left behind, because
+       nothing is written until somebody moves it.
+
+       The did-anything-change test runs BEFORE onMutate, never inside the map:
+       onMutate lands an undo step whether or not the objects come back
+       different, so a bubble pressed and let go would otherwise cost a step. */
+    if (drag.kind === "callout" && liveCallout) {
+      const live = liveCallout;
+      /* A SLOP, IN SCREEN PX, and the same one every click-to-place tool uses.
+         A comparison against 0 is not enough here: the FIRST placement has no
+         stored value to differ from, so a press that rolled two pixels on a
+         trackpad would write a callout onto the document and cost an undo step
+         — which is exactly the bug TAP_SLOP_PX exists to stop, and why it was
+         raised from 4 to 10. */
+      const moved =
+        Math.abs(live.at.x - drag.orig.x) * vp.zoom > TAP_SLOP_PX ||
+        Math.abs(live.at.y - drag.orig.y) * vp.zoom > TAP_SLOP_PX;
+      if (moved) {
+        onMutate((d) => ({
+          ...d,
+          objects: d.objects.map((o) => (o.id === live.id ? withCallout(o, live.at) : o)),
+        }));
+      }
+      setLiveCallout(null);
     }
     if (drag.kind === "point" && livePoint) {
       const { id, at } = livePoint;
@@ -3236,6 +3353,91 @@ export function StudioCanvas({
       )} mm`,
     };
   }, [hoverUnitId, units, iduSpec, oduSpec, doc.objects, doc.systems, rooms, sysColour, pointAt]);
+
+  /* ── unit callouts ────────────────────────────────────────────────────
+     A unit's own name, said on the drawing at the end of a leader — the same
+     mechanic as a note's, because it is the same job. Geometry lives in
+     lib/studio/callouts.ts so the print figure lays one out through the very
+     same function; that single door is what stops paper drifting from screen.
+
+     The bubble holds a constant SCREEN size like the note's words do, so its
+     WORLD size depends on the zoom. Set below the note's 13 on purpose: a
+     written instruction must stay the loudest thing on a sheet, and this is
+     machine data. */
+  const calloutFontW = CALLOUT_FONT_PX / Math.max(vp.zoom, 1);
+
+  /** The room a unit serves, by name — the one thing the callout says that
+      has to be looked up rather than read straight off the object. Stamped
+      `roomId` first, else containment, exactly as the hover card resolves it. */
+  const servedRoomName = (
+    u: DesignObject & { geometry: { kind: "point"; at: Point } }
+  ) => {
+    const roomId = u.props.roomId
+      ? String(u.props.roomId)
+      : String(u.props.role ?? "idu") === "idu"
+        ? (roomAtPoint(doc.objects, u.floorId, pointAt(u))?.id ?? null)
+        : null;
+    return roomId
+      ? ((rooms.find((r) => r.id === roomId)?.props.name as string | undefined) ?? null)
+      : null;
+  };
+
+  /* Every callout on the plan right now, laid out. NOT a useMemo and not a
+     useCallback, deliberately: hand-memoising this made the React Compiler
+     report "Compilation Skipped: Existing memoization could not be preserved"
+     and drop the WHOLE canvas out of compilation — the same trap that keeps
+     `hitSystemObject` and `eraseAt` plain at the top of this file. Quiet lint
+     is not proof of compilation; the compiler memoises this for us.
+
+     A unit shows one when it
+     HAS one; the selected unit also shows a PREVIEW at the default offset, and
+     that preview is a read — nothing reaches the document until it is dragged.
+     That ordering is the whole reason a callout cannot be orphaned the way an
+     untyped note could (#541). */
+  const callouts = (() => {
+    const out: { id: string; lay: CalloutLayout; placed: boolean; colour: string }[] = [];
+    for (const u of units) {
+      const stored = calloutOf(u);
+      const at = pointAt(u);
+      const fp = footprint(
+        Number(u.props.widthMm ?? 800),
+        Number(u.props.depthMm ?? 300)
+      );
+      const offset =
+        liveCallout?.id === u.id
+          ? liveCallout.at
+          : (stored ?? (u.id === selectedId ? defaultCalloutOffset(fp) : null));
+      if (!offset) continue;
+      out.push({
+        id: u.id,
+        placed: stored !== null,
+        colour: sysColour.get(u.systemId ?? "") ?? "#888",
+        lay: calloutLayout({
+          at,
+          footprint: fp,
+          offset,
+          content: calloutContent(u, servedRoomName(u)),
+          fontSize: calloutFontW,
+          rotation: unitRotDeg(u),
+        }),
+      });
+    }
+    return out;
+  })();
+
+  /** The callout under a world point, topmost first. The BOX is the target and
+      the leader is not — a line that grabbed whatever it swept over would make
+      the plan underneath it unusable. */
+  /* A PLAIN CONST, not a useCallback — `hitSystemObject` and `eraseAt` above
+     are plain for the same reason: hand-memoising a hit test in this file is
+     what dropped the whole component out of the React Compiler once already,
+     and quiet lint is not proof of compilation. */
+  const hitCalloutAt = (w: Point) => {
+    for (let i = callouts.length - 1; i >= 0; i--) {
+      if (hitCallout(callouts[i].lay, w)) return callouts[i];
+    }
+    return null;
+  };
   const activeColour = sysColour.get(activeSystemId ?? "") ?? "#888";
   const calibScreenB = calib.b ? worldToScreen(calib.b, vp) : null;
 
@@ -3862,6 +4064,68 @@ export function StudioCanvas({
               </g>
             );
           })}
+
+          {/* ── unit callouts ──
+              A leader out of the unit and its name at the end of it, placed by
+              hand. The bubble a SELECTED unit shows before anyone has moved it
+              is a preview: it wears `.pre`, and nothing about it has reached
+              the document. Dragging it is what makes it part of the drawing.
+
+              Painted after the units so a callout is never buried under the
+              next unit along, and before the plenums for the same reason the
+              labels are — this is text, and text goes on top. */}
+          {layers.units &&
+            callouts.map((c) => (
+              <g
+                key={`co-${c.id}`}
+                className={`ds-callout${c.placed ? "" : " pre"}${
+                  c.id === selectedId ? " sel" : ""
+                }`}
+                style={{ color: c.colour }}
+              >
+                <line
+                  className="ds-callout-leader"
+                  x1={c.lay.start.x}
+                  y1={c.lay.start.y}
+                  x2={c.lay.end.x}
+                  y2={c.lay.end.y}
+                />
+                <rect
+                  className="ds-callout-box"
+                  x={c.lay.box.x}
+                  y={c.lay.box.y}
+                  width={c.lay.box.w}
+                  height={c.lay.box.h}
+                  rx={c.lay.fontSize * 0.4}
+                />
+                {c.lay.lines.map((line, i) => (
+                  <text
+                    key={i}
+                    className={`ds-callout-line${i === 0 ? " head" : ""}`}
+                    x={c.lay.textX}
+                    y={c.lay.firstBaseline + i * c.lay.lineH}
+                    fontSize={c.lay.fontSize}
+                    textAnchor={c.lay.anchor}
+                  >
+                    {line}
+                  </text>
+                ))}
+                {c.placed && c.id === selectedId && (() => {
+                  // the way back off the drawing, offered only while the unit
+                  // is selected — a close mark on every label would be chrome
+                  const x = calloutCloseAt(c.lay);
+                  const r = 7 / zoom;
+                  return (
+                    <g className="ds-callout-x">
+                      <circle cx={x.x} cy={x.y} r={r} />
+                      <path
+                        d={`M ${x.x - r * 0.4} ${x.y - r * 0.4} L ${x.x + r * 0.4} ${x.y + r * 0.4} M ${x.x + r * 0.4} ${x.y - r * 0.4} L ${x.x - r * 0.4} ${x.y + r * 0.4}`}
+                      />
+                    </g>
+                  );
+                })()}
+              </g>
+            ))}
 
           {/* plenums (Stage 7 Step 2) — anchored to their AHU end; position is
               derived from the unit each render, so moving the AHU carries
@@ -4577,7 +4841,16 @@ export function StudioCanvas({
                       style={{ background: ink.hex, color: ink.hex }}
                       title={ink.label}
                       aria-label={ink.label}
-                      onClick={() => setNoteInk(noteEdit.id, ink.hex)}
+                      onClick={() => {
+                        /* BOTH things: recolour this note, and arm the ink for
+                           the next one. Choosing a colour here is the natural
+                           way to do it — the note is open and the swatches are
+                           in front of you — and it was the one door that told
+                           the bench nothing, so every following note came out
+                           graphite again. See note-ink.ts. */
+                        setNoteInk(noteEdit.id, ink.hex);
+                        setArmedInk(ink.hex);
+                      }}
                     />
                   );
                 })}

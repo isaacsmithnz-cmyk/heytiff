@@ -10,6 +10,7 @@
 
 import { render, fireEvent, screen } from "@testing-library/react";
 import { StudioCanvas, type CanvasTool } from "../canvas";
+import { setArmedInk } from "../note-ink";
 import { createDesign, type DesignDocument, type Floor } from "@/lib/studio/document";
 import {
   createNote,
@@ -430,6 +431,43 @@ describe("choosing the ink", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Wine" }));
     expect(noteInkOf(v.notes[0])).toBe("#9D174D");
     expect(screen.getByRole("radio", { name: "Wine" })).toBeChecked();
+  });
+
+  /* ISAAC'S ASK, AND THE HOLE IT NAMED. "If you want to have three purple
+     notes in a row, you don't have to keep clicking IN to change the colour
+     back." Clicking IN is this swatch row — the natural place to choose, since
+     the note is open and the colours are right there — and it was the one door
+     that recoloured the note and told the bench nothing, so the next note came
+     out graphite again. */
+  it("arms the picked ink for the NEXT note, not just this one", () => {
+    localStorage.clear();
+    const v = renderCanvas();
+    make(v);
+
+    fireEvent.click(screen.getByRole("radio", { name: "Plum" }));
+
+    expect(noteInkOf(v.notes[0])).toBe("#6B21A8"); // this note
+    expect(localStorage.getItem("ht-note-ink")).toBe("#6B21A8"); // and the next
+  });
+
+  /* A DRAWN note is a record: it keeps whatever hex it was given, which is why
+     noteInkOf validates well-formedness and not palette membership. Arming an
+     ink can never reach back and re-tint work that already exists. */
+  it("arming an ink does not re-tint a note already on the plan", () => {
+    localStorage.clear();
+    const v = renderCanvas({ armedInk: "#14532D" });
+    make(v);
+    // words, or the empty-note sweep takes it back off on Done
+    fireEvent.change(screen.getByLabelText("Note text"), {
+      target: { value: "Existing unit stays" },
+    });
+    fireEvent.click(screen.getByText("Done"));
+    const drawn = noteInkOf(v.notes[0]);
+
+    setArmedInk("#9D174D");
+
+    expect(noteInkOf(v.notes[0])).toBe(drawn);
+    expect(drawn).toBe("#14532D");
   });
 
   /* recolouring must not eat the words somebody has already typed */

@@ -70,6 +70,25 @@ function hash64(s: string): string {
   return `${a.toString(36)}${b.toString(36)}`;
 }
 
+/* The keys on an object that are MARKUP — drawn for the person reading the
+   sheet, invisible to the model. Stripped before hashing for exactly the
+   reason a note is dropped whole: nothing here can make a simulation wrong,
+   and a tick that fell over because somebody dragged a label somewhere legible
+   would be a false alarm teaching people to ignore the real ones.
+
+   Named ONE KEY AT A TIME, never a prefix or a pattern. This list is the only
+   thing standing between the fingerprint and a prop that genuinely does change
+   how a room behaves, so a new key has to be added here deliberately — a rule
+   like "anything starting with ui" would quietly swallow the next one. */
+const MARKUP_PROPS = ["callout"] as const;
+
+function withoutMarkup(props: Record<string, unknown>): Record<string, unknown> {
+  if (!MARKUP_PROPS.some((k) => k in props)) return props;
+  const out = { ...props };
+  for (const k of MARKUP_PROPS) delete out[k];
+  return out;
+}
+
 /** The design as the simulation sees it — stable across re-saves, different
     after any edit that could change how a room behaves. */
 export function designFingerprint(doc: DesignDocument): string {
@@ -99,12 +118,19 @@ export function designFingerprint(doc: DesignDocument): string {
         brand: s.brand,
         settings: s.settings,
       })),
-      /* Markup is the ONE exclusion, and it earns it by definition: a note is
-         words in the margin, read by people and by nothing else. Nothing in
-         the model can see it, so no note can make a run simulation wrong —
-         and a tick that fell over because somebody wrote "check bulkhead
-         depth on site" would be a false alarm teaching people to ignore the
-         real ones. Every other object still counts, notes.ts or no. */
+      /* MARKUP IS THE ONLY EXCLUSION, and it earns it by definition: it is
+         drawn for the person reading the sheet and read by nothing in the
+         model, so none of it can make a run simulation wrong — while a tick
+         that fell over because somebody wrote "check bulkhead depth on site",
+         or dragged a unit's label somewhere legible, would be a false alarm
+         teaching people to ignore the real ones.
+
+         It comes in two shapes. A NOTE is markup all the way down and drops
+         out whole. A UNIT CALLOUT is markup living on an object that is not —
+         where the label sits is a drawing decision, while everything else
+         about that unit is load-bearing — so the object stays and only the
+         markup KEYS come off (see MARKUP_PROPS). Every other object, and every
+         other prop, still counts. */
       objects: doc.objects.filter((o) => !isNote(o)).map((o) => ({
         id: o.id,
         type: o.type,
@@ -112,7 +138,7 @@ export function designFingerprint(doc: DesignDocument): string {
         floorId: o.floorId,
         plane: o.plane,
         geometry: o.geometry,
-        props: o.props,
+        props: withoutMarkup(o.props),
       })),
     })
   );

@@ -355,6 +355,70 @@ export function fitBounds(
   };
 }
 
+/** How much of the drawing must stay on screen, in screen px. Generous enough
+    to be a landmark rather than a sliver you could mistake for a stray line. */
+export const PAN_KEEP_PX = 96;
+
+/**
+ * Hold the view where the drawing can still be seen.
+ *
+ * Zoom has had a floor since the beginning — you cannot zoom out past roughly
+ * fit, so the drawing never shrinks into a speck. Pan never got the matching
+ * rule, so the view could be dragged into empty grid indefinitely and Fit was
+ * the only way home. This is that missing half.
+ *
+ * The rule is an OVERLAP, not a distance: a strip of the content's bounding
+ * box at least `keepPx` wide has to remain inside the viewport. Stated that
+ * way it holds at every zoom, which a cap measured in plan-widths cannot — two
+ * plan-widths is a fraction of the screen at 12× and many screens at 0.1×, so
+ * it would clamp hard while you work on detail and not at all while you travel.
+ *
+ * Two degenerate cases fall out of the same arithmetic rather than needing
+ * their own branches:
+ *
+ *   · **Nothing drawn yet.** A blank floor has no bounds, so callers pass a
+ *     zero-size box at the world origin. Required overlap collapses to zero
+ *     and the rule becomes "the origin stays touching the viewport" — you
+ *     cannot get lost on a blank grid either.
+ *   · **Content smaller than the strip.** A single small room can't provide a
+ *     96px overlap at low zoom, so the requirement is capped at the content's
+ *     own size (and at half a viewport, which keeps the interval non-empty on
+ *     a canvas smaller than the strip itself).
+ *
+ * Content bounds are the caller's business, and they must be a SUPERSET of
+ * whatever `fit` frames — otherwise Fit could land the view somewhere this
+ * function immediately drags it away from. They must also include anything
+ * deliberately drawn outside the plan: a note lives in the margin on purpose,
+ * and clamping to the plan alone would make its own words unreachable.
+ */
+export function clampViewport(
+  vp: Viewport,
+  bounds: Bounds,
+  width: number,
+  height: number,
+  keepPx: number = PAN_KEEP_PX
+): Viewport {
+  const axis = (
+    lo: number,
+    hi: number,
+    span: number,
+    origin: number
+  ): number => {
+    const content = Math.max(0, hi - lo);
+    /* the strip is a SCREEN measure, so it is worth less world the further in
+       you are — which is what makes one constant serve every zoom */
+    const need = Math.min(keepPx / vp.zoom, content, span / 2);
+    return clamp(origin, lo - (span - need), hi - need);
+  };
+  const w = width / vp.zoom;
+  const h = height / vp.zoom;
+  return {
+    zoom: vp.zoom,
+    x: axis(bounds.minX, bounds.maxX, w, vp.x),
+    y: axis(bounds.minY, bounds.maxY, h, vp.y),
+  };
+}
+
 /* ── Real-world conversion (everything traces back to calibration) ── */
 
 /** Two calibration points + the real distance between them → mm per unit. */

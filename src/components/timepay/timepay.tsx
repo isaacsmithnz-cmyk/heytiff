@@ -8,6 +8,7 @@ import {
   type StaffStatus,
   type StaffWeek,
   type WeekCtx,
+  DAY_WORD,
   cycleNoun,
   dayClass,
   derive,
@@ -125,7 +126,10 @@ function PerDay({ s, ctx }: { s: StaffWeek; ctx: WeekCtx }) {
           : day.t === "sick"
             ? "Sick leave"
             : day.t === "off"
-              ? "Not worked"
+              /* DAY_WORD, not a literal. This is the approver's copy of a word
+                 the person's own screen also prints, and a literal here is how
+                 one state came to have four names. */
+              ? DAY_WORD.off
               : "Public holiday";
     return (
       <div className={`drow${day.t === "off" ? " off" : ""}`} key={i}>

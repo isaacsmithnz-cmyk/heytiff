@@ -214,7 +214,13 @@ export const DAY_WORD: Record<DayClass, string> = {
   leave: "Leave",
   sick: "Sick",
   ph: "Public holiday",
-  off: "Not worked",
+  /* "Off" — one word for the state, and the one the DATA already uses
+     (`DayEntry.t === "off"`). It was tried on this screen once and dropped as
+     the FOURTH name for it, which was a consistency problem rather than a
+     problem with the word; everything now reads DAY_WORD, so there is only
+     ever one. Unlike "Absent" it is also true of a Saturday nobody expected
+     you on. */
+  off: "Off",
   miss: "Missing",
   empty: "No entry",
 };
@@ -675,7 +681,7 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
       }
     } else if (d.t === "sick") {
       /* THE BOOKING IS NOT WHAT IS BEING REVIEWED. A timesheet cannot declare
-         leave — `KINDS` on my-timesheet offers "Worked" and "Not worked" and
+         leave — `KINDS` on my-timesheet offers "Worked" and "Off" and
          nothing more — so every leave and sick day on a sheet arrived from a
          request the leave module already approved. Asking this screen to
          "check it was requested" was a second approval of that decision, on

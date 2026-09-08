@@ -257,32 +257,51 @@ export async function recordCredentialTerm(
   return { ok: true };
 }
 
-/** Filing another document under a term after the fact — the certificate that
-    turned up a week after the renewal notice. */
-export async function attachCredentialDocument(
-  recordId: string,
+/* FILING A DOCUMENT AGAINST A CARD: under a TERM when there is one — the
+   certificate that turned up a week after the renewal notice — and against the
+   card itself when there is not.
+
+   THE TERM IS OPTIONAL BECAUSE A CARD NEED NOT HAVE ONE. A term is a period
+   and `expires_on` is NOT NULL, so a licence with no renewal date can hold no
+   term at all, and while this took only a record id that was the one kind of
+   card whose certificate had nowhere to go. `org_credential_id` is the OWNER
+   and `credential_record_id` the FILING; the second has always been allowed to
+   be null, and looseDocuments already renders exactly those rows.
+
+   Adoption is the same contract either way: only the uploader's own,
+   confirmed, still-unowned file OF THE RIGHT KIND may land. The kind check is
+   what stops a staff licence scan being filed as the company's. */
+export async function fileCredentialDocument(
+  credentialId: string,
+  /** null files it against the card itself. */
+  recordId: string | null,
   documentId: string,
 ): Promise<CredResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
   if (!ctx.staffId) return { ok: false, error: "Only a staff member can file documents." };
 
-  const { data: record } = await supabaseAdmin
-    .from(RECORDS)
-    .select("id, credential_id")
-    .eq("org_id", ctx.orgId)
-    .eq("id", recordId)
-    .maybeSingle();
-  if (!record) return { ok: false, error: "That term is no longer on file." };
-
-  const credentialId = String(record.credential_id);
   const { data: cred } = await supabaseAdmin
     .from(TABLE)
-    .select("kind")
+    .select("id, kind")
     .eq("org_id", ctx.orgId)
     .eq("id", credentialId)
     .maybeSingle();
   if (!cred || !isCredKind(cred.kind)) return { ok: false, error: "That card is no longer on file." };
+
+  /* A term is checked against THIS card and not merely against the org: a
+     certificate filed under another card's term would sit in a history it does
+     not belong to, and the record id comes from a client. */
+  if (recordId) {
+    const { data: record } = await supabaseAdmin
+      .from(RECORDS)
+      .select("id")
+      .eq("org_id", ctx.orgId)
+      .eq("credential_id", credentialId)
+      .eq("id", recordId)
+      .maybeSingle();
+    if (!record) return { ok: false, error: "That term is no longer on file." };
+  }
 
   const { data } = await supabaseAdmin
     .from("documents")

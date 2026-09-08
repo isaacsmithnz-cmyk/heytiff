@@ -123,7 +123,7 @@ jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
 import {
   addOrgCredential,
-  attachCredentialDocument,
+  fileCredentialDocument,
   recordCredentialTerm,
   removeCredentialTerm,
   removeOrgCredential,
@@ -430,25 +430,63 @@ describe("removeCredentialTerm", () => {
   });
 });
 
-describe("attachCredentialDocument", () => {
+/* FILING A DOCUMENT, with a term and without one.
+
+   THE SECOND CASE IS WHY THIS TAKES A CREDENTIAL ID AT ALL. A term is a period
+   and expires_on is NOT NULL, so a licence with no renewal date on it can hold
+   no term. While this took only a record id, that card could never have a
+   certificate filed against it at all: the only "Add document" on the screen
+   lived inside the current term's card. */
+describe("fileCredentialDocument", () => {
   beforeEach(() => {
     tables.org_credentials = [CARD];
     tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-1" }];
   });
 
   it("files a document under a term, on the kind the card is", async () => {
-    expect(await attachCredentialDocument("R1", "doc-9")).toEqual({ ok: true });
+    expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({ ok: true });
     const write = only("update", "documents");
     expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: "R1" });
     expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
   });
 
-  it("refuses a term that isn't in the caller's org", async () => {
+  /* A CARD WITH NO EXPIRY. It owns the document; nothing owns the filing,
+     which is exactly the row looseDocuments reads back. */
+  it("files it against the CARD ITSELF when the card has no term", async () => {
     tables.org_credential_records = [];
-    expect(await attachCredentialDocument("R1", "doc-9")).toEqual({
+    expect(await fileCredentialDocument("cred-1", null, "doc-9")).toEqual({ ok: true });
+    const write = only("update", "documents");
+    expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: null });
+    expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
+  });
+
+  it("refuses a card that isn't in the caller's org, term or no term", async () => {
+    tables.org_credentials = [];
+    for (const record of ["R1", null]) {
+      writes = [];
+      expect(await fileCredentialDocument("cred-1", record, "doc-9")).toEqual({
+        ok: false,
+        error: "That card is no longer on file.",
+      });
+      expect(writes).toHaveLength(0);
+    }
+  });
+
+  /* The record id comes from a client, so it is checked against THIS card and
+     not merely against the org — a certificate filed under another card's term
+     would sit in a history it does not belong to. */
+  it("refuses a term that belongs to a different card", async () => {
+    tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-other" }];
+    expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({
       ok: false,
       error: "That term is no longer on file.",
     });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("is owner-only, like every other write on this screen", async () => {
+    dbRole = "admin";
+    expect(await fileCredentialDocument("cred-1", null, "doc-9")).toEqual({ ok: false, error: NOT_OWNER });
     expect(writes).toHaveLength(0);
   });
 });

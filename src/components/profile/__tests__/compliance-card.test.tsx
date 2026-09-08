@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { StoredDocument } from "@/lib/documents/query";
 import type { StaffLicence } from "@/lib/staff/types";
 import type { StaffLicenceRecord } from "@/lib/staff/licence-records";
 
@@ -71,7 +72,11 @@ const term = (over: Partial<StaffLicenceRecord> = {}): StaffLicenceRecord => ({
 });
 
 function setup(
-  over: { licences?: StaffLicence[]; records?: Record<string, StaffLicenceRecord[]> } = {}
+  over: {
+    licences?: StaffLicence[];
+    records?: Record<string, StaffLicenceRecord[]>;
+    documents?: Record<string, StoredDocument[]>;
+  } = {}
 ) {
   const actions = {
     onAdd: jest.fn().mockResolvedValue({ ok: true }),
@@ -87,6 +92,7 @@ function setup(
       licences={over.licences ?? LICENCES}
       staffId="S1"
       records={over.records ?? {}}
+      documents={over.documents ?? {}}
       today={TODAY}
       {...actions}
     />
@@ -362,5 +368,106 @@ describe("adding one", () => {
 
     expect(await screen.findByText("Couldn't add that licence.")).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+/* A TICKET THAT CAN NEVER HOLD A TERM STILL HAS TO KEEP ITS PHOTO.
+
+   A term is a PERIOD and expires_on is NOT NULL, so a white card — one of the
+   four seeded types, and a ticket that genuinely never lapses — can hold no
+   term at all. The screen shipped with its only "Add document" inside the
+   CURRENT TERM card, so the one kind of ticket whose entire content is a photo
+   had nowhere to put it. Everything below fails on that screen. */
+describe("filing a document against a ticket with no expiry", () => {
+  const doc = (over: Partial<StoredDocument> = {}): StoredDocument => ({
+    id: "doc-9",
+    kind: "licence",
+    fileName: "white-card.jpg",
+    mimeType: "image/jpeg",
+    sizeBytes: 1024,
+    uploadedById: "S1",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    url: "https://signed.example/white-card.jpg",
+    image: true,
+    policyId: null,
+    financeId: null,
+    credentialRecordId: null,
+    licenceRecordId: null,
+    ...over,
+  });
+
+  const file = () => new File(["x"], "white-card.jpg", { type: "image/jpeg" });
+
+  beforeEach(() => uploadFile.mockReset());
+
+  it("offers the door on the ticket itself, where the term card would be", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+
+    expect(within(dialog).queryByText("CURRENT TERM")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("DOCUMENTS")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Add document")).toBeInTheDocument();
+  });
+
+  /* The ticket OWNS it; nothing owns the filing. That null is the whole fix —
+     documents.licence_record_id has always been allowed to be one, and
+     looseTermDocuments already reads exactly those rows back. */
+  it("files the upload against the TICKET, under no term", async () => {
+    const user = userEvent.setup();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
+    const { onAttachDoc } = setup();
+
+    await openCard(user, "White card");
+    await user.upload(within(screen.getByRole("dialog")).getByLabelText("Add document"), file());
+
+    expect(uploadFile).toHaveBeenCalledWith(expect.any(File), "licence");
+    expect(onAttachDoc).toHaveBeenCalledWith("L2", null, "doc-9");
+  });
+
+  it("lists what has been filed against it", async () => {
+    const user = userEvent.setup();
+    setup({ documents: { L2: [doc()] } });
+    await openCard(user, "White card");
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/white-card\.jpg/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/No photo or scan filed/)).not.toBeInTheDocument();
+  });
+
+  it("says plainly when nothing has been filed yet", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "White card");
+    expect(
+      within(screen.getByRole("dialog")).getByText("No photo or scan filed against this ticket yet.")
+    ).toBeInTheDocument();
+  });
+
+  it("files nothing when the upload itself refuses", async () => {
+    const user = userEvent.setup();
+    uploadFile.mockResolvedValue({ ok: false, error: "That upload didn't finish." });
+    const { onAttachDoc } = setup();
+
+    await openCard(user, "White card");
+    await user.upload(within(screen.getByRole("dialog")).getByLabelText("Add document"), file());
+    expect(onAttachDoc).not.toHaveBeenCalled();
+  });
+
+  /* And the term's own door is untouched: ONE "Add document" on a screen that
+     has a term, and it names that term. Two would be a question the person
+     shouldn't have to answer. */
+  it("still files under the term in force, when there is one", async () => {
+    const user = userEvent.setup();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-9" } });
+    const { onAttachDoc } = setup({ records: { L1: [term()] } });
+
+    await openCard(user, "ARC licence");
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getAllByLabelText("Add document")).toHaveLength(1);
+
+    await user.upload(within(dialog).getByLabelText("Add document"), file());
+    expect(onAttachDoc).toHaveBeenCalledWith("L1", "T1", "doc-9");
   });
 });

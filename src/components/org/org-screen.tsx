@@ -740,7 +740,11 @@ function CredentialsSection({
           onRecord={(input) =>
             editing ? actions.onRecordTerm(editing.id, input) : Promise.resolve({ ok: true as const })
           }
-          onAttach={actions.onAttachCredentialDoc}
+          onAttach={(recordId, documentId) =>
+            editing
+              ? actions.onAttachCredentialDoc(editing.id, recordId, documentId)
+              : Promise.resolve({ ok: true as const })
+          }
           onRemoveTerm={actions.onRemoveTerm}
           onRemind={(lead, on) =>
             editing

@@ -19,7 +19,7 @@ import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
-  attachTermDocument,
+  fileLicenceDocument,
   recordTerm,
   removeTerm,
   seedFirstTerm,
@@ -311,16 +311,26 @@ export async function recordStaffLicenceTerm(
   return res;
 }
 
+/** A null term files it against the ticket itself — a white card holds no term
+    to file under, and its photo is the only thing it will ever carry. */
 export async function attachStaffLicenceDocument(
   staffId: string,
-  termId: string,
+  licenceId: string,
+  termId: string | null,
   documentId: string,
 ): Promise<SaveResult> {
   const ctx = await context();
   if (!ctx) throw new Error("Not authenticated");
   if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
 
-  const res = await attachTermDocument(ctx.orgId, staffId, await actorStaffId(ctx), termId, documentId);
+  const res = await fileLicenceDocument(
+    ctx.orgId,
+    staffId,
+    await actorStaffId(ctx),
+    licenceId,
+    termId,
+    documentId,
+  );
   if (res.ok) revalidateStaff(staffId);
   return res;
 }

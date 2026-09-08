@@ -69,7 +69,8 @@ export function CredentialModal({
   onSaveIdentity: (input: OrgCredentialInput) => Promise<CredResult>;
   onDelete: () => Promise<CredResult>;
   onRecord: (input: CredentialRecordInput) => Promise<CredResult>;
-  onAttach: (recordId: string, documentId: string) => Promise<CredResult>;
+  /** Files a document against the card; a null term means the card itself. */
+  onAttach: (recordId: string | null, documentId: string) => Promise<CredResult>;
   onRemoveTerm: (recordId: string) => Promise<CredResult>;
   onRemind: (leadDays: number, on: boolean) => Promise<CredResult>;
   onClose: () => void;

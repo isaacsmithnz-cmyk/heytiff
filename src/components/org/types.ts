@@ -33,7 +33,12 @@ export type OrgActions = {
   /** Files the next term. The card's expiry follows it; nothing is overwritten. */
   onRecordTerm: (credentialId: string, input: CredentialRecordInput) => Promise<CredResult>;
   /** Files another document under a term after the fact. */
-  onAttachCredentialDoc: (recordId: string, documentId: string) => Promise<CredResult>;
+  /** Files a document against the card; a null term means the card itself. */
+  onAttachCredentialDoc: (
+    credentialId: string,
+    recordId: string | null,
+    documentId: string,
+  ) => Promise<CredResult>;
   /** Removes one term — a scan filed against the wrong card. */
   onRemoveTerm: (recordId: string) => Promise<CredResult>;
   /** The viewer's own reminder for this card, `lead` days before the expiry. */

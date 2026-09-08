@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { readStaffLicenceDocument, type ReadLicenceResult } from "@/app/actions/staff-licence-ai";
 import type { StoredDocument } from "@/lib/documents/query";
-import { uploadFile } from "@/lib/documents/upload-client";
 import { fmtDay } from "@/lib/format/day";
 import { REMINDER_LEADS, leadLabel } from "@/lib/fleet/reminders";
-import { Btn, Card, DetailGrid, Eyebrow, Inline, type DetailItem } from "@/components/record-modal/parts";
+import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
+import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 import type { StaffLicence } from "@/lib/staff/types";
@@ -66,7 +66,8 @@ export function RecordScreen({
   pending: boolean;
   error: string | null;
   onRecord: (input: LicenceTermInput) => void;
-  onAttach: (termId: string, documentId: string) => void;
+  /** Files a document against the ticket; a null term means the card itself. */
+  onAttach: (termId: string | null, documentId: string) => void;
   onRemoveTerm: (termId: string) => void;
   onRemind: (leadDays: number, on: boolean) => void;
   onEdit: () => void;
@@ -89,7 +90,6 @@ export function RecordScreen({
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [armedTerm, setArmedTerm] = useState<string | null>(null);
-  const attachInput = useRef<HTMLInputElement>(null);
 
   const showFields = mode === "scanned" || mode === "manual";
   const canSave = term.expiresOn.trim().length > 0 && !pending;
@@ -152,21 +152,7 @@ export function RecordScreen({
             <DetailGrid items={facts} />
             <div className="vm-divider">
               <Eyebrow>DOCUMENTS</Eyebrow>
-              <Inline onClick={() => attachInput.current?.click()}>Add document</Inline>
-              <input
-                ref={attachInput}
-                type="file"
-                accept="image/*,application/pdf"
-                aria-label="Add document"
-                hidden
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file) return;
-                  const up = await uploadFile(file, LICENCE_DOC_KIND).catch(() => null);
-                  if (up?.ok) onAttach(current.id, up.file.documentId);
-                }}
-              />
+              <AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(current.id, id)} />
             </div>
             <DocRows
               docs={currentDocs}
@@ -176,6 +162,32 @@ export function RecordScreen({
                 if (id) setOpenHist(null);
               }}
               emptyText="No photo or scan filed under this term yet."
+            />
+          </Card>
+        )}
+
+        {/* THE TICKET'S OWN PAPERWORK, when it has no term to file it under.
+
+            A term is a PERIOD and expires_on is NOT NULL, so a ticket that
+            never lapses — a white card, one of the four seeded types — can
+            hold no term at all. Its photo is the only content it will ever
+            have, and until this card existed there was nowhere to put it: the
+            one "Add document" on the screen lived inside the current term's.
+
+            It takes the current term's slot because it is what the screen has
+            instead of one, and because a person who has just found Save
+            disabled for want of an expiry has to be able to SEE it. */}
+        {!current && (
+          <Card>
+            <div className="vm-cardhead">
+              <Eyebrow>DOCUMENTS</Eyebrow>
+              <AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(null, id)} />
+            </div>
+            <DocRows
+              docs={loose}
+              openId={openDoc}
+              onOpen={setOpenDoc}
+              emptyText="No photo or scan filed against this ticket yet."
             />
           </Card>
         )}
@@ -295,9 +307,11 @@ export function RecordScreen({
         </Card>
 
         {/* Paperwork the ticket owns that sits under no term — filed before the
-            first renewal was recorded. Invisible otherwise, which is the one
-            thing a document store must never be. */}
-        {loose.length > 0 && (
+            first renewal was recorded, or against the card itself. Invisible
+            otherwise, which is the one thing a document store must never be.
+            Only when there IS a term: with none, the DOCUMENTS card above is
+            already showing every one of these, and this would repeat it. */}
+        {current && loose.length > 0 && (
           <Card>
             <div className="vm-cardhead">
               <Eyebrow>OTHER DOCUMENTS</Eyebrow>

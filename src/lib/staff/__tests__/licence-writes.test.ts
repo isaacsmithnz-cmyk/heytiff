@@ -106,7 +106,7 @@ jest.mock("@/lib/workboard/query", () => ({
   getSm8Timezone: () => Promise.resolve("Australia/Sydney"),
 }));
 
-import { attachTermDocument, recordTerm, removeTerm, setLicenceReminder } from "../licence-writes";
+import { fileLicenceDocument, recordTerm, removeTerm, setLicenceReminder } from "../licence-writes";
 
 const ORG = "org-1";
 const STAFF = "staff-bob";
@@ -270,7 +270,14 @@ describe("removeTerm", () => {
   });
 });
 
-describe("attachTermDocument", () => {
+/* FILING A DOCUMENT, with a term and without one.
+
+   THE SECOND CASE IS WHY THIS TAKES A LICENCE ID AT ALL. A term is a period
+   and expires_on is NOT NULL, so a ticket that never lapses — a white card,
+   one of the four seeded types — can hold no term. While this took only a term
+   id, that ticket could never have a document filed against it at all: the
+   only "Add document" on the screen lived inside the current term's card. */
+describe("fileLicenceDocument", () => {
   beforeEach(() => {
     tables.staff_licence_records = [
       { id: "T1", org_id: ORG, licence_id: LIC, staff_profile_id: STAFF, expires_on: "2026-08-07" },
@@ -279,18 +286,53 @@ describe("attachTermDocument", () => {
   });
 
   it("files a document under a term, on the kind a licence scan is", async () => {
-    expect(await attachTermDocument(ORG, STAFF, ME, "T1", "doc-9")).toEqual({ ok: true });
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, "T1", "doc-9")).toEqual({ ok: true });
     const write = only("update", "documents");
     expect(write.payload).toEqual({ staff_licence_id: LIC, licence_record_id: "T1" });
     expect(write.eq).toEqual(expect.arrayContaining([["kind", "licence"]]));
   });
 
-  it("refuses a term that is not that person's", async () => {
-    expect(await attachTermDocument(ORG, "staff-someone-else", ME, "T1", "doc-9")).toEqual({
+  /* A WHITE CARD. It owns the document; nothing owns the filing, which is
+     exactly the row looseTermDocuments reads back. */
+  it("files it against the TICKET ITSELF when the ticket has no term", async () => {
+    tables.staff_licence_records = [];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, null, "doc-9")).toEqual({ ok: true });
+    const write = only("update", "documents");
+    expect(write.payload).toEqual({ staff_licence_id: LIC, licence_record_id: null });
+    expect(write.eq).toEqual(expect.arrayContaining([["kind", "licence"]]));
+  });
+
+  it("refuses a licence that is not that person's, term or no term", async () => {
+    for (const term of ["T1", null]) {
+      writes = [];
+      expect(await fileLicenceDocument(ORG, "staff-someone-else", ME, LIC, term, "doc-9")).toEqual({
+        ok: false,
+        error: "That licence is no longer on file.",
+      });
+      expect(writes).toHaveLength(0);
+    }
+  });
+
+  /* The term id comes from a client, so it is checked against THIS licence and
+     not merely against the org — a document filed under another ticket's term
+     would sit in a history it does not belong to. */
+  it("refuses a term that belongs to a different ticket", async () => {
+    tables.staff_licence_records = [
+      { id: "T1", org_id: ORG, licence_id: "lic-other", staff_profile_id: STAFF, expires_on: "2026-08-07" },
+    ];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, "T1", "doc-9")).toEqual({
       ok: false,
       error: "That term is no longer on file.",
     });
     expect(writes).toHaveLength(0);
+  });
+
+  it("refuses a document that is not the uploader's own to give away", async () => {
+    tables.documents = [{ id: "doc-9", org_id: ORG, uploaded_by: "staff-someone-else", kind: "licence" }];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, null, "doc-9")).toEqual({
+      ok: false,
+      error: "That document couldn't be filed.",
+    });
   });
 });
 

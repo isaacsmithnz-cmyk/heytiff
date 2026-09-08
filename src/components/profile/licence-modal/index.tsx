@@ -64,7 +64,8 @@ export function LicenceModal({
   onSaveIdentity: (input: LicenceInput) => Promise<SaveResult>;
   onDelete: () => Promise<SaveResult>;
   onRecord: (input: LicenceTermInput) => Promise<SaveResult>;
-  onAttach: (termId: string, documentId: string) => Promise<SaveResult>;
+  /** Files a document against the ticket; a null term means the card itself. */
+  onAttach: (termId: string | null, documentId: string) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
   onRemind: (leadDays: number, on: boolean) => Promise<SaveResult>;
   onClose: () => void;

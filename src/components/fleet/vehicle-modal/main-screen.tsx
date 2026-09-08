@@ -40,7 +40,7 @@ import {
   type HistoryTab,
   type Screen,
 } from "./derive";
-import { Btn, Card, DetailGrid, Eyebrow, IconBtn, Inline, Segmented } from "./parts";
+import { Btn, Card, DetailGrid, Eyebrow, IconBtn, Inline, Segmented } from "@/components/record-modal/parts";
 
 /* The main screen: everything about one vehicle at a glance, and a door into
    each of its records.

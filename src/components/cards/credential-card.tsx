@@ -20,6 +20,7 @@ export function CredentialCard({
   expiry,
   status,
   badge,
+  note,
   onOpen,
   onRemove,
   removing,
@@ -33,6 +34,10 @@ export function CredentialCard({
   status: LicenceStatus;
   /** overrides the derived stamp — org credentials carry their own registry */
   badge?: CredBadge;
+  /** A quiet line under the issuer — "3 terms on file". The organisation's
+      cards carry a renewal history and the count is what makes it visible from
+      the outside; a staff ticket has none and passes nothing. */
+  note?: string;
   /** makes the whole card a button (edit-in-place); mutually exclusive with onRemove */
   onOpen?: () => void;
   onRemove?: () => void;
@@ -65,6 +70,7 @@ export function CredentialCard({
         {licenceNumber ? `No. ${licenceNumber}` : "No. —"}
       </div>
       {issuer ? <div className="cred-issuer">{issuer}</div> : null}
+      {note ? <div className="cred-note">{note}</div> : null}
       <div className="cred-foot">
         <span className="cred-exp">{expiry ? `Expires ${expiry}` : "No expiry date"}</span>
         <span className={`lstat ${status.tone}`}>{status.label}</span>

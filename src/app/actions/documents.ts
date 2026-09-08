@@ -81,7 +81,12 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
     kind === "medical_certificate"
   )
     return true;
-  if (kind === "org_logo") return hasMinRole(await getDbRole(), "owner");
+  // The company's own papers ride with the company's own settings: the same
+  // owner gate actions/org-credentials.ts carries. A delegated admin manages
+  // people, not what the business is licensed and insured to do.
+  if (kind === "org_logo" || kind === "org_licence" || kind === "org_insurance") {
+    return hasMinRole(await getDbRole(), "owner");
+  }
   // A vehicle's purchase paperwork is register knowledge — the same tier that
   // may enter the purchase price it substantiates.
   if (

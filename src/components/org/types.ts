@@ -1,4 +1,5 @@
 import type { OrgCredentialInput } from "@/lib/org/credentials";
+import type { CredentialRecordInput } from "@/lib/org/credential-records";
 
 /* Prop shapes for the Organisation screen, in their own module so the server
    page can import them without pulling a "use client" component into its graph
@@ -23,9 +24,20 @@ export type CompanySetupActions = {
 /** Every write the screen can make, already bound by the page. */
 export type OrgActions = {
   onSave: (section: string, fields: Record<string, string>) => Promise<SaveResult>;
-  onAddCredential: (input: OrgCredentialInput) => Promise<CredResult>;
+  /* A card can be born with its first TERM — the certificate that was scanned
+     on the way in — so the add takes both. Everything after that is a renewal,
+     which is a term of its own and never an edit of the last one. */
+  onAddCredential: (input: OrgCredentialInput, term?: CredentialRecordInput) => Promise<CredResult>;
   onUpdateCredential: (id: string, input: OrgCredentialInput) => Promise<CredResult>;
   onRemoveCredential: (id: string) => Promise<CredResult>;
+  /** Files the next term. The card's expiry follows it; nothing is overwritten. */
+  onRecordTerm: (credentialId: string, input: CredentialRecordInput) => Promise<CredResult>;
+  /** Files another document under a term after the fact. */
+  onAttachCredentialDoc: (recordId: string, documentId: string) => Promise<CredResult>;
+  /** Removes one term — a scan filed against the wrong card. */
+  onRemoveTerm: (recordId: string) => Promise<CredResult>;
+  /** The viewer's own reminder for this card, `lead` days before the expiry. */
+  onCredentialReminder: (credentialId: string, leadDays: number, on: boolean) => Promise<CredResult>;
   /** points the org at an already-uploaded org_logo document */
   onSetLogo: (documentId: string) => Promise<SaveResult>;
   onClearLogo: () => Promise<SaveResult>;

@@ -26,7 +26,7 @@ import {
   type VehicleStatus,
 } from "../logic";
 import { fmtDay } from "./derive";
-import { Btn, Eyebrow, IconBtn, Inline } from "./parts";
+import { Btn, Eyebrow, IconBtn, Inline } from "@/components/record-modal/parts";
 
 /* Adding or editing a vehicle, in the vehicle modal's language.
 

@@ -13,6 +13,7 @@
 
 import type { StoredDocument } from "@/lib/documents/query";
 import { agoLabel, inLabel } from "@/lib/format/duration";
+import { fmtDay } from "@/lib/format/day";
 import { dateFromDays } from "@/lib/fleet/map";
 import {
   CTP_WARN_DAYS,
@@ -113,16 +114,10 @@ export function policyDocuments(documents: readonly StoredDocument[], policy: Ve
 
 /* ---- the main screen ---- */
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-/** A day on a card: "29 Sep 2027". Spelled here rather than by the locale
-    tables, because ICU's en-AU says "Sept" and the browser's may not — a
-    date that renders differently in a test and on a screen is a date nobody
-    can pin a test to. */
-export function fmtDay(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return `${d} ${MONTHS[(m ?? 1) - 1] ?? ""} ${y}`;
-}
+/* fmtDay moved to lib/format/day.ts when the organisation's credential wall
+   started printing the same dates. Re-exported so the fleet's callers — and
+   their tests — keep asking derive for it. */
+export { fmtDay } from "@/lib/format/day";
 
 export type ComplianceRow = {
   kind: RenewalKind;

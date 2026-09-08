@@ -66,6 +66,7 @@ const doc = (over: Partial<StoredDocument>): StoredDocument => ({
   image: true,
   policyId: null,
   financeId: null,
+  credentialRecordId: null,
   ...over,
 });
 

@@ -1,46 +1,106 @@
-/* The business's own licences & policies — owner-only, org-scoped, validated
-   before anything is written. Modelled on org.test.ts, because the gate is the
-   same one: these are the company's papers, not a staff record, so a delegated
-   admin is refused exactly as they are on the rest of the org profile. */
+/* The business's own licences, policies and their TERMS — owner-only,
+   org-scoped, validated before anything is written. Modelled on org.test.ts,
+   because the gate is the same one: these are the company's papers, not a
+   staff record, so a delegated admin is refused exactly as they are on the
+   rest of the org profile.
 
-const eqCalls: [string, unknown][] = [];
-const insert = jest.fn().mockResolvedValue({ error: null });
-const update = jest.fn();
-const del = jest.fn();
+   THE FAKE IS A REAL BUILDER now rather than a two-call chain, because the
+   actions behind the redesigned screen read before they write: a renewal has
+   to know the card's cached expiry before it can decide whether to advance it,
+   and a reminder has to know there is an expiry at all. `writes` is what the
+   tests assert against — the operation, the table, the row, and the filters
+   that scoped it. */
 
+type Row = Record<string, unknown>;
+type Write = { op: "insert" | "update" | "delete"; table: string; payload?: Row; eq: [string, unknown][] };
+
+/** What a select on each table finds. A table with nothing set finds nothing. */
+let tables: Record<string, Row[]> = {};
+let writes: Write[] = [];
 let writeError: { message: string } | null = null;
+const from = jest.fn();
 
-/* A .eq().eq() chain that is also awaitable — every write here ends in two
-   scoping calls, and `eqCalls` is how the tests prove BOTH of them happened. */
-const chainWithEq = () => {
+function builder(table: string) {
+  const eq: [string, unknown][] = [];
+  let op: Write["op"] | null = null;
+  let payload: Row | undefined;
+  let limit: number | null = null;
+  let order: { col: string; asc: boolean } | null = null;
+
+  const rows = () => {
+    let list = tables[table] ?? [];
+    for (const [col, val] of eq) list = list.filter((r) => r[col] === val);
+    if (order) {
+      const { col, asc } = order;
+      list = [...list].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")) * (asc ? 1 : -1));
+    }
+    return limit == null ? list : list.slice(0, limit);
+  };
+  const settle = (single: boolean) => {
+    if (op) {
+      writes.push({ op, table, payload, eq: [...eq] });
+      /* A delete really removes the rows, so a read that follows one sees what
+         is left. removeCredentialTerm recomputes the card's cache from exactly
+         that read, and a fake that kept the row would let a broken recompute
+         pass. */
+      if (op === "delete") {
+        const gone = new Set(rows());
+        tables[table] = (tables[table] ?? []).filter((r) => !gone.has(r));
+      }
+      // an insert answers with the row it made, so a caller can file against it
+      return { data: single ? { id: `new-${table}`, ...(payload ?? {}) } : [{ id: `new-${table}` }], error: writeError };
+    }
+    const list = rows();
+    return { data: single ? (list[0] ?? null) : list, error: null, count: list.length };
+  };
+
   const chain: Record<string, unknown> = {};
+  const self = () => chain;
+  chain.select = () => chain;
   chain.eq = (col: string, val: unknown) => {
-    eqCalls.push([col, val]);
+    eq.push([col, val]);
     return chain;
   };
-  chain.then = (resolve: (v: unknown) => void) => resolve({ error: writeError });
+  chain.not = self;
+  chain.is = self;
+  chain.in = self;
+  chain.order = (col: string, opts?: { ascending?: boolean }) => {
+    order = { col, asc: opts?.ascending !== false };
+    return chain;
+  };
+  chain.limit = (n: number) => {
+    limit = n;
+    return chain;
+  };
+  chain.insert = (row: Row) => {
+    op = "insert";
+    payload = row;
+    return chain;
+  };
+  chain.update = (patch: Row) => {
+    op = "update";
+    payload = patch;
+    return chain;
+  };
+  chain.delete = () => {
+    op = "delete";
+    return chain;
+  };
+  chain.single = () => Promise.resolve(settle(true));
+  chain.maybeSingle = () => Promise.resolve(settle(true));
+  chain.then = (resolve: (v: unknown) => void) => resolve(settle(false));
   return chain;
-};
-
-const from = jest.fn(() => ({
-  insert: (row: Record<string, unknown>) => {
-    insert(row);
-    return Promise.resolve({ error: writeError });
-  },
-  update: (patch: Record<string, unknown>) => {
-    update(patch);
-    return chainWithEq();
-  },
-  delete: () => {
-    del();
-    return chainWithEq();
-  },
-}));
+}
 
 let dbRole: string | null = "owner";
 
 jest.mock("@/lib/supabase-server", () => ({
-  supabaseAdmin: { from: (...a: unknown[]) => from(...(a as [])) },
+  supabaseAdmin: {
+    from: (table: string) => {
+      from(table);
+      return builder(table);
+    },
+  },
 }));
 jest.mock("@/lib/auth0", () => ({
   auth0: {
@@ -50,18 +110,44 @@ jest.mock("@/lib/auth0", () => ({
 jest.mock("@/lib/permissions-server", () => ({
   getDbRole: jest.fn(() => Promise.resolve(dbRole)),
 }));
+jest.mock("@/lib/dashboard/reminders", () => ({
+  remindAtFrom: () => "2026-07-08T07:00:00.000Z",
+}));
+jest.mock("@/lib/dashboard/reminders-query", () => ({
+  workdayHours: () => Promise.resolve({ start: "07:00", end: "15:30" }),
+}));
+jest.mock("@/lib/workboard/query", () => ({
+  getSm8Timezone: () => Promise.resolve("Australia/Sydney"),
+}));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { addOrgCredential, removeOrgCredential, updateOrgCredential } from "../org-credentials";
+import {
+  addOrgCredential,
+  attachCredentialDocument,
+  recordCredentialTerm,
+  removeCredentialTerm,
+  removeOrgCredential,
+  setCredentialReminder,
+  updateOrgCredential,
+} from "../org-credentials";
 
 const NOT_OWNER = "Only an owner can change organisation settings.";
 
+/** The one staff card every test's owner has, so a document or a reminder has
+    somebody to belong to. */
+const STAFF = { id: "staff-1", org_id: "org-1", user_id: "auth0|owner" };
+
+const wrote = (op: Write["op"], table: string) => writes.filter((w) => w.op === op && w.table === table);
+const only = (op: Write["op"], table: string) => {
+  const list = wrote(op, table);
+  expect(list).toHaveLength(1);
+  return list[0];
+};
+
 beforeEach(() => {
-  insert.mockClear();
-  update.mockClear();
-  del.mockClear();
   from.mockClear();
-  eqCalls.length = 0;
+  writes = [];
+  tables = { staff_profiles: [STAFF] };
   writeError = null;
   dbRole = "owner";
 });
@@ -78,7 +164,7 @@ describe("addOrgCredential", () => {
     });
     expect(res).toEqual({ ok: true });
     expect(from).toHaveBeenCalledWith("org_credentials");
-    expect(insert).toHaveBeenCalledWith({
+    expect(only("insert", "org_credentials").payload).toEqual({
       org_id: "org-1",
       kind: "insurance",
       name: "Public liability",
@@ -95,7 +181,7 @@ describe("addOrgCredential", () => {
       ok: false,
       error: NOT_OWNER,
     });
-    expect(insert).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
   });
 
   it("refuses an unnamed credential, and an impossible date", async () => {
@@ -106,7 +192,7 @@ describe("addOrgCredential", () => {
     expect(
       await addOrgCredential({ kind: "licence", name: "ARC", expiryDate: "31/02/2027" })
     ).toEqual({ ok: false, error: "Check the expiry date — use dd/mm/yyyy." });
-    expect(insert).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
   });
 
   it("refuses a kind the table's CHECK would reject anyway", async () => {
@@ -114,7 +200,7 @@ describe("addOrgCredential", () => {
       ok: false,
       error: "Choose whether this is a licence or an insurance policy.",
     });
-    expect(insert).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
   });
 
   it("reports a write failure rather than claiming it saved", async () => {
@@ -134,16 +220,31 @@ describe("updateOrgCredential", () => {
       number: "VBA-1",
     });
     expect(res).toEqual({ ok: true });
-    expect(update.mock.calls[0][0]).toMatchObject({
+    const write = only("update", "org_credentials");
+    expect(write.payload).toMatchObject({
       kind: "licence",
       name: "Contractor licence",
       number: "VBA-1",
     });
-    expect(update.mock.calls[0][0]).toHaveProperty("updated_at");
-    expect(eqCalls).toEqual([
+    expect(write.payload).toHaveProperty("updated_at");
+    expect(write.eq).toEqual([
       ["org_id", "org-1"],
       ["id", "cred-1"],
     ]);
+  });
+
+  /* ONCE A TERM OWNS THE NUMBER, THE ISSUER AND THE EXPIRY they are a cache of
+     it, and the details screen stops offering them. Writing them here from an
+     empty draft would blank the very columns the dashboard chip reads. */
+  it("leaves the cached columns alone once a term exists", async () => {
+    tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-1" }];
+    await updateOrgCredential("cred-1", { kind: "insurance", name: "Public liability" });
+
+    const payload = only("update", "org_credentials").payload!;
+    expect(payload).toMatchObject({ kind: "insurance", name: "Public liability" });
+    expect(payload).not.toHaveProperty("expiry_date");
+    expect(payload).not.toHaveProperty("number");
+    expect(payload).not.toHaveProperty("issuer");
   });
 
   it("refuses a non-owner", async () => {
@@ -152,7 +253,7 @@ describe("updateOrgCredential", () => {
       ok: false,
       error: NOT_OWNER,
     });
-    expect(update).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
   });
 
   it("validates before writing", async () => {
@@ -160,15 +261,14 @@ describe("updateOrgCredential", () => {
       ok: false,
       error: "Give this licence or policy a name.",
     });
-    expect(update).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
   });
 });
 
 describe("removeOrgCredential", () => {
   it("deletes only within the caller's org", async () => {
     expect(await removeOrgCredential("cred-1")).toEqual({ ok: true });
-    expect(del).toHaveBeenCalled();
-    expect(eqCalls).toEqual([
+    expect(only("delete", "org_credentials").eq).toEqual([
       ["org_id", "org-1"],
       ["id", "cred-1"],
     ]);
@@ -177,6 +277,241 @@ describe("removeOrgCredential", () => {
   it("refuses a non-owner", async () => {
     dbRole = "admin";
     expect(await removeOrgCredential("cred-1")).toEqual({ ok: false, error: NOT_OWNER });
-    expect(del).not.toHaveBeenCalled();
+    expect(writes).toHaveLength(0);
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   THE TERMS — the whole point of the redesign.
+
+   The rule every test here is really about: A RENEWAL NEVER OVERWRITES THE
+   TERM BEFORE IT. It inserts a row, and the card's three cached columns follow
+   it only when it is genuinely newer. Filing a certificate found in a drawer
+   must add to the history without retiring the cover the business actually
+   holds.
+--------------------------------------------------------------------------- */
+
+const CARD = {
+  id: "cred-1",
+  org_id: "org-1",
+  kind: "insurance",
+  name: "Public liability",
+  expiry_date: "2026-08-07",
+};
+
+describe("recordCredentialTerm", () => {
+  beforeEach(() => {
+    tables.org_credentials = [CARD];
+  });
+
+  it("inserts a term and advances the card's cache to it", async () => {
+    const res = await recordCredentialTerm("cred-1", {
+      issuer: "CGU",
+      number: "PL-10",
+      expiresOn: "2027-08-07",
+      startsOn: "2026-08-07",
+      premium: "2,400",
+      source: "scan",
+    });
+    expect(res).toEqual({ ok: true });
+
+    expect(only("insert", "org_credential_records").payload).toMatchObject({
+      org_id: "org-1",
+      credential_id: "cred-1",
+      issuer: "CGU",
+      number: "PL-10",
+      expires_on: "2027-08-07",
+      premium: 2400,
+      source: "scan",
+    });
+    expect(only("update", "org_credentials").payload).toMatchObject({
+      expiry_date: "2027-08-07",
+      number: "PL-10",
+      issuer: "CGU",
+    });
+  });
+
+  it("files an older certificate into the history WITHOUT retiring the cover in force", async () => {
+    await recordCredentialTerm("cred-1", { issuer: "QBE", expiresOn: "2025-08-07" });
+    expect(wrote("insert", "org_credential_records")).toHaveLength(1);
+    // the card still points at 2026-08-07 — nothing updated it
+    expect(wrote("update", "org_credentials")).toHaveLength(0);
+  });
+
+  it("validates before it writes anything", async () => {
+    expect(await recordCredentialTerm("cred-1", { issuer: "QBE" })).toEqual({
+      ok: false,
+      error: "An expiry date is what makes this a term — pick one.",
+    });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses a card that isn't in the caller's org", async () => {
+    tables.org_credentials = [];
+    expect(await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07" })).toEqual({
+      ok: false,
+      error: "That card is no longer on file.",
+    });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses a non-owner", async () => {
+    dbRole = "admin";
+    expect(await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07" })).toEqual({
+      ok: false,
+      error: NOT_OWNER,
+    });
+    expect(writes).toHaveLength(0);
+  });
+
+  /* A document may only be adopted by the term if it is the uploader's own,
+     confirmed, still-unowned file OF THE RIGHT KIND — the kind is what stops a
+     staff licence scan being filed as the company's. */
+  it("adopts the scanned document under the term it was read from", async () => {
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+    const adoption = only("update", "documents");
+    expect(adoption.payload).toEqual({
+      org_credential_id: "cred-1",
+      credential_record_id: "new-org_credential_records",
+    });
+    expect(adoption.eq).toEqual(
+      expect.arrayContaining([
+        ["org_id", "org-1"],
+        ["id", "doc-9"],
+        ["uploaded_by", "staff-1"],
+        ["kind", "org_insurance"],
+      ])
+    );
+  });
+
+  it("moves every reminder counting down to the old date", async () => {
+    tables.tasks = [{ id: "t1", org_id: "org-1", org_credential_id: "cred-1", assigned_to: "staff-1", lead_days: 30, status: "open" }];
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07" });
+
+    const moved = wrote("update", "tasks");
+    expect(moved).toHaveLength(1);
+    expect(moved[0].payload).toMatchObject({
+      due_date: "2027-07-08",
+      // the letter that went out named the old date, so it has not been delivered
+      reminder_emailed_at: null,
+    });
+  });
+});
+
+describe("removeCredentialTerm", () => {
+  beforeEach(() => {
+    tables.org_credentials = [CARD];
+    tables.org_credential_records = [
+      { id: "R1", org_id: "org-1", credential_id: "cred-1", expires_on: "2027-08-07", number: "PL-10", issuer: "CGU" },
+      { id: "R2", org_id: "org-1", credential_id: "cred-1", expires_on: "2026-08-07", number: "PL-9", issuer: "QBE" },
+    ];
+  });
+
+  it("hands the card back to whatever term is left underneath", async () => {
+    await removeCredentialTerm("R1");
+    expect(only("delete", "org_credential_records").eq).toEqual([
+      ["org_id", "org-1"],
+      ["id", "R1"],
+    ]);
+    // recomputed from what remains, never assumed
+    expect(only("update", "org_credentials").payload).toMatchObject({
+      expiry_date: "2026-08-07",
+      number: "PL-9",
+      issuer: "QBE",
+    });
+  });
+
+  it("clears the card's expiry when the last term goes", async () => {
+    tables.org_credential_records = [
+      { id: "R1", org_id: "org-1", credential_id: "cred-1", expires_on: "2027-08-07" },
+    ];
+    await removeCredentialTerm("R1");
+    expect(only("update", "org_credentials").payload).toMatchObject({ expiry_date: null });
+  });
+});
+
+describe("attachCredentialDocument", () => {
+  beforeEach(() => {
+    tables.org_credentials = [CARD];
+    tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-1" }];
+  });
+
+  it("files a document under a term, on the kind the card is", async () => {
+    expect(await attachCredentialDocument("R1", "doc-9")).toEqual({ ok: true });
+    const write = only("update", "documents");
+    expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: "R1" });
+    expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
+  });
+
+  it("refuses a term that isn't in the caller's org", async () => {
+    tables.org_credential_records = [];
+    expect(await attachCredentialDocument("R1", "doc-9")).toEqual({
+      ok: false,
+      error: "That term is no longer on file.",
+    });
+    expect(writes).toHaveLength(0);
+  });
+});
+
+describe("setCredentialReminder", () => {
+  beforeEach(() => {
+    tables.org_credentials = [CARD];
+    tables.organizations = [{ id: "org-1", trading_name: "Diamond Air Solutions" }];
+  });
+
+  it("creates one open task of the caller's own, due the lead before the expiry", async () => {
+    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: true });
+    expect(only("insert", "tasks").payload).toMatchObject({
+      org_id: "org-1",
+      title: "Renew Public liability — Diamond Air Solutions",
+      detail: "Expires 7 Aug 2026 · 30 days' notice",
+      assigned_to: "staff-1",
+      due_date: "2026-07-08",
+      status: "open",
+      org_credential_id: "cred-1",
+      lead_days: 30,
+    });
+  });
+
+  it("needs an expiry to count from", async () => {
+    tables.org_credentials = [{ ...CARD, expiry_date: null }];
+    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({
+      ok: false,
+      error: "Record the renewal first — a reminder needs an expiry to count from.",
+    });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("is a no-op when the chip is already on", async () => {
+    tables.tasks = [{ id: "t1", org_id: "org-1", org_credential_id: "cred-1", assigned_to: "staff-1", lead_days: 30, status: "open" }];
+    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: true });
+    expect(wrote("insert", "tasks")).toHaveLength(0);
+  });
+
+  /* PERSONAL, like every other reminder: turning yours off deletes YOUR task,
+     scoped to your own staff id, and leaves the other owner's alone. */
+  it("deletes only the caller's own reminder when the chip goes off", async () => {
+    expect(await setCredentialReminder("cred-1", 30, false)).toEqual({ ok: true });
+    expect(only("delete", "tasks").eq).toEqual([
+      ["org_id", "org-1"],
+      ["assigned_to", "staff-1"],
+      ["org_credential_id", "cred-1"],
+      ["lead_days", 30],
+      ["status", "open"],
+    ]);
+  });
+
+  it("refuses a lead the chips don't offer", async () => {
+    expect(await setCredentialReminder("cred-1", 45, true)).toEqual({
+      ok: false,
+      error: "Couldn't set that reminder.",
+    });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses a non-owner", async () => {
+    dbRole = "admin";
+    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: false, error: NOT_OWNER });
+    expect(writes).toHaveLength(0);
   });
 });

@@ -12196,3 +12196,49 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .vm-chip.on { background:var(--ink); border-color:var(--ink); color:#fff; }
 .vm-chip.on:hover { background:#232a38; }
 .vm-chip:disabled { opacity:.45; cursor:default; }
+
+/* ===================================================================
+   THE CREDENTIAL MODAL — the business's licences and insurance, wearing
+   the vehicle card's clothes (components/org/credential-modal).
+
+   Almost nothing new: it reuses .vm wholesale, because an owner who has
+   recorded a rego renewal already knows how to record a policy and two
+   modals that do the same job should not look like two products.
+
+   These are the five shapes the vehicle card had no use for. The colour
+   swatches are RESTATED here rather than reused: .oc-sw is `.fg`-scoped,
+   and `.fg` does not reach a body portal — the old modal got them only
+   because it carried a display:contents `.fg` wrapper of its own.
+   =================================================================== */
+.vm-badge { display:inline-flex; align-items:center; justify-content:center; min-width:38px; height:24px;
+  padding:0 9px; border-radius:8px; font-size:11px; font-weight:800; letter-spacing:.06em; }
+
+.vm-sw { display:flex; align-items:center; gap:8px; height:46px; }
+.vm-swb { width:26px; height:26px; border-radius:9px; border:2px solid transparent;
+  box-shadow:0 0 0 1px rgba(10,12,20,.08) inset; transition:transform .15s, border-color .15s; }
+.vm-swb.auto { background:repeating-linear-gradient(45deg,#eef0f4,#eef0f4 4px,#fff 4px,#fff 8px); }
+.vm-swb:hover { transform:scale(1.08); }
+.vm-swb.on { border-color:var(--ink); }
+
+/* The armed state of a two-press destructive control: the second press is a
+   different button, so it says so in the app's danger red rather than only in
+   its words. */
+.vm-btn.danger.arm { background:var(--bad-t); color:#fff; }
+.vm-btn.danger.arm:hover { background:#c31f43; }
+.vm-inline.danger { color:var(--bad-t); }
+.vm-inline.danger:hover { color:#c31f43; }
+.vm-inline.danger.arm { text-decoration:underline; }
+.vm-inline:disabled { opacity:.45; cursor:default; }
+
+/* ---- the wall, grouped by kind (Licences, then Insurance) ---- */
+.fg .credgroup { margin-top:20px; }
+.fg .credgroup + .credgroup { margin-top:24px; }
+.fg .credgroup-h { display:block; font-size:11px; font-weight:800; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--gray400); }
+.fg .credgroup > .credgrid { margin-top:10px; }
+/* How many terms a card has on file — the history, visible from outside it.
+   QUIET, not ok-teal: a count is information, and a semantic state colour used
+   for something that is not a state reads as "this one is fine" on a card whose
+   status chip may be saying the opposite. It is separated from the issuer line
+   above it by weight, not by hue. */
+.fg .cred-note { margin-top:6px; font-size:11.5px; font-weight:700; color:var(--q); }

@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { signOne } from "@/lib/documents/query";
 import { isCredKind, sortOrgCredentials, type OrgCredential } from "./credentials";
+import type { OrgCredentialRecord } from "./credential-records";
+import { isReminderLead, type ReminderLead } from "@/lib/fleet/reminders";
 import { NO_BRAND, type OrgBrand } from "./brand";
 import { sortCandidates, type OwnerCandidate } from "./ownership";
 import type { OrgAccount } from "./account";
@@ -33,6 +35,88 @@ export async function listOrgCredentials(orgId: string): Promise<OrgCredential[]
         color: (r.color as string) ?? null,
       }))
   );
+}
+
+/* THE TERMS BEHIND THE CARDS — one credential's history, and every
+   credential's at once.
+
+   The card wall reads the credential's cached columns; the modal reads these.
+   Sorted newest-expiry-first here so "current" is simply the head of the list
+   wherever it is read, and grouped per credential so the screen makes one
+   round trip for the whole wall rather than one per card.
+
+   TOLERANT OF ITS OWN MIGRATION, like the fleet's reminder read: a workspace
+   whose database has not taken org_credential_records.sql gets an empty
+   history and a card wall that still works, not a 500 on the Organisation
+   page. */
+export async function listOrgCredentialRecords(
+  orgId: string,
+): Promise<Record<string, OrgCredentialRecord[]>> {
+  const { data, error } = await supabaseAdmin
+    .from("org_credential_records")
+    .select(
+      "id, credential_id, issuer, number, cover, sum_insured, premium, excess" +
+        ", starts_on, expires_on, document_id, source, created_at",
+    )
+    .eq("org_id", orgId)
+    .order("expires_on", { ascending: false });
+  if (error) return {};
+
+  const num = (v: unknown): number | null => {
+    const n = typeof v === "number" ? v : parseFloat(String(v ?? ""));
+    return Number.isFinite(n) ? n : null;
+  };
+  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
+
+  const out: Record<string, OrgCredentialRecord[]> = {};
+  for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const expiresOn = String(r.expires_on ?? "").slice(0, 10);
+    if (!expiresOn) continue;
+    const credentialId = String(r.credential_id);
+    (out[credentialId] ??= []).push({
+      id: String(r.id),
+      credentialId,
+      issuer: str(r.issuer),
+      number: str(r.number),
+      cover: str(r.cover),
+      sumInsured: num(r.sum_insured),
+      premium: num(r.premium),
+      excess: num(r.excess),
+      startsOn: r.starts_on ? String(r.starts_on).slice(0, 10) : null,
+      expiresOn,
+      documentId: str(r.document_id),
+      source: r.source === "scan" ? "scan" : r.source === "manual" ? "manual" : null,
+      createdAt: r.created_at ? String(r.created_at) : null,
+    });
+  }
+  return out;
+}
+
+/** The viewer's own open reminders, per credential — what the REMIND ME chips
+    read. Personal by construction (assigned_to is the viewer), and tolerant of
+    its own migration the same way: no column yet means no chips on, not a
+    broken screen. */
+export async function listCredentialReminders(
+  orgId: string,
+  staffId: string | null,
+): Promise<Record<string, ReminderLead[]>> {
+  if (!staffId) return {};
+  const { data, error } = await supabaseAdmin
+    .from("tasks")
+    .select("org_credential_id, lead_days")
+    .eq("org_id", orgId)
+    .eq("assigned_to", staffId)
+    .eq("status", "open")
+    .not("org_credential_id", "is", null);
+  if (error) return {};
+
+  const out: Record<string, ReminderLead[]> = {};
+  for (const r of (data ?? []) as Record<string, unknown>[]) {
+    const lead = Math.round(Number(r.lead_days));
+    if (!isReminderLead(lead)) continue;
+    (out[String(r.org_credential_id)] ??= []).push(lead);
+  }
+  return out;
 }
 
 /* The account's own facts — see account.ts for why they are on this screen.

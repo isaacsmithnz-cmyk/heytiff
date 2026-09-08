@@ -41,9 +41,9 @@ import {
   valueNotes,
   type FactRow,
 } from "./derive";
-import { DocRows } from "./doc-rows";
-import { Btn, Card, DetailGrid, Eyebrow, Field, Inline, MoneyInput, SubHeader, type DetailItem } from "./parts";
-import { ScanCard, type ScanMode } from "./scan-card";
+import { DocRows } from "@/components/record-modal/doc-rows";
+import { Btn, Card, DetailGrid, Eyebrow, Field, Inline, MoneyInput, SubHeader, type DetailItem } from "@/components/record-modal/parts";
+import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
 
 /* The Financials screen: what the vehicle is worth, what it cost, what is owed
    on it, and what it costs to keep on the road.

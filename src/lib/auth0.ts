@@ -1,9 +1,5 @@
 import { Auth0Client } from "@auth0/nextjs-auth0/server";
-import {
-  InvalidStateError,
-  MissingStateError,
-  type SdkError,
-} from "@auth0/nextjs-auth0/errors";
+import type { SdkError } from "@auth0/nextjs-auth0/errors";
 import type { NextResponse } from "next/server";
 import { supabaseAdmin } from "./supabase-server";
 import { splitName } from "./staff/name";
@@ -108,7 +104,15 @@ function personName(v: unknown): string | null {
    outright, that would loop through Auth0 forever.
 
    Every OTHER callback failure keeps the SDK's default — a code exchange
-   that fails will fail again, and a redirect would only hide it. */
+   that fails will fail again, and a redirect would only hide it.
+
+   Matched by `code`, not `instanceof`: `@auth0/nextjs-auth0/errors` ships
+   ESM only, and jest leaves node_modules untransformed, so a runtime import
+   of it fails to parse in every suite that loads this module (CI, not
+   locally — the local node_modules is a symlink jest's ignore pattern does
+   not match). The codes are the SDK's own; the test reads them back out of
+   its dist to prove the strings are still right. */
+const NO_TRANSACTION_CODES = new Set(["invalid_state", "missing_state"]);
 export async function onCallback(
   error: SdkError | null,
   ctx: { returnTo?: string; appBaseUrl?: string }
@@ -118,7 +122,7 @@ export async function onCallback(
      by jsdom suites that only want ensureStaffCard. */
   const { NextResponse } = await import("next/server");
   const base = process.env.APP_BASE_URL ?? ctx.appBaseUrl ?? "/";
-  if (error instanceof InvalidStateError || error instanceof MissingStateError) {
+  if (error && NO_TRANSACTION_CODES.has(error.code)) {
     return NextResponse.redirect(new URL("/", base));
   }
   if (error) return new NextResponse(error.message, { status: 500 });

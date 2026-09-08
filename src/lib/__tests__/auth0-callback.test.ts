@@ -20,12 +20,17 @@ jest.mock("@auth0/nextjs-auth0/server", () => ({
   },
 }));
 
-import {
-  InvalidStateError,
-  MissingStateError,
-  AuthorizationCodeGrantRequestError,
-} from "@auth0/nextjs-auth0/errors";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { onCallback } from "@/lib/auth0";
+
+/* The SDK's error classes cannot be imported here (ESM-only, untransformed in
+   jest), so these mirror their shape — and the first test below reads the
+   SDK's own source to prove the codes are the ones it really throws. */
+const sdkError = (code: string, message: string) =>
+  Object.assign(new Error(message), { code }) as Error & { code: string };
+const invalidState = () => sdkError("invalid_state", "The state parameter is invalid.");
+const missingState = () => sdkError("missing_state", "The state parameter is missing.");
 
 const env = process.env;
 beforeEach(() => {
@@ -35,24 +40,33 @@ afterAll(() => {
   process.env = env;
 });
 
+test("the codes matched are the SDK's own", () => {
+  const src = readFileSync(
+    join(process.cwd(), "node_modules/@auth0/nextjs-auth0/dist/errors/oauth-errors.js"),
+    "utf8"
+  );
+  expect(src).toContain('this.code = "invalid_state"');
+  expect(src).toContain('this.code = "missing_state"');
+});
+
 test("the hook is wired into the client", () => {
   expect(capturedOptions.onCallback).toBe(onCallback);
 });
 
 test("no transaction cookie → the front door, on the canonical host, not a 500", async () => {
   // the SDK passes an EMPTY context on this path — no appBaseUrl to lean on
-  const res = await onCallback(new InvalidStateError(), {});
+  const res = await onCallback(invalidState(), {});
   expect(res.status).toBe(307);
   expect(res.headers.get("location")).toBe("https://go.hey-tiff.com/");
 });
 
 test("no state at all → the same door", async () => {
-  const res = await onCallback(new MissingStateError(), {});
+  const res = await onCallback(missingState(), {});
   expect(res.headers.get("location")).toBe("https://go.hey-tiff.com/");
 });
 
 test("any other failure keeps the SDK's default: the message, status 500", async () => {
-  const res = await onCallback(new AuthorizationCodeGrantRequestError("exchange failed"), {});
+  const res = await onCallback(sdkError("authorization_code_grant_request_error", "exchange failed"), {});
   expect(res.status).toBe(500);
   expect(await res.text()).toBe("exchange failed");
 });

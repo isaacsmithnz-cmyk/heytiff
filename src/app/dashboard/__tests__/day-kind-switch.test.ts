@@ -45,29 +45,6 @@ const spec = (selector: string) =>
   (selector.match(/\.[a-z0-9_-]+/gi) ?? []).length +
   (selector.match(/(?<!:):[a-z-]+(?![a-z-]*\()/gi) ?? []).length;
 
-const lin = (c: number) => {
-  const v = c / 255;
-  return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-};
-const lum = ([r, g, b]: number[]) => 0.2126 * lin(r!) + 0.7152 * lin(g!) + 0.0722 * lin(b!);
-const ratio = (a: number[], b: number[]) =>
-  (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
-const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-const over = (f: number[], a: number, b: number[]) =>
-  [0, 1, 2].map((i) => f[i]! * a + b[i]! * (1 - a));
-
-/** Read a declaration's colour out of a rule, as rgb triples. */
-function colour(declarations: string, prop: string): number[] {
-  const m = declarations.match(new RegExp(`(?:^|[ ;])${prop}: *([^;]+)`));
-  if (!m) throw new Error(`no ${prop} in ${declarations}`);
-  const raw = m[1]!.trim();
-  if (raw.startsWith("#")) return hex(raw);
-  const rgba = raw.match(/rgba?\(([\d.]+), *([\d.]+), *([\d.]+)(?:, *([\d.]+))?\)/);
-  if (!rgba) throw new Error(`${prop} is not a literal colour: ${raw}`);
-  const rgb = [1, 2, 3].map((i) => Number(rgba[i]));
-  return rgba[4] ? over(rgb, Number(rgba[4]), [255, 255, 255]) : rgb;
-}
-
 const KINDS = ".fg .mts2-kinds";
 const KIND = ".fg .mts2-kind";
 const HOVER = ".fg .mts2-kinds .mts2-kind:hover";
@@ -83,14 +60,10 @@ const ON = ".fg .mts2-kinds .mts2-kind.on, .fg .mts2-kinds .mts2-kind.on:hover";
    around them, and the moment one was chosen the white pill under it became
    the only shape in the control — one button, with a word beside it.
 
-   The threshold is deliberately low: this is a soft tray, not a bordered
-   input, and the house switch (`.wb2-seg`) sits at about 1.2 on white. What
-   it has to do is EXIST. 1.027 does not, 1.10 does. */
-it("gives the switch a tray that separates from the panel it sits on", () => {
-  const panel = colour(rule(".fg .mts2-panel"), "background");
-  const tray = colour(rule(KINDS), "background");
-  expect(ratio(tray, panel)).toBeGreaterThan(1.1);
-});
+   THE ASSERTION LIVES IN segmented-tray-contrast.test.ts, with every other
+   tray in the app. It moved there when the same sweep found four more
+   controls at or below the line: a law that applies to all of them should not
+   be stated once per control, or the next one gets written without it. */
 
 /* ── 2. THE TWO ANSWERS ARE ONE SIZE ──
 

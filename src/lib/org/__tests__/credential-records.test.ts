@@ -33,6 +33,8 @@ const rec = (over: Partial<OrgCredentialRecord> = {}): OrgCredentialRecord => ({
   number: "PL-9",
   cover: "Public and products liability",
   sumInsured: 20_000_000,
+  workersCount: null,
+  wages: null,
   premium: 2400,
   excess: 500,
   startsOn: "2025-08-07",
@@ -184,6 +186,42 @@ describe("what may be saved as a term", () => {
        behind it — a typo that turns into a false all-clear. */
     const built = buildCredentialRecordRow({ startsOn: "07/08/2027", expiresOn: "07/08/2026" });
     expect("error" in built && built.error).toMatch(/after the expiry/i);
+  });
+
+  /* A HEAD COUNT IS WHOLE, and never invented from an empty box. Same posture
+     as `money` — a certificate that does not print a worker count must not
+     gain one — but it is not `money`, because 11.5 workers is not a number any
+     certificate can print. */
+  it("takes a worker count and wages off a workers compensation term", () => {
+    const built = buildCredentialRecordRow({
+      expiresOn: "28/02/2027",
+      workersCount: "11",
+      wages: "943669.32",
+    });
+    expect("row" in built && built.row.workers_count).toBe(11);
+    expect("row" in built && built.row.wages).toBe(943669.32);
+  });
+
+  it("leaves both null when the certificate did not say", () => {
+    const built = buildCredentialRecordRow({ expiresOn: "28/02/2027" });
+    expect("row" in built && built.row.workers_count).toBeNull();
+    expect("row" in built && built.row.wages).toBeNull();
+  });
+
+  /* REFUSED, NOT SALVAGED. Stripping every non-digit would turn "11.5" into
+     115 and "-4" into 4 — a wrong head count stored silently, which is worse
+     than a blank one. Thousands separators are the one thing forgiven. */
+  it("refuses a worker count that is not whole and non-negative", () => {
+    const wc = (v: string) => {
+      const built = buildCredentialRecordRow({ expiresOn: "28/02/2027", workersCount: v });
+      if (!("row" in built)) throw new Error(built.error);
+      return built.row.workers_count;
+    };
+    expect(wc("")).toBeNull();
+    expect(wc("eleven")).toBeNull();
+    expect(wc("-4")).toBeNull();
+    expect(wc("11.5")).toBeNull();
+    expect(wc("1,100")).toBe(1100);
   });
 
   it("takes dd/mm/yyyy and ISO alike, and normalises to ISO", () => {

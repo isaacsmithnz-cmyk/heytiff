@@ -31,9 +31,23 @@ describe("the prompt", () => {
     }
   });
 
-  it("names every field the schema requires", () => {
-    for (const kind of ["insurance", "licence"] as const) {
-      const prompt = orgCredPrompt(kind);
+  /* EVERY REQUIRED KEY IS ACCOUNTED FOR IN EVERY PROMPT — asked for, or named
+     as absent. Structured output makes the model emit all of them whatever the
+     prompt says, so a key the prompt never mentions is one it fills from
+     whatever on the page looks closest. This held when the schema was the same
+     for both kinds; it has to keep holding now that each paper carries a
+     different subset of it. */
+  it("accounts for every field the schema requires, on every paper", () => {
+    const papers: [("insurance" | "licence"), string][] = [
+      ["insurance", ""],
+      ["insurance", "Public liability"],
+      ["insurance", "Workers compensation"],
+      ["insurance", "Marine transit"],
+      ["licence", ""],
+      ["licence", "ARC refrigerant trading authorisation"],
+    ];
+    for (const [kind, name] of papers) {
+      const prompt = orgCredPrompt(kind, name);
       for (const field of ORG_CRED_READ_SCHEMA.required) {
         expect(prompt).toContain(field);
       }
@@ -49,6 +63,8 @@ describe("what is believed", () => {
     sumInsured: 20_000_000,
     premium: 2400,
     excess: 500,
+    workersCount: null,
+    wages: null,
     startsOn: "2025-08-07",
     expiresOn: "2026-08-07",
   };
@@ -88,6 +104,8 @@ describe("what is believed", () => {
       sumInsured: null,
       premium: null,
       excess: null,
+      workersCount: null,
+      wages: null,
       startsOn: null,
       expiresOn: null,
     });
@@ -156,5 +174,57 @@ describe("what each paper is asked for", () => {
   it("keeps them for the policy that prints them", () => {
     const read = parseOrgCredRead({ ...cert, sumInsured: 20000000 }, "insurance", "Public liability");
     expect(read.sumInsured).toBe(20000000);
+  });
+
+  /* THE TWO NUMBERS THE CERTIFICATE TELLS PRINCIPALS TO CHECK. icare's
+     "Important information" block asks a head contractor to compare the number
+     of workers on site to the number estimated, and to judge whether the wages
+     cover the labour component. A subcontractor who cannot produce them cannot
+     answer the question they are about to be asked. */
+  it("asks a workers compensation certificate for the worker count and the wages", () => {
+    const p = orgCredPrompt("insurance", "Workers compensation");
+    expect(p).toContain("NUMBER OF WORKERS");
+    expect(p).toContain("WAGES");
+    // and for the industry classification by name, not the boilerplate wording
+    expect(p).toContain("INDUSTRY CLASSIFICATION");
+    expect(p).toContain("423300 Air Conditioning and Heating Services");
+  });
+
+  it("offers neither to a public liability policy, and says so", () => {
+    const p = orgCredPrompt("insurance", "Public liability");
+    expect(p).not.toContain("NUMBER OF WORKERS");
+    expect(p).toContain("does not state a number of workers");
+    expect(p).toContain("does not declare wages");
+  });
+
+  it("takes the two figures off the certificate that carries them", () => {
+    const read = parseOrgCredRead(
+      { ...cert, workersCount: 11, wages: 943669.32 },
+      "insurance",
+      "Workers compensation"
+    );
+    expect(read.workersCount).toBe(11);
+    expect(read.wages).toBe(943669.32);
+  });
+
+  it("drops them from a policy that cannot have them", () => {
+    const read = parseOrgCredRead(
+      { ...cert, workersCount: 11, wages: 943669.32 },
+      "insurance",
+      "Public liability"
+    );
+    expect(read.workersCount).toBeNull();
+    expect(read.wages).toBeNull();
+  });
+
+  /* A head count is whole. 11.5 workers is not a number any certificate
+     prints, so a model offering one has read a rate or a wages line. */
+  it("refuses a worker count that is not a whole number", () => {
+    const wc = (v: unknown) =>
+      parseOrgCredRead({ ...cert, workersCount: v }, "insurance", "Workers compensation").workersCount;
+    expect(wc(11.5)).toBeNull();
+    expect(wc(-1)).toBeNull();
+    expect(wc("11")).toBeNull();
+    expect(wc(0)).toBe(0);
   });
 });

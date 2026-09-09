@@ -48,10 +48,15 @@ export type OrgCredential = {
    statutory and uncapped, so "Limit of liability" and "Excess" sat empty on
    every one of them, on a screen where an empty limit on a PUBLIC LIABILITY
    policy means the business cannot prove what a head contractor asked for. */
-export type TermField = "cover" | "sumInsured" | "premium" | "excess";
+export type TermField = "cover" | "sumInsured" | "premium" | "excess" | "workers" | "wages";
 
 const KIND_FIELDS: Record<OrgCredKind, readonly TermField[]> = {
-  // an unnamed policy could be anything, so it is offered everything
+  /* An unnamed policy could be anything, so it is offered the general set —
+     but NOT the two workers compensation facts. Those are not "insurance"
+     facts a broad policy might happen to print; they are the two numbers the
+     scheme rates a workers comp premium on, and offering them on a public
+     liability certificate would be the same mistake as a limit on a workers
+     comp one, pointing the other way. */
   insurance: ["cover", "sumInsured", "premium", "excess"],
   // a licence has no sum insured and no excess; a fee is a real thing to keep
   licence: ["cover", "premium"],
@@ -66,6 +71,8 @@ export type OrgCredType = {
   sub?: string;
   /** Narrows the kind's default set. Absent = the kind's own. */
   fields?: readonly TermField[];
+  /** What THIS paper calls a field, where its own word beats the kind's. */
+  labels?: Partial<Record<TermField, string>>;
 };
 
 export const ORG_CRED_TYPES: readonly OrgCredType[] = [
@@ -92,8 +99,18 @@ export const ORG_CRED_TYPES: readonly OrgCredType[] = [
     color: "#2E68FF",
     /* No limit and no excess. The employer's liability under the state Act is
        the full amount and is not capped, so a certificate of currency prints
-       neither — icare's does not, and nor does any other scheme insurer's. */
-    fields: ["cover", "premium"],
+       neither — icare's does not, and nor does any other scheme insurer's.
+
+       What it DOES print, and what a head contractor is told on the
+       certificate itself to check, is the worker count and the declared wages
+       (docs/migrations/org_credential_workers_comp.sql quotes the wording). */
+    fields: ["cover", "workers", "wages", "premium"],
+    /* "Cover" is boilerplate here — every NSW certificate covers the same
+       statutory liability — and the line that actually varies is the industry
+       classification the premium is rated under, which the certificate also
+       tells principals to confirm. So the box keeps the column and changes
+       its name to the thing worth typing into it. */
+    labels: { cover: "Industry classification" },
   },
 ];
 
@@ -137,6 +154,11 @@ export function orgCredBadge(cred: {
     empty one. */
 export function termFieldsFor(kind: OrgCredKind, name: string): readonly TermField[] {
   return typeFor(kind, name)?.fields ?? KIND_FIELDS[kind];
+}
+
+/** This paper's own word for a field, where it has one. */
+export function termLabelFor(kind: OrgCredKind, name: string, field: TermField): string | null {
+  return typeFor(kind, name)?.labels?.[field] ?? null;
 }
 
 /** The colour a newly-picked name suggests, or "" for a custom one. */

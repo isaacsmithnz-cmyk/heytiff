@@ -44,9 +44,38 @@ describe("the settings say what they do", () => {
   it("names every choice in words", async () => {
     await openViewMenu();
 
-    expect(screen.getByRole("radio", { name: "Zoom in and out" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Move around the plan" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Zoom in and out/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Move around the plan/ })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Show tool hints" })).toBeInTheDocument();
+  });
+
+  /* AND NAMES THE DEVICE. The outcome carries the line, but on a two-way
+     choice the hardware is the DISCRIMINATOR — it is what tells you the line
+     is for you, and "I have just picked up a mouse" is the question somebody
+     actually arrives with. Isaac could not tell the old control was his; every
+     other tool that offers this setting names the hardware (Miro's is called
+     Mouse / Trackpad). Asserted on the ACCESSIBLE NAME, so it holds however
+     the two halves are marked up. */
+  it("says which device each choice suits", async () => {
+    await openViewMenu();
+
+    expect(
+      screen.getByRole("radio", { name: /Zoom in and out.*a mouse/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: /Move around the plan.*a trackpad/ })
+    ).toBeInTheDocument();
+  });
+
+  /* the device is a qualifier, not the label — it must not lead, or the line
+     stops answering "what will scrolling do" */
+  it("leads with the outcome, not the hardware", async () => {
+    await openViewMenu();
+    const name = screen
+      .getByRole("radio", { name: /Zoom in and out/ })
+      .getAttribute("aria-label") ??
+      screen.getByRole("radio", { name: /Zoom in and out/ }).closest("label")!.textContent!;
+    expect(name.trim().startsWith("Zoom in and out")).toBe(true);
   });
 
   /* One View menu, not two. The Studio already had a View popover answering
@@ -58,7 +87,7 @@ describe("the settings say what they do", () => {
     const menu = screen.getByRole("menu");
     expect(within(menu).getByRole("checkbox", { name: "Show legend" })).toBeInTheDocument();
     expect(within(menu).getByRole("checkbox", { name: "Show tool hints" })).toBeInTheDocument();
-    expect(within(menu).getByRole("radio", { name: "Zoom in and out" })).toBeInTheDocument();
+    expect(within(menu).getByRole("radio", { name: /Zoom in and out/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /^View$/ })).toHaveLength(1);
   });
 });
@@ -70,16 +99,16 @@ describe("what a bare scroll does", () => {
   it("defaults to moving the plan, so a trackpad can cross it out of the box", async () => {
     await openViewMenu();
 
-    expect(screen.getByRole("radio", { name: "Move around the plan" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "Zoom in and out" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /Move around the plan/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Zoom in and out/ })).not.toBeChecked();
   });
 
   it("remembers the choice on this machine", async () => {
     const user = await openViewMenu();
 
-    await user.click(screen.getByRole("radio", { name: "Zoom in and out" }));
+    await user.click(screen.getByRole("radio", { name: /Zoom in and out/ }));
 
-    expect(screen.getByRole("radio", { name: "Zoom in and out" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Zoom in and out/ })).toBeChecked();
     expect(localStorage.getItem("ht-wheel")).toBe("zoom");
   });
 
@@ -87,7 +116,7 @@ describe("what a bare scroll does", () => {
     localStorage.setItem("ht-wheel", "zoom");
     await openViewMenu();
 
-    expect(screen.getByRole("radio", { name: "Zoom in and out" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Zoom in and out/ })).toBeChecked();
   });
 });
 

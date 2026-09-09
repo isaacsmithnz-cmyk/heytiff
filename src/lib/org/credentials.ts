@@ -37,6 +37,26 @@ export type OrgCredential = {
    arrive spelled and coloured consistently instead of as four spellings of
    "ARC". Everything else is free text: the registry is a set of suggestions and
    a badge lookup, never an allowlist. */
+/* WHICH OF A TERM'S OPTIONAL FACTS THIS PAPER ACTUALLY CARRIES.
+
+   `issuer`, `number`, `startsOn` and `expiresOn` are on every certificate ever
+   printed, so they are not listed — these are the four that are NOT universal,
+   and showing one the document cannot have is worse than a blank box. It tells
+   a person the paper in their hand is missing something.
+
+   A workers compensation policy is the case that proved it: the cover is
+   statutory and uncapped, so "Limit of liability" and "Excess" sat empty on
+   every one of them, on a screen where an empty limit on a PUBLIC LIABILITY
+   policy means the business cannot prove what a head contractor asked for. */
+export type TermField = "cover" | "sumInsured" | "premium" | "excess";
+
+const KIND_FIELDS: Record<OrgCredKind, readonly TermField[]> = {
+  // an unnamed policy could be anything, so it is offered everything
+  insurance: ["cover", "sumInsured", "premium", "excess"],
+  // a licence has no sum insured and no excess; a fee is a real thing to keep
+  licence: ["cover", "premium"],
+};
+
 export type OrgCredType = {
   kind: OrgCredKind;
   name: string;
@@ -44,6 +64,8 @@ export type OrgCredType = {
   code: string;
   color: string;
   sub?: string;
+  /** Narrows the kind's default set. Absent = the kind's own. */
+  fields?: readonly TermField[];
 };
 
 export const ORG_CRED_TYPES: readonly OrgCredType[] = [
@@ -63,7 +85,16 @@ export const ORG_CRED_TYPES: readonly OrgCredType[] = [
   },
   { kind: "insurance", name: "Public liability", code: "INS", color: "#2E68FF" },
   { kind: "insurance", name: "Professional indemnity", code: "INS", color: "#2E68FF" },
-  { kind: "insurance", name: "Workers compensation", code: "INS", color: "#2E68FF" },
+  {
+    kind: "insurance",
+    name: "Workers compensation",
+    code: "INS",
+    color: "#2E68FF",
+    /* No limit and no excess. The employer's liability under the state Act is
+       the full amount and is not capped, so a certificate of currency prints
+       neither — icare's does not, and nor does any other scheme insurer's. */
+    fields: ["cover", "premium"],
+  },
 ];
 
 const INSURANCE_BADGE: CredBadge = { code: "INS", color: "#2E68FF" };
@@ -98,6 +129,14 @@ export function orgCredBadge(cred: {
     (cred.kind === "insurance" ? INSURANCE_BADGE : credBadgeCode(cred.name));
   const badge: CredBadge = { code: base.code, color: base.color };
   return HEX.test(stored) ? { ...badge, color: stored } : badge;
+}
+
+/** The facts this particular paper carries, narrowed by name where the
+    registry knows better than the kind. A name it does not know keeps the
+    kind's full set — a guess that hides a box is worse than one that shows an
+    empty one. */
+export function termFieldsFor(kind: OrgCredKind, name: string): readonly TermField[] {
+  return typeFor(kind, name)?.fields ?? KIND_FIELDS[kind];
 }
 
 /** The colour a newly-picked name suggests, or "" for a custom one. */

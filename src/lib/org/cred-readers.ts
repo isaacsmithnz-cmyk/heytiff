@@ -1,4 +1,4 @@
-import type { OrgCredKind } from "./credentials";
+import { termFieldsFor, type OrgCredKind, type TermField } from "./credentials";
 
 /* Reading the business's own certificate into a record — the pure half.
 
@@ -63,6 +63,24 @@ export const ORG_CRED_READ_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+/* WHAT TIFF IS ASKED FOR IS NARROWED BY THE PAPER, not just by the kind.
+
+   Asking a model for a limit of liability that a workers compensation
+   certificate does not print invites it to find one — the WIC wages figure and
+   the "full amount of the employer's liability" wording are both close enough
+   to tempt it. A field that is not on the form is not on the prompt either,
+   and `parseOrgCredRead` drops it a second time if it comes back anyway. */
+const FIELD_ASK: Record<TermField, string> = {
+  cover: "",
+  sumInsured:
+    "- sumInsured: the LIMIT OF LIABILITY / sum insured in dollars as a plain number " +
+    '(so "$20,000,000" is 20000000). Null if not printed.\n',
+  premium:
+    "- premium: the total amount payable in AUD, GST inclusive. Null if the document " +
+    "does not print a price — a certificate of currency usually does not.\n",
+  excess: "- excess: the standard or basic excess in dollars, if printed\n",
+};
+
 /* What each kind of paper is, and who it comes FROM.
 
    The insurance wording names a CERTIFICATE OF CURRENCY specifically, because
@@ -71,21 +89,18 @@ export const ORG_CRED_READ_SCHEMA = {
    business is being judged on. The licence wording names the state regulators
    by role rather than by name — VBA, NSW Fair Trading, QBCC and the rest all
    print the same four facts under different letterheads. */
-const CRED_WHAT: Record<OrgCredKind, { what: string; issuer: string; extras: string }> = {
+const CRED_WHAT: Record<OrgCredKind, { what: string; issuer: string; cover: string }> = {
   insurance: {
     what:
       "an Australian business insurance document — a certificate of currency, a policy " +
       "schedule or a certificate of insurance for a company (public liability, " +
       "professional indemnity, workers compensation or similar)",
     issuer: 'the insurer or underwriter\'s name (e.g. "QBE", "Allianz", "CGU")',
-    extras:
+    cover:
       "- cover: what the policy covers, as printed — the class of insurance and the " +
       "business/interest insured (e.g. \"Public and products liability\", \"Air " +
       "conditioning and refrigeration contracting\"). Keep it short; do not summarise " +
-      "the whole schedule.\n" +
-      "- sumInsured: the LIMIT OF LIABILITY / sum insured in dollars as a plain number " +
-      "(so \"$20,000,000\" is 20000000). Null if not printed.\n" +
-      "- excess: the standard or basic excess in dollars, if printed\n",
+      "the whole schedule.\n",
   },
   licence: {
     what:
@@ -95,25 +110,40 @@ const CRED_WHAT: Record<OrgCredKind, { what: string; issuer: string; extras: str
     issuer:
       'the issuing authority (e.g. "Australian Refrigeration Council", "NSW Fair Trading", ' +
       '"Victorian Building Authority")',
-    extras:
+    cover:
       "- cover: the classes or categories of work the licence authorises, as printed " +
       "(e.g. \"Split system air conditioning — installation and decommissioning\"). " +
-      "Keep it short.\n" +
-      "- sumInsured: null (a licence has no sum insured)\n" +
-      "- excess: null (a licence has no excess)\n",
+      "Keep it short.\n",
   },
 };
 
-/** The prompt for one kind. */
-export function orgCredPrompt(kind: OrgCredKind): string {
+/** The prompt for one paper — the kind says what it IS, the name says which
+    facts it can carry. An unnamed card gets the kind's full set. */
+export function orgCredPrompt(kind: OrgCredKind, name = ""): string {
   const k = CRED_WHAT[kind];
+  const fields = termFieldsFor(kind, name);
+  const ask = (f: TermField) => (fields.includes(f) ? (f === "cover" ? k.cover : FIELD_ASK[f]) : "");
+  /* The fields this paper cannot have are named as absent rather than left
+     unmentioned. A model handed a certificate of currency and no instruction
+     about an excess will still offer one from the policy wording it half
+     remembers; told there is none, it does not. */
+  const absent = (["sumInsured", "excess"] as const)
+    .filter((f) => !fields.includes(f))
+    .map((f) =>
+      f === "sumInsured"
+        ? "- sumInsured: null — this paper has no sum insured or limit of liability\n"
+        : "- excess: null — this paper has no excess\n"
+    )
+    .join("");
   return (
     `This is ${k.what}. Extract:\n` +
     `- issuer: ${k.issuer}\n` +
     `- number: the policy or licence number as printed\n` +
-    k.extras +
-    `- premium: the total amount payable in AUD, GST inclusive. Null if the document ` +
-    `does not print a price — a certificate of currency usually does not.\n` +
+    ask("cover") +
+    ask("sumInsured") +
+    ask("excess") +
+    ask("premium") +
+    absent +
     "- startsOn: the date cover or the licence period BEGINS, as yyyy-mm-dd\n" +
     "- expiresOn: the date it ENDS or is due for renewal, as yyyy-mm-dd\n" +
     "\nexpiresOn is the important one — it is the date the business's record will be " +
@@ -127,17 +157,20 @@ export function orgCredPrompt(kind: OrgCredKind): string {
 }
 
 /** The model's answer, believed only where it is well-formed AND belongs to
-    this kind of document. A licence cannot carry a sum insured or an excess,
-    so a model that offers one has misread the page. */
-export function parseOrgCredRead(raw: unknown, kind: OrgCredKind): OrgCredRead {
+    THIS paper. A licence cannot carry a sum insured; nor can a workers
+    compensation policy, whose cover is statutory and uncapped. A model that
+    offers one has read something else on the page. */
+export function parseOrgCredRead(raw: unknown, kind: OrgCredKind, name = ""): OrgCredRead {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const fields = termFieldsFor(kind, name);
+  const keep = (f: TermField, v: number | null) => (fields.includes(f) ? v : null);
   return {
     issuer: text(r.issuer, 120),
     number: text(r.number, 80),
-    cover: text(r.cover, 160),
-    sumInsured: kind === "insurance" ? money(r.sumInsured) : null,
-    premium: money(r.premium),
-    excess: kind === "insurance" ? money(r.excess) : null,
+    cover: fields.includes("cover") ? text(r.cover, 160) : null,
+    sumInsured: keep("sumInsured", money(r.sumInsured)),
+    premium: keep("premium", money(r.premium)),
+    excess: keep("excess", money(r.excess)),
     startsOn: isoDate(r.startsOn),
     expiresOn: isoDate(r.expiresOn),
   };

@@ -2,7 +2,7 @@
 
 import { DateField } from "@/components/ui/date-field";
 import { Field, MoneyInput } from "@/components/record-modal/parts";
-import type { OrgCredKind } from "@/lib/org/credentials";
+import { termFieldsFor, type OrgCredKind } from "@/lib/org/credentials";
 import type { CredentialRecordInput } from "@/lib/org/credential-records";
 
 /* THE FIELDS ONE TERM HAS, in one place because two screens fill them: adding
@@ -10,9 +10,11 @@ import type { CredentialRecordInput } from "@/lib/org/credential-records";
    copies of this grid would be two chances for a scan to fill a box on one
    screen that the other doesn't have.
 
-   What differs between a policy and a licence is the vocabulary and two boxes
-   (a limit and an excess are insurance facts; a licence has neither), and both
-   are tables here rather than two components. */
+   What differs between one paper and another is the vocabulary and WHICH BOXES
+   EXIST — and the second of those is not a licence/insurance split. A workers
+   compensation policy has no limit and no excess either, because the
+   employer's liability under the state Act is uncapped. Both are tables:
+   the words here, the boxes in `termFieldsFor` (lib/org/credentials.ts). */
 
 export const KIND_LABEL: Record<OrgCredKind, string> = {
   licence: "Licence certificate",
@@ -100,15 +102,22 @@ export function termInput(t: Term): CredentialRecordInput {
 
 export function TermFields({
   kind,
+  name = "",
   value,
   onChange,
   today,
 }: {
   kind: OrgCredKind;
+  /** The card's name — it decides which of the four optional facts this paper
+      carries. See termFieldsFor: a workers compensation certificate prints no
+      limit and no excess, and two empty boxes on a screen where an empty limit
+      is a real problem elsewhere is worse than no boxes. */
+  name?: string;
   value: Term;
   onChange: (t: Term) => void;
   today: string;
 }) {
+  const fields = termFieldsFor(kind, name);
   const set = (k: keyof Term) => (v: string) => onChange({ ...value, [k]: v });
   return (
     <div className="vm-fields">
@@ -129,16 +138,18 @@ export function TermFields({
           onChange={(e) => set("number")(e.target.value)}
         />
       </Field>
-      <Field label={COVER_LABEL[kind]}>
-        <input
-          className="vm-input"
-          aria-label={COVER_LABEL[kind]}
-          placeholder={COVER_HINT[kind]}
-          value={value.cover}
-          onChange={(e) => set("cover")(e.target.value)}
-        />
-      </Field>
-      {kind === "insurance" && (
+      {fields.includes("cover") && (
+        <Field label={COVER_LABEL[kind]}>
+          <input
+            className="vm-input"
+            aria-label={COVER_LABEL[kind]}
+            placeholder={COVER_HINT[kind]}
+            value={value.cover}
+            onChange={(e) => set("cover")(e.target.value)}
+          />
+        </Field>
+      )}
+      {fields.includes("sumInsured") && (
         <Field label="Limit of liability">
           <MoneyInput
             value={value.sumInsured}
@@ -168,10 +179,12 @@ export function TermFields({
           aria-label="Expiry"
         />
       </Field>
-      <Field label={PRICE_LABEL[kind]}>
-        <MoneyInput value={value.premium} onChange={set("premium")} ariaLabel={PRICE_LABEL[kind]} />
-      </Field>
-      {kind === "insurance" && (
+      {fields.includes("premium") && (
+        <Field label={PRICE_LABEL[kind]}>
+          <MoneyInput value={value.premium} onChange={set("premium")} ariaLabel={PRICE_LABEL[kind]} />
+        </Field>
+      )}
+      {fields.includes("excess") && (
         <Field label="Excess">
           <MoneyInput value={value.excess} onChange={set("excess")} ariaLabel="Excess" />
         </Field>

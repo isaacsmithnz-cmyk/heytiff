@@ -44,6 +44,11 @@ export async function readOrgCredentialDocument(
   fileBase64: string,
   mediaType: string,
   kind: string,
+  /* The card's NAME, because it narrows what this paper can carry: a workers
+     compensation certificate prints no limit of liability, and asking for one
+     is how a model ends up handing back the wages figure. Blank while the card
+     is still unnamed, which falls back to the kind's full set. */
+  name = "",
 ): Promise<ReadOrgCredResult> {
   const session = await auth0.getSession();
   if (!session) return { ok: false, reason: "Not signed in." };
@@ -83,7 +88,7 @@ export async function readOrgCredentialDocument(
                   type: "image" as const,
                   source: { type: "base64" as const, media_type: mediaType as ImageMedia, data: fileBase64 },
                 },
-            { type: "text", text: orgCredPrompt(kind) },
+            { type: "text", text: orgCredPrompt(kind, name) },
           ],
         },
       ],
@@ -92,7 +97,7 @@ export async function readOrgCredentialDocument(
       return { ok: false, reason: "Tiff declined to read this document." };
     }
     const text = response.content.find((b) => b.type === "text")?.text ?? "";
-    return { ok: true, ...parseOrgCredRead(JSON.parse(text), kind) };
+    return { ok: true, ...parseOrgCredRead(JSON.parse(text), kind, name) };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };
   }

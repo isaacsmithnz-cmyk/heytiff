@@ -99,3 +99,62 @@ describe("what is believed", () => {
     expect(read.cover).toHaveLength(160);
   });
 });
+
+/* WHAT THE PAPER CAN ACTUALLY CARRY.
+
+   The kind says what the document IS; the name says which facts it can hold.
+   A workers compensation certificate prints no limit of liability — the
+   employer's liability under the state Act is the full amount and is not
+   capped — and asking a model for one is how it comes back with the WIC wages
+   figure instead. Isaac's icare certificate did exactly that. */
+describe("what each paper is asked for", () => {
+  it("does not ask a workers compensation certificate for a limit or an excess", () => {
+    const p = orgCredPrompt("insurance", "Workers compensation");
+    expect(p).not.toContain("LIMIT OF LIABILITY");
+    expect(p).not.toContain("the standard or basic excess");
+    // and says they are absent rather than leaving the model to guess
+    expect(p).toContain("this paper has no sum insured");
+    expect(p).toContain("this paper has no excess");
+  });
+
+  it("still asks a public liability policy for both", () => {
+    const p = orgCredPrompt("insurance", "Public liability");
+    expect(p).toContain("LIMIT OF LIABILITY");
+    expect(p).toContain("the standard or basic excess");
+  });
+
+  it("asks an unnamed policy for everything — a guess that hides a box is worse", () => {
+    expect(orgCredPrompt("insurance", "")).toContain("LIMIT OF LIABILITY");
+    expect(orgCredPrompt("insurance", "Marine transit")).toContain("LIMIT OF LIABILITY");
+  });
+
+  const cert = {
+    issuer: "icare Workers Insurance",
+    number: "127993501",
+    cover: "Employer's liability",
+    sumInsured: null,
+    premium: 2400,
+    excess: null,
+    startsOn: "2026-02-28",
+    expiresOn: "2027-02-28",
+  };
+
+  it("drops a limit and an excess a workers compensation read hands back anyway", () => {
+    const read = parseOrgCredRead(
+      { ...cert, sumInsured: 943669.32, excess: 500 },
+      "insurance",
+      "Workers compensation"
+    );
+    expect(read.sumInsured).toBeNull();
+    expect(read.excess).toBeNull();
+    // everything the paper DOES carry survives
+    expect(read.issuer).toBe(cert.issuer);
+    expect(read.expiresOn).toBe(cert.expiresOn);
+    expect(read.premium).toBe(cert.premium);
+  });
+
+  it("keeps them for the policy that prints them", () => {
+    const read = parseOrgCredRead({ ...cert, sumInsured: 20000000 }, "insurance", "Public liability");
+    expect(read.sumInsured).toBe(20000000);
+  });
+});

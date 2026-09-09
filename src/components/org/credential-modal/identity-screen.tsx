@@ -167,7 +167,7 @@ export function IdentityScreen({
           {/* SOLO when the boxes below own the number and the issuer: one
               narrow field with two empty thirds beside it reads as a form that
               lost its other fields, so Name takes the room they left. */}
-          <div className={`vm-fields${!hasTerms && !scanned ? "" : " solo"}`}>
+          <div className={`vm-fields${!adding && !hasTerms && !scanned ? "" : " solo"}`}>
             <Field label="Name" req>
               <input
                 className="vm-input"
@@ -184,15 +184,19 @@ export function IdentityScreen({
               </datalist>
             </Field>
 
-            {/* Offered only while NOTHING ELSE OWNS THEM. Once a renewal is on
-                file these three are a cache of it, and typing over them here
-                would describe a term that does not exist. The same is true the
-                moment the panel below is open: it asks for the number and the
-                issuer itself, so leaving them here printed "Licence no." and
-                "Issued by" twice on one screen with nothing to say which won —
-                and the term's copy silently did (addOrgCredential coalesces the
-                term over the identity). One question, asked once. */}
-            {!hasTerms && !scanned && (
+            {/* NOT WHILE ADDING, AT ALL. This screen's headline act is "scan
+                the certificate", and the number and the issuer are the two
+                things the scan is about to hand over — asking for them by hand
+                first is the same mistake the Type box made, one row down. They
+                belong to a TERM, and the panel below asks for them there.
+
+                They survive on the EDIT screen for the one card that can hold
+                no term: a licence with no renewal date, whose `expires_on`
+                cannot be null, so its number and issuer have nowhere else to
+                live. Once a term exists they go for good — the newest one owns
+                those columns and typing over them here would describe a term
+                that does not exist. */}
+            {!adding && !hasTerms && !scanned && (
               <>
                 <Field label={kind === "insurance" ? "Policy no." : "Licence no."}>
                   <input
@@ -211,18 +215,16 @@ export function IdentityScreen({
                     onChange={(e) => setIssuer(e.target.value)}
                   />
                 </Field>
-                {!adding && (
-                  <Field label="Expiry">
-                    <DateField
-                      size="lg"
-                      clearable
-                      today={today}
-                      value={expiry || null}
-                      onChange={(iso) => setExpiry(iso ?? "")}
-                      aria-label="Expiry"
-                    />
-                  </Field>
-                )}
+                <Field label="Expiry">
+                  <DateField
+                    size="lg"
+                    clearable
+                    today={today}
+                    value={expiry || null}
+                    onChange={(iso) => setExpiry(iso ?? "")}
+                    aria-label="Expiry"
+                  />
+                </Field>
               </>
             )}
           </div>
@@ -236,7 +238,7 @@ export function IdentityScreen({
             hint={SCAN_COPY[kind].hint}
             attachLabel={SCAN_COPY[kind].attach}
             docKind={CREDENTIAL_DOC_KIND[kind]}
-            read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind)}
+            read={(b64, mt) => readOrgCredentialDocument(b64, mt, kind, name)}
             onRead={(r, id) => {
               fill(r);
               setDocId(id);
@@ -251,7 +253,7 @@ export function IdentityScreen({
               }
             }}
           >
-            <TermFields kind={kind} value={term} onChange={setTerm} today={today} />
+            <TermFields kind={kind} name={name} value={term} onChange={setTerm} today={today} />
           </ScanCard>
         )}
 

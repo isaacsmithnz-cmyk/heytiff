@@ -3090,13 +3090,18 @@ function DrawTool({
    menu is nudged. */
 const MENU_EDGE_GAP = 8;
 
-/* What a bare scroll does, said as OUTCOMES rather than as device names.
-   "Zoom / Pan" is exactly as opaque as the two icons this replaced; a line
-   that has to be captioned with the device it suits has not explained
-   itself. */
-const SCROLL_CHOICES: { mode: WheelMode; label: string }[] = [
-  { mode: "zoom", label: "Zoom in and out" },
-  { mode: "pan", label: "Move around the plan" },
+/* What a bare scroll does — the OUTCOME first, then the device it suits.
+   "Zoom / Pan" alone is exactly as opaque as the two icons this replaced, so
+   the outcome carries the line. But the device is not a caption explaining a
+   choice that failed to explain itself: on a two-way choice it is the
+   DISCRIMINATOR, and it answers the question somebody actually arrives with,
+   which is "I have just picked up a mouse". Every other design tool that
+   offers this names the hardware — Miro's control is literally called Mouse /
+   Trackpad — and Isaac's own report was that he could not tell the setting
+   was for him. */
+const SCROLL_CHOICES: { mode: WheelMode; label: string; device: string }[] = [
+  { mode: "zoom", label: "Zoom in and out", device: "a mouse" },
+  { mode: "pan", label: "Move around the plan", device: "a trackpad" },
 ];
 
 function useClampedMenu(open: boolean) {
@@ -3478,7 +3483,13 @@ function CanvasControls({
                   checked={wheelMode === c.mode}
                   onChange={() => setWheelMode(c.mode)}
                 />
-                <span>{c.label}</span>
+                <span>
+                  {c.label}
+                  {/* built as one string rather than JSX text, because a
+                      literal dash sitting next to an expression is where this
+                      file has lost a space before */}
+                  <span className="ds-layer-for">{` — ${c.device}`}</span>
+                </span>
               </label>
             ))}
           </div>

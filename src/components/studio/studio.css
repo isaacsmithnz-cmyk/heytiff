@@ -1915,9 +1915,23 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-layer-row:hover { background: #f3f4f6; }
 .dstudio .ds-layer-row input { accent-color: var(--teal-d); }
+/* the device a scrolling choice suits, quieter than the outcome it qualifies.
+   A COLOUR STEP, never opacity — de-emphasising text by transparency is the
+   one thing the design system rules out, and this still has to be readable
+   enough to be the reason you pick the line. */
+.dstudio .ds-layer-row .ds-layer-for { color: var(--gray500); }
 
 /* view popover — Layers + Display grouped under one "View" pill */
-.dstudio .ds-view-menu { min-width: 184px; }
+/* WIDTH: MAX-CONTENT is load-bearing, not tidying. The menu is absolutely
+   positioned, so it shrink-to-fits against its CONTAINING BLOCK — the View
+   pill's little wrapper — rather than against its own content. The moment the
+   scrolling rows started naming a device, "Zoom in and out — a mouse" wrapped
+   onto two lines and orphaned "mouse", and the dash landed alone on the second
+   line of the row below it. jest cannot see this; the walk found it. */
+.dstudio .ds-view-menu {
+  min-width: 184px;
+  width: max-content;
+}
 .dstudio .ds-view-grp {
   padding: 5px 9px 3px;
   font-size: 10px;

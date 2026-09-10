@@ -23,12 +23,21 @@ Every decision below is made once, here, and a guard test holds each number.
 
 - **The shell is still.** The dark frame, the rail, the bar and the light well
   stay exactly where they are. The aurora blobs, the rising orbs, the corner
-  glow and the active item's glow go. The only light is the content well.
-- **One accent.** Teal does four jobs: the brand mark, the focus ring, the
-  primary action, selection. Blue and violet leave the interface palette. The
-  avatar ring is a hairline; the status dot is gone until presence means
-  something. Open: whether orange remains the Studio's drawing colour on the
-  canvas. It is not a UI accent either way.
+  glow and the active item's glow go. The only light is the content well. The
+  active item is white on the rail, not teal.
+- **Ink and paper. There is no accent.** Decided 2026-09-10, after the three
+  ways out were rendered side by side. Ink does the four jobs the accent had:
+  the mark on a light ground, the focus ring, the primary action, the selection
+  tint. Colour appears on a working screen only where it means something: the
+  state words, and the drawing in the Studio. Teal survives in one place, the
+  "Tiff" of the wordmark, and nowhere else. The reason is arithmetic before it
+  is taste: the accent was three teals, `#00E5C0` at 1.6:1 on white, `#00A389`
+  at 3.2:1, `#00735f` at 5.8:1, and the one that could be read was the OK
+  state token, which is why the OK colour ended up as decoration 89 times.
+  Blue and violet leave the interface palette with it. The avatar ring is a
+  hairline; the status dot is gone until presence means something. Open:
+  whether orange remains the Studio's drawing colour on the canvas. It is not a
+  UI accent either way.
 - **Icons are drawn in the chevron's language**, in house, most-used first: a
   7% stroke (1.7 on a 24 grid), butt caps, round joins, and one stroke at 55%
   for the detail or the motion. The Lucide paths in `shell/icon.tsx` are what
@@ -84,15 +93,21 @@ line, 16px. A **group** is something you read: no box, a hairline top. An
 **overlay** floats: surface and the one shadow. A fourth kind is a question for
 this file, not a new class prefix.
 
-| Accent and state | Value | Use |
+| Ink, paper and state | Value | Use |
 |---|---|---|
-| teal | `#00E5C0`, `#00A389` on a light ground | brand mark, focus ring, primary action, selection |
-| ok | `#00735f` text, `#00A389` chip | state |
+| ink | `#050505` | text, the mark on a light ground, the primary action, the link, the focus ring (2px solid, 18:1 on the well) |
+| ink tint | ink at 7% | selection; a hover is one step of the same ladder |
+| paper | white on the rail | the active item |
+| wordmark | `#00E5C0`, the "Tiff" only | the one dot; nowhere else on a working screen |
+| ok | `#1E7B34` text, 5.3:1 | state; a plain green, not a teal-green |
 | warn | `#a44b08` text, `#F0A431` chip | state |
 | bad | `#c81a41` text, `#e0264f` chip | state |
 | info | `#2554d8` text | state |
 
-State is never the page accent, and the accent is never a state.
+There is no accent, so nothing can be confused with a state. A chroma on a
+working screen is a state word, a state dot, or the drawing. The old
+`--ok-t #00735f` retires with the teals; a green that reads as green replaces
+it, and the chip fill is set in the tokens step beside it.
 
 ## Laws
 
@@ -123,7 +138,8 @@ starts with them.
 14. No bar at the start. A coloured line down the left edge of a row, card,
     tile or nav item is not a state and not a selection. Selection is a fill.
     State is a word, or a dot, in the state colour. Kind is a label. The nav's
-    active item is its teal icon and its white label, nothing else.
+    active item is its white icon and its white label, nothing else (it was
+    teal until the ink-and-paper decision).
 15. No taglines, and no caption that explains the section. The two shapes:
     three nouns in a row under a title ("splits, ducted, multi") and a line
     that says what the section is for ("What lets the business trade —
@@ -181,10 +197,25 @@ approved together.
     link is sent to customers and arrived as a grey box. A task, not a law,
     and the first small PR of the visual work.
 
+Round three, 2026-09-10. Four found by the third research pass; three of them
+became consequences of the ink-and-paper decision rather than choices.
+
+31. Colour only where it means something. With no accent, a chroma on a
+    working screen is a state word, a state dot or the drawing. The OK colour
+    is never an eyebrow, an icon tile or a hover; it was, 89 times.
+32. A focus ring is 2px of solid ink at 3:1 or better on any ground, never an
+    alpha tint. The commonest ring was blue at 30% opacity, near 1.4:1 on
+    white; it existed and could not be seen.
+33. One height per control size. An input and the button beside it share it.
+    Four heights sat in the same rows: 42, 32, 30 and 28.
+34. One link token: ink, underlined. Links were declared eight ways, brand
+    blue in one place, three greys elsewhere, teal in the diary, ink in the
+    Toolbox.
+
 ## Guards
 
-`src/app/dashboard/__tests__/design-ratchets.test.ts` counts eight things
-across every screen stylesheet under `src` and holds each count at the number
+`src/app/dashboard/__tests__/design-ratchets.test.ts` counts twenty-seven things
+across every screen stylesheet and component under `src` and holds each count at the number
 recorded there. A PR may lower a number. A PR may never raise one. When a
 count drops, the PR lowers the recorded number with it, so the number is
 always the truth. Every guard was watched failing before it was trusted.
@@ -218,19 +249,24 @@ for print, with their own type.
 | pill, chip, tag and badge rules | state is a word | 141 |
 | letter-spacing | display titles only | 451 |
 | icon-only buttons that are not a close or clear cross | every other button carries its word | 34 |
+| uses of the OK text colour | colour only where it means something | 88 |
+| focus rings drawn as an alpha tint | 2px of solid ink | 137 |
+| colour declared on anchors | one link token | 26 |
 
 The end state for each is zero, or a short allowlist with a reason beside each
 entry (a spinner is state; the orb breathing with the microphone is feedback).
 
 ## The order of work
 
-1. **The shell**, still. Decided.
+1. **The shell**, still, with a white active item. Decided.
 2. **This file and the guards.** No pixels change.
 3. **Tokens before screens.** The scales above become custom properties on
    `:root` — the greys, the spacing scale, the two motion tokens, the six
-   layers, the dark chrome's hairline — and the stylesheets are migrated to
-   them mechanically; the four daily screens are walked. The only step that
-   touches every family at once. Laws 16 to 19 and 22 land here.
+   layers, the dark chrome's hairline, and now ink in the accent's four jobs,
+   the ink ring, the link token, one height per control size and the plain
+   green for OK — and the stylesheets are migrated to them mechanically; the
+   four daily screens are walked. The only step that touches every family at
+   once. Laws 16 to 19, 22 and 31 to 34 land here.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the

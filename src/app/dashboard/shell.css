@@ -4177,23 +4177,28 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    main → rail → ref: that is exactly the order the one-column phone layout
    wants (the week, then what it comes to, then the reference), so the stacked
    case needs no `order` and no second source of truth about sequence. */
+/* THE WEEK'S ROW HUGS THE WEEK. The rail spans both rows, and a spanning item
+   taller than the rows it crosses shares its extra height out between them —
+   so opening My normal week pushed ~130px of air in under the day panel,
+   between the days and the key that explains their colours. A flexible second
+   row takes all of that slack, where it falls below the reference instead. */
 .fg .mts2-cols { display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); gap:24px 24px;
-  align-items:start; grid-template-areas:"main rail" "ref rail"; }
+  align-items:start; grid-template-areas:"main rail" "ref rail"; grid-template-rows:auto 1fr; }
 .fg .mts2-main { grid-area:main; min-width:0; }
 .fg .mts2-rail { grid-area:rail; }
 .fg .mts2-ref  { grid-area:ref; min-width:0; }
 @media (max-width:960px){
-  .fg .mts2-cols { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "rail" "ref"; }
+  .fg .mts2-cols { grid-template-columns:minmax(0,1fr); grid-template-areas:"main" "rail" "ref"; grid-template-rows:none; }
 }
 .fg .mts2-wk { margin-bottom:24px; }
 
-/* The reference row: the key across the top, then the holiday calendar beside
-   the fine print. Both are things you read, neither is a control, so they get
-   the quiet end of the card and none of the rail's width pressure — which is
-   also what stopped "Mon, Tue, Wed, Thu, Fri" wrapping in a 240px column. */
+/* The reference row: the key across the top, then the holiday calendar. Both
+   are things you read, neither is a control, so they get the quiet end of the
+   card and none of the rail's width pressure. The pay rules used to sit here
+   too, as one grey line; they moved into the week's card, under the payroll
+   figures they explain. */
 .fg .mts2-ref { display:grid; grid-template-columns:minmax(240px,1fr) minmax(0,1.5fr); gap:12px 16px; align-items:start; }
 .fg .mts2-ref > .legend { grid-column:1 / -1; margin:0; }
-.fg .mts2-ref > .mts2-rules { align-self:start; margin:0; }
 @media (max-width:720px){ .fg .mts2-ref { grid-template-columns:minmax(0,1fr); } }
 
 /* ---- the week: day tabs ----
@@ -4442,7 +4447,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
   transition:opacity .16s; }
 .mts2-drop .mts2-ok:hover { opacity:.85; }
 @keyframes mtsDrop { from { opacity:0; transform:translateY(-6px) scaleY(.96); } to { opacity:1; transform:none; } }
-@media (prefers-reduced-motion:reduce) { .mts2-drop { animation:none; } }
+/* A clock with no room below its field stands above it instead, and grows up
+   out of the field rather than down away from it. */
+.mts2-drop.up { transform-origin:bottom center; animation-name:mtsDropUp; }
+@keyframes mtsDropUp { from { opacity:0; transform:translateY(6px) scaleY(.96); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { .mts2-drop, .mts2-drop.up { animation:none; } }
 .fg .mts2-brk { display:flex; align-items:center; gap:8px; margin-top:12px; }
 .fg .mts2-brkl { font-size:12.5px; font-weight:700; color:var(--gray700); }
 .fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:10px; padding:2px; }
@@ -4543,7 +4552,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-hlink { display:inline-flex; align-items:center; gap:4px; margin-top:12px; font-size:12px; font-weight:800; color:var(--ink); }
 .fg .mts2-hlink:hover { text-decoration:underline; }
 .fg .mts2-card .mts-hols { margin-top:12px; }
-.fg .mts2-rules { margin:0; padding:0 4px; font-size:11.5px; font-weight:600; line-height:1.6; color:var(--gray400); }
+/* THE PAY RULES, AS LABELS AND VALUES, under the payroll figures they explain.
+   They were one 11.5px grey line of dot-joined fragments beside the holiday
+   calendar, a column away from anything they governed. A group you read: a
+   hairline above it and no box of its own. */
+.fg .mts2-rules { display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; margin:12px 0 0; padding:12px 0 0; border-top:1px solid var(--line); font-size:12px; line-height:1.4; }
+.fg .mts2-rules > div { display:contents; }
+.fg .mts2-rules dt { font-weight:500; color:var(--q); }
+.fg .mts2-rules dd { margin:0; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
 
 /* ===== The time wheel — a clock you scroll, never one you type =====
 

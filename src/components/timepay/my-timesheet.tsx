@@ -24,6 +24,7 @@ import {
   type Unavailability,
 } from "@/lib/timepay/availability";
 import { dateOfDay } from "@/lib/timepay/period";
+import { submitDayIndex } from "@/lib/timepay/auto-submit";
 import { UpcomingHolidays } from "./upcoming-holidays";
 import type { PayPeriod } from "./timepay";
 import {
@@ -299,6 +300,10 @@ function DaySwitch({
    It closes on scroll rather than following: the field it belongs to is
    inside a scrolling outlet, and a drop that tracks its anchor through a
    scroll is a lot of machinery for a gesture nobody makes mid-answer. */
+/** The room a clock needs below its field before it opens upward instead: its
+    own height, measured at 217px, and the 6px it hangs below the field. */
+const DROP_ROOM = 224;
+
 function TimeField({
   label,
   wheelLabel,
@@ -324,7 +329,11 @@ function TimeField({
 }) {
   const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState<{ top: number; left: number; width: number } | null>(null);
+  /* `top` hangs it below the field; `bottom` stands it above, measured from
+     the foot of the window so its own height never has to be guessed. */
+  const [box, setBox] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(
+    null,
+  );
 
   /* MEASURED ON THE PRESS, not in an effect. An effect runs after paint, so
      placing it there gives the drop one frame at the previous field's
@@ -338,15 +347,30 @@ function TimeField({
       if (!btn.current?.contains(t) && !pop.current?.contains(t)) onToggle();
     };
     const key = (e: KeyboardEvent) => e.key === "Escape" && onToggle();
+    /* ONLY A SCROLL THAT MOVES THE FIELD CLOSES THE CLOCK. The listener sits on
+       the window in the capture phase so it hears the outlet and every panel —
+       which means it hears the wheel too. Each column is its own scroller, and
+       it scrolls itself to centre the chosen time the moment the clock opens
+       and again after every pick. Closing on that shut the clock one frame
+       after it opened, in every real window. jsdom has no scrolling and a
+       hidden tab never delivers the event, so nothing we ran could see it; a
+       walk of the live screen found it. A scroll from inside the drop is the
+       wheel doing its job. */
+    const scrolled = (e: Event) => {
+      // the page's own scroll arrives from `document`, and a window-level one
+      // from the window, which is not a Node — neither is inside the drop
+      const t = e.target;
+      if (!(t instanceof Node) || !pop.current?.contains(t)) onToggle();
+    };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", key);
     window.addEventListener("resize", onToggle);
-    window.addEventListener("scroll", onToggle, true);
+    window.addEventListener("scroll", scrolled, true);
     return () => {
       document.removeEventListener("mousedown", away);
       document.removeEventListener("keydown", key);
       window.removeEventListener("resize", onToggle);
-      window.removeEventListener("scroll", onToggle, true);
+      window.removeEventListener("scroll", scrolled, true);
     };
   }, [open, onToggle]);
 
@@ -360,7 +384,19 @@ function TimeField({
         disabled={disabled}
         onClick={() => {
           const r = btn.current?.getBoundingClientRect();
-          if (r) setBox({ top: r.bottom + 6, left: r.left, width: r.width });
+          /* DOWN, UNLESS THERE IS NO ROOM. My normal week sits at the foot of
+             the rail, and a clock hung below it ran off the bottom of the
+             window — where it can't be scrolled into view, because a scroll
+             closes it. It opens upward when the space below can't hold it and
+             the space above holds more. */
+          if (r) {
+            const below = window.innerHeight - r.bottom;
+            setBox(
+              below < DROP_ROOM && r.top > below
+                ? { bottom: window.innerHeight - r.top + 6, left: r.left, width: r.width }
+                : { top: r.bottom + 6, left: r.left, width: r.width },
+            );
+          }
           onToggle();
         }}
       >
@@ -375,8 +411,8 @@ function TimeField({
         createPortal(
           <div
             ref={pop}
-            className="mts2-drop"
-            style={{ top: box.top, left: box.left, width: box.width }}
+            className={`mts2-drop${box.bottom === undefined ? "" : " up"}`}
+            style={{ top: box.top, bottom: box.bottom, left: box.left, width: box.width }}
           >
             {/* OK AT THE TOP, beside the field it belongs to. At the bottom it
                 would sit under 132px of scrolling numbers, away from the thing
@@ -1053,6 +1089,7 @@ export function MyTimesheet({
   week,
   today,
   through,
+  pastSend = false,
   todayISO,
   periodStart,
   periods,
@@ -1086,6 +1123,10 @@ export function MyTimesheet({
   today: number;
   /** last index whose day is OVER — today isn't, so today can't be "missing" */
   through: number;
+  /** the workspace's send moment for this period has come — read off the
+      server's clock, since the screen can't consult one while it renders. A
+      draft past it is closed: lib/timepay/auto-submit. */
+  pastSend?: boolean;
   todayISO: string;
   periodStart: string;
   /** the same period switcher the admin screen uses, newest first */
@@ -1101,9 +1142,15 @@ export function MyTimesheet({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /* WHICH DAY IS TODAY, BY DATE. `today` is not that: the loader clamps it to
+     the last day of a period that is over, so every weekday of a closed week
+     counts as one that should have been logged — right for missing days, and
+     wrong for the marker, which put "SUN ·" on a Sunday four days gone. */
+  const todayAt = week.findIndex((_, i) => dateOfDay(periodStart, i) === todayISO);
   /* Which tab is open. It starts on today — the day a person opening their
-     timesheet is nearly always here about — rather than on nothing. */
-  const [selected, setSelected] = useState<number>(() => Math.max(0, today));
+     timesheet is nearly always here about — and on a week that isn't this
+     one, on its first day rather than wherever the clamp landed. */
+  const [selected, setSelected] = useState<number>(() => Math.max(0, todayAt));
   const [allHolidays, setAllHolidays] = useState(false);
 
   /* The roster travels with the week. `derive` and `dayClass` both ask "was
@@ -1209,28 +1256,37 @@ export function MyTimesheet({
     [paidAbsence, "paid, not worked"],
   ];
 
-  /* The fine print, and ONLY the print that is fine — a rule this screen
-     applies and states nowhere else.
+  /* THE PAY RULES — a label and a value each, under the payroll figures they
+     decide. They were one grey line of dot-joined fragments beneath the
+     holiday calendar, a column away from the numbers they explain.
 
-     It used to open by restating the normal hours and working days printed in
-     full in the card directly above it, and close by restating the auto-submit
-     line printed at the top of the same card. Three of its ten items were
-     already on the screen, one of them twice. */
-  const rules = [
-    /* A casual has no normal week, so stating one would be a lie about how
-       their timesheet behaves — theirs says what it actually is instead. */
-    casual ? "Casual · every day entered by hand" : null,
-    `Standard ${fmtHval(settings.standard)} day`,
-    `OT after ${fmtHval(settings.otAfter)}/${settings.otUnit}`,
-    /* `breakLine`, not a second phrasing of it — this read
-       "30 min break · unpaid", whose interior dot is the same separator this
-       list is joined with. */
-    settings.breakMinutes > 0 ? breakLine(settings) : null,
-    settings.rules.sat.on ? `Sat ${ruleSummary(settings.rules.sat)}` : null,
-    settings.rules.sun.on ? `Sun ${ruleSummary(settings.rules.sun)}` : null,
-    settings.rules.ph.on ? `Public holidays ${ruleSummary(settings.rules.ph)}` : null,
-    settings.rules.night.on ? `Night 10 PM – 6 AM ${ruleSummary(settings.rules.night)}` : null,
-  ].filter(Boolean);
+     ONLY the rules this screen applies and states nowhere else. The list used
+     to open by restating the normal hours and working days printed in full in
+     the card below it, and close by restating when the sheet sends, which the
+     sentence beside the button already says. */
+  const rules = (
+    [
+      /* A casual has no normal week, so stating one would be a lie about how
+         their timesheet behaves — theirs says what it actually is instead. */
+      casual ? ["Casual", "Every day entered by hand"] : null,
+      ["Standard day", fmtHval(settings.standard)],
+      ["Overtime", `After ${fmtHval(settings.otAfter)} a ${settings.otUnit}`],
+      settings.breakMinutes > 0
+        ? [settings.breakPaid ? "Paid break" : "Unpaid break", `${settings.breakMinutes} min`]
+        : null,
+      settings.rules.sat.on ? ["Saturday", ruleSummary(settings.rules.sat)] : null,
+      settings.rules.sun.on ? ["Sunday", ruleSummary(settings.rules.sun)] : null,
+      settings.rules.ph.on ? ["Public holidays", ruleSummary(settings.rules.ph)] : null,
+      settings.rules.night.on ? ["Nights, 10 PM – 6 AM", ruleSummary(settings.rules.night)] : null,
+    ] as ([string, string] | null)[]
+  ).filter((r): r is [string, string] => r !== null);
+
+  /* A DRAFT PAST THE SEND MOMENT IS CLOSED. One with days on it has already
+     gone — the loader sent it on the way here (lib/timepay/auto-submit) — so
+     what reaches this screen unsent is a week with nothing on it: nothing to
+     send, and locked at the moment all the same. A sent-back sheet isn't a
+     draft; its approver reopened it after the moment, on purpose. */
+  const closedAtSend = pastSend && sheet.status === "draft";
 
   /* WHEN THIS SHEET GOES — said once, in one sentence, beside the button.
 
@@ -1239,13 +1295,10 @@ export function MyTimesheet({
      workspace's time. For a casual the last day to come is the submit day
      itself, so there is no window to send it sooner and the line does not
      offer one. */
-  const canSend = !sent && period.live && !holdForDays && d.entries > 0;
+  const canSend = !sent && period.live && !closedAtSend && !holdForDays && d.entries > 0;
   const lastAhead = lastDayToCome(ctx);
-  const submitDay3 = settings.submitDay.slice(0, 3).toLowerCase();
-  const submitAt = week.reduce(
-    (at, w, i) => (String(w[0]).slice(0, 3).toLowerCase() === submitDay3 ? i : at),
-    -1,
-  );
+  // the day the sheet sends on — the server's lock reads the same definition
+  const submitAt = submitDayIndex(week, settings.submitDay);
   const itSends = `it sends itself ${settings.submitDay} ${settings.submitTime}${
     settings.lock ? " and locks" : ""
   }`;
@@ -1348,7 +1401,7 @@ export function MyTimesheet({
                             key={index}
                             className={`mts2-tab ${cls}${on ? " on" : ""}${
                               expectsWork(ctx, dowOf(w)) ? "" : " offroster"
-                            }${index === today ? " today" : ""}${src === "expected" ? " ahead" : ""}`}
+                            }${index === todayAt ? " today" : ""}${src === "expected" ? " ahead" : ""}`}
                             aria-selected={on}
                             aria-label={`${dayLabel(w)} — ${pillLabel(entry, cls, dowOf(w), settings)}`}
                             onClick={() => setSelected(index)}
@@ -1371,7 +1424,7 @@ export function MyTimesheet({
                             the day's pending answer — which is the editor. A
                             period that is sent, closed or salaried still gets
                             a plain pill, because there is nothing to flick. */}
-                        {locked ? (
+                        {locked || closedAtSend ? (
                           <>
                             <DayHead
                               label={dayLabel(week[selected])}
@@ -1389,32 +1442,39 @@ export function MyTimesheet({
                                 </span>
                               }
                             />
-                            <div className="mts2-elock">
-                              <Icon name="check" size={16} />
-                              <span>
-                                <b>{daySummary(me.days[selected])}</b>
-                                {/* ONE "CLOSED", in the week card. A past period said
-                                    "This period is closed." here AND in the rail a few
-                                    inches away — the same sentence twice. The rail is
-                                    where the period's state lives, so a day in a closed
-                                    period just shows what it was. The whole line goes,
-                                    not only its words: `.mts2-elock em` is a block with
-                                    a margin, and an empty one leaves a gap. Sent and
-                                    salaried keep theirs — each says something about
-                                    this day the rail does not. */}
-                                {(sent || period.live) && (
-                                  <em>
-                                    {sent
-                                      ? `This ${noun} has been sent — it can't be changed here.`
-                                      : "Salaried — this day pays itself whatever the hours say."}
-                                  </em>
-                                )}
-                              </span>
-                            </div>
+                            {/* THE DAY AS IT WAS — and nothing where there was
+                                nothing. The tick sat beside whatever the day came
+                                to, so a closed day with no entry read "✓ —" under
+                                a pill already saying No entry. A row with no value
+                                and no note has nothing to report, and goes. */}
+                            {(me.days[selected].t !== "empty" || sent || (period.live && salariedRest)) && (
+                              <div className="mts2-elock">
+                                {me.days[selected].t !== "empty" && <Icon name="check" size={16} />}
+                                <span>
+                                  {me.days[selected].t !== "empty" && <b>{daySummary(me.days[selected])}</b>}
+                                  {/* ONE "CLOSED", in the week card. A past period said
+                                      "This period is closed." here AND in the rail a few
+                                      inches away — the same sentence twice. The rail is
+                                      where the period's state lives, so a day in a closed
+                                      period just shows what it was. The whole line goes,
+                                      not only its words: `.mts2-elock em` is a block with
+                                      a margin, and an empty one leaves a gap. Sent and
+                                      salaried keep theirs — each says something about
+                                      this day the rail does not. */}
+                                  {(sent || (period.live && salariedRest)) && (
+                                    <em>
+                                      {sent
+                                        ? `This ${noun} has been sent — it can't be changed here.`
+                                        : "Salaried — this day pays itself whatever the hours say."}
+                                    </em>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                             {/* The exception, on the day it happened and
                                 nowhere else — the instruction and the button
                                 that follows it are finally the same object. */}
-                            {salariedRest && !sent && period.live && (
+                            {salariedRest && !sent && period.live && !closedAtSend && (
                               <button
                                 type="button"
                                 className="mts2-ph-worked"
@@ -1493,23 +1553,35 @@ export function MyTimesheet({
                       </span>
                     ))}
                 </div>
+                {/* WHAT THE PAYROLL FIGURE IS MADE OF — the workspace's rules,
+                    directly under the figure they decide. See `rules`. */}
+                <dl className="mts2-rules">
+                  {rules.map(([label, value]) => (
+                    <div key={label}>
+                      <dt>{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
                 <div className="mts2-sub">
                   {!period.live && !sent
                     ? "This period is closed."
-                    : salaried && !sent
-                      ? /* THE REASON NOT TO BOTHER, STATED AT REST. When a
-                           workspace absorbs salaried overtime, "your salary
-                           already covers it" is the whole answer — and it used
-                           to appear only once you had opted into recording
-                           some, which is after the decision it informs. */
-                        `Salaried — your pay is the same every ${noun}, so there's nothing to fill in. Leave and public holidays arrive from where they're booked.${
-                          settings.salariedOtPaid === false
-                            ? " A long day is still worth recording, but your salary already covers the extra hours."
-                            : ""
-                        }`
-                      : sheet.status === "draft"
-                        ? sendLine
-                        : status.sub}
+                    : closedAtSend
+                      ? `This ${noun} locked at ${settings.submitDay} ${settings.submitTime}.`
+                      : salaried && !sent
+                        ? /* THE REASON NOT TO BOTHER, STATED AT REST. When a
+                             workspace absorbs salaried overtime, "your salary
+                             already covers it" is the whole answer — and it used
+                             to appear only once you had opted into recording
+                             some, which is after the decision it informs. */
+                          `Salaried — your pay is the same every ${noun}, so there's nothing to fill in. Leave and public holidays arrive from where they're booked.${
+                            settings.salariedOtPaid === false
+                              ? " A long day is still worth recording, but your salary already covers the extra hours."
+                              : ""
+                          }`
+                        : sheet.status === "draft"
+                          ? sendLine
+                          : status.sub}
                 </div>
                 {/* SUBMIT EXISTS ONCE THERE IS SOMETHING TO SEND — the rule the
                     day panel's Save follows. It used to sit here disabled while
@@ -1562,8 +1634,10 @@ export function MyTimesheet({
                 with nothing under it. The split now follows what the blocks are
                 FOR: the rail holds the period and the decision you make about
                 it, and the material you only consult (which colour means what,
-                which days the business is closed, the rules behind the
-                figures) sits below the days, in the space they left.
+                which days the business is closed) sits below the days, in the
+                space they left. The pay rules went back up, into the week's
+                card under the payroll figures: they are how that figure is
+                made, not something to look up.
 
                 It is a grid AREA rather than a third column, so the one-column
                 layout under 960px still reads week → decision → reference in
@@ -1600,8 +1674,6 @@ export function MyTimesheet({
                 </button>
                 {allHolidays && <UpcomingHolidays holidays={holidays} today={todayISO} />}
               </section>
-
-              <p className="mts2-rules">{rules.join(" · ")}</p>
             </div>
             </div>
           </div>

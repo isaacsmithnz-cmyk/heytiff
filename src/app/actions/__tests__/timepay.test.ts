@@ -18,6 +18,12 @@ const holidayStateAsks: unknown[] = [];
 /* Approved leave rows (raw DB shape) the presumption will find — for the
    provenance test: a materialised leave day must carry its request's id. */
 let leaveRows: Record<string, unknown>[] = [];
+/* The AU clock the actions read. Wed 1 Jul 2026, mid-morning, by default:
+   inside the week of Mon 29 Jun and before its Sunday 3:00 PM send moment, so
+   that week is a draft its owner can still change. Anything that needs every
+   day of it over — materialising, approving — moves the clock to September. */
+let auToday = "2026-07-01";
+let auMins = 10 * 60;
 
 const update = jest.fn();
 
@@ -83,6 +89,11 @@ jest.mock("@/lib/auth0", () => ({
 jest.mock("@/lib/permissions-server", () => ({ can: jest.fn(async (c: string) => caps.has(c)) }));
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => myStaffId) }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+jest.mock("@/lib/au-dates", () => ({
+  ...jest.requireActual("@/lib/au-dates"),
+  todayInAu: () => auToday,
+  auMinutesNow: () => auMins,
+}));
 
 import {
   approveWeek,
@@ -105,6 +116,8 @@ beforeEach(() => {
   myStaffId = "me";
   holidayStateAsks.length = 0;
   leaveRows = [];
+  auToday = "2026-07-01";
+  auMins = 10 * 60;
 });
 
 describe("entering your own hours", () => {
@@ -199,6 +212,37 @@ describe("entering your own hours", () => {
   });
 });
 
+/* "IF YOU DON'T, IT SENDS ITSELF SUN 3:00 PM AND LOCKS." The loaders send the
+   draft on the first read after that minute (lib/timepay/auto-submit), but a
+   screen left open across it still offers the editor — so the lock is the
+   action's as well. */
+describe("the moment the week sends itself", () => {
+  it("refuses to change a draft once the moment has come", async () => {
+    auToday = "2026-07-05"; // Sun 5 Jul — the week's own Sunday
+    auMins = 15 * 60; // 3:00 PM exactly
+    const res = await saveDay(MONDAY, 0, { t: "off" });
+    expect(res).toEqual({
+      ok: false,
+      error: "This week locked at Sun 3:00 PM — ask your manager to send it back to change it.",
+    });
+    expect(upsert).not.toHaveBeenCalled();
+    expect((await saveDay(MONDAY, 0, { t: "empty" })).ok).toBe(false);
+    expect(del).not.toHaveBeenCalled();
+  });
+
+  it("still takes the change a minute before", async () => {
+    auToday = "2026-07-05";
+    auMins = 15 * 60 - 1;
+    expect((await saveDay(MONDAY, 0, { t: "off" })).ok).toBe(true);
+  });
+
+  it("lets a sent-back week be changed after it — the approver reopened it", async () => {
+    auToday = "2026-07-20";
+    sheetStatus = "sent_back";
+    expect((await saveDay(MONDAY, 0, { t: "off" })).ok).toBe(true);
+  });
+});
+
 /* Submitting is what turns the presumption into a record.
 
    Up to here a normal Tuesday is derived and no row exists for it. That is
@@ -206,6 +250,11 @@ describe("entering your own hours", () => {
    org changed its normal finish time in August, a June sheet must not restate
    itself. So submit writes the presumed days down as they stood. */
 describe("submitting writes the week down", () => {
+  // a period long past: every one of its days is over
+  beforeEach(() => {
+    auToday = "2026-09-10";
+  });
+
   it("materialises the presumed weekdays before it sends the sheet", async () => {
     await submitWeek(MONDAY);
     const entryWrite = upsert.mock.calls.find(
@@ -377,6 +426,38 @@ describe("review", () => {
       "timesheets",
       expect.objectContaining({ status: "sent_back", review_note: "Confirm Tuesday's overtime" }),
     );
+  });
+});
+
+/* APPROVING A WEEK NOBODY SENT. An approved sheet is frozen — stored rows only
+   — and a week its owner never submitted has its ordinary days presumed, with
+   no rows behind them. Approving it as it stood turned a 40-hour week into
+   nothing. The approver's Approve button is offered on a draft, so the action
+   writes the week down first, the way submitting does. */
+describe("approving a week nobody sent", () => {
+  beforeEach(() => {
+    auToday = "2026-09-10";
+  });
+
+  it("writes its presumed days down before the approval freezes them", async () => {
+    await approveWeek("target", MONDAY);
+    const entryWrite = upsert.mock.calls.find(([t, rows]) => t === "time_entries" && Array.isArray(rows));
+    const rows = entryWrite![1] as Record<string, unknown>[];
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toMatchObject({ staff_profile_id: "target", work_date: "2026-06-29", kind: "work", hours: 8 });
+    const order = upsert.mock.calls.map(([t]) => t);
+    expect(order.indexOf("time_entries")).toBeLessThan(order.indexOf("timesheets"));
+  });
+
+  it("leaves a submitted week's rows alone — submitting already wrote them", async () => {
+    sheetStatus = "submitted";
+    await approveWeek("target", MONDAY);
+    expect(upsert.mock.calls.filter(([t]) => t === "time_entries")).toHaveLength(0);
+  });
+
+  it("writes nothing down to send a week back", async () => {
+    await sendBackWeek("target", MONDAY, "Check Tuesday");
+    expect(upsert.mock.calls.filter(([t]) => t === "time_entries")).toHaveLength(0);
   });
 });
 

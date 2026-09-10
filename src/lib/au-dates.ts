@@ -173,6 +173,21 @@ export function auHourNow(now: Date = new Date()): number {
   return Number(part?.value ?? 0);
 }
 
+/* Minutes past midnight on the AU clock right now — the other half of
+   `todayInAu`, for asking whether a wall-clock moment ("Sun 3:00 PM") has come
+   without turning either side into an instant. Same anchor, so the date and
+   the minutes can't be read off two different clocks. */
+export function auMinutesNow(now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: AU_ANCHOR_TZ,
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return get("hour") * 60 + get("minute");
+}
+
 /* "9:47 am" — the clock in the yard right now, for the frame's topbar.
 
    Same anchor as `auHourNow` and `todayInAu` for the same reason: a UTC server

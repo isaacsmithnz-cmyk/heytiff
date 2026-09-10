@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MyTimesheet } from "../my-timesheet";
 import type { PayPeriod } from "../timepay";
@@ -221,15 +221,63 @@ describe("the period header", () => {
     expect(container.querySelector(".autosub")).toBeNull();
   });
 
+  /* A CLOSED WEEK AS THE LOADER HANDS IT OVER: its own dates, every day of it
+     over, and `today` clamped to its last day — while the real date sits in
+     the week after. Monday was logged; the rest is empty. */
+  const CLOSED = {
+    periodIndex: 1,
+    periodStart: "2026-06-22",
+    week: [
+      ["MON", 22, "Jun"],
+      ["TUE", 23, "Jun"],
+      ["WED", 24, "Jun"],
+      ["THU", 25, "Jun"],
+      ["FRI", 26, "Jun"],
+      ["SAT", 27, "Jun"],
+      ["SUN", 28, "Jun"],
+    ] as WeekDay[],
+    today: 6,
+    through: 6,
+    me: { ...ME, days: [w8, EM, EM, EM, EM, EM, EM] as DayEntry[] },
+    sources: ["entered", "none", "none", "none", "none", "none", "none"] as DaySource[],
+  };
+
   /* ONCE. A past period said "This period is closed." in the week card AND in
      the locked day panel beside it — the same sentence twice, a few inches
      apart. The card is where the period's state lives; the day just shows what
      it was, with no empty line left behind. */
   it("says a closed period is closed once, not again on the day", () => {
-    const { container } = renderSheet({ periodIndex: 1 });
+    const { container } = renderSheet(CLOSED);
     expect(screen.getAllByText("This period is closed.")).toHaveLength(1);
     expect(container.querySelector(".mts2-elock")).not.toBeNull();
     expect(container.querySelector(".mts2-elock em")).toBeNull();
+  });
+
+  /* The loader clamps `today` to the last day of a period that is over —
+     right for deciding which days are missing, wrong for the marker. A walk of
+     the live screen found "SUN ·" on a Sunday four days gone, and the week
+     opened on that empty Sunday. */
+  it("marks no day of a closed week as today, and opens it on its first day", () => {
+    const { container } = renderSheet(CLOSED);
+    expect(container.querySelectorAll(".mts2-tab.today")).toHaveLength(0);
+    expect((container.querySelectorAll(".mts2-tab")[0] as HTMLElement).className).toContain("on");
+  });
+
+  /* The lock row drew a tick beside whatever the day came to, so a closed day
+     with nothing on it read "✓ —" (the walk found it on a Sunday), under a
+     pill that already says what the day was. */
+  it("puts no tick beside a closed day with nothing on it", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet(CLOSED);
+    expect(container.querySelector(".mts2-elock svg")).not.toBeNull();
+    expect(container.querySelector(".mts2-elock b")?.textContent).toBe("8h");
+    await user.click(tab(/Sun 28 Jun/));
+    expect(container.querySelector(".mts2-elock")).toBeNull();
+    expect(within(panel()).getByText("No entry")).toBeInTheDocument();
+    // a rostered day left empty is Missing — and gets no tick either
+    await user.click(tab(/Tue 23 Jun/));
+    expect(container.querySelector(".mts2-elock")).toBeNull();
+    expect(within(panel()).getByText("Missing")).toBeInTheDocument();
   });
 
   it("says nothing about money — not a rate, not a gross, not a dollar sign", () => {
@@ -629,6 +677,63 @@ describe("a time is scrolled, never typed", () => {
     expect(options.map((o) => o.textContent)).toContain("35");
     expect(options.map((o) => o.textContent)).not.toContain("37");
   });
+
+  /* THE CLOCK THAT CLOSED ITSELF. The drop closes when the page scrolls, and
+     it listened on the window in the capture phase — so it heard its own
+     wheel, which scrolls itself to centre the chosen time the moment it opens.
+     In a real window the clock shut one frame after opening. jsdom never
+     scrolls, so this sends the events the browser would. */
+  it("stays open while its own wheel scrolls, and closes when the page does", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    await user.click(field("Start"));
+    const group = screen.getByRole("group", { name: "Start" });
+    fireEvent.scroll(within(group).getByRole("listbox", { name: "Hour" }));
+    expect(field("Start")).toHaveAttribute("aria-expanded", "true");
+    expect(document.querySelector(".mts2-drop")).not.toBeNull();
+
+    fireEvent.scroll(document);
+    expect(field("Start")).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector(".mts2-drop")).toBeNull();
+  });
+
+  it("hangs its clock below the field when there's room", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    await user.click(field("Start"));
+    const drop = document.querySelector(".mts2-drop") as HTMLElement;
+    expect(drop.classList.contains("up")).toBe(false);
+    expect(drop.style.top).not.toBe("");
+    expect(drop.style.bottom).toBe("");
+  });
+
+  /* My normal week sits at the foot of the rail, and its clock ran 20px off
+     the bottom of a 936px window — where scrolling to reach it closes it. */
+  it("stands its clock above the field when there's no room below", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(tab(/Mon 29 Jun/));
+    const start = field("Start");
+    const h = window.innerHeight;
+    jest.spyOn(start, "getBoundingClientRect").mockReturnValue({
+      top: h - 60,
+      bottom: h - 8,
+      left: 40,
+      right: 340,
+      width: 300,
+      height: 52,
+      x: 40,
+      y: h - 60,
+      toJSON: () => ({}),
+    } as DOMRect);
+    await user.click(start);
+    const drop = document.querySelector(".mts2-drop") as HTMLElement;
+    expect(drop.classList.contains("up")).toBe(true);
+    expect(drop.style.bottom).toBe("66px");
+    expect(drop.style.top).toBe("");
+  });
 });
 
 describe("a day that was different", () => {
@@ -753,13 +858,13 @@ describe("a casual", () => {
     expect(tabs[0]).toContain("std");
   });
 
-  /* The rules line carries this; the heading used to say it a second time as
+  /* The pay rules carry this; the heading used to say it a second time as
      "Nothing is filled in for you", which is the app describing its own
      non-behaviour to somebody looking at a visibly empty sheet. */
   it("says its week is entered by hand", () => {
     const { container } = renderSheet(CASUAL);
     expect(container.querySelector(".mts2-rules")?.textContent).toContain(
-      "every day entered by hand",
+      "Every day entered by hand",
     );
     /* the instruction, then when the sheet goes — never "then submit" above
        a Submit button that isn't there yet */
@@ -1081,25 +1186,54 @@ describe("the rail", () => {
     ).toBeInTheDocument();
   });
 
-  /* FINE PRINT IS PRINT THAT ISN'T ANYWHERE ELSE. Three of the footnote's ten
-     items were already on the screen: it opened by restating the normal hours
-     and working days printed in full in the card directly above it, and closed
-     by restating `submitNote` — which is the `.autosub` line at the top of the
-     same card, and was ALSO the tail of the held-submit note, so the
-     auto-submit rule appeared three times on one screen. */
-  it("footnotes only the rules stated nowhere else on the screen", () => {
+  /* THE PAY RULES STATE ONLY WHAT ISN'T ANYWHERE ELSE. Three of the old
+     footnote's ten items were already on the screen: it opened by restating
+     the normal hours and working days printed in full in the card below it,
+     and closed by restating when the sheet sends — the line beside the button,
+     and once the tail of a held-submit note too, so that rule appeared three
+     times on one screen. */
+  const ruleRows = (container: HTMLElement) =>
+    [...container.querySelectorAll(".mts2-rules dt")].map((dt) => [
+      dt.textContent ?? "",
+      dt.nextElementSibling?.tagName === "DD" ? (dt.nextElementSibling.textContent ?? "") : "",
+    ]);
+
+  it("states only the rules stated nowhere else, a label and a value each", () => {
     const { container } = renderSheet({ settings: withBreak(30, false) });
-    const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
-    expect(rules).toContain("Standard 8h day");
-    expect(rules).toContain("OT after 8h/day");
-    expect(rules).toContain("30 min unpaid break");
-    expect(rules).toContain("Sat 1.5× first 2h, then 2×");
-    expect(rules).not.toContain("$");
-    // the normal week is the card above; when the sheet sends is the line
+    expect(Object.fromEntries(ruleRows(container))).toMatchObject({
+      "Standard day": "8h",
+      Overtime: "After 8h a day",
+      "Unpaid break": "30 min",
+      Saturday: "1.5× first 2h, then 2×",
+    });
+    const text = container.querySelector(".mts2-rules")?.textContent ?? "";
+    expect(text).not.toContain("$");
+    // the normal week is the card below; when the sheet sends is the line
     // beside the Submit button
-    expect(rules).not.toContain("Normal 7:00 AM – 3:00 PM");
-    expect(rules).not.toContain("auto-submits");
-    expect(rules).not.toContain("sends itself");
+    expect(text).not.toContain("7:00 AM – 3:00 PM");
+    expect(text).not.toContain("auto-submits");
+    expect(text).not.toContain("sends itself");
+  });
+
+  /* "UNDER PAYROLL." The rules were a grey line beneath the holiday calendar,
+     a column away from the figures they decide. They sit in the week's card
+     now, between the payroll chips and the sentence about sending — and the
+     dot chain went with the line: a label and a value need no separator, so
+     no rule can read as two. */
+  it("sits under the payroll figures in the week's card, with no dot chain", () => {
+    const { container } = renderSheet({ settings: withBreak(30, false) });
+    const rules = container.querySelector(".mts2-rules") as HTMLElement;
+    const card = rules.closest(".mts2-card") as HTMLElement;
+    expect(card.querySelector(".mts2-tot")).not.toBeNull();
+    expect(container.querySelector(".mts2-ref .mts2-rules")).toBeNull();
+    const order = [...card.children].map((el) => el.className);
+    expect(order.indexOf("mts2-rules")).toBeGreaterThan(order.indexOf("mts2-bk"));
+    expect(order.indexOf("mts2-rules")).toBeLessThan(order.indexOf("mts2-sub"));
+    expect(rules.textContent).not.toContain("·");
+    for (const row of rules.children) {
+      expect(row.querySelectorAll("dt")).toHaveLength(1);
+      expect(row.querySelectorAll("dd")).toHaveLength(1);
+    }
   });
 
   it("says when the sheet sends exactly once, beside the button it is about", () => {
@@ -1123,19 +1257,6 @@ describe("the rail", () => {
     expect(container.querySelector(".wknav .range")?.textContent).toContain("29 Jun – 5 Jul");
   });
 
-  /* THE SEPARATOR MEANS ONE THING. This line joins its items with " · ", and
-     three of them used to contain a "·" of their own — "30 min break · unpaid",
-     "Sat 1.5× first 2h · then 2×", "auto-submits Sun 3:00 PM · then locks" —
-     so the footnote read as thirteen rules instead of nine, four of them
-     fragments ("then 2×", "unpaid"). Counting the dots is the assertion: one
-     per gap between items, none inside one. */
-  it("uses the dot for one job — dividing rules, never joining a phrase", () => {
-    const { container } = renderSheet({ settings: withBreak(30, false) });
-    const rules = container.querySelector(".mts2-rules")?.textContent ?? "";
-    expect(rules).toContain("Sat 1.5× first 2h, then 2×");
-    expect(rules.split(" · ")).toHaveLength(rules.split(" · ").filter(Boolean).length);
-    expect(rules).not.toMatch(/· (then|unpaid|paid)\b/);
-  });
 });
 
 describe("the month's public holidays", () => {
@@ -1175,6 +1296,7 @@ describe("when the week is closed to you", () => {
     ["approved", { sheet: SHEET({ status: "approved" }) }],
     ["historical", { periodIndex: 1 }],
   ])("%s: it reads, it doesn't edit", async (_label, over) => {
+    const user = userEvent.setup();
     const { container } = renderSheet(over as Partial<React.ComponentProps<typeof MyTimesheet>>);
     /* No `.locked` class to assert on any more, and there never should have
        been: every rule reading it is `.fg .tpr.locked .capprove / .cedit /
@@ -1186,7 +1308,39 @@ describe("when the week is closed to you", () => {
     expect(screen.queryByText("Submit week")).toBeNull();
     // the days are still all there, and still switchable
     expect(container.querySelectorAll(".mts2-tab")).toHaveLength(7);
+    // a day with something on it reads as what it came to
+    await user.click(tab(/Mon 29 Jun/));
     expect(container.querySelector(".mts2-elock")).not.toBeNull();
+  });
+
+  /* "IF YOU DON'T, IT SENDS ITSELF SUN 3:00 PM AND LOCKS." A week with days on
+     it has gone by the time it reaches the screen — the loader sent it. One
+     with nothing on it has nothing to send, and locks at the moment all the
+     same, rather than sending the instant a day went on it and locking the
+     rest of the week out from under the person adding them. */
+  it("locks a draft at its send moment, and says when", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet({
+      ...CASUAL,
+      me: { ...ME, days: Array.from({ length: 7 }, () => EM) as DayEntry[] },
+      sources: Array.from({ length: 7 }, () => "none") as DaySource[],
+      pastSend: true,
+      today: 6,
+      through: 5,
+      todayISO: "2026-07-05",
+    });
+    expect(container.querySelector(".mts2-rail .mts2-sub")?.textContent).toBe(
+      "This week locked at Sun 3:00 PM.",
+    );
+    expect(screen.queryByText("Submit week")).toBeNull();
+    await user.click(tab(/Tue 30 Jun/));
+    expect(within(panel()).queryByRole("button", { name: "Add this day" })).toBeNull();
+    expect(screen.queryByText("Save day")).toBeNull();
+  });
+
+  it("leaves a sent-back week open after the moment — its approver reopened it", () => {
+    renderSheet({ pastSend: true, sheet: SHEET({ status: "sent_back", reviewNote: "Tuesday?" }) });
+    expect(screen.getByText("Submit again").closest("button")).toBeEnabled();
   });
 });
 

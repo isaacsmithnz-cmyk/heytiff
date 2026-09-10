@@ -15,19 +15,32 @@ const presumptionCtx = jest.fn(async (..._a: unknown[]) => ({
   ownWorkDays: new Map(),
   through: -1,
 }));
-const presumeFor = jest.fn((..._a: unknown[]) => ({
-  days: [],
-  sources: [],
+/** A presumption's result, with whatever days it filled in. */
+const presumed = (days: unknown[] = [], sources: string[] = []) => ({
+  days,
+  sources,
+  absences: new Map(),
   hours: { start: "7:00 AM", end: "3:00 PM" },
   workDays: [0, 1, 2, 3, 4],
   presume: true,
-}));
+  holidayDays: [],
+  certMissing: [],
+});
+const presumeFor = jest.fn((..._a: unknown[]) => presumed());
+const sendThemselves = jest.fn(async (..._a: unknown[]) => true);
+/* The AU clock the loaders read. Mon 27 Jul 2026, mid-morning: last week
+   (Mon 20 – Sun 26 Jul) sent itself yesterday at 3:00 PM on the defaults, and
+   this week's moment hasn't come. */
+let auNow = { today: "2026-07-27", minutes: 10 * 60 };
 
 jest.mock("@/lib/auth0", () => ({
   auth0: { getSession: jest.fn(async () => ({ orgId: "org-1", user: { sub: "auth0|me" } })) },
 }));
 jest.mock("@/lib/fleet/query", () => ({ staffProfileIdFor: jest.fn(async () => "me") }));
-jest.mock("@/lib/au-dates", () => ({ todayInAu: () => "2026-07-27" }));
+jest.mock("@/lib/au-dates", () => ({
+  todayInAu: () => auNow.today,
+  auMinutesNow: () => auNow.minutes,
+}));
 jest.mock("../query", () => {
   const { DEFAULT_SETTINGS } = jest.requireActual("@/components/timepay/logic");
   return {
@@ -61,8 +74,13 @@ jest.mock("../presume", () => ({
   presumptionCtx: (...a: unknown[]) => presumptionCtx(...(a as [])),
   presumeFor: (...a: unknown[]) => presumeFor(...(a as [])),
 }));
+jest.mock("../submit", () => ({
+  sendThemselves: (...a: unknown[]) => sendThemselves(...(a as [])),
+  momentInstant: () => "2026-07-26T05:00:00.000Z",
+}));
 
-import { loadTimepay } from "../page-data";
+import { loadMyTimesheet, loadTimepay } from "../page-data";
+import { getMyWeek, sheetStates } from "../query";
 
 describe("loadTimepay resolves every person's holiday state staff → org", () => {
   it("feeds the fallback state to the presumption, keeps a personal one, and tops up the calendar", async () => {
@@ -98,5 +116,92 @@ describe("loadTimepay resolves every person's holiday state staff → org", () =
     );
     expect(frozenByStaff.get("me")).toBe(true);
     expect(frozenByStaff.get("them")).toBe(false);
+  });
+});
+
+/* "IF YOU DON'T, IT SENDS ITSELF SUN 3:00 PM AND LOCKS." Nothing did, until
+   now. There is no scheduler: the first read after the moment sends the draft,
+   and a Monday-morning approver is as good a first read as the person. */
+const W8 = { t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 };
+
+describe("a week nobody sent sends itself at the workspace's moment", () => {
+  beforeEach(() => {
+    sendThemselves.mockClear();
+    sendThemselves.mockResolvedValue(true);
+    auNow = { today: "2026-07-27", minutes: 10 * 60 };
+    // "them" has a presumed Monday on it; "me" is already submitted
+    presumeFor.mockImplementation((s) =>
+      (s as { id: string }).id === "them" ? presumed([W8], ["presumed"]) : presumed(),
+    );
+  });
+  afterEach(() => presumeFor.mockImplementation(() => presumed()));
+
+  it("sends every draft with days on it, once, and hands the screen a sent sheet", async () => {
+    const out = await loadTimepay({ pay: false }, "2026-07-20");
+    expect(sendThemselves).toHaveBeenCalledTimes(1);
+    const [org, period, sent] = sendThemselves.mock.calls[0] as [string, string, { staffId: string }[]];
+    expect([org, period]).toEqual(["org-1", "2026-07-20"]);
+    expect(sent.map((x) => x.staffId)).toEqual(["them"]);
+    expect(out!.sheets.them).toMatchObject({ status: "submitted", submittedAt: "2026-07-26T05:00:00.000Z" });
+  });
+
+  it("sends nothing a minute before the moment", async () => {
+    auNow = { today: "2026-07-26", minutes: 15 * 60 - 1 };
+    await loadTimepay({ pay: false }, "2026-07-20");
+    expect(sendThemselves).not.toHaveBeenCalled();
+  });
+
+  it("leaves a sent-back sheet with its owner — the approver reopened it", async () => {
+    (sheetStates as unknown as jest.Mock).mockResolvedValueOnce(new Map([["them", { status: "sent_back" }]]));
+    await loadTimepay({ pay: false }, "2026-07-20");
+    expect(sendThemselves).not.toHaveBeenCalled();
+  });
+
+  it("doesn't call a sheet sent when the write didn't land", async () => {
+    sendThemselves.mockResolvedValue(false);
+    const out = await loadTimepay({ pay: false }, "2026-07-20");
+    expect(out!.sheets.them).toBeUndefined();
+  });
+});
+
+describe("your own week sends itself the first time you look after the moment", () => {
+  beforeEach(() => {
+    sendThemselves.mockClear();
+    sendThemselves.mockResolvedValue(true);
+    auNow = { today: "2026-07-27", minutes: 10 * 60 };
+    (getMyWeek as unknown as jest.Mock).mockResolvedValue({
+      id: "me",
+      state: null,
+      employment: "permanent",
+      days: [],
+    });
+    // nothing sent yet this time
+    (sheetStates as unknown as jest.Mock).mockResolvedValueOnce(new Map());
+  });
+  afterEach(() => presumeFor.mockImplementation(() => presumed()));
+
+  it("writes it down, and the screen gets it as sent", async () => {
+    presumeFor.mockImplementation(() => presumed([W8], ["presumed"]));
+    const out = await loadMyTimesheet("2026-07-20");
+    expect(sendThemselves).toHaveBeenCalledWith(
+      "org-1",
+      "2026-07-20",
+      [expect.objectContaining({ staffId: "me" })],
+      "2026-07-26T05:00:00.000Z",
+    );
+    expect(out).toMatchObject({ pastSend: true, sheet: { status: "submitted" } });
+  });
+
+  it("closes a week with nothing on it without sending it", async () => {
+    const out = await loadMyTimesheet("2026-07-20");
+    expect(sendThemselves).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ pastSend: true, sheet: { status: "draft" } });
+  });
+
+  it("is neither sent nor closed before its moment", async () => {
+    presumeFor.mockImplementation(() => presumed([W8], ["presumed"]));
+    const out = await loadMyTimesheet(); // this week: its Sunday hasn't come
+    expect(sendThemselves).not.toHaveBeenCalled();
+    expect(out).toMatchObject({ pastSend: false, sheet: { status: "draft" } });
   });
 });

@@ -435,6 +435,14 @@ export const expectsWork = (ctx: WeekCtx, dow: number): boolean =>
 export const isOver = (ctx: WeekCtx, i: number): boolean =>
   i <= (ctx.through ?? ctx.today - 1);
 
+/* Could day i of the period still gain hours? ONE definition, read by the
+   count below and by `lastDayToCome`, so the screen can never say "send it
+   once Friday is over" while holding the button for a Saturday. */
+const stillAhead = (ctx: WeekCtx, i: number): boolean => {
+  const roster = ctx.workDays ?? DEFAULT_WORK_DAYS;
+  return !isOver(ctx, i) && (roster.length === 0 || expectsWork(ctx, dowOf(ctx.week[i]!)));
+};
+
 /** How many days of this period could still gain hours.
 
     SUBMITTING IS IRREVERSIBLE FROM THE PERSON'S SIDE — the sheet locks, and
@@ -455,12 +463,14 @@ export const isOver = (ctx: WeekCtx, i: number): boolean =>
     nothing is presumed onto their week, and any day of it is one they might
     still work. */
 export function daysToCome(ctx: WeekCtx): number {
-  const roster = ctx.workDays ?? DEFAULT_WORK_DAYS;
-  return ctx.week.reduce(
-    (n, w, i) =>
-      n + (!isOver(ctx, i) && (roster.length === 0 || expectsWork(ctx, dowOf(w))) ? 1 : 0),
-    0,
-  );
+  return ctx.week.reduce((n, _w, i) => n + (stillAhead(ctx, i) ? 1 : 0), 0);
+}
+
+/** The last day of the period that could still gain hours — the day a person
+    can send the sheet after — or -1 when none is left. */
+export function lastDayToCome(ctx: WeekCtx): number {
+  for (let i = ctx.week.length - 1; i >= 0; i--) if (stillAhead(ctx, i)) return i;
+  return -1;
 }
 
 /** "Mon, Tue, Thu" — a working pattern in the order the week runs. */

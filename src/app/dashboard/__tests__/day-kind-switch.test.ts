@@ -114,7 +114,7 @@ it("restates the button reset the portal cannot inherit", () => {
 /* A token declared on `.fg` never reaches a portal, so anything that would
    render invisible without it carries the literal beside it. */
 it("gives the drop's tokens a literal to fall back on", () => {
-  for (const decl of [rule(".mts2-drophd span"), rule(".mts2-drop .mts2-ok")]) {
+  for (const decl of [rule(".mts2-drop .mts2-ok")]) {
     for (const [, token] of decl.matchAll(/var\((--[a-z0-9-]+)([^)]*)\)/gi)) {
       expect(`${token} has a fallback`).toBe(`${token} has a fallback`);
     }
@@ -149,4 +149,27 @@ it("keeps the two times as two separate fields", () => {
 it("puts the chevron at the field's edge without leaning on the svg", () => {
   expect(rule(".fg .mts2-fieldhd")).toMatch(/justify-content:space-between/);
   expect(rule(".fg .mts2-fieldhd > span:last-child")).not.toMatch(/margin-left:auto/);
+});
+
+/* ── WHAT THE DAILY-USER WALK TOOK OUT (2026-09-10) ── */
+
+/* The drop's header led with the field's own name — "FINISHED" directly under
+   a field reading "Finished 5:30 PM". It carries OK and nothing else. */
+/* CODE, NOT PROSE. The sheet explains its deletions in comments — this very
+   pass names `.mts2-wheels` in one to say why it went — so a "stays deleted"
+   check has to read the rules with the comments stripped, or it fails on the
+   note that documents its own fix. */
+const CODE = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+
+it("does not restate the field's name inside the drop", () => {
+  expect(CODE).not.toMatch(/\.mts2-drophd span\b/);
+  expect(rule(".mts2-drophd")).toMatch(/justify-content:flex-end/);
+});
+
+/* "Change my normal week" was the last place on the screen still setting a
+   time with two wheels side by side. It uses the day panel's fields now, and
+   the wheel pair's rules went with it. */
+it("keeps the side-by-side wheel pair deleted", () => {
+  expect(CODE).not.toMatch(/\.mts2-wheels\b/);
+  expect(rule(".fg .mts2-card .mts2-fields")).toMatch(/grid-template-columns:1fr/);
 });

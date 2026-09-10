@@ -4395,6 +4395,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    them — two facts about the day, each its own object — and only one of them
    ever has a clock on screen. */
 .fg .mts2-fields { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:13px; }
+/* In the rail the two fields STACK: the card is ~280px wide, and two 19px
+   times side by side would crowd their own chevrons. Still one clock at a
+   time — this is My normal week using the day panel's own fields. */
+.fg .mts2-card .mts2-fields { grid-template-columns:1fr; }
 .fg .mts2-field { position:relative; }
 .fg .mts2-fieldhd { display:flex; align-items:center; justify-content:space-between; gap:12px;
   width:100%; padding:11px 15px; text-align:left; border-radius:13px; background:#fff;
@@ -4425,10 +4429,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
   font-family:var(--font-jakarta), system-ui, sans-serif;
   animation:mtsDrop .2s cubic-bezier(.22,1,.36,1); }
 .mts2-drop button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-.mts2-drophd { display:flex; align-items:center; justify-content:space-between; gap:12px;
+/* OK only — the field this hangs off already says what it is. It used to lead
+   with that name again, in capitals, directly under it. */
+.mts2-drophd { display:flex; align-items:center; justify-content:flex-end; gap:12px;
   padding:2px 4px 8px; }
-.mts2-drophd span { font-size:11.5px; font-weight:800; color:var(--gray500, #57616f);
-  letter-spacing:.04em; text-transform:uppercase; }
 .mts2-drop .mts2-ok { height:29px; padding:0 15px; border-radius:9px;
   background:var(--ink, #050505); color:#fff; font-size:12.5px; font-weight:800;
   transition:opacity .16s; }
@@ -4459,14 +4463,11 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts2-derv.off svg { color:var(--gray500); }
 .fg .mts2-derv b { font-weight:800; }
 
-/* ---- the time wheels ---- */
-/* Capped, not stretched: a three-column wheel spread across a wide panel puts
-   the hour and the meridiem a hand's width apart, which is a worse control
-   than a compact one. */
-.fg .mts2-wheels { display:flex; flex-wrap:wrap; gap:12px; margin-top:14px; }
-.fg .mts2-wheels .tw { flex:0 1 240px; max-width:280px; }
-.fg .mts2-wheels.tight { margin-top:12px; gap:10px; }
-.fg .mts2-wheels.tight .tw { flex:1 1 140px; }
+/* ---- the time wheels ----
+   The side-by-side wheel pair (.mts2-wheels) is GONE: it was capped so a
+   three-column wheel never spread across a wide panel, and it was the last
+   place on this screen setting a time with two wheels at once. Every time on
+   the screen is a field now, and its one wheel lives in the drop. */
 .fg .mts2-nh { margin-top:10px; }
 .fg .mts2-nh b { display:block; font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .mts2-nh em { display:block; margin-top:3px; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }

@@ -202,10 +202,10 @@ function small(): number {
 }
 
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
-  { law: "type below 12px — the floor", now: small, baseline: 545 },
-  { law: "weight 800 or 900 — retired", now: () => count(/font-weight\s*:\s*(800|900)\b/g), baseline: 625 },
+  { law: "type below 12px — the floor", now: small, baseline: 544 },
+  { law: "weight 800 or 900 — retired", now: () => count(/font-weight\s*:\s*(800|900)\b/g), baseline: 624 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 96 },
-  { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 202 },
+  { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 201 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 747 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 45 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 136 },
@@ -213,7 +213,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 27 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 261 },
-  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2862 },
+  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2860 },
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 104 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
   { law: "arrows on buttons — the word is the button", now: () => countTsx(onScreen("→")), baseline: 18 },
@@ -224,7 +224,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 11 },
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 25 },
   { law: "pill, chip, tag and badge rules — state is a word", now: () => count(/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*\s*[{,]/g), baseline: 139 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 451 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 450 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
 ];
 

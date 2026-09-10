@@ -3,14 +3,12 @@ import { notFound } from "next/navigation";
 /* the expired branch renders without LiveViewer, so bring its dress along */
 import "@/components/studio/studio.css";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { migrateDesign } from "@/lib/studio/migrations";
-import type { DesignDocument } from "@/lib/studio/document";
+import { loadLiveShare } from "@/lib/studio/live-load";
+import { liveMetadata } from "@/lib/studio/live-og";
 import { latestInstalledPack } from "@/lib/studio/packs/server";
 import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
 import { trimPackForLive } from "@/lib/studio/packs/live-trim";
 import type { DataPack } from "@/lib/studio/packs/schema";
-import { orgBrand } from "@/lib/org/query";
-import { NO_BRAND } from "@/lib/org/brand";
 import {
   buildDesignSnapshot,
   buildSummaryModel,
@@ -18,11 +16,7 @@ import {
 } from "@/lib/studio/summary";
 import { simApprovalState } from "@/lib/studio/sim-approval";
 import { LiveSheet } from "./live-sheet";
-import {
-  isShareExpired,
-  SHARE_TTL_DAYS,
-  shareExpiresAt,
-} from "@/lib/studio/share";
+import { SHARE_TTL_DAYS, shareExpiresAt } from "@/lib/studio/share";
 
 /** A link that has aged out. Wears the same dead-link dress as not-found and
     says nothing about the design — an expired token shouldn't confirm what it
@@ -67,10 +61,18 @@ function ExpiredLink() {
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Live design — HeyTiff",
-  robots: { index: false, follow: false },
-};
+/* The preview a messaging app shows beside the link: title, description and,
+   from opengraph-image.tsx beside this file, a picture. The words come from
+   lib/studio/live-og.ts so the page, the picture and the tests agree, and the
+   read is the same cached one the page makes. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+  return liveMetadata(await loadLiveShare(token));
+}
 
 const BUCKET = "studio-plans";
 const BRAND = "mitsubishi-electric";
@@ -81,25 +83,14 @@ export default async function LivePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  if (!token || token.length < 16) notFound();
-
-  const { data, error } = await supabaseAdmin
-    .from("studio_designs")
-    .select("doc, share_created_at, org_id")
-    .eq("share_token", token)
-    .maybeSingle();
-  if (error || !data?.doc) notFound();
-
-  /* enforced HERE, not just in the UI — this route is the only thing standing
-     between a public token and the design */
-  if (isShareExpired(data.share_created_at as string | null)) return <ExpiredLink />;
-
-  let doc: DesignDocument;
-  try {
-    doc = migrateDesign(data.doc).doc;
-  } catch {
-    notFound();
-  }
+  /* the row, the expiry check and the schema migration live in live-load.ts,
+     shared with generateMetadata above and the preview image beside this
+     file. Expiry is enforced there, not just in the UI — that read is the
+     only thing standing between a public token and the design. */
+  const share = await loadLiveShare(token);
+  if (share.kind === "missing") notFound();
+  if (share.kind === "expired") return <ExpiredLink />;
+  const { doc, brand, shareCreatedAt } = share;
 
   /* pack: latest installed + HQ overrides, then trimmed to this design */
   let pack: DataPack | null = null;
@@ -113,24 +104,11 @@ export default async function LivePage({
     /* no pack — the plan still renders; the sim just has no handlers */
   }
 
-  /* WHOSE DESIGN THIS IS.
-
-     The page said "HeyTiff" in its top-left corner — the name of the software,
-     on a link a customer opens because a particular business sent it to them.
-     The org comes off the same row the token found, so this costs one read and
-     no new trust: the token already proved the right to see this design, and
-     the business that owns it is the business that sent the link.
-
-     Signed on the SIX-HOUR clock the plan rasters below use, not the
-     one-page-view default. A customer keeps this tab open; a letterhead that
-     dies an hour in, above drawings that are still there, looks like a broken
-     page rather than an expired link.
-
-     Fails soft — orgBrand returns NO_BRAND for a missing row, and the viewer
-     falls back to the wording it had before. */
-  const brand = data.org_id
-    ? await orgBrand(data.org_id as string, { seconds: 21600 })
-    : NO_BRAND;
+  /* WHOSE DESIGN THIS IS. `brand` came with the share: the org comes off the
+     same row the token found, so it costs no new trust — the token already
+     proved the right to see this design, and the business that owns it is the
+     business that sent the link. The six-hour logo signature and the NO_BRAND
+     fallback are explained in live-load.ts. */
 
   /* plan rasters: sign every referenced sheet for the visit (6 h) */
   const refs = new Set<string>();
@@ -165,9 +143,10 @@ export default async function LivePage({
      window on it — dating it from when the link was made would put a date on
      the sheet that the numbers under it have since moved past. */
   const preparedOn = new Date(doc.meta.updatedAt).toLocaleDateString("en-AU", day);
-  const expiresOn = shareExpiresAt(
-    data.share_created_at as string
-  ).toLocaleDateString("en-AU", { day: "numeric", month: "long" });
+  const expiresOn = shareExpiresAt(shareCreatedAt).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+  });
 
   return (
     <LiveSheet

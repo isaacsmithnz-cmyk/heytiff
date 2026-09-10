@@ -41,6 +41,7 @@ export function UpdateScreen({
   pending,
   error,
   onRecord,
+  onFile,
   onCancel,
 }: {
   credential: OrgCredential;
@@ -49,6 +50,8 @@ export function UpdateScreen({
   pending: boolean;
   error: string | null;
   onRecord: (input: CredentialRecordInput) => void;
+  /** Files a scan that carries no expiry against the card itself. */
+  onFile: (documentId: string) => void;
   onCancel: () => void;
 }) {
   const kind = credential.kind;
@@ -59,7 +62,16 @@ export function UpdateScreen({
   const [docId, setDocId] = useState<string | null>(null);
 
   const showFields = mode === "scanned" || mode === "manual";
-  const canSave = term.expiresOn.trim().length > 0 && !pending;
+  /* WHAT THE PRIMARY BUTTON DOES follows what the panel is holding.
+
+     With an expiry it saves a term, as it always has. WITHOUT ONE it files the
+     certificate against the card and says so. A licence with no renewal date
+     can never have a term (expires_on is NOT NULL), so this was a "Save
+     licence" that could not be pressed, and the file the panel had already
+     uploaded was dropped, owned by nothing, the moment the person gave up. */
+  const hasExpiry = term.expiresOn.trim().length > 0;
+  const filingOnly = !hasExpiry && docId !== null;
+  const canSave = (hasExpiry || filingOnly) && !pending;
 
   const fill = (r: ReadOrgCredResult) => {
     if (!r.ok) return;
@@ -79,6 +91,11 @@ export function UpdateScreen({
 
   const save = () => {
     if (!canSave) return;
+    // it lands the way a term does: back on the card — see index.tsx
+    if (filingOnly && docId) {
+      onFile(docId);
+      return;
+    }
     onRecord({
       ...termInput(term),
       documentId: docId,
@@ -119,8 +136,9 @@ export function UpdateScreen({
       <div className="vm-foot">
         {/* What happens to the one it replaces, said where the decision is made
             rather than as a caption on a screen nobody is reading yet. It only
-            appears when there IS one to keep. */}
-        {current && (
+            appears when there IS one to keep — and never while the button is
+            filing a document, because then nothing moves into the history. */}
+        {current && !filingOnly && (
           <span className="vm-footnote">
             The term expiring {fmtDay(current.expiresOn)} moves into the history.
           </span>
@@ -130,7 +148,13 @@ export function UpdateScreen({
         </Btn>
         {showFields && (
           <Btn kind="primary" onClick={save} disabled={!canSave}>
-            {pending ? "Saving…" : kind === "insurance" ? "Save policy" : "Save licence"}
+            {pending
+              ? "Saving…"
+              : filingOnly
+                ? "File the document"
+                : kind === "insurance"
+                  ? "Save policy"
+                  : "Save licence"}
           </Btn>
         )}
       </div>

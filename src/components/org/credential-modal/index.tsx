@@ -178,6 +178,11 @@ export function CredentialModal({
             /* Saved, it goes back to the card it just changed rather than
                closing — the new term is the thing the person came to see. */
             onRecord={(input) => void run(() => onRecord(input), () => setScreen("record"))}
+            /* A scan with no expiry is FILED rather than saved as a term, and
+               lands the same way: back on the card, listed with its paperwork.
+               A null record is the card's own. A refusal keeps this screen and
+               its scan, so pressing again is a retry. */
+            onFile={(documentId) => void run(() => onAttach(null, documentId), () => setScreen("record"))}
             onCancel={() => {
               setError(null);
               setScreen("record");

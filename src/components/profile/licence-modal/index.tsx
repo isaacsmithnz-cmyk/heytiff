@@ -172,6 +172,7 @@ export function LicenceModal({
             error={error}
             onRecord={(input) => void run(() => onRecord(input), () => undefined)}
             onAttach={(termId, documentId) => void run(() => onAttach(termId, documentId), () => undefined)}
+            onFile={(documentId, after) => void run(() => onAttach(null, documentId), after)}
             onRemoveTerm={(termId) => void run(() => onRemoveTerm(termId), () => undefined)}
             onEdit={() => {
               setError(null);

@@ -57,7 +57,8 @@ const SWATCHES: { label: string; value: string }[] = [
 
 export type IdentityDraft = {
   identity: OrgCredentialInput;
-  /** Present only when adding and a term was scanned or typed. */
+  /** Present when adding and the scan panel was used — a term only if it
+      carries an expiry; the action sorts out which (splitAddScan). */
   term?: CredentialRecordInput;
 };
 
@@ -130,10 +131,13 @@ export function IdentityScreen({
       // typed here only while there is no term to own them
       ...(hasTerms ? {} : { number, issuer, expiryDate: expiry }),
     };
-    /* A scanned term only rides along when it carries the one thing that makes
-       it a term. Everything else on a certificate is optional; the expiry is
-       what the whole feature counts down to. */
-    const carry = adding && scanned && term.expiresOn.trim();
+    /* WHATEVER THE SCAN PANEL HOLDS GOES WITH THE SAVE, expiry or not. It used
+       to go only with an expiry, and a licence with no renewal date lost the
+       certificate it had already uploaded and the number and issuer read off
+       it. The action decides what it is: the first term when it has an expiry,
+       the card's own details and document when it hasn't (splitAddScan, in
+       lib/org/credential-records.ts). */
+    const carry = adding && scanned;
     onSave({
       identity,
       term: carry ? { ...termInput(term), documentId: docId, source: mode === "scanned" ? "scan" : "manual" } : undefined,

@@ -11,7 +11,7 @@ import {
 } from "@/lib/staff/profile";
 import { splitName, withDerivedFullName } from "@/lib/staff/name";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
-import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
+import { buildLicenceTermRow, splitAddScan, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
   fileLicenceDocument,
   recordTerm,
@@ -200,18 +200,20 @@ export async function clearMyPhoto(): Promise<SaveResult> {
 
 /** Add a licence to your own Compliance card — with its first TERM when the
     card was scanned on the way in, so one save records both what the ticket is
-    and the period it is currently good for. */
+    and the period it is currently good for. A card with no expiry is scanned
+    in too, and keeps its number and photo on the ticket (splitAddScan). */
 export async function addMyLicence(
   input: LicenceInput,
   term?: LicenceTermInput
 ): Promise<SaveResult> {
   const { orgId } = await requireOrg();
-  const built = buildLicenceRow(input);
+  const scan = splitAddScan(input, term);
+  const built = buildLicenceRow(scan.input);
   if ("error" in built) return { ok: false, error: built.error };
 
   /* The term is validated BEFORE the licence is written, so an impossible date
      cannot leave a nameless half-card behind. */
-  const first = term ? buildLicenceTermRow(term) : null;
+  const first = scan.term ? buildLicenceTermRow(scan.term) : null;
   if (first && "error" in first) return { ok: false, error: first.error };
 
   const row = { ...built.row };
@@ -230,6 +232,9 @@ export async function addMyLicence(
   if (error || !data) return { ok: false, error: "Couldn't add that licence." };
 
   if (first) await seedFirstTerm(orgId, me.id, me.id, String(data.id), first.row);
+  else if (scan.cardDocumentId) {
+    await fileLicenceDocument(orgId, me.id, me.id, String(data.id), null, scan.cardDocumentId);
+  }
 
   revalidateMine();
   return { ok: true };

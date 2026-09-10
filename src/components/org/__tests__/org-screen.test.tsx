@@ -1455,3 +1455,56 @@ describe("filing a document against a card with no expiry", () => {
     expect(actions.onAttachCredentialDoc).toHaveBeenCalledWith("C2", "R1", "doc-9");
   });
 });
+
+/* ADDING A CARD BY SCANNING A CERTIFICATE WITH NO EXPIRY ON IT.
+
+   The panel used to send what it read only when there was an expiry, so a
+   licence with no renewal date was saved without the certificate that had
+   already been uploaded, or the number and issuer read off it. It all goes
+   with the save now, and the action decides whether it is a term. */
+describe("adding a card by scanning it", () => {
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readOrgCredentialDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readOrgCredentialDocument.mockResolvedValue({
+      ok: true,
+      issuer: "VBA",
+      number: "CL-12345",
+      cover: null,
+      sumInsured: null,
+      premium: null,
+      excess: null,
+      workersCount: null,
+      wages: null,
+      startsOn: "2020-01-01",
+      expiresOn: null,
+    });
+  });
+
+  it("sends the certificate and what was read, with no expiry on it", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "credentials", credentials: [] });
+
+    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText(/^Name/), "Contractor licence");
+    await user.upload(
+      within(dialog).getByLabelText("Scan document"),
+      new File(["x"], "licence.pdf", { type: "application/pdf" })
+    );
+    await within(dialog).findByText("SCANNED");
+    await user.click(within(dialog).getByRole("button", { name: "Add card" }));
+
+    expect(actions.onAddCredential).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "licence", name: "Contractor licence" }),
+      expect.objectContaining({
+        number: "CL-12345",
+        issuer: "VBA",
+        expiresOn: "",
+        documentId: "doc-7",
+        source: "scan",
+      })
+    );
+  });
+});

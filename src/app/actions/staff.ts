@@ -18,7 +18,7 @@ import { withDerivedFullName } from "@/lib/staff/name";
 import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import { WORK_RIGHTS_LOCKED } from "@/lib/staff/work-rights-records";
-import { buildLicenceTermRow, type LicenceTermInput } from "@/lib/staff/licence-records";
+import { buildLicenceTermRow, splitAddScan, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
   fileLicenceDocument,
   recordTerm,
@@ -222,12 +222,14 @@ export async function addStaffLicence(
   if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
   if (!(await targetIn(ctx, staffId))) return { ok: false, error: "That staff member doesn't exist." };
 
-  const built = buildLicenceRow(input);
+  // a card with no expiry keeps its number and photo on the ticket instead
+  const scan = splitAddScan(input, term);
+  const built = buildLicenceRow(scan.input);
   if ("error" in built) return { ok: false, error: built.error };
 
   // validated before the licence is written, so an impossible date cannot
   // leave a half-card behind on someone else's record
-  const first = term ? buildLicenceTermRow(term) : null;
+  const first = scan.term ? buildLicenceTermRow(scan.term) : null;
   if (first && "error" in first) return { ok: false, error: first.error };
 
   const row = { ...built.row };
@@ -245,6 +247,8 @@ export async function addStaffLicence(
 
   if (first) {
     await seedFirstTerm(ctx.orgId, staffId, await actorStaffId(ctx), String(data.id), first.row);
+  } else if (scan.cardDocumentId) {
+    await fileLicenceDocument(ctx.orgId, staffId, await actorStaffId(ctx), String(data.id), null, scan.cardDocumentId);
   }
 
   revalidateStaff(staffId);

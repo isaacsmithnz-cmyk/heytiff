@@ -13,6 +13,7 @@ import {
   termState,
   termStatusText,
   type StaffLicenceRecord,
+  splitAddScan,
 } from "../licence-records";
 
 /* The pure half of a staff ticket's terms.
@@ -215,5 +216,54 @@ describe("honours the org's window", () => {
     expect(termState("2026-08-13", TODAY, 14)).toBe("ok"); // 20 days out
     expect(termState("2026-08-13", TODAY, 30)).toBe("warn");
     expect(termHeadline("2026-08-13", TODAY, 14)).toBe("Current");
+  });
+});
+
+/* ADDING A TICKET FROM A SCAN. A term needs an expiry, so a white card — which
+   never lapses — cannot be one, and it must still keep the number read off it
+   and the photo itself. The add screen used to drop both. */
+describe("adding a ticket from a scan", () => {
+  const ticket = { typeName: "White card" };
+
+  it("adds a plain ticket when nothing was scanned", () => {
+    expect(splitAddScan(ticket)).toEqual({ input: ticket, term: null, cardDocumentId: null });
+  });
+
+  it("makes a scan with an expiry the first term, its photo riding on the term", () => {
+    const scan = { number: "AU123", expiresOn: "2027-05-01", documentId: "doc-7", source: "scan" };
+    expect(splitAddScan(ticket, scan)).toEqual({ input: ticket, term: scan, cardDocumentId: null });
+  });
+
+  it("puts a scan with no expiry on the ticket, and files its photo against the ticket", () => {
+    const scan = {
+      number: " WC-12345 ",
+      issuer: "SafeWork NSW",
+      issuingState: "NSW",
+      startsOn: "2019-03-02",
+      expiresOn: "",
+      documentId: "doc-7",
+      source: "scan",
+    };
+    expect(splitAddScan(ticket, scan)).toEqual({
+      input: { ...ticket, licenceNumber: "WC-12345" },
+      term: null,
+      cardDocumentId: "doc-7",
+    });
+  });
+
+  it("treats a blank expiry as no expiry", () => {
+    expect(splitAddScan(ticket, { expiresOn: "   ", documentId: "doc-7" })).toMatchObject({
+      term: null,
+      cardDocumentId: "doc-7",
+    });
+  });
+
+  it("keeps a number typed on the ticket where the scan read none", () => {
+    const typed = { ...ticket, licenceNumber: "TYPED-1" };
+    expect(splitAddScan(typed, { number: "", expiresOn: "" })).toEqual({
+      input: typed,
+      term: null,
+      cardDocumentId: null,
+    });
   });
 });

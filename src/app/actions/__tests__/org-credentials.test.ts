@@ -682,3 +682,89 @@ describe("adoption outcomes", () => {
     });
   });
 });
+
+/* ---------------------------------------------------------------------------
+   ADDING A CARD FROM A SCAN WITH NO EXPIRY ON IT.
+
+   A term is a period, so a licence with no renewal date cannot be one. The
+   add screen used to send nothing for it, and the certificate it had already
+   uploaded was left owned by nothing, with the number and issuer read off it.
+   The scan goes with the save now, and this is the half that keeps it.
+--------------------------------------------------------------------------- */
+describe("adding a card from a scan", () => {
+  const uploaded = (over: Row = {}): Row => ({
+    id: "doc-7",
+    org_id: "org-1",
+    uploaded_by: "staff-1",
+    kind: "org_licence",
+    uploaded_at: "2026-09-10T00:00:00.000Z",
+    org_credential_id: null,
+    ...over,
+  });
+  const card = { kind: "licence", name: "Contractor licence" };
+  const undated = {
+    number: "CL-12345",
+    issuer: "VBA",
+    startsOn: "2020-01-01",
+    expiresOn: "",
+    documentId: "doc-7",
+    source: "scan",
+  };
+
+  it("files a certificate with no expiry against the new card, and puts its number and issuer on the card", async () => {
+    tables.documents = [uploaded()];
+    expect(await addOrgCredential(card, undated)).toEqual({ ok: true });
+
+    expect(only("insert", "org_credentials").payload).toMatchObject({
+      number: "CL-12345",
+      issuer: "VBA",
+      expiry_date: null,
+    });
+    expect(wrote("insert", "org_credential_records")).toHaveLength(0);
+
+    const filed = only("update", "documents");
+    expect(filed.payload).toEqual({
+      org_credential_id: "new-org_credentials",
+      credential_record_id: null,
+      kind: "org_licence",
+    });
+    expect(filed.eq).toEqual(expect.arrayContaining([["id", "doc-7"], ["uploaded_by", "staff-1"]]));
+    expect(filed.in).toEqual([["kind", ["org_licence", "org_insurance"]]]);
+  });
+
+  /* Turned away on the same contract as every other adoption — and there is
+     no term to disown it, so nothing else is written. The card still stands:
+     failing the add here would leave it saved AND report an error, and the
+     retry would make a second one. */
+  it("turns away a file somebody else uploaded, and still adds the card", async () => {
+    tables.documents = [uploaded({ uploaded_by: "staff-someone-else" })];
+    expect(await addOrgCredential(card, undated)).toEqual({ ok: true });
+    expect(wrote("insert", "org_credentials")).toHaveLength(1);
+    expect(wrote("update", "org_credential_records")).toHaveLength(0);
+  });
+
+  it("still makes a scan WITH an expiry the card's first term, the certificate under it", async () => {
+    tables.documents = [uploaded()];
+    expect(await addOrgCredential(card, { ...undated, expiresOn: "2027-05-01" })).toEqual({ ok: true });
+
+    expect(only("insert", "org_credentials").payload).toMatchObject({
+      number: "CL-12345",
+      expiry_date: "2027-05-01",
+    });
+    expect(only("insert", "org_credential_records").payload).toMatchObject({
+      credential_id: "new-org_credentials",
+      expires_on: "2027-05-01",
+      document_id: "doc-7",
+    });
+    expect(only("update", "documents").payload).toMatchObject({
+      org_credential_id: "new-org_credentials",
+      credential_record_id: "new-org_credential_records",
+    });
+  });
+
+  it("files nothing when no certificate came with the scan", async () => {
+    expect(await addOrgCredential(card, { ...undated, documentId: null })).toEqual({ ok: true });
+    expect(wrote("update", "documents")).toHaveLength(0);
+    expect(only("insert", "org_credentials").payload).toMatchObject({ number: "CL-12345", issuer: "VBA" });
+  });
+});

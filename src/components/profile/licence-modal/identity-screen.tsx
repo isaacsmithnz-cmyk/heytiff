@@ -88,10 +88,13 @@ export function IdentityScreen({
       // typed here only while there is no term to own them
       ...(hasTerms ? {} : { licenceNumber: number, expiryDate: expiry }),
     };
-    /* A scanned term only rides along when it carries the one thing that makes
-       it a term. Everything else on a card is optional; the expiry is what the
-       whole feature counts down to. */
-    const carry = adding && scanned && term.expiresOn.trim();
+    /* WHATEVER THE SCAN PANEL HOLDS GOES WITH THE SAVE, expiry or not. It used
+       to go only with an expiry, and a white card — which has none — lost the
+       photo it had already uploaded and the number read off it. The action
+       decides what it is: the first term when it has an expiry, the ticket's
+       own number and photo when it hasn't (splitAddScan, in
+       lib/staff/licence-records.ts). */
+    const carry = adding && scanned;
     onSave({
       identity,
       term: carry

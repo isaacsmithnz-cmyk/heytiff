@@ -2,6 +2,7 @@ import { daysUntil, parseAuDate } from "@/lib/au-dates";
 import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import type { StoredDocument } from "@/lib/documents/query";
+import type { LicenceInput } from "./licence";
 
 /* One TERM of a staff licence — the pure rules.
 
@@ -229,6 +230,33 @@ export function buildLicenceTermRow(
       document_id: input.documentId ?? null,
       source: input.source === "scan" ? "scan" : "manual",
     },
+  };
+}
+
+/* ADDING A TICKET FROM A SCAN IS NOT ALWAYS ADDING A TERM.
+
+   The scan panel on Add licence collects a term's fields, but a term is a
+   period and `expires_on` is NOT NULL — so a white card, which never lapses,
+   cannot be one. The screen used to answer that by sending nothing at all,
+   and the photo it had ALREADY uploaded was left in the bucket owned by
+   nothing, along with the number read off it.
+
+   With an expiry, the scan is the ticket's first term and its photo rides on
+   the term, as before. Without one, the number goes on the ticket — the one
+   place a ticket with no term keeps it — and the photo is filed against the
+   ticket itself, under no term, which is the row looseTermDocuments reads
+   back. The issuer, state and classes have nowhere to live on a bare ticket,
+   and the photo still carries them. */
+export function splitAddScan(
+  input: LicenceInput,
+  scan?: LicenceTermInput,
+): { input: LicenceInput; term: LicenceTermInput | null; cardDocumentId: string | null } {
+  if (!scan) return { input, term: null, cardDocumentId: null };
+  if ((scan.expiresOn ?? "").trim()) return { input, term: scan, cardDocumentId: null };
+  return {
+    input: { ...input, licenceNumber: (scan.number ?? "").trim() || input.licenceNumber },
+    term: null,
+    cardDocumentId: scan.documentId ?? null,
   };
 }
 

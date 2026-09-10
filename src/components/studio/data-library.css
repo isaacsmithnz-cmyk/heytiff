@@ -23,7 +23,7 @@
   font-weight: 600;
   letter-spacing: 0.01em;
   background: #f2f2f0;
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 1px 4px;
   font-size: 0.86em;
 }
@@ -60,7 +60,7 @@
 .dl-pack {
   margin-top: 24px;
   border: 1px solid var(--dl-line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--dl-bg);
   overflow: hidden;
 }

@@ -9,7 +9,6 @@ export default async function RunningPressuresPage() {
   if (!(await can("toolbox"))) redirect("/dashboard");
   return (
     <ToolPage
-      category="Troubleshooting"
       accent="#FF3366"
       accentInk="#E0244B"
       title="Running Pressures"

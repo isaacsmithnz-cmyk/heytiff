@@ -154,8 +154,8 @@ export function WorkRightsModal({
         <div className="vm-head sub">
           <div className="vm-headl">
             <div className="vm-titles">
-              <span className="vm-eyebrow">{who ? who.toUpperCase() : "YOUR RECORD"}</span>
               <h2 className="vm-title sub">Right to work</h2>
+              <span className="vm-kind">{who ?? "Your record"}</span>
             </div>
           </div>
           <div className="vm-headr">
@@ -186,12 +186,12 @@ export function WorkRightsModal({
           {current && (
             <Card>
               <div className="vm-cardhead">
-                <Eyebrow>CURRENT CHECK</Eyebrow>
+                <Eyebrow>Current check</Eyebrow>
                 <span className="vm-added">{checkAddedText(current)}</span>
               </div>
               <DetailGrid items={facts} />
               <div className="vm-divider">
-                <Eyebrow>EVIDENCE</Eyebrow>
+                <Eyebrow>Evidence</Eyebrow>
                 <Inline onClick={() => attachInput.current?.click()}>Add document</Inline>
                 <input
                   ref={attachInput}
@@ -223,7 +223,7 @@ export function WorkRightsModal({
 
           {panelOpen && (
             <ScanCard<ReadWorkRightsResult>
-              heading={current ? "RECORD A NEW CHECK" : "RECORD THE FIRST CHECK"}
+              heading={current ? "Record a new check" : "Record the first check"}
               prompt={SCAN_COPY.prompt}
               hint={SCAN_COPY.hint}
               attachLabel={SCAN_COPY.attach}
@@ -250,7 +250,7 @@ export function WorkRightsModal({
 
           <Card className="vm-histcard">
             <div className="vm-cardhead">
-              <Eyebrow>PREVIOUS CHECKS</Eyebrow>
+              <Eyebrow>Previous checks</Eyebrow>
             </div>
             {history.length === 0 ? (
               <div className="vm-empty">No previous checks recorded.</div>
@@ -284,7 +284,7 @@ export function WorkRightsModal({
                         <div className="vm-inset">
                           <DetailGrid dense items={checkFacts(r, "ok")} />
                         </div>
-                        <span className="vm-fl">EVIDENCE</span>
+                        <span className="vm-fl">Evidence</span>
                         <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No evidence filed." />
                         <div className="vm-attach">
                           <span>{checkAddedText(r) || "Filed by hand"}</span>
@@ -308,7 +308,7 @@ export function WorkRightsModal({
           {loose.length > 0 && (
             <Card>
               <div className="vm-cardhead">
-                <Eyebrow>OTHER DOCUMENTS</Eyebrow>
+                <Eyebrow>Other documents</Eyebrow>
                 <span className="vm-caption">Filed under no check</span>
               </div>
               <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />

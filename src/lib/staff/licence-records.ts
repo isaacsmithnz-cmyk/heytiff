@@ -135,13 +135,13 @@ export type TermFact = { label: string; value: string; tone?: "faint" | "warn" }
 export function termFacts(r: StaffLicenceRecord, state: TermState): TermFact[] {
   const faint = (v: unknown): TermFact["tone"] => (v ? undefined : "faint");
   return [
-    { label: "LICENCE NO.", value: r.number ?? dash, tone: faint(r.number) },
-    { label: "ISSUED BY", value: r.issuer ?? dash, tone: faint(r.issuer) },
-    { label: "STATE", value: r.issuingState ?? dash, tone: faint(r.issuingState) },
-    { label: "CLASSES", value: r.classes ?? dash, tone: faint(r.classes) },
-    { label: "ISSUED", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
+    { label: "Licence no.", value: r.number ?? dash, tone: faint(r.number) },
+    { label: "Issued by", value: r.issuer ?? dash, tone: faint(r.issuer) },
+    { label: "State", value: r.issuingState ?? dash, tone: faint(r.issuingState) },
+    { label: "Classes", value: r.classes ?? dash, tone: faint(r.classes) },
+    { label: "Issued", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
     {
-      label: "EXPIRY",
+      label: "Expiry",
       value: fmtDay(r.expiresOn),
       tone: state === "ok" || state === "none" ? undefined : "warn",
     },

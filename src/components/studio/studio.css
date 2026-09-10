@@ -423,8 +423,6 @@ html[data-ds-display] .dstudio.editing {
   display: inline-flex;
   align-self: flex-start;
   font: 700 12px var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--teal);
   background: rgba(0, 229, 192, 0.12);
   border: 1px solid rgba(0, 229, 192, 0.28);
@@ -1195,9 +1193,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-menu-set-t {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray500);
 }
 .dstudio .ds-menu-set-row {
@@ -1623,8 +1619,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-empty-soon {
   margin-top: 8px;
   font: 700 12px var(--mono);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   color: var(--ds-orange);
   background: rgba(255, 138, 0, 0.1);
   border: 1px solid rgba(255, 138, 0, 0.25);
@@ -1930,9 +1924,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-view-grp {
   padding: 4px 8px 4px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray400);
 }
 .dstudio .ds-view-sep {
@@ -2365,9 +2357,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-var-cap {
   padding: 4px 8px 2px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray400);
 }
 .dstudio .ds-var-row {
@@ -2768,10 +2758,8 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-wallsel-title {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--ink);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .dstudio .ds-wallsel-hint {
   font-size: 12px;
@@ -3187,8 +3175,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-unitcard-role {
   font: 700 12px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: #fff;
 }
 .dstudio .ds-unitcard-sys {
@@ -3571,9 +3557,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-tray-head {
   align-self: flex-start;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray400);
 }
 /* once every plan is placed the tray has no job — it shrinks into nothing and
@@ -3687,9 +3671,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-yard-cap {
   text-align: center;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray400);
   padding: 4px 0;
 }
@@ -3850,9 +3832,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-groundline b {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray500);
   white-space: nowrap;
 }
@@ -3873,9 +3853,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-groundline b {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--gray500);
   white-space: nowrap;
 }
@@ -4028,9 +4006,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-lightbox .ds-lb-step {
   flex: 0 0 auto;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--teal-d, #0f766e);
   background: rgba(0, 229, 192, 0.14);
   border: 1px solid rgba(0, 229, 192, 0.3);
@@ -4721,8 +4697,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-systype {
   font-size: 12px;
   color: var(--gray500);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .dstudio .ds-badge {
   display: inline-flex;
@@ -5090,9 +5064,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-ub-seglabel {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: #767676;
   margin-right: 8px;
 }
@@ -5164,9 +5136,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   padding: 12px 12px 8px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: #767676;
 }
 .ds-ub-rchead span {
@@ -5244,9 +5214,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-rcodu i {
   font-style: normal;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: #9a9a9a;
 }
 .ds-ub-rcard.has .ds-ub-rcslot {
@@ -5342,9 +5310,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-ub-flabel {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: #767676;
 }
 .ds-ub-filters label {
@@ -5379,8 +5345,6 @@ html[data-ds-display] .dstudio.editing {
   background: #fafaf9;
   text-align: left;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: #767676;
   padding: 8px 12px;
   border-bottom: 1px solid #ececec;
@@ -5424,9 +5388,7 @@ html[data-ds-display] .dstudio.editing {
   background: #f5f5f4;
   padding: 4px 12px;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: #565656;
 }
 .ds-ub-table tr.ds-ub-group .ds-ub-count { margin-left: 8px; }
@@ -5535,9 +5497,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-ub-colshead {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: #8a8a8a;
   padding: 4px 8px 4px;
 }
@@ -5558,9 +5518,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-colsgroup + .ds-ub-colsgroup { border-top: 1px solid #f0f0ee; margin-top: 4px; }
 .ds-ub-colsghead {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: var(--teal-d, #0f766e);
   padding: 4px 8px 2px;
 }
@@ -5587,9 +5545,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-ub-cmplabel {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: #8a8a8a;
 }
 .ds-ub-cmpchip {
@@ -5707,9 +5663,7 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   padding: 4px 12px;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: var(--teal-d, #0f766e);
 }
 .ds-cmp-odumodel { font-weight: 700; color: #1a1a1a; }
@@ -5723,11 +5677,9 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-model em {
   font-style: normal;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--teal-d, #0f766e);
   margin-left: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 /* sizing flags. Undersized is the only one that's actually a mistake, so it
    carries the semantic danger red; oversized is a judgement call and stays
@@ -5793,10 +5745,8 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-dhead em {
   font-style: normal;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--teal-d, #0f766e);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .ds-ub-dseries { font-size: 12px; font-weight: 600; color: #8a8a8a; }
 .ds-ub-dsec { padding: 8px 0 4px; border-top: 1px solid #ececec; }
@@ -5806,9 +5756,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   margin: 0 0 8px;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: var(--teal-d, #0f766e);
 }
 .ds-ub-drow {
@@ -5937,9 +5885,7 @@ html[data-ds-display] .dstudio.editing {
   justify-self: start;
   margin-top: 4px;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 500;
   color: var(--gray500);
   background: #f2f2f0;
   padding: 2px 8px;
@@ -6000,9 +5946,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-prompt-head h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: #1a1a1a;
 }
 .ds-prompt-intro {
@@ -6089,9 +6033,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-mode {
   flex-shrink: 0;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 500;
   padding: 4px 8px;
   border-radius: 999px;
   background: #eef0f3;
@@ -6117,9 +6059,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-field { display: flex; flex-direction: column; gap: 4px; }
 .ds-rm-field > span {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 500;
   color: var(--q);
   display: flex;
   align-items: center;
@@ -6183,9 +6123,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-dimrow + .ds-rm-dimrow { border-top: 1px solid #eef0f3; }
 .ds-rm-dimcap {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-weight: 500;
   color: #9aa2ad;
 }
 .ds-rm-dimexpr {
@@ -6825,9 +6763,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-export-cap {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-weight: 500;
   color: var(--gray500);
 }
 .dstudio .ds-export-row {
@@ -6893,9 +6829,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-stat span {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  font-weight: 500;
   color: var(--gray500);
 }
 .dstudio .ds-sum-note {
@@ -7210,8 +7144,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-caphero-x:hover { background: rgba(10, 12, 20, 0.07); color: var(--ink2); }
 .dstudio .ds-ck-caphero-eyebrow {
   font: 700 12px var(--font);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--gray400);
 }
 .dstudio .ds-ck-caphero-change {
@@ -7254,7 +7186,7 @@ html[data-ds-display] .dstudio.editing {
 /* equation ledger */
 .dstudio .ds-ck-ledger { display: flex; flex-direction: column; }
 .dstudio .ds-ck-ledger-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; }
-.dstudio .ds-ck-ledger-row .k { font: 700 12px var(--font); letter-spacing: 0.07em; text-transform: uppercase; }
+.dstudio .ds-ck-ledger-row .k { font: 700 12px var(--font); }
 .dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 700 13px var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
 .dstudio .ds-ck-ledger-row.req .k { color: var(--gray400); }
 .dstudio .ds-ck-ledger-row.req .v { color: var(--ink2); }
@@ -7550,8 +7482,6 @@ html[data-ds-display] .dstudio.editing {
   flex: 1;
   min-width: 0;
   font: 700 12px var(--font);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   color: var(--gray500);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -7651,8 +7581,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-lbl .rl {
   font: 700 12px var(--font);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--gray500);
 }
 
@@ -7701,8 +7629,6 @@ html[data-ds-display] .dstudio.editing {
   background: var(--ds-ok-bg);
   color: var(--teal-d);
   font: 700 12px var(--font);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .dstudio .ds-ck-ibadge svg { width: 12px; height: 12px; }
 .dstudio .ds-ck-ibadge.warn { background: var(--ds-amber-bg); color: var(--ds-amber-d); }
@@ -7715,8 +7641,6 @@ html[data-ds-display] .dstudio.editing {
   background: rgba(10, 12, 20, 0.05);
   color: var(--gray500);
   font: 700 12px var(--font);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .dstudio .ds-ck-ishared button {
   border: none;
@@ -7753,8 +7677,6 @@ html[data-ds-display] .dstudio.editing {
   padding: 4px 8px 4px 8px;
   border-radius: 6px;
   font: 700 12px var(--font);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 /* the sub icon is teal; the type/colour distinction now lives on the sub-tabs */
 .dstudio .ds-ck-st svg { width: 13px; height: 13px; color: var(--teal-d); }
@@ -7785,8 +7707,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-fact .k {
   font: 700 12px var(--font);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   color: var(--gray400);
 }
 .dstudio .ds-ck-fact .v {
@@ -7840,8 +7760,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-pdot svg { width: 9px; height: 9px; }
 .dstudio .ds-ck-urole {
   font: 700 12px var(--font);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   color: var(--gray400);
 }
 .dstudio .ds-ck-umodel {
@@ -8022,8 +7940,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-comptx { flex: 1; min-width: 0; }
 .dstudio .ds-ck-comprole {
   font: 700 12px var(--font);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   color: var(--gray400);
 }
 .dstudio .ds-ck-compname { font: 700 14px var(--font); color: var(--ink2); letter-spacing: -0.01em; margin-top: 1px; }
@@ -8274,8 +8190,6 @@ html[data-ds-display] .dstudio.editing {
   font: 700 12px var(--font, "Plus Jakarta Sans", sans-serif);
   color: var(--teal-d, #0f766e);
   text-align: right;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 .ds-ub-model em.ds-mp-nofit { color: var(--ds-amber-d, #b45309); }
@@ -8345,8 +8259,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-tray-role {
   grid-row: 1;
   font: 700 12px var(--font);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: #8a8a8a;
   align-self: center;
 }
@@ -8535,9 +8447,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-hud-label {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: var(--gray500);
 }
 .dstudio .ds-hud-seg {
@@ -8652,9 +8562,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ahu-face-label {
   fill: currentColor;
   text-anchor: middle;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   font-family: var(--font);
   opacity: 0.75;
 }
@@ -8788,9 +8696,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-spig-cap {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 500;
   color: var(--ds-amber-d, #b45309);
 }
 .dstudio .ds-ck-spig-del {
@@ -8804,9 +8710,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-addspig { margin-top: 12px; }
 .dstudio .ds-ck-addspig-t {
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: var(--gray500);
   margin-bottom: 4px;
 }
@@ -9015,8 +8919,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-sim-lbl {
   font: 700 12px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--gray500);
 }
 .dstudio .ds-sim-chips {
@@ -9426,8 +9328,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-sim-phase {
   font: 700 12px var(--font);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--ds-card2);
@@ -9626,8 +9526,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-sim-info-mode {
   font: 700 12px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   padding: 4px 8px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
@@ -9680,8 +9578,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-sim-info-clabel > span:first-child {
   font: 700 12px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: rgba(236, 238, 244, 0.55);
 }
 .dstudio .ds-sim-info-cpct {
@@ -9756,8 +9652,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-present-stat-lbl {
   font: 700 12px var(--font);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: rgba(236, 238, 244, 0.5);
 }
 .dstudio .ds-present-status .ds-sim-compbar {
@@ -9904,9 +9798,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   margin: 0;
   font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 500;
   color: var(--gray500);
 }
 .dstudio .ds-contrib-list {

@@ -148,6 +148,10 @@ starts with them.
    proximity and type.
 10. The eyebrow is retired. A title stands alone; what the eyebrow said goes
     under it in sentence case, body size, the quiet colour, with real figures.
+    Tracked caps are the eyebrow's dress and go with it: a label is sentence
+    case, 12 or 13, weight 500, the quiet colour, no tracking. Text typed in
+    caps in the markup is the same tell one layer down. The one thing set in
+    caps is a registration plate, because the plate is.
 11. No hero inside the app. The title line and the facts.
 12. Copy: sentence case everywhere; a button is a verb and a noun; success is
     noun plus verb, never "successfully"; no exclamation marks; no apology; an

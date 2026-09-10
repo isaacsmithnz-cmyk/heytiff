@@ -9,7 +9,6 @@ export default async function HeatLoadPage() {
   if (!(await can("toolbox"))) redirect("/dashboard");
   return (
     <ToolPage
-      category="Calculators"
       accent="#00E5C0"
       accentInk="#00A389"
       title="Heat Load"

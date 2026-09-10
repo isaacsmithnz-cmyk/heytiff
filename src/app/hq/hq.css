@@ -152,9 +152,7 @@
 }
 .hq-kpi-label {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
 }
 .hq-kpi-value {
@@ -177,9 +175,7 @@
 /* ── section + tables ── */
 .hq-section-h {
   font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut);
   margin: 0 0 12px;
 }
@@ -197,9 +193,7 @@
 .hq-table thead th {
   text-align: left;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
   padding: 12px 16px;
   border-bottom: 1px solid var(--hq-line);
@@ -242,9 +236,7 @@
 .hq-badge {
   display: inline-block;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   padding: 4px 8px;
   border-radius: 6px;
   color: var(--hq-accent);
@@ -515,9 +507,7 @@
 }
 .hq-change-daylabel {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
   margin-bottom: 8px;
 }
@@ -545,10 +535,8 @@
   color: var(--hq-ink);
 }
 .hq-change-act {
-  font-weight: 700;
-  text-transform: uppercase;
+  font-weight: 500;
   font-size: 12px;
-  letter-spacing: 0.05em;
   padding: 2px 8px;
   border-radius: 6px;
 }
@@ -604,9 +592,7 @@
 }
 .hq-sys-k {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
 }
 .hq-sys-v {
@@ -722,9 +708,7 @@
   align-items: baseline;
   gap: 8px;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut);
   margin: 16px 0 8px;
 }
@@ -794,9 +778,7 @@
   gap: 4px;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: 6px;
   color: var(--hq-accent);
@@ -904,9 +886,7 @@
   padding: 8px 12px 4px;
   text-align: right;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut);
 }
 .hq-cmp-group.toadd {
@@ -967,9 +947,7 @@
 .hq-cmp-status-h {
   vertical-align: bottom;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
 }
 .hq-cmp-model-h,
@@ -1144,9 +1122,7 @@
 /* status cell */
 .hq-cmp-ready {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-ready);
 }
 .hq-cmp-blocking {
@@ -1226,9 +1202,7 @@
 }
 .hq-watch-title {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-edit);
 }
 .hq-watch-sub {
@@ -1256,9 +1230,7 @@
 .hq-watch-kind {
   flex: 0 0 auto;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: 6px;
   color: var(--hq-edit);
@@ -1356,9 +1328,7 @@
 }
 .hq-map-col-h {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut);
   padding-bottom: 8px;
   margin-bottom: 12px;
@@ -1369,9 +1339,7 @@
 }
 .hq-map-group-h {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
   margin-bottom: 8px;
 }
@@ -1426,9 +1394,7 @@
 .hq-map-tag {
   font-style: normal;
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   padding: 2px 8px;
   border-radius: 6px;
   border: 1px solid transparent;
@@ -1480,9 +1446,7 @@
 }
 .hq-map-side-h {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--hq-mut-2);
   margin-bottom: 8px;
 }
@@ -1528,9 +1492,7 @@
 }
 .hq-map-kindchip {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 500;
   padding: 4px 8px;
   border-radius: 6px;
   color: var(--nk, var(--hq-accent));

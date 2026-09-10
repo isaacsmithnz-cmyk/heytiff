@@ -129,13 +129,13 @@ export function CredentialModal({
           ? "Update policy"
           : "Update licence"
         : credential.name;
-  const eyebrow = adding
-    ? "LICENCES & INSURANCE"
+  const kind = adding
+    ? "Licences & insurance"
     : sub
-      ? credential.name.toUpperCase()
+      ? credential.name
       : credential.kind === "insurance"
-        ? "INSURANCE POLICY"
-        : "BUSINESS LICENCE";
+        ? "Insurance policy"
+        : "Business licence";
 
   return createPortal(
     <div className="vm-ov" onClick={onClose}>
@@ -152,8 +152,8 @@ export function CredentialModal({
               <IconBtn icon="chevL" label="Back" onClick={() => setScreen("record")} size={18} />
             ) : null}
             <div className="vm-titles">
-              <span className="vm-eyebrow">{eyebrow}</span>
               <h2 className="vm-title sub">{title}</h2>
+              <span className="vm-kind">{kind}</span>
             </div>
           </div>
           <div className="vm-headr">

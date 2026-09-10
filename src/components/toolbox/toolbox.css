@@ -84,7 +84,7 @@
   letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px;
 }
 .fg .tbx2-cat {
-  font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: 12px; font-weight: 500;
   color: color-mix(in srgb, var(--ac) 72%, #000); margin-bottom: 8px;
 }
 .fg .tbx2-tile b { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.25; }
@@ -127,8 +127,7 @@
 }
 .fg .tool .tback:hover { color: var(--ink); border-color: #e0e3e9; transform: translateX(-2px); }
 .fg .tool .teyebrow {
-  display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.2em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500;
 }
 .fg .tool .teyebrow .edot { width: 7px; height: 7px; border-radius: 50%; }
 /* 38/-.035em, the app's one page-title size — see the note on `.tbx-head h1`.
@@ -159,7 +158,7 @@
 .fg .tool .tcard .tcs { font-size: 13px; color: var(--gray400); font-weight: 500; margin: 0 0 16px; }
 
 /* ---------- fields ---------- */
-.fg .tool .tlab { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin: 0 0 8px; }
+.fg .tool .tlab { display: block; font-size: 12px; font-weight: 500; color: var(--gray500); margin: 0 0 8px; }
 .fg .tool .tin, .fg .tool select.tin {
   width: 100%; padding: 12px 12px; background: #fff; border-radius: 6px;
   border: 1px solid var(--line); font-size: 14px; font-weight: 600; color: var(--ink);
@@ -241,7 +240,7 @@
 .fg .tool .hl2-dims .dim1 { flex: 1; min-width: 0; }
 .fg .tool .hl2-dims .dim1.wide { flex: 2; }
 .fg .tool .hl2-dims .x { font-size: 20px; font-weight: 700; color: var(--gray400); flex: 0 0 auto; margin-top: 16px; }
-.fg .tool .hl2-cap { margin-top: 4px; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray400); }
+.fg .tool .hl2-cap { margin-top: 4px; text-align: center; font-size: 12px; font-weight: 500; color: var(--gray400); }
 .fg .tool .hl2-in { font-size: 20px; font-weight: 700; padding: 12px 8px; text-align: center; letter-spacing: -0.01em; }
 .fg .tool .tunit .hl2-in { padding-right: 32px; }
 .fg .tool .hl2-dims .tunit .u { right: 10px; }
@@ -252,7 +251,7 @@
   background: radial-gradient(120% 160% at 50% 0%, #0d2b26 0%, #050505 65%), var(--ink); border: 1px solid rgba(255, 255, 255, 0.06); }
 @media (max-width: 900px) { .fg .tool .hl2-hero { min-height: 200px; } }
 .fg .tool .hl2-hero .gl { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 240px; height: 200px; border-radius: 50%; background: var(--ink); filter: blur(90px); opacity: 0.35; pointer-events: none; color:var(--paper); }
-.fg .tool .hl2-hero .lab { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
+.fg .tool .hl2-hero .lab { font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .hl2-hero .big { font-size: 32px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
 .fg .tool .hl2-hero .big small { font-size: 24px; font-weight: 700; color: rgba(255, 255, 255, 0.65); margin-left: 4px; }
 .fg .tool .hl2-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
@@ -375,11 +374,11 @@
 .fg .tool .rp2-side.high { background: rgba(255, 51, 102, 0.045); border-color: rgba(255, 51, 102, 0.2); }
 .fg .tool .rp2-side .hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .fg .tool .rp2-side .hdr .hose { width: 22px; height: 8px; border-radius: 999px; flex: 0 0 auto; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
-.fg .tool .rp2-side .hdr b { font-size: 13px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
+.fg .tool .rp2-side .hdr b { font-size: 13px; font-weight: 500; color: var(--ink); }
 .fg .tool .rp2-side .hdr em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--gray400); }
 .fg .tool .rp2-win { padding: 8px 0 4px; }
 .fg .tool .rp2-win + .rp2-win { border-top: 1px dashed rgba(0, 0, 0, 0.07); }
-.fg .tool .rp2-win .wl { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
+.fg .tool .rp2-win .wl { font-size: 12px; font-weight: 500; color: var(--gray500); }
 .fg .tool .rp2-win .big { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
 .fg .tool .rp2-win .big small { font-size: 13px; font-weight: 700; color: var(--gray400); }
 .fg .tool .rp2-win .sat { font-size: 12px; font-weight: 700; color: var(--gray400); }
@@ -392,7 +391,7 @@
 .fg .tool .rp2-view button.on { color: var(--tool-accent-ink, var(--red)); }
 .fg .tool .rp2-temps { display: flex; gap: 8px; margin-left: auto; }
 .fg .tool .rp2-temps .tt { display: flex; align-items: center; gap: 8px; }
-.fg .tool .rp2-temps .tt > span { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); white-space: nowrap; }
+.fg .tool .rp2-temps .tt > span { font-size: 12px; font-weight: 500; color: var(--gray500); white-space: nowrap; }
 .fg .tool .rp2-temps .tunit { width: 92px; }
 .fg .tool .rp2-temps .tin { padding: 8px 32px 8px 12px; font-size: 14px; font-weight: 700; text-align: center; }
 .fg .tool .rp2-temps .u { right: 10px; }
@@ -411,7 +410,7 @@
 .fg .tool .rp2-dx.fault { border-left-color: #FF3366; }
 .fg .tool .rp2-reads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .fg .tool .rp2-read { padding: 12px 12px; border-radius: 16px; background: var(--tint); border: 1px solid #eef0f4; }
-.fg .tool .rp2-read .rl { font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray500); }
+.fg .tool .rp2-read .rl { font-size: 12px; font-weight: 500; color: var(--gray500); }
 .fg .tool .rp2-read .rv { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
 .fg .tool .rp2-read .rd { font-size: 12px; font-weight: 600; color: var(--gray400); }
 .fg .tool .rp2-head { font-size: 20px; font-weight: 700; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
@@ -421,19 +420,19 @@
 .fg .tool .rp2-shsc b { font-size: 16px; font-weight: 700; color: var(--ink); }
 .fg .tool .rp2-charge { margin: 8px 0 0; font-size: 13px; font-weight: 700; color: var(--tool-accent-ink, var(--red)); line-height: 1.5; }
 .fg .tool .rp2-checks { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--tint); }
-.fg .tool .rp2-checks .ct { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin-bottom: 8px; }
+.fg .tool .rp2-checks .ct { font-size: 12px; font-weight: 500; color: var(--gray500); margin-bottom: 8px; }
 .fg .tool .rp2-checks ul { margin: 0; padding-left: 16px; display: grid; gap: 8px; }
 .fg .tool .rp2-checks li { font-size: 14px; font-weight: 500; color: var(--gray700); line-height: 1.55; }
 .fg .tool .rp2-cta .tbtn { width: 100%; }
 .fg .tool .rp2-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.fg .tool .rp2-mini .ml { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+.fg .tool .rp2-mini .ml { display: block; font-size: 12px; font-weight: 500; }
 .fg .tool .rp2-mini b { font-size: 16px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 .fg .tool .rp-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .fg .tool .rp-legend span { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--gray500); }
 .fg .tool .rp-legend i { width: 10px; height: 10px; border-radius: 0; }
 .fg .tool .rp-tablewrap { overflow-x: auto; border: 1px solid #eef0f4; border-radius: 16px; }
 .fg .tool table.rp-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.fg .tool .rp-table th { position: sticky; top: 0; background: var(--tint); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); padding: 8px 12px; text-align: right; border-bottom: 1px solid #eef0f4; }
+.fg .tool .rp-table th { position: sticky; top: 0; background: var(--tint); font-size: 12px; font-weight: 500; color: var(--gray500); padding: 8px 12px; text-align: right; border-bottom: 1px solid #eef0f4; }
 .fg .tool .rp-table th:first-child { text-align: left; }
 .fg .tool .rp-table td { padding: 8px 12px; text-align: right; font-weight: 600; color: var(--gray700); border-bottom: 1px solid #f6f7f9; }
 .fg .tool .rp-table tr:last-child td { border-bottom: 0; }
@@ -493,8 +492,7 @@
 }
 .fg .tool .ffg-head b { font-size: 14px; font-weight: 700; color: var(--ink); }
 .fg .tool .ffg-head .step {
-  margin-left: auto; font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
-  text-transform: uppercase; color: color-mix(in srgb, var(--sc2) 72%, #000);
+  margin-left: auto; font-size: 12px; font-weight: 500; color: color-mix(in srgb, var(--sc2) 72%, #000);
   background: color-mix(in srgb, var(--sc2) 12%, #fff); padding: 4px 8px; border-radius: 999px;
 }
 /* how much further to go — quiet companion to the step pill, so a long
@@ -577,8 +575,7 @@
   background: var(--sc2); filter: blur(85px); opacity: 0.4; pointer-events: none;
 }
 .fg .tool .ffg-outcome .lab {
-  position: relative; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px;
+  position: relative; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px;
 }
 .fg .tool .ffg-outcome .esc {
   letter-spacing: 0.06em; padding: 4px 8px; border-radius: 6px;
@@ -658,7 +655,7 @@
 /* list heading */
 .fg .tool .oup-lhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 16px 8px; }
 .fg .tool .oup-lhead .tlab { margin: 0; }
-.fg .tool .oup-lhead .ct { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray400); }
+.fg .tool .oup-lhead .ct { font-size: 12px; font-weight: 500; color: var(--gray400); }
 .fg .tool .oup-list .oup-row { margin-left: 16px; margin-right: 16px; }
 .fg .tool .oup-row {
   display: flex; align-items: center; gap: 12px; width: 100%;
@@ -700,7 +697,7 @@
   border: 0;
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03); }
 .fg .tool .oup-hero .bar, .fg .tool .oup-hero .cls { width: 100%; }
-.fg .tool .oup-hero .lab { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
+.fg .tool .oup-hero .lab { font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .oup-hero .big { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
 .fg .tool .oup-hero.clear .big { color: var(--ink); }
 .fg .tool .oup-hero.stop .big { color: #ff6b8f; }
@@ -712,7 +709,7 @@
 .fg .tool .oup-hero.clear .bar i { background: var(--ink); color:var(--paper); }
 .fg .tool .oup-hero.stop .bar i { background: #ff6b8f; }
 .fg .tool .oup-hero.wait .bar i { background: rgba(255, 255, 255, 0.4); }
-.fg .tool .oup-hero .meta { margin-top: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.fg .tool .oup-hero .meta { margin-top: 8px; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.45); }
 
 /* the drawing card — full width, figure held to a legible size and centred */
 .fg .tool .oup-fig { padding: 16px 16px 12px; }

@@ -45,9 +45,9 @@ export const RENEWAL_TITLE: Record<RenewalKind, string> = {
 
 /** The compliance list's row label, uppercase by design. */
 export const RENEWAL_ROW: Record<RenewalKind, string> = {
-  rego: "REGO",
-  insurance: "INSURANCE",
-  ctp: "GREEN SLIP",
+  rego: "Rego",
+  insurance: "Insurance",
+  ctp: "Green slip",
 };
 
 /** What the paper is called when filed. */
@@ -153,15 +153,15 @@ export type SpecRow = { label: string; value: string; wide?: boolean };
 export function specRows(v: Vehicle): SpecRow[] {
   const rows: SpecRow[] = [];
   if (v.vin) rows.push({ label: "VIN", value: v.vin, wide: true });
-  if (v.engineNumber) rows.push({ label: "ENGINE NO.", value: v.engineNumber });
-  if (v.engineCapacityCc) rows.push({ label: "ENGINE CAPACITY", value: `${fmtKm(v.engineCapacityCc)} cc` });
-  if (v.seating) rows.push({ label: "SEATING", value: String(v.seating) });
+  if (v.engineNumber) rows.push({ label: "Engine no.", value: v.engineNumber });
+  if (v.engineCapacityCc) rows.push({ label: "Engine capacity", value: `${fmtKm(v.engineCapacityCc)} cc` });
+  if (v.seating) rows.push({ label: "Seating", value: String(v.seating) });
   if (v.atmKg) rows.push({ label: "ATM", value: `${fmtKm(v.atmKg)} kg` });
-  if (v.tareKg) rows.push({ label: "TARE", value: `${fmtKm(v.tareKg)} kg` });
+  if (v.tareKg) rows.push({ label: "Tare", value: `${fmtKm(v.tareKg)} kg` });
   if (v.gvmKg) rows.push({ label: "GVM", value: `${fmtKm(v.gvmKg)} kg` });
-  if (v.variant) rows.push({ label: "VARIANT", value: v.variant });
-  if (v.colour) rows.push({ label: "COLOUR", value: v.colour });
-  if (v.regoCustomerNo) rows.push({ label: "CUSTOMER NO.", value: v.regoCustomerNo });
+  if (v.variant) rows.push({ label: "Variant", value: v.variant });
+  if (v.colour) rows.push({ label: "Colour", value: v.colour });
+  if (v.regoCustomerNo) rows.push({ label: "Customer no.", value: v.regoCustomerNo });
   return rows;
 }
 
@@ -332,16 +332,16 @@ const moneyOr = (n: number | null | undefined): Pick<FactRow, "value" | "faint">
 /** The FINANCE AGREEMENT grid: what the lender wrote, in the order the design reads it. */
 export function financeRows(f: VehicleFinance): FactRow[] {
   return [
-    { label: "LENDER", value: f.lender },
-    { label: "AGREEMENT NO.", ...recorded(f.agreementNo) },
-    { label: "TYPE", ...recorded(f.kind ? FINANCE_KIND_LABEL[f.kind] : null) },
-    { label: "START", value: fmtDay(f.startsOn) },
-    { label: "TERM", value: `${f.termMonths} months` },
-    { label: "ENDS", value: fmtDay(financeEndsOn(f)) },
-    { label: "REPAYMENT", ...recorded(repaymentLabel(f)) },
-    { label: "RATE", ...recorded(f.ratePct != null ? `${f.ratePct}% p.a.` : null) },
-    { label: "BALLOON", ...moneyOr(f.balloon) },
-    { label: "AMOUNT FINANCED", ...moneyOr(f.amountFinanced) },
+    { label: "Lender", value: f.lender },
+    { label: "Agreement no.", ...recorded(f.agreementNo) },
+    { label: "Type", ...recorded(f.kind ? FINANCE_KIND_LABEL[f.kind] : null) },
+    { label: "Start", value: fmtDay(f.startsOn) },
+    { label: "Term", value: `${f.termMonths} months` },
+    { label: "Ends", value: fmtDay(financeEndsOn(f)) },
+    { label: "Repayment", ...recorded(repaymentLabel(f)) },
+    { label: "Rate", ...recorded(f.ratePct != null ? `${f.ratePct}% p.a.` : null) },
+    { label: "Balloon", ...moneyOr(f.balloon) },
+    { label: "Amount financed", ...moneyOr(f.amountFinanced) },
   ];
 }
 
@@ -349,25 +349,25 @@ export function financeRows(f: VehicleFinance): FactRow[] {
     when nothing was financed; the balance row only exists when something was. */
 export function purchaseRows(v: Vehicle, today: string, finance: VehicleFinance | null): FactRow[] {
   const rows: FactRow[] = [
-    { label: "SUPPLIER", ...recorded(v.purchaseSupplier) },
-    { label: "INVOICE NO.", ...recorded(v.purchaseInvoiceNo) },
-    { label: "DATE", ...recorded(v.purchaseDateDays ? fmtDay(dateFromDays(-v.purchaseDateDays, today)) : null) },
-    { label: "PRICE EX GST", ...moneyOr(v.purchaseExGst) },
+    { label: "Supplier", ...recorded(v.purchaseSupplier) },
+    { label: "Invoice no.", ...recorded(v.purchaseInvoiceNo) },
+    { label: "Date", ...recorded(v.purchaseDateDays ? fmtDay(dateFromDays(-v.purchaseDateDays, today)) : null) },
+    { label: "Price ex GST", ...moneyOr(v.purchaseExGst) },
     { label: "GST", ...moneyOr(v.purchaseGst) },
-    { label: "ON-ROAD COSTS", ...moneyOr(v.purchaseOnRoad) },
-    { label: "TOTAL PRICE", ...moneyOr(v.purchasePrice) },
+    { label: "On-road costs", ...moneyOr(v.purchaseOnRoad) },
+    { label: "Total price", ...moneyOr(v.purchasePrice) },
   ];
   if (finance) {
-    rows.push({ label: "DEPOSIT PAID", ...moneyOr(v.purchaseDeposit) });
-    rows.push({ label: "BALANCE FINANCED", ...moneyOr(finance.amountFinanced) });
+    rows.push({ label: "Deposit paid", ...moneyOr(v.purchaseDeposit) });
+    rows.push({ label: "Balance financed", ...moneyOr(finance.amountFinanced) });
   } else {
-    rows.push({ label: "PAID", ...moneyOr(v.purchaseDeposit ?? v.purchasePrice) });
+    rows.push({ label: "Paid", ...moneyOr(v.purchaseDeposit ?? v.purchasePrice) });
   }
   rows.push({
-    label: "ODOMETER AT PURCHASE",
+    label: "Odometer at purchase",
     ...recorded(v.purchaseOdometer != null ? `${fmtKm(v.purchaseOdometer)} km` : null),
   });
-  rows.push({ label: "FUNDING", value: finance ? "Deposit + finance" : "No finance recorded", faint: !finance });
+  rows.push({ label: "Funding", value: finance ? "Deposit + finance" : "No finance recorded", faint: !finance });
   return rows;
 }
 
@@ -426,14 +426,14 @@ export function costToRun(
 
   const fin = currentFinance(finance);
   const items: CostItem[] = [];
-  if (fin && !financePosition(fin, today).ended) items.push({ key: "finance", label: "FINANCE", value: annualRepayments(fin) });
+  if (fin && !financePosition(fin, today).ended) items.push({ key: "finance", label: "Finance", value: annualRepayments(fin) });
   items.push(
-    { key: "insurance", label: "INSURANCE", value: annualPremium("insurance") },
-    { key: "rego", label: "REGO", value: annualPremium("rego") },
-    { key: "ctp", label: "GREEN SLIP", value: annualPremium("ctp") },
-    { key: "service", label: "SERVICING", value: logged("service") },
+    { key: "insurance", label: "Insurance", value: annualPremium("insurance") },
+    { key: "rego", label: "Rego", value: annualPremium("rego") },
+    { key: "ctp", label: "Green slip", value: annualPremium("ctp") },
+    { key: "service", label: "Servicing", value: logged("service") },
   );
-  if (v.motorised) items.push({ key: "fuel", label: "FUEL", value: logged("fuel") });
+  if (v.motorised) items.push({ key: "fuel", label: "Fuel", value: logged("fuel") });
 
   const known = items.filter((i) => i.value != null).length;
   const total = items.reduce((a, i) => a + (i.value ?? 0), 0);

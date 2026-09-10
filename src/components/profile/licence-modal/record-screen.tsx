@@ -162,7 +162,7 @@ export function RecordScreen({
 
         <div className={`vm-status ${tone}`}>
           <div className="vm-statusl">
-            <Eyebrow tone={state === "ok" ? "accent" : state === "none" ? undefined : "warn"}>STATUS</Eyebrow>
+            <Eyebrow tone={state === "ok" ? "accent" : state === "none" ? undefined : "warn"}>Status</Eyebrow>
             <span className="vm-headline">{headline}</span>
             <span className="vm-subline">{subline}</span>
           </div>
@@ -176,12 +176,12 @@ export function RecordScreen({
         {current && (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>CURRENT TERM</Eyebrow>
+              <Eyebrow>Current term</Eyebrow>
               <span className="vm-added">{termAddedText(current)}</span>
             </div>
             <DetailGrid items={facts} />
             <div className="vm-divider">
-              <Eyebrow>DOCUMENTS</Eyebrow>
+              <Eyebrow>Documents</Eyebrow>
               <AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(current.id, id)} />
             </div>
             <DocRows
@@ -210,7 +210,7 @@ export function RecordScreen({
         {!current && (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>DOCUMENTS</Eyebrow>
+              <Eyebrow>Documents</Eyebrow>
               <AddDocument docKind={LICENCE_DOC_KIND} onAdded={(id) => onAttach(null, id)} />
             </div>
             <DocRows
@@ -227,7 +227,7 @@ export function RecordScreen({
         {panelOpen && (
           <ScanCard<ReadLicenceResult>
             key={filed}
-            heading={current ? "RENEW THIS TICKET" : "RECORD THE TERM"}
+            heading={current ? "Renew this ticket" : "Record the term"}
             prompt={SCAN_COPY.prompt}
             hint={SCAN_COPY.hint}
             attachLabel={SCAN_COPY.attach}
@@ -254,7 +254,7 @@ export function RecordScreen({
 
         <Card className="vm-histcard">
           <div className="vm-cardhead">
-            <Eyebrow>PREVIOUS TERMS</Eyebrow>
+            <Eyebrow>Previous terms</Eyebrow>
           </div>
           {history.length === 0 ? (
             <div className="vm-empty">No previous terms recorded.</div>
@@ -289,7 +289,7 @@ export function RecordScreen({
                       <div className="vm-inset">
                         <DetailGrid dense items={termFacts(r, "ok")} />
                       </div>
-                      <span className="vm-fl">DOCUMENTS</span>
+                      <span className="vm-fl">Documents</span>
                       <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
                       <div className="vm-attach">
                         <span>{termAddedText(r) || "Filed by hand"}</span>
@@ -318,7 +318,7 @@ export function RecordScreen({
         {current && loose.length > 0 && (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>OTHER DOCUMENTS</Eyebrow>
+              <Eyebrow>Other documents</Eyebrow>
               <span className="vm-caption">Filed under no term</span>
             </div>
             <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />

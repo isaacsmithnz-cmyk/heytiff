@@ -39,12 +39,12 @@ import {
    card. */
 
 const CURRENT_LABEL: Record<OrgCredKind, string> = {
-  insurance: "CURRENT POLICY",
-  licence: "CURRENT LICENCE",
+  insurance: "Current policy",
+  licence: "Current licence",
 };
 const HISTORY_LABEL: Record<OrgCredKind, string> = {
-  insurance: "POLICY HISTORY",
-  licence: "LICENCE HISTORY",
+  insurance: "Policy history",
+  licence: "Licence history",
 };
 /* ONE VERB, BOTH STATES. "Record renewal" was wrong the first time anything
    was filed — nothing had renewed — and wrong again when a broker reissues a
@@ -120,7 +120,7 @@ export function RecordScreen({
 
         <div className={`vm-status ${tone}`}>
           <div className="vm-statusl">
-            <Eyebrow tone={state === "ok" ? "accent" : state === "none" ? undefined : "warn"}>STATUS</Eyebrow>
+            <Eyebrow tone={state === "ok" ? "accent" : state === "none" ? undefined : "warn"}>Status</Eyebrow>
             <span className="vm-headline">{headline}</span>
             <span className="vm-subline">{subline}</span>
           </div>
@@ -139,7 +139,7 @@ export function RecordScreen({
             </div>
             <DetailGrid items={facts} />
             <div className="vm-divider">
-              <Eyebrow>DOCUMENTS</Eyebrow>
+              <Eyebrow>Documents</Eyebrow>
               <AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(current.id, id)} />
             </div>
             <DocRows
@@ -162,7 +162,7 @@ export function RecordScreen({
         {!current && (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>DOCUMENTS</Eyebrow>
+              <Eyebrow>Documents</Eyebrow>
               <AddDocument docKind={CREDENTIAL_DOC_KIND[kind]} onAdded={(id) => onAttach(null, id)} />
             </div>
             <DocRows
@@ -215,7 +215,7 @@ export function RecordScreen({
                       <div className="vm-inset">
                         <DetailGrid dense items={recordFacts(kind, r, "ok", credential.name)} />
                       </div>
-                      <span className="vm-fl">DOCUMENTS</span>
+                      <span className="vm-fl">Documents</span>
                       <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
                       <div className="vm-attach">
                         <span>{recordAddedText(r) || "Filed by hand"}</span>
@@ -243,7 +243,7 @@ export function RecordScreen({
         {current && loose.length > 0 && (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>OTHER DOCUMENTS</Eyebrow>
+              <Eyebrow>Other documents</Eyebrow>
               <span className="vm-caption">Filed under no term</span>
             </div>
             <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />

@@ -182,7 +182,7 @@ export function ScanCard<R extends { ok: boolean }>({
             <b>{fileName}</b>
             <em>Details read from document — check before saving</em>
           </span>
-          <span className="vm-scannedtag">SCANNED</span>
+          <span className="vm-scannedtag">Scanned</span>
         </div>
       )}
 

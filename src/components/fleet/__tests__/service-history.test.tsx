@@ -124,7 +124,7 @@ it("offers no fuel or odometer entry on something with no motor", async () => {
   /* Update odo writes the very reading the card stops showing for a motorless
      vehicle — leaving the entry would let a phantom odometer back in. */
   const { user } = detail({ ...van, motorised: false, serviceIntervalKm: null });
-  expect(screen.queryByText("ODOMETER")).not.toBeInTheDocument();
+  expect(screen.queryByText("Odometer")).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Log something" }));
   expect(screen.queryByRole("menuitem", { name: /log fuel/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("menuitem", { name: /update odometer/i })).not.toBeInTheDocument();
@@ -231,5 +231,5 @@ it("returns to the service history after logging one, not to the vehicle card", 
      vehicle card — the service ROWS render in both, so they cannot tell the
      two apart and are the wrong thing to assert on here. */
   expect(screen.getByText("Due at")).toBeInTheDocument();
-  expect(screen.queryByText("VEHICLE DETAILS")).not.toBeInTheDocument();
+  expect(screen.queryByText("Vehicle details")).not.toBeInTheDocument();
 });

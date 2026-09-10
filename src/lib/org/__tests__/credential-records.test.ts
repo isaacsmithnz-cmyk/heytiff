@@ -134,26 +134,26 @@ describe("what the status says", () => {
 describe("the facts grid", () => {
   it("prints an insurance term's own fields, and a licence's own", () => {
     const ins = recordFacts("insurance", rec(), "ok").map((f) => f.label);
-    expect(ins).toEqual(["INSURER", "POLICY NO.", "COVER", "LIMIT", "STARTS", "EXPIRY", "PREMIUM", "EXCESS"]);
+    expect(ins).toEqual(["Insurer", "Policy no.", "Cover", "Limit", "Starts", "Expiry", "Premium", "Excess"]);
 
     const lic = recordFacts("licence", rec(), "ok").map((f) => f.label);
-    expect(lic).toEqual(["ISSUED BY", "LICENCE NO.", "CLASSES", "ISSUED", "EXPIRY", "FEE PAID"]);
+    expect(lic).toEqual(["Issued by", "Licence no.", "Classes", "Issued", "Expiry", "Fee paid"]);
     // a licence has no limit and no excess — those are insurance facts
-    expect(lic).not.toContain("LIMIT");
-    expect(lic).not.toContain("EXCESS");
+    expect(lic).not.toContain("Limit");
+    expect(lic).not.toContain("Excess");
   });
 
   it("shows an empty field as a quiet dash, never as a zero", () => {
     const facts = recordFacts("insurance", rec({ premium: null, issuer: null }), "ok");
-    const premium = facts.find((f) => f.label === "PREMIUM")!;
+    const premium = facts.find((f) => f.label === "Premium")!;
     expect(premium.value).toBe("—");
     expect(premium.tone).toBe("faint");
-    expect(facts.find((f) => f.label === "INSURER")!.value).toBe("—");
+    expect(facts.find((f) => f.label === "Insurer")!.value).toBe("—");
   });
 
   it("marks the expiry as a warning only when it is one", () => {
-    expect(recordFacts("insurance", rec(), "ok").find((f) => f.label === "EXPIRY")!.tone).toBeUndefined();
-    expect(recordFacts("insurance", rec(), "warn").find((f) => f.label === "EXPIRY")!.tone).toBe("warn");
+    expect(recordFacts("insurance", rec(), "ok").find((f) => f.label === "Expiry")!.tone).toBeUndefined();
+    expect(recordFacts("insurance", rec(), "warn").find((f) => f.label === "Expiry")!.tone).toBe("warn");
   });
 
   it("says a limit of liability the way a broker says it", () => {

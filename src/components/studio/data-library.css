@@ -170,9 +170,7 @@
 }
 .dl-role h3 {
   font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 600;
   color: var(--dl-mut);
   margin: 0 0 8px;
 }
@@ -242,11 +240,9 @@
 }
 .dl-table th {
   text-align: left;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--dl-mut);
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
   padding: 8px 8px;
   border-bottom: 1px solid var(--dl-line);
   white-space: nowrap;

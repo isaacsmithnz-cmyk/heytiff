@@ -108,7 +108,7 @@ export function IdentityScreen({
       <div className="vm-body">
         {adding && (
           <ScanCard<ReadLicenceResult>
-            heading="SCAN THE CARD"
+            heading="Scan the card"
             prompt={SCAN_COPY.prompt}
             hint={SCAN_COPY.hint}
             attachLabel={SCAN_COPY.attach}
@@ -134,7 +134,7 @@ export function IdentityScreen({
 
         <div className="vm-card">
           <div className="vm-cardhead">
-            <span className="vm-eyebrow">WHAT IT IS</span>
+            <span className="vm-eyebrow">What it is</span>
             {adding && scanned && <span className="vm-caption">Name it — the scan doesn&apos;t</span>}
           </div>
 
@@ -194,7 +194,7 @@ export function IdentityScreen({
           </div>
 
           <div className="vm-divider">
-            <span className="vm-eyebrow">COLOUR</span>
+            <span className="vm-eyebrow">Colour</span>
           </div>
           <div className="vm-sw" role="group" aria-label="Colour">
             {SWATCHES.map((s) => (

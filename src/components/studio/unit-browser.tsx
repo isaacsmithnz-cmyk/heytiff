@@ -522,11 +522,11 @@ export function UnitBrowser({
         )}
         <td className="ds-ub-model">
           {o.idu.model}
-          {o.bestFit && <em>best fit</em>}
+          {o.bestFit && <em>Best fit</em>}
           <FitChip fit={o.fit} loadKw={loadKw} capacityKw={o.capacityKw} />
           {band && !o.bestFit && (
             <em className="ds-ub-inband" title="Within the required capacity band">
-              in range
+              In range
             </em>
           )}
         </td>
@@ -972,7 +972,7 @@ function DetailPanel({
       <div className="ds-ub-dscroll">
         <div className="ds-ub-dhead">
           <b>{option.idu.model}</b>
-          {option.bestFit && <em>best fit</em>}
+          {option.bestFit && <em>Best fit</em>}
           {/* the flag follows the unit into the panel — the last screen before
               Add is where a wrong size most needs to still be saying so */}
           <FitChip fit={option.fit} loadKw={loadKw} capacityKw={capacityKw} />

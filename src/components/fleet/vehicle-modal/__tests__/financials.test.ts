@@ -133,11 +133,11 @@ describe("financeRows / repaymentLabel", () => {
   it("says what the lender wrote and Not recorded for the rest", () => {
     const rows = financeRows({ ...agreement, agreementNo: null, balloon: null });
     const by = Object.fromEntries(rows.map((r) => [r.label, r]));
-    expect(by.REPAYMENT.value).toBe("$742 / month");
-    expect(by.ENDS.value).toBe("1 Sep 2027");
-    expect(by.RATE.value).toBe("7.45% p.a.");
-    expect(by["AGREEMENT NO."]).toMatchObject({ value: "Not recorded", faint: true });
-    expect(by.BALLOON).toMatchObject({ value: "Not recorded", faint: true });
+    expect(by.Repayment.value).toBe("$742 / month");
+    expect(by.Ends.value).toBe("1 Sep 2027");
+    expect(by.Rate.value).toBe("7.45% p.a.");
+    expect(by["Agreement no."]).toMatchObject({ value: "Not recorded", faint: true });
+    expect(by.Balloon).toMatchObject({ value: "Not recorded", faint: true });
   });
 
   it("labels the repayment by its frequency", () => {
@@ -149,21 +149,21 @@ describe("financeRows / repaymentLabel", () => {
 describe("purchaseRows", () => {
   it("reads PAID when nothing is financed, and DEPOSIT + BALANCE when something is", () => {
     const outright = Object.fromEntries(purchaseRows({ ...van, purchaseDeposit: null }, TODAY, null).map((r) => [r.label, r]));
-    expect(outright.PAID.value).toBe("$41,990");
-    expect(outright["BALANCE FINANCED"]).toBeUndefined();
-    expect(outright.FUNDING).toMatchObject({ value: "No finance recorded", faint: true });
+    expect(outright.Paid.value).toBe("$41,990");
+    expect(outright["Balance financed"]).toBeUndefined();
+    expect(outright.Funding).toMatchObject({ value: "No finance recorded", faint: true });
 
     const financed = Object.fromEntries(purchaseRows(van, TODAY, agreement).map((r) => [r.label, r]));
-    expect(financed["DEPOSIT PAID"].value).toBe("$4,000");
-    expect(financed["BALANCE FINANCED"].value).toBe("$38,500");
-    expect(financed.FUNDING.value).toBe("Deposit + finance");
-    expect(financed["ODOMETER AT PURCHASE"].value).toBe("12 km");
+    expect(financed["Deposit paid"].value).toBe("$4,000");
+    expect(financed["Balance financed"].value).toBe("$38,500");
+    expect(financed.Funding.value).toBe("Deposit + finance");
+    expect(financed["Odometer at purchase"].value).toBe("12 km");
   });
 
   it("never prints $0 for a line the invoice didn't have", () => {
     const rows = Object.fromEntries(purchaseRows({ ...van, purchaseGst: null, purchaseDateDays: 0 }, TODAY, null).map((r) => [r.label, r]));
     expect(rows.GST).toMatchObject({ value: "Not recorded", faint: true });
-    expect(rows.DATE).toMatchObject({ value: "Not recorded", faint: true });
+    expect(rows.Date).toMatchObject({ value: "Not recorded", faint: true });
   });
 });
 

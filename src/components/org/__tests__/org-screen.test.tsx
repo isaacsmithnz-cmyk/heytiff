@@ -537,13 +537,13 @@ describe("the credential modal", () => {
     const dialog = screen.getByRole("dialog");
 
     // the term in force, as the certificate prints it
-    expect(within(dialog).getByText("CURRENT POLICY")).toBeInTheDocument();
+    expect(within(dialog).getByText("Current policy")).toBeInTheDocument();
     expect(within(dialog).getByText("Public and products liability")).toBeInTheDocument();
     expect(within(dialog).getByText("$20m")).toBeInTheDocument();
     expect(within(dialog).getByText("7 Aug 2026")).toBeInTheDocument();
 
     // and the one before it, which the old modal would have destroyed
-    const history = within(dialog).getByText("POLICY HISTORY").closest(".vm-card") as HTMLElement;
+    const history = within(dialog).getByText("Policy history").closest(".vm-card") as HTMLElement;
     expect(within(history).getByText("7 Aug 2025")).toBeInTheDocument();
     expect(within(history).getByText("$2,100")).toBeInTheDocument();
   });
@@ -588,14 +588,14 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
 
-    expect(within(dialog).getByText("CURRENT POLICY")).toBeInTheDocument();
+    expect(within(dialog).getByText("Current policy")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
 
-    expect(within(dialog).getByText("THE NEW CERTIFICATE")).toBeInTheDocument();
-    expect(within(dialog).queryByText("CURRENT POLICY")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("The new certificate")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Current policy")).not.toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Back" }));
-    expect(within(dialog).getByText("CURRENT POLICY")).toBeInTheDocument();
+    expect(within(dialog).getByText("Current policy")).toBeInTheDocument();
   });
 
   it("renames a card behind the Edit details door, and updates it by id", async () => {
@@ -780,9 +780,9 @@ describe("the credential modal", () => {
     await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
     const dialog = screen.getByRole("dialog");
     // not in the facts it reads back
-    expect(within(dialog).queryByText("LIMIT")).not.toBeInTheDocument();
-    expect(within(dialog).queryByText("EXCESS")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("INSURER")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Limit")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Excess")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Insurer")).toBeInTheDocument();
 
     // nor in the boxes it asks for
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
@@ -808,9 +808,9 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("WORKERS")).toBeInTheDocument();
+    expect(within(dialog).getByText("Workers")).toBeInTheDocument();
     expect(within(dialog).getByText("11")).toBeInTheDocument();
-    expect(within(dialog).getByText("WAGES")).toBeInTheDocument();
+    expect(within(dialog).getByText("Wages")).toBeInTheDocument();
     expect(within(dialog).getByText("$943,669")).toBeInTheDocument();
 
     // and the boxes to type them into, when the scan did not
@@ -832,8 +832,8 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("INDUSTRY CLASSIFICATION")).toBeInTheDocument();
-    expect(within(dialog).queryByText("COVER")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Industry classification")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Cover")).not.toBeInTheDocument();
   });
 
   it("offers a public liability policy neither figure", async () => {
@@ -842,9 +842,9 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).queryByText("WORKERS")).not.toBeInTheDocument();
-    expect(within(dialog).queryByText("WAGES")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("COVER")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Workers")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Wages")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Cover")).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
@@ -858,8 +858,8 @@ describe("the credential modal", () => {
 
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("LIMIT")).toBeInTheDocument();
-    expect(within(dialog).getByText("EXCESS")).toBeInTheDocument();
+    expect(within(dialog).getByText("Limit")).toBeInTheDocument();
+    expect(within(dialog).getByText("Excess")).toBeInTheDocument();
   });
 
   /* A HEADING, A BORDER AND A SHADOW SPENT ON THE ABSENCE OF A THING. A card
@@ -885,12 +885,12 @@ describe("the credential modal", () => {
     const user = userEvent.setup();
     const { unmount } = setup({ sec: "credentials", records: { C2: [term()] } });
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
-    expect(within(screen.getByRole("dialog")).queryByText("POLICY HISTORY")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).queryByText("Policy history")).not.toBeInTheDocument();
     unmount();
 
     setup({ sec: "credentials", records: { C2: [term(), term({ id: "R0", expiresOn: "2025-08-07" })] } });
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
-    expect(within(screen.getByRole("dialog")).getByText("POLICY HISTORY")).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText("Policy history")).toBeInTheDocument();
   });
 
 });
@@ -1366,8 +1366,8 @@ describe("filing a document against a card with no expiry", () => {
     await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
     const dialog = screen.getByRole("dialog");
 
-    expect(within(dialog).queryByText("CURRENT POLICY")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("DOCUMENTS")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Current policy")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Documents")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Add document")).toBeInTheDocument();
   });
 
@@ -1493,7 +1493,7 @@ describe("adding a card by scanning it", () => {
       within(dialog).getByLabelText("Scan document"),
       new File(["x"], "licence.pdf", { type: "application/pdf" })
     );
-    await within(dialog).findByText("SCANNED");
+    await within(dialog).findByText("Scanned");
     await user.click(within(dialog).getByRole("button", { name: "Add card" }));
 
     expect(actions.onAddCredential).toHaveBeenCalledWith(
@@ -1543,7 +1543,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("SCANNED");
+    await within(dialog).findByText("Scanned");
     return dialog;
   };
 
@@ -1568,7 +1568,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(await within(dialog).findByRole("button", { name: "Update policy" })).toBeInTheDocument();
-    expect(within(dialog).queryByText("SCANNED")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Scanned")).not.toBeInTheDocument();
   });
 
   it("keeps the certificate when the filing is refused, so pressing again is a retry", async () => {
@@ -1580,7 +1580,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(await within(dialog).findByText("That document couldn't be filed.")).toBeInTheDocument();
-    expect(within(dialog).getByText("SCANNED")).toBeInTheDocument();
+    expect(within(dialog).getByText("Scanned")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
     expect(actions.onAttachCredentialDoc).toHaveBeenCalledTimes(2);
   });

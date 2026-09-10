@@ -128,7 +128,7 @@ describe("what the status says", () => {
 describe("the facts grid", () => {
   it("prints what the plastic card prints, and nothing personal", () => {
     const labels = termFacts(rec(), "ok").map((f) => f.label);
-    expect(labels).toEqual(["LICENCE NO.", "ISSUED BY", "STATE", "CLASSES", "ISSUED", "EXPIRY"]);
+    expect(labels).toEqual(["Licence no.", "Issued by", "State", "Classes", "Issued", "Expiry"]);
     /* The reader is deliberately narrow about a government ID
        (lib/staff/licence-readers.ts) and this grid is the other half of that
        promise: there is nowhere here for a name, a date of birth or an
@@ -140,14 +140,14 @@ describe("the facts grid", () => {
 
   it("shows an empty field as a quiet dash, never as an invented value", () => {
     const facts = termFacts(rec({ classes: null, issuingState: null }), "ok");
-    const classes = facts.find((f) => f.label === "CLASSES")!;
+    const classes = facts.find((f) => f.label === "Classes")!;
     expect(classes.value).toBe("—");
     expect(classes.tone).toBe("faint");
   });
 
   it("marks the expiry as a warning only when it is one", () => {
-    expect(termFacts(rec(), "ok").find((f) => f.label === "EXPIRY")!.tone).toBeUndefined();
-    expect(termFacts(rec(), "bad").find((f) => f.label === "EXPIRY")!.tone).toBe("warn");
+    expect(termFacts(rec(), "ok").find((f) => f.label === "Expiry")!.tone).toBeUndefined();
+    expect(termFacts(rec(), "bad").find((f) => f.label === "Expiry")!.tone).toBe("warn");
   });
 
   it("names a term by who issued it, with the state after", () => {

@@ -190,7 +190,7 @@ describe("Shared-outdoor section", () => {
     fireEvent.click(within(sec).getByRole("button", { name: /Select outdoor unit/ }));
     const dialog = screen.getByRole("dialog", { name: "Choose the shared outdoor unit" });
     expect(within(dialog).getByText("MXZ-2F52VF")).toBeInTheDocument();
-    expect(within(dialog).getByText("suggested")).toBeInTheDocument();
+    expect(within(dialog).getByText("Suggested")).toBeInTheDocument();
   });
 
   it("choosing an outdoor writes settings.pairOdu", () => {

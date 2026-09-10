@@ -123,8 +123,8 @@ export function MultiOduPicker({
                 >
                   <td className="ds-ub-model">
                     {p.odu.model}
-                    {p.recommended && <em>suggested</em>}
-                    {!p.fits && <em className="ds-mp-nofit">won&apos;t fit</em>}
+                    {p.recommended && <em>Suggested</em>}
+                    {!p.fits && <em className="ds-mp-nofit">Won&apos;t fit</em>}
                   </td>
                   <td>{p.ports}</td>
                   <td>{p.capacityKw.toFixed(1)} kW</td>

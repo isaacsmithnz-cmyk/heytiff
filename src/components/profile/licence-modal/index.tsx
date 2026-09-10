@@ -125,10 +125,10 @@ export function LicenceModal({
               <IconBtn icon="chevL" label="Back" onClick={() => setScreen("record")} size={18} />
             ) : null}
             <div className="vm-titles">
-              <span className="vm-eyebrow">{adding ? "COMPLIANCE" : "LICENCE OR TICKET"}</span>
               <h2 className="vm-title sub">
                 {screen === "details" && !adding ? "Licence details" : adding ? "Add a licence or ticket" : licence.typeName}
               </h2>
+              <span className="vm-kind">{adding ? "Compliance" : "Licence or ticket"}</span>
             </div>
           </div>
           <div className="vm-headr">

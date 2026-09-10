@@ -1056,7 +1056,7 @@ function FloorStackBuilder({
     const groundLine = (
       <div key="groundline" className="ds-groundline">
         <span />
-        <b>ground line</b>
+        <b>Ground line</b>
         <span />
       </div>
     );

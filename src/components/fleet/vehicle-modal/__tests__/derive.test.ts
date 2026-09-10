@@ -98,7 +98,7 @@ describe("complianceRows", () => {
   it("names the provider and date when a policy is filed and nothing is due", () => {
     const rows = complianceRows(van, [policy({})], WARN);
     expect(rows.find((r) => r.kind === "ctp")).toMatchObject({
-      label: "GREEN SLIP",
+      label: "Green slip",
       value: "QBE · 29 Sep 2027",
       state: "ok",
       unset: false,
@@ -162,7 +162,7 @@ describe("specRows", () => {
     const rows = specRows({ ...van, vin: "MMAWLKL10NH035826", gvmKg: 2900, engineCapacityCc: 2442 });
     expect(rows).toEqual([
       { label: "VIN", value: "MMAWLKL10NH035826", wide: true },
-      { label: "ENGINE CAPACITY", value: "2,442 cc" },
+      { label: "Engine capacity", value: "2,442 cc" },
       { label: "GVM", value: "2,900 kg" },
     ]);
   });

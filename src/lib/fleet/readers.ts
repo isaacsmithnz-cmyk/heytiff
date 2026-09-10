@@ -134,7 +134,12 @@ const RENEWAL_WHAT: Record<RenewalKind, { what: string; provider: string; extras
       "property damage only) or \"third_party_fire_theft\" (third party, fire and theft). " +
       "Null if the document doesn't say.\n" +
       "- excess: the standard/basic excess in dollars, if printed\n" +
-      "- termMonths: the length of the policy period in months (usually 12)\n" +
+      /* A MOTOR POLICY HAS NO SEPARATE TERM. Its period is startsOn to
+         expiresOn, and a months figure beside those two dates is a second
+         source of truth for the same fact — one that can disagree with them.
+         Rego and CTP are different: 3, 6 and 12 month terms are a real choice
+         you make at the counter, so for those it is asked for and shown. */
+      "- termMonths: null (a policy's period is its start and expiry dates)\n" +
       "- garagingPostcode: null\n" +
       "- inspectionOn: null\n",
   },
@@ -208,7 +213,7 @@ export function parseRenewalRead(raw: unknown, kind: RenewalKind): RenewalRead {
     policyNumber: kind === "rego" ? null : text(r.policyNumber, 40),
     cover: kind === "insurance" ? oneOf(r.cover, INSURANCE_COVERS) : null,
     excess: kind === "insurance" ? money(r.excess) : null,
-    termMonths: positiveInt(r.termMonths, 60),
+    termMonths: kind === "insurance" ? null : positiveInt(r.termMonths, 60),
     garagingPostcode: kind === "ctp" && postcode && /^\d{4}$/.test(postcode) ? postcode : null,
     inspectionOn: kind === "rego" ? isoDate(r.inspectionOn) : null,
   };

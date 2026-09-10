@@ -136,11 +136,17 @@ describe("parseRenewalRead", () => {
     expect(ins.policyNumber).toBe("36-01023321955");
     expect(ins.garagingPostcode).toBeNull();
     expect(ins.inspectionOn).toBeNull();
+    /* A MOTOR POLICY HAS NO SEPARATE TERM. Its period is startsOn to
+       expiresOn, so a months figure beside those two dates is a second source
+       of truth that can disagree with them. Rego and CTP keep theirs: 3, 6 and
+       12 months are a real choice made at the counter. */
+    expect(ins.termMonths).toBeNull();
 
     const ctp = parseRenewalRead(everything, "ctp");
     expect(ctp.cover).toBeNull();
     expect(ctp.excess).toBeNull();
     expect(ctp.garagingPostcode).toBe("2031");
+    expect(ctp.termMonths).toBe(12);
   });
 
   it("only believes a cover that is one of ours, and a postcode that is four digits", () => {
@@ -172,6 +178,20 @@ describe("renewalPrompt", () => {
     // the one rule every kind shares
     for (const k of ["rego", "insurance", "ctp"] as const)
       expect(renewalPrompt(k)).toMatch(/the LATER date is expiresOn/);
+  });
+
+  /* A field a kind cannot have is NAMED as absent, never left unmentioned.
+     Structured output makes the model emit every key whatever the prompt says,
+     so a key the prompt skips is one it fills from whatever on the page looks
+     closest — a term from a payment frequency, an excess from policy wording.
+     Told there is none, it does not. */
+  it("names every absent field rather than leaving the model to guess", () => {
+    expect(renewalPrompt("insurance")).toMatch(/termMonths: null/);
+    expect(renewalPrompt("rego")).toMatch(/policyNumber: null/);
+    expect(renewalPrompt("ctp")).toMatch(/excess: null/);
+    // and asks for a term where one is genuinely chosen at the counter
+    expect(renewalPrompt("rego")).toMatch(/registration term in months/);
+    expect(renewalPrompt("ctp")).toMatch(/period of cover in months/);
   });
 });
 

@@ -126,7 +126,7 @@
   position:fixed; inset:0; display:flex; overflow:hidden; background:var(--bg);
   font-family:var(--font); color:var(--ink); -webkit-font-smoothing:antialiased;
 }
-.fg ::selection { background:rgba(0,229,192,.3); }
+.fg ::selection { background:var(--tint-2); }
 .fg svg.i { display:block; flex:0 0 auto; }
 /* The button reset — with one carve-out. `.fg button` is specificity (0,1,1)
    and so outranks EVERY single-class rule, which meant a plain
@@ -174,7 +174,7 @@
 .fg .ht-logo svg { transition:transform .5s var(--ease); }
 .fg .ht-logo:hover svg { transform:scale(1.08); }
 .fg .ht-wm { font-size:22px; font-weight:800; letter-spacing:-0.035em; line-height:1; color:#fff; }
-.fg .ht-wm span { color:var(--teal); }
+.fg .ht-wm span { color:var(--ink); }
 /* The business using HeyTiff — trading name from Organisation settings, as a
    chip under the wordmark. Additive only: the brand row's layout and
    animations are untouched.
@@ -293,7 +293,7 @@ html[data-rail][data-ds-canvas] .fg .nav { display:none; } /* the skeleton rows 
   transition:left .35s var(--ease), color .3s, background .3s; }
 html[data-ds-canvas]:not([data-ds-display]) .fg .railtg { display:flex; }
 .fg .railtg:hover { color:#fff; background:rgba(255,255,255,.09); }
-.fg .railtg:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+.fg .railtg:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 /* the arrow leans the way the rail will move — in on hover-to-close, out on
    hover-to-open — so the chip explains itself before the click */
 .fg .railtg svg { transition:transform .25s var(--ease); }
@@ -316,11 +316,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .topbar.hide { display:none; }
 .fg .searchbtn { position:relative; flex:1; max-width:512px; text-align:left; }
 .fg .searchbtn .si { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color .3s; pointer-events:none; }
-.fg .searchbtn:hover .si { color:var(--teal); }
+.fg .searchbtn:hover .si { color:var(--ink); }
 .fg .searchbtn .sf { width:100%; padding:13px 48px; background:rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.08); border-radius:16px; font-size:14px; font-weight:500; color:var(--gray400); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .3s; }
-.fg .searchbtn:hover .sf { border-color:rgba(0,229,192,.5); background:#fff; }
+.fg .searchbtn:hover .sf { border-color:var(--line); background:#fff; }
 .fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:rgba(0,0,0,.05); padding:4px 8px; border-radius:6px; transition:all .3s; }
-.fg .searchbtn:hover .kbd { background:rgba(0,229,192,.1); color:var(--ink); }
+.fg .searchbtn:hover .kbd { background:var(--tint); color:var(--ink); }
 .fg .tbr { display:flex; align-items:center; gap:24px; }
 /* THE FRAME'S CLOCK — the date that used to be a pill inside the home hero,
    now ambient chrome with a time beside it. Mirrors `.me-top .mk` at the other
@@ -356,7 +356,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tbr .sep { width:1px; height:32px; background:rgba(0,0,0,.08); }
 .fg .newbtn { position:relative; overflow:hidden; display:flex; align-items:center; gap:8px; padding:13px 24px; border-radius:16px; background:var(--ink); color:#fff; font-size:14px; font-weight:700; transition:all .3s; }
 .fg .newbtn:hover { box-shadow:0 10px 20px rgba(0,0,0,.1); transform:translateY(-2px); }
-.fg .newbtn .sh { position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(0,229,192,.2),transparent); transform:translateX(-100%); transition:transform .7s ease; }
+.fg .newbtn .sh { position:absolute; inset:0; background:linear-gradient(90deg,transparent,var(--tint-2),transparent); transform:translateX(-100%); transition:transform .7s ease; }
 .fg .newbtn:hover .sh { transform:translateX(100%); }
 .fg .newbtn span { position:relative; z-index:10; }
 .fg .newbtn .pl { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,.1); font-size:16px; line-height:1; }
@@ -414,7 +414,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 /* spotlight */
 .fg .spot { position:relative; overflow:hidden; }
 .fg .spot .sglow { position:absolute; inset:-1px; z-index:0; opacity:0; transition:opacity .5s; pointer-events:none;
-  background:radial-gradient(350px circle at var(--mx,50%) var(--my,50%), var(--sc,rgba(0,229,192,.13)), transparent 65%); }
+  background:radial-gradient(350px circle at var(--mx,50%) var(--my,50%), var(--sc,var(--tint-2)), transparent 65%); }
 .fg .spot:hover .sglow { opacity:1; }
 .fg .spot > *:not(.sglow) { position:relative; z-index:1; }
 
@@ -662,7 +662,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    generated hue, which fails 4.5:1 on 175 of the 360 hues that function can
    produce (worst 2.32 at hue 60). Against this fill they measure ~19:1, and
    the hue still identifies the person because it is the ring now. */
-.fg .dav { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:#0A0B10; border:2px solid transparent; background-image:linear-gradient(#0A0B10,#0A0B10), linear-gradient(45deg,var(--av,#2E68FF),#00E5C0); background-origin:border-box; background-clip:padding-box, border-box; }
+.fg .dav { width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:#0A0B10; border:2px solid transparent; background-image:linear-gradient(#0A0B10,#0A0B10), linear-gradient(45deg,var(--av,var(--ink)),var(--ink)); background-origin:border-box; background-clip:padding-box, border-box; }
 .fg .dname b { font-size:14.5px; font-weight:700; color:var(--ink); display:block; }
 /* The name is an anchor now (the row used to be a role="link" wrapping the
    actions button). It inherits rather than taking link styling, because the row
@@ -671,7 +671,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    and widens its hit area to the text it sits on. */
 .fg .dname b a { color:inherit; font:inherit; text-decoration:none; display:inline-block; }
 .fg .dname b a:hover { text-decoration:underline; text-underline-offset:2px; }
-.fg .dname b a:focus-visible { outline:2px solid #2E68FF; outline-offset:2px; border-radius:4px; }
+.fg .dname b a:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:4px; }
 .fg .dname em { font-style:normal; font-size:12px; color:var(--q); display:block; }
 .fg .drole { font-size:13.5px; color:var(--gray500); font-weight:600; }
 .fg .dstatus { display:inline-flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:var(--ink); }
@@ -765,14 +765,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
 /* wider blur and a shade less ink: at 8px the violet end bloomed off one
    corner and read as a smear rather than a halo on the live walk */
-.fg .tinput .tib { position:absolute; inset:-5px; border-radius:35px; background:linear-gradient(90deg,var(--teal),var(--blue),var(--violet)); filter:blur(12px); opacity:.16; animation:fgBreath 4s ease-in-out infinite; }
+.fg .tinput .tib { position:absolute; inset:-5px; border-radius:35px; background:var(--ink); filter:blur(12px); opacity:.16; animation:fgBreath 4s ease-in-out infinite; }
 .fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:32px; background:#fff; box-shadow:0 25px 50px -12px rgba(0,0,0,.25); border:1px solid #fff; }
 .fg .tinput .tic { width:48px; height:48px; border-radius:16px; background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fg .tinput .tic svg { color:var(--teal); }
+.fg .tinput .tic svg { color:var(--ink); }
 .fg .tinput input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:var(--ink); padding:16px 0; }
 .fg .tinput input::placeholder { color:var(--gray400); }
 .fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:16px; background:var(--ink); display:flex; align-items:center; justify-content:center; color:#fff; flex:0 0 auto; box-shadow:0 6px 14px -4px rgba(0,0,0,.3); transition:all .3s; }
-.fg .tinput .tsend:hover:not(:disabled) { background:var(--teal); color:var(--ink); }
+.fg .tinput .tsend:hover:not(:disabled) { background:var(--ink); color:var(--paper); }
 .fg .tinput .tsend:disabled { background:rgba(5,5,5,.14); box-shadow:none; cursor:not-allowed; }
 
 /* ── the bar says it is working ──
@@ -796,7 +796,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    layer of their own — otherwise it would wash over the typed text */
 .fg .tinput .tin.working::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
   border-radius:inherit;
-  background:linear-gradient(100deg, rgba(46,104,255,0) 34%, rgba(46,104,255,.10) 50%, rgba(46,104,255,0) 66%);
+  background:var(--tint);
   background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.6s ease-in-out infinite; }
 .fg .tinput .tin > * { position:relative; z-index:1; }
 
@@ -824,7 +824,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
   display:flex; align-items:center; justify-content:center;
   border:1px solid var(--line); background:#fff; color:var(--gray500);
   transition:border-color .2s, color .2s, background .2s; }
-.fg .tinput .tmic:hover:not(:disabled) { border-color:var(--teal-d); color:var(--ink); background:#f9fefd; }
+.fg .tinput .tmic:hover:not(:disabled) { border-color:var(--ink); color:var(--ink); background:#f9fefd; }
 .fg .tinput .tmic:disabled { opacity:.45; cursor:not-allowed; }
 .fg .tinput .tmic:focus-visible, .fg .tinput .tmicx:focus-visible { outline:none; box-shadow:var(--ring); }
 
@@ -859,7 +859,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .thread:hover { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); border-color:#f0f0f2; }
 .fg .thread .th { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
 .fg .thread .th b { font-size:14px; font-weight:700; color:var(--ink); line-height:1.3; transition:color .3s; }
-.fg .thread:hover .th b { color:var(--teal); }
+.fg .thread:hover .th b { color:var(--ink); }
 .fg .thread em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 
 /* ---------------- TOOLBOX ---------------- */
@@ -874,9 +874,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tbx-head h1 { font-size:38px; font-weight:800; color:var(--ink); letter-spacing:-.035em; line-height:1; margin:0; }
 .fg .tbx-search { position:relative; width:100%; max-width:384px; }
 .fg .tbx-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color .3s; }
-.fg .tbx-search:focus-within svg { color:var(--teal); }
+.fg .tbx-search:focus-within svg { color:var(--ink); }
 .fg .tbx-search input { width:100%; padding:14px 16px 14px 48px; background:#fff; border-radius:16px; border:1px solid var(--line); font-size:15px; font-weight:500; outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03); transition:all .2s; }
-.fg .tbx-search input:focus { box-shadow:var(--ring); border-color:rgba(0,229,192,.5); }
+.fg .tbx-search input:focus { box-shadow:var(--ring); border-color:var(--line); }
 .fg .tbx-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
 @media (max-width:880px){ .fg .tbx-grid{grid-template-columns:1fr} }
 .fg .catwrap { transition:transform .5s; }
@@ -916,15 +916,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .dhr { display:flex; align-items:center; gap:16px; }
 .fg .dlay { display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:12px; font-size:13px; font-weight:700; color:var(--gray500); transition:all .2s; }
 .fg .dlay:hover { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-.fg .dscale { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:12px; background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.3); color:var(--ink); font-size:12px; font-weight:700; }
+.fg .dscale { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:12px; background:var(--tint); border:1px solid var(--line); color:var(--ink); font-size:12px; font-weight:700; }
 .fg .ping { position:relative; display:flex; width:8px; height:8px; }
-.fg .ping .p1 { position:absolute; inset:0; border-radius:50%; background:var(--teal); opacity:.75; animation:fgPingFull 1.4s var(--ease) infinite; }
-.fg .ping .p2 { position:relative; width:8px; height:8px; border-radius:50%; background:var(--teal-d); }
+.fg .ping .p1 { position:absolute; inset:0; border-radius:50%; background:var(--ink); opacity:.75; animation:fgPingFull 1.4s var(--ease) infinite; color:var(--paper); }
+.fg .ping .p2 { position:relative; width:8px; height:8px; border-radius:50%; background:var(--ink); color:var(--paper); }
 @keyframes fgPingFull { 75%,100%{transform:scale(2.2);opacity:0} }
 .fg .dsep { width:1px; height:24px; background:rgba(0,0,0,.1); margin:0 8px; }
 .fg .dsave { padding:8px 20px; border-radius:12px; font-size:13px; font-weight:700; color:var(--gray700); background:#fff; border:1px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.05); transition:all .2s; }
 .fg .dsave:hover { background:var(--tint); }
-.fg .dexport { display:flex; align-items:center; gap:8px; padding:8px 20px; border-radius:12px; font-size:13px; font-weight:700; color:var(--ink); background:var(--teal); box-shadow:0 4px 15px rgba(0,229,192,.3); transition:all .2s; }
+.fg .dexport { display:flex; align-items:center; gap:8px; padding:8px 20px; border-radius:12px; font-size:13px; font-weight:700; color:var(--paper); background:var(--ink); box-shadow:none; transition:all .2s; }
 .fg .dexport:hover { background:#00D0AE; }
 
 .fg .dwork { flex:1; display:flex; gap:16px; padding:16px; padding-top:84px; position:relative; z-index:10; min-height:0; }
@@ -933,7 +933,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .dtools .tdv { width:32px; height:1px; background:var(--line); margin:8px 0; }
 .fg .dtbtn { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:var(--gray500); transition:all .3s; }
 .fg .dtbtn:hover { background:#fff; color:#111; box-shadow:0 1px 4px rgba(0,0,0,.08); }
-.fg .dtbtn.active { background:var(--ink); color:var(--teal); box-shadow:0 4px 12px rgba(0,0,0,.15); transform:scale(1.1); }
+.fg .dtbtn.active { background:var(--ink); color:var(--paper); box-shadow:0 4px 12px rgba(0,0,0,.15); transform:scale(1.1); }
 .fg .dcanvas { flex:1; position:relative; display:flex; align-items:center; justify-content:center; padding:32px; min-width:0; }
 .fg .dcanvas svg.plan { width:100%; height:100%; max-width:820px; max-height:100%; filter:drop-shadow(0 20px 40px rgba(0,0,0,.08)); }
 .fg .dstatus { position:absolute; top:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; padding:8px 16px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.05); z-index:20; animation:fgUp .5s .8s both; }
@@ -944,8 +944,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 @keyframes fgSlideR { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:none} }
 .fg .dprops .ph { padding:24px; border-bottom:1px solid var(--tint); display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.5); }
 .fg .dprops .ph h3 { font-size:18px; font-weight:800; color:var(--ink); margin:0; }
-.fg .dprops .ph button { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:rgba(0,229,192,.1); color:var(--ink); font-size:18px; font-weight:700; transition:background .2s; }
-.fg .dprops .ph button:hover { background:rgba(0,229,192,.2); }
+.fg .dprops .ph button { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:var(--tint); color:var(--ink); font-size:18px; font-weight:700; transition:background .2s; }
+.fg .dprops .ph button:hover { background:var(--tint-2); }
 .fg .dpbody { padding:24px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:24px; }
 .fg .odu { padding:24px; border-radius:24px; background:var(--tint); border:1px solid var(--tint); box-shadow:inset 0 2px 4px rgba(0,0,0,.03); }
 .fg .odu .or { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
@@ -955,14 +955,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .odu .ld b { font-size:14px; font-weight:700; color:var(--gray700); }
 .fg .odu .ld em { font-style:normal; font-size:14px; font-weight:800; color:var(--ink); font-family:var(--mono); }
 .fg .odu .bar { height:10px; border-radius:999px; background:var(--line); overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,.1); }
-.fg .odu .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--teal),var(--blue)); transition:width 1.6s var(--ease) .3s; }
+.fg .odu .bar i { display:block; height:100%; width:0; background:var(--ink); transition:width 1.6s var(--ease) .3s; }
 .fg .odu .of { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
 .fg .odu .of .a { font-size:11px; font-weight:700; color:var(--gray400); }
 .fg .odu .of .b { font-size:11px; font-weight:800; color:var(--ink); font-family:var(--mono); }
 .fg .droom { display:flex; align-items:center; gap:12px; padding:14px; border-radius:16px; background:var(--tint); border:1px solid var(--tint); cursor:pointer; transition:all .2s; }
 .fg .droom + .droom { margin-top:8px; }
-.fg .droom:hover { border-color:rgba(0,229,192,.4); background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); }
-.fg .droom .ri { width:36px; height:36px; border-radius:12px; background:rgba(0,229,192,.1); display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .2s; }
+.fg .droom:hover { border-color:var(--line); background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+.fg .droom .ri { width:36px; height:36px; border-radius:12px; background:var(--tint); display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .2s; }
 .fg .droom:hover .ri { transform:scale(1.05); }
 .fg .droom .ri svg { color:var(--ink); }
 .fg .droom .rk { flex:1; min-width:0; }
@@ -971,7 +971,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .droom .rkw { font-size:13px; font-weight:800; color:var(--ink); font-family:var(--mono); flex:0 0 auto; }
 .fg .dview { position:absolute; bottom:24px; left:100px; display:flex; border-radius:12px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,.05); overflow:hidden; z-index:20; animation:fgUp .5s .3s both; }
 .fg .dview button { width:48px; height:48px; display:flex; align-items:center; justify-content:center; color:var(--gray700); transition:all .2s; }
-.fg .dview button:hover { background:#fff; color:var(--teal); }
+.fg .dview button:hover { background:#fff; color:var(--ink); }
 .fg .dview button:not(:last-child) { border-right:1px solid rgba(0,0,0,.08); }
 .fg .dread { position:absolute; bottom:24px; right:380px; display:flex; gap:12px; pointer-events:none; z-index:20; animation:fgUp .5s .3s both; }
 @media (max-width:1080px){ .fg .dread{right:24px} }
@@ -1019,9 +1019,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* topbar controls restyled to read on black */
 .fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }
-.fg .searchbtn:hover .sf { background:rgba(255,255,255,.09); border-color:rgba(0,229,192,.5); }
+.fg .searchbtn:hover .sf { background:rgba(255,255,255,.09); border-color:var(--on-ink-line); }
 .fg .searchbtn .si { color:rgba(255,255,255,.4); }
-.fg .searchbtn:hover .si { color:var(--teal); }
+.fg .searchbtn:hover .si { color:#fff; }
 .fg .searchbtn .kbd { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
 /* THE ONE PAIR IN THIS BLOCK THAT WAS NEVER GIVEN ITS DARK TWIN, and the miss
    only shows on hover — so it is invisible to a screenshot, and to any scan of
@@ -1037,7 +1037,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
    Every other control here got its twin — `.sf`, `:hover .sf`, `.si`,
    `:hover .si`, `.kbd`. This is the fifth of five, added late. */
-.fg .searchbtn:hover .kbd { background:rgba(0,229,192,.18); color:#fff; }
+.fg .searchbtn:hover .kbd { background:rgba(255,255,255,.18); color:#fff; }
 .fg .bell { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.6); }
 .fg .bell:hover { background:rgba(255,255,255,.12); color:#fff; box-shadow:none; }
 .fg .bell .d { border-color:#050505; }
@@ -1251,7 +1251,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .pbtn.ghost { background:#fff; border:1px solid var(--line); color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fg .pbtn.ghost:hover { background:var(--tint); }
 .fg .pbtn.primary { background:var(--ink); color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
-.fg .pbtn.primary:hover { background:var(--teal); color:var(--ink); }
+.fg .pbtn.primary:hover { background:var(--ink); color:var(--paper); }
 
 /* ── THE STAFF CARD — the maintenance board's surface, holding a person ──
    It was a dark identity rail beside a wrapping strip of section tabs, and
@@ -1270,7 +1270,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    board's cyan AND its 38px sizing, and this card keeps the profile's 42px.
    So only the tokens are declared here, and the fill is restated below. */
 .fg .pcard2, .fg .pbar { --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
-  --wb2-cy:#007fa8; --wb2-cy2:#0089b8; }
+  --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* The primary button wears the board's cyan here too. It is the SAME surface
    as maintenance and projects, so a black button on it would read as a
@@ -1349,7 +1349,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    light card it was the one black square on the screen. The gradient stays as
    the ring — the only brand mark on the block. */
 .fg .pident .pphoto { position:relative; width:46px; height:46px; border-radius:15px; flex:0 0 auto;
-  background:linear-gradient(140deg,var(--teal),var(--blue)); padding:2px; }
+  background:var(--ink); padding:2px; }
 .fg .pident .pphoto .inn { width:100%; height:100%; border-radius:13px; display:flex;
   align-items:center; justify-content:center; background:#fff; color:var(--ink);
   font-size:22px; font-weight:800; object-fit:cover; }
@@ -1405,7 +1405,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
   border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
 .fg .pident .badge .d { width:7px; height:7px; border-radius:50%; }
 .fg .pident .badge.active { background:var(--ok-tint); color:var(--ok-t); border:1px solid var(--ok-tint); }
-.fg .pident .badge.active .d { background:var(--teal-d); }
+.fg .pident .badge.active .d { background:var(--ok-t); }
 .fg .pident .badge.off { background:#f3f4f7; color:var(--gray500); border:1px solid #e6e8ee; }
 .fg .pident .badge.off .d { background:#b6bcc7; }
 
@@ -1597,7 +1597,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .padd { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color .2s; }
 .fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:6px; flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:all .2s; }
 .fg .padd:hover { color:var(--ink); }
-.fg .padd:hover span { border-color:var(--teal); color:var(--ink); }
+.fg .padd:hover span { border-color:var(--ink); color:var(--ink); }
 
 /* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
    (that grid still serves the company credentials on the Organisation screen).
@@ -1707,7 +1707,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 .fg .card2 { background:#fff; border:1px solid #f0f0f2; border-radius:24px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:26px; margin-bottom:20px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
-.fg .card2 .c2h .ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.1); color:var(--ink); }
+.fg .card2 .c2h .ci { width:38px; height:38px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
 .fg .card2 .c2h b { font-size:17px; font-weight:800; letter-spacing:-0.01em; }
 .fg .card2 .c2h em { font-style:normal; display:block; font-size:12.5px; font-weight:500; color:var(--gray400); margin-top:2px; }
 .fg .card2 .c2h .pill2 { margin-left:auto; }
@@ -1724,7 +1724,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .field > label .req { color:var(--ink); }
 .fg .inp { height:46px; padding:0 15px; border-radius:13px; border:1px solid var(--line); background:#fafbfc; font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); outline:none; transition:all .2s; width:100%; }
 .fg .inp::placeholder { color:var(--q); font-weight:500; }
-.fg .inp:focus { background:#fff; border-color:rgba(0,229,192,.6); box-shadow:var(--ring); }
+.fg .inp:focus { background:#fff; border-color:var(--line); box-shadow:var(--ring); }
 .fg textarea.inp { height:auto; padding:13px 15px; resize:vertical; min-height:84px; line-height:1.5; }
 .fg .selwrap { position:relative; }
 .fg .selwrap .chev { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--q); pointer-events:none; }
@@ -1757,10 +1757,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    empty case with a "+ Add"; this is its opposite number — quiet, beside the
    value, and only on the one row that has an action but is not a field. */
 .fg .pdact { margin-left:10px; padding:0; border:0; background:none; font:inherit;
-  font-size:11.5px; font-weight:800; color:var(--teal-d); cursor:pointer;
+  font-size:11.5px; font-weight:800; color:var(--ink); cursor:pointer;
   text-decoration:underline; text-underline-offset:2px; }
 .fg .pdact:hover { color:#005f50; }
-.fg .pdact:focus-visible { outline:2px solid var(--teal-d); outline-offset:2px; border-radius:4px; }
+.fg .pdact:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:4px; }
 
 /* THE SIGN-IN WARNING. It sits at the same weight as
    `.carderr` above and share its shape on purpose: they are the same KIND of
@@ -1776,7 +1776,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
   font-size:12.5px; font-weight:600; line-height:1.5; }
 .fg .pacct-warn svg, .fg .pacct-ok svg { flex:none; margin-top:1px; }
 .fg .pacct-warn { color:var(--warn-t); background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.22); }
-.fg .pacct-ok { color:#00695a; background:rgba(0,163,137,.09); border:1px solid rgba(0,163,137,.22); }
+.fg .pacct-ok { color:#00695a; background:var(--tint); border:1px solid var(--line); }
 .fg .pacct-ok b { font-weight:800; }
 .fg .card2.readonly .carderr { display:none; }
 
@@ -1797,13 +1797,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* per-card actions (edit / cancel / save) inline on the card header */
 .fg .cardactions { margin-left:auto; display:flex; gap:8px; align-items:center; flex:0 0 auto; }
-.fg .cardedit { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; color:var(--ink); background:rgba(0,229,192,.1); border:1px solid rgba(0,229,192,.28); transition:all .2s; }
-.fg .cardedit:hover { background:rgba(0,229,192,.18); }
+.fg .cardedit { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; color:var(--ink); background:var(--tint); border:1px solid var(--line); transition:all .2s; }
+.fg .cardedit:hover { background:var(--tint-2); }
 .fg .cardbtn { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; transition:all .2s; }
 .fg .cardbtn.ghost { background:#fff; border:1px solid var(--line); color:var(--gray700); }
 .fg .cardbtn.ghost:hover { background:var(--tint); }
 .fg .cardbtn.save { background:var(--ink); color:#fff; }
-.fg .cardbtn.save:hover { background:var(--teal); color:var(--ink); }
+.fg .cardbtn.save:hover { background:var(--ink); color:var(--paper); }
 .fg .card2.readonly .cardactions [data-cancel], .fg .card2.readonly .cardactions [data-save] { display:none; }
 .fg .card2:not(.readonly) .cardactions [data-edit] { display:none; }
 /* evident empty state */
@@ -1855,12 +1855,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .togrow .tk em { font-style:normal; display:block; font-size:12px; color:var(--gray400); margin-top:3px; font-weight:500; }
 .fg .toggle { width:48px; height:28px; border-radius:999px; background:#d8dbe2; position:relative; flex:0 0 auto; cursor:pointer; transition:background .25s; }
 .fg .toggle::after { content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform .25s; }
-.fg .toggle.on { background:var(--teal); }
+.fg .toggle.on { background:var(--ink); color:var(--paper); }
 .fg .toggle.on::after { transform:translateX(20px); }
 
 /* photo upload dropzone */
 .fg .drop { display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px; border:1.5px dashed #d8dde6; background:#fafbfc; cursor:pointer; transition:all .2s; }
-.fg .drop:hover { border-color:var(--teal); background:rgba(0,229,192,.04); }
+.fg .drop:hover { border-color:var(--ink); background:var(--tint); }
 .fg .drop .di { width:42px; height:42px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ink); border:1px solid #eef0f4; }
 .fg .drop .dk b { font-size:13px; font-weight:700; }
 .fg .drop .dk em { font-style:normal; display:block; font-size:11.5px; color:var(--gray400); margin-top:2px; }
@@ -1877,8 +1877,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .docrow .docact { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fg .docbtn { display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 13px; border-radius:10px; font-size:12.5px; font-weight:700; transition:all .2s; }
 .fg .docbtn.verify { background:var(--ok-tint); color:var(--ok-t); border:1px solid var(--ok-tint); }
-.fg .docbtn.verify:hover { background:rgba(0,229,192,.18); }
-.fg .docbtn.verify.done { background:var(--teal); color:var(--ink); border-color:var(--teal); }
+.fg .docbtn.verify:hover { background:var(--ok-tint); }
+.fg .docbtn.verify.done { background:var(--ok-t); color:var(--ink); border-color:var(--ok-t); }
 .fg .docbtn.del { width:34px; padding:0; justify-content:center; color:var(--q); background:var(--tint); }
 .fg .docbtn.del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .docbtn.ghostbtn { background:#fff; border:1px solid var(--line); color:var(--gray700); }
@@ -1907,12 +1907,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .permrole { display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:14px; background:#fafbfc; border:1.5px solid #f0f0f2; cursor:pointer; transition:all .2s; }
 .fg .permrole input { position:absolute; opacity:0; pointer-events:none; }
 .fg .permrole:hover { border-color:#e0e3ea; }
-.fg .permrole.on { border-color:var(--teal); background:rgba(0,229,192,.06); }
+.fg .permrole.on { border-color:var(--ink); background:var(--tint); }
 .fg .permrole .prdot { width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
 .fg .permrole .prk { flex:1; min-width:0; }
 .fg .permrole .prk b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .permrole .prk em { font-style:normal; font-size:11.5px; color:var(--gray400); }
-.fg .permrole .prcheck { width:24px; height:24px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:#fff; background:var(--teal); opacity:0; transform:scale(.6); transition:all .2s; }
+.fg .permrole .prcheck { width:24px; height:24px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--paper); background:var(--ink); opacity:0; transform:scale(.6); transition:all .2s; }
 .fg .permrole.on .prcheck { opacity:1; transform:scale(1); }
 .fg .card2.readonly .permrole { cursor:default; }
 .fg .card2.readonly .permrole:not(.on) { display:none; }
@@ -2009,7 +2009,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* active conversation */
 .fg .tchathead { display:flex; align-items:center; gap:14px; margin-bottom:20px; flex:0 0 auto; }
-.fg .tchathead .tb2 { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:linear-gradient(135deg,rgba(0,229,192,.18),transparent); border:1px solid rgba(0,229,192,.35); color:var(--ink); }
+.fg .tchathead .tb2 { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:linear-gradient(135deg,var(--tint-2),transparent); border:1px solid var(--line); color:var(--ink); }
 .fg .tchathead .tcht { flex:1; min-width:0; }
 /* the title outranks the buttons beside it — it is the name of the thing
    being read, and at 16px it lost to its own "New chat" ghost */
@@ -2663,7 +2663,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:tprPulse 2s infinite; }
 .fg .tpr .wknav .pstatus.hist { background:#eceef1; color:var(--gray500); }
 .fg .tpr .wknav .arw:disabled { opacity:.4; cursor:not-allowed; transform:none; border-color:rgba(0,0,0,.07); }
-@keyframes tprPulse { 0%{box-shadow:0 0 0 0 rgba(0,229,192,.5)} 70%{box-shadow:0 0 0 6px rgba(0,229,192,0)} 100%{box-shadow:0 0 0 0 rgba(0,229,192,0)} }
+@keyframes tprPulse { 0%{box-shadow:none} 70%{box-shadow:none} 100%{box-shadow:none} }
 .fg .tpr .autosub { font-size:12.5px; font-weight:600; color:var(--gray500); margin-top:11px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
 .fg .tpr .rhead .racts { display:flex; align-items:center; gap:11px; flex-wrap:wrap; justify-content:flex-end; }
@@ -3382,7 +3382,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .dirtools {display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
 .fg .dir > .dirtools {padding:16px 20px 14px; border-bottom:1px solid #f0f0f2;}
 .fg .dsearch {display:flex; align-items:center; gap:9px; flex:1; min-width:220px; height:44px; padding:0 16px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
-.fg .dsearch:focus-within {border-color:#2E68FF; box-shadow:var(--ring);}
+.fg .dsearch:focus-within {border-color:var(--ink); box-shadow:var(--ring);}
 .fg .dsearch input {flex:1; border:none; outline:none; background:none; font-size:14px; font-weight:600; color:var(--ink);}
 .fg .dsearch input::placeholder {color:var(--q); font-weight:500;}
 .fg .dsortwrap {display:flex; align-items:center; gap:8px; height:44px; padding:0 14px; background:#fff; border:1px solid #e9eaee; border-radius:13px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
@@ -3391,7 +3391,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    control on the page that took keyboard focus and showed nothing at all —
    everything else still paints the browser's default ring. The wrapper carries
    it, as the search box does, because the select fills only 15px of the 44. */
-.fg .dsortwrap:focus-within {border-color:#2E68FF; box-shadow:var(--ring);}
+.fg .dsortwrap:focus-within {border-color:var(--ink); box-shadow:var(--ring);}
 /* directory — rows */
 .fg .dirrows {display:block;}
 .fg .dir:has(.dmenu.open) {overflow:visible;}
@@ -3441,7 +3441,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:14px 24px; border-top:1px solid #f5f6f8;}
 .fg .invrow:first-child {border-top:none;}
 .fg .invwho {display:flex; align-items:center; gap:13px; min-width:0;}
-.fg .invav {width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:rgba(46,104,255,.1);}
+.fg .invav {width:40px; height:40px; border-radius:12px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:var(--tint);}
 .fg .invrow.expired .invav {color:var(--bad-t); background:rgba(255,51,102,.1);}
 /* A member with no staff card — a row that is not an invite, in a row shape
    that is. Colour only: the four tracks, the paddings and the phone rules
@@ -3491,8 +3491,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .fl-qa { display:flex; align-items:center; gap:14px; text-align:left; background:#fff; border:1px solid #f0f0f2; border-radius:18px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:18px; transition:all .22s; }
 .fg .fl-qa:hover { transform:translateY(-2px); border-color:#e2e5ea; box-shadow:0 14px 34px rgba(0,0,0,.07); }
 .fg .fl-qi { width:42px; height:42px; border-radius:13px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .fl-qi.fuel { background:rgba(0,229,192,.12); color:var(--ink); }
-.fg .fl-qi.odo { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fg .fl-qi.fuel { background:var(--tint-2); color:var(--ink); }
+.fg .fl-qi.odo { background:var(--tint); color:var(--info-t); }
 .fg .fl-qi.issue { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .fl-qa b { display:block; font-size:14.5px; font-weight:800; color:var(--ink); }
 .fg .fl-qa em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:2px; }
@@ -3540,7 +3540,7 @@ button.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-i
 .fl-f > span { font-size:12px; font-weight:700; color:var(--ink); }
 .fl-f > span i { font-style:normal; color:var(--bad-t); margin-left:2px; }
 .fl-i { height:44px; width:100%; border:1.5px solid var(--line); border-radius:12px; padding:0 14px; font:inherit; font-size:13.5px; font-weight:600; color:#050505; background:#fff; outline:none; transition:border .2s, box-shadow .2s; }
-.fl-i:focus { border-color:#00E5C0; box-shadow:var(--ring); }
+.fl-i:focus { border-color:var(--ink); box-shadow:var(--ring); }
 .fl-i::placeholder { color:var(--q); font-weight:500; }
 textarea.fl-i { min-height:86px; padding:12px 14px; resize:vertical; }
 select.fl-i { cursor:pointer; }
@@ -3555,7 +3555,7 @@ select.fl-i { cursor:pointer; }
 .fl-payb:hover { border-color:#d3d7e0; background:#fafbfc; }
 .fl-payb b { display:block; font-size:13px; font-weight:700; color:#050505; }
 .fl-payb em { display:block; font-style:normal; font-size:11.5px; font-weight:500; color:#8b93a3; margin-top:2px; line-height:1.35; }
-.fl-payb.on { border-color:#00E5C0; background:rgba(0,229,192,.07); box-shadow:var(--ring); }
+.fl-payb.on { border-color:var(--ink); background:var(--tint); box-shadow:var(--ring); }
 .fl-payb.on em { color:#0d9b86; }
 .fl-i.slim { height:36px; font-size:12.5px; margin-top:4px; padding:0 10px; border-radius:10px; }
 .fl-foot { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
@@ -3585,8 +3585,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
    Literal hex, not var(--teal): .fl-btn is deliberately unscoped so it can
    render inside modals portalled to body, where .fg's tokens don't reach. */
-.fl-btn.primary { background:#00E5C0; color:#050505; box-shadow:0 8px 18px -6px rgba(0,163,137,.45); }
-.fl-btn.primary:hover { background:#00A389; color:#fff; }
+.fl-btn.primary { background:var(--ink); color:var(--paper); box-shadow:none; }
+.fl-btn.primary:hover { background:var(--ink); color:var(--paper); }
 .fl-btn:disabled { opacity:.4; pointer-events:none; }
 .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); }
 .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
@@ -3596,8 +3596,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    so a tiny primary would come out white — the same ordering trap the .invbtns
    danger rule further down documents. Restated here rather than reordered,
    because .tiny's whole job is to overwrite the resting fill. */
-.fl-btn.tiny.primary { background:#00E5C0; border-color:transparent; color:#050505; box-shadow:0 6px 14px -6px rgba(0,163,137,.5); }
-.fl-btn.tiny.primary:hover { background:#00A389; color:#fff; }
+.fl-btn.tiny.primary { background:var(--ink); border-color:transparent; color:var(--paper); box-shadow:none; }
+.fl-btn.tiny.primary:hover { background:var(--ink); color:var(--paper); }
 .fl-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
 .dchip2 { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px; width:fit-content; }
 .dchip2.ok { background:var(--ok-tint); color:var(--ok-t); }
@@ -3626,10 +3626,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-log:hover { background:#fafbfc; }
 .fl-log.open { background:rgba(240,164,49,.07); }
 .fl-li { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fl-li.fuel { background:rgba(0,229,192,.12); color:var(--ink); }
-.fl-li.odo { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fl-li.fuel { background:var(--tint-2); color:var(--ink); }
+.fl-li.odo { background:var(--tint); color:var(--info-t); }
 .fl-li.issue { background:rgba(240,164,49,.14); color:var(--warn-t); }
-.fl-li.service { background:rgba(138,43,226,.1); color:#8A2BE2; }
+.fl-li.service { background:var(--tint); color:var(--ink); }
 .fl-lk { min-width:0; }
 .fl-lk b { display:block; font-size:13.5px; font-weight:700; color:#050505; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fl-lk em { font-style:normal; display:block; font-size:11.5px; font-weight:600; color:var(--q); margin-top:1px; }
@@ -3649,7 +3649,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .fl-qa.paused:hover { transform:none; box-shadow:0 8px 30px rgba(0,0,0,.03); border-color:#f0f0f2; }
 .fg .fl-offnote { display:flex; align-items:center; gap:10px; background:rgba(240,164,49,.09); border:1px solid rgba(240,164,49,.28); border-radius:14px; padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
 .dchip2.mute { background:#f1f2f4; color:var(--q); }
-.fl-fact.tiff { background:rgba(0,229,192,.07); border-color:rgba(0,229,192,.3); }
+.fl-fact.tiff { background:var(--tint); border-color:var(--line); }
 .fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ink); }
 .fl-manage { display:flex; justify-content:flex-end; gap:10px; margin:-8px 0 20px; }
 .fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
@@ -3698,7 +3698,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-invoice i { font-style:normal; font-weight:600; color:var(--q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* Update — the fix for an expiry, sitting on the fact that warns about it. */
 .fl-renew { display:inline-flex; align-items:center; gap:5px; margin-top:6px; padding:4px 9px; border-radius:8px; background:#fff; border:1px solid var(--line); font-size:11px; font-weight:800; color:var(--ink); }
-.fl-renew:hover { border-color:#2E68FF; color:var(--info-t); }
+.fl-renew:hover { border-color:var(--ink); color:var(--info-t); }
 /* The rego/insurance fact as a door to its own paperwork. A full reset, not a
    tweak: these modals portal to <body>, so the .fg button reset never lands
    here and the UA's own button styling would otherwise show through. */
@@ -3726,9 +3726,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fl-doctag { flex:none; padding:2px 7px; border-radius:6px; background:#f1f2f4; font-size:10px; font-weight:800; color:var(--q); text-transform:uppercase; letter-spacing:.03em; }
 .fl-doctag.now { background:var(--ok-tint); color:var(--ok-t); }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:34px 20px; border:1.5px dashed #d7dae0; border-radius:18px; background:#fafbfc; cursor:pointer; transition:all .2s; }
-.fl-scan:hover, .fl-scan.over { border-color:#00E5C0; background:rgba(0,229,192,.05); }
+.fl-scan:hover, .fl-scan.over { border-color:var(--ink); background:var(--tint); }
 .fl-scan input { display:none; }
-.fl-scan .fl-scanic { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:rgba(0,229,192,.12); color:var(--ink); }
+.fl-scan .fl-scanic { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:var(--tint-2); color:var(--ink); }
 .fl-scan b { font-size:14.5px; font-weight:800; color:#050505; }
 .fl-scan em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--q); }
 .fl-modeline { display:block; margin:12px auto 0; font-size:12.5px; font-weight:700; color:var(--ink); }
@@ -3806,8 +3806,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
    Each kind sets --lvk once and every part of the tile and row reads it, so a
    kind is recoloured in one place rather than five. */
-.fg .lv-annual   { --lvk:#2E68FF; --lvk-bg:rgba(46,104,255,.10); }
-.fg .lv-personal { --lvk:#8A2BE2; --lvk-bg:rgba(138,43,226,.10); }
+.fg .lv-annual   { --lvk:var(--ink); --lvk-bg:var(--tint); }
+.fg .lv-personal { --lvk:var(--ink); --lvk-bg:var(--tint); }
 .fg .lv-unpaid   { --lvk:var(--q); --lvk-bg:rgba(100,116,139,.12); }
 
 .fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:20px; }
@@ -3895,10 +3895,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:12.5px; font-weight:800; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
 .fg .mts-hollist { display:flex; flex-direction:column; }
 .fg .mts-hol { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
-.fg .mts-hol.next { background:rgba(0,163,137,.06); }
+.fg .mts-hol.next { background:var(--tint); }
 .fg .mts-hol b { font-size:13px; font-weight:800; color:var(--ink); min-width:120px; }
 .fg .mts-hol em { flex:1; font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); }
-.fg .mts-holnext { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ink); background:rgba(0,163,137,.12); padding:3px 9px; border-radius:7px; }
+.fg .mts-holnext { font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ink); background:var(--tint-2); padding:3px 9px; border-radius:7px; }
 .fg .hol-year { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; margin-top:16px; }
 .fg .hol-row { display:flex; align-items:center; gap:12px; padding:11px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
 .fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
@@ -3925,7 +3925,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .hol-sugmain b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
 .fg .hol-sugadd { display:flex; align-items:center; gap:5px; height:30px; padding:0 11px; border-radius:9px; border:1px solid rgba(10,11,16,.12); background:#fff; font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .hol-sugadd:hover { border-color:rgba(0,163,137,.4); color:var(--ink); }
+.fg .hol-sugadd:hover { border-color:var(--line); color:var(--ink); }
 
 /* ---- pending invites: link + renew/revoke (Team page, `invites` only) ----
    The tools sit on their own line of the row's grid: CopyLink is a full-width
@@ -3990,8 +3990,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc .idc-mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
 .fg .idc.light .idc-mesh { display:none; }
 .fg .idc .idc-mesh i { position:absolute; border-radius:50%; filter:blur(70px); }
-.fg .idc .idc-mesh .m1 { top:-70%; left:-14%; width:58%; height:190%; background:var(--teal); opacity:.13; }
-.fg .idc .idc-mesh .m2 { bottom:-70%; right:-8%; width:52%; height:190%; background:var(--blue); opacity:.11; }
+.fg .idc .idc-mesh .m1 { top:-70%; left:-14%; width:58%; height:190%; background:var(--ink); opacity:.13; color:var(--paper); }
+.fg .idc .idc-mesh .m2 { bottom:-70%; right:-8%; width:52%; height:190%; background:var(--ink); opacity:.11; color:var(--paper); }
 .fg .idc .idc-in { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; gap:12px; }
 .fg .idc .idc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .fg .idc .idc-top.noissuer { justify-content:flex-end; }
@@ -4004,9 +4004,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    worst case at 45% is 5.37 against the 13% tint, where the accent used neat
    was 2.75 for the teal and 3.87 for the blue. 55% already fails on yellow. */
 .fg .idc .idc-badge { flex:0 0 auto; padding:4px 10px; border-radius:999px; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap;
-  background:color-mix(in srgb, var(--acc,#2E68FF) 13%, #fff);
-  border:1px solid color-mix(in srgb, var(--acc,#2E68FF) 33%, #fff);
-  color:color-mix(in srgb, var(--acc,#2E68FF) 45%, #000); }
+  background:color-mix(in srgb, var(--acc,#050505) 13%, #fff);
+  border:1px solid color-mix(in srgb, var(--acc,#050505) 33%, #fff);
+  color:color-mix(in srgb, var(--acc,#050505) 45%, #000); }
 
 /* ── the credential card ──
    A licence or a ticket, and the only `.idc` that sits in a WALL of itself.
@@ -4028,7 +4028,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:var(--warn-t); border-color:rgba(240,164,49,.32); }
 .fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
 .fg .idc.light .idc-state.mute { background:#f3f4f7; color:var(--q); border-color:#e9ebef; }
-.fg .idc.dark .idc-state.ok { background:rgba(0,229,192,.14); color:var(--teal); }
+.fg .idc.dark .idc-state.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .idc.dark .idc-state.warn { background:rgba(240,164,49,.18); color:#F0A431; }
 .fg .idc.dark .idc-state.bad { background:rgba(255,51,102,.16); color:#FF3366; }
 .fg .idc.dark .idc-state.mute { background:rgba(255,255,255,.07); color:rgba(255,255,255,.5); }
@@ -4038,7 +4038,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc.cred .idc-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 18px; }
 
 .fg .idc .idc-id { display:flex; align-items:center; gap:14px; min-width:0; }
-.fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:22px; flex:0 0 auto; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; overflow:hidden; }
+.fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:22px; flex:0 0 auto; background:var(--ink); padding:2px; overflow:hidden; }
 .fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:20px; display:flex; align-items:center; justify-content:center; object-fit:cover; }
 .fg .idc.dark .idc-photo .inn { background:#0A0B10; color:#fff; }
 .fg .idc.light .idc-photo .inn { background:#f3f4f7; color:var(--ink); }
@@ -4047,15 +4047,15 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .idc .idc-who b { display:block; font-size:19px; font-weight:800; letter-spacing:-.02em; line-height:1.15; overflow-wrap:anywhere; }
 .fg .idc .idc-who em { font-style:normal; display:block; margin-top:5px; font-size:12.5px; font-weight:600; color:rgba(255,255,255,.5); }
 .fg .idc.light .idc-who em { color:var(--gray500); }
-.fg .idc .idc-pill { display:inline-flex; padding:3px 10px; border-radius:999px; background:rgba(46,104,255,.12); color:#2554d8; font-size:11px; font-weight:800; }
+.fg .idc .idc-pill { display:inline-flex; padding:3px 10px; border-radius:999px; background:var(--tint-2); color:#2554d8; font-size:11px; font-weight:800; }
 .fg .idc .idc-note { display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:11px; font-size:12px; font-weight:700; width:fit-content; }
-.fg .idc .idc-note.ok { background:rgba(0,229,192,.12); color:var(--teal); }
+.fg .idc .idc-note.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .idc .idc-facts { margin-top:auto; display:flex; gap:22px; flex-wrap:wrap; }
 .fg .idc .idc-facts .f { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .fg .idc .idc-facts em { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.38); }
 .fg .idc.light .idc-facts em { color:var(--q); }
 .fg .idc .idc-facts b { font-size:13px; font-weight:700; }
-.fg .idc .idc-facts .f.ok b { color:var(--teal); }
+.fg .idc .idc-facts .f.ok b { color:var(--ok-t); }
 .fg .idc.light .idc-facts .f.ok b { color:var(--ok-t); }
 .fg .idc .idc-facts .f.warn b { color:#F0A431; }
 .fg .idc.light .idc-facts .f.warn b { color:var(--warn-t); }
@@ -4125,7 +4125,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .qual { padding:7px 13px; border-radius:11px; background:#f6f7f9; border:1px solid #f0f0f2; font-size:13px; font-weight:700; color:var(--gray700); }
 
 /* work rights: the no-visa answer, in edit mode */
-.fg .wr-nov { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:rgba(0,229,192,.07); border:1px solid rgba(0,229,192,.28); color:var(--ink); }
+.fg .wr-nov { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:14px; background:var(--tint); border:1px solid var(--line); color:var(--ink); }
 .fg .wr-nov b { display:block; font-size:13.5px; font-weight:800; }
 .fg .wr-nov em { font-style:normal; display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--gray500); }
 
@@ -4607,7 +4607,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    `.fg .cal-…` matches in both placements. */
 .datef { box-sizing:border-box; display:flex; align-items:center; gap:8px; min-width:120px; height:38px; padding:0 11px; border-radius:11px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font-jakarta), sans-serif; font-size:13.5px; font-weight:600; color:#050505; text-align:left; cursor:pointer; transition:border-color .18s, box-shadow .18s; }
 .datef:hover:not(:disabled) { border-color:rgba(10,11,16,.3); }
-.datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:#00E5C0; box-shadow:var(--ring); }
+.datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:var(--ink); box-shadow:var(--ring); }
 .datef:disabled { opacity:.5; cursor:not-allowed; }
 .datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
 .datef.empty .datef-v { color:var(--q); font-weight:500; }
@@ -4625,7 +4625,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cal-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
 .fg .cal-arw { width:30px; height:30px; flex:0 0 auto; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); transition:color .18s, border-color .18s; }
-.fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:rgba(0,229,192,.5); }
+.fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:var(--line); }
 .fg .cal-arw:disabled { opacity:.35; cursor:not-allowed; }
 .fg .cal-wd, .fg .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
 .fg .cal-wd span { text-align:center; padding-bottom:5px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--gray400); }
@@ -4648,14 +4648,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cal-d.rng-s { border-radius:10px 0 0 10px; }
 .fg .cal-d.rng-e { border-radius:0 10px 10px 0; }
 .fg .cal-d.rng-s.rng-e { border-radius:10px; }
-.fg .cal-d.rng-s, .fg .cal-d.rng-e { background:var(--teal); color:#053b34; }
+.fg .cal-d.rng-s, .fg .cal-d.rng-e { background:var(--ink); color:var(--paper); }
 /* violet = public holiday, the same one the day tiles use. Declared AFTER the
    range so it survives inside a band: a holiday isn't a day you're taking. */
-.fg .cal-d.hol { background:rgba(138,43,226,.12); color:var(--violet); }
-.fg .cal-d.hol::after { content:""; position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--violet); }
-.fg .cal-d.on { background:var(--teal); color:#053b34; }
+.fg .cal-d.hol { background:var(--tint-2); color:var(--ink); }
+.fg .cal-d.hol::after { content:""; position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--ink); color:var(--paper); }
+.fg .cal-d.on { background:var(--ink); color:var(--paper); }
 .fg .cal-d.today { box-shadow:0 0 0 1.5px #fff, 0 0 0 3px var(--ink); }
-.fg .cal-d:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--teal-d); }
+.fg .cal-d:focus-visible { outline:none; box-shadow:0 0 0 2px #fff; }
 .fg .cal-foot { display:flex; align-items:center; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f2; }
 .fg .cal-fbtn { height:30px; padding:0 11px; border-radius:9px; font-size:12px; font-weight:700; color:var(--gray700); background:#f4f5f7; transition:background .16s, color .16s; }
 .fg .cal-fbtn:hover:not(:disabled) { background:#eceef1; color:var(--ink); }
@@ -4714,8 +4714,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    ok #00A389 / warn amber / off grey (see the design-system note). */
 .fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:7px; max-width:210px; padding:5px 11px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
-.fg .int-pill.on { background:rgba(0,163,137,.1); color:var(--ink); }
-.fg .int-pill.on .int-dot { background:#00A389; }
+.fg .int-pill.on { background:var(--tint); color:var(--ink); }
+.fg .int-pill.on .int-dot { background:var(--ink); color:var(--paper); }
 .fg .int-pill.warn { background:rgba(240,164,49,.14); color:#a56a05; }
 .fg .int-pill.warn .int-dot { background:#F0A431; }
 .fg .int-pill.off { background:#f4f5f7; color:var(--gray500); }
@@ -4724,7 +4724,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
 /* Outcome of a round trip that just finished — the OAuth redirect's one line. */
 .fg .int-note { padding:12px 15px; margin-bottom:18px; border-radius:14px; font-size:13.5px; font-weight:600; line-height:1.45; }
-.fg .int-note.ok { background:rgba(0,163,137,.09); color:#00806c; }
+.fg .int-note.ok { background:var(--ok-tint); color:#00806c; }
 .fg .int-note.bad { background:rgba(255,51,102,.08); color:var(--bad-t); }
 
 .fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 34px; margin:0 0 20px; }
@@ -4754,7 +4754,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .int-tenants { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
 .fg .int-tenant { display:flex; align-items:center; gap:11px; padding:12px 14px; border-radius:13px; border:1px solid #eef0f4; background:#fafbfc; font-size:14px; font-weight:700; cursor:pointer; transition:border-color .15s, background .15s; }
 .fg .int-tenant:hover { border-color:#dfe3ea; background:#fff; }
-.fg .int-tenant input { accent-color:var(--teal-d); width:16px; height:16px; }
+.fg .int-tenant input { accent-color:var(--ink); width:16px; height:16px; }
 
 .fg .int-uses { display:flex; flex-direction:column; gap:16px; }
 .fg .int-use b { font-size:14px; font-weight:800; letter-spacing:-0.01em; }
@@ -4775,8 +4775,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    thing it reports is working — the warn amber next to it now means one thing
    only, "somebody is needed", and that separation is the point. Semantic
    state, so #00A389 and never the page accent. */
-.fg .int-tag.live { display:inline-flex; align-items:center; gap:6px; background:rgba(0,163,137,.13); color:#007763; }
-.fg .int-pulse { width:6px; height:6px; border-radius:50%; background:#00A389; animation:int-pulse 1.6s ease-in-out infinite; }
+.fg .int-tag.live { display:inline-flex; align-items:center; gap:6px; background:var(--ok-tint); color:#007763; }
+.fg .int-pulse { width:6px; height:6px; border-radius:50%; background:var(--ink); animation:int-pulse 1.6s ease-in-out infinite; color:var(--paper); }
 @keyframes int-pulse { 0%,100% { opacity:.32; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
 /* The dot carries no information the words don't; for anyone who has asked for
    less motion it simply sits still. */
@@ -4789,7 +4789,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    bulk bar are new. Everything .fg .sp-* so the .fg button/input resets lose. */
 .fg .sp-tools { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
 .fg .sp-selall { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.fg .sp-selall input { width:15px; height:15px; accent-color:var(--teal-d); }
+.fg .sp-selall input { width:15px; height:15px; accent-color:var(--ink); }
 .fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:9px; border:0; background:transparent; font-size:12.5px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .fg .sp-ghostbtn:hover { background:#f4f5f7; color:var(--gray700); }
 .fg .sp-rows { display:flex; flex-direction:column; }
@@ -4798,7 +4798,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .sp-row.off .sp-main b { color:var(--gray400); }
 .fg .sp-line { display:flex; align-items:center; gap:12px; padding:12px 0; }
 .fg .sp-check { width:16px; flex:0 0 auto; display:flex; align-items:center; }
-.fg .sp-check input { width:15px; height:15px; accent-color:var(--teal-d); }
+.fg .sp-check input { width:15px; height:15px; accent-color:var(--ink); }
 .fg .sp-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
 .fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; letter-spacing:-0.01em; }
 .fg .sp-main em { font-style:normal; font-size:12.5px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
@@ -4807,9 +4807,9 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; padding:4px 0 14px 28px; }
 .fg .sp-f { display:flex; flex-direction:column; gap:5px; }
 .fg .sp-f > span { display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--gray500); }
-.fg .sp-f > span input { width:14px; height:14px; accent-color:var(--teal-d); }
+.fg .sp-f > span input { width:14px; height:14px; accent-color:var(--ink); }
 .fg .sp-f > input { height:38px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:13.5px; font-weight:600; color:var(--gray700); }
-.fg .sp-f > input:focus { outline:none; border-color:var(--teal); }
+.fg .sp-f > input:focus { outline:none; border-color:var(--ink); }
 .fg .sp-f.out > input { background:#fafbfc; color:var(--gray400); }
 .fg .sp-editorfoot { grid-column:1 / -1; display:flex; align-items:center; gap:10px; }
 .fg .sp-linkpick { display:flex; align-items:center; gap:8px; }
@@ -4845,8 +4845,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    only these six things are new — a clickable credential card, the add tile,
    the issuer line, the logo uploader, the colour swatches, and a link inside a
    read-mode fact row. */
-.fg .ro-link { color:var(--ink); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); font-weight:700; }
-.fg .ro-link:hover { border-bottom-color:var(--teal-d); }
+.fg .ro-link { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); font-weight:700; }
+.fg .ro-link:hover { border-bottom-color:var(--ink); }
 
 /* A card you click to edit, rather than an × you click to destroy. The button
    is stretched over the whole card so the target is the card, while the
@@ -4854,7 +4854,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .cred.clickable { transition:border-color .2s, box-shadow .2s, transform .2s; }
 .fg .cred.clickable:hover { border-color:#e2e5ea; box-shadow:0 10px 26px -14px rgba(10,12,20,.25); transform:translateY(-1px); }
 .fg .cred-open { position:absolute; inset:0; z-index:1; border-radius:16px; }
-.fg .cred-open:focus-visible { outline:2px solid var(--teal); outline-offset:2px; }
+.fg .cred-open:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 .fg .cred-issuer { margin-top:4px; font-size:12px; font-weight:600; color:var(--gray400); overflow-wrap:anywhere; }
 
 /* The add tile lives IN the grid, so "one more" is the same shape as the
@@ -4895,7 +4895,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    The panel chrome (`.ppanel2`, `.psec2`, `.psechd`, `.pdl*`) is already
    declared against `.fg` alone, so it reaches here with nothing restated. */
 .fg .orgcard2 { --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
-  --wb2-cy:#007fa8; --wb2-cy2:#0089b8; }
+  --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* Save wears the board's cyan here for the same reason it does on the staff
    card: it is the SAME white surface, and a black button on it would read as a
@@ -4974,7 +4974,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    edge becomes a plain one and the ground goes white to show the logo honestly
    against what it will actually be printed on. */
 .fg .orglogo-tile.has { border-style:solid; border-color:#ecedf1; background:#fff; }
-.fg .orglogo-tile.over { border-color:var(--teal-d); background:rgba(0,229,192,.06); }
+.fg .orglogo-tile.over { border-color:var(--ink); background:var(--tint); }
 .fg .orglogo-tile.busy { opacity:.6; }
 .fg .orglogo-tile img { width:100%; height:100%; object-fit:contain; padding:18px; }
 .fg .orglogo-empty { display:flex; flex-direction:column; align-items:center; gap:5px; padding:16px; text-align:center; color:var(--q); }
@@ -4983,10 +4983,10 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* A sweep rather than a spinner: the tile is square and already the subject, so
    the busy state is the surface reacting instead of an icon landing on top of
    whatever is being replaced. */
-.fg .orglogo-busy { position:absolute; inset:0; background:linear-gradient(100deg, transparent 20%, rgba(0,229,192,.16) 50%, transparent 80%);
+.fg .orglogo-busy { position:absolute; inset:0; background:linear-gradient(100deg, transparent 20%, var(--tint-2) 50%, transparent 80%);
   background-size:220% 100%; animation:orgLogoSweep 1.1s linear infinite; }
 @keyframes orgLogoSweep { from { background-position:120% 0; } to { background-position:-120% 0; } }
-@media (prefers-reduced-motion:reduce){ .fg .orglogo-busy { animation:none; background:rgba(0,229,192,.1); } }
+@media (prefers-reduced-motion:reduce){ .fg .orglogo-busy { animation:none; background:var(--tint); } }
 
 .fg .orglogo-act { display:flex; gap:8px; margin-top:14px; }
 .fg .orglogo-act .pbtn { height:38px; padding:0 14px; font-size:12.5px; }
@@ -5080,7 +5080,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
 .fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:7px;
   font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
-  background:rgba(46,104,255,.1); color:var(--info-t); }
+  background:var(--tint); color:var(--info-t); }
 
 /* ── Handing the account over (components/org/transfer-owner-modal) ──
    A list you PICK from, then a panel that says what picking meant, then the
@@ -5097,7 +5097,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Selected is a RING plus a tick, never colour alone — the tick is what still
    says "this one" to a screenshot in greyscale and to anyone who cannot
    separate the two greys. */
-.fg .ownrow.on { border-color:var(--teal-d); background:rgba(0,229,192,.05); box-shadow:var(--ring); }
+.fg .ownrow.on { border-color:var(--ink); background:var(--tint); box-shadow:var(--ring); }
 .fg .ownrow:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .ownrow-k { flex:1; min-width:0; display:block; }
 .fg .ownrow-k b { display:block; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
@@ -5105,7 +5105,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .ownrow-r { flex:0 0 auto; height:22px; padding:0 9px; display:inline-flex; align-items:center; border-radius:7px;
   background:rgba(5,5,5,.06); color:var(--gray700); font-size:11px; font-weight:800; letter-spacing:.02em; }
 .fg .ownrow-t { flex:0 0 auto; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  background:var(--teal-d); color:#fff; }
+  background:var(--ink); color:var(--paper); }
 /* What the choice costs, in the neutral panel rather than in a warning tone:
    nothing here has gone wrong, and spending the status law's amber on a
    consequence would blunt it where it means "something needs you". */
@@ -5148,14 +5148,14 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 
 /* the same fact on a booked row, one line rather than a card */
 .fg .lv-reqcert { display:inline-flex; align-items:center; gap:6px; margin-top:4px; font-size:11.5px; font-weight:700; color:var(--amber-d,#a44b08); }
-.fg .lv-reqcert.on { color:var(--teal-ink,#0b5c2e); }
+.fg .lv-reqcert.on { color:var(--ok-t); }
 .fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
 .fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:8px; background:rgba(10,11,16,.06); color:var(--gray700); cursor:pointer; }
 .fg .lv-certadd:hover { background:rgba(10,11,16,.1); }
 
 /* the approver's copy, on the pending card where the decision is made */
 .fg .lv-pcert { display:inline-flex; align-items:center; gap:7px; margin-top:6px; font-size:12px; font-weight:700; color:var(--amber-d,#a44b08); }
-.fg .lv-pcert.on { color:var(--teal-ink,#0b5c2e); }
+.fg .lv-pcert.on { color:var(--ok-t); }
 .fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
 
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:20px; align-items:start; }
@@ -5164,7 +5164,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .lv-calside .cal { padding:12px 13px 13px; border-radius:14px; background:#fff; border:1px solid rgba(10,11,16,.08); }
 .fg .lv-callegend { display:flex; align-items:center; gap:7px; margin:9px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .fg .lv-legdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
-.fg .lv-legdot.hol { background:var(--violet); }
+.fg .lv-legdot.hol { background:var(--ink); color:var(--paper); }
 .fg .lv-calhint { margin:4px 2px 0; font-size:11.5px; font-weight:600; color:var(--gray400); }
 .fg .lv-calfields { display:flex; flex-direction:column; gap:12px; }
 .fg .lv-calfields .lv-fnote { margin-top:0; }
@@ -5195,7 +5195,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Hover and keyboard land on the SAME class: arrowing down and moving the
    mouse must not be able to highlight two different rows at once. */
 .fg .adr-opt:hover, .fg .adr-opt.on { background:#fafbfc; }
-.fg .adr-opt.on { box-shadow:inset 0 0 0 1px rgba(0,163,137,.35); color:var(--ink); }
+.fg .adr-opt.on { box-shadow:none; color:var(--ink); }
 
 /* ---- My expenses (components/expenses/my-expenses.tsx) ----
    Receipt-first: the primary action is a camera, because a claim almost always
@@ -5204,8 +5204,8 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
    does the deciding. */
 .fg .xc-err { padding:12px 15px; margin-bottom:18px; border-radius:14px; background:rgba(255,51,102,.08); color:var(--bad-t); font-size:13.5px; font-weight:600; line-height:1.45; }
 
-.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:22px; margin-bottom:22px; border-radius:24px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,rgba(138,43,226,.04),#fff); }
-.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:rgba(138,43,226,.11); color:var(--violet); }
+.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:22px; margin-bottom:22px; border-radius:24px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,var(--tint),#fff); }
+.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:15px; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
 .fg .xc-startk { flex:1 1 240px; min-width:0; }
 .fg .xc-startk b { display:block; font-size:16px; font-weight:800; letter-spacing:-0.01em; }
 .fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:3px; line-height:1.5; }
@@ -5223,7 +5223,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xc-job { display:flex; align-items:center; gap:9px; margin-bottom:16px; padding:10px 13px;
   border-radius:12px; background:#f6f7f9; color:var(--gray500);
   font-size:12.5px; font-weight:600; }
-.fg .xc-job.on { background:rgba(0,163,137,.07); color:var(--ink); }
+.fg .xc-job.on { background:var(--tint); color:var(--ink); }
 /* `Icon` wraps its svg in a BARE span, so `> span` reached the glyph too and
    gave a 14px icon a third of the row (measured, not guessed). The text says
    which span it is. */
@@ -5276,7 +5276,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* the odd one out of five: its three siblings read a `-t` token and this one
    held a literal, at 4.05 on its own tint */
 .fg .xc-pill.pending { background:rgba(240,164,49,.15); color:var(--warn-t); }
-.fg .xc-pill.approved { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fg .xc-pill.approved { background:var(--tint); color:var(--info-t); }
 .fg .xc-pill.reimbursed { background:var(--ok-tint); color:var(--ok-t); }
 .fg .xc-pill.declined { background:rgba(255,51,102,.09); color:var(--bad-t); }
 /* WHAT YOU ARE OWED, on the claimant's own screen. The approver's queue and
@@ -5289,7 +5289,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 /* Why Send is dark — the form saying what it wants rather than the server. */
 .fg .xc-need { align-self:center; font-size:12.5px; font-weight:600; color:var(--gray500); }
 
-.fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--ink); text-decoration:none; border-bottom:1px solid rgba(0,163,137,.35); }
+.fg .xc-rec { font-size:11.5px; font-weight:700; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
 .fg .xc-cancel { font-size:11.5px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:8px; transition:all .16s; }
 .fg .xc-cancel:hover:not(:disabled) { color:var(--bad-t); }
 .fg .xc-cancel:disabled { opacity:.5; cursor:default; }
@@ -5310,7 +5310,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .fg .xr-btn { height:32px; padding:0 12px; border-radius:10px; font-size:12px; font-weight:700; background:#fff; border:1px solid #e2e5ea; color:var(--gray700); white-space:nowrap; transition:background .15s, border-color .15s; }
 .fg .xr-btn:hover:not(:disabled) { background:#f4f5f7; }
 .fg .xr-btn.go { background:var(--ink); border-color:var(--ink); color:#fff; }
-.fg .xr-btn.go:hover:not(:disabled) { background:var(--teal); border-color:var(--teal); color:var(--ink); }
+.fg .xr-btn.go:hover:not(:disabled) { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .fg .xr-btn.bad { background:#e0264f; border-color:#e0264f; color:#fff; }
 .fg .xr-btn.bad:hover:not(:disabled) { background:#c81f44; }
 .fg .xr-btn:disabled { opacity:.5; cursor:default; }
@@ -5375,7 +5375,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .wb-who em { font-style:normal; color:var(--gray500); }
 .wb-tech { font-size:12.5px; color:var(--gray700); font-weight:600; }
 .wb-chip { font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:rgba(5,5,5,.06); color:var(--gray700); white-space:nowrap; }
-.wb-chip.on { background:rgba(0,163,137,.12); color:var(--ink); }
+.wb-chip.on { background:var(--tint-2); color:var(--ink); }
 .wb-chip.bad { background:rgba(224,38,79,.12); color:var(--bad-t); }
 
 /* the overdue breathe — used by the maintenance radar */
@@ -5398,7 +5398,7 @@ button.fl-btn { font-size:13.5px; font-weight:700; }
 .wb-projsub { font-style:normal; color:var(--gray500); font-size:12.5px; }
 .wb-projmeta { display:flex; flex-wrap:wrap; gap:6px; }
 .wb-bar { height:6px; border-radius:999px; background:rgba(5,5,5,.07); overflow:hidden; }
-.wb-bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, #00A8E0, #00E5C0); transition:width .3s ease; }
+.wb-bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, #00A8E0, var(--ink)); transition:width .3s ease; }
 
 /* stage stepper */
 .wb-stepper { display:flex; flex-wrap:wrap; gap:6px; }
@@ -5416,8 +5416,8 @@ button.wb-step { font-size:12px; font-weight:700; padding:7px 12px; border-radiu
    full ink, with no border and no white fill; only `.done` (0,2,0) survived.
    Two states that must never be confusable were telling the same story. */
 button.wb-tick { width:24px; height:24px; border-radius:8px; border:1.5px solid rgba(5,5,5,.18); background:#fff; color:transparent; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex:none; }
-.wb-tick.done { background:#00A389; border-color:#00A389; color:#fff; }
-.wb-tick:not(.done):hover { border-color:#00A389; color:rgba(0,163,137,.4); }
+.wb-tick.done { background:var(--ok-t); border-color:var(--ok-t); color:#fff; }
+.wb-tick:not(.done):hover { border-color:var(--ok-t); color:var(--ok-tint); }
 button.wb-add { width:20px; height:20px; border-radius:6px; border:1px solid rgba(5,5,5,.12); background:#fff; color:var(--gray500); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin-left:8px; vertical-align:middle; }
 .wb-add:hover { color:var(--ink); border-color:rgba(5,5,5,.3); }
 /* `input.` for the same (0,1,1) reason as `button.wb-tick` — outside the wb2
@@ -5630,7 +5630,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   transition:transform .42s var(--ease), width .42s var(--ease),
     background .3s var(--ease), box-shadow .3s var(--ease); }
 .wb2-seg[data-on="maintenance"] .wb2-segsl { background:#00806b; box-shadow:0 6px 16px -7px rgba(0,128,107,.85); }
-.wb2-seg[data-on="projects"] .wb2-segsl { background:#0089b8; box-shadow:0 6px 16px -7px rgba(0,137,184,.85); }
+.wb2-seg[data-on="projects"] .wb2-segsl { background:var(--ink2); box-shadow:0 6px 16px -7px rgba(0,137,184,.85); }
 /* ALL JOBS IS INK, NOT A THIRD HUE. Green and cyan name the two halves of the
    business; a third colour beside them would read as a third kind of work,
    when what this side actually is is EVERYTHING — including the two already
@@ -5653,7 +5653,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   transition:background .2s, color .2s; }
 .wb2-segb i.dan { background:rgba(224,38,79,.12); color:#b31038; }
 .wb2-segb i.wrn { background:rgba(255,138,0,.16); color:var(--warn-t); }
-.wb2-segb i.clr { background:rgba(0,163,137,.12); color:#00806b; }
+.wb2-segb i.clr { background:var(--tint-2); color:#00806b; }
 /* on the filled side the badge sits on colour — one translucent well, so a
    count never fights the fill it lives on */
 .wb2-segb.on i { background:rgba(0,0,0,.24) !important; color:#fff !important; }
@@ -5712,7 +5712,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* Stacks sit ON a baseline rule, so one dot reads as a short bar rather than
    a dot floating in space — the difference between a chart and a scatter. */
 .wb-railstack { display:flex; flex-direction:column-reverse; align-items:center; justify-content:flex-start; gap:3px; min-height:62px; padding-bottom:6px; border-bottom:1px solid rgba(5,5,5,.09); width:100%; }
-.wb-raildot { width:26px; height:11px; border-radius:4px; background:rgba(0,163,137,.85); }
+.wb-raildot { width:26px; height:11px; border-radius:4px; background:var(--tint-2); }
 .wb-raildot.attention { background:#FF8A00; }
 .wb-raildot.overdue { background:#e0264f; }
 .wb-railmore { font-size:10.5px; font-weight:800; color:var(--gray500); }
@@ -5725,17 +5725,17 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    them. "3/4 ready" is a fact; "Parts · Customer told" is this afternoon. */
 .wb-pips { display:inline-flex; align-items:center; gap:8px; flex:none; }
 .wb-pips i { width:8px; height:8px; border-radius:3px; background:rgba(5,5,5,.14); }
-.wb-pips i.on { background:#00A389; }
+.wb-pips i.on { background:var(--ink); color:var(--paper); }
 .wb-pips i + i { margin-left:-4px; }
 .wb-pipnote { font-size:11px; font-weight:700; color:var(--gray500); margin-left:4px; white-space:nowrap; }
 
 /* the pipeline, compressed onto a card */
 .wb-stagerail { display:flex; align-items:center; gap:4px; height:8px; }
 .wb-sdot { flex:1; height:4px; border-radius:999px; background:rgba(5,5,5,.09); }
-.wb-sdot.past { background:rgba(0,163,137,.55); }
+.wb-sdot.past { background:var(--ok-tint); }
 /* the current stage is TALLER, not just a different colour — it has to be
    findable in a grid of cards without reading any of them */
-.wb-sdot.now { height:8px; background:linear-gradient(90deg,#00A8E0,#00E5C0); }
+.wb-sdot.now { height:8px; background:linear-gradient(90deg,#00A8E0,var(--ok-t)); }
 
 .wb-chip.warn { background:rgba(255,138,0,.14); color:var(--warn-t); }
 .wb-chip.ghost { background:transparent; border:1px dashed rgba(5,5,5,.2); color:var(--gray400); }
@@ -5768,8 +5768,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 .wb2 { --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:var(--q);
   --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
-  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:#00A389;
-  --wb2-cy:#007fa8; --wb2-cy2:#0089b8; }
+  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:var(--ink);
+  --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* the board's primary buttons wear the section accent, ghosts stay house */
 /* `.wb2-capcard` belongs in this list and was missing from it, so the capture
@@ -5777,11 +5777,11 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    all: dark text on white, indistinguishable from a label. Which is why a
    DISABLED "Save these" read as nothing happening rather than as off. */
 .wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
-  background:var(--wb2-cy, #007fa8); border:1px solid var(--wb2-cy, #007fa8); color:#fff;
+  background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
   box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
 .wb2 .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-sheet .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
+.wb2-capcard .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
 /* A GHOST STANDING NEXT TO A PRIMARY HAS TO LOOK LIKE ITS PAIR.
 
    This rule set the ghost's height, padding and size and then left its RADIUS
@@ -5959,9 +5959,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* ── card head (K9: icon tile + title + subtitle + status slot, every tab) ── */
 .wb2-chd { display:flex; align-items:center; gap:13px; padding:16px 20px; border-bottom:1px solid var(--wb2-line2); }
 .wb2-ci { width:38px; height:38px; border-radius:12px; display:grid; place-items:center; background:rgba(5,5,5,.05); color:var(--ink); flex:none; }
-.wb2-ci.blue { background:rgba(0,168,224,.1); color:#0089b8; }
+.wb2-ci.blue { background:rgba(0,168,224,.1); color:var(--ink2); }
 .wb2-ci.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan); }
-.wb2-ci.ok { background:rgba(0,163,137,.11); color:#00806b; }
+.wb2-ci.ok { background:var(--ok-tint); color:#00806b; }
 .wb2-chd > div { min-width:0; }
 .wb2-chd b { display:block; font-size:16px; font-weight:800; letter-spacing:-.01em; }
 .wb2-chd em { display:block; font-style:normal; font-size:12.5px; color:var(--gray500); margin-top:2px; font-weight:500; }
@@ -5977,8 +5977,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   background:rgba(5,5,5,.055); color:var(--gray700); white-space:nowrap; }
 .wb2-chip.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t); }
 .wb2-chip.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t); }
-.wb2-chip.ok { background:rgba(0,163,137,.11); color:#00806b; }
-.wb2-chip.blue { background:rgba(0,168,224,.1); color:#0089b8; }
+.wb2-chip.ok { background:var(--ok-tint); color:#00806b; }
+.wb2-chip.blue { background:rgba(0,168,224,.1); color:var(--ink2); }
 /* a chip that IS a door — a tracked job wears its board in the band and the
    chip opens it. A real <button>, so the UA face is stripped here (the sheet
    portals outside .fg, so no house reset reaches it). */
@@ -6063,7 +6063,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
   display:inline-grid; place-items:center; font-size:8.5px; font-weight:800; flex:none; }
 .wb2-trck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; align-items:center; align-self:center; }
 .wb2-trnote { grid-column:1/-1; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
-.wb2-ckall { grid-column:1/-1; height:30px; border-radius:8px; border:1px solid rgba(0,163,137,.34); background:rgba(0,163,137,.1);
+.wb2-ckall { grid-column:1/-1; height:30px; border-radius:8px; border:1px solid var(--line); background:var(--tint);
   color:#00806b; display:flex; align-items:center; justify-content:center; gap:7px; font-size:11.5px; font-weight:800; }
 /* Gates ticked but no day yet: still good news, but not the same news, so it
    doesn't wear the full green a booked-and-ready job wears. */
@@ -6074,7 +6074,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
   background:color-mix(in oklab, var(--as) 8%, #fff); display:grid; place-items:center; }
 .wb2-ckq i { width:8px; height:8px; border-radius:3px; background:var(--as); }
 .wb2-ckq svg { color:#fff; background:var(--wb2-ok); border-radius:5px; padding:1px; width:15px; height:15px; }
-.wb2-ckq.on { background:rgba(0,163,137,.08); border-color:rgba(0,163,137,.32); }
+.wb2-ckq.on { background:var(--tint); border-color:var(--line); }
 
 /* ── urgent rows ── */
 /* The queue's two columns. Tasks ride the right lane behind a hair rule;
@@ -6101,7 +6101,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tk:hover { background:rgba(5,5,5,.022); }
 .wb2-tkb { width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid rgba(5,5,5,.22); background:#fff;
   color:transparent; display:grid; place-items:center; cursor:pointer; transition:border-color .18s, background .18s, color .18s; }
-.wb2-tkb:hover:not(:disabled) { border-color:var(--wb2-ok); background:rgba(0,163,137,.1); color:#00806b; }
+.wb2-tkb:hover:not(:disabled) { border-color:var(--wb2-ok); background:var(--tint); color:#00806b; }
 .wb2-tkb:disabled { opacity:.5; cursor:default; }
 .wb2-tkb:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tkt { flex:1; min-width:0; }
@@ -6157,7 +6157,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 /* A day's colour has to carry across the room — this is the wall-screen
    view as well as the desk one. Tints sit at the strength the handoff set;
    anything fainter and a red Monday and a green Monday look alike at 2 m. */
-.wb2-mcc[data-tone="go"] { background:rgba(0,163,137,.14); border-color:rgba(0,163,137,.4); }
+.wb2-mcc[data-tone="go"] { background:var(--tint-2); border-color:var(--line); }
 .wb2-mcc[data-tone="soon"] { background:rgba(255,138,0,.16); border-color:rgba(255,138,0,.5); }
 .wb2-mcc[data-tone="flash"] { background:rgba(224,38,79,.1); border-color:rgba(224,38,79,.42); }
 .wb2-mcc[data-tone="over"] { background:rgba(224,38,79,.16); border-color:rgba(224,38,79,.52); }
@@ -6170,7 +6170,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    glance across the room on the wall screen. */
 .wb2-mcdone { margin-top:auto; display:grid; place-items:center; padding:6px 0 3px; }
 .wb2-mcdone span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%;
-  background:var(--wb2-ok); color:#fff; box-shadow:0 3px 8px -3px rgba(0,163,137,.7); }
+  background:var(--wb2-ok); color:#fff; box-shadow:none; }
 .wb2-mcc[data-tone="done"] .wb2-mcdone span { background:#00806b; }
 .wb2-mcsum { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
 /* the window label with its own arrows, the way a stepper should read */
@@ -6191,7 +6191,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mcn em { font-style:normal; font-size:9.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
   color:var(--gray500); }
 .wb2-mcn i { margin-left:auto; font-style:normal; font-size:9px; font-weight:800; letter-spacing:.1em;
-  text-transform:uppercase; color:#0089b8; }
+  text-transform:uppercase; color:var(--ink2); }
 /* the day the month turns leads with a darker number — the row reads as a
    sequence, and the boundary is where you look twice */
 .wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
@@ -6694,9 +6694,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scmnone b { font-size:13px; }
 .wb2-scmnone em { font-style:normal; font-size:12.5px; font-weight:500; color:var(--gray500); }
 .wb2-scmset { height:34px; padding:0 15px; border-radius:11px; margin-left:auto;
-  background:var(--wb2-cy, #007fa8); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer;
+  background:var(--wb2-cy, var(--ink)); color:var(--paper); font-size:12.5px; font-weight:700; cursor:pointer;
   transition:background .18s; }
-.wb2-scmset:hover { background:var(--wb2-cy2, #0089b8); }
+.wb2-scmset:hover { background:var(--wb2-cy2, var(--ink2)); }
 .wb2-scmset:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* the month grid — the maintenance calendar's frame, re-stated rather than
@@ -6830,7 +6830,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   background:rgba(5,5,5,.14); cursor:pointer; transition:background .18s; }
 .wb2-scmtog::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px;
   border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(10,12,20,.35); transition:left .18s; }
-.wb2-scmtog[aria-checked="true"] { background:var(--wb2-ok, #00A389); }
+.wb2-scmtog[aria-checked="true"] { background:var(--wb2-ok, var(--ink)); color:var(--paper); }
 .wb2-scmtog[aria-checked="true"]::after { left:18px; }
 .wb2-scmtog:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scmstep { display:flex; align-items:center; gap:2px; flex:none; }
@@ -6885,7 +6885,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); }
 .wb2-aghd i { width:10px; height:10px; border-radius:3px; background:rgba(5,5,5,.18); align-self:center; }
 .wb2-agrp[data-accent="violet"] .wb2-aghd i { background:#7A5AF8; }
-.wb2-agrp[data-accent="blue"] .wb2-aghd i { background:#2E68FF; }
+.wb2-agrp[data-accent="blue"] .wb2-aghd i { background:var(--ink); color:var(--paper); }
 .wb2-agrp[data-accent="pink"] .wb2-aghd i { background:#C4419B; }
 .wb2-agrp[data-accent="slate"] .wb2-aghd i { background:var(--q); }
 .wb2-aghd em { font-style:normal; font-size:11px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--q); }
@@ -6915,7 +6915,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   background:rgba(5,5,5,.05); border:1px solid transparent; font-size:11.5px; font-weight:700; color:var(--gray700);
   white-space:nowrap; font-style:normal; }
 .wb2-tag.t-violet { background:rgba(122,90,248,.09); border-color:rgba(122,90,248,.26); color:#5b3fd6; }
-.wb2-tag.t-blue { background:rgba(46,104,255,.09); border-color:rgba(46,104,255,.26); color:#2e56d6; }
+.wb2-tag.t-blue { background:var(--tint); border-color:var(--line); color:#2e56d6; }
 .wb2-tag.t-cyan { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.28); color:#0075a0; }
 .wb2-tag.t-pink { background:rgba(196,65,155,.09); border-color:rgba(196,65,155,.28); color:#b0338a; }
 .wb2-tag.t-amber { background:rgba(255,138,0,.12); border-color:rgba(255,138,0,.3); color:var(--warn-t); }
@@ -6923,8 +6923,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tag.on button { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; border:0; background:none;
   color:inherit; opacity:.55; cursor:pointer; transition:opacity .16s; }
 .wb2-tag.on button:hover { opacity:1; }
-.wb2-tag.add { color:#007fa8; border:1px dashed rgba(0,137,184,.45); background:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; }
-.wb2-tag.add:hover { background:rgba(0,168,224,.07); border-color:#007fa8; }
+.wb2-tag.add { color:var(--ink); border:1px dashed rgba(0,137,184,.45); background:none; cursor:pointer; font:inherit; font-size:11.5px; font-weight:700; }
+.wb2-tag.add:hover { background:rgba(0,168,224,.07); border-color:var(--ink); }
 .wb2-tag.sug { cursor:pointer; }
 /* Choosing a NEW tag's colour. Six swatches and a live preview of the tag
    itself, because the swatch is a solid and the tag is a tint — you can't
@@ -6935,7 +6935,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   cursor:pointer; flex:none; transition:transform .16s, box-shadow .16s; }
 .wb2-swatch:hover { transform:scale(1.09); }
 .wb2-swatch.t-violet { background:#7A5AF8; }
-.wb2-swatch.t-blue { background:#2E68FF; }
+.wb2-swatch.t-blue { background:var(--ink); color:var(--paper); }
 .wb2-swatch.t-cyan { background:#00A8E0; }
 .wb2-swatch.t-pink { background:#C4419B; }
 .wb2-swatch.t-amber { background:#FF8A00; }
@@ -7036,7 +7036,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   border-radius:22px; box-shadow:0 40px 90px -40px rgba(10,12,20,.6);
   animation:wb2SheetIn .32s var(--ease) both;
   --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:var(--q); --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
-  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:#00A389; }
+  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:var(--ink); }
 /* identity at the top and actions at the bottom run the full width; only the
    sections pair up. The negative margins put the bands back on the edges the
    grid's padding pulled them off. */
@@ -7051,7 +7051,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    the card — the two things you'd say on the phone. The name GROWS, so the
    auto margin on the × has no slack left to work with and the chips sit
    where they were put. */
-.wb2-shno { flex:none; padding:3px 9px; border-radius:8px; background:rgba(0,168,224,.09); color:#007fa8;
+.wb2-shno { flex:none; padding:3px 9px; border-radius:8px; background:rgba(0,168,224,.09); color:var(--ink);
   font-size:13px; font-weight:800; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
 .wb2-shname { flex:1 1 220px; min-width:0; margin:0; font-size:20px; font-weight:800; letter-spacing:-.03em;
   line-height:1.2; text-wrap:pretty; }
@@ -7177,7 +7177,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-jcband .wb2-chip { background:#fff; }
 .wb2-jcband .wb2-chip.dan { background:rgba(224,38,79,.13); }
 .wb2-jcband .wb2-chip.warn { background:rgba(255,138,0,.17); }
-.wb2-jcband .wb2-chip.ok { background:rgba(0,163,137,.14); }
+.wb2-jcband .wb2-chip.ok { background:var(--ok-tint); }
 .wb2-jcband .wb2-chip.blue { background:rgba(0,168,224,.13); }
 /* THE SERVICEM8 CHIP IS A DOOR. An <a> in a portalled sheet inherits the
    document's own anchor face, and the sheet lives outside `.fg` — so the
@@ -7268,7 +7268,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
   background:rgba(5,5,5,.05); color:var(--gray500); }
 .wb2-jcatttile.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
 .wb2-jcatttile.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t, #B45309); }
-.wb2-jcatttile.cy { background:rgba(0,168,224,.1); color:#007fa8; }
+.wb2-jcatttile.cy { background:rgba(0,168,224,.1); color:var(--ink); }
 .wb2-jcatttext { min-width:0; display:flex; flex-direction:column; gap:1px; }
 /* ONE LINE EACH. A strip is a glance, and a row that wraps to three lines
    has become the diary entry it is meant to point at. */
@@ -7392,14 +7392,14 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
 .wb2-crow { display:flex; align-items:center; gap:10px; padding:8px 0; }
 .wb2-crow + .wb2-crow { border-top:1px solid var(--wb2-line2); }
 .wb2-cav { width:30px; height:30px; border-radius:10px; background:rgba(0,168,224,.1);
-  color:#007fa8; font-size:11px; font-weight:800; display:inline-flex; align-items:center;
+  color:var(--ink); font-size:11px; font-weight:800; display:inline-flex; align-items:center;
   justify-content:center; flex:none; }
 .wb2-cwho { min-width:0; flex:1; display:flex; flex-direction:column; }
 .wb2-cwho b { font-size:13.5px; font-weight:750; letter-spacing:-.01em; }
 .wb2-cwho em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 .wb2-ccalls { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
 .wb2-ccall { display:inline-flex; align-items:center; height:26px; padding:0 11px; border-radius:8px;
-  background:rgba(0,127,168,.09); color:#007fa8; font-size:12px; font-weight:800;
+  background:rgba(0,127,168,.09); color:var(--ink); font-size:12px; font-weight:800;
   white-space:nowrap; text-decoration:none; }
 a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-ccall.plain { background:rgba(5,5,5,.05); color:var(--gray700); }
@@ -7430,8 +7430,8 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-evdot { width:27px; height:27px; border-radius:50%; background:#fff; border:1px solid var(--wb2-line);
   display:inline-flex; align-items:center; justify-content:center; color:var(--gray500);
   position:relative; z-index:1; align-self:start; margin-top:1px; }
-.wb2-evdot.ok { background:rgba(0,163,137,.1); border-color:rgba(0,163,137,.25); color:#00806b; }
-.wb2-evdot.cy { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.25); color:#007fa8; }
+.wb2-evdot.ok { background:var(--ok-tint); border-color:var(--ok-tint); color:#00806b; }
+.wb2-evdot.cy { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.25); color:var(--ink); }
 .wb2-evb { min-width:0; padding-top:3px; }
 .wb2-evhd { font-size:13.5px; font-weight:750; letter-spacing:-.01em; }
 .wb2-evhd .wb2-chip { margin-left:7px; vertical-align:middle; }
@@ -7443,7 +7443,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
   border-left:2.5px solid var(--jc-soft, rgba(5,5,5,.16)); border-radius:11px; padding:9px 12px;
   font-size:13.5px; font-weight:500; color:var(--gray700); line-height:1.55; max-width:68ch;
   overflow-wrap:anywhere; white-space:pre-wrap; }
-.wb2-mention { font-weight:750; color:#007fa8; }
+.wb2-mention { font-weight:750; color:var(--ink); }
 .wb2-evphotos { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
 .wb2-evphotos img, .wb2-evphotos .pending, .wb2-evphotos .more {
   width:76px; height:76px; border-radius:10px; object-fit:cover; border:1px solid var(--wb2-line2); }
@@ -7455,7 +7455,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-evphotos .more:hover { background:rgba(5,5,5,.1); }
 .wb2-evdoor { display:inline-flex; align-items:center; gap:4px; margin-top:3px; padding:0;
   border:0; background:none; font-family:inherit; font-size:11.5px; font-weight:700;
-  color:#007fa8; cursor:pointer; }
+  color:var(--ink); cursor:pointer; }
 .wb2-evdoor:hover { text-decoration:underline; }
 .wb2-evdoor:focus-visible { outline:none; box-shadow:var(--ring); border-radius:7px; }
 /* THE DIARY FILTER IS A FaceSwitch, AND THE SHEET IS PORTALLED OUTSIDE
@@ -7474,7 +7474,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 /* the next booking, first over the past visits, in the accent */
 .wb2-nextv { display:flex; flex-direction:column; gap:3px; padding:11px 13px;
   border-radius:13px; background:rgba(0,168,224,.07); }
-.wb2-nextv b { font-size:15px; font-weight:800; letter-spacing:-.015em; color:#007fa8; }
+.wb2-nextv b { font-size:15px; font-weight:800; letter-spacing:-.015em; color:var(--ink); }
 .wb2-nextv em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray500); }
 /* WHAT SOMEBODY IS, after their name — quieter than the name, and the
    separator belongs to the CSS so a title can be absent without leaving a
@@ -7524,7 +7524,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-mline.head > span { font-size:15.5px; font-weight:800; }
 .wb2-mline.head.warn { background:rgba(255,138,0,.11); }
 .wb2-mline.head.warn > span { color:var(--wb2-warn-t); }
-.wb2-mline.head.ok { background:rgba(0,163,137,.1); }
+.wb2-mline.head.ok { background:var(--ok-tint); }
 .wb2-mline.head.ok > span { color:#00806b; }
 /* one claim against the job: its name, what it says about itself underneath,
    the amount, and an inert chip that follows ServiceM8 */
@@ -7560,7 +7560,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-shnopop > button:hover { background:rgba(5,5,5,.05); }
 .wb2-shnopop > button.on { background:rgba(122,90,248,.09); }
 .wb2-shnopop > button:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-shnopop .n { font-size:11.5px; font-weight:800; color:#007fa8; font-variant-numeric:tabular-nums; }
+.wb2-shnopop .n { font-size:11.5px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums; }
 .wb2-shnopop > button.on .n { color:#5b3fd0; }
 .wb2-shnopop .t { font-size:12px; font-weight:700; color:var(--gray700); }
 .wb2-shnopop .a { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -7644,7 +7644,7 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
   line-height:1.55; color:var(--gray500); }
 /* "All 12 visits" — opens the rest of the list in place, no second screen */
 .wb2-shmore { display:inline-flex; align-items:center; gap:4px; align-self:flex-start;
-  margin-top:8px; padding:5px 2px; border:0; background:none; color:#007fa8; font:inherit;
+  margin-top:8px; padding:5px 2px; border:0; background:none; color:var(--ink); font:inherit;
   font-size:12.5px; font-weight:800; cursor:pointer; }
 .wb2-shmore:hover { text-decoration:underline; }
 .wb2-shmore:focus-visible { outline:none; box-shadow:var(--ring); border-radius:7px; }
@@ -7911,11 +7911,11 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
   color:var(--gray600); font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;
   transition:background .12s ease, border-color .12s ease, color .12s ease; }
 .wb2-showchip:hover { background:rgba(5,5,5,.04); }
-.wb2-showchip.on { border-color:color-mix(in srgb, var(--sc, #2E68FF) 45%, transparent);
-  background:color-mix(in srgb, var(--sc, #2E68FF) 12%, #fff);
-  color:color-mix(in srgb, var(--sc, #2E68FF) 72%, #050505); }
+.wb2-showchip.on { border-color:color-mix(in srgb, var(--sc, var(--ink)) 45%, transparent);
+  background:color-mix(in srgb, var(--sc, var(--ink)) 12%, #fff);
+  color:var(--paper); }
 .wb2-showchip:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, #2E68FF); flex:none; }
+.wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, var(--ink)); flex:none; color:var(--paper); }
 .wb2-showchip.quiet { border-style:dashed; }
 .wb2-showgrid { display:grid; gap:12px; margin-top:12px;
   grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
@@ -8007,7 +8007,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-dsgn:hover { background:rgba(0,168,224,.06); }
 .wb2-dsgn:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-dsgn-ic { display:flex; align-items:center; justify-content:center; flex:none;
-  width:30px; height:30px; border-radius:9px; background:rgba(0,168,224,.09); color:#007fa8; }
+  width:30px; height:30px; border-radius:9px; background:rgba(0,168,224,.09); color:var(--ink); }
 .wb2-dsgn-b { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
 .wb2-dsgn-b b { font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dsgn-b em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500);
@@ -8017,7 +8017,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    `.wb2-dsgn > svg` rule is valid CSS that matches nothing, which is the
    failure mode this codebase validates stylesheets to catch. */
 .wb2-dsgn-go { display:flex; flex:none; color:var(--gray400); transition:transform .16s, color .16s; }
-.wb2-dsgn:hover .wb2-dsgn-go { color:#007fa8; transform:translateX(2px); }
+.wb2-dsgn:hover .wb2-dsgn-go { color:var(--ink); transform:translateX(2px); }
 /* A DOCUMENT IS A ROW, the same bones as the design rows above — the walked
    face rendered cached files as blue links and uncached ones as bold black
    paragraphs, two dresses for one kind of thing. One row: icon, name, what
@@ -8039,10 +8039,10 @@ button.wb2-doc { width:auto; border:0; background:none; font:inherit; text-align
   cursor:pointer; }
 button.wb2-doc:hover { background:rgba(0,168,224,.06); }
 button.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring); }
-button.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }
+button.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
 .wb2-doc-ic { display:flex; align-items:center; justify-content:center; flex:none;
   width:30px; height:30px; border-radius:9px; background:rgba(5,5,5,.045); color:var(--gray500); }
-a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }
+a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
 .wb2-doc-b { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
 .wb2-doc-b b { font-size:13.5px; font-weight:650; letter-spacing:-.01em; min-width:0;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -8050,15 +8050,15 @@ a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:#007fa8; }
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-doc > .wb2-chip { flex:none; }
 .wb2-doc-go { display:flex; flex:none; color:var(--gray400); transition:transform .16s, color .16s; }
-a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
+a.wb2-doc:hover .wb2-doc-go { color:var(--ink); transform:translateX(2px); }
 .wb2-gates { display:grid; gap:7px; }
 .wb2-gate { border:1px solid var(--wb2-line); border-radius:13px; background:#fff; transition:border-color .2s, background .25s; }
-.wb2-gate.on { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.32); }
+.wb2-gate.on { background:var(--tint); border-color:var(--line); }
 .wb2-gate.open { border-color:rgba(5,5,5,.2); box-shadow:0 10px 26px -20px rgba(10,12,20,.7); }
 .wb2-gck { display:flex; align-items:center; gap:12px; padding:11px 13px; }
 .wb2-bx { display:grid; place-items:center; width:21px; height:21px; border-radius:7px; border:1.5px solid rgba(5,5,5,.2);
   background:#fff; color:transparent; flex:none; cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
-.wb2-bx:hover:not(:disabled) { border-color:var(--wb2-ok); color:rgba(0,163,137,.35); }
+.wb2-bx:hover:not(:disabled) { border-color:var(--wb2-ok); color:var(--tint-2); }
 .wb2-bx:disabled { cursor:default; opacity:.6; }
 .wb2-gate.on .wb2-bx, .wb2-pk.on .wb2-bx, .wb2-bx.derived.on { background:var(--wb2-ok); border-color:var(--wb2-ok); color:#fff; }
 .wb2-bx.derived { cursor:default; }
@@ -8079,15 +8079,15 @@ a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
   background:#fff; font-size:13px; font-weight:700; color:var(--gray700); }
 .wb2-pk .wb2-bx { width:18px; height:18px; border-radius:6px; }
 .wb2-pkl { flex:1; min-width:0; text-align:left; }
-.wb2-pk.on { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.3); color:var(--ink); }
+.wb2-pk.on { background:var(--tint); border-color:var(--line); color:var(--ink); }
 .wb2-pk.on .wb2-pkl { text-decoration:line-through; text-decoration-color:rgba(5,5,5,.32); }
 .wb2-pkx { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; color:var(--q); opacity:0; flex:none;
   border:0; background:none; cursor:pointer; transition:opacity .16s, color .16s, background .16s; }
 .wb2-pk:hover .wb2-pkx, .wb2-pkx:focus-visible, .wb2-pkx.show { opacity:1; }
 .wb2-pkx:hover { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
-.wb2-pk.add { color:#007fa8; border-style:dashed; border-color:rgba(0,137,184,.4); justify-content:flex-start; cursor:pointer;
+.wb2-pk.add { color:var(--ink); border-style:dashed; border-color:rgba(0,137,184,.4); justify-content:flex-start; cursor:pointer;
   font:inherit; font-size:13px; font-weight:700; background:none; }
-.wb2-pk.add:hover { background:rgba(0,168,224,.06); border-color:#0089b8; }
+.wb2-pk.add:hover { background:rgba(0,168,224,.06); border-color:var(--ink); }
 .wb2-crew { display:grid; gap:7px; }
 .wb2-crewrow { display:flex; align-items:center; gap:9px; }
 .wb2-crewrow b { font-size:13px; font-weight:700; flex:1; min-width:0; }
@@ -8134,8 +8134,8 @@ a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
 .wb2-addrow { display:flex; align-items:center; gap:7px; }
 .wb2-addrow .wb2-fi { flex:1; min-width:0; }
 .wb2-addgo { flex:none; width:32px; height:32px; border-radius:9px; border:0; display:grid; place-items:center;
-  background:#007fa8; color:#fff; cursor:pointer; transition:background .18s, color .18s; }
-.wb2-addgo:hover:not(:disabled) { background:#0089b8; }
+  background:var(--ink); color:var(--paper); cursor:pointer; transition:background .18s, color .18s; }
+.wb2-addgo:hover:not(:disabled) { background:var(--ink2); }
 .wb2-addgo:disabled { background:rgba(5,5,5,.07); color:var(--q); cursor:not-allowed; }
 .wb2-addgo:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the pill's red mic at row size — same colour, because it's the same act */
@@ -8182,9 +8182,9 @@ a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
 .wb2-coday { display:flex; flex-direction:column; gap:5px; flex:1; min-width:150px; }
 .wb2-coday b { font-size:15px; font-weight:800; letter-spacing:-.015em; }
 .wb2-colink { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:11.5px;
-  font-weight:700; color:#007fa8; cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  font-weight:700; color:var(--ink); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   text-decoration-color:rgba(0,127,168,.35); transition:color .18s, text-decoration-color .18s; }
-.wb2-colink:hover { color:#0089b8; text-decoration-color:#0089b8; }
+.wb2-colink:hover { color:var(--ink2); text-decoration-color:var(--ink2); }
 .wb2-colink:focus-visible { outline:none; box-shadow:var(--ring); border-radius:5px; }
 /* the one button that matters sits where a confirm sits — on the right */
 .wb2-coact { display:flex; justify-content:flex-end; }
@@ -8282,9 +8282,9 @@ a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
   background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:20px; box-shadow:0 30px 80px -30px rgba(10,12,20,.55);
   overflow:hidden; animation:wb2ModalIn .32s var(--ease) both;
   --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:var(--q); --wb2-dan:#e0264f; --wb2-dan-t:#b31038;
-  --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:#00A389; --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06); }
+  --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:var(--ink); --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06); }
 .wb2-dmhd { padding:14px 18px 16px; border-bottom:1px solid var(--wb2-line2); flex:none; }
-.wb2-dmhd[data-tone="go"], .wb2-dmhd[data-tone="done"] { background:linear-gradient(160deg, rgba(0,163,137,.08), rgba(0,163,137,0) 70%); }
+.wb2-dmhd[data-tone="go"], .wb2-dmhd[data-tone="done"] { background:var(--tint); }
 .wb2-dmhd[data-tone="soon"] { background:linear-gradient(160deg, rgba(255,138,0,.09), rgba(255,138,0,0) 70%); }
 .wb2-dmhd[data-tone="flash"], .wb2-dmhd[data-tone="over"] { background:linear-gradient(160deg, rgba(224,38,79,.08), rgba(224,38,79,0) 70%); }
 .wb2-dmtop { display:flex; align-items:center; justify-content:space-between; }
@@ -8302,7 +8302,7 @@ a.wb2-doc:hover .wb2-doc-go { color:#007fa8; transform:translateX(2px); }
 .wb2-dc { position:relative; border:1px solid rgba(5,5,5,.08); border-radius:14px; padding:11px 13px 11px 15px;
   display:flex; flex-direction:column; gap:7px; overflow:hidden; background:#fff; text-align:left; transition:background .25s, border-color .2s; }
 .wb2-dc:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--lead, var(--wb2-ok)); }
-.wb2-dc[data-tone="go"], .wb2-dc[data-tone="done"] { background:rgba(0,163,137,.055); border-color:rgba(0,163,137,.3); }
+.wb2-dc[data-tone="go"], .wb2-dc[data-tone="done"] { background:var(--tint); border-color:var(--line); }
 .wb2-dc[data-tone="soon"] { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.36); }
 .wb2-dc[data-tone="soon"]:before { background:var(--wb2-warn); }
 .wb2-dc[data-tone="flash"], .wb2-dc[data-tone="over"] { background:rgba(224,38,79,.05); border-color:rgba(224,38,79,.32); }
@@ -8346,7 +8346,7 @@ span.wb2-ck { cursor:default; }
 .wb2-fl .wb2-fi, .wb2-fl .wb2-sel, .wb2-fl .wb2-notes { width:100%; letter-spacing:normal; text-transform:none; font-size:13px; }
 .wb2-fl .wb2-notes { margin-bottom:0; }
 .wb2-flcheck { display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:var(--gray700); align-self:end; padding:9px 0; cursor:pointer; }
-.wb2-flcheck input { width:16px; height:16px; accent-color:#0089b8; }
+.wb2-flcheck input { width:16px; height:16px; accent-color:var(--ink2); }
 .wb2-eqlist { display:grid; gap:7px; }
 .wb2-eqrow { display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:11px; }
 .wb2-eqrow .wb2-trt { flex:1; min-width:0; }
@@ -8512,7 +8512,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    so a bloom child of it would be clipped or ride the scroll. */
 .wb2-capdim::after { content:""; position:absolute; left:50%; bottom:0; width:min(560px, 80vw);
   height:180px; transform:translateX(-50%); border-radius:50%; pointer-events:none;
-  background:linear-gradient(120deg, #00E5C0, #2E68FF, #8A2BE2);
+  background:var(--ink);
   filter:blur(64px); opacity:.14; animation:fgBreath 5s ease-in-out infinite; }
 /* IT POOLS UNDER THE CARD, so it has to follow it. Bottom-anchored is right
    for the phone's bottom sheet and was right for the desk too until the
@@ -8571,7 +8571,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffbtn-topbar .tiffbtn-spark { right:9px; bottom:9px; }
 .tiffbtn-topbar:focus-visible .tiffbtn-face { box-shadow:var(--ring); }
 .tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
-  background:linear-gradient(120deg, var(--teal), var(--blue), var(--violet));
+  background:var(--ink);
   filter:blur(9px); opacity:.5; animation:fgBreath 4s ease-in-out infinite; }
 /* HOVER HAS TO STOP THE BREATH TO BE SEEN AT ALL. A running animation sits
    above author rules in the cascade, so while `fgBreath` plays it owns
@@ -8689,7 +8689,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-capchange { margin-left:auto; flex:none; height:26px; padding:0 11px; border-radius:999px;
   border:1px solid rgba(5,5,5,.14); background:#fff; font:inherit; font-size:11.5px; font-weight:800;
   color:var(--gray700); cursor:pointer; transition:background .18s, border-color .18s, color .18s; }
-.wb2-capchange:hover { background:rgba(0,168,224,.07); border-color:#0089b8; color:#00607f; }
+.wb2-capchange:hover { background:rgba(0,168,224,.07); border-color:var(--ink); color:#00607f; }
 .wb2-capchange:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:14px;
   background:#fff; overflow:hidden; box-shadow:0 18px 40px -28px rgba(10,12,20,.55);
@@ -8705,7 +8705,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   background:none; font:inherit; font-size:12.5px; font-weight:600; color:var(--gray700); cursor:pointer;
   transition:background .14s, color .14s; }
 .wb2-jobopt:hover { background:rgba(0,168,224,.08); color:var(--ink); }
-.wb2-jobopt.on { background:rgba(0,163,137,.1); color:var(--ink); font-weight:800; }
+.wb2-jobopt.on { background:var(--tint); color:var(--ink); font-weight:800; }
 .wb2-jobopt:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-joblist .wb2-hint { padding:10px; margin:0; }
 @media (prefers-reduced-motion:reduce) { .wb2-jobpick { animation:none; } }
@@ -8720,8 +8720,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   font-size:12.5px; font-weight:600; color:var(--gray700); }
 .wb2-capjob b { font-weight:800; color:var(--ink); }
 .wb2-capjob svg { flex:none; margin-top:1px; color:var(--gray400); }
-.wb2-capjob.on { background:rgba(0,163,137,.07); border-color:rgba(0,163,137,.3); }
-.wb2-capjob.on svg { color:var(--wb2-ok, #00A389); }
+.wb2-capjob.on { background:var(--tint); border-color:var(--line); }
+.wb2-capjob.on svg { color:var(--wb2-ok, var(--ink)); }
 .wb2-caprec { display:flex; flex-direction:column; align-items:center; gap:10px; padding:14px 0 2px; }
 
 /* THE WAIT, SAID WHERE ONLY A SCREEN READER HEARS IT. Nothing on the card
@@ -9006,7 +9006,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 @keyframes wb2Spin { to { transform:rotate(360deg); } }
 .wb2-spin {
   width:16px; height:16px; flex:0 0 auto; border-radius:50%;
-  background:conic-gradient(from 0deg, var(--wb2-ok, #00A389), rgba(0,163,137,0) 70%);
+  background:conic-gradient(from 0deg, var(--wb2-ok, var(--ink)), var(--tint) 70%);
   -webkit-mask:radial-gradient(circle, transparent 4.5px, #000 5px);
   mask:radial-gradient(circle, transparent 4.5px, #000 5px);
   animation:wb2Spin .8s linear infinite;
@@ -9063,7 +9063,7 @@ html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; displa
 html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 html[data-wb-display] .wb2-mcdots i > b { font-size:12.5px; font-weight:800; letter-spacing:-.012em; color:var(--ink); }
 html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:11px; font-weight:600; color:var(--gray500); }
-html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:rgba(0,163,137,.1); border-left-color:var(--wb2-ok); }
+html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:var(--tint); border-left-color:var(--wb2-ok); }
 html[data-wb-display] .wb2-mcdots i[data-tone="soon"] { background:rgba(255,138,0,.12); border-left-color:var(--wb2-warn); }
 html[data-wb-display] .wb2-mcdots i[data-tone="flash"],
 html[data-wb-display] .wb2-mcdots i[data-tone="over"] { background:rgba(224,38,79,.1); border-left-color:var(--wb2-dan); }
@@ -9088,7 +9088,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-plrow[data-sev="warn"]:before { background:var(--wb2-warn); }
 .wb2-plstage { display:flex; align-items:center; gap:4px; }
 .wb2-plstage i { width:9px; height:9px; border-radius:50%; background:rgba(5,5,5,.12); flex:none; }
-.wb2-plstage i.past { background:rgba(0,163,137,.55); }
+.wb2-plstage i.past { background:var(--ok-tint); }
 .wb2-plstage i.now { background:var(--wb2-cy); box-shadow:var(--ring); }
 .wb2-plprog { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .wb2-plprog em { font-style:normal; font-size:10.5px; font-weight:700; color:var(--gray500); }
@@ -9140,7 +9140,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-scope { display:grid; grid-template-columns:1fr 1fr; gap:0 26px; }
 .wb2-scopecol { min-width:0; }
 .wb2-scopemark { width:20px; height:20px; border-radius:7px; display:inline-grid; place-items:center; flex:none;
-  background:rgba(0,163,137,.12); color:#00806b; }
+  background:var(--tint-2); color:#00806b; }
 .wb2-scopemark.out { background:rgba(224,38,79,.1); color:#b31038; }
 @media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
 
@@ -9192,8 +9192,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tx-item { display:flex; align-items:center; gap:13px; padding:14px 20px; border-top:1px solid #f5f6f8; }
 .fg .tx-item:first-child { border-top:0; }
 .fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:12px; }
-.fg .tx-ic.fuel { background:rgba(46,104,255,.1); color:var(--info-t); }
-.fg .tx-ic.expense { background:rgba(138,43,226,.1); color:#8A2BE2; }
+.fg .tx-ic.fuel { background:var(--tint); color:var(--info-t); }
+.fg .tx-ic.expense { background:var(--tint); color:var(--ink); }
 .fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700; color:var(--ink); }
 .fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -9204,8 +9204,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* The row's verdict. An anchor when there is something to open, a span when
    there is not — so the amber one is deliberately not clickable. */
-.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:5px; min-width:96px; padding:6px 11px; border-radius:999px; background:rgba(0,163,137,.1); font-size:11.5px; font-weight:700; color:var(--ink); text-decoration:none; transition:background .15s; }
-.fg a.tx-rcpt:hover { background:rgba(0,163,137,.18); }
+.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:5px; min-width:96px; padding:6px 11px; border-radius:999px; background:var(--tint); font-size:11.5px; font-weight:700; color:var(--ink); text-decoration:none; transition:background .15s; }
+.fg a.tx-rcpt:hover { background:var(--tint-2); }
 .fg .tx-rcpt.none { background:rgba(240,164,49,.12); color:#a56a05; }
 
 @media (max-width:700px){
@@ -9267,7 +9267,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-h1 { margin:0; font-size:38px; font-weight:800; letter-spacing:-.035em; line-height:1; color:var(--ink); }
 .fg .tk-sub { margin:10px 0 0; font-size:14.5px; font-weight:600; color:var(--gray500); }
 .fg .tk-quota { display:inline-flex; align-items:center; gap:7px; margin:14px 0 0; padding:6px 13px; border-radius:99px;
-  background:rgba(46,104,255,.07); color:#1d4ed8; font-size:12.5px; font-weight:700; }
+  background:var(--tint); color:#1d4ed8; font-size:12.5px; font-weight:700; }
 .fg .tk-quota svg { flex:none; }
 
 /* The passages stored without a vector. A LINE, NOT A PILL: the quota pill is
@@ -9289,7 +9289,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border:1px solid transparent; border-radius:14px; font-family:var(--font-jakarta), sans-serif; font-size:13.5px; font-weight:700;
   letter-spacing:-.01em; cursor:pointer; white-space:nowrap;
   transition:background .22s, border-color .22s, color .22s, box-shadow .22s, transform .18s; }
-.fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:#2E68FF; color:#fff; box-shadow:0 10px 22px -12px rgba(46,104,255,.9); }
+.fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:var(--ink); color:var(--paper); box-shadow:none; }
 .fg .tk-btn.primary:hover:not(:disabled), .tk-sheet .tk-btn.primary:hover:not(:disabled) { background:#1d4ed8; }
 .fg .tk-btn.ghost, .tk-sheet .tk-btn.ghost { background:#fff; border-color:var(--line); color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fg .tk-btn.ghost:hover:not(:disabled), .tk-sheet .tk-btn.ghost:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
@@ -9312,7 +9312,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* the category dot, and the one piece of indeterminate motion */
 .fg .tk-dot, .tk-sheet .tk-dot { width:9px; height:9px; border-radius:50%; flex:none; box-shadow:0 1px 2px rgba(0,0,0,.1); }
 .fg .tk-spin, .tk-sheet .tk-spin { width:13px; height:13px; border-radius:50%; flex:none;
-  border:2px solid rgba(46,104,255,.25); border-top-color:#2E68FF; animation:tkSpin .8s linear infinite; }
+  border:2px solid var(--line); border-top-color:var(--ink); animation:tkSpin .8s linear infinite; }
 @keyframes tkSpin { to { transform:rotate(360deg); } }
 
 /* ── search + category filter ── */
@@ -9323,7 +9323,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-search input { width:100%; height:46px; padding:0 16px 0 46px; background:#fff; border:1px solid var(--line); border-radius:16px;
   font-size:14.5px; font-weight:500; color:var(--ink); outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03);
   transition:border-color .2s, box-shadow .2s; }
-.fg .tk-search input:focus { border-color:rgba(46,104,255,.5); box-shadow:var(--ring); }
+.fg .tk-search input:focus { border-color:var(--line); box-shadow:var(--ring); }
 .fg .tk-chips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .fg .tk-chip { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 14px; border:1px solid var(--line); border-radius:99px;
   background:#fff; color:var(--gray700); font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
@@ -9385,11 +9385,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* "Ask Tiff about this document" — Tiff blue, because it leaves the library
    for the assistant, and every OTHER row control is grey because it stays */
 .fg .tk-ask { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 13px; flex:none;
-  border:1px solid rgba(46,104,255,.22); border-radius:99px; background:rgba(46,104,255,.07); color:#1d4ed8;
+  border:1px solid var(--line); border-radius:99px; background:var(--tint); color:#1d4ed8;
   font-family:var(--font-jakarta), sans-serif; font-size:12.5px; font-weight:700; letter-spacing:-.01em;
   white-space:nowrap; cursor:pointer; transition:background .2s, border-color .2s, color .2s; }
 .fg .tk-ask svg { flex:none; }
-.fg .tk-ask:hover { background:#2E68FF; border-color:#2E68FF; color:#fff; }
+.fg .tk-ask:hover { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .fg .tk-ask:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* Find-in-document, on the row and in its modal.
@@ -9421,7 +9421,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border:1px solid #eef0f3; border-radius:14px; background:#fff; cursor:pointer;
   transition:background .2s, border-color .2s; }
 .fl-modal .tk-dshit:hover { background:var(--tint); border-color:#dbe3ee; }
-.fl-modal .tk-dshit:focus-visible { outline:none; border-color:#2E68FF; box-shadow:var(--ring); }
+.fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink); box-shadow:var(--ring); }
 .fl-modal .tk-dsp { flex:none; display:inline-flex; align-items:center; gap:5px; padding-top:1px;
   color:#1d4ed8; font-size:12px; font-weight:800; letter-spacing:-.01em; }
 .fl-modal .tk-dstxt { min-width:0; font-size:13px; font-weight:500; line-height:1.55; color:var(--ink); }
@@ -9432,12 +9432,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tk-pill { display:inline-flex; align-items:center; gap:8px; max-width:340px; padding:6px 12px; border-radius:99px;
   font-size:12px; font-weight:700; line-height:1.35; }
 .fg .tk-pill svg { flex:none; }
-.fg .tk-pill.ok { background:rgba(0,163,137,.09); color:#00806c; }
-.fg .tk-pill.work { background:rgba(46,104,255,.08); color:#1d4ed8; }
+.fg .tk-pill.ok { background:var(--ok-tint); color:#00806c; }
+.fg .tk-pill.work { background:var(--tint); color:#1d4ed8; }
 .fg .tk-pill.warn { background:rgba(255,138,0,.1); color:var(--warn-t); }
 .fg .tk-pill.dan { background:rgba(224,38,79,.08); color:#b31038; }
-.fg .tk-prog { display:block; width:60px; height:4px; flex:none; border-radius:99px; background:rgba(46,104,255,.2); overflow:hidden; }
-.fg .tk-prog i { display:block; width:0; height:100%; border-radius:99px; background:#2E68FF; transition:width .4s ease; }
+.fg .tk-prog { display:block; width:60px; height:4px; flex:none; border-radius:99px; background:var(--tint-2); overflow:hidden; }
+.fg .tk-prog i { display:block; width:0; height:100%; border-radius:99px; background:var(--ink); transition:width .4s ease; color:var(--paper); }
 .fg .tk-prog.ind i { width:42%; animation:tkSlide 1.25s ease-in-out infinite; }
 @keyframes tkSlide { from { transform:translateX(-110%); } to { transform:translateX(250%); } }
 
@@ -9446,7 +9446,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   box-shadow:0 8px 30px rgba(0,0,0,.04); }
 .fg .tk-empty.small { padding:44px 32px; border-radius:28px; }
 .fg .tk-eic { width:64px; height:64px; margin:0 auto 20px; border-radius:20px; display:grid; place-items:center;
-  background:rgba(46,104,255,.09); color:var(--info-t); }
+  background:var(--tint); color:var(--info-t); }
 .fg .tk-empty h2 { margin:0; font-size:26px; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
 .fg .tk-empty p { margin:12px auto 0; max-width:580px; font-size:14.5px; font-weight:500; line-height:1.65; color:var(--gray500); }
 .fg .tk-empty .tk-btn { margin-top:22px; }
@@ -9490,7 +9490,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .tk-drop { margin:20px 24px; padding:30px 20px; display:flex; flex-direction:column; align-items:center; gap:7px; text-align:center;
   border:1.5px dashed #d9dce4; border-radius:22px; background:linear-gradient(180deg,#fafbfc,#fff);
   transition:border-color .2s, background .2s; }
-.tk-drop.over { border-color:#2E68FF; background:rgba(46,104,255,.05); }
+.tk-drop.over { border-color:var(--ink); background:var(--tint); }
 .tk-drop svg { color:var(--info-t); }
 .tk-drop b { font-size:14.5px; font-weight:800; color:var(--ink); }
 .tk-drop span { font-size:12.5px; font-weight:600; color:var(--gray400); }
@@ -9509,7 +9509,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .tk-fi { width:100%; height:38px; padding:0 12px; border:1.5px solid var(--line); border-radius:11px; background:#fff;
   font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:600; color:var(--ink); outline:none;
   transition:border-color .2s, box-shadow .2s; }
-.tk-fi:focus { border-color:#2E68FF; box-shadow:var(--ring); }
+.tk-fi:focus { border-color:var(--ink); box-shadow:var(--ring); }
 .tk-fst { display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:12.5px; font-weight:700; }
 .tk-fst.ok { color:#00806c; }
 .tk-fst.work { color:#1d4ed8; }
@@ -9568,7 +9568,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   border:1.5px solid var(--line); border-radius:11px; background:#fff;
   transition:border-color .2s, box-shadow .2s; }
 .fg .tgp-find:focus-within, .tk-sheet .tgp-find:focus-within, .fl-modal .tgp-find:focus-within {
-  border-color:#2E68FF; box-shadow:var(--ring); }
+  border-color:var(--ink); box-shadow:var(--ring); }
 .fg .tgp-find svg, .tk-sheet .tgp-find svg, .fl-modal .tgp-find svg { flex:none; color:var(--gray400); }
 .fg .tgp-find input, .tk-sheet .tgp-find input, .fl-modal .tgp-find input {
   flex:1 1 auto; min-width:0; height:100%; padding:0; border:none; background:none; outline:none;
@@ -9582,11 +9582,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .tgp-make b, .tk-sheet .tgp-make b, .fl-modal .tgp-make b { font-weight:800; color:var(--ink); }
 .fg .tgp-mk, .tk-sheet .tgp-mk, .fl-modal .tgp-mk {
   display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 10px;
-  border:1px solid rgba(46,104,255,.25); border-radius:99px; background:rgba(46,104,255,.07); color:#1d4ed8;
+  border:1px solid var(--line); border-radius:99px; background:var(--tint); color:#1d4ed8;
   font-family:var(--font-jakarta), sans-serif; font-size:11.5px; font-weight:700; cursor:pointer;
   transition:background .18s, color .18s; }
 .fg .tgp-mk:hover:not(:disabled), .tk-sheet .tgp-mk:hover:not(:disabled), .fl-modal .tgp-mk:hover:not(:disabled) {
-  background:#2E68FF; color:#fff; }
+  background:var(--ink); color:var(--paper); }
 .fg .tgp-mk:disabled, .tk-sheet .tgp-mk:disabled, .fl-modal .tgp-mk:disabled { opacity:.45; pointer-events:none; }
 
 .fg .tgp-grp, .tk-sheet .tgp-grp, .fl-modal .tgp-grp { margin-top:11px; }
@@ -9684,8 +9684,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .tk-sheet .tgm-row b { flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:700;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tk-sheet .tgm-row em { flex:none; font-style:normal; font-size:11.5px; font-weight:600; color:var(--gray400); }
-.tk-sheet .tgm-edit { padding:13px 14px; border:1.5px solid rgba(46,104,255,.35); border-radius:14px;
-  background:rgba(46,104,255,.03); }
+.tk-sheet .tgm-edit { padding:13px 14px; border:1.5px solid var(--line); border-radius:14px;
+  background:var(--tint); }
 .tk-sheet .tgm-cbtn { display:flex; justify-content:flex-end; gap:9px; margin-top:12px; }
 .tk-sheet .tgm-cbtn .tk-btn { height:38px; padding:0 14px; }
 
@@ -9930,8 +9930,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   box-shadow:0 2px 6px -2px rgba(10,12,20,.18); }
 /* the library option carries the research colour when it is the live one —
    the same blue the search lines are drawn in */
-.fg .tk-modeb.on:first-child { color:#1d4ed8; border-color:rgba(46,104,255,.28);
-  box-shadow:0 2px 8px -3px rgba(46,104,255,.55); }
+.fg .tk-modeb.on:first-child { color:#1d4ed8; border-color:var(--line);
+  box-shadow:none; }
 .fg .tk-modeb:disabled { opacity:.42; cursor:not-allowed; }
 .fg .tk-modeb:focus-visible { outline:none; box-shadow:var(--ring); }
 
@@ -9997,10 +9997,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* the offer only a GENERAL answer gets: go and look in the library */
 .fg .tk-offer { display:flex; padding-left:48px; }
 .fg .tk-again { display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:99px;
-  background:rgba(46,104,255,.07); border:1px solid rgba(46,104,255,.22); color:#1d4ed8;
+  background:var(--tint); border:1px solid var(--line); color:#1d4ed8;
   font-family:var(--font-jakarta), sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
   transition:background .2s, border-color .2s, color .2s; }
-.fg .tk-again:hover { background:#2E68FF; border-color:#2E68FF; color:#fff; }
+.fg .tk-again:hover { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 
 /* ── citations: the trust mechanism, prominent without being noisy ── */
 /* ══════════════════ TIFF — THE ANSWER, AS A DOCUMENT ═════════════════════
@@ -10030,7 +10030,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    the last paragraph, so it is absent while a table or a list is mid-build
    rather than floating loose under one. */
 .fg .tmb.streaming > p:last-child::after { content:""; display:inline-block; width:2px; height:1em;
-  margin-left:3px; vertical-align:-2px; background:var(--teal-d); animation:tkCaret 1.05s steps(1) infinite; }
+  margin-left:3px; vertical-align:-2px; background:var(--ink); animation:tkCaret 1.05s steps(1) infinite; color:var(--paper); }
 @keyframes tkCaret { 0%, 50% { opacity:1; } 50.01%, 100% { opacity:0; } }
 @media (prefers-reduced-motion: reduce) { .fg .tmb.streaming > p:last-child::after { animation:none; } }
 
@@ -10145,7 +10145,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   background:linear-gradient(180deg, rgba(255,255,255,0), #fff 82%); opacity:0; transition:opacity .25s; }
 .tk-pkfade.on { opacity:1; }
 .tk-pkq { margin:0; padding:16px 18px; border-radius:16px; background:var(--tint);
-  border:1px solid #eceef2; border-left:3px solid #2E68FF; font-family:var(--font-jakarta), sans-serif;
+  border:1px solid #eceef2; border-left:3px solid var(--ink); font-family:var(--font-jakarta), sans-serif;
   font-size:13.5px; font-weight:500; line-height:1.6; color:var(--ink); white-space:pre-wrap; }
 /* the page a passage came from, when the peek is showing more than one */
 .tk-pkqp { display:block; margin-bottom:6px; font-size:10.5px; font-weight:800;
@@ -10199,7 +10199,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 @keyframes tkDraw { from{stroke-dashoffset:1;opacity:0} 25%{opacity:.55} to{stroke-dashoffset:0;opacity:.55} }
 
 /* and the pulse travelling along it, in the shelf's own colour */
-.fg .tk-line.pulse { stroke:var(--tkc, #2E68FF); stroke-width:2.5; stroke-dasharray:6 60; opacity:0;
+.fg .tk-line.pulse { stroke:var(--tkc, var(--ink)); stroke-width:2.5; stroke-dasharray:6 60; opacity:0;
   animation:tkFlow 1.5s linear .25s infinite; }
 @keyframes tkFlow { 0%{opacity:0;stroke-dashoffset:0} 20%{opacity:.85} 80%{opacity:.85} 100%{opacity:0;stroke-dashoffset:-132} }
 
@@ -10214,10 +10214,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    they used to share `.12` grey, which made "found four things" and "found
    nothing" the same line. `kept` is the settled winner: the card keeps its
    ring and its note, so the line keeps its thread — residue, not activity. */
-.fg .tk-line.lit { stroke:var(--tkc, #2E68FF); stroke-width:2.5; opacity:.9; }
+.fg .tk-line.lit { stroke:var(--tkc, var(--ink)); stroke-width:2.5; opacity:.9; }
 .fg .tk-line.hit { stroke:var(--tkc, var(--q)); opacity:.34; }
 .fg .tk-line.dim { opacity:.08; }
-.fg .tk-line.kept { stroke:var(--tkc, #2E68FF); stroke-width:2.25; opacity:.28; }
+.fg .tk-line.kept { stroke:var(--tkc, var(--ink)); stroke-width:2.25; opacity:.28; }
 .fg .tk-line.fade { opacity:0; transition:opacity .6s ease; }
 
 /* ── and what the same moments do to a shelf ── */
@@ -10225,7 +10225,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* searching: a soft sweep in Tiff blue, NOT the category colour — which shelf
    this is has no bearing on anything until the trace says so */
 .fg .tk-rcat.searching::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
-  background:linear-gradient(100deg, rgba(46,104,255,0) 34%, rgba(46,104,255,.11) 50%, rgba(46,104,255,0) 66%);
+  background:var(--tint);
   background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.5s ease-in-out infinite; }
 @keyframes tkShim { from{background-position:150% 0} to{background-position:-50% 0} }
 
@@ -10235,9 +10235,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* where the answer came from: ring and glow in the shelf's colour. Declared
    after `.tk-rcat:hover` at equal specificity on purpose — hovering the
    winning card must not take its ring away. */
-.fg .tk-rcat.winner { transform:translateY(-2px); border-color:var(--tkc, #2E68FF);
-  box-shadow:0 0 0 3px color-mix(in oklab, var(--tkc, #2E68FF) 16%, transparent),
-             0 20px 38px -22px color-mix(in oklab, var(--tkc, #2E68FF) 75%, transparent); }
+.fg .tk-rcat.winner { transform:translateY(-2px); border-color:var(--tkc, var(--ink));
+  box-shadow:none; }
 
 /* searched, nothing there — dimmed but still a way into the library */
 .fg .tk-rcat.dim { opacity:.55; }
@@ -10283,8 +10282,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    this was built for and the shape should say so without being told. */
 .wb2-tokdock { display:inline-flex; align-items:center; gap:9px; }
 .wb2-tok { display:inline-flex; align-items:stretch; height:42px; border-radius:999px;
-  background:var(--wb2-cy, #007fa8); box-shadow:0 10px 24px -12px rgba(0,127,168,.85);
-  transition:box-shadow .18s ease, transform .18s var(--ease); }
+  background:var(--wb2-cy, var(--ink)); box-shadow:0 10px 24px -12px rgba(0,127,168,.85);
+  transition:box-shadow .18s ease, transform .18s var(--ease); color:var(--paper); }
 .wb2-tok:hover { transform:translateY(-1px); box-shadow:0 14px 30px -12px rgba(0,127,168,.95); }
 .wb2-tokhalf { display:inline-flex; align-items:center; justify-content:center; width:42px;
   border:0; border-radius:999px; background:none; color:#fff; cursor:pointer;
@@ -10294,7 +10293,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-tokhalf:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tokdiv { width:1px; flex:none; margin:9px 0; background:rgba(255,255,255,.34); }
 /* the only red in the resting UI, and only once the mic is open */
-.wb2-tok.live { background:linear-gradient(90deg, var(--wb2-cy, #007fa8) 44%, var(--wb2-dan, #e0264f) 44%); }
+.wb2-tok.live { background:linear-gradient(90deg, var(--wb2-cy, var(--ink)) 44%, var(--wb2-dan, #e0264f) 44%); }
 .wb2-tok.live .wb2-tokhalf.mic { background:var(--wb2-dan, #e0264f); }
 
 /* ── the sheet ──
@@ -10336,7 +10335,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-strip { display:flex; align-items:center; gap:8px; padding:5px 5px 5px 15px;
   border:1px solid rgba(5,5,5,.10); border-radius:999px; background:#f7f8fa;
   transition:border-color .18s ease, background .18s ease; }
-.wb2-strip:focus-within { border-color:var(--wb2-cy, #007fa8); background:#fff; }
+.wb2-strip:focus-within { border-color:var(--wb2-cy, var(--ink)); background:#fff; }
 .wb2-strip.live { border-color:var(--wb2-dan, #e0264f); background:#fff; }
 .wb2-stripin { flex:1; min-width:0; border:0; background:none; outline:none; padding:7px 0;
   font-family:var(--font); font-size:13.5px; font-weight:500; color:var(--ink); }
@@ -10344,13 +10343,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-striprnd { flex:none; width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
   border:1px solid rgba(5,5,5,.10); background:#fff; color:var(--gray500); cursor:pointer;
   transition:border-color .15s ease, color .15s ease, background .15s ease; }
-.wb2-striprnd:hover:not(:disabled) { border-color:var(--wb2-cy, #007fa8); color:var(--wb2-cy, #007fa8); }
-.wb2-striprnd.go { background:var(--wb2-cy, #007fa8); border-color:var(--wb2-cy, #007fa8); color:#fff; }
-.wb2-striprnd.go:hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
+.wb2-striprnd:hover:not(:disabled) { border-color:var(--wb2-cy, var(--ink)); color:var(--wb2-cy, var(--ink)); }
+.wb2-striprnd.go { background:var(--wb2-cy, var(--ink)); border-color:var(--wb2-cy, var(--ink)); color:var(--paper); }
+.wb2-striprnd.go:hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
 .wb2-striprnd:disabled { background:rgba(5,5,5,.05); border-color:rgba(5,5,5,.06); color:#a2a9b8; cursor:not-allowed; }
 .wb2-striprnd:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the review, in place — no portal, no dim, nothing covered */
-.wb2-stripopen { border:1px solid var(--wb2-cy, #007fa8); border-radius:14px; background:#fff;
+.wb2-stripopen { border:1px solid var(--wb2-cy, var(--ink)); border-radius:14px; background:#fff;
   box-shadow:var(--ring); padding:13px 14px 15px; }
 
 /* ── the cascade ──
@@ -10363,7 +10362,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-cascrow b { font-weight:800; }
 .wb2-cascn { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
   font-size:10.5px; font-weight:800; background:rgba(5,5,5,.07); color:var(--gray500); }
-.wb2-cascrow.on .wb2-cascn { background:var(--wb2-cy, #007fa8); color:#fff; }
+.wb2-cascrow.on .wb2-cascn { background:var(--wb2-cy, var(--ink)); color:var(--paper); }
 
 /* ── the quiet nudge ──
    A field mic filled the box; the words happen to contain something to do.
@@ -10372,7 +10371,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-nudge { display:flex; align-items:center; gap:9px; margin-top:8px; padding:8px 10px;
   border:1px dashed rgba(0,127,168,.45); border-radius:10px; background:rgba(0,127,168,.06);
   color:var(--gray700); font-size:12.5px; animation:wb2NudgeIn .3s var(--ease) both; }
-.wb2-nudge > svg { color:var(--wb2-cy, #007fa8); flex:none; }
+.wb2-nudge > svg { color:var(--wb2-cy, var(--ink)); flex:none; }
 .wb2-nudgetext { flex:1; min-width:0; }
 @keyframes wb2NudgeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion:reduce) {
@@ -10393,10 +10392,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    label; that exact bug shipped once on the capture overlay. So these two
    surfaces carry the fill themselves rather than inheriting an ancestor. */
 .wb2-stripopen .pbtn:not(.ghost), .wb2-nudge .pbtn:not(.ghost) {
-  background:var(--wb2-cy, #007fa8); border:1px solid var(--wb2-cy, #007fa8); color:#fff;
+  background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
   font-weight:700; box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
 .wb2-stripopen .pbtn:not(.ghost):hover:not(:disabled),
-.wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:#0089b8; border-color:#0089b8; }
+.wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
 .wb2-stripopen .pbtn.ghost, .wb2-nudge .pbtn.ghost {
   background:#fff; border:1px solid rgba(5,5,5,.12); color:var(--gray700); font-weight:700; }
 .wb2-stripopen .pbtn:disabled, .wb2-nudge .pbtn:disabled {
@@ -10421,7 +10420,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 
 /* ── the KB curation queue ── */
 .fg .adm-badge { flex:none; margin-right:10px; padding:4px 10px; border-radius:999px;
-  background:rgba(0,127,168,.12); color:#007fa8; font-size:11.5px; font-weight:800; }
+  background:rgba(0,127,168,.12); color:var(--ink); font-size:11.5px; font-weight:800; }
 .wb2-kbqrow { display:grid; gap:7px; padding:16px 18px; border-bottom:1px solid rgba(5,5,5,.06); }
 .wb2-kbqrow:last-child { border-bottom:0; }
 .wb2-kbqhead { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
@@ -10439,12 +10438,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .wb2-anstools { display:flex; flex-wrap:wrap; gap:6px; }
 .wb2-anstool { display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
   border-radius:999px; border:1px solid rgba(0,127,168,.25); background:rgba(0,127,168,.07);
-  font-size:11.5px; font-weight:700; color:#007fa8; }
+  font-size:11.5px; font-weight:700; color:var(--ink); }
 .wb2-anstext { margin:0; font-size:14.5px; line-height:1.65; color:var(--ink);
   white-space:pre-wrap; overflow-wrap:anywhere; min-height:24px; }
 .wb2-anscursor { display:inline-block; width:2px; height:15px; margin-left:2px;
-  vertical-align:text-bottom; background:var(--wb2-cy, #007fa8);
-  animation:wb2CursorBlink 1s steps(2, start) infinite; }
+  vertical-align:text-bottom; background:var(--wb2-cy, var(--ink));
+  animation:wb2CursorBlink 1s steps(2, start) infinite; color:var(--paper); }
 @keyframes wb2CursorBlink { to { visibility:hidden; } }
 @media (prefers-reduced-motion:reduce) { .wb2-anscursor { animation:none; } }
 
@@ -10671,7 +10670,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 /* ── the press, on the button itself: flare, then the burst the sheet grows
    out of. The wash is a child so it scales from the button's own centre. ── */
 .tiffbtn-burst { position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
-  background:radial-gradient(circle, rgba(0,229,192,.5), rgba(46,104,255,.3) 45%, rgba(138,43,226,0) 72%); }
+  background:radial-gradient(circle, var(--tint-2), var(--tint-2) 45%, var(--tint) 72%); }
 @keyframes tiffBurst { from { opacity:.9; transform:scale(.6); } to { opacity:0; transform:scale(14); } }
 .tiffbtn.lit .tiffbtn-burst { animation:tiffBurst .55s var(--ease) both; }
 .tiffbtn.lit .tiffbtn-halo { animation:none; opacity:1; filter:blur(12px); }
@@ -11182,9 +11181,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
    teal the chip they pressed was wearing, held for a beat and released. Not
    the ok/warn/danger families — nothing has happened to the task. */
 @keyframes hm-tkfl {
-  0% { background:rgba(0,229,192,.20); box-shadow:inset 0 0 0 1px rgba(0,229,192,.45); }
-  70% { background:rgba(0,229,192,.13); box-shadow:inset 0 0 0 1px rgba(0,229,192,.3); }
-  100% { background:rgba(0,229,192,0); box-shadow:inset 0 0 0 1px rgba(0,229,192,0); }
+  0% { background:var(--tint-2); box-shadow:none; }
+  70% { background:var(--tint-2); box-shadow:none; }
+  100% { background:var(--tint); box-shadow:none; }
 }
 .fg .hm-card .hm-tkfl { animation:hm-tkfl 1.8s ease-out both; }
 @media (prefers-reduced-motion: reduce) {
@@ -11982,7 +11981,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
   font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
   --vm-muted:#8a92a1; --vm-faint:#b3bac4; --vm-sunk:#f7f8fa; --vm-sunk-h:#f1f3f6; --vm-chip:#f4f6f8; --vm-chip-h:#e9ecf0;
   --vm-line:#eef0f3; --vm-line2:#eceef2; --vm-rule:#e6e9ee; --vm-border:#e2e5ea;
-  --vm-ok-bg:rgba(0,229,192,.10); --vm-ok-bg2:rgba(0,229,192,.16); --vm-ok-line:rgba(0,163,137,.30);
+  --vm-ok-bg:var(--tint); --vm-ok-bg2:var(--tint-2); --vm-ok-line:var(--tint-2);
   --vm-warn-bg:rgba(240,164,49,.13); --vm-warn-line:rgba(240,164,49,.38); }
 .vm { width:720px; max-width:100%; background:#fff; border-radius:28px; box-shadow:0 32px 80px rgba(0,0,0,.45); overflow:hidden;
   animation:flPop .3s var(--ease); color:var(--ink); }
@@ -12325,7 +12324,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .fg .licadd-tile { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px;
   min-height:150px; padding:22px; border:1.5px dashed #d7dbe2; border-radius:20px; background:#fff;
   text-align:left; transition:border-color .15s, background .15s; }
-.fg .licadd-tile:hover { border-color:var(--ink); background:var(--ok-bg, rgba(0,229,192,.06)); }
+.fg .licadd-tile:hover { border-color:var(--ink); background:var(--ok-bg, var(--tint)); }
 .fg .licadd-tile .ci { display:flex; align-items:center; justify-content:center; width:34px; height:34px;
   border-radius:11px; background:#f4f6f8; color:var(--ink); margin-bottom:6px; }
 .fg .licadd-tile b { font-size:14.5px; font-weight:700; color:var(--ink); }

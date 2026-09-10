@@ -166,7 +166,7 @@
   outline: none; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); transition: all 0.2s;
   font-family: var(--font); appearance: none;
 }
-.fg .tool .tin:focus { box-shadow: 0 0 0 4px var(--tool-ring, rgba(0, 229, 192, 0.18)); border-color: var(--tool-accent, var(--teal)); }
+.fg .tool .tin:focus { box-shadow:none; border-color: var(--ink); }
 .fg .tool .tin::placeholder { color: #c3c8d1; font-weight: 500; }
 /* clear the example value on focus — with center-aligned fields the caret
    otherwise blinks right on top of the placeholder digit */
@@ -198,9 +198,9 @@
 }
 .fg .tool .tchip:hover { border-color: #d4d8e0; color: var(--ink); }
 .fg .tool .tchip.on {
-  background: var(--tool-accent-soft, rgba(0, 229, 192, 0.12));
-  border-color: var(--tool-accent, var(--teal));
-  color: var(--tool-accent-ink, var(--teal-d));
+  background: var(--tool-accent-soft, var(--tint-2));
+  border-color: var(--ink);
+  color: var(--tool-accent-ink, var(--ink));
 }
 .fg .tool .tchip:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -209,7 +209,7 @@
 .fg .tool .ttog .tr { width: 38px; height: 22px; border-radius: 999px; background: var(--line); position: relative; transition: background 0.25s; flex: 0 0 auto; }
 .fg .tool .ttog .tr::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transition: transform 0.25s; }
 .fg .tool .ttog input { display: none; }
-.fg .tool .ttog input:checked + .tr { background: var(--tool-accent, var(--teal)); }
+.fg .tool .ttog input:checked + .tr { background: var(--ink); color:var(--paper); }
 .fg .tool .ttog input:checked + .tr::after { transform: translateX(16px); }
 .fg .tool .ttog .tl { font-size: 13.5px; font-weight: 700; color: var(--gray700); }
 
@@ -245,21 +245,21 @@
 .fg .tool .hl2-in { font-size: 20px; font-weight: 800; padding: 12px 10px; text-align: center; letter-spacing: -0.01em; }
 .fg .tool .tunit .hl2-in { padding-right: 32px; }
 .fg .tool .hl2-dims .tunit .u { right: 10px; }
-.fg .tool .hl2-mode { margin-top: 12px; background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font); font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--teal-d)); }
+.fg .tool .hl2-mode { margin-top: 12px; background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font); font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--ink)); }
 .fg .tool .hl2-mode:hover { text-decoration: underline; }
 .fg .tool .hl2-hero { text-align: center; padding: 22px 26px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: radial-gradient(120% 160% at 50% 0%, #0d2b26 0%, #050505 65%), var(--ink); border: 1px solid rgba(255, 255, 255, 0.06); }
 @media (max-width: 900px) { .fg .tool .hl2-hero { min-height: 200px; } }
-.fg .tool .hl2-hero .gl { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 240px; height: 200px; border-radius: 50%; background: var(--tool-accent, var(--teal)); filter: blur(90px); opacity: 0.35; pointer-events: none; }
+.fg .tool .hl2-hero .gl { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 240px; height: 200px; border-radius: 50%; background: var(--ink); filter: blur(90px); opacity: 0.35; pointer-events: none; color:var(--paper); }
 .fg .tool .hl2-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .hl2-hero .big { font-size: 52px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
 .fg .tool .hl2-hero .big small { font-size: 22px; font-weight: 800; color: rgba(255, 255, 255, 0.65); margin-left: 6px; }
 .fg .tool .hl2-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
 .fg .tool .hl2-hero .big.empty small { color: rgba(255, 255, 255, 0.22); }
 .fg .tool .hl2-hero .cls { margin-top: 14px; font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); }
-.fg .tool .hl2-hero .cls b { color: var(--tool-accent, var(--teal)); font-weight: 800; }
-.fg .tool .hl2-hero .cls a { color: var(--tool-accent, var(--teal)); font-weight: 800; text-decoration: none; }
+.fg .tool .hl2-hero .cls b { color: var(--ink); font-weight: 800; }
+.fg .tool .hl2-hero .cls a { color: var(--ink); font-weight: 800; text-decoration: none; }
 .fg .tool .hl2-hero .cls a:hover { text-decoration: underline; }
 .fg .tool .hl2-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
 .fg .tool .hl2-hero .meta { margin-top: 10px; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.45); }
@@ -333,7 +333,7 @@
 /* multiplier segments — the ×factor rides under each option */
 .fg .tool .mseg button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 6px 6px; line-height: 1.2; }
 .fg .tool .mseg button .m { font-size: 10px; font-weight: 700; color: var(--gray400); }
-.fg .tool .mseg button.on .m { color: var(--tool-accent-ink, var(--teal-d)); }
+.fg .tool .mseg button.on .m { color: var(--tool-accent-ink, var(--ink)); }
 /* orientation chips: equal-width, single row — no orphan NW wrap */
 .fg .tool .hl2-adv .tchips { flex-wrap: nowrap; gap: 6px; }
 .fg .tool .hl2-adv .tchip { flex: 1; min-width: 0; padding: 5px 0; text-align: center; font-size: 11.5px; }
@@ -365,13 +365,13 @@
 .fg .tool .rp2-facts { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; font-size: 12.5px; font-weight: 600; color: var(--gray500); }
 .fg .tool .rp2-facts b { font-size: 14px; font-weight: 800; }
 .fg .tool .rp2-facts .sep { color: #d4d8e0; }
-.fg .tool .rp2-facts .glide { color: #8A2BE2; font-weight: 700; }
+.fg .tool .rp2-facts .glide { color: var(--ink); font-weight: 700; }
 
 /* the manifold view — low side blue, high side red */
 .fg .tool .rp2-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 720px) { .fg .tool .rp2-sides { grid-template-columns: 1fr; } }
 .fg .tool .rp2-side { border-radius: 18px; padding: 16px 18px; border: 1px solid; }
-.fg .tool .rp2-side.low { background: rgba(46, 104, 255, 0.05); border-color: rgba(46, 104, 255, 0.22); }
+.fg .tool .rp2-side.low { background: var(--tint); border-color: var(--line); }
 .fg .tool .rp2-side.high { background: rgba(255, 51, 102, 0.045); border-color: rgba(255, 51, 102, 0.2); }
 .fg .tool .rp2-side .hdr { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
 .fg .tool .rp2-side .hdr .hose { width: 22px; height: 8px; border-radius: 999px; flex: 0 0 auto; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
@@ -406,7 +406,7 @@
 
 /* troubleshoot: diagnosis card */
 .fg .tool .rp2-dx { border-left: 4px solid var(--gray400); }
-.fg .tool .rp2-dx.ok { border-left-color: #00A389; }
+.fg .tool .rp2-dx.ok { border-left-color: var(--ok-t); }
 .fg .tool .rp2-dx.watch { border-left-color: #FF8A00; }
 .fg .tool .rp2-dx.fault { border-left-color: #FF3366; }
 .fg .tool .rp2-reads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
@@ -439,7 +439,7 @@
 .fg .tool .rp-table tr:last-child td { border-bottom: 0; }
 .fg .tool .rp-table td:first-child { text-align: left; font-weight: 800; color: var(--ink); }
 .fg .tool .rp-table td.sel { color: var(--ink); font-weight: 800; background: var(--tool-accent-soft, rgba(255, 51, 102, 0.05)); }
-.fg .tool .rp-table tr.evap td:first-child { box-shadow: inset 3px 0 0 #2e68ff; }
+.fg .tool .rp-table tr.evap td:first-child { box-shadow:none; }
 .fg .tool .rp-table tr.cond td:first-child { box-shadow: inset 3px 0 0 #ff3366; }
 .fg .tool .rp-res { margin-top: 14px; padding: 16px; border-radius: 16px; background: var(--tint); border: 1px solid #eef0f4; }
 .fg .tool .rp-res .val { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
@@ -672,7 +672,7 @@
   background: #fff; border-color: var(--st-line);
   box-shadow: 0 0 0 1px var(--st-line), 0 10px 22px -14px rgba(10, 12, 20, 0.4);
 }
-.fg .tool .oup-row.yes { --st: #00a389; --st-line: rgba(0, 163, 137, 0.42); }
+.fg .tool .oup-row.yes { --st: var(--ink); --st-line: var(--tint-2); }
 .fg .tool .oup-row.no { --st: #e0264f; --st-line: rgba(224, 38, 79, 0.4); }
 .fg .tool .oup-row .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--gray400); transition: background 0.15s; }
 .fg .tool .oup-row.yes .dot, .fg .tool .oup-row.no .dot { background: var(--st); }
@@ -681,7 +681,7 @@
 .fg .tool .oup-row .tseg { flex: 0 0 auto; padding: 3px; border-radius: 10px; background: #eceef1; }
 .fg .tool .oup-row.yes .tseg, .fg .tool .oup-row.no .tseg { background: var(--tint); }
 .fg .tool .oup-row .tseg button { padding: 5px 11px; font-size: 11.5px; border-radius: 7px; }
-.fg .tool .oup-row.yes .tseg button.on { color: #00a389; }
+.fg .tool .oup-row.yes .tseg button.on { color: var(--ink); }
 .fg .tool .oup-row.no .tseg button.on { color: #e0264f; }
 
 /* the answer — the heat-load hero, recoloured by verdict */
@@ -693,8 +693,8 @@
 .fg .tool .oup-hero { text-align: center; padding: 22px 24px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background:
-    radial-gradient(circle 320px at 14% 16%, rgba(0, 229, 192, 0.13), transparent 70%),
-    radial-gradient(circle 280px at 82% 78%, rgba(46, 104, 255, 0.12), transparent 70%),
+    radial-gradient(circle 320px at 14% 16%, var(--tint-2), transparent 70%),
+    radial-gradient(circle 280px at 82% 78%, var(--tint-2), transparent 70%),
     #050505;
   background-attachment: fixed, fixed, scroll;
   border: 0;
@@ -702,14 +702,14 @@
 .fg .tool .oup-hero .bar, .fg .tool .oup-hero .cls { width: 100%; }
 .fg .tool .oup-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .oup-hero .big { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
-.fg .tool .oup-hero.clear .big { color: var(--tool-accent, var(--teal)); }
+.fg .tool .oup-hero.clear .big { color: var(--ink); }
 .fg .tool .oup-hero.stop .big { color: #ff6b8f; }
 .fg .tool .oup-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
 .fg .tool .oup-hero .cls { margin-top: 12px; font-size: 13.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); line-height: 1.5; }
 .fg .tool .oup-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
 .fg .tool .oup-hero .bar { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-top: 16px; }
 .fg .tool .oup-hero .bar i { display: block; height: 100%; border-radius: 999px; background: currentColor; transition: width 0.3s; }
-.fg .tool .oup-hero.clear .bar i { background: var(--tool-accent, var(--teal)); }
+.fg .tool .oup-hero.clear .bar i { background: var(--ink); color:var(--paper); }
 .fg .tool .oup-hero.stop .bar i { background: #ff6b8f; }
 .fg .tool .oup-hero.wait .bar i { background: rgba(255, 255, 255, 0.4); }
 .fg .tool .oup-hero .meta { margin-top: 9px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
@@ -784,5 +784,5 @@
 .fg .tool .oup-dia .dim .tick { stroke-width: 1.2; opacity: 0.5; }
 .fg .tool .oup-dia .dim .head { fill: var(--m); stroke: none; }
 .fg .tool .oup-dia .dim .dim-t { fill: var(--m); font-size: 12.5px; font-weight: 800; }
-.fg .tool .oup-dia .mk-ok { --m: #00a389; }
+.fg .tool .oup-dia .mk-ok { --m: var(--ink); }
 .fg .tool .oup-dia .mk-bad { --m: #e0264f; }

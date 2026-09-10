@@ -221,6 +221,17 @@ describe("the period header", () => {
     expect(container.querySelector(".autosub")).toBeNull();
   });
 
+  /* ONCE. A past period said "This period is closed." in the week card AND in
+     the locked day panel beside it — the same sentence twice, a few inches
+     apart. The card is where the period's state lives; the day just shows what
+     it was, with no empty line left behind. */
+  it("says a closed period is closed once, not again on the day", () => {
+    const { container } = renderSheet({ periodIndex: 1 });
+    expect(screen.getAllByText("This period is closed.")).toHaveLength(1);
+    expect(container.querySelector(".mts2-elock")).not.toBeNull();
+    expect(container.querySelector(".mts2-elock em")).toBeNull();
+  });
+
   it("says nothing about money — not a rate, not a gross, not a dollar sign", () => {
     const { container } = renderSheet();
     expect(container.textContent).not.toMatch(/\$/);

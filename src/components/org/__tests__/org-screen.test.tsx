@@ -62,6 +62,8 @@ const ORG: OrgSettings = {
   acn: "123456789",
   gst_registered: true,
   payment_terms_days: 14,
+  expiry_warn_days: 30,
+  expiry_email: true,
   email: "office@smithair.com.au",
   phone: "(03) 9000 0000",
   website: "smithair.com.au",
@@ -164,7 +166,7 @@ function setup(
       account={over.account === undefined ? ACCOUNT : over.account}
       ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       initialSec={over.sec}
       addressLookup={over.addressLookup ?? false}
       actions={actions}
@@ -323,7 +325,7 @@ describe("your business", () => {
         credentials={CREDENTIALS}
         account={ACCOUNT}
         logoUrl="https://signed.example/logo.png"
-        today={TODAY}
+        today={TODAY} warnDays={30}
         initialSec="brand"
         actions={{
           onSave: jest.fn(),
@@ -367,6 +369,8 @@ describe("your business", () => {
       "ACN",
       "GST",
       "Payment terms",
+      "Expiry warnings",
+      "Morning email",
       "Website",
     ]);
 
@@ -379,8 +383,19 @@ describe("your business", () => {
     const RENAMED: Record<string, string> = {
       "GST registered": "GST",
       "Payment terms (days)": "Payment terms",
+      "Warn before an expiry (days)": "Expiry warnings",
+      "Email the morning list": "Morning email",
     };
     expect(labels().map((l) => RENAMED[l] ?? l)).toEqual(inRead);
+  });
+
+  /* THE EXPIRY WINDOW reads back as two rows and edits as two fields — the
+     one setting that replaced six hard-coded 30s and every per-card Remind me
+     (issue #640). */
+  it("reads the expiry window back beside payment terms", () => {
+    setup({ sec: "identity" });
+    expect(screen.getByText("30 days before")).toBeInTheDocument();
+    expect(screen.getByText("Sent each morning")).toBeInTheDocument();
   });
 
   /* The hints the redesign deleted. They explained the software to itself; the

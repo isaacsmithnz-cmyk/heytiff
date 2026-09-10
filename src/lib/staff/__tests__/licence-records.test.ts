@@ -26,6 +26,7 @@ import {
    history. Before this, the only way to renew a ticket was to delete it and
    add it again. */
 
+const WARN = 30; // the org window every fixture here assumes
 const TODAY = "2026-07-24";
 
 const rec = (over: Partial<StaffLicenceRecord> = {}): StaffLicenceRecord => ({
@@ -107,21 +108,21 @@ describe("the paperwork under a term", () => {
 describe("what the status says", () => {
   it("treats nothing-recorded as its own state, never as ok", () => {
     // silence about a ticket is not evidence the person holds one
-    expect(termState(null, TODAY)).toBe("none");
+    expect(termState(null, TODAY, WARN)).toBe("none");
     expect(licenceDays(null, TODAY)).toBeNull();
     expect(termStatusText(null)).toBe("No expiry recorded");
   });
 
   it("warns inside the same window the card's pill and the dashboard chip use", () => {
-    expect(termState("2026-08-07", TODAY)).toBe("warn"); // 14 days out
-    expect(termState("2027-08-07", TODAY)).toBe("ok");
-    expect(termState("2026-07-01", TODAY)).toBe("bad");
+    expect(termState("2026-08-07", TODAY, WARN)).toBe("warn"); // 14 days out
+    expect(termState("2027-08-07", TODAY, WARN)).toBe("ok");
+    expect(termState("2026-07-01", TODAY, WARN)).toBe("bad");
   });
 
   it("says the plain thing in the headline", () => {
-    expect(termHeadline("2027-08-07", TODAY)).toBe("Current");
-    expect(termHeadline(null, TODAY)).toBe("No expiry recorded");
-    expect(termHeadline("2026-07-01", TODAY)).toMatch(/^Expired /);
+    expect(termHeadline("2027-08-07", TODAY, WARN)).toBe("Current");
+    expect(termHeadline(null, TODAY, WARN)).toBe("No expiry recorded");
+    expect(termHeadline("2026-07-01", TODAY, WARN)).toMatch(/^Expired /);
   });
 });
 
@@ -216,5 +217,17 @@ describe("the reminder's words", () => {
     expect(licenceReminderDetail("2026-08-07", 30)).toBe("Expires 7 Aug 2026 · 30 days' notice");
     expect(licenceReminderDetail("2026-08-07", 1)).toBe("Expires 7 Aug 2026 · 1 day's notice");
     expect(licenceReminderDetail("2026-08-07", 0)).toBe("Expires 7 Aug 2026");
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("is quiet at 14 days and warns at 30 for the same expiry", () => {
+    expect(termState("2026-08-13", TODAY, 14)).toBe("ok"); // 20 days out
+    expect(termState("2026-08-13", TODAY, 30)).toBe("warn");
+    expect(termHeadline("2026-08-13", TODAY, 14)).toBe("Current");
   });
 });

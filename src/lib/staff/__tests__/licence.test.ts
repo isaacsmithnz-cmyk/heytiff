@@ -42,23 +42,24 @@ describe("buildLicenceRow", () => {
 });
 
 describe("licenceStatus", () => {
-  const TODAY = "2026-07-24";
+  const WARN = 30; // the org window every fixture here assumes
+const TODAY = "2026-07-24";
 
   it("reads 'No expiry' when none is set", () => {
-    expect(licenceStatus(null, TODAY)).toEqual({ label: "No expiry", tone: "mute" });
+    expect(licenceStatus(null, TODAY, WARN)).toEqual({ label: "No expiry", tone: "mute" });
   });
 
   it("is bad once past", () => {
-    expect(licenceStatus("2026-07-10", TODAY)).toEqual({ label: "Expired", tone: "bad" });
+    expect(licenceStatus("2026-07-10", TODAY, WARN)).toEqual({ label: "Expired", tone: "bad" });
   });
 
   it("warns inside the 30-day window, matching the dashboard chip", () => {
-    expect(licenceStatus("2026-08-07", TODAY)).toEqual({ label: "Expires in 2 weeks", tone: "warn" });
-    expect(licenceStatus(TODAY, TODAY)).toEqual({ label: "Expires today", tone: "warn" });
+    expect(licenceStatus("2026-08-07", TODAY, WARN)).toEqual({ label: "Expires in 2 weeks", tone: "warn" });
+    expect(licenceStatus(TODAY, TODAY, WARN)).toEqual({ label: "Expires today", tone: "warn" });
   });
 
   it("is valid comfortably out", () => {
-    expect(licenceStatus("2027-01-01", TODAY)).toEqual({ label: "Valid", tone: "ok" });
+    expect(licenceStatus("2027-01-01", TODAY, WARN)).toEqual({ label: "Valid", tone: "ok" });
   });
 });
 
@@ -93,5 +94,16 @@ describe("credBadgeCode", () => {
   it("has something to show for a blank name", () => {
     expect(credBadgeCode("").code).toBe("—");
     expect(credBadgeCode(null).code).toBe("—");
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("is quiet at 14 days and warns at 30 for the same expiry", () => {
+    expect(licenceStatus("2026-08-13", "2026-07-24", 14).tone).toBe("ok"); // 20 days out
+    expect(licenceStatus("2026-08-13", "2026-07-24", 30).tone).toBe("warn");
   });
 });

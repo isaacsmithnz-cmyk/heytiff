@@ -110,7 +110,7 @@ function detail(vehicle: Vehicle) {
       finance={[]}
       reminders={[]}
       staff={[]}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       fleet={actions()}
       onClose={jest.fn()}
       onEdit={jest.fn()}
@@ -152,7 +152,7 @@ it("still opens when no service is anywhere near due", async () => {
 
 it("lists the services and leaves the fuel, odometer and issues out of it", () => {
   render(
-    <ServiceHistoryModal vehicle={van} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
+    <ServiceHistoryModal vehicle={van} warnDays={30} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
   );
   expect(screen.getByText("Service — 100,000 km major")).toBeInTheDocument();
   expect(screen.getByText("Service — 90,000 km minor")).toBeInTheDocument();
@@ -163,7 +163,7 @@ it("lists the services and leaves the fuel, odometer and issues out of it", () =
 
 it("tags no service Current or Previous — a service supersedes nothing", () => {
   render(
-    <ServiceHistoryModal vehicle={van} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
+    <ServiceHistoryModal vehicle={van} warnDays={30} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
   );
   expect(screen.queryByText("Current")).not.toBeInTheDocument();
   expect(screen.queryByText("Previous")).not.toBeInTheDocument();
@@ -171,7 +171,7 @@ it("tags no service Current or Previous — a service supersedes nothing", () =>
 
 it("shows the cycle the services set", () => {
   render(
-    <ServiceHistoryModal vehicle={van} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
+    <ServiceHistoryModal vehicle={van} warnDays={30} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
   );
   expect(screen.getByText("in 1,625 km")).toBeInTheDocument(); // 100,000 + 10,000 − 108,375
   expect(screen.getByText("110,000 km")).toBeInTheDocument(); // due at
@@ -182,7 +182,7 @@ it("says none are logged rather than claiming the vehicle was never serviced", (
   // hand — an empty log list does not license the stronger claim
   render(
     <ServiceHistoryModal
-      vehicle={van}
+      vehicle={van} warnDays={30}
       logs={mixed.filter((l) => l.kind !== "service")}
       onAdd={jest.fn()}
       onClose={jest.fn()}
@@ -221,7 +221,7 @@ it("returns to the service history after logging one, not to the vehicle card", 
   };
   global.fetch = jest.fn(async () => ({ ok: false })) as unknown as typeof fetch;
 
-  render(<FleetRegister fleet={fleet} staff={[]} today={TODAY} />);
+  render(<FleetRegister fleet={fleet} staff={[]} today={TODAY} warnDays={30} />);
   const user = userEvent.setup();
 
   await user.click(screen.getByText("WORK TRITON"));

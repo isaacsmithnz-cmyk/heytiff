@@ -1,3 +1,4 @@
+import { EXPIRY_WARN_ERROR } from "@/lib/expiry";
 import {
   AU_STATES,
   ORG_EDITABLE_SECTIONS,
@@ -13,6 +14,8 @@ import {
   readPaymentTerms,
   MAX_PAYMENT_TERMS_DAYS,
   PAYMENT_TERMS_ERROR,
+  expiryEmailLabel,
+  expiryWarnLabel,
 } from "../settings";
 
 describe("section guard", () => {
@@ -238,5 +241,41 @@ describe("the terms column is writable from the identity card", () => {
 
   it("is not reachable from the contact card", () => {
     expect(buildOrgPatch("contact", [["payment_terms_days", "14"]]).patch).toEqual({});
+  });
+});
+
+
+/* THE EXPIRY WINDOW rides the identity card beside payment terms, and is the
+   one setting that replaced six hard-coded 30s and every per-card Remind me
+   (issue #640). NOT NULL in the table, so a cleared box is refused — unlike
+   terms, where blank is the honest "unset". */
+describe("the expiry window", () => {
+  it("is in the identity section, both halves", () => {
+    expect(buildOrgPatch("identity", [["expiry_warn_days", "14"], ["expiry_email", "No"]]).patch).toEqual({
+      expiry_warn_days: "14",
+      expiry_email: "No",
+    });
+  });
+
+  it("refuses a window the column's CHECK would refuse, with the action's own wording", () => {
+    for (const bad of ["", "0", "366", "-14", "1.5", "thirty"]) {
+      expect(preValidateOrg("identity", { expiry_warn_days: bad })).toEqual({
+        error: EXPIRY_WARN_ERROR,
+        fields: ["expiry_warn_days"],
+      });
+    }
+  });
+
+  it("passes a whole number of days, and a patch that leaves the window alone", () => {
+    expect(preValidateOrg("identity", { expiry_warn_days: "14" })).toBeNull();
+    expect(preValidateOrg("identity", { expiry_warn_days: "365" })).toBeNull();
+    expect(preValidateOrg("identity", { trading_name: "Smith Air" })).toBeNull();
+  });
+
+  it("reads back as two rows, one per edit field", () => {
+    expect(expiryWarnLabel(30)).toBe("30 days before");
+    expect(expiryWarnLabel(1)).toBe("1 day before");
+    expect(expiryEmailLabel(true)).toBe("Sent each morning");
+    expect(expiryEmailLabel(false)).toBe("Off — the bell only");
   });
 });

@@ -26,6 +26,7 @@ function setup(actions: ReturnType<typeof okActions>) {
     licences: [],
     vehicle: null,
     today: TODAY,
+    warnDays: 30,
     org: "Smith Air",
     actions,
   };
@@ -205,7 +206,7 @@ describe("pre-validation", () => {
         profile={jordan}
         licences={[]}
         vehicle={null}
-        today={TODAY}
+        today={TODAY} warnDays={30}
         org="Smith Air"
         adminExtras={{ payroll: { hourly_wage: 45 }, permissions: adminCtx }}
         actions={actions}

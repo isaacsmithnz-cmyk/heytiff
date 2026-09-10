@@ -10,7 +10,7 @@ import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-qu
 import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
-import { listOrgCredentials } from "@/lib/org/query";
+import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
@@ -362,7 +362,7 @@ async function loadChips(
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
-  const [teamPeople, orgCredentials, fleet, pendingClaims, pendingLeave] = await Promise.all([
+  const [teamPeople, orgCredentials, fleet, pendingClaims, pendingLeave, expiry] = await Promise.all([
     caps.has("team") ? listStaffCompliance(orgId) : Promise.resolve([] as StaffCompliance[]),
     // every card, not the soonest policy — the bell shows each one inside the window
     caps.has("team") ? listOrgCredentials(orgId) : Promise.resolve([] as OrgCredential[]),
@@ -371,11 +371,14 @@ async function loadChips(
     caps.has("approvals") ? pendingClaimsCount(orgId) : Promise.resolve(0),
     // the other queue that belongs to whoever can decide it
     caps.has("approvals") ? pendingLeaveCount(orgId) : Promise.resolve(0),
+    // ONE NUMBER for every chip below — lib/expiry.ts
+    orgExpiryWindow(orgId),
   ]);
 
   return assembleChips(
     {
       today,
+      warnDays: expiry.warnDays,
       viewerStaffId,
       self: selfList[0] ?? null,
       selfVehicle,

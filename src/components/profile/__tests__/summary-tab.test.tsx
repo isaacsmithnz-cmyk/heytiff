@@ -77,7 +77,7 @@ function setup(
       profile={over.profile ?? jordan}
       licences={over.licences ?? []}
       vehicle={over.vehicle ?? null}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       org="Smith Air"
       // `in`, not `??` — passing null explicitly means "the org has no state",
       // and `?? "NSW"` would quietly give it one

@@ -1,3 +1,4 @@
+import { DEFAULT_EXPIRY_WINDOW, expiryWarnDaysFrom, type ExpiryWindow } from "@/lib/expiry";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { signOne } from "@/lib/documents/query";
 import { isCredKind, sortOrgCredentials, type OrgCredential } from "./credentials";
@@ -245,6 +246,24 @@ export async function orgSetupPending(orgId: string): Promise<boolean> {
     RAISED and nothing about when it is due. A read that errored must land
     on the same silence, never on a guessed fortnight that would call
     somebody late. */
+/* THE EXPIRY WINDOW — read once per request by every loader that hands
+   `today` to a screen, and passed to the pure rules beside it. Fails soft to
+   the default the six constants all were, which is also the column's own
+   default, so a workspace that has not taken the migration warns exactly as
+   it always did. */
+export async function orgExpiryWindow(orgId: string): Promise<ExpiryWindow> {
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("expiry_warn_days, expiry_email")
+    .eq("id", orgId)
+    .maybeSingle();
+  const row = data as { expiry_warn_days?: unknown; expiry_email?: unknown } | null;
+  return {
+    warnDays: expiryWarnDaysFrom(row?.expiry_warn_days),
+    email: typeof row?.expiry_email === "boolean" ? row.expiry_email : DEFAULT_EXPIRY_WINDOW.email,
+  };
+}
+
 export async function orgPaymentTermsDays(orgId: string): Promise<number | null> {
   const { data } = await supabaseAdmin
     .from("organizations")

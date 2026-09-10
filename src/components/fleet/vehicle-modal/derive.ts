@@ -16,11 +16,8 @@ import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import { dateFromDays } from "@/lib/fleet/map";
 import {
-  CTP_WARN_DAYS,
   FINANCE_KIND_LABEL,
-  INSURANCE_WARN_DAYS,
   PAYMENTS_PER_YEAR,
-  REGO_WARN_DAYS,
   expiryState,
   fmtKm,
   fmtCost,
@@ -66,19 +63,13 @@ const DAYS: Record<RenewalKind, (v: Vehicle) => number | null> = {
   ctp: (v) => v.ctpDays,
 };
 
-const WARN: Record<RenewalKind, number> = {
-  rego: REGO_WARN_DAYS,
-  insurance: INSURANCE_WARN_DAYS,
-  ctp: CTP_WARN_DAYS,
-};
-
 /** Days until this kind's cached expiry; null when nothing is recorded. */
 export const renewalDays = (v: Vehicle, kind: RenewalKind): number | null => DAYS[kind](v);
 
 /** The vehicle's state for this kind — the SAME rule the chips and the dashboard
     use, so the screen can never warn about something the chip is quiet on. */
-export const renewalState = (v: Vehicle, kind: RenewalKind): ChipState =>
-  expiryState(DAYS[kind](v), WARN[kind]);
+export const renewalState = (v: Vehicle, kind: RenewalKind, warnDays: number): ChipState =>
+  expiryState(DAYS[kind](v), warnDays);
 
 /** "Renews in 3 weeks" · "Renews tomorrow" · "Expires today" · "Expired 4 days ago" · "Not set". */
 export function renewalStatusText(days: number | null): string {
@@ -130,26 +121,26 @@ export type ComplianceRow = {
   unset: boolean;
 };
 
-export function complianceRows(v: Vehicle, policies: readonly VehiclePolicy[]): ComplianceRow[] {
+export function complianceRows(v: Vehicle, policies: readonly VehiclePolicy[], warnDays: number): ComplianceRow[] {
   return (["rego", "insurance", "ctp"] as const).map((kind) => {
     const days = DAYS[kind](v);
     const policy = currentPolicy(policies, kind);
     const unset = days == null && !policy;
     const value = unset
       ? "Not set"
-      : policy?.provider && days != null && days >= 0 && days > WARN[kind]
+      : policy?.provider && days != null && days >= 0 && days > warnDays
         ? `${policy.provider} · ${fmtDay(policy.expiresOn)}`
         : renewalStatusText(days);
-    return { kind, label: RENEWAL_ROW[kind], value, state: renewalState(v, kind), unset };
+    return { kind, label: RENEWAL_ROW[kind], value, state: renewalState(v, kind, warnDays), unset };
   });
 }
 
 /** The amber bar across the top of the card — rego only, and only inside the
     warning window, because rego is the one whose lapse makes the vehicle
     illegal to drive tomorrow morning. */
-export function regoAlert(v: Vehicle): string | null {
+export function regoAlert(v: Vehicle, warnDays: number): string | null {
   const d = v.regoDays;
-  if (d == null || d > REGO_WARN_DAYS) return null;
+  if (d == null || d > warnDays) return null;
   if (d < 0) return "Rego has expired";
   if (d === 0) return "Rego expires today";
   return `Rego expires ${inLabel(d)}`;

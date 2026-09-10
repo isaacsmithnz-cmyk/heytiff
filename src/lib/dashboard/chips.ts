@@ -18,9 +18,6 @@
    on the dashboard and the same chip in Assets can't drift apart. */
 
 import {
-  CTP_WARN_DAYS,
-  INSURANCE_WARN_DAYS,
-  REGO_WARN_DAYS,
   SERVICE_WARN_KM,
   fmtKm,
   serviceDue,
@@ -29,7 +26,6 @@ import {
 } from "@/components/fleet/logic";
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
-import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
 import { isNoVisa } from "@/lib/staff/work-rights";
 
 export type ChipKind =
@@ -137,11 +133,11 @@ function expiryLabel(what: string, days: number): string {
 /** A single licence → a chip when it is expired or expiring soon, else null. */
 export function licenceChip(
   lic: { id: string; typeName: string; expiryDate: string | null },
-  ctx: { subject: string; href: string; today: string },
+  ctx: { subject: string; href: string; today: string; warnDays: number },
 ): ActionChip | null {
   if (!lic.expiryDate) return null;
   const days = daysUntil(lic.expiryDate, ctx.today);
-  if (days > EXPIRY_WARN_DAYS) return null;
+  if (days > ctx.warnDays) return null;
   const state: ActionState = days < 0 ? "bad" : "warn";
   return {
     key: `licence:${lic.id}`,
@@ -177,13 +173,13 @@ export function workRightsChips(
     visaExpiry: string | null;
     vevoCheckedAt: string | null;
   },
-  ctx: { subject: string; href: string; today: string },
+  ctx: { subject: string; href: string; today: string; warnDays: number },
 ): ActionChip[] {
   const chips: ActionChip[] = [];
 
   if (wr.visaExpiry) {
     const days = daysUntil(wr.visaExpiry, ctx.today);
-    if (days <= EXPIRY_WARN_DAYS) {
+    if (days <= ctx.warnDays) {
       const state: ActionState = days < 0 ? "bad" : "warn";
       const what = wr.visaType?.trim() || "Visa";
       chips.push({
@@ -223,11 +219,11 @@ export function workRightsChips(
 /** Rego expiry chip for a vehicle, from the same day-count the register shows. */
 export function regoChip(
   v: Pick<VehicleWithFacts, "id" | "status" | "regoDays">,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
   // no date entered, nothing to chase — see expiryState in fleet/logic.ts
-  if (v.regoDays == null || v.regoDays > REGO_WARN_DAYS) return null;
+  if (v.regoDays == null || v.regoDays > ctx.warnDays) return null;
   const state: ActionState = v.regoDays < 0 ? "bad" : "warn";
   return {
     key: `rego:${v.id}`,
@@ -243,10 +239,10 @@ export function regoChip(
 /** Insurance expiry chip for a vehicle. */
 export function insuranceChip(
   v: Pick<VehicleWithFacts, "id" | "status" | "insuranceDays">,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.insuranceDays == null || v.insuranceDays > INSURANCE_WARN_DAYS) return null;
+  if (v.insuranceDays == null || v.insuranceDays > ctx.warnDays) return null;
   const state: ActionState = v.insuranceDays < 0 ? "bad" : "warn";
   return {
     key: `insurance:${v.id}`,
@@ -267,10 +263,10 @@ export function insuranceChip(
    said so was the one we didn't send. */
 export function ctpChip(
   v: Pick<VehicleWithFacts, "id" | "status" | "ctpDays">,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.ctpDays == null || v.ctpDays > CTP_WARN_DAYS) return null;
+  if (v.ctpDays == null || v.ctpDays > ctx.warnDays) return null;
   const state: ActionState = v.ctpDays < 0 ? "bad" : "warn";
   return {
     key: `ctp:${v.id}`,
@@ -295,10 +291,10 @@ export function serviceChip(
     | "serviceDays"
     | "motorised"
   >,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  const due = serviceDue(v as VehicleWithFacts);
+  const due = serviceDue(v as VehicleWithFacts, ctx.warnDays);
   if (due.state === "ok") return null;
   const state: ActionState = due.state === "bad" ? "bad" : "warn";
   /* Whichever limit is the reason gets to word the chip. A vehicle overdue on
@@ -334,7 +330,7 @@ export function vehicleLabel(v: Pick<VehicleWithFacts, "name" | "plate">): strin
 /** All expiry/overdue chips for one vehicle, worst-first. */
 export function vehicleChips(
   v: VehicleWithFacts,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip[] {
   return sortChips(
     [regoChip(v, ctx), insuranceChip(v, ctx), ctpChip(v, ctx), serviceChip(v, ctx)].filter(
@@ -365,13 +361,13 @@ export function orgCredentialChips(
     issuer: string | null;
     expiryDate: string | null;
   }[],
-  ctx: { href: string; today: string },
+  ctx: { href: string; today: string; warnDays: number },
 ): ActionChip[] {
   const chips: ActionChip[] = [];
   for (const c of cards) {
     if (!c.expiryDate) continue;
     const days = daysUntil(c.expiryDate, ctx.today);
-    if (days > EXPIRY_WARN_DAYS) continue;
+    if (days > ctx.warnDays) continue;
     const state: ActionState = days < 0 ? "bad" : "warn";
     chips.push({
       key: `org-cred:${c.id}`,

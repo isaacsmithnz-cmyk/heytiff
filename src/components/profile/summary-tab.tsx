@@ -48,6 +48,7 @@ export function SummaryTab({
   licences,
   vehicle,
   today,
+  warnDays,
   orgState,
   mode,
   actions,
@@ -58,6 +59,7 @@ export function SummaryTab({
   licences: StaffLicence[];
   vehicle: AssignedVehicle | null;
   today: string;
+  warnDays: number;
   /** the org's home state, so an unset holiday state can be RESOLVED rather
       than described. See the Holiday state row. */
   orgState: string | null;
@@ -134,7 +136,7 @@ export function SummaryTab({
                   // wants an explicit null for "no expiry" — its status pill
                   // reads "No expiry" rather than showing a dash twice
                   expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
-                  status={licenceStatus(l.expiryDate, today)}
+                  status={licenceStatus(l.expiryDate, today, warnDays)}
                 />
               ))}
             </div>

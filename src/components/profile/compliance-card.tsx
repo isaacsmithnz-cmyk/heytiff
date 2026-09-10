@@ -36,6 +36,7 @@ export function ComplianceCard({
   documents = {},
   reminders = {},
   today,
+  warnDays,
   onAdd,
   onUpdate,
   onRemove,
@@ -55,6 +56,7 @@ export function ComplianceCard({
   documents?: Record<string, StoredDocument[]>;
   reminders?: Record<string, number[]>;
   today: string;
+  warnDays: number;
   onAdd: (input: LicenceInput, term?: LicenceTermInput) => Promise<SaveResult>;
   onUpdate: (licenceId: string, input: LicenceInput) => Promise<SaveResult>;
   onRemove: (licenceId: string) => Promise<SaveResult>;
@@ -74,7 +76,7 @@ export function ComplianceCard({
      past it. Counted from the same rule the cards' own pills use, so the line
      can never disagree with the wall under it. */
   const attention = licences.filter((l) => {
-    const state = termState(l.expiryDate, today);
+    const state = termState(l.expiryDate, today, warnDays);
     return state === "warn" || state === "bad";
   }).length;
 
@@ -105,7 +107,7 @@ export function ComplianceCard({
               typeName={l.typeName}
               licenceNumber={l.licenceNumber}
               expiry={l.expiryDate ? formatAuDate(l.expiryDate) : null}
-              status={licenceStatus(l.expiryDate, today)}
+              status={licenceStatus(l.expiryDate, today, warnDays)}
               note={terms > 1 ? `${terms} terms on file` : terms === 1 ? "1 term on file" : undefined}
               onOpen={() => setOpen(l)}
             />
@@ -143,6 +145,7 @@ export function ComplianceCard({
           documents={documents[openId] ?? []}
           reminders={reminders[openId] ?? []}
           today={today}
+          warnDays={warnDays}
           onAdd={onAdd}
           onSaveIdentity={(input) => (editing ? onUpdate(editing.id, input) : onAdd(input))}
           onDelete={() => (editing ? onRemove(editing.id) : ok())}

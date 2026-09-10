@@ -101,7 +101,7 @@ function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; po
     <RenewalScreen
       vehicle={over.vehicle ?? triton}
       kind={kind}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       documents={over.documents ?? [slipDoc]}
       policies={over.policies ?? [greenSlip, rego]}
       reminders={[]}

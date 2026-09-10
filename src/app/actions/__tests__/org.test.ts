@@ -307,3 +307,33 @@ describe("getOrgBrand", () => {
     });
   });
 });
+
+/* THE EXPIRY WINDOW — one number for everything that expires, and the email
+   switch beside it. Same conversion duty as payment terms: the form sends
+   text, the column is a smallint with a CHECK, and refusing here is what lets
+   the card say WHICH field. Unlike terms, blank is refused rather than
+   cleared — the column is NOT NULL, because a warning window has no honest
+   "we don't know". */
+describe("the expiry window", () => {
+  it("stores the window as a NUMBER, not the text the form sent", async () => {
+    await saveOrgSection("identity", { expiry_warn_days: "14" });
+    expect(update.mock.calls[0][0]).toMatchObject({ expiry_warn_days: 14 });
+  });
+
+  it("refuses a window the CHECK would refuse, before writing — blank included", async () => {
+    for (const junk of ["", "0", "366", "-14", "1.5", "thirty"]) {
+      update.mockClear();
+      const res = await saveOrgSection("identity", { expiry_warn_days: junk });
+      expect(res).toMatchObject({ ok: false, fields: ["expiry_warn_days"] });
+      expect(update).not.toHaveBeenCalled();
+    }
+  });
+
+  it("converts the email switch to a boolean", async () => {
+    await saveOrgSection("identity", { expiry_email: "No" });
+    expect(update.mock.calls[0][0]).toMatchObject({ expiry_email: false });
+    update.mockClear();
+    await saveOrgSection("identity", { expiry_email: "Yes" });
+    expect(update.mock.calls[0][0]).toMatchObject({ expiry_email: true });
+  });
+});

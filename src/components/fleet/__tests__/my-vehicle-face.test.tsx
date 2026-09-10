@@ -77,7 +77,7 @@ const nineLogs = Array.from({ length: 9 }, (_, i) => log(i + 1));
 
 it("opens on the Vehicle face — the truck, not the paperwork", () => {
   render(
-    <MyVehicleFace
+    <MyVehicleFace warnDays={30}
       own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"
@@ -91,7 +91,7 @@ it("opens on the Vehicle face — the truck, not the paperwork", () => {
 it("shows every log on its face, not the newest eight", async () => {
   const user = userEvent.setup();
   render(
-    <MyVehicleFace
+    <MyVehicleFace warnDays={30}
       own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"
@@ -111,7 +111,7 @@ it("sends each kind to its own face, and nowhere else", async () => {
     { ...log(3), kind: "service", when: "A service", note: "100,000 km" },
   ];
   render(
-    <MyVehicleFace
+    <MyVehicleFace warnDays={30}
       own={{ vehicle: vehicle(), pickable: [], logs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"
@@ -142,7 +142,7 @@ it("counts only the OPEN issues on the switch", async () => {
     { ...log(2), kind: "issue", when: "Done one", note: "Tray light", status: "resolved" },
   ];
   render(
-    <MyVehicleFace
+    <MyVehicleFace warnDays={30}
       own={{ vehicle: vehicle(), pickable: [], logs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"
@@ -158,7 +158,7 @@ it("counts only the OPEN issues on the switch", async () => {
 it("still answers when no vehicle is assigned, per face", async () => {
   const user = userEvent.setup();
   render(
-    <MyVehicleFace
+    <MyVehicleFace warnDays={30}
       own={{ vehicle: null, pickable: [], logs: [] }}
       today="2026-08-22"
       viewerStaffId={null}
@@ -177,7 +177,7 @@ it("still answers when no vehicle is assigned, per face", async () => {
 it("swaps the face in place — same panel node, no fade class", async () => {
   const user = userEvent.setup();
   const { container } = render(
-    <MyVehicleFace
+    <MyVehicleFace warnDays={30}
       own={{ vehicle: vehicle(), pickable: [], logs: nineLogs }}
       today="2026-08-22"
       viewerStaffId="jordan-mills"

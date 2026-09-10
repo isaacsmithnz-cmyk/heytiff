@@ -1,5 +1,4 @@
 import {
-  EXPIRY_WARN_DAYS,
   daysUntil,
   deriveCompliance,
   initialsFrom,
@@ -27,6 +26,8 @@ const CLEAR: WorkRightsFacts = {
 };
 /** An otherwise-blank work-rights record with the named facts filled in. */
 const wr = (over: Partial<WorkRightsFacts> = {}): WorkRightsFacts => ({ ...CLEAR, ...over });
+
+const EXPIRY_WARN_DAYS = 30; // the org window every fixture here assumes
 
 describe("yearsSince", () => {
   it("returns one decimal place", () => {
@@ -108,14 +109,14 @@ describe("daysUntil", () => {
 
 describe("deriveCompliance", () => {
   it("flags an expired licence as bad, naming it", () => {
-    const c = deriveCompliance([lic("White Card", "2026-07-16")], CLEAR, NOW);
+    const c = deriveCompliance([lic("White Card", "2026-07-16")], CLEAR, EXPIRY_WARN_DAYS, NOW);
     expect(c.state).toBe("bad");
     expect(c.label).toBe("White Card expired");
     expect(c.expiresDays).toBe(-3);
   });
 
   it("warns inside the 30-day window", () => {
-    const c = deriveCompliance([lic("ARC licence", "2026-08-02")], CLEAR, NOW);
+    const c = deriveCompliance([lic("ARC licence", "2026-08-02")], CLEAR, EXPIRY_WARN_DAYS, NOW);
     expect(c.state).toBe("warn");
     expect(c.label).toBe("ARC licence expires in 2 weeks");
     expect(c.expiresDays).toBe(14);
@@ -125,11 +126,11 @@ describe("deriveCompliance", () => {
     const at = new Date(NOW.getTime() + EXPIRY_WARN_DAYS * 86_400_000)
       .toISOString()
       .slice(0, 10);
-    expect(deriveCompliance([lic("ARC licence", at)], CLEAR, NOW).state).toBe("warn");
+    expect(deriveCompliance([lic("ARC licence", at)], CLEAR, EXPIRY_WARN_DAYS, NOW).state).toBe("warn");
   });
 
   it("is ok well beyond the window", () => {
-    const c = deriveCompliance([lic("ARC licence", "2028-01-01")], CLEAR, NOW);
+    const c = deriveCompliance([lic("ARC licence", "2028-01-01")], CLEAR, EXPIRY_WARN_DAYS, NOW);
     expect(c.state).toBe("ok");
     expect(c.label).toBe("Compliant");
   });
@@ -141,7 +142,7 @@ describe("deriveCompliance", () => {
         lic("White Card", "2026-07-27"), // soonest
         lic("ARC licence", "2027-06-01"),
       ],
-      CLEAR,
+      CLEAR, EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.label).toBe("White Card expires in 8 days");
@@ -151,7 +152,7 @@ describe("deriveCompliance", () => {
   it("prefers an expired licence over an expiring one", () => {
     const c = deriveCompliance(
       [lic("ARC licence", "2026-07-29"), lic("White Card", "2026-06-01")],
-      CLEAR,
+      CLEAR, EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.state).toBe("bad");
@@ -159,13 +160,13 @@ describe("deriveCompliance", () => {
   });
 
   it("ignores licences with no expiry recorded", () => {
-    const c = deriveCompliance([lic("Contractor licence", null)], CLEAR, NOW);
+    const c = deriveCompliance([lic("Contractor licence", null)], CLEAR, EXPIRY_WARN_DAYS, NOW);
     expect(c.label).toBe("—");
     expect(c.state).toBe("ok");
   });
 
   it("warns on work rights recorded but never VEVO-checked", () => {
-    const c = deriveCompliance([], wr({ status: "482 TSS" }), NOW);
+    const c = deriveCompliance([], wr({ status: "482 TSS" }), EXPIRY_WARN_DAYS, NOW);
     expect(c.state).toBe("warn");
     expect(c.label).toBe("Work rights unverified");
   });
@@ -176,7 +177,7 @@ describe("deriveCompliance", () => {
   it("clears once the VEVO check is recorded — the column the forms write", () => {
     const c = deriveCompliance(
       [],
-      wr({ status: "Australian citizen", vevoCheckedAt: "2026-01-01" }),
+      wr({ status: "Australian citizen", vevoCheckedAt: "2026-01-01" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.state).toBe("ok");
@@ -188,7 +189,7 @@ describe("deriveCompliance", () => {
   it("flags an expired visa, naming the visa type", () => {
     const c = deriveCompliance(
       [],
-      wr({ status: "482 TSS", visaType: "482 TSS", visaExpiry: "2026-07-16", vevoCheckedAt: "2026-01-01" }),
+      wr({ status: "482 TSS", visaType: "482 TSS", visaExpiry: "2026-07-16", vevoCheckedAt: "2026-01-01" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.state).toBe("bad");
@@ -199,7 +200,7 @@ describe("deriveCompliance", () => {
   it("warns on a visa inside the window even when every licence is in date", () => {
     const c = deriveCompliance(
       [lic("ARC licence", "2029-01-01")],
-      wr({ status: "482 TSS", visaType: "482 TSS", visaExpiry: "2026-08-02", vevoCheckedAt: "2026-01-01" }),
+      wr({ status: "482 TSS", visaType: "482 TSS", visaExpiry: "2026-08-02", vevoCheckedAt: "2026-01-01" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.state).toBe("warn");
@@ -207,21 +208,21 @@ describe("deriveCompliance", () => {
   });
 
   it("falls back to 'Visa' when no type was recorded", () => {
-    const c = deriveCompliance([], wr({ visaExpiry: "2026-07-16" }), NOW);
+    const c = deriveCompliance([], wr({ visaExpiry: "2026-07-16" }), EXPIRY_WARN_DAYS, NOW);
     expect(c.label).toBe("Visa expired");
   });
 
   it("ranks the visa against the licences, soonest first", () => {
     const soonestIsTheVisa = deriveCompliance(
       [lic("White Card", "2026-08-10")],
-      wr({ visaType: "482 TSS", visaExpiry: "2026-07-27" }),
+      wr({ visaType: "482 TSS", visaExpiry: "2026-07-27" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(soonestIsTheVisa.label).toBe("482 TSS expires in 8 days");
 
     const soonestIsTheLicence = deriveCompliance(
       [lic("White Card", "2026-07-27")],
-      wr({ visaType: "482 TSS", visaExpiry: "2026-08-10" }),
+      wr({ visaType: "482 TSS", visaExpiry: "2026-08-10" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(soonestIsTheLicence.label).toBe("White Card expires in 8 days");
@@ -230,7 +231,7 @@ describe("deriveCompliance", () => {
   it("a citizen with no visa recorded is not flagged for one", () => {
     const c = deriveCompliance(
       [],
-      wr({ status: "Australian citizen", vevoCheckedAt: "2026-01-01" }),
+      wr({ status: "Australian citizen", vevoCheckedAt: "2026-01-01" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.state).toBe("ok");
@@ -240,7 +241,7 @@ describe("deriveCompliance", () => {
   it("a licence problem outranks unverified work rights", () => {
     const c = deriveCompliance(
       [lic("White Card", "2026-06-01")],
-      wr({ status: "482 TSS" }),
+      wr({ status: "482 TSS" }), EXPIRY_WARN_DAYS,
       NOW
     );
     expect(c.label).toBe("White Card expired");
@@ -248,7 +249,7 @@ describe("deriveCompliance", () => {
 
   it("a brand-new hire with nothing recorded is not flagged", () => {
     // the important one: an empty card must not read as non-compliant
-    const c = deriveCompliance([], CLEAR, NOW);
+    const c = deriveCompliance([], CLEAR, EXPIRY_WARN_DAYS, NOW);
     expect(c.state).toBe("ok");
     expect(c.label).toBe("—");
     expect(c.expiresDays).toBeGreaterThan(365);
@@ -256,12 +257,24 @@ describe("deriveCompliance", () => {
 
   it("sorts by urgency — worst first — when used as a sort key", () => {
     const rows = [
-      deriveCompliance([], CLEAR, NOW), // nothing recorded
-      deriveCompliance([lic("A", "2026-08-02")], CLEAR, NOW), // 14d
-      deriveCompliance([lic("B", "2026-06-01")], CLEAR, NOW), // expired
-      deriveCompliance([lic("C", "2029-01-01")], CLEAR, NOW), // fine
+      deriveCompliance([], CLEAR, EXPIRY_WARN_DAYS, NOW), // nothing recorded
+      deriveCompliance([lic("A", "2026-08-02")], CLEAR, EXPIRY_WARN_DAYS, NOW), // 14d
+      deriveCompliance([lic("B", "2026-06-01")], CLEAR, EXPIRY_WARN_DAYS, NOW), // expired
+      deriveCompliance([lic("C", "2029-01-01")], CLEAR, EXPIRY_WARN_DAYS, NOW), // fine
     ].sort((a, b) => a.expiresDays - b.expiresDays);
     expect(rows.map((r) => r.state)).toEqual(["bad", "warn", "ok", "ok"]);
     expect(rows[3].label).toBe("—"); // nothing-recorded sorts last
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("is quiet at 14 days and warns at 30 for the same ticket", () => {
+    // 2026-08-08 is 20 days after NOW
+    expect(deriveCompliance([lic("ARC licence", "2026-08-08")], CLEAR, 14, NOW).state).toBe("ok");
+    expect(deriveCompliance([lic("ARC licence", "2026-08-08")], CLEAR, 30, NOW).state).toBe("warn");
   });
 });

@@ -269,11 +269,10 @@ export function expiryState(days: number | null, warnAt: number): ChipState {
 /** What a fact row says where no date has been entered. */
 const NOT_SET = "Not set";
 
-export const REGO_WARN_DAYS = 30;
-export const INSURANCE_WARN_DAYS = 30;
-export const CTP_WARN_DAYS = 30;
+/* The km clock is the one limit that stays a constant. The DAYS window for
+   every renewal — and for a service by date — is the org's own number now,
+   read once per request and passed in (lib/expiry.ts). */
 export const SERVICE_WARN_KM = 1500;
-export const SERVICE_WARN_DAYS = 30;
 
 /* WHICHEVER ARRIVES FIRST, without predicting anything.
 
@@ -295,11 +294,11 @@ function limitState(left: number | null, warnAt: number): ChipState {
   return left < 0 ? "bad" : left <= warnAt ? "warn" : "ok";
 }
 
-export function serviceDue(v: VehicleWithFacts): ServiceDue {
+export function serviceDue(v: VehicleWithFacts, warnDays: number): ServiceDue {
   const kmLeft = serviceKmLeft(v);
   const daysLeft = v.serviceDays;
   const km = limitState(kmLeft, SERVICE_WARN_KM);
-  const days = limitState(daysLeft, SERVICE_WARN_DAYS);
+  const days = limitState(daysLeft, warnDays);
   const rank: ChipState[] = ["ok", "warn", "bad"];
   return {
     kmLeft,
@@ -327,8 +326,8 @@ export function serviceDaysUntil(
 
 /** How the nearer limit reads. Null when neither limit applies — a vehicle
     with no cycle at all, which must not be dressed up as one that is fine. */
-export function serviceDueText(v: VehicleWithFacts): string | null {
-  const { kmLeft, daysLeft } = serviceDue(v);
+export function serviceDueText(v: VehicleWithFacts, warnDays: number): string | null {
+  const { kmLeft, daysLeft } = serviceDue(v, warnDays);
   const parts: string[] = [];
   if (kmLeft != null) parts.push(kmLeft < 0 ? `${fmtKm(-kmLeft)} km overdue` : `in ${fmtKm(kmLeft)} km`);
   if (daysLeft != null)
@@ -337,7 +336,7 @@ export function serviceDueText(v: VehicleWithFacts): string | null {
 }
 
 /** Everything wrong (or soon-wrong) with a vehicle, worst-first. Empty = all good. */
-export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChip[] {
+export function vehicleChips(v: VehicleWithFacts, openIssues: number, warnDays: number): StatusChip[] {
   if (v.status === "sold") return [];
   const chips: StatusChip[] = [];
   if (v.status === "offroad") chips.push({ label: "Off road", state: "bad" });
@@ -345,11 +344,11 @@ export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChi
   /* A date nobody has entered raises no chip. It is tempting to warn on the
      blank — but the register is filled in over time, and a fleet that shouts
      about every unentered field teaches people to ignore the shouting. */
-  if (v.regoDays != null && v.regoDays <= REGO_WARN_DAYS)
+  if (v.regoDays != null && v.regoDays <= warnDays)
     chips.push({ label: `Rego ${expiryClause(v.regoDays)}`, state: v.regoDays < 0 ? "bad" : "warn" });
   if (v.insuranceDays != null) {
     if (v.insuranceDays < 0) chips.push({ label: "Insurance expired", state: "bad" });
-    else if (v.insuranceDays <= INSURANCE_WARN_DAYS)
+    else if (v.insuranceDays <= warnDays)
       chips.push({ label: `Insurance ${expiryClause(v.insuranceDays)}`, state: "warn" });
   }
   /* Its own chip beside rego's, not folded into it. They usually fall on the
@@ -358,12 +357,12 @@ export function vehicleChips(v: VehicleWithFacts, openIssues: number): StatusChi
      the time" is not a warning. */
   if (v.ctpDays != null) {
     if (v.ctpDays < 0) chips.push({ label: "Green slip expired", state: "bad" });
-    else if (v.ctpDays <= CTP_WARN_DAYS)
+    else if (v.ctpDays <= warnDays)
       chips.push({ label: `Green slip ${expiryClause(v.ctpDays)}`, state: "warn" });
   }
   /* One chip for the cycle, reading whichever limit is worse — the vehicle is
      due on the first of them, so two chips would be two ways of saying it. */
-  const svc = serviceDue(v);
+  const svc = serviceDue(v, warnDays);
   if (svc.state !== "ok") {
     const byKm = limitState(svc.kmLeft, SERVICE_WARN_KM) === svc.state;
     const km = svc.kmLeft ?? 0;
@@ -395,8 +394,8 @@ export function worstState(chips: StatusChip[]): ChipState {
 
 export type VehicleFact = { key: string; label: string; text: string; state: ChipState };
 
-export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
-  const svc = serviceDue(v);
+export function vehicleFacts(v: VehicleWithFacts, warnDays: number): VehicleFact[] {
+  const svc = serviceDue(v, warnDays);
   return [
     /* No motor, no odometer — and a trailer reading "0 km" would be a figure
        standing where a fact should be, which is how a seeded default gets
@@ -407,7 +406,7 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
     {
       key: "service",
       label: "Next service",
-      text: serviceDueText(v) ?? "No cycle set",
+      text: serviceDueText(v, warnDays) ?? "No cycle set",
       state: svc.state,
     },
     {
@@ -419,7 +418,7 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
           : v.regoDays < 0
             ? `expired ${agoLabel(v.regoDays)}`
             : `renews ${inLabel(v.regoDays)}`,
-      state: expiryState(v.regoDays, REGO_WARN_DAYS),
+      state: expiryState(v.regoDays, warnDays),
     },
     {
       key: "insurance",
@@ -430,14 +429,14 @@ export function vehicleFacts(v: VehicleWithFacts): VehicleFact[] {
           : v.insuranceDays < 0
             ? "expired"
             : `renews ${inLabel(v.insuranceDays)}`,
-      state: expiryState(v.insuranceDays, INSURANCE_WARN_DAYS),
+      state: expiryState(v.insuranceDays, warnDays),
     },
     {
       key: "ctp",
       label: "Green slip",
       text:
         v.ctpDays == null ? NOT_SET : v.ctpDays < 0 ? "expired" : `renews ${inLabel(v.ctpDays)}`,
-      state: expiryState(v.ctpDays, CTP_WARN_DAYS),
+      state: expiryState(v.ctpDays, warnDays),
     },
   ];
 }
@@ -761,6 +760,7 @@ export function filterVehicles(
   tab: FleetTab,
   query: string,
   staffName: (id: string | null) => string,
+  warnDays: number,
 ): Vehicle[] {
   const q = query.trim().toLowerCase();
   return vehicles.filter((v) => {
@@ -768,7 +768,7 @@ export function filterVehicles(
       if (v.status !== "sold") return false;
     } else {
       if (v.status === "sold") return false;
-      if (tab === "attention" && vehicleChips(v, openIssueCount(logs, v.id)).length === 0) return false;
+      if (tab === "attention" && vehicleChips(v, openIssueCount(logs, v.id), warnDays).length === 0) return false;
       if (tab === "pool" && v.assignedTo !== null) return false;
     }
     if (!q) return true;
@@ -777,13 +777,13 @@ export function filterVehicles(
   });
 }
 
-export function sortVehicles(vehicles: Vehicle[], logs: VehicleLog[], sort: FleetSort): Vehicle[] {
+export function sortVehicles(vehicles: Vehicle[], logs: VehicleLog[], sort: FleetSort, warnDays: number): Vehicle[] {
   const rank: Record<ChipState, number> = { bad: 0, warn: 1, ok: 2 };
   return [...vehicles].sort((a, b) => {
     if (sort === "value") return b.value - a.value;
     if (sort === "attention") {
-      const wa = rank[worstState(vehicleChips(a, openIssueCount(logs, a.id)))];
-      const wb = rank[worstState(vehicleChips(b, openIssueCount(logs, b.id)))];
+      const wa = rank[worstState(vehicleChips(a, openIssueCount(logs, a.id), warnDays))];
+      const wb = rank[worstState(vehicleChips(b, openIssueCount(logs, b.id), warnDays))];
       if (wa !== wb) return wa - wb;
     }
     return displayName(a).localeCompare(displayName(b));

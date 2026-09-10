@@ -68,6 +68,7 @@ export function MyVehicle({
   onEditLog,
   onDeleteLog,
   today,
+  warnDays,
   viewerStaffId,
   face,
 }: {
@@ -88,6 +89,7 @@ export function MyVehicle({
   /** The server's AU calendar date — the ceiling on a receipt date, and never
       the browser's, which is the day before for most of the working morning. */
   today: string;
+  warnDays: number;
   /** Which face of the card to render. Absent = the pre-tabs combined page,
       which the Assets staff lens still draws. `vehicle` is the truck as it
       stands; the other three are the log, split by what you came to ask. */
@@ -199,10 +201,10 @@ export function MyVehicle({
 
   const paused = vehicle.status === "offroad";
   const borrowable = pickable.filter((v) => v.id !== vehicle.id && v.status === "active");
-  const chips = vehicleChips(vehicle, openIssueCount(logs, vehicle.id));
+  const chips = vehicleChips(vehicle, openIssueCount(logs, vehicle.id), warnDays);
   const eco = fuelEconomy(logs);
   const recent = logs.slice(0, 8);
-  const tiles = vehicleFacts(vehicle).filter((f) => f.key !== "odo");
+  const tiles = vehicleFacts(vehicle, warnDays).filter((f) => f.key !== "odo");
 
   return (
     <div className="fl-my">

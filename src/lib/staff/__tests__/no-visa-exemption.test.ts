@@ -22,7 +22,7 @@ import { NO_VISA_STATUSES, WORK_RIGHTS, isNoVisa } from "../work-rights";
    they are pinned against the same table of cases and must agree. */
 
 const TODAY = "2026-08-16";
-const ctx = { subject: "Marcus Chen", href: "/dashboard/team/x", today: TODAY };
+const ctx = { subject: "Marcus Chen", href: "/dashboard/team/x", today: TODAY, warnDays: 30 };
 
 const facts = (over: Partial<Parameters<typeof deriveCompliance>[1]> = {}) => ({
   status: null,
@@ -34,7 +34,7 @@ const facts = (over: Partial<Parameters<typeof deriveCompliance>[1]> = {}) => ({
 
 /** Did the directory chip raise the unverified warning? */
 const directoryWarns = (status: string | null, vevoCheckedAt: string | null = null) =>
-  deriveCompliance([], facts({ status, vevoCheckedAt }), new Date(`${TODAY}T00:00:00`)).label ===
+  deriveCompliance([], facts({ status, vevoCheckedAt }), 30, new Date(`${TODAY}T00:00:00`)).label ===
   "Work rights unverified";
 
 /** Did Home / the bell raise it? */

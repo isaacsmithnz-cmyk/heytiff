@@ -26,7 +26,7 @@ function setup(profile: StaffProfile | null = jordan) {
       profile={profile}
       licences={[]}
       vehicle={null}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       org="Smith Air"
       actions={actions}
     />

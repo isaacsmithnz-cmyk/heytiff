@@ -46,7 +46,7 @@ function mount(kind: RenewalKind, reminders: RenewalReminder[]) {
     <RenewalScreen
       vehicle={van}
       kind={kind}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       documents={[]}
       policies={[]}
       pending={false}

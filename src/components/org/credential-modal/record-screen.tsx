@@ -61,6 +61,7 @@ export function RecordScreen({
   documents,
   reminders,
   today,
+  warnDays,
   pending,
   error,
   onAttach,
@@ -76,6 +77,8 @@ export function RecordScreen({
   /** The leads the viewer has switched on, in days. */
   reminders: number[];
   today: string;
+  /** The org's expiry window — lib/expiry.ts. */
+  warnDays: number;
   pending: boolean;
   error: string | null;
   /** Files a document against the card; a null term means the card itself. */
@@ -91,14 +94,14 @@ export function RecordScreen({
   const history = previousRecords(records);
   const expiry = current?.expiresOn ?? credential.expiryDate;
   const days = credentialDays(expiry, today);
-  const state = credentialState(expiry, today);
+  const state = credentialState(expiry, today, warnDays);
   const recorded = current !== null;
 
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [armedTerm, setArmedTerm] = useState<string | null>(null);
 
-  const headline = credentialHeadline(kind, expiry, today);
+  const headline = credentialHeadline(kind, expiry, today, warnDays);
   const subline = !recorded
     ? credential.expiryDate
       ? `Expires ${fmtDay(credential.expiryDate)} — nothing filed against it yet`

@@ -20,6 +20,7 @@
      billing/subscription master-only, separate from the company profile
      charge-out rates    the Rate Calculator owns those */
 
+import { EXPIRY_WARN_ERROR, readExpiryWarnDays } from "@/lib/expiry";
 import type { PreValidation } from "@/lib/staff/pre-validate";
 import { buildSectionPatch, isSectionOf, type SectionConfig } from "../section-patch";
 
@@ -36,6 +37,13 @@ export type OrgSettings = {
       nothing about when it is due, rather than inventing a fortnight and
       calling somebody late against it. 0 is a real answer — due on receipt. */
   payment_terms_days: number | null;
+  /** Days before anything expires that the app starts saying so — one number
+      for staff tickets, visas, the business's own papers and the fleet. NOT
+      NULL with a default of 30, unlike terms above it: a warning window has
+      no honest "we don't know". See lib/expiry.ts. */
+  expiry_warn_days: number;
+  /** Whether the morning email carries what is inside that window. */
+  expiry_email: boolean;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -64,6 +72,8 @@ export const ORG_EDITABLE_SECTIONS = {
     "acn",
     "gst_registered",
     "payment_terms_days",
+    "expiry_warn_days",
+    "expiry_email",
     "website",
   ],
   contact: ["email", "phone", "address", "suburb", "state", "postcode"],
@@ -188,5 +198,18 @@ export function preValidateOrg(
   if (readPaymentTerms(fields.payment_terms_days ?? "") === "invalid") {
     return { error: PAYMENT_TERMS_ERROR, fields: ["payment_terms_days"] };
   }
+  // present in every identity save the form makes; a patch from elsewhere may omit it
+  if (fields.expiry_warn_days !== undefined && readExpiryWarnDays(fields.expiry_warn_days) === "invalid") {
+    return { error: EXPIRY_WARN_ERROR, fields: ["expiry_warn_days"] };
+  }
   return null;
+}
+
+/** The two read-only rows on the Organisation card — one per edit field, so
+    the read and edit faces of the identity card stay row-for-row. */
+export function expiryWarnLabel(days: number): string {
+  return `${days} day${days === 1 ? "" : "s"} before`;
+}
+export function expiryEmailLabel(on: boolean): string {
+  return on ? "Sent each morning" : "Off — the bell only";
 }

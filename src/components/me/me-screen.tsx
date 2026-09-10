@@ -107,6 +107,7 @@ function face(tab: Tab, data: MeData) {
         <MyVehicleFace
           own={data.fleet.own}
           today={data.fleet.today}
+          warnDays={data.fleet.warnDays}
           viewerStaffId={data.fleet.viewerStaffId}
         />
       );

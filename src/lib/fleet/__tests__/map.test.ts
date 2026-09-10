@@ -35,6 +35,8 @@ const row = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const WARN = 30; // the org window every fixture here assumes
+
 describe("dates in, day-counts out", () => {
   it("derives day-counts from real expiry dates", () => {
     const v = toVehicle(row(), TODAY);
@@ -58,9 +60,9 @@ describe("dates in, day-counts out", () => {
     expect(v.regoDays).toBeNull();
     expect(v.insuranceDays).toBeNull();
     expect(v.ctpDays).toBeNull();
-    expect(vehicleChips(v, 0)).toEqual([]);
+    expect(vehicleChips(v, 0, WARN)).toEqual([]);
     // and it says so rather than counting down to something nobody entered
-    expect(vehicleFacts(v).find((f) => f.key === "rego")).toMatchObject({
+    expect(vehicleFacts(v, WARN).find((f) => f.key === "rego")).toMatchObject({
       text: "Not set",
       state: "ok",
     });
@@ -83,14 +85,14 @@ describe("dates in, day-counts out", () => {
   it("a past expiry goes negative so the chip reads as expired", () => {
     const v = toVehicle(row({ rego_expiry: "2026-07-01" }), TODAY);
     expect(v.regoDays).toBe(-21);
-    expect(vehicleChips(v, 0)).toContainEqual({ label: "Rego expired 3 weeks ago", state: "bad" });
+    expect(vehicleChips(v, 0, WARN)).toContainEqual({ label: "Rego expired 3 weeks ago", state: "bad" });
   });
 
   it("chips land exactly on the 30-day warning boundary", () => {
     const at30 = toVehicle(row({ rego_expiry: dateFromDays(30, TODAY) }), TODAY);
     const at31 = toVehicle(row({ rego_expiry: dateFromDays(31, TODAY) }), TODAY);
-    expect(vehicleChips(at30, 0)).toContainEqual({ label: "Rego expires in 4 weeks", state: "warn" });
-    expect(vehicleChips(at31, 0).some((c) => c.label.startsWith("Rego"))).toBe(false);
+    expect(vehicleChips(at30, 0, WARN)).toContainEqual({ label: "Rego expires in 4 weeks", state: "warn" });
+    expect(vehicleChips(at31, 0, WARN).some((c) => c.label.startsWith("Rego"))).toBe(false);
   });
 
   it("numerics arrive from postgres as strings and still add up", () => {

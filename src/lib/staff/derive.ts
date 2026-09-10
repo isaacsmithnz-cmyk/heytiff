@@ -53,9 +53,6 @@ export function daysUntil(iso: string | null | undefined, now = new Date()): num
   return daysBetween(day, todayInAu(now));
 }
 
-/** A licence within this many days reads as "expiring", not "fine". */
-export const EXPIRY_WARN_DAYS = 30;
-
 /* Sorts before every real day-count so "nothing recorded" and "all clear"
    never outrank a genuine expiry when the directory sorts by urgency. */
 const NO_EXPIRY = 9999;
@@ -104,6 +101,8 @@ export type WorkRightsFacts = {
 export function deriveCompliance(
   licences: readonly StaffLicence[],
   workRights: WorkRightsFacts,
+  /** The org's expiry window — one number for everything, lib/expiry.ts. */
+  warnDays: number,
   now = new Date()
 ): Compliance {
   /* One scan over everything with a date on it. The visa carries its own noun
@@ -128,7 +127,7 @@ export function deriveCompliance(
       expiresDays: worst.days,
     };
   }
-  if (worst && worst.days <= EXPIRY_WARN_DAYS) {
+  if (worst && worst.days <= warnDays) {
     return {
       label: `${worst.what} ${expiryClause(worst.days)}`,
       state: "warn",

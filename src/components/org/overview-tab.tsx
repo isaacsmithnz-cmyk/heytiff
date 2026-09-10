@@ -39,6 +39,7 @@ export function OverviewTab({
   account,
   logoUrl,
   today,
+  warnDays,
   onGo,
 }: {
   org: OrgSettings;
@@ -48,6 +49,7 @@ export function OverviewTab({
   logoUrl: string | null;
   /** AU calendar date, so expiries agree with the dashboard chips */
   today: string;
+  warnDays: number;
   onGo: (key: OrgTabKey) => void;
 }) {
   const trading = org.trading_name ?? "";
@@ -170,7 +172,7 @@ export function OverviewTab({
                   licenceNumber={c.number}
                   issuer={c.issuer}
                   expiry={c.expiryDate ? formatAuDate(c.expiryDate) : null}
-                  status={licenceStatus(c.expiryDate, today)}
+                  status={licenceStatus(c.expiryDate, today, warnDays)}
                   badge={orgCredBadge(c)}
                 />
               ))}

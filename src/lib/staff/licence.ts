@@ -1,6 +1,5 @@
 import { daysUntil, parseAuDate } from "@/lib/au-dates";
 import { expiresIn } from "@/lib/format/duration";
-import { EXPIRY_WARN_DAYS } from "./derive";
 
 /* Pure rules for a staff licence — validation of what goes IN, and the status
    label that comes OUT. Kept out of the server action (which only does I/O) and
@@ -114,10 +113,10 @@ export type LicenceStatus = { label: string; tone: "ok" | "warn" | "bad" | "mute
    itself is right there beside it, so counting the days back adds length
    without adding information. Everywhere the date ISN'T shown — chips, the
    compliance label — the full "expired 4 weeks ago" clause is used instead. */
-export function licenceStatus(expiry: string | null, today: string): LicenceStatus {
+export function licenceStatus(expiry: string | null, today: string, warnDays: number): LicenceStatus {
   if (!expiry) return { label: "No expiry", tone: "mute" };
   const days = daysUntil(expiry, today);
   if (days < 0) return { label: "Expired", tone: "bad" };
-  if (days <= EXPIRY_WARN_DAYS) return { label: expiresIn(days), tone: "warn" };
+  if (days <= warnDays) return { label: expiresIn(days), tone: "warn" };
   return { label: "Valid", tone: "ok" };
 }

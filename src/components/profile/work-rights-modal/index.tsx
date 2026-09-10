@@ -54,6 +54,7 @@ export function WorkRightsModal({
   documents,
   reminders,
   today,
+  warnDays,
   onRecord,
   onAttach,
   onRemoveCheck,
@@ -68,6 +69,7 @@ export function WorkRightsModal({
   documents: StoredDocument[];
   reminders: number[];
   today: string;
+  warnDays: number;
   onRecord: (input: WorkRightsCheckInput) => Promise<SaveResult>;
   onAttach: (recordId: string, documentId: string) => Promise<SaveResult>;
   onRemoveCheck: (recordId: string) => Promise<SaveResult>;
@@ -76,7 +78,7 @@ export function WorkRightsModal({
 }) {
   const current = currentCheck(records);
   const history = previousChecks(records);
-  const state = checkState(current, today);
+  const state = checkState(current, today, warnDays);
   const recorded = current !== null;
 
   const [panelOpen, setPanelOpen] = useState(!recorded);
@@ -176,7 +178,7 @@ export function WorkRightsModal({
               <Eyebrow tone={state === "ok" || state === "forever" ? "accent" : state === "none" ? undefined : "warn"}>
                 STATUS
               </Eyebrow>
-              <span className="vm-headline">{checkHeadline(current, today)}</span>
+              <span className="vm-headline">{checkHeadline(current, today, warnDays)}</span>
               <span className="vm-subline">{checkSubline(current)}</span>
             </div>
             {recorded && !panelOpen && (

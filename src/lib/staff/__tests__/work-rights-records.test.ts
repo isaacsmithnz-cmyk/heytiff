@@ -28,6 +28,7 @@ import {
    "tidying up" the three modules into one shape will break exactly that, so it
    is tested first and named loudly. */
 
+const WARN = 30; // the org window every fixture here assumes
 const TODAY = "2026-07-24";
 
 const rec = (over: Partial<WorkRightsRecord> = {}): WorkRightsRecord => ({
@@ -115,23 +116,23 @@ describe("what the status says", () => {
     /* Collapsing these two is the bug work-rights.ts's `isNoVisa` was written
        to kill: a citizen's card read as an unanswered question forever, with
        no action anybody could take to clear it. */
-    expect(checkState(null, TODAY)).toBe("none");
-    expect(checkState(rec({ status: "Australian citizen", expiresOn: null }), TODAY)).toBe("forever");
+    expect(checkState(null, TODAY, WARN)).toBe("none");
+    expect(checkState(rec({ status: "Australian citizen", expiresOn: null }), TODAY, WARN)).toBe("forever");
   });
 
   it("warns and fails on the same window as everything else", () => {
-    expect(checkState(rec({ expiresOn: "2026-08-07" }), TODAY)).toBe("warn"); // 14 days
-    expect(checkState(rec({ expiresOn: "2028-03-04" }), TODAY)).toBe("ok");
-    expect(checkState(rec({ expiresOn: "2026-07-01" }), TODAY)).toBe("bad");
+    expect(checkState(rec({ expiresOn: "2026-08-07" }), TODAY, WARN)).toBe("warn"); // 14 days
+    expect(checkState(rec({ expiresOn: "2028-03-04" }), TODAY, WARN)).toBe("ok");
+    expect(checkState(rec({ expiresOn: "2026-07-01" }), TODAY, WARN)).toBe("bad");
   });
 
   it("gives a citizen their status as the headline, not a countdown", () => {
-    expect(checkHeadline(rec({ status: "Australian citizen", expiresOn: null }), TODAY)).toBe(
+    expect(checkHeadline(rec({ status: "Australian citizen", expiresOn: null }), TODAY, WARN)).toBe(
       "Australian citizen"
     );
-    expect(checkHeadline(null, TODAY)).toBe("Right to work not recorded");
-    expect(checkHeadline(rec({ expiresOn: "2026-07-01" }), TODAY)).toMatch(/^Expired /);
-    expect(checkHeadline(rec({ expiresOn: "2028-03-04" }), TODAY)).toMatch(/^Expires /);
+    expect(checkHeadline(null, TODAY, WARN)).toBe("Right to work not recorded");
+    expect(checkHeadline(rec({ expiresOn: "2026-07-01" }), TODAY, WARN)).toMatch(/^Expired /);
+    expect(checkHeadline(rec({ expiresOn: "2028-03-04" }), TODAY, WARN)).toMatch(/^Expires /);
   });
 
   it("says what was checked and when, under the headline", () => {
@@ -249,5 +250,16 @@ describe("the reminder's words", () => {
 describe("the lock", () => {
   it("gives both section-savers one wording to refuse with", () => {
     expect(WORK_RIGHTS_LOCKED).toMatch(/record a check/i);
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("is quiet at 14 days and warns at 30 for the same expiry", () => {
+    expect(checkState(rec({ expiresOn: "2026-08-13" }), TODAY, 14)).toBe("ok"); // 20 days out
+    expect(checkState(rec({ expiresOn: "2026-08-13" }), TODAY, 30)).toBe("warn");
   });
 });

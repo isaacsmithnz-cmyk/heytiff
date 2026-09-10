@@ -46,6 +46,7 @@ const vehicle = (id: string, assignedTo: string | null): Vehicle => ({
 // missing chip proves the capability gate, not missing data.
 const FULL: ChipSources = {
   today: TODAY,
+  warnDays: 30,
   viewerStaffId: "me",
   self: person("me", "Me Myself"),
   selfVehicle: { ...vehicle("mine", "me") },

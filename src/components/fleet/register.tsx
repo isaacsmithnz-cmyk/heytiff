@@ -63,11 +63,13 @@ export function FleetRegister({
   fleet,
   staff,
   today,
+  warnDays,
   openVehicleId = null,
 }: {
   fleet: FleetState;
   staff: FleetStaff[];
   today: string;
+  warnDays: number;
   /** `?v=` — a vehicle to open on arrival, from a plate clicked elsewhere.
       Looked up against the whole fleet, not the current face, so a link to a
       sold or pooled vehicle still opens from the Fleet tab. */
@@ -123,12 +125,12 @@ export function FleetRegister({
   const working = vehicles.filter((v) => v.status !== "sold");
   const sold = vehicles.filter((v) => v.status === "sold");
   const attention = working.filter(
-    (v) => vehicleChips(v, openIssueCount(logs, v.id)).length > 0,
+    (v) => vehicleChips(v, openIssueCount(logs, v.id), warnDays).length > 0,
   );
   const pool = working.filter((v) => v.assignedTo === null);
   const rows = useMemo(
-    () => sortVehicles(filterVehicles(vehicles, logs, filter, query, staffName), logs, sort),
-    [vehicles, logs, filter, query, staffName, sort],
+    () => sortVehicles(filterVehicles(vehicles, logs, filter, query, staffName, warnDays), logs, sort, warnDays),
+    [vehicles, logs, filter, query, staffName, sort, warnDays],
   );
 
   const openVehicle = "id" in modal ? vehicles.find((v) => v.id === modal.id) : undefined;
@@ -309,7 +311,7 @@ export function FleetRegister({
         </div>
         <div className="dirrows">
           {rows.map((v) => {
-            const chips = vehicleChips(v, openIssueCount(logs, v.id));
+            const chips = vehicleChips(v, openIssueCount(logs, v.id), warnDays);
             const chip = chips[0];
             const driver = staffName(v.assignedTo);
             const isSold = v.status === "sold";
@@ -484,6 +486,7 @@ export function FleetRegister({
           reminders={fleet.reminders[openVehicle.id] ?? []}
           staff={staff}
           today={today}
+          warnDays={warnDays}
           fleet={fleet}
           initialScreen={modal.screen}
           onClose={() => setModal({ t: "none" })}
@@ -496,6 +499,7 @@ export function FleetRegister({
       {modal.t === "services" && openVehicle && (
         <ServiceHistoryModal
           vehicle={openVehicle}
+          warnDays={warnDays}
           logs={logsFor(logs, openVehicle.id)}
           onAdd={() =>
             setModal({ t: "log", id: openVehicle.id, kind: "service", back: "service" })

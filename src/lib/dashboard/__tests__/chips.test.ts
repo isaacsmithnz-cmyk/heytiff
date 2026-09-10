@@ -28,8 +28,8 @@ import { ICON_PATHS } from "@/components/shell/icon";
 // Anchor day for every date-based case. daysUntil counts from this.
 const TODAY = "2026-07-19";
 
-const licCtx = { subject: "Jordan Mills", href: "/dashboard/profile", today: TODAY };
-const vCtx = { subject: "Hiace VRF-04", href: "/dashboard/my-vehicle" };
+const licCtx = { subject: "Jordan Mills", href: "/dashboard/profile", today: TODAY, warnDays: 30 };
+const vCtx = { subject: "Hiace VRF-04", href: "/dashboard/my-vehicle", warnDays: 30 };
 
 /* Build a VehicleWithFacts with everything "fine" by default, so each test can
    move exactly one field into the danger zone. */
@@ -290,7 +290,7 @@ describe("vehicleLabel", () => {
    label. Several policies on file → the soonest named, the rest hidden. A
    business LICENCE never reached the bell at all. */
 describe("orgCredentialChips", () => {
-  const ctx = { href: "/dashboard/admin/organization", today: TODAY };
+  const ctx = { href: "/dashboard/admin/organization", today: TODAY, warnDays: 30 };
   const card = (over: Partial<Parameters<typeof orgCredentialChips>[0][number]>) => ({
     id: "c1",
     kind: "insurance" as const,
@@ -530,5 +530,24 @@ describe("declinedLeaveChip", () => {
     const older = declinedLeaveChip(req({ decidedOn: "2026-08-01T00:00:00Z" }), { today: TODAY_ })!;
     const newer = declinedLeaveChip(req({ decidedOn: "2026-08-09T00:00:00Z" }), { today: TODAY_ })!;
     expect(newer.urgency).toBeLessThan(older.urgency);
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("a licence 20 days out raises no chip at 14 and a warn chip at 30", () => {
+    const lic = { id: "l1", typeName: "White Card", expiryDate: "2026-08-08" }; // 20 days after TODAY
+    expect(licenceChip(lic, { ...licCtx, warnDays: 14 })).toBeNull();
+    expect(licenceChip(lic, { ...licCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
+  });
+
+  it("the same for a rego, and for a service by date", () => {
+    expect(regoChip(vehicle({ regoDays: 20 }), { ...vCtx, warnDays: 14 })).toBeNull();
+    expect(regoChip(vehicle({ regoDays: 20 }), { ...vCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
+    expect(serviceChip(vehicle({ serviceDays: 20 }), { ...vCtx, warnDays: 14 })).toBeNull();
+    expect(serviceChip(vehicle({ serviceDays: 20 }), { ...vCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
   });
 });

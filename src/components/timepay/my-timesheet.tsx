@@ -46,11 +46,12 @@ import {
   fmtH,
   fmtHval,
   expectsWork,
+  isOver,
   isWeekendRate,
+  lastDayToCome,
   ruleSummary,
   seedBreakMinutes,
   splitDay,
-  submitNote,
   workDaysLabel,
   weekGroups,
 } from "./logic";
@@ -133,14 +134,18 @@ const SOURCE_NOTE: Record<DaySource, string> = {
 };
 
 /* Takes the cycle's noun rather than hard-coding "week" — see `cycleNoun`.
-   A fortnightly workspace reads "Your normal fortnight is already filled in",
-   which is both true and the phrase they'd use out loud. */
+   A monthly workspace reads "This month is closed", which is both true and
+   the phrase they'd use out loud. */
 const statusCopy = (
   status: SheetState["status"],
   noun: string,
 ): { label: string; tone: string; sub: string } =>
   ({
-    draft: { label: "Draft", tone: "warn", sub: `Your normal ${noun} is already filled in — change anything that was different, then submit.` },
+    /* Draft's line is not a constant: it depends on how much of the period is
+       left, so it is composed beside the button it describes — `sendLine`.
+       "Your normal week is already filled in" used to sit here, which was
+       false for every day still to come. */
+    draft: { label: "Draft", tone: "warn", sub: "" },
     submitted: { label: "Submitted", tone: "ok", sub: "With your manager. You'll be told if anything needs a look." },
     approved: { label: "Approved", tone: "ok", sub: `Signed off. This ${noun} is closed.` },
     sent_back: { label: "Sent back", tone: "bad", sub: "Your manager has a question — answer it and submit again." },
@@ -376,8 +381,11 @@ function TimeField({
             {/* OK AT THE TOP, beside the field it belongs to. At the bottom it
                 would sit under 132px of scrolling numbers, away from the thing
                 it confirms. */}
+            {/* …and NOTHING ELSE. The row used to lead with the field's own
+                name — "FINISHED" printed directly under a field reading
+                "Finished 5:30 PM". The drop hangs off that field; it does not
+                need introducing. */}
             <div className="mts2-drophd">
-              <span>{label}</span>
               <button type="button" className="mts2-ok" onClick={onOk}>
                 {okLabel}
               </button>
@@ -566,39 +574,62 @@ function DayEditor({
   return (
     <div className="mts2-edit">
       <DayHead label={dayLabel(w)} holidayName={holidayName} right={headRight} />
-      <div className={`mts2-esrc ${source}`}>
-        <Icon name={source === "presumed" ? "check" : "clock"} size={12} />
-        {SOURCE_NOTE[source]}
-      </div>
+      {/* WHERE THE SAVED DAY CAME FROM — so it goes quiet the moment you start
+          changing that day. Flick a logged day to Off and "You logged this
+          day." used to sit directly above "No hours for this day": the line
+          describing the stored answer, over the one replacing it. Save or
+          Cancel and it is true again. */}
+      {!dirty && (
+        <div className={`mts2-esrc ${source}`}>
+          <Icon name={source === "presumed" ? "check" : "clock"} size={12} />
+          {SOURCE_NOTE[source]}
+        </div>
+      )}
 
-      {/* A DAY WITH NO ANSWER OFFERS THE TWO IT COULD HAVE, and nothing else.
-          There is no switch to leave unanswered and no clock to leave seeded,
-          which is what stops the most expensive day in the period being one
-          press from real. */}
+      {/* A DAY WITH NO ANSWER OFFERS ONLY WHAT IT COULD STILL BECOME. There is
+          no switch to leave unanswered and no clock to leave seeded, which is
+          what stops the most expensive day in the period being one press from
+          real.
+
+          It used to offer both answers on every such day, and two of the
+          three cases were wrong. A rostered day not yet over sits under "Not
+          yet. This day is marked as worked once the day is over." — so "Log
+          hours" there promised to fill the day in and invited you to fill it
+          in first, for hours nobody had worked yet. And a day you are not
+          rostered on is already not counted, so "Mark as off" there wrote a
+          row that changed nothing anyone could see.
+
+          So: a rostered day that is OVER and still empty is missing — both
+          answers. A rostered day still to come can only be declared off in
+          advance. A day you are not rostered on can only be added. */}
       {kind === null && (
         <div className="mts2-eacts">
-          <button
-            className="mts2-btn primary"
-            disabled={busy}
-            onClick={() => {
-              touch();
-              setKind("work");
-              setOpen("start");
-            }}
-          >
-            <Icon name="clock" size={14} />
-            {expected ? "Log hours" : "Add this day"}
-          </button>
-          <button
-            className="mts2-btn"
-            disabled={busy}
-            onClick={() => {
-              touch();
-              setKind("off");
-            }}
-          >
-            Mark as {DAY_WORD.off.toLowerCase()}
-          </button>
+          {(!expected || isOver(ctx, index)) && (
+            <button
+              className="mts2-btn primary"
+              disabled={busy}
+              onClick={() => {
+                touch();
+                setKind("work");
+                setOpen("start");
+              }}
+            >
+              <Icon name="clock" size={14} />
+              {expected ? "Log hours" : "Add this day"}
+            </button>
+          )}
+          {expected && (
+            <button
+              className="mts2-btn"
+              disabled={busy}
+              onClick={() => {
+                touch();
+                setKind("off");
+              }}
+            >
+              Mark as {DAY_WORD.off.toLowerCase()}
+            </button>
+          )}
         </div>
       )}
 
@@ -782,6 +813,8 @@ function NormalHoursCard({
   const [start, setStart] = useState(normal.start);
   const [end, setEnd] = useState(normal.end);
   const [days, setDays] = useState<number[]>(workDays);
+  /* which of the two clocks is down — the day panel's one-at-a-time rule */
+  const [clock, setClock] = useState<null | "start" | "finish">(null);
 
   const mine = own || ownDays;
   const toggle = (d: number) =>
@@ -810,9 +843,27 @@ function NormalHoursCard({
       </div>
       {open ? (
         <>
-          <div className="mts2-wheels tight">
-            <TimeWheel label="Start" value={start} onChange={setStart} disabled={busy} />
-            <TimeWheel label="Finish" value={end} onChange={setEnd} disabled={busy} />
+          {/* THE DAY PANEL'S FIELDS, NOT TWO WHEELS SIDE BY SIDE. This card was
+              the last place on the screen still setting a time with the pair
+              the day panel dropped — six scroll columns told apart by a
+              label — so one screen set a time two different ways. "Start" and
+              "Finish" rather than the day's past tense: this is a pattern that
+              repeats, not a day that happened. */}
+          <div className="mts2-fields">
+            {(["start", "finish"] as const).map((which) => (
+              <TimeField
+                key={which}
+                label={which === "start" ? "Start" : "Finish"}
+                wheelLabel={which === "start" ? "Start" : "Finish"}
+                value={which === "start" ? start : end}
+                onChange={which === "start" ? setStart : setEnd}
+                open={clock === which}
+                onToggle={() => setClock((c) => (c === which ? null : which))}
+                onOk={() => setClock(null)}
+                okLabel="OK"
+                disabled={busy}
+              />
+            ))}
           </div>
           {/* WHICH DAYS, not just which hours. Without this a part-timer on
               Mon/Tue/Thu has a full Wednesday presumed onto them every week of
@@ -1181,6 +1232,32 @@ export function MyTimesheet({
     settings.rules.night.on ? `Night 10 PM – 6 AM ${ruleSummary(settings.rules.night)}` : null,
   ].filter(Boolean);
 
+  /* WHEN THIS SHEET GOES — said once, in one sentence, beside the button.
+
+     Two moments matter and they used to be stated apart: you can send it once
+     your last day to come is over, and if you don't it sends itself at the
+     workspace's time. For a casual the last day to come is the submit day
+     itself, so there is no window to send it sooner and the line does not
+     offer one. */
+  const canSend = !sent && period.live && !holdForDays && d.entries > 0;
+  const lastAhead = lastDayToCome(ctx);
+  const submitDay3 = settings.submitDay.slice(0, 3).toLowerCase();
+  const submitAt = week.reduce(
+    (at, w, i) => (String(w[0]).slice(0, 3).toLowerCase() === submitDay3 ? i : at),
+    -1,
+  );
+  const itSends = `it sends itself ${settings.submitDay} ${settings.submitTime}${
+    settings.lock ? " and locks" : ""
+  }`;
+  const sendLine = holdForDays
+    ? (casual ? "Add the days you worked. " : "") +
+      (lastAhead >= 0 && lastAhead < submitAt
+        ? `Send this ${noun} once ${dayLabel(week[lastAhead]!)} is over. If you don't, ${itSends}.`
+        : `${itSends.charAt(0).toUpperCase()}${itSends.slice(1)}.`)
+    : d.entries === 0
+      ? `${casual ? "Add" : "Log"} the days you worked to send this ${noun}.`
+      : `Ready to send. If you don't, ${itSends}.`;
+
   /* THE FRAME IS THE LAYOUT'S. `.page`, `.wrap`, `.stg tpr wb2`, the heading
      and the tab row all live in `(my-time)/layout.tsx` now, so they survive a
      switch to Leave instead of being rebuilt with it — see that file. What is
@@ -1218,15 +1295,17 @@ export function MyTimesheet({
                 >
                   <Icon name="chevR" size={17} />
                 </button>
-                {period.live ? (
-                  <span className="pstatus live">
-                    <span className="d"></span>LIVE
-                  </span>
-                ) : (
-                  <span className="pstatus hist">Historical</span>
-                )}
+                {/* NO STATUS PILL AND NO STATUS LINE. This bar said LIVE, the
+                    line under it said "Open · auto-submits Sun 3:00 PM, then
+                    locks", and the card beside it said Draft — three words for
+                    where one sheet stood, two of them for the same thing. And
+                    "auto-submits Sun" up here never met "you can send once your
+                    last working day is over" down there, so nobody could tell
+                    whether pressing Submit was needed at all. When the sheet
+                    goes is now said once, in the rail, beside the button it is
+                    about; a closed period says so there too. The approver's
+                    screen keeps its own bar. */}
               </div>
-            <div className="autosub">{period.live ? submitNote(settings) : period.note}</div>
 
             {error && <div className="tp-err">{error}</div>}
 
@@ -1419,35 +1498,24 @@ export function MyTimesheet({
                             ? " A long day is still worth recording, but your salary already covers the extra hours."
                             : ""
                         }`
-                      : casual && sheet.status === "draft"
-                        /* "Nothing is filled in for you" closed this — the
-                           app describing its own non-behaviour to somebody
-                           looking at a sheet that is visibly empty. The
-                           instruction is the whole message. */
-                        ? "Add the days you worked, then submit."
+                      : sheet.status === "draft"
+                        ? sendLine
                         : status.sub}
                 </div>
-                {!sent && period.live && (
+                {/* SUBMIT EXISTS ONCE THERE IS SOMETHING TO SEND — the rule the
+                    day panel's Save follows. It used to sit here disabled while
+                    days were still to come, under a line telling you to submit
+                    and over a note explaining why you couldn't: an instruction,
+                    a dead button and an apology for it. */}
+                {canSend && (
                   <button
                     className="bbtn ink mts2-submit"
-                    disabled={pending || d.entries === 0 || holdForDays}
+                    disabled={pending}
                     onClick={() => run(() => submitWeek(periodStart))}
                   >
                     <Icon name="send" size={14} />
                     {sheet.status === "sent_back" ? "Submit again" : `Submit ${noun}`}
                   </button>
-                )}
-                {holdForDays && !sent && period.live && (
-                  /* WHY THE BUTTON ABOVE IS HELD, and nothing else. It used to
-                     end "It submits itself Sun 3:00 PM if you don't" — which is
-                     `submitNote`, printed verbatim at the top of this same card
-                     and, until this pass, a third time in the footnote below.
-                     One statement of the auto-submit rule, in the period bar
-                     where the period's own state is described. */
-                  <div className="mts2-sub">
-                    You can send this {noun} once your last working day is over — there
-                    {toCome === 1 ? " is 1 still to come" : ` are ${toCome} still to come`}.
-                  </div>
                 )}
               </section>
 

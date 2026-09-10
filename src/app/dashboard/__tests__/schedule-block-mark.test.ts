@@ -144,7 +144,7 @@ describe("the one block that is actually wrong wears a mark", () => {
      and since the spacing scale landed it is written as that sum, so the
      scale holds and the geometry is read off the rule rather than pinned to a
      number that could drift from the disc it clears. */
-  const sum = (v: string) => (v.match(/[\d.]+px/g) ?? []).reduce((a, t) => a + parseFloat(t), 0);
+  const sum = (v: string | null) => (v?.match(/[\d.]+px/g) ?? []).reduce((a, t) => a + parseFloat(t), 0);
   it("keeps its corner clear of the text at every width", () => {
     const clearance = sum(prop(mark[0]!.decls, "right")) + sum(prop(mark[0]!.decls, "width")) + 4;
     expect(sum(prop(rulesFor((s) => s === ".wb2-schb.late")[0]!.decls, "padding-right"))).toBe(clearance);

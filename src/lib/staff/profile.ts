@@ -52,7 +52,6 @@ export type StaffProfile = {
   visa_expiry: string | null;
   hours_condition: string | null;
   vevo_checked_at: string | null;
-  work_rights_doc_url: string | null;
 
   qualifications: string | null;
 };

@@ -27,8 +27,7 @@ const IDENTITY_COLUMNS =
   "employment_type, job_title, status, state, photo_url, " +
   "shirt_size, jacket_size, trousers_size, boot_size, boot_scale, " +
   "emergency_name, emergency_phone, emergency_relationship, emergency_alt_phone, " +
-  "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, " +
-  "work_rights_doc_url, qualifications";
+  "work_rights_status, visa_type, visa_expiry, hours_condition, vevo_checked_at, qualifications";
 
 const PAY_COLUMNS =
   "hourly_wage, pay_basis, contracted_hours, utilisation, super_override, workers_comp_override, cost_split";

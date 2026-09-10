@@ -51,7 +51,10 @@ const FULL: ChipSources = {
   selfVehicle: { ...vehicle("mine", "me") },
   teamPeople: [person("me", "Me Myself"), person("s2", "Jordan Mills"), person("s3", "Sam Lee")],
   fleet: [vehicle("mine", "me"), vehicle("v2", "s2"), vehicle("v3", null)],
-  org: { insurer: "CGU", insuranceExpiry: "2026-07-05" },
+  orgCredentials: [
+    { id: "pl", kind: "insurance", name: "Public liability", issuer: "CGU", expiryDate: "2026-07-05" },
+    { id: "arc", kind: "licence", name: "ARC authorisation", issuer: null, expiryDate: "2026-07-20" },
+  ],
   pendingClaims: 2,
   pendingLeave: 3,
   ownSheet: { status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" },
@@ -90,14 +93,18 @@ describe("assembleChips — self section (intrinsic)", () => {
 });
 
 describe("assembleChips — team gate", () => {
-  it("without `team`, no team-member or org-insurance chips appear even with full data", () => {
+  it("without `team`, no team-member or business-paper chips appear even with full data", () => {
     const { team } = assembleChips(FULL, caps());
     expect(team).toEqual([]);
   });
 
   it("with `team`, team-member licences and the org insurance appear", () => {
     const { team } = assembleChips(FULL, caps("team"));
-    expect(team.some((c) => c.kind === "org-insurance")).toBe(true);
+    // every business paper inside the window, licences included — not just the soonest policy
+    expect(team.filter((c) => c.kind === "org-insurance" || c.kind === "org-licence").map((c) => c.key).sort()).toEqual([
+      "org-cred:arc",
+      "org-cred:pl",
+    ]);
     // Jordan + Sam, but not your own row (that's in `self`)
     const people = team.filter((c) => c.kind === "licence");
     expect(people.map((c) => c.subject).sort()).toEqual(["Jordan Mills", "Sam Lee"]);
@@ -115,7 +122,7 @@ describe("assembleChips — assets gate", () => {
     const { team } = assembleChips(FULL, caps("assets_all"));
     expect(team.length).toBeGreaterThan(0);
     expect(team.every((c) => c.kind === "rego" || c.kind === "insurance" || c.kind === "service")).toBe(true);
-    expect(team.some((c) => c.kind === "licence" || c.kind === "org-insurance")).toBe(false);
+    expect(team.some((c) => c.kind === "licence" || c.kind === "org-insurance" || c.kind === "org-licence")).toBe(false);
   });
 
   it("does not list your own assigned van twice — it stays in self, not team", () => {

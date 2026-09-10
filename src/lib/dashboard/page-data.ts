@@ -9,7 +9,9 @@ import { addDays, periodLabel } from "@/lib/timepay/period";
 import { approvedInSpan, holidaysInSpan, stateFor } from "@/lib/timepay/leave-query";
 import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
-import { listStaffCompliance, orgInsurance, type StaffCompliance } from "./query";
+import { listStaffCompliance, type StaffCompliance } from "./query";
+import { listOrgCredentials } from "@/lib/org/query";
+import type { OrgCredential } from "@/lib/org/credentials";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
 import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
@@ -360,9 +362,10 @@ async function loadChips(
 
   // Team data is only READ when the capability is held — it never reaches here
   // otherwise, so the scoping is enforced at the query, not just in assembly.
-  const [teamPeople, org, fleet, pendingClaims, pendingLeave] = await Promise.all([
+  const [teamPeople, orgCredentials, fleet, pendingClaims, pendingLeave] = await Promise.all([
     caps.has("team") ? listStaffCompliance(orgId) : Promise.resolve([] as StaffCompliance[]),
-    caps.has("team") ? orgInsurance(orgId) : Promise.resolve({ insurer: null, insuranceExpiry: null }),
+    // every card, not the soonest policy — the bell shows each one inside the window
+    caps.has("team") ? listOrgCredentials(orgId) : Promise.resolve([] as OrgCredential[]),
     caps.has("assets_all") ? listVehicles(orgId).then((r) => r.vehicles) : Promise.resolve([] as Vehicle[]),
     // a head count, not the full claims read — the chip needs one integer
     caps.has("approvals") ? pendingClaimsCount(orgId) : Promise.resolve(0),
@@ -378,7 +381,7 @@ async function loadChips(
       selfVehicle,
       teamPeople,
       fleet,
-      org,
+      orgCredentials,
       pendingClaims,
       pendingLeave,
       ownSheet,

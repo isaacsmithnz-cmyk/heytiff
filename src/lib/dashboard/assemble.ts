@@ -6,7 +6,7 @@ import {
   expensesChip,
   leaveQueueChip,
   licenceChip,
-  orgInsuranceChip,
+  orgCredentialChips,
   sortChips,
   timesheetChip,
   vehicleChips,
@@ -48,7 +48,14 @@ export type ChipSources = {
   teamPeople: StaffCompliance[];
   /** The whole register. */
   fleet: Vehicle[];
-  org: { insurer: string | null; insuranceExpiry: string | null };
+  /** The business's own licences and policies — every card, not the soonest. */
+  orgCredentials: {
+    id: string;
+    kind: "licence" | "insurance";
+    name: string;
+    issuer: string | null;
+    expiryDate: string | null;
+  }[];
   /** Expense claims waiting on a decision — 0 when the viewer can't decide
       them (the loader only counts for `approvals` holders). */
   pendingClaims: number;
@@ -105,7 +112,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
       for (const lic of s.licences) push(team, licenceChip(lic, ctx));
       team.push(...workRightsChips({ staffId: s.staffId, ...s.workRights }, ctx));
     }
-    push(team, orgInsuranceChip(src.org, { href: "/dashboard/admin/organization", today: src.today }));
+    team.push(...orgCredentialChips(src.orgCredentials, { href: "/dashboard/admin/organization", today: src.today }));
   }
   // A claim queue belongs to whoever can decide it, which is `approvals`,
   // not `team` — same rule as the review screen itself.

@@ -12,7 +12,7 @@ import {
   ctpChip,
   insuranceChip,
   licenceChip,
-  orgInsuranceChip,
+  orgCredentialChips,
   regoChip,
   serviceChip,
   sortChips,
@@ -227,6 +227,7 @@ describe("chipGroup", () => {
     expect(chipGroup("licence")).toBe("People");
     expect(chipGroup("work-rights")).toBe("People");
     expect(chipGroup("org-insurance")).toBe("Business");
+    expect(chipGroup("org-licence")).toBe("Business");
   });
 
   it("files money and hours under Pay", () => {
@@ -251,6 +252,7 @@ describe("chipGroup", () => {
       ctp: true,
       service: true,
       "org-insurance": true,
+      "org-licence": true,
       expenses: true,
       timesheet: true,
       claim: true,
@@ -281,22 +283,71 @@ describe("vehicleLabel", () => {
   });
 });
 
-describe("orgInsuranceChip", () => {
+/* THE BUSINESS'S OWN PAPERS — one chip per card, licences included.
+
+   This used to be `orgInsuranceChip`: ONE chip from a limit(1) read of the
+   soonest-expiring insurance card, "Public liability" hard-coded into the
+   label. Several policies on file → the soonest named, the rest hidden. A
+   business LICENCE never reached the bell at all. */
+describe("orgCredentialChips", () => {
   const ctx = { href: "/dashboard/admin/organization", today: TODAY };
-
-  it("is null with no expiry set", () => {
-    expect(orgInsuranceChip({ insurer: "CGU", insuranceExpiry: null }, ctx)).toBeNull();
+  const card = (over: Partial<Parameters<typeof orgCredentialChips>[0][number]>) => ({
+    id: "c1",
+    kind: "insurance" as const,
+    name: "Public liability",
+    issuer: "CGU",
+    expiryDate: "2026-08-02",
+    ...over,
   });
 
-  it("uses the insurer name as the subject when set", () => {
-    const chip = orgInsuranceChip({ insurer: "CGU", insuranceExpiry: "2026-08-02" }, ctx);
-    expect(chip).toMatchObject({ kind: "org-insurance", state: "warn", subject: "CGU" });
-    expect(chip?.label).toBe("Public liability expires in 2 weeks");
+  it("gives every card inside the window its own chip, keyed by its id", () => {
+    const chips = orgCredentialChips(
+      [
+        card({ id: "pl", name: "Public liability", expiryDate: "2026-08-02" }),
+        card({ id: "wc", name: "Workers compensation", issuer: "icare", expiryDate: "2026-07-25" }),
+        card({ id: "far", name: "Professional indemnity", expiryDate: "2027-01-01" }),
+      ],
+      ctx,
+    );
+    expect(chips.map((c) => c.key)).toEqual(["org-cred:wc", "org-cred:pl"]);
+    expect(chips.map((c) => c.label)).toEqual([
+      "Workers compensation expires in 6 days",
+      "Public liability expires in 2 weeks",
+    ]);
   });
 
-  it("falls back to a generic subject with no insurer", () => {
-    const chip = orgInsuranceChip({ insurer: null, insuranceExpiry: "2026-07-01" }, ctx);
-    expect(chip).toMatchObject({ state: "bad", subject: "Public liability insurance" });
+  it("puts a business licence in the bell — it never got there before", () => {
+    const [chip] = orgCredentialChips(
+      [card({ id: "arc", kind: "licence", name: "ARC refrigerant trading authorisation", issuer: null, expiryDate: "2026-07-01" })],
+      ctx,
+    );
+    expect(chip).toMatchObject({
+      kind: "org-licence",
+      state: "bad",
+      label: "ARC refrigerant trading authorisation expired 2 weeks ago",
+      subject: "Business licence",
+    });
+    expect(chipGroup(chip.kind)).toBe("Business");
+  });
+
+  it("uses the issuer as the subject, and a kind-shaped fallback without one", () => {
+    const [ins] = orgCredentialChips([card({ issuer: "CGU" })], ctx);
+    expect(ins.subject).toBe("CGU");
+    const [none] = orgCredentialChips([card({ issuer: "  " })], ctx);
+    expect(none.subject).toBe("Business insurance");
+  });
+
+  it("skips a card with no expiry, and one outside the window", () => {
+    expect(orgCredentialChips([card({ expiryDate: null })], ctx)).toEqual([]);
+    expect(orgCredentialChips([card({ expiryDate: "2026-12-31" })], ctx)).toEqual([]);
+  });
+
+  it("orders worst first, the same as every other chip list", () => {
+    const chips = orgCredentialChips(
+      [card({ id: "soon", expiryDate: "2026-08-10" }), card({ id: "gone", expiryDate: "2026-07-10" })],
+      ctx,
+    );
+    expect(chips.map((c) => c.key)).toEqual(["org-cred:gone", "org-cred:soon"]);
   });
 });
 

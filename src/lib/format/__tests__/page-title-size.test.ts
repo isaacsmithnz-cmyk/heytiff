@@ -27,7 +27,11 @@ import * as ts from "typescript";
    explanatory prose passes vacuously. */
 
 const SRC = join(__dirname, "..", "..", "..");
-const SIZE = "38px";
+/* 24px since the type scale landed (docs/design.md: 24 is the screen title;
+   32 is display, one per screen at most; 40 is the sheet's and the door's).
+   #350 had put every title at 38, which was one size but not one on any
+   scale. */
+const SIZE = "24px";
 
 /* WHOSE TITLES THIS RULE GOVERNS: the dashboard's screens, which is what #350
    was about and what the audit walked. Studio's canvas (`studio.css`,
@@ -130,7 +134,7 @@ describe("the page title", () => {
     expect(inline).toEqual([]);
   });
 
-  it("is 38px in every CSS rule that can size one", () => {
+  it("is the screen-title size in every CSS rule that can size one", () => {
     const wrong = headingRules(classes)
       .filter((r) => !NOT_A_PAGE_TITLE.has(r.selector))
       .filter((r) => r.size !== SIZE)

@@ -39,7 +39,6 @@ const blank: StaffProfile = {
   visa_expiry: null,
   hours_condition: null,
   vevo_checked_at: null,
-  work_rights_doc_url: null,
   qualifications: null,
 };
 

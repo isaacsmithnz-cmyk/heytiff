@@ -74,7 +74,7 @@
   border-bottom: 1px solid var(--dl-line);
 }
 .dl-pack-head h2 {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   margin: 0 0 4px;
 }
@@ -142,7 +142,7 @@
   border-bottom-color: var(--dl-accent);
 }
 .dl-count {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--dl-mut);
   background: #f0f0ee;
@@ -161,7 +161,7 @@
   border-radius: 10px;
   padding: 8px 12px;
   margin-bottom: 16px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
   color: #92400e;
 }
@@ -222,7 +222,7 @@
   margin-top: 8px;
 }
 .dl-gap {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--dl-gap);
   background: #fffbeb;
@@ -244,7 +244,7 @@
   text-align: left;
   font-weight: 700;
   color: var(--dl-mut);
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   padding: 8px 8px;

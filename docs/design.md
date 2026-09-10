@@ -81,8 +81,17 @@ register is the sharper one.
 | 32px | 700 | display, one per screen at most |
 | 40px | 700 | display, the sheet and the door only |
 
-Weight 800 is retired. Figures that line up in columns take
-`font-variant-numeric: tabular-nums` and carry their unit.
+Weight 800 is retired, and so are the variable font's in-between stops, 650
+and 750. Figures that line up in columns take `font-variant-numeric:
+tabular-nums` and carry their unit.
+
+Under 12 is the floor and goes to 12. When a size sat between two steps it
+went **up**, the other way from spacing and radius: those are denser and
+sharper for going down, but text is for reading and the floor is a floor. In
+the app 32 is the cap; 40 belongs to the sheet and the door. A page title is
+an `h1` and is the screen title, 24, whatever it was. A relative size
+(`0.86em` on inline code) is not on the scale and not counted: it follows the
+text it sits in.
 
 | Surface | Value | Role |
 |---|---|---|
@@ -243,7 +252,8 @@ for print, with their own type.
 | Ratchet | Law | 2026-09-10 |
 |---|---|---|
 | type below 12px | the floor | 545 |
-| weight 800 or 900 | retired | 625 |
+| type off the scale | eight sizes, picked by role | 1,223 |
+| weight off 400, 500, 600, 700 | 800 is retired, and 650 and 750 with it | 671 |
 | `transition: all` | transitions name what moves | 96 |
 | `text-transform: uppercase` | the eyebrow is retired | 202 |
 | radius off the scale | four radii and a circle | 748 |

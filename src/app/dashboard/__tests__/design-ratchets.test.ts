@@ -1,0 +1,249 @@
+import fs from "node:fs";
+import path from "node:path";
+
+/* THE NUMBERS ONLY GO DOWN.
+
+   docs/design.md sets four radii, eight type sizes, four weights, one accent
+   and one shadow. The stylesheets were written before any of that existed, so
+   a guard that demanded the scales today would fail on every file and be
+   skipped by everyone. This one counts instead. Each ratchet below records
+   how many times the sheets break a law, as of the day the law was written,
+   and holds the count exactly there.
+
+   A PR that removes some of them lowers the number in this file. A PR that
+   adds one fails here, with the count in the message. The number is therefore
+   always the truth, and reading this file tells you how far the fold has got.
+   Equality, not "at most": a count that drops without the number following it
+   is a change nobody wrote down, which is how the sheets got here.
+
+   Every ratchet was watched failing before it was trusted: the baselines were
+   first set wrong on purpose, the run printed the real counts, and only then
+   were they recorded. Do the same when you add one.
+
+   The three paper stylesheets are left out on purpose. The design sheet, the
+   letterhead and the live sheet are documents set for print, with type sizes
+   that belong to paper, not to the screen scales. */
+
+const SRC = path.join(process.cwd(), "src");
+const PAPER = new Set([
+  "src/components/studio/summary/sheet-doc.css",
+  "src/components/org/letterhead.css",
+  "src/app/live/[token]/live-sheet.css",
+]);
+
+function sheets(dir: string, out: string[] = []): string[] {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      if (e.name === "node_modules" || e.name.startsWith(".")) continue;
+      sheets(p, out);
+    } else if (p.endsWith(".css") && !PAPER.has(path.relative(process.cwd(), p))) {
+      out.push(p);
+    }
+  }
+  return out.sort();
+}
+
+// comments carry the history; only declarations count
+const CSS = sheets(SRC)
+  .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, ""))
+  .join("\n");
+
+const count = (re: RegExp) => (CSS.match(re) ?? []).length;
+
+/* The radius scale from docs/design.md, plus the two values that are not a
+   radius at all. A shorthand like `12px 12px 0 0` is one declaration and one
+   hit if any of its parts is off the scale. Tokens and calc() are trusted:
+   they are how the fold will express the scale. */
+const RADII = new Set(["0", "6px", "10px", "16px", "999px", "50%", "inherit", "initial"]);
+function offScaleRadii(): number {
+  let n = 0;
+  for (const m of CSS.matchAll(/border-radius\s*:\s*([^;}]+)/g)) {
+    const parts = m[1].trim().split(/[\s/]+/);
+    if (parts.some((t) => !RADII.has(t) && !t.startsWith("var(") && !t.startsWith("calc("))) n++;
+  }
+  return n;
+}
+
+/* A focus ring is `0 0 0 Npx` and is the accent doing its job; an inset is a
+   hairline drawn the long way. Everything else is a shadow. */
+function shadows(): number {
+  let n = 0;
+  for (const m of CSS.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
+    const v = m[1].trim();
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v)) n++;
+  }
+  return n;
+}
+
+/* A coloured line down the left edge: a border, an inset shadow that only
+   paints on the left, or a pseudo-element two to six pixels wide pinned to
+   the left with a height. Selection is a fill and state is a word, so none of
+   these has a job. Widths under 2px are dividers, not bars, and are not
+   counted. Isaac named this one himself: "the vertical line at the start of
+   lots of different buttons or cards. the nav bar items are an easy example." */
+function leftBars(): number {
+  let n = 0;
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(CSS))) {
+    const sel = m[1];
+    const body = m[2];
+    const border = body.match(/border-(?:left|inline-start)\s*:\s*([^;]+)/);
+    if (border && parseFloat(border[1]) >= 2 && !/transparent|none/.test(border[1])) n++;
+    const inset = body.match(/box-shadow\s*:\s*inset\s+(\d+(?:\.\d+)?)px\s+0\b/);
+    if (inset && Number(inset[1]) >= 2) n++;
+    if (/::?(before|after)\b/.test(sel)) {
+      const w = body.match(/\bwidth\s*:\s*(\d+(?:\.\d+)?)px/);
+      const width = w ? Number(w[1]) : 0;
+      if (width >= 2 && width <= 6 && /\bleft\s*:\s*(0|-1px)\b/.test(body) && /\b(top|bottom|inset|height)\s*:/.test(body)) n++;
+    }
+  }
+  return n;
+}
+
+/* ROUND TWO, 2026-09-10. Fifteen more tells, found by a second research pass
+   and approved together. The countable ones are below; the rest (spinners,
+   footers, Open Graph) are laws and a task in docs/design.md.
+
+   Some of these read the components, not the stylesheets: the arrow on a
+   button and the middot chain live in JSX text and string literals. The same
+   comment-stripping applies, so a comment that quotes a tell is not a tell. */
+const TSX = (() => {
+  const files: string[] = [];
+  (function walk(dir: string) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name === "node_modules" || e.name.startsWith(".") || e.name === "__tests__") continue;
+        walk(p);
+      } else if (p.endsWith(".tsx")) files.push(p);
+    }
+  })(SRC);
+  return files
+    .sort()
+    .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, ""))
+    .join("\n");
+})();
+const countTsx = (re: RegExp) => (TSX.match(re) ?? []).length;
+
+/* Every rule block as [selector, body], for the counts that need both. */
+function blocks(): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(CSS))) out.push([m[1], m[2]]);
+  return out;
+}
+
+/* Tailwind's palette, by value. The app's greys were these before anyone
+   chose a grey, and the state colours are Tailwind's red, green, teal and
+   amber. docs/design.md names the replacements. */
+const TAILWIND = [
+  "#f9fafb", "#f3f4f6", "#e5e7eb", "#d1d5db", "#9ca3af", "#6b7280", "#4b5563", "#374151", "#1f2937", "#111827",
+  "#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#94a3b8", "#64748b", "#475569", "#334155", "#1e293b", "#0f172a",
+  "#fafafa", "#f4f4f5", "#e4e4e7", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b", "#3f3f46", "#27272a", "#18181b",
+  "#f5f5f5", "#e5e5e5", "#d4d4d4", "#a3a3a3", "#737373", "#525252", "#404040", "#262626", "#171717",
+  "#6366f1", "#4f46e5", "#8b5cf6", "#7c3aed", "#3b82f6", "#2563eb", "#10b981", "#059669", "#22c55e", "#16a34a", "#ef4444", "#dc2626", "#f59e0b", "#d97706", "#0ea5e9", "#14b8a6",
+];
+function tailwindHexes(): number {
+  const low = CSS.toLowerCase();
+  let n = 0;
+  for (const h of TAILWIND) n += (low.match(new RegExp(h, "g")) ?? []).length;
+  return n;
+}
+
+/* The spacing scale from docs/design.md. 2 is the hairline gap between
+   chips; everything else is 4 and its multiples up to 48. */
+const SPACING = new Set([0, 2, 4, 8, 12, 16, 24, 32, 48]);
+function offScaleSpacing(): number {
+  let n = 0;
+  for (const m of CSS.matchAll(/(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)?\s*:\s*([^;}]+)/g)) {
+    for (const t of m[1].split(/\s+/)) {
+      const v = t.match(/^(-?\d+(?:\.\d+)?)px$/);
+      if (v && !SPACING.has(Math.abs(Number(v[1])))) n++;
+    }
+  }
+  return n;
+}
+
+function distinctZ(): number {
+  const z = new Set<string>();
+  for (const m of CSS.matchAll(/z-index\s*:\s*(-?\d+)/g)) z.add(m[1]);
+  return z.size;
+}
+
+/* On screen only: JSX text or a string literal on one line, never code. The
+   line bound matters — without it a quote that opens on one line and closes
+   on another swallows the code in between and counts it. */
+const onScreen = (ch: string) => new RegExp(`>[^<{\\n]*${ch}[^<{\\n]*<|"[^"\\n]*${ch}[^"\\n]*"|'[^'\\n]*${ch}[^'\\n]*'|\`[^\`\\n]*${ch}[^\`\\n]*\``, "g");
+
+function hoverBlocks(test: (body: string) => boolean): number {
+  let n = 0;
+  for (const [sel, body] of blocks()) if (/:hover/.test(sel) && test(body)) n++;
+  return n;
+}
+
+/* A button whose only content is an icon, unless it is a close cross or the
+   clear cross in a search field — the two the law allows. */
+function iconOnlyButtons(): number {
+  let n = 0;
+  for (const m of TSX.matchAll(/<button\b([^>]*)>\s*(?:<span[^>]*>\s*)?<Icon\b[^>]*\/>\s*(?:<\/span>\s*)?<\/button>/g)) {
+    if (/aria-label=\{?["'`](Close|Clear)\b/.test(m[1])) continue;
+    n++;
+  }
+  return n;
+}
+
+function small(): number {
+  let n = 0;
+  for (const m of CSS.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)) if (Number(m[1]) < 12) n++;
+  return n;
+}
+
+const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
+  { law: "type below 12px — the floor", now: small, baseline: 545 },
+  { law: "weight 800 or 900 — retired", now: () => count(/font-weight\s*:\s*(800|900)\b/g), baseline: 625 },
+  { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 96 },
+  { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 202 },
+  { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 748 },
+  { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 45 },
+  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 136 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 291 },
+  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 27 },
+  // round two
+  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 261 },
+  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2866 },
+  { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 104 },
+  { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
+  { law: "arrows on buttons — the word is the button", now: () => countTsx(onScreen("→")), baseline: 18 },
+  { law: "middot chains — a sentence, or a label and a value", now: () => countTsx(onScreen("·")), baseline: 242 },
+  { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 6 },
+  { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 38 },
+  { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform/.test(b) && /box-shadow/.test(b)), baseline: 34 },
+  { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 11 },
+  { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 25 },
+  { law: "pill, chip, tag and badge rules — state is a word", now: () => count(/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*\s*[{,]/g), baseline: 141 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 451 },
+  { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
+];
+
+describe("the design ratchets only go down", () => {
+  it("reads every screen stylesheet and none of the paper ones", () => {
+    const files = sheets(SRC).map((f) => path.relative(process.cwd(), f));
+    expect(files).toContain("src/app/dashboard/shell.css");
+    expect(files).toContain("src/components/studio/studio.css");
+    for (const paper of PAPER) expect(files).not.toContain(paper);
+  });
+
+  for (const r of RATCHETS) {
+    it(r.law, () => {
+      const n = r.now();
+      const verdict =
+        n < r.baseline
+          ? `${r.law}: ${n} now, the baseline says ${r.baseline}. You removed some — lower the baseline in design-ratchets.test.ts to ${n}.`
+          : `${r.law}: ${n} now, the baseline says ${r.baseline}. Something added ${n - r.baseline} — take it out, or if it is a spinner or the orb, name it in docs/design.md and lower the count another way.`;
+      expect({ count: n, verdict }).toEqual({ count: r.baseline, verdict: expect.any(String) });
+    });
+  }
+});

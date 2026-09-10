@@ -114,6 +114,8 @@ export function IdentityScreen({
       sumInsured: r.sumInsured != null ? String(r.sumInsured) : p.sumInsured,
       premium: r.premium != null ? String(r.premium) : p.premium,
       excess: r.excess != null ? String(r.excess) : p.excess,
+      workersCount: r.workersCount != null ? String(r.workersCount) : p.workersCount,
+      wages: r.wages != null ? String(r.wages) : p.wages,
       startsOn: r.startsOn ?? p.startsOn,
       expiresOn: r.expiresOn ?? p.expiresOn,
     }));

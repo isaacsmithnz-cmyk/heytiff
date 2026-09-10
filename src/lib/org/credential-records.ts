@@ -4,7 +4,7 @@ import { fmtDay } from "@/lib/format/day";
 import type { DocumentKind } from "@/lib/documents/files";
 import type { StoredDocument } from "@/lib/documents/query";
 import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
-import { termFieldsFor, type OrgCredKind, type TermField } from "./credentials";
+import { termFieldsFor, termLabelFor, type OrgCredKind, type TermField } from "./credentials";
 
 /* One TERM of a business licence or insurance policy — the pure rules.
 
@@ -33,6 +33,11 @@ export type OrgCredentialRecord = {
   sumInsured: number | null;
   premium: number | null;
   excess: number | null;
+  /** Workers compensation: the number of workers the premium is rated on, and
+      the wages declared for the period. Null on every other kind of paper —
+      see termFieldsFor for which paper carries what. */
+  workersCount: number | null;
+  wages: number | null;
   startsOn: string | null;
   expiresOn: string;
   /** The document this row was read from, if it was scanned. */
@@ -209,12 +214,22 @@ export function recordFacts(
     return [
       { label: "INSURER", value: r.issuer ?? dash, tone: faint(r.issuer) },
       { label: "POLICY NO.", value: r.number ?? dash, tone: faint(r.number) },
-      has("cover") && { label: "COVER", value: r.cover ?? dash, tone: faint(r.cover) },
+      has("cover") && {
+        label: (termLabelFor(kind, name, "cover") ?? "Cover").toUpperCase(),
+        value: r.cover ?? dash,
+        tone: faint(r.cover),
+      },
       has("sumInsured") && {
         label: "LIMIT",
         value: r.sumInsured != null ? fmtSumInsured(r.sumInsured) : dash,
         tone: faint(r.sumInsured),
       },
+      has("workers") && {
+        label: "WORKERS",
+        value: r.workersCount != null ? String(r.workersCount) : dash,
+        tone: faint(r.workersCount),
+      },
+      has("wages") && { label: "WAGES", value: money(r.wages), tone: faint(r.wages) },
       { label: "STARTS", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
       expiry,
       has("premium") && { label: "PREMIUM", value: money(r.premium), tone: faint(r.premium) },
@@ -254,6 +269,8 @@ export type CredentialRecordInput = {
   sumInsured?: string | number | null;
   premium?: string | number | null;
   excess?: string | number | null;
+  workersCount?: string | number | null;
+  wages?: string | number | null;
   /** dd/mm/yyyy, or the ISO a picker emits. */
   startsOn?: string;
   expiresOn?: string;
@@ -268,6 +285,8 @@ export type CredentialRecordRow = {
   sum_insured: number | null;
   premium: number | null;
   excess: number | null;
+  workers_count: number | null;
+  wages: number | null;
   starts_on: string | null;
   expires_on: string;
   document_id: string | null;
@@ -282,6 +301,20 @@ function money(v: string | number | null | undefined): number | null {
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100) / 100;
+}
+
+/** A head count. Whole, non-negative, and never invented from an empty box —
+    the same posture as `money`, which is the only reason it is not `money`:
+    2.5 workers is not a number a certificate can print. */
+function count(v: string | number | null | undefined): number | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return Number.isInteger(v) && v >= 0 ? v : null;
+  /* Thousands separators are forgiven; a decimal point is NOT. Stripping
+     every non-digit would turn "11.5" into 115 and "-4" into 4 — a wrong
+     number stored silently, which is worse than a refused one. The box only
+     accepts digits, so this is the guard for a value that came another way. */
+  const s = v.trim().replace(/[\s,]/g, "");
+  return /^\d+$/.test(s) ? parseInt(s, 10) : null;
 }
 
 const text = (v: string | undefined, cap: number): string | null => {
@@ -318,6 +351,8 @@ export function buildCredentialRecordRow(
       sum_insured: money(input.sumInsured),
       premium: money(input.premium),
       excess: money(input.excess),
+      workers_count: count(input.workersCount),
+      wages: money(input.wages),
       starts_on: starts,
       expires_on: expires,
       document_id: input.documentId ?? null,

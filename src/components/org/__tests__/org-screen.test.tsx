@@ -489,6 +489,8 @@ describe("the credential modal", () => {
     sumInsured: 20_000_000,
     premium: 2400,
     excess: 500,
+    workersCount: null,
+    wages: null,
     startsOn: "2025-08-07",
     expiresOn: "2026-08-07",
     documentId: null,
@@ -801,6 +803,66 @@ describe("the credential modal", () => {
     expect(within(dialog).queryByLabelText("Limit of liability")).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText("Excess")).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText("Insurer")).toBeInTheDocument();
+  });
+
+  /* THE TWO NUMBERS THE CERTIFICATE ITSELF TELLS PRINCIPALS TO CHECK. icare's
+     "Important information" block asks a head contractor to compare the number
+     of workers on site to the number estimated, and to judge whether the wages
+     cover the labour component of the work. Isaac's certificate prints 11 and
+     $943,669.32, and until now the app filed the PDF and threw both away. */
+  it("gives a workers compensation policy the two figures it does carry", async () => {
+    const user = userEvent.setup();
+    const wc: OrgCredential = { ...CREDENTIALS[1], name: "Workers compensation" };
+    setup({
+      sec: "credentials",
+      credentials: [wc],
+      records: { C2: [term({ workersCount: 11, wages: 943_669.32 })] },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("WORKERS")).toBeInTheDocument();
+    expect(within(dialog).getByText("11")).toBeInTheDocument();
+    expect(within(dialog).getByText("WAGES")).toBeInTheDocument();
+    expect(within(dialog).getByText("$943,669")).toBeInTheDocument();
+
+    // and the boxes to type them into, when the scan did not
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(within(dialog).getByLabelText("Workers covered")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Wages declared")).toBeInTheDocument();
+  });
+
+  /* The cover wording on a workers comp certificate is boilerplate — every NSW
+     one recites the same statutory liability — and the line that varies, and
+     that the certificate tells principals to confirm, is the industry
+     classification the premium is rated under. So the box keeps the column and
+     takes the name worth typing into it. */
+  it("calls the cover box what that paper calls it", async () => {
+    const user = userEvent.setup();
+    const wc: OrgCredential = { ...CREDENTIALS[1], name: "Workers compensation" };
+    setup({ sec: "credentials", credentials: [wc], records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Workers compensation" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("INDUSTRY CLASSIFICATION")).toBeInTheDocument();
+    expect(within(dialog).queryByText("COVER")).not.toBeInTheDocument();
+  });
+
+  it("offers a public liability policy neither figure", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", records: { C2: [term()] } });
+
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText("WORKERS")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("WAGES")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("COVER")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(within(dialog).queryByLabelText("Workers covered")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Wages declared")).not.toBeInTheDocument();
   });
 
   it("still offers them to the policy that prints them", async () => {
@@ -1376,6 +1438,8 @@ describe("filing a document against a card with no expiry", () => {
             cover: null,
             sumInsured: null,
             premium: null,
+            workersCount: null,
+            wages: null,
             excess: null,
             startsOn: null,
             expiresOn: "2026-08-07",

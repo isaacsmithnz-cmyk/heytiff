@@ -56,7 +56,7 @@ export async function listOrgCredentialRecords(
     .from("org_credential_records")
     .select(
       "id, credential_id, issuer, number, cover, sum_insured, premium, excess" +
-        ", starts_on, expires_on, document_id, source, created_at",
+        ", workers_count, wages, starts_on, expires_on, document_id, source, created_at",
     )
     .eq("org_id", orgId)
     .order("expires_on", { ascending: false });
@@ -82,6 +82,8 @@ export async function listOrgCredentialRecords(
       sumInsured: num(r.sum_insured),
       premium: num(r.premium),
       excess: num(r.excess),
+      workersCount: num(r.workers_count),
+      wages: num(r.wages),
       startsOn: r.starts_on ? String(r.starts_on).slice(0, 10) : null,
       expiresOn,
       documentId: str(r.document_id),

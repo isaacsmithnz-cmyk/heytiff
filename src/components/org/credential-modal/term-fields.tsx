@@ -2,7 +2,7 @@
 
 import { DateField } from "@/components/ui/date-field";
 import { Field, MoneyInput } from "@/components/record-modal/parts";
-import { termFieldsFor, type OrgCredKind } from "@/lib/org/credentials";
+import { termFieldsFor, termLabelFor, type OrgCredKind } from "@/lib/org/credentials";
 import type { CredentialRecordInput } from "@/lib/org/credential-records";
 
 /* THE FIELDS ONE TERM HAS, in one place because two screens fill them: adding
@@ -24,7 +24,11 @@ export const KIND_LABEL: Record<OrgCredKind, string> = {
 export const SCAN_COPY: Record<OrgCredKind, { prompt: string; hint: string; attach: string }> = {
   insurance: {
     prompt: "Scan or upload the certificate of currency",
-    hint: "Insurer, policy number, limit and expiry are read from the document, and it's filed under this policy. PDF, JPG or photo.",
+    /* NOT "limit" — that box only exists on the papers that print one, and
+       promising it above a workers compensation certificate names a field the
+       screen is about to not show. The figures it does carry are named as
+       figures. */
+    hint: "The insurer, the policy number, the period and the figures printed on it are read from the document, and it's filed under this policy. PDF, JPG or photo.",
     attach: "Optional: attach the certificate or policy schedule",
   },
   licence: {
@@ -70,6 +74,8 @@ export type Term = {
   sumInsured: string;
   premium: string;
   excess: string;
+  workersCount: string;
+  wages: string;
   startsOn: string;
   expiresOn: string;
 };
@@ -81,6 +87,8 @@ export const emptyTerm: Term = {
   sumInsured: "",
   premium: "",
   excess: "",
+  workersCount: "",
+  wages: "",
   startsOn: "",
   expiresOn: "",
 };
@@ -95,6 +103,8 @@ export function termInput(t: Term): CredentialRecordInput {
     sumInsured: t.sumInsured,
     premium: t.premium,
     excess: t.excess,
+    workersCount: t.workersCount,
+    wages: t.wages,
     startsOn: t.startsOn,
     expiresOn: t.expiresOn,
   };
@@ -118,6 +128,12 @@ export function TermFields({
   today: string;
 }) {
   const fields = termFieldsFor(kind, name);
+  /* A paper's own word beats the kind's. On a workers compensation certificate
+     the cover wording is boilerplate — every NSW one recites the same statutory
+     liability — and the line that varies, and that the certificate tells
+     principals to confirm, is the industry classification. */
+  const coverOverride = termLabelFor(kind, name, "cover");
+  const coverLabel = coverOverride ?? COVER_LABEL[kind];
   const set = (k: keyof Term) => (v: string) => onChange({ ...value, [k]: v });
   return (
     <div className="vm-fields">
@@ -139,11 +155,11 @@ export function TermFields({
         />
       </Field>
       {fields.includes("cover") && (
-        <Field label={COVER_LABEL[kind]}>
+        <Field label={coverLabel}>
           <input
             className="vm-input"
-            aria-label={COVER_LABEL[kind]}
-            placeholder={COVER_HINT[kind]}
+            aria-label={coverLabel}
+            placeholder={coverOverride ? "e.g. 423300 Air Conditioning and Heating Services" : COVER_HINT[kind]}
             value={value.cover}
             onChange={(e) => set("cover")(e.target.value)}
           />
@@ -179,6 +195,31 @@ export function TermFields({
           aria-label="Expiry"
         />
       </Field>
+      {fields.includes("workers") && (
+        <Field label="Workers covered">
+          <input
+            className="vm-input"
+            inputMode="numeric"
+            aria-label="Workers covered"
+            placeholder="11"
+            value={value.workersCount}
+            /* Digits only on the way in. A head count is whole by nature, and
+               a box that accepts "11.5" is a box that has to explain itself
+               later. The validator drops a bad one either way. */
+            onChange={(e) => set("workersCount")(e.target.value.replace(/[^0-9]/g, ""))}
+          />
+        </Field>
+      )}
+      {fields.includes("wages") && (
+        <Field label="Wages declared">
+          <MoneyInput
+            value={value.wages}
+            onChange={set("wages")}
+            placeholder="943,669"
+            ariaLabel="Wages declared"
+          />
+        </Field>
+      )}
       {fields.includes("premium") && (
         <Field label={PRICE_LABEL[kind]}>
           <MoneyInput value={value.premium} onChange={set("premium")} ariaLabel={PRICE_LABEL[kind]} />

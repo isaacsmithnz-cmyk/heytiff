@@ -1,4 +1,4 @@
-import { termFieldsFor, type OrgCredKind, type TermField } from "./credentials";
+import { termFieldsFor, termLabelFor, type OrgCredKind, type TermField } from "./credentials";
 
 /* Reading the business's own certificate into a record — the pure half.
 
@@ -34,6 +34,11 @@ const isoDate = (v: unknown): string | null =>
 const money = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : null;
 
+/** A head count: whole and non-negative. 11.5 workers is not a number a
+    certificate can print, so a model that offers one has read a wages figure. */
+const whole = (v: unknown): number | null =>
+  typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
+
 export type OrgCredRead = {
   issuer: string | null;
   number: string | null;
@@ -41,6 +46,8 @@ export type OrgCredRead = {
   sumInsured: number | null;
   premium: number | null;
   excess: number | null;
+  workersCount: number | null;
+  wages: number | null;
   startsOn: string | null;
   expiresOn: string | null;
 };
@@ -56,10 +63,23 @@ export const ORG_CRED_READ_SCHEMA = {
     sumInsured: nullable("number"),
     premium: nullable("number"),
     excess: nullable("number"),
+    workersCount: nullable("number"),
+    wages: nullable("number"),
     startsOn: nullable("string"),
     expiresOn: nullable("string"),
   },
-  required: ["issuer", "number", "cover", "sumInsured", "premium", "excess", "startsOn", "expiresOn"],
+  required: [
+    "issuer",
+    "number",
+    "cover",
+    "sumInsured",
+    "premium",
+    "excess",
+    "workersCount",
+    "wages",
+    "startsOn",
+    "expiresOn",
+  ],
   additionalProperties: false,
 } as const;
 
@@ -70,6 +90,29 @@ export const ORG_CRED_READ_SCHEMA = {
    the "full amount of the employer's liability" wording are both close enough
    to tempt it. A field that is not on the form is not on the prompt either,
    and `parseOrgCredRead` drops it a second time if it comes back anyway. */
+/* Where a paper CALLS the cover box something else, it is asked for something
+   else. A workers compensation certificate's cover wording is boilerplate —
+   every NSW one recites the same statutory liability — and the line that
+   varies, and that the certificate tells principals to confirm, is the
+   industry classification the premium is rated under. */
+const COVER_ASK: Record<string, string> = {
+  "Industry classification":
+    "- cover: the INDUSTRY CLASSIFICATION printed on the certificate — its code and " +
+    'description together, e.g. "423300 Air Conditioning and Heating Services". Not the ' +
+    "statutory wording about the employer's liability, which every certificate carries.\n",
+};
+
+/* What to say about a field this paper cannot have. `cover` and `premium` are
+   omitted deliberately: every paper here has both, so neither is ever absent,
+   and a line claiming otherwise would be a lie waiting for a new registry
+   entry to make it true. */
+const FIELD_ABSENT: Partial<Record<TermField, string>> = {
+  sumInsured: "- sumInsured: null — this paper has no sum insured or limit of liability\n",
+  excess: "- excess: null — this paper has no excess\n",
+  workers: "- workersCount: null — this paper does not state a number of workers\n",
+  wages: "- wages: null — this paper does not declare wages\n",
+};
+
 const FIELD_ASK: Record<TermField, string> = {
   cover: "",
   sumInsured:
@@ -79,6 +122,13 @@ const FIELD_ASK: Record<TermField, string> = {
     "- premium: the total amount payable in AUD, GST inclusive. Null if the document " +
     "does not print a price — a certificate of currency usually does not.\n",
   excess: "- excess: the standard or basic excess in dollars, if printed\n",
+  workers:
+    "- workersCount: the NUMBER OF WORKERS the policy is rated on, as a whole " +
+    "number. It is the count printed on the certificate — it includes contractors " +
+    "and deemed workers — not the size of the company.\n",
+  wages:
+    "- wages: the total WAGES / units declared for the period, in dollars as a " +
+    "plain number. Never the limit of liability or the premium.\n",
 };
 
 /* What each kind of paper is, and who it comes FROM.
@@ -122,18 +172,19 @@ const CRED_WHAT: Record<OrgCredKind, { what: string; issuer: string; cover: stri
 export function orgCredPrompt(kind: OrgCredKind, name = ""): string {
   const k = CRED_WHAT[kind];
   const fields = termFieldsFor(kind, name);
-  const ask = (f: TermField) => (fields.includes(f) ? (f === "cover" ? k.cover : FIELD_ASK[f]) : "");
-  /* The fields this paper cannot have are named as absent rather than left
-     unmentioned. A model handed a certificate of currency and no instruction
-     about an excess will still offer one from the policy wording it half
-     remembers; told there is none, it does not. */
-  const absent = (["sumInsured", "excess"] as const)
+  const coverLabel = termLabelFor(kind, name, "cover");
+  const coverAsk = (coverLabel && COVER_ASK[coverLabel]) ?? k.cover;
+  const ask = (f: TermField) => (fields.includes(f) ? (f === "cover" ? coverAsk : FIELD_ASK[f]) : "");
+  /* EVERY KEY THE SCHEMA REQUIRES IS ACCOUNTED FOR — asked for, or named as
+     absent. Structured output makes the model emit all of them whatever the
+     prompt says, so a key the prompt never mentions is a key it fills from
+     whatever on the page looks closest: an excess from half-remembered policy
+     wording, a worker count from a wages line. Told there is none, it does
+     not. (`parseOrgCredRead` drops it a second time regardless — this is about
+     not inviting the guess in the first place.) */
+  const absent = (Object.keys(FIELD_ABSENT) as TermField[])
     .filter((f) => !fields.includes(f))
-    .map((f) =>
-      f === "sumInsured"
-        ? "- sumInsured: null — this paper has no sum insured or limit of liability\n"
-        : "- excess: null — this paper has no excess\n"
-    )
+    .map((f) => FIELD_ABSENT[f])
     .join("");
   return (
     `This is ${k.what}. Extract:\n` +
@@ -142,6 +193,8 @@ export function orgCredPrompt(kind: OrgCredKind, name = ""): string {
     ask("cover") +
     ask("sumInsured") +
     ask("excess") +
+    ask("workers") +
+    ask("wages") +
     ask("premium") +
     absent +
     "- startsOn: the date cover or the licence period BEGINS, as yyyy-mm-dd\n" +
@@ -171,6 +224,8 @@ export function parseOrgCredRead(raw: unknown, kind: OrgCredKind, name = ""): Or
     sumInsured: keep("sumInsured", money(r.sumInsured)),
     premium: keep("premium", money(r.premium)),
     excess: keep("excess", money(r.excess)),
+    workersCount: keep("workers", whole(r.workersCount)),
+    wages: keep("wages", money(r.wages)),
     startsOn: isoDate(r.startsOn),
     expiresOn: isoDate(r.expiresOn),
   };

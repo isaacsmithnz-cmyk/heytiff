@@ -12120,23 +12120,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .vm-status { display:flex; align-items:center; justify-content:space-between; gap:16px; border-radius:16px; padding:18px 20px; border:1px solid var(--vm-line2); background:var(--vm-sunk); }
 .vm-status.ok { background:var(--vm-ok-bg); border-color:var(--vm-ok-line); }
 .vm-status.warn, .vm-status.bad { background:var(--vm-warn-bg); border-color:var(--vm-warn-line); }
-/* The status card's right-hand pair: the reminder menu and the one button that
-   changes anything. Both live up here now — the reminders used to be four
-   chips in a card of their own near the bottom, which spent a whole panel on
-   what is usually a single switched-on lead. */
+/* The status card's right-hand side: the one button that changes anything. */
 .vm-statusr { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
-.vm-remind { display:inline-flex; align-items:center; gap:7px; height:40px; padding:0 13px; border-radius:12px;
-  border:1px solid var(--vm-border); background:#fff; font-size:13px; font-weight:700; color:var(--q);
-  transition:background .15s, color .15s, border-color .15s; }
-.vm-remind:hover:not(:disabled) { background:var(--vm-chip); color:var(--ink); }
-/* Set reminders make it an INK button, not an ok-teal one: how many nudges you
-   asked for is not a state of the policy, and this sits inches from a chip
-   whose colour is. */
-.vm-remind.on { border-color:var(--ink); color:var(--ink); }
-.vm-remind:disabled { opacity:.5; cursor:default; }
-.vm-menu button.on { color:var(--ink); }
-.vm-menu button.on svg { color:var(--ok-t); }
-.vm-menu button:disabled { opacity:.5; cursor:default; }
 .vm-statusl { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .vm-headline { font-size:24px; font-weight:800; color:var(--ink); line-height:1.1; }
 .vm-subline { font-size:13px; color:var(--q); }
@@ -12273,12 +12258,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:9px; }
 .vm-acts { display:flex; justify-content:flex-end; gap:10px; margin-top:4px; }
 
 /* ---- vehicle modal: remind-me chips ---- */
-.vm-chips { display:flex; flex-wrap:wrap; gap:8px; }
-.vm-chip { border:1px solid var(--vm-border); background:#fff; border-radius:999px; padding:7px 13px; font-size:12.5px; font-weight:700; color:var(--ink); transition:background .15s, border-color .15s, color .15s; }
-.vm-chip:hover { background:var(--vm-chip); }
-.vm-chip.on { background:var(--ink); border-color:var(--ink); color:#fff; }
-.vm-chip.on:hover { background:#232a38; }
-.vm-chip:disabled { opacity:.45; cursor:default; }
 
 /* ===================================================================
    THE CREDENTIAL MODAL — the business's licences and insurance, wearing

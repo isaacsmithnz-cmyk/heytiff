@@ -49,7 +49,6 @@ export type ProfileActions = {
   /** Removes one term — a scan filed against the wrong ticket. */
   onRemoveLicenceTerm: (termId: string) => Promise<SaveResult>;
   /** The VIEWER's own reminder about this ticket, `lead` days before expiry. */
-  onLicenceReminder: (licenceId: string, leadDays: number, on: boolean) => Promise<SaveResult>;
   /* Right to work is a history of CHECKS, not a set of fields
      (docs/migrations/staff_work_rights_records.sql). Optional as a group: a
      caller that has not wired them gets the card exactly as it was, with no
@@ -57,7 +56,6 @@ export type ProfileActions = {
   onRecordWorkRightsCheck?: (input: WorkRightsCheckInput) => Promise<SaveResult>;
   onAttachWorkRightsDoc?: (recordId: string, documentId: string) => Promise<SaveResult>;
   onRemoveWorkRightsCheck?: (recordId: string) => Promise<SaveResult>;
-  onWorkRightsReminder?: (leadDays: number, on: boolean) => Promise<SaveResult>;
   /** points the card at an already-uploaded staff_photo document */
   onSetPhoto: (documentId: string) => Promise<SaveResult>;
   onClearPhoto: () => Promise<SaveResult>;

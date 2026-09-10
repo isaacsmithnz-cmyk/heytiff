@@ -483,7 +483,6 @@ export function FleetRegister({
           documents={fleet.documents[openVehicle.id] ?? []}
           policies={fleet.policies[openVehicle.id] ?? []}
           finance={fleet.finance[openVehicle.id] ?? []}
-          reminders={fleet.reminders[openVehicle.id] ?? []}
           staff={staff}
           today={today}
           warnDays={warnDays}

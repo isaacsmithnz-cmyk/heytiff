@@ -12,7 +12,6 @@ import {
   listLogs,
   listVehiclePicker,
   listPolicies,
-  listRenewalReminders,
   listVehicles,
   staffProfileIdFor,
 } from "./query";
@@ -66,14 +65,13 @@ export async function loadFleetPage(opts: { withRegister: boolean }): Promise<Fl
   if (!opts.withRegister || !(await can("assets_all")))
     return { own, today, warnDays, viewerStaffId: staffId };
 
-  const [{ vehicles, aiValues }, logs, staff, policies, finance, reminders] = await Promise.all([
+  const [{ vehicles, aiValues }, logs, staff, policies, finance] = await Promise.all([
     listVehicles(orgId),
     listLogs(orgId),
     listFleetStaff(orgId),
     listPolicies(orgId),
     listFinance(orgId),
     // the viewer's own — a reminder is personal, so the register carries yours
-    listRenewalReminders(orgId, staffId),
   ]);
   /* The paper trail rides the register payload the way logs do: it is the
      same capability, and the detail modal should not have to fetch to show
@@ -86,7 +84,7 @@ export async function loadFleetPage(opts: { withRegister: boolean }): Promise<Fl
   );
   return {
     own,
-    register: { vehicles, logs, aiValues, staff, policies, finance, reminders, documents: Object.fromEntries(documents) },
+    register: { vehicles, logs, aiValues, staff, policies, finance, documents: Object.fromEntries(documents) },
     today,
     warnDays,
     viewerStaffId: staffId,

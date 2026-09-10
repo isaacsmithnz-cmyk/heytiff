@@ -34,7 +34,6 @@ export function ComplianceCard({
   staffId,
   records = {},
   documents = {},
-  reminders = {},
   today,
   warnDays,
   onAdd,
@@ -43,7 +42,6 @@ export function ComplianceCard({
   onRecordTerm,
   onAttachDoc,
   onRemoveTerm,
-  onRemind,
 }: {
   licences: StaffLicence[];
   /** Whose card this is — the scan action and every write are scoped to it. */
@@ -54,7 +52,6 @@ export function ComplianceCard({
      not supply three empty maps. */
   records?: Record<string, StaffLicenceRecord[]>;
   documents?: Record<string, StoredDocument[]>;
-  reminders?: Record<string, number[]>;
   today: string;
   warnDays: number;
   onAdd: (input: LicenceInput, term?: LicenceTermInput) => Promise<SaveResult>;
@@ -64,7 +61,6 @@ export function ComplianceCard({
   /** Files a document against the ticket; a null term means the card itself. */
   onAttachDoc: (licenceId: string, termId: string | null, documentId: string) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
-  onRemind: (licenceId: string, leadDays: number, on: boolean) => Promise<SaveResult>;
 }) {
   // null = closed. A row = opened on it; "new" = adding one.
   const [open, setOpen] = useState<StaffLicence | "new" | null>(null);
@@ -143,7 +139,6 @@ export function ComplianceCard({
           staffId={staffId}
           records={records[openId] ?? []}
           documents={documents[openId] ?? []}
-          reminders={reminders[openId] ?? []}
           today={today}
           warnDays={warnDays}
           onAdd={onAdd}
@@ -152,7 +147,6 @@ export function ComplianceCard({
           onRecord={(input) => (editing ? onRecordTerm(editing.id, input) : ok())}
           onAttach={(termId, documentId) => (editing ? onAttachDoc(editing.id, termId, documentId) : ok())}
           onRemoveTerm={onRemoveTerm}
-          onRemind={(lead, on) => (editing ? onRemind(editing.id, lead, on) : ok())}
           onClose={() => setOpen(null)}
         />
       )}

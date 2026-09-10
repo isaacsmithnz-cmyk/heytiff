@@ -8,17 +8,11 @@ import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { remindAtFrom } from "@/lib/dashboard/reminders";
-import { workdayHours } from "@/lib/dashboard/reminders-query";
-import { getSm8Timezone } from "@/lib/workboard/query";
-import { isReminderLead, reminderDueDate } from "@/lib/fleet/reminders";
 import { buildOrgCredentialRow, isCredKind, type OrgCredKind, type OrgCredentialInput } from "@/lib/org/credentials";
 import {
   CREDENTIAL_DOC_KIND,
   ORG_CREDENTIAL_DOC_KINDS,
   buildCredentialRecordRow,
-  credentialReminderDetail,
-  credentialReminderTitle,
   type CredentialRecordInput,
   type CredentialRecordRow,
 } from "@/lib/org/credential-records";
@@ -300,8 +294,6 @@ export async function recordCredentialTerm(
       })
       .eq("org_id", ctx.orgId)
       .eq("id", credentialId);
-    // and every reminder counting down to it counts down to the new date
-    await rescheduleCredentialReminders(ctx, credentialId, built.row.expires_on);
   }
 
   revalidate();
@@ -426,133 +418,3 @@ export async function removeCredentialTerm(recordId: string): Promise<CredResult
 
 /* ---------------- remind me ---------------- */
 
-/* "Remind me 30 days before the public liability expires" is a TASK — the
-   same arrangement docs/migrations/renewal_reminders.sql made for the fleet,
-   and deliberately not a second reminders system. Turning a chip on creates
-   one open task of the caller's own for (credential, lead), due `lead` days
-   before the expiry, nudged that morning by the bell and carried in the day's
-   reminder email. Turning it off deletes that task.
-
-   PERSONAL, like every other reminder: the chips show YOUR reminders. Two
-   owners can each want their own notice, and neither one turning theirs off
-   should silence the other. */
-export async function setCredentialReminder(
-  credentialId: string,
-  leadDays: number,
-  on: boolean,
-): Promise<CredResult> {
-  const ctx = await ownerOrgId();
-  if ("error" in ctx) return { ok: false, error: ctx.error };
-  if (!ctx.staffId) return { ok: false, error: "Only a staff member can set a reminder." };
-  if (!isReminderLead(leadDays)) return { ok: false, error: "Couldn't set that reminder." };
-
-  const { data: cred } = await supabaseAdmin
-    .from(TABLE)
-    .select("id, name, expiry_date")
-    .eq("org_id", ctx.orgId)
-    .eq("id", credentialId)
-    .maybeSingle();
-  if (!cred) return { ok: false, error: "That card is no longer on file." };
-
-  if (!on) {
-    const { error } = await supabaseAdmin
-      .from("tasks")
-      .delete()
-      .eq("org_id", ctx.orgId)
-      .eq("assigned_to", ctx.staffId)
-      .eq("org_credential_id", credentialId)
-      .eq("lead_days", leadDays)
-      .eq("status", "open");
-    if (error) return { ok: false, error: "Couldn't clear that reminder." };
-    revalidateReminders();
-    return { ok: true };
-  }
-
-  const expiresOn = (cred.expiry_date as string | null)?.slice(0, 10) ?? null;
-  if (!expiresOn) {
-    return { ok: false, error: "Record the renewal first — a reminder needs an expiry to count from." };
-  }
-
-  // already on: the chip is derived from this row, so a second press is a no-op
-  const { data: existing } = await supabaseAdmin
-    .from("tasks")
-    .select("id")
-    .eq("org_id", ctx.orgId)
-    .eq("assigned_to", ctx.staffId)
-    .eq("org_credential_id", credentialId)
-    .eq("lead_days", leadDays)
-    .eq("status", "open")
-    .limit(1);
-  if (existing && existing.length > 0) return { ok: true };
-
-  const { data: org } = await supabaseAdmin
-    .from("organizations")
-    .select("trading_name, legal_name")
-    .eq("id", ctx.orgId)
-    .maybeSingle();
-  const business =
-    ((org?.trading_name as string) ?? "").trim() || ((org?.legal_name as string) ?? "").trim();
-
-  const dueDate = reminderDueDate(expiresOn, leadDays);
-  const [tz, day] = await Promise.all([getSm8Timezone(ctx.orgId), workdayHours(ctx.orgId, ctx.staffId)]);
-  const { error } = await supabaseAdmin.from("tasks").insert({
-    org_id: ctx.orgId,
-    title: credentialReminderTitle(String(cred.name ?? ""), business),
-    detail: credentialReminderDetail(expiresOn, leadDays),
-    assigned_to: ctx.staffId,
-    created_by: ctx.staffId,
-    due_date: dueDate,
-    status: "open",
-    // the morning of the day — the person's own start, on the workspace's clock
-    remind_at: remindAtFrom(dueDate, day.start, tz),
-    remind_kind: "at",
-    org_credential_id: credentialId,
-    lead_days: leadDays,
-  });
-  if (error) return { ok: false, error: "Couldn't set that reminder." };
-  revalidateReminders();
-  return { ok: true };
-}
-
-/** A recorded renewal moves the expiry, so every reminder counting down to it
-    moves with it — for everyone who asked, not just the person who filed it.
-    `reminder_emailed_at` is cleared: the letter that went out named the old
-    date, so the new one has not been delivered. */
-async function rescheduleCredentialReminders(
-  ctx: Ctx,
-  credentialId: string,
-  expiresOn: string,
-): Promise<void> {
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("id, assigned_to, lead_days")
-    .eq("org_id", ctx.orgId)
-    .eq("org_credential_id", credentialId)
-    .eq("status", "open");
-  if (!data || data.length === 0) return;
-
-  const tz = await getSm8Timezone(ctx.orgId);
-  for (const t of data as Record<string, unknown>[]) {
-    const lead = Math.max(0, Math.round(Number(t.lead_days)) || 0);
-    const dueDate = reminderDueDate(expiresOn, lead);
-    const day = await workdayHours(ctx.orgId, typeof t.assigned_to === "string" ? t.assigned_to : null);
-    await supabaseAdmin
-      .from("tasks")
-      .update({
-        due_date: dueDate,
-        remind_at: remindAtFrom(dueDate, day.start, tz),
-        detail: credentialReminderDetail(expiresOn, lead),
-        reminder_emailed_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("org_id", ctx.orgId)
-      .eq("id", String(t.id));
-  }
-}
-
-/** A reminder is a task, so the surfaces that show tasks are what change. */
-function revalidateReminders() {
-  revalidatePath("/dashboard/admin/organization");
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/workboard");
-}

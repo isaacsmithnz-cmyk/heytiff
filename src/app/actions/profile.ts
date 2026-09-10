@@ -17,14 +17,12 @@ import {
   recordTerm,
   removeTerm,
   seedFirstTerm,
-  setLicenceReminder,
 } from "@/lib/staff/licence-writes";
 import { WORK_RIGHTS_LOCKED, type WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 import {
   attachCheckDocument,
   recordCheck,
   removeCheck,
-  setWorkRightsReminder,
 } from "@/lib/staff/work-rights-writes";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 
@@ -312,24 +310,6 @@ export async function removeMyLicenceTerm(termId: string): Promise<SaveResult> {
   return res;
 }
 
-/** A reminder about your OWN ticket, so the title carries no name. */
-export async function setMyLicenceReminder(
-  licenceId: string,
-  leadDays: number,
-  on: boolean
-): Promise<SaveResult> {
-  const { orgId } = await requireOrg();
-  const me = await loadMyProfile();
-  const res = await setLicenceReminder(orgId, me.id, me.id, licenceId, null, leadDays, on);
-  if (res.ok) {
-    revalidateMine();
-    // a reminder is a task, so the surfaces that show tasks change too
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/workboard");
-  }
-  return res;
-}
-
 function revalidateMine() {
   revalidatePath("/dashboard/profile");
   revalidatePath("/dashboard/team");
@@ -388,19 +368,6 @@ export async function removeMyWorkRightsCheck(recordId: string): Promise<SaveRes
   const me = await loadMyProfile();
   const res = await removeCheck(orgId, me.id, recordId);
   if (res.ok) revalidateMine();
-  return res;
-}
-
-/** A reminder about your OWN visa, so the title carries no name. */
-export async function setMyWorkRightsReminder(leadDays: number, on: boolean): Promise<SaveResult> {
-  const { orgId } = await requireOrg();
-  const me = await loadMyProfile();
-  const res = await setWorkRightsReminder(orgId, me.id, me.id, null, leadDays, on);
-  if (res.ok) {
-    revalidateMine();
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/workboard");
-  }
   return res;
 }
 

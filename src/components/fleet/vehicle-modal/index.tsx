@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
-import type { RenewalReminder } from "@/lib/fleet/reminders";
 import type { FleetActions } from "../fleet-state";
 import type {
   AiValuation,
@@ -45,7 +44,6 @@ export function VehicleModal({
   documents,
   policies,
   finance,
-  reminders,
   staff,
   today,
   warnDays,
@@ -65,8 +63,6 @@ export function VehicleModal({
   documents: StoredDocument[];
   policies: VehiclePolicy[];
   finance: VehicleFinance[];
-  /** The viewer's own renewal reminders for this vehicle. */
-  reminders: RenewalReminder[];
   staff: FleetStaff[];
   today: string;
   warnDays: number;
@@ -169,8 +165,6 @@ export function VehicleModal({
               setScreen("main");
             }}
             onAttach={fleet.attachPolicyDocument}
-            reminders={reminders.filter((r) => r.kind === screen)}
-            onRemind={(lead, on) => fleet.setRenewalReminder(vehicle.id, screen, lead, on)}
           />
         )}
       </div>

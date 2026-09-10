@@ -107,7 +107,6 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
     recordFinance: noop,
     attachFinanceDocument: noop,
     attachPurchaseDocument: noop,
-    setRenewalReminder: noop,
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
@@ -120,7 +119,6 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
     documents: {},
     policies: {},
     finance: {},
-    reminders: {},
   };
 }
 

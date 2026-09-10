@@ -90,10 +90,8 @@ export function ProfileScreen({
   licences,
   licenceTerms = {},
   licenceDocuments = {},
-  licenceReminders = {},
   workRightsChecks = [],
   workRightsDocuments = [],
-  workRightsReminders = [],
   vehicle,
   today,
   warnDays,
@@ -114,12 +112,10 @@ export function ProfileScreen({
      card. Defaulted so a caller that has none of it still renders. */
   licenceTerms?: Record<string, StaffLicenceRecord[]>;
   licenceDocuments?: Record<string, StoredDocument[]>;
-  licenceReminders?: Record<string, number[]>;
   /* One person's right-to-work checks, their evidence, and the VIEWER's own
      reminders. Not keyed by anything — a person has exactly one right to work. */
   workRightsChecks?: WorkRightsRecord[];
   workRightsDocuments?: StoredDocument[];
-  workRightsReminders?: number[];
   vehicle: AssignedVehicle | null;
   /** AU calendar date, so licence status agrees with the dashboard */
   today: string;
@@ -315,7 +311,6 @@ export function ProfileScreen({
                       staffId={header.id}
                       records={licenceTerms}
                       documents={licenceDocuments}
-                      reminders={licenceReminders}
                       today={today}
             warnDays={warnDays}
                       onAdd={actions.onAddLicence}
@@ -324,7 +319,6 @@ export function ProfileScreen({
                       onRecordTerm={actions.onRecordLicenceTerm}
                       onAttachDoc={actions.onAttachLicenceDoc}
                       onRemoveTerm={actions.onRemoveLicenceTerm}
-                      onRemind={actions.onLicenceReminder}
                     />
                     <QualificationsCard profile={profile} mode={mode} onSave={actions.onSave} />
                   </>
@@ -365,13 +359,11 @@ export function ProfileScreen({
                     subject={mode === "admin" ? header.name : null}
                     records={workRightsChecks}
                     documents={workRightsDocuments}
-                    reminders={workRightsReminders}
                     today={today}
             warnDays={warnDays}
                     onRecord={actions.onRecordWorkRightsCheck}
                     onAttach={actions.onAttachWorkRightsDoc ?? (async () => ({ ok: true as const }))}
                     onRemoveCheck={actions.onRemoveWorkRightsCheck ?? (async () => ({ ok: true as const }))}
-                    onRemind={actions.onWorkRightsReminder ?? (async () => ({ ok: true as const }))}
                     onClose={() => setChecksOpen(false)}
                   />
                 )}

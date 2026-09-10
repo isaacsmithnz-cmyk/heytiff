@@ -1,6 +1,7 @@
 import { renderLetter, escapeHtml, type Letter } from "@/lib/brand/auth0/email-shell";
 import { brandAssets } from "@/lib/brand/auth0/assets";
 import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
+import type { ExpiringItem } from "./expiring";
 
 /* The morning reminder email — the letter, pure.
 
@@ -31,11 +32,18 @@ export type DigestInput = {
   /** Today in the workspace's zone, ISO. */
   today: string;
   items: DigestItem[];
+  /** What is inside the org's expiry window for this person — the bell's own
+      expiry chips, worst first (lib/dashboard/expiring.ts). A status, not a
+      reminder: it is here every morning while it is true. Absent or empty
+      when the org's email switch is off or nothing is expiring. */
+  expiring?: ExpiringItem[];
 };
 
 export function reminderDigest(input: DigestInput): { subject: string; html: string } {
   const home = input.baseUrl.replace(/\/+$/, "");
   const n = input.items.length;
+  const expiring = input.expiring ?? [];
+  const m = expiring.length;
   const dayText = fmtAuWeekdayDateLong(input.today) || input.today;
   const name = input.firstName?.trim() || null;
   const overdue = input.items.filter((i) => i.overdue).length;
@@ -44,9 +52,12 @@ export function reminderDigest(input: DigestInput): { subject: string; html: str
     const since = i.overdue ? ` <i>(from ${escapeHtml(fmtAuWeekdayDateLong(i.day) || i.day)})</i>` : "";
     return `<b>${escapeHtml(i.title)}</b>${i.detail ? ` — ${escapeHtml(i.detail)}` : ""}${since}`;
   });
+  /* The expiry lines are the chips' own words — "Rego expires in 5 days",
+     "ARC authorisation expired 3 days ago" — with the subject beside them.
+     They are generated text, not typed, but they pass through the same
+     escape as everything else: a vehicle's name is typed. */
+  const expiryLines = expiring.map((e) => `<b>${escapeHtml(e.label)}</b> — ${escapeHtml(e.subject)}`);
 
-  const opener =
-    n === 1 ? "you asked to be reminded about this today." : "here is what you asked to be reminded about today.";
   const late =
     overdue === 0
       ? ""
@@ -54,19 +65,55 @@ export function reminderDigest(input: DigestInput): { subject: string; html: str
         ? " One of them came due earlier and hasn't been ticked off."
         : ` ${overdue} of them came due earlier and haven't been ticked off.`;
 
+  /* Three letters, one shape. Reminders only reads exactly as it always did.
+     Expiries only says what it is. Both leads with the reminders — the
+     things somebody asked for — and files the expiries under their own line. */
+  const greet = name ? `Hi ${escapeHtml(name)} — ` : "";
+  let heading: string;
+  let preheader: string;
+  let subject: string;
+  let body: string[];
+  if (m === 0) {
+    const opener =
+      n === 1 ? "you asked to be reminded about this today." : "here is what you asked to be reminded about today.";
+    heading = n === 1 ? "A reminder for today" : `${n} reminders for today`;
+    preheader = n === 1 ? input.items[0].title : `${n} things you asked to be reminded about.`;
+    subject = n === 1 ? `Reminder: ${input.items[0].title}` : `${n} reminders for ${dayText}`;
+    body = [`${greet}${opener}${late}`, ...lines];
+  } else if (n === 0) {
+    heading = m === 1 ? "Something is expiring" : `${m} things are expiring`;
+    preheader = m === 1 ? expiring[0].label : `${m} things inside your expiry window.`;
+    subject = m === 1 ? `Expiring: ${expiring[0].label}` : `${m} things expiring — ${dayText}`;
+    body = [`${greet}${m === 1 ? "this is inside your expiry window." : "here is what is inside your expiry window."}`, ...expiryLines];
+  } else {
+    const rWord = n === 1 ? "reminder" : "reminders";
+    const eWord = m === 1 ? "expiry" : "expiries";
+    heading = `${n + m} things for today`;
+    preheader = `${n} ${rWord} and ${m} ${eWord}.`;
+    subject = `${n} ${rWord} and ${m} ${eWord} for ${dayText}`;
+    body = [`${greet}here is what you asked to be reminded about today.${late}`, ...lines, "<b>Expiring</b>", ...expiryLines];
+  }
+
+  const footnotes = [
+    ...(n > 0
+      ? [
+          "Snooze or tick reminders off from the bell in HeyTiff. This email is sent once per reminder, the morning it falls due.",
+        ]
+      : []),
+    ...(m > 0
+      ? [
+          "Expiring items are listed each morning while they sit inside the warning window set on Organisation → Your business.",
+        ]
+      : []),
+  ];
+
   const letter: Letter = {
-    preheader: n === 1 ? input.items[0].title : `${n} things you asked to be reminded about.`,
-    heading: n === 1 ? "A reminder for today" : `${n} reminders for today`,
-    body: [`${name ? `Hi ${escapeHtml(name)} — ` : ""}${opener}${late}`, ...lines],
+    preheader,
+    heading,
+    body,
     action: { label: "Open HeyTiff", href: `${home}/dashboard` },
-    footnotes: [
-      "Snooze or tick these off from the bell in HeyTiff. This email is sent once per reminder, the morning it falls due.",
-      "A renewal reminder moves with the expiry when the renewal is recorded.",
-    ],
+    footnotes,
   };
 
-  return {
-    subject: n === 1 ? `Reminder: ${input.items[0].title}` : `${n} reminders for ${dayText}`,
-    html: renderLetter(letter, brandAssets(home)),
-  };
+  return { subject, html: renderLetter(letter, brandAssets(home)) };
 }

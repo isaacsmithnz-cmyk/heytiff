@@ -14,8 +14,6 @@ import {
   removeMyLicenceTerm,
   removeMyWorkRightsCheck,
   saveMyProfileSection,
-  setMyWorkRightsReminder,
-  setMyLicenceReminder,
   setMyPhoto,
   updateMyLicence,
 } from "@/app/actions/profile";
@@ -24,11 +22,9 @@ import { initialsFrom, startedLabel, yearsSince } from "@/lib/staff/derive";
 import { fullNameOf } from "@/lib/staff/name";
 import { assignedVehicleFor } from "@/lib/fleet/query";
 import {
-  listLicenceReminders,
   listLicenceTerms,
   listLicences,
   listWorkRightsChecks,
-  listWorkRightsReminders,
 } from "@/lib/staff/query";
 import { documentsForStaffLicences, documentsForWorkRights } from "@/lib/documents/query";
 import { getMyPay } from "@/lib/staff/my-pay";
@@ -75,17 +71,14 @@ export default async function MyProfilePage({
 
   /* The terms and the paperwork need the ticket ids, so they come after — two
      more reads for the whole wall rather than two per card, and both skipped
-     entirely for someone with no licences on file. The reminders are the
-     VIEWER's own, which on this page is always the card's owner. */
+     entirely for someone with no licences on file. */
   const licenceIds = licences.map((l) => l.id);
-  const [licenceTerms, licenceDocuments, licenceReminders, workRightsChecks, workRightsDocuments, workRightsReminders] =
+  const [licenceTerms, licenceDocuments, workRightsChecks, workRightsDocuments] =
     await Promise.all([
       orgId ? listLicenceTerms(orgId, profile.id) : Promise.resolve({}),
       orgId ? documentsForStaffLicences(orgId, licenceIds) : Promise.resolve(new Map()),
-      orgId ? listLicenceReminders(orgId, profile.id, licenceIds) : Promise.resolve({}),
       orgId ? listWorkRightsChecks(orgId, profile.id) : Promise.resolve([]),
       orgId ? documentsForWorkRights(orgId, profile.id) : Promise.resolve([]),
-      orgId ? listWorkRightsReminders(orgId, profile.id, profile.id) : Promise.resolve([]),
     ]);
 
   const email = session.user.email ?? "";
@@ -134,10 +127,8 @@ export default async function MyProfilePage({
       licences={licences}
       licenceTerms={licenceTerms}
       licenceDocuments={Object.fromEntries(licenceDocuments)}
-      licenceReminders={licenceReminders}
       workRightsChecks={workRightsChecks}
       workRightsDocuments={workRightsDocuments}
-      workRightsReminders={workRightsReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
       warnDays={expiry.warnDays}
@@ -155,11 +146,9 @@ export default async function MyProfilePage({
         onRecordLicenceTerm: recordMyLicenceTerm,
         onAttachLicenceDoc: attachMyLicenceDocument,
         onRemoveLicenceTerm: removeMyLicenceTerm,
-        onLicenceReminder: setMyLicenceReminder,
         onRecordWorkRightsCheck: recordMyWorkRightsCheck,
         onAttachWorkRightsDoc: attachMyWorkRightsDocument,
         onRemoveWorkRightsCheck: removeMyWorkRightsCheck,
-        onWorkRightsReminder: setMyWorkRightsReminder,
         onRemoveLicence: removeMyLicence,
         onSetPhoto: setMyPhoto,
         onClearPhoto: clearMyPhoto,

@@ -118,7 +118,6 @@ export function OrgScreen({
   credentials,
   credentialRecords = {},
   credentialDocuments = {},
-  credentialReminders = {},
   account,
   ownerCandidates = [],
   logoUrl,
@@ -131,12 +130,11 @@ export function OrgScreen({
   org: OrgSettings;
   credentials: OrgCredential[];
   /* The terms behind the cards, their paperwork, and the viewer's own
-     reminders — all keyed by credential id, all loaded once for the wall
+     — all keyed by credential id, all loaded once for the wall
      rather than per card. Defaulted so a caller that only wants the company
      profile (a test, the welcome flow) need not supply three empty maps. */
   credentialRecords?: Record<string, OrgCredentialRecord[]>;
   credentialDocuments?: Record<string, StoredDocument[]>;
-  credentialReminders?: Record<string, number[]>;
   /** whose account this is — owner, size, age, plan. Optional so a caller that
       has no session to resolve "is that you" against can leave it out. */
   account?: OrgAccount | null;
@@ -255,7 +253,6 @@ export function OrgScreen({
                       credentials={credentials}
                       records={credentialRecords}
                       documents={credentialDocuments}
-                      reminders={credentialReminders}
                       today={today}
                       warnDays={warnDays}
                       actions={actions}
@@ -685,7 +682,6 @@ function CredentialsSection({
   credentials,
   records,
   documents,
-  reminders,
   today,
   warnDays,
   actions,
@@ -693,7 +689,6 @@ function CredentialsSection({
   credentials: OrgCredential[];
   records: Record<string, OrgCredentialRecord[]>;
   documents: Record<string, StoredDocument[]>;
-  reminders: Record<string, number[]>;
   today: string;
   warnDays: number;
   actions: OrgActions;
@@ -785,7 +780,6 @@ function CredentialsSection({
           credential={editing}
           records={records[openId] ?? []}
           documents={documents[openId] ?? []}
-          reminders={reminders[openId] ?? []}
           today={today}
                       warnDays={warnDays}
           onAdd={actions.onAddCredential}
@@ -802,11 +796,6 @@ function CredentialsSection({
               : Promise.resolve({ ok: true as const })
           }
           onRemoveTerm={actions.onRemoveTerm}
-          onRemind={(lead, on) =>
-            editing
-              ? actions.onCredentialReminder(editing.id, lead, on)
-              : Promise.resolve({ ok: true as const })
-          }
           onClose={() => setOpen(null)}
         />
       )}

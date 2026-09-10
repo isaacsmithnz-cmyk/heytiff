@@ -1,13 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { remindAtFrom } from "@/lib/dashboard/reminders";
-import { workdayHours } from "@/lib/dashboard/reminders-query";
-import { getSm8Timezone } from "@/lib/workboard/query";
-import { isReminderLead, reminderDueDate } from "@/lib/fleet/reminders";
 import {
   LICENCE_DOC_KIND,
   buildLicenceTermRow,
-  licenceReminderDetail,
-  licenceReminderTitle,
   type LicenceTermInput,
   type LicenceTermRow,
 } from "./licence-records";
@@ -128,8 +122,6 @@ export async function recordTerm(
       .eq("org_id", orgId)
       .eq("staff_profile_id", staffId)
       .eq("id", licenceId);
-    // and every reminder counting down to it counts down to the new date
-    await rescheduleLicenceReminders(orgId, licenceId, built.row.expires_on);
   }
   return { ok: true };
 }
@@ -253,113 +245,3 @@ export async function removeTerm(
   return { ok: true };
 }
 
-/* "Remind me 30 days before my ARC licence expires" is a TASK, on the same
-   terms as a vehicle renewal and a business policy — and deliberately not a
-   second reminders system.
-
-   PERSONAL TO THE VIEWER, whoever they are looking at. A manager who wants
-   thirty days' warning on Bob's ticket gets their OWN task about it; Bob
-   turning his off does not silence the manager's, and neither of them is
-   creating work for the other. `subject` is the name that goes in the title —
-   null when it is your own card, because a bell that says "Renew ARC licence"
-   about you needs no name on it. */
-export async function setLicenceReminder(
-  orgId: string,
-  viewerStaffId: string | null,
-  staffId: string,
-  licenceId: string,
-  subject: string | null,
-  leadDays: number,
-  on: boolean,
-): Promise<WriteResult> {
-  if (!viewerStaffId) return { ok: false, error: "Only a staff member can set a reminder." };
-  if (!isReminderLead(leadDays)) return { ok: false, error: "Couldn't set that reminder." };
-
-  const licence = await licenceIn(orgId, staffId, licenceId);
-  if (!licence) return { ok: false, error: "That licence is no longer on file." };
-
-  if (!on) {
-    const { error } = await supabaseAdmin
-      .from("tasks")
-      .delete()
-      .eq("org_id", orgId)
-      .eq("assigned_to", viewerStaffId)
-      .eq("staff_licence_id", licenceId)
-      .eq("lead_days", leadDays)
-      .eq("status", "open");
-    if (error) return { ok: false, error: "Couldn't clear that reminder." };
-    return { ok: true };
-  }
-
-  const expiresOn = licence.expiry?.slice(0, 10) ?? null;
-  if (!expiresOn) {
-    return { ok: false, error: "Record the renewal first — a reminder needs an expiry to count from." };
-  }
-
-  // already on: the chip is derived from this row, so a second press is a no-op
-  const { data: existing } = await supabaseAdmin
-    .from("tasks")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("assigned_to", viewerStaffId)
-    .eq("staff_licence_id", licenceId)
-    .eq("lead_days", leadDays)
-    .eq("status", "open")
-    .limit(1);
-  if (existing && existing.length > 0) return { ok: true };
-
-  const dueDate = reminderDueDate(expiresOn, leadDays);
-  const [tz, day] = await Promise.all([getSm8Timezone(orgId), workdayHours(orgId, viewerStaffId)]);
-  const { error } = await supabaseAdmin.from("tasks").insert({
-    org_id: orgId,
-    title: licenceReminderTitle(licence.typeName, subject),
-    detail: licenceReminderDetail(expiresOn, leadDays),
-    assigned_to: viewerStaffId,
-    created_by: viewerStaffId,
-    due_date: dueDate,
-    status: "open",
-    // the morning of the day — the person's own start, on the workspace's clock
-    remind_at: remindAtFrom(dueDate, day.start, tz),
-    remind_kind: "at",
-    staff_licence_id: licenceId,
-    lead_days: leadDays,
-  });
-  if (error) return { ok: false, error: "Couldn't set that reminder." };
-  return { ok: true };
-}
-
-/** A recorded renewal moves the expiry, so every reminder counting down to it
-    moves with it — EVERYONE's, not just the person who filed it.
-    `reminder_emailed_at` is cleared: the letter that went out named the old
-    date, so the new one has not been delivered. */
-async function rescheduleLicenceReminders(
-  orgId: string,
-  licenceId: string,
-  expiresOn: string,
-): Promise<void> {
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("id, assigned_to, lead_days")
-    .eq("org_id", orgId)
-    .eq("staff_licence_id", licenceId)
-    .eq("status", "open");
-  if (!data || data.length === 0) return;
-
-  const tz = await getSm8Timezone(orgId);
-  for (const t of data as Record<string, unknown>[]) {
-    const lead = Math.max(0, Math.round(Number(t.lead_days)) || 0);
-    const dueDate = reminderDueDate(expiresOn, lead);
-    const day = await workdayHours(orgId, typeof t.assigned_to === "string" ? t.assigned_to : null);
-    await supabaseAdmin
-      .from("tasks")
-      .update({
-        due_date: dueDate,
-        remind_at: remindAtFrom(dueDate, day.start, tz),
-        detail: licenceReminderDetail(expiresOn, lead),
-        reminder_emailed_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("org_id", orgId)
-      .eq("id", String(t.id));
-  }
-}

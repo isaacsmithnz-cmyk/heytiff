@@ -91,7 +91,6 @@ export function looseCheckDocuments(
 
 /* ---- status ---- */
 
-
 /** "none" is nothing recorded; "forever" is recorded and does not expire —
     a citizen. Collapsing the two would make a citizen's card read as an
     unanswered question forever, which is the exact bug work-rights.ts's
@@ -258,17 +257,3 @@ export const WORK_RIGHTS_LOCKED =
 
 /* ---- reminders ---- */
 
-/** "Right to work expires — Bob Smith", or without the name when it is your
-    own. Deliberately NOT "Renew visa": the business does not renew anybody's
-    visa, and a task telling a manager to do so names the wrong action. What
-    falls due is a CHECK. */
-export function workRightsReminderTitle(subject: string | null): string {
-  const who = (subject ?? "").trim();
-  return who ? `Check right to work — ${who}` : "Check your right to work";
-}
-
-/** "Expires 4 Mar 2028 · 30 days' notice". */
-export function workRightsReminderDetail(expiresOn: string, leadDays: number): string {
-  const notice = leadDays === 1 ? "1 day's notice" : leadDays > 0 ? `${leadDays} days' notice` : null;
-  return [`Expires ${fmtDay(expiresOn)}`, notice].filter(Boolean).join(" · ");
-}

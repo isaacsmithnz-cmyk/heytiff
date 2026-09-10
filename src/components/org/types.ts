@@ -42,7 +42,6 @@ export type OrgActions = {
   /** Removes one term — a scan filed against the wrong card. */
   onRemoveTerm: (recordId: string) => Promise<CredResult>;
   /** The viewer's own reminder for this card, `lead` days before the expiry. */
-  onCredentialReminder: (credentialId: string, leadDays: number, on: boolean) => Promise<CredResult>;
   /** points the org at an already-uploaded org_logo document */
   onSetLogo: (documentId: string) => Promise<SaveResult>;
   onClearLogo: () => Promise<SaveResult>;

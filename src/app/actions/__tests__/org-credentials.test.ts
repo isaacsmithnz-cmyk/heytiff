@@ -164,7 +164,6 @@ import {
   recordCredentialTerm,
   removeCredentialTerm,
   removeOrgCredential,
-  setCredentialReminder,
   updateOrgCredential,
 } from "../org-credentials";
 
@@ -447,6 +446,17 @@ describe("recordCredentialTerm", () => {
   /* A document may only be adopted by the term if it is the uploader's own,
      confirmed, still-unowned file OF THE RIGHT KIND — the kind is what stops a
      staff licence scan being filed as the company's. */
+  /* NO TASK ROW, EVER. Recording a term used to move every open reminder
+     counting down to the old date; there are no such rows to move now — the
+     org's expiry window is derived at read (lib/expiry.ts), and a task is
+     something Tiff makes from a note. A term write that touches `tasks` is a
+     door growing back. */
+  it("touches no task row — the org's expiry window nudges, not a task", async () => {
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", source: "manual" });
+    expect(writes.filter((w) => w.table === "tasks")).toEqual([]);
+    expect(from).not.toHaveBeenCalledWith("tasks");
+  });
+
   it("adopts the scanned document under the term it was read from", async () => {
     await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
     const adoption = only("update", "documents");
@@ -483,18 +493,6 @@ describe("recordCredentialTerm", () => {
     expect(adoption.in[0][1]).not.toContain("insurance_policy");
   });
 
-  it("moves every reminder counting down to the old date", async () => {
-    tables.tasks = [{ id: "t1", org_id: "org-1", org_credential_id: "cred-1", assigned_to: "staff-1", lead_days: 30, status: "open" }];
-    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07" });
-
-    const moved = wrote("update", "tasks");
-    expect(moved).toHaveLength(1);
-    expect(moved[0].payload).toMatchObject({
-      due_date: "2027-07-08",
-      // the letter that went out named the old date, so it has not been delivered
-      reminder_emailed_at: null,
-    });
-  });
 });
 
 describe("removeCredentialTerm", () => {
@@ -594,69 +592,6 @@ describe("fileCredentialDocument", () => {
   it("is owner-only, like every other write on this screen", async () => {
     dbRole = "admin";
     expect(await fileCredentialDocument("cred-1", null, "doc-9")).toEqual({ ok: false, error: NOT_OWNER });
-    expect(writes).toHaveLength(0);
-  });
-});
-
-describe("setCredentialReminder", () => {
-  beforeEach(() => {
-    tables.org_credentials = [CARD];
-    tables.organizations = [{ id: "org-1", trading_name: "Diamond Air Solutions" }];
-  });
-
-  it("creates one open task of the caller's own, due the lead before the expiry", async () => {
-    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: true });
-    expect(only("insert", "tasks").payload).toMatchObject({
-      org_id: "org-1",
-      title: "Renew Public liability — Diamond Air Solutions",
-      detail: "Expires 7 Aug 2026 · 30 days' notice",
-      assigned_to: "staff-1",
-      due_date: "2026-07-08",
-      status: "open",
-      org_credential_id: "cred-1",
-      lead_days: 30,
-    });
-  });
-
-  it("needs an expiry to count from", async () => {
-    tables.org_credentials = [{ ...CARD, expiry_date: null }];
-    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({
-      ok: false,
-      error: "Record the renewal first — a reminder needs an expiry to count from.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-
-  it("is a no-op when the chip is already on", async () => {
-    tables.tasks = [{ id: "t1", org_id: "org-1", org_credential_id: "cred-1", assigned_to: "staff-1", lead_days: 30, status: "open" }];
-    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: true });
-    expect(wrote("insert", "tasks")).toHaveLength(0);
-  });
-
-  /* PERSONAL, like every other reminder: turning yours off deletes YOUR task,
-     scoped to your own staff id, and leaves the other owner's alone. */
-  it("deletes only the caller's own reminder when the chip goes off", async () => {
-    expect(await setCredentialReminder("cred-1", 30, false)).toEqual({ ok: true });
-    expect(only("delete", "tasks").eq).toEqual([
-      ["org_id", "org-1"],
-      ["assigned_to", "staff-1"],
-      ["org_credential_id", "cred-1"],
-      ["lead_days", 30],
-      ["status", "open"],
-    ]);
-  });
-
-  it("refuses a lead the chips don't offer", async () => {
-    expect(await setCredentialReminder("cred-1", 45, true)).toEqual({
-      ok: false,
-      error: "Couldn't set that reminder.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-
-  it("refuses a non-owner", async () => {
-    dbRole = "admin";
-    expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: false, error: NOT_OWNER });
     expect(writes).toHaveLength(0);
   });
 });

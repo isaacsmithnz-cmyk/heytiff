@@ -5,7 +5,6 @@ import { Icon } from "@/components/shell/icon";
 import { readStaffLicenceDocument, type ReadLicenceResult } from "@/app/actions/staff-licence-ai";
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtDay } from "@/lib/format/day";
-import { REMINDER_LEADS, leadLabel } from "@/lib/fleet/reminders";
 import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
 import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
@@ -45,7 +44,6 @@ export function RecordScreen({
   staffId,
   records,
   documents,
-  reminders,
   today,
   warnDays,
   pending,
@@ -53,7 +51,6 @@ export function RecordScreen({
   onRecord,
   onAttach,
   onRemoveTerm,
-  onRemind,
   onEdit,
   onClose,
 }: {
@@ -62,7 +59,6 @@ export function RecordScreen({
   records: StaffLicenceRecord[];
   documents: StoredDocument[];
   /** The leads the VIEWER has switched on, in days. */
-  reminders: number[];
   today: string;
   warnDays: number;
   pending: boolean;
@@ -71,7 +67,6 @@ export function RecordScreen({
   /** Files a document against the ticket; a null term means the card itself. */
   onAttach: (termId: string | null, documentId: string) => void;
   onRemoveTerm: (termId: string) => void;
-  onRemind: (leadDays: number, on: boolean) => void;
   onEdit: () => void;
   onClose: () => void;
 }) {
@@ -195,33 +190,6 @@ export function RecordScreen({
         )}
 
         {/* ---- remind me: each chip is a task of your own ---- */}
-        <Card>
-          <div className="vm-cardhead">
-            <Eyebrow>REMIND ME</Eyebrow>
-            <span className="vm-caption">{expiry ? "Before it expires" : "Record the term first"}</span>
-          </div>
-          <div className="vm-chips" role="group" aria-label="Remind me">
-            {REMINDER_LEADS.map((lead) => {
-              const on = reminders.includes(lead);
-              return (
-                <button
-                  key={lead}
-                  type="button"
-                  className={`vm-chip${on ? " on" : ""}`}
-                  aria-pressed={on}
-                  disabled={!expiry || pending}
-                  onClick={() => onRemind(lead, !on)}
-                >
-                  {leadLabel(lead)}
-                </button>
-              );
-            })}
-          </div>
-          <span className="vm-hint">
-            Each one is a task on your own dashboard — the bell nudges you the morning it falls due, and it goes out
-            in that day&apos;s reminder email. They move with the expiry when a renewal is recorded.
-          </span>
-        </Card>
 
         {panelOpen && (
           <ScanCard<ReadLicenceResult>

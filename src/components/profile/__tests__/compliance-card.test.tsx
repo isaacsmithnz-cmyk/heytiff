@@ -85,7 +85,6 @@ function setup(
     onRecordTerm: jest.fn().mockResolvedValue({ ok: true }),
     onAttachDoc: jest.fn().mockResolvedValue({ ok: true }),
     onRemoveTerm: jest.fn().mockResolvedValue({ ok: true }),
-    onRemind: jest.fn().mockResolvedValue({ ok: true }),
   };
   const view = render(
     <ComplianceCard
@@ -102,6 +101,20 @@ function setup(
 
 const openCard = (user: ReturnType<typeof userEvent.setup>, name: string) =>
   user.click(screen.getByRole("button", { name: `Open ${name}` }));
+
+/* NO REMIND ME. The per-card chips were the only door into the morning email
+   for a staff ticket. The org's expiry window nudges now (lib/expiry.ts). */
+describe("no Remind me on a ticket", () => {
+  it("offers no reminder chips — the org's expiry window nudges instead", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "ARC licence");
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText("REMIND ME")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("group", { name: "Remind me" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/days before/)).not.toBeInTheDocument();
+  });
+});
 
 describe("the licence wall", () => {
   it("renders each licence as a card with its stamp, number and status", () => {
@@ -270,25 +283,6 @@ describe("the licence modal", () => {
     expect(onRemove).toHaveBeenCalledWith("L1");
   });
 
-  it("sets a reminder against the ticket, and cannot before there is an expiry", async () => {
-    const user = userEvent.setup();
-    const { onRemind } = setup({ records: { L1: [term()] } });
-
-    await openCard(user, "ARC licence");
-    await user.click(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "30 days before" })
-    );
-    expect(onRemind).toHaveBeenCalledWith("L1", 30, true);
-  });
-
-  it("leaves the reminder chips dead until a term is on file", async () => {
-    const user = userEvent.setup();
-    setup();
-    await openCard(user, "White card"); // no expiry at all
-    expect(
-      within(screen.getByRole("dialog")).getByRole("button", { name: "30 days before" })
-    ).toBeDisabled();
-  });
 });
 
 describe("adding one", () => {

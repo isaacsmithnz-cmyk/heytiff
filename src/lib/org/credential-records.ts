@@ -366,16 +366,3 @@ export function buildCredentialRecordRow(
    the task is called, and what the bell says under it. The leads themselves
    are the fleet's — one set of chips in the product, not two. */
 
-/** "Renew public liability — Diamond Air Solutions". The business's name is
-    there because an owner of two entities gets two of these in one bell. */
-export function credentialReminderTitle(name: string, business: string): string {
-  const what = name.trim() || "licence";
-  const who = business.trim();
-  return who ? `Renew ${what} — ${who}` : `Renew ${what}`;
-}
-
-/** "Expires 29 Sep 2027 · 30 days' notice" — the line under the title. */
-export function credentialReminderDetail(expiresOn: string, leadDays: number): string {
-  const notice = leadDays === 1 ? "1 day's notice" : leadDays > 0 ? `${leadDays} days' notice` : null;
-  return [`Expires ${fmtDay(expiresOn)}`, notice].filter(Boolean).join(" · ");
-}

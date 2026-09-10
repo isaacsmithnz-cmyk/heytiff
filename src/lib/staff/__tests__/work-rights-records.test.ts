@@ -12,8 +12,6 @@ import {
   currentCheck,
   looseCheckDocuments,
   previousChecks,
-  workRightsReminderDetail,
-  workRightsReminderTitle,
   type WorkRightsRecord,
 } from "../work-rights-records";
 
@@ -232,19 +230,7 @@ describe("what may be saved as a check", () => {
 });
 
 describe("the reminder's words", () => {
-  it("asks for a CHECK, never for a renewal", () => {
-    /* The business does not renew anybody's visa. A task telling a manager to
-       do so names an action they cannot take; what falls due is a check. */
-    expect(workRightsReminderTitle("Bob Smith")).toBe("Check right to work — Bob Smith");
-    expect(workRightsReminderTitle(null)).toBe("Check your right to work");
-    expect(workRightsReminderTitle("  ")).toBe("Check your right to work");
-    expect(workRightsReminderTitle("Bob Smith")).not.toMatch(/renew/i);
-  });
 
-  it("says the expiry and the notice under it", () => {
-    expect(workRightsReminderDetail("2028-03-04", 30)).toBe("Expires 4 Mar 2028 · 30 days' notice");
-    expect(workRightsReminderDetail("2028-03-04", 0)).toBe("Expires 4 Mar 2028");
-  });
 });
 
 describe("the lock", () => {

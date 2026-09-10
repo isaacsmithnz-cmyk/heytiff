@@ -241,9 +241,9 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 201 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 747 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 42 },
-  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 123 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 290 },
-  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 26 },
+  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 114 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 284 },
+  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 25 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2860 },
@@ -260,9 +260,33 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 450 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
   // ink and paper
-  { law: "uses of the OK text colour — colour only where it means something", now: () => count(/var\(--ok-t\)/g), baseline: 36 },
+  /* The OK colour on a selector that is not a state. It began as a count of
+     every use (88), then the accent migration named accent-on-state as state
+     and the plain count rose while the law was better kept; so it counts
+     what the law forbids. A state is named in the selector: ok, done, paid,
+     verified, live, synced, past, active, now, and their kin. */
+  { law: "the OK colour off a state selector — colour only where it means something", now: () => {
+      const STATE = /\.(ok|done|paid|verified|verify|waiting|live|now|synced|presumed|reimbursed|past|active|green|okw)\b|\.dchip2?\.ok|\.lv-cert\.on|\.vm-progress|\.wb2-waiting/;
+      let n = 0;
+      for (const [sel, body] of blocks()) if (!STATE.test(sel)) n += (body.match(/var\(--ok-t\)/g) ?? []).length;
+      return n;
+    }, baseline: 10 },
   { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 0 },
   { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 19 },
+  /* THE ACCENT. Teal, blue and violet in any spelling, doing any job, in a
+     rule body. Ink and paper says none of it belongs on a working screen
+     except the wordmark's "Tiff" and the drawing; what remains is the dark
+     chrome, the home diary's dark card, Time & Pay's day vocabulary and the
+     Studio, each settled in its own fold. The token definitions on :root are
+     not uses and are not counted. */
+  { law: "accent colour uses — ink does the accent's jobs", now: () => {
+      let n = 0;
+      for (const [sel, body] of blocks()) {
+        if (/^\s*:root\s*$/.test(sel)) continue;
+        n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
+      }
+      return n;
+    }, baseline: 468 },
 ];
 
 describe("the design ratchets only go down", () => {

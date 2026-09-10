@@ -10,7 +10,7 @@
   height:calc(100dvh - 96px); min-height:0;
   font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:13.5px; color:#0A0B10; }
 .rca * { box-sizing:border-box; }
-.rca ::selection { background:rgba(0,229,192,.3); }
+.rca ::selection { background:var(--tint-2); }
 
 /* Scrollbars follow the shell's .outlet treatment (shell.css): transparent at
    rest, a thin grey thumb once the pointer is over the calculator. The colour
@@ -40,7 +40,7 @@
   border-radius:12px; font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:13.5px; font-weight:700; letter-spacing:0;
   border:none; cursor:pointer; transition:all .25s; white-space:nowrap; }
 .fg .rca-btn.primary { background:#0A0B10; color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
-.fg .rca-btn.primary:hover { background:#00E5C0; color:#0A0B10; }
+.fg .rca-btn.primary:hover { background:var(--ink); color:var(--paper); }
 .fg .rca-btn.primary:disabled { background:#0A0B10; color:#fff; opacity:.35; cursor:default; }
 .fg .rca-btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fg .rca-btn.ghost:hover { background:var(--tint); }
@@ -171,7 +171,7 @@
 .rca-rc-sumrow .k { font-size:12.5px; font-weight:500; color:var(--ink); white-space:nowrap; }
 .rca-rc-sumrow .v { font-size:13.5px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .rca-rc-sumrow .v.day { color:#0A0B10; }
-.rca-rc-sumrow .v.after { color:#8A2BE2; }
+.rca-rc-sumrow .v.after { color:var(--ink); }
 .rca-rc-sumrow .v.conf { font-size:12px; color:#22A54E; }
 
 /* fade-up on view switches — matches .page.in */
@@ -212,7 +212,7 @@
 .rcx-pbtn.on { background:#fff; color:#0A0B10; box-shadow:0 1px 3px rgba(10,12,20,.1); }
 .rcx-pbtn:disabled { opacity:.5; cursor:default; }
 .rcx-go { margin-left:auto; height:36px; padding:0 15px; border-radius:11px; background:#0A0B10; color:#fff; font-size:12.5px; font-weight:700; transition:background .16s; }
-.rcx-go:hover:not(:disabled) { background:#00E5C0; color:#0A0B10; }
+.rcx-go:hover:not(:disabled) { background:var(--ink); color:var(--paper); }
 .rcx-go:disabled { opacity:.55; cursor:default; }
 
 .rcx-note { font-size:12.5px; font-weight:600; color:var(--q); line-height:1.6; margin:0 0 14px; }
@@ -229,7 +229,7 @@
 .rcx-x { width:26px; height:26px; border-radius:8px; font-size:12px; color:var(--q); justify-self:end; transition:background .15s, color .15s; }
 .rcx-x:hover { background:#f4f5f7; color:#e0264f; }
 
-.rcx-total { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:12px; padding:13px 16px; border-radius:14px; background:rgba(46,104,255,.07); }
+.rcx-total { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:12px; padding:13px 16px; border-radius:14px; background:var(--tint); }
 
 /* Left out, and reversible. The whole point is that the double-count guard is
    visible: a guess the user can't see is one they can't correct. */

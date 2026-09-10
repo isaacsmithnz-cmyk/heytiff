@@ -1516,7 +1516,13 @@ describe("the Money face", () => {
     expect(screen.queryByText(/Invoice #2380 ·/)).toBeNull();
   });
 
-  it("wears the job type's colour as the block's edge", async () => {
+  /* THE EDGE IS INK, NOT THE JOB TYPE'S COLOUR. The block used to take
+     ServiceM8's category colour as its border, and a yellow ring around the
+     job's figure looked bad (Isaac, 2026-09-10). The category still reaches
+     the sheet — the band's tint, the chip's dot — but no colour from the
+     data reaches this block: its edge is the stylesheet's, so the row's
+     colour must leave no inline style behind at all. */
+  it("wears ink as its edge, never the job type's colour", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
     render(<JobSheet row={row()} {...props} moneyVisible />);
@@ -1524,7 +1530,97 @@ describe("the Money face", () => {
 
     await screen.findByText("$31,340.35");
     const block = document.querySelector(".wb2-jmoney") as HTMLElement;
-    expect(block.style.borderColor).toBe("rgb(231, 181, 255)");
+    expect(block.style.borderColor).toBe("");
+    expect(block.getAttribute("style")).toBeNull();
+  });
+
+  /* THE FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on the left — the
+     value, its collection row, what's been paid — and what went on the job on
+     the right. The block used to run the full width with the figure top-right
+     and the sentence bottom-left, over a grid with one column empty on any
+     job with nothing paid. */
+  const simpleMoney = {
+    valueCents: 1905200,
+    invoiced: null,
+    invoicedOn: null,
+    quoteSent: null,
+    quoteSentOn: null,
+    paid: false,
+    paidOn: null,
+  };
+  const goodsAndPaid = {
+    materials: [
+      {
+        remoteId: "m-1",
+        name: "Ducted system",
+        quantity: 1,
+        unitCents: 1620000,
+        taxInclusive: false,
+        lineCents: 1620000,
+      },
+    ],
+    payments: [
+      {
+        remoteId: "p-1",
+        amountCents: 500000,
+        method: "EFT",
+        note: null,
+        takenOn: "2026-09-01",
+        takenAt: "2026-09-01 09:15:00",
+        isDeposit: true,
+        takenBy: "Robbie",
+      },
+    ],
+  };
+
+  it("stands the money in the left column and the goods in the right", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ money: simpleMoney })));
+    readJobRecord.mockResolvedValueOnce(record({ ledger: goodsAndPaid }));
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    await screen.findByText("What went on the job");
+    const grid = document.querySelector(".wb2-jcgrid.money") as HTMLElement;
+    expect(grid.classList.contains("one")).toBe(false);
+    expect(grid.children).toHaveLength(2);
+    const [left, right] = Array.from(grid.children);
+    expect(left.classList.contains("wb2-jcol")).toBe(true);
+    expect(left.children[0].classList.contains("wb2-jmoney")).toBe(true);
+    expect(left.children[1].textContent).toMatch(/What's been paid/);
+    expect(right.textContent).toMatch(/What went on the job/);
+  });
+
+  it("keeps a block that has opened its ledger at the full width, above the columns", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobRecord.mockResolvedValueOnce(
+      record({ family: familyMoney(), ledger: { materials: goodsAndPaid.materials, payments: [] } })
+    );
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    await screen.findByText("$31,340.35");
+    // the claim rows are a table, and a table wants the width
+    expect(document.querySelector(".wb2-jcgrid .wb2-jmoney")).toBeNull();
+    const face = document.getElementById("jcsec-money") as HTMLElement;
+    expect(face.children[0].classList.contains("wb2-jmoney")).toBe(true);
+    // with no payments there is nothing for the goods to stand beside
+    const grid = document.querySelector(".wb2-jcgrid.money") as HTMLElement;
+    expect(grid.classList.contains("one")).toBe(true);
+    expect(grid.children).toHaveLength(1);
+    expect(grid.children[0].textContent).toMatch(/What went on the job/);
+  });
+
+  it("runs the block full width when there is nothing to stand beside it", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail({ money: simpleMoney })));
+    readJobRecord.mockResolvedValueOnce(record());
+    render(<JobSheet row={row()} {...props} moneyVisible />);
+    await openMoney();
+
+    await screen.findByText("$19,052");
+    const grid = document.querySelector(".wb2-jcgrid.money.one") as HTMLElement;
+    expect(grid).not.toBeNull();
+    expect(grid.children).toHaveLength(1);
+    expect(grid.children[0].querySelector(".wb2-jmoney")).not.toBeNull();
   });
 
   it("keeps the partial-invoice rows out of what went on the job", async () => {
@@ -1762,6 +1858,8 @@ describe("the money block on a job with no clones", () => {
 
     expect(await screen.findByText("$2,794")).toBeInTheDocument();
     expect(screen.getByText("Nothing paid yet")).toBeInTheDocument();
+    // …in the head row, not hanging bare under the figure
+    expect(screen.getByText("Nothing paid yet").closest(".wb2-mline.head")).not.toBeNull();
     expect(document.querySelector(".wb2-jmbar")).toBeNull();
     expect(screen.queryByText(/^Payment 1/)).toBeNull();
   });

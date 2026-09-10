@@ -18,10 +18,11 @@ import {
    Balance owing used to be computed in two places on this sheet and printed
    in neither.
 
-   THE JOB TYPE'S COLOUR FRAMES THIS BLOCK AND NOTHING ELSE. ServiceM8's
-   category palette makes no contrast promise, so it is never a surface and
-   never text — a 1.5px edge on the one section where a glance at the colour
-   tells you what kind of money this is.
+   THE BLOCK WEARS INK. It used to take the job type's colour as its edge —
+   ServiceM8's category palette, which makes no contrast promise and, it
+   turned out, no taste promise: a yellow ring around the figure looked bad
+   (Isaac, 2026-09-10). The category keeps its dot in the chip up top; this
+   block's edge is the stylesheet's, and no colour reaches it from the data.
 
    TWO AXES, NEVER ONE SENTENCE, straight out of project-money.ts:
 
@@ -124,7 +125,6 @@ export function JobMoneyBlock({
   money,
   ledgerPaidCents,
   statusLabel,
-  categoryColour,
   unavailable = false,
   focusRemoteId = null,
   onOpenClaim,
@@ -136,7 +136,6 @@ export function JobMoneyBlock({
       that came back without one. */
   ledgerPaidCents: number;
   statusLabel: string | null;
-  categoryColour: string | null;
   /** The record read was refused or failed. The block says so rather than
       vanishing — and never falls back to this row's own total, which on a
       family is the netted figure the whole feature exists to stop showing. */
@@ -224,10 +223,7 @@ export function JobMoneyBlock({
   const showBar = value !== null && value > 0 && segments.length > 1 && barBasisSafe;
 
   return (
-    <div
-      className="wb2-shsect wb2-jmoney"
-      style={categoryColour ? { borderColor: categoryColour } : undefined}
-    >
+    <div className="wb2-shsect wb2-jmoney">
       {/* The head reads down the RIGHT edge, with the ledger's amounts. */}
       <div className="wb2-jmhead">
         <span className="wb2-sect">Job value{unavailable ? "" : basisWord}</span>
@@ -348,7 +344,15 @@ export function JobMoneyBlock({
         </p>
       )}
 
-      {!unavailable && fallback && <em className="wb2-jmsub">{fallback}</em>}
+      {/* THE SENTENCE HAS A ROW OF ITS OWN. It used to hang bare under the
+          figure, and across the block's old full width that put it in the
+          opposite corner to the number with nothing but space between. The
+          neutral tint is the head row's — a place, not a state. */}
+      {!unavailable && fallback && (
+        <div className="wb2-mline head">
+          <b>{fallback}</b>
+        </div>
+      )}
     </div>
   );
 }

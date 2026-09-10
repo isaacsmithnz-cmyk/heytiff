@@ -466,3 +466,64 @@ describe("filing a document against a ticket with no expiry", () => {
     expect(onAttachDoc).toHaveBeenCalledWith("L1", "T1", "doc-9");
   });
 });
+
+/* ADDING A TICKET BY SCANNING IT, WITH NO EXPIRY ON IT.
+
+   The panel used to send what it read only when there was an expiry, so a
+   white card — which has none — was saved without the photo that had already
+   been uploaded, or the number read off it. It all goes with the save now,
+   and the action decides whether it is a term. */
+describe("adding a ticket by scanning it", () => {
+  const pdf = () => new File(["x"], "white-card.pdf", { type: "application/pdf" });
+  const read = (over: Record<string, unknown> = {}) => ({
+    ok: true,
+    number: "WC-12345",
+    issuer: "SafeWork NSW",
+    issuingState: "NSW",
+    classes: null,
+    startsOn: "2019-03-02",
+    expiresOn: null,
+    ...over,
+  });
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readStaffLicenceDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+  });
+
+  const scanAndAdd = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
+    const dialog = screen.getByRole("dialog");
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("SCANNED");
+    await user.type(within(dialog).getByLabelText("Licence or ticket"), "White card");
+    await user.click(within(dialog).getByRole("button", { name: "Add licence" }));
+  };
+
+  it("sends the photo and what was read, with no expiry on the card", async () => {
+    const user = userEvent.setup();
+    readStaffLicenceDocument.mockResolvedValue(read());
+    const { onAdd } = setup();
+
+    await scanAndAdd(user);
+
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ typeName: "White card" }),
+      expect.objectContaining({ number: "WC-12345", expiresOn: "", documentId: "doc-7", source: "scan" })
+    );
+  });
+
+  it("sends a card with an expiry the same way", async () => {
+    const user = userEvent.setup();
+    readStaffLicenceDocument.mockResolvedValue(read({ expiresOn: "2029-03-02" }));
+    const { onAdd } = setup();
+
+    await scanAndAdd(user);
+
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ typeName: "White card" }),
+      expect.objectContaining({ expiresOn: "2029-03-02", documentId: "doc-7", source: "scan" })
+    );
+  });
+});

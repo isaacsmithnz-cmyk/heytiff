@@ -3,7 +3,13 @@ import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import type { DocumentKind } from "@/lib/documents/files";
 import type { StoredDocument } from "@/lib/documents/query";
-import { termFieldsFor, termLabelFor, type OrgCredKind, type TermField } from "./credentials";
+import {
+  termFieldsFor,
+  termLabelFor,
+  type OrgCredKind,
+  type OrgCredentialInput,
+  type TermField,
+} from "./credentials";
 
 /* One TERM of a business licence or insurance policy — the pure rules.
 
@@ -357,6 +363,37 @@ export function buildCredentialRecordRow(
       document_id: input.documentId ?? null,
       source: input.source === "scan" ? "scan" : "manual",
     },
+  };
+}
+
+/* ADDING A CARD FROM A SCAN IS NOT ALWAYS ADDING A TERM.
+
+   The scan panel on Add card collects a term's fields, but a term is a period
+   and `expires_on` is NOT NULL — so a licence with no renewal date cannot be
+   one. The screen used to answer that by sending nothing at all, and the
+   certificate it had ALREADY uploaded was left in the bucket owned by nothing,
+   along with the number and issuer read off it.
+
+   With an expiry, the scan is the card's first term and its document rides on
+   the term, as before. Without one, the number and issuer go on the card —
+   the one place a card with no term keeps them — and the document is filed
+   against the card itself, under no record, which is the row looseDocuments
+   reads back. What else a term holds has nowhere to live on a bare card, and
+   the certificate still carries it. */
+export function splitAddScan(
+  input: OrgCredentialInput,
+  scan?: CredentialRecordInput,
+): { input: OrgCredentialInput; term: CredentialRecordInput | null; cardDocumentId: string | null } {
+  if (!scan) return { input, term: null, cardDocumentId: null };
+  if ((scan.expiresOn ?? "").trim()) return { input, term: scan, cardDocumentId: null };
+  return {
+    input: {
+      ...input,
+      number: (scan.number ?? "").trim() || input.number,
+      issuer: (scan.issuer ?? "").trim() || input.issuer,
+    },
+    term: null,
+    cardDocumentId: scan.documentId ?? null,
   };
 }
 

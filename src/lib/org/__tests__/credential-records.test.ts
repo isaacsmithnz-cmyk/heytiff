@@ -13,6 +13,7 @@ import {
   recordEvent,
   recordFacts,
   type OrgCredentialRecord,
+  splitAddScan,
 } from "../credential-records";
 import type { StoredDocument } from "@/lib/documents/query";
 
@@ -272,5 +273,46 @@ describe("honours the org's window", () => {
     expect(credentialState("2026-08-13", TODAY, 14)).toBe("ok"); // 20 days out
     expect(credentialState("2026-08-13", TODAY, 30)).toBe("warn");
     expect(credentialHeadline("insurance", "2026-08-13", TODAY, 14)).toBe("Covered");
+  });
+});
+
+/* ADDING A CARD FROM A SCAN. A term needs an expiry, so a certificate with no
+   renewal date cannot be one — and it must still keep what was read off it,
+   and the certificate itself. The add screen used to drop both. */
+describe("adding a card from a scan", () => {
+  const card = { kind: "licence", name: "Contractor licence" };
+
+  it("adds a plain card when nothing was scanned", () => {
+    expect(splitAddScan(card)).toEqual({ input: card, term: null, cardDocumentId: null });
+  });
+
+  it("makes a scan with an expiry the first term, its certificate riding on the term", () => {
+    const scan = { number: "CL-1", issuer: "VBA", expiresOn: "2027-05-01", documentId: "doc-7", source: "scan" };
+    expect(splitAddScan(card, scan)).toEqual({ input: card, term: scan, cardDocumentId: null });
+  });
+
+  it("puts a scan with no expiry on the card, and files its certificate against the card", () => {
+    const scan = { number: " CL-1 ", issuer: "VBA", startsOn: "2020-01-01", expiresOn: "", documentId: "doc-7", source: "scan" };
+    expect(splitAddScan(card, scan)).toEqual({
+      input: { ...card, number: "CL-1", issuer: "VBA" },
+      term: null,
+      cardDocumentId: "doc-7",
+    });
+  });
+
+  it("treats a blank expiry as no expiry", () => {
+    expect(splitAddScan(card, { expiresOn: "   ", documentId: "doc-7" })).toMatchObject({
+      term: null,
+      cardDocumentId: "doc-7",
+    });
+  });
+
+  it("keeps what the card already says where the scan read nothing", () => {
+    const typed = { ...card, number: "TYPED-1", issuer: "Typed issuer" };
+    expect(splitAddScan(typed, { number: "", expiresOn: "" })).toEqual({
+      input: typed,
+      term: null,
+      cardDocumentId: null,
+    });
   });
 });

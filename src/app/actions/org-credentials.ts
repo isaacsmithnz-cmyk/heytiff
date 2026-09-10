@@ -13,6 +13,7 @@ import {
   CREDENTIAL_DOC_KIND,
   ORG_CREDENTIAL_DOC_KINDS,
   buildCredentialRecordRow,
+  splitAddScan,
   type CredentialRecordInput,
   type CredentialRecordRow,
 } from "@/lib/org/credential-records";
@@ -63,7 +64,11 @@ function revalidate() {
 /* Adding one, with its first TERM if the certificate was scanned on the way in
    — the same two-in-one save the fleet's Add vehicle makes when a rego
    certificate is read. Without a record it is exactly what it always was: a
-   card with a name, a number and a date typed by hand. */
+   card with a name, a number and a date typed by hand.
+
+   A scan with NO EXPIRY cannot be a term, and still keeps its certificate:
+   splitAddScan puts its number and issuer on the card and files the document
+   against the card itself. */
 export async function addOrgCredential(
   input: OrgCredentialInput,
   record?: CredentialRecordInput,
@@ -71,12 +76,14 @@ export async function addOrgCredential(
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
-  const built = buildOrgCredentialRow(input);
+  const scan = splitAddScan(input, record);
+
+  const built = buildOrgCredentialRow(scan.input);
   if ("error" in built) return { ok: false, error: built.error };
 
   /* A term is validated BEFORE the credential is written, so an impossible
      date cannot leave a nameless half-card behind. */
-  const term = record ? buildCredentialRecordRow(record) : null;
+  const term = scan.term ? buildCredentialRecordRow(scan.term) : null;
   if (term && "error" in term) return { ok: false, error: term.error };
 
   const row = { ...built.row };
@@ -95,6 +102,9 @@ export async function addOrgCredential(
   if (error || !data) return { ok: false, error: "Couldn't add that." };
 
   if (term) await fileTerm(ctx, String(data.id), built.row.kind, term.row);
+  else if (scan.cardDocumentId) {
+    await adoptCredentialDocument(ctx, String(data.id), scan.cardDocumentId, built.row.kind, null);
+  }
 
   revalidate();
   return { ok: true };
@@ -233,7 +243,8 @@ async function adoptCredentialDocument(
   credentialId: string,
   documentId: string,
   kind: OrgCredKind,
-  recordId: string,
+  /** null files it against the card itself, with no term to disown it. */
+  recordId: string | null,
 ): Promise<void> {
   if (!ctx.staffId) return;
   const { data } = await supabaseAdmin
@@ -250,7 +261,7 @@ async function adoptCredentialDocument(
     .not("uploaded_at", "is", null)
     .is("org_credential_id", null)
     .select("id");
-  if (!data || data.length === 0) {
+  if ((!data || data.length === 0) && recordId) {
     await supabaseAdmin
       .from(RECORDS)
       .update({ document_id: null })

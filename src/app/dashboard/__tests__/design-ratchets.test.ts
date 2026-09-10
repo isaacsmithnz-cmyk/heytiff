@@ -274,7 +274,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 42 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 114 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 284 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 283 },
   { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 25 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },

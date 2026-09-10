@@ -205,8 +205,6 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
     return (
       <StaticCard
         variant="section"
-        icon="usershield"
-        iconStyle={{ background: "rgba(138,43,226,.12)", color: "#8A2BE2" }}
         title="Permissions"
         sub="Role & what this person can access"
         pill={pill}
@@ -219,8 +217,6 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
   return (
     <SectionCard
       variant="section"
-      icon="usershield"
-      iconStyle={{ background: "rgba(138,43,226,.12)", color: "#8A2BE2" }}
       title="Permissions"
       sub="Role & what this person can access"
       pill={pill}

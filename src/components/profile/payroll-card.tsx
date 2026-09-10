@@ -82,8 +82,6 @@ export function PayrollCard({
   return (
     <SectionCard
       variant="section"
-      icon="dollar"
-      iconStyle={{ background: "rgba(255,51,102,.1)", color: "#e0264f" }}
       title="Payroll"
       sub="Drives charge-out rate & job costing"
       pill={

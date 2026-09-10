@@ -170,9 +170,6 @@ export function PeopleImportCard({
     return (
       <div className="card2">
         <div className="c2h">
-          <span className="ci">
-            <Icon name="users" size={19} />
-          </span>
           <div>
             <b>People in {meta.label}</b>
             <em>{error}</em>
@@ -189,9 +186,6 @@ export function PeopleImportCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="users" size={19} />
-        </span>
         <div style={{ minWidth: 0 }}>
           <b>People in {meta.label}</b>
           <em>

@@ -375,9 +375,6 @@ export function MyExpensesFace({
           ) : (
             <div className="card2">
               <div className="c2h">
-                <span className="ci">
-                  <Icon name="receipt" size={19} />
-                </span>
                 <div>
                   <b>{company ? "New company-card receipt" : "New claim"}</b>
                   <em>

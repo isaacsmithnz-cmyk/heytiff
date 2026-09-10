@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { PreValidation } from "@/lib/staff/pre-validate";
 import { useSectionSave } from "./use-section-save";
@@ -65,8 +65,6 @@ export type SectionBodyContext = CardEditContext & {
 export type SectionVariant = "section" | "card";
 
 export function SectionCard({
-  icon,
-  iconStyle,
   title,
   sub,
   pill,
@@ -87,8 +85,6 @@ export function SectionCard({
       in profile-screen. State, not an effect: the card is already fresh. */
   startEditing = false,
 }: {
-  icon: string;
-  iconStyle?: CSSProperties;
   title: string;
   sub: string;
   pill?: ReactNode;
@@ -229,9 +225,6 @@ export function SectionCard({
   return (
     <div className={cls} {...(editable ? {} : { "data-static": "" })}>
       <div className="c2h">
-        <span className="ci" style={iconStyle}>
-          <Icon name={icon} size={18} />
-        </span>
         <span>
           <b>{title}</b>
           <em>{sub}</em>
@@ -271,16 +264,12 @@ export function SectionCard({
     the same reason: on the staff card a tab IS the section's title, so the
     frame and the repeated name go. */
 export function StaticCard({
-  icon,
-  iconStyle,
   title,
   sub,
   pill,
   variant = "card",
   children,
 }: {
-  icon: string;
-  iconStyle?: CSSProperties;
   title: string;
   sub: string;
   pill?: ReactNode;
@@ -304,9 +293,6 @@ export function StaticCard({
   return (
     <div className="card2" data-static>
       <div className="c2h">
-        <span className="ci" style={iconStyle}>
-          <Icon name={icon} size={18} />
-        </span>
         <span>
           <b>{title}</b>
           <em>{sub}</em>

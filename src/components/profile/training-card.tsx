@@ -8,7 +8,6 @@ export function TrainingCard() {
   return (
     <StaticCard
       variant="section"
-      icon="grad"
       title="Training"
       sub="Pathways &amp; sign-offs · read-only"
     >

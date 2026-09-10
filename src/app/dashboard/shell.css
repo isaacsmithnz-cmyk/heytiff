@@ -7344,7 +7344,9 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 /* restated INSIDE a media block of its own: @media adds no specificity, so
    the .wb2-jcgrid collapse above cannot beat .wb2-jcgrid.money by itself */
 @media (max-width:900px) { .wb2-jcgrid.money { grid-template-columns:minmax(0, 1fr); } }
-.wb2-jcol { display:flex; flex-direction:column; gap:13px; min-width:0; }
+/* the column's gap IS the grid's gap — said once, on the grid, and inherited
+   here so the two can never drift apart (and no second number to keep) */
+.wb2-jcol { display:flex; flex-direction:column; gap:inherit; min-width:0; }
 /* an open section of a face — the faces are the panels now; section heads
    wear the same title dress as the Diary/Visits headers (.wb2-jcdhead) */
 .wb2-jcsec { display:flex; flex-direction:column; }

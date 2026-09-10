@@ -114,6 +114,19 @@ starts with them.
     noun plus verb, never "successfully"; no exclamation marks; no apology; an
     empty state leads with the action; a wait says what it is doing.
 13. Real content from the first day: long names, truncation, every state.
+14. No bar at the start. A coloured line down the left edge of a row, card,
+    tile or nav item is not a state and not a selection. Selection is a fill.
+    State is a word, or a dot, in the state colour. Kind is a label. The nav's
+    active item is its teal icon and its white label, nothing else.
+15. No taglines, and no caption that explains the section. The two shapes:
+    three nouns in a row under a title ("splits, ducted, multi") and a line
+    that says what the section is for ("What lets the business trade —
+    nothing expiring"). The title names the section; the content shows what
+    it is for. A line under a title earns its place only when it carries a
+    fact the reader came for, with a figure, a date or a name. "3 need
+    attention" is that fact. "Nothing expiring" is the same fact as
+    reassurance, and "What lets the business trade" is an explanation. Keep
+    the fact, drop the rest.
 
 ## Guards
 
@@ -137,6 +150,7 @@ for print, with their own type.
 | ambient `infinite` animation | motion is feedback or state | 45 |
 | gradients | one accent, flat surfaces | 136 |
 | shadows that are not a focus ring | one shadow, overlays only | 291 |
+| bars at the left edge | selection is a fill, state is a word | 27 |
 
 The end state for each is zero, or a short allowlist with a reason beside each
 entry (a spinner is state; the orb breathing with the microphone is feedback).
@@ -148,9 +162,12 @@ entry (a spinner is state; the orb breathing with the microphone is feedback).
 3. **Tokens before screens.** The scales above become custom properties on
    `:root`; the stylesheets are migrated to them mechanically; the four daily
    screens are walked. The only step that touches every family at once.
-4. **The five inherited tells**, one walked PR each: the orbs, the card and its
+4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
-   hero on My Vehicle.
+   hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the
+   left edge (33 places on that day, eleven of them in the Workboard, seven in
+   the Toolbox) and the taglines and section captions (the list is in the
+   step 2 PR).
 5. **The icons.**
 6. **Fold the dress families into the tokens**, one per PR, deleting dead CSS as
    you go. By rule count: `wb2-` 1,316 · `ds-` 325 · `hq-` 287 · `tk-` 281 ·

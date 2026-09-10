@@ -76,6 +76,32 @@ function shadows(): number {
   return n;
 }
 
+/* A coloured line down the left edge: a border, an inset shadow that only
+   paints on the left, or a pseudo-element two to six pixels wide pinned to
+   the left with a height. Selection is a fill and state is a word, so none of
+   these has a job. Widths under 2px are dividers, not bars, and are not
+   counted. Isaac named this one himself: "the vertical line at the start of
+   lots of different buttons or cards. the nav bar items are an easy example." */
+function leftBars(): number {
+  let n = 0;
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(CSS))) {
+    const sel = m[1];
+    const body = m[2];
+    const border = body.match(/border-(?:left|inline-start)\s*:\s*([^;]+)/);
+    if (border && parseFloat(border[1]) >= 2 && !/transparent|none/.test(border[1])) n++;
+    const inset = body.match(/box-shadow\s*:\s*inset\s+(\d+(?:\.\d+)?)px\s+0\b/);
+    if (inset && Number(inset[1]) >= 2) n++;
+    if (/::?(before|after)\b/.test(sel)) {
+      const w = body.match(/\bwidth\s*:\s*(\d+(?:\.\d+)?)px/);
+      const width = w ? Number(w[1]) : 0;
+      if (width >= 2 && width <= 6 && /\bleft\s*:\s*(0|-1px)\b/.test(body) && /\b(top|bottom|inset|height)\s*:/.test(body)) n++;
+    }
+  }
+  return n;
+}
+
 function small(): number {
   let n = 0;
   for (const m of CSS.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)) if (Number(m[1]) < 12) n++;
@@ -91,6 +117,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 45 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 136 },
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 291 },
+  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 27 },
 ];
 
 describe("the design ratchets only go down", () => {

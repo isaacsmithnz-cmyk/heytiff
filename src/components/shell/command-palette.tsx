@@ -99,7 +99,6 @@ export function CommandPalette({
     <div className={`fg-cmd${open ? " open" : ""}`} id="fg-cmd">
       <div className="ov" onClick={onClose} />
       <div className="box">
-        <div className="glow" />
         <div className="cin">
           <span className="ci">
             <Icon name="search" size={20} />

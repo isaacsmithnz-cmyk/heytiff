@@ -25,7 +25,7 @@ function setup(profile = blankProfile, over: { checkCount?: number; onOpenChecks
     <WorkRightsCard
       profile={profile}
       mode="self"
-      today={TODAY}
+      today={TODAY} warnDays={30}
       checkCount={over.checkCount}
       onOpenChecks={over.onOpenChecks}
       onSave={actions.onSave}
@@ -142,7 +142,7 @@ describe("the read view", () => {
 
   it("shows the visa panel for a visa holder, and tints an expiry that is close", () => {
     const { container } = render(
-      <WorkRightsCard profile={onVisa} mode="self" today={TODAY} onSave={jest.fn()} />
+      <WorkRightsCard profile={onVisa} mode="self" today={TODAY} warnDays={30} onSave={jest.fn()} />
     );
     expect(screen.getByText("Visa")).toBeInTheDocument();
     expect(screen.getByText("482 TSS")).toBeInTheDocument();

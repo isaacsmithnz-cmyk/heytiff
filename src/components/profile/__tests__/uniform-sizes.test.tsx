@@ -199,7 +199,7 @@ describe("on Summary", () => {
         profile={profile}
         licences={[]}
         vehicle={null}
-        today={TODAY}
+        today={TODAY} warnDays={30}
         orgState="NSW"
         mode="admin"
         actions={okActions()}

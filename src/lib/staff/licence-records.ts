@@ -2,7 +2,6 @@ import { daysUntil, parseAuDate } from "@/lib/au-dates";
 import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import type { StoredDocument } from "@/lib/documents/query";
-import { EXPIRY_WARN_DAYS } from "./derive";
 
 /* One TERM of a staff licence — the pure rules.
 
@@ -90,7 +89,6 @@ export function looseTermDocuments(
 /** The same 30-day window the licence card's pill and the dashboard chip use,
     so a ticket that reads "Expires in 2 weeks" on the wall is exactly the one
     raising a chip on Home. */
-export const LICENCE_WARN_DAYS = EXPIRY_WARN_DAYS;
 
 export type TermState = "ok" | "warn" | "bad" | "none";
 
@@ -100,10 +98,10 @@ export function licenceDays(expiry: string | null, today: string): number | null
 
 /** "none" is not "ok". A ticket with no expiry recorded is not evidence that
     the person is ticketed — it is evidence that nobody has said. */
-export function termState(expiry: string | null, today: string): TermState {
+export function termState(expiry: string | null, today: string, warnDays: number): TermState {
   const days = licenceDays(expiry, today);
   if (days == null) return "none";
-  return days < 0 ? "bad" : days <= LICENCE_WARN_DAYS ? "warn" : "ok";
+  return days < 0 ? "bad" : days <= warnDays ? "warn" : "ok";
 }
 
 /** "Renews in 3 weeks" · "Renews tomorrow" · "Expires today" · "Expired 4 days ago". */
@@ -116,8 +114,8 @@ export function termStatusText(days: number | null): string {
 }
 
 /** The headline on the status card. */
-export function termHeadline(expiry: string | null, today: string): string {
-  const state = termState(expiry, today);
+export function termHeadline(expiry: string | null, today: string, warnDays: number): string {
+  const state = termState(expiry, today, warnDays);
   if (state === "none") return "No expiry recorded";
   if (state === "ok") return "Current";
   return termStatusText(licenceDays(expiry, today));

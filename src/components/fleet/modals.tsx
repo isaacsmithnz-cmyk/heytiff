@@ -795,12 +795,15 @@ export function LogRow({
    was this last serviced, and what was done" had nowhere to be read. */
 export function ServiceHistoryModal({
   vehicle,
+  warnDays,
   logs,
   onAdd,
   onCorrect,
   onClose,
 }: {
   vehicle: Vehicle;
+  /** The org's expiry window — the service-by-date limit reads it. */
+  warnDays: number;
   /** This vehicle's logs — filtered to services here, so callers pass the lot. */
   logs: VehicleLog[];
   onAdd: () => void;
@@ -828,7 +831,7 @@ export function ServiceHistoryModal({
       <div className="fl-facts">
         <div className="fl-fact">
           <em>Next service</em>
-          <b>{serviceDueText(vehicle) ?? "No cycle set"}</b>
+          <b>{serviceDueText(vehicle, warnDays) ?? "No cycle set"}</b>
         </div>
         {dueKm != null && (
           <div className="fl-fact">

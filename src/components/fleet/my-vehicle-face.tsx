@@ -28,10 +28,12 @@ import { MyVehicle, type VehicleFace } from "./my-vehicle";
 export function MyVehicleFace({
   own,
   today,
+  warnDays,
   viewerStaffId,
 }: {
   own: OwnFleet;
   today: string;
+  warnDays: number;
   viewerStaffId: string | null;
 }) {
   const actions = useFleetActions();
@@ -79,6 +81,7 @@ export function MyVehicleFace({
             onDeleteLog={actions.deleteLog}
             viewerStaffId={viewerStaffId}
             today={today}
+            warnDays={warnDays}
           />
         </section>
       </div>

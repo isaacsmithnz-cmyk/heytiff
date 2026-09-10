@@ -35,6 +35,8 @@ import { getMyPay } from "@/lib/staff/my-pay";
 import { getOrgName, getOrgState } from "@/lib/permissions-server";
 import { signPhotoUrl } from "@/lib/staff/photo";
 import { todayInAu } from "@/lib/au-dates";
+import { DEFAULT_EXPIRY_WINDOW } from "@/lib/expiry";
+import { orgExpiryWindow } from "@/lib/org/query";
 
 /* My profile — your own staff card, and the values that fill in Team.
 
@@ -57,6 +59,7 @@ export default async function MyProfilePage({
 
   const profile = await loadMyProfile();
   const orgId = session.orgId as string | undefined;
+  const expiry = orgId ? await orgExpiryWindow(orgId) : DEFAULT_EXPIRY_WINDOW;
   const userId = session.user.sub as string;
   const [assignedVehicle, licences, myPay, orgName, orgState, photoUrl, params] =
     await Promise.all([
@@ -137,6 +140,7 @@ export default async function MyProfilePage({
       workRightsReminders={workRightsReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
+      warnDays={expiry.warnDays}
       org={orgName}
       orgState={orgState}
       myPay={myPay}

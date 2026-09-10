@@ -12,7 +12,7 @@ export default async function AssetsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const [{ own, register, today, viewerStaffId }, params] = await Promise.all([
+  const [{ own, register, today, warnDays, viewerStaffId }, params] = await Promise.all([
     loadFleetPage({ withRegister: true }),
     searchParams,
   ]);
@@ -30,6 +30,7 @@ export default async function AssetsPage({
       own={own}
       register={register}
       today={today}
+      warnDays={warnDays}
       viewerStaffId={viewerStaffId}
       openVehicleId={typeof v === "string" ? v : null}
     />

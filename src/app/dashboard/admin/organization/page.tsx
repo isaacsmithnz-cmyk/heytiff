@@ -8,6 +8,7 @@ import {
   listCredentialReminders,
   listOrgCredentialRecords,
   listOrgCredentials,
+  orgExpiryWindow,
   listOwnerCandidates,
   orgAccount,
 } from "@/lib/org/query";
@@ -46,7 +47,7 @@ import type { OrgSettings } from "@/lib/org/settings";
    cleanup migration; nothing here reads them. */
 
 const COLUMNS =
-  "id, trading_name, legal_name, abn, acn, gst_registered, payment_terms_days, " +
+  "id, trading_name, legal_name, abn, acn, gst_registered, payment_terms_days, expiry_warn_days, expiry_email, " +
   "email, phone, website, address, suburb, state, postcode, logo_url, brand_color";
 // primary_owner_user_id and the legacy `name` are deliberately not selected —
 // this screen edits the company profile, not ownership or the signup seed.
@@ -73,7 +74,7 @@ export default async function OrganizationPage({
      master and nobody else: a co-owner's render makes one query fewer and
      ships no list of user ids to a client that has no control to use it. */
   const master = await isMaster();
-  const [credentials, records, account, logoUrl, ownerCandidates, staffId, params] = await Promise.all([
+  const [credentials, records, account, logoUrl, ownerCandidates, staffId, params, expiry] = await Promise.all([
     listOrgCredentials(orgId),
     // the terms behind the cards — the history the modal reads
     listOrgCredentialRecords(orgId),
@@ -93,6 +94,7 @@ export default async function OrganizationPage({
     // which tab a shared link asks for — read here rather than with
     // useSearchParams, so the screen needs no Suspense boundary around it
     searchParams,
+    orgExpiryWindow(orgId),
   ]);
 
   /* The paperwork and the chips need the cards first, so they come after —
@@ -115,6 +117,7 @@ export default async function OrganizationPage({
       ownerCandidates={ownerCandidates}
       logoUrl={logoUrl}
       today={todayInAu()}
+      warnDays={expiry.warnDays}
       initialSec={typeof params.sec === "string" ? params.sec : undefined}
       // Configured or not — the boolean crosses to the client, the key never
       // does (no NEXT_PUBLIC_ prefix, so Next cannot inline it either).

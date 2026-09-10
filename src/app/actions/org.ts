@@ -1,5 +1,6 @@
 "use server";
 
+import { EXPIRY_WARN_ERROR, readExpiryWarnDays } from "@/lib/expiry";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { auth0 } from "@/lib/auth0";
@@ -77,7 +78,13 @@ export async function saveOrgSection(
 
   // gst_registered travels as the segmented control's "Yes"/"No" and is a
   // boolean column; convert (null clears).
-  const { gst_registered: gstRaw, payment_terms_days: termsRaw, ...rest } = patch;
+  const {
+    gst_registered: gstRaw,
+    payment_terms_days: termsRaw,
+    expiry_warn_days: warnRaw,
+    expiry_email: emailRaw,
+    ...rest
+  } = patch;
   const update: Record<string, unknown> = { ...rest, updated_at: new Date().toISOString() };
   if (gstRaw !== undefined) update.gst_registered = gstRaw === null ? null : gstRaw === "Yes";
 
@@ -91,6 +98,18 @@ export async function saveOrgSection(
     }
     update.payment_terms_days = days;
   }
+
+  /* The expiry window: one number for everything that expires, and whether the
+     morning email carries it. Both ride the identity card. The number is NOT
+     NULL in the table, so a cleared box is refused rather than written. */
+  if (warnRaw !== undefined) {
+    const days = readExpiryWarnDays(warnRaw ?? "");
+    if (days === "invalid") {
+      return { ok: false, error: EXPIRY_WARN_ERROR, fields: ["expiry_warn_days"] };
+    }
+    update.expiry_warn_days = days;
+  }
+  if (emailRaw !== undefined) update.expiry_email = emailRaw === "Yes";
 
   if (Object.keys(update).length === 1) return { ok: true }; // only the timestamp
 

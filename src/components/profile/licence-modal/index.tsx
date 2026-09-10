@@ -44,6 +44,7 @@ export function LicenceModal({
   documents,
   reminders,
   today,
+  warnDays,
   onAdd,
   onSaveIdentity,
   onDelete,
@@ -60,6 +61,7 @@ export function LicenceModal({
   documents: StoredDocument[];
   reminders: number[];
   today: string;
+  warnDays: number;
   onAdd: (input: LicenceInput, term?: LicenceTermInput) => Promise<SaveResult>;
   onSaveIdentity: (input: LicenceInput) => Promise<SaveResult>;
   onDelete: () => Promise<SaveResult>;
@@ -170,6 +172,7 @@ export function LicenceModal({
             documents={documents}
             reminders={reminders}
             today={today}
+          warnDays={warnDays}
             pending={pending}
             error={error}
             onRecord={(input) => void run(() => onRecord(input), () => undefined)}

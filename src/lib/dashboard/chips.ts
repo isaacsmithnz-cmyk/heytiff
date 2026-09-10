@@ -18,9 +18,6 @@
    on the dashboard and the same chip in Assets can't drift apart. */
 
 import {
-  CTP_WARN_DAYS,
-  INSURANCE_WARN_DAYS,
-  REGO_WARN_DAYS,
   SERVICE_WARN_KM,
   fmtKm,
   serviceDue,
@@ -29,7 +26,6 @@ import {
 } from "@/components/fleet/logic";
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
-import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
 import { isNoVisa } from "@/lib/staff/work-rights";
 
 export type ChipKind =
@@ -40,6 +36,7 @@ export type ChipKind =
   | "ctp"
   | "service"
   | "org-insurance"
+  | "org-licence"
   | "expenses"
   | "timesheet"
   | "claim"
@@ -82,6 +79,7 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
   ctp: "Fleet",
   service: "Fleet",
   "org-insurance": "Business",
+  "org-licence": "Business",
   /* All three money-and-hours sources file under Pay, including the approver's
      claim queue — it used to sit under Business, which put "10 claims waiting"
      and "your claim was declined" in two different groups when both are the
@@ -135,11 +133,11 @@ function expiryLabel(what: string, days: number): string {
 /** A single licence → a chip when it is expired or expiring soon, else null. */
 export function licenceChip(
   lic: { id: string; typeName: string; expiryDate: string | null },
-  ctx: { subject: string; href: string; today: string },
+  ctx: { subject: string; href: string; today: string; warnDays: number },
 ): ActionChip | null {
   if (!lic.expiryDate) return null;
   const days = daysUntil(lic.expiryDate, ctx.today);
-  if (days > EXPIRY_WARN_DAYS) return null;
+  if (days > ctx.warnDays) return null;
   const state: ActionState = days < 0 ? "bad" : "warn";
   return {
     key: `licence:${lic.id}`,
@@ -175,13 +173,13 @@ export function workRightsChips(
     visaExpiry: string | null;
     vevoCheckedAt: string | null;
   },
-  ctx: { subject: string; href: string; today: string },
+  ctx: { subject: string; href: string; today: string; warnDays: number },
 ): ActionChip[] {
   const chips: ActionChip[] = [];
 
   if (wr.visaExpiry) {
     const days = daysUntil(wr.visaExpiry, ctx.today);
-    if (days <= EXPIRY_WARN_DAYS) {
+    if (days <= ctx.warnDays) {
       const state: ActionState = days < 0 ? "bad" : "warn";
       const what = wr.visaType?.trim() || "Visa";
       chips.push({
@@ -221,11 +219,11 @@ export function workRightsChips(
 /** Rego expiry chip for a vehicle, from the same day-count the register shows. */
 export function regoChip(
   v: Pick<VehicleWithFacts, "id" | "status" | "regoDays">,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
   // no date entered, nothing to chase — see expiryState in fleet/logic.ts
-  if (v.regoDays == null || v.regoDays > REGO_WARN_DAYS) return null;
+  if (v.regoDays == null || v.regoDays > ctx.warnDays) return null;
   const state: ActionState = v.regoDays < 0 ? "bad" : "warn";
   return {
     key: `rego:${v.id}`,
@@ -241,10 +239,10 @@ export function regoChip(
 /** Insurance expiry chip for a vehicle. */
 export function insuranceChip(
   v: Pick<VehicleWithFacts, "id" | "status" | "insuranceDays">,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.insuranceDays == null || v.insuranceDays > INSURANCE_WARN_DAYS) return null;
+  if (v.insuranceDays == null || v.insuranceDays > ctx.warnDays) return null;
   const state: ActionState = v.insuranceDays < 0 ? "bad" : "warn";
   return {
     key: `insurance:${v.id}`,
@@ -265,10 +263,10 @@ export function insuranceChip(
    said so was the one we didn't send. */
 export function ctpChip(
   v: Pick<VehicleWithFacts, "id" | "status" | "ctpDays">,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  if (v.ctpDays == null || v.ctpDays > CTP_WARN_DAYS) return null;
+  if (v.ctpDays == null || v.ctpDays > ctx.warnDays) return null;
   const state: ActionState = v.ctpDays < 0 ? "bad" : "warn";
   return {
     key: `ctp:${v.id}`,
@@ -293,10 +291,10 @@ export function serviceChip(
     | "serviceDays"
     | "motorised"
   >,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip | null {
   if (v.status === "sold") return null;
-  const due = serviceDue(v as VehicleWithFacts);
+  const due = serviceDue(v as VehicleWithFacts, ctx.warnDays);
   if (due.state === "ok") return null;
   const state: ActionState = due.state === "bad" ? "bad" : "warn";
   /* Whichever limit is the reason gets to word the chip. A vehicle overdue on
@@ -332,7 +330,7 @@ export function vehicleLabel(v: Pick<VehicleWithFacts, "name" | "plate">): strin
 /** All expiry/overdue chips for one vehicle, worst-first. */
 export function vehicleChips(
   v: VehicleWithFacts,
-  ctx: { subject: string; href: string },
+  ctx: { subject: string; href: string; warnDays: number },
 ): ActionChip[] {
   return sortChips(
     [regoChip(v, ctx), insuranceChip(v, ctx), ctpChip(v, ctx), serviceChip(v, ctx)].filter(
@@ -341,24 +339,47 @@ export function vehicleChips(
   );
 }
 
-/** The business's own public-liability insurance expiry. */
-export function orgInsuranceChip(
-  org: { insurer: string | null; insuranceExpiry: string | null },
-  ctx: { href: string; today: string },
-): ActionChip | null {
-  if (!org.insuranceExpiry) return null;
-  const days = daysUntil(org.insuranceExpiry, ctx.today);
-  if (days > EXPIRY_WARN_DAYS) return null;
-  const state: ActionState = days < 0 ? "bad" : "warn";
-  return {
-    key: "org-insurance",
-    kind: "org-insurance",
-    state,
-    label: expiryLabel("Public liability", days),
-    subject: org.insurer?.trim() || "Public liability insurance",
-    href: ctx.href,
-    urgency: urgency(state, days),
-  };
+/* THE BUSINESS'S OWN PAPERS — one chip per card, licences included.
+
+   This was `orgInsuranceChip`: ONE chip, from a `limit(1)` read of the
+   soonest-expiring insurance card, with "Public liability" hard-coded into the
+   label. That was the shape of the old two-columns-on-organizations model, and
+   it outlived it. With several policies on file the chip named the soonest and
+   hid the rest; a business LICENCE — the ARC authorisation, the contractor
+   licence, the things that let the business trade at all — never reached the
+   bell by any route except a person pressing Remind me on the card.
+
+   Every card inside the window gets its own chip, keyed by its id, labelled by
+   its own name, filed under Business either way. The kind still splits
+   licence from insurance so the bell can tell the two apart later; both take
+   the Business icon today. */
+export function orgCredentialChips(
+  cards: readonly {
+    id: string;
+    kind: "licence" | "insurance";
+    name: string;
+    issuer: string | null;
+    expiryDate: string | null;
+  }[],
+  ctx: { href: string; today: string; warnDays: number },
+): ActionChip[] {
+  const chips: ActionChip[] = [];
+  for (const c of cards) {
+    if (!c.expiryDate) continue;
+    const days = daysUntil(c.expiryDate, ctx.today);
+    if (days > ctx.warnDays) continue;
+    const state: ActionState = days < 0 ? "bad" : "warn";
+    chips.push({
+      key: `org-cred:${c.id}`,
+      kind: c.kind === "licence" ? "org-licence" : "org-insurance",
+      state,
+      label: expiryLabel(c.name, days),
+      subject: c.issuer?.trim() || (c.kind === "licence" ? "Business licence" : "Business insurance"),
+      href: ctx.href,
+      urgency: urgency(state, days),
+    });
+  }
+  return sortChips(chips);
 }
 
 /** Expense claims waiting on a decision.

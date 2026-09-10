@@ -68,6 +68,7 @@ export function AssetsScreen({
   own,
   register,
   today,
+  warnDays,
   viewerStaffId,
   openVehicleId = null,
 }: {
@@ -75,6 +76,7 @@ export function AssetsScreen({
   /** Present only for holders of `assets_all`. */
   register?: Register;
   today: string;
+  warnDays: number;
   viewerStaffId: string | null;
   /** `?v=` — a vehicle to open on arrival, read on the server by the page and
       passed through. A staff card's plate is the caller. */
@@ -116,6 +118,7 @@ export function AssetsScreen({
               onDeleteLog={actions.deleteLog}
               viewerStaffId={viewerStaffId}
               today={today}
+              warnDays={warnDays}
             />
           ) : (
             <div className="wb2">
@@ -163,6 +166,7 @@ export function AssetsScreen({
                   fleet={{ ...actions, ...register }}
                   staff={register.staff}
                   today={today}
+                  warnDays={warnDays}
                   openVehicleId={openVehicleId}
                 />
               )}

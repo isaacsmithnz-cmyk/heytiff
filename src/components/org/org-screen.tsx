@@ -1,5 +1,6 @@
 "use client";
 
+import { EXPIRY_WARN_ERROR } from "@/lib/expiry";
 import Link from "next/link";
 import { useState } from "react";
 import { flushSync } from "react-dom";
@@ -21,6 +22,8 @@ import {
   AU_STATES,
   formatAbn,
   formatAcn,
+  expiryEmailLabel,
+  expiryWarnLabel,
   paymentTermsLabel,
   PAYMENT_TERMS_ERROR,
   preValidateOrg,
@@ -83,6 +86,8 @@ function identityValues(o: OrgSettings): Record<string, string> {
     gst_registered: o.gst_registered === true ? "Yes" : o.gst_registered === false ? "No" : "",
     payment_terms_days:
       o.payment_terms_days === null ? "" : String(o.payment_terms_days),
+    expiry_warn_days: String(o.expiry_warn_days),
+    expiry_email: o.expiry_email ? "Yes" : "No",
     website: o.website ?? "",
   };
 }
@@ -118,6 +123,7 @@ export function OrgScreen({
   ownerCandidates = [],
   logoUrl,
   today,
+  warnDays,
   initialSec,
   addressLookup = false,
   actions,
@@ -141,6 +147,9 @@ export function OrgScreen({
   logoUrl: string | null;
   /** AU calendar date, so expiries agree with the dashboard chips */
   today: string;
+  /** The org's expiry window — the same number the dashboard chips use, so
+      a card can never say "Valid" about a policy the bell is warning on. */
+  warnDays: number;
   /** from the page's own searchParams, so a shared link opens the right tab */
   initialSec?: string;
   /** server-computed Boolean(GOOGLE_MAPS_API_KEY) — the key never comes with it */
@@ -230,6 +239,7 @@ export function OrgScreen({
                       account={account}
                       logoUrl={logoUrl}
                       today={today}
+                      warnDays={warnDays}
                       onGo={go}
                     />
                   )}
@@ -247,6 +257,7 @@ export function OrgScreen({
                       documents={credentialDocuments}
                       reminders={credentialReminders}
                       today={today}
+                      warnDays={warnDays}
                       actions={actions}
                     />
                   )}
@@ -371,6 +382,8 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
         }
       />
       <Row label="Payment terms" value={paymentTermsLabel(org.payment_terms_days)} />
+      <Row label="Expiry warnings" value={expiryWarnLabel(org.expiry_warn_days)} />
+      <Row label="Morning email" value={expiryEmailLabel(org.expiry_email)} />
       <Row
         label="Website"
         value={
@@ -467,6 +480,33 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
                 value={draft.payment_terms_days}
                 invalid={invalid("payment_terms_days")}
                 onChange={(v) => set("payment_terms_days", v)}
+              />
+            </Field>
+          </div>
+          {/* ONE NUMBER FOR EVERYTHING THAT EXPIRES — staff tickets, visas, the
+              business's own papers, rego, vehicle insurance, green slip, a
+              service by date. It replaced six hard-coded 30s and the per-card
+              Remind me buttons (issue #640). The unit is in the label, as it is
+              for payment terms above. */}
+          <div className="frow c2">
+            <Field
+              label="Warn before an expiry (days)"
+              error={invalid("expiry_warn_days") ? EXPIRY_WARN_ERROR : null}
+            >
+              <TextInput
+                name="expiry_warn_days"
+                placeholder="e.g. 30"
+                value={draft.expiry_warn_days}
+                invalid={invalid("expiry_warn_days")}
+                onChange={(v) => set("expiry_warn_days", v)}
+              />
+            </Field>
+            <Field label="Email the morning list">
+              <Seg
+                value={draft.expiry_email}
+                greenValue="Yes"
+                options={["Yes", "No"]}
+                onChange={(v) => set("expiry_email", v)}
               />
             </Field>
           </div>
@@ -647,6 +687,7 @@ function CredentialsSection({
   documents,
   reminders,
   today,
+  warnDays,
   actions,
 }: {
   credentials: OrgCredential[];
@@ -654,6 +695,7 @@ function CredentialsSection({
   documents: Record<string, StoredDocument[]>;
   reminders: Record<string, number[]>;
   today: string;
+  warnDays: number;
   actions: OrgActions;
 }) {
   // null = closed. A row = opened on it; "new" = adding one.
@@ -672,7 +714,7 @@ function CredentialsSection({
      past it. Counted from the same rule the cards' own status chips use, so
      the headline can never disagree with the wall under it. */
   const attention = credentials.filter((c) => {
-    const state = credentialState(c.expiryDate, today);
+    const state = credentialState(c.expiryDate, today, warnDays);
     return state === "warn" || state === "bad";
   }).length;
 
@@ -726,7 +768,7 @@ function CredentialsSection({
                   licenceNumber={c.number}
                   issuer={c.issuer}
                   expiry={c.expiryDate ? formatAuDate(c.expiryDate) : null}
-                  status={licenceStatus(c.expiryDate, today)}
+                  status={licenceStatus(c.expiryDate, today, warnDays)}
                   badge={orgCredBadge(c)}
                   note={terms > 1 ? `${terms} terms on file` : terms === 1 ? "1 term on file" : undefined}
                   onOpen={() => setOpen(c)}
@@ -745,6 +787,7 @@ function CredentialsSection({
           documents={documents[openId] ?? []}
           reminders={reminders[openId] ?? []}
           today={today}
+                      warnDays={warnDays}
           onAdd={actions.onAddCredential}
           onSaveIdentity={(input) =>
             editing ? actions.onUpdateCredential(editing.id, input) : actions.onAddCredential(input)

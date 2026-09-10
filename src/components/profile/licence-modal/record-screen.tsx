@@ -47,6 +47,7 @@ export function RecordScreen({
   documents,
   reminders,
   today,
+  warnDays,
   pending,
   error,
   onRecord,
@@ -63,6 +64,7 @@ export function RecordScreen({
   /** The leads the VIEWER has switched on, in days. */
   reminders: number[];
   today: string;
+  warnDays: number;
   pending: boolean;
   error: string | null;
   onRecord: (input: LicenceTermInput) => void;
@@ -77,7 +79,7 @@ export function RecordScreen({
   const history = previousTerms(records);
   const expiry = current?.expiresOn ?? licence.expiryDate;
   const days = licenceDays(expiry, today);
-  const state = termState(expiry, today);
+  const state = termState(expiry, today, warnDays);
   const recorded = current !== null;
 
   /* Open by default when there is nothing on file — the panel IS the screen
@@ -111,7 +113,7 @@ export function RecordScreen({
     onRecord({ ...termInput(term), documentId: docId, source: mode === "scanned" ? "scan" : "manual" });
   };
 
-  const headline = termHeadline(expiry, today);
+  const headline = termHeadline(expiry, today, warnDays);
   const subline = !recorded
     ? licence.expiryDate
       ? `Expires ${fmtDay(licence.expiryDate)} — scan the card to start the history.`

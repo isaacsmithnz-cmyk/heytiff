@@ -93,7 +93,7 @@ function setup(
       staffId="S1"
       records={over.records ?? {}}
       documents={over.documents ?? {}}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       {...actions}
     />
   );

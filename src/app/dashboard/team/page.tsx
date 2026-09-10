@@ -7,6 +7,7 @@ import { InviteButton } from "@/components/team/invite-modal";
 import { can, getCapabilities, getDbRole } from "@/lib/permissions-server";
 import { invitableRoles } from "@/lib/permissions";
 import { listMembersWithoutCard, listPendingInvites, listStaff } from "@/lib/staff/query";
+import { orgExpiryWindow } from "@/lib/org/query";
 
 // Capability-gated (`team`, default admin+): the directory exposes every staff
 // member's card. The nav entry is hidden for staff too, but this is the check
@@ -27,8 +28,9 @@ export default async function TeamPage() {
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
+  const expiry = await orgExpiryWindow(orgId);
   const [staff, orphans, actorRole, caps] = await Promise.all([
-    listStaff(orgId),
+    listStaff(orgId, expiry.warnDays),
     /* A member with no staff card is invisible in every panel on this page —
        the directory reads cards, and the Pending tab reads unaccepted invites,
        so somebody who accepted one and never got a card is in neither. Read

@@ -6,7 +6,7 @@ import {
   expensesChip,
   leaveQueueChip,
   licenceChip,
-  orgInsuranceChip,
+  orgCredentialChips,
   sortChips,
   timesheetChip,
   vehicleChips,
@@ -39,6 +39,8 @@ export type DashboardChips = { self: ActionChip[]; team: ActionChip[] };
 
 export type ChipSources = {
   today: string;
+  /** The org's expiry window — lib/expiry.ts. One number for every chip here. */
+  warnDays: number;
   viewerStaffId: string | null;
   /** Your own compliance record (licences + work rights). */
   self: StaffCompliance | null;
@@ -48,7 +50,14 @@ export type ChipSources = {
   teamPeople: StaffCompliance[];
   /** The whole register. */
   fleet: Vehicle[];
-  org: { insurer: string | null; insuranceExpiry: string | null };
+  /** The business's own licences and policies — every card, not the soonest. */
+  orgCredentials: {
+    id: string;
+    kind: "licence" | "insurance";
+    name: string;
+    issuer: string | null;
+    expiryDate: string | null;
+  }[];
   /** Expense claims waiting on a decision — 0 when the viewer can't decide
       them (the loader only counts for `approvals` holders). */
   pendingClaims: number;
@@ -75,12 +84,18 @@ const push = (arr: ActionChip[], chip: ActionChip | null) => {
 export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): DashboardChips {
   const self: ActionChip[] = [];
   if (src.self && src.viewerStaffId) {
-    const ctx = { subject: src.self.name, href: "/dashboard/profile", today: src.today };
+    const ctx = { subject: src.self.name, href: "/dashboard/profile", today: src.today, warnDays: src.warnDays };
     for (const lic of src.self.licences) push(self, licenceChip(lic, ctx));
     self.push(...workRightsChips({ staffId: src.viewerStaffId, ...src.self.workRights }, ctx));
   }
   if (src.selfVehicle) {
-    self.push(...vehicleChips(src.selfVehicle, { subject: vehicleLabel(src.selfVehicle), href: "/dashboard/my-vehicle" }));
+    self.push(
+      ...vehicleChips(src.selfVehicle, {
+        subject: vehicleLabel(src.selfVehicle),
+        href: "/dashboard/my-vehicle",
+        warnDays: src.warnDays,
+      }),
+    );
   }
   /* Answers owed to you, from people rather than from a calendar. Intrinsic
      like the rest of `self` — being told your own timesheet came back is not a
@@ -101,11 +116,17 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
   if (caps.has("team")) {
     for (const s of src.teamPeople) {
       if (s.staffId === src.viewerStaffId) continue; // your own already in `self`
-      const ctx = { subject: s.name, href: `/dashboard/team/${s.staffId}`, today: src.today };
+      const ctx = { subject: s.name, href: `/dashboard/team/${s.staffId}`, today: src.today, warnDays: src.warnDays };
       for (const lic of s.licences) push(team, licenceChip(lic, ctx));
       team.push(...workRightsChips({ staffId: s.staffId, ...s.workRights }, ctx));
     }
-    push(team, orgInsuranceChip(src.org, { href: "/dashboard/admin/organization", today: src.today }));
+    team.push(
+      ...orgCredentialChips(src.orgCredentials, {
+        href: "/dashboard/admin/organization",
+        today: src.today,
+        warnDays: src.warnDays,
+      }),
+    );
   }
   // A claim queue belongs to whoever can decide it, which is `approvals`,
   // not `team` — same rule as the review screen itself.
@@ -119,7 +140,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
     for (const v of src.fleet) {
       // your own van's chips are already in `self` — don't list them twice
       if (v.assignedTo && v.assignedTo === src.viewerStaffId) continue;
-      team.push(...vehicleChips(v, { subject: vehicleLabel(v), href: "/dashboard/assets" }));
+      team.push(...vehicleChips(v, { subject: vehicleLabel(v), href: "/dashboard/assets", warnDays: src.warnDays }));
     }
   }
 

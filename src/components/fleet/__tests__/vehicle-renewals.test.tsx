@@ -126,7 +126,7 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
 
 it("Update rego opens the registration screen from the real register, not just the empty state", async () => {
   global.fetch = jest.fn(async () => ({ ok: false })) as unknown as typeof fetch;
-  render(<FleetRegister fleet={fleetWith([{ ...van, regoDays: 20 }])} staff={[]} today={TODAY} />);
+  render(<FleetRegister fleet={fleetWith([{ ...van, regoDays: 20 }])} staff={[]} today={TODAY} warnDays={30} />);
   const user = userEvent.setup();
 
   await user.click(screen.getByText("GOOD VAN")); // the row opens the card
@@ -147,7 +147,7 @@ it("a vehicle with nothing filed offers Add on every compliance row, and no warn
     <FleetRegister
       fleet={fleetWith([{ ...van, regoDays: null, insuranceDays: null, ctpDays: null }])}
       staff={[]}
-      today={TODAY}
+      today={TODAY} warnDays={30}
     />,
   );
   const user = userEvent.setup();

@@ -24,6 +24,7 @@ import type { StoredDocument } from "@/lib/documents/query";
    row disagrees, and nothing has to be moved or flagged for the history to be
    the history. */
 
+const WARN = 30; // the org window every fixture here assumes
 const TODAY = "2026-07-24";
 
 const rec = (over: Partial<OrgCredentialRecord> = {}): OrgCredentialRecord => ({
@@ -110,22 +111,22 @@ describe("the paperwork under a term", () => {
 describe("what the status says", () => {
   it("treats nothing-recorded as its own state, never as ok", () => {
     // silence about cover is not evidence of cover
-    expect(credentialState(null, TODAY)).toBe("none");
+    expect(credentialState(null, TODAY, WARN)).toBe("none");
     expect(credentialDays(null, TODAY)).toBeNull();
     expect(credentialStatusText(null)).toBe("No expiry recorded");
   });
 
   it("warns inside the same window the staff card and the dashboard chip use", () => {
-    expect(credentialState("2026-08-07", TODAY)).toBe("warn"); // 14 days out
-    expect(credentialState("2026-12-01", TODAY)).toBe("ok");
-    expect(credentialState("2026-07-01", TODAY)).toBe("bad");
+    expect(credentialState("2026-08-07", TODAY, WARN)).toBe("warn"); // 14 days out
+    expect(credentialState("2026-12-01", TODAY, WARN)).toBe("ok");
+    expect(credentialState("2026-07-01", TODAY, WARN)).toBe("bad");
   });
 
   it("says the plain thing in the headline", () => {
-    expect(credentialHeadline("insurance", "2026-12-01", TODAY)).toBe("Covered");
-    expect(credentialHeadline("licence", "2026-12-01", TODAY)).toBe("Current");
-    expect(credentialHeadline("insurance", null, TODAY)).toBe("No policy recorded");
-    expect(credentialHeadline("insurance", "2026-07-01", TODAY)).toMatch(/^Expired /);
+    expect(credentialHeadline("insurance", "2026-12-01", TODAY, WARN)).toBe("Covered");
+    expect(credentialHeadline("licence", "2026-12-01", TODAY, WARN)).toBe("Current");
+    expect(credentialHeadline("insurance", null, TODAY, WARN)).toBe("No policy recorded");
+    expect(credentialHeadline("insurance", "2026-07-01", TODAY, WARN)).toMatch(/^Expired /);
   });
 });
 
@@ -259,5 +260,17 @@ describe("what may be saved as a term", () => {
     const built = buildCredentialRecordRow({ expiresOn: "2026-08-07", issuer: "  ", cover: "" });
     expect("row" in built && built.row.issuer).toBeNull();
     expect("row" in built && built.row.cover).toBeNull();
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("is quiet at 14 days and warns at 30 for the same expiry", () => {
+    expect(credentialState("2026-08-13", TODAY, 14)).toBe("ok"); // 20 days out
+    expect(credentialState("2026-08-13", TODAY, 30)).toBe("warn");
+    expect(credentialHeadline("insurance", "2026-08-13", TODAY, 14)).toBe("Covered");
   });
 });

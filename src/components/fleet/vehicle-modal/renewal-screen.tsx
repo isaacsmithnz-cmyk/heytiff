@@ -134,6 +134,7 @@ export function RenewalScreen({
   vehicle,
   kind,
   today,
+  warnDays,
   documents,
   policies,
   pending,
@@ -147,6 +148,7 @@ export function RenewalScreen({
   vehicle: Vehicle;
   kind: RenewalKind;
   today: string;
+  warnDays: number;
   documents: StoredDocument[];
   policies: VehiclePolicy[];
   pending: boolean;
@@ -163,7 +165,7 @@ export function RenewalScreen({
   const current = currentPolicy(policies, kind);
   const history = previousPolicies(policies, kind);
   const days = renewalDays(vehicle, kind);
-  const state = renewalState(vehicle, kind);
+  const state = renewalState(vehicle, kind, warnDays);
   const recorded = current !== null || days !== null;
 
   /* The record panel: always open for rego (the design's choice — a rego is

@@ -80,6 +80,7 @@ export function MainScreen({
   finance,
   staff,
   today,
+  warnDays,
   error,
   onOpen,
   onServiceHistory,
@@ -104,6 +105,7 @@ export function MainScreen({
   finance: VehicleFinance[];
   staff: FleetStaff[];
   today: string;
+  warnDays: number;
   error?: string | null;
   /** Opens a renewal screen, or the money. */
   onOpen: (screen: Exclude<Screen, "main">) => void;
@@ -128,13 +130,13 @@ export function MainScreen({
   const [confirmRemove, setConfirmRemove] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
 
-  const alert = regoAlert(vehicle);
-  const rows = complianceRows(vehicle, policies);
+  const alert = regoAlert(vehicle, warnDays);
+  const rows = complianceRows(vehicle, policies, warnDays);
   const specs = specRows(vehicle);
   const tabs = historyTabs(vehicle);
   const events = historyEvents(logs, tab);
   const photo = photoSrc(vehicle, documents);
-  const service = serviceDueText(vehicle);
+  const service = serviceDueText(vehicle, warnDays);
   const fin = currentFinance(finance);
   const finPos = fin ? financePosition(fin, today) : null;
   const moneyDocs = documents.filter((d) => d.kind === "purchase_invoice" || d.kind === "finance_agreement").length;

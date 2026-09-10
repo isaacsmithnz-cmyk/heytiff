@@ -96,6 +96,7 @@ export function ProfileScreen({
   workRightsReminders = [],
   vehicle,
   today,
+  warnDays,
   org,
   orgState = null,
   adminExtras,
@@ -122,6 +123,8 @@ export function ProfileScreen({
   vehicle: AssignedVehicle | null;
   /** AU calendar date, so licence status agrees with the dashboard */
   today: string;
+  /** The org's expiry window — lib/expiry.ts. Every status on this screen reads it. */
+  warnDays: number;
   /** the org's trading name — the issuer line on every plastic card */
   org: string | null;
   /** the org's home state. Summary resolves an unset holiday state against it
@@ -269,6 +272,7 @@ export function ProfileScreen({
                     licences={licences}
                     vehicle={vehicle}
                     today={today}
+            warnDays={warnDays}
                     orgState={orgState}
                     mode={mode}
                     actions={actions}
@@ -313,6 +317,7 @@ export function ProfileScreen({
                       documents={licenceDocuments}
                       reminders={licenceReminders}
                       today={today}
+            warnDays={warnDays}
                       onAdd={actions.onAddLicence}
                       onUpdate={actions.onUpdateLicence}
                       onRemove={actions.onRemoveLicence}
@@ -331,6 +336,7 @@ export function ProfileScreen({
                     profile={profile}
                     mode={mode}
                     today={today}
+            warnDays={warnDays}
                     startEditing={startEditing > 0}
                     onSave={actions.onSave}
                   />
@@ -361,6 +367,7 @@ export function ProfileScreen({
                     documents={workRightsDocuments}
                     reminders={workRightsReminders}
                     today={today}
+            warnDays={warnDays}
                     onRecord={actions.onRecordWorkRightsCheck}
                     onAttach={actions.onAttachWorkRightsDoc ?? (async () => ({ ok: true as const }))}
                     onRemoveCheck={actions.onRemoveWorkRightsCheck ?? (async () => ({ ok: true as const }))}

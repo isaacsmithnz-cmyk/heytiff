@@ -1,6 +1,8 @@
 import { auth0 } from "@/lib/auth0";
 import { can } from "@/lib/permissions-server";
 import { todayInAu } from "@/lib/au-dates";
+import { DEFAULT_EXPIRY_WARN_DAYS } from "@/lib/expiry";
+import { orgExpiryWindow } from "@/lib/org/query";
 import type { OwnFleet, Register } from "@/components/fleet/assets-screen";
 import { documentsForVehicles } from "@/lib/documents/query";
 import {
@@ -26,6 +28,8 @@ export type FleetPageData = {
   own: OwnFleet;
   register?: Register;
   today: string;
+  /** The org's expiry window — lib/expiry.ts. One number for every chip and row. */
+  warnDays: number;
   /* Who is looking. Correcting your OWN entry needs no capability, so the
      screens have to be able to tell which rows are yours — and the answer is
      the server's staff-profile id, not anything the browser could assert.
@@ -36,6 +40,7 @@ export type FleetPageData = {
 const EMPTY: FleetPageData = {
   own: { vehicle: null, pickable: [], logs: [] },
   today: todayInAu(),
+  warnDays: DEFAULT_EXPIRY_WARN_DAYS,
   viewerStaffId: null,
 };
 
@@ -56,9 +61,10 @@ export async function loadFleetPage(opts: { withRegister: boolean }): Promise<Fl
     logs: vehicle ? await listLogs(orgId, { vehicleId: vehicle.id }) : [],
   };
   const today = todayInAu();
+  const { warnDays } = await orgExpiryWindow(orgId);
 
   if (!opts.withRegister || !(await can("assets_all")))
-    return { own, today, viewerStaffId: staffId };
+    return { own, today, warnDays, viewerStaffId: staffId };
 
   const [{ vehicles, aiValues }, logs, staff, policies, finance, reminders] = await Promise.all([
     listVehicles(orgId),
@@ -82,6 +88,7 @@ export async function loadFleetPage(opts: { withRegister: boolean }): Promise<Fl
     own,
     register: { vehicles, logs, aiValues, staff, policies, finance, reminders, documents: Object.fromEntries(documents) },
     today,
+    warnDays,
     viewerStaffId: staffId,
   };
 }

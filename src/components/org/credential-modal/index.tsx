@@ -51,6 +51,7 @@ export function CredentialModal({
   documents,
   reminders,
   today,
+  warnDays,
   initialScreen,
   onAdd,
   onSaveIdentity,
@@ -67,6 +68,8 @@ export function CredentialModal({
   documents: StoredDocument[];
   reminders: number[];
   today: string;
+  /** The org's expiry window — lib/expiry.ts. */
+  warnDays: number;
   initialScreen?: Screen;
   onAdd: (input: OrgCredentialInput, term?: CredentialRecordInput) => Promise<CredResult>;
   onSaveIdentity: (input: OrgCredentialInput) => Promise<CredResult>;
@@ -207,6 +210,7 @@ export function CredentialModal({
             documents={documents}
             reminders={reminders}
             today={today}
+            warnDays={warnDays}
             pending={pending}
             error={error}
             onAttach={(recordId, documentId) => void run(() => onAttach(recordId, documentId), () => undefined)}

@@ -82,6 +82,8 @@ const log = (over: Partial<VehicleLog>): VehicleLog => ({
   ...over,
 });
 
+const WARN = 30; // the org window every fixture here assumes
+
 describe("renewalStatusText", () => {
   it("speaks the way a person would, in both tenses, and says Not set for nothing", () => {
     expect(renewalStatusText(null)).toBe("Not set");
@@ -94,7 +96,7 @@ describe("renewalStatusText", () => {
 
 describe("complianceRows", () => {
   it("names the provider and date when a policy is filed and nothing is due", () => {
-    const rows = complianceRows(van, [policy({})]);
+    const rows = complianceRows(van, [policy({})], WARN);
     expect(rows.find((r) => r.kind === "ctp")).toMatchObject({
       label: "GREEN SLIP",
       value: "QBE · 29 Sep 2027",
@@ -104,18 +106,18 @@ describe("complianceRows", () => {
   });
 
   it("switches to the countdown once inside the warning window, whatever is filed", () => {
-    const rows = complianceRows({ ...van, ctpDays: 9 }, [policy({})]);
+    const rows = complianceRows({ ...van, ctpDays: 9 }, [policy({})], WARN);
     expect(rows.find((r) => r.kind === "ctp")).toMatchObject({ value: "Renews in 9 days", state: "warn" });
   });
 
   it("offers Add, not a chevron, where nothing at all is recorded", () => {
-    const ins = complianceRows(van, []).find((r) => r.kind === "insurance");
+    const ins = complianceRows(van, [], WARN).find((r) => r.kind === "insurance");
     expect(ins).toMatchObject({ value: "Not set", unset: true, state: "ok" });
   });
 
   it("reads a cached date with no policy row behind it as a countdown, not as unset", () => {
     // the eleven vehicles that predate the policy table: a date, no row
-    const rego = complianceRows(van, []).find((r) => r.kind === "rego");
+    const rego = complianceRows(van, [], WARN).find((r) => r.kind === "rego");
     expect(rego).toMatchObject({ value: "Renews in 6 months", unset: false });
   });
 });
@@ -146,11 +148,11 @@ describe("currentPolicy / previousPolicies / policyDocuments", () => {
 
 describe("regoAlert", () => {
   it("rides the same 30-day rule as the chip, in both tenses", () => {
-    expect(regoAlert({ ...van, regoDays: 31 })).toBeNull();
-    expect(regoAlert({ ...van, regoDays: 30 })).toBe("Rego expires in 4 weeks");
-    expect(regoAlert({ ...van, regoDays: 0 })).toBe("Rego expires today");
-    expect(regoAlert({ ...van, regoDays: -2 })).toBe("Rego has expired");
-    expect(regoAlert({ ...van, regoDays: null })).toBeNull();
+    expect(regoAlert({ ...van, regoDays: 31 }, WARN)).toBeNull();
+    expect(regoAlert({ ...van, regoDays: 30 }, WARN)).toBe("Rego expires in 4 weeks");
+    expect(regoAlert({ ...van, regoDays: 0 }, WARN)).toBe("Rego expires today");
+    expect(regoAlert({ ...van, regoDays: -2 }, WARN)).toBe("Rego has expired");
+    expect(regoAlert({ ...van, regoDays: null }, WARN)).toBeNull();
   });
 });
 
@@ -206,5 +208,19 @@ describe("history", () => {
     expect(historyLine(logs[1])).toBe("Issue reported — wiper blade");
     expect(historyLine(logs[2])).toBe("Service — 10,000 km");
     expect(historyLine(logs[3])).toBe("Odometer updated — 108,375 km");
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("a rego 21 days out is quiet at 14 and warns at 30, on the row and the alert", () => {
+    const at = (w: number) => complianceRows({ ...van, regoDays: 21 }, [], w).find((r) => r.kind === "rego")!.state;
+    expect(at(14)).toBe("ok");
+    expect(at(30)).toBe("warn");
+    expect(regoAlert({ ...van, regoDays: 21 }, 14)).toBeNull();
+    expect(regoAlert({ ...van, regoDays: 21 }, 30)).toBe("Rego expires in 3 weeks");
   });
 });

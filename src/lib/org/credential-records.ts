@@ -3,7 +3,6 @@ import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import type { DocumentKind } from "@/lib/documents/files";
 import type { StoredDocument } from "@/lib/documents/query";
-import { EXPIRY_WARN_DAYS } from "@/lib/staff/derive";
 import { termFieldsFor, termLabelFor, type OrgCredKind, type TermField } from "./credentials";
 
 /* One TERM of a business licence or insurance policy — the pure rules.
@@ -121,7 +120,6 @@ export function looseDocuments(
 /** How many days early the wall starts warning. The staff card's number, on
     purpose: an owner reading "expires in 3 weeks" should mean the same thing
     on their own card and on the company's. */
-export const CREDENTIAL_WARN_DAYS = EXPIRY_WARN_DAYS;
 
 export type CredentialState = "ok" | "warn" | "bad" | "none";
 
@@ -133,10 +131,10 @@ export function credentialDays(expiry: string | null, today: string): number | n
 /** The state a credential is in. "none" is not "ok": nothing has been recorded,
     which is not evidence the business is covered — it is evidence nobody has
     said. The card says so in words rather than counting down to a made-up date. */
-export function credentialState(expiry: string | null, today: string): CredentialState {
+export function credentialState(expiry: string | null, today: string, warnDays: number): CredentialState {
   const days = credentialDays(expiry, today);
   if (days == null) return "none";
-  return days < 0 ? "bad" : days <= CREDENTIAL_WARN_DAYS ? "warn" : "ok";
+  return days < 0 ? "bad" : days <= warnDays ? "warn" : "ok";
 }
 
 /** "Renews in 3 weeks" · "Renews tomorrow" · "Expires today" · "Expired 4 days ago". */
@@ -153,9 +151,10 @@ export function credentialStatusText(days: number | null): string {
 export function credentialHeadline(
   kind: OrgCredKind,
   expiry: string | null,
-  today: string
+  today: string,
+  warnDays: number
 ): string {
-  const state = credentialState(expiry, today);
+  const state = credentialState(expiry, today, warnDays);
   if (state === "none") return kind === "insurance" ? "No policy recorded" : "No licence term recorded";
   if (state === "ok") return kind === "insurance" ? "Covered" : "Current";
   return credentialStatusText(credentialDays(expiry, today));

@@ -12,7 +12,7 @@ import {
   ctpChip,
   insuranceChip,
   licenceChip,
-  orgInsuranceChip,
+  orgCredentialChips,
   regoChip,
   serviceChip,
   sortChips,
@@ -28,8 +28,8 @@ import { ICON_PATHS } from "@/components/shell/icon";
 // Anchor day for every date-based case. daysUntil counts from this.
 const TODAY = "2026-07-19";
 
-const licCtx = { subject: "Jordan Mills", href: "/dashboard/profile", today: TODAY };
-const vCtx = { subject: "Hiace VRF-04", href: "/dashboard/my-vehicle" };
+const licCtx = { subject: "Jordan Mills", href: "/dashboard/profile", today: TODAY, warnDays: 30 };
+const vCtx = { subject: "Hiace VRF-04", href: "/dashboard/my-vehicle", warnDays: 30 };
 
 /* Build a VehicleWithFacts with everything "fine" by default, so each test can
    move exactly one field into the danger zone. */
@@ -227,6 +227,7 @@ describe("chipGroup", () => {
     expect(chipGroup("licence")).toBe("People");
     expect(chipGroup("work-rights")).toBe("People");
     expect(chipGroup("org-insurance")).toBe("Business");
+    expect(chipGroup("org-licence")).toBe("Business");
   });
 
   it("files money and hours under Pay", () => {
@@ -251,6 +252,7 @@ describe("chipGroup", () => {
       ctp: true,
       service: true,
       "org-insurance": true,
+      "org-licence": true,
       expenses: true,
       timesheet: true,
       claim: true,
@@ -281,22 +283,71 @@ describe("vehicleLabel", () => {
   });
 });
 
-describe("orgInsuranceChip", () => {
-  const ctx = { href: "/dashboard/admin/organization", today: TODAY };
+/* THE BUSINESS'S OWN PAPERS — one chip per card, licences included.
 
-  it("is null with no expiry set", () => {
-    expect(orgInsuranceChip({ insurer: "CGU", insuranceExpiry: null }, ctx)).toBeNull();
+   This used to be `orgInsuranceChip`: ONE chip from a limit(1) read of the
+   soonest-expiring insurance card, "Public liability" hard-coded into the
+   label. Several policies on file → the soonest named, the rest hidden. A
+   business LICENCE never reached the bell at all. */
+describe("orgCredentialChips", () => {
+  const ctx = { href: "/dashboard/admin/organization", today: TODAY, warnDays: 30 };
+  const card = (over: Partial<Parameters<typeof orgCredentialChips>[0][number]>) => ({
+    id: "c1",
+    kind: "insurance" as const,
+    name: "Public liability",
+    issuer: "CGU",
+    expiryDate: "2026-08-02",
+    ...over,
   });
 
-  it("uses the insurer name as the subject when set", () => {
-    const chip = orgInsuranceChip({ insurer: "CGU", insuranceExpiry: "2026-08-02" }, ctx);
-    expect(chip).toMatchObject({ kind: "org-insurance", state: "warn", subject: "CGU" });
-    expect(chip?.label).toBe("Public liability expires in 2 weeks");
+  it("gives every card inside the window its own chip, keyed by its id", () => {
+    const chips = orgCredentialChips(
+      [
+        card({ id: "pl", name: "Public liability", expiryDate: "2026-08-02" }),
+        card({ id: "wc", name: "Workers compensation", issuer: "icare", expiryDate: "2026-07-25" }),
+        card({ id: "far", name: "Professional indemnity", expiryDate: "2027-01-01" }),
+      ],
+      ctx,
+    );
+    expect(chips.map((c) => c.key)).toEqual(["org-cred:wc", "org-cred:pl"]);
+    expect(chips.map((c) => c.label)).toEqual([
+      "Workers compensation expires in 6 days",
+      "Public liability expires in 2 weeks",
+    ]);
   });
 
-  it("falls back to a generic subject with no insurer", () => {
-    const chip = orgInsuranceChip({ insurer: null, insuranceExpiry: "2026-07-01" }, ctx);
-    expect(chip).toMatchObject({ state: "bad", subject: "Public liability insurance" });
+  it("puts a business licence in the bell — it never got there before", () => {
+    const [chip] = orgCredentialChips(
+      [card({ id: "arc", kind: "licence", name: "ARC refrigerant trading authorisation", issuer: null, expiryDate: "2026-07-01" })],
+      ctx,
+    );
+    expect(chip).toMatchObject({
+      kind: "org-licence",
+      state: "bad",
+      label: "ARC refrigerant trading authorisation expired 2 weeks ago",
+      subject: "Business licence",
+    });
+    expect(chipGroup(chip.kind)).toBe("Business");
+  });
+
+  it("uses the issuer as the subject, and a kind-shaped fallback without one", () => {
+    const [ins] = orgCredentialChips([card({ issuer: "CGU" })], ctx);
+    expect(ins.subject).toBe("CGU");
+    const [none] = orgCredentialChips([card({ issuer: "  " })], ctx);
+    expect(none.subject).toBe("Business insurance");
+  });
+
+  it("skips a card with no expiry, and one outside the window", () => {
+    expect(orgCredentialChips([card({ expiryDate: null })], ctx)).toEqual([]);
+    expect(orgCredentialChips([card({ expiryDate: "2026-12-31" })], ctx)).toEqual([]);
+  });
+
+  it("orders worst first, the same as every other chip list", () => {
+    const chips = orgCredentialChips(
+      [card({ id: "soon", expiryDate: "2026-08-10" }), card({ id: "gone", expiryDate: "2026-07-10" })],
+      ctx,
+    );
+    expect(chips.map((c) => c.key)).toEqual(["org-cred:gone", "org-cred:soon"]);
   });
 });
 
@@ -479,5 +530,24 @@ describe("declinedLeaveChip", () => {
     const older = declinedLeaveChip(req({ decidedOn: "2026-08-01T00:00:00Z" }), { today: TODAY_ })!;
     const newer = declinedLeaveChip(req({ decidedOn: "2026-08-09T00:00:00Z" }), { today: TODAY_ })!;
     expect(newer.urgency).toBeLessThan(older.urgency);
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("a licence 20 days out raises no chip at 14 and a warn chip at 30", () => {
+    const lic = { id: "l1", typeName: "White Card", expiryDate: "2026-08-08" }; // 20 days after TODAY
+    expect(licenceChip(lic, { ...licCtx, warnDays: 14 })).toBeNull();
+    expect(licenceChip(lic, { ...licCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
+  });
+
+  it("the same for a rego, and for a service by date", () => {
+    expect(regoChip(vehicle({ regoDays: 20 }), { ...vCtx, warnDays: 14 })).toBeNull();
+    expect(regoChip(vehicle({ regoDays: 20 }), { ...vCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
+    expect(serviceChip(vehicle({ serviceDays: 20 }), { ...vCtx, warnDays: 14 })).toBeNull();
+    expect(serviceChip(vehicle({ serviceDays: 20 }), { ...vCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
   });
 });

@@ -2,7 +2,6 @@ import { daysUntil, parseAuDate } from "@/lib/au-dates";
 import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import type { StoredDocument } from "@/lib/documents/query";
-import { EXPIRY_WARN_DAYS } from "./derive";
 import { WORK_RIGHTS, isNoVisa } from "./work-rights";
 
 /* ONE CHECK of a person's right to work — the pure rules.
@@ -92,7 +91,6 @@ export function looseCheckDocuments(
 
 /* ---- status ---- */
 
-export const WORK_RIGHTS_WARN_DAYS = EXPIRY_WARN_DAYS;
 
 /** "none" is nothing recorded; "forever" is recorded and does not expire —
     a citizen. Collapsing the two would make a citizen's card read as an
@@ -100,16 +98,16 @@ export const WORK_RIGHTS_WARN_DAYS = EXPIRY_WARN_DAYS;
     `isNoVisa` was written to kill. */
 export type CheckState = "ok" | "warn" | "bad" | "forever" | "none";
 
-export function checkState(record: WorkRightsRecord | null, today: string): CheckState {
+export function checkState(record: WorkRightsRecord | null, today: string, warnDays: number): CheckState {
   if (!record) return "none";
   if (!record.expiresOn) return "forever";
   const days = daysUntil(record.expiresOn, today);
-  return days < 0 ? "bad" : days <= WORK_RIGHTS_WARN_DAYS ? "warn" : "ok";
+  return days < 0 ? "bad" : days <= warnDays ? "warn" : "ok";
 }
 
 /** The headline on the status card. */
-export function checkHeadline(record: WorkRightsRecord | null, today: string): string {
-  const state = checkState(record, today);
+export function checkHeadline(record: WorkRightsRecord | null, today: string, warnDays: number): string {
+  const state = checkState(record, today, warnDays);
   if (state === "none") return "Right to work not recorded";
   // a citizen or PR: the status IS the answer, and there is no date under it
   if (state === "forever") return record!.status;

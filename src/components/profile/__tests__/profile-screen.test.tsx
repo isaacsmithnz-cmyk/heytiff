@@ -50,7 +50,7 @@ function setup(
       profile={jordan}
       licences={[]}
       vehicle={null}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       org="Smith Air"
       adminExtras={over.adminExtras}
       myPay={over.myPay}
@@ -300,7 +300,7 @@ describe("a save does not move you — the bug this rewrite exists to kill", () 
         profile={{ ...jordan, emergency_name: "Sam Mills" }}
         licences={[]}
         vehicle={null}
-        today={TODAY}
+        today={TODAY} warnDays={30}
         org="Smith Air"
         actions={actions}
       />

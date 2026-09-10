@@ -48,6 +48,7 @@ export function VehicleModal({
   reminders,
   staff,
   today,
+  warnDays,
   fleet,
   initialScreen = "main",
   onClose,
@@ -68,6 +69,7 @@ export function VehicleModal({
   reminders: RenewalReminder[];
   staff: FleetStaff[];
   today: string;
+  warnDays: number;
   fleet: FleetActions;
   initialScreen?: Screen;
   onClose: () => void;
@@ -111,6 +113,7 @@ export function VehicleModal({
             finance={finance}
             staff={staff}
             today={today}
+            warnDays={warnDays}
             error={fleet.error}
             onOpen={(s) => setScreen(s)}
             onServiceHistory={onServiceHistory}
@@ -155,6 +158,7 @@ export function VehicleModal({
             vehicle={vehicle}
             kind={screen}
             today={today}
+            warnDays={warnDays}
             documents={documents}
             policies={policies}
             pending={fleet.pending}

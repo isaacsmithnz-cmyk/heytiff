@@ -50,6 +50,7 @@ import {
 } from "@/app/actions/staff";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { todayInAu } from "@/lib/au-dates";
+import { orgExpiryWindow } from "@/lib/org/query";
 
 /* One staff member's card, as an admin sees it.
 
@@ -74,7 +75,7 @@ export default async function StaffProfilePage({
   const orgId = session?.orgId as string | undefined;
   if (!orgId) redirect("/dashboard");
 
-  const [{ staff: staffId }, caps, ownership, query, orgName, orgState] = await Promise.all([
+  const [{ staff: staffId }, caps, ownership, query, orgName, orgState, expiry] = await Promise.all([
     params,
     getCapabilities(),
     getOwnership(),
@@ -82,12 +83,13 @@ export default async function StaffProfilePage({
     getOrgName(),
     // both ride the one cached membership read — no extra round trip
     getOrgState(),
+    orgExpiryWindow(orgId),
   ]);
 
   const canPay = caps.has("financials");
   // Scoped to the caller's org: an id from another org is indistinguishable
   // from one that doesn't exist, which is the point.
-  const found = await getStaff(orgId, staffId, { pay: canPay, notes: true });
+  const found = await getStaff(orgId, staffId, { pay: canPay, notes: true }, expiry.warnDays);
   if (!found) notFound();
 
   const { row, profile, licences } = found;
@@ -190,6 +192,7 @@ export default async function StaffProfilePage({
       workRightsReminders={workRightsReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
+      warnDays={expiry.warnDays}
       org={orgName}
       orgState={orgState}
       initialSec={typeof sec === "string" ? sec : undefined}

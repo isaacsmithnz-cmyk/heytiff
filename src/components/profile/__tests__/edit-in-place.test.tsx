@@ -35,7 +35,7 @@ function setup(sec: string, mode: ProfileMode = "admin") {
       profile={jordan}
       licences={[]}
       vehicle={null}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       org="Smith Air"
       orgState="NSW"
       initialSec={sec}
@@ -186,7 +186,7 @@ describe("a percentage you can see", () => {
         profile={jordan}
         licences={[]}
         vehicle={null}
-        today={TODAY}
+        today={TODAY} warnDays={30}
         org="Smith Air"
         initialSec="payroll"
         adminExtras={{ payroll: { hourly_wage: 45 }, permissions: ctx, notes: {} }}
@@ -289,7 +289,7 @@ describe("notes", () => {
         profile={jordan}
         licences={[]}
         vehicle={null}
-        today={TODAY}
+        today={TODAY} warnDays={30}
         org="Smith Air"
         initialSec="notes"
         adminExtras={{ permissions: ctx, notes: { notes: "On light duties until June" } }}

@@ -43,6 +43,7 @@ export function WorkRightsCard({
   profile,
   mode,
   today,
+  warnDays,
   startEditing,
   checkCount = 0,
   onOpenChecks,
@@ -51,6 +52,7 @@ export function WorkRightsCard({
   profile: StaffProfile | null;
   mode: ProfileMode;
   today: string;
+  warnDays: number;
   startEditing?: boolean;
   /* HOW MANY CHECKS ARE ON FILE, and the reason this card can be read-only.
 
@@ -72,7 +74,7 @@ export function WorkRightsCard({
   const values = workRightsValues(profile);
   const status = values.work_rights_status;
 
-  const expiryStatus = licenceStatus(profile?.visa_expiry ?? null, today);
+  const expiryStatus = licenceStatus(profile?.visa_expiry ?? null, today, warnDays);
   const visaExpiry = formatAuDate(profile?.visa_expiry);
   const vevoChecked = formatAuDate(profile?.vevo_checked_at);
 

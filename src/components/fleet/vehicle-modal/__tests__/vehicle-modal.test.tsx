@@ -102,7 +102,7 @@ function mount(over: Partial<Vehicle> = {}) {
       finance={[]}
       reminders={[]}
       staff={[{ id: "s1", name: "Dane Poulos", status: "Active" }]}
-      today={TODAY}
+      today={TODAY} warnDays={30}
       fleet={f}
       onClose={onClose}
       onEdit={onEdit}

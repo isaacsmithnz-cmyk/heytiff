@@ -411,7 +411,7 @@ async function primaryOwnerOf(orgId: string): Promise<string | null> {
 }
 
 /** Every staff member in the org, shaped for the directory. */
-export async function listStaff(orgId: string, now = new Date()): Promise<StaffRow[]> {
+export async function listStaff(orgId: string, warnDays: number, now = new Date()): Promise<StaffRow[]> {
   const { data, error } = await supabaseAdmin
     .from("staff_profiles")
     // identity only — the directory never shows pay
@@ -441,6 +441,7 @@ export async function listStaff(orgId: string, now = new Date()): Promise<StaffR
     isMaster: !!r.user_id && r.user_id === master,
     importedFrom: sources.get(r.id) ?? null,
     now,
+    warnDays,
   }));
 }
 
@@ -450,6 +451,8 @@ export async function getStaff(
   orgId: string,
   staffId: string,
   opts: { pay: boolean; notes: boolean },
+  /** The org's expiry window — lib/expiry.ts. */
+  warnDays: number,
   now = new Date()
 ): Promise<{ row: StaffRow; profile: Record<string, unknown>; licences: StaffLicence[] } | null> {
   const { data, error } = await supabaseAdmin
@@ -476,6 +479,7 @@ export async function getStaff(
       orgRole: profile.user_id ? roles.get(profile.user_id) ?? null : null,
       isMaster: !!profile.user_id && profile.user_id === master,
       now,
+      warnDays,
     }),
     profile: profile as Record<string, unknown>,
     licences: lics,
@@ -492,6 +496,8 @@ function toStaffRow(
     /** provenance chip for unclaimed cards; the profile route doesn't need it */
     importedFrom?: string | null;
     now: Date;
+    /** The org's expiry window — lib/expiry.ts. */
+    warnDays: number;
   }
 ): StaffRow {
   const stored = fullNameOf(p);
@@ -517,6 +523,7 @@ function toStaffRow(
         visaExpiry: p.visa_expiry,
         vevoCheckedAt: p.vevo_checked_at,
       },
+      ctx.warnDays,
       ctx.now
     ),
     orgRole: ctx.orgRole,

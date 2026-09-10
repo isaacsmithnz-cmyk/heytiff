@@ -62,6 +62,8 @@ const log = (over: Partial<VehicleLog> = {}): VehicleLog => ({
   ...over,
 });
 
+const WARN = 30; // the org window every fixture here assumes
+
 describe("identity & service cycle", () => {
   it("displayName falls back to the rego plate when no name is set", () => {
     expect(displayName(vehicle())).toBe("VRF-04");
@@ -78,24 +80,24 @@ describe("identity & service cycle", () => {
 
 describe("vehicleChips", () => {
   it("is empty when everything is healthy, and always empty for sold vehicles", () => {
-    expect(vehicleChips(vehicle(), 0)).toEqual([]);
-    expect(vehicleChips(vehicle({ status: "sold", regoDays: -30 }), 3)).toEqual([]);
+    expect(vehicleChips(vehicle(), 0, WARN)).toEqual([]);
+    expect(vehicleChips(vehicle({ status: "sold", regoDays: -30 }), 3, WARN)).toEqual([]);
   });
 
   it("warns inside expiry windows, flags expiries and off-road as bad", () => {
-    expect(vehicleChips(vehicle({ regoDays: 21 }), 0)).toEqual([{ label: "Rego expires in 3 weeks", state: "warn" }]);
-    expect(vehicleChips(vehicle({ regoDays: -3 }), 0)).toEqual([
+    expect(vehicleChips(vehicle({ regoDays: 21 }), 0, WARN)).toEqual([{ label: "Rego expires in 3 weeks", state: "warn" }]);
+    expect(vehicleChips(vehicle({ regoDays: -3 }), 0, WARN)).toEqual([
       { label: "Rego expired 3 days ago", state: "bad" },
     ]);
-    const off = vehicleChips(vehicle({ status: "offroad" }), 0);
+    const off = vehicleChips(vehicle({ status: "offroad" }), 0, WARN);
     expect(off).toEqual([{ label: "Off road", state: "bad" }]);
   });
 
   it("derives service state from the cycle and sorts bad first", () => {
-    expect(vehicleChips(vehicle({ odometer: 85000, lastServiceOdo: 75500 }), 0)).toEqual([
+    expect(vehicleChips(vehicle({ odometer: 85000, lastServiceOdo: 75500 }), 0, WARN)).toEqual([
       { label: "Service in 500 km", state: "warn" },
     ]);
-    const chips = vehicleChips(vehicle({ odometer: 86300, lastServiceOdo: 75500, regoDays: 10 }), 2);
+    const chips = vehicleChips(vehicle({ odometer: 86300, lastServiceOdo: 75500, regoDays: 10 }), 2, WARN);
     expect(chips[0]).toEqual({ label: "Service overdue 800 km", state: "bad" });
     expect(chips.map((c) => c.label)).toContain("2 issues open");
     expect(worstState(chips)).toBe("bad");
@@ -104,7 +106,7 @@ describe("vehicleChips", () => {
 
 describe("vehicleFacts", () => {
   it("returns the five shared facts with severity states", () => {
-    const facts = vehicleFacts(vehicle({ regoDays: 21, insuranceDays: -1 }));
+    const facts = vehicleFacts(vehicle({ regoDays: 21, insuranceDays: -1 }), WARN);
     expect(facts.map((f) => f.key)).toEqual(["odo", "service", "rego", "insurance", "ctp"]);
     expect(facts.find((f) => f.key === "rego")).toMatchObject({ state: "warn", text: "renews in 3 weeks" });
     expect(facts.find((f) => f.key === "insurance")).toMatchObject({ state: "bad", text: "expired" });
@@ -115,7 +117,7 @@ describe("vehicleFacts", () => {
      cover lapsing — and, worse, a renewed green slip silencing a
      comprehensive warning that is still real. */
   it("reads the green slip off its own date, not the insurance one", () => {
-    const facts = vehicleFacts(vehicle({ insuranceDays: 200, ctpDays: -1 }));
+    const facts = vehicleFacts(vehicle({ insuranceDays: 200, ctpDays: -1 }), WARN);
     expect(facts.find((f) => f.key === "insurance")).toMatchObject({ state: "ok" });
     expect(facts.find((f) => f.key === "ctp")).toMatchObject({ label: "Green slip", state: "bad", text: "expired" });
   });
@@ -241,26 +243,26 @@ describe("register filters & sorting", () => {
   const names = (id: string | null) => (id === "jordan-mills" ? "Jordan Mills" : "");
 
   it("tabs: sold is its own bucket and excluded everywhere else", () => {
-    expect(filterVehicles(fleet, [], "all", "", names).map((v) => v.id)).toEqual([
+    expect(filterVehicles(fleet, [], "all", "", names, WARN).map((v) => v.id)).toEqual([
       "vrf-04",
       "srv-05",
       "ute-01",
     ]);
-    expect(filterVehicles(fleet, [], "attention", "", names).map((v) => v.id)).toEqual([
+    expect(filterVehicles(fleet, [], "attention", "", names, WARN).map((v) => v.id)).toEqual([
       "srv-05",
       "ute-01",
     ]);
-    expect(filterVehicles(fleet, [], "pool", "", names).map((v) => v.id)).toEqual(["srv-05", "ute-01"]);
-    expect(filterVehicles(fleet, [], "sold", "", names).map((v) => v.id)).toEqual(["van-01"]);
+    expect(filterVehicles(fleet, [], "pool", "", names, WARN).map((v) => v.id)).toEqual(["srv-05", "ute-01"]);
+    expect(filterVehicles(fleet, [], "sold", "", names, WARN).map((v) => v.id)).toEqual(["van-01"]);
   });
 
   it("search matches name, plate and driver", () => {
-    expect(filterVehicles(fleet, [], "all", "kwd", names).map((v) => v.id)).toEqual(["srv-05"]);
-    expect(filterVehicles(fleet, [], "all", "jordan", names).map((v) => v.id)).toEqual(["vrf-04"]);
+    expect(filterVehicles(fleet, [], "all", "kwd", names, WARN).map((v) => v.id)).toEqual(["srv-05"]);
+    expect(filterVehicles(fleet, [], "all", "jordan", names, WARN).map((v) => v.id)).toEqual(["vrf-04"]);
   });
 
   it("sorts attention-first (off-road = bad) and totals exclude sold", () => {
-    expect(sortVehicles(fleet.slice(0, 3), [], "attention").map((v) => v.name)).toEqual([
+    expect(sortVehicles(fleet.slice(0, 3), [], "attention", WARN).map((v) => v.name)).toEqual([
       "UTE-01",
       "SRV-05",
       "VRF-04",
@@ -285,5 +287,16 @@ describe("helpers", () => {
   it("computes whole days between ISO dates", () => {
     expect(daysUntil("2026-08-07", "2026-07-17")).toBe(21);
     expect(daysUntil("2026-07-14", "2026-07-17")).toBe(-3);
+  });
+});
+
+/* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one
+   argument with no default (lib/expiry.ts), and this is the test that the
+   argument is actually read: the same expiry, 20 days out, is quiet at 14
+   and warns at 30. A rule that silently kept its own 30 fails here. */
+describe("honours the org's window", () => {
+  it("a rego 21 days out raises no chip at 14 and one at 30", () => {
+    expect(vehicleChips(vehicle({ regoDays: 21 }), 0, 14)).toEqual([]);
+    expect(vehicleChips(vehicle({ regoDays: 21 }), 0, 30)).toEqual([{ label: "Rego expires in 3 weeks", state: "warn" }]);
   });
 });

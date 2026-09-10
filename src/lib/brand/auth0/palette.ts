@@ -39,13 +39,16 @@ export const BRAND = {
   line: "#F0F0F2",
 
   /* shell.css .fg */
-  /** --gray700 — body text (9.4:1 on white). */
-  body: "#374151",
+  /** --ink — body text. It was --gray700, Tailwind's #374151, until the
+      tokens landed on 2026-09-10; ink and paper puts body text in ink. */
+  body: "#050505",
   /** --q — the ONE quiet tier; the lightest grey that clears AA on every
       ground this app puts it over. Labels and placeholders. */
   quiet: "#5F6A79",
-  /** --ok-t — success AS WORDS. A state colour, never the accent. */
-  okText: "#00735F",
+  /** --ok-t — success AS WORDS. A state colour, never the accent. A plain
+      green since 2026-09-10; the teal-green it replaced was the one readable
+      teal and had become decoration. */
+  okText: "#196B2D",
   /** --bad-t — danger AS WORDS. */
   badText: "#C81A41",
 } as const;

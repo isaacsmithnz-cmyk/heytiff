@@ -131,9 +131,14 @@ describe("the failing literals do not come back", () => {
     expect(hits).toEqual([]);
   });
 
-  it("still allows them as fills and borders — this is a text rule, not a ban", () => {
+  /* The grey half of this check used to prove the point with `border-color:
+     #d1d5db` and friends. On 2026-09-10 the tokens landed and every Tailwind
+     grey became `--line`, `--tint`, `--q` or `--ink`, so no grey literal is
+     left to find as a border either — not because the rule grew teeth, but
+     because the greys were never chosen and now are. The accent fills still
+     make the point. */
+  it("still allows them as fills — this is a text rule, not a ban", () => {
     expect(code).toMatch(/background[^;]*#(00A389|e0264f|2E68FF)/i);
-    expect(code).toMatch(/border-color: *#(9ca3af|aeb4c0|b6bcc7|c7ccd6|d1d5db)/i);
   });
 });
 

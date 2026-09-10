@@ -30,7 +30,7 @@
 .rca:hover ::-webkit-scrollbar-thumb { background:rgba(120,128,150,.4); background-clip:content-box; }
 .rca ::-webkit-scrollbar-thumb:hover { background:rgba(120,128,150,.7); background-clip:content-box; }
 .rca input::placeholder { color:#c2c7d0; }
-.rca a { color:#2E68FF; text-decoration:none; }
+.rca a { color:var(--link); text-decoration:none; }
 .rca a:hover { color:#0A0B10; }
 
 /* buttons — .pbtn vocabulary. Scoped under .fg so these beat shell.css's
@@ -42,17 +42,17 @@
 .fg .rca-btn.primary { background:#0A0B10; color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
 .fg .rca-btn.primary:hover { background:#00E5C0; color:#0A0B10; }
 .fg .rca-btn.primary:disabled { background:#0A0B10; color:#fff; opacity:.35; cursor:default; }
-.fg .rca-btn.ghost { background:#fff; border:1px solid #e5e7eb; color:#374151; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-.fg .rca-btn.ghost:hover { background:#f9fafb; }
+.fg .rca-btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.fg .rca-btn.ghost:hover { background:var(--tint); }
 .fg .rca-btn.ghost:disabled { opacity:.45; cursor:default; background:#fff; }
 .fg .rca-btn.sm { height:34px; padding:0 14px; font-size:12.5px; border-radius:10px; }
 .fg .rca-btn.lg { height:44px; padding:0 26px; font-size:14px; border-radius:13px; }
 
 /* icon button — circular, matches Design Studio .tb-icon */
 .fg .rca-iconbtn { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:999px;
-  border:1px solid rgba(10,12,20,.1); background:#fff; color:#6b7280; cursor:pointer; transition:all .25s;
+  border:1px solid rgba(10,12,20,.1); background:#fff; color:var(--q); cursor:pointer; transition:all .25s;
   font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; box-shadow:0 1px 2px rgba(10,12,20,.05); }
-.fg .rca-iconbtn:hover { color:#0A0B10; background:#f9fafb; }
+.fg .rca-iconbtn:hover { color:#0A0B10; background:var(--tint); }
 
 /* rail step rows */
 .rca-step { display:flex; gap:12px; cursor:pointer; border-radius:12px; }
@@ -60,9 +60,9 @@
 
 /* quiet list buttons (rail footer) */
 .fg .rca-railbtn { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; height:40px; padding:0 14px;
-  border-radius:11px; border:1px solid #e5e7eb; background:#fff; color:#374151; font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:13px; font-weight:700;
+  border-radius:11px; border:1px solid var(--line); background:#fff; color:var(--ink); font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:13px; font-weight:700;
   cursor:pointer; transition:all .25s; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-.fg .rca-railbtn:hover { background:#f9fafb; }
+.fg .rca-railbtn:hover { background:var(--tint); }
 .fg .rca-railbtn.on { background:#0A0B10; border-color:#0A0B10; color:#fff; box-shadow:0 6px 14px -6px rgba(0,0,0,.35); }
 .fg .rca-railbtn.on:hover { background:#0A0B10; }
 
@@ -71,12 +71,12 @@
 .fg .rca-chipbtn:hover { filter:brightness(.96); }
 
 /* stepper +/- */
-.fg .rca-stepbtn { display:flex; align-items:center; justify-content:center; border:1px solid #e5e7eb; background:#fff; color:#374151;
+.fg .rca-stepbtn { display:flex; align-items:center; justify-content:center; border:1px solid var(--line); background:#fff; color:var(--ink);
   cursor:pointer; transition:all .2s; font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; line-height:1; }
-.fg .rca-stepbtn:hover { background:#f3f4f6; color:#0A0B10; }
+.fg .rca-stepbtn:hover { background:var(--tint); color:#0A0B10; }
 
 /* instant themed tooltip — ink bubble, no browser delay */
-.fg .rca-tip { position:relative; display:inline-flex; color:#9ca3af; cursor:help; flex-shrink:0; }
+.fg .rca-tip { position:relative; display:inline-flex; color:var(--q); cursor:help; flex-shrink:0; }
 .fg .rca-tip:hover { color:#0A0B10; }
 .fg .rca-tip::after { content:attr(data-tip); position:absolute; top:calc(100% + 7px); left:50%;
   transform:translateX(-50%) translateY(2px); width:max-content; max-width:230px;
@@ -146,7 +146,7 @@
   background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:12px; padding:9px 12px;
   transition:background .2s, border-color .2s, box-shadow .2s; }
 .rca-rc-now:hover { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.34); }
-.rca-rc-now:focus-within { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.5); box-shadow:0 0 0 3px rgba(255,255,255,.16); }
+.rca-rc-now:focus-within { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.5); box-shadow:var(--ring); }
 .rca-rc-now-l { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .rca-rc-now-lab { font-size:11px; font-weight:500; color:rgba(255,255,255,.72); white-space:nowrap; }
 .rca-rc-now-val { display:flex; align-items:baseline; gap:1px; }
@@ -168,7 +168,7 @@
   box-shadow:0 16px 36px -20px rgba(14,18,32,.3), 0 1px 2px rgba(14,18,32,.05); }
 .rca-rc-sumrow { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid #eef0f3; }
 .rca-rc-sumrow:first-child { border-top:none; }
-.rca-rc-sumrow .k { font-size:12.5px; font-weight:500; color:#374151; white-space:nowrap; }
+.rca-rc-sumrow .k { font-size:12.5px; font-weight:500; color:var(--ink); white-space:nowrap; }
 .rca-rc-sumrow .v { font-size:13.5px; font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .rca-rc-sumrow .v.day { color:#0A0B10; }
 .rca-rc-sumrow .v.after { color:#8A2BE2; }
@@ -176,16 +176,16 @@
 
 /* fade-up on view switches — matches .page.in */
 @media (prefers-reduced-motion: no-preference) {
-  .rca-view { animation:rcaUp .4s cubic-bezier(.22,1,.36,1) backwards; }
+  .rca-view { animation:rcaUp .4s var(--ease) backwards; }
   @keyframes rcaUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 
   /* rail nodes fade in with a slight stagger on mount */
-  .rca-step { animation:rcaStepIn .32s cubic-bezier(.22,1,.36,1) backwards; }
+  .rca-step { animation:rcaStepIn .32s var(--ease) backwards; }
   @keyframes rcaStepIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
 
   /* questions are revealed one at a time — a card animates when it first
      mounts (i.e. when it's newly revealed), not on every re-render */
-  .rca-q { animation:rcaStepIn .32s cubic-bezier(.22,1,.36,1) backwards; }
+  .rca-q { animation:rcaStepIn .32s var(--ease) backwards; }
 
   /* waiting-for-input treatment on the live-rates rail — the dimmed figure is
      static; only the "waiting for your numbers…" line breathes */
@@ -202,20 +202,20 @@
 /* The source switch. A segmented pair rather than a toggle: both options are
    real places to get numbers from, and neither is the "off" state. */
 .rcx-src { display:inline-flex; gap:4px; padding:4px; margin-top:14px; border-radius:12px; background:#f4f5f7; }
-.rcx-srcb { padding:7px 13px; border-radius:9px; font-size:12.5px; font-weight:700; color:#6b7280; transition:background .16s, color .16s; }
+.rcx-srcb { padding:7px 13px; border-radius:9px; font-size:12.5px; font-weight:700; color:var(--q); transition:background .16s, color .16s; }
 .rcx-srcb.on { background:#fff; color:#0A0B10; box-shadow:0 1px 3px rgba(10,12,20,.1); }
 
 .rcx { display:flex; flex-direction:column; }
 .rcx-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:12px; }
 .rcx-per { display:inline-flex; gap:4px; padding:3px; border-radius:11px; background:#f4f5f7; }
-.rcx-pbtn { padding:6px 11px; border-radius:8px; font-size:12px; font-weight:700; color:#6b7280; }
+.rcx-pbtn { padding:6px 11px; border-radius:8px; font-size:12px; font-weight:700; color:var(--q); }
 .rcx-pbtn.on { background:#fff; color:#0A0B10; box-shadow:0 1px 3px rgba(10,12,20,.1); }
 .rcx-pbtn:disabled { opacity:.5; cursor:default; }
 .rcx-go { margin-left:auto; height:36px; padding:0 15px; border-radius:11px; background:#0A0B10; color:#fff; font-size:12.5px; font-weight:700; transition:background .16s; }
 .rcx-go:hover:not(:disabled) { background:#00E5C0; color:#0A0B10; }
 .rcx-go:disabled { opacity:.55; cursor:default; }
 
-.rcx-note { font-size:12.5px; font-weight:600; color:#6b7280; line-height:1.6; margin:0 0 14px; }
+.rcx-note { font-size:12.5px; font-weight:600; color:var(--q); line-height:1.6; margin:0 0 14px; }
 .rcx-note b { color:#0A0B10; }
 .rcx-err { font-size:12.5px; font-weight:700; color:#e0264f; margin:0 0 12px; }
 
@@ -225,8 +225,8 @@
 .rcx-nm { font-size:13.5px; font-weight:600; color:#0A0B10; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .rcx-alloc { font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:100px; text-transform:capitalize; }
 .rcx-amt { text-align:right; font-size:13.5px; font-weight:700; color:#0A0B10; font-variant-numeric:tabular-nums; }
-.rcx-amt.muted { color:#9ca3af; font-weight:600; }
-.rcx-x { width:26px; height:26px; border-radius:8px; font-size:12px; color:#9ca3af; justify-self:end; transition:background .15s, color .15s; }
+.rcx-amt.muted { color:var(--q); font-weight:600; }
+.rcx-x { width:26px; height:26px; border-radius:8px; font-size:12px; color:var(--q); justify-self:end; transition:background .15s, color .15s; }
 .rcx-x:hover { background:#f4f5f7; color:#e0264f; }
 
 .rcx-total { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:12px; padding:13px 16px; border-radius:14px; background:rgba(46,104,255,.07); }
@@ -234,11 +234,11 @@
 /* Left out, and reversible. The whole point is that the double-count guard is
    visible: a guess the user can't see is one they can't correct. */
 .rcx-ex { margin-top:16px; padding:14px; border-radius:14px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
-.rcx-ex > b { display:block; font-size:12.5px; font-weight:800; color:#374151; }
-.rcx-ex > em { display:block; font-style:normal; font-size:11.5px; font-weight:600; color:#9ca3af; margin:3px 0 10px; line-height:1.5; }
+.rcx-ex > b { display:block; font-size:12.5px; font-weight:800; color:var(--ink); }
+.rcx-ex > em { display:block; font-style:normal; font-size:11.5px; font-weight:600; color:var(--q); margin:3px 0 10px; line-height:1.5; }
 .rcx-exrow { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.2fr) 100px auto; align-items:center; gap:10px; padding:7px 0; border-top:1px solid #eef0f4; }
-.rcx-why { font-size:11.5px; font-weight:600; color:#9ca3af; }
-.rcx-add { padding:5px 11px; border-radius:9px; background:#fff; border:1px solid #e2e5ea; font-size:11.5px; font-weight:700; color:#374151; transition:background .15s; }
+.rcx-why { font-size:11.5px; font-weight:600; color:var(--q); }
+.rcx-add { padding:5px 11px; border-radius:9px; background:#fff; border:1px solid #e2e5ea; font-size:11.5px; font-weight:700; color:var(--ink); transition:background .15s; }
 .rcx-add:hover { background:#f4f5f7; }
 
 /* A figure that is about to be read as something it isn't — a part year taken
@@ -258,9 +258,9 @@
    there is nothing to show but a name and what would happen to it. */
 .rcx-dorm > summary { cursor:pointer; list-style:none; }
 .rcx-dorm > summary::-webkit-details-marker { display:none; }
-.rcx-dorm > summary::after { content:"▾"; float:right; color:#9ca3af; font-size:10px; }
+.rcx-dorm > summary::after { content:"▾"; float:right; color:var(--q); font-size:10px; }
 .rcx-dorm[open] > summary::after { content:"▴"; }
-.rcx-dorm > summary > b { display:inline; font-size:12.5px; font-weight:800; color:#374151; }
+.rcx-dorm > summary > b { display:inline; font-size:12.5px; font-weight:800; color:var(--ink); }
 .rcx-dorm > em { margin-top:8px; }
 .rcx-dorm .rcx-exrow { grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); }
 

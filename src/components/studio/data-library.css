@@ -4,7 +4,7 @@
 
 .dl-root {
   --dl-accent: #ff8a00;
-  --dl-ready: #16a34a;
+  --dl-ready: var(--ok-t);
   --dl-gap: #b45309;
   --dl-bg: #ffffff;
   --dl-panel: #fbfbfa;
@@ -274,7 +274,7 @@
   background: var(--dl-ready);
 }
 .dl-dot.off {
-  background: #d4d4d4;
+  background: var(--line);
 }
 
 /* pipe tables */

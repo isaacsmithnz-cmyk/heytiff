@@ -504,7 +504,7 @@ export function FinancialsScreen({
             <Card>
               <div className="vm-nofin">
                 <div className="vm-statusl">
-                  <Eyebrow>FINANCE</Eyebrow>
+                  <Eyebrow>Finance</Eyebrow>
                   <span className="vm-headline">No finance agreement recorded</span>
                   <span className="vm-subline">
                     If the vehicle is financed, scan the agreement or enter it below. Owned outright? There’s nothing to add.
@@ -616,7 +616,7 @@ export function FinancialsScreen({
         {previous.length > 0 && (
           <Card className="vm-histcard">
             <div className="vm-cardhead">
-              <Eyebrow>PREVIOUS AGREEMENTS</Eyebrow>
+              <Eyebrow>Previous agreements</Eyebrow>
             </div>
             {previous.map((agreement) => {
               const expanded = openHist === agreement.id;

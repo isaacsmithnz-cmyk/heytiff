@@ -171,7 +171,7 @@ export function WorkRightsModal({
           <div className={`vm-status ${state === "none" ? "neutral" : state === "forever" ? "ok" : state}`}>
             <div className="vm-statusl">
               <Eyebrow tone={state === "ok" || state === "forever" ? "accent" : state === "none" ? undefined : "warn"}>
-                STATUS
+                Status
               </Eyebrow>
               <span className="vm-headline">{checkHeadline(current, today, warnDays)}</span>
               <span className="vm-subline">{checkSubline(current)}</span>

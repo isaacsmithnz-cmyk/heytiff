@@ -480,7 +480,7 @@ export function VehicleForm({
                   <b>{cert.name}</b>
                   <em>Details read from the certificate — check the form before saving</em>
                 </span>
-                <span className="vm-scannedtag">SCANNED</span>
+                <span className="vm-scannedtag">Scanned</span>
               </div>
             )}
             {cert.state === "read" && !adding && cert.expiresOn && (

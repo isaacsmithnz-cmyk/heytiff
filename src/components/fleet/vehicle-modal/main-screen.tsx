@@ -367,7 +367,7 @@ export function MainScreen({
             <div>
               <span className="vm-fl">
                 <Chevron size={12} gradient decorative />
-                TIFF VALUE
+                Tiff value
               </span>
               {valuation ? (
                 <>

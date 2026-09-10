@@ -142,7 +142,8 @@ it("with no agreement, offers to add one and claims nothing about ownership", ()
 
 it("shows the agreement as the lender wrote it and where the schedule stands", () => {
   mount({ finance: [agreement], documents: [contract] });
-  expect(screen.getByText("Finance agreement")).toBeInTheDocument();
+  // the card's eyebrow; the contract document below it carries the same words as its name
+  expect(screen.getByText("Finance agreement", { selector: ".vm-eyebrow" })).toBeInTheDocument();
   expect(screen.getByText("$742 / month")).toBeInTheDocument();
   expect(screen.getByText("1 Sep 2027")).toBeInTheDocument(); // ENDS: start plus term
   expect(screen.getByText("48 of 60")).toBeInTheDocument();

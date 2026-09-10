@@ -344,7 +344,15 @@ export function JobMoneyBlock({
         </p>
       )}
 
-      {!unavailable && fallback && <em className="wb2-jmsub">{fallback}</em>}
+      {/* THE SENTENCE HAS A ROW OF ITS OWN. It used to hang bare under the
+          figure, and across the block's old full width that put it in the
+          opposite corner to the number with nothing but space between. The
+          neutral tint is the head row's — a place, not a state. */}
+      {!unavailable && fallback && (
+        <div className="wb2-mline head">
+          <b>{fallback}</b>
+        </div>
+      )}
     </div>
   );
 }

@@ -1140,33 +1140,77 @@ export function JobSheet({
           {moneyVisible &&
             panel(
               "money",
-              <>
-                {/* MONEY READS ONCE, and it reads here. The block waits for
-                    the family read so a family-billed parent never paints its
-                    netted total and then corrects itself. */}
-                {record !== undefined || recordFailed ? (
-                  <JobMoneyBlock
-                    family={family}
-                    unavailable={recordFailed}
-                    money={money}
-                    ledgerPaidCents={
-                      record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
-                    }
-                    statusLabel={row.statusLabel}
-                    focusRemoteId={focus}
-                    onOpenClaim={setOpenClaim}
-                  />
-                ) : (
-                  <p className="int-hint">Reading the figures…</p>
-                )}
+              (() => {
+                /* MONEY READS ONCE, and it reads here. The block waits for
+                   the family read so a family-billed parent never paints its
+                   netted total and then corrects itself. */
+                const block =
+                  record !== undefined || recordFailed ? (
+                    <JobMoneyBlock
+                      family={family}
+                      unavailable={recordFailed}
+                      money={money}
+                      ledgerPaidCents={
+                        record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
+                      }
+                      statusLabel={row.statusLabel}
+                      focusRemoteId={focus}
+                      onOpenClaim={setOpenClaim}
+                    />
+                  ) : (
+                    <p className="int-hint">Reading the figures…</p>
+                  );
 
-                <div className="wb2-jcgrid">
-                  {/* PARTIAL-INVOICE ROWS LEAVE THIS LIST. "Partial invoice
-                      #2380A × −1" is ServiceM8 subtracting one of its own
-                      clones out of the parent — bookkeeping, not something
-                      that went on the job. It belongs to the block above,
-                      where it IS a claim. */}
-                  {materials.length > 0 && (
+                /* A BLOCK THAT HAS OPENED ITS LEDGER KEEPS THE FULL WIDTH.
+                   The claim rows are a table — name, what it says about
+                   itself, amount, chip — and in the left column each one
+                   wrapped to four lines. The same test the block itself
+                   applies before it opens the ledger. */
+                const ledgerOpen = family !== null && family.isFamily && family.claims.length > 1;
+
+                const paidSection =
+                  record?.ledger && record.ledger.payments.length > 0 ? (
+                    <div className="wb2-shsect">
+                      <span className="wb2-sect">
+                        What&apos;s been paid —{" "}
+                        {(() => {
+                          const paid = paymentsTotalCents(record.ledger.payments);
+                          /* COLLECTION IS SAID ONCE, and the block above says
+                             it. On a family this figure is measured against
+                             THIS row's own netted total, so no verdict. */
+                          if (record.family?.isFamily) return fmtAud(paid);
+                          const state = collectionAgainst(paid, money?.valueCents ?? null);
+                          if (state === "paid") return `${fmtAud(paid)}, paid in full`;
+                          if (state === "part")
+                            return `${fmtAud(paid)} of ${fmtAud(money!.valueCents!)}`;
+                          return fmtAud(paid);
+                        })()}
+                      </span>
+                      {record.ledger.payments.map((p) => (
+                        <div className="wb2-mline" key={p.remoteId}>
+                          <b>{p.method ?? "Payment"}</b>
+                          <em>
+                            {[
+                              p.isDeposit ? "deposit" : null,
+                              p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
+                              p.takenBy,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </em>
+                          <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+
+                /* PARTIAL-INVOICE ROWS LEAVE THIS LIST. "Partial invoice
+                   #2380A × −1" is ServiceM8 subtracting one of its own
+                   clones out of the parent — bookkeeping, not something
+                   that went on the job. It belongs to the block above,
+                   where it IS a claim. */
+                const goodsSection =
+                  materials.length > 0 ? (
                     <div className="wb2-shsect">
                       <span className="wb2-sect">What went on the job</span>
                       {materials.map((m) => (
@@ -1204,44 +1248,35 @@ export function JobSheet({
                         );
                       })()}
                     </div>
-                  )}
+                  ) : null;
 
-                  {record?.ledger && record.ledger.payments.length > 0 && (
-                    <div className="wb2-shsect">
-                      <span className="wb2-sect">
-                        What&apos;s been paid —{" "}
-                        {(() => {
-                          const paid = paymentsTotalCents(record.ledger.payments);
-                          /* COLLECTION IS SAID ONCE, and the block above says
-                             it. On a family this figure is measured against
-                             THIS row's own netted total, so no verdict. */
-                          if (record.family?.isFamily) return fmtAud(paid);
-                          const state = collectionAgainst(paid, money?.valueCents ?? null);
-                          if (state === "paid") return `${fmtAud(paid)}, paid in full`;
-                          if (state === "part")
-                            return `${fmtAud(paid)} of ${fmtAud(money!.valueCents!)}`;
-                          return fmtAud(paid);
-                        })()}
-                      </span>
-                      {record.ledger.payments.map((p) => (
-                        <div className="wb2-mline" key={p.remoteId}>
-                          <b>{p.method ?? "Payment"}</b>
-                          <em>
-                            {[
-                              p.isDeposit ? "deposit" : null,
-                              p.takenOn ? fmtAuWeekdayDayMonth(p.takenOn) : null,
-                              p.takenBy,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </em>
-                          <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
+                /* THE FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on
+                   the left — the value, its collection row, what's been paid
+                   — and what went on the job on the right. The block used to
+                   run the full width with the figure top-right and the
+                   sentence bottom-left, over a grid with one column empty on
+                   any job with nothing paid. With nothing to stand beside,
+                   whichever column is there runs the full width rather than
+                   leaving the other half blank, which was the fault. */
+                const left = !ledgerOpen || paidSection !== null;
+                const twoUp = left && goodsSection !== null;
+                return (
+                  <>
+                    {ledgerOpen && block}
+                    {(left || goodsSection !== null) && (
+                      <div className={"wb2-jcgrid money" + (twoUp ? "" : " one")}>
+                        {left && (
+                          <div className="wb2-jcol">
+                            {!ledgerOpen && block}
+                            {paidSection}
+                          </div>
+                        )}
+                        {goodsSection}
+                      </div>
+                    )}
+                  </>
+                );
+              })()
             )}
 
           {panel(

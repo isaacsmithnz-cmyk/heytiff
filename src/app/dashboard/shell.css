@@ -7327,6 +7327,24 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(0,168,2
 .wb2-jcface .wb2-mline.visit { grid-template-columns:120px minmax(0,1fr) auto; }
 .wb2-jcgrid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:13px; align-items:start; }
 @media (max-width:900px) { .wb2-jcgrid { grid-template-columns:minmax(0,1fr); } }
+/* THE MONEY FACE IS TWO COLUMNS (Isaac, 2026-09-10): the money on the left —
+   the value, its collection row, what's been paid — and what went on the job
+   on the right. The block ran the full width with the figure top-right and the
+   collection sentence bottom-left, a block that was mostly diagonal space, over
+   a two-column grid with one column empty on any job with nothing paid. The
+   left column is the narrower one: its rows are a figure and a sentence, the
+   right's are names. A block that has opened its ledger stays full width ABOVE
+   the grid — claim rows are a table, and in the narrow column their metas
+   wrapped to three lines — and payments and goods keep their columns under it. */
+.wb2-jcgrid.money { grid-template-columns:minmax(280px, 2fr) minmax(0, 3fr); }
+/* one thing to show — a quote with no lines, a family with no payments — and
+   nothing to stand it beside: it runs the full width rather than leaving the
+   other column blank, which was the fault being fixed */
+.wb2-jcgrid.money.one { grid-template-columns:minmax(0, 1fr); }
+/* restated INSIDE a media block of its own: @media adds no specificity, so
+   the .wb2-jcgrid collapse above cannot beat .wb2-jcgrid.money by itself */
+@media (max-width:900px) { .wb2-jcgrid.money { grid-template-columns:minmax(0, 1fr); } }
+.wb2-jcol { display:flex; flex-direction:column; gap:13px; min-width:0; }
 /* an open section of a face — the faces are the panels now; section heads
    wear the same title dress as the Diary/Visits headers (.wb2-jcdhead) */
 .wb2-jcsec { display:flex; flex-direction:column; }

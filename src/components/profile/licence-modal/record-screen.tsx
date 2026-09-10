@@ -50,6 +50,7 @@ export function RecordScreen({
   error,
   onRecord,
   onAttach,
+  onFile,
   onRemoveTerm,
   onEdit,
   onClose,
@@ -66,6 +67,9 @@ export function RecordScreen({
   onRecord: (input: LicenceTermInput) => void;
   /** Files a document against the ticket; a null term means the card itself. */
   onAttach: (termId: string | null, documentId: string) => void;
+  /** Files a scan that carries no expiry against the ticket itself. `after`
+      runs only once the filing has landed. */
+  onFile: (documentId: string, after: () => void) => void;
   onRemoveTerm: (termId: string) => void;
   onEdit: () => void;
   onClose: () => void;
@@ -87,9 +91,23 @@ export function RecordScreen({
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [openHist, setOpenHist] = useState<string | null>(null);
   const [armedTerm, setArmedTerm] = useState<string | null>(null);
+  /* Bumped once a scan has been filed, so a panel that stays on screen comes
+     back EMPTY. The panel keeps its own file name and its own "couldn't read
+     that one" line, and both belonged to the document that just left. */
+  const [filed, setFiled] = useState(0);
 
   const showFields = mode === "scanned" || mode === "manual";
-  const canSave = term.expiresOn.trim().length > 0 && !pending;
+  /* WHAT THE PRIMARY BUTTON DOES follows what the panel is holding.
+
+     With an expiry it saves a term, as it always has. WITHOUT ONE it files the
+     scan against the ticket and says so. A ticket that never lapses — a white
+     card — can never have a term (expires_on is NOT NULL), so this was a "Save
+     term" that could not be pressed on the one card whose whole content is a
+     photo, and the file the panel had already uploaded was dropped, owned by
+     nothing, the moment the person gave up on it. */
+  const hasExpiry = term.expiresOn.trim().length > 0;
+  const filingOnly = !hasExpiry && docId !== null;
+  const canSave = (hasExpiry || filingOnly) && !pending;
 
   const fill = (r: ReadLicenceResult) => {
     if (!r.ok) return;
@@ -105,6 +123,21 @@ export function RecordScreen({
 
   const save = () => {
     if (!canSave) return;
+    if (filingOnly && docId) {
+      /* Only once it has LANDED does the panel let go of it. A refused filing
+         keeps the scan on screen and the button live, so pressing it again is
+         a retry rather than a re-upload. A ticket with a term goes back to
+         leading with that term; one without keeps its panel, which is its
+         screen. */
+      onFile(docId, () => {
+        setMode("idle");
+        setTerm(emptyTerm);
+        setDocId(null);
+        setFiled((n) => n + 1);
+        if (recorded) setPanelOpen(false);
+      });
+      return;
+    }
     onRecord({ ...termInput(term), documentId: docId, source: mode === "scanned" ? "scan" : "manual" });
   };
 
@@ -193,6 +226,7 @@ export function RecordScreen({
 
         {panelOpen && (
           <ScanCard<ReadLicenceResult>
+            key={filed}
             heading={current ? "RENEW THIS TICKET" : "RECORD THE TERM"}
             prompt={SCAN_COPY.prompt}
             hint={SCAN_COPY.hint}
@@ -302,7 +336,7 @@ export function RecordScreen({
           </Btn>
           {showFields && (
             <Btn kind="primary" onClick={save} disabled={!canSave}>
-              {pending ? "Saving…" : "Save term"}
+              {pending ? "Saving…" : filingOnly ? "File the document" : "Save term"}
             </Btn>
           )}
         </span>

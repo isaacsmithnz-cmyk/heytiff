@@ -1508,3 +1508,124 @@ describe("adding a card by scanning it", () => {
     );
   });
 });
+
+/* SCANNING A CERTIFICATE THAT HAS NO EXPIRY, ON THE UPDATE SCREEN.
+
+   Tiff reads it, but a licence with no renewal date has no expiry to read, so
+   the Save button could never be pressed — and the file the panel had ALREADY
+   uploaded sat in state that only a saved term consumes: owned by nothing,
+   shown nowhere. The button files it against the card now, and says so.
+   C2 is the fixture with `expiryDate: null`. */
+describe("scanning a certificate with no expiry on the update screen", () => {
+  const pdf = () => new File(["x"], "certificate.pdf", { type: "application/pdf" });
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readOrgCredentialDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readOrgCredentialDocument.mockResolvedValue({
+      ok: true,
+      issuer: "QBE",
+      number: "PL-9",
+      cover: null,
+      sumInsured: null,
+      premium: null,
+      excess: null,
+      workersCount: null,
+      wages: null,
+      startsOn: "2020-01-01",
+      expiresOn: null,
+    });
+  });
+
+  const scanOnUpdate = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("SCANNED");
+    return dialog;
+  };
+
+  it("files the uploaded certificate against the card instead of dead-ending", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "credentials" });
+
+    const dialog = await scanOnUpdate(user);
+    expect(within(dialog).queryByRole("button", { name: "Save policy" })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    // the card owns it; nothing owns the filing — and no term was invented
+    expect(actions.onAttachCredentialDoc).toHaveBeenCalledWith("C2", null, "doc-7");
+    expect(actions.onRecordTerm).not.toHaveBeenCalled();
+  });
+
+  it("goes back to the card once it has landed", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+
+    const dialog = await scanOnUpdate(user);
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    expect(await within(dialog).findByRole("button", { name: "Update policy" })).toBeInTheDocument();
+    expect(within(dialog).queryByText("SCANNED")).not.toBeInTheDocument();
+  });
+
+  it("keeps the certificate when the filing is refused, so pressing again is a retry", async () => {
+    const user = userEvent.setup();
+    const { actions } = setup({ sec: "credentials" });
+    actions.onAttachCredentialDoc.mockResolvedValueOnce({ ok: false, error: "That document couldn't be filed." });
+
+    const dialog = await scanOnUpdate(user);
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    expect(await within(dialog).findByText("That document couldn't be filed.")).toBeInTheDocument();
+    expect(within(dialog).getByText("SCANNED")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+    expect(actions.onAttachCredentialDoc).toHaveBeenCalledTimes(2);
+  });
+
+  /* The footnote says the term in force "moves into the history". Filing a
+     document moves nothing, so while the button is filing it must not say so. */
+  it("does not promise to retire the term in force when it is only filing", async () => {
+    const user = userEvent.setup();
+    setup({
+      sec: "credentials",
+      records: {
+        C2: [
+          {
+            id: "R1",
+            credentialId: "C2",
+            issuer: "QBE",
+            number: "PL-9",
+            cover: null,
+            sumInsured: null,
+            premium: null,
+            workersCount: null,
+            wages: null,
+            excess: null,
+            startsOn: null,
+            expiresOn: "2026-08-07",
+            documentId: null,
+            source: "manual",
+            createdAt: null,
+          },
+        ],
+      },
+    });
+
+    const dialog = await scanOnUpdate(user);
+    expect(within(dialog).getByRole("button", { name: "File the document" })).toBeInTheDocument();
+    expect(within(dialog).queryByText(/moves into the history/)).not.toBeInTheDocument();
+  });
+
+  it("still has nothing to press with neither an expiry nor a document", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(within(dialog).getByRole("button", { name: "Save policy" })).toBeDisabled();
+  });
+});

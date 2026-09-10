@@ -552,3 +552,146 @@ describe("adding a ticket by scanning it", () => {
     );
   });
 });
+
+/* SCANNING A TICKET THAT HAS NO EXPIRY, ON THE RECORD PANEL.
+
+   The panel is open by default on a ticket with no term. Scan a white card and
+   Tiff reads it — but there is no expiry to read, so "Save term" could never be
+   pressed, and the file the panel had ALREADY uploaded sat in state that only a
+   saved term consumes: owned by nothing, shown nowhere. The button files it
+   against the ticket now, and says so. */
+describe("scanning a ticket with no expiry on the record panel", () => {
+  const pdf = () => new File(["x"], "white-card.pdf", { type: "application/pdf" });
+  const read = (over: Record<string, unknown> = {}) => ({
+    ok: true,
+    number: "WC-12345",
+    issuer: "SafeWork NSW",
+    issuingState: "NSW",
+    classes: null,
+    startsOn: "2019-03-02",
+    expiresOn: null,
+    ...over,
+  });
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readStaffLicenceDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readStaffLicenceDocument.mockResolvedValue(read());
+  });
+
+  const scan = async (user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) => {
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("SCANNED");
+  };
+
+  const scanWhiteCard = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+    await scan(user, dialog);
+    return dialog;
+  };
+
+  it("files the uploaded scan against the ticket instead of dead-ending", async () => {
+    const user = userEvent.setup();
+    const { onAttachDoc, onRecordTerm } = setup();
+
+    const dialog = await scanWhiteCard(user);
+    expect(within(dialog).queryByRole("button", { name: "Save term" })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    // the ticket owns it; nothing owns the filing — and no term was invented
+    expect(onAttachDoc).toHaveBeenCalledWith("L2", null, "doc-7");
+    expect(onRecordTerm).not.toHaveBeenCalled();
+  });
+
+  it("lets go of the scan once it has landed", async () => {
+    const user = userEvent.setup();
+    setup();
+
+    const dialog = await scanWhiteCard(user);
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    // a ticket with no term keeps its panel — it is the screen — back at the start
+    expect(await within(dialog).findByText("Scan or photograph the licence")).toBeInTheDocument();
+    expect(within(dialog).queryByText("SCANNED")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "File the document" })).not.toBeInTheDocument();
+  });
+
+  /* Tiff could not read it, so the panel went to manual with a line saying so,
+     and the file arrived through onAttached rather than onRead. It is filed all
+     the same — and once it has gone, the line about it goes too. */
+  it("files a scan Tiff could not read, and clears the line that said so", async () => {
+    const user = userEvent.setup();
+    readStaffLicenceDocument.mockResolvedValue({ ok: false, reason: "Tiff couldn't complete that." });
+    const { onAttachDoc } = setup();
+
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    expect(
+      await within(dialog).findByText("Tiff couldn't read that one — enter the details below.")
+    ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    expect(onAttachDoc).toHaveBeenCalledWith("L2", null, "doc-7");
+    expect(await within(dialog).findByText("Scan or photograph the licence")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Tiff couldn't read that one/)).not.toBeInTheDocument();
+  });
+
+  it("closes the renewal panel once it has landed, on a ticket that has a term", async () => {
+    const user = userEvent.setup();
+    const { onAttachDoc } = setup({ records: { L1: [term()] } });
+
+    await openCard(user, "ARC licence");
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Record renewal" }));
+    await scan(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    // filed against the ticket, never under the term it failed to renew
+    expect(onAttachDoc).toHaveBeenCalledWith("L1", null, "doc-7");
+    expect(await within(dialog).findByRole("button", { name: "Record renewal" })).toBeInTheDocument();
+  });
+
+  it("keeps the scan when the filing is refused, so pressing again is a retry", async () => {
+    const user = userEvent.setup();
+    const { onAttachDoc } = setup();
+    onAttachDoc.mockResolvedValueOnce({ ok: false, error: "That document couldn't be filed." });
+
+    const dialog = await scanWhiteCard(user);
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+
+    expect(await within(dialog).findByText("That document couldn't be filed.")).toBeInTheDocument();
+    expect(within(dialog).getByText("SCANNED")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "File the document" }));
+    expect(onAttachDoc).toHaveBeenCalledTimes(2);
+    expect(onAttachDoc).toHaveBeenLastCalledWith("L2", null, "doc-7");
+  });
+
+  it("saves a term the moment an expiry is picked, with the scan inside it", async () => {
+    const user = userEvent.setup();
+    const { onAttachDoc, onRecordTerm } = setup();
+
+    const dialog = await scanWhiteCard(user);
+    await user.click(within(dialog).getByLabelText("Expiry"));
+    await user.click(await screen.findByRole("button", { name: "Friday 24 July 2026" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save term" }));
+
+    expect(onRecordTerm).toHaveBeenCalledWith(
+      "L2",
+      expect.objectContaining({ expiresOn: "2026-07-24", documentId: "doc-7", source: "scan" })
+    );
+    expect(onAttachDoc).not.toHaveBeenCalled();
+  });
+
+  it("still has nothing to press with neither an expiry nor a document", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(within(dialog).getByRole("button", { name: "Save term" })).toBeDisabled();
+  });
+});

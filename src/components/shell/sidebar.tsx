@@ -45,7 +45,6 @@ export function Sidebar({
   return (
     <>
     <aside className="side">
-      <div className="glow" />
 
       <div className="brand">
         <div className="ht-brandcol">
@@ -104,7 +103,6 @@ export function Sidebar({
                      back; expanded rows already wear it, so no tooltip */
                   title={rail ? n.label : undefined}
                 >
-                  <span className="nibg" />
                   <span className="nicon">
                     <Icon name={n.icon} size={16} sw={on ? 2.5 : 2} />
                   </span>

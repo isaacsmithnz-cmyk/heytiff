@@ -90,6 +90,12 @@
      their own value because they are held to the other bar, and the tiers
      above it are carried by size and weight exactly as on the light side. */
   --on-ink-q: rgba(255,255,255,.5);
+  /* THE ONE HAIRLINE ON THE DARK CHROME. A graphic on the frame is held to
+     3:1, so its alpha floor is .345 (the argument above); this sits just over
+     it. docs/design.md: the dark chrome has one hairline token and no inner
+     highlight. First use: the avatar's ring, which was a blue-to-teal
+     gradient until the frame went still. */
+  --on-ink-line: rgba(255,255,255,.35);
 
   --font:var(--font-jakarta), sans-serif; --mono:var(--font-jakarta), sans-serif;
 }
@@ -141,10 +147,8 @@
 .fg .side { position:relative; z-index:30; display:flex; flex-direction:column; width:224px; flex:0 0 224px; height:100%;
   background:var(--ink); color:#E8EAED; overflow:hidden; border-right:1px solid rgba(255,255,255,.04);
   box-shadow:20px 0 40px rgba(0,0,0,.1); }
-/* teal corner accent — contained to the top-left so its blur doesn't reach the
-   sidebar's right edge (x=224), which would create a tonal step at the
-   sidebar/topbar junction. Kept subtle around the logo. */
-.fg .side .glow { position:absolute; top:-170px; left:-160px; width:250px; height:250px; border-radius:50%; background:var(--teal); filter:blur(120px); opacity:.16; pointer-events:none; }
+/* the rail's teal corner glow lived here until 2026-09-10; the frame is still
+   now (frame-still.test.ts) */
 .fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4.8px, 38px) 24px clamp(18px, 3vh - 3.6px, 28px); position:relative; z-10:1; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform .5s cubic-bezier(.22,1,.36,1); }
@@ -224,16 +228,18 @@
    markup rather than left behind: a dead selector on this sheet is one shadow
    away from matching something else, which is exactly how `.fg .me` and
    `.ni .pdot` bit it twice already. `.sk-navlbl` went with it. */
-.fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:14px; padding:clamp(9px, 1.5vh - 1.8px, 13px) 16px; border-radius:14px; overflow:hidden; transition:background .5s; margin-bottom:clamp(2px, 1vh - 5.2px, 6px); }
+.fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:14px; padding:clamp(9px, 1.5vh - 1.8px, 13px) 16px; border-radius:14px; overflow:hidden; transition:background .15s; margin-bottom:clamp(2px, 1vh - 5.2px, 6px); }
 .fg .ni:hover { background:rgba(255,255,255,.05); }
-.fg .ni .nibg { position:absolute; inset:0; background:linear-gradient(90deg,rgba(255,255,255,.1),transparent); border-left:2px solid var(--teal); opacity:0; transition:opacity .4s; }
-.fg .ni.on .nibg { opacity:1; }
-.fg .ni .nicon { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:11px; background:rgba(255,255,255,.03); color:rgba(255,255,255,.4); transition:all .5s; }
-.fg .ni:hover .nicon { color:rgba(255,255,255,.9); transform:scale(1.1); }
-.fg .ni.on .nicon { background:var(--teal); color:var(--ink); box-shadow:0 0 15px rgba(0,229,192,.4); transform:none; }
-.fg .ni .nlbl { position:relative; z-index:10; font-size:14px; font-weight:700; color:rgba(255,255,255,.5); transition:all .5s; }
-.fg .ni:hover .nlbl { color:#fff; transform:translateX(4px); }
-.fg .ni.on .nlbl { color:#fff; transform:translateX(4px); }
+.fg .ni .nicon { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:11px; background:rgba(255,255,255,.03); color:rgba(255,255,255,.4); transition:color .15s, background .15s; }
+.fg .ni:hover .nicon { color:rgba(255,255,255,.9); }
+/* THE ACTIVE ITEM IS WHITE. It was the teal icon with a 15px glow and a 2px
+   teal bar down the item's edge (.nibg); docs/design.md, 2026-09-10: ink and
+   paper, and on the rail that is paper. A hover changes one thing, a colour,
+   and slides nothing — the 4px nudge and the 1.1 scale went with the glow. */
+.fg .ni.on .nicon { background:#fff; color:var(--ink); }
+.fg .ni .nlbl { position:relative; z-index:10; font-size:14px; font-weight:700; color:rgba(255,255,255,.5); transition:color .15s; }
+.fg .ni:hover .nlbl { color:#fff; }
+.fg .ni.on .nlbl { color:#fff; }
 /* `.ni .pdot` lived here — the sidebar's hard-coded "new" pulse. Deleted with
    the `dot` field it rendered (see nav.ts); left behind it would be dead CSS
    waiting to shadow something, which this stylesheet has been bitten by before.
@@ -663,9 +669,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 /* the signed-in role — "Owner" — at 4.46 */
 .fg .topbar .me-top .mk em { display:block; font-style:normal; font-size:11px; color:var(--on-ink-q); font-family:var(--mono); }
 .fg .topbar .me-top .av { position:relative; display:block; width:38px; height:38px; flex:0 0 auto; }
-.fg .topbar .me-top .av .ring { display:block; width:38px; height:38px; border-radius:50%; background:linear-gradient(45deg,#2E68FF,#00E5C0); padding:2px; }
+/* a hairline ring, not the blue-to-teal gradient it wore, and no status dot:
+   the dot had no state behind it. docs/design.md, 2026-09-10. */
+.fg .topbar .me-top .av .ring { display:block; width:38px; height:38px; border-radius:50%; box-sizing:border-box; border:1px solid var(--on-ink-line); }
 .fg .topbar .me-top .av .inner { width:100%; height:100%; border-radius:50%; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
-.fg .topbar .me-top .av .st { position:absolute; bottom:0; right:0; width:11px; height:11px; border-radius:50%; background:#00E5C0; border:2px solid #050505; }
 .fg .topbar .me-gear { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.55); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); transition:all .2s; }
 .fg .topbar .me-trigger:hover .me-gear { color:#fff; background:rgba(255,255,255,.12); transform:translateY(-1px); }
 .fg .topbar .me-trigger.on .me-gear { color:#fff; background:rgba(255,255,255,.14); }
@@ -975,42 +982,20 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .gridbg { opacity:0; transition:opacity .35s ease; }
 
 /* sidebar melts into the frame (no edge / shadow / own background — the root's
-   #050505 shows through so the frame reads as one piece). Its corner .glow is
-   hidden too: inside the sidebar it clips at the box edge (x=224) and draws a
-   line; the same accent lives unclipped on .framefx below. */
+   #050505 shows through so the frame reads as one piece). */
 .fg .side { box-shadow:none; border-right:none; background:transparent; }
-.fg .side .glow { display:none; }
 
 /* top header becomes part of the black frame */
 .fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 26px; position:relative; }
 
-/* frame-level ambient fx — aurora blobs + rising orbs roam the ENTIRE frame,
-   unclipped by any chrome box. Content (sidebar z-30, main z-10) paints above;
-   the opaque light well occludes whatever passes behind it, so on normal pages
-   the fx shows in the header/sidebar/gutters, and on the studio start screen
-   (well dropped) it drifts across the whole canvas. */
-.fg .framefx { position:absolute; inset:0; z-index:0; pointer-events:none;
-  /* static teal corner accent (replaces the sidebar's clipped .glow) — on the
-     full-frame layer it fades continuously across the sidebar/topbar junction */
-  background:radial-gradient(circle 260px at -35px -45px, rgba(0,229,192,.16), transparent 100%); }
-.fg .framefx::before, .fg .framefx::after { content:''; position:absolute; top:0; left:0; border-radius:50%; pointer-events:none; filter:blur(44px); }
-.fg .framefx::before { width:300px; height:300px; background:radial-gradient(circle, rgba(0,229,192,.20), transparent 68%); animation:fgRoam1 26s ease-in-out infinite; }
-.fg .framefx::after { width:260px; height:260px; background:radial-gradient(circle, rgba(46,104,255,.18), transparent 68%); animation:fgRoam2 33s ease-in-out infinite; }
-@keyframes fgRoam1 { 0%{transform:translate(-60px,-40px) scale(1)} 33%{transform:translate(52vw,8vh) scale(1.25)} 66%{transform:translate(28vw,52vh) scale(1.05)} 100%{transform:translate(-60px,-40px) scale(1)} }
-@keyframes fgRoam2 { 0%{transform:translate(78vw,4vh) scale(1.1)} 40%{transform:translate(8vw,30vh) scale(1)} 70%{transform:translate(60vw,64vh) scale(1.2)} 100%{transform:translate(78vw,4vh) scale(1.1)} }
-/* rising soft-glow orbs, scattered over the whole frame */
-.fg .framefx i { position:absolute; width:120px; height:120px; border-radius:50%; filter:blur(26px); opacity:0; background:radial-gradient(circle, rgba(0,229,192,.55), transparent 70%); animation:fgRiseGlow linear infinite; }
-.fg .framefx i:nth-child(1){ left:4%;  top:12%; animation-duration:11s; animation-delay:0s; }
-.fg .framefx i:nth-child(2){ left:18%; top:70%; width:90px; height:90px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:14s; animation-delay:3s; }
-.fg .framefx i:nth-child(3){ left:33%; top:38%; width:150px; height:150px; animation-duration:13s; animation-delay:6s; }
-.fg .framefx i:nth-child(4){ left:50%; top:85%; width:100px; height:100px; background:radial-gradient(circle, rgba(138,43,226,.4), transparent 70%); animation-duration:16s; animation-delay:1.5s; }
-.fg .framefx i:nth-child(5){ left:66%; top:22%; width:130px; height:130px; background:radial-gradient(circle, rgba(46,104,255,.5), transparent 70%); animation-duration:12s; animation-delay:8s; }
-.fg .framefx i:nth-child(6){ left:80%; top:58%; width:96px;  height:96px;  animation-duration:15s; animation-delay:4.5s; }
-.fg .framefx i:nth-child(7){ left:91%; top:78%; width:140px; height:140px; background:radial-gradient(circle, rgba(138,43,226,.38), transparent 70%); animation-duration:13.5s; animation-delay:10s; }
-@keyframes fgRiseGlow { 0%{ transform:translateY(0) scale(.7); opacity:0 } 18%{ opacity:.9 } 70%{ opacity:.8 } 100%{ transform:translateY(-150px) scale(1.15); opacity:0 } }
-/* keep the controls above the glow */
+/* THE FRAME IS STILL. From July to September 2026 this layer carried the
+   one-piece frame's ambient light: two aurora blobs and seven rising orbs in
+   teal, blue and violet (.framefx, fgRoam1/2, fgRiseGlow), roaming the whole
+   frame on 11 to 33 second loops. docs/design.md took it down on 2026-09-10:
+   it was the single most-named tell of the year, and the only light on the
+   screen is the content well. frame-still.test.ts holds the line. The
+   topbar's children keep their own stacking context, as they did above it. */
 .fg .topbar > * { position:relative; z-index:1; }
-@media (prefers-reduced-motion: reduce) { .fg .framefx::before, .fg .framefx::after, .fg .framefx i { animation:none; } .fg .framefx i { opacity:.5; } }
 
 /* topbar controls restyled to read on black */
 .fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }
@@ -1968,7 +1953,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
   @keyframes fgcFade { from{opacity:0} to{opacity:1} }
   .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:28px; overflow:hidden; background:rgba(255,255,255,.9); backdrop-filter:blur(24px) saturate(1.6); border:1px solid #fff; box-shadow:0 30px 80px -20px rgba(0,0,0,.4); animation:fgcIn .3s cubic-bezier(.34,1.4,.5,1) both; }
   @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
-  .fg-cmd .box .glow { position:absolute; top:-80px; left:50%; transform:translateX(-50%); width:300px; height:160px; background:#00E5C0; filter:blur(100px); opacity:.2; pointer-events:none; }
   .fg-cmd .cin { position:relative; display:flex; align-items:center; gap:16px; padding:20px 24px; border-bottom:1px solid #f3f4f6; }
   .fg-cmd .cin .ci { color:var(--q); display:flex; }
   .fg-cmd .cin input { flex:1; background:none; border:none; outline:none; font-size:17px; font-weight:500; color:#1f2937; font-family:inherit; }
@@ -8427,7 +8411,6 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 html[data-wb-display] .fg .side,
 html[data-wb-display] .fg .topbar,
 html[data-wb-display] .fg .gridbg,
-html[data-wb-display] .fg .framefx { display:none; }
 html[data-wb-display] .fg .main { padding:0; }
 html[data-wb-display] .fg .outlet { border-radius:0; }
 

@@ -84,7 +84,6 @@ export function Topbar({ user, today }: { user: ShellUser; today: string }) {
               <span className="ring">
                 <span className="inner">{user.initials}</span>
               </span>
-              <span className="st" />
             </span>
             <span className="mk">
               <b>{user.name}</b>

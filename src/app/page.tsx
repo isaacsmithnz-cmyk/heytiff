@@ -13,30 +13,18 @@ import { Chevron, Wordmark } from "@/components/logo";
    globals.css for exactly this reason; this page was the last place still
    carrying it.
 
-   THE GLOW IS THE SHELL'S, TAKEN DOWN. `.fg .side .glow` is a 250px teal
-   radial at .16 — but that sits in a narrow dark rail, and the same alpha
-   spread across a whole light page stops being atmosphere and becomes a
-   teal tint over the ground. At .11 and .07 the surface still reads as
-   #F0F2F5 and the light is something you notice second. They are capped at
-   90vw as well: a fixed 620px circle is most of a phone screen, and what
-   reads as a soft top-light on a laptop became a teal wash on a 375px one.
-   The sign-in page template carries the identical pair, so a person who
-   signs in here and lands on the dashboard cannot say where the light
-   changed. */
+   THE LIGHT IS GONE, HERE AND ON THE DASHBOARD. This page carried two
+   blurred discs, teal and blue, tuned to match the shell's corner glow so
+   that a person who signed in here and landed on the dashboard could not
+   say where the light changed. On 2026-09-10 the frame went still
+   (docs/design.md, frame-still.test.ts), and by that same argument the door
+   goes still with it: ink on paper, and the only light is the page. The
+   Auth0 Universal Login template still carries the pair; it is pushed
+   separately and should follow. */
 
 export default function Home() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center gap-9 overflow-hidden bg-surface px-6">
-      {/* decorative — the page's light, announcing nothing */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-56 left-1/2 h-[min(620px,90vw)] w-[min(620px,90vw)] -translate-x-1/2 rounded-full bg-brand-teal opacity-[0.11] blur-[140px]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-72 left-1/2 h-[min(620px,90vw)] w-[min(620px,90vw)] -translate-x-1/2 rounded-full bg-brand-blue opacity-[0.07] blur-[140px]"
-      />
-
       <div className="relative flex items-center gap-3">
         <Chevron size={44} gradient className="ht-draw" decorative />
         <Wordmark className="text-4xl" />

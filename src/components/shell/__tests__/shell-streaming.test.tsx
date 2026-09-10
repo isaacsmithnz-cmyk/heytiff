@@ -42,7 +42,8 @@ it("draws the frame with no session, no user and no capabilities", () => {
   // the frame itself
   expect(document.querySelector(".fg")).toBeInTheDocument();
   expect(document.querySelector(".gridbg")).toBeInTheDocument();
-  expect(document.querySelector(".framefx")).toBeInTheDocument();
+  // the frame is still (frame-still.test.ts): no ambient fx layer any more
+  expect(document.querySelector(".framefx")).not.toBeInTheDocument();
   // and the page under it, which must NOT wait on the chrome
   expect(screen.getByText("page content")).toBeInTheDocument();
 });

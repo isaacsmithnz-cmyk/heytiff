@@ -73,6 +73,12 @@ Weight 800 is retired. Figures that line up in columns take
 | line | `rgba(5,5,5,.08)` | the one hairline; a raised thing is surface plus line |
 | overlay | `0 12px 32px rgba(10,12,20,.16)` | the one shadow, only for a thing that floats over the page |
 
+| Spacing | 2 · 4 · 8 · 12 · 16 · 24 · 32 · 48 | two is the hairline gap between chips |
+|---|---|---|
+| Motion | `--t-fast` 120 ms ease-out · `--t-move` 200 ms ease-out | hover and focus · anything that changes place |
+| Layers | base 0 · raised 1 · sticky 10 · overlay 100 · modal 200 · toast 300 | nothing else |
+| Dark chrome | one hairline token, no inner highlight | overlays take the one overlay shadow |
+
 A box is one of three things. A **card** is something you act on: surface,
 line, 16px. A **group** is something you read: no box, a hairline top. An
 **overlay** floats: surface and the one shadow. A fourth kind is a question for
@@ -128,6 +134,53 @@ starts with them.
     reassurance, and "What lets the business trade" is an explanation. Keep
     the fact, drop the rest.
 
+Round two, 2026-09-10. Fifteen more, found by a second research pass and
+approved together.
+
+16. Colour comes from the tokens. No hex outside the token block. The greys
+    are chosen: ink, quiet text, the line, surface, ground. They were
+    Tailwind's gray-50 to gray-900 by value, and two tokens were Tailwind
+    steps by definition (`--gray700`, `--gray600`). The state colours were
+    Tailwind's red, green, teal and amber.
+17. Spacing is on the scale: 2, 4, 8, 12, 16, 24, 32, 48. Two is the hairline
+    gap between chips. Nothing is typed by feel.
+18. Motion has two tokens and no curves of its own: `--t-fast`, 120 ms
+    ease-out, for hover and focus; `--t-move`, 200 ms ease-out, for anything
+    that changes place. The overshoot curve `cubic-bezier(.22,1,.36,1)` was on
+    69 declarations and is not a Linear value; Linear runs plain 0.1 s and
+    0.25 s. The bounce on the command palette goes with it.
+19. Six layers, named: base 0, raised 1, sticky 10, overlay 100, modal 200,
+    toast 300. There were 36 values from 0 to 1200.
+20. No arrow on a button. "Continue", not "Continue →". An arrow between two
+    values ("21.5° → 23°") is a fact and stays.
+21. No middot chains. A line under a title is a sentence, or a label and a
+    value. The one allowance is a keyboard hint: "Esc to cancel".
+22. The dark chrome has one hairline token and no inner highlight. An overlay
+    on it takes the one overlay shadow, not its own.
+23. A hover is one change: a fill or a colour. Nothing lifts, slides, scales,
+    sweeps or grows a shadow on hover. The nav label stops moving; the active
+    item is its teal icon.
+24. A control hidden until hover is also shown on `:focus-within`, or it is
+    not hidden. Keyboard users get the delete control back.
+25. A button with only an icon is a close cross, or the clear cross in a
+    search field. Every other button carries its word: "Save estimate", not a
+    tick; "Discard", not a cross; "Actions", not three dots. A `title` is not a
+    label. Candidates for a named allowance when their family is folded: the
+    microphone and stop in the dictation controls, undo and redo in the Studio
+    toolbar.
+26. State is not a pill. A chip is for a filter you tap. The Workboard's
+    chips become words in the state colour at body size.
+27. Nothing spins in the first half second. Past a second, a skeleton shaped
+    like what is coming. The ring lives only inside a button that says what it
+    is doing.
+28. One footer. The ten footer families fold into one, and the buttons name
+    the choice: "Keep" and "Delete file", "Cancel" and "Rename".
+29. `text-wrap: balance` on headings only. Letter-spacing on display titles
+    only; the positive tracking leaves with the eyebrows. "…", never "...".
+30. The public pages carry Open Graph metadata and an image. The live design
+    link is sent to customers and arrived as a grey box. A task, not a law,
+    and the first small PR of the visual work.
+
 ## Guards
 
 `src/app/dashboard/__tests__/design-ratchets.test.ts` counts eight things
@@ -151,6 +204,20 @@ for print, with their own type.
 | gradients | one accent, flat surfaces | 136 |
 | shadows that are not a focus ring | one shadow, overlays only | 291 |
 | bars at the left edge | selection is a fill, state is a word | 27 |
+| Tailwind palette hexes | colour comes from the tokens | 261 |
+| spacing off the scale | 2, 4, 8, 12, 16, 24, 32, 48 | 2,866 |
+| `cubic-bezier` | two motion tokens, no custom curves | 104 |
+| distinct z-index values | six layers | 36 |
+| arrows in on-screen strings | the word is the button | 18 |
+| middot chains in on-screen strings | a sentence, or a label and a value | 242 |
+| inner-highlight glass edges | no glass | 6 |
+| white-alpha hairlines on the dark chrome | one hairline token | 38 |
+| stacked hovers (transform and shadow together) | a hover is one change | 34 |
+| hover nudges (`translateX` on hover) | nothing slides on hover | 11 |
+| hover-revealed controls | shown on focus too, or not hidden | 25 |
+| pill, chip, tag and badge rules | state is a word | 141 |
+| letter-spacing | display titles only | 451 |
+| icon-only buttons that are not a close or clear cross | every other button carries its word | 34 |
 
 The end state for each is zero, or a short allowlist with a reason beside each
 entry (a spinner is state; the orb breathing with the microphone is feedback).
@@ -160,17 +227,26 @@ entry (a spinner is state; the orb breathing with the microphone is feedback).
 1. **The shell**, still. Decided.
 2. **This file and the guards.** No pixels change.
 3. **Tokens before screens.** The scales above become custom properties on
-   `:root`; the stylesheets are migrated to them mechanically; the four daily
-   screens are walked. The only step that touches every family at once.
+   `:root` — the greys, the spacing scale, the two motion tokens, the six
+   layers, the dark chrome's hairline — and the stylesheets are migrated to
+   them mechanically; the four daily screens are walked. The only step that
+   touches every family at once. Laws 16 to 19 and 22 land here.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the
    left edge (33 places on that day, eleven of them in the Workboard, seven in
    the Toolbox) and the taglines and section captions (the list is in the
-   step 2 PR).
+   step 2 PR). Then round two's screen-level tells: the arrows on buttons,
+   the middot chains, the stacked hovers and the nudge, the pills, and the
+   small ones (laws 20, 21, 23, 26, 29).
+4a. **Open Graph for the public pages** (law 30). Its own small PR, and the
+   first visual one to land: it is the only change a customer would notice
+   this week.
 5. **The icons.**
 6. **Fold the dress families into the tokens**, one per PR, deleting dead CSS as
-   you go. By rule count: `wb2-` 1,316 · `ds-` 325 · `hq-` 287 · `tk-` 281 ·
+   you go. The hover-only controls, the icon-only buttons, the spinners and
+   the ten footer families are fixed family by family here (laws 24, 25, 27,
+   28). By rule count: `wb2-` 1,316 · `ds-` 325 · `hq-` 287 · `tk-` 281 ·
    `hm-` 265 · `vm-` 245 · `fl-` 203 · `mts2-` 155 · `dsd-` 129 · `wb-` 102 ·
    the rest. The v3 Studio glass chrome in `shell.css` (`.fg .dhead`,
    `.dtools`, `.dstatus`, `.dprops`, `.dview`, `.dread`) has no consumer and

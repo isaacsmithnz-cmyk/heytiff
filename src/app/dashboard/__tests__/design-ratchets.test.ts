@@ -102,6 +102,99 @@ function leftBars(): number {
   return n;
 }
 
+/* ROUND TWO, 2026-09-10. Fifteen more tells, found by a second research pass
+   and approved together. The countable ones are below; the rest (spinners,
+   footers, Open Graph) are laws and a task in docs/design.md.
+
+   Some of these read the components, not the stylesheets: the arrow on a
+   button and the middot chain live in JSX text and string literals. The same
+   comment-stripping applies, so a comment that quotes a tell is not a tell. */
+const TSX = (() => {
+  const files: string[] = [];
+  (function walk(dir: string) {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name === "node_modules" || e.name.startsWith(".") || e.name === "__tests__") continue;
+        walk(p);
+      } else if (p.endsWith(".tsx")) files.push(p);
+    }
+  })(SRC);
+  return files
+    .sort()
+    .map((f) => fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, ""))
+    .join("\n");
+})();
+const countTsx = (re: RegExp) => (TSX.match(re) ?? []).length;
+
+/* Every rule block as [selector, body], for the counts that need both. */
+function blocks(): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(CSS))) out.push([m[1], m[2]]);
+  return out;
+}
+
+/* Tailwind's palette, by value. The app's greys were these before anyone
+   chose a grey, and the state colours are Tailwind's red, green, teal and
+   amber. docs/design.md names the replacements. */
+const TAILWIND = [
+  "#f9fafb", "#f3f4f6", "#e5e7eb", "#d1d5db", "#9ca3af", "#6b7280", "#4b5563", "#374151", "#1f2937", "#111827",
+  "#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#94a3b8", "#64748b", "#475569", "#334155", "#1e293b", "#0f172a",
+  "#fafafa", "#f4f4f5", "#e4e4e7", "#d4d4d8", "#a1a1aa", "#71717a", "#52525b", "#3f3f46", "#27272a", "#18181b",
+  "#f5f5f5", "#e5e5e5", "#d4d4d4", "#a3a3a3", "#737373", "#525252", "#404040", "#262626", "#171717",
+  "#6366f1", "#4f46e5", "#8b5cf6", "#7c3aed", "#3b82f6", "#2563eb", "#10b981", "#059669", "#22c55e", "#16a34a", "#ef4444", "#dc2626", "#f59e0b", "#d97706", "#0ea5e9", "#14b8a6",
+];
+function tailwindHexes(): number {
+  const low = CSS.toLowerCase();
+  let n = 0;
+  for (const h of TAILWIND) n += (low.match(new RegExp(h, "g")) ?? []).length;
+  return n;
+}
+
+/* The spacing scale from docs/design.md. 2 is the hairline gap between
+   chips; everything else is 4 and its multiples up to 48. */
+const SPACING = new Set([0, 2, 4, 8, 12, 16, 24, 32, 48]);
+function offScaleSpacing(): number {
+  let n = 0;
+  for (const m of CSS.matchAll(/(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)?\s*:\s*([^;}]+)/g)) {
+    for (const t of m[1].split(/\s+/)) {
+      const v = t.match(/^(-?\d+(?:\.\d+)?)px$/);
+      if (v && !SPACING.has(Math.abs(Number(v[1])))) n++;
+    }
+  }
+  return n;
+}
+
+function distinctZ(): number {
+  const z = new Set<string>();
+  for (const m of CSS.matchAll(/z-index\s*:\s*(-?\d+)/g)) z.add(m[1]);
+  return z.size;
+}
+
+/* On screen only: JSX text or a string literal on one line, never code. The
+   line bound matters — without it a quote that opens on one line and closes
+   on another swallows the code in between and counts it. */
+const onScreen = (ch: string) => new RegExp(`>[^<{\\n]*${ch}[^<{\\n]*<|"[^"\\n]*${ch}[^"\\n]*"|'[^'\\n]*${ch}[^'\\n]*'|\`[^\`\\n]*${ch}[^\`\\n]*\``, "g");
+
+function hoverBlocks(test: (body: string) => boolean): number {
+  let n = 0;
+  for (const [sel, body] of blocks()) if (/:hover/.test(sel) && test(body)) n++;
+  return n;
+}
+
+/* A button whose only content is an icon, unless it is a close cross or the
+   clear cross in a search field — the two the law allows. */
+function iconOnlyButtons(): number {
+  let n = 0;
+  for (const m of TSX.matchAll(/<button\b([^>]*)>\s*(?:<span[^>]*>\s*)?<Icon\b[^>]*\/>\s*(?:<\/span>\s*)?<\/button>/g)) {
+    if (/aria-label=\{?["'`](Close|Clear)\b/.test(m[1])) continue;
+    n++;
+  }
+  return n;
+}
+
 function small(): number {
   let n = 0;
   for (const m of CSS.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)) if (Number(m[1]) < 12) n++;
@@ -118,6 +211,21 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 136 },
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 291 },
   { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 27 },
+  // round two
+  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 261 },
+  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2866 },
+  { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 104 },
+  { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
+  { law: "arrows on buttons — the word is the button", now: () => countTsx(onScreen("→")), baseline: 18 },
+  { law: "middot chains — a sentence, or a label and a value", now: () => countTsx(onScreen("·")), baseline: 242 },
+  { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 6 },
+  { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 38 },
+  { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform/.test(b) && /box-shadow/.test(b)), baseline: 34 },
+  { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 11 },
+  { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 25 },
+  { law: "pill, chip, tag and badge rules — state is a word", now: () => count(/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*\s*[{,]/g), baseline: 141 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 451 },
+  { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
 ];
 
 describe("the design ratchets only go down", () => {

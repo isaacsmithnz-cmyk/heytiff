@@ -65,13 +65,14 @@ function offScaleRadii(): number {
   return n;
 }
 
-/* A focus ring is `0 0 0 Npx` and is the accent doing its job; an inset is a
-   hairline drawn the long way. Everything else is a shadow. */
+/* A focus ring is `0 0 0 Npx`, or the ring token since the tokens landed, and
+   is ink doing its job; an inset is a hairline drawn the long way. Everything
+   else is a shadow. */
 function shadows(): number {
   let n = 0;
   for (const m of CSS.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
-    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v)) n++;
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--ring/.test(v)) n++;
   }
   return n;
 }
@@ -216,13 +217,19 @@ function faintRings(): number {
   return n;
 }
 
-/* A `color` set on an anchor by selector. Links are one token, ink and
-   underlined, so every declaration here is a place still choosing its own. */
+/* A `color` set on an anchor by selector that is not the link token and not
+   `inherit`. Links are one token, ink and underlined, so every other value
+   here is a place still choosing its own. (`inherit` is a row or a chip that
+   happens to be an anchor and takes its parent's colour on purpose.) */
 function anchorColours(): number {
   let n = 0;
   for (const [sel, body] of blocks()) {
     const isAnchor = sel.split(",").some((s) => /(^|[\s>+~])a(?=$|[\s.:#[>+~])/.test(s.trim()));
-    if (isAnchor && /(^|[^-])color\s*:/.test(body)) n++;
+    if (!isAnchor) continue;
+    for (const m of body.matchAll(/(^|[^-])color\s*:\s*([^;]+)/g)) {
+      const v = m[2].trim();
+      if (v !== "inherit" && v !== "var(--link)") n++;
+    }
   }
   return n;
 }
@@ -238,9 +245,9 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 290 },
   { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 26 },
   // round two
-  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 261 },
+  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2860 },
-  { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 104 },
+  { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
   { law: "arrows on buttons — the word is the button", now: () => countTsx(onScreen("→")), baseline: 18 },
   { law: "middot chains — a sentence, or a label and a value", now: () => countTsx(onScreen("·")), baseline: 242 },
@@ -253,12 +260,26 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 450 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
   // ink and paper
-  { law: "uses of the OK text colour — colour only where it means something", now: () => count(/var\(--ok-t\)/g), baseline: 88 },
-  { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 137 },
-  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 26 },
+  { law: "uses of the OK text colour — colour only where it means something", now: () => count(/var\(--ok-t\)/g), baseline: 36 },
+  { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 0 },
+  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 19 },
 ];
 
 describe("the design ratchets only go down", () => {
+  /* The tokens docs/design.md names exist, on :root, in shell.css. Not a
+     ratchet: a token that goes missing is a build that lost a decision. */
+  it("defines every token the design doc names", () => {
+    const root = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+    for (const name of [
+      "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "ok-t", "ok-tint",
+      "on-ink-line", "t-fast", "t-move", "ease", "z-raised", "z-sticky", "z-overlay", "z-modal", "z-toast",
+      "r-control", "r-button", "r-card", "r-pill", "s-1", "s-8", "fs-1", "fs-8", "fw-body", "fw-display",
+    ]) {
+      expect(root).toMatch(new RegExp(`--${name}\\s*:`));
+    }
+    expect(root).toMatch(/--ok-t\s*:\s*#196B2D/);
+  });
+
   it("reads every screen stylesheet and none of the paper ones", () => {
     const files = sheets(SRC).map((f) => path.relative(process.cwd(), f));
     expect(files).toContain("src/app/dashboard/shell.css");

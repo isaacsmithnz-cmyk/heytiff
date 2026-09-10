@@ -99,7 +99,7 @@ this file, not a new class prefix.
 | ink tint | ink at 7% | selection; a hover is one step of the same ladder |
 | paper | white on the rail | the active item |
 | wordmark | `#00E5C0`, the "Tiff" only | the one dot; nowhere else on a working screen |
-| ok | `#1E7B34` text, 5.3:1 | state; a plain green, not a teal-green |
+| ok | `#196B2D` text, 6.6:1 on white | state; a plain green, not a teal-green |
 | warn | `#a44b08` text, `#F0A431` chip | state |
 | bad | `#c81a41` text, `#e0264f` chip | state |
 | info | `#2554d8` text | state |
@@ -267,6 +267,26 @@ entry (a spinner is state; the orb breathing with the microphone is feedback).
    green for OK — and the stylesheets are migrated to them mechanically; the
    four daily screens are walked. The only step that touches every family at
    once. Laws 16 to 19, 22 and 31 to 34 land here.
+
+   Split into five PRs on 2026-09-10, once the counts were in hand, because
+   four of the families recolour or reflow whole screens and each needs its
+   own walk:
+   - **3a, the tokens and the neutrals.** Every token defined on `:root`; the
+     Tailwind greys onto `--ink`, `--q`, `--line` and `--tint`; the 104 curves
+     onto `--ease`; the 154 focus rings onto the two-tone `--ring`, paper
+     inside ink, which shows on any ground; the OK colour split, 38 state
+     uses on the new green and 60 decorative uses onto ink; the light-ground
+     links onto `--link`. Lands unwalked: nothing moves, and the contrast
+     guards read the result.
+   - **3b, the accent.** About 900 declarations of teal, blue and violet
+     become ink, the ink tint, or a state tint by role. Time & Pay's private
+     green fills, the day vocabulary, are settled here too. Walked.
+   - **3c, spacing** (2,861 values onto the scale), **3d, radius** (747 onto
+     the four), **3e, type** (545 sizes under the floor, 625 rules at 800).
+     Each walked; each reflows.
+   - z-index and the dark chrome's hairlines are settled family by family in
+     the fold (step 6): a layer scale collapses siblings that rely on their
+     order, and only the family knows which.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the

@@ -15,6 +15,11 @@
 
 # next.js
 /.next/
+# `npm run dev` writes here, not /.next/. ~/Desktop is iCloud, and a plain
+# `.next` inside it gets SYNCED — thousands of build files churning through the
+# file provider, which starved every tsc and jest in the tree (a 41s typecheck
+# sat 600s+ blocked). iCloud skips anything ending `.nosync`.
+/.next.nosync/
 /.next-preview.nosync/
 /.next-verify.nosync/
 /out/

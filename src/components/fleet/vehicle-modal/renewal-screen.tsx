@@ -209,7 +209,14 @@ export function RenewalScreen({
       policyNumber: f.policyNumber.trim() || null,
       cover: kind === "insurance" && f.cover ? f.cover : null,
       excess: kind === "insurance" ? num(f.excess) : null,
-      termMonths: f.termMonths ? Math.round(Number(f.termMonths)) || null : null,
+      /* NOT FOR INSURANCE. The Term select is not rendered for a motor policy
+         and the insurance fact grid never shows one back, so an ungated save
+         stored EMPTY's "12" — a twelve-month term nobody typed, saw, or could
+         correct from this screen. The table's own law: a figure the document
+         did not print must not be invented (docs/migrations/vehicle_policies.sql).
+         A policy's period is its two dates; costToRun already annualises a
+         null term over 12 months, which is what "Premium / yr" means. */
+      termMonths: kind === "insurance" ? null : f.termMonths ? Math.round(Number(f.termMonths)) || null : null,
       garagingPostcode: kind === "ctp" ? f.garagingPostcode.trim() || null : null,
       inspectionOn: kind === "rego" ? f.inspectionOn || null : null,
       source: mode === "scanned" ? "scan" : "manual",

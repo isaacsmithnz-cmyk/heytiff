@@ -277,6 +277,11 @@ describe("insurance with nothing on file", () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ kind: "insurance", provider: "NRMA", cover: "comprehensive", expiresOn: "2026-09-29", source: "manual" }),
     );
+    /* AND NO TERM. The Term select is not rendered for a motor policy and the
+       insurance fact grid never shows one back, so an ungated save stored the
+       empty form's "12" — a twelve-month term nobody typed, saw, or could
+       correct from this screen. A policy's period is its two dates. */
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ termMonths: null }));
   });
 
   it("scopes the fields to the kind: cover and excess for insurance, nothing of the green slip's", async () => {

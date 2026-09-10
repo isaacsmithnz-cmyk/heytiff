@@ -307,19 +307,44 @@ describe("adding one", () => {
     ).toBeInTheDocument();
   });
 
-  it("sends the type and the type's colour, with no term when nothing was scanned", async () => {
+  /* ONE QUESTION, ASKED ONCE, AND NOT BY HAND. Adding a ticket asks what it is;
+     the number is what the scan is about to hand over, and the scan panel asks
+     for it there. It was on the identity card too, so with the panel open
+     "Licence no." appeared twice on one screen with nothing to say which won,
+     and the panel's copy silently did. */
+  it("never asks for the number by hand while adding", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
+    const dialog = screen.getByRole("dialog");
+
+    expect(within(dialog).queryByLabelText("Licence no.")).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+
+    // exactly one, and it is the scan panel's
+    const panel = within(dialog).getByText("SCAN THE CARD").closest(".vm-card") as HTMLElement;
+    expect(within(dialog).getAllByLabelText("Licence no.")).toHaveLength(1);
+    expect(within(panel).getByLabelText("Licence no.")).toBeInTheDocument();
+  });
+
+  /* A number typed by hand goes in through the scan panel, the same way a
+     scanned one does, and with no expiry the action puts it on the ticket
+     (splitAddScan). */
+  it("sends the type, the type's colour, and a number typed by hand", async () => {
     const user = userEvent.setup();
     const { onAdd } = setup();
 
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Licence or ticket"), "ARC licence");
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     await user.type(within(dialog).getByLabelText("Licence no."), "AU999");
     await user.click(within(dialog).getByRole("button", { name: "Add licence" }));
 
     expect(onAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ typeName: "ARC licence", licenceNumber: "AU999", color: "#00A389" }),
-      undefined
+      expect.objectContaining({ typeName: "ARC licence", color: "#00A389" }),
+      expect.objectContaining({ number: "AU999", expiresOn: "", documentId: null, source: "manual" })
     );
   });
 

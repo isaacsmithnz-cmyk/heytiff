@@ -1393,13 +1393,22 @@ export function MyTimesheet({
                               <Icon name="check" size={16} />
                               <span>
                                 <b>{daySummary(me.days[selected])}</b>
-                                <em>
-                                  {sent
-                                    ? `This ${noun} has been sent — it can't be changed here.`
-                                    : !period.live
-                                      ? "This period is closed."
+                                {/* ONE "CLOSED", in the week card. A past period said
+                                    "This period is closed." here AND in the rail a few
+                                    inches away — the same sentence twice. The rail is
+                                    where the period's state lives, so a day in a closed
+                                    period just shows what it was. The whole line goes,
+                                    not only its words: `.mts2-elock em` is a block with
+                                    a margin, and an empty one leaves a gap. Sent and
+                                    salaried keep theirs — each says something about
+                                    this day the rail does not. */}
+                                {(sent || period.live) && (
+                                  <em>
+                                    {sent
+                                      ? `This ${noun} has been sent — it can't be changed here.`
                                       : "Salaried — this day pays itself whatever the hours say."}
-                                </em>
+                                  </em>
+                                )}
                               </span>
                             </div>
                             {/* The exception, on the day it happened and

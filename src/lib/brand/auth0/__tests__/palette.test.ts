@@ -40,7 +40,7 @@ describe("the Auth0 palette is the app's palette", () => {
     ["ink", "color-ink-2", "globals.css"],
     ["surface", "color-surface", "globals.css"],
     ["line", "color-surface-line", "globals.css"],
-    ["body", "gray700", "shell.css"],
+    ["body", "ink", "shell.css"],
     ["quiet", "q", "shell.css"],
     ["okText", "ok-t", "shell.css"],
     ["badText", "bad-t", "shell.css"],

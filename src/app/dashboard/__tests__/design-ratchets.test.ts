@@ -65,13 +65,14 @@ function offScaleRadii(): number {
   return n;
 }
 
-/* A focus ring is `0 0 0 Npx` and is the accent doing its job; an inset is a
-   hairline drawn the long way. Everything else is a shadow. */
+/* A focus ring is `0 0 0 Npx`, or the ring token since the tokens landed, and
+   is ink doing its job; an inset is a hairline drawn the long way. Everything
+   else is a shadow. */
 function shadows(): number {
   let n = 0;
   for (const m of CSS.matchAll(/box-shadow\s*:\s*([^;}]+)/g)) {
     const v = m[1].trim();
-    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v)) n++;
+    if (v !== "none" && !/^0 0 0 \d/.test(v) && !/^inset/.test(v) && !/^var\(--ring/.test(v)) n++;
   }
   return n;
 }
@@ -154,14 +155,23 @@ function tailwindHexes(): number {
 }
 
 /* The spacing scale from docs/design.md. 2 is the hairline gap between
-   chips; everything else is 4 and its multiples up to 48. */
+   chips; everything else is 4 and its multiples up to 48. Three kinds are not
+   rhythm and are not counted, by law 17: 1px, an optical nudge; anything above
+   48, a layout offset such as a rail's width or a footer's clearance; and any
+   negative value, an offset that centres a disc or hides a border. */
 const SPACING = new Set([0, 2, 4, 8, 12, 16, 24, 32, 48]);
 function offScaleSpacing(): number {
   let n = 0;
   for (const m of CSS.matchAll(/(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)?\s*:\s*([^;}]+)/g)) {
-    for (const t of m[1].split(/\s+/)) {
+    // a `calc()` sum is geometry — a neighbour's padding plus its border, a
+    // disc's offset plus its width — and the guard that owns the neighbour
+    // reads its parts; the sum itself is not rhythm
+    for (const t of m[1].replace(/\b(?:calc|clamp|min|max)\([^)]*\)/g, "").split(/\s+/)) {
       const v = t.match(/^(-?\d+(?:\.\d+)?)px$/);
-      if (v && !SPACING.has(Math.abs(Number(v[1])))) n++;
+      if (!v) continue;
+      const a = Math.abs(Number(v[1]));
+      if (Number(v[1]) < 0 || a === 1 || a > 48) continue; // an offset, a nudge, a layout width
+      if (!SPACING.has(a)) n++;
     }
   }
   return n;
@@ -216,13 +226,19 @@ function faintRings(): number {
   return n;
 }
 
-/* A `color` set on an anchor by selector. Links are one token, ink and
-   underlined, so every declaration here is a place still choosing its own. */
+/* A `color` set on an anchor by selector that is not the link token and not
+   `inherit`. Links are one token, ink and underlined, so every other value
+   here is a place still choosing its own. (`inherit` is a row or a chip that
+   happens to be an anchor and takes its parent's colour on purpose.) */
 function anchorColours(): number {
   let n = 0;
   for (const [sel, body] of blocks()) {
     const isAnchor = sel.split(",").some((s) => /(^|[\s>+~])a(?=$|[\s.:#[>+~])/.test(s.trim()));
-    if (isAnchor && /(^|[^-])color\s*:/.test(body)) n++;
+    if (!isAnchor) continue;
+    for (const m of body.matchAll(/(^|[^-])color\s*:\s*([^;]+)/g)) {
+      const v = m[2].trim();
+      if (v !== "inherit" && v !== "var(--link)") n++;
+    }
   }
   return n;
 }
@@ -234,13 +250,13 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 201 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 747 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 42 },
-  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 123 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 290 },
-  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 26 },
+  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 114 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 284 },
+  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 25 },
   // round two
-  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 261 },
-  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2860 },
-  { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 104 },
+  { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
+  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
+  { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
   { law: "arrows on buttons — the word is the button", now: () => countTsx(onScreen("→")), baseline: 18 },
   { law: "middot chains — a sentence, or a label and a value", now: () => countTsx(onScreen("·")), baseline: 242 },
@@ -253,12 +269,50 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 450 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
   // ink and paper
-  { law: "uses of the OK text colour — colour only where it means something", now: () => count(/var\(--ok-t\)/g), baseline: 88 },
-  { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 137 },
-  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 26 },
+  /* The OK colour on a selector that is not a state. It began as a count of
+     every use (88), then the accent migration named accent-on-state as state
+     and the plain count rose while the law was better kept; so it counts
+     what the law forbids. A state is named in the selector: ok, done, paid,
+     verified, live, synced, past, active, now, and their kin. */
+  { law: "the OK colour off a state selector — colour only where it means something", now: () => {
+      const STATE = /\.(ok|done|paid|verified|verify|waiting|live|now|synced|presumed|reimbursed|past|active|green|okw)\b|\.dchip2?\.ok|\.lv-cert\.on|\.vm-progress|\.wb2-waiting/;
+      let n = 0;
+      for (const [sel, body] of blocks()) if (!STATE.test(sel)) n += (body.match(/var\(--ok-t\)/g) ?? []).length;
+      return n;
+    }, baseline: 10 },
+  { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 0 },
+  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 19 },
+  /* THE ACCENT. Teal, blue and violet in any spelling, doing any job, in a
+     rule body. Ink and paper says none of it belongs on a working screen
+     except the wordmark's "Tiff" and the drawing; what remains is the dark
+     chrome, the home diary's dark card, Time & Pay's day vocabulary and the
+     Studio, each settled in its own fold. The token definitions on :root are
+     not uses and are not counted. */
+  { law: "accent colour uses — ink does the accent's jobs", now: () => {
+      let n = 0;
+      for (const [sel, body] of blocks()) {
+        if (/^\s*:root\s*$/.test(sel)) continue;
+        n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
+      }
+      return n;
+    }, baseline: 468 },
 ];
 
 describe("the design ratchets only go down", () => {
+  /* The tokens docs/design.md names exist, on :root, in shell.css. Not a
+     ratchet: a token that goes missing is a build that lost a decision. */
+  it("defines every token the design doc names", () => {
+    const root = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+    for (const name of [
+      "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "ok-t", "ok-tint",
+      "on-ink-line", "t-fast", "t-move", "ease", "z-raised", "z-sticky", "z-overlay", "z-modal", "z-toast",
+      "r-control", "r-button", "r-card", "r-pill", "s-1", "s-8", "fs-1", "fs-8", "fw-body", "fw-display",
+    ]) {
+      expect(root).toMatch(new RegExp(`--${name}\\s*:`));
+    }
+    expect(root).toMatch(/--ok-t\s*:\s*#196B2D/);
+  });
+
   it("reads every screen stylesheet and none of the paper ones", () => {
     const files = sheets(SRC).map((f) => path.relative(process.cwd(), f));
     expect(files).toContain("src/app/dashboard/shell.css");

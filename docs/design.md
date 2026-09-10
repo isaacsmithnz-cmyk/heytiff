@@ -99,7 +99,7 @@ this file, not a new class prefix.
 | ink tint | ink at 7% | selection; a hover is one step of the same ladder |
 | paper | white on the rail | the active item |
 | wordmark | `#00E5C0`, the "Tiff" only | the one dot; nowhere else on a working screen |
-| ok | `#1E7B34` text, 5.3:1 | state; a plain green, not a teal-green |
+| ok | `#196B2D` text, 6.6:1 on white | state; a plain green, not a teal-green |
 | warn | `#a44b08` text, `#F0A431` chip | state |
 | bad | `#c81a41` text, `#e0264f` chip | state |
 | info | `#2554d8` text | state |
@@ -159,7 +159,14 @@ approved together.
     steps by definition (`--gray700`, `--gray600`). The state colours were
     Tailwind's red, green, teal and amber.
 17. Spacing is on the scale: 2, 4, 8, 12, 16, 24, 32, 48. Two is the hairline
-    gap between chips. Nothing is typed by feel.
+    gap between chips. Nothing is typed by feel. Three things are not spacing
+    and stay off the scale: a 1px optical nudge; a layout offset above 48, a
+    rail's width or a footer's clearance; and a negative margin, which is an
+    offset that centres a disc or hides a border. A value that is really a
+    sum of a neighbour's parts, a card's padding plus its border, is written
+    as that sum, `calc(24px + 1px)`, never as 25, so the guard that owns the
+    neighbour can read it. When a value sat between two steps it went down: a
+    working screen is dense.
 18. Motion has two tokens and no curves of its own: `--t-fast`, 120 ms
     ease-out, for hover and focus; `--t-move`, 200 ms ease-out, for anything
     that changes place. The overshoot curve `cubic-bezier(.22,1,.36,1)` was on
@@ -267,6 +274,26 @@ entry (a spinner is state; the orb breathing with the microphone is feedback).
    green for OK — and the stylesheets are migrated to them mechanically; the
    four daily screens are walked. The only step that touches every family at
    once. Laws 16 to 19, 22 and 31 to 34 land here.
+
+   Split into five PRs on 2026-09-10, once the counts were in hand, because
+   four of the families recolour or reflow whole screens and each needs its
+   own walk:
+   - **3a, the tokens and the neutrals.** Every token defined on `:root`; the
+     Tailwind greys onto `--ink`, `--q`, `--line` and `--tint`; the 104 curves
+     onto `--ease`; the 154 focus rings onto the two-tone `--ring`, paper
+     inside ink, which shows on any ground; the OK colour split, 38 state
+     uses on the new green and 60 decorative uses onto ink; the light-ground
+     links onto `--link`. Lands unwalked: nothing moves, and the contrast
+     guards read the result.
+   - **3b, the accent.** About 900 declarations of teal, blue and violet
+     become ink, the ink tint, or a state tint by role. Time & Pay's private
+     green fills, the day vocabulary, are settled here too. Walked.
+   - **3c, spacing** (2,861 values onto the scale), **3d, radius** (747 onto
+     the four), **3e, type** (545 sizes under the floor, 625 rules at 800).
+     Each walked; each reflows.
+   - z-index and the dark chrome's hairlines are settled family by family in
+     the fold (step 6): a layer scale collapses siblings that rely on their
+     order, and only the family knows which.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the

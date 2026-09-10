@@ -140,11 +140,17 @@ describe("the one block that is actually wrong wears a mark", () => {
     expect(shouting).toEqual([]);
   });
 
+  /* The clearance is the disc's offset, its width and a breath — 8 + 14 + 4 —
+     and since the spacing scale landed it is written as that sum, so the
+     scale holds and the geometry is read off the rule rather than pinned to a
+     number that could drift from the disc it clears. */
+  const sum = (v: string) => (v.match(/[\d.]+px/g) ?? []).reduce((a, t) => a + parseFloat(t), 0);
   it("keeps its corner clear of the text at every width", () => {
-    expect(prop(rulesFor((s) => s === ".wb2-schb.late")[0]!.decls, "padding-right")).toBe("26px");
+    const clearance = sum(prop(mark[0]!.decls, "right")) + sum(prop(mark[0]!.decls, "width")) + 4;
+    expect(sum(prop(rulesFor((s) => s === ".wb2-schb.late")[0]!.decls, "padding-right"))).toBe(clearance);
     const tight = rulesFor((s) => s === ".wb2-schb.late.tight");
     expect(tight).toHaveLength(1);
-    expect(prop(tight[0]!.decls, "padding-right")).toBe("26px");
+    expect(sum(prop(tight[0]!.decls, "padding-right"))).toBe(clearance);
   });
 
   it("clears every wash the paint module can build, at the graphic floor", () => {

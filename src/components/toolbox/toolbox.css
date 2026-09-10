@@ -14,11 +14,11 @@
 
 /* the head sat 48px clear of the grid because nothing came between them; the
    filter row does now, and it belongs to the head far more than to the grid */
-.fg .tbx2-page .tbx-head { margin-bottom: 22px; }
+.fg .tbx2-page .tbx-head { margin-bottom: 24px; }
 /* the honest count, on the title's own baseline — an inline span, so it needs
    no flex row to sit there, and the h1's tight tracking is undone locally */
 .fg .tbx2-hcount {
-  position: relative; margin-left: 17px; padding-left: 17px;
+  position: relative; margin-left: 16px; padding-left: 16px;
   font-size: 15px; font-weight: 600; letter-spacing: -0.005em; color: var(--gray500);
 }
 .fg .tbx2-hcount::before {
@@ -28,10 +28,10 @@
 
 /* ---------- the category filter ----------
    Three cards' worth of taxonomy, at 36px. */
-.fg .tbx2-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.fg .tbx2-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .fg .tbx2-f {
-  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 15px;
-  border-radius: 999px; background: #fff; border: 1px solid #e5e7eb; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px;
+  border-radius: 999px; background: #fff; border: 1px solid var(--line); cursor: pointer;
   font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--gray500);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); transition: all 0.2s;
 }
@@ -39,14 +39,14 @@
 .fg .tbx2-f i { font-style: normal; font-size: 11px; font-weight: 800; color: var(--gray400); }
 .fg .tbx2-f.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 .fg .tbx2-f.on i { color: rgba(255, 255, 255, 0.55); }
-.fg .tbx2-f:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(0, 229, 192, 0.2); }
+.fg .tbx2-f:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* ---------- the grid ----------
    auto-fill, so it CANNOT go ragged: the old 2-column grid held three cards
    of three different heights and left an L-shaped hole. Adding a tool now
    fills a slot or starts a clean row; it never reshapes the page. */
 .fg .tbx2-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;
 }
 @media (max-width: 680px) { .fg .tbx2-grid { grid-template-columns: 1fr; } }
 
@@ -55,8 +55,8 @@
   min-height: 236px; padding: 24px; border-radius: 24px; background: #fff;
   border: 1px solid #eef0f4; text-decoration: none; color: inherit; overflow: hidden;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 34px rgba(0, 0, 0, 0.04);
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s;
+  transition: transform 0.45s var(--ease),
+    box-shadow 0.45s var(--ease), border-color 0.3s;
 }
 /* soft accent wash bleeding down from the top — colour identity, no stripe */
 .fg .tbx2-tile::before {
@@ -81,23 +81,23 @@
 }
 .fg .tbx2-bg {
   position: absolute; top: 20px; right: 20px; font-size: 10px; font-weight: 800;
-  letter-spacing: 0.04em; padding: 4px 9px; border-radius: 7px;
+  letter-spacing: 0.04em; padding: 4px 8px; border-radius: 7px;
 }
 .fg .tbx2-cat {
   font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--ac) 72%, #000); margin-bottom: 7px;
+  color: color-mix(in srgb, var(--ac) 72%, #000); margin-bottom: 8px;
 }
 .fg .tbx2-tile b { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.25; }
 .fg .tbx2-tile em {
   font-style: normal; font-size: 13px; font-weight: 500; color: var(--gray500);
-  margin-top: 5px; line-height: 1.5;
+  margin-top: 4px; line-height: 1.5;
 }
 /* the affordance is at REST, not on hover. The rows this replaces showed a
    #cdd2da chevron and slid an accent bar in on :hover — which on a phone in
    a van is never, so the only thing saying "this opens something" was
    unreachable on the device the tools are built for. */
 .fg .tbx2-go {
-  margin-top: auto; padding-top: 16px; display: inline-flex; align-items: center; gap: 6px;
+  margin-top: auto; padding-top: 16px; display: inline-flex; align-items: center; gap: 4px;
   font-size: 12.5px; font-weight: 800; color: var(--gray400); transition: color 0.2s;
 }
 .fg .tbx2-tile:hover .tbx2-go { color: color-mix(in srgb, var(--ac) 72%, #000); }
@@ -109,7 +109,7 @@
    it, and a dead rule at this specificity is one rename away from shadowing a
    live one. */
 .fg .tbx2-noresult {
-  padding: 44px 20px; border-radius: 22px; background: #fff; border: 1px solid #eef0f4;
+  padding: 48px 16px; border-radius: 22px; background: #fff; border: 1px solid #eef0f4;
   text-align: center; font-size: 13.5px; font-weight: 600; color: var(--gray400);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
@@ -117,11 +117,11 @@
 /* ---------- page head ---------- */
 .fg .tool { max-width: 1180px; margin: 0 auto; }
 .fg .tool .thead { margin-bottom: 32px; }
-.fg .tool .trow1 { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.fg .tool .trow1 { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .fg .tool .tback {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: 13px; font-weight: 700; color: var(--gray500); text-decoration: none;
-  padding: 8px 14px 8px 10px; border-radius: 999px; background: #fff;
+  padding: 8px 12px 8px 8px; border-radius: 999px; background: #fff;
   border: 1px solid #eceef2; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: all 0.2s;
 }
@@ -134,17 +134,17 @@
 /* 38/-.035em, the app's one page-title size — see the note on `.tbx-head h1`.
    `.compact` below still overrides it to 26 for the single-viewport tools;
    that is a different kind of header, not a second opinion about this one. */
-.fg .tool .thead h1 { font-size: 38px; font-weight: 800; color: var(--ink); letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 10px; }
+.fg .tool .thead h1 { font-size: 38px; font-weight: 800; color: var(--ink); letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 8px; }
 .fg .tool .tsub { font-size: 15px; color: var(--gray500); font-weight: 500; max-width: 640px; line-height: 1.55; margin: 0; }
 
 /* compact header — single-viewport tools (quick-check calculators) */
-.fg .tool.compact .thead { margin-bottom: 20px; }
-.fg .tool.compact .trow1 { margin-bottom: 10px; }
+.fg .tool.compact .thead { margin-bottom: 16px; }
+.fg .tool.compact .trow1 { margin-bottom: 8px; }
 .fg .tool.compact .thead h1 { font-size: 26px; margin-bottom: 4px; }
 .fg .tool.compact .tsub { font-size: 13px; }
 
 /* ---------- layout ---------- */
-.fg .tool .tcols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: start; }
+.fg .tool .tcols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
 @media (max-width: 1080px) { .fg .tool .tcols { grid-template-columns: 1fr; } }
 .fg .tool .tstick { position: sticky; top: 8px; }
 @media (max-width: 1080px) { .fg .tool .tstick { position: static; } }
@@ -154,35 +154,35 @@
   background: #fff; border-radius: 24px; border: 1px solid #f0f0f2;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); padding: 24px; position: relative;
 }
-.fg .tool .tcard + .tcard { margin-top: 20px; }
+.fg .tool .tcard + .tcard { margin-top: 16px; }
 .fg .tool .tcard .tct { font-size: 16px; font-weight: 800; color: var(--ink); margin: 0 0 4px; }
-.fg .tool .tcard .tcs { font-size: 13px; color: var(--gray400); font-weight: 500; margin: 0 0 18px; }
+.fg .tool .tcard .tcs { font-size: 13px; color: var(--gray400); font-weight: 500; margin: 0 0 16px; }
 
 /* ---------- fields ---------- */
 .fg .tool .tlab { display: block; font-size: 11.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin: 0 0 8px; }
 .fg .tool .tin, .fg .tool select.tin {
-  width: 100%; padding: 11px 14px; background: #fff; border-radius: 14px;
-  border: 1px solid #e5e7eb; font-size: 14.5px; font-weight: 600; color: var(--ink);
+  width: 100%; padding: 12px 12px; background: #fff; border-radius: 14px;
+  border: 1px solid var(--line); font-size: 14.5px; font-weight: 600; color: var(--ink);
   outline: none; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); transition: all 0.2s;
   font-family: var(--font); appearance: none;
 }
-.fg .tool .tin:focus { box-shadow: 0 0 0 4px var(--tool-ring, rgba(0, 229, 192, 0.18)); border-color: var(--tool-accent, var(--teal)); }
+.fg .tool .tin:focus { box-shadow:none; border-color: var(--ink); }
 .fg .tool .tin::placeholder { color: #c3c8d1; font-weight: 500; }
 /* clear the example value on focus — with center-aligned fields the caret
    otherwise blinks right on top of the placeholder digit */
 .fg .tool .tin:focus::placeholder { color: transparent; }
 .fg .tool .tselwrap { position: relative; }
 .fg .tool .tselwrap svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--gray400); pointer-events: none; }
-.fg .tool select.tin { padding-right: 38px; cursor: pointer; }
+.fg .tool select.tin { padding-right: 32px; cursor: pointer; }
 .fg .tool .tunit { position: relative; }
 .fg .tool .tunit .u { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12.5px; font-weight: 700; color: var(--gray400); pointer-events: none; }
-.fg .tool .tunit .tin { padding-right: 44px; }
+.fg .tool .tunit .tin { padding-right: 48px; }
 .fg .tool .tnote { font-size: 12.5px; color: var(--gray400); font-weight: 500; line-height: 1.5; margin-top: 8px; }
 
 /* segmented control */
-.fg .tool .tseg { display: flex; padding: 5px; background: #f3f4f6; border-radius: 13px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); gap: 2px; }
+.fg .tool .tseg { display: flex; padding: 4px; background: var(--tint); border-radius: 13px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05); gap: 2px; }
 .fg .tool .tseg button {
-  flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 13px; font-weight: 700;
+  flex: 1; padding: 8px 8px; border-radius: 9px; font-size: 13px; font-weight: 700;
   color: var(--gray500); transition: all 0.25s; font-family: var(--font);
   background: transparent; border: 0; cursor: pointer; white-space: nowrap;
 }
@@ -192,93 +192,93 @@
 /* chip row (orientation compass, symptom picker…) */
 .fg .tool .tchips { display: flex; flex-wrap: wrap; gap: 8px; }
 .fg .tool .tchip {
-  padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
-  color: var(--gray500); background: #fff; border: 1px solid #e5e7eb;
+  padding: 8px 12px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  color: var(--gray500); background: #fff; border: 1px solid var(--line);
   cursor: pointer; transition: all 0.2s; font-family: var(--font);
 }
 .fg .tool .tchip:hover { border-color: #d4d8e0; color: var(--ink); }
 .fg .tool .tchip.on {
-  background: var(--tool-accent-soft, rgba(0, 229, 192, 0.12));
-  border-color: var(--tool-accent, var(--teal));
-  color: var(--tool-accent-ink, var(--teal-d));
+  background: var(--tool-accent-soft, var(--tint-2));
+  border-color: var(--ink);
+  color: var(--tool-accent-ink, var(--ink));
 }
 .fg .tool .tchip:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* toggle (checkbox pill) */
-.fg .tool .ttog { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
-.fg .tool .ttog .tr { width: 38px; height: 22px; border-radius: 999px; background: #e5e7eb; position: relative; transition: background 0.25s; flex: 0 0 auto; }
+.fg .tool .ttog { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.fg .tool .ttog .tr { width: 38px; height: 22px; border-radius: 999px; background: var(--line); position: relative; transition: background 0.25s; flex: 0 0 auto; }
 .fg .tool .ttog .tr::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transition: transform 0.25s; }
 .fg .tool .ttog input { display: none; }
-.fg .tool .ttog input:checked + .tr { background: var(--tool-accent, var(--teal)); }
+.fg .tool .ttog input:checked + .tr { background: var(--ink); color:var(--paper); }
 .fg .tool .ttog input:checked + .tr::after { transform: translateX(16px); }
 .fg .tool .ttog .tl { font-size: 13.5px; font-weight: 700; color: var(--gray700); }
 
 /* buttons */
 .fg .tool .tbtn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px 20px; border-radius: 14px; font-size: 14px; font-weight: 800;
+  padding: 12px 16px; border-radius: 14px; font-size: 14px; font-weight: 800;
   font-family: var(--font); cursor: pointer; transition: all 0.2s; border: 0;
   background: var(--ink); color: #fff; box-shadow: 0 4px 14px rgba(5, 5, 5, 0.18);
 }
 .fg .tool .tbtn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5, 5, 5, 0.24); }
-.fg .tool .tbtn.ghost { background: #fff; color: var(--gray700); border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.fg .tool .tbtn.ghost { background: #fff; color: var(--gray700); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
 .fg .tool .tbtn.ghost:hover { border-color: #d4d8e0; color: var(--ink); }
 .fg .tool .ticon {
   width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 11px; background: #fff; border: 1px solid #eceef2; color: var(--gray400);
   cursor: pointer; transition: all 0.2s; flex: 0 0 auto;
 }
-.fg .tool .ticon:hover { color: var(--ink); border-color: #d4d8e0; background: #f9fafb; }
+.fg .tool .ticon:hover { color: var(--ink); border-color: #d4d8e0; background: var(--tint); }
 .fg .tool .ticon.danger:hover { color: var(--red); border-color: rgba(255, 51, 102, 0.4); background: rgba(255, 51, 102, 0.06); }
 
 /* ---------- heat-load (quick check) ----------
    Layout: two cards up top (size | answer, equal height), Advanced panel
    spanning full width beneath. */
-.fg .tool .hl2 { max-width: 1020px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: stretch; }
+.fg .tool .hl2 { max-width: 1020px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
 @media (max-width: 900px) { .fg .tool .hl2 { grid-template-columns: 1fr; } }
-.fg .tool .hl2-size { padding: 22px 24px; display: flex; flex-direction: column; justify-content: center; }
-.fg .tool .hl2-dims { display: flex; align-items: flex-start; gap: 10px; }
+.fg .tool .hl2-size { padding: 24px 24px; display: flex; flex-direction: column; justify-content: center; }
+.fg .tool .hl2-dims { display: flex; align-items: flex-start; gap: 8px; }
 .fg .tool .hl2-dims .dim1 { flex: 1; min-width: 0; }
 .fg .tool .hl2-dims .dim1.wide { flex: 2; }
 .fg .tool .hl2-dims .x { font-size: 18px; font-weight: 800; color: var(--gray400); flex: 0 0 auto; margin-top: 16px; }
-.fg .tool .hl2-cap { margin-top: 6px; text-align: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray400); }
-.fg .tool .hl2-in { font-size: 20px; font-weight: 800; padding: 12px 10px; text-align: center; letter-spacing: -0.01em; }
+.fg .tool .hl2-cap { margin-top: 4px; text-align: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray400); }
+.fg .tool .hl2-in { font-size: 20px; font-weight: 800; padding: 12px 8px; text-align: center; letter-spacing: -0.01em; }
 .fg .tool .tunit .hl2-in { padding-right: 32px; }
 .fg .tool .hl2-dims .tunit .u { right: 10px; }
-.fg .tool .hl2-mode { margin-top: 12px; background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font); font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--teal-d)); }
+.fg .tool .hl2-mode { margin-top: 12px; background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font); font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--ink)); }
 .fg .tool .hl2-mode:hover { text-decoration: underline; }
-.fg .tool .hl2-hero { text-align: center; padding: 22px 26px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
+.fg .tool .hl2-hero { text-align: center; padding: 24px 24px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: radial-gradient(120% 160% at 50% 0%, #0d2b26 0%, #050505 65%), var(--ink); border: 1px solid rgba(255, 255, 255, 0.06); }
 @media (max-width: 900px) { .fg .tool .hl2-hero { min-height: 200px; } }
-.fg .tool .hl2-hero .gl { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 240px; height: 200px; border-radius: 50%; background: var(--tool-accent, var(--teal)); filter: blur(90px); opacity: 0.35; pointer-events: none; }
+.fg .tool .hl2-hero .gl { position: absolute; top: -80px; left: 50%; transform: translateX(-50%); width: 240px; height: 200px; border-radius: 50%; background: var(--ink); filter: blur(90px); opacity: 0.35; pointer-events: none; color:var(--paper); }
 .fg .tool .hl2-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .hl2-hero .big { font-size: 52px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
-.fg .tool .hl2-hero .big small { font-size: 22px; font-weight: 800; color: rgba(255, 255, 255, 0.65); margin-left: 6px; }
+.fg .tool .hl2-hero .big small { font-size: 22px; font-weight: 800; color: rgba(255, 255, 255, 0.65); margin-left: 4px; }
 .fg .tool .hl2-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
 .fg .tool .hl2-hero .big.empty small { color: rgba(255, 255, 255, 0.22); }
-.fg .tool .hl2-hero .cls { margin-top: 14px; font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); }
-.fg .tool .hl2-hero .cls b { color: var(--tool-accent, var(--teal)); font-weight: 800; }
-.fg .tool .hl2-hero .cls a { color: var(--tool-accent, var(--teal)); font-weight: 800; text-decoration: none; }
+.fg .tool .hl2-hero .cls { margin-top: 12px; font-size: 14.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); }
+.fg .tool .hl2-hero .cls b { color: var(--ink); font-weight: 800; }
+.fg .tool .hl2-hero .cls a { color: var(--ink); font-weight: 800; text-decoration: none; }
 .fg .tool .hl2-hero .cls a:hover { text-decoration: underline; }
 .fg .tool .hl2-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
-.fg .tool .hl2-hero .meta { margin-top: 10px; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.45); }
-.fg .tool .hl2-hero .meta.dim2 { margin-top: 6px; font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, 0.32); }
+.fg .tool .hl2-hero .meta { margin-top: 8px; font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.45); }
+.fg .tool .hl2-hero .meta.dim2 { margin-top: 4px; font-size: 10.5px; font-weight: 600; color: rgba(255, 255, 255, 0.32); }
 /* info markers — the studio room modal's ds-tip pattern (pure-CSS hover
    tooltip via data-tip), restyled onto the toolbox palette */
 .fg .tool .htip {
   display: inline-flex; align-items: center; justify-content: center;
   width: 13px; height: 13px; border-radius: 50%; background: #d9dbe0;
-  color: #4b5563; font-size: 8.5px; font-weight: 800; font-style: normal;
+  color: var(--ink); font-size: 8.5px; font-weight: 800; font-style: normal;
   line-height: 1; cursor: help; position: relative; vertical-align: middle;
   margin-left: 2px;
 }
 .fg .tool .htip::after {
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
-  background: #1e293b; color: #f8fafc; font-size: 11px; font-weight: 400;
+  background: var(--ink); color: var(--tint); font-size: 11px; font-weight: 400;
   line-height: 1.45; letter-spacing: 0; text-transform: none;
-  padding: 8px 11px; border-radius: 8px; width: max-content; max-width: 240px;
+  padding: 8px 12px; border-radius: 8px; width: max-content; max-width: 240px;
   white-space: normal; pointer-events: none; opacity: 0; transition: opacity 0.15s;
   z-index: 30; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
@@ -301,12 +301,12 @@
    above the card edge; the header hover wash rounds itself instead */
 .fg .tool .hl2-adv { grid-column: 1 / -1; padding: 0; }
 .fg .tool .hl2-advbar { display: flex; align-items: center; }
-.fg .tool .hl2-advbar .hl2-mode.reset { flex: 0 0 auto; margin: 0 22px 0 0; }
+.fg .tool .hl2-advbar .hl2-mode.reset { flex: 0 0 auto; margin: 0 24px 0 0; }
 /* this row is the only way into the factors, so it has to read as a control
    rather than a caption: a chevron chip carries the affordance at rest, and
    hover lifts an accent wash + ring behind the whole row */
 .fg .tool .hl2-advhead {
-  display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 13px 22px;
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 12px 24px;
   background: none; border: 0; cursor: pointer; font-family: var(--font); text-align: left;
   border-radius: 18px; transition: background 0.18s, box-shadow 0.18s;
 }
@@ -322,33 +322,33 @@
 }
 .fg .tool .hl2-advhead:hover .chev { background: #fff; color: var(--tool-accent-ink); }
 .fg .tool .hl2-advhead .chev.open { transform: rotate(90deg); }
-.fg .tool .hl2-fpanel { padding: 12px 22px 14px; border-top: 1px solid #f3f4f6; display: grid; gap: 12px; }
-.fg .tool .hl2-fpanel .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.fg .tool .hl2-fpanel { padding: 12px 24px 12px; border-top: 1px solid var(--tint); display: grid; gap: 12px; }
+.fg .tool .hl2-fpanel .row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 900px) { .fg .tool .hl2-fpanel .row3 { grid-template-columns: 1fr; } }
-.fg .tool .hl2-adv .tlab { font-size: 10.5px; margin-bottom: 6px; }
-.fg .tool .hl2-adv .tin, .fg .tool .hl2-adv select.tin { padding: 9px 12px; font-size: 13.5px; border-radius: 12px; }
-.fg .tool .hl2-adv .tunit .tin { padding-right: 40px; }
+.fg .tool .hl2-adv .tlab { font-size: 10.5px; margin-bottom: 4px; }
+.fg .tool .hl2-adv .tin, .fg .tool .hl2-adv select.tin { padding: 8px 12px; font-size: 13.5px; border-radius: 12px; }
+.fg .tool .hl2-adv .tunit .tin { padding-right: 32px; }
 .fg .tool .hl2-adv .tseg { padding: 4px; border-radius: 11px; }
-.fg .tool .hl2-adv .tseg button { padding: 7px 6px; font-size: 12.5px; }
+.fg .tool .hl2-adv .tseg button { padding: 8px 4px; font-size: 12.5px; }
 /* multiplier segments — the ×factor rides under each option */
-.fg .tool .mseg button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 6px 6px; line-height: 1.2; }
+.fg .tool .mseg button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 4px 4px; line-height: 1.2; }
 .fg .tool .mseg button .m { font-size: 10px; font-weight: 700; color: var(--gray400); }
-.fg .tool .mseg button.on .m { color: var(--tool-accent-ink, var(--teal-d)); }
+.fg .tool .mseg button.on .m { color: var(--tool-accent-ink, var(--ink)); }
 /* orientation chips: equal-width, single row — no orphan NW wrap */
-.fg .tool .hl2-adv .tchips { flex-wrap: nowrap; gap: 6px; }
-.fg .tool .hl2-adv .tchip { flex: 1; min-width: 0; padding: 5px 0; text-align: center; font-size: 11.5px; }
+.fg .tool .hl2-adv .tchips { flex-wrap: nowrap; gap: 4px; }
+.fg .tool .hl2-adv .tchip { flex: 1; min-width: 0; padding: 4px 0; text-align: center; font-size: 11.5px; }
 .fg .tool .hl2-adv .ttog .tl { font-size: 12.5px; }
 
 /* ---------- running-pressures specifics ---------- */
-.fg .tool .rp-ctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+.fg .tool .rp-ctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .fg .tool .rp-ctl .tseg { flex: 0 0 auto; }
-.fg .tool .rp-ctl .tseg button { padding: 9px 18px; }
+.fg .tool .rp-ctl .tseg button { padding: 8px 16px; }
 
 /* refrigerant picker — colour-coded cards, most relevant first */
-.fg .tool .rp2-picker { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.fg .tool .rp2-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .fg .tool .rp2-card {
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  min-width: 118px; padding: 12px 14px 11px; border-radius: 16px; background: #fff;
+  min-width: 118px; padding: 12px 12px 12px; border-radius: 16px; background: #fff;
   border: 1.5px solid #eceef2; cursor: pointer; font-family: var(--font); text-align: left;
   transition: all 0.2s;
 }
@@ -359,25 +359,25 @@
 .fg .tool .rp2-card em { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--gray400); white-space: nowrap; }
 .fg .tool .rp2-card .fl {
   position: absolute; top: 9px; right: 10px; font-size: 9px; font-weight: 800;
-  letter-spacing: 0.05em; padding: 2.5px 7px; border-radius: 7px;
+  letter-spacing: 0.05em; padding: 2px 8px; border-radius: 7px;
   background: rgba(255, 138, 0, 0.14); color: #E07800;
 }
 .fg .tool .rp2-facts { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; font-size: 12.5px; font-weight: 600; color: var(--gray500); }
 .fg .tool .rp2-facts b { font-size: 14px; font-weight: 800; }
 .fg .tool .rp2-facts .sep { color: #d4d8e0; }
-.fg .tool .rp2-facts .glide { color: #8A2BE2; font-weight: 700; }
+.fg .tool .rp2-facts .glide { color: var(--ink); font-weight: 700; }
 
 /* the manifold view — low side blue, high side red */
-.fg .tool .rp2-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.fg .tool .rp2-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 720px) { .fg .tool .rp2-sides { grid-template-columns: 1fr; } }
-.fg .tool .rp2-side { border-radius: 18px; padding: 16px 18px; border: 1px solid; }
-.fg .tool .rp2-side.low { background: rgba(46, 104, 255, 0.05); border-color: rgba(46, 104, 255, 0.22); }
+.fg .tool .rp2-side { border-radius: 18px; padding: 16px 16px; border: 1px solid; }
+.fg .tool .rp2-side.low { background: var(--tint); border-color: var(--line); }
 .fg .tool .rp2-side.high { background: rgba(255, 51, 102, 0.045); border-color: rgba(255, 51, 102, 0.2); }
-.fg .tool .rp2-side .hdr { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+.fg .tool .rp2-side .hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .fg .tool .rp2-side .hdr .hose { width: 22px; height: 8px; border-radius: 999px; flex: 0 0 auto; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
 .fg .tool .rp2-side .hdr b { font-size: 13px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
 .fg .tool .rp2-side .hdr em { font-style: normal; font-size: 11px; font-weight: 700; color: var(--gray400); }
-.fg .tool .rp2-win { padding: 10px 0 4px; }
+.fg .tool .rp2-win { padding: 8px 0 4px; }
 .fg .tool .rp2-win + .rp2-win { border-top: 1px dashed rgba(0, 0, 0, 0.07); }
 .fg .tool .rp2-win .wl { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); }
 .fg .tool .rp2-win .big { font-size: 27px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; white-space: nowrap; }
@@ -386,66 +386,66 @@
 .fg .tool .rp2-win .note { margin: 8px 0 0; font-size: 11.5px; font-weight: 500; color: var(--gray500); line-height: 1.5; }
 
 /* view switch + on-site conditions bar */
-.fg .tool .rp2-bar2 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.fg .tool .rp2-bar2 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .fg .tool .rp2-bar2 .tseg { flex: 0 0 auto; }
-.fg .tool .rp2-bar2 .tseg button { padding: 9px 16px; }
+.fg .tool .rp2-bar2 .tseg button { padding: 8px 16px; }
 .fg .tool .rp2-view button.on { color: var(--tool-accent-ink, var(--red)); }
-.fg .tool .rp2-temps { display: flex; gap: 10px; margin-left: auto; }
+.fg .tool .rp2-temps { display: flex; gap: 8px; margin-left: auto; }
 .fg .tool .rp2-temps .tt { display: flex; align-items: center; gap: 8px; }
 .fg .tool .rp2-temps .tt > span { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray500); white-space: nowrap; }
 .fg .tool .rp2-temps .tunit { width: 92px; }
-.fg .tool .rp2-temps .tin { padding: 9px 34px 9px 12px; font-size: 14px; font-weight: 800; text-align: center; }
+.fg .tool .rp2-temps .tin { padding: 8px 32px 8px 12px; font-size: 14px; font-weight: 800; text-align: center; }
 .fg .tool .rp2-temps .u { right: 10px; }
 .fg .tool .rp2-basis { margin: 12px 0 0; font-size: 11.5px; font-weight: 600; color: var(--gray400); line-height: 1.5; }
 .fg .tool .rp2-basis.warn { color: #E07800; font-weight: 700; }
 
 /* troubleshoot: measured inputs */
-.fg .tool .rp2-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.fg .tool .rp2-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 640px) { .fg .tool .rp2-inputs { grid-template-columns: 1fr; } }
-.fg .tool .rp2-big { font-size: 20px; font-weight: 800; padding: 12px 46px 12px 14px; }
+.fg .tool .rp2-big { font-size: 20px; font-weight: 800; padding: 12px 48px 12px 12px; }
 
 /* troubleshoot: diagnosis card */
 .fg .tool .rp2-dx { border-left: 4px solid var(--gray400); }
-.fg .tool .rp2-dx.ok { border-left-color: #00A389; }
+.fg .tool .rp2-dx.ok { border-left-color: var(--ok-t); }
 .fg .tool .rp2-dx.watch { border-left-color: #FF8A00; }
 .fg .tool .rp2-dx.fault { border-left-color: #FF3366; }
-.fg .tool .rp2-reads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
-.fg .tool .rp2-read { padding: 12px 14px; border-radius: 14px; background: #f9fafb; border: 1px solid #eef0f4; }
+.fg .tool .rp2-reads { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.fg .tool .rp2-read { padding: 12px 12px; border-radius: 14px; background: var(--tint); border: 1px solid #eef0f4; }
 .fg .tool .rp2-read .rl { font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray500); }
 .fg .tool .rp2-read .rv { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
 .fg .tool .rp2-read .rd { font-size: 11.5px; font-weight: 600; color: var(--gray400); }
 .fg .tool .rp2-head { font-size: 18px; font-weight: 800; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
 .fg .tool .rp2-expl { margin: 0; font-size: 13.5px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
-.fg .tool .rp2-shsc { display: flex; gap: 18px; margin-top: 14px; flex-wrap: wrap; }
+.fg .tool .rp2-shsc { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
 .fg .tool .rp2-shsc span { font-size: 12.5px; font-weight: 700; color: var(--gray500); }
 .fg .tool .rp2-shsc b { font-size: 15px; font-weight: 800; color: var(--ink); }
-.fg .tool .rp2-charge { margin: 10px 0 0; font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--red)); line-height: 1.5; }
-.fg .tool .rp2-checks { margin-top: 18px; padding-top: 16px; border-top: 1px solid #f3f4f6; }
-.fg .tool .rp2-checks .ct { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin-bottom: 10px; }
-.fg .tool .rp2-checks ul { margin: 0; padding-left: 18px; display: grid; gap: 9px; }
+.fg .tool .rp2-charge { margin: 8px 0 0; font-size: 12.5px; font-weight: 700; color: var(--tool-accent-ink, var(--red)); line-height: 1.5; }
+.fg .tool .rp2-checks { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--tint); }
+.fg .tool .rp2-checks .ct { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); margin-bottom: 8px; }
+.fg .tool .rp2-checks ul { margin: 0; padding-left: 16px; display: grid; gap: 8px; }
 .fg .tool .rp2-checks li { font-size: 13.5px; font-weight: 500; color: var(--gray700); line-height: 1.55; }
 .fg .tool .rp2-cta .tbtn { width: 100%; }
 .fg .tool .rp2-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .fg .tool .rp2-mini .ml { display: block; font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
 .fg .tool .rp2-mini b { font-size: 17px; font-weight: 800; color: var(--ink); white-space: nowrap; }
-.fg .tool .rp-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
-.fg .tool .rp-legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--gray500); }
+.fg .tool .rp-legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.fg .tool .rp-legend span { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--gray500); }
 .fg .tool .rp-legend i { width: 10px; height: 10px; border-radius: 3px; }
 .fg .tool .rp-tablewrap { overflow-x: auto; border: 1px solid #eef0f4; border-radius: 16px; }
 .fg .tool table.rp-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.fg .tool .rp-table th { position: sticky; top: 0; background: #f9fafb; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); padding: 10px 14px; text-align: right; border-bottom: 1px solid #eef0f4; }
+.fg .tool .rp-table th { position: sticky; top: 0; background: var(--tint); font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray500); padding: 8px 12px; text-align: right; border-bottom: 1px solid #eef0f4; }
 .fg .tool .rp-table th:first-child { text-align: left; }
-.fg .tool .rp-table td { padding: 8px 14px; text-align: right; font-weight: 600; color: var(--gray700); border-bottom: 1px solid #f6f7f9; }
+.fg .tool .rp-table td { padding: 8px 12px; text-align: right; font-weight: 600; color: var(--gray700); border-bottom: 1px solid #f6f7f9; }
 .fg .tool .rp-table tr:last-child td { border-bottom: 0; }
 .fg .tool .rp-table td:first-child { text-align: left; font-weight: 800; color: var(--ink); }
 .fg .tool .rp-table td.sel { color: var(--ink); font-weight: 800; background: var(--tool-accent-soft, rgba(255, 51, 102, 0.05)); }
-.fg .tool .rp-table tr.evap td:first-child { box-shadow: inset 3px 0 0 #2e68ff; }
+.fg .tool .rp-table tr.evap td:first-child { box-shadow:none; }
 .fg .tool .rp-table tr.cond td:first-child { box-shadow: inset 3px 0 0 #ff3366; }
-.fg .tool .rp-res { margin-top: 14px; padding: 16px; border-radius: 16px; background: #f9fafb; border: 1px solid #eef0f4; }
+.fg .tool .rp-res { margin-top: 12px; padding: 16px; border-radius: 16px; background: var(--tint); border: 1px solid #eef0f4; }
 .fg .tool .rp-res .val { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
 .fg .tool .rp-res .val small { font-size: 15px; font-weight: 800; color: var(--gray400); margin-left: 4px; }
-.fg .tool .rp-res .st { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; }
-.fg .tool .rp-res .why { font-size: 12.5px; color: var(--gray500); font-weight: 500; line-height: 1.5; margin: 10px 0 0; }
+.fg .tool .rp-res .st { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.fg .tool .rp-res .why { font-size: 12.5px; color: var(--gray500); font-weight: 500; line-height: 1.5; margin: 8px 0 0; }
 .fg .tool .rp-sat { font-size: 12.5px; font-weight: 700; color: var(--gray400); margin-top: 8px; }
 
 /* ---------- fault-finder: guided one-question-at-a-time flow (.ffg-*) ----------
@@ -457,13 +457,13 @@
 @media (max-width: 1000px) { .fg .tool .ffg { grid-template-columns: 1fr; } }
 .fg .tool .ffg-run { grid-template-columns: minmax(0, 1fr); max-width: 720px; margin: 0 auto; }
 .fg .tool .ffg-main { min-width: 0; }
-.fg .tool .ffg-side { display: grid; gap: 20px; }
+.fg .tool .ffg-side { display: grid; gap: 16px; }
 
 /* symptom picker */
 .fg .tool .ffg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 620px) { .fg .tool .ffg-grid { grid-template-columns: 1fr; } }
 .fg .tool .ffg-sym {
-  display: flex; align-items: center; gap: 13px; padding: 15px; border-radius: 18px;
+  display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 18px;
   background: #fff; border: 1px solid #eef0f4; cursor: pointer; text-align: left;
   font-family: var(--font); transition: all 0.2s;
 }
@@ -483,8 +483,8 @@
 
 /* the symptom you're working, with the step counter */
 .fg .tool .ffg-head {
-  display: flex; align-items: center; gap: 11px; margin-bottom: 16px;
-  padding: 11px 14px; border-radius: 16px; background: #fff; border: 1px solid #eef0f4;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+  padding: 12px 12px; border-radius: 16px; background: #fff; border: 1px solid #eef0f4;
 }
 .fg .tool .ffg-head .ic {
   width: 30px; height: 30px; border-radius: 10px; flex: 0 0 auto; color: #fff;
@@ -495,7 +495,7 @@
 .fg .tool .ffg-head .step {
   margin-left: auto; font-size: 11px; font-weight: 800; letter-spacing: 0.06em;
   text-transform: uppercase; color: color-mix(in srgb, var(--sc2) 72%, #000);
-  background: color-mix(in srgb, var(--sc2) 12%, #fff); padding: 4px 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--sc2) 12%, #fff); padding: 4px 8px; border-radius: 999px;
 }
 /* how much further to go — quiet companion to the step pill, so a long
    branch doesn't read as endless */
@@ -510,17 +510,17 @@
 .fg .tool .ffg-head .chg:hover { color: var(--ink); }
 
 /* the words to say on site — reads as something you'd speak, not a spec */
-.fg .tool .ffg-say { margin-top: 14px; border-left: 3px solid var(--sc2); }
+.fg .tool .ffg-say { margin-top: 12px; border-left: 3px solid var(--sc2); }
 .fg .tool .ffg-say p {
   margin: 8px 0 0; font-size: 14.5px; font-weight: 500; line-height: 1.65;
-  color: var(--gray600, #4b5563); font-style: italic;
+  color: var(--gray600, var(--ink)); font-style: italic;
 }
 
 /* trail of answers already given — click any to rewind */
-.fg .tool .ffg-trail { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
+.fg .tool .ffg-trail { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 4px; }
 .fg .tool .ffg-trail button {
-  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-  padding: 9px 13px; border-radius: 12px; background: #f7f8fa; border: 1px solid transparent;
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 8px 12px; border-radius: 12px; background: #f7f8fa; border: 1px solid transparent;
   cursor: pointer; font-family: var(--font); transition: all 0.18s;
 }
 .fg .tool .ffg-trail button:hover { background: #fff; border-color: #e5e9f0; }
@@ -534,16 +534,16 @@
    into view with `block: "nearest"` (see fault-finder.tsx), and without a
    margin a card taller than the well lands flush against the edge of it. */
 .fg .tool .ffg-q {
-  background: #fff; border-radius: 24px; border: 1px solid #eef0f4; padding: 26px;
+  background: #fff; border-radius: 24px; border: 1px solid #eef0f4; padding: 24px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 34px rgba(0, 0, 0, 0.04);
-  scroll-margin: 20px 0;
+  scroll-margin: 16px 0;
 }
 .fg .tool .ffg-q h2 { font-size: 23px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; line-height: 1.28; margin: 0; }
-.fg .tool .ffg-q .why { margin: 10px 0 0; font-size: 13.5px; font-weight: 500; color: var(--gray500); line-height: 1.6; }
-.fg .tool .ffg-answers { display: grid; gap: 10px; margin-top: 22px; }
+.fg .tool .ffg-q .why { margin: 8px 0 0; font-size: 13.5px; font-weight: 500; color: var(--gray500); line-height: 1.6; }
+.fg .tool .ffg-answers { display: grid; gap: 8px; margin-top: 24px; }
 .fg .tool .ffg-a {
-  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-  padding: 16px 18px; border-radius: 16px; background: #fff; border: 1.5px solid #e9edf3;
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 16px 16px; border-radius: 16px; background: #fff; border: 1.5px solid #e9edf3;
   cursor: pointer; font-family: var(--font); transition: all 0.18s;
 }
 .fg .tool .ffg-a:hover {
@@ -558,7 +558,7 @@
 
 /* safety */
 .fg .tool .ffg-safety {
-  display: flex; gap: 12px; align-items: flex-start; padding: 15px 17px; border-radius: 16px;
+  display: flex; gap: 12px; align-items: flex-start; padding: 16px 16px; border-radius: 16px;
   background: rgba(255, 51, 102, 0.07); border: 1px solid rgba(255, 51, 102, 0.25);
   color: #ba1740; font-size: 13.5px; font-weight: 600; line-height: 1.55; margin-bottom: 16px;
 }
@@ -567,39 +567,39 @@
 
 /* the outcome — the one dark element, like the other tools' answer heroes */
 .fg .tool .ffg-outcome {
-  position: relative; overflow: hidden; border-radius: 24px; padding: 28px 26px; color: #fff;
+  position: relative; overflow: hidden; border-radius: 24px; padding: 24px 24px; color: #fff;
   background: radial-gradient(120% 150% at 12% 0%, color-mix(in srgb, var(--sc2) 32%, #0a0b10) 0%, #08090d 62%), var(--ink);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  scroll-margin: 20px 0;   /* same reason as .ffg-q above */
+  scroll-margin: 16px 0;   /* same reason as .ffg-q above */
 }
 .fg .tool .ffg-outcome .gl {
   position: absolute; top: -90px; right: -50px; width: 220px; height: 200px; border-radius: 50%;
   background: var(--sc2); filter: blur(85px); opacity: 0.4; pointer-events: none;
 }
 .fg .tool .ffg-outcome .lab {
-  position: relative; display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 800;
-  letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-bottom: 10px;
+  position: relative; display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 800;
+  letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px;
 }
 .fg .tool .ffg-outcome .esc {
-  letter-spacing: 0.06em; padding: 3px 9px; border-radius: 7px;
+  letter-spacing: 0.06em; padding: 4px 8px; border-radius: 7px;
   background: rgba(255, 138, 0, 0.2); color: #FFB259;
 }
 .fg .tool .ffg-outcome h2 { position: relative; font-size: 27px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; margin: 0 0 12px; }
 .fg .tool .ffg-outcome p { position: relative; margin: 0; font-size: 14px; font-weight: 500; line-height: 1.65; color: rgba(255, 255, 255, 0.76); }
 
 /* what to do */
-.fg .tool .ffg-actions { margin-top: 18px; }
-.fg .tool .ffg-actions ol { margin: 0; padding-left: 20px; display: grid; gap: 11px; }
+.fg .tool .ffg-actions { margin-top: 16px; }
+.fg .tool .ffg-actions ol { margin: 0; padding-left: 16px; display: grid; gap: 12px; }
 .fg .tool .ffg-actions li { font-size: 14px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
 .fg .tool .ffg-actions li::marker { font-weight: 800; color: var(--gray400); }
-.fg .tool .ffg-tool { margin-top: 20px; text-decoration: none; width: 100%; }
+.fg .tool .ffg-tool { margin-top: 16px; text-decoration: none; width: 100%; }
 
 /* the code lookup — the outcome's last mile, so it carries the symptom accent
    the same way .ffg-say does rather than arriving as an unrelated white card.
    The field and the button are the toolbox's own .tin/.tbtn: this is one more
    place the tool asks for something, not a new kind of place. */
-.fg .tool .ffg-look { margin-top: 18px; border-left: 3px solid var(--sc2); }
-.fg .tool .ffg-lookf { display: flex; gap: 10px; align-items: center; }
+.fg .tool .ffg-look { margin-top: 16px; border-left: 3px solid var(--sc2); }
+.fg .tool .ffg-lookf { display: flex; gap: 8px; align-items: center; }
 .fg .tool .ffg-lookf .tin { flex: 1; min-width: 0; }
 .fg .tool .ffg-lookf .tbtn { flex: 0 0 auto; }
 @media (max-width: 560px) {
@@ -611,19 +611,19 @@
 .fg .tool .tbtn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 .fg .tool .tbtn:disabled:hover { transform: none; box-shadow: none; }
 .fg .tool .ffg-nolib {
-  margin: 18px 0 0; font-size: 12.5px; font-weight: 500;
+  margin: 16px 0 0; font-size: 12.5px; font-weight: 500;
   color: var(--gray500); line-height: 1.55;
 }
 .fg .tool .ffg-nolib a { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 
 /* nav */
-.fg .tool .ffg-nav { display: flex; gap: 10px; margin-top: 20px; }
+.fg .tool .ffg-nav { display: flex; gap: 8px; margin-top: 16px; }
 .fg .tool .ffg-nav .tbtn { flex: 1; }
 
 /* side rail */
-.fg .tool .ffg-notes { margin: 0; padding-left: 18px; display: grid; gap: 9px; }
+.fg .tool .ffg-notes { margin: 0; padding-left: 16px; display: grid; gap: 8px; }
 .fg .tool .ffg-notes li { font-size: 12.5px; font-weight: 500; color: var(--gray500); line-height: 1.55; }
-.fg .tool .ffg-links a { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid #f3f4f6; text-decoration: none; font-size: 13.5px; font-weight: 700; color: var(--gray700); transition: color 0.2s; }
+.fg .tool .ffg-links a { display: flex; align-items: center; gap: 8px; padding: 12px 4px; border-bottom: 1px solid var(--tint); text-decoration: none; font-size: 13.5px; font-weight: 700; color: var(--gray700); transition: color 0.2s; }
 .fg .tool .ffg-links a:last-child { border-bottom: 0; }
 .fg .tool .ffg-links a:hover { color: var(--ink); }
 .fg .tool .ffg-links a .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
@@ -635,7 +635,7 @@
    Same shape as the heat-load quick check: primary input + dark answer two-up,
    supporting detail full width beneath, the rest folded behind a summary bar.
    Everything is one size down so the whole tool clears a single viewport. */
-.fg .tool .oup { max-width: 1020px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: stretch; }
+.fg .tool .oup { max-width: 1020px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: stretch; }
 @media (max-width: 900px) { .fg .tool .oup { grid-template-columns: 1fr; } }
 .fg .tool .oup-fig, .fg .tool .oup-fine { grid-column: 1 / -1; }
 
@@ -643,45 +643,45 @@
    in the grey field and rise to white with a ring once answered, with a 9px
    state dot. Semantic state is ALWAYS ok-teal / danger-red, never the page
    accent — the accent is identity, not meaning. */
-.fg .tool .oup-list { padding: 0 0 20px; }
+.fg .tool .oup-list { padding: 0 0 16px; }
 /* the job strip — the premise for the list, so it sits above it and reads as a
    toolbar rather than another card */
 /* two up, then heritage full width — its three options don't fit a third of
    the row alongside the other two */
-.fg .tool .oup-job { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: end;
-  padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid #f0f1f4; border-radius: 24px 24px 0 0; }
+.fg .tool .oup-job { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 12px; align-items: end;
+  padding: 16px 16px; background: #fafbfc; border-bottom: 1px solid #f0f1f4; border-radius: 24px 24px 0 0; }
 .fg .tool .oup-job > .wide { grid-column: 1 / -1; }
-@media (max-width: 780px) { .fg .tool .oup-job { grid-template-columns: 1fr; gap: 14px; } }
-.fg .tool .oup-job .tlab { margin-bottom: 6px; font-size: 10.5px; }
+@media (max-width: 780px) { .fg .tool .oup-job { grid-template-columns: 1fr; gap: 12px; } }
+.fg .tool .oup-job .tlab { margin-bottom: 4px; font-size: 10.5px; }
 .fg .tool .oup-job .tseg { padding: 4px; border-radius: 11px; }
-.fg .tool .oup-job .tseg button { padding: 6px 12px; font-size: 12.5px; }
+.fg .tool .oup-job .tseg button { padding: 4px 12px; font-size: 12.5px; }
 /* list heading */
-.fg .tool .oup-lhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 20px 10px; }
+.fg .tool .oup-lhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 16px 8px; }
 .fg .tool .oup-lhead .tlab { margin: 0; }
 .fg .tool .oup-lhead .ct { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray400); }
-.fg .tool .oup-list .oup-row { margin-left: 20px; margin-right: 20px; }
+.fg .tool .oup-list .oup-row { margin-left: 16px; margin-right: 16px; }
 .fg .tool .oup-row {
-  display: flex; align-items: center; gap: 11px; width: 100%;
-  border: 1px solid #eceef2; background: #f6f7f9; border-radius: 13px; padding: 9px 11px;
-  transition: transform 0.14s cubic-bezier(0.34, 1.35, 0.5, 1), box-shadow 0.14s ease,
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  border: 1px solid #eceef2; background: #f6f7f9; border-radius: 13px; padding: 8px 12px;
+  transition: transform 0.14s var(--ease), box-shadow 0.14s ease,
     border-color 0.12s, background 0.12s;
 }
-.fg .tool .oup-row + .oup-row { margin-top: 7px; }
+.fg .tool .oup-row + .oup-row { margin-top: 8px; }
 .fg .tool .oup-row:hover { transform: translateY(-1px); border-color: #dfe3ea; box-shadow: 0 8px 18px -12px rgba(10, 12, 20, 0.35); }
 .fg .tool .oup-row.yes, .fg .tool .oup-row.no {
   background: #fff; border-color: var(--st-line);
   box-shadow: 0 0 0 1px var(--st-line), 0 10px 22px -14px rgba(10, 12, 20, 0.4);
 }
-.fg .tool .oup-row.yes { --st: #00a389; --st-line: rgba(0, 163, 137, 0.42); }
+.fg .tool .oup-row.yes { --st: var(--ink); --st-line: var(--tint-2); }
 .fg .tool .oup-row.no { --st: #e0264f; --st-line: rgba(224, 38, 79, 0.4); }
 .fg .tool .oup-row .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--gray400); transition: background 0.15s; }
 .fg .tool .oup-row.yes .dot, .fg .tool .oup-row.no .dot { background: var(--st); }
 .fg .tool .oup-row .lb { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; }
 .fg .tool .oup-row .lb b { font-weight: 700; color: var(--ink); }
-.fg .tool .oup-row .tseg { flex: 0 0 auto; padding: 3px; border-radius: 10px; background: #eceef1; }
-.fg .tool .oup-row.yes .tseg, .fg .tool .oup-row.no .tseg { background: #f3f4f6; }
-.fg .tool .oup-row .tseg button { padding: 5px 11px; font-size: 11.5px; border-radius: 7px; }
-.fg .tool .oup-row.yes .tseg button.on { color: #00a389; }
+.fg .tool .oup-row .tseg { flex: 0 0 auto; padding: 4px; border-radius: 10px; background: #eceef1; }
+.fg .tool .oup-row.yes .tseg, .fg .tool .oup-row.no .tseg { background: var(--tint); }
+.fg .tool .oup-row .tseg button { padding: 4px 12px; font-size: 11.5px; border-radius: 7px; }
+.fg .tool .oup-row.yes .tseg button.on { color: var(--ink); }
 .fg .tool .oup-row.no .tseg button.on { color: #e0264f; }
 
 /* the answer — the heat-load hero, recoloured by verdict */
@@ -690,11 +690,11 @@
    and the two aurora echoes are background-attachment:fixed so they sit still
    while the card scrolls over them — the parallax a real window would give.
    No border: a hole has no edge, just the light well's cut lip. */
-.fg .tool .oup-hero { text-align: center; padding: 22px 24px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
+.fg .tool .oup-hero { text-align: center; padding: 24px 24px; border-radius: 24px; color: #fff; position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background:
-    radial-gradient(circle 320px at 14% 16%, rgba(0, 229, 192, 0.13), transparent 70%),
-    radial-gradient(circle 280px at 82% 78%, rgba(46, 104, 255, 0.12), transparent 70%),
+    radial-gradient(circle 320px at 14% 16%, var(--tint-2), transparent 70%),
+    radial-gradient(circle 280px at 82% 78%, var(--tint-2), transparent 70%),
     #050505;
   background-attachment: fixed, fixed, scroll;
   border: 0;
@@ -702,20 +702,20 @@
 .fg .tool .oup-hero .bar, .fg .tool .oup-hero .cls { width: 100%; }
 .fg .tool .oup-hero .lab { font-size: 11px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 8px; }
 .fg .tool .oup-hero .big { font-size: 38px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
-.fg .tool .oup-hero.clear .big { color: var(--tool-accent, var(--teal)); }
+.fg .tool .oup-hero.clear .big { color: var(--ink); }
 .fg .tool .oup-hero.stop .big { color: #ff6b8f; }
 .fg .tool .oup-hero .big.empty { color: rgba(255, 255, 255, 0.22); }
 .fg .tool .oup-hero .cls { margin-top: 12px; font-size: 13.5px; font-weight: 600; color: rgba(255, 255, 255, 0.8); line-height: 1.5; }
 .fg .tool .oup-hero .cls.dim { color: rgba(255, 255, 255, 0.45); }
 .fg .tool .oup-hero .bar { height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-top: 16px; }
 .fg .tool .oup-hero .bar i { display: block; height: 100%; border-radius: 999px; background: currentColor; transition: width 0.3s; }
-.fg .tool .oup-hero.clear .bar i { background: var(--tool-accent, var(--teal)); }
+.fg .tool .oup-hero.clear .bar i { background: var(--ink); color:var(--paper); }
 .fg .tool .oup-hero.stop .bar i { background: #ff6b8f; }
 .fg .tool .oup-hero.wait .bar i { background: rgba(255, 255, 255, 0.4); }
-.fg .tool .oup-hero .meta { margin-top: 9px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.fg .tool .oup-hero .meta { margin-top: 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
 
 /* the drawing card — full width, figure held to a legible size and centred */
-.fg .tool .oup-fig { padding: 16px 20px 12px; }
+.fg .tool .oup-fig { padding: 16px 16px 12px; }
 /* on a phone the card is narrower than the figure's legible size — let the
    figure keep its width and scroll inside the card, not the page sideways */
 @media (max-width: 760px) {
@@ -725,11 +725,11 @@
 
 /* the fine print — on screen, not behind a fold: the running hours are a real
    rule, and the sources carry the "check with your council" caveat */
-.fg .tool .oup-fine { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 28px; padding: 20px 22px; }
-@media (max-width: 780px) { .fg .tool .oup-fine { grid-template-columns: 1fr; gap: 18px; } }
-.fg .tool .oup-fine .tct { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.fg .tool .oup-fine { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px; padding: 16px 24px; }
+@media (max-width: 780px) { .fg .tool .oup-fine { grid-template-columns: 1fr; gap: 16px; } }
+.fg .tool .oup-fine .tct { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .fg .tool .oup-fine .tct svg { color: var(--gray400); }
-.fg .tool .oup-hours { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #f3f4f6; }
+.fg .tool .oup-hours { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--tint); }
 .fg .tool .oup-hours:last-of-type { border-bottom: 0; }
 .fg .tool .oup-hours b { font-size: 12.5px; font-weight: 800; color: var(--ink); }
 .fg .tool .oup-hours em { font-style: normal; font-size: 11.5px; font-weight: 700; color: var(--gray400); white-space: nowrap; }
@@ -756,33 +756,33 @@
 
 /* ground — hatched section below the line, per drafting convention */
 .fg .tool .oup-dia .soil { fill: rgba(120, 130, 145, 0.06); }
-.fg .tool .oup-dia .hatch { stroke: #94a3b8; stroke-width: 1; stroke-opacity: 0.55; vector-effect: non-scaling-stroke; }
-.fg .tool .oup-dia .gnd { stroke: #475569; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .hatch { stroke: var(--q); stroke-width: 1; stroke-opacity: 0.55; vector-effect: non-scaling-stroke; }
+.fg .tool .oup-dia .gnd { stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
 
 /* the unit — the studio ODU glyph, carrying the tool accent */
-.fg .tool .oup-dia .unit { color: var(--tool-accent-ink, #334155); }
+.fg .tool .oup-dia .unit { color: var(--tool-accent-ink, var(--ink)); }
 .fg .tool .oup-dia .unit rect { fill: color-mix(in srgb, currentColor 14%, #fff); stroke: currentColor; stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
 .fg .tool .oup-dia .unit .detail { fill: none; stroke: currentColor; stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
 .fg .tool .oup-dia .unit .hub { fill: currentColor; stroke: none; }
 
 /* type — ALL-CAPS for structures, lowercase for annotations */
-.fg .tool .oup-dia .lb { fill: #475569; font-size: 13px; font-weight: 700; }
-.fg .tool .oup-dia .lb.sm { fill: #94a3b8; font-size: 11.5px; font-weight: 600; }
-.fg .tool .oup-dia .bldg-t { fill: #334155; font-size: 15px; font-weight: 800; letter-spacing: 0.02em; }
-.fg .tool .oup-dia .unit-t { fill: var(--tool-accent-ink, #334155); font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; }
+.fg .tool .oup-dia .lb { fill: var(--ink); font-size: 13px; font-weight: 700; }
+.fg .tool .oup-dia .lb.sm { fill: var(--q); font-size: 11.5px; font-weight: 600; }
+.fg .tool .oup-dia .bldg-t { fill: var(--ink); font-size: 15px; font-weight: 800; letter-spacing: 0.02em; }
+.fg .tool .oup-dia .unit-t { fill: var(--tool-accent-ink, var(--ink)); font-size: 10.5px; font-weight: 800; letter-spacing: 0.07em; }
 
 /* markable parts — --m carries the state colour through each group.
    Resting colours are slate, never a state colour, so state is the only
    colour event on the drawing. */
-.fg .tool .oup-dia .bdy { --m: #94a3b8; }
+.fg .tool .oup-dia .bdy { --m: var(--q); }
 .fg .tool .oup-dia .bdy line { stroke: var(--m); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .fg .tool .oup-dia .bdy .rail { stroke-width: 3.5; stroke-linecap: round; }
-.fg .tool .oup-dia .bdy-t { --m: #94a3b8; fill: var(--m); }
-.fg .tool .oup-dia .win { --m: #64748b; fill: var(--m); }
-.fg .tool .oup-dia .dim { --m: #334155; }
+.fg .tool .oup-dia .bdy-t { --m: var(--q); fill: var(--m); }
+.fg .tool .oup-dia .win { --m: var(--q); fill: var(--m); }
+.fg .tool .oup-dia .dim { --m: var(--ink); }
 .fg .tool .oup-dia .dim line { stroke: var(--m); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .fg .tool .oup-dia .dim .tick { stroke-width: 1.2; opacity: 0.5; }
 .fg .tool .oup-dia .dim .head { fill: var(--m); stroke: none; }
 .fg .tool .oup-dia .dim .dim-t { fill: var(--m); font-size: 12.5px; font-weight: 800; }
-.fg .tool .oup-dia .mk-ok { --m: #00a389; }
+.fg .tool .oup-dia .mk-ok { --m: var(--ink); }
 .fg .tool .oup-dia .mk-bad { --m: #e0264f; }

@@ -26,10 +26,12 @@ function builder(table: string) {
   let payload: Row | undefined;
   let limit: number | null = null;
   let order: { col: string; asc: boolean } | null = null;
+  const inFilters: [string, unknown[]][] = [];
 
   const rows = () => {
     let list = tables[table] ?? [];
     for (const [col, val] of eq) list = list.filter((r) => r[col] === val);
+    for (const [col, vals] of inFilters) list = list.filter((r) => vals.includes(r[col]));
     if (order) {
       const { col, asc } = order;
       list = [...list].sort((a, b) => String(a[col] ?? "").localeCompare(String(b[col] ?? "")) * (asc ? 1 : -1));
@@ -47,6 +49,14 @@ function builder(table: string) {
         const gone = new Set(rows());
         tables[table] = (tables[table] ?? []).filter((r) => !gone.has(r));
       }
+      /* AN UPDATE ANSWERS WITH THE ROWS IT TOUCHED once the test has populated
+         that table — which is how every adoption in this codebase tells "it
+         landed" from "it refused". A test that does NOT populate the table
+         gets the old always-landed answer, so nothing that predates this has
+         to know the difference. */
+      if (op === "update" && tables[table]) {
+        return { data: rows(), error: writeError };
+      }
       // an insert answers with the row it made, so a caller can file against it
       return { data: single ? { id: `new-${table}`, ...(payload ?? {}) } : [{ id: `new-${table}` }], error: writeError };
     }
@@ -63,7 +73,15 @@ function builder(table: string) {
   };
   chain.not = self;
   chain.is = self;
-  chain.in = self;
+  /* `.in()` FILTERS FOR REAL, unlike the other passthroughs. Adoption is the
+     one place a set-membership test decides whether a document lands, and a
+     fake that ignored it let a bug ship: a workers-comp certificate uploaded
+     as `org_licence` was refused by an `.eq("kind", "org_insurance")` and
+     vanished off the card. A no-op `.in` cannot tell the fix from the bug. */
+  chain.in = (col: string, vals: readonly unknown[]) => {
+    inFilters.push([col, [...vals]]);
+    return chain;
+  };
   chain.order = (col: string, opts?: { ascending?: boolean }) => {
     order = { col, asc: opts?.ascending !== false };
     return chain;
@@ -367,8 +385,24 @@ describe("recordCredentialTerm", () => {
   /* A document may only be adopted by the term if it is the uploader's own,
      confirmed, still-unowned file OF THE RIGHT KIND — the kind is what stops a
      staff licence scan being filed as the company's. */
+  /* One uploaded document, and what adoption will and will not take. `CARD` is
+     an INSURANCE card throughout this block. */
+  const uploaded = (over: Record<string, unknown> = {}) => [
+    {
+      id: "doc-9",
+      org_id: "org-1",
+      uploaded_by: "staff-1",
+      kind: "org_insurance",
+      uploaded_at: "2026-09-08T00:00:00.000Z",
+      org_credential_id: null,
+      ...over,
+    },
+  ];
+
   it("adopts the scanned document under the term it was read from", async () => {
+    tables.documents = uploaded();
     await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+
     const adoption = only("update", "documents");
     expect(adoption.payload).toEqual({
       org_credential_id: "cred-1",
@@ -379,9 +413,53 @@ describe("recordCredentialTerm", () => {
         ["org_id", "org-1"],
         ["id", "doc-9"],
         ["uploaded_by", "staff-1"],
-        ["kind", "org_insurance"],
       ])
     );
+    // it landed, so the record keeps pointing at it
+    expect(wrote("update", "org_credential_records")).toHaveLength(0);
+  });
+
+  /* THE BUG THIS BLOCK EXISTS FOR, reproduced from production.
+
+     The Add flow's Type selector defaults to Licence and the document kind is
+     fixed at SCAN time. Isaac scanned a workers-comp certificate before
+     switching the Type to Insurance, so the file went up tagged `org_licence`
+     while the saved card was insurance. Adoption demanded an exact match,
+     refused, the record correctly disowned it — and a real certificate he had
+     just scanned vanished off the card with nothing said. */
+  it("takes a certificate uploaded under the OTHER org kind", async () => {
+    tables.documents = uploaded({ kind: "org_licence" });
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+
+    expect(only("update", "documents").payload).toEqual({
+      org_credential_id: "cred-1",
+      credential_record_id: "new-org_credential_records",
+    });
+    // and the record is NOT made to disown it
+    expect(wrote("update", "org_credential_records")).toHaveLength(0);
+  });
+
+  /* THE GUARD THAT MUST NOT HAVE BEEN WEAKENED. Relaxing the check to "either
+     of the company's own kinds" is only safe while a STAFF ticket and a
+     VEHICLE policy are still refused — they have a different owner, and that
+     is what the kind check was always for. */
+  it.each([
+    ["licence", "a staff ticket"],
+    ["insurance_policy", "a vehicle policy"],
+    ["fuel_receipt", "a fuel docket"],
+  ])("still refuses %s (%s), and disowns it", async (kind) => {
+    tables.documents = uploaded({ kind });
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+
+    // a document that refused adoption must not be claimed by the record
+    const disowned = only("update", "org_credential_records");
+    expect(disowned.payload).toEqual({ document_id: null });
+  });
+
+  it("refuses a document somebody else uploaded, whatever its kind", async () => {
+    tables.documents = uploaded({ uploaded_by: "staff-someone-else" });
+    await recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+    expect(only("update", "org_credential_records").payload).toEqual({ document_id: null });
   });
 
   it("moves every reminder counting down to the old date", async () => {
@@ -443,11 +521,47 @@ describe("fileCredentialDocument", () => {
     tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-1" }];
   });
 
-  it("files a document under a term, on the kind the card is", async () => {
+  it("files a document under a term", async () => {
     expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({ ok: true });
     const write = only("update", "documents");
     expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: "R1" });
-    expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
+    expect(write.eq).toEqual(
+      expect.arrayContaining([["org_id", "org-1"], ["id", "doc-9"], ["uploaded_by", "staff-1"]])
+    );
+  });
+
+  /* It no longer insists the card's kind and the upload's tag agree — see the
+     adoption block above for the certificate that insistence lost. Filing by
+     hand is the same question as adopting, so it gets the same answer. */
+  it("takes a document uploaded under the OTHER org kind", async () => {
+    tables.documents = [
+      {
+        id: "doc-9",
+        org_id: "org-1",
+        uploaded_by: "staff-1",
+        kind: "org_licence",
+        uploaded_at: "2026-09-08T00:00:00.000Z",
+        org_credential_id: null,
+      },
+    ];
+    expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({ ok: true });
+  });
+
+  it("still refuses a staff ticket", async () => {
+    tables.documents = [
+      {
+        id: "doc-9",
+        org_id: "org-1",
+        uploaded_by: "staff-1",
+        kind: "licence",
+        uploaded_at: "2026-09-08T00:00:00.000Z",
+        org_credential_id: null,
+      },
+    ];
+    expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({
+      ok: false,
+      error: "That document couldn't be filed.",
+    });
   });
 
   /* A CARD WITH NO EXPIRY. It owns the document; nothing owns the filing,
@@ -457,7 +571,9 @@ describe("fileCredentialDocument", () => {
     expect(await fileCredentialDocument("cred-1", null, "doc-9")).toEqual({ ok: true });
     const write = only("update", "documents");
     expect(write.payload).toEqual({ org_credential_id: "cred-1", credential_record_id: null });
-    expect(write.eq).toEqual(expect.arrayContaining([["kind", "org_insurance"]]));
+    expect(write.eq).toEqual(
+      expect.arrayContaining([["org_id", "org-1"], ["id", "doc-9"], ["uploaded_by", "staff-1"]])
+    );
   });
 
   it("refuses a card that isn't in the caller's org, term or no term", async () => {

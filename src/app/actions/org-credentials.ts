@@ -10,9 +10,9 @@ import { remindAtFrom } from "@/lib/dashboard/reminders";
 import { workdayHours } from "@/lib/dashboard/reminders-query";
 import { getSm8Timezone } from "@/lib/workboard/query";
 import { isReminderLead, reminderDueDate } from "@/lib/fleet/reminders";
-import { buildOrgCredentialRow, isCredKind, type OrgCredKind, type OrgCredentialInput } from "@/lib/org/credentials";
+import { buildOrgCredentialRow, isCredKind, type OrgCredentialInput } from "@/lib/org/credentials";
 import {
-  CREDENTIAL_DOC_KIND,
+  ORG_CREDENTIAL_DOC_KINDS,
   buildCredentialRecordRow,
   credentialReminderDetail,
   credentialReminderTitle,
@@ -97,7 +97,7 @@ export async function addOrgCredential(
     .single();
   if (error || !data) return { ok: false, error: "Couldn't add that." };
 
-  if (term) await fileTerm(ctx, String(data.id), built.row.kind, term.row);
+  if (term) await fileTerm(ctx, String(data.id), term.row);
 
   revalidate();
   return { ok: true };
@@ -167,7 +167,6 @@ export async function removeOrgCredential(id: string): Promise<CredResult> {
 async function fileTerm(
   ctx: Ctx,
   credentialId: string,
-  kind: OrgCredKind,
   row: CredentialRecordRow,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const { data, error } = await supabaseAdmin
@@ -178,20 +177,21 @@ async function fileTerm(
   if (error || !data) return { ok: false, error: "Couldn't record that renewal." };
 
   const recordId = String(data.id);
-  if (row.document_id) await adoptCredentialDocument(ctx, credentialId, row.document_id, kind, recordId);
+  if (row.document_id) await adoptCredentialDocument(ctx, credentialId, row.document_id, recordId);
   return { ok: true, id: recordId };
 }
 
 /** Adoption, on the same contract as every other document in this codebase:
-    only the uploader's own, confirmed, still-unowned file OF THE RIGHT KIND
-    may land. The kind check is what stops a staff licence scan being filed as
-    the company's. A file that refuses adoption must not be claimed by the
+    only the uploader's own, confirmed, still-unowned file OF ONE OF THE
+    COMPANY'S OWN KINDS may land — which stops a staff ticket or a vehicle
+    policy being filed here, and no longer insists the card's kind and the
+    upload's tag agree (see ORG_CREDENTIAL_DOC_KINDS: that insistence lost a
+    real certificate). A file that refuses adoption must not be claimed by the
     record either, or the term would point at paperwork it doesn't own. */
 async function adoptCredentialDocument(
   ctx: Ctx,
   credentialId: string,
   documentId: string,
-  kind: OrgCredKind,
   recordId: string,
 ): Promise<void> {
   if (!ctx.staffId) return;
@@ -201,7 +201,7 @@ async function adoptCredentialDocument(
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
-    .eq("kind", CREDENTIAL_DOC_KIND[kind])
+    .in("kind", ORG_CREDENTIAL_DOC_KINDS)
     .not("uploaded_at", "is", null)
     .is("org_credential_id", null)
     .select("id");
@@ -230,10 +230,12 @@ export async function recordCredentialTerm(
     .eq("org_id", ctx.orgId)
     .eq("id", credentialId)
     .maybeSingle();
+  /* The kind is still CHECKED — a card whose row says something the app does
+     not recognise is not one a term may be filed against — it is simply no
+     longer used to pick which document tag will be accepted. */
   if (!cred || !isCredKind(cred.kind)) return { ok: false, error: "That card is no longer on file." };
-  const kind = cred.kind as OrgCredKind;
 
-  const filed = await fileTerm(ctx, credentialId, kind, built.row);
+  const filed = await fileTerm(ctx, credentialId, built.row);
   if (!filed.ok) return filed;
 
   // advance the cache — never backwards
@@ -309,7 +311,7 @@ export async function fileCredentialDocument(
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
-    .eq("kind", CREDENTIAL_DOC_KIND[cred.kind as OrgCredKind])
+    .in("kind", ORG_CREDENTIAL_DOC_KINDS)
     .not("uploaded_at", "is", null)
     .is("org_credential_id", null)
     .select("id");

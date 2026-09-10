@@ -41,12 +41,31 @@ export type OrgCredentialRecord = {
   createdAt: string | null;
 };
 
-/** What the paper is filed as. Two kinds, never the staff or vehicle ones —
-    see lib/documents/files.ts for why the kind is the ownership guard. */
+/** What the paper is filed as when it is uploaded. */
 export const CREDENTIAL_DOC_KIND: Record<OrgCredKind, DocumentKind> = {
   licence: "org_licence",
   insurance: "org_insurance",
 };
+
+/* WHAT AN ORG CREDENTIAL MAY ADOPT: either of its own two kinds, and nothing
+   else.
+
+   It used to be the ONE kind matching the card, and that lost a real
+   certificate in production. The Add flow's Type selector defaults to Licence
+   and the document kind is fixed at SCAN time, so scanning a workers-comp
+   certificate before switching the Type to Insurance uploaded it as
+   `org_licence` while the saved card was insurance. Adoption refused, the
+   record correctly disowned it, and the file the person had just scanned
+   vanished from the card with nothing said.
+
+   THE GUARD THAT MATTERS IS UNCHANGED. `licence` is a STAFF ticket,
+   `insurance_policy` is a VEHICLE policy, and neither may be adopted onto a
+   company card — that is what the kind check is for, and both are still
+   refused. The distinction between the two ORG kinds was never an ownership
+   question: they have the same owner, and a person filing a certificate
+   against a card has said which card it belongs to more clearly than the
+   upload's tag ever did. */
+export const ORG_CREDENTIAL_DOC_KINDS: readonly DocumentKind[] = ["org_licence", "org_insurance"];
 
 /** What the paper is CALLED, per kind. */
 export const CREDENTIAL_PAPER: Record<OrgCredKind, string> = {

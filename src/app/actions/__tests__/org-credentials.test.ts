@@ -58,6 +58,17 @@ function builder(table: string) {
         const gone = new Set(rows());
         tables[table] = (tables[table] ?? []).filter((r) => !gone.has(r));
       }
+      /* AN UPDATE ANSWERS WITH THE ROWS IT TOUCHED — but only once a test has
+         put rows in that table. That is how adoption tells "it landed" from "it
+         refused": a refused certificate matches nothing, the update comes back
+         empty, and the term disowns it. Answering every update with a made-up
+         row meant no test here could ever reach that path — the one that failed
+         in production. A test that never populates the table still gets the old
+         always-landed answer, so nothing written before this had to change. */
+      if (op === "update" && tables[table]) {
+        const touched = rows();
+        return { data: single ? (touched[0] ?? null) : touched, error: writeError };
+      }
       // an insert answers with the row it made, so a caller can file against it
       return { data: single ? { id: `new-${table}`, ...(payload ?? {}) } : [{ id: `new-${table}` }], error: writeError };
     }
@@ -592,5 +603,92 @@ describe("setCredentialReminder", () => {
     dbRole = "admin";
     expect(await setCredentialReminder("cred-1", 30, true)).toEqual({ ok: false, error: NOT_OWNER });
     expect(writes).toHaveLength(0);
+  });
+});
+
+/* ---------------------------------------------------------------------------
+   WHAT ACTUALLY LANDS, AND WHAT IS TURNED AWAY.
+
+   Every adoption test above checks the RULE — which kinds the filter names.
+   None of them puts a real document in the table and watches what happens to
+   it, so none of them could see the path that failed in production: a
+   certificate the filter refuses is disowned by its term, and the file ends up
+   owned by nothing. These do, now that an update answers with the rows it
+   actually touched.
+
+   Each "turned away" case has a "keeps" case beside it. Without those, a fake
+   that matched nothing at all would pass every disown test here.
+--------------------------------------------------------------------------- */
+describe("adoption outcomes", () => {
+  const uploaded = (over: Row = {}): Row => ({
+    id: "doc-9",
+    org_id: "org-1",
+    uploaded_by: "staff-1",
+    kind: "org_insurance",
+    uploaded_at: "2026-09-08T00:00:00.000Z",
+    org_credential_id: null,
+    ...over,
+  });
+
+  describe("scanned in with a renewal", () => {
+    beforeEach(() => {
+      tables.org_credentials = [CARD]; // an INSURANCE card
+    });
+
+    const scan = () =>
+      recordCredentialTerm("cred-1", { expiresOn: "2027-08-07", documentId: "doc-9", source: "scan" });
+
+    it("keeps a certificate stamped the card's own kind", async () => {
+      tables.documents = [uploaded()];
+      await scan();
+      expect(only("update", "documents").payload).toMatchObject({ org_credential_id: "cred-1" });
+      expect(wrote("update", "org_credential_records")).toHaveLength(0);
+    });
+
+    /* Isaac's icare certificate, reproduced: stamped org_licence by a scan
+       panel that had not been told it was holding insurance. It must LAND on
+       the insurance card, with its stamp corrected, and stay filed. */
+    it("keeps a certificate stamped the OTHER org kind, and corrects the stamp", async () => {
+      tables.documents = [uploaded({ kind: "org_licence" })];
+      await scan();
+      expect(only("update", "documents").payload).toMatchObject({ kind: "org_insurance" });
+      expect(wrote("update", "org_credential_records")).toHaveLength(0);
+    });
+
+    it.each([
+      ["licence", "a staff ticket"],
+      ["insurance_policy", "a vehicle policy"],
+      ["fuel_receipt", "a fuel docket"],
+    ])("turns away %s (%s), and the term disowns it", async (kind) => {
+      tables.documents = [uploaded({ kind })];
+      await scan();
+      expect(only("update", "org_credential_records").payload).toEqual({ document_id: null });
+    });
+
+    it("turns away a file somebody else uploaded, and the term disowns it", async () => {
+      tables.documents = [uploaded({ uploaded_by: "staff-someone-else" })];
+      await scan();
+      expect(only("update", "org_credential_records").payload).toEqual({ document_id: null });
+    });
+  });
+
+  describe("filed by hand", () => {
+    beforeEach(() => {
+      tables.org_credentials = [CARD];
+      tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-1" }];
+    });
+
+    it("files a certificate stamped the OTHER org kind", async () => {
+      tables.documents = [uploaded({ kind: "org_licence" })];
+      expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({ ok: true });
+    });
+
+    it("turns away a staff ticket, and says so", async () => {
+      tables.documents = [uploaded({ kind: "licence" })];
+      expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({
+        ok: false,
+        error: "That document couldn't be filed.",
+      });
+    });
   });
 });

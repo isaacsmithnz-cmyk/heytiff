@@ -73,6 +73,10 @@ export type OrgCredType = {
   fields?: readonly TermField[];
   /** What THIS paper calls a field, where its own word beats the kind's. */
   labels?: Partial<Record<TermField, string>>;
+  /** OTHER WORDS FOR THE SAME PAPER. The name box is free text with these
+      names as suggestions, so a person who types their own words gets the
+      registry's answer anyway — see aliasesFor for why that matters. */
+  aliases?: readonly string[];
 };
 
 export const ORG_CRED_TYPES: readonly OrgCredType[] = [
@@ -82,6 +86,17 @@ export const ORG_CRED_TYPES: readonly OrgCredType[] = [
     code: "ARC",
     color: "#00A389",
     sub: "The business authorisation — staff ARC licences live on their own cards",
+    // ARCtick is the scheme's own brand and what the certificate is called
+    aliases: [
+      "ARC",
+      "ARC licence",
+      "ARC authorisation",
+      "ARC authorization",
+      "ARCtick",
+      "refrigerant trading authorisation",
+      "refrigerant trading authorization",
+      "refrigerant handling licence",
+    ],
   },
   {
     kind: "licence",
@@ -89,9 +104,36 @@ export const ORG_CRED_TYPES: readonly OrgCredType[] = [
     code: "CL",
     color: "#F0A431",
     sub: "State-issued trade licence",
+    aliases: [
+      "contractors licence",
+      "contractor license",
+      "contractors license",
+      "trade licence",
+      "trade license",
+    ],
   },
-  { kind: "insurance", name: "Public liability", code: "INS", color: "#2E68FF" },
-  { kind: "insurance", name: "Professional indemnity", code: "INS", color: "#2E68FF" },
+  {
+    kind: "insurance",
+    name: "Public liability",
+    code: "INS",
+    color: "#2E68FF",
+    /* "Broadform liability" is QBE's own wording on Isaac's certificate, so it
+       is what a person reading the page in front of them would type. */
+    aliases: [
+      "public liability insurance",
+      "public and products liability",
+      "products liability",
+      "broadform liability",
+      "general liability",
+    ],
+  },
+  {
+    kind: "insurance",
+    name: "Professional indemnity",
+    code: "INS",
+    color: "#2E68FF",
+    aliases: ["professional indemnity insurance", "professional liability", "PI insurance"],
+  },
   {
     kind: "insurance",
     name: "Workers compensation",
@@ -104,6 +146,17 @@ export const ORG_CRED_TYPES: readonly OrgCredType[] = [
        What it DOES print, and what a head contractor is told on the
        certificate itself to check, is the worker count and the declared wages
        (docs/migrations/org_credential_workers_comp.sql quotes the wording). */
+    /* "Work Cover" is what Isaac named the file he uploaded, and the
+       apostrophe in "workers' compensation" is the single likeliest way to
+       miss — normaliseCredName flattens it, so both land here. */
+    aliases: [
+      "workers comp",
+      "workers compensation insurance",
+      "workcover",
+      "work cover",
+      "employers liability",
+      "employers indemnity",
+    ],
     fields: ["cover", "workers", "wages", "premium"],
     /* "Cover" is boilerplate here — every NSW certificate covers the same
        statutory liability — and the line that actually varies is the industry
@@ -123,9 +176,36 @@ export function credSuggestions(kind: OrgCredKind): string[] {
   return ORG_CRED_TYPES.filter((t) => t.kind === kind).map((t) => t.name);
 }
 
+/* ONE SPELLING OF A NAME, so a person's words reach the registry.
+
+   Everything the registry gives a card — its badge, its colour, WHICH FIELDS
+   IT CARRIES and what Tiff is asked to read off it — hangs on matching the
+   name. That match used to be the exact string, which meant "Workers
+   compensation" found the profile and "Workers comp", "WorkCover" and
+   "workers' compensation" did not: the card silently fell back to the generic
+   insurance set, grew a Limit of liability box the certificate cannot fill,
+   and had Tiff asked for a limit that is not on the page. That is the failure
+   that lost Isaac's certificate in the first place, wearing other clothes.
+
+   Punctuation and case are noise — the apostrophe in "workers' compensation"
+   is the single most likely way to miss — so they are flattened before
+   anything is compared. */
+export function normaliseCredName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Every spelling that reaches one type, canonical name included. */
+function aliasesFor(t: OrgCredType): string[] {
+  return [t.name, ...(t.aliases ?? [])].map(normaliseCredName);
+}
+
 function typeFor(kind: OrgCredKind, name: string): OrgCredType | undefined {
-  const wanted = name.trim().toLowerCase();
-  return ORG_CRED_TYPES.find((t) => t.kind === kind && t.name.toLowerCase() === wanted);
+  const wanted = normaliseCredName(name);
+  if (!wanted) return undefined;
+  return ORG_CRED_TYPES.find((t) => t.kind === kind && aliasesFor(t).includes(wanted));
 }
 
 /* The badge in a card's top-right corner.

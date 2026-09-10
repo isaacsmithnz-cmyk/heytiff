@@ -4,8 +4,10 @@ import {
   credSuggestions,
   defaultColorFor,
   isCredKind,
+  normaliseCredName,
   orgCredBadge,
   sortOrgCredentials,
+  termFieldsFor,
   type OrgCredential,
 } from "../credentials";
 
@@ -171,5 +173,68 @@ describe("sortOrgCredentials", () => {
     const rows = [c({ name: "b", expiryDate: "2027-01-01" }), c({ name: "a", expiryDate: "2026-01-01" })];
     sortOrgCredentials(rows);
     expect(rows.map((r) => r.name)).toEqual(["b", "a"]);
+  });
+});
+
+
+/* A PERSON'S WORDS HAVE TO REACH THE REGISTRY.
+
+   Everything the registry gives a card — badge, colour, WHICH FIELDS IT
+   CARRIES and what Tiff is asked to read off it — hangs on matching the name,
+   and the name box is free text. An exact-string match meant "Workers comp"
+   silently fell back to the generic insurance set: a Limit of liability box
+   the certificate cannot fill, and a model asked for a limit that is not on
+   the page. Same failure that lost the certificate, other clothes. */
+describe("naming a card in your own words", () => {
+  const wc = (name: string) => termFieldsFor("insurance", name);
+
+  it("finds workers compensation however it is written", () => {
+    for (const name of [
+      "Workers compensation",
+      "workers comp",
+      "Workers' Compensation",
+      "WorkCover",
+      "Work Cover",
+      "workers compensation insurance",
+      "  WORKERS   COMP  ",
+    ]) {
+      expect(wc(name)).toContain("workers");
+      expect(wc(name)).not.toContain("sumInsured");
+    }
+  });
+
+  it("still gives an unknown policy the full set", () => {
+    // a guess that HIDES a box is worse than one that shows an empty one
+    expect(wc("Marine transit")).toContain("sumInsured");
+    expect(wc("")).toContain("sumInsured");
+  });
+
+  it("reads the insurer's own words off the page", () => {
+    // "Broadform liability" is what QBE prints on Isaac's certificate
+    expect(orgCredBadge({ kind: "insurance", name: "Broadform liability" }).code).toBe("INS");
+    expect(defaultColorFor("licence", "ARCtick")).toBe("#00A389");
+    expect(defaultColorFor("licence", "refrigerant trading authorisation")).toBe("#00A389");
+  });
+
+  it("takes licence and license alike", () => {
+    expect(defaultColorFor("licence", "contractors license")).toBe("#F0A431");
+    expect(defaultColorFor("licence", "Contractor licence")).toBe("#F0A431");
+  });
+
+  /* Two types claiming one spelling would resolve to whichever sits earlier in
+     the array — a silent, order-dependent answer. */
+  it("never lets two types claim the same words", () => {
+    const seen = new Map<string, string>();
+    for (const t of ORG_CRED_TYPES) {
+      for (const a of [t.name, ...(t.aliases ?? [])]) {
+        const key = `${t.kind}:${normaliseCredName(a)}`;
+        expect(seen.get(key)).toBeUndefined();
+        seen.set(key, t.name);
+      }
+    }
+  });
+
+  it("does not match a name that is only punctuation", () => {
+    expect(termFieldsFor("insurance", " - ")).toEqual(termFieldsFor("insurance", ""));
   });
 });

@@ -206,10 +206,31 @@ function iconOnlyButtons(): number {
   return n;
 }
 
+/* Every size a rule sets, whether as `font-size` or inside a `font:`
+   shorthand (`font: 800 9.5px var(--font)`), which the first cut of this
+   ratchet did not read. */
+function sizes(): number[] {
+  const out: number[] = [];
+  for (const m of CSS.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)) out.push(Number(m[1]));
+  for (const m of CSS.matchAll(/(?<![-a-z])font\s*:\s*(?:[a-z]+\s+)*(?:\d{3}\s+)?(\d+(?:\.\d+)?)px/g)) out.push(Number(m[1]));
+  return out;
+}
 function small(): number {
-  let n = 0;
-  for (const m of CSS.matchAll(/font-size\s*:\s*(\d+(?:\.\d+)?)px/g)) if (Number(m[1]) < 12) n++;
-  return n;
+  return sizes().filter((n) => n < 12).length;
+}
+
+/* The type scale from docs/design.md: eight sizes, and a rule picks one by
+   role. Relative sizes (`0.86em` on inline code) are not on it and not counted:
+   they follow the text they sit in. */
+const TYPE = new Set([12, 13, 14, 16, 20, 24, 32, 40]);
+function offScaleType(): number {
+  return sizes().filter((n) => !TYPE.has(n)).length;
+}
+
+/* A weight is 400, 500, 600 or 700, declared either way. 650 and 750 were the
+   variable font's in-between stops, typed by feel. */
+function heavy(): number {
+  return count(/font-weight\s*:\s*(650|750|800|900)\b/g) + count(/(?<![-a-z])font\s*:\s*(?:[a-z]+\s+)*(650|750|800|900)\s+\d/g);
 }
 
 /* INK AND PAPER, decided 2026-09-10. There is no accent: ink does the four
@@ -245,8 +266,9 @@ function anchorColours(): number {
 }
 
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
-  { law: "type below 12px — the floor", now: small, baseline: 544 },
-  { law: "weight 800 or 900 — retired", now: () => count(/font-weight\s*:\s*(800|900)\b/g), baseline: 624 },
+  { law: "type below 12px — the floor", now: small, baseline: 0 },
+  { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32, 40", now: offScaleType, baseline: 0 },
+  { law: "weight off 400, 500, 600, 700 — 800 is retired", now: heavy, baseline: 0 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 94 },
   { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 201 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },

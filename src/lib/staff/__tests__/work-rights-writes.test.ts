@@ -114,7 +114,7 @@ jest.mock("@/lib/workboard/query", () => ({
 }));
 
 
-import { attachCheckDocument, recordCheck, removeCheck, setWorkRightsReminder } from "../work-rights-writes";
+import { attachCheckDocument, recordCheck, removeCheck } from "../work-rights-writes";
 
 const ORG = "org-1";
 const BOB = "staff-bob";
@@ -145,6 +145,16 @@ beforeEach(() => {
   writes = [];
   writeError = null;
   tables = { staff_profiles: [{ id: BOB, org_id: ORG, visa_expiry: "2028-03-04" }] };
+});
+
+/* NO TASK ROW, EVER — see licence-writes.test. A check write that touches
+   `tasks` is a door growing back. */
+describe("recordCheck and the tasks table", () => {
+  it("touches no task row — the org's expiry window nudges, not a task", async () => {
+    tables.staff_work_rights_records = [];
+    await recordCheck(ORG, BOB, ME, { status: "Full working rights (visa)", checkedOn: "2026-07-24", expiresOn: "2028-03-04" });
+    expect(writes.filter((w) => w.table === "tasks")).toEqual([]);
+  });
 });
 
 describe("recordCheck", () => {
@@ -255,33 +265,8 @@ describe("recordCheck", () => {
     expect(cleared[0].payload).toEqual({ document_id: null });
   });
 
-  it("moves every reminder counting down to the old date", async () => {
-    tables.staff_work_rights_records = [check({ checked_on: "2026-07-24", expires_on: "2029-03-04" })];
-    tables.tasks = [
-      { id: "t1", org_id: ORG, work_rights_staff_id: BOB, assigned_to: ME, lead_days: 30, status: "open" },
-    ];
-    await recordCheck(ORG, BOB, ME, { ...ok, expiresOn: "2029-03-04" });
+  
 
-    const moved = wrote("update", "tasks");
-    expect(moved).toHaveLength(1);
-    expect(moved[0].payload).toMatchObject({ due_date: "2029-02-02", reminder_emailed_at: null });
-  });
-
-  /* Somebody became a permanent resident. There is no longer anything to count
-     down to, and a task due against a date that no longer exists would nag
-     forever about a question that has been answered. */
-  it("CLOSES open reminders when the new check has no expiry", async () => {
-    tables.staff_work_rights_records = [];
-    tables.tasks = [
-      { id: "t1", org_id: ORG, work_rights_staff_id: BOB, assigned_to: ME, lead_days: 30, status: "open" },
-    ];
-    await recordCheck(ORG, BOB, ME, { status: "Permanent resident", checkedOn: "2026-07-24" });
-
-    expect(wrote("update", "tasks")).toHaveLength(0);
-    expect(only("delete", "tasks").eq).toEqual(
-      expect.arrayContaining([["work_rights_staff_id", BOB], ["status", "open"]])
-    );
-  });
 });
 
 describe("removeCheck", () => {
@@ -341,52 +326,3 @@ describe("attachCheckDocument", () => {
   });
 });
 
-describe("setWorkRightsReminder", () => {
-  it("creates one open task of the VIEWER's own, asking for a CHECK", async () => {
-    expect(await setWorkRightsReminder(ORG, ME, BOB, "Bob Smith", 30, true)).toEqual({ ok: true });
-    expect(only("insert", "tasks").payload).toMatchObject({
-      title: "Check right to work — Bob Smith",
-      detail: "Expires 4 Mar 2028 · 30 days' notice",
-      assigned_to: ME,
-      due_date: "2028-02-03",
-      work_rights_staff_id: BOB,
-      lead_days: 30,
-    });
-  });
-
-  it("refuses when there is no expiry to count from", async () => {
-    tables.staff_profiles = [{ id: BOB, org_id: ORG, visa_expiry: null }];
-    expect(await setWorkRightsReminder(ORG, ME, BOB, null, 30, true)).toEqual({
-      ok: false,
-      error: "There's no expiry to count from — record a check with one first.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-
-  it("deletes only the viewer's own when the chip goes off", async () => {
-    expect(await setWorkRightsReminder(ORG, ME, BOB, null, 30, false)).toEqual({ ok: true });
-    expect(only("delete", "tasks").eq).toEqual([
-      ["org_id", ORG],
-      ["assigned_to", ME],
-      ["work_rights_staff_id", BOB],
-      ["lead_days", 30],
-      ["status", "open"],
-    ]);
-  });
-
-  it("is a no-op when the chip is already on", async () => {
-    tables.tasks = [
-      { id: "t1", org_id: ORG, work_rights_staff_id: BOB, assigned_to: ME, lead_days: 30, status: "open" },
-    ];
-    expect(await setWorkRightsReminder(ORG, ME, BOB, null, 30, true)).toEqual({ ok: true });
-    expect(wrote("insert", "tasks")).toHaveLength(0);
-  });
-
-  it("refuses a lead the chips don't offer", async () => {
-    expect(await setWorkRightsReminder(ORG, ME, BOB, null, 45, true)).toEqual({
-      ok: false,
-      error: "Couldn't set that reminder.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-});

@@ -42,7 +42,6 @@ export function LicenceModal({
   staffId,
   records,
   documents,
-  reminders,
   today,
   warnDays,
   onAdd,
@@ -51,7 +50,6 @@ export function LicenceModal({
   onRecord,
   onAttach,
   onRemoveTerm,
-  onRemind,
   onClose,
 }: {
   /** null = adding a new ticket; the modal opens on the details screen. */
@@ -59,7 +57,6 @@ export function LicenceModal({
   staffId: string;
   records: StaffLicenceRecord[];
   documents: StoredDocument[];
-  reminders: number[];
   today: string;
   warnDays: number;
   onAdd: (input: LicenceInput, term?: LicenceTermInput) => Promise<SaveResult>;
@@ -69,7 +66,6 @@ export function LicenceModal({
   /** Files a document against the ticket; a null term means the card itself. */
   onAttach: (termId: string | null, documentId: string) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
-  onRemind: (leadDays: number, on: boolean) => Promise<SaveResult>;
   onClose: () => void;
 }) {
   const adding = licence === null;
@@ -170,7 +166,6 @@ export function LicenceModal({
             staffId={staffId}
             records={records}
             documents={documents}
-            reminders={reminders}
             today={today}
           warnDays={warnDays}
             pending={pending}
@@ -178,7 +173,6 @@ export function LicenceModal({
             onRecord={(input) => void run(() => onRecord(input), () => undefined)}
             onAttach={(termId, documentId) => void run(() => onAttach(termId, documentId), () => undefined)}
             onRemoveTerm={(termId) => void run(() => onRemoveTerm(termId), () => undefined)}
-            onRemind={(lead, on) => void run(() => onRemind(lead, on), () => undefined)}
             onEdit={() => {
               setError(null);
               setScreen("details");

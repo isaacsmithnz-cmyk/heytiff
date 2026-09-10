@@ -5,7 +5,6 @@ import type { RenewalInput } from "@/app/actions/fleet";
 import { readRenewalDocument, type ReadRenewalResult } from "@/app/actions/fleet-ai";
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
-import { REMINDER_LEADS, leadLabel, type RenewalReminder } from "@/lib/fleet/reminders";
 import { DateField } from "@/components/ui/date-field";
 import { Icon } from "@/components/shell/icon";
 import { Plate } from "../plate";
@@ -142,8 +141,6 @@ export function RenewalScreen({
   onBack,
   onSave,
   onAttach,
-  reminders,
-  onRemind,
 }: {
   vehicle: Vehicle;
   kind: RenewalKind;
@@ -153,10 +150,7 @@ export function RenewalScreen({
   policies: VehiclePolicy[];
   pending: boolean;
   error: string | null;
-  /** The viewer's own reminders for THIS kind — which chips are on. */
-  reminders: RenewalReminder[];
   /** A chip pressed: `on` creates the reminder task, off deletes it. */
-  onRemind: (leadDays: number, on: boolean) => void;
   onBack: () => void;
   onSave: (input: Omit<RenewalInput, "vehicleId">) => void;
   /** Files another document under an existing renewal. */
@@ -315,33 +309,6 @@ export function RenewalScreen({
         )}
 
         {/* ---- remind me: each chip is a task of your own ---- */}
-        <Card>
-          <div className="vm-cardhead">
-            <Eyebrow>REMIND ME</Eyebrow>
-            <span className="vm-caption">{recorded ? "Before it expires" : "Record the renewal first"}</span>
-          </div>
-          <div className="vm-chips" role="group" aria-label="Remind me">
-            {REMINDER_LEADS.map((lead) => {
-              const on = reminders.some((r) => r.leadDays === lead);
-              return (
-                <button
-                  key={lead}
-                  type="button"
-                  className={`vm-chip${on ? " on" : ""}`}
-                  aria-pressed={on}
-                  disabled={!recorded || pending}
-                  onClick={() => onRemind(lead, !on)}
-                >
-                  {leadLabel(lead)}
-                </button>
-              );
-            })}
-          </div>
-          <span className="vm-hint">
-            Each one is a task on your dashboard — the bell nudges you the morning it falls due, and it goes out in
-            that day&apos;s reminder email. They move with the expiry when you record a renewal.
-          </span>
-        </Card>
 
         {panelOpen && (
           <ScanCard<ReadRenewalResult>

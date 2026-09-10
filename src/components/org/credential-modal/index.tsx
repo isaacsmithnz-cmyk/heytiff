@@ -49,7 +49,6 @@ export function CredentialModal({
   credential,
   records,
   documents,
-  reminders,
   today,
   warnDays,
   initialScreen,
@@ -59,14 +58,12 @@ export function CredentialModal({
   onRecord,
   onAttach,
   onRemoveTerm,
-  onRemind,
   onClose,
 }: {
   /** null = adding a new card; the modal opens on the details screen. */
   credential: OrgCredential | null;
   records: OrgCredentialRecord[];
   documents: StoredDocument[];
-  reminders: number[];
   today: string;
   /** The org's expiry window — lib/expiry.ts. */
   warnDays: number;
@@ -78,7 +75,6 @@ export function CredentialModal({
   /** Files a document against the card; a null term means the card itself. */
   onAttach: (recordId: string | null, documentId: string) => Promise<CredResult>;
   onRemoveTerm: (recordId: string) => Promise<CredResult>;
-  onRemind: (leadDays: number, on: boolean) => Promise<CredResult>;
   onClose: () => void;
 }) {
   const adding = credential === null;
@@ -208,14 +204,12 @@ export function CredentialModal({
             credential={credential}
             records={records}
             documents={documents}
-            reminders={reminders}
             today={today}
             warnDays={warnDays}
             pending={pending}
             error={error}
             onAttach={(recordId, documentId) => void run(() => onAttach(recordId, documentId), () => undefined)}
             onRemoveTerm={(recordId) => void run(() => onRemoveTerm(recordId), () => undefined)}
-            onRemind={(lead, on) => void run(() => onRemind(lead, on), () => undefined)}
             onUpdate={() => {
               setError(null);
               setScreen("update");

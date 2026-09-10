@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { StoredDocument } from "@/lib/documents/query";
 import { fmtDay } from "@/lib/format/day";
-import { REMINDER_LEADS, leadLabel } from "@/lib/fleet/reminders";
 import { Btn, Card, DetailGrid, Eyebrow, type DetailItem } from "@/components/record-modal/parts";
 import { AddDocument } from "@/components/record-modal/add-document";
 import { DocRows } from "@/components/record-modal/doc-rows";
@@ -29,8 +28,8 @@ import {
 /* ONE CARD'S TERMS — the screen the whole rebuild is for.
 
    It is the fleet's renewal screen, one level up and with the vocabulary
-   changed: a status, the term in force with its paperwork, the reminders each
-   person set for themselves, and the history underneath. Nothing is
+   changed: a status, the term in force with its paperwork, and the history
+   underneath. Nothing is
    overwritten — a new term is a new row, and the card's expiry follows the
    newest one.
 
@@ -59,14 +58,12 @@ export function RecordScreen({
   credential,
   records,
   documents,
-  reminders,
   today,
   warnDays,
   pending,
   error,
   onAttach,
   onRemoveTerm,
-  onRemind,
   onUpdate,
   onEdit,
   onClose,
@@ -74,8 +71,6 @@ export function RecordScreen({
   credential: OrgCredential;
   records: OrgCredentialRecord[];
   documents: StoredDocument[];
-  /** The leads the viewer has switched on, in days. */
-  reminders: number[];
   today: string;
   /** The org's expiry window — lib/expiry.ts. */
   warnDays: number;
@@ -84,7 +79,6 @@ export function RecordScreen({
   /** Files a document against the card; a null term means the card itself. */
   onAttach: (recordId: string | null, documentId: string) => void;
   onRemoveTerm: (recordId: string) => void;
-  onRemind: (leadDays: number, on: boolean) => void;
   onUpdate: () => void;
   onEdit: () => void;
   onClose: () => void;
@@ -131,7 +125,6 @@ export function RecordScreen({
             <span className="vm-subline">{subline}</span>
           </div>
           <div className="vm-statusr">
-            <RemindMenu reminders={reminders} expiry={expiry} pending={pending} onRemind={onRemind} />
             <Btn kind="primary" onClick={onUpdate}>
               {UPDATE_LABEL[kind]}
             </Btn>
@@ -267,96 +260,5 @@ export function RecordScreen({
         </Btn>
       </div>
     </>
-  );
-}
-
-/* REMINDERS, FOLDED INTO A MENU.
-
-   Four chips, a heading, a caption and two lines of explanation used a whole
-   card near the bottom of the screen to hold what is, on most cards, one
-   switched-on lead. It is a menu on the status card now, beside the one button
-   that matters, and its label carries the answer — "Remind me" when none is
-   set, the lead itself when one is, a count when there are several — so the
-   state is legible without opening anything.
-
-   The leads are not exclusive, so these are checkboxes and the menu stays open
-   as they are pressed. It closes on Escape or on a click outside it, which is
-   the same contract every other `.vm-menu` in this codebase keeps. */
-function RemindMenu({
-  reminders,
-  expiry,
-  pending,
-  onRemind,
-}: {
-  reminders: number[];
-  expiry: string | null;
-  pending: boolean;
-  onRemind: (leadDays: number, on: boolean) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const key = (e: KeyboardEvent) => {
-      /* Stops at this menu rather than reaching the modal's own Escape
-         handler, which would close the whole card behind it. */
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", key, true);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", key, true);
-    };
-  }, [open]);
-
-  const on = REMINDER_LEADS.filter((l) => reminders.includes(l));
-  const label =
-    on.length === 0 ? "Remind me" : on.length === 1 ? leadLabel(on[0]) : `${on.length} reminders`;
-
-  return (
-    <div className="vm-menuwrap" ref={wrap}>
-      <button
-        type="button"
-        className={`vm-remind${on.length ? " on" : ""}`}
-        aria-haspopup="true"
-        aria-expanded={open}
-        disabled={!expiry}
-        title={expiry ? undefined : "Record a term first — a reminder counts down to an expiry"}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <Icon name="bell" size={14} />
-        {label}
-        <Icon name={open ? "chevU" : "chevD"} size={12} />
-      </button>
-      {open && (
-        <div className="vm-menu" role="menu" aria-label="Remind me">
-          {REMINDER_LEADS.map((lead) => {
-            const set = reminders.includes(lead);
-            return (
-              <button
-                key={lead}
-                type="button"
-                role="menuitemcheckbox"
-                aria-checked={set}
-                className={set ? "on" : undefined}
-                disabled={pending}
-                onClick={() => onRemind(lead, !set)}
-              >
-                <Icon name={set ? "check" : "circle"} size={14} />
-                {leadLabel(lead)}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }

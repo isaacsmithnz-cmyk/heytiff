@@ -12,7 +12,6 @@ import type {
 import type { Role } from "@/lib/roles-shared";
 import type { StaffLicenceRecord } from "./licence-records";
 import type { WorkRightsRecord } from "./work-rights-records";
-import { isReminderLead } from "@/lib/fleet/reminders";
 
 /* Team queries. Every one of these is scoped by org_id from the session —
    there is no unscoped read in this file, deliberately.
@@ -188,55 +187,6 @@ export async function listWorkRightsChecks(
       documentId: str(r.document_id),
       createdAt: r.created_at ? String(r.created_at) : null,
     }));
-}
-
-/** The VIEWER's own open work-rights reminders about one person — which chips
-    are lit. Personal by construction, and tolerant of its own migration. */
-export async function listWorkRightsReminders(
-  orgId: string,
-  viewerStaffId: string | null,
-  staffProfileId: string
-): Promise<number[]> {
-  if (!viewerStaffId) return [];
-  const { data, error } = await supabaseAdmin
-    .from("tasks")
-    .select("lead_days")
-    .eq("org_id", orgId)
-    .eq("assigned_to", viewerStaffId)
-    .eq("work_rights_staff_id", staffProfileId)
-    .eq("status", "open");
-  if (error) return [];
-  return ((data ?? []) as Record<string, unknown>[])
-    .map((r) => Math.round(Number(r.lead_days)))
-    .filter(isReminderLead);
-}
-
-/** The VIEWER's own open reminders about these licences — what the REMIND ME
-    chips read. Personal by construction (assigned_to is the viewer), so a
-    manager sees their own chips on a colleague's card and not that person's.
-    Tolerant of its own migration the same way. */
-export async function listLicenceReminders(
-  orgId: string,
-  viewerStaffId: string | null,
-  licenceIds: readonly string[]
-): Promise<Record<string, number[]>> {
-  if (!viewerStaffId || licenceIds.length === 0) return {};
-  const { data, error } = await supabaseAdmin
-    .from("tasks")
-    .select("staff_licence_id, lead_days")
-    .eq("org_id", orgId)
-    .eq("assigned_to", viewerStaffId)
-    .eq("status", "open")
-    .in("staff_licence_id", [...licenceIds]);
-  if (error) return {};
-
-  const out: Record<string, number[]> = {};
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const lead = Math.round(Number(r.lead_days));
-    if (!isReminderLead(lead)) continue;
-    (out[String(r.staff_licence_id)] ??= []).push(lead);
-  }
-  return out;
 }
 
 /** Emails live on `profiles` (written at login), keyed by Auth0 sub.

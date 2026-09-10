@@ -123,13 +123,10 @@ function setup(
     candidates?: OwnerCandidate[];
     onTransferOwnership?: jest.Mock;
     onRecordTerm?: jest.Mock;
-    onCredentialReminder?: jest.Mock;
     /** the terms behind the cards, keyed by credential id */
     records?: Record<string, OrgCredentialRecord[]>;
     /** the paperwork behind the cards, keyed by credential id */
     documents?: Record<string, StoredDocument[]>;
-    /** the reminder leads the viewer has switched on, keyed by credential id */
-    reminders?: Record<string, number[]>;
     /** which tab to land on — the page's own `?sec=`, so a test that wants a
         section says which one instead of counting cards down a page */
     sec?: string;
@@ -147,7 +144,6 @@ function setup(
     onRecordTerm: over.onRecordTerm ?? jest.fn().mockResolvedValue({ ok: true }),
     onAttachCredentialDoc: jest.fn().mockResolvedValue({ ok: true }),
     onRemoveTerm: jest.fn().mockResolvedValue({ ok: true }),
-    onCredentialReminder: over.onCredentialReminder ?? jest.fn().mockResolvedValue({ ok: true }),
     /* Present = "you are the master". The page passes it only for the master
        owner, so a test for a co-owner's screen passes `onTransferOwnership:
        undefined` rather than a stub that refuses. */
@@ -162,7 +158,6 @@ function setup(
       credentials={over.credentials ?? CREDENTIALS}
       credentialRecords={over.records ?? {}}
       credentialDocuments={over.documents ?? {}}
-      credentialReminders={over.reminders ?? {}}
       account={over.account === undefined ? ACCOUNT : over.account}
       ownerCandidates={over.candidates ?? CANDIDATES}
       logoUrl={over.logoUrl ?? null}
@@ -335,7 +330,6 @@ describe("your business", () => {
           onRecordTerm: jest.fn(),
           onAttachCredentialDoc: jest.fn(),
           onRemoveTerm: jest.fn(),
-          onCredentialReminder: jest.fn(),
           onSetLogo: jest.fn(),
           onClearLogo: jest.fn(),
           onSetBrandColor: jest.fn(),
@@ -764,29 +758,7 @@ describe("the credential modal", () => {
     expect(actions.onAddCredential).not.toHaveBeenCalled();
   });
 
-  /* REMIND ME is the fleet's chips, and it needs an expiry to count from —
-     a card with nothing on file offers them switched off and unpressable
-     rather than creating a task with no date. */
-  it("sets a reminder against the card, and cannot before there is an expiry", async () => {
-    const user = userEvent.setup();
-    const { actions } = setup({ sec: "credentials", records: { C2: [term()] } });
-
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
-    const dialog = screen.getByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: /Remind me/ }));
-    await user.click(within(dialog).getByRole("menuitemcheckbox", { name: "30 days before" }));
-    expect(actions.onCredentialReminder).toHaveBeenCalledWith("C2", 30, true);
-  });
-
-  it("leaves the reminder menu shut until a term is on file", async () => {
-    const user = userEvent.setup();
-    setup({ sec: "credentials", credentials: [{ ...CREDENTIALS[1], expiryDate: null }] });
-
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
-    const dialog = screen.getByRole("dialog");
-    // a reminder counts down to an expiry; with none there is nothing to count
-    expect(within(dialog).getByRole("button", { name: /Remind me/ })).toBeDisabled();
-  });
+  
 
   /* THE MENU CARRIES ITS OWN ANSWER, so what you asked for is legible without
      opening it. Four chips in a card of their own said the same thing with a
@@ -893,6 +865,22 @@ describe("the credential modal", () => {
   /* A HEADING, A BORDER AND A SHADOW SPENT ON THE ABSENCE OF A THING. A card
      holding its first term showed a full-width POLICY HISTORY panel whose only
      content was "No previous policy terms recorded". */
+  /* NO REMIND ME. The per-card button was the only door into the morning
+     email and the only door into the bell for a licence — a button doing the
+     job a setting should. The org's expiry window nudges now (lib/expiry.ts);
+     Tiff's "remind me Monday" tasks are a separate feature. */
+  it("offers no Remind me on a card — the org's expiry window nudges instead", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", records: { C2: [term()] } });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: /Remind me/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("menuitemcheckbox")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/days before/)).not.toBeInTheDocument();
+    // the one button that changes anything is still there
+    expect(within(dialog).getByRole("button", { name: "Update policy" })).toBeInTheDocument();
+  });
+
   it("shows no history panel until there is history", async () => {
     const user = userEvent.setup();
     const { unmount } = setup({ sec: "credentials", records: { C2: [term()] } });
@@ -905,13 +893,6 @@ describe("the credential modal", () => {
     expect(within(screen.getByRole("dialog")).getByText("POLICY HISTORY")).toBeInTheDocument();
   });
 
-  it("says on the button which reminders are set", async () => {
-    const user = userEvent.setup();
-    setup({ sec: "credentials", records: { C2: [term()] }, reminders: { C2: [30, 7] } });
-    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
-    const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByRole("button", { name: /2 reminders/ })).toBeInTheDocument();
-  });
 });
 
 /* The address, which is FOUR fields and one lookup.

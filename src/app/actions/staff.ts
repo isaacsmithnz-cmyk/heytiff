@@ -24,17 +24,14 @@ import {
   recordTerm,
   removeTerm,
   seedFirstTerm,
-  setLicenceReminder,
 } from "@/lib/staff/licence-writes";
 import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 import {
   attachCheckDocument,
   recordCheck,
   removeCheck,
-  setWorkRightsReminder,
 } from "@/lib/staff/work-rights-writes";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { fullNameOf } from "@/lib/staff/name";
 import { resolvePhotoDocument } from "@/lib/staff/photo";
 import type { Role } from "@/lib/roles-shared";
 
@@ -304,18 +301,6 @@ async function actorStaffId(ctx: Ctx): Promise<string | null> {
   return staffProfileIdFor(ctx.orgId, ctx.actorId);
 }
 
-/** The name that goes in a reminder's title — it is a manager's bell, and
-    "Renew ARC licence" with no name on it is useless in one. */
-async function subjectName(orgId: string, staffId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from("staff_profiles")
-    .select("first_name, last_name, full_name, preferred_name")
-    .eq("org_id", orgId)
-    .eq("id", staffId)
-    .maybeSingle();
-  return data ? fullNameOf(data) || null : null;
-}
-
 export async function recordStaffLicenceTerm(
   staffId: string,
   licenceId: string,
@@ -361,28 +346,6 @@ export async function removeStaffLicenceTerm(staffId: string, termId: string): P
 
   const res = await removeTerm(ctx.orgId, staffId, termId);
   if (res.ok) revalidateStaff(staffId);
-  return res;
-}
-
-/** A manager's OWN reminder about somebody else's ticket. Theirs to turn off,
-    and turning it off does not touch the ticket holder's. */
-export async function setStaffLicenceReminder(
-  staffId: string,
-  licenceId: string,
-  leadDays: number,
-  on: boolean,
-): Promise<SaveResult> {
-  const ctx = await context();
-  if (!ctx) throw new Error("Not authenticated");
-  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
-
-  const [viewer, subject] = await Promise.all([actorStaffId(ctx), subjectName(ctx.orgId, staffId)]);
-  const res = await setLicenceReminder(ctx.orgId, viewer, staffId, licenceId, subject, leadDays, on);
-  if (res.ok) {
-    revalidateStaff(staffId);
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/workboard");
-  }
   return res;
 }
 
@@ -626,22 +589,3 @@ export async function removeStaffWorkRightsCheck(
   return res;
 }
 
-/** A manager's OWN reminder about somebody else's visa expiry. */
-export async function setStaffWorkRightsReminder(
-  staffId: string,
-  leadDays: number,
-  on: boolean,
-): Promise<SaveResult> {
-  const ctx = await context();
-  if (!ctx) throw new Error("Not authenticated");
-  if (!ctx.caps.has("team")) return { ok: false, error: "You don't have access to staff records." };
-
-  const [viewer, subject] = await Promise.all([actorStaffId(ctx), subjectName(ctx.orgId, staffId)]);
-  const res = await setWorkRightsReminder(ctx.orgId, viewer, staffId, subject, leadDays, on);
-  if (res.ok) {
-    revalidateStaff(staffId);
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/workboard");
-  }
-  return res;
-}

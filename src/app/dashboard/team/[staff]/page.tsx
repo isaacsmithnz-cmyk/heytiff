@@ -20,14 +20,11 @@ import {
 } from "@/lib/permissions";
 import {
   getStaff,
-  listLicenceReminders,
   listLicenceTerms,
   listWorkRightsChecks,
-  listWorkRightsReminders,
   permissionsOf,
 } from "@/lib/staff/query";
 import { documentsForStaffLicences, documentsForWorkRights } from "@/lib/documents/query";
-import { staffProfileIdFor } from "@/lib/fleet/query";
 import { signPhotoUrl } from "@/lib/staff/photo";
 import { getPaySettings, shiftDefaultsFor } from "@/lib/timepay/query";
 import { rosteredWeekHours } from "@/components/timepay/logic";
@@ -43,8 +40,6 @@ import {
   removeStaffLicenceTerm,
   removeStaffWorkRightsCheck,
   saveStaffSection,
-  setStaffWorkRightsReminder,
-  setStaffLicenceReminder,
   updateStaffLicence,
   setStaffPhoto,
 } from "@/app/actions/staff";
@@ -114,21 +109,16 @@ export default async function StaffProfilePage({
      somebody else's ticket, so they resolve against the viewer's staff card,
      not the subject's. */
   const licenceIds = licences.map((l) => l.id);
-  const viewerStaffId = await staffProfileIdFor(orgId, ownership.userId);
   const [
     licenceTerms,
     licenceDocuments,
-    licenceReminders,
     workRightsChecks,
     workRightsDocuments,
-    workRightsReminders,
   ] = await Promise.all([
     listLicenceTerms(orgId, staffId),
     documentsForStaffLicences(orgId, licenceIds),
-    listLicenceReminders(orgId, viewerStaffId, licenceIds),
     listWorkRightsChecks(orgId, staffId),
     documentsForWorkRights(orgId, staffId),
-    listWorkRightsReminders(orgId, viewerStaffId, staffId),
   ]);
 
   /* Only for a viewer who can see the Payroll card, since that is the only
@@ -186,10 +176,8 @@ export default async function StaffProfilePage({
       licences={licences}
       licenceTerms={licenceTerms}
       licenceDocuments={Object.fromEntries(licenceDocuments)}
-      licenceReminders={licenceReminders}
       workRightsChecks={workRightsChecks}
       workRightsDocuments={workRightsDocuments}
-      workRightsReminders={workRightsReminders}
       vehicle={assignedVehicle}
       today={todayInAu()}
       warnDays={expiry.warnDays}
@@ -213,11 +201,9 @@ export default async function StaffProfilePage({
         onRecordLicenceTerm: recordStaffLicenceTerm.bind(null, staffId),
         onAttachLicenceDoc: attachStaffLicenceDocument.bind(null, staffId),
         onRemoveLicenceTerm: removeStaffLicenceTerm.bind(null, staffId),
-        onLicenceReminder: setStaffLicenceReminder.bind(null, staffId),
         onRecordWorkRightsCheck: recordStaffWorkRightsCheck.bind(null, staffId),
         onAttachWorkRightsDoc: attachStaffWorkRightsDocument.bind(null, staffId),
         onRemoveWorkRightsCheck: removeStaffWorkRightsCheck.bind(null, staffId),
-        onWorkRightsReminder: setStaffWorkRightsReminder.bind(null, staffId),
         onSetPhoto: setStaffPhoto.bind(null, staffId),
         onClearPhoto: clearStaffPhoto.bind(null, staffId),
       }}

@@ -7,7 +7,6 @@ import { readWorkRightsDocument, type ReadWorkRightsResult } from "@/app/actions
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { fmtDay } from "@/lib/format/day";
-import { REMINDER_LEADS, leadLabel } from "@/lib/fleet/reminders";
 import { Btn, Card, DetailGrid, Eyebrow, Inline, type DetailItem } from "@/components/record-modal/parts";
 import { DocRows } from "@/components/record-modal/doc-rows";
 import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
@@ -52,13 +51,11 @@ export function WorkRightsModal({
   subject,
   records,
   documents,
-  reminders,
   today,
   warnDays,
   onRecord,
   onAttach,
   onRemoveCheck,
-  onRemind,
   onClose,
 }: {
   staffId: string;
@@ -67,13 +64,11 @@ export function WorkRightsModal({
   subject: string | null;
   records: WorkRightsRecord[];
   documents: StoredDocument[];
-  reminders: number[];
   today: string;
   warnDays: number;
   onRecord: (input: WorkRightsCheckInput) => Promise<SaveResult>;
   onAttach: (recordId: string, documentId: string) => Promise<SaveResult>;
   onRemoveCheck: (recordId: string) => Promise<SaveResult>;
-  onRemind: (leadDays: number, on: boolean) => Promise<SaveResult>;
   onClose: () => void;
 }) {
   const current = currentCheck(records);
@@ -225,35 +220,6 @@ export function WorkRightsModal({
             </Card>
           )}
 
-          <Card>
-            <div className="vm-cardhead">
-              <Eyebrow>REMIND ME</Eyebrow>
-              <span className="vm-caption">
-                {state === "forever" ? "Nothing to count down to" : current?.expiresOn ? "Before it expires" : "Record a check first"}
-              </span>
-            </div>
-            <div className="vm-chips" role="group" aria-label="Remind me">
-              {REMINDER_LEADS.map((lead) => {
-                const on = reminders.includes(lead);
-                return (
-                  <button
-                    key={lead}
-                    type="button"
-                    className={`vm-chip${on ? " on" : ""}`}
-                    aria-pressed={on}
-                    disabled={!current?.expiresOn || pending}
-                    onClick={() => void run(() => onRemind(lead, !on))}
-                  >
-                    {leadLabel(lead)}
-                  </button>
-                );
-              })}
-            </div>
-            <span className="vm-hint">
-              Each one is a task on your own dashboard — the bell nudges you the morning it falls due, and it goes
-              out in that day&apos;s reminder email. A check that says the entitlement no longer expires closes them.
-            </span>
-          </Card>
 
           {panelOpen && (
             <ScanCard<ReadWorkRightsResult>

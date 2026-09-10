@@ -88,7 +88,6 @@ function actions(): FleetActions {
     recordFinance: noop,
     attachFinanceDocument: noop,
     attachPurchaseDocument: noop,
-    setRenewalReminder: noop,
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
@@ -108,7 +107,6 @@ function detail(vehicle: Vehicle) {
       documents={[]}
       policies={[]}
       finance={[]}
-      reminders={[]}
       staff={[]}
       today={TODAY} warnDays={30}
       fleet={actions()}
@@ -204,7 +202,6 @@ it("returns to the service history after logging one, not to the vehicle card", 
     recordFinance: noop,
     attachFinanceDocument: noop,
     attachPurchaseDocument: noop,
-    setRenewalReminder: noop,
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
@@ -217,7 +214,6 @@ it("returns to the service history after logging one, not to the vehicle card", 
     documents: {},
     policies: {},
     finance: {},
-    reminders: {},
   };
   global.fetch = jest.fn(async () => ({ ok: false })) as unknown as typeof fetch;
 

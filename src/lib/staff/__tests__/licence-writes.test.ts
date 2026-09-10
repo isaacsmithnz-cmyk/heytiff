@@ -106,7 +106,7 @@ jest.mock("@/lib/workboard/query", () => ({
   getSm8Timezone: () => Promise.resolve("Australia/Sydney"),
 }));
 
-import { fileLicenceDocument, recordTerm, removeTerm, setLicenceReminder } from "../licence-writes";
+import { fileLicenceDocument, recordTerm, removeTerm } from "../licence-writes";
 
 const ORG = "org-1";
 const STAFF = "staff-bob";
@@ -218,20 +218,6 @@ describe("recordTerm", () => {
     expect(cleared[0].payload).toEqual({ document_id: null });
   });
 
-  it("moves every reminder counting down to the old date", async () => {
-    tables.tasks = [
-      { id: "t1", org_id: ORG, staff_licence_id: LIC, assigned_to: ME, lead_days: 30, status: "open" },
-    ];
-    await recordTerm(ORG, STAFF, ME, LIC, { expiresOn: "2028-08-07" });
-
-    const moved = wrote("update", "tasks");
-    expect(moved).toHaveLength(1);
-    expect(moved[0].payload).toMatchObject({
-      due_date: "2028-07-08",
-      // the letter that went out named the old date, so it has not been delivered
-      reminder_emailed_at: null,
-    });
-  });
 });
 
 describe("removeTerm", () => {
@@ -277,6 +263,18 @@ describe("removeTerm", () => {
    one of the four seeded types — can hold no term. While this took only a term
    id, that ticket could never have a document filed against it at all: the
    only "Add document" on the screen lived inside the current term's card. */
+/* NO TASK ROW, EVER. Recording a term used to move every open reminder
+   counting down to the old date; there are no such rows to move now — the
+   org's expiry window is derived at read (lib/expiry.ts), and a task is
+   something Tiff makes from a note. A term write that touches `tasks` is a
+   door growing back. */
+describe("recordTerm and the tasks table", () => {
+  it("touches no task row — the org's expiry window nudges, not a task", async () => {
+    await recordTerm(ORG, STAFF, ME, LIC, { expiresOn: "2027-08-07" });
+    expect(writes.filter((w) => w.table === "tasks")).toEqual([]);
+  });
+});
+
 describe("fileLicenceDocument", () => {
   beforeEach(() => {
     tables.staff_licence_records = [
@@ -336,70 +334,3 @@ describe("fileLicenceDocument", () => {
   });
 });
 
-describe("setLicenceReminder", () => {
-  it("creates one open task of the VIEWER's own, due the lead before the expiry", async () => {
-    expect(await setLicenceReminder(ORG, ME, STAFF, LIC, "Bob Smith", 30, true)).toEqual({ ok: true });
-    expect(only("insert", "tasks").payload).toMatchObject({
-      org_id: ORG,
-      title: "Renew ARC licence — Bob Smith",
-      detail: "Expires 7 Aug 2026 · 30 days' notice",
-      // the MANAGER's task about Bob's ticket, not Bob's
-      assigned_to: ME,
-      due_date: "2026-07-08",
-      status: "open",
-      staff_licence_id: LIC,
-      lead_days: 30,
-    });
-  });
-
-  it("leaves the name off when it is your own ticket", async () => {
-    await setLicenceReminder(ORG, STAFF, STAFF, LIC, null, 14, true);
-    expect(only("insert", "tasks").payload).toMatchObject({ title: "Renew ARC licence" });
-  });
-
-  it("needs an expiry to count from", async () => {
-    tables.staff_licences = [{ ...LICENCE, expiry_date: null }];
-    expect(await setLicenceReminder(ORG, ME, STAFF, LIC, null, 30, true)).toEqual({
-      ok: false,
-      error: "Record the renewal first — a reminder needs an expiry to count from.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-
-  it("is a no-op when the chip is already on", async () => {
-    tables.tasks = [
-      { id: "t1", org_id: ORG, staff_licence_id: LIC, assigned_to: ME, lead_days: 30, status: "open" },
-    ];
-    expect(await setLicenceReminder(ORG, ME, STAFF, LIC, null, 30, true)).toEqual({ ok: true });
-    expect(wrote("insert", "tasks")).toHaveLength(0);
-  });
-
-  /* PERSONAL: turning YOURS off deletes YOUR task, scoped to your own staff
-     id, and leaves the ticket holder's — or the manager's — alone. */
-  it("deletes only the viewer's own reminder when the chip goes off", async () => {
-    expect(await setLicenceReminder(ORG, ME, STAFF, LIC, null, 30, false)).toEqual({ ok: true });
-    expect(only("delete", "tasks").eq).toEqual([
-      ["org_id", ORG],
-      ["assigned_to", ME],
-      ["staff_licence_id", LIC],
-      ["lead_days", 30],
-      ["status", "open"],
-    ]);
-  });
-
-  it("refuses a lead the chips don't offer", async () => {
-    expect(await setLicenceReminder(ORG, ME, STAFF, LIC, null, 45, true)).toEqual({
-      ok: false,
-      error: "Couldn't set that reminder.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-
-  it("refuses a viewer with no staff card to hang a task on", async () => {
-    expect(await setLicenceReminder(ORG, null, STAFF, LIC, null, 30, true)).toEqual({
-      ok: false,
-      error: "Only a staff member can set a reminder.",
-    });
-    expect(writes).toHaveLength(0);
-  });
-});

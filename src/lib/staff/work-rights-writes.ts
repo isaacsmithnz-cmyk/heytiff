@@ -1,13 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { remindAtFrom } from "@/lib/dashboard/reminders";
-import { workdayHours } from "@/lib/dashboard/reminders-query";
-import { getSm8Timezone } from "@/lib/workboard/query";
-import { isReminderLead, reminderDueDate } from "@/lib/fleet/reminders";
 import {
   WORK_RIGHTS_DOC_KIND,
   buildWorkRightsCheckRow,
-  workRightsReminderDetail,
-  workRightsReminderTitle,
   type WorkRightsCheckInput,
   type WorkRightsCheckRow,
 } from "./work-rights-records";
@@ -141,7 +135,6 @@ export async function recordCheck(
   if (!filed.ok) return filed;
 
   await syncCache(orgId, staffId);
-  await rescheduleWorkRightsReminders(orgId, staffId, built.row.expires_on);
   return { ok: true };
 }
 
@@ -208,128 +201,3 @@ export async function removeCheck(
   return { ok: true };
 }
 
-/* "Remind me 30 days before Bob's visa expires" is a TASK, on the same terms
-   as every other reminder here, and PERSONAL TO THE VIEWER.
-
-   KEYED ON THE PERSON, not on a check, because what you want warning about is
-   "this person's right to work" and that survives the record that currently
-   describes it — a new check replaces the record but not the question. */
-export async function setWorkRightsReminder(
-  orgId: string,
-  viewerStaffId: string | null,
-  staffId: string,
-  subject: string | null,
-  leadDays: number,
-  on: boolean,
-): Promise<WriteResult> {
-  if (!viewerStaffId) return { ok: false, error: "Only a staff member can set a reminder." };
-  if (!isReminderLead(leadDays)) return { ok: false, error: "Couldn't set that reminder." };
-
-  const { data: person } = await supabaseAdmin
-    .from(PROFILES)
-    .select("id, visa_expiry")
-    .eq("org_id", orgId)
-    .eq("id", staffId)
-    .maybeSingle();
-  if (!person) return { ok: false, error: "That staff member doesn't exist." };
-
-  if (!on) {
-    const { error } = await supabaseAdmin
-      .from("tasks")
-      .delete()
-      .eq("org_id", orgId)
-      .eq("assigned_to", viewerStaffId)
-      .eq("work_rights_staff_id", staffId)
-      .eq("lead_days", leadDays)
-      .eq("status", "open");
-    if (error) return { ok: false, error: "Couldn't clear that reminder." };
-    return { ok: true };
-  }
-
-  const expiresOn = (person.visa_expiry as string | null)?.slice(0, 10) ?? null;
-  if (!expiresOn) {
-    /* A citizen has no expiry and nothing to count down to. Saying so is the
-       honest refusal — the alternative is a chip that looks armed and a task
-       that never falls due. */
-    return { ok: false, error: "There's no expiry to count from — record a check with one first." };
-  }
-
-  const { data: existing } = await supabaseAdmin
-    .from("tasks")
-    .select("id")
-    .eq("org_id", orgId)
-    .eq("assigned_to", viewerStaffId)
-    .eq("work_rights_staff_id", staffId)
-    .eq("lead_days", leadDays)
-    .eq("status", "open")
-    .limit(1);
-  if (existing && existing.length > 0) return { ok: true };
-
-  const dueDate = reminderDueDate(expiresOn, leadDays);
-  const [tz, day] = await Promise.all([getSm8Timezone(orgId), workdayHours(orgId, viewerStaffId)]);
-  const { error } = await supabaseAdmin.from("tasks").insert({
-    org_id: orgId,
-    title: workRightsReminderTitle(subject),
-    detail: workRightsReminderDetail(expiresOn, leadDays),
-    assigned_to: viewerStaffId,
-    created_by: viewerStaffId,
-    due_date: dueDate,
-    status: "open",
-    remind_at: remindAtFrom(dueDate, day.start, tz),
-    remind_kind: "at",
-    work_rights_staff_id: staffId,
-    lead_days: leadDays,
-  });
-  if (error) return { ok: false, error: "Couldn't set that reminder." };
-  return { ok: true };
-}
-
-/* A recorded check moves the expiry, so every reminder counting down to it
-   moves with it — everyone's. `reminder_emailed_at` is cleared: the letter
-   that went out named the old date.
-
-   A check with NO expiry — the person became a permanent resident — CLOSES the
-   open reminders instead of re-dating them. There is nothing left to count
-   down to, and leaving a task due against a date that no longer exists would
-   nag somebody forever about a question that has been answered. */
-async function rescheduleWorkRightsReminders(
-  orgId: string,
-  staffId: string,
-  expiresOn: string | null,
-): Promise<void> {
-  const { data } = await supabaseAdmin
-    .from("tasks")
-    .select("id, assigned_to, lead_days")
-    .eq("org_id", orgId)
-    .eq("work_rights_staff_id", staffId)
-    .eq("status", "open");
-  if (!data || data.length === 0) return;
-
-  if (!expiresOn) {
-    await supabaseAdmin
-      .from("tasks")
-      .delete()
-      .eq("org_id", orgId)
-      .eq("work_rights_staff_id", staffId)
-      .eq("status", "open");
-    return;
-  }
-
-  const tz = await getSm8Timezone(orgId);
-  for (const t of data as Record<string, unknown>[]) {
-    const lead = Math.max(0, Math.round(Number(t.lead_days)) || 0);
-    const dueDate = reminderDueDate(expiresOn, lead);
-    const day = await workdayHours(orgId, typeof t.assigned_to === "string" ? t.assigned_to : null);
-    await supabaseAdmin
-      .from("tasks")
-      .update({
-        due_date: dueDate,
-        remind_at: remindAtFrom(dueDate, day.start, tz),
-        detail: workRightsReminderDetail(expiresOn, lead),
-        reminder_emailed_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("org_id", orgId)
-      .eq("id", String(t.id));
-  }
-}

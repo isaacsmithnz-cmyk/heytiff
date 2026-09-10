@@ -237,17 +237,3 @@ export function buildLicenceTermRow(
    policy. These are the few facts a ticket adds. The leads themselves are the
    fleet's — one set of chips in the product, not three. */
 
-/** "Renew ARC licence — Bob Smith", or just "Renew ARC licence" when it is
-    your own. The name is there when it is somebody else's because a manager's
-    bell carries several people's tickets and none of them say whose. */
-export function licenceReminderTitle(typeName: string, subject: string | null): string {
-  const what = typeName.trim() || "licence";
-  const who = (subject ?? "").trim();
-  return who ? `Renew ${what} — ${who}` : `Renew ${what}`;
-}
-
-/** "Expires 29 Sep 2027 · 30 days' notice" — the line under the title. */
-export function licenceReminderDetail(expiresOn: string, leadDays: number): string {
-  const notice = leadDays === 1 ? "1 day's notice" : leadDays > 0 ? `${leadDays} days' notice` : null;
-  return [`Expires ${fmtDay(expiresOn)}`, notice].filter(Boolean).join(" · ");
-}

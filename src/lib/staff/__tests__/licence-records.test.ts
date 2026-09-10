@@ -3,8 +3,6 @@ import {
   buildLicenceTermRow,
   currentTerm,
   licenceDays,
-  licenceReminderDetail,
-  licenceReminderTitle,
   looseTermDocuments,
   previousTerms,
   termAddedText,
@@ -205,19 +203,7 @@ describe("what may be saved as a term", () => {
 });
 
 describe("the reminder's words", () => {
-  it("names the person when it is somebody else's ticket, and not when it is yours", () => {
-    /* A manager's bell carries several people's tickets and none of them say
-       whose; your own bell does not need your own name in it. */
-    expect(licenceReminderTitle("ARC licence", "Bob Smith")).toBe("Renew ARC licence — Bob Smith");
-    expect(licenceReminderTitle("ARC licence", null)).toBe("Renew ARC licence");
-    expect(licenceReminderTitle("ARC licence", "   ")).toBe("Renew ARC licence");
-  });
 
-  it("says the expiry and the notice under it", () => {
-    expect(licenceReminderDetail("2026-08-07", 30)).toBe("Expires 7 Aug 2026 · 30 days' notice");
-    expect(licenceReminderDetail("2026-08-07", 1)).toBe("Expires 7 Aug 2026 · 1 day's notice");
-    expect(licenceReminderDetail("2026-08-07", 0)).toBe("Expires 7 Aug 2026");
-  });
 });
 
 /* THE WINDOW IS THE ORG'S NUMBER, NOT A CONSTANT. Six hard-coded 30s became one

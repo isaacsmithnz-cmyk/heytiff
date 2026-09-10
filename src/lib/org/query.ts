@@ -3,7 +3,6 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import { signOne } from "@/lib/documents/query";
 import { isCredKind, sortOrgCredentials, type OrgCredential } from "./credentials";
 import type { OrgCredentialRecord } from "./credential-records";
-import { isReminderLead, type ReminderLead } from "@/lib/fleet/reminders";
 import { NO_BRAND, type OrgBrand } from "./brand";
 import { sortCandidates, type OwnerCandidate } from "./ownership";
 import type { OrgAccount } from "./account";
@@ -91,33 +90,6 @@ export async function listOrgCredentialRecords(
       source: r.source === "scan" ? "scan" : r.source === "manual" ? "manual" : null,
       createdAt: r.created_at ? String(r.created_at) : null,
     });
-  }
-  return out;
-}
-
-/** The viewer's own open reminders, per credential — what the REMIND ME chips
-    read. Personal by construction (assigned_to is the viewer), and tolerant of
-    its own migration the same way: no column yet means no chips on, not a
-    broken screen. */
-export async function listCredentialReminders(
-  orgId: string,
-  staffId: string | null,
-): Promise<Record<string, ReminderLead[]>> {
-  if (!staffId) return {};
-  const { data, error } = await supabaseAdmin
-    .from("tasks")
-    .select("org_credential_id, lead_days")
-    .eq("org_id", orgId)
-    .eq("assigned_to", staffId)
-    .eq("status", "open")
-    .not("org_credential_id", "is", null);
-  if (error) return {};
-
-  const out: Record<string, ReminderLead[]> = {};
-  for (const r of (data ?? []) as Record<string, unknown>[]) {
-    const lead = Math.round(Number(r.lead_days));
-    if (!isReminderLead(lead)) continue;
-    (out[String(r.org_credential_id)] ??= []).push(lead);
   }
   return out;
 }

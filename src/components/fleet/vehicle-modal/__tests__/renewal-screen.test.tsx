@@ -104,8 +104,6 @@ function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; po
       today={TODAY} warnDays={30}
       documents={over.documents ?? [slipDoc]}
       policies={over.policies ?? [greenSlip, rego]}
-      reminders={[]}
-      onRemind={jest.fn()}
       pending={false}
       error={null}
       onBack={onBack}
@@ -282,6 +280,13 @@ describe("insurance with nothing on file", () => {
        empty form's "12" — a twelve-month term nobody typed, saw, or could
        correct from this screen. A policy's period is its two dates. */
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ termMonths: null }));
+  });
+
+  it("offers no Remind me — the org's expiry window nudges instead", async () => {
+    mount("insurance", { policies: [] });
+    expect(screen.queryByText("REMIND ME")).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Remind me" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/days before/)).not.toBeInTheDocument();
   });
 
   it("scopes the fields to the kind: cover and excess for insurance, nothing of the green slip's", async () => {

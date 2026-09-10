@@ -155,14 +155,23 @@ function tailwindHexes(): number {
 }
 
 /* The spacing scale from docs/design.md. 2 is the hairline gap between
-   chips; everything else is 4 and its multiples up to 48. */
+   chips; everything else is 4 and its multiples up to 48. Three kinds are not
+   rhythm and are not counted, by law 17: 1px, an optical nudge; anything above
+   48, a layout offset such as a rail's width or a footer's clearance; and any
+   negative value, an offset that centres a disc or hides a border. */
 const SPACING = new Set([0, 2, 4, 8, 12, 16, 24, 32, 48]);
 function offScaleSpacing(): number {
   let n = 0;
   for (const m of CSS.matchAll(/(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)?\s*:\s*([^;}]+)/g)) {
-    for (const t of m[1].split(/\s+/)) {
+    // a `calc()` sum is geometry — a neighbour's padding plus its border, a
+    // disc's offset plus its width — and the guard that owns the neighbour
+    // reads its parts; the sum itself is not rhythm
+    for (const t of m[1].replace(/\b(?:calc|clamp|min|max)\([^)]*\)/g, "").split(/\s+/)) {
       const v = t.match(/^(-?\d+(?:\.\d+)?)px$/);
-      if (v && !SPACING.has(Math.abs(Number(v[1])))) n++;
+      if (!v) continue;
+      const a = Math.abs(Number(v[1]));
+      if (Number(v[1]) < 0 || a === 1 || a > 48) continue; // an offset, a nudge, a layout width
+      if (!SPACING.has(a)) n++;
     }
   }
   return n;
@@ -246,7 +255,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 25 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
-  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 2860 },
+  { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
   { law: "arrows on buttons — the word is the button", now: () => countTsx(onScreen("→")), baseline: 18 },

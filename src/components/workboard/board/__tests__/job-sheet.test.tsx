@@ -1516,7 +1516,13 @@ describe("the Money face", () => {
     expect(screen.queryByText(/Invoice #2380 ·/)).toBeNull();
   });
 
-  it("wears the job type's colour as the block's edge", async () => {
+  /* THE EDGE IS INK, NOT THE JOB TYPE'S COLOUR. The block used to take
+     ServiceM8's category colour as its border, and a yellow ring around the
+     job's figure looked bad (Isaac, 2026-09-10). The category still reaches
+     the sheet — the band's tint, the chip's dot — but no colour from the
+     data reaches this block: its edge is the stylesheet's, so the row's
+     colour must leave no inline style behind at all. */
+  it("wears ink as its edge, never the job type's colour", async () => {
     readMirrorJob.mockResolvedValueOnce(card(detail()));
     readJobRecord.mockResolvedValueOnce(record({ family: familyMoney() }));
     render(<JobSheet row={row()} {...props} moneyVisible />);
@@ -1524,7 +1530,8 @@ describe("the Money face", () => {
 
     await screen.findByText("$31,340.35");
     const block = document.querySelector(".wb2-jmoney") as HTMLElement;
-    expect(block.style.borderColor).toBe("rgb(231, 181, 255)");
+    expect(block.style.borderColor).toBe("");
+    expect(block.getAttribute("style")).toBeNull();
   });
 
   it("keeps the partial-invoice rows out of what went on the job", async () => {

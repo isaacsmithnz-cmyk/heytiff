@@ -7458,13 +7458,16 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 /* the Actions face — once-per-job acts, as quiet rows */
 
 /* ── THE MONEY BLOCK ──────────────────────────────────────────────────────
-   One job's money, read once. THE JOB TYPE'S COLOUR FRAMES THIS SECTION AND
-   ONLY THIS SECTION — ServiceM8's category palette makes no contrast promise,
-   so it is an edge here and a dot in a chip up top, never a surface and never
-   text. Without a category the block keeps the hairline every other section
-   wears, so nothing is lost. The width is restated as a LONGHAND after
-   .wb2-shsect's shorthand, which is the only reason 1.5px sticks. */
-.wb2-jmoney { display:flex; flex-direction:column; border-width:1.5px; }
+   One job's money, read once. IT WEARS INK, NOT THE JOB TYPE'S COLOUR. It
+   used to take ServiceM8's category colour as its edge, and a yellow ring
+   around the job's figure looked bad (Isaac, 2026-09-10): a palette that
+   makes no contrast promise makes no taste promise either. The category
+   keeps its dot in the chip up top. Ink and not green, because green is the
+   PAID state here — a green frame around "Nothing paid yet" would say the
+   opposite of the words inside it. Width and colour are restated as
+   LONGHANDS after .wb2-shsect's shorthand, which is the only reason they
+   stick. */
+.wb2-jmoney { display:flex; flex-direction:column; border-width:1.5px; border-color:var(--ink); }
 /* THE VALUE SITS ON THE RIGHT (Isaac, 2026-08-28) — every other figure in
    this face is right-aligned in its own column, so the job's own figure was
    the one number reading against the grain. Label, figure and the invoiced

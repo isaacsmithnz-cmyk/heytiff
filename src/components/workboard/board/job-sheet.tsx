@@ -1153,7 +1153,6 @@ export function JobSheet({
                       record?.ledger ? paymentsTotalCents(record.ledger.payments) : 0
                     }
                     statusLabel={row.statusLabel}
-                    categoryColour={categoryColour}
                     focusRemoteId={focus}
                     onOpenClaim={setOpenClaim}
                   />

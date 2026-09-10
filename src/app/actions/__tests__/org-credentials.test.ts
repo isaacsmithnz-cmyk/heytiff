@@ -108,11 +108,23 @@ function builder(table: string) {
 
 let dbRole: string | null = "owner";
 
+/* Storage removals land in the same `writes` log as row writes, as a delete on
+   a table called "storage", so a test can assert their ORDER against the row
+   deletes — the whole point of removing objects before the card is that
+   afterwards there is nothing left to read the refs from. */
 jest.mock("@/lib/supabase-server", () => ({
   supabaseAdmin: {
     from: (table: string) => {
       from(table);
       return builder(table);
+    },
+    storage: {
+      from: () => ({
+        remove: async (refs: string[]) => {
+          writes.push({ op: "delete", table: "storage", payload: { refs }, eq: [], in: [] });
+          return { error: null };
+        },
+      }),
     },
   },
 }));
@@ -286,6 +298,49 @@ describe("removeOrgCredential", () => {
       ["org_id", "org-1"],
       ["id", "cred-1"],
     ]);
+  });
+
+  /* THE PAPERWORK GOES WITH THE CARD, AND IT GOES FIRST. `documents.
+     org_credential_id` is ON DELETE SET NULL, so a bare card delete left every
+     certificate ever scanned onto it in the bucket owned by nothing —
+     unreachable, still billable, the same orphan shape as the bug that lost a
+     real certificate, through a different door. Found on the prod walk. */
+  it("takes the card's documents out of the bucket and the table, before the card", async () => {
+    tables.documents = [
+      { id: "d1", org_id: "org-1", org_credential_id: "cred-1", storage_ref: "org/org-1/org_insurance/d1.pdf" },
+      { id: "d2", org_id: "org-1", org_credential_id: "cred-1", storage_ref: "org/org-1/org_licence/d2.pdf" },
+      // another card's file: untouched
+      { id: "d3", org_id: "org-1", org_credential_id: "cred-2", storage_ref: "org/org-1/org_insurance/d3.pdf" },
+    ];
+    expect(await removeOrgCredential("cred-1")).toEqual({ ok: true });
+
+    const storage = only("delete", "storage");
+    expect(storage.payload).toEqual({ refs: ["org/org-1/org_insurance/d1.pdf", "org/org-1/org_licence/d2.pdf"] });
+
+    const rows = only("delete", "documents");
+    expect(rows.eq).toEqual([
+      ["org_id", "org-1"],
+      ["org_credential_id", "cred-1"],
+    ]);
+
+    // objects, then rows, then the card — afterwards nothing could read the refs
+    const order = writes.filter((w) => w.op === "delete").map((w) => w.table);
+    expect(order).toEqual(["storage", "documents", "org_credentials"]);
+  });
+
+  it("never removes a file that is not the org's, even if a row claims it", async () => {
+    tables.documents = [
+      { id: "d1", org_id: "org-1", org_credential_id: "cred-1", storage_ref: "org/org-9/org_insurance/d1.pdf" },
+    ];
+    expect(await removeOrgCredential("cred-1")).toEqual({ ok: true });
+    expect(wrote("delete", "storage")).toHaveLength(0);
+    // the row still goes: a row pointing at a file we must not touch is worse than none
+    expect(only("delete", "documents").eq).toEqual(expect.arrayContaining([["org_credential_id", "cred-1"]]));
+  });
+
+  it("deletes a card with no paperwork without calling storage", async () => {
+    expect(await removeOrgCredential("cred-1")).toEqual({ ok: true });
+    expect(wrote("delete", "storage")).toHaveLength(0);
   });
 
   it("refuses a non-owner", async () => {

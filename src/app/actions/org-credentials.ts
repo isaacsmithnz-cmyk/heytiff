@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { refIsOrgs } from "@/lib/documents/files";
+import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { auth0 } from "@/lib/auth0";
 import { hasMinRole } from "@/lib/roles";
 import { getDbRole } from "@/lib/permissions-server";
@@ -144,6 +146,16 @@ export async function removeOrgCredential(id: string): Promise<CredResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
 
+  /* THE PAPERWORK GOES WITH THE CARD, and it goes FIRST. The card's terms and
+     reminder tasks cascade, but `documents.org_credential_id` is ON DELETE SET
+     NULL — so dropping the card alone left every certificate ever scanned
+     onto it sitting in the bucket owned by nothing: unreachable from any
+     screen, still billable, and the same orphan shape as the bug that lost a
+     real certificate on 2026-09-08, through a different door — found on the
+     signed-in prod walk of 2026-09-10. Done before the delete because afterwards there is nothing
+     left to read the refs from — the same ordering deleteNotice keeps. */
+  await removeCredentialFiles(ctx.orgId, id);
+
   const { error } = await supabaseAdmin
     .from(TABLE)
     .delete()
@@ -153,6 +165,36 @@ export async function removeOrgCredential(id: string): Promise<CredResult> {
 
   revalidate();
   return { ok: true };
+}
+
+/* The stored objects AND the rows behind a card's paperwork. Objects first,
+   from the refs the rows still hold; then the rows, which would otherwise
+   survive as `org_credential_id = null` — a document row pointing at a file
+   that no longer exists is the other half of the same orphan. Kept in one
+   named place so the cascade's blind spot is closed exactly once. A storage
+   failure is logged and swallowed, as it is for a notice: a billable object
+   left behind is a smaller harm than refusing to let an owner delete their
+   own card. */
+async function removeCredentialFiles(orgId: string, credentialId: string): Promise<void> {
+  const { data } = await supabaseAdmin
+    .from("documents")
+    .select("storage_ref")
+    .eq("org_id", orgId)
+    .eq("org_credential_id", credentialId);
+
+  const refs = ((data ?? []) as Record<string, unknown>[])
+    .map((r) => String(r.storage_ref))
+    .filter((ref) => refIsOrgs(ref, orgId));
+  if (refs.length > 0) {
+    const { error } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).remove(refs);
+    if (error) console.error("Couldn't remove a credential's documents from storage:", error);
+  }
+
+  await supabaseAdmin
+    .from("documents")
+    .delete()
+    .eq("org_id", orgId)
+    .eq("org_credential_id", credentialId);
 }
 
 /* ---------------- terms: the renewal history ---------------- */

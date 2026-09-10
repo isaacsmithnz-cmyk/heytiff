@@ -61,6 +61,15 @@ A screen picks a role. It never picks a number.
 | 999px | pill |
 | 50% | circle: avatar, dot |
 
+Three shapes are geometry, not a role, and are read off the element itself:
+a square rounded to its half or past it is a disc, `50%`; a bar rounded to
+its half is a pill, `999px`; a swatch of 12px or under is a sharp square, `0`
+— a key on a drawing has corners. An inner well is concentric with what holds
+it, `calc(6px - 3.5px)`, its radius less the inset, never a number of its own.
+A corner that is deliberately smaller than the others (a bubble's tail) keeps
+the nearest step. When a value sat between two steps it went down: the paper
+register is the sharper one.
+
 | Type | Weight | Role |
 |---|---|---|
 | 12px | 500 | caption, the floor; nothing is set smaller |

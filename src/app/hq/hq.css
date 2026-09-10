@@ -30,7 +30,7 @@
   font-family: inherit;
   font-weight: 600;
   background: var(--hq-panel-2);
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 1px 4px;
   font-size: 0.86em;
 }
@@ -76,7 +76,7 @@
 }
 .hq-nav-link {
   padding: 8px 12px;
-  border-radius: 9px;
+  border-radius: 10px;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--hq-mut);
@@ -147,7 +147,7 @@
 .hq-kpi {
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 16px 16px;
 }
 .hq-kpi-label {
@@ -186,7 +186,7 @@
 .hq-card {
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
 }
 .hq-table {
@@ -246,7 +246,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 4px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   color: var(--hq-accent);
   background: color-mix(in srgb, var(--hq-accent) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--hq-accent) 30%, transparent);
@@ -334,7 +334,7 @@
 .hq-dt-all {
   margin-left: auto;
   padding: 8px 12px;
-  border-radius: 9px;
+  border-radius: 10px;
   border-color: var(--hq-line);
 }
 .hq-dt-all:hover:not(:disabled) {
@@ -357,7 +357,7 @@
 }
 .hq-tab {
   padding: 8px 12px;
-  border-radius: 9px;
+  border-radius: 10px;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--hq-mut);
@@ -433,7 +433,7 @@
 .hq-pop {
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px;
   width: min(360px, calc(100vw - 32px));
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
@@ -484,7 +484,7 @@
 }
 .hq-btn {
   padding: 8px 16px;
-  border-radius: 9px;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -588,7 +588,7 @@
 .hq-syscard {
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 16px;
 }
 .hq-sys-facts {
@@ -624,7 +624,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 4px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   border: 1px solid var(--hq-line);
 }
 .hq-env.set {
@@ -646,7 +646,7 @@
   display: block;
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 16px;
   transition: border-color 0.15s;
 }
@@ -737,7 +737,7 @@
 }
 .hq-series {
   border: 1px solid var(--hq-line);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--hq-panel);
   margin-bottom: 8px;
   overflow: hidden;
@@ -872,7 +872,7 @@
 }
 .hq-cmp-scroll::-webkit-scrollbar-thumb {
   background: var(--hq-line);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 .hq-cmp-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--hq-mut-2);
@@ -1084,7 +1084,7 @@
 .hq-cmp-chip {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
   color: var(--hq-ink);
@@ -1114,7 +1114,7 @@
   height: 24px;
   padding: 0 8px;
   border: 1px dashed var(--hq-line);
-  border-radius: 7px;
+  border-radius: 10px;
   background: transparent;
   color: var(--hq-mut-2);
   font-family: inherit;
@@ -1193,7 +1193,7 @@
 .hq-cmp-sw {
   width: 18px;
   height: 12px;
-  border-radius: 4px;
+  border-radius: 0;
   flex: 0 0 auto;
 }
 .hq-cmp-sw.cool {
@@ -1212,7 +1212,7 @@
 /* ── extraction watch-list ── */
 .hq-watch {
   border: 1px solid color-mix(in srgb, var(--hq-edit) 30%, var(--hq-line));
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--hq-panel);
   padding: 12px 16px;
   margin-bottom: 16px;
@@ -1292,7 +1292,7 @@
   font-size: 11.5px;
   font-weight: 700;
   padding: 4px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   cursor: pointer;
 }
 .hq-watch-resolve:hover {
@@ -1307,7 +1307,7 @@
 .hq-watch-input {
   flex: 1;
   padding: 8px 12px;
-  border-radius: 9px;
+  border-radius: 6px;
   border: 1px solid var(--hq-line);
   background: var(--hq-bg);
   color: var(--hq-ink);
@@ -1384,7 +1384,7 @@
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
   border-left: 3px solid var(--nk, var(--hq-accent));
-  border-radius: 11px;
+  border-radius: 10px;
   padding: 8px 12px 12px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -1475,7 +1475,7 @@
   top: 78px;
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 16px 16px;
 }
 .hq-map-side-h {
@@ -1511,7 +1511,7 @@
 .hq-map-leg i {
   width: 10px;
   height: 10px;
-  border-radius: 3px;
+  border-radius: 0;
   flex: 0 0 auto;
 }
 .hq-map-leg-dash {
@@ -1532,7 +1532,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 4px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   color: var(--nk, var(--hq-accent));
   background: color-mix(in srgb, var(--nk, var(--hq-accent)) 13%, transparent);
   border: 1px solid color-mix(in srgb, var(--nk, var(--hq-accent)) 32%, transparent);
@@ -1569,7 +1569,7 @@
   text-align: left;
   background: var(--hq-panel-2);
   border: 1px solid var(--hq-line);
-  border-radius: 9px;
+  border-radius: 10px;
   padding: 8px 12px;
   cursor: pointer;
   font-family: inherit;

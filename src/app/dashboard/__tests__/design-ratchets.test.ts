@@ -54,13 +54,14 @@ const count = (re: RegExp) => (CSS.match(re) ?? []).length;
 /* The radius scale from docs/design.md, plus the two values that are not a
    radius at all. A shorthand like `12px 12px 0 0` is one declaration and one
    hit if any of its parts is off the scale. Tokens and calc() are trusted:
-   they are how the fold will express the scale. */
+   they are how the fold will express the scale, and a `calc(6px - 3.5px)` is
+   an inner well concentric with its swatch — geometry, read off the rule. */
 const RADII = new Set(["0", "6px", "10px", "16px", "999px", "50%", "inherit", "initial"]);
 function offScaleRadii(): number {
   let n = 0;
   for (const m of CSS.matchAll(/border-radius\s*:\s*([^;}]+)/g)) {
-    const parts = m[1].trim().split(/[\s/]+/);
-    if (parts.some((t) => !RADII.has(t) && !t.startsWith("var(") && !t.startsWith("calc("))) n++;
+    const parts = m[1].replace(/\b(?:var|calc|clamp|min|max)\([^)]*\)/g, "").trim().split(/[\s/]+/).filter(Boolean);
+    if (parts.some((t) => !RADII.has(t))) n++;
   }
   return n;
 }
@@ -248,7 +249,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "weight 800 or 900 — retired", now: () => count(/font-weight\s*:\s*(800|900)\b/g), baseline: 624 },
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 94 },
   { law: "`text-transform: uppercase` — the eyebrow is retired", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 201 },
-  { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 747 },
+  { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 42 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 114 },
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 284 },

@@ -159,7 +159,14 @@ approved together.
     steps by definition (`--gray700`, `--gray600`). The state colours were
     Tailwind's red, green, teal and amber.
 17. Spacing is on the scale: 2, 4, 8, 12, 16, 24, 32, 48. Two is the hairline
-    gap between chips. Nothing is typed by feel.
+    gap between chips. Nothing is typed by feel. Three things are not spacing
+    and stay off the scale: a 1px optical nudge; a layout offset above 48, a
+    rail's width or a footer's clearance; and a negative margin, which is an
+    offset that centres a disc or hides a border. A value that is really a
+    sum of a neighbour's parts, a card's padding plus its border, is written
+    as that sum, `calc(24px + 1px)`, never as 25, so the guard that owns the
+    neighbour can read it. When a value sat between two steps it went down: a
+    working screen is dense.
 18. Motion has two tokens and no curves of its own: `--t-fast`, 120 ms
     ease-out, for hover and focus; `--t-move`, 200 ms ease-out, for anything
     that changes place. The overshoot curve `cubic-bezier(.22,1,.36,1)` was on

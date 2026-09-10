@@ -30,21 +30,36 @@ function block(selectorStart: string): string {
   return CSS.slice(at, CSS.indexOf("}", at));
 }
 
+/** A px value, or a `calc()` sum of px values — since the spacing scale
+    landed, an inset that is a neighbour's padding plus its border is written
+    as the sum it is, `calc(24px + 1px)`, so the scale holds and so does this. */
+function pxValue(raw: string): number {
+  const c = raw.trim().match(/^calc\((.+)\)$/);
+  if (c) {
+    let total = 0;
+    for (const term of c[1]!.match(/[+-]?\s*[\d.]+px/g) ?? []) total += parseFloat(term.replace(/\s+/g, ""));
+    return total;
+  }
+  const n = parseFloat(raw);
+  if (Number.isNaN(n)) throw new Error(`"${raw}" is not px`);
+  return n;
+}
+
 /** A plain px declaration — `gap:10px`, `width:46px`. */
 function px(selectorStart: string, prop: string): number {
-  const m = block(selectorStart).match(new RegExp(`(?:^|[;{] *)${prop}: *(-?[\\d.]+)px`));
-  if (!m) throw new Error(`${prop} is not declared in px on "${selectorStart}"`);
-  return parseFloat(m[1]!);
+  const m = block(selectorStart).match(new RegExp(`(?:^|[;{] *)${prop}: *([^;]+)`));
+  if (!m) throw new Error(`${prop} is not declared on "${selectorStart}"`);
+  return pxValue(m[1]!);
 }
 
 /** The horizontal half of a `padding:` shorthand (1, 2 or 4 values). */
 function padX(selectorStart: string): number {
   const m = block(selectorStart).match(/(?:^|[;{] *)padding: *([^;]+)/);
   if (!m) throw new Error(`no padding shorthand on "${selectorStart}"`);
-  const parts = m[1]!.trim().split(/\s+/).map((v) => parseFloat(v));
+  // split on whitespace outside parentheses, so `0 calc(24px + 1px)` is two values
+  const parts = m[1]!.trim().split(/\s+(?![^(]*\))/).map(pxValue);
   // 1 value → all sides; 2 or 3 → the second is left/right; 4 → the fourth is left
   const side = parts.length === 1 ? parts[0]! : parts.length === 4 ? parts[3]! : parts[1]!;
-  if (Number.isNaN(side)) throw new Error(`padding on "${selectorStart}" is not px`);
   return side;
 }
 

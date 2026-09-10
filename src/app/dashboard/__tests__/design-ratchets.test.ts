@@ -3,10 +3,10 @@ import path from "node:path";
 
 /* THE NUMBERS ONLY GO DOWN.
 
-   docs/design.md sets four radii, eight type sizes, four weights, one accent
-   and one shadow. The stylesheets were written before any of that existed, so
-   a guard that demanded the scales today would fail on every file and be
-   skipped by everyone. This one counts instead. Each ratchet below records
+   docs/design.md sets four radii, eight type sizes, four weights, no accent
+   (ink does the accent's jobs) and one shadow. The stylesheets were written
+   before any of that existed, so a guard that demanded the scales today would
+   fail on every file and be skipped by everyone. This one counts instead. Each ratchet below records
    how many times the sheets break a law, as of the day the law was written,
    and holds the count exactly there.
 
@@ -201,6 +201,32 @@ function small(): number {
   return n;
 }
 
+/* INK AND PAPER, decided 2026-09-10. There is no accent: ink does the four
+   jobs, colour appears only where it means something. Three of round three's
+   findings follow from that decision and are counted here.
+
+   A focus ring drawn as an alpha tint cannot reach 3:1 on a light ground; the
+   ring is 2px of solid ink. Anything `0 0 0 Npx rgba(…, a)` with a under .6
+   is the old kind. */
+function faintRings(): number {
+  let n = 0;
+  for (const m of CSS.matchAll(/box-shadow\s*:\s*0 0 0 [2-4]px rgba\([^)]*,\s*(0?\.\d+|1|0)\s*\)/g)) {
+    if (Number(m[1]) < 0.6) n++;
+  }
+  return n;
+}
+
+/* A `color` set on an anchor by selector. Links are one token, ink and
+   underlined, so every declaration here is a place still choosing its own. */
+function anchorColours(): number {
+  let n = 0;
+  for (const [sel, body] of blocks()) {
+    const isAnchor = sel.split(",").some((s) => /(^|[\s>+~])a(?=$|[\s.:#[>+~])/.test(s.trim()));
+    if (isAnchor && /(^|[^-])color\s*:/.test(body)) n++;
+  }
+  return n;
+}
+
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type below 12px — the floor", now: small, baseline: 544 },
   { law: "weight 800 or 900 — retired", now: () => count(/font-weight\s*:\s*(800|900)\b/g), baseline: 624 },
@@ -226,6 +252,10 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "pill, chip, tag and badge rules — state is a word", now: () => count(/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*\s*[{,]/g), baseline: 139 },
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 450 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
+  // ink and paper
+  { law: "uses of the OK text colour — colour only where it means something", now: () => count(/var\(--ok-t\)/g), baseline: 88 },
+  { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 137 },
+  { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 26 },
 ];
 
 describe("the design ratchets only go down", () => {

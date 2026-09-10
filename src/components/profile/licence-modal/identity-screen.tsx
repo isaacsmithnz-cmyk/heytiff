@@ -138,7 +138,10 @@ export function IdentityScreen({
             {adding && scanned && <span className="vm-caption">Name it — the scan doesn&apos;t</span>}
           </div>
 
-          <div className="vm-fields">
+          {/* SOLO when the number is not asked here: one narrow field with two
+              empty thirds beside it reads as a form that lost its other fields,
+              so the name takes the room they left. */}
+          <div className={`vm-fields${!adding && !hasTerms ? "" : " solo"}`}>
             <Field label="Licence or ticket" req>
               <input
                 className="vm-input"
@@ -155,10 +158,18 @@ export function IdentityScreen({
               </datalist>
             </Field>
 
-            {/* Offered only while no term owns them. Once a renewal is on file
-                these two are a cache of it, and typing over them here would
-                describe a term that does not exist. */}
-            {!hasTerms && (
+            {/* NOT WHILE ADDING. The number is what the scan panel above is
+                about to hand over, and the panel asks for it itself, on the
+                term; "Enter manually" is the way in without a photo. Asked here
+                too, "Licence no." was on screen twice with nothing to say which
+                won, and the panel's copy silently did.
+
+                It survives on the EDIT screen for a ticket with no term, like a
+                white card: a term's `expires_on` cannot be null, so a ticket
+                that never lapses keeps its number on itself. Once a term exists
+                both go: they are a cache of the newest term, and typing over
+                them here would describe a term that does not exist. */}
+            {!adding && !hasTerms && (
               <>
                 <Field label="Licence no.">
                   <input
@@ -168,18 +179,16 @@ export function IdentityScreen({
                     onChange={(e) => setNumber(e.target.value)}
                   />
                 </Field>
-                {!adding && (
-                  <Field label="Expiry">
-                    <DateField
-                      size="lg"
-                      clearable
-                      today={today}
-                      value={expiry || null}
-                      onChange={(iso) => setExpiry(iso ?? "")}
-                      aria-label="Expiry"
-                    />
-                  </Field>
-                )}
+                <Field label="Expiry">
+                  <DateField
+                    size="lg"
+                    clearable
+                    today={today}
+                    value={expiry || null}
+                    onChange={(iso) => setExpiry(iso ?? "")}
+                    aria-label="Expiry"
+                  />
+                </Field>
               </>
             )}
           </div>

@@ -34,7 +34,7 @@ export default function Home() {
         {/* the app's primary action: ink, white label, 700 — `.newbtn` */}
         <a
           href="/auth/login?screen_hint=signup"
-          className="rounded-2xl bg-ink-2 px-6 py-3.5 text-sm font-bold text-white transition-transform hover:-translate-y-px"
+          className="rounded-2xl bg-ink-2 px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-ink"
         >
           Create account
         </a>

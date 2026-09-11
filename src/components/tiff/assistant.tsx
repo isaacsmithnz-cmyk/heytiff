@@ -1671,7 +1671,7 @@ function Rail({
             <Link
               key={c.key}
               href={`${navHref("tiffkb")}?cat=${c.key}`}
-              className={`tk-rcat spot${state === "idle" ? "" : ` ${state}`}`}
+              className={`tk-rcat${state === "idle" ? "" : ` ${state}`}`}
               data-cat={c.key}
               ref={(el) => {
                 if (el) cardRefs.current.set(c.key, el);
@@ -1679,7 +1679,6 @@ function Rail({
               }}
               style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
             >
-              <span className="sglow" />
               {/* the glyph is mixed toward ink: the raw category colours were
                   chosen for tinted tiles, and mint or amber STROKES on a pale
                   wash sat under 2:1 — decoration where a symbol should be */}

@@ -88,9 +88,6 @@ export function MoneyCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="dollar" size={19} />
-        </span>
         <div>
           <b>Money</b>
           <em>
@@ -363,9 +360,6 @@ export function VariationsCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="layers" size={19} />
-        </span>
         <div>
           <b>Variations</b>
           <em>
@@ -655,9 +649,6 @@ export function ScopeCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="file" size={19} />
-        </span>
         <div>
           <b>Scope of work</b>
           <em>The baseline variations depart from — exclusions settle arguments before they start.</em>
@@ -803,9 +794,6 @@ export function DatesCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="clock" size={19} />
-        </span>
         <div>
           <b>Committed dates</b>
           {/* "— the board counts them down out loud" came off. The countdown
@@ -981,9 +969,6 @@ export function FlywheelCard({
     return (
       <div className="card2">
         <div className="c2h">
-          <span className="ci">
-            <Icon name="rotate" size={19} />
-          </span>
           <div>
             <b>Maintenance agreement</b>
             <em>
@@ -1004,9 +989,6 @@ export function FlywheelCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="rotate" size={19} />
-        </span>
         <div>
           <b>The install&apos;s done — keep it</b>
           <em>

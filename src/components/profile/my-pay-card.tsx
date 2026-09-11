@@ -64,7 +64,6 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
   return (
     <StaticCard
       variant="section"
-      icon="dollar"
       title="My pay"
       sub="The rates that apply to your hours"
     >

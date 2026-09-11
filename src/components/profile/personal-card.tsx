@@ -393,7 +393,6 @@ export function PersonalCard({
     <>
       <SectionCard
         variant="section"
-        icon="user"
         title="Personal details"
         sub="Identity, contact, employment & uniform sizes"
         values={values}

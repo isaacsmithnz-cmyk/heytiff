@@ -405,7 +405,6 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
   return (
     <SectionCard
       variant="section"
-      icon="fingerprint"
       title="Company identity"
       sub="Who the business is on paper"
       values={values}
@@ -570,7 +569,6 @@ function ContactSection({
   return (
     <SectionCard
       variant="section"
-      icon="phone"
       title="Contact & address"
       sub="Where the business lives & how to reach it"
       values={values}

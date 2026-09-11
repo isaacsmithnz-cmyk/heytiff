@@ -111,9 +111,6 @@ export function ComplianceCard({
         })}
 
         <button className="licadd-tile" type="button" onClick={() => setOpen("new")}>
-          <span className="ci">
-            <Icon name="plus" size={18} />
-          </span>
           <b>Add a licence or ticket</b>
           <em>Scan the card — driver licence, ARC, white card…</em>
         </button>

@@ -121,12 +121,6 @@ export function XeroScreen({
           {/* ── status ── */}
           <div className="card2">
             <div className="c2h">
-              <span
-                className="ci"
-                style={{ background: provider.accent + "1a", color: provider.accent }}
-              >
-                <Icon name="xero" size={20} />
-              </span>
               <div style={{ minWidth: 0 }}>
                 <b>{connected ? connection.tenantName ?? "Connected" : "Not connected"}</b>
                 <em>
@@ -246,9 +240,6 @@ export function XeroScreen({
           {connected && connection.tenants.length > 1 && (
             <div className="card2">
               <div className="c2h">
-                <span className="ci">
-                  <Icon name="hexagon" size={19} />
-                </span>
                 <div>
                   <b>Xero organisation</b>
                   <em>This login covers more than one — pick the books this workspace uses.</em>
@@ -286,9 +277,6 @@ export function XeroScreen({
           {/* ── what it powers ── */}
           <div className="card2">
             <div className="c2h">
-              <span className="ci">
-                <Icon name="sync" size={19} />
-              </span>
               <div>
                 {/* No subtitle — see the same card in ./servicem8-screen:
                     "each of these lands as it's built" is a roadmap in a
@@ -309,9 +297,6 @@ export function XeroScreen({
           {/* ── the ask, in full ── */}
           <div className="card2">
             <div className="c2h">
-              <span className="ci">
-                <Icon name="shield" size={19} />
-              </span>
               <div>
                 <b>What HeyTiff asks Xero for</b>
                 <em>

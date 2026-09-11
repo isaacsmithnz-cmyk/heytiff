@@ -1705,11 +1705,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* for screen readers only — the tabs' "details missing", the + Add's field */
 .fg .sr-only { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
-.fg .card2 { background:#fff; border:1px solid #f0f0f2; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:24px; margin-bottom:16px; }
+/* THE CARD IS SURFACE AND LINE. It was the generic card verbatim — white, a
+   near-white border, a soft shadow, and an icon in a tinted rounded square
+   beside the heading, the first thing every 2026 teardown names. A card is a
+   card because you act on it (law 9): surface, the one hairline, 16px, and
+   no shadow, because it does not float. The icon square is gone from the
+   markup as well as from here: the heading names the object, and the icon
+   was repeating it. Heading 600, subtitle 400 in the quiet colour: one thing
+   loud. */
+.fg .card2 { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:16px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.fg .card2 .c2h .ci { width:38px; height:38px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
-.fg .card2 .c2h b { font-size:16px; font-weight:700; letter-spacing:-0.01em; }
-.fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:500; color:var(--gray400); margin-top:2px; }
+.fg .card2 .c2h b { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+.fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
 .fg .card2 .c2h .pill2 { margin-left:auto; }
 .fg .adminpill { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:999px; font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; background:rgba(255,51,102,.1); color:var(--bad-t); border:1px solid rgba(255,51,102,.25); }
 

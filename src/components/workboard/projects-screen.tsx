@@ -54,9 +54,6 @@ export function ProjectsScreen({
           {projects.length === 0 ? (
             <div className="card2">
               <div className="c2h">
-                <span className="ci">
-                  <Icon name="layers" size={19} />
-                </span>
                 <div>
                   <b>No projects yet</b>
                   <em>

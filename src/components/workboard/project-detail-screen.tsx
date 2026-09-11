@@ -250,9 +250,6 @@ export function ProjectDetailScreen({
           {/* ── checklist ── */}
           <div className="card2">
             <div className="c2h">
-              <span className="ci">
-                <Icon name="check" size={19} />
-              </span>
               <div>
                 <b>Checklist</b>
                 <em>
@@ -289,9 +286,6 @@ export function ProjectDetailScreen({
           {/* ── equipment / left on site ── */}
           <div className="card2">
             <div className="c2h">
-              <span className="ci">
-                <Icon name="box" size={19} />
-              </span>
               <div>
                 <b>Equipment on site</b>
                 <em>What was installed or left behind — and whether its manual stayed.</em>
@@ -344,9 +338,6 @@ export function ProjectDetailScreen({
           {/* ── jobs ── */}
           <div className="card2">
             <div className="c2h">
-              <span className="ci">
-                <Icon name="servicem8" size={19} />
-              </span>
               <div>
                 <b>Jobs on this project</b>
                 <em>
@@ -429,7 +420,6 @@ export function ProjectDetailScreen({
             busy={busy}
             run={run}
             kind="progress"
-            icon="activity"
             title="Site journal"
             sub="What was done and found, dated as it happened — spoken or typed."
             placeholder="Rough-in done in the roof, two penetrations to seal Monday…"
@@ -441,7 +431,6 @@ export function ProjectDetailScreen({
             busy={busy}
             run={run}
             kind="commissioning"
-            icon="gauge"
             title="Commissioning"
             sub="Readings and settings, as recorded on site — the handover sheet reads these."
             placeholder="Suction 8.2 bar · superheat 6.1 K · all zones balanced…"
@@ -462,9 +451,6 @@ export function ProjectDetailScreen({
           {issues.length > 0 && (
             <div className="card2">
               <div className="c2h">
-                <span className="ci">
-                  <Icon name="alert" size={19} />
-                </span>
                 <div>
                   <b>Recurring issues</b>
                   <em>Logged more than once.</em>
@@ -723,9 +709,6 @@ function StageCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="activity" size={19} />
-        </span>
         <div>
           <b>Stage</b>
           <em>
@@ -834,9 +817,6 @@ function DocumentsCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="folder" size={19} />
-        </span>
         <div>
           <b>Documents &amp; photos</b>
           <em>Before-cover-up shots, the sparky&apos;s CoC, anything worth keeping with the job.</em>
@@ -903,7 +883,6 @@ function JournalCard({
   busy,
   run,
   kind,
-  icon,
   title,
   sub,
   placeholder,
@@ -914,7 +893,6 @@ function JournalCard({
   busy: boolean;
   run: RunAction;
   kind: "progress" | "commissioning";
-  icon: string;
   title: string;
   sub: string;
   placeholder: string;
@@ -933,9 +911,6 @@ function JournalCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name={icon} size={19} />
-        </span>
         <div>
           <b>{title}</b>
           <em>{sub}</em>
@@ -1010,9 +985,6 @@ function TripsCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="calendar" size={19} />
-        </span>
         <div>
           <b>Trips to site</b>
           <em>Each trip carries its own gates, crew and bring list — close it out as it runs.</em>
@@ -1421,9 +1393,6 @@ function DesignCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="wind" size={19} />
-        </span>
         <div>
           <b>Design</b>
           <em>
@@ -1495,9 +1464,6 @@ function NotesCard({
   return (
     <div className="card2">
       <div className="c2h">
-        <span className="ci">
-          <Icon name="note" size={19} />
-        </span>
         <div>
           <b>Notes</b>
           <em>Anything the next person on this job should know.</em>

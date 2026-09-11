@@ -48,11 +48,13 @@ describe("the tab panel does not animate", () => {
      the panel there deliberately (it is the third child, after the heading and
      the strip), so what saves them is that the node is never remounted; this
      pins the animation to the page-entry scope it belongs to. */
-  it("the staggered entrance stays scoped to a page that is entering", () => {
-    const staggered = RULES.match(/\.fg \.page\.in \.stg > \*[^{]*\{[^}]*\}/g) ?? [];
-    expect(staggered.length).toBeGreaterThan(0);
-    for (const rule of staggered) {
-      expect(rule).toMatch(/\.page\.in/);
-    }
+  /* Law 8, since the motion step: a page appears, it does not arrive. `.stg`
+     is still the page's content wrapper (Home's flex child, the Workboard's
+     display mode hang off it) but no rule animates its children any more, the
+     entrance keyframes are gone, and `.page.in` carries no animation. */
+  it("nothing on a page enters staggered, and the page itself does not arrive", () => {
+    expect(RULES).not.toMatch(/\.stgp?\b[^{]*\{[^}]*animation/);
+    expect(RULES).not.toMatch(/@keyframes fg(Up|Pop|PageIn|PageOut)\b/);
+    expect(RULES).not.toMatch(/\.page\.in\s*\{[^}]*animation/);
   });
 });

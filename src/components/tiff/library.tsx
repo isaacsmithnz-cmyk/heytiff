@@ -390,10 +390,9 @@ export function Library({
               return (
                 <section
                   key={c.key}
-                  className="tk-cat spot"
+                  className="tk-cat"
                   style={{ "--sc": `${c.color}1f`, "--tkc": c.color } as React.CSSProperties}
                 >
-                  <span className="sglow" />
                   <div className="tk-cin">
                     <header className="tk-chd">
                       <div

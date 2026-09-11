@@ -105,7 +105,7 @@ html[data-ds-display] .dstudio.editing {
    and animates in when the class drops (throughSwap holds a paint beat in
    between, so there's a frame to transition from). */
 .fg .outlet:has(.dstudio) {
-  transition: background-color 0.2s ease; /* the well's colour, not its content */
+  transition: background-color var(--t-fast) var(--ease);                                         
 }
 /* Reserve the scrollbar on the start screen: its recents list arrives async, so
    otherwise the scrollbar pops in as the list fills and shunts the whole column
@@ -132,27 +132,24 @@ html[data-ds-display] .dstudio.editing {
    first third and then hung there fading, which reads as a lurch followed by a
    stall. Leaving accelerates away (ease-in); arriving decelerates in (ease-out). */
 .dstudio .ds-home-stack {
-  /* arriving */
-  transition: transform 0.26s var(--ease),
-    opacity 0.22s ease-out;
+                
+  transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
   will-change: transform, opacity;
 }
 .dstudio.swapping .ds-home-stack {
-  /* leaving — both properties land together, so the swap can happen the moment
-     the screen is actually gone rather than waiting on invisible movement */
+                                                                                                                                                             
   transform: translateY(72px);
   opacity: 0;
-  transition: transform 0.2s var(--ease),
-    opacity 0.2s var(--ease);
+  transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
 }
 
 /* editor: fades only — the canvas shouldn't slide around */
 .dstudio .ds-editor {
-  transition: opacity 0.26s ease-out;
+  transition: opacity var(--t-fast) var(--ease);
 }
 .dstudio.swapping .ds-editor {
   opacity: 0;
-  transition: opacity 0.18s ease-in;
+  transition: opacity var(--t-fast) var(--ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -284,11 +281,9 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   letter-spacing: -0.01em;
   box-shadow: 0 12px 24px -8px rgba(0, 229, 192, 0.45);
-  transition: all 0.25s;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-cta:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 34px -10px rgba(0, 229, 192, 0.55);
 }
 /* Hover lights the same glass rather than swapping it for another one: the
    fill comes up, the rim comes up, the drop deepens. `.ds-cta:hover` above
@@ -296,7 +291,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-cta.ds-start:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 34px 84px -30px rgba(0, 0, 0, 0.66);
 }
 /* The cloud between the name and the action. The field is a square box with
    the cloud floating at its centre, so it is pulled back by its own margin to
@@ -398,10 +392,9 @@ html[data-ds-display] .dstudio.editing {
   width: 48px;
   height: 48px;
   color: #fff;
-  transition: transform 0.25s;
+  transition: transform var(--t-move) var(--ease);
 }
 .dstudio .ds-cta.ds-start:hover .ds-start-mk {
-  transform: translateX(3px);
 }
 /* HOVERING THE BUTTON GATHERS THE CLOUD. The dots are the mark the chip is
    wearing, so the button reaching for them is the one gesture that says so:
@@ -415,7 +408,7 @@ html[data-ds-display] .dstudio.editing {
   opacity: 1;
 }
 .dstudio .ds-cloud .dotf-cell i {
-  transition: opacity 0.45s;
+  transition: opacity var(--t-fast) var(--ease);
 }
 
 /* new-design wizard */
@@ -473,7 +466,7 @@ html[data-ds-display] .dstudio.editing {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 16px;
-  transition: border-color 0.2s;
+  transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-name-input::placeholder {
   color: rgba(255, 255, 255, 0.35);
@@ -513,7 +506,7 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  transition: border-color 0.2s;
+  transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-search:focus-within {
   border-color: rgba(0, 229, 192, 0.6);
@@ -570,7 +563,7 @@ html[data-ds-display] .dstudio.editing {
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid transparent;
-  transition: background 0.16s, border-color 0.16s;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-opt:hover,
 .dstudio .ds-sm8-opt:focus-visible {
@@ -674,7 +667,7 @@ html[data-ds-display] .dstudio.editing {
   height: 26px;
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.5);
-  transition: background 0.16s, color 0.16s;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-clear:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -697,13 +690,12 @@ html[data-ds-display] .dstudio.editing {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
-  transition: all 0.25s;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
   cursor: pointer;
 }
 .dstudio .ds-opt:hover {
   background: rgba(0, 229, 192, 0.08);
   border-color: rgba(0, 229, 192, 0.45);
-  transform: translateY(-3px);
 }
 .dstudio .ds-opt-ic {
   display: flex;
@@ -741,7 +733,7 @@ html[data-ds-display] .dstudio.editing {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
   font-weight: 700;
-  transition: all 0.2s;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-hero-back:hover {
   background: rgba(255, 255, 255, 0.16);
@@ -814,7 +806,7 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
   cursor: pointer;
 }
 .dstudio .ds-import:hover {
@@ -831,7 +823,7 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 6px;
   height: 42px;
   padding: 0 12px;
-  transition: all 0.2s;
+  transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-search:focus-within {
   border-color: rgba(0, 229, 192, 0.5);
@@ -870,12 +862,11 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
-  transition: all 0.22s;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
   text-align: left;
   width: 100%;
 }
 .dstudio .ds-rcard:hover {
-  transform: translateY(-2px);
   background: rgba(0, 229, 192, 0.07);
   border-color: rgba(0, 229, 192, 0.45);
 }
@@ -985,7 +976,7 @@ html[data-ds-display] .dstudio.editing {
   height: 30px;
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.4);
-  transition: all 0.2s;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-rdel:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -1086,7 +1077,7 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 16px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
     0 30px 70px -30px rgba(0, 0, 0, 0.75);
-  transition: margin-left 0.42s var(--ease);
+  transition: margin-left var(--t-move) var(--ease);
 }
 /* The Design step's cards (bench · canvas · cockpit) sit straight on the
    light well — the plate behind them read as a stray white card, and its
@@ -1133,11 +1124,10 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid rgba(10, 12, 20, 0.08);
   color: var(--gray500);
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
-  transition: all 0.2s;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-menu-btn:hover {
   color: var(--ink);
-  transform: translateY(-1px);
   border-color: rgba(0, 229, 192, 0.5);
 }
 .dstudio .ds-menu-btn.on {
@@ -1242,7 +1232,7 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink);
-  transition: all 0.2s;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-title-input:hover {
   background: rgba(10, 12, 20, 0.04);
@@ -1285,8 +1275,7 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.28);
-  transition: transform 0.42s var(--ease),
-    opacity 0.2s ease;
+  transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-steps[data-active="0"] .ds-steps-thumb {
   transform: translateX(0);
@@ -1373,13 +1362,13 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   font-family: var(--mono);
-  /* the dot keeps its indent; the box grows outward from the same text start */
+                                                                                
   margin-left: -6px;
   padding: 4px 8px 4px 16px;
   border: 1px solid transparent;
   border-radius: 999px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-save.retry:hover,
 .dstudio .ds-save.retry:focus-visible {
@@ -1403,12 +1392,10 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   letter-spacing: -0.01em;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
-  transition: all 0.2s;
+  transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-tbbtn:hover {
-  transform: translateY(-1px);
   border-color: rgba(0, 229, 192, 0.5);
-  box-shadow: 0 12px 24px -12px rgba(10, 12, 20, 0.28);
 }
 /* fullscreen toggle — .ds-menu-btn's square, docked in the right flank */
 .dstudio .ds-fsbtn {
@@ -1423,11 +1410,10 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid rgba(10, 12, 20, 0.08);
   color: var(--gray500);
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
-  transition: all 0.2s;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-fsbtn:hover {
   color: var(--ink);
-  transform: translateY(-1px);
   border-color: rgba(0, 229, 192, 0.5);
 }
 .dstudio .ds-fsbtn.on {
@@ -1674,7 +1660,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray700);
   font: 600 13px var(--font);
   white-space: nowrap;
-  transition: background 0.18s, color 0.18s;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-tool:hover:not(:disabled) {
   background: #f4f5f7;
@@ -1772,7 +1758,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ds-teal-ink, #007a67);
   font: 700 12px var(--font);
   white-space: nowrap;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-nextchip:hover {
   background: rgba(0, 190, 160, 0.2);
@@ -1791,7 +1777,6 @@ html[data-ds-display] .dstudio.editing {
 }
 @media (prefers-reduced-motion: no-preference) {
   .dstudio .ds-nextchip:not(.done) .ds-nextdot {
-    animation: dsNextPulse 1.6s ease-in-out infinite;
   }
 }
 @keyframes dsNextPulse {
@@ -2706,7 +2691,7 @@ html[data-ds-display] .dstudio.editing {
   stroke: var(--teal-d);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
-  transition: r 0.12s ease;
+  transition: r var(--t-fast) var(--ease);
 }
 
 /* ── wall-marking (external-wall select) ── */
@@ -3098,7 +3083,6 @@ html[data-ds-display] .dstudio.editing {
   box-shadow: inset 0 0 0 1px rgba(10, 12, 20, 0.16);
 }
 .dstudio .ds-note-ink:hover {
-  transform: scale(1.12);
 }
 .dstudio .ds-note-ink.on {
   box-shadow:
@@ -3426,11 +3410,10 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid rgba(10, 12, 20, 0.08);
   color: var(--gray500);
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
-  transition: all 0.2s;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-tbicon:hover:not(:disabled) {
   color: var(--ink);
-  transform: translateY(-1px);
   border-color: rgba(0, 229, 192, 0.5);
 }
 .dstudio .ds-tbicon:disabled {
@@ -3551,8 +3534,7 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid var(--ds-border);
   border-radius: 16px;
   background: #f7f8fa;
-  transition: flex-basis 0.4s ease, margin 0.4s ease, padding 0.4s ease,
-    border-width 0.4s ease, opacity 0.3s ease;
+  transition: flex-basis var(--t-move) var(--ease), margin var(--t-move) var(--ease), padding var(--t-move) var(--ease), border-width var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-tray-head {
   align-self: flex-start;
@@ -3600,12 +3582,10 @@ html[data-ds-display] .dstudio.editing {
   background: #fff;
   cursor: grab;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-plancard:hover {
-  transform: translateY(-2px);
   border-color: rgba(0, 229, 192, 0.5);
-  box-shadow: 0 12px 26px -16px rgba(10, 12, 20, 0.3);
 }
 .dstudio .ds-plancard:active {
   cursor: grabbing;
@@ -3636,7 +3616,7 @@ html[data-ds-display] .dstudio.editing {
   background: rgba(10, 12, 20, 0.6);
   color: #fff;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-plancard:hover .ds-plancard-x {
   opacity: 1;
@@ -3679,7 +3659,7 @@ html[data-ds-display] .dstudio.editing {
    expands into a big rectangular drop card that fills soft green on hover */
 .dstudio .ds-dropzone {
   height: 8px;
-  transition: height 0.15s;
+  transition: height var(--t-move) var(--ease);
 }
 .dstudio .ds-dropzone .ds-dropzone-inner {
   display: none;
@@ -3694,7 +3674,7 @@ html[data-ds-display] .dstudio.editing {
   border: 2px dashed rgba(0, 163, 137, 0.4);
   border-radius: 16px;
   background: rgba(0, 229, 192, 0.04);
-  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-move) var(--ease);
 }
 .dstudio .ds-dropzone.live .ds-dropzone-inner {
   display: inline-flex;
@@ -3730,7 +3710,7 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   text-align: center;
   padding: 12px;
-  transition: all 0.15s;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-yard-first b {
   font-weight: 700;
@@ -3760,7 +3740,7 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-level.targetable {
   border-style: dashed;
@@ -3932,7 +3912,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   font-size: 13px;
   font-weight: 700;
-  transition: all 0.18s;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .ds-lightbox .ds-lb-select svg {
   opacity: 0.35;
@@ -4076,7 +4056,7 @@ html[data-ds-display] .dstudio.editing {
   border: 1.5px dashed rgba(10, 12, 20, 0.16);
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-upzone:hover,
 .dstudio .ds-upzone.drag {
@@ -4126,7 +4106,7 @@ html[data-ds-display] .dstudio.editing {
   height: 100%;
   border-radius: 999px;
   background: var(--teal);
-  transition: width 0.25s ease;
+  transition: width var(--t-move) var(--ease);
 }
 .dstudio .ds-pagepick-head {
   display: flex;
@@ -4161,15 +4141,13 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 16px;
   overflow: hidden;
   background: #fff;
-  transition: all 0.18s;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease);
   text-align: left;
 }
 .dstudio .ds-page.selectable {
   cursor: pointer;
 }
 .dstudio .ds-page:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px -16px rgba(10, 12, 20, 0.3);
 }
 .dstudio .ds-page:focus-visible {
   outline: none;
@@ -4205,7 +4183,7 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
   opacity: 0;
   transform: scale(0.9);
-  transition: opacity 0.15s, transform 0.15s, background 0.15s;
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-page:hover .ds-page-expand,
 .dstudio .ds-page:focus-within .ds-page-expand {
@@ -4270,11 +4248,9 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.2s, filter 0.15s;
+  transition: transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease), filter var(--t-fast) var(--ease);
 }
 .dstudio .ds-startdesign:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 28px -12px rgba(0, 229, 192, 0.6);
 }
 .dstudio .ds-startdesign:disabled {
   opacity: 0.4;
@@ -4431,7 +4407,7 @@ html[data-ds-display] .dstudio.editing {
   font-size: 14px;
   font-weight: 700;
   color: var(--ink);
-  transition: all 0.18s;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-floor-name:hover {
   background: rgba(10, 12, 20, 0.04);
@@ -4459,11 +4435,10 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
   font-size: 12px;
   font-weight: 700;
-  transition: all 0.18s;
+  transition: background-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-floor-open:hover {
   background: #16181f;
-  transform: translateY(-1px);
 }
 
 /* Plans — floor list (read-only until Stage 1 tooling lands) */
@@ -4524,27 +4499,17 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  /* OWN a layer, and own it BELOW the canvas column (.ds-editor > .ds-panel is
-     z-index 1). Nothing here is positioned, so the cockpit's inner z-indices
-     — the hero's is 4, to clear its own dropdown — were escaping into the
-     page's stacking context and out-ranking the whole canvas column: a bench
-     flyout wide enough to reach the cockpit was painted UNDER it and lost its
-     last swatches. The column never overlaps the canvas, so containing it
-     costs nothing. */
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
   position: relative;
   z-index: 0;
   width: 0;
   margin-left: 0;
   opacity: 0;
-  /* the cockpit is a fixed frame — the tabs, hero and Rooms/Components switch
-     stay put; only the views inside scroll (.ds-ck-scroll). */
+                                                                                                                                              
   overflow: hidden;
-  /* opacity rides the same curve as the width — at 0.26s the panel went blank
-     early and you watched an empty gap finish closing */
+                                                                                                                                        
   transition:
-    width 0.42s var(--ease),
-    margin-left 0.42s var(--ease),
-    opacity 0.42s var(--ease);
+    width var(--t-move) var(--ease), margin-left var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-editor.two-col > .ds-sidecol {
   width: var(--ds-cockpit-w);
@@ -4641,7 +4606,6 @@ html[data-ds-display] .dstudio.editing {
 }
 @media (prefers-reduced-motion: no-preference) {
   .dstudio .ds-cktab-badge {
-    animation: ds-cktab-pulse 1.6s ease-in-out infinite;
   }
   @keyframes ds-cktab-pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(0, 184, 150, 0.45); }
@@ -6213,7 +6177,7 @@ html[data-ds-display] .dstudio.editing {
   white-space: normal;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--t-fast) var(--ease);
   z-index: 30;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
@@ -6381,7 +6345,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-job-print,
 .dstudio .ds-job-export { justify-content: center; flex: 0 0 auto; }
 .dstudio .ds-job-print:disabled { opacity: 0.45; cursor: default; }
-.dstudio .ds-job-print:disabled:hover { transform: none; border-color: rgba(10, 12, 20, 0.08); box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04); }
+.dstudio .ds-job-print:disabled:hover { transform: none; border-color: rgba(10, 12, 20, 0.08); }
 
 #ds-printdoc { display: none; }
 #ds-printdoc .ds-print-cap {
@@ -6613,7 +6577,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-act-go:disabled:hover {
   transform: none;
   border-color: rgba(10, 12, 20, 0.08);
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
 }
 
 /* ═════════ the Summary step's dialogs (Share, Export) ═════════
@@ -6717,7 +6680,7 @@ html[data-ds-display] .dstudio.editing {
   border-radius: 10px;
   border: 1px solid rgba(10, 12, 20, 0.1);
   background: #fff;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-export-pick:hover { background: #f6f7f9; border-color: rgba(10, 12, 20, 0.2); }
 .dstudio .ds-export-pick:focus-visible {
@@ -7011,7 +6974,7 @@ html[data-ds-display] .dstudio.editing {
   margin: 0 -10px 1px 0;
   cursor: pointer;
   font: 700 12px var(--font);
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
   max-width: 180px;
   white-space: nowrap;
 }
@@ -7045,7 +7008,7 @@ html[data-ds-display] .dstudio.editing {
   background: none;
   cursor: pointer;
   padding: 0;
-  transition: opacity 0.12s, background 0.12s, color 0.12s;
+  transition: opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-tabx:hover {
   background: rgba(10, 12, 20, 0.12);
@@ -7134,12 +7097,12 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 24px;
   height: 24px;
-  /* pull the icon's edge back to the card's text line, keeping the hit area */
+                                                                               
   margin-right: -6px;
   border-radius: 6px;
   color: var(--gray500);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-caphero-x:hover { background: rgba(10, 12, 20, 0.07); color: var(--ink2); }
 .dstudio .ds-ck-caphero-eyebrow {
@@ -7177,7 +7140,7 @@ html[data-ds-display] .dstudio.editing {
   background: none;
   color: var(--ink2);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-caphero-type span { color: var(--teal-d); font-weight: 700; }
 /* clickable variant: a clear hover pill signals "click to change system type" */
@@ -7214,13 +7177,13 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-donut .track { stroke: rgba(10, 12, 20, 0.09); }
 .dstudio .ds-ck-donut .val {
   stroke-dasharray: 282.7;
-  transition: stroke-dashoffset 0.9s var(--ease);
+  transition: stroke-dashoffset var(--t-move) var(--ease);
 }
 .dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .val { stroke: url(#capGrad); filter: drop-shadow(0 3px 6px rgba(0, 163, 137, 0.4)); }
 .dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .val { stroke: var(--ds-amber); filter: drop-shadow(0 3px 6px rgba(240, 164, 49, 0.4)); }
 .dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .val { stroke: var(--ds-red-d); filter: drop-shadow(0 3px 6px rgba(224, 38, 79, 0.35)); }
 /* overshoot segment — only meaningful when >100% (ok) */
-.dstudio .ds-ck-donut .over { stroke: #7ff3de; stroke-dasharray: 56.5 282.7; stroke-dashoffset: 0; opacity: 0; transition: opacity 0.5s ease; }
+.dstudio .ds-ck-donut .over { stroke: #7ff3de; stroke-dasharray: 56.5 282.7; stroke-dashoffset: 0; opacity: 0; transition: opacity var(--t-fast) var(--ease); }
 .dstudio .ds-ck-donut .over.on { opacity: 1; }
 .dstudio .ds-ck-donut .ctr { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .dstudio .ds-ck-donut .ctr::before {
@@ -7288,7 +7251,7 @@ html[data-ds-display] .dstudio.editing {
   font: 700 13px var(--font);
   color: var(--gray500);
   cursor: pointer;
-  transition: color 0.12s, background 0.12s, box-shadow 0.12s;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-segbtn:hover { color: var(--gray700); }
 .dstudio .ds-ck-segbtn.on {
@@ -7312,12 +7275,12 @@ html[data-ds-display] .dstudio.editing {
   overflow: hidden;
   box-sizing: content-box;
   padding: 8px 0 4px;
-  transition: height 0.38s var(--ease);
+  transition: height var(--t-move) var(--ease);
 }
 .dstudio .ds-ck-segtrack {
   display: flex;
   align-items: flex-start;
-  transition: transform 0.38s var(--ease);
+  transition: transform var(--t-move) var(--ease);
 }
 .dstudio .ds-ck-segview {
   flex: 0 0 100%;
@@ -7351,7 +7314,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.12s ease, color 0.12s, border-color 0.12s;
+  transition: opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-rrow-wrap:hover .ds-ck-rcfg,
 .dstudio .ds-ck-rrow-wrap:focus-within .ds-ck-rcfg {
@@ -7370,20 +7333,14 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid var(--ds-border);
   background: var(--ds-card2);
   border-radius: 10px;
-  /* the right inset RESERVES the hover Configure button's slot. It can't live
-     inside the row (the row is itself a button), so instead the row's content
-     stops short of it — otherwise the load figure would sit under Configure
-     the moment you hovered, the same collision Recall had on the unit card. */
+                                                                                                                                                                                                                                                                                                                          
   padding: 8px 48px 8px 12px;
   cursor: pointer;
   font-family: var(--font);
-  transition: transform 0.14s var(--ease), box-shadow 0.14s ease,
-    border-color 0.12s, background 0.12s;
+  transition: transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-rrow:hover {
-  transform: translateY(-1px);
   border-color: var(--ds-border-s);
-  box-shadow: 0 8px 18px -12px rgba(10, 12, 20, 0.35);
 }
 .dstudio .ds-ck-rrow:active { transform: translateY(0); }
 .dstudio .ds-ck-rrow.on {
@@ -7475,7 +7432,7 @@ html[data-ds-display] .dstudio.editing {
   height: 12px;
   color: var(--gray400);
   transform: rotate(90deg);
-  transition: transform 0.14s;
+  transition: transform var(--t-move) var(--ease);
 }
 .dstudio .ds-ck-fhead.shut svg { transform: rotate(0deg); }
 .dstudio .ds-ck-fhead .fn {
@@ -7520,7 +7477,7 @@ html[data-ds-display] .dstudio.editing {
   background: transparent;
   color: inherit;
   cursor: pointer;
-  transition: background 0.14s, color 0.14s, border-color 0.14s;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-shape:hover { background: rgba(10, 12, 20, 0.06); }
 .dstudio .ds-ck-inkbtn.picking .ds-ck-shape:hover { background: rgba(255, 255, 255, 0.12); }
@@ -7566,7 +7523,7 @@ html[data-ds-display] .dstudio.editing {
   font: 700 12px var(--font);
   color: var(--gray500);
   cursor: pointer;
-  transition: color 0.12s, background 0.12s, box-shadow 0.12s;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-stb svg { width: 13px; height: 13px; }
 .dstudio .ds-ck-stb:hover { color: var(--gray700); }
@@ -7812,7 +7769,7 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
   opacity: 0;
   box-shadow: var(--ds-sh-sm);
-  transition: opacity 0.12s;
+  transition: opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-recall svg { width: 14px; height: 14px; }
 .dstudio .ds-ck-unit:hover .ds-ck-recall,
@@ -7951,7 +7908,7 @@ html[data-ds-display] .dstudio.editing {
   flex: none;
   color: var(--gray400);
   margin-left: 4px;
-  transition: transform 0.2s ease;
+  transition: transform var(--t-move) var(--ease);
 }
 .dstudio .ds-ck-comp.open .ds-ck-compchev { transform: rotate(90deg); }
 /* inline options revealed when a choice row is open */
@@ -8415,7 +8372,7 @@ html[data-ds-display] .dstudio.editing {
   padding: 8px 8px;
   border-radius: 10px;
   text-align: left;
-  transition: background 0.15s;
+  transition: background var(--t-fast) var(--ease);
 }
 .dstudio .ds-pal-item:hover:not(:disabled) { background: #f4f5f7; }
 .dstudio .ds-pal-item.off { opacity: 0.45; cursor: not-allowed; }
@@ -8465,7 +8422,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
   border-radius: 999px;
   padding: 4px 12px;
-  transition: all 0.15s;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-hud-chip.on {
   /* same "armed" language as the room pill's chosen shape */
@@ -8737,7 +8694,7 @@ html[data-ds-display] .dstudio.editing {
   border: 1px solid var(--ds-border);
   border-radius: 6px;
   padding: 4px 8px;
-  transition: all 0.15s;
+  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-sizechip:hover {
   border-color: var(--teal-d);
@@ -8747,7 +8704,7 @@ html[data-ds-display] .dstudio.editing {
    The scene recedes (desaturate) and the air becomes the subject; everything
    sim draws lives on the overlay <canvas>, never in the SVG scene graph. */
 .dstudio .ds-canvas > svg {
-  transition: filter 0.45s ease;
+  transition: filter var(--t-fast) var(--ease);
 }
 .dstudio .ds-canvas.simming > svg {
   filter: saturate(0.16);
@@ -8801,7 +8758,7 @@ html[data-ds-display] .dstudio.editing {
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sim-power.on {
   background: var(--ds-teal-bg);
@@ -8869,7 +8826,7 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-sim-body.off {
   opacity: 0.55;
@@ -8933,7 +8890,7 @@ html[data-ds-display] .dstudio.editing {
   font: 700 12px var(--font);
   color: var(--gray700);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sim-chip.on {
   background: var(--ink);
@@ -9227,7 +9184,7 @@ html[data-ds-display] .dstudio.editing {
   color: #eceef4;
   font: 700 12px var(--font);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-present-exit:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -9258,7 +9215,7 @@ html[data-ds-display] .dstudio.editing {
   font: 700 12px var(--font);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-simok:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -9359,7 +9316,7 @@ html[data-ds-display] .dstudio.editing {
   height: 100%;
   border-radius: 999px;
   background: var(--teal-d);
-  transition: width 0.35s ease, background 0.35s ease;
+  transition: width var(--t-move) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-sim-compfill.p-preheat {
   background: var(--ds-amber);
@@ -9719,7 +9676,7 @@ html[data-ds-display] .dstudio.editing {
   color: #eceef4;
   font: 700 12px var(--font);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-live-floor:hover { background: rgba(255, 255, 255, 0.1); }
 .dstudio .ds-live-floor.on {
@@ -9954,7 +9911,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   background: #fff;
   border: 1px solid rgba(10, 12, 20, 0.14);
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-chrome-btn:hover { background: #f6f7f9; }
 .dstudio .ds-chrome-btn:focus-visible { outline: none; box-shadow: var(--ring); }
@@ -10003,7 +9960,7 @@ html[data-ds-display] .dstudio.editing {
   border: 1px dashed rgba(10, 12, 20, 0.28);
   border-radius: 999px;
   padding: 4px 12px;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-letter-attach:hover { border-color: var(--teal-d); color: var(--teal-d); background: #f0fdf9; }
 .dstudio .ds-letter-attach:focus-visible { outline: none; box-shadow: var(--ring); }

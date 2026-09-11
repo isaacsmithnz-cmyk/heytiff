@@ -191,9 +191,14 @@ approved together.
     working screen is dense.
 18. Motion has two tokens and no curves of its own: `--t-fast`, 120 ms
     ease-out, for hover and focus; `--t-move`, 200 ms ease-out, for anything
-    that changes place. The overshoot curve `cubic-bezier(.22,1,.36,1)` was on
-    69 declarations and is not a Linear value; Linear runs plain 0.1 s and
-    0.25 s. The bounce on the command palette goes with it.
+    that changes place. A transition names what moves — never `all`. A hover
+    is one step of the ink ladder, a fill shift; nothing lifts, scales,
+    nudges or grows a shadow under the pointer, and a press moves 1px. A page
+    appears, a panel appears, a tab's content appears: nothing arrives
+    staggered. What may loop: a spinner, a skeleton sweep, a caret, a live
+    dot, the orb while the microphone is open, and a flash a row asked for
+    with data. A halo, a breathing glow, a logo drawing itself and a dot that
+    nudges toward the next step do not.
 19. Six layers, named: base 0, raised 1, sticky 10, overlay 100, modal 200,
     toast 300. There were 36 values from 0 to 1200.
 20. No arrow on a button. "Continue", not "Continue →". An arrow between two

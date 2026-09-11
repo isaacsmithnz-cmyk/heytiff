@@ -29,15 +29,6 @@ export function AppShell({
 }) {
   const pathname = usePathname();
 
-  const onMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLElement;
-    const card = target.closest<HTMLElement>(".spot");
-    if (!card) return;
-    const r = card.getBoundingClientRect();
-    card.style.setProperty("--mx", `${e.clientX - r.left}px`);
-    card.style.setProperty("--my", `${e.clientY - r.top}px`);
-  }, []);
-
   // tab switching for .ptab tabbed pages (Time & Pay, Assets) — matches the
   // original page's delegated click handler.
   const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -56,7 +47,7 @@ export function AppShell({
 
   return (
     <CommandPaletteProvider>
-    <div className="fg" onMouseMove={onMouseMove} onClick={onClick}>
+    <div className="fg" onClick={onClick}>
       <div className="gridbg" />
       {sidebar}
       <div className="main">

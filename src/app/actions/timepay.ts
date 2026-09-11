@@ -5,22 +5,26 @@ import { auth0 } from "@/lib/auth0";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { can } from "@/lib/permissions-server";
 import { staffProfileIdFor } from "@/lib/fleet/query";
-import { todayInAu } from "@/lib/au-dates";
+import { auMinutesNow, todayInAu } from "@/lib/au-dates";
 import {
   dateOfDay,
   isIsoDate,
   periodConfig,
-  periodDays,
   periodLength,
   periodStartFor,
-  todayIndex,
   type PeriodConfig,
 } from "@/lib/timepay/period";
-import { getMyWeek, getPaySettings } from "@/lib/timepay/query";
-import { stateFor } from "@/lib/timepay/leave-query";
-import { presumeFor, presumptionCtx } from "@/lib/timepay/presume";
+import { getPaySettings } from "@/lib/timepay/query";
+import { hasPassed, submitMomentOf } from "@/lib/timepay/auto-submit";
+import { materialise, rowFor, writeSubmitted } from "@/lib/timepay/submit";
 import { validateBlock } from "@/lib/timepay/availability";
-import { parseClock, spanHours, type DayEntry, type Settings } from "@/components/timepay/logic";
+import {
+  cycleNoun,
+  parseClock,
+  spanHours,
+  type DayEntry,
+  type Settings,
+} from "@/components/timepay/logic";
 
 /* Time & Pay mutations.
 
@@ -79,13 +83,13 @@ function editable(status: string): boolean {
 async function guardPeriod(
   orgId: string,
   periodStart: string,
-): Promise<{ ok: true; cfg: PeriodConfig } | { ok: false; error: string }> {
+): Promise<{ ok: true; cfg: PeriodConfig; settings: Settings } | { ok: false; error: string }> {
   if (!isIsoDate(periodStart)) return { ok: false, error: "That pay period isn't a real date." };
   const { settings } = await getPaySettings(orgId);
   const cfg = periodConfig(settings);
   if (periodStartFor(periodStart, cfg) !== periodStart)
     return { ok: false, error: "That date doesn't start a pay period for this organisation." };
-  return { ok: true, cfg };
+  return { ok: true, cfg, settings };
 }
 
 /* ---------------- your own sheet ---------------- */
@@ -107,7 +111,8 @@ export async function saveDay(
   const workDate = dateOfDay(periodStart, dayIndex);
   // the lock is read off the WORK DATE's own period — equal to periodStart
   // after the guards above, but the day being written is what must be open
-  const status = await statusOf(ctx.orgId, ctx.staffId, periodStartFor(workDate, period.cfg));
+  const dayPeriod = periodStartFor(workDate, period.cfg);
+  const status = await statusOf(ctx.orgId, ctx.staffId, dayPeriod);
   if (!editable(status))
     return {
       ok: false,
@@ -115,6 +120,18 @@ export async function saveDay(
         status === "approved"
           ? "This week has been approved and can't be changed."
           : "This week is with your manager — ask them to send it back to edit it.",
+    };
+
+  /* IT LOCKS AT THE MOMENT, NOT AT THE NEXT PAGE LOAD. The workspace's send
+     time sends a draft and closes it (lib/timepay/auto-submit), but a screen
+     left open across that minute still offers the editor — so the lock lives
+     here as well as on the screen. A sent-back sheet is exempt: the approver
+     reopened it on purpose, after the moment. */
+  const { settings } = period;
+  if (status === "draft" && hasPassed(submitMomentOf(dayPeriod, period.cfg, settings), todayInAu(), auMinutesNow()))
+    return {
+      ok: false,
+      error: `This ${cycleNoun(settings.cycle)} locked at ${settings.submitDay} ${settings.submitTime} — ask your manager to send it back to change it.`,
     };
 
   /* The screen offers exactly two statements — "worked" and "didn't work".
@@ -169,83 +186,8 @@ export async function saveDay(
   return { ok: true };
 }
 
-/** One day, as the table stores it. Shared by the single-day save and the
-    materialisation below, so a day written by hand and the identical day
-    written by submitting can't take different shapes. */
-function rowFor(
-  orgId: string,
-  staffId: string,
-  workDate: string,
-  entry: DayEntry,
-  /* the approved request a leave/sick/off day came from. Provenance, so a
-     materialised absence and the booking that paid for it stay findable from
-     each other; hand-entered days carry null. */
-  leaveRequestId: string | null = null,
-) {
-  return {
-    org_id: orgId,
-    staff_profile_id: staffId,
-    work_date: workDate,
-    kind: entry.t,
-    start_time: entry.t === "work" ? entry.in : null,
-    end_time: entry.t === "work" ? entry.out : null,
-    // `off` is a statement, not an amount — it carries no hours by construction
-    hours: entry.t === "work" || entry.t === "leave" || entry.t === "sick" || entry.t === "ph" ? entry.h : 0,
-    leave_request_id: leaveRequestId,
-    updated_at: new Date().toISOString(),
-  };
-}
-
-/* Submitting is what makes the presumption permanent.
-
-   Up to this point an ordinary Tuesday is DERIVED — no row exists, and the
-   screen recomputes it every load so a late holiday or a corrected leave
-   booking still lands. That is right for a week still being lived in and
-   wrong the moment it goes for approval: an approved sheet has to be a record
-   of what was agreed, not a calculation that keeps moving. If the org changed
-   its normal finish time in August, a June sheet must not quietly restate
-   itself.
-
-   So on submit, every day that was presumed rather than entered is written
-   down as it stood. Days the person actually entered are already rows and are
-   left exactly alone. */
-async function materialise(
-  orgId: string,
-  staffId: string,
-  periodStart: string,
-  /* the config `guardPeriod` already derived — passed in rather than rebuilt,
-     so the boundary this writes rows against is provably the same one the
-     caller validated the period start with */
-  cfg: PeriodConfig,
-): Promise<void> {
-  const { settings } = await getPaySettings(orgId);
-  const today = todayInAu();
-  const me = await getMyWeek(orgId, staffId, periodStart, cfg);
-  if (!me) return;
-
-  /* The same staff→org fallback every screen resolves through. Writing rows
-     with a null state here while the person's own screen showed the org's
-     holidays would freeze a public holiday as a worked day. */
-  const state = me.state ?? (await stateFor(orgId, ""));
-  const p = await presumptionCtx(orgId, periodStart, cfg, today, [{ id: staffId, state }]);
-  const ctxWeek = { week: periodDays(periodStart, cfg), today: todayIndex(periodStart, today, cfg) };
-  const { days, sources, absences } = presumeFor(me, state, settings, ctxWeek, p);
-
-  const rows = days
-    .map((entry, i) => ({ entry, i }))
-    // "entered" is already a row; "expected" and "none" are days with nothing
-    // on them, and writing a row for those would invent an entry nobody made
-    .filter(({ i }) => sources[i] === "presumed" || sources[i] === "holiday" || sources[i] === "leave")
-    .map(({ entry, i }) => {
-      const date = dateOfDay(periodStart, i);
-      // a leave-sourced day is stamped with the request that paid it
-      const from = sources[i] === "leave" ? (absences.get(date)?.id ?? null) : null;
-      return rowFor(orgId, staffId, date, entry, from);
-    });
-
-  if (rows.length) await supabaseAdmin.from("time_entries").upsert(rows, { onConflict: "org_id,staff_profile_id,work_date" });
-}
-
+/* Submitting writes the presumed days down first — see `materialise` in
+   lib/timepay/submit, which the loaders and the approver share. */
 export async function submitWeek(periodStart: string): Promise<TimepayResult> {
   const ctx = await context();
   if (!ctx?.staffId) return { ok: false, error: "No staff record for this account." };
@@ -257,21 +199,7 @@ export async function submitWeek(periodStart: string): Promise<TimepayResult> {
 
   await materialise(ctx.orgId, ctx.staffId, periodStart, period.cfg);
 
-  const { error } = await supabaseAdmin.from("timesheets").upsert(
-    {
-      org_id: ctx.orgId,
-      staff_profile_id: ctx.staffId,
-      period_start: periodStart,
-      status: "submitted",
-      submitted_at: new Date().toISOString(),
-      // a resubmission clears the previous question
-      review_note: null,
-      reviewed_by: null,
-      reviewed_at: null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "org_id,staff_profile_id,period_start" },
-  );
+  const { error } = await writeSubmitted(ctx.orgId, ctx.staffId, periodStart, new Date().toISOString());
   if (error) return { ok: false, error: "Couldn't submit this week." };
   refresh();
   return { ok: true };
@@ -300,6 +228,15 @@ async function review(
     .eq("id", staffProfileId)
     .maybeSingle();
   if (!target) return { ok: false, error: "That person isn't in this organisation." };
+
+  /* APPROVING WRITES THE WEEK DOWN FIRST, when nobody else has. An approved
+     sheet is frozen — stored rows only (presumeFor `frozen`) — and a week its
+     owner never sent has presumed days with no rows behind them. Approving one
+     as it stood turned an ordinary 40-hour week into whatever had been typed
+     by hand, which for an ordinary week is nothing. Submitting materialises;
+     approving a sheet that skipped submitting has to do the same. */
+  if (patch.status === "approved" && editable(await statusOf(ctx.orgId, staffProfileId, periodStart)))
+    await materialise(ctx.orgId, staffProfileId, periodStart, period.cfg);
 
   const { error } = await supabaseAdmin.from("timesheets").upsert(
     {

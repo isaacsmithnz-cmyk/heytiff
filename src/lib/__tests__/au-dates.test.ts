@@ -1,4 +1,4 @@
-import { auDayOf, auHourNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
+import { auDayOf, auHourNow, auMinutesNow, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth, fmtAuWeekdayDate, fmtAuWeekdayDateLong, todayInAu, parseAuDate, formatAuDate } from "../au-dates";
 
 /* The date helpers everything else anchors on. `todayInAu` answers "what day is
    it now" and `auDayOf` answers "what day was that" — they have to agree, or a
@@ -135,5 +135,28 @@ describe("auHourNow — the greeting's clock", () => {
   it("midnight reads as hour 0, never 24", () => {
     // 14:00 UTC = 00:00 AEST — hourCycle h23 keeps it at 0
     expect(auHourNow(new Date("2026-07-25T14:00:00Z"))).toBe(0);
+  });
+});
+
+describe("auMinutesNow — the clock a timesheet's send moment is read against", () => {
+  it("reads minutes past midnight on the AU clock (AEST, UTC+10)", () => {
+    // 05:00 UTC is 3:00 PM in Sydney — "Sun 3:00 PM" to the minute
+    expect(auMinutesNow(new Date("2026-09-06T05:00:00Z"))).toBe(15 * 60);
+    expect(auMinutesNow(new Date("2026-09-06T04:59:00Z"))).toBe(15 * 60 - 1);
+  });
+
+  it("follows daylight saving (AEDT, UTC+11)", () => {
+    // 04:30 UTC on 1 Dec is 3:30 PM in Sydney
+    expect(auMinutesNow(new Date("2026-12-01T04:30:00Z"))).toBe(15 * 60 + 30);
+  });
+
+  it("starts the day at 0, never 1440", () => {
+    expect(auMinutesNow(new Date("2026-07-25T14:00:00Z"))).toBe(0);
+  });
+
+  it("agrees with todayInAu about which day the minutes belong to", () => {
+    const late = new Date("2026-09-06T13:59:00Z"); // 11:59 PM Sunday in Sydney
+    expect(todayInAu(late)).toBe("2026-09-06");
+    expect(auMinutesNow(late)).toBe(23 * 60 + 59);
   });
 });

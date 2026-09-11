@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { auth0 } from "@/lib/auth0";
-import { todayInAu } from "@/lib/au-dates";
+import { auMinutesNow, todayInAu } from "@/lib/au-dates";
 import { staffProfileIdFor } from "@/lib/fleet/query";
 import type { PayPeriod } from "@/components/timepay/timepay";
 import {
@@ -26,6 +26,8 @@ import {
 import { holidaysInSpan, myUnavailability, stateFor } from "./leave-query";
 import { ensureHolidays } from "./holiday-sync";
 import { presumeFor, presumptionCtx } from "./presume";
+import { hasPassed, hasSomethingToSend, submitMomentOf } from "./auto-submit";
+import { momentInstant, sendThemselves, type SelfSent } from "./submit";
 
 /* Shared page loading for both Time & Pay routes, so the *my* screen and the
    *all* screen can't disagree about which period it is or what the rules are.
@@ -124,8 +126,8 @@ export async function loadMyTimesheet(requested?: string) {
   /* A week that has gone for review is a record — stored rows only. Anything
      still being derived under an approved sheet would move the totals the
      approver signed off. Sent-back weeks are live again by definition. */
-  const sheet = sheets.get(ctx.staffId) ?? EMPTY_SHEET;
-  const frozen = sheet.status === "submitted" || sheet.status === "approved";
+  const stored = sheets.get(ctx.staffId) ?? EMPTY_SHEET;
+  const frozen = stored.status === "submitted" || stored.status === "approved";
   const presumed = presumeFor(
     me,
     state,
@@ -134,6 +136,25 @@ export async function loadMyTimesheet(requested?: string) {
     p,
     { frozen },
   );
+
+  /* A SHEET NOBODY SENT GOES AT THE WORKSPACE'S MOMENT — "Sun 3:00 PM", the
+     time the rail has always promised and nothing ever kept. Nothing sends it
+     at that minute: the first read after it does, writing the week down
+     exactly as the Submit button would (lib/timepay/auto-submit).
+
+     A week with nothing on it has nothing to send, and stays a draft — but it
+     is CLOSED all the same (`pastSend`). The promise is "sends itself and
+     locks"; a sheet still open after the moment would send the instant it had
+     a day on it, and lock the rest of the week out from under the person
+     adding them. A sent-back sheet is exempt: the approver reopened it. */
+  const moment = submitMomentOf(start, cfg, settings);
+  const pastSend = hasPassed(moment, ctx.today, auMinutesNow());
+  let sheet = stored;
+  if (moment && pastSend && sheet.status === "draft" && hasSomethingToSend(presumed.days)) {
+    const at = momentInstant(moment, settings);
+    if (await sendThemselves(ctx.orgId, start, [{ staffId: ctx.staffId, presumed }], at))
+      sheet = { ...sheet, status: "submitted", submittedAt: at };
+  }
 
   /* A casual's own unavailability. Loaded here rather than on demand because
      the rail shows it beside the week it applies to, and a casual opening
@@ -166,6 +187,10 @@ export async function loadMyTimesheet(requested?: string) {
         this, not from `today` — at 6am on Tuesday there is nothing to put in
         yet, so Tuesday isn't missing until Tuesday ends. */
     through: p.through,
+    /** the workspace's send moment for this period has come. Read on the
+        server, because the screen can't consult a clock during render without
+        disagreeing with the HTML it hydrates. */
+    pastSend,
     /** what kind of employee they are, for the copy that differs */
     employment: me.employment ?? "permanent",
     /** a salaried permanent's week pays itself — the screen goes
@@ -230,30 +255,48 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
     staff.map((s) => ({ id: s.id, state: s.state ?? orgState })),
   );
 
+  /* Sheets that sent themselves — see loadMyTimesheet. The approver's read is
+     as good a first read as the person's own: a week that went at Sunday
+     3:00 PM must arrive on Monday as sent, whoever opens it first. */
+  const moment = submitMomentOf(start, cfg, settings);
+  const pastSend = hasPassed(moment, ctx.today, auMinutesNow());
+  const selfSent: SelfSent[] = [];
+
+  /* Each person is presumed AND read through their own roster: the approver
+     sees a casual's blank Tuesday as blank, not as a missing day to chase.
+     A submitted or approved sheet is frozen — stored rows only, exactly
+     what the person's own screen shows. */
+  const rows = staff.map((s) => {
+    const st = sheets.get(s.id);
+    const frozen = st?.status === "submitted" || st?.status === "approved";
+    const r = presumeFor(
+      s,
+      s.state ?? orgState,
+      settings,
+      { week: weekDays, today, through: p.through },
+      p,
+      { frozen },
+    );
+    if (pastSend && (st?.status ?? "draft") === "draft" && hasSomethingToSend(r.days))
+      selfSent.push({ staffId: s.id, presumed: r });
+    return {
+      ...s,
+      days: r.days,
+      workDays: r.workDays,
+      holidayDays: r.holidayDays,
+      certMissing: r.certMissing,
+    };
+  });
+
+  if (moment && selfSent.length) {
+    const at = momentInstant(moment, settings);
+    if (await sendThemselves(ctx.orgId, start, selfSent, at))
+      for (const { staffId } of selfSent)
+        sheets.set(staffId, { ...(sheets.get(staffId) ?? EMPTY_SHEET), status: "submitted", submittedAt: at });
+  }
+
   return {
-    /* Each person is presumed AND read through their own roster: the approver
-       sees a casual's blank Tuesday as blank, not as a missing day to chase.
-       A submitted or approved sheet is frozen — stored rows only, exactly
-       what the person's own screen shows. */
-    staff: staff.map((s) => {
-      const st = sheets.get(s.id);
-      const frozen = st?.status === "submitted" || st?.status === "approved";
-      const r = presumeFor(
-        s,
-        s.state ?? orgState,
-        settings,
-        { week: weekDays, today, through: p.through },
-        p,
-        { frozen },
-      );
-      return {
-        ...s,
-        days: r.days,
-        workDays: r.workDays,
-        holidayDays: r.holidayDays,
-        certMissing: r.certMissing,
-      };
-    }),
+    staff: rows,
     settings,
     configured,
     week: weekDays,

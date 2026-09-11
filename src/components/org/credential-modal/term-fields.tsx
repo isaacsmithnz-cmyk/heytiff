@@ -116,6 +116,7 @@ export function TermFields({
   value,
   onChange,
   today,
+  expiryRequired,
 }: {
   kind: OrgCredKind;
   /** The card's name — it decides which of the four optional facts this paper
@@ -126,6 +127,10 @@ export function TermFields({
   value: Term;
   onChange: (t: Term) => void;
   today: string;
+  /** Whether the button can do nothing without an expiry, which is what the
+      star says. Adding never needs one, and a renewal needs one only while no
+      document is waiting: with one, the button files it instead. */
+  expiryRequired: boolean;
 }) {
   const fields = termFieldsFor(kind, name);
   /* A paper's own word beats the kind's. On a workers compensation certificate
@@ -185,7 +190,7 @@ export function TermFields({
           aria-label={START_LABEL[kind]}
         />
       </Field>
-      <Field label="Expiry" req>
+      <Field label="Expiry" req={expiryRequired}>
         <DateField
           size="lg"
           clearable

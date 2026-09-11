@@ -248,7 +248,7 @@ export function RecordScreen({
               }
             }}
           >
-            <TermFields value={term} onChange={setTerm} today={today} />
+            <TermFields value={term} onChange={setTerm} today={today} expiryRequired={docId === null} />
           </ScanCard>
         )}
 

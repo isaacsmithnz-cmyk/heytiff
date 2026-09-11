@@ -386,7 +386,7 @@ export function RoomModal({
               <span className="ds-rm-dimcap">Floor space</span>
               <div className="ds-rm-dimexpr">
                 {areaM2 == null ? (
-                  <span className="ds-rm-dimna">calibrate the floor to measure</span>
+                  <span className="ds-rm-dimna">Calibrate the floor to measure</span>
                 ) : dims && isRect ? (
                   <>
                     <span>{trimM(dims.w)} m</span>

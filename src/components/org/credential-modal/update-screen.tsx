@@ -109,7 +109,7 @@ export function UpdateScreen({
         {error && <div className="vm-err">{error}</div>}
 
         <ScanCard<ReadOrgCredResult>
-          heading={kind === "insurance" ? "THE NEW CERTIFICATE" : "THE NEW LICENCE"}
+          heading={kind === "insurance" ? "The new certificate" : "The new licence"}
           prompt={SCAN_COPY[kind].prompt}
           hint={SCAN_COPY[kind].hint}
           attachLabel={SCAN_COPY[kind].attach}

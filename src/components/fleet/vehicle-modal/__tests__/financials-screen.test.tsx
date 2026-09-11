@@ -135,14 +135,15 @@ it("with no agreement, offers to add one and claims nothing about ownership", ()
   expect(screen.getByRole("button", { name: "Add finance agreement" })).toBeInTheDocument();
   // the purchase grid says the same thing in its own words
   expect(screen.getByText("No finance recorded")).toBeInTheDocument();
-  expect(screen.getByText("PAID")).toBeInTheDocument();
+  expect(screen.getByText("Paid")).toBeInTheDocument();
   // and the cost to run has no finance line — the one FINANCE on screen is the card's eyebrow
-  expect(screen.getAllByText("FINANCE")).toHaveLength(1);
+  expect(screen.getAllByText("Finance")).toHaveLength(1);
 });
 
 it("shows the agreement as the lender wrote it and where the schedule stands", () => {
   mount({ finance: [agreement], documents: [contract] });
-  expect(screen.getByText("FINANCE AGREEMENT")).toBeInTheDocument();
+  // the card's eyebrow; the contract document below it carries the same words as its name
+  expect(screen.getByText("Finance agreement", { selector: ".vm-eyebrow" })).toBeInTheDocument();
   expect(screen.getByText("$742 / month")).toBeInTheDocument();
   expect(screen.getByText("1 Sep 2027")).toBeInTheDocument(); // ENDS: start plus term
   expect(screen.getByText("48 of 60")).toBeInTheDocument();
@@ -150,8 +151,8 @@ it("shows the agreement as the lender wrote it and where the schedule stands", (
   expect(screen.getByText(/confirm the payout figure with Macquarie Leasing/)).toBeInTheDocument();
   expect(screen.getByRole("progressbar", { name: "Repayments fallen due" })).toHaveAttribute("aria-valuenow", "48");
   // the purchase grid now reads as financed
-  expect(screen.getByText("DEPOSIT PAID")).toBeInTheDocument();
-  expect(screen.getByText("BALANCE FINANCED")).toBeInTheDocument();
+  expect(screen.getByText("Deposit paid")).toBeInTheDocument();
+  expect(screen.getByText("Balance financed")).toBeInTheDocument();
   expect(screen.getByText("Deposit + finance")).toBeInTheDocument();
   // a year of repayments in the cost to run — the finance line, and the total it is all of
   expect(within(card("COST TO RUN · LAST 12 MONTHS")).getAllByText("$8,904")).toHaveLength(2);
@@ -217,7 +218,7 @@ it("will not save an agreement without a lender and a start date", async () => {
 
 it("edits the book value in place through the vehicle's own save", async () => {
   const { onSaveVehicle, user } = mount();
-  await user.click(within(screen.getByText("BOOK VALUE").parentElement as HTMLElement).getByRole("button", { name: "Edit" }));
+  await user.click(within(screen.getByText("Book value").parentElement as HTMLElement).getByRole("button", { name: "Edit" }));
   const input = screen.getByLabelText("Book value");
   await user.clear(input);
   await user.type(input, "25000");
@@ -227,7 +228,7 @@ it("edits the book value in place through the vehicle's own save", async () => {
 
 it("edits the purchase as the invoice prints it", async () => {
   const { onSaveVehicle, user } = mount();
-  await user.click(within(card("PURCHASE")).getByRole("button", { name: "Edit" }));
+  await user.click(within(card("Purchase")).getByRole("button", { name: "Edit" }));
   await user.type(screen.getByPlaceholderText("Dealer or seller"), "Sydney City Mitsubishi");
   await user.type(screen.getByLabelText("GST"), "3635.45");
   await user.click(screen.getByRole("button", { name: "Save purchase" }));
@@ -255,9 +256,9 @@ it("Add document under INVOICES files a purchase invoice against the vehicle", a
 
 it("without a Tiff estimate shows the book value and says how to get one", () => {
   mount({ valuation: false });
-  expect(screen.getByText("VALUE")).toBeInTheDocument();
+  expect(screen.getByText("Value")).toBeInTheDocument();
   expect(screen.getByText(/Run “Value with Tiff” in the register/)).toBeInTheDocument();
-  expect(screen.queryByText("TIFF VALUE")).not.toBeInTheDocument();
+  expect(screen.queryByText("Tiff value")).not.toBeInTheDocument();
 });
 
 it("Cancel goes back to the card", async () => {

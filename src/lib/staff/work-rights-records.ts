@@ -140,19 +140,19 @@ export type CheckFact = { label: string; value: string; tone?: "faint" | "warn" 
     question nobody asked. */
 export function checkFacts(r: WorkRightsRecord, state: CheckState): CheckFact[] {
   const faint = (v: unknown): CheckFact["tone"] => (v ? undefined : "faint");
-  const facts: CheckFact[] = [{ label: "STATUS", value: r.status }];
+  const facts: CheckFact[] = [{ label: "Status", value: r.status }];
   if (!isNoVisa(r.status)) {
     facts.push(
       { label: "VISA", value: r.visaType ?? dash, tone: faint(r.visaType) },
-      { label: "WORK CONDITION", value: r.hoursCondition ?? dash, tone: faint(r.hoursCondition) },
+      { label: "Work condition", value: r.hoursCondition ?? dash, tone: faint(r.hoursCondition) },
       {
-        label: "EXPIRY",
+        label: "Expiry",
         value: r.expiresOn ? fmtDay(r.expiresOn) : "No expiry",
         tone: r.expiresOn && (state === "warn" || state === "bad") ? "warn" : faint(r.expiresOn),
       }
     );
   }
-  facts.push({ label: "CHECKED", value: fmtDay(r.checkedOn) });
+  facts.push({ label: "Checked", value: fmtDay(r.checkedOn) });
   return facts;
 }
 

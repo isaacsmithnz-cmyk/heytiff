@@ -1,5 +1,5 @@
-/* Shared chrome for Toolbox tool pages — back link, category eyebrow, title,
-   subtitle; children render below inside the shell's stagger wrapper. Each
+/* Shared chrome for Toolbox tool pages — back link, title, subtitle (the
+   category eyebrow over the title is retired, law 10); children render below inside the shell's stagger wrapper. Each
    tool passes its category accent, exposed to the CSS as --tool-accent* so
    controls pick up the right colour without per-tool stylesheets.
    `compact` collapses the header to one tight block for tools that must fit
@@ -10,7 +10,6 @@ import { Icon } from "@/components/shell/icon";
 import "./toolbox.css";
 
 export function ToolPage({
-  category,
   accent,
   accentInk,
   title,
@@ -18,7 +17,6 @@ export function ToolPage({
   compact = false,
   children,
 }: {
-  category: string;
   accent: string;
   /** darker readable shade of the accent for text on soft backgrounds */
   accentInk: string;
@@ -49,10 +47,6 @@ export function ToolPage({
                 <Icon name="chevL" size={15} />
                 Toolbox
               </Link>
-              <div className="teyebrow" style={{ color: accentInk }}>
-                <span className="edot" style={{ background: accent }} />
-                {category}
-              </div>
             </div>
             <h1>{title}</h1>
             <p className="tsub">{sub}</p>

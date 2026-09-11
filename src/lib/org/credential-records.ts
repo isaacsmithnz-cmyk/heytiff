@@ -210,44 +210,44 @@ export function recordFacts(
   const fields = termFieldsFor(kind, name);
   const has = (f: TermField) => fields.includes(f);
   const expiry: RecordFact = {
-    label: "EXPIRY",
+    label: "Expiry",
     value: fmtDay(r.expiresOn),
     tone: state === "ok" || state === "none" ? undefined : "warn",
   };
 
   if (kind === "insurance") {
     return [
-      { label: "INSURER", value: r.issuer ?? dash, tone: faint(r.issuer) },
-      { label: "POLICY NO.", value: r.number ?? dash, tone: faint(r.number) },
+      { label: "Insurer", value: r.issuer ?? dash, tone: faint(r.issuer) },
+      { label: "Policy no.", value: r.number ?? dash, tone: faint(r.number) },
       has("cover") && {
-        label: (termLabelFor(kind, name, "cover") ?? "Cover").toUpperCase(),
+        label: termLabelFor(kind, name, "cover") ?? "Cover",
         value: r.cover ?? dash,
         tone: faint(r.cover),
       },
       has("sumInsured") && {
-        label: "LIMIT",
+        label: "Limit",
         value: r.sumInsured != null ? fmtSumInsured(r.sumInsured) : dash,
         tone: faint(r.sumInsured),
       },
       has("workers") && {
-        label: "WORKERS",
+        label: "Workers",
         value: r.workersCount != null ? String(r.workersCount) : dash,
         tone: faint(r.workersCount),
       },
-      has("wages") && { label: "WAGES", value: money(r.wages), tone: faint(r.wages) },
-      { label: "STARTS", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
+      has("wages") && { label: "Wages", value: money(r.wages), tone: faint(r.wages) },
+      { label: "Starts", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
       expiry,
-      has("premium") && { label: "PREMIUM", value: money(r.premium), tone: faint(r.premium) },
-      has("excess") && { label: "EXCESS", value: money(r.excess), tone: faint(r.excess) },
+      has("premium") && { label: "Premium", value: money(r.premium), tone: faint(r.premium) },
+      has("excess") && { label: "Excess", value: money(r.excess), tone: faint(r.excess) },
     ].filter((f): f is RecordFact => f !== false);
   }
   return [
-    { label: "ISSUED BY", value: r.issuer ?? dash, tone: faint(r.issuer) },
-    { label: "LICENCE NO.", value: r.number ?? dash, tone: faint(r.number) },
-    has("cover") && { label: "CLASSES", value: r.cover ?? dash, tone: faint(r.cover) },
-    { label: "ISSUED", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
+    { label: "Issued by", value: r.issuer ?? dash, tone: faint(r.issuer) },
+    { label: "Licence no.", value: r.number ?? dash, tone: faint(r.number) },
+    has("cover") && { label: "Classes", value: r.cover ?? dash, tone: faint(r.cover) },
+    { label: "Issued", value: r.startsOn ? fmtDay(r.startsOn) : dash, tone: faint(r.startsOn) },
     expiry,
-    has("premium") && { label: "FEE PAID", value: money(r.premium), tone: faint(r.premium) },
+    has("premium") && { label: "Fee paid", value: money(r.premium), tone: faint(r.premium) },
   ].filter((f): f is RecordFact => f !== false);
 }
 

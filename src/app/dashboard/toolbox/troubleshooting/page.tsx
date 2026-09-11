@@ -29,7 +29,6 @@ export default async function TroubleshootingPage() {
 
   return (
     <ToolPage
-      category="Troubleshooting"
       accent="#FF3366"
       accentInk="#E0244B"
       title="Fault Finder"

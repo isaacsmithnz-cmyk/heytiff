@@ -149,7 +149,7 @@ export function IdentityScreen({
       <div className="vm-body">
         <div className="vm-card">
           <div className="vm-cardhead">
-            <span className="vm-eyebrow">WHAT IT IS</span>
+            <span className="vm-eyebrow">What it is</span>
           </div>
 
           {/* Its own row above the boxes, because it is not one more field: it
@@ -239,7 +239,7 @@ export function IdentityScreen({
 
         {adding && (
           <ScanCard<ReadOrgCredResult>
-            heading={`SCAN THE ${KIND_LABEL[kind].toUpperCase()}`}
+            heading={`Scan the ${KIND_LABEL[kind]}`}
             prompt={SCAN_COPY[kind].prompt}
             hint={SCAN_COPY[kind].hint}
             attachLabel={SCAN_COPY[kind].attach}
@@ -269,7 +269,7 @@ export function IdentityScreen({
             picker standing between a person and the thing they came to do. */}
         <div className="vm-card">
           <div className="vm-cardhead">
-            <span className="vm-eyebrow">COLOUR</span>
+            <span className="vm-eyebrow">Colour</span>
           </div>
           <div className="vm-sw" role="group" aria-label="Colour">
             {SWATCHES.map((s) => (

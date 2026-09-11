@@ -92,7 +92,7 @@ export function WatchlistPanel({
           ))}
           {items.map((it) => (
             <li key={it.id} className="hq-watch-item manual">
-              <span className="hq-watch-kind manual">watch</span>
+              <span className="hq-watch-kind manual">Watch</span>
               <span className="hq-watch-body">
                 <b>{it.item}</b>
                 {it.context ? <> — {it.context}</> : null}

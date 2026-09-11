@@ -125,7 +125,7 @@ it("opens on the vehicle, warning about the one thing that is due", () => {
 
 it("moves to a renewal screen through the compliance list and back through the chevron", async () => {
   const { user } = mount();
-  await user.click(screen.getByRole("button", { name: /GREEN SLIP/ }));
+  await user.click(screen.getByRole("button", { name: /Green slip/ }));
   expect(screen.getByRole("heading", { name: "Green slip (CTP)" })).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
@@ -139,7 +139,7 @@ it("the amber bar's Update rego is a door to the rego screen", async () => {
 
 it("Escape goes home from a sub-screen and closes from home", async () => {
   const { user, onClose } = mount();
-  await user.click(screen.getByRole("button", { name: /INSURANCE/ }));
+  await user.click(screen.getByRole("button", { name: /Insurance/ }));
   await user.keyboard("{Escape}");
   expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
   expect(onClose).not.toHaveBeenCalled();
@@ -190,7 +190,7 @@ it("keeps logging on the card: the + on History offers the four kinds", async ()
 it("has no odometer, no fuel and a tow hitch for a trailer", async () => {
   const { user } = mount({ motorised: false, bodyType: "trailer" });
   expect(screen.queryByText(/km$/)).not.toBeInTheDocument();
-  expect(screen.getByText("TOWED BY")).toBeInTheDocument();
+  expect(screen.getByText("Towed by")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Log something" }));
   expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Report an issue", "Log service"]);
   // the placeholder drawing follows the body type
@@ -233,5 +233,5 @@ it("the FINANCIALS card is the door to the Financials screen, and Back returns",
   expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
   expect(screen.getByText("COST TO RUN · LAST 12 MONTHS")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByText("VEHICLE DETAILS")).toBeInTheDocument();
+  expect(screen.getByText("Vehicle details")).toBeInTheDocument();
 });

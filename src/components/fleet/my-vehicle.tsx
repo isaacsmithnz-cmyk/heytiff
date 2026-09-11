@@ -211,10 +211,6 @@ export function MyVehicle({
       {errBox}
       <div className="fl-hero">
         <div className="fl-hlead">
-          <div className="fl-htag">
-            <Icon name="truck" size={12} />
-            Your vehicle
-          </div>
           <h2>{displayName(vehicle)}</h2>
           <div className="fl-hsub">
             {modelLabel(vehicle)}

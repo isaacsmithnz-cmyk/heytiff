@@ -292,7 +292,7 @@ export function HeatLoadCalculator() {
                 />
                 <span className="u">m</span>
               </div>
-              <div className="hl2-cap">length</div>
+              <div className="hl2-cap">Length</div>
             </div>
             <span className="x">×</span>
             <div className="dim1">
@@ -307,7 +307,7 @@ export function HeatLoadCalculator() {
                 />
                 <span className="u">m</span>
               </div>
-              <div className="hl2-cap">width</div>
+              <div className="hl2-cap">Width</div>
             </div>
             <span className="x">×</span>
             {heightInput}
@@ -328,7 +328,7 @@ export function HeatLoadCalculator() {
                 />
                 <span className="u">m²</span>
               </div>
-              <div className="hl2-cap">floor area</div>
+              <div className="hl2-cap">Floor area</div>
             </div>
             <span className="x">×</span>
             {heightInput}

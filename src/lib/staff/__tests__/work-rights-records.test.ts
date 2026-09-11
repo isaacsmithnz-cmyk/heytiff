@@ -149,16 +149,16 @@ describe("the facts grid", () => {
     const labels = checkFacts(rec({ status: "Australian citizen", visaType: null, expiresOn: null }), "forever").map(
       (f) => f.label
     );
-    expect(labels).toEqual(["STATUS", "CHECKED"]);
+    expect(labels).toEqual(["Status", "Checked"]);
   });
 
   it("prints the visa block for someone who holds one", () => {
     expect(checkFacts(rec(), "ok").map((f) => f.label)).toEqual([
-      "STATUS",
+      "Status",
       "VISA",
-      "WORK CONDITION",
-      "EXPIRY",
-      "CHECKED",
+      "Work condition",
+      "Expiry",
+      "Checked",
     ]);
   });
 

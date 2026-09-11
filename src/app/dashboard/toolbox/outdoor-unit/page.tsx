@@ -11,7 +11,6 @@ export default async function OutdoorUnitPage() {
   if (!(await can("toolbox"))) redirect("/dashboard");
   return (
     <ToolPage
-      category="Reference Library"
       accent="#8A2BE2"
       accentInk="#6D28D9"
       title="Outdoor Unit Placement"

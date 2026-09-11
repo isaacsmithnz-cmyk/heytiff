@@ -440,7 +440,7 @@ export function VehicleForm({
           {/* ---- the certificate ---- */}
           <div className="vm-card vm-record">
             <div className="vm-cardhead">
-              <Eyebrow>REGO CERTIFICATE</Eyebrow>
+              <Eyebrow>Rego certificate</Eyebrow>
               {cert.state === "read" && (
                 <Inline muted onClick={() => setCert({ state: "idle" })}>
                   Scan another
@@ -480,7 +480,7 @@ export function VehicleForm({
                   <b>{cert.name}</b>
                   <em>Details read from the certificate — check the form before saving</em>
                 </span>
-                <span className="vm-scannedtag">SCANNED</span>
+                <span className="vm-scannedtag">Scanned</span>
               </div>
             )}
             {cert.state === "read" && !adding && cert.expiresOn && (
@@ -492,7 +492,7 @@ export function VehicleForm({
           </div>
 
           {/* ---- identity ---- */}
-          <Section label="IDENTITY">
+          <Section label="Identity">
             <Field label="Rego plate" req>
               <input className="vm-input" placeholder="e.g. MKT482" value={f.plate} onChange={set("plate")} />
             </Field>
@@ -567,7 +567,7 @@ export function VehicleForm({
           </Section>
 
           {/* ---- the certificate's specs ---- */}
-          <Section label="SPECIFICATIONS">
+          <Section label="Specifications">
             <Field label="VIN / chassis" wide>
               <input className="vm-input mono" placeholder="17 characters on the certificate" value={f.vin} onChange={set("vin")} />
             </Field>
@@ -604,7 +604,7 @@ export function VehicleForm({
 
           {/* ---- the first registration, on the way in ---- */}
           {adding ? (
-            <Section label="REGISTRATION" note="Filed as the vehicle's first rego record, with the certificate under it. Insurance and the green slip are added on the vehicle's card.">
+            <Section label="Registration" note="Filed as the vehicle's first rego record, with the certificate under it. Insurance and the green slip are added on the vehicle's card.">
               <Field label="Rego expiry">
                 <DateField size="lg" clearable today={today} value={f.regoExpiry || null} onChange={setDate("regoExpiry")} />
               </Field>
@@ -632,7 +632,7 @@ export function VehicleForm({
           )}
 
           {/* ---- service cycle ---- */}
-          <Section label="SERVICE CYCLE">
+          <Section label="Service cycle">
             {/* Asked only of something that has one. A trailer offered an odometer
                 box gets a zero typed into it, and that zero then reads as a
                 measurement on every screen downstream. */}
@@ -660,7 +660,7 @@ export function VehicleForm({
           </Section>
 
           {/* ---- purchase ---- */}
-          <Section label="PURCHASE">
+          <Section label="Purchase">
             <Field label="Purchase date">
               <DateField size="lg" clearable today={today} value={f.purchaseDate || null} onChange={setDate("purchaseDate")} />
             </Field>
@@ -709,7 +709,7 @@ export function VehicleForm({
           </Section>
 
           {/* ---- assignment ---- */}
-          <Section label="ASSIGNMENT">
+          <Section label="Assignment">
             <Field label="Status">
               <select className="vm-input" value={f.status} onChange={set("status")}>
                 {(Object.keys(STATUS_LABEL) as VehicleStatus[]).map((k) => (

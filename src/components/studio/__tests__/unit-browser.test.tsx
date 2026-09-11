@@ -154,7 +154,7 @@ describe("UnitBrowser", () => {
     );
     // band 2.6 … ×1.35 = 3.51: DUCT-LOW (3.5) is in; DUCT-TALL (3.6) is out but listed
     expect(rowOf("DUCT-LOW").className).toContain("band");
-    expect(within(rowOf("DUCT-LOW")).getByText("in range")).toBeInTheDocument();
+    expect(within(rowOf("DUCT-LOW")).getByText("In range")).toBeInTheDocument();
     expect(rowOf("DUCT-TALL").className).not.toContain("band");
     expect(within(tbl()).getByText("DUCT-TALL")).toBeInTheDocument();
   });
@@ -188,7 +188,7 @@ describe("UnitBrowser", () => {
     fireEvent.click(screen.getByRole("button", { name: /Wall/ }));
     const row = rowOf("WALL-25");
     // WALL-25 is the smallest → best fit tag, and it feeds the detail panel
-    expect(within(row).getByText("best fit")).toBeInTheDocument();
+    expect(within(row).getByText("Best fit")).toBeInTheDocument();
     expect(row).toHaveAttribute("aria-selected", "true");
     expect(within(detailPanel()).getByText("WALL-25")).toBeInTheDocument();
   });
@@ -202,7 +202,7 @@ describe("UnitBrowser", () => {
     expect(within(tbl()).getByText("Recommended")).toBeInTheDocument();
     expect(within(tbl()).getByText("Oversized")).toBeInTheDocument();
     // both units are on offer — the oversized one is flagged, not hidden
-    expect(within(rowOf("WALL-25")).getByText("best fit")).toBeInTheDocument();
+    expect(within(rowOf("WALL-25")).getByText("Best fit")).toBeInTheDocument();
     expect(within(rowOf("WALL-35")).getByText("oversized")).toBeInTheDocument();
     // and it sits below the Recommended heading it isn't part of
     const rows = within(tbl()).getAllByRole("row");

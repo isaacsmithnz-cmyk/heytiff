@@ -135,7 +135,7 @@ it("Update rego opens the registration screen from the real register, not just t
   expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
   // and the row-level door works too: back, then in through the compliance list
   await user.click(screen.getByRole("button", { name: "Back" }));
-  await user.click(screen.getByRole("button", { name: /INSURANCE/ }));
+  await user.click(screen.getByRole("button", { name: /Insurance/ }));
   expect(screen.getByRole("heading", { name: "Insurance" })).toBeInTheDocument();
 });
 

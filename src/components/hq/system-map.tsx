@@ -179,9 +179,9 @@ export function SystemMap() {
                         <span className="hq-map-node-blurb">{n.blurb}</span>
                         {(n.status === "building" || n.status === "planned" || STANDALONE.has(n.id)) && (
                           <span className="hq-map-node-tags">
-                            {n.status === "building" && <i className="hq-map-tag building">building</i>}
-                            {n.status === "planned" && <i className="hq-map-tag planned">planned</i>}
-                            {STANDALONE.has(n.id) && <i className="hq-map-tag alone">standalone</i>}
+                            {n.status === "building" && <i className="hq-map-tag building">Building</i>}
+                            {n.status === "planned" && <i className="hq-map-tag planned">Planned</i>}
+                            {STANDALONE.has(n.id) && <i className="hq-map-tag alone">Standalone</i>}
                           </span>
                         )}
                       </button>
@@ -254,8 +254,8 @@ function Inspector({
         <span className="hq-map-kindchip" style={{ "--nk": km.color } as CSSProperties}>
           {km.label}
         </span>
-        {selected.status === "building" && <i className="hq-map-tag building">building</i>}
-        {selected.status === "planned" && <i className="hq-map-tag planned">planned</i>}
+        {selected.status === "building" && <i className="hq-map-tag building">Building</i>}
+        {selected.status === "planned" && <i className="hq-map-tag planned">Planned</i>}
       </div>
       <div className="hq-map-side-name">{selected.name}</div>
       <div className="hq-map-side-group">{selected.group}</div>
@@ -316,7 +316,7 @@ function ConnList({
             <button key={i} type="button" className="hq-map-conn" onClick={() => onJump(other.id)}>
               <span className="hq-map-conn-name">
                 {other.name}
-                {e.status === "planned" && <i className="hq-map-tag planned">planned</i>}
+                {e.status === "planned" && <i className="hq-map-tag planned">Planned</i>}
               </span>
               <span className="hq-map-conn-label">{e.label}</span>
             </button>

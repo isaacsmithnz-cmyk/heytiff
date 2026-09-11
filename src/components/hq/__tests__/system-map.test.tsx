@@ -40,7 +40,7 @@ describe("SystemMap", () => {
     expect(screen.getByText("cost build-up → charge-out rates")).toBeInTheDocument();
     // the planned Time & Pay pull is present and marked planned
     expect(screen.getByText("pull real wages & hours into rate inputs")).toBeInTheDocument();
-    expect(screen.getAllByText(/planned/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Planned/i).length).toBeGreaterThan(0);
     expect(screen.getByText("Open Rate Calculator ↗")).toBeInTheDocument();
   });
 

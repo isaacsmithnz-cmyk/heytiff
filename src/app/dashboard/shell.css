@@ -192,8 +192,7 @@
    1px less on the right pays back the trailing letter-spacing, which otherwise
    parks a single-line chip 1.4px off its own centre. */
 .fg .ht-orgpill { max-width:100%; padding:4px 12px 4px 12px; border-radius:999px;
-  background:rgba(255,255,255,.06); font-size:12px; font-weight:700; letter-spacing:.14em;
-  text-transform:uppercase; line-height:1.35; text-align:center; color:rgba(255,255,255,.5);
+  background:rgba(255,255,255,.06); font-size:12px; font-weight:500; line-height:1.35; text-align:center; color:rgba(255,255,255,.5);
   overflow-wrap:anywhere; }
 .fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
 @media (prefers-reduced-motion: no-preference) {
@@ -454,7 +453,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* ---- Dashboard home: action-required / roster / payroll section rows.
    Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
-.fg .dash-sub { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); margin:4px 2px 12px; }
+.fg .dash-sub { font-size:12px; font-weight:500; color:var(--gray400); margin:4px 2px 12px; }
 .fg .dash-sub:not(:first-of-type) { margin-top:24px; }
 .fg .dash-mini { font-size:13px; font-weight:500; color:var(--gray400); padding:4px 2px; }
 
@@ -495,7 +494,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .nb-foot { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
 .fg .nb-footnote { font-size:12px; font-weight:600; color:var(--gray400); }
 /* the archived drawer: a quiet divider you open, not a second board */
-.fg .nb-archtoggle { display:flex; align-items:center; gap:8px; margin:24px 2px 12px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); transition:color .15s; }
+.fg .nb-archtoggle { display:flex; align-items:center; gap:8px; margin:24px 2px 12px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:12px; font-weight:500; color:var(--gray400); transition:color .15s; }
 .fg .nb-archtoggle:hover { color:var(--gray500); }
 
 /* polls: the bar lives BEHIND the answer, so the row reads as a label with a
@@ -594,7 +593,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .nb-kind { padding:4px 16px; border:0; border-radius:10px; background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); transition:background .15s, color .15s; }
 .fg .nb-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.07); }
 .fg .nb-optedit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:12px; }
-.fg .nb-optedith { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .nb-optedith { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .nb-optrow { display:flex; align-items:center; gap:8px; width:100%; }
 .fg .nb-optrow input { flex:1; height:38px; padding:0 12px; border-radius:6px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
 .fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:16px; background:none; cursor:pointer; color:#c3c8d2; transition:background .15s, color .15s; }
@@ -646,7 +645,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    track list from before the actions column arrived. Dead CSS at equal
    specificity has shadowed live rules in this file twice; the live one is in
    the Team directory section. */
-.fg .dirhead { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--q); border-bottom:1px solid #f0f0f2; }
+.fg .dirhead { font-size:12px; font-weight:500; color:var(--q); border-bottom:1px solid #f0f0f2; }
 .fg .dirrow { border-top:1px solid #f5f6f8; cursor:pointer; transition:background .18s; }
 .fg .dirrow:hover { background:#fafbfc; }
 .fg .dname { display:flex; align-items:center; gap:12px; min-width:0; }
@@ -864,7 +863,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* ---------------- TOOLBOX ---------------- */
 .fg .tbx-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; gap:24px; flex-wrap:wrap; }
-.fg .tbx-eb { display:inline-flex; align-items:center; gap:8px; color:var(--ink); font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; font-family:var(--mono); margin-bottom:12px; }
+.fg .tbx-eb { display:inline-flex; align-items:center; gap:8px; color:var(--ink); font-size:12px; font-weight:500; font-family:var(--mono); margin-bottom:12px; }
 /* 38/-.035em, like every other page title. #350 swept THIRTEEN inline 44s into
    `.v2head h1` and missed this one and the tool pages' 40 — both were CSS
    rules rather than style objects, so a sweep looking for the copied object
@@ -949,7 +948,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .dpbody { padding:24px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:24px; }
 .fg .odu { padding:24px; border-radius:16px; background:var(--tint); border:1px solid var(--tint); box-shadow:inset 0 2px 4px rgba(0,0,0,.03); }
 .fg .odu .or { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-.fg .odu .ol { font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gray500); }
+.fg .odu .ol { font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .odu .okw { padding:4px 12px; border-radius:6px; background:var(--ok-tint); color:var(--ok-t); font-size:12px; font-weight:700; font-family:var(--mono); border:1px solid var(--ok-tint); }
 .fg .odu .ld { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
 .fg .odu .ld b { font-size:14px; font-weight:700; color:var(--gray700); }
@@ -1192,7 +1191,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
    `--on-ink-q` on the late line measures 5.03 against that ground.
    `topbar-popover-grounds.test.ts` holds all of this. */
-.fg .topbar .bp-grp { padding:8px 12px 4px; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--on-ink-q); }
+.fg .topbar .bp-grp { padding:8px 12px 4px; font-size:12px; font-weight:500; color:var(--on-ink-q); }
 .fg .topbar .bp-rems { display:flex; flex-direction:column; }
 .fg .topbar .bp-rem { border-radius:10px; }
 .fg .topbar .bp-remrow { display:flex; align-items:center; gap:12px; padding:8px 12px; }
@@ -1415,7 +1414,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .pfstrip { display:flex; align-items:center; gap:0; flex-wrap:wrap; flex:0 0 auto; margin:0; }
 .fg .pfs { padding:0 16px; border-left:1px solid #e2e5ea; }
 .fg .pfs:first-child { border-left:0; padding-left:0; }
-.fg .pfs dt { font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); }
+.fg .pfs dt { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .pfs dd { margin:4px 0 0; font-size:14px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
 .fg .pfs dd.muted { color:var(--q); font-weight:600; }
 
@@ -1550,7 +1549,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .pdlgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
 .fg .pdlcard { border:1px solid #f0f0f2; border-radius:16px; padding:16px 16px 16px; min-width:0; }
 .fg .pdlcard.wide { grid-column:1/-1; }
-.fg .pdlh { font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); }
+.fg .pdlh { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .pdl, .fg .pdlbody { margin:12px 0 0; display:grid; gap:8px; }
 .fg .pdl.split { grid-template-columns:1fr 1fr; column-gap:32px; }
 .fg .pdrow { display:grid; grid-template-columns:112px minmax(0,1fr); gap:12px; align-items:baseline; min-width:0; }
@@ -1581,8 +1580,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 /* the label is small caps and narrower — at 12.5px sentence case it read as a
    value's equal, which is what made the pairs hard to scan down */
 .fg .tight .pdrow { grid-template-columns:92px minmax(0,1fr); gap:12px; }
-.fg .tight .pdrow dt { font-size:12px; font-weight:700; letter-spacing:.09em;
-  text-transform:uppercase; color:var(--gray400); }
+.fg .tight .pdrow dt { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tight .pdv { font-size:14px; font-weight:600; }
 .fg .tight .pdv.sm { font-size:13px; }
 .fg .psec2 .tight .pdnone { font-size:14px; }
@@ -1718,7 +1716,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .card2 .c2h b { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
 .fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
 .fg .card2 .c2h .pill2 { margin-left:auto; }
-.fg .adminpill { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:999px; font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; background:rgba(255,51,102,.1); color:var(--bad-t); border:1px solid rgba(255,51,102,.25); }
+.fg .adminpill { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:999px; font-family:var(--mono); font-size:12px; font-weight:500; background:rgba(255,51,102,.1); color:var(--bad-t); border:1px solid rgba(255,51,102,.25); }
 
 /* form fields */
 .fg .frow { display:grid; gap:16px; }
@@ -1958,7 +1956,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .cspie .csseg { transition:stroke-dasharray .35s ease; }
 .fg .cstot { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .fg .cstot b { font-family:var(--mono); font-size:24px; font-weight:700; color:var(--ink); line-height:1; }
-.fg .cstot em { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); margin-top:4px; }
+.fg .cstot em { font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); margin-top:4px; }
 .fg .cstot.over b { color:var(--bad-t); }
 
 /* read-only empty (training/notes) */
@@ -1986,7 +1984,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
   .fg-cmd .cin input::placeholder { color:var(--q); }
   .fg-cmd .esc { font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:var(--q); background:var(--tint); padding:4px 8px; border-radius:6px; }
   .fg-cmd .clist { max-height:380px; overflow-y:auto; padding:12px; }
-  .fg-cmd .cgl { padding:8px 16px; font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--q); }
+  .fg-cmd .cgl { padding:8px 16px; font-size:12px; font-weight:500; color:var(--q); }
   .fg-cmd .crow { position:relative; width:100%; display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:16px; cursor:pointer; text-align:left; }
   .fg-cmd .crow.on { background:rgba(243,244,246,.8); }
   .fg-cmd .crow .ci2 { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform .3s; }
@@ -2564,7 +2562,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tk-rec .wb2-capribbon .wb2-ico { margin-left:auto; }
 
 /* Knowledge Base page */
-.fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color .2s; }
+.fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color .2s; }
 .fg .kbcrumb:hover { color:var(--ink); }
 .fg .kbhint { padding:24px; text-align:center; color:var(--q); font-size:13px; font-weight:600; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
 
@@ -2649,7 +2647,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 
 /* ---------- header ---------- */
 .fg .tpr .rhead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
-.fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--ink); margin-bottom:12px; }
+.fg .tpr .rhead .eyebrow { display:inline-flex; align-items:center; gap:8px; font-family:var(--font); font-size:12px; font-weight:500; color:var(--ink); margin-bottom:12px; }
 .fg .tpr .rhead h1 { font-size:24px; font-weight:700; letter-spacing:-.035em; margin:0; line-height:1; }
 .fg .tpr .wknav { display:flex; align-items:center; gap:12px; margin-top:16px; }
 /* THE CARD THE TABS SIT ON — the board's surface, doing the board's job. The
@@ -2718,7 +2716,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    it that isn't the answer is quiet */
 .fg .tpr .stat .sv em { font-style:normal; font-size:16px; font-weight:700; color:var(--gray500); letter-spacing:-.01em; }
 .fg .tpr .stat .stk { min-width:0; }
-.fg .tpr .stat .sl { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-top:4px; }
+.fg .tpr .stat .sl { font-size:12px; font-weight:500; margin-top:4px; }
 /* THE SUB-LINE WAS `display:none` FROM THE PORT ONWARD. Every tile computed
    one — "1 ready to approve", "This month", "3 to review" — and the sheet threw
    all of them away, so the fix that made the Approved tile name what was still
@@ -2741,7 +2739,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    the stat strip and the sections, so it starts where they start. The 2px it
    used to carry put "DAY COLOUR" alone on its own left edge. */
 .fg .tpr .legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin-bottom:24px; }
-.fg .tpr .legend .llbl { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-right:2px; }
+.fg .tpr .legend .llbl { font-size:12px; font-weight:500; color:var(--gray400); margin-right:2px; }
 .fg .tpr .legend .lg { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--gray600); }
 .fg .tpr .legend .sw { width:12px; height:12px; border-radius:0; flex:0 0 auto; }
 /* THE SWATCH IS THE TILE, AT 12px. Two had drifted: `std` was 85% of the green
@@ -2859,7 +2857,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .obar.bad { background:#fdedf0; }
 .fg .tpr .obar .oi { width:28px; height:28px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(240,164,49,.18); color:var(--amber-d); }
 .fg .tpr .obar.bad .oi { background:rgba(255,51,102,.13); color:var(--red-d); }
-.fg .tpr .obar .ot b { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--amber-d); display:block; margin-bottom:4px; }
+.fg .tpr .obar .ot b { font-size:12px; font-weight:500; color:var(--amber-d); display:block; margin-bottom:4px; }
 .fg .tpr .obar.bad .ot b { color:var(--red-d); }
 .fg .tpr .obul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
 .fg .tpr .obul li { position:relative; padding-left:16px; font-size:13px; font-weight:600; color:var(--gray600); line-height:1.45; }
@@ -2914,7 +2912,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    Same reason the stat strip drops to two-up, one breakpoint earlier. */
 @media (max-width:1180px){ .fg .tpr .cbody { grid-template-columns:minmax(0,1fr); } }
 .fg .tpr .cs-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding-bottom:12px; border-bottom:2px solid var(--ink); }
-.fg .tpr .cs-head .l { font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
+.fg .tpr .cs-head .l { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .cs-head .tot { display:flex; align-items:baseline; justify-content:flex-end; gap:1px; font-family:var(--font); font-size:32px; font-weight:700; letter-spacing:-.03em; line-height:1; color:var(--ink); white-space:nowrap; }
 .fg .tpr .cs-head .tot em { font-style:normal; font-size:16px; font-weight:600; color:var(--gray400); margin-left:1px; }
 /* pay-breakdown proportion graphic */
@@ -2941,7 +2939,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    under a different name from the one the person's own sheet gives it. Two
    columns, not the bucket's three: there is no rate chip on a total. */
 .fg .tpr .bkt.total { grid-template-columns:1fr auto; margin-top:4px; padding-top:12px; border-top:1px solid #e6e9ee; }
-.fg .tpr .bkt.total .bl { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
+.fg .tpr .bkt.total .bl { font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .tpr .bkt.total .bv { font-size:20px; }
 /* A ZERO BUCKET IS QUIET, NOT FADED. `opacity:.3` took the chip's own ink to
    1.72:1 against its fill — a rate a person cannot read, on the row that says
@@ -3155,7 +3153,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 /* ---------- setup wizard ---------- */
 .fg .tpr .tset-panel.wz { width:620px; padding:0; }
 .fg .tpr .wz-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 0; }
-.fg .tpr .wz-head .wz-k { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--ink); margin-bottom:8px; }
+.fg .tpr .wz-head .wz-k { font-size:12px; font-weight:500; color:var(--ink); margin-bottom:8px; }
 .fg .tpr .wz-head h3 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
 .fg .tpr .wz-head p { font-size:14px; font-weight:600; color:var(--gray500); margin:8px 0 0; line-height:1.5; max-width:420px; text-wrap:pretty; }
 .fg .tpr .wz-dots { display:flex; gap:8px; padding:16px 24px 4px; }
@@ -3173,7 +3171,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .wz-card.on { border-color:var(--teal); background:rgba(34,197,94,.06); }
 .fg .tpr .wz-card b { display:block; font-size:16px; font-weight:700; }
 .fg .tpr .wz-card em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink); background:rgba(34,197,94,.14); padding:4px 12px; border-radius:999px; }
+.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:12px; font-weight:500; color:var(--ink); background:rgba(34,197,94,.14); padding:4px 12px; border-radius:999px; }
 
 .fg .tpr .wz-pills { display:flex; gap:8px; flex-wrap:wrap; }
 .fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 16px; border-radius:999px; border:2px solid #eceef1; background:#fff; font-size:14px; font-weight:700; color:var(--gray600); transition:all .15s; }
@@ -3193,10 +3191,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .wz-sw i { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(10,12,20,.25); transition:left .18s; }
 .fg .tpr .wz-sw.on { background:var(--teal); }
 .fg .tpr .wz-sw.on i { left:25px; }
-.fg .tpr .wz-or { text-align:center; font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); margin:8px 0 2px; }
+.fg .tpr .wz-or { text-align:center; font-size:12px; font-weight:500; color:var(--gray400); margin:8px 0 2px; }
 
 .fg .tpr .wz-subgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-.fg .tpr .wz-sl { font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--gray400); margin-bottom:8px; text-align:center; }
+.fg .tpr .wz-sl { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:8px; text-align:center; }
 .fg .tpr .wz-scroll { position:relative; height:180px; overflow-y:auto; border:2px solid #eceef1; border-radius:16px; scroll-snap-type:y proximity; padding:4px; }
 .fg .tpr .wz-si { scroll-snap-align:center; height:44px; display:flex; align-items:center; justify-content:center; border-radius:10px; font-size:14px; font-weight:700; color:var(--gray600); cursor:pointer; transition:background .12s; }
 .fg .tpr .wz-si:hover { background:#f4f5f7; }
@@ -3213,7 +3211,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .wz-menu { min-height:0; padding-top:4px; }
 .fg .tpr .wz-menu .ms { padding:16px 0; border-top:1px solid #f0f1f5; }
 .fg .tpr .wz-menu .ms:first-child { border-top:none; }
-.fg .tpr .wz-menu .ms-l { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); margin-bottom:12px; }
+.fg .tpr .wz-menu .ms-l { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:12px; }
 .fg .tpr .wz-menu .ms-p { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; text-wrap:pretty; }
 /* A rung of the overtime ladder: its own plain-language label above the
    stepper it belongs to. Replaces `.wz-or` for this, which was tracked
@@ -3315,7 +3313,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .tpr .rl-ctl { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding:0 16px 12px; }
 .fg .tpr .wz-pills.xs { display:inline-flex; }
 .fg .tpr .wz-pills.xs .wz-pill { height:38px; min-width:52px; padding:0 12px; font-size:13px; border-radius:999px; }
-.fg .tpr .rl-then { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gray400); }
+.fg .tpr .rl-then { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .rl-step { display:inline-flex; align-items:center; gap:8px; }
 .fg .tpr .rl-step button { width:36px; height:36px; border-radius:10px; background:var(--ink); color:#fff; font-size:16px; font-weight:700; transition:transform .12s; }
 .fg .tpr .rl-step button:hover { transform:translateY(-1px); }
@@ -3422,7 +3420,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
    treatment as archived, its own class so the two states can ever diverge. */
 .fg .dirrow.unclaimed {background:#f7f8fa;}
 .fg .dirrow.unclaimed:hover {background:#f2f4f7;}
-.fg .dofftag {font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--q); background:#f1f2f4; padding:4px 8px; border-radius:999px; margin-left:4px;}
+.fg .dofftag {font-size:12px; font-weight:500; color:var(--q); background:#f1f2f4; padding:4px 8px; border-radius:999px; margin-left:4px;}
 .fg .direm {display:none; padding:32px 24px; text-align:center; font-size:14px; font-weight:600; color:var(--q); border-top:1px solid #f5f6f8;}
 /* directory — per-row actions menu */
 .fg .dmorewrap {position:relative; display:flex; justify-content:flex-end;}
@@ -3477,7 +3475,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .fl-av.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .fl-driver { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--ink); min-width:0; }
 .fg .fl-dav { width:26px; height:26px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
-.fg .fl-pool { font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--q); border:1.5px dashed #d7dae0; padding:4px 12px; border-radius:999px; }
+.fg .fl-pool { font-size:12px; font-weight:500; color:var(--q); border:1.5px dashed #d7dae0; padding:4px 12px; border-radius:999px; }
 .fg .fl-more { font-style:normal; font-weight:700; opacity:.65; margin-left:2px; }
 .fg .flhead .flval, .fg .fl-value { text-align:right; }
 .fg .fl-value { font-size:14px; font-weight:700; color:var(--ink); }
@@ -3487,7 +3485,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 /* my vehicle — staff lens */
 .fg .fl-my { display:flex; flex-direction:column; gap:16px; }
 .fg .fl-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; background:linear-gradient(135deg,#fff 62%,#fff8f0); border:1px solid #f0f0f2; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:24px 32px; }
-.fg .fl-htag { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--warn-t); background:rgba(255,138,0,.1); border:1px solid rgba(255,138,0,.25); padding:4px 12px; border-radius:999px; }
+.fg .fl-htag { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--warn-t); background:rgba(255,138,0,.1); border:1px solid rgba(255,138,0,.25); padding:4px 12px; border-radius:999px; }
 .fg .fl-hero h2 { font-size:32px; font-weight:700; letter-spacing:-0.03em; margin:12px 0 4px; color:var(--ink); }
 .fg .fl-hsub { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--gray500); }
 .fg .fl-hchips { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
@@ -3505,7 +3503,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { transform:translateX(2px
 .fg .fl-qa em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:2px; }
 .fg .fl-up { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .fg .fl-ut { background:#fff; border:1px solid #f0f0f2; border-radius:16px; padding:16px 16px; }
-.fg .fl-ut em { font-style:normal; display:block; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+.fg .fl-ut em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
 .fg .fl-ut b { display:block; font-size:16px; font-weight:700; color:var(--ink); margin-top:4px; }
 .fg .fl-ut.warn b { color:var(--warn-t); }
 .fg .fl-ut.bad b { color:var(--bad-t); }
@@ -3621,13 +3619,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .dchip2.unavail em { font-style:normal; font-size:12px; font-weight:700; color:var(--q); letter-spacing:.02em; }
 .fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
 .fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:16px; padding:12px 12px; min-width:0; }
-.fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--q); }
+.fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
 .fl-fact b { display:block; font-size:14px; font-weight:700; color:#050505; margin-top:4px; }
 .fl-note { background:#fafbfc; border:1px solid #f0f0f2; border-radius:10px; padding:12px 12px; font-size:13px; font-weight:600; color:var(--gray500); margin-bottom:16px; }
 .fl-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px; }
 .fl-gap { flex:1; }
 .fl-hist { border-top:1px solid #f0f0f2; padding-top:16px; }
-.fl-hh { font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:var(--q); margin-bottom:8px; }
+.fl-hh { font-size:12px; font-weight:500; color:var(--q); margin-bottom:8px; }
 .fl-hempty { padding:24px 16px; text-align:center; font-size:13px; font-weight:600; color:var(--q); border:1.5px dashed #e6e8ee; border-radius:16px; }
 .fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 12px; border-radius:16px; transition:background .15s; }
 .fl-log:hover { background:#fafbfc; }
@@ -3730,7 +3728,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-renfile:hover { color:var(--info-t); text-decoration:underline; }
 /* Current vs previous on a renewal document. Derived from the file list, so
    the tag can never disagree with what is above it. */
-.fl-doctag { flex:none; padding:2px 8px; border-radius:6px; background:#f1f2f4; font-size:12px; font-weight:700; color:var(--q); text-transform:uppercase; letter-spacing:.03em; }
+.fl-doctag { flex:none; padding:2px 8px; border-radius:6px; background:#f1f2f4; font-size:12px; font-weight:500; color:var(--q); }
 .fl-doctag.now { background:var(--ok-tint); color:var(--ok-t); }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:32px 16px; border:1.5px dashed #d7dae0; border-radius:16px; background:#fafbfc; cursor:pointer; transition:all .2s; }
 .fl-scan:hover, .fl-scan.over { border-color:var(--ink); background:var(--tint); }
@@ -3766,7 +3764,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:700; }
 .fg .mts-back em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); margin-top:4px; }
 .fg .mts-f { display:flex; flex-direction:column; gap:4px; }
-.fg .mts-f span { font-size:12px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.04em; }
+.fg .mts-f span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .mts-f input, .fg .mts-f select { height:38px; padding:0 12px; border-radius:6px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); min-width:120px; }
 /* THE PLACEHOLDER IS LOAD-BEARING HERE, and had no rule at all. My leave puts
    the SUGGESTED hours in it — `placeholder={String(suggested)}`, with a comment
@@ -3786,11 +3784,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* Multi-week periods (fortnight / month) read as week-rows. */
 .fg .mts-wh { display:flex; align-items:baseline; justify-content:space-between; padding:4px 2px 8px; }
-.fg .mts-wh span { font-size:12px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.05em; }
+.fg .mts-wh span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .mts-wh em { font-style:normal; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .tpr .dweek + .dweek { border-top:2px solid #eef0f3; }
 .fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:8px 12px 4px; background:#fafbfc; }
-.fg .tpr .dwh span { font-size:12px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.05em; }
+.fg .tpr .dwh span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .dwh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .wz-anchor { display:flex; flex-direction:column; gap:4px; margin-top:12px; width:100%; }
 .fg .wz-anchor > span { font-size:13px; font-weight:700; color:var(--ink); }
@@ -3823,7 +3821,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-baltile::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--lvk); }
 .fg .lv-baltop { display:flex; align-items:center; gap:8px; }
 .fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:10px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
-.fg .lv-baltile em { display:block; font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); text-transform:uppercase; letter-spacing:.03em; }
+.fg .lv-baltile em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .lv-baltile b { display:flex; align-items:baseline; gap:4px; font-size:32px; font-weight:700; color:var(--ink); margin:12px 0 0; letter-spacing:-.02em; }
 .fg .lv-baltile b span { font-size:13px; font-weight:700; color:var(--gray500); }
 /* What's left, drawn rather than only counted. The track is the whole
@@ -3859,7 +3857,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-fmeta > span { flex:1; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start; }
 .fg .lv-col { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .lv-ch { padding:12px 16px; font-size:13px; font-weight:700; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:rgba(5,5,5,.03); border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .lv-ch { padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:rgba(5,5,5,.03); border-bottom:1px solid rgba(10,11,16,.06); }
 /* The variant that carries its own action. Kept a modifier rather than folded
    into .lv-ch, because the holidays column and the admin holiday-year headers
    reuse the plain bar and have nothing to put on the right. The button's own
@@ -3899,13 +3897,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* ---- public holidays: upcoming panel + admin manager ---- */
 .fg .mts-hols { margin-top:24px; border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:13px; font-weight:700; color:var(--gray700); text-transform:uppercase; letter-spacing:.04em; background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
 .fg .mts-hollist { display:flex; flex-direction:column; }
 .fg .mts-hol { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
 .fg .mts-hol.next { background:var(--tint); }
 .fg .mts-hol b { font-size:13px; font-weight:700; color:var(--ink); min-width:120px; }
 .fg .mts-hol em { flex:1; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .mts-holnext { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink); background:var(--tint-2); padding:4px 8px; border-radius:6px; }
+.fg .mts-holnext { font-size:12px; font-weight:500; color:var(--ink); background:var(--tint-2); padding:4px 8px; border-radius:6px; }
 .fg .hol-year { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; margin-top:16px; }
 .fg .hol-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
 .fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
@@ -3924,7 +3922,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* "worth confirming" — proclamation-dependent days the rules can't date.
    Deliberately quiet: a hint, not a task list. */
 .fg .hol-sug { margin-top:16px; border:1px dashed rgba(10,11,16,.14); border-radius:16px; background:#fafbfc; overflow:hidden; }
-.fg .hol-sugh { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:12px 16px; font-size:12px; font-weight:700; color:var(--gray500); text-transform:uppercase; letter-spacing:.04em; }
+.fg .hol-sugh { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:12px 16px; font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .hol-sugh span { font-size:12px; font-weight:600; color:var(--gray400); text-transform:none; letter-spacing:0; }
 .fg .hol-sugrow { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid rgba(10,11,16,.05); }
 .fg .hol-sugy { min-width:44px; font-size:13px; font-weight:700; color:var(--gray400); }
@@ -4002,7 +4000,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-in { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; gap:12px; }
 .fg .idc .idc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .fg .idc .idc-top.noissuer { justify-content:flex-end; }
-.fg .idc .idc-org { font-size:12px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
+.fg .idc .idc-org { font-size:12px; font-weight:500; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
 .fg .idc.light .idc-org { color:var(--q); }
 /* `--acc` is the licence type's own colour, set inline by id-card.tsx. The tint
    and the border are that colour; the TEXT is that colour mixed 45% into black.
@@ -4010,7 +4008,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    awkward ones a future licence type could carry, pale yellow and lime — the
    worst case at 45% is 5.37 against the 13% tint, where the accent used neat
    was 2.75 for the teal and 3.87 for the blue. 55% already fails on yellow. */
-.fg .idc .idc-badge { flex:0 0 auto; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; white-space:nowrap;
+.fg .idc .idc-badge { flex:0 0 auto; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:500; white-space:nowrap;
   background:color-mix(in srgb, var(--acc,#050505) 13%, #fff);
   border:1px solid color-mix(in srgb, var(--acc,#050505) 33%, #fff);
   color:color-mix(in srgb, var(--acc,#050505) 45%, #000); }
@@ -4059,7 +4057,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-note.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .idc .idc-facts { margin-top:auto; display:flex; gap:24px; flex-wrap:wrap; }
 .fg .idc .idc-facts .f { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.fg .idc .idc-facts em { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.38); }
+.fg .idc .idc-facts em { font-style:normal; font-size:12px; font-weight:500; color:rgba(255,255,255,.38); }
 .fg .idc.light .idc-facts em { color:var(--q); }
 .fg .idc .idc-facts b { font-size:13px; font-weight:700; }
 .fg .idc .idc-facts .f.ok b { color:var(--ok-t); }
@@ -4515,7 +4513,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .mts2-uerr { margin-top:8px; padding:8px 12px; border-radius:10px; background:rgba(255,51,102,.08); color:var(--bad-t); font-size:12px; font-weight:700; }
 .fg .mts2-unote-p { margin:12px 0 0; font-size:12px; font-weight:600; line-height:1.5; color:var(--gray400); }
 .fg .mts2-pay { display:flex; align-items:center; gap:8px; margin-top:8px; padding:0 2px; }
-.fg .mts2-payl { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray400); }
+.fg .mts2-payl { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .mts2-paych { font-size:13px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
 .fg .mts2-paych b { font-weight:700; color:var(--ink); }
 .fg .mts2-eacts { display:flex; gap:8px; margin-top:16px; }
@@ -4532,7 +4530,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    reasoning. White tiles lifted off a grey page; on the board's white card a
    white tile is its own 1px border and a shadow with nothing to fall on. */
 .fg .mts2-card { background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:16px; }
-.fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
+.fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:500; color:var(--gray400); }
 /* `.mts2-range` is gone with the line it styled — the period is named once,
    in `.wknav`, beside the arrows that change it. This card printed it a second
    time, next to nothing that could act on it. */
@@ -4588,7 +4586,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    wheel moves. See [[project-fg-scoped-tokens-portal]]. */
 .fg .tw, .mts2-drop .tw { border:1px solid #eceef1; border-radius:16px; background:#fff; padding:8px 12px 12px; }
 .fg .tw-head, .mts2-drop .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-.fg .tw-title, .mts2-drop .tw-title { font-size:12px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--gray400); }
+.fg .tw-title, .mts2-drop .tw-title { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tw-val, .mts2-drop .tw-val { font-size:14px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .tw-cols, .mts2-drop .tw-cols { display:flex; gap:4px; margin-top:8px; position:relative; }
 /* The centre line the chosen option sits on. Measured from the BOTTOM, not
@@ -4597,7 +4595,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    49 puts it dead on the row the wheel snaps to. */
 .fg .tw-cols::before, .mts2-drop .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:10px; background:rgba(34,197,94,.09); pointer-events:none; }
 .fg .tw-col, .mts2-drop .tw-col { flex:1 1 0; min-width:0; }
-.fg .tw-lab, .mts2-drop .tw-lab { display:block; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); text-align:center; margin-bottom:4px; }
+.fg .tw-lab, .mts2-drop .tw-lab { display:block; font-size:12px; font-weight:500; color:var(--gray400); text-align:center; margin-bottom:4px; }
 .fg .tw-scroll, .mts2-drop .tw-scroll { height:132px; overflow-y:auto; scroll-snap-type:y proximity; padding:49px 0; scrollbar-width:none; }
 .fg .tw-scroll::-webkit-scrollbar, .mts2-drop .tw-scroll::-webkit-scrollbar { width:0; }
 .fg .tw-opt, .mts2-drop .tw-opt { display:block; width:100%; height:34px; border-radius:10px; scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color .14s, background .14s; }
@@ -4651,7 +4649,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:var(--line); }
 .fg .cal-arw:disabled { opacity:.35; cursor:not-allowed; }
 .fg .cal-wd, .fg .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-.fg .cal-wd span { text-align:center; padding-bottom:4px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--gray400); }
+.fg .cal-wd span { text-align:center; padding-bottom:4px; font-size:12px; font-weight:500; color:var(--gray400); }
 /* Jakarta's proportional digits make a column of dates wobble; tabular figures
    are the one place a grid of numbers needs them (there is no mono face). */
 .fg .cal-d { position:relative; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); background:transparent; transition:background .14s, color .14s; }
@@ -4695,7 +4693,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    toolbox do it; everything structural lives here. */
 .fg .adm-stg { max-width:760px; }
 .fg .adm-group + .adm-group { margin-top:32px; }
-.fg .adm-glabel { font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); margin:0 0 12px 2px; }
+.fg .adm-glabel { font-size:12px; font-weight:500; color:var(--gray400); margin:0 0 12px 2px; }
 .fg .adm-card { background:#fff; border:1px solid #f0f0f2; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
 .fg .adm-row { display:flex; align-items:center; gap:12px; padding:16px 16px; text-decoration:none; color:inherit; border-top:1px solid #f5f6f8; transition:background .15s; }
 .fg .adm-row:first-child { border-top:0; }
@@ -4716,8 +4714,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    has bitten this stylesheet twice. */
 .fg .adm-coming { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
   margin:8px 2px 0; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .adm-coming span { font-size:12px; font-weight:700; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--gray400); }
+.fg .adm-coming span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:4px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
@@ -4751,7 +4748,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-note.bad { background:rgba(255,51,102,.08); color:var(--bad-t); }
 
 .fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 32px; margin:0 0 16px; }
-.fg .int-facts dt { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.fg .int-facts dt { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .int-facts dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
 
 /* Why the button isn't there. A missing env var is an instruction, not an
@@ -4791,7 +4788,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-scopes li:first-child { border-top:0; padding-top:0; }
 .fg .int-scopes li p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-.fg .int-tag { padding:4px 8px; border-radius:999px; background:#f4f5f7; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--gray500); }
+.fg .int-tag { padding:4px 8px; border-radius:999px; background:#f4f5f7; font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
 
 /* A backfill in progress is NOT a warning. It wears the ok green, because the
@@ -4829,7 +4826,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fg .sp-editor { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:4px 0 12px 24px; }
 .fg .sp-f { display:flex; flex-direction:column; gap:4px; }
-.fg .sp-f > span { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--gray500); }
+.fg .sp-f > span { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .sp-f > span input { width:14px; height:14px; accent-color:var(--ink); }
 .fg .sp-f > input { height:38px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:14px; font-weight:600; color:var(--gray700); }
 .fg .sp-f > input:focus { outline:none; border-color:var(--ink); }
@@ -5029,7 +5026,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    here restates it — these rows own the GROUND and the label, nothing else. */
 .fg .orglogo-uses { max-width:260px; margin:12px 0 0; border:1px solid #ecedf1; border-radius:16px; overflow:hidden; }
 .fg .orglogo-use { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 12px; min-height:56px; }
-.fg .orglogo-use em { flex:0 0 auto; font-style:normal; font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+.fg .orglogo-use em { flex:0 0 auto; font-style:normal; font-size:12px; font-weight:500; }
 /* letterhead.css sizes these `flex:0 0 auto`, which is right on a letterhead
    band and wrong in a 234px row: refusing to shrink, the document mark ran
    past the row and the row's own overflow:hidden CLIPPED it. Here they may
@@ -5053,7 +5050,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    this sheet owns are the unthemed fallbacks. */
 .fg .orgcolrow { margin-top:32px; padding-top:24px; border-top:1px solid #ecedf1; }
 .fg .orgcolrow > em { display:block; font-style:normal; margin-bottom:12px; font-size:12px;
-  font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+  font-weight:500; color:var(--q); }
 .fg .orgcol { display:flex; align-items:flex-start; gap:24px; flex-wrap:wrap; }
 /* The miniature document. Fixed width so the preview does not restyle itself
    as the card resizes — a preview that reflows is telling you about the card,
@@ -5097,12 +5094,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgacct { display:grid; grid-template-columns:1fr 1fr; gap:16px 24px; }
 @media (max-width:640px){ .fg .orgacct { grid-template-columns:1fr; gap:16px; } }
 .fg .orgacct-f { display:block; min-width:0; }
-.fg .orgacct-f em { font-style:normal; display:block; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+.fg .orgacct-f em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
 .fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:16px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
 .fg .orgacct-f i { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
 .fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:6px;
-  font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  font-size:12px; font-weight:500;
   background:var(--tint); color:var(--info-t); }
 
 /* ── Handing the account over (components/org/transfer-owner-modal) ──
@@ -5273,7 +5270,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-bottom:16px; }
 .fg .xc-f { display:flex; flex-direction:column; gap:4px; grid-column:span 2; }
 .fg .xc-f.sm { grid-column:span 1; }
-.fg .xc-f > span { font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); }
+.fg .xc-f > span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .xc-f select, .fg .xc-f input[type=date] { height:46px; padding:0 12px; border-radius:6px; border:1px solid var(--line); background:#fff; font:inherit; font-size:14px; font-weight:600; color:var(--ink); }
 .fg .xc-act { display:flex; flex-wrap:wrap; gap:8px; }
 @media (max-width:560px){ .fg .xc-f.sm { grid-column:span 2; } }
@@ -5306,7 +5303,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    the Time & Pay stat tile have carried this figure all along; the person out
    of pocket got a list and was left to add it up. */
 .fg .xc-owed { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin:4px 0 12px; padding:12px 16px; border-radius:16px; background:rgba(34,197,94,.07); border:1px solid rgba(34,197,94,.18); }
-.fg .xc-owedk { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray500); }
+.fg .xc-owedk { font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .xc-owed b { font-size:24px; font-weight:700; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .xc-owed em { flex:1 1 100%; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* Why Send is dark — the form saying what it wants rather than the server. */
@@ -5326,7 +5323,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    decline reason. */
 .fg .xr-sum { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
 .fg .xr-sum > div { flex:1 1 180px; padding:16px 16px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
-.fg .xr-k { display:block; font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--gray400); }
+.fg .xr-k { display:block; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .xr-sum b { display:block; margin-top:4px; font-size:24px; font-weight:700; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
 
 .fg .xr-acts { display:flex; gap:8px; }
@@ -5390,7 +5387,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .wb-stat em { display:block; font-style:normal; color:var(--gray500); font-size:13px; font-weight:600; margin-top:4px; }
 
 .wb-day { padding:4px 0 2px; }
-.wb-dayhead { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); margin:8px 0 4px; }
+.wb-dayhead { font-size:12px; font-weight:500; color:var(--gray500); margin:8px 0 4px; }
 .wb-row { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:10px; }
 .wb-row:hover { background:rgba(5,5,5,.03); }
 .wb-time { font-weight:700; font-size:13px; min-width:64px; }
@@ -5994,7 +5991,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    wrapper stayed parked against the subtitle, leaving "2 services" adrift in
    the middle of the header with nothing either side of it. */
 .wb2-chd > .wb2-chip, .wb2-chd > .pbtn, .wb2-chd > .wb2-mcnav, .wb2-chd > .wb2-mcsum { margin-left:auto; flex:none; }
-.wb2-sect { font-size:12px; font-weight:700; letter-spacing:.17em; text-transform:uppercase; color:var(--q); }
+.wb2-sect { font-size:12px; font-weight:500; color:var(--q); }
 .wb2-hint { font-size:13px; color:var(--gray500); font-weight:500; margin:8px 0 0; }
 .wb2-chip { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; padding:4px 8px; border-radius:6px;
   background:rgba(5,5,5,.055); color:var(--gray700); white-space:nowrap; }
@@ -6045,13 +6042,12 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    days" under a heading that said "Frequency" and left the row's one
    two-line cell straddling every single-line cell beside it. */
 .wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:12px; align-items:end; padding:8px 16px;
-  border-bottom:1px solid var(--wb2-line); font-size:12px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--q); }
+  border-bottom:1px solid var(--wb2-line); font-size:12px; font-weight:500; color:var(--q); }
 .wb2-trhd-ck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
 .wb2-trhd-ck em { display:block; font-style:normal; font-size:12px; font-weight:700; letter-spacing:0; color:var(--gray500);
   text-transform:none; text-align:center; padding-bottom:4px; border-bottom:2px solid var(--as, rgba(5,5,5,.2));
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:700;
-  text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); }
+.wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-wkhd.dan { color:var(--wb2-dan-t); }
 .wb2-wkhd em { font-style:normal; font-size:12px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--q); }
 /* BASELINE, not centre. A row mixes one-line cells with two-line ones, and
@@ -6110,7 +6106,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-urgrp { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-urside { position:relative; padding-left:24px; }
 .wb2-urside:before { content:""; position:absolute; left:0; top:4px; bottom:4px; width:1px; background:var(--wb2-line2); }
-.wb2-sect { font-size:12px; font-weight:700; letter-spacing:.17em; text-transform:uppercase; color:var(--gray400);
+.wb2-sect { font-size:12px; font-weight:500; color:var(--gray400);
   padding:4px 2px 4px; }
 @media (max-width:1100px) {
   .wb2-urbody.twocol { grid-template-columns:minmax(0,1fr); }
@@ -6158,7 +6154,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mckey span { display:inline-flex; align-items:center; gap:4px; }
 .wb2-mckey i { width:9px; height:9px; border-radius:0; flex:none; }
 .wb2-mcdow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:8px 16px 4px;
-  font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+  font-size:12px; font-weight:500; color:var(--q); }
 .wb2-mcdow span { text-align:left; padding-left:4px; }
 .wb2-mc { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:4px 16px 16px; }
 /* Taller than the content needs. A day cell is a place you put work, so it
@@ -6211,10 +6207,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 @keyframes wb2Flash { 0%,100% { box-shadow:0 0 0 0 rgba(224,38,79,.22); } 50% { box-shadow:0 0 0 5px rgba(224,38,79,0); } }
 .wb2-mcn { display:flex; align-items:baseline; gap:4px; font-variant-numeric:tabular-nums; }
 .wb2-mcn b { font-size:13px; font-weight:700; color:var(--gray700); }
-.wb2-mcn em { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+.wb2-mcn em { font-style:normal; font-size:12px; font-weight:500;
   color:var(--gray500); }
-.wb2-mcn i { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--ink2); }
+.wb2-mcn i { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--ink2); }
 /* the day the month turns leads with a darker number — the row reads as a
    sequence, and the boundary is where you look twice */
 .wb2-mcc.mstart .wb2-mcn b { color:var(--ink); }
@@ -6316,7 +6311,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
   transition:background .16s, box-shadow .16s; }
 .wb2-schday:hover:not(.on) { background:rgba(5,5,5,.045); }
 .wb2-schday:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-schday .cw { font-size:12px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--gray400); }
+.wb2-schday .cw { font-size:12px; font-weight:500; color:var(--gray400); }
 .wb2-schday .cd { font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--gray700); font-variant-numeric:tabular-nums; }
 .wb2-schday .cn { min-height:16px; font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
 /* a day with nothing on says so in words — a bare 0 reads as a failed read */
@@ -6334,7 +6329,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    the rail would invent both. Above the lanes, labelled with whose board it
    is — the lesson from the maintenance calendar's removed Everything view. */
 .wb2-schshelf { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 16px 0; }
-.wb2-schshelf > b { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--gray400); }
+.wb2-schshelf > b { font-size:12px; font-weight:500; color:var(--gray400); }
 .wb2-schsv { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:10px;
   background:rgba(0,168,224,.08); font-size:12px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
 .wb2-schsv:hover { background:rgba(0,168,224,.14); }
@@ -6618,7 +6613,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scfstack { display:flex; flex-direction:column; gap:4px; }
 /* the count, said in words — the hover answered "which of these are one job"
    by moving pixels, and moving pixels reaches nobody who cannot see them */
-.wb2-scfc { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+.wb2-scfc { font-size:12px; font-weight:500;
   color:#636c7a; padding:0 2px 4px; }
 /* a card wears the paint its block wears, so what arrives is recognisably
    what was clicked — same wash, same cap, same ink */
@@ -6725,7 +6720,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the month grid — the maintenance calendar's frame, re-stated rather than
    reused so the two can move apart without either dragging the other */
 .wb2-scmdow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:12px 16px 4px;
-  font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--q); }
+  font-size:12px; font-weight:500; color:var(--q); }
 .wb2-scmdow span { padding-left:8px; }
 .wb2-scm { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:4px 16px 16px; }
 /* Tall enough that the figure has a cell, not a label — and the same height
@@ -6769,8 +6764,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the one qualitative break: the word under the figure, in the same ink the
    figure already wears — on an over day the gauge is brimful danger and the
    paint hands white */
-.wb2-scmo { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--capink, var(--wb2-warn-t, #B45309)); }
+.wb2-scmo { font-style:normal; font-size:12px; font-weight:500; color:var(--capink, var(--wb2-warn-t, #B45309)); }
 /* unscored: no figure, no ramp, a quieter ground — null is not zero. The
    dot is the one mark allowed: it says the day still holds work, which is
    what makes it clickable. */
@@ -6898,14 +6892,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    author you can't see is one nobody can follow up on. */
 .wb2-dnnote { grid-column:1/-1; margin:2px 0 0; padding:8px 12px; border-radius:10px; background:rgba(5,5,5,.03);
   font-size:13px; font-weight:500; color:var(--gray700); line-height:1.55; text-wrap:pretty; }
-.wb2-dnnote span { display:block; margin-top:4px; font-size:12px; font-weight:700; letter-spacing:.04em;
-  text-transform:uppercase; color:var(--gray400); }
+.wb2-dnnote span { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--gray400); }
 .wb2-dnnote.none { padding:0; background:none; color:var(--q); }
 
 /* ── agreements ── */
 .wb2-agrp { padding-bottom:8px; }
-.wb2-aghd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:700;
-  text-transform:uppercase; letter-spacing:.08em; color:var(--gray500); }
+.wb2-aghd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-aghd i { width:10px; height:10px; border-radius:0; background:rgba(5,5,5,.18); align-self:center; }
 .wb2-agrp[data-accent="violet"] .wb2-aghd i { background:#7A5AF8; }
 .wb2-agrp[data-accent="blue"] .wb2-aghd i { background:var(--ink); color:var(--paper); }
@@ -6916,7 +6908,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    what follows, and how it's labelled. Last-done and Then are what turn a
    cadence word into an actual rhythm. */
 .wb2-agcols { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr);
-  gap:12px; padding:2px 16px 4px; font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  gap:12px; padding:2px 16px 4px; font-size:12px; font-weight:500;
   color:var(--q); }
 /* Tags read LEFT, like every other column. Right-aligning the last column
    ragged the labels against the card edge and put the heading a long way
@@ -7139,8 +7131,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mline > em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-mline > span { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-mline.total { border-top:1.5px solid rgba(5,5,5,.16); margin-top:2px; }
-.wb2-mline.total > b { font-size:12px; font-weight:700; letter-spacing:.04em;
-  text-transform:uppercase; color:var(--gray500); }
+.wb2-mline.total > b { font-size:12px; font-weight:500; color:var(--gray500); }
 /* ── THE TABBED JOB CARD (slice 2) ────────────────────────────────────────
    The sheet became ONE CARD OF EIGHT FACES. `.jc` turns the grid modal into
    a column: a tinted band (identity + the folder tabs) up top, the white
@@ -7315,8 +7306,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
   margin-top:8px; padding-top:8px; border-top:1px solid var(--wb2-line2); }
 .wb2-jcattfield { display:flex; flex-direction:column; gap:4px; flex:1 1 220px; min-width:0; }
 .wb2-jcattfield.short { flex:0 1 148px; }
-.wb2-jcattfield > span { font-size:12px; font-weight:700; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--q); }
+.wb2-jcattfield > span { font-size:12px; font-weight:500; color:var(--q); }
 .wb2-jcattfield .wb2-fi, .wb2-jcattfield .wb2-sel { width:100%; }
 .wb2-jcattsave { display:flex; align-items:center; gap:8px; }
 .wb2-jcattgap { flex-basis:100%; margin:0; font-size:12px; font-weight:600; color:var(--gray500); }
@@ -7431,11 +7421,10 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 /* ── the diary ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
 .wb2-jcdhead b { font-size:16px; font-weight:700; letter-spacing:-.02em; }
-.wb2-jcdhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700;
-  letter-spacing:.1em; text-transform:uppercase; color:var(--q); white-space:nowrap; }
+.wb2-jcdhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
 /* the day markers wear a hairline rule out to the card's edge */
 .wb2-jcday { display:flex; align-items:center; gap:8px; margin:16px 0 2px 32px;
-  font-size:12px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:var(--q); }
+  font-size:12px; font-weight:500; color:var(--q); }
 .wb2-jcday::after { content:""; flex:1; height:1px; background:var(--wb2-line2); }
 .wb2-ev { display:grid; grid-template-columns:28px minmax(0,1fr); gap:12px; padding:8px 0; position:relative; }
 .wb2-ev::before { content:""; position:absolute; left:13px; top:0; bottom:0; width:1px; background:var(--wb2-line2); }
@@ -7900,8 +7889,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
   box-shadow:0 18px 44px -12px rgba(0,0,0,.24); }
 .wb2-showmgrp + .wb2-showmgrp, .wb2-showmi + .wb2-showmgrp { margin-top:4px;
   padding-top:4px; border-top:1px solid var(--wb2-line2); }
-.wb2-showmsect { padding:4px 8px 4px; font-size:12px; font-weight:700; letter-spacing:.14em;
-  text-transform:uppercase; color:var(--q); }
+.wb2-showmsect { padding:4px 8px 4px; font-size:12px; font-weight:500; color:var(--q); }
 .wb2-showmi { display:flex; align-items:center; gap:8px; width:100%; padding:8px 8px;
   border:0; border-radius:10px; background:transparent; color:var(--ink);
   font-size:13px; font-weight:600; text-align:left; cursor:pointer; }
@@ -8119,8 +8107,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); transform:translateX(2px); }
 .wb2-sel { cursor:pointer; }
 .wb2-sel:focus, .wb2-fi:focus { outline:none; border-color:#00A8E0; box-shadow:var(--ring); }
 .wb2-dayrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.wb2-fl { display:flex; flex-direction:column; gap:4px; flex:1; min-width:150px; font-size:12px; font-weight:700;
-  letter-spacing:.1em; text-transform:uppercase; color:var(--gray500); }
+.wb2-fl { display:flex; flex-direction:column; gap:4px; flex:1; min-width:150px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:12px 12px; font:inherit; font-size:14px;
   resize:vertical; margin-bottom:8px; }
 .wb2-notes:focus { outline:none; border-color:#00A8E0; }
@@ -8397,8 +8384,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    without the grant gets five, not five plus a gap where the money was. */
 .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:78px minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,1fr) 96px; }
 .wb2-ajnum b { display:block; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-.wb2-ajnum em { display:block; font-style:normal; font-size:12px; font-weight:700; letter-spacing:.08em;
-  text-transform:uppercase; color:var(--gray400); margin-top:1px; }
+.wb2-ajnum em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); margin-top:1px; }
 .wb2-ajmeta { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
 .wb2-ajmeta em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
@@ -9149,8 +9135,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-triprow[data-sev="soon"] { box-shadow:inset 3px 0 0 var(--wb2-warn, #FF8A00); }
 .wb2-triprow.donerow .wb2-trt b { opacity:.75; }
 .wb2-triprow.add { grid-template-columns:minmax(0,1fr) auto auto auto; align-items:end; }
-.wb2-triprow.add .wb2-fl { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:700;
-  letter-spacing:.08em; text-transform:uppercase; color:var(--gray500); }
+.wb2-triprow.add .wb2-fl { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--gray500); }
 @media (max-width:900px) { .wb2-triprow { grid-template-columns:1fr; gap:8px; } }
 
 /* the money, scope and dates cards on the project page */
@@ -9191,7 +9176,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 .fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
 .fg .tx-stat { display:flex; flex-direction:column; gap:4px; padding:16px 16px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
-.fg .tx-statlab { font-size:12px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--gray400); }
+.fg .tx-statlab { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tx-statval { font-size:24px; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
 .fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tx-stat.ok .tx-statval { color:var(--ok-t); }
@@ -9614,8 +9599,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 .fg .tgp-grp, .tk-sheet .tgp-grp, .fl-modal .tgp-grp { margin-top:12px; }
 .fg .tgp-grp > em, .tk-sheet .tgp-grp > em, .fl-modal .tgp-grp > em {
-  display:block; margin-bottom:4px; font-style:normal; font-size:12px; font-weight:700;
-  letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); }
+  display:block; margin-bottom:4px; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tgp-row, .tk-sheet .tgp-row, .fl-modal .tgp-row { display:flex; flex-wrap:wrap; gap:4px; }
 
 /* one tag, off and on. OFF is grey with a coloured dot; ON is the tag's own
@@ -9677,7 +9661,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-hact { display:inline-flex; align-items:center; gap:8px; }
 .fg .tk-trail { display:flex; align-items:flex-start; gap:8px; flex:1 1 100%; padding-top:2px; }
 .fg .tk-tlbl { display:inline-flex; align-items:center; gap:4px; height:38px; flex:none;
-  font-size:12px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--gray400); }
+  font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tk-tlbl svg { flex:none; }
 /* a shorter chip than the category rail's, because there are more of them and
    they are the narrower fact */
@@ -9697,8 +9681,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .tk-sheet .tgm-nrow .tk-btn { height:38px; padding:0 12px; flex:none; }
 .tk-sheet .tgm-nopt { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .tk-sheet .tgm-d { width:12px; height:12px; flex:none; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.12); }
-.tk-sheet .tgm-grp > em { display:block; margin-bottom:8px; font-style:normal; font-size:12px; font-weight:700;
-  letter-spacing:.06em; text-transform:uppercase; color:var(--gray400); }
+.tk-sheet .tgm-grp > em { display:block; margin-bottom:8px; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 .tk-sheet .tgm-grp > em span { margin-left:8px; color:var(--gray400); font-weight:700; letter-spacing:0; }
 .tk-sheet .tgm-empty { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--gray400); }
 .tk-sheet .tgm-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px;
@@ -9862,7 +9845,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-welcome p { margin:8px 0 0; max-width:640px; font-size:16px; font-weight:600; line-height:1.5; color:var(--gray500); }
 
 .fg .tk-lbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.fg .tk-lbl > span { font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gray400); }
+.fg .tk-lbl > span { font-size:12px; font-weight:500; color:var(--gray400); }
 /* the section's own link, in the space `justify-content:space-between` was
    always reserving for it — sentence case, because the eyebrow beside it is
    the only thing on this page that has earned uppercase */
@@ -10074,8 +10057,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-tw:last-child { margin-bottom:0; }
 .fg .tk-tbl { width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums; }
 .fg .tk-tbl th { padding:8px 12px; text-align:left; white-space:nowrap; background:#fafbfc;
-  border-bottom:1px solid #eef0f4; font-size:12px; font-weight:700; letter-spacing:.13em;
-  text-transform:uppercase; color:var(--gray400); }
+  border-bottom:1px solid #eef0f4; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tk-tbl td { padding:8px 12px; border-bottom:1px solid #f4f6f8; font-weight:600; color:var(--ink); }
 .fg .tk-tbl tr:last-child td { border-bottom:none; }
 .fg .tk-tbl tbody tr:hover td { background:#fafbfc; }
@@ -10085,8 +10067,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    answer it supports, and floating the chips underneath left them reading as
    three grey pills belonging to nothing. */
 .fg .tk-srcfoot { margin-top:16px; padding-top:16px; border-top:1px solid #f1f3f7; }
-.fg .tk-srclbl { display:block; margin-bottom:8px; font-size:12px; font-weight:700;
-  letter-spacing:.16em; text-transform:uppercase; color:var(--gray400); }
+.fg .tk-srclbl { display:block; margin-bottom:8px; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tk-srcs { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
 .fg .tk-src { display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 12px 0 4px;
   border-radius:999px; background:#fff; border:1px solid #eceef2; box-shadow:0 1px 2px rgba(0,0,0,.03);
@@ -10153,7 +10134,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fl-modal.tk-sm { width:min(440px, 100%); }
 
 .tk-pkdot { display:inline-block; width:8px; height:8px; border-radius:50%; }
-.tk-pklead { margin:0 0 8px; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--q); }
+.tk-pklead { margin:0 0 8px; font-size:12px; font-weight:500; color:var(--q); }
 /* The SCROLL moved off the quote and onto `.tk-pks`: a document can cite
    several passages now, and they scroll as one column of quote wells. The
    fade under them is the well admitting there is more — macOS overlay
@@ -10171,8 +10152,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border:1px solid #eceef2; border-left:3px solid var(--ink); font-family:var(--font-jakarta), sans-serif;
   font-size:14px; font-weight:500; line-height:1.6; color:var(--ink); white-space:pre-wrap; }
 /* the page a passage came from, when the peek is showing more than one */
-.tk-pkqp { display:block; margin-bottom:4px; font-size:12px; font-weight:700;
-  letter-spacing:.12em; text-transform:uppercase; color:var(--q); }
+.tk-pkqp { display:block; margin-bottom:4px; font-size:12px; font-weight:500; color:var(--q); }
 
 /* ══════════════════ TIFF — THE SEARCH LINES (.tk-lines) ══════════════════
    The signature move: four lines fan out from the composer to the four
@@ -11392,7 +11372,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:linear-gradient(var(--hm-solid) 74%, transparent); }
 .fg .hm-jd { position:relative; }
 .fg .hm-jd.first .hm-jdh { padding-top:16px; }
-.fg .hm-jdh > span { font-size:12px; font-weight:700; letter-spacing:.17em; text-transform:uppercase; color:var(--gray700); }
+.fg .hm-jdh > span { font-size:12px; font-weight:500; color:var(--gray700); }
 /* today gets a live dot, so the day you are adding to is found without reading */
 .fg .hm-jd.first .hm-jdh > span { display:inline-flex; align-items:center; gap:8px; }
 .fg .hm-jd.first .hm-jdh > span::before { content:""; width:6px; height:6px; border-radius:50%;
@@ -11890,8 +11870,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-dbflog { margin-top:24px; padding-top:16px; border-top:1px solid var(--hm-line); }
 .fg .hm-dbfday { margin-top:16px; }
 .fg .hm-dbfday:first-of-type { margin-top:8px; }
-.fg .hm-dbfdh { font-size:12px; font-weight:700; letter-spacing:.13em;
-  text-transform:uppercase; color:var(--hm-quiet); margin-bottom:8px; }
+.fg .hm-dbfdh { font-size:12px; font-weight:500; color:var(--hm-quiet); margin-bottom:8px; }
 .fg .hm-dbfe { display:grid; grid-template-columns:74px minmax(0,1fr); column-gap:16px;
   padding:8px 0; align-items:baseline; }
 .fg .hm-dbfet { font-size:12px; font-weight:700; color:var(--hm-quiet);
@@ -11914,11 +11893,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    Saturday callout is a real thing that would have nowhere to draw. */
 .fg .hm-lvr.wknd .hm-lvd { opacity:.5; }
 .fg .hm-lvd { display:flex; align-items:baseline; gap:8px; font-variant-numeric:tabular-nums; }
-.fg .hm-lvd b { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+.fg .hm-lvd b { font-size:12px; font-weight:500;
   color:var(--hm-quiet); min-width:26px; }
 .fg .hm-lvd em { font-style:normal; font-size:16px; font-weight:700; color:var(--ink); }
-.fg .hm-lvd u { text-decoration:none; font-size:12px; font-weight:700; letter-spacing:.05em;
-  text-transform:uppercase; color:var(--hm-quiet); }
+.fg .hm-lvd u { text-decoration:none; font-size:12px; font-weight:500; color:var(--hm-quiet); }
 /* TODAY IS THE ONE MARKED ROW, and it is marked with the card's own teal —
    the same colour the now marker wears on the rail beside it, because both
    answer "where am I in this". */
@@ -11982,8 +11960,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-rltc:focus-visible { outline:2px solid var(--teal-d); outline-offset:2px; }
 /* The day in the strip's cap. Uppercase and quiet: it is the card's context,
    not a heading — the page head says the date in full. */
-.fg .hm-card .hm-cardday { font-size:12px; font-weight:700; letter-spacing:.13em;
-  text-transform:uppercase; color:var(--hm-quiet); white-space:nowrap; padding-right:4px; }
+.fg .hm-card .hm-cardday { font-size:12px; font-weight:500; color:var(--hm-quiet); white-space:nowrap; padding-right:4px; }
 
 /* ===================================================================
    VEHICLE MODAL v2 (components/fleet/vehicle-modal/)
@@ -12021,6 +11998,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-head.sub .vm-headl { gap:12px; }
 .vm-headr { display:flex; align-items:center; gap:8px; flex:none; }
 .vm-titles { display:flex; flex-direction:column; gap:4px; min-width:0; }
+/* What the eyebrow over the title used to say — the record's kind, the person
+   — now sits under it in sentence case, body size, the quiet colour (law 10). */
+.vm-kind { font-size:14px; font-weight:400; color:var(--vm-muted); }
 .vm-head.sub .vm-titles { gap:4px; }
 .vm-titlerow { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .vm-title { margin:0; font-size:24px; font-weight:700; letter-spacing:.02em; color:var(--ink); line-height:1.1; }
@@ -12046,7 +12026,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-card.clickable { transition:background .15s; }
 .vm-card.clickable:hover { background:var(--vm-sunk-h); }
 .vm-cardhead { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; color:var(--vm-faint); }
-.vm-eyebrow { font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--vm-muted); }
+.vm-eyebrow { font-size:12px; font-weight:500; color:var(--vm-muted); }
 .vm-eyebrow.accent { color:var(--ink); font-weight:700; }
 .vm-eyebrow.warn { color:var(--warn-t); font-weight:700; }
 .vm-big { font-size:20px; font-weight:700; color:var(--ink); line-height:1.15; }
@@ -12109,7 +12089,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-grid.dense { gap:8px 12px; }
 .vm-field { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .vm-field.wide { grid-column:span 2; }
-.vm-fl { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--vm-faint); }
+.vm-fl { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--vm-faint); }
 .vm-fv { display:flex; align-items:baseline; gap:8px; min-width:0; }
 .vm-fvt { font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .vm-grid.dense .vm-fvt { font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -12321,8 +12301,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* ---- the wall, grouped by kind (Licences, then Insurance) ---- */
 .fg .credgroup { margin-top:16px; }
 .fg .credgroup + .credgroup { margin-top:24px; }
-.fg .credgroup-h { display:block; font-size:12px; font-weight:700; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--gray400); }
+.fg .credgroup-h { display:block; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .credgroup > .credgrid { margin-top:8px; }
 /* How many terms a card has on file — the history, visible from outside it.
    QUIET, not ok-teal: a count is information, and a semantic state colour used

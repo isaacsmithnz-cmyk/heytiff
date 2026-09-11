@@ -296,7 +296,7 @@ export function FinancialsScreen({
         {/* ---- value: Tiff's estimate, and the book value beside it ---- */}
         <div className={`vm-value${valuation ? "" : " plain"}`}>
           <div className="vm-valuel">
-            <Eyebrow tone={valuation ? "accent" : undefined}>{valuation ? "TIFF VALUE" : "VALUE"}</Eyebrow>
+            <Eyebrow tone={valuation ? "accent" : undefined}>{valuation ? "Tiff value" : "Value"}</Eyebrow>
             {valuation ? (
               <>
                 <span className={`vm-valuefig${valuationIsStale ? " stale" : ""}`}>{fmtMoney(valuation.point)}</span>
@@ -318,7 +318,7 @@ export function FinancialsScreen({
             )}
           </div>
           <div className="vm-book">
-            <span className="vm-fl">BOOK VALUE</span>
+            <span className="vm-fl">Book value</span>
             {editingValue ? (
               <>
                 <MoneyInput value={valueDraft} onChange={setValueDraft} ariaLabel="Book value" placeholder={String(vehicle.value)} />
@@ -349,7 +349,7 @@ export function FinancialsScreen({
         {/* ---- the purchase, as the invoice prints it ---- */}
         <Card>
           <div className="vm-cardhead">
-            <Eyebrow>PURCHASE</Eyebrow>
+            <Eyebrow>Purchase</Eyebrow>
             {!editingPurchase && (
               <Inline
                 onClick={() => {
@@ -405,7 +405,7 @@ export function FinancialsScreen({
             <DetailGrid items={toItems(purchaseRows(vehicle, today, current))} />
           )}
           <div className="vm-divider">
-            <Eyebrow>INVOICES</Eyebrow>
+            <Eyebrow>Invoices</Eyebrow>
             <Inline onClick={() => invoiceInput.current?.click()}>Add document</Inline>
             <input
               ref={invoiceInput}
@@ -431,7 +431,7 @@ export function FinancialsScreen({
         {current ? (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>FINANCE AGREEMENT</Eyebrow>
+              <Eyebrow>Finance agreement</Eyebrow>
               <span className="vm-recordtools">
                 <span className="vm-added">{addedText(current)}</span>
                 {!panelOpen && <Inline onClick={() => setPanelOpen(true)}>Update</Inline>}
@@ -442,7 +442,7 @@ export function FinancialsScreen({
             {position && (
               <div className="vm-position">
                 <div className="vm-poshead">
-                  <Eyebrow tone="accent">ESTIMATED POSITION</Eyebrow>
+                  <Eyebrow tone="accent">Estimated position</Eyebrow>
                   <span className="vm-caption">Assumes every payment made as scheduled</span>
                 </div>
                 <div
@@ -457,17 +457,17 @@ export function FinancialsScreen({
                 </div>
                 <div className="vm-posgrid">
                   <div>
-                    <span className="vm-fl">PAYMENTS TO DATE</span>
+                    <span className="vm-fl">Payments to date</span>
                     <b>
                       {position.made} of {position.total}
                     </b>
                   </div>
                   <div>
-                    <span className="vm-fl">REMAINING ON SCHEDULE</span>
+                    <span className="vm-fl">Remaining on schedule</span>
                     <b>{position.remaining}</b>
                   </div>
                   <div>
-                    <span className="vm-fl">INDICATIVE PAYOUT</span>
+                    <span className="vm-fl">Indicative payout</span>
                     {position.payout != null ? <b>~{fmtMoney(position.payout)}</b> : <b className="faint">—</b>}
                   </div>
                 </div>
@@ -478,7 +478,7 @@ export function FinancialsScreen({
             )}
 
             <div className="vm-divider">
-              <Eyebrow>DOCUMENTS</Eyebrow>
+              <Eyebrow>Documents</Eyebrow>
               <Inline onClick={() => agreementInput.current?.click()}>Add document</Inline>
               <input
                 ref={agreementInput}
@@ -504,7 +504,7 @@ export function FinancialsScreen({
             <Card>
               <div className="vm-nofin">
                 <div className="vm-statusl">
-                  <Eyebrow>FINANCE</Eyebrow>
+                  <Eyebrow>Finance</Eyebrow>
                   <span className="vm-headline">No finance agreement recorded</span>
                   <span className="vm-subline">
                     If the vehicle is financed, scan the agreement or enter it below. Owned outright? There’s nothing to add.
@@ -520,7 +520,7 @@ export function FinancialsScreen({
 
         {panelOpen && (
           <ScanCard<ReadFinanceResult>
-            heading={current ? "RECORD NEW AGREEMENT" : "RECORD FINANCE AGREEMENT"}
+            heading={current ? "Record new agreement" : "Record finance agreement"}
             prompt="Scan or upload the finance agreement"
             hint="Lender, repayments, term, rate and balloon are read from the document. PDF, JPG or photo."
             attachLabel="Optional: attach the agreement"
@@ -616,7 +616,7 @@ export function FinancialsScreen({
         {previous.length > 0 && (
           <Card className="vm-histcard">
             <div className="vm-cardhead">
-              <Eyebrow>PREVIOUS AGREEMENTS</Eyebrow>
+              <Eyebrow>Previous agreements</Eyebrow>
             </div>
             {previous.map((agreement) => {
               const expanded = openHist === agreement.id;
@@ -653,7 +653,7 @@ export function FinancialsScreen({
                       <div className="vm-inset">
                         <DetailGrid dense items={toItems(financeRows(agreement))} />
                       </div>
-                      <span className="vm-fl">DOCUMENTS</span>
+                      <span className="vm-fl">Documents</span>
                       <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
                     </div>
                   )}
@@ -679,7 +679,7 @@ export function FinancialsScreen({
               ))}
             </div>
             <div className="vm-total">
-              <span className="vm-fl">TOTAL</span>
+              <span className="vm-fl">Total</span>
               <b>{costs.known > 0 ? fmtMoney(costs.total) : "—"}</b>
               <em>
                 {costs.known === 0

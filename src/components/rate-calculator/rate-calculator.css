@@ -108,8 +108,8 @@
 .rca-rc { position:relative; flex-shrink:0; border-radius:16px; padding:16px 16px 16px; margin-bottom:12px; overflow:hidden; color:#fff; }
 .rca-rc.install { background:linear-gradient(158deg,#4A67F3,#2C46D8); box-shadow:0 20px 42px -16px rgba(44,70,216,.55); }
 .rca-rc.service { background:linear-gradient(158deg,#28AC53,#167C37); box-shadow:0 20px 42px -16px rgba(22,124,55,.5); }
-.rca-rc-eyebrow { font-size:13px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:#fff; }
-.rca-rc-rec { margin-top:8px; font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.72); }
+.rca-rc-eyebrow { font-size:13px; font-weight:500; color:#fff; }
+.rca-rc-rec { margin-top:8px; font-size:12px; font-weight:500; color:rgba(255,255,255,.72); }
 
 /* hero — the recommended rate, GST sharing its baseline */
 .rca-rc-hero { display:flex; align-items:baseline; gap:8px; margin-top:4px; }
@@ -133,7 +133,7 @@
 /* break-even pill, and the waiting line that stands in its place */
 .rca-rc-be { display:inline-flex; align-items:baseline; gap:4px; margin-top:8px; padding:4px 12px; border-radius:999px;
   background:rgba(255,201,94,.18); border:1px solid rgba(255,201,94,.45); }
-.rca-rc-be .k { font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#FFD98A; }
+.rca-rc-be .k { font-size:12px; font-weight:500; color:#FFD98A; }
 .rca-rc-be .v { font-size:14px; font-weight:700; color:#FFE7B8; font-variant-numeric:tabular-nums; }
 .rca-rc-be .u { font-size:12px; font-weight:600; color:rgba(255,231,184,.72); margin-left:1px; }
 .rca-rc-wait { margin-top:12px; font-size:12px; color:rgba(255,255,255,.85); }

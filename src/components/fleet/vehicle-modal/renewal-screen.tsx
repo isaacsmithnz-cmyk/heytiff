@@ -46,19 +46,19 @@ import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
    that is on means something is actually going to happen. */
 
 const CURRENT_LABEL: Record<RenewalKind, string> = {
-  rego: "CURRENT REGISTRATION",
-  insurance: "CURRENT POLICY",
-  ctp: "CURRENT GREEN SLIP",
+  rego: "Current registration",
+  insurance: "Current policy",
+  ctp: "Current green slip",
 };
 const HISTORY_LABEL: Record<RenewalKind, string> = {
-  rego: "RENEWAL HISTORY",
-  insurance: "POLICY HISTORY",
-  ctp: "GREEN SLIP HISTORY",
+  rego: "Renewal history",
+  insurance: "Policy history",
+  ctp: "Green slip history",
 };
 const RECORD_LABEL: Record<RenewalKind, { fresh: string; again: string; button: string }> = {
-  rego: { fresh: "RECORD RENEWAL", again: "RECORD RENEWAL", button: "Update rego" },
-  insurance: { fresh: "RECORD POLICY", again: "UPDATE POLICY", button: "Update policy" },
-  ctp: { fresh: "RECORD GREEN SLIP", again: "UPDATE GREEN SLIP", button: "Update green slip" },
+  rego: { fresh: "Record renewal", again: "Record renewal", button: "Update rego" },
+  insurance: { fresh: "Record policy", again: "Update policy", button: "Update policy" },
+  ctp: { fresh: "Record green slip", again: "Update green slip", button: "Update green slip" },
 };
 const SCAN_COPY: Record<RenewalKind, { prompt: string; hint: string; attach: string }> = {
   rego: {
@@ -260,7 +260,7 @@ export function RenewalScreen({
 
         <div className={`vm-status ${tone}`}>
           <div className="vm-statusl">
-            <Eyebrow tone={tone === "ok" ? "accent" : tone === "neutral" ? undefined : "warn"}>STATUS</Eyebrow>
+            <Eyebrow tone={tone === "ok" ? "accent" : tone === "neutral" ? undefined : "warn"}>Status</Eyebrow>
             <span className="vm-headline">{headline}</span>
             <span className="vm-subline">{subline}</span>
           </div>
@@ -279,7 +279,7 @@ export function RenewalScreen({
             </div>
             <DetailGrid items={details} />
             <div className="vm-divider">
-              <Eyebrow>DOCUMENTS</Eyebrow>
+              <Eyebrow>Documents</Eyebrow>
               <Inline onClick={() => attachInput.current?.click()}>Add document</Inline>
               <input
                 ref={attachInput}
@@ -452,7 +452,7 @@ export function RenewalScreen({
                       <div className="vm-inset">
                         <DetailGrid dense items={detailsFor(kind, vehicle, p, "ok")} />
                       </div>
-                      <span className="vm-fl">DOCUMENTS</span>
+                      <span className="vm-fl">Documents</span>
                       <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} emptyText="No paperwork filed." />
                     </div>
                   )}
@@ -487,49 +487,49 @@ function detailsFor(kind: RenewalKind, v: Vehicle, p: VehiclePolicy, state: "ok"
   const money = (n: number | null | undefined) => (n != null ? fmtMoney(n) : dash);
   const faint = (s: string | null | undefined): DetailItem["tone"] => (s ? undefined : "faint");
   const expiry: DetailItem = {
-    label: "EXPIRY",
+    label: "Expiry",
     value: fmtDay(p.expiresOn),
     tone: state === "ok" ? undefined : "warn",
   };
   if (kind === "rego") {
     const cls = vehicleClass(v);
     return [
-      { label: "PLATE", value: v.plate },
-      { label: "STATE", value: v.plateState ?? dash, tone: faint(v.plateState) },
+      { label: "Plate", value: v.plate },
+      { label: "State", value: v.plateState ?? dash, tone: faint(v.plateState) },
       expiry,
-      { label: "TERM", value: p.termMonths ? `${p.termMonths} months` : dash, tone: faint(p.termMonths ? "x" : null) },
-      { label: "RENEWED FROM", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
-      { label: "SAFETY CHECK", value: p.inspectionOn ? fmtDay(p.inspectionOn) : "Not recorded", tone: faint(p.inspectionOn) },
-      { label: "AUTHORITY", value: p.provider ?? dash, tone: faint(p.provider) },
-      { label: "PAID", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },
-      ...(cls ? [{ label: "VEHICLE CLASS", value: cls }] : []),
+      { label: "Term", value: p.termMonths ? `${p.termMonths} months` : dash, tone: faint(p.termMonths ? "x" : null) },
+      { label: "Renewed from", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
+      { label: "Safety check", value: p.inspectionOn ? fmtDay(p.inspectionOn) : "Not recorded", tone: faint(p.inspectionOn) },
+      { label: "Authority", value: p.provider ?? dash, tone: faint(p.provider) },
+      { label: "Paid", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },
+      ...(cls ? [{ label: "Vehicle class", value: cls }] : []),
     ];
   }
   if (kind === "insurance") {
     return [
-      { label: "INSURER", value: p.provider ?? dash, tone: faint(p.provider) },
-      { label: "POLICY NO.", value: p.policyNumber ?? dash, tone: faint(p.policyNumber) },
-      { label: "COVER", value: p.cover ? INSURANCE_COVER_LABEL[p.cover] : dash, tone: faint(p.cover) },
-      { label: "POLICY START", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
+      { label: "Insurer", value: p.provider ?? dash, tone: faint(p.provider) },
+      { label: "Policy no.", value: p.policyNumber ?? dash, tone: faint(p.policyNumber) },
+      { label: "Cover", value: p.cover ? INSURANCE_COVER_LABEL[p.cover] : dash, tone: faint(p.cover) },
+      { label: "Policy start", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
       expiry,
-      { label: "PREMIUM / YR", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },
-      { label: "EXCESS", value: money(p.excess), tone: faint(p.excess != null ? "x" : null) },
+      { label: "Premium / yr", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },
+      { label: "Excess", value: money(p.excess), tone: faint(p.excess != null ? "x" : null) },
     ];
   }
   const cls = vehicleClass(v);
   const regoDays = renewalDays(v, "rego");
   const ctpDays = renewalDays(v, "ctp");
   return [
-    { label: "INSURER", value: p.provider ?? dash, tone: faint(p.provider) },
-    { label: "POLICY NO.", value: p.policyNumber ?? dash, tone: faint(p.policyNumber) },
-    { label: "TERM", value: p.termMonths ? `${p.termMonths} months` : dash, tone: faint(p.termMonths ? "x" : null) },
-    { label: "STARTS", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
+    { label: "Insurer", value: p.provider ?? dash, tone: faint(p.provider) },
+    { label: "Policy no.", value: p.policyNumber ?? dash, tone: faint(p.policyNumber) },
+    { label: "Term", value: p.termMonths ? `${p.termMonths} months` : dash, tone: faint(p.termMonths ? "x" : null) },
+    { label: "Starts", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
     expiry,
-    { label: "PREMIUM", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },
-    { label: "GARAGING POSTCODE", value: p.garagingPostcode ?? dash, tone: faint(p.garagingPostcode) },
-    ...(cls ? [{ label: "VEHICLE CLASS", value: cls }] : []),
+    { label: "Premium", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },
+    { label: "Garaging postcode", value: p.garagingPostcode ?? dash, tone: faint(p.garagingPostcode) },
+    ...(cls ? [{ label: "Vehicle class", value: cls }] : []),
     ...(regoDays != null && ctpDays != null
-      ? [{ label: "LINKED TO REGO", value: regoDays === ctpDays ? "Yes · same expiry" : "No · differs from rego" }]
+      ? [{ label: "Linked to rego", value: regoDays === ctpDays ? "Yes · same expiry" : "No · differs from rego" }]
       : []),
   ];
 }

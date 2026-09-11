@@ -2033,7 +2033,7 @@ export function RoomInspectCard({
         </div>
         {shared && (
           <span className="ds-ck-ishared">
-            shared
+            Shared
             <button
               aria-label="Stop serving this room"
               title="Stop serving this room"
@@ -2932,7 +2932,7 @@ export function PlenumInspectCard({
               <div key={s.id} className="ds-ck-spig">
                 <span className="ds-ck-spig-size">{formatDia(s.diaMm, units)}</span>
                 <span className="ds-ck-spig-face">{s.face}</span>
-                {s.capped && <span className="ds-ck-spig-cap">capped</span>}
+                {s.capped && <span className="ds-ck-spig-cap">Capped</span>}
                 <button
                   className="ds-ck-spig-del"
                   aria-label={`Delete ${formatDia(s.diaMm, units)} ${s.face} spigot`}

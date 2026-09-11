@@ -172,13 +172,13 @@ describe("the licence modal", () => {
     await openCard(user, "ARC licence");
     const dialog = screen.getByRole("dialog");
 
-    expect(within(dialog).getByText("CURRENT TERM")).toBeInTheDocument();
+    expect(within(dialog).getByText("Current term")).toBeInTheDocument();
     expect(within(dialog).getByText("Split systems — install and decommission")).toBeInTheDocument();
     expect(within(dialog).getByText("NSW")).toBeInTheDocument();
     expect(within(dialog).getByText("7 Aug 2026")).toBeInTheDocument();
 
     // and the one before it, which deleting-and-re-adding used to destroy
-    const history = within(dialog).getByText("PREVIOUS TERMS").closest(".vm-card") as HTMLElement;
+    const history = within(dialog).getByText("Previous terms").closest(".vm-card") as HTMLElement;
     expect(within(history).getByText("7 Aug 2024")).toBeInTheDocument();
   });
 
@@ -187,7 +187,7 @@ describe("the licence modal", () => {
     setup();
     await openCard(user, "ARC licence");
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("RECORD THE TERM")).toBeInTheDocument();
+    expect(within(dialog).getByText("Record the term")).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Record renewal" })).not.toBeInTheDocument();
   });
 
@@ -291,7 +291,7 @@ describe("adding one", () => {
     setup();
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("SCAN THE CARD")).toBeInTheDocument();
+    expect(within(dialog).getByText("Scan the card")).toBeInTheDocument();
     expect(within(dialog).getByText(/Scan or photograph the licence/)).toBeInTheDocument();
   });
 
@@ -323,7 +323,7 @@ describe("adding one", () => {
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
 
     // exactly one, and it is the scan panel's
-    const panel = within(dialog).getByText("SCAN THE CARD").closest(".vm-card") as HTMLElement;
+    const panel = within(dialog).getByText("Scan the card").closest(".vm-card") as HTMLElement;
     expect(within(dialog).getAllByLabelText("Licence no.")).toHaveLength(1);
     expect(within(panel).getByLabelText("Licence no.")).toBeInTheDocument();
   });
@@ -426,8 +426,8 @@ describe("filing a document against a ticket with no expiry", () => {
     await openCard(user, "White card");
     const dialog = screen.getByRole("dialog");
 
-    expect(within(dialog).queryByText("CURRENT TERM")).not.toBeInTheDocument();
-    expect(within(dialog).getByText("DOCUMENTS")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Current term")).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Documents")).toBeInTheDocument();
     expect(within(dialog).getByLabelText("Add document")).toBeInTheDocument();
   });
 
@@ -521,7 +521,7 @@ describe("adding a ticket by scanning it", () => {
     await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
     const dialog = screen.getByRole("dialog");
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("SCANNED");
+    await within(dialog).findByText("Scanned");
     await user.type(within(dialog).getByLabelText("Licence or ticket"), "White card");
     await user.click(within(dialog).getByRole("button", { name: "Add licence" }));
   };
@@ -582,7 +582,7 @@ describe("scanning a ticket with no expiry on the record panel", () => {
 
   const scan = async (user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) => {
     await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
-    await within(dialog).findByText("SCANNED");
+    await within(dialog).findByText("Scanned");
   };
 
   const scanWhiteCard = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -614,7 +614,7 @@ describe("scanning a ticket with no expiry on the record panel", () => {
 
     // a ticket with no term keeps its panel — it is the screen — back at the start
     expect(await within(dialog).findByText("Scan or photograph the licence")).toBeInTheDocument();
-    expect(within(dialog).queryByText("SCANNED")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Scanned")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "File the document" })).not.toBeInTheDocument();
   });
 
@@ -664,7 +664,7 @@ describe("scanning a ticket with no expiry on the record panel", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     expect(await within(dialog).findByText("That document couldn't be filed.")).toBeInTheDocument();
-    expect(within(dialog).getByText("SCANNED")).toBeInTheDocument();
+    expect(within(dialog).getByText("Scanned")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
     expect(onAttachDoc).toHaveBeenCalledTimes(2);
     expect(onAttachDoc).toHaveBeenLastCalledWith("L2", null, "doc-7");

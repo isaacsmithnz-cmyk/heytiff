@@ -164,7 +164,7 @@ export function MainScreen({
           >
             {/* eslint-disable-next-line @next/next/no-img-element -- a signed, expiring URL; next/image would need a remote pattern per bucket host */}
             <img src={photo.src} alt="" className={photo.own ? "own" : "placeholder"} />
-            <span className="vm-photochange">CHANGE</span>
+            <span className="vm-photochange">Change</span>
           </button>
           <input
             ref={photoInput}
@@ -222,7 +222,7 @@ export function MainScreen({
           {vehicle.motorised && (
             <Card>
               <div className="vm-cardhead">
-                <Eyebrow>ODOMETER</Eyebrow>
+                <Eyebrow>Odometer</Eyebrow>
                 <Inline onClick={editingOdo ? commitOdo : startOdo}>{editingOdo ? "Save" : "Update"}</Inline>
               </div>
               {editingOdo ? (
@@ -247,13 +247,13 @@ export function MainScreen({
           )}
           <Card onClick={onServiceHistory} ariaLabel="Service history">
             <div className="vm-cardhead">
-              <Eyebrow>NEXT SERVICE</Eyebrow>
+              <Eyebrow>Next service</Eyebrow>
               <Icon name="chevR" size={14} />
             </div>
             <div className="vm-big">{service ?? "No cycle set"}</div>
           </Card>
           <Card>
-            <Eyebrow>{vehicle.motorised ? "DRIVER" : "TOWED BY"}</Eyebrow>
+            <Eyebrow>{vehicle.motorised ? "Driver" : "Towed by"}</Eyebrow>
             <select
               className="vm-bare"
               aria-label={vehicle.motorised ? "Driver" : "Towed by"}
@@ -293,7 +293,7 @@ export function MainScreen({
 
           <Card className="vm-history">
             <div className="vm-cardhead">
-              <Eyebrow>HISTORY</Eyebrow>
+              <Eyebrow>History</Eyebrow>
               <div className="vm-histtools">
                 <Segmented items={tabs} active={tab} onSelect={setTab} ariaLabel="History filter" />
                 <div className="vm-menuwrap">
@@ -357,7 +357,7 @@ export function MainScreen({
              is the door to the Financials screen. ---- */}
         <Card className="vm-money" onClick={() => onOpen("financials")} ariaLabel="Financials">
           <div className="vm-cardhead">
-            <Eyebrow>FINANCIALS</Eyebrow>
+            <Eyebrow>Financials</Eyebrow>
             <span className="vm-doccount">
               {moneyDocs === 1 ? "1 document" : `${moneyDocs} documents`}
               <Icon name="chevR" size={14} />
@@ -367,7 +367,7 @@ export function MainScreen({
             <div>
               <span className="vm-fl">
                 <Chevron size={12} gradient decorative />
-                TIFF VALUE
+                Tiff value
               </span>
               {valuation ? (
                 <>
@@ -385,7 +385,7 @@ export function MainScreen({
               )}
             </div>
             <div>
-              <span className="vm-fl">PURCHASED</span>
+              <span className="vm-fl">Purchased</span>
               {vehicle.purchasePrice ? (
                 <>
                   <b>{fmtMoney(vehicle.purchasePrice)}</b>
@@ -399,7 +399,7 @@ export function MainScreen({
               )}
             </div>
             <div>
-              <span className="vm-fl">FINANCE</span>
+              <span className="vm-fl">Finance</span>
               {fin ? (
                 <>
                   <b>{repaymentLabel(fin) ?? fin.lender}</b>
@@ -421,7 +421,7 @@ export function MainScreen({
         {/* ---- the certificate's facts ---- */}
         <Card>
           <div className="vm-cardhead">
-            <Eyebrow>VEHICLE DETAILS</Eyebrow>
+            <Eyebrow>Vehicle details</Eyebrow>
           </div>
           {specs.length > 0 ? (
             <DetailGrid cols={4} items={specs.map((s) => ({ label: s.label, value: s.value, wide: s.wide }))} />

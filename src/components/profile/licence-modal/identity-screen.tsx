@@ -128,7 +128,7 @@ export function IdentityScreen({
               }
             }}
           >
-            <TermFields value={term} onChange={setTerm} today={today} />
+            <TermFields value={term} onChange={setTerm} today={today} expiryRequired={false} />
           </ScanCard>
         )}
 

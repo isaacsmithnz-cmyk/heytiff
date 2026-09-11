@@ -695,3 +695,59 @@ describe("scanning a ticket with no expiry on the record panel", () => {
     expect(within(dialog).getByRole("button", { name: "Save term" })).toBeDisabled();
   });
 });
+
+/* THE EXPIRY'S STAR SAYS WHEN THE BUTTON NEEDS ONE.
+
+   A term cannot be saved without an expiry, and the star said so everywhere,
+   including where the button no longer needs one: a scan waiting on the record
+   panel is filed as a document without one, and adding a ticket never needs
+   one at all. A star on a box the person can leave empty says the save will
+   refuse, and it won't. */
+describe("the expiry's required star", () => {
+  const pdf = () => new File(["x"], "white-card.pdf", { type: "application/pdf" });
+  const star = (dialog: HTMLElement) =>
+    within(dialog).getByLabelText("Expiry").closest("label")?.querySelector(".vm-fl i") ?? null;
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readStaffLicenceDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readStaffLicenceDocument.mockResolvedValue({
+      ok: true,
+      number: "WC-12345",
+      issuer: "SafeWork NSW",
+      issuingState: "NSW",
+      classes: null,
+      startsOn: "2019-03-02",
+      expiresOn: null,
+    });
+  });
+
+  it("shows on the record panel while only a term can be saved", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(star(dialog)).not.toBeNull();
+  });
+
+  it("goes once a scan is waiting, because the button files it without one", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("Scanned");
+    expect(star(dialog)).toBeNull();
+  });
+
+  it("never shows while adding a ticket", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(star(dialog)).toBeNull();
+  });
+});

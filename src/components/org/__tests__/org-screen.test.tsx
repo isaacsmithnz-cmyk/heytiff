@@ -1629,3 +1629,64 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     expect(within(dialog).getByRole("button", { name: "Save policy" })).toBeDisabled();
   });
 });
+
+/* THE EXPIRY'S STAR SAYS WHEN THE BUTTON NEEDS ONE — the business side of the
+   same rule: a certificate waiting on the update screen is filed without an
+   expiry, and adding a card never needs one. */
+describe("the expiry's required star", () => {
+  const pdf = () => new File(["x"], "certificate.pdf", { type: "application/pdf" });
+  const star = (dialog: HTMLElement) =>
+    within(dialog).getByLabelText("Expiry").closest("label")?.querySelector(".vm-fl i") ?? null;
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readOrgCredentialDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readOrgCredentialDocument.mockResolvedValue({
+      ok: true,
+      issuer: "QBE",
+      number: "PL-9",
+      cover: null,
+      sumInsured: null,
+      premium: null,
+      excess: null,
+      workersCount: null,
+      wages: null,
+      startsOn: null,
+      expiresOn: null,
+    });
+  });
+
+  const openUpdate = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    return dialog;
+  };
+
+  it("shows on the update screen while only a term can be saved", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    const dialog = await openUpdate(user);
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(star(dialog)).not.toBeNull();
+  });
+
+  it("goes once a certificate is waiting, because the button files it without one", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    const dialog = await openUpdate(user);
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("Scanned");
+    expect(star(dialog)).toBeNull();
+  });
+
+  it("never shows while adding a card", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(star(dialog)).toBeNull();
+  });
+});

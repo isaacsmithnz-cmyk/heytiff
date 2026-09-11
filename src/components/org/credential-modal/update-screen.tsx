@@ -129,7 +129,14 @@ export function UpdateScreen({
             }
           }}
         >
-          <TermFields kind={kind} name={credential.name} value={term} onChange={setTerm} today={today} />
+          <TermFields
+            kind={kind}
+            name={credential.name}
+            value={term}
+            onChange={setTerm}
+            today={today}
+            expiryRequired={docId === null}
+          />
         </ScanCard>
       </div>
 

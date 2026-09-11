@@ -58,10 +58,15 @@ export function TermFields({
   value,
   onChange,
   today,
+  expiryRequired,
 }: {
   value: Term;
   onChange: (t: Term) => void;
   today: string;
+  /** Whether the button can do nothing without an expiry, which is what the
+      star says. Adding never needs one, and a renewal needs one only while no
+      document is waiting: with one, the button files it instead. */
+  expiryRequired: boolean;
 }) {
   const set = (k: keyof Term) => (v: string) => onChange({ ...value, [k]: v });
   return (
@@ -117,7 +122,7 @@ export function TermFields({
           aria-label="Issued"
         />
       </Field>
-      <Field label="Expiry" req>
+      <Field label="Expiry" req={expiryRequired}>
         <DateField
           size="lg"
           clearable

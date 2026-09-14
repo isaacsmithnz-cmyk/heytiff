@@ -113,7 +113,18 @@ export async function saveDay(
   // after the guards above, but the day being written is what must be open
   const dayPeriod = periodStartFor(workDate, period.cfg);
   const status = await statusOf(ctx.orgId, ctx.staffId, dayPeriod);
-  if (!editable(status))
+  const { settings } = period;
+  const today = todayInAu();
+
+  /* WITH THE LOCK OFF, A SENT WEEK STAYS OPEN UNTIL IT ENDS. The pay settings
+     promise it — "Staff can keep correcting a submitted sheet until the period
+     closes" — and nothing ever kept it: a submitted week refused every save,
+     lock or no lock. A correction to a sent week is a row like any other, and
+     the approver reads the rows, so it is there when they review. Approval
+     still closes it: a sign-off is a record. */
+  const openAfterSending =
+    !settings.lock && status === "submitted" && periodStartFor(today, period.cfg) === dayPeriod;
+  if (!editable(status) && !openAfterSending)
     return {
       ok: false,
       error:
@@ -122,13 +133,13 @@ export async function saveDay(
           : "This week is with your manager — ask them to send it back to edit it.",
     };
 
-  /* IT LOCKS AT THE MOMENT, NOT AT THE NEXT PAGE LOAD. The workspace's send
-     time sends a draft and closes it (lib/timepay/auto-submit), but a screen
-     left open across that minute still offers the editor — so the lock lives
-     here as well as on the screen. A sent-back sheet is exempt: the approver
-     reopened it on purpose, after the moment. */
-  const { settings } = period;
-  if (status === "draft" && hasPassed(submitMomentOf(dayPeriod, period.cfg, settings), todayInAu(), auMinutesNow()))
+  /* IT LOCKS AT THE MOMENT, NOT AT THE NEXT PAGE LOAD — when the workspace
+     locks. The send time sends a draft and closes it (lib/timepay/auto-submit),
+     but a screen left open across that minute still offers the editor, so the
+     lock lives here as well as on the screen. With the lock off, the moment
+     sends the week and leaves it open. A sent-back sheet is exempt: the
+     approver reopened it on purpose, after the moment. */
+  if (settings.lock && status === "draft" && hasPassed(submitMomentOf(dayPeriod, period.cfg, settings), today, auMinutesNow()))
     return {
       ok: false,
       error: `This ${cycleNoun(settings.cycle)} locked at ${settings.submitDay} ${settings.submitTime} — ask your manager to send it back to change it.`,
@@ -157,6 +168,11 @@ export async function saveDay(
       .eq("org_id", ctx.orgId)
       .eq("staff_profile_id", ctx.staffId)
       .eq("work_date", workDate);
+    /* A SENT WEEK IS STORED ROWS AND NOTHING ELSE — nothing is presumed under
+       it — so clearing a day on one would leave a hole where the normal day
+       was. It is written back down as it presumes now: "Back to normal" means
+       the normal day, not a missing one. */
+    if (status === "submitted") await materialise(ctx.orgId, ctx.staffId, dayPeriod, period.cfg);
     refresh();
     return { ok: true };
   }

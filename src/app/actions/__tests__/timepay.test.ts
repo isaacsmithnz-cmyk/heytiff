@@ -24,6 +24,9 @@ let leaveRows: Record<string, unknown>[] = [];
    day of it over — materialising, approving — moves the clock to September. */
 let auToday = "2026-07-01";
 let auMins = 10 * 60;
+/* The org's pay_settings row as the database would return it; null = none
+   saved, which reads as DEFAULT_SETTINGS (the lock on). */
+let paySettingsRow: Record<string, unknown> | null = null;
 
 const update = jest.fn();
 
@@ -54,7 +57,8 @@ const table = (name: string) => {
       const status = period in sheetStatusByPeriod ? sheetStatusByPeriod[period] : sheetStatus;
       return { data: status ? { status } : null };
     }
-    if (name === "pay_settings") return { data: null }; // DEFAULT_SETTINGS: Weekly, weeks start Monday
+    // null = DEFAULT_SETTINGS: Weekly, weeks start Monday, the lock on
+    if (name === "pay_settings") return { data: paySettingsRow };
     // the org's home state — what a stateless staff card falls back to
     if (name === "organizations") return { data: { state: "NSW" } };
     return { data: staffExists ? { id: "target" } : null };
@@ -240,6 +244,58 @@ describe("the moment the week sends itself", () => {
     auToday = "2026-07-20";
     sheetStatus = "sent_back";
     expect((await saveDay(MONDAY, 0, { t: "off" })).ok).toBe(true);
+  });
+});
+
+/* "STAFF CAN KEEP CORRECTING A SUBMITTED SHEET UNTIL THE PERIOD CLOSES." The
+   pay settings have promised that with the lock off since the switch existed,
+   and every submitted week refused every save anyway. */
+describe("with the lock off", () => {
+  beforeEach(() => {
+    paySettingsRow = { lock: false };
+  });
+  afterEach(() => {
+    paySettingsRow = null;
+  });
+
+  it("keeps a sent week open to its owner while the week runs", async () => {
+    sheetStatus = "submitted";
+    expect(await saveDay(MONDAY, 1, { t: "off" })).toEqual({ ok: true });
+    expect(upsert).toHaveBeenCalledWith(
+      "time_entries",
+      expect.objectContaining({ work_date: "2026-06-30", kind: "off" }),
+    );
+  });
+
+  it("closes it once the week has ended", async () => {
+    sheetStatus = "submitted";
+    auToday = "2026-07-06"; // the Monday after
+    expect((await saveDay(MONDAY, 1, { t: "off" })).ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("never reopens an approved week", async () => {
+    sheetStatus = "approved";
+    expect((await saveDay(MONDAY, 1, { t: "off" })).ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("sends a draft at the moment without locking it", async () => {
+    auToday = "2026-07-05";
+    auMins = 15 * 60;
+    expect((await saveDay(MONDAY, 1, { t: "off" })).ok).toBe(true);
+  });
+
+  /* A sent week is stored rows only, so a cleared day would read as missing.
+     "Back to normal" writes the normal day back down. */
+  it("writes the normal day back down when a day on a sent week is cleared", async () => {
+    sheetStatus = "submitted";
+    auToday = "2026-07-03"; // Friday: Mon–Thu are over
+    expect((await saveDay(MONDAY, 0, { t: "empty" })).ok).toBe(true);
+    expect(del).toHaveBeenCalledWith("time_entries");
+    const write = upsert.mock.calls.find(([t, rows]) => t === "time_entries" && Array.isArray(rows));
+    const rows = (write?.[1] ?? []) as Record<string, unknown>[];
+    expect(rows.find((r) => r.work_date === MONDAY)).toMatchObject({ kind: "work", hours: 8 });
   });
 });
 

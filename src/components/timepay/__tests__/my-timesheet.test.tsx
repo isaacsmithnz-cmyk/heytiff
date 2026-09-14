@@ -1342,6 +1342,68 @@ describe("when the week is closed to you", () => {
     renderSheet({ pastSend: true, sheet: SHEET({ status: "sent_back", reviewNote: "Tuesday?" }) });
     expect(screen.getByText("Submit again").closest("button")).toBeEnabled();
   });
+
+  /* "STAFF CAN KEEP CORRECTING A SUBMITTED SHEET UNTIL THE PERIOD CLOSES." The
+     pay settings have said so with the lock off since the switch existed, and
+     a submitted week was read-only either way. */
+  const NO_LOCK = { ...DEFAULT_SETTINGS, lock: false };
+
+  it("keeps a sent week open while it runs when the workspace doesn't lock", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet({ settings: NO_LOCK, sheet: SHEET({ status: "submitted" }) });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.getByRole("radio", { name: "Off" })).toBeInTheDocument();
+    expect(screen.queryByText(/can't be changed here/)).toBeNull();
+    expect(container.querySelector(".mts2-rail .mts2-sub")?.textContent).toBe(
+      "With your manager. You'll be told if anything needs a look. You can still change it until the week ends.",
+    );
+    expect(screen.queryByText("Submit week")).toBeNull();
+  });
+
+  it("still closes an approved week, and a sent week that has ended, with the lock off", async () => {
+    const user = userEvent.setup();
+    const approved = renderSheet({ settings: NO_LOCK, sheet: SHEET({ status: "approved" }) });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.queryByRole("radio", { name: "Off" })).toBeNull();
+    approved.unmount();
+
+    renderSheet({ settings: NO_LOCK, sheet: SHEET({ status: "submitted" }), periodIndex: 1 });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.queryByRole("radio", { name: "Off" })).toBeNull();
+    expect(screen.getByText(/has been sent — it can't be changed here/)).toBeInTheDocument();
+  });
+
+  it("keeps a sent week closed to its owner with the lock on, the default", async () => {
+    const user = userEvent.setup();
+    renderSheet({ sheet: SHEET({ status: "submitted" }) });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.queryByRole("radio", { name: "Off" })).toBeNull();
+  });
+
+  it("lets a salaried person record a long day on a sent week that is still open", async () => {
+    const user = userEvent.setup();
+    renderSheet({ salaried: true, settings: NO_LOCK, sheet: SHEET({ status: "submitted" }) });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(screen.getByText("This day ran long — record the hours")).toBeInTheDocument();
+    expect(screen.queryByText(/can't be changed here/)).toBeNull();
+  });
+
+  it("sends at the moment without locking a draft when the workspace doesn't lock", async () => {
+    const user = userEvent.setup();
+    const { container } = renderSheet({
+      ...CASUAL,
+      me: { ...ME, days: Array.from({ length: 7 }, () => EM) as DayEntry[] },
+      sources: Array.from({ length: 7 }, () => "none") as DaySource[],
+      pastSend: true,
+      today: 6,
+      through: 5,
+      todayISO: "2026-07-05",
+      settings: NO_LOCK,
+    });
+    expect(container.querySelector(".mts2-rail .mts2-sub")?.textContent).not.toMatch(/locked at/);
+    await user.click(tab(/Tue 30 Jun/));
+    expect(within(panel()).getByRole("button", { name: "Add this day" })).toBeInTheDocument();
+  });
 });
 
 describe("submitting", () => {

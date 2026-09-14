@@ -1171,6 +1171,13 @@ export function MyTimesheet({
   const multiWeek = groups.length > 1; // fortnight / month read as week-rows
   const period = periods[periodIndex];
   const sent = sheet.status === "submitted" || sheet.status === "approved";
+  /* WITH THE LOCK OFF, A SENT WEEK STAYS OPEN WHILE IT RUNS. The pay settings
+     promise "Staff can keep correcting a submitted sheet until the period
+     closes", and the server keeps it now (actions/timepay `saveDay`). Approved
+     is a sign-off and never reopens. `frozenSent` is what "sent" used to mean
+     here: sent, and closed to its owner. */
+  const openAfterSending = sheet.status === "submitted" && !settings.lock && period.live;
+  const frozenSent = sent && !openAfterSending;
   /* A salaried week is read-only at REST: same pay whatever the days say, so
      there is nothing to ask. The one exception worth recording is a day that
      ran long — and that is a fact about ONE DAY, so it is unlocked one day at
@@ -1185,7 +1192,7 @@ export function MyTimesheet({
   const [otDay, setOtDay] = useState<number | null>(null);
   const salariedRest = salaried && otDay !== selected;
   // a closed period is history: you can read it, you can't rewrite it
-  const locked = sent || !period.live || salariedRest;
+  const locked = frozenSent || !period.live || salariedRest;
   /* The ONE place the period is named, and everything below says it the same
      way — the heading, the status line, the locked note and the submit button
      all used to word this independently, which is how a monthly workspace
@@ -1286,7 +1293,9 @@ export function MyTimesheet({
      what reaches this screen unsent is a week with nothing on it: nothing to
      send, and locked at the moment all the same. A sent-back sheet isn't a
      draft; its approver reopened it after the moment, on purpose. */
-  const closedAtSend = pastSend && sheet.status === "draft";
+  // …when the workspace locks. With the lock off the moment sends the week and
+  // leaves it open — see `openAfterSending`.
+  const closedAtSend = settings.lock && pastSend && sheet.status === "draft";
 
   /* WHEN THIS SHEET GOES — said once, in one sentence, beside the button.
 
@@ -1447,7 +1456,7 @@ export function MyTimesheet({
                                 to, so a closed day with no entry read "✓ —" under
                                 a pill already saying No entry. A row with no value
                                 and no note has nothing to report, and goes. */}
-                            {(me.days[selected].t !== "empty" || sent || (period.live && salariedRest)) && (
+                            {(me.days[selected].t !== "empty" || frozenSent || (period.live && salariedRest)) && (
                               <div className="mts2-elock">
                                 {me.days[selected].t !== "empty" && <Icon name="check" size={16} />}
                                 <span>
@@ -1461,9 +1470,9 @@ export function MyTimesheet({
                                       a margin, and an empty one leaves a gap. Sent and
                                       salaried keep theirs — each says something about
                                       this day the rail does not. */}
-                                  {(sent || (period.live && salariedRest)) && (
+                                  {(frozenSent || (period.live && salariedRest)) && (
                                     <em>
-                                      {sent
+                                      {frozenSent
                                         ? `This ${noun} has been sent — it can't be changed here.`
                                         : "Salaried — this day pays itself whatever the hours say."}
                                     </em>
@@ -1474,7 +1483,7 @@ export function MyTimesheet({
                             {/* The exception, on the day it happened and
                                 nowhere else — the instruction and the button
                                 that follows it are finally the same object. */}
-                            {salariedRest && !sent && period.live && !closedAtSend && (
+                            {salariedRest && !frozenSent && period.live && !closedAtSend && (
                               <button
                                 type="button"
                                 className="mts2-ph-worked"
@@ -1581,7 +1590,9 @@ export function MyTimesheet({
                           }`
                         : sheet.status === "draft"
                           ? sendLine
-                          : status.sub}
+                          : openAfterSending
+                            ? `${status.sub} You can still change it until the ${noun} ends.`
+                            : status.sub}
                 </div>
                 {/* SUBMIT EXISTS ONCE THERE IS SOMETHING TO SEND — the rule the
                     day panel's Save follows. It used to sit here disabled while

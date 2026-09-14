@@ -19,7 +19,7 @@
    no flex row to sit there, and the h1's tight tracking is undone locally */
 .fg .tbx2-hcount {
   position: relative; margin-left: 16px; padding-left: 16px;
-  font-size: 16px; font-weight: 600; letter-spacing: -0.005em; color: var(--gray500);
+  font-size: 16px; font-weight: 600; color: var(--gray500);
 }
 .fg .tbx2-hcount::before {
   content: ""; position: absolute; left: 0; top: 1px; bottom: 1px; width: 1px;
@@ -77,14 +77,13 @@
     inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 .fg .tbx2-bg {
-  position: absolute; top: 20px; right: 20px; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.04em; padding: 4px 8px; border-radius: 6px;
+  position: absolute; top: 20px; right: 20px; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px;
 }
 .fg .tbx2-cat {
   font-size: 12px; font-weight: 500;
   color: color-mix(in srgb, var(--ac) 72%, #000); margin-bottom: 8px;
 }
-.fg .tbx2-tile b { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; line-height: 1.25; }
+.fg .tbx2-tile b { font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.25; }
 .fg .tbx2-tile em {
   font-style: normal; font-size: 13px; font-weight: 500; color: var(--gray500);
   margin-top: 4px; line-height: 1.5;
@@ -238,7 +237,7 @@
 .fg .tool .hl2-dims .dim1.wide { flex: 2; }
 .fg .tool .hl2-dims .x { font-size: 20px; font-weight: 700; color: var(--gray400); flex: 0 0 auto; margin-top: 16px; }
 .fg .tool .hl2-cap { margin-top: 4px; text-align: center; font-size: 12px; font-weight: 500; color: var(--gray400); }
-.fg .tool .hl2-in { font-size: 20px; font-weight: 700; padding: 12px 8px; text-align: center; letter-spacing: -0.01em; }
+.fg .tool .hl2-in { font-size: 20px; font-weight: 700; padding: 12px 8px; text-align: center; }
 .fg .tool .tunit .hl2-in { padding-right: 32px; }
 .fg .tool .hl2-dims .tunit .u { right: 10px; }
 .fg .tool .hl2-mode { margin-top: 12px; background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 700; color: var(--tool-accent-ink, var(--ink)); }
@@ -273,14 +272,14 @@
   content: attr(data-tip);
   position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%);
   background: var(--ink); color: var(--tint); font-size: 12px; font-weight: 400;
-  line-height: 1.45; letter-spacing: 0; text-transform: none;
+  line-height: 1.45; text-transform: none;
   padding: 8px 12px; border-radius: 6px; width: max-content; max-width: 240px;
   white-space: normal; pointer-events: none; opacity: 0; transition: opacity var(--t-fast) var(--ease);
   z-index: 30; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 .fg .tool .htip.tip-l::after { left: 0; transform: none; }
 .fg .tool .htip.tip-r::after { left: auto; right: 0; transform: none; }
-.fg .tool .htip:hover::after { opacity: 1; }
+.fg .tool .htip:hover::after, .fg .tool .htip:focus-within::after { opacity: 1; }
 /* the shell's stagger sets will-change:transform on every .stgp child, so each
    card is its own stacking context and a tooltip's z-index can't escape it —
    a bubble overhanging the size card would paint UNDER the later-DOM hero.
@@ -351,11 +350,10 @@
 .fg .tool .rp2-card:hover { border-color: #dfe3ea; }
 .fg .tool .rp2-card.on { border-color: var(--rc); background: color-mix(in srgb, var(--rc) 9%, #fff); box-shadow: 0 6px 18px color-mix(in srgb, var(--rc) 18%, transparent); }
 .fg .tool .rp2-card .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--rc); margin-bottom: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); }
-.fg .tool .rp2-card b { font-size: 16px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+.fg .tool .rp2-card b { font-size: 16px; font-weight: 700; color: var(--ink); }
 .fg .tool .rp2-card em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--gray400); white-space: nowrap; }
 .fg .tool .rp2-card .fl {
-  position: absolute; top: 9px; right: 10px; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.05em; padding: 2px 8px; border-radius: 6px;
+  position: absolute; top: 9px; right: 10px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
   background: rgba(255, 138, 0, 0.14); color: #E07800;
 }
 .fg .tool .rp2-facts { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; font-size: 13px; font-weight: 600; color: var(--gray500); }
@@ -410,7 +408,7 @@
 .fg .tool .rp2-read .rl { font-size: 12px; font-weight: 500; color: var(--gray500); }
 .fg .tool .rp2-read .rv { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
 .fg .tool .rp2-read .rd { font-size: 12px; font-weight: 600; color: var(--gray400); }
-.fg .tool .rp2-head { font-size: 20px; font-weight: 700; color: var(--ink); margin: 0 0 8px; letter-spacing: -0.01em; }
+.fg .tool .rp2-head { font-size: 20px; font-weight: 700; color: var(--ink); margin: 0 0 8px; }
 .fg .tool .rp2-expl { margin: 0; font-size: 14px; font-weight: 500; color: var(--gray700); line-height: 1.6; }
 .fg .tool .rp2-shsc { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
 .fg .tool .rp2-shsc span { font-size: 13px; font-weight: 700; color: var(--gray500); }
@@ -494,7 +492,7 @@
 /* how much further to go — quiet companion to the step pill, so a long
    branch doesn't read as endless */
 .fg .tool .ffg-head .left {
-  font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--gray400);
+  font-size: 12px; font-weight: 700; color: var(--gray400);
   white-space: nowrap; margin-left: -3px;
 }
 .fg .tool .ffg-head .chg {
@@ -572,8 +570,7 @@
 .fg .tool .ffg-outcome .lab {
   position: relative; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px;
 }
-.fg .tool .ffg-outcome .esc {
-  letter-spacing: 0.06em; padding: 4px 8px; border-radius: 6px;
+.fg .tool .ffg-outcome .esc { padding: 4px 8px; border-radius: 6px;
   background: rgba(255, 138, 0, 0.2); color: #FFB259;
 }
 .fg .tool .ffg-outcome h2 { position: relative; font-size: 24px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; margin: 0 0 12px; }
@@ -759,8 +756,8 @@
 /* type — ALL-CAPS for structures, lowercase for annotations */
 .fg .tool .oup-dia .lb { fill: var(--ink); font-size: 13px; font-weight: 700; }
 .fg .tool .oup-dia .lb.sm { fill: var(--q); font-size: 12px; font-weight: 600; }
-.fg .tool .oup-dia .bldg-t { fill: var(--ink); font-size: 16px; font-weight: 700; letter-spacing: 0.02em; }
-.fg .tool .oup-dia .unit-t { fill: var(--tool-accent-ink, var(--ink)); font-size: 12px; font-weight: 700; letter-spacing: 0.07em; }
+.fg .tool .oup-dia .bldg-t { fill: var(--ink); font-size: 16px; font-weight: 700; }
+.fg .tool .oup-dia .unit-t { fill: var(--tool-accent-ink, var(--ink)); font-size: 12px; font-weight: 700; }
 
 /* markable parts — --m carries the state colour through each group.
    Resting colours are slate, never a state colour, so state is the only

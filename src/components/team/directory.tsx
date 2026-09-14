@@ -320,7 +320,7 @@ export function TeamDirectory({
               <input
                 className="dsearchin"
                 aria-label="Search staff by name or role"
-                placeholder="Search name or role..."
+                placeholder="Search name or role…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />

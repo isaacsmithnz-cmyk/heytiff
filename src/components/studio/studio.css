@@ -279,7 +279,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   box-shadow: 0 12px 24px -8px rgba(0, 229, 192, 0.45);
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
@@ -404,7 +403,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-tilt {
   transform: rotateX(-12deg) scale(0.605);
 }
-.dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-cell i {
+.dstudio .ds-hero:has(.ds-cta.ds-start:hover) .dotf-cell i, .dstudio .ds-hero:has(.ds-cta.ds-start:focus-within) .dotf-cell i {
   opacity: 1;
 }
 .dstudio .ds-cloud .dotf-cell i {
@@ -712,7 +711,6 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
 }
 .dstudio .ds-opt-d {
   color: rgba(255, 255, 255, 0.45);
@@ -784,7 +782,6 @@ html[data-ds-display] .dstudio.editing {
   flex: 1 1 100%;
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   color: #fff;
 }
 .dstudio .ds-recent-tools {
@@ -951,7 +948,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-rnm {
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -1230,7 +1226,6 @@ html[data-ds-display] .dstudio.editing {
   font-family: var(--font);
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   color: var(--ink);
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
@@ -1390,7 +1385,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray700);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
   transition: border-color var(--t-fast) var(--ease);
 }
@@ -1593,7 +1587,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-empty-t {
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   color: var(--ink);
 }
 .dstudio .ds-empty-s {
@@ -3172,7 +3165,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-unitcard-model {
   margin-top: 4px;
   font: 700 16px var(--font);
-  letter-spacing: -0.2px;
   color: #fff;
   word-break: break-word;
 }
@@ -3618,7 +3610,7 @@ html[data-ds-display] .dstudio.editing {
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
-.dstudio .ds-plancard:hover .ds-plancard-x {
+.dstudio .ds-plancard:hover .ds-plancard-x, .dstudio .ds-plancard:focus-within .ds-plancard-x {
   opacity: 1;
 }
 .dstudio .ds-plancard-x:hover {
@@ -3884,7 +3876,6 @@ html[data-ds-display] .dstudio.editing {
 .ds-lightbox .ds-lb-eyebrow {
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   color: #0a0b10;
 }
 .ds-lightbox .ds-lb-title {
@@ -4079,7 +4070,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-upzone-t {
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   color: var(--ink);
 }
 .dstudio .ds-upzone-s {
@@ -4246,7 +4236,6 @@ html[data-ds-display] .dstudio.editing {
   color: var(--ink);
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   cursor: pointer;
   transition: transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease), filter var(--t-fast) var(--ease);
 }
@@ -4304,7 +4293,6 @@ html[data-ds-display] .dstudio.editing {
   min-width: 0;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.01em;
   color: var(--ink);
 }
 .dstudio .ds-pstep-head.clickable { cursor: pointer; }
@@ -5110,7 +5098,6 @@ html[data-ds-display] .dstudio.editing {
   background: #f0f0ee;
   border-radius: 999px;
   padding: 1px 8px;
-  letter-spacing: 0;
 }
 .ds-ub-rclist {
   flex: 1;
@@ -5393,7 +5380,6 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-table tr.ds-ub-sec b {
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.01em;
   color: currentColor;
 }
 /* one colour per verdict — matching the row flags, so the heading and the
@@ -6167,7 +6153,6 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 400;
   line-height: 1.4;
-  letter-spacing: 0;
   text-transform: none;
   padding: 8px 8px;
   border-radius: 6px;
@@ -6183,7 +6168,7 @@ html[data-ds-display] .dstudio.editing {
 /* anchor edge tips inward so the tooltip stays inside the modal */
 .ds-tip.tip-l::after { left: 0; transform: none; }
 .ds-tip.tip-r::after { left: auto; right: 0; transform: none; }
-.ds-tip:hover::after { opacity: 1; }
+.ds-tip:hover::after, .ds-tip:focus-within::after { opacity: 1; }
 
 /* orientation badge row — sits UNDER the dropdown so all three selects align */
 .ds-rm-orient-foot {
@@ -6199,7 +6184,6 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;
-  letter-spacing: 0.02em;
   text-transform: none;
 }
 .ds-rm-badge.auto { background: rgba(23, 163, 152, 0.14); color: var(--teal-d, #0f766e); }
@@ -6522,7 +6506,6 @@ html[data-ds-display] .dstudio.editing {
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6782,7 +6765,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-stat b {
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.02em;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -7149,7 +7131,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-ledger { display: flex; flex-direction: column; }
 .dstudio .ds-ck-ledger-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; }
 .dstudio .ds-ck-ledger-row .k { font: 700 12px var(--font); }
-.dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 700 13px var(--font); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+.dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 700 13px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dstudio .ds-ck-ledger-row.req .k { color: var(--gray400); }
 .dstudio .ds-ck-ledger-row.req .v { color: var(--ink2); }
 .dstudio .ds-ck-ledger-row.sel .k { color: var(--gray500); }
@@ -7200,7 +7182,6 @@ html[data-ds-display] .dstudio.editing {
   position: relative;
   font: 700 20px var(--font);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
   line-height: 1;
   color: var(--gray400);
 }
@@ -7370,7 +7351,6 @@ html[data-ds-display] .dstudio.editing {
   min-width: 0;
   font: 700 13px var(--font);
   color: var(--ink2);
-  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -7568,7 +7548,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-cdot.under { background: var(--ds-amber-d); }
 .dstudio .ds-ck-cdot.none { background: var(--gray400); }
 .dstudio .ds-ck-itxt { flex: 1; min-width: 0; }
-.dstudio .ds-ck-iname { font: 700 16px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+.dstudio .ds-ck-iname { font: 700 16px var(--font); color: var(--ink2); }
 /* area · required load, right under the name */
 .dstudio .ds-ck-ifacts {
   margin-top: 2px;
@@ -7722,7 +7702,6 @@ html[data-ds-display] .dstudio.editing {
   font: 700 14px var(--font);
   color: var(--ink2);
   margin-top: 1px;
-  letter-spacing: -0.01em;
 }
 .dstudio .ds-ck-usub { font: 500 12px var(--font); color: var(--gray500); margin-top: 1px; }
 .dstudio .ds-ck-usub.warn { color: var(--amber, #d98324); }
@@ -7816,7 +7795,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
 }
 .dstudio .ds-ck-uempty .ue-ic svg { width: 20px; height: 20px; }
-.dstudio .ds-ck-uempty .ue-t { font: 700 13px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+.dstudio .ds-ck-uempty .ue-t { font: 700 13px var(--font); color: var(--ink2); }
 .dstudio .ds-ck-uempty .ue-s { font: 500 12px var(--font); color: var(--gray500); margin-top: 2px; }
 
 /* ── pipework rows ── */
@@ -7849,7 +7828,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-pico svg { width: 15px; height: 15px; }
 .dstudio .ds-ck-pt { font: 700 12px var(--font); color: var(--ink2); }
-.dstudio .ds-ck-ps { font: 600 12px var(--font); color: var(--gray700); margin-top: 2px; letter-spacing: -0.01em; }
+.dstudio .ds-ck-ps { font: 600 12px var(--font); color: var(--gray700); margin-top: 2px; }
 .dstudio .ds-ck-pv { margin-left: auto; font: 700 13px var(--font); color: var(--ink2); }
 .dstudio .ds-ck-pipeempty {
   display: flex;
@@ -7898,7 +7877,7 @@ html[data-ds-display] .dstudio.editing {
   font: 700 12px var(--font);
   color: var(--gray400);
 }
-.dstudio .ds-ck-compname { font: 700 14px var(--font); color: var(--ink2); letter-spacing: -0.01em; margin-top: 1px; }
+.dstudio .ds-ck-compname { font: 700 14px var(--font); color: var(--ink2); margin-top: 1px; }
 .dstudio .ds-ck-compsub { font: 500 12px var(--font); color: var(--gray500); margin-top: 1px; }
 .dstudio .ds-ck-compv { font: 700 13px var(--font); color: var(--ink2); white-space: nowrap; margin-left: 4px; }
 .dstudio .ds-ck-compchev {
@@ -7953,7 +7932,7 @@ html[data-ds-display] .dstudio.editing {
   margin: 0 auto 12px;
 }
 .dstudio .ds-ck-emptyic svg { width: 24px; height: 24px; }
-.dstudio .ds-ck-emptyt { font: 700 16px var(--font); color: var(--ink2); letter-spacing: -0.01em; }
+.dstudio .ds-ck-emptyt { font: 700 16px var(--font); color: var(--ink2); }
 .dstudio .ds-ck-emptys {
   font: 500 12px var(--font);
   color: var(--gray500);
@@ -7977,7 +7956,6 @@ html[data-ds-display] .dstudio.editing {
   color: #fff;
   border-radius: 10px;
   font: 700 13px var(--font);
-  letter-spacing: -0.01em;
   box-shadow: 0 12px 24px -12px rgba(10, 12, 20, 0.55);
 }
 .dstudio .ds-ck-inkbtn:hover { background: #16181f; }
@@ -8839,7 +8817,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sim-temp {
   font: 700 24px var(--font);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
   min-width: 84px;
   text-align: center;
 }
@@ -9002,7 +8979,6 @@ html[data-ds-display] .dstudio.editing {
   padding: 12px 16px;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
   color: var(--q);
   border-bottom: 1px solid #eceef1;
 }
@@ -9354,7 +9330,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-present-tag {
   flex: none;
   font: 700 12px var(--font);
-  letter-spacing: 0.08em;
   padding: 4px 8px;
   border-radius: 999px;
   background: var(--ds-amber);
@@ -9501,7 +9476,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-sim-info-phase {
   font: 700 16px var(--font);
-  letter-spacing: -0.2px;
   color: #fff;
 }
 .dstudio .ds-sim-info-phase.tone-warn {
@@ -9584,7 +9558,6 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-present-stat-tag {
   font: 700 14px var(--font);
-  letter-spacing: -0.2px;
   color: #fff;
   white-space: nowrap;
 }
@@ -9652,7 +9625,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-live-brand {
   font-weight: 700;
   font-size: 13px;
-  letter-spacing: -0.01em;
   color: var(--teal, #00e5c0);
   white-space: nowrap;
 }

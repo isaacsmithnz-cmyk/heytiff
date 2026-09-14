@@ -288,12 +288,15 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 38 },
   { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform/.test(b) && /box-shadow/.test(b)), baseline: 1 },
   { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 0 },
-  { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 23 },
+  /* A control revealed on hover counts only while nothing reveals it on focus:
+     a rule that lists a `:focus-within` twin beside its `:hover` gives the
+     keyboard the same control back (law 24). */
+  { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/:hover/.test(sel) && !/focus-within|focus-visible/.test(sel) && /\bopacity\s*:\s*1\b/.test(body)) n++; return n; }, baseline: 0 },
   /* A pill is counted only while it is drawn as one: a pill, chip, tag or
      badge selector whose own rule gives it a radius. A state word keeps the
      class name and loses the box, so it stops counting. */
   { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 55 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 247 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 48 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of

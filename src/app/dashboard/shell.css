@@ -24,7 +24,7 @@
    — and no value moved, so the token-by-token palette guard still passes.
    `.fg` keeps the layout that is genuinely its own, below. */
 :root {
-  --teal:#00E5C0; --teal-d:#00A389; --blue:#2E68FF; --violet:#8A2BE2;
+  --teal:#00E5C0; --wordmark:#00E5C0; /* the "Tiff" of the wordmark, the one place the teal lives */ --teal-d:#00A389; --blue:#2E68FF; --violet:#8A2BE2;
   --ink:#050505; --ink2:#0A0B10; --bg:#F0F2F5; --red:#FF3366;
   /* --gray400 and --gray500 were #9ca3af and #6b7280, and between them carried
      352 `color:` declarations — they are the two most-used text colours in the
@@ -174,7 +174,7 @@
 .fg .ht-logo svg { transition:transform var(--t-move) var(--ease); }
 .fg .ht-logo:hover svg { }
 .fg .ht-wm { font-size:24px; font-weight:700; letter-spacing:-0.035em; line-height:1; color:#fff; }
-.fg .ht-wm span { color:var(--ink); }
+.fg .ht-wm span { color:var(--wordmark); }
 /* The business using HeyTiff — trading name from Organisation settings, as a
    chip under the wordmark. Additive only: the brand row's layout and
    animations are untouched.

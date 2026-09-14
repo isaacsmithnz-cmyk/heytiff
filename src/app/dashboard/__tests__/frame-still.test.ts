@@ -82,4 +82,14 @@ describe("the frame is still", () => {
   it("gives the front door no blurred light either", () => {
     expect(read("src/app/page.tsx")).not.toMatch(/blur-\[/);
   });
+
+  /* THE ONE TEAL. The ink-and-paper decision keeps #00E5C0 in exactly one
+     place, the "Tiff" of the wordmark on the rail. The accent pass turned it
+     to ink — black on the near-black rail — because its selector carries no
+     dark word. It is its own token now, and this holds it. */
+  it("the wordmark's Tiff is the brand teal, not ink", () => {
+    const css = read("src/app/dashboard/shell.css");
+    expect(css).toMatch(/\.fg \.ht-wm span \{[^}]*color:var\(--wordmark\)/);
+    expect(css).toMatch(/--wordmark:#00E5C0;/);
+  });
 });

@@ -171,7 +171,7 @@ describe("recordTerm", () => {
   it("validates before it writes anything", async () => {
     expect(await recordTerm(ORG, STAFF, ME, LIC, { number: "AU1" })).toEqual({
       ok: false,
-      error: "An expiry date is what makes this a term — pick one.",
+      error: "Pick the expiry date first.",
     });
     expect(writes).toHaveLength(0);
   });
@@ -320,7 +320,7 @@ describe("fileLicenceDocument", () => {
     ];
     expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, "T1", "doc-9")).toEqual({
       ok: false,
-      error: "That term is no longer on file.",
+      error: "That entry has been removed from the history.",
     });
     expect(writes).toHaveLength(0);
   });
@@ -334,3 +334,42 @@ describe("fileLicenceDocument", () => {
   });
 });
 
+
+/* WHAT THE SCAN READ STAYS WITH THE TICKET. Filing a scan with no expiry used
+   to keep the photo and drop the number the panel had just shown, so it had to
+   be typed again. A ticket with no term keeps its number on itself. */
+describe("fileLicenceDocument keeps the number a scan read", () => {
+  beforeEach(() => {
+    tables.documents = [{ id: "doc-9", org_id: ORG, uploaded_by: ME, kind: "licence" }];
+  });
+
+  it("puts the scanned number on a ticket that has no term", async () => {
+    tables.staff_licence_records = [];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, null, "doc-9", { number: " 719065 " })).toEqual({ ok: true });
+    expect(only("update", "staff_licences").payload).toEqual({ licence_number: "719065" });
+  });
+
+  it("leaves a ticket with terms alone — its number is the newest term's", async () => {
+    tables.staff_licence_records = [
+      { id: "T1", org_id: ORG, licence_id: LIC, staff_profile_id: STAFF, expires_on: "2026-08-07" },
+    ];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, null, "doc-9", { number: "719065" })).toEqual({ ok: true });
+    expect(wrote("update", "staff_licences")).toHaveLength(0);
+  });
+
+  it("writes nothing when the photo itself is turned away", async () => {
+    tables.staff_licence_records = [];
+    tables.documents = [{ id: "doc-9", org_id: ORG, uploaded_by: "staff-someone-else", kind: "licence" }];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, null, "doc-9", { number: "719065" })).toEqual({
+      ok: false,
+      error: "That document couldn't be filed.",
+    });
+    expect(wrote("update", "staff_licences")).toHaveLength(0);
+  });
+
+  it("writes nothing when the scan read no number", async () => {
+    tables.staff_licence_records = [];
+    expect(await fileLicenceDocument(ORG, STAFF, ME, LIC, null, "doc-9", { number: "  " })).toEqual({ ok: true });
+    expect(wrote("update", "staff_licences")).toHaveLength(0);
+  });
+});

@@ -2,7 +2,7 @@ import type { Capability } from "@/lib/permissions";
 import type { EmailChangeOutcome } from "@/app/actions/account";
 import type { Role } from "@/lib/roles-shared";
 import type { VehicleWithFacts } from "@/components/fleet/logic";
-import type { LicenceTermInput } from "@/lib/staff/licence-records";
+import type { LicenceScanDetails, LicenceTermInput } from "@/lib/staff/licence-records";
 import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 
 /* Shared prop shapes for the staff card. Kept in their own module so the
@@ -45,6 +45,7 @@ export type ProfileActions = {
     licenceId: string,
     termId: string | null,
     documentId: string,
+    details?: LicenceScanDetails,
   ) => Promise<SaveResult>;
   /** Removes one term — a scan filed against the wrong ticket. */
   onRemoveLicenceTerm: (termId: string) => Promise<SaveResult>;

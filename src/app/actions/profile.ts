@@ -11,7 +11,7 @@ import {
 } from "@/lib/staff/profile";
 import { splitName, withDerivedFullName } from "@/lib/staff/name";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
-import { buildLicenceTermRow, splitAddScan, type LicenceTermInput } from "@/lib/staff/licence-records";
+import { buildLicenceTermRow, splitAddScan, type LicenceScanDetails, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
   fileLicenceDocument,
   recordTerm,
@@ -297,11 +297,12 @@ export async function recordMyLicenceTerm(
 export async function attachMyLicenceDocument(
   licenceId: string,
   termId: string | null,
-  documentId: string
+  documentId: string,
+  details?: LicenceScanDetails
 ): Promise<SaveResult> {
   const { orgId } = await requireOrg();
   const me = await loadMyProfile();
-  const res = await fileLicenceDocument(orgId, me.id, me.id, licenceId, termId, documentId);
+  const res = await fileLicenceDocument(orgId, me.id, me.id, licenceId, termId, documentId, details);
   if (res.ok) revalidateMine();
   return res;
 }

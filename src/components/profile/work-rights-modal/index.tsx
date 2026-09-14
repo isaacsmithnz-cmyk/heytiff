@@ -294,7 +294,7 @@ export function WorkRightsModal({
                             disabled={pending}
                             onClick={() => (armed === r.id ? void run(() => onRemoveCheck(r.id)) : setArmed(r.id))}
                           >
-                            {armed === r.id ? "Tap again to remove" : "Remove check"}
+                            {armed === r.id ? "Click again to remove" : "Remove check"}
                           </button>
                         </div>
                       </div>

@@ -5,7 +5,12 @@ import { Icon } from "@/components/shell/icon";
 import { LicenceCard } from "@/components/cards/licence-card";
 import type { StoredDocument } from "@/lib/documents/query";
 import { licenceStatus } from "@/lib/staff/licence";
-import { termState, type LicenceTermInput, type StaffLicenceRecord } from "@/lib/staff/licence-records";
+import {
+  termState,
+  type LicenceScanDetails,
+  type LicenceTermInput,
+  type StaffLicenceRecord,
+} from "@/lib/staff/licence-records";
 import { formatAuDate } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
 import { LicenceModal } from "./licence-modal";
@@ -59,7 +64,12 @@ export function ComplianceCard({
   onRemove: (licenceId: string) => Promise<SaveResult>;
   onRecordTerm: (licenceId: string, input: LicenceTermInput) => Promise<SaveResult>;
   /** Files a document against the ticket; a null term means the card itself. */
-  onAttachDoc: (licenceId: string, termId: string | null, documentId: string) => Promise<SaveResult>;
+  onAttachDoc: (
+    licenceId: string,
+    termId: string | null,
+    documentId: string,
+    details?: LicenceScanDetails,
+  ) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
 }) {
   // null = closed. A row = opened on it; "new" = adding one.
@@ -142,7 +152,9 @@ export function ComplianceCard({
           onSaveIdentity={(input) => (editing ? onUpdate(editing.id, input) : onAdd(input))}
           onDelete={() => (editing ? onRemove(editing.id) : ok())}
           onRecord={(input) => (editing ? onRecordTerm(editing.id, input) : ok())}
-          onAttach={(termId, documentId) => (editing ? onAttachDoc(editing.id, termId, documentId) : ok())}
+          onAttach={(termId, documentId, ...details) =>
+            editing ? onAttachDoc(editing.id, termId, documentId, ...details) : ok()
+          }
           onRemoveTerm={onRemoveTerm}
           onClose={() => setOpen(null)}
         />

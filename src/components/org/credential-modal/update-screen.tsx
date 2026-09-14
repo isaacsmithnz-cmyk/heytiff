@@ -10,6 +10,7 @@ import {
   CREDENTIAL_DOC_KIND,
   currentRecord,
   type CredentialRecordInput,
+  type CredentialScanDetails,
   type OrgCredentialRecord,
 } from "@/lib/org/credential-records";
 import { SCAN_COPY, TermFields, emptyTerm, termInput, type Term } from "./term-fields";
@@ -50,8 +51,9 @@ export function UpdateScreen({
   pending: boolean;
   error: string | null;
   onRecord: (input: CredentialRecordInput) => void;
-  /** Files a scan that carries no expiry against the card itself. */
-  onFile: (documentId: string) => void;
+  /** Files a scan that carries no expiry against the card itself, with the
+      number and issuer it read. */
+  onFile: (documentId: string, details: CredentialScanDetails) => void;
   onCancel: () => void;
 }) {
   const kind = credential.kind;
@@ -93,7 +95,7 @@ export function UpdateScreen({
     if (!canSave) return;
     // it lands the way a term does: back on the card — see index.tsx
     if (filingOnly && docId) {
-      onFile(docId);
+      onFile(docId, { number: term.number, issuer: term.issuer });
       return;
     }
     onRecord({
@@ -147,7 +149,7 @@ export function UpdateScreen({
             filing a document, because then nothing moves into the history. */}
         {current && !filingOnly && (
           <span className="vm-footnote">
-            The term expiring {fmtDay(current.expiresOn)} moves into the history.
+            The {kind === "insurance" ? "policy" : "licence"} expiring {fmtDay(current.expiresOn)} moves into the history.
           </span>
         )}
         <Btn kind="outline" onClick={onCancel}>

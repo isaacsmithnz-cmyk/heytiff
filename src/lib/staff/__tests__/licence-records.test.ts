@@ -156,7 +156,7 @@ describe("the facts grid", () => {
     expect(termEvent(rec({ issuer: "Service NSW", issuingState: "NSW" }))).toBe("Service NSW (NSW)");
     expect(termEvent(rec({ issuer: "Service NSW", issuingState: null }))).toBe("Service NSW");
     expect(termEvent(rec({ issuer: null, issuingState: "VIC" }))).toBe("VIC licence");
-    expect(termEvent(rec({ issuer: null, issuingState: null }))).toBe("Term");
+    expect(termEvent(rec({ issuer: null, issuingState: null }))).toBe("Licence card");
   });
 
   it("says how a term got here", () => {

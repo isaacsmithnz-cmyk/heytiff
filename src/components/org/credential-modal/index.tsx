@@ -12,6 +12,7 @@ import {
 } from "@/lib/org/credentials";
 import type {
   CredentialRecordInput,
+  CredentialScanDetails,
   OrgCredentialRecord,
 } from "@/lib/org/credential-records";
 import type { CredResult } from "../types";
@@ -73,7 +74,7 @@ export function CredentialModal({
   onDelete: () => Promise<CredResult>;
   onRecord: (input: CredentialRecordInput) => Promise<CredResult>;
   /** Files a document against the card; a null term means the card itself. */
-  onAttach: (recordId: string | null, documentId: string) => Promise<CredResult>;
+  onAttach: (recordId: string | null, documentId: string, details?: CredentialScanDetails) => Promise<CredResult>;
   onRemoveTerm: (recordId: string) => Promise<CredResult>;
   onClose: () => void;
 }) {
@@ -182,7 +183,7 @@ export function CredentialModal({
                lands the same way: back on the card, listed with its paperwork.
                A null record is the card's own. A refusal keeps this screen and
                its scan, so pressing again is a retry. */
-            onFile={(documentId) => void run(() => onAttach(null, documentId), () => setScreen("record"))}
+            onFile={(documentId, details) => void run(() => onAttach(null, documentId, details), () => setScreen("record"))}
             onCancel={() => {
               setError(null);
               setScreen("record");

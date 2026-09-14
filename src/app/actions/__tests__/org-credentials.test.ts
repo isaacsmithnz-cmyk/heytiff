@@ -420,7 +420,7 @@ describe("recordCredentialTerm", () => {
   it("validates before it writes anything", async () => {
     expect(await recordCredentialTerm("cred-1", { issuer: "QBE" })).toEqual({
       ok: false,
-      error: "An expiry date is what makes this a term — pick one.",
+      error: "Pick the expiry date first.",
     });
     expect(writes).toHaveLength(0);
   });
@@ -584,7 +584,7 @@ describe("fileCredentialDocument", () => {
     tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-other" }];
     expect(await fileCredentialDocument("cred-1", "R1", "doc-9")).toEqual({
       ok: false,
-      error: "That term is no longer on file.",
+      error: "That entry has been removed from the history.",
     });
     expect(writes).toHaveLength(0);
   });
@@ -766,5 +766,47 @@ describe("adding a card from a scan", () => {
     expect(await addOrgCredential(card, { ...undated, documentId: null })).toEqual({ ok: true });
     expect(wrote("update", "documents")).toHaveLength(0);
     expect(only("insert", "org_credentials").payload).toMatchObject({ number: "CL-12345", issuer: "VBA" });
+  });
+});
+
+/* WHAT THE SCAN READ STAYS WITH THE CARD. Filing a certificate with no expiry
+   used to keep the file and drop the number and issuer the panel had just
+   shown. A card with no term keeps them on itself. */
+describe("fileCredentialDocument keeps what a scan read", () => {
+  beforeEach(() => {
+    tables.org_credentials = [CARD];
+    tables.org_credential_records = [];
+  });
+
+  it("puts the scanned number and issuer on a card that has no term", async () => {
+    expect(
+      await fileCredentialDocument("cred-1", null, "doc-9", { number: " CL-123456C ", issuer: "NSW Fair Trading" })
+    ).toEqual({ ok: true });
+    expect(only("update", "org_credentials").payload).toMatchObject({
+      number: "CL-123456C",
+      issuer: "NSW Fair Trading",
+    });
+  });
+
+  it("leaves a card with terms alone — its number and issuer are the newest term's", async () => {
+    tables.org_credential_records = [{ id: "R1", org_id: "org-1", credential_id: "cred-1" }];
+    expect(await fileCredentialDocument("cred-1", null, "doc-9", { number: "CL-123456C" })).toEqual({ ok: true });
+    expect(wrote("update", "org_credentials")).toHaveLength(0);
+  });
+
+  it("writes nothing when the certificate itself is turned away", async () => {
+    tables.documents = [
+      { id: "doc-9", org_id: "org-1", uploaded_by: "staff-someone-else", kind: "org_insurance", org_credential_id: null },
+    ];
+    expect(await fileCredentialDocument("cred-1", null, "doc-9", { number: "CL-123456C" })).toEqual({
+      ok: false,
+      error: "That document couldn't be filed.",
+    });
+    expect(wrote("update", "org_credentials")).toHaveLength(0);
+  });
+
+  it("writes nothing when the scan read neither", async () => {
+    expect(await fileCredentialDocument("cred-1", null, "doc-9", { number: "", issuer: " " })).toEqual({ ok: true });
+    expect(wrote("update", "org_credentials")).toHaveLength(0);
   });
 });

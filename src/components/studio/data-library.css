@@ -21,7 +21,6 @@
 .dl-root code {
   font-family: inherit;
   font-weight: 600;
-  letter-spacing: 0.01em;
   background: #f2f2f0;
   border-radius: 6px;
   padding: 1px 4px;
@@ -257,7 +256,6 @@
 }
 .dl-mono {
   font-weight: 600;
-  letter-spacing: 0.01em;
 }
 
 .dl-dot {

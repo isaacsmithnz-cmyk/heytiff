@@ -37,7 +37,7 @@
    `.fg button { font:inherit }` (which otherwise resets size/weight on
    every button). */
 .fg .rca-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:40px; padding:0 16px;
-  border-radius:10px; font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:14px; font-weight:700; letter-spacing:0;
+  border-radius:10px; font-family:var(--font-jakarta), 'Plus Jakarta Sans', sans-serif; font-size:14px; font-weight:700;
   border:none; cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); white-space:nowrap; }
 .fg .rca-btn.primary { background:#0A0B10; color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
 .fg .rca-btn.primary:hover { background:var(--ink); color:var(--paper); }
@@ -85,8 +85,8 @@
   opacity:0; pointer-events:none; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); z-index:60; white-space:normal; text-align:left; }
 .fg .rca-tip::before { content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:-3px;
   border:5px solid transparent; border-bottom-color:#0A0B10; opacity:0; pointer-events:none; transition:opacity var(--t-fast) var(--ease); z-index:60; }
-.fg .rca-tip:hover::after { opacity:1; transform:translateX(-50%) translateY(0); }
-.fg .rca-tip:hover::before { opacity:1; }
+.fg .rca-tip:hover::after, .fg .rca-tip:focus-within::after { opacity:1; transform:translateX(-50%) translateY(0); }
+.fg .rca-tip:hover::before, .fg .rca-tip:focus-within::before { opacity:1; }
 /* .up variant opens above (for fields near a clipped card bottom) */
 .fg .rca-tip.up::after { top:auto; bottom:calc(100% + 7px); transform:translateX(-50%) translateY(-2px); }
 .fg .rca-tip.up:hover::after { transform:translateX(-50%) translateY(0); }

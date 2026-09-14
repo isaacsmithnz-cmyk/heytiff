@@ -154,7 +154,7 @@ describe("TeamDirectory", () => {
 
   it("searches by name or role", async () => {
     setup();
-    await userEvent.type(screen.getByPlaceholderText("Search name or role..."), "installer");
+    await userEvent.type(screen.getByPlaceholderText("Search name or role…"), "installer");
     expect(screen.getByText("Jordan Mills")).toBeInTheDocument();
     expect(screen.getByText("Marcus Webb")).toBeInTheDocument();
     expect(screen.queryByText("Hannah Cole")).not.toBeInTheDocument();

@@ -169,7 +169,7 @@
   box-shadow:20px 0 40px rgba(0,0,0,.1); }
 /* the rail's teal corner glow lived here until 2026-09-10; the frame is still
    now (frame-still.test.ts) */
-.fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4px, 38px) 24px clamp(18px, 3vh - 4px, 28px); position:relative; z-10:1; z-index:10; }
+.fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4px, 38px) 24px clamp(18px, 3vh - 4px, 28px); position:relative; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform var(--t-move) var(--ease); }
 .fg .ht-logo:hover svg { }
@@ -340,7 +340,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    the bell glyph's top-right quadrant and eats the shape you are meant to
    recognise. `.topbar` and `.tbr` are both `overflow:visible` and the gap to the
    separator is 24px, so the 4px overhang has room. */
-.fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#e0264f; border:2px solid #fff; color:#fff; font-size:12px; font-weight:700; line-height:1; letter-spacing:-0.01em; }
+.fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#e0264f; border:2px solid #fff; color:#fff; font-size:12px; font-weight:700; line-height:1; }
 .fg .tbr .sep { width:1px; height:32px; background:rgba(0,0,0,.08); }
 
 /* BOTH EDGES, OR EVERY SCREEN IN THE APP SITS OFF ITS OWN CENTRE.
@@ -439,7 +439,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .dash-tile.bad .dt-ic { background:rgba(255,51,102,.1); color:var(--bad-t); }
 .fg .dash-tile.warn .dt-ic { background:rgba(240,164,49,.13); color:var(--warn-t); }
 .fg .dash-tile .dt-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
-.fg .dash-tile .dt-label { font-size:14px; font-weight:700; letter-spacing:-0.01em; }
+.fg .dash-tile .dt-label { font-size:14px; font-weight:700; }
 .fg .dash-tile.bad .dt-label { color:var(--bad-t); }
 .fg .dash-tile.warn .dt-label { color:var(--warn-t); }
 .fg .dash-tile .dt-sub { font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -449,7 +449,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* noticeboard page items */
 .fg .nb-item { padding:24px 24px; }
 .fg .nb-head { display:flex; align-items:flex-start; gap:12px; }
-.fg .nb-title { font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .nb-title { font-size:16px; font-weight:700; color:var(--ink); }
 .fg .nb-meta { font-size:13px; font-weight:500; color:var(--gray400); margin-top:4px; }
 .fg .nb-body { font-size:14px; font-weight:500; color:var(--ink); line-height:1.55; margin-top:12px; white-space:pre-wrap; }
 .fg .nb-foot { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
@@ -703,7 +703,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .ptabpanel.on { display:block; }
 .fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 16px; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
 .fg .emptybox .ei { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:var(--q); }
-.fg .emptybox b { font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .emptybox b { font-size:16px; font-weight:700; color:var(--ink); }
 .fg .emptybox em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); max-width:380px; line-height:1.55; }
 
 
@@ -859,7 +859,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 @media (max-width:640px){ .fg .toolrow .tnm em{display:none} }
 .fg .toolrow .tbg { font-size:12px; font-weight:700; padding:4px 12px; border-radius:6px; font-family:var(--mono); flex:0 0 auto; border:1px solid; }
 .fg .toolrow .tch { color:var(--q); opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); flex:0 0 auto; }
-.fg .toolrow:hover .tch { opacity:1; }
+.fg .toolrow:hover .tch, .fg .toolrow:focus-within .tch { opacity:1; }
 
 /* ---------------- DUCTR ---------------- */
 .fg .ductr { position:relative; display:flex; flex-direction:column; height:100%; background:var(--line); overflow:hidden; }
@@ -1252,7 +1252,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdone { display:flex; align-items:center; gap:12px; flex:0 0 auto; }
 .fg .pdone .pring { flex:0 0 auto; color:rgba(0,127,168,.16); }
 .fg .pdone .pring .v { stroke:var(--wb2-cy); transition:stroke-dasharray var(--t-move) var(--ease); }
-.fg .pdone-k b { display:block; font-size:14px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .pdone-k b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .pdone-k em { display:block; margin-top:1px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .pdone .pbtn { height:36px; padding:0 12px; font-size:13px; border-radius:10px; }
 
@@ -1375,7 +1375,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pfs { padding:0 16px; border-left:1px solid #e2e5ea; }
 .fg .pfs:first-child { border-left:0; padding-left:0; }
 .fg .pfs dt { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .pfs dd { margin:4px 0 0; font-size:14px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .pfs dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .pfs dd.muted { color:var(--q); font-weight:600; }
 
 /* ── the vehicle, as a plate and a door ──
@@ -1408,11 +1408,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    IS the tab's overview, so opening it belongs with its name. */
 .fg .psec2 .pdl { gap:8px; }
 .fg .pdlcard .pdlh.jump { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.fg .pdlh .jumpb { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
-  letter-spacing:.04em; text-transform:none; color:var(--gray400); transition:color var(--t-fast) var(--ease); }
+.fg .pdlh .jumpb { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; text-transform:none; color:var(--gray400); transition:color var(--t-fast) var(--ease); }
 .fg .pdlh .jumpb:hover { color:var(--wb2-cy); }
 /* where a panel's facts come from, when the panel isn't a tab */
-.fg .pdlh-q { margin-left:8px; font-weight:600; letter-spacing:.02em; text-transform:none; color:var(--q); }
+.fg .pdlh-q { margin-left:8px; font-weight:600; text-transform:none; color:var(--q); }
 /* An empty value on Summary is a DASH, not the words "Not set". Nothing there
    is editable, so a blank has no button behind it and nothing to say beyond
    "nothing" — and eight "Not set"s down one column read as an error state
@@ -1438,8 +1437,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdrow.live dd > .suffixwrap > .inp,
 .fg .pdrow.live dd > .scaled > .inp,
 .fg .pdrow.live dd > .inpd {
-  height:34px; padding:0 12px; border-radius:10px; font-size:16px; font-weight:600;
-  letter-spacing:-0.01em; background:#fafbfc; }
+  height:34px; padding:0 12px; border-radius:10px; font-size:16px; font-weight:600; background:#fafbfc; }
 .fg .pdrow.live dd > .inpd { padding:0 12px; }
 /* a 34px box wants the symbol closer in than a 46px one — the gutters above
    are cut to match, so the figure still clears it */
@@ -1488,7 +1486,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pslider { display:flex; align-items:center; gap:12px; min-width:0; }
 .fg .pslider .track { position:relative; flex:1; min-width:80px; height:6px; border-radius:999px; background:#eceef2; }
 .fg .pslider .fill { position:absolute; inset:0 auto 0 0; border-radius:999px; background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
-.fg .pslider .num { flex:0 0 auto; font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .pslider .num { flex:0 0 auto; font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .pslider .num.none { color:var(--q); font-weight:600; }
 /* the range itself is invisible and oversized — it is the hit area, and the
    thumb below is what you actually see */
@@ -1515,7 +1513,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdrow { display:grid; grid-template-columns:112px minmax(0,1fr); gap:12px; align-items:baseline; min-width:0; }
 .fg .pdrow dt { font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .pdrow dd { margin:0; min-width:0; }
-.fg .pdv { font-size:16px; font-weight:600; letter-spacing:-0.01em; color:var(--ink); overflow-wrap:anywhere; }
+.fg .pdv { font-size:16px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .pdv.sm { font-size:14px; }
 .fg .pdsub { display:block; margin-top:2px; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .pdnone { font-size:14px; font-style:italic; font-weight:500; color:#bcc2cd; }
@@ -1545,7 +1543,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tight .pdv.sm { font-size:13px; }
 .fg .psec2 .tight .pdnone { font-size:14px; }
 .fg .tight .pdsub { margin-top:1px; font-size:12px; }
-.fg .tight .pdlh { font-size:12px; letter-spacing:.14em; }
+.fg .tight .pdlh { font-size:12px; }
 .fg .tight .liccards { margin-top:12px; }
 @media (max-width:560px){
   /* the label stacks above its value at phone width, so small caps stop being
@@ -1571,7 +1569,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    and the slightly shallower ratio takes the edge off it. */
 .fg .idc.faceless { aspect-ratio:856/500; }
 .fg .idc.faceless .idc-id { margin-block:auto; }
-.fg .idc.faceless .idc-who b { font-size:20px; letter-spacing:-.02em; }
+.fg .idc.faceless .idc-who b { font-size:20px; }
 .fg .idc-action { position:absolute; top:10px; right:10px; z-index:3; }
 .fg .idc-del { width:28px; height:28px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--q); background:rgba(255,255,255,.85); border:1px solid #ecedf1; opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .idc:hover .idc-del, .fg .idc-del:focus-visible { opacity:1; }
@@ -1673,7 +1671,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    loud. */
 .fg .card2 { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:16px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
-.fg .card2 .c2h b { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
+.fg .card2 .c2h b { font-size:16px; font-weight:600; }
 .fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
 .fg .card2 .c2h .pill2 { margin-left:auto; }
 .fg .adminpill { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px; font-weight:500; color:var(--bad-t); }
@@ -1685,7 +1683,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .frow + .frow { margin-top:16px; }
 @media (max-width:680px){ .fg .frow.c2,.fg .frow.c3{grid-template-columns:1fr} }
 .fg .field { display:flex; flex-direction:column; gap:8px; min-width:0; }
-.fg .field > label { font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--gray700); display:flex; align-items:center; gap:8px; }
+.fg .field > label { font-size:12px; font-weight:700; color:var(--gray700); display:flex; align-items:center; gap:8px; }
 .fg .field > label .req { color:var(--ink); }
 .fg .inp { height:46px; padding:0 16px; border-radius:6px; border:1px solid var(--line); background:#fafbfc; font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); outline:none; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); width:100%; }
 .fg .inp::placeholder { color:var(--q); font-weight:500; }
@@ -1780,9 +1778,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* info button + tooltip */
 .fg .infobtn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--q); cursor:help; vertical-align:middle; margin-left:4px; }
 .fg .infobtn:hover, .fg .infobtn:focus { color:var(--ink); outline:none; }
-.fg .infobtn .tip { position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%) translateY(4px); width:260px; padding:12px 12px; border-radius:10px; background:#0A0B10; color:rgba(255,255,255,.92); font-size:12px; font-weight:500; line-height:1.5; letter-spacing:-0.005em; text-transform:none; box-shadow:0 16px 40px -12px rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); z-index:50; pointer-events:none; }
+.fg .infobtn .tip { position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%) translateY(4px); width:260px; padding:12px 12px; border-radius:10px; background:#0A0B10; color:rgba(255,255,255,.92); font-size:12px; font-weight:500; line-height:1.5; text-transform:none; box-shadow:0 16px 40px -12px rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); z-index:50; pointer-events:none; }
 .fg .infobtn .tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:#0A0B10; }
-.fg .infobtn:hover .tip, .fg .infobtn:focus .tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
+.fg .infobtn:hover .tip, .fg .infobtn:focus .tip, .fg .infobtn:focus-within .tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
 
 /* status segmented */
 /* THE HOUSE TRAY. `#f3f4f6` measured 1.101 against the white cards it
@@ -1978,7 +1976,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tchathead .tcht { flex:1; min-width:0; }
 /* the title outranks the buttons beside it — it is the name of the thing
    being read, and at 16px it lost to its own "New chat" ghost */
-.fg .tchathead .tcht b { display:block; font-size:16px; font-weight:700; letter-spacing:-.015em; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tchathead .tcht b { display:block; font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tchathead .tcht em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
 .fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
@@ -2386,7 +2384,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    one that takes a second line, and `min-height` above lets the row grow to
    meet it. `flex:0 1 auto` is the pair to that: the word may shrink, the orb
    beside it may not. */
-.orb-say b { flex:0 1 auto; font-size:14px; font-weight:600; letter-spacing:-.01em;
+.orb-say b { flex:0 1 auto; font-size:14px; font-weight:600;
   line-height:1.4; color:inherit; }
 /* The ellipsis belongs to the stylesheet so the label stays a plain string —
    a test matches "Searching the library", not a particular run of dots, and
@@ -2619,9 +2617,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tp-card > .mts2-cols { margin-top:16px; }
 .fg .tpr .wknav .arw { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tpr .wknav .arw:hover { color:var(--ink); border-color:rgba(34,197,94,.5); }
-.fg .tpr .wknav .range { font-size:20px; font-weight:700; letter-spacing:-.02em; white-space:nowrap; }
+.fg .tpr .wknav .range { font-size:20px; font-weight:700; white-space:nowrap; }
 .fg .tpr .wknav .range em { font-style:normal; color:var(--gray400); font-weight:700; }
-.fg .tpr .wknav .pstatus { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.04em; }
+.fg .tpr .wknav .pstatus { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; font-size:12px; font-weight:700; }
 .fg .tpr .wknav .pstatus.live { background:rgba(34,197,94,.14); color:var(--ok-t); }
 .fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:tprPulse 2s infinite; }
 .fg .tpr .wknav .pstatus.hist { background:#eceef1; color:var(--gray500); }
@@ -2632,7 +2630,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .rhead .racts { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
 
 /* big buttons */
-.fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; letter-spacing:-.01em; background:#fff; color:var(--gray700); border:1px solid rgba(10,12,20,.08); box-shadow:0 1px 2px rgba(10,12,20,.04); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
+.fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; background:#fff; color:var(--gray700); border:1px solid rgba(10,12,20,.08); box-shadow:0 1px 2px rgba(10,12,20,.04); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
 .fg .tpr .bbtn:hover { border-color:rgba(34,197,94,.5); }
 .fg .tpr .bbtn svg { opacity:.85; }
 .fg .tpr .bbtn.teal { background:var(--teal); color:var(--ink); border-color:var(--teal); box-shadow:0 12px 24px -12px rgba(34,197,94,.65); }
@@ -2672,7 +2670,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .stat .sv { font-family:var(--font); font-size:24px; font-weight:700; letter-spacing:-.03em; line-height:1; margin:0; }
 /* the denominator on the Approved tile — "1 of 4" is a ratio, and the half of
    it that isn't the answer is quiet */
-.fg .tpr .stat .sv em { font-style:normal; font-size:16px; font-weight:700; color:var(--gray500); letter-spacing:-.01em; }
+.fg .tpr .stat .sv em { font-style:normal; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .tpr .stat .stk { min-width:0; }
 .fg .tpr .stat .sl { font-size:12px; font-weight:500; margin-top:4px; }
 /* THE SUB-LINE WAS `display:none` FROM THE PORT ONWARD. Every tile computed
@@ -2733,7 +2731,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    The 25px is `.card`/`.crow`'s padding plus their border, and the three have
    to move together. */
 .fg .tpr .sect { display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:0 calc(24px + 1px); }
-.fg .tpr .sect .st { font-size:14px; font-weight:700; letter-spacing:.02em; }
+.fg .tpr .sect .st { font-size:14px; font-weight:700; }
 .fg .tpr .sect.attn .st { color:var(--red-d); }
 .fg .tpr .sect .ct { font-family:var(--font); font-size:12px; font-weight:700; padding:4px 8px; border-radius:999px; background:#eceef1; color:var(--gray500); }
 .fg .tpr .sect.attn .ct { background:rgba(255,51,102,.12); color:var(--red-d); }
@@ -2754,7 +2752,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    with it. */
 .fg .tpr .chead { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
 .fg .tpr .chead .av { width:48px; height:48px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:#fff; }
-.fg .tpr .chead .who .nm { font-size:16px; font-weight:700; letter-spacing:-.01em; display:flex; align-items:center; gap:12px; }
+.fg .tpr .chead .who .nm { font-size:16px; font-weight:700; display:flex; align-items:center; gap:12px; }
 .fg .tpr .chead .who .rl { font-size:13px; font-weight:600; color:var(--gray400); margin-top:2px; }
 .fg .tpr .chead .sp { flex:1; }
 .fg .tpr .chead .cacts { display:flex; align-items:center; gap:8px; }
@@ -2882,7 +2880,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .paybar .pseg.empty { background:#e7e9ef; }
 .fg .tpr .cs-buckets { display:flex; flex-direction:column; padding:4px 0 2px; }
 .fg .tpr .bkt { display:grid; grid-template-columns:1fr auto 52px; align-items:center; gap:12px; padding:8px 0; }
-.fg .tpr .rchip { display:inline-flex; align-items:center; justify-content:center; min-width:46px; height:25px; padding:0 8px; border-radius:6px; font-size:12px; font-weight:700; letter-spacing:.01em; }
+.fg .tpr .rchip { display:inline-flex; align-items:center; justify-content:center; min-width:46px; height:25px; padding:0 8px; border-radius:6px; font-size:12px; font-weight:700; }
 /* The rate chip is the day palette at 25px — same fills, so the same inks, and
    `.sk` had the same white-on-#FF3366 3.55 the sick tile did. */
 .fg .tpr .rchip.std { background:var(--teal); color:var(--on-teal); }
@@ -2905,8 +2903,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    the row recedes by COLOUR rather than by being half-erased. */
 .fg .tpr .bkt.zero .rchip { background:#eceef1; color:var(--gray500); }
 .fg .tpr .bkt .bl { font-size:14px; font-weight:700; color:var(--gray700); }
-.fg .tpr .bkt .br { font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray400); letter-spacing:-.01em; }
-.fg .tpr .bkt .bv { display:flex; align-items:baseline; justify-content:flex-end; gap:1px; font-family:var(--font); font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--ink); white-space:nowrap; }
+.fg .tpr .bkt .br { font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray400); }
+.fg .tpr .bkt .bv { display:flex; align-items:baseline; justify-content:flex-end; gap:1px; font-family:var(--font); font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap; }
 .fg .tpr .bkt .bv em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); margin-left:1px; }
 /* `.bkt .sw` and its six colour rules are GONE — `Bucket` renders a label, a
    rate chip and a figure, and never a swatch, so they matched nothing. The
@@ -2934,7 +2932,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    de-emphasis for text; the arithmetic is pinned in
    text-contrast.test.ts. The label is already three sizes down from the date
    and tracked wide — that is the hierarchy, and it costs nothing. */
-.fg .tpr .tile .wd { font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.06em; }
+.fg .tpr .tile .wd { font-family:var(--font); font-size:12px; font-weight:700; }
 .fg .tpr .tile .dn { font-size:20px; font-weight:700; line-height:1; }
 .fg .tpr .tile .hh { font-family:var(--font); font-size:12px; font-weight:700; }
 .fg .tpr .tile.std { background:var(--teal); border-color:var(--teal); color:var(--on-teal); }
@@ -2965,12 +2963,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* `.tile.empty .hh`'s own #a7adb8 (1.86:1) is gone — it inherits the tile's
    --gray500 and stays quieter by being 11px against the date's 18. */
 .fg .tpr .tile.today { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--ink); }
-.fg .tpr .tile.today::after { content:"TODAY"; position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.1em; color:#fff; background:var(--ink); padding:2px 8px; border-radius:6px; }
+.fg .tpr .tile.today::after { content:"TODAY"; position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-family:var(--font); font-size:12px; font-weight:700; color:#fff; background:var(--ink); padding:2px 8px; border-radius:6px; }
 .fg .tpr .tile .otf { position:absolute; top:8px; right:9px; font-size:12px; font-weight:700; }
 
 /* summary line + expand */
 .fg .tpr .csum { display:flex; align-items:center; gap:8px 16px; flex-wrap:wrap; padding-top:16px; border-top:1px solid #f2f3f6; }
-.fg .tpr .csum .big { font-size:20px; font-weight:700; letter-spacing:-.01em; }
+.fg .tpr .csum .big { font-size:20px; font-weight:700; }
 .fg .tpr .csum .big em { font-style:normal; font-weight:600; font-size:13px; color:var(--gray400); }
 .fg .tpr .csum .m { font-size:13px; font-weight:700; color:var(--gray500); }
 .fg .tpr .csum .rate { font-family:var(--font); font-size:13px; font-weight:700; display:inline-flex; gap:8px; }
@@ -2982,7 +2980,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .csum .paysplit { display:inline-flex; align-items:center; gap:8px; }
 .fg .tpr .csum .ps { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; }
 .fg .tpr .csum .ps i { width:9px; height:9px; border-radius:0; font-style:normal; flex:0 0 auto; }
-.fg .tpr .csum .ps b { font-family:var(--font); font-size:16px; font-weight:700; letter-spacing:-.01em; }
+.fg .tpr .csum .ps b { font-family:var(--font); font-size:16px; font-weight:700; }
 .fg .tpr .csum .ps.ord { background:rgba(34,197,94,.12); color:var(--teal-ink); } .fg .tpr .csum .ps.ord i { background:var(--teal); }
 .fg .tpr .csum .ps.ot { background:rgba(240,164,49,.16); color:var(--amber-d); } .fg .tpr .csum .ps.ot i { background:var(--amber); }
 .fg .tpr .csum .sp { flex:1; }
@@ -3001,7 +2999,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .drow { display:grid; grid-template-columns:56px 96px 1fr 64px; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f2f3f6; font-size:13px; }
 .fg .tpr .drow:first-child { border-top:none; }
 .fg .tpr .drow:nth-child(even) { background:#fafbfc; }
-.fg .tpr .drow .wd { font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.06em; color:var(--gray400); }
+.fg .tpr .drow .wd { font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .tpr .drow .dt { font-weight:700; color:var(--gray600); }
 .fg .tpr .drow .sh { font-family:var(--font); font-size:13px; font-weight:600; color:var(--gray600); }
 .fg .tpr .drow .tag { justify-self:start; font-size:12px; font-weight:700; padding:2px 8px; border-radius:6px; }
@@ -3032,7 +3030,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    signal; the row needs no second one. */
 .fg .tpr .crow .av { width:40px; height:40px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; }
 .fg .tpr .crow .who { flex:0 1 170px; width:170px; min-width:0; }
-.fg .tpr .crow .who .nm { font-size:14px; font-weight:700; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .tpr .crow .who .nm { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tpr .crow .who .rl { font-size:12px; font-weight:600; color:var(--gray400); white-space:nowrap; }
 .fg .tpr .crow .mini { display:flex; gap:4px; flex:1 1 auto; min-width:90px; overflow:hidden; }
 /* WHICH DAY IS WHICH. A ready-to-approve row was seven anonymous colour bars —
@@ -3044,7 +3042,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    near-black. Over the row's own white it is ordinary quiet text, and the fills
    keep the exact colours they carry everywhere else on the screen. */
 .fg .tpr .crow .mtc { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:4px; }
-.fg .tpr .crow .mtd { font-style:normal; text-align:center; font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.07em; color:var(--gray500); }
+.fg .tpr .crow .mtd { font-style:normal; text-align:center; font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray500); }
 .fg .tpr .crow .mt { min-width:0; height:26px; border-radius:6px; }
 .fg .tpr .crow .mt.std { background:var(--teal); }
 .fg .tpr .crow .mt.over { background:var(--amber); }
@@ -3056,7 +3054,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .crow .mt.empty { background:#e7e9ef; }
 .fg .tpr .crow .mt.today { box-shadow:inset 0 0 0 2px var(--ink); }
 .fg .tpr .crow .rt { width:74px; flex:0 0 auto; text-align:right; font-family:var(--font); margin-left:4px; }
-.fg .tpr .crow .rt b { font-size:16px; font-weight:700; letter-spacing:-.02em; }
+.fg .tpr .crow .rt b { font-size:16px; font-weight:700; }
 .fg .tpr .crow .rt em { font-style:normal; font-size:12px; color:var(--gray400); }
 .fg .tpr .crow .capprove { height:42px; padding:0 16px; }
 /* the compact row runs one size down, exactly as `.crow .capprove` does above */
@@ -3088,7 +3086,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .tset-panel { position:relative; width:560px; max-width:92vw; max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 40px 100px -30px rgba(10,12,20,.6); animation:tprPop .24s var(--ease); }
 @keyframes tprPop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
 .fg .tpr .tset-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 16px; border-bottom:1px solid #f0f1f5; }
-.fg .tpr .tset-head h3 { font-size:20px; font-weight:700; letter-spacing:-.02em; margin:0; }
+.fg .tpr .tset-head h3 { font-size:20px; font-weight:700; margin:0; }
 .fg .tpr .tset-head p { font-size:13px; font-weight:600; color:var(--gray500); margin:4px 0 0; }
 .fg .tpr .tset-x { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#f4f5f7; flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tpr .tset-x:hover { background:#eceef1; color:var(--ink); }
@@ -3096,7 +3094,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .tset-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; border-top:1px solid #f0f1f5; }
 .fg .tpr .tset-row:first-child { border-top:none; }
 .fg .tpr .tset-row .tr-l { min-width:0; }
-.fg .tpr .tset-row .tr-l b { display:block; font-size:14px; font-weight:700; letter-spacing:-.01em; }
+.fg .tpr .tset-row .tr-l b { display:block; font-size:14px; font-weight:700; }
 .fg .tpr .tset-row .tr-l em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; display:block; }
 .fg .tpr .tset-row .tr-c { flex:0 0 auto; }
 /* `.fg .tpr .seg` IS GONE, and it was doing more than it looked like. Its
@@ -3214,7 +3212,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .xp-rows { display:flex; flex-direction:column; gap:8px; }
 .fg .tpr .xp-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 12px; border-radius:10px; border:1px solid #eef0f4; background:#fafbfc; }
 .fg .tpr .xp-who { flex:1 1 180px; min-width:0; }
-.fg .tpr .xp-who b { display:block; font-size:14px; font-weight:700; letter-spacing:-0.01em; }
+.fg .tpr .xp-who b { display:block; font-size:14px; font-weight:700; }
 .fg .tpr .xp-who em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-top:2px; }
 .fg .tpr .xp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fg .tpr .xp-pick { display:flex; align-items:center; gap:8px; }
@@ -3486,7 +3484,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fl-modal button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 .fl-modal svg.i { display:block; flex:0 0 auto; }
 .fl-mh { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 12px; background:#fff; border-bottom:1px solid #f5f6f8; }
-.fl-mh b { display:block; font-size:20px; font-weight:700; letter-spacing:-0.01em; color:#050505; }
+.fl-mh b { display:block; font-size:20px; font-weight:700; color:#050505; }
 .fl-mh em { font-style:normal; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--q); margin-top:4px; }
 /* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
    ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
@@ -3880,7 +3878,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    Deliberately quiet: a hint, not a task list. */
 .fg .hol-sug { margin-top:16px; border:1px dashed rgba(10,11,16,.14); border-radius:16px; background:#fafbfc; overflow:hidden; }
 .fg .hol-sugh { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:12px 16px; font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .hol-sugh span { font-size:12px; font-weight:600; color:var(--gray400); text-transform:none; letter-spacing:0; }
+.fg .hol-sugh span { font-size:12px; font-weight:600; color:var(--gray400); text-transform:none; }
 .fg .hol-sugrow { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid rgba(10,11,16,.05); }
 .fg .hol-sugy { min-width:44px; font-size:13px; font-weight:700; color:var(--gray400); }
 .fg .hol-sugmain { flex:1; min-width:0; }
@@ -3925,8 +3923,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    baked-in gradient would show its seams on two of the three. Font is
    inherited — Jakarta, never mono; a plate reads as a plate because of the
    slab and the tracking, not because of a typeface that isn't in the app. */
-.au-plate { display:inline-flex; align-items:center; gap:8px; width:fit-content; padding:4px 8px; border-radius:6px; background:#f8f9fb; border:1.5px solid #d7dae0; box-shadow:inset 0 -2px 0 rgba(10,11,16,.06); font-size:13px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--ink); white-space:nowrap; }
-.au-plate .st { padding-left:8px; border-left:1px solid #d7dae0; font-size:12px; font-weight:700; letter-spacing:.1em; color:var(--q); }
+.au-plate { display:inline-flex; align-items:center; gap:8px; width:fit-content; padding:4px 8px; border-radius:6px; background:#f8f9fb; border:1.5px solid #d7dae0; box-shadow:inset 0 -2px 0 rgba(10,11,16,.06); font-size:13px; font-weight:700; text-transform:uppercase; color:var(--ink); white-space:nowrap; }
+.au-plate .st { padding-left:8px; border-left:1px solid #d7dae0; font-size:12px; font-weight:700; color:var(--q); }
 .au-plate.sm { padding:4px 8px; font-size:12px; }
 .au-plate.sm .st { font-size:12px; }
 
@@ -3985,7 +3983,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    nothing and reads first, which is the right order for the one thing on this
    card that changes by itself. */
 .fg .idc .idc-state { flex:0 0 auto; padding:4px 12px; border-radius:999px; border:1px solid transparent;
-  font-size:12px; font-weight:700; letter-spacing:.01em; white-space:nowrap; }
+  font-size:12px; font-weight:700; white-space:nowrap; }
 .fg .idc.light .idc-state.ok { background:var(--ok-tint); color:var(--ok-t); border-color:var(--ok-tint); }
 .fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:var(--warn-t); border-color:rgba(240,164,49,.32); }
 .fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
@@ -4006,7 +4004,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc.light .idc-photo .inn { background:#f3f4f7; color:var(--ink); }
 .fg .idc .idc-photo .inn { font-size:24px; font-weight:700; letter-spacing:-.02em; }
 .fg .idc .idc-who { min-width:0; }
-.fg .idc .idc-who b { display:block; font-size:20px; font-weight:700; letter-spacing:-.02em; line-height:1.15; overflow-wrap:anywhere; }
+.fg .idc .idc-who b { display:block; font-size:20px; font-weight:700; line-height:1.15; overflow-wrap:anywhere; }
 .fg .idc .idc-who em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
 .fg .idc.light .idc-who em { color:var(--gray500); }
 .fg .idc .idc-pill { display:inline-flex; color:#2554d8; font-size:14px; font-weight:500; }
@@ -4032,8 +4030,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .credgrid { margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:12px; }
 .fg .cred { position:relative; background:#fff; border:1px solid #f0f0f2; border-radius:16px; padding:16px; font-variant-numeric:tabular-nums; }
 .fg .cred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-.fg .cred-top b { font-size:14px; font-weight:700; letter-spacing:-.01em; overflow-wrap:anywhere; }
-.fg .cred-badge { flex:0 0 auto; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700; letter-spacing:.06em; }
+.fg .cred-top b { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
+.fg .cred-badge { flex:0 0 auto; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700; }
 .fg .cred-no { margin-top:8px; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .cred-no.none { color:#c1c6d0; font-weight:600; }
 .fg .cred-foot { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -4060,7 +4058,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .ro-rows { display:flex; flex-direction:column; }
 .fg .ro-row { display:flex; align-items:baseline; gap:16px; padding:12px 2px; border-bottom:1px solid #f4f5f7; }
 .fg .ro-row:last-child { border-bottom:none; }
-.fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--gray700); }
+.fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .ro-row .num { font-variant-numeric:tabular-nums; }
 /* "Not set" — a fourth way past the -t text guard, and one this screen made
@@ -4195,7 +4193,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* the day's colour, inset so it reads inside the seat rather than as an edge
    of it — at the old top:0 it would now sit on the pill's rounded corner */
 .fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:999px; background:var(--dc); }
-.fg .mts2-tab .cw { font-size:12px; font-weight:700; letter-spacing:.07em; color:var(--gray400); }
+.fg .mts2-tab .cw { font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .mts2-tab .cd { font-size:16px; font-weight:700; line-height:1; color:var(--ink); }
 .fg .mts2-tab .cs { font-size:12px; font-weight:700; color:var(--gray500); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 /* The tint is composited OVER WHITE, not laid on as a translucent background.
@@ -4283,7 +4281,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    white pill above it the only thing marking which day it belongs to. */
 .fg .mts2-panel { background:rgba(5,5,5,.03); border-radius:16px; margin-top:8px; animation:tprUp .2s ease backwards; }
 .fg .mts2-phead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 16px 0; }
-.fg .mts2-pd { font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+.fg .mts2-pd { font-size:16px; font-weight:700; color:var(--ink); }
 
 /* ---- the legend ----
    `.mts2-legend`/`.mts2-lg` are GONE: this screen renders the shared
@@ -4295,7 +4293,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    reference row, whose grid places it, so there is no spacing to restate. */
 
 /* the kind pill — the `.tpr` day palette, restated as a tinted pill */
-.fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 8px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:-.01em; white-space:nowrap; }
+.fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 8px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
 .fg .mts2-pill.std { background:rgba(34,197,94,.16); color:#04564a; }
 .fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#a44b08); }
 .fg .mts2-pill.under { background:rgba(244,114,182,.16); color:#9d174d; }
@@ -4381,8 +4379,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    on the svg inside it positions nothing. `justify-content` instead. */
 .fg .mts2-fieldhd > span:last-child { flex:none; display:inline-flex; color:var(--gray400); }
 .fg .mts2-fieldv { display:flex; flex-direction:column; gap:1px; min-width:0; }
-.fg .mts2-fieldl { font-size:12px; font-weight:700; color:var(--gray500); letter-spacing:.02em; }
-.fg .mts2-fieldt { font-size:20px; font-weight:700; color:var(--ink); letter-spacing:-.02em;
+.fg .mts2-fieldl { font-size:12px; font-weight:700; color:var(--gray500); }
+.fg .mts2-fieldt { font-size:20px; font-weight:700; color:var(--ink);
   font-variant-numeric:tabular-nums; }
 @media (max-width:640px) { .fg .mts2-fields { grid-template-columns:1fr; } }
 
@@ -4443,7 +4441,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    place on this screen setting a time with two wheels at once. Every time on
    the screen is a field now, and its one wheel lives in the drop. */
 .fg .mts2-nh { margin-top:8px; }
-.fg .mts2-nh b { display:block; font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .mts2-nh b { display:block; font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .mts2-nh em { display:block; margin-top:4px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .mts2-nh em:first-of-type { color:var(--gray700); font-weight:700; }
 
@@ -4600,7 +4598,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .cal-pop { position:fixed; z-index:200; width:300px; padding:12px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 20px 50px -20px rgba(0,0,0,.35); animation:calPop .16s ease; }
 @keyframes calPop { from { opacity:0; transform:translateY(-4px); } }
 .fg .cal-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-.fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .cal-arw { width:30px; height:30px; flex:0 0 auto; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:var(--line); }
 .fg .cal-arw:disabled { opacity:.35; cursor:not-allowed; }
@@ -4656,7 +4654,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg a.adm-row:hover { background:#fafbfc; }
 .fg .adm-ic { flex:0 0 auto; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
 .fg .adm-main { flex:1; min-width:0; }
-.fg .adm-main b { display:block; font-size:16px; font-weight:700; letter-spacing:-0.01em; color:var(--ink); }
+.fg .adm-main b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
 .fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
 .fg .adm-ch { flex:0 0 auto; display:flex; color:var(--gray400); transition:transform var(--t-move) var(--ease); }
 .fg a.adm-row:hover .adm-ch { }
@@ -4733,7 +4731,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-tenant input { accent-color:var(--ink); width:16px; height:16px; }
 
 .fg .int-uses { display:flex; flex-direction:column; gap:16px; }
-.fg .int-use b { font-size:14px; font-weight:700; letter-spacing:-0.01em; }
+.fg .int-use b { font-size:14px; font-weight:700; }
 .fg .int-use p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
 
 /* One row per scope: the literal string Xero will show, the area it serves,
@@ -4776,7 +4774,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .sp-check { width:16px; flex:0 0 auto; display:flex; align-items:center; }
 .fg .sp-check input { width:15px; height:15px; accent-color:var(--ink); }
 .fg .sp-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
-.fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; letter-spacing:-0.01em; }
+.fg .sp-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
 .fg .sp-main em { font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); overflow-wrap:anywhere; }
 .fg .sp-sug { margin-top:2px; font-size:13px; font-weight:700; color:#00806c; }
 .fg .sp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
@@ -4805,7 +4803,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-consent p { margin:0; font-size:13px; font-weight:600; line-height:1.55; }
 .fg .int-consent b { font-weight:700; color:var(--gray700); }
 .fg .int-danger { margin:0 0 4px; padding:16px 16px; border-radius:16px; border:1.5px solid rgba(224,38,79,.28); background:rgba(255,51,102,.05); }
-.fg .int-danger > b { display:block; font-size:14px; font-weight:700; letter-spacing:-0.01em; color:var(--bad-t); }
+.fg .int-danger > b { display:block; font-size:14px; font-weight:700; color:var(--bad-t); }
 .fg .int-danger ul { margin:8px 0 0; padding-left:16px; }
 .fg .int-danger li { margin-top:4px; font-size:13px; font-weight:600; line-height:1.55; color:var(--gray600, var(--gray500)); }
 .fg .int-danger .int-hint { margin:8px 0 0; }
@@ -5030,7 +5028,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgcol-well { position:absolute; inset:3.5px; background:#fff;
   border-radius:calc(6px - 3.5px); pointer-events:none; }
 .fg .orgcol-page { position:relative; padding:12px 16px 0; display:flex; flex-direction:column; gap:4px; }
-.fg .orgcol-page b { font-size:12px; font-weight:700; letter-spacing:-.01em; color:#16181d; }
+.fg .orgcol-page b { font-size:12px; font-weight:700; color:#16181d; }
 .fg .orgcol-page span { font-size:12px; font-weight:600; color:var(--ink); }
 .fg .orgcol-page i { display:block; height:3px; border-radius:999px; background:#eef0f3; margin-top:4px; }
 .fg .orgcol-page i.short { width:58%; }
@@ -5051,7 +5049,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 @media (max-width:640px){ .fg .orgacct { grid-template-columns:1fr; gap:16px; } }
 .fg .orgacct-f { display:block; min-width:0; }
 .fg .orgacct-f em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
-.fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:16px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:16px; font-weight:700; color:var(--ink); }
 .fg .orgacct-f i { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
 .fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:6px;
@@ -5076,10 +5074,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .ownrow.on { border-color:var(--ink); background:var(--tint); box-shadow:var(--ring); }
 .fg .ownrow:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .ownrow-k { flex:1; min-width:0; display:block; }
-.fg .ownrow-k b { display:block; font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.fg .ownrow-k b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .ownrow-k i { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
 .fg .ownrow-r { flex:0 0 auto; height:22px; padding:0 8px; display:inline-flex; align-items:center; border-radius:6px;
-  background:rgba(5,5,5,.06); color:var(--gray700); font-size:12px; font-weight:700; letter-spacing:.02em; }
+  background:rgba(5,5,5,.06); color:var(--gray700); font-size:12px; font-weight:700; }
 .fg .ownrow-t { flex:0 0 auto; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   background:var(--ink); color:var(--paper); }
 /* What the choice costs, in the neutral panel rather than in a warning tone:
@@ -5087,7 +5085,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    consequence would blunt it where it means "something needs you". */
 .fg .ownwarn { margin-top:16px; padding:12px 16px; border-radius:16px; background:rgba(5,5,5,.035);
   display:flex; flex-direction:column; gap:8px; }
-.fg .ownwarn b { font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.fg .ownwarn b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .ownwarn span { font-size:13px; font-weight:600; line-height:1.55; color:var(--gray700); }
 
 /* Colour swatches in the credential modal. Scoped like every field beside
@@ -5183,7 +5181,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:24px; margin-bottom:24px; border-radius:16px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,var(--tint),#fff); }
 .fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
 .fg .xc-startk { flex:1 1 240px; min-width:0; }
-.fg .xc-startk b { display:block; font-size:16px; font-weight:700; letter-spacing:-0.01em; }
+.fg .xc-startk b { display:block; font-size:16px; font-weight:700; }
 .fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:4px; line-height:1.5; }
 .fg .xc-startb { display:flex; flex-wrap:wrap; gap:8px; flex:0 0 auto; }
 /* WHOSE MONEY — the form's first row, above the receipt, because it decides
@@ -5219,7 +5217,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-pdf { display:inline-flex; align-items:center; gap:8px; min-width:0; padding:12px 16px; border-radius:16px; border:1px solid #eef0f4; background:#fafbfc; font-size:14px; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
 .fg .xc-pdf .i { flex:0 0 auto; color:var(--gray500); }
 .fg .xc-attk { flex:1 1 220px; min-width:0; }
-.fg .xc-attk b { display:block; font-size:14px; font-weight:700; letter-spacing:-0.01em; }
+.fg .xc-attk b { display:block; font-size:14px; font-weight:700; }
 .fg .xc-attk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:4px; line-height:1.5; }
 .fg .xc-attb { display:flex; flex-wrap:wrap; gap:8px; flex:0 0 auto; margin-left:auto; }
 
@@ -5236,7 +5234,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* a decided claim steps back — it is history, not something to act on */
 .fg .xc-row.reimbursed, .fg .xc-row.cancelled, .fg .xc-row.declined { background:#fafbfc; box-shadow:none; }
 .fg .xc-main { flex:1 1 220px; min-width:0; }
-.fg .xc-main b { display:block; font-size:14px; font-weight:700; letter-spacing:-0.01em; }
+.fg .xc-main b { display:block; font-size:14px; font-weight:700; }
 .fg .xc-main em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
 .fg .xc-note { margin:8px 0 0; padding:8px 12px; border-radius:10px; background:#f4f5f7; font-size:13px; font-weight:600; color:var(--gray700); line-height:1.5; }
 /* Where a claim came from, when it came from somewhere. Quieter than a review
@@ -5244,8 +5242,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    above it so the order reads origin, then conversation. */
 .fg .xc-from { display:flex; align-items:center; gap:4px; margin:8px 0 0; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.4; }
 .fg .xc-from .i { flex:0 0 auto; color:var(--gray500); }
-.fg .xc-amt { flex:0 0 auto; text-align:right; font-size:16px; font-weight:700; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
-.fg .xc-amt span { display:block; font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; letter-spacing:0; }
+.fg .xc-amt { flex:0 0 auto; text-align:right; font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .xc-amt span { display:block; font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; }
 .fg .xc-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
 .fg .xc-pill { font-size:14px; font-weight:500; white-space:nowrap; color:var(--gray500); }
 /* semantic state, never the page accent */
@@ -5370,7 +5368,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .wb-projhead { display:flex; align-items:center; gap:8px; }
 /* Two lines, not an ellipsis: a job name is how someone FINDS the card, and
    "Harbour View Rd — ducted chang…" is exactly the half that doesn't help. */
-.wb-projhead b { font-size:16px; font-weight:700; letter-spacing:-0.01em; min-width:0; line-height:1.25; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+.wb-projhead b { font-size:16px; font-weight:700; min-width:0; line-height:1.25; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
 .wb-projsub { font-style:normal; color:var(--gray500); font-size:13px; }
 .wb-projmeta { display:flex; flex-wrap:wrap; gap:4px; }
 .wb-bar { height:6px; border-radius:999px; background:rgba(5,5,5,.07); overflow:hidden; }
@@ -5938,7 +5936,7 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-ci.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan); }
 .wb2-ci.ok { background:var(--ok-tint); color:#00806b; }
 .wb2-chd > div { min-width:0; }
-.wb2-chd b { display:block; font-size:16px; font-weight:700; letter-spacing:-.01em; }
+.wb2-chd b { display:block; font-size:16px; font-weight:700; }
 .wb2-chd em { display:block; font-style:normal; font-size:13px; color:var(--gray500); margin-top:2px; font-weight:500; }
 /* The status slot is pushed to the far right — DIRECT children only. As a
    descendant selector this also hit the chips INSIDE .wb2-mcsum, so the
@@ -5980,7 +5978,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    three outcomes because it looks like it worked. `balance` is what a capped
    two-line measure wants: `pretty` only protects the last line, and left this
    one reading "…as / it goes." */
-.wb2-empty em.wb2-emptybody { max-width:46ch; text-wrap:balance; }
+.wb2-empty em.wb2-emptybody { max-width:46ch; text-wrap:pretty; }
 /* The one empty state that offers an ACTION rather than just a reason. Spaced
    off the sentence above it so it reads as the next thing to do, not as the
    end of the paragraph. */
@@ -6002,12 +6000,12 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-trhd { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:12px; align-items:end; padding:8px 16px;
   border-bottom:1px solid var(--wb2-line); font-size:12px; font-weight:500; color:var(--q); }
 .wb2-trhd-ck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
-.wb2-trhd-ck em { display:block; font-style:normal; font-size:12px; font-weight:700; letter-spacing:0; color:var(--gray500);
+.wb2-trhd-ck em { display:block; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
   text-transform:none; text-align:center; padding-bottom:4px; border-bottom:2px solid var(--as, rgba(5,5,5,.2));
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-wkhd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-wkhd.dan { color:var(--wb2-dan-t); }
-.wb2-wkhd em { font-style:normal; font-size:12px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--q); }
+.wb2-wkhd em { font-style:normal; font-size:12px; font-weight:600; text-transform:none; color:var(--q); }
 /* BASELINE, not centre. A row mixes one-line cells with two-line ones, and
    centring made the one-liners float in the gap BETWEEN the two lines beside
    them — "Not placed" sat halfway between "Quarterly" and the due chip, which
@@ -6021,16 +6019,16 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-trj:hover { background:#fff; z-index:1; }
 .wb2-trj:focus-visible { outline:none; box-shadow:inset var(--ring); }
 .wb2-trj[data-sev="over"]:before, .wb2-trt { min-width:0; }
-.wb2-trt b { display:block; font-size:14px; font-weight:700; letter-spacing:-.01em; }
+.wb2-trt b { display:block; font-size:14px; font-weight:700; }
 .wb2-trt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:500; margin-top:2px;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-trref { font-size:12px; font-weight:700; color:var(--gray500); letter-spacing:-.01em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wb2-trcad { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.06em; color:var(--gray500);
+.wb2-trref { font-size:12px; font-weight:700; color:var(--gray500); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.wb2-trcad { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-trw { display:block; min-width:0; }
 .wb2-trw .wb2-chip { overflow:hidden; text-overflow:ellipsis; display:block; }
 .wb2-trd { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.wb2-trd b { font-size:13px; font-weight:700; letter-spacing:-.01em; }
+.wb2-trd b { font-size:13px; font-weight:700; }
 .wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-trd em.dan, .wb2-facts em.dan, .wb2-sched em.dan { color:var(--wb2-dan-t); }
 .wb2-av { width:18px; height:18px; border-radius:6px; background:rgba(5,5,5,.07); color:var(--gray700);
@@ -6079,7 +6077,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tkb:disabled { opacity:.5; cursor:default; }
 .wb2-tkb:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tkt { flex:1; min-width:0; }
-.wb2-tkt b { display:block; font-size:13px; font-weight:700; letter-spacing:-.005em; line-height:1.35; text-wrap:pretty; }
+.wb2-tkt b { display:block; font-size:13px; font-weight:700; line-height:1.35; text-wrap:pretty; }
 .wb2-tkt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; }
 .wb2-tk .wb2-chip { flex:none; }
 
@@ -6093,7 +6091,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-ur:hover { background:rgba(5,5,5,.022); }
 .wb2-ur:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-.wb2-urt b { font-size:14px; font-weight:700; letter-spacing:-.01em; line-height:1.3; text-wrap:pretty; }
+.wb2-urt b { font-size:14px; font-weight:700; line-height:1.3; text-wrap:pretty; }
 .wb2-urt em { font-style:normal; font-size:12px; color:var(--gray500); font-weight:500;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-urwhy { display:flex; align-items:center; gap:4px; flex-wrap:wrap; }
@@ -6146,7 +6144,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mcsum { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 /* the window label with its own arrows, the way a stepper should read */
 .wb2-mchead { display:flex; align-items:center; gap:8px; }
-.wb2-mchead b { font-size:16px; font-weight:700; letter-spacing:-.025em; }
+.wb2-mchead b { font-size:16px; font-weight:700; }
 .wb2-mcarrow { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:10px;
   border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
@@ -6239,7 +6237,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    to wrap. */
 .wb2-schweek { display:flex; align-items:center; justify-content:space-between; gap:8px;
   width:216px; flex:none; margin-left:0; }
-.wb2-schweek b { flex:1 1 auto; min-width:0; font-size:13px; font-weight:700; letter-spacing:-.01em;
+.wb2-schweek b { flex:1 1 auto; min-width:0; font-size:13px; font-weight:700;
   text-align:center; white-space:nowrap; }
 
 /* ── the narrow step ──
@@ -6264,7 +6262,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schday:hover:not(.on) { background:rgba(5,5,5,.045); }
 .wb2-schday:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schday .cw { font-size:12px; font-weight:500; color:var(--gray400); }
-.wb2-schday .cd { font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--gray700); font-variant-numeric:tabular-nums; }
+.wb2-schday .cd { font-size:16px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
 .wb2-schday .cn { min-height:16px; font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
 /* a day with nothing on says so in words — a bare 0 reads as a failed read */
 .wb2-schday.free .cn { color:rgba(5,5,5,.22); }
@@ -6302,7 +6300,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    anonymous flex item — a long name clipped mid-letter with no ellipsis. The
    name gets its own box to be truncated in. */
 .wb2-schn b { display:flex; align-items:center; gap:8px;
-  font-size:13px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
+  font-size:13px; font-weight:700; color:var(--ink);
   overflow:hidden; white-space:nowrap; }
 .wb2-schnn { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
@@ -6390,7 +6388,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schb:focus-visible { outline:none; box-shadow:var(--ring); z-index:4; }
 .wb2-schb b, .wb2-schb em, .wb2-schb i { color:var(--btext, var(--ink));
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3; }
-.wb2-schb b { font-size:12px; font-weight:700; letter-spacing:-.015em; }
+.wb2-schb b { font-size:12px; font-weight:700; }
 .wb2-schb em { font-style:normal; font-size:12px; font-weight:700; }
 .wb2-schb i { font-style:normal; font-size:12px; font-weight:600; }
 
@@ -6538,7 +6536,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 
 .wb2-scfh { display:flex; flex-direction:column; gap:4px; padding:0 2px 12px; }
 .wb2-scfh span { display:flex; align-items:center; gap:8px; min-width:0; }
-.wb2-scfh b { font-size:16px; font-weight:700; letter-spacing:-.025em; color:#050505;
+.wb2-scfh b { font-size:16px; font-weight:700; color:#050505;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-scfh u { flex:none; padding:2px 8px; border-radius:6px; text-decoration:none;
   font-size:12px; font-weight:700; background:rgba(5,5,5,.07); color:var(--ink);
@@ -6574,7 +6572,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scfcard::before { content:""; position:absolute; left:6px; top:10px; bottom:10px;
   width:4px; border-radius:999px; background:var(--bar, #7a818c); }
 .wb2-scfcard.done::before { display:none; }
-.wb2-scfcard b { font-size:14px; font-weight:700; letter-spacing:-.015em; color:var(--btext, #050505); }
+.wb2-scfcard b { font-size:14px; font-weight:700; color:var(--btext, #050505); }
 .wb2-scfcard span { font-size:12px; font-weight:700; color:#2b3038; font-variant-numeric:tabular-nums; }
 .wb2-scfcard em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:#57616f; }
 
@@ -6603,8 +6601,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schnow { position:absolute; top:0; bottom:0; width:2px; background:var(--ink); z-index:5; pointer-events:none; }
 .wb2-schnow::before { content:attr(data-now); position:absolute; top:8px; left:1px;
   transform:translateX(-50%); padding:2px 8px; border-radius:999px;
-  background:var(--ink); color:#fff; font-size:12px; font-weight:700;
-  letter-spacing:.03em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  background:var(--ink); color:#fff; font-size:12px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
 /* ── the foot: the legend for this day, and the queue cross-link ── */
 .wb2-schfoot { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:12px 16px 16px; border-top:1px solid var(--wb2-line2); }
@@ -6746,7 +6743,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 
 .wb2-scdh { flex:none; display:flex; align-items:center; gap:12px; padding:16px 16px 12px; }
 .wb2-scdh span { display:flex; align-items:baseline; gap:8px; min-width:0; }
-.wb2-scdh b { font-size:16px; font-weight:700; letter-spacing:-.025em; color:#050505; }
+.wb2-scdh b { font-size:16px; font-weight:700; color:#050505; }
 .wb2-scdh em { font-style:normal; font-size:12px; font-weight:700; color:#57616f;
   font-variant-numeric:tabular-nums; }
 .wb2-scdx { margin-left:auto; flex:none; width:28px; height:28px; display:grid; place-items:center;
@@ -6775,7 +6772,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scdjob:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scdjh { display:flex; align-items:center; gap:8px; }
 .wb2-scdjh b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  font-size:14px; font-weight:700; letter-spacing:-.015em; color:var(--btext, #050505); }
+  font-size:14px; font-weight:700; color:var(--btext, #050505); }
 .wb2-scdjh u { flex:none; text-decoration:none; padding:1px 8px; border-radius:6px;
   background:var(--chip, rgba(5,5,5,.06)); font-size:12px; font-weight:700; color:var(--ink);
   font-variant-numeric:tabular-nums; }
@@ -6836,7 +6833,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .wb2-dn.can-open:hover { border-color:rgba(5,5,5,.2); }
 .wb2-dn:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-dnt b { display:block; font-size:14px; font-weight:700; letter-spacing:-.01em; }
+.wb2-dnt b { display:block; font-size:14px; font-weight:700; }
 .wb2-dnt em, .wb2-dnw em, .wb2-dnh em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dnw b, .wb2-dnh b { font-size:13px; font-weight:700; }
 /* The note sits in its own well and SIGNS ITSELF — a close-out note whose
@@ -6854,7 +6851,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-agrp[data-accent="blue"] .wb2-aghd i { background:var(--ink); color:var(--paper); }
 .wb2-agrp[data-accent="pink"] .wb2-aghd i { background:#C4419B; }
 .wb2-agrp[data-accent="slate"] .wb2-aghd i { background:var(--q); }
-.wb2-aghd em { font-style:normal; font-size:12px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--q); }
+.wb2-aghd em { font-style:normal; font-size:12px; font-weight:600; text-transform:none; color:var(--q); }
 /* Six columns: who and what, how often, when it last ran, when it's next,
    what follows, and how it's labelled. Last-done and Then are what turn a
    cadence word into an actual rhythm. */
@@ -6873,7 +6870,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
   padding:12px 16px; border-bottom:1px solid var(--wb2-line2); text-decoration:none; color:inherit; transition:background var(--t-fast) var(--ease); }
 .wb2-agr:hover { background:rgba(5,5,5,.018); }
 .wb2-agrp:last-child .wb2-agr:last-child { border-bottom:0; }
-.wb2-agcad { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.06em; color:var(--gray500); }
+.wb2-agcad { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-agtags { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-self:start; }
 
 /* ── tags — the stored colour, worn everywhere the same (B2) ── */
@@ -6888,7 +6885,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tag.t-slate { background:rgba(100,116,139,.12); border-color:rgba(100,116,139,.3); color:var(--ink); }
 .wb2-tag.on button { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; border:0; background:none;
   color:inherit; opacity:.55; cursor:pointer; transition:opacity var(--t-fast) var(--ease); }
-.wb2-tag.on button:hover { opacity:1; }
+.wb2-tag.on button:hover, .wb2-tag.on button:focus-within { opacity:1; }
 .wb2-tag.add { color:var(--ink); border:1px dashed rgba(0,137,184,.45); background:none; cursor:pointer; font:inherit; font-size:12px; font-weight:700; }
 .wb2-tag.add:hover { background:rgba(0,168,224,.07); border-color:var(--ink); }
 .wb2-tag.sug { cursor:pointer; }
@@ -7018,8 +7015,8 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    auto margin on the × has no slack left to work with and the chips sit
    where they were put. */
 .wb2-shno { flex:none; padding:4px 8px; border-radius:6px; background:rgba(0,168,224,.09); color:var(--ink);
-  font-size:13px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
-.wb2-shname { flex:1 1 220px; min-width:0; margin:0; font-size:20px; font-weight:700; letter-spacing:-.03em;
+  font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.wb2-shname { flex:1 1 220px; min-width:0; margin:0; font-size:20px; font-weight:700;
   line-height:1.2; text-wrap:pretty; }
 .wb2-shchips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 /* the rail's "!" disc, at chip scale — the one schedule state that is
@@ -7038,7 +7035,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    two facts now (service time, crew size), so the row sizes itself */
 .wb2-facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(142px, 1fr)); gap:12px; margin-top:16px; }
 .wb2-facts > div { display:flex; flex-direction:column; gap:4px; padding:12px 12px; border-radius:10px; background:rgba(5,5,5,.026); }
-.wb2-facts b { font-size:16px; font-weight:700; letter-spacing:-.015em; }
+.wb2-facts b { font-size:16px; font-weight:700; }
 .wb2-facts em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-facts .wb2-colink { margin-top:1px; }
 /* an editor the size of the thing it edits, rather than a form that opens */
@@ -7052,7 +7049,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    half of it. */
 .wb2-sched { display:flex; flex-direction:column; gap:4px; padding:12px 12px; margin-bottom:12px;
   border-radius:10px; background:rgba(5,5,5,.026); }
-.wb2-sched b { font-size:16px; font-weight:700; letter-spacing:-.015em; }
+.wb2-sched b { font-size:16px; font-weight:700; }
 .wb2-sched b.none { color:var(--gray500); }
 .wb2-sched em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-sherr { margin:12px 24px 0; padding:8px 12px; border-radius:10px; background:rgba(224,38,79,.07);
@@ -7237,7 +7234,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
 .wb2-jcatttext { min-width:0; display:flex; flex-direction:column; gap:1px; }
 /* ONE LINE EACH. A strip is a glance, and a row that wraps to three lines
    has become the diary entry it is meant to point at. */
-.wb2-jcatttext b { font-size:13px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
+.wb2-jcatttext b { font-size:13px; font-weight:700; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-jcatttext em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -7343,7 +7340,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
 }
 /* the lead is the verdict — one sentence in ink, a step up from the lines
    under it */
-.wb2-jcups-lead { margin:8px 0 0; font-size:16px; font-weight:700; letter-spacing:-.015em;
+.wb2-jcups-lead { margin:8px 0 0; font-size:16px; font-weight:700;
   color:var(--ink); line-height:1.45; max-width:68ch; text-wrap:pretty; }
 /* one fact per line, a quiet dot to hang each on */
 .wb2-jcups-pts { margin:8px 0 0; padding:0; list-style:none; max-width:68ch;
@@ -7359,7 +7356,7 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
   color:var(--ink); font-size:12px; font-weight:700; display:inline-flex; align-items:center;
   justify-content:center; flex:none; }
 .wb2-cwho { min-width:0; flex:1; display:flex; flex-direction:column; }
-.wb2-cwho b { font-size:14px; font-weight:700; letter-spacing:-.01em; }
+.wb2-cwho b { font-size:14px; font-weight:700; }
 .wb2-cwho em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-ccalls { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
 .wb2-ccall { display:inline-flex; align-items:center; height:26px; padding:0 12px; border-radius:6px;
@@ -7371,7 +7368,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-jcpo b { font-size:14px; font-weight:700; }
 /* ── the diary ── */
 .wb2-jcdhead { display:flex; align-items:baseline; gap:8px; }
-.wb2-jcdhead b { font-size:16px; font-weight:700; letter-spacing:-.02em; }
+.wb2-jcdhead b { font-size:16px; font-weight:700; }
 .wb2-jcdhead em { margin-left:auto; font-style:normal; font-size:12px; font-weight:500; color:var(--q); white-space:nowrap; }
 /* the day markers wear a hairline rule out to the card's edge */
 .wb2-jcday { display:flex; align-items:center; gap:8px; margin:16px 0 2px 32px;
@@ -7396,7 +7393,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-evdot.ok { background:var(--ok-tint); border-color:var(--ok-tint); color:#00806b; }
 .wb2-evdot.cy { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.25); color:var(--ink); }
 .wb2-evb { min-width:0; padding-top:4px; }
-.wb2-evhd { font-size:14px; font-weight:700; letter-spacing:-.01em; }
+.wb2-evhd { font-size:14px; font-weight:700; }
 .wb2-evhd .wb2-chip { margin-left:8px; vertical-align:middle; }
 .wb2-evamt { color:#00806b; font-variant-numeric:tabular-nums; }
 .wb2-evmeta { margin-top:1px; font-size:12px; font-weight:600; color:var(--gray500); }
@@ -7436,7 +7433,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 /* the next booking, first over the past visits, in the accent */
 .wb2-nextv { display:flex; flex-direction:column; gap:4px; padding:12px 12px;
   border-radius:10px; background:rgba(0,168,224,.07); }
-.wb2-nextv b { font-size:16px; font-weight:700; letter-spacing:-.015em; color:var(--ink); }
+.wb2-nextv b { font-size:16px; font-weight:700; color:var(--ink); }
 .wb2-nextv em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* WHAT SOMEBODY IS, after their name — quieter than the name, and the
    separator belongs to the CSS so a title can be absent without leaving a
@@ -7504,7 +7501,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
    find out what they are looking at. */
 .wb2-shnos { position:relative; display:inline-flex; align-items:center; gap:4px; flex:none; }
 .wb2-shnos > button.wb2-shno { border:0; font:inherit; cursor:pointer;
-  font-size:13px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+  font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-shnos > button.wb2-shno:hover { background:rgba(0,168,224,.16); }
 .wb2-shnos > button.wb2-shno:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-shno.here { background:rgba(122,90,248,.12); color:#5b3fd0; }
@@ -7558,18 +7555,18 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
 .wb2-clsp { flex:1; }
 .wb2-clhd { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px;
   padding:8px 16px 12px; border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
-.wb2-clhd > b { grid-column:1; font-size:16px; font-weight:700; letter-spacing:-.025em; }
+.wb2-clhd > b { grid-column:1; font-size:16px; font-weight:700; }
 .wb2-clhd > em { grid-column:1; font-style:normal; font-size:12px; font-weight:600;
   color:var(--gray500); }
 .wb2-clamt { grid-column:2; grid-row:1 / span 2; align-self:center; font-size:20px;
-  font-weight:700; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-clbody { display:flex; flex-direction:column; gap:16px; padding:16px 16px 16px; }
 .wb2-clgrp { display:flex; flex-direction:column; }
 .wb2-clgrp > .wb2-sect { margin-bottom:4px; }
 /* a file that arrived on a progress claim and rose to the job */
 .wb2-mfrom { position:absolute; left:4px; bottom:4px; text-decoration:none;
   background:rgba(122,90,248,.92); color:#fff; font-size:12px; font-weight:700;
-  padding:2px 4px; border-radius:6px; letter-spacing:.01em; font-variant-numeric:tabular-nums; }
+  padding:2px 4px; border-radius:6px; font-variant-numeric:tabular-nums; }
 /* the ways out of the job, behind the ⋯ — a once-per-job act, off the floor */
 .wb2-shmenu { position:relative; margin-left:auto; }
 .wb2-shtop .wb2-shmenu .wb2-ico { margin-left:0; }
@@ -7633,7 +7630,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    way the photos deserve; the trailing spacer stops the last row
    stretching. */
 .wb2-mday { display:flex; align-items:baseline; gap:8px; margin:2px 0 8px; }
-.wb2-mday b { font-size:13px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.wb2-mday b { font-size:13px; font-weight:700; color:var(--ink); }
 .wb2-mday em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-mosaic { display:flex; flex-wrap:wrap; gap:4px; }
 /* THE CELL CARRIES THE SHAPE, the tile fills it. A button cannot contain a
@@ -7890,7 +7887,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-showimg img { width:100%; height:100%; object-fit:cover; display:block; }
 .wb2-showpending { position:absolute; inset:0; display:grid; place-items:center; color:var(--gray400); }
 .wb2-showtag { position:absolute; left:7px; bottom:7px; padding:4px 8px; border-radius:999px;
-  font-size:12px; font-weight:700; letter-spacing:.02em; color:#fff; text-decoration:none;
+  font-size:12px; font-weight:700; color:#fff; text-decoration:none;
   box-shadow:0 2px 8px rgba(0,0,0,.28); }
 .wb2-showcard figcaption { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .wb2-showcard figcaption b { font-size:13px; font-weight:700; line-height:1.35;
@@ -8005,7 +8002,7 @@ button.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
   width:30px; height:30px; border-radius:10px; background:rgba(5,5,5,.045); color:var(--gray500); }
 a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
 .wb2-doc-b { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
-.wb2-doc-b b { font-size:14px; font-weight:600; letter-spacing:-.01em; min-width:0;
+.wb2-doc-b b { font-size:14px; font-weight:600; min-width:0;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-doc-b em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -8140,7 +8137,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-corow { display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
 /* the day it ran STATES itself — the picker is the exception, not the ask */
 .wb2-coday { display:flex; flex-direction:column; gap:4px; flex:1; min-width:150px; }
-.wb2-coday b { font-size:16px; font-weight:700; letter-spacing:-.015em; }
+.wb2-coday b { font-size:16px; font-weight:700; }
 .wb2-colink { align-self:flex-start; padding:0; border:0; background:none; font:inherit; font-size:12px;
   font-weight:700; color:var(--ink); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   text-decoration-color:rgba(0,127,168,.35); transition:color var(--t-fast) var(--ease), text-decoration-color var(--t-fast) var(--ease); }
@@ -8268,7 +8265,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-dc.mini:before { background:transparent; }
 .wb2-dc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-dch { display:flex; align-items:center; gap:8px; }
-.wb2-dch b { font-size:14px; font-weight:700; letter-spacing:-.015em; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-dch b { font-size:14px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dch em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-dcs { font-size:12px; color:var(--gray500); font-weight:600; text-wrap:pretty; }
 .wb2-dcck { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
@@ -8299,14 +8296,14 @@ span.wb2-ck { cursor:default; }
 .wb2-formgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px 12px; }
 .wb2-formgrid .wide { grid-column:1/-1; }
 .wb2-formgrid.eq { grid-template-columns:1.4fr 1fr 1fr 1fr auto; align-items:center; margin-top:8px; }
-.wb2-fl .wb2-fi, .wb2-fl .wb2-sel, .wb2-fl .wb2-notes { width:100%; letter-spacing:normal; text-transform:none; font-size:13px; }
+.wb2-fl .wb2-fi, .wb2-fl .wb2-sel, .wb2-fl .wb2-notes { width:100%; text-transform:none; font-size:13px; }
 .wb2-fl .wb2-notes { margin-bottom:0; }
 .wb2-flcheck { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray700); align-self:end; padding:8px 0; cursor:pointer; }
 .wb2-flcheck input { width:16px; height:16px; accent-color:var(--ink2); }
 .wb2-eqlist { display:grid; gap:8px; }
 .wb2-eqrow { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:10px; }
 .wb2-eqrow .wb2-trt { flex:1; min-width:0; }
-.wb2-agbook { margin-left:auto; display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:0; }
+.wb2-agbook { margin-left:auto; display:flex; align-items:center; gap:8px; text-transform:none; }
 .wb2-agbook .wb2-fi { height:32px; padding:0 8px; font-size:12px; }
 .wb2-dnact { display:flex; flex-direction:column; align-items:flex-end; gap:8px; justify-self:end; }
 .wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
@@ -8339,7 +8336,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 .wb2-ajmoney b { font-size:13px; font-weight:700; }
 .wb2-ajmoney em { font-style:normal; color:var(--gray400); }
 /* The section rule doubles as a header when it carries a subtitle. */
-.wb2-sect em { display:block; font-style:normal; letter-spacing:0; text-transform:none;
+.wb2-sect em { display:block; font-style:normal; text-transform:none;
   font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; }
 /* ── the universal search's answers ──
    Rows are the All jobs ledger row verbatim, so a result reads as the same
@@ -8617,7 +8614,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-aimx { display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:18px; height:18px; margin-left:2px; border:0; border-radius:6px; padding:0;
   background:transparent; color:inherit; opacity:.55; cursor:pointer; transition:background-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-aimx:hover { opacity:1; background:rgba(0,137,184,.16); }
+.wb2-aimx:hover, .wb2-aimx:focus-within { opacity:1; background:rgba(0,137,184,.16); }
 .wb2-aimx:focus-visible { outline:none; opacity:1; box-shadow:var(--ring); }
 
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }
@@ -9016,7 +9013,7 @@ html[data-wb-display] .wb2-mcdots { margin-top:8px; flex-direction:column; align
 html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; display:block; min-width:0; font-style:normal;
   padding:4px 8px; border-radius:10px; background:rgba(5,5,5,.045); }
 html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-html[data-wb-display] .wb2-mcdots i > b { font-size:13px; font-weight:700; letter-spacing:-.012em; color:var(--ink); }
+html[data-wb-display] .wb2-mcdots i > b { font-size:13px; font-weight:700; color:var(--ink); }
 html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:var(--tint); }
 html[data-wb-display] .wb2-mcdots i[data-tone="soon"] { background:rgba(255,138,0,.12); }
@@ -9047,7 +9044,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-bar { display:block; height:7px; border-radius:999px; background:rgba(5,5,5,.08); overflow:hidden; }
 .wb2-bar i { display:block; height:100%; border-radius:999px; background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
 .wb2-plmoney { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.wb2-plmoney b { font-size:13px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums;
+.wb2-plmoney b { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-plmoney em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-plchips { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
@@ -9133,10 +9130,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tx-catname { flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .tx-catcount { flex:none; min-width:26px; padding:2px 8px; border-radius:999px; background:#f4f5f7; font-size:12px; font-weight:700; color:var(--gray500); text-align:center; }
 .fg .tx-catgst { flex:none; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:700; color:var(--ink); }
 
 .fg .tx-listhead { display:flex; align-items:center; gap:12px; margin:0 0 12px; }
-.fg .tx-listhead h2 { flex:1; margin:0; font-size:16px; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+.fg .tx-listhead h2 { flex:1; margin:0; font-size:16px; font-weight:700; color:var(--ink); }
 
 .fg .tx-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f5f6f8; }
 .fg .tx-item:first-child { border-top:0; }
@@ -9146,9 +9143,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.fg .tx-flag { flex:none; padding:2px 8px; border-radius:999px; background:rgba(240,164,49,.14); font-size:12px; font-weight:700; letter-spacing:.02em; color:#a56a05; }
+.fg .tx-flag { flex:none; padding:2px 8px; border-radius:999px; background:rgba(240,164,49,.14); font-size:12px; font-weight:700; color:#a56a05; }
 .fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
-.fg .tx-amt b { font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.fg .tx-amt b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .tx-amt em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* The row's verdict. An anchor when there is something to open, a span when
@@ -9235,8 +9232,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* ── buttons: one family, both roots ── */
 .fg .tk-btn, .tk-sheet .tk-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 16px;
-  border:1px solid transparent; border-radius:10px; font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700;
-  letter-spacing:-.01em; cursor:pointer; white-space:nowrap;
+  border:1px solid transparent; border-radius:10px; font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:var(--ink); color:var(--paper); box-shadow:none; }
 .fg .tk-btn.primary:hover:not(:disabled), .tk-sheet .tk-btn.primary:hover:not(:disabled) { background:#1d4ed8; }
@@ -9302,7 +9298,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-cin { position:relative; z-index:10; padding:16px 16px 12px; }
 .fg .tk-chd { display:flex; align-items:center; gap:12px; margin-bottom:8px; padding:0 4px; }
 .fg .tk-cic { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; flex:none; }
-.fg .tk-chd h2 { margin:0; font-size:14px; font-weight:700; letter-spacing:-.01em; line-height:1.2; color:var(--ink); }
+.fg .tk-chd h2 { margin:0; font-size:14px; font-weight:700; line-height:1.2; color:var(--ink); }
 .fg .tk-chd p { margin:2px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* ── a document ── */
@@ -9316,7 +9312,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    and the pill (or its absence) already says how the document is doing. */
 @media (max-width: 820px) { .fg .tk-row .tk-dot { display:none; } }
 .fg .tk-rt { display:inline-flex; align-items:center; gap:8px; max-width:100%; padding:0; border:0; background:none; text-align:left;
-  font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink);
+  font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700; color:var(--ink);
   cursor:pointer; transition:color var(--t-fast) var(--ease); }
 .fg .tk-rt svg { flex:none; opacity:0; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .tk-row:hover .tk-rt svg { opacity:.45; }
@@ -9327,7 +9323,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-rerr { margin:8px 0 0; font-size:13px; font-weight:700; color:#b31038; }
 .fg .tk-kind { flex:none; padding:4px 8px; border-radius:6px; background:rgba(5,5,5,.05); color:var(--gray700);
-  font-size:12px; font-weight:700; letter-spacing:.04em; }
+  font-size:12px; font-weight:700; }
 .fg .tk-rstate { flex:0 1 auto; min-width:0; }
 .fg .tk-acts { display:flex; align-items:center; gap:4px; flex:none; }
 
@@ -9335,7 +9331,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    for the assistant, and every OTHER row control is grey because it stays */
 .fg .tk-ask { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px; flex:none;
   border:1px solid var(--line); border-radius:999px; background:var(--tint); color:#1d4ed8;
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; letter-spacing:-.01em;
+  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700;
   white-space:nowrap; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tk-ask svg { flex:none; }
 .fg .tk-ask:hover { background:var(--ink); border-color:var(--ink); color:var(--paper); }
@@ -9350,7 +9346,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    result row that lost would render as the modal's stripped-bare button. */
 .fg .tk-find { display:inline-flex; align-items:center; justify-content:center; gap:4px; height:32px; padding:0 12px; flex:none;
   border:1px solid #e8e9ec; border-radius:999px; background:#fff; color:var(--gray700);
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; letter-spacing:-.01em;
+  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700;
   white-space:nowrap; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tk-find svg { flex:none; }
 .fg .tk-find:hover { background:#f6f7f9; border-color:#d8dade; color:var(--ink); }
@@ -9372,7 +9368,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fl-modal .tk-dshit:hover { background:var(--tint); border-color:#dbe3ee; }
 .fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink); box-shadow:var(--ring); }
 .fl-modal .tk-dsp { flex:none; display:inline-flex; align-items:center; gap:4px; padding-top:1px;
-  color:#1d4ed8; font-size:12px; font-weight:700; letter-spacing:-.01em; }
+  color:#1d4ed8; font-size:12px; font-weight:700; }
 .fl-modal .tk-dstxt { min-width:0; font-size:13px; font-weight:500; line-height:1.55; color:var(--ink); }
 .fl-modal .tk-dstxt b { display:block; margin-bottom:4px; font-size:13px; font-weight:700; color:var(--ink); }
 .fl-modal .tk-dstxt mark { padding:0 2px; border-radius:6px; background:rgba(255,214,0,.42); color:inherit; font-weight:700; }
@@ -9431,7 +9427,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .tk-sheet button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 .tk-shtop { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
   padding:24px 24px 16px; background:#fff; border-bottom:1px solid #f1f2f4; }
-.tk-shtop h2 { margin:0; font-size:20px; font-weight:700; letter-spacing:-.02em; }
+.tk-shtop h2 { margin:0; font-size:20px; font-weight:700; }
 .tk-shtop p { margin:4px 0 0; font-size:13px; font-weight:600; color:var(--gray500); }
 .tk-shx { width:34px; height:34px; flex:none; display:grid; place-items:center; border-radius:10px; background:#f1f2f4;
   border:1px solid #e6e8ee; color:var(--gray700); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
@@ -9588,7 +9584,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border:1px solid color-mix(in srgb, var(--tgc, var(--q)) 30%, transparent);
   background:color-mix(in srgb, var(--tgc, var(--q)) 9%, #fff);
   color:color-mix(in srgb, var(--tgc, var(--q)) 72%, var(--ink));
-  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; letter-spacing:.01em;
+  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700;
   white-space:nowrap; }
 .fg button.tgl-p { cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg button.tgl-p:hover { background:color-mix(in srgb, var(--tgc, var(--q)) 18%, #fff);
@@ -9623,7 +9619,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .tk-sheet .tgm-nopt { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .tk-sheet .tgm-d { width:12px; height:12px; flex:none; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.12); }
 .tk-sheet .tgm-grp > em { display:block; margin-bottom:8px; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
-.tk-sheet .tgm-grp > em span { margin-left:8px; color:var(--gray400); font-weight:700; letter-spacing:0; }
+.tk-sheet .tgm-grp > em span { margin-left:8px; color:var(--gray400); font-weight:700; }
 .tk-sheet .tgm-empty { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--gray400); }
 .tk-sheet .tgm-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px;
   transition:background var(--t-fast) var(--ease); }
@@ -9867,7 +9863,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:#e3e6ec; border:1px solid #d9dde4; }
 .fg .tk-modeb { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px;
   border:1px solid transparent; background:none; color:var(--gray500); font-family:var(--font-jakarta), sans-serif;
-  font-size:13px; font-weight:700; letter-spacing:-.01em; cursor:pointer;
+  font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tk-modeb:hover:not(:disabled):not(.on) { color:var(--ink); }
 .fg .tk-modeb.on { background:#fff; border-color:#e2e5ea; color:var(--ink);
@@ -10181,7 +10177,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* searched, nothing there — dimmed but still a way into the library */
 .fg .tk-rcat.dim { opacity:.55; }
-.fg .tk-rcat.dim:hover { opacity:1; }
+.fg .tk-rcat.dim:hover, .fg .tk-rcat.dim:focus-within { opacity:1; }
 
 /* the microline gives up the category colour while it has nothing to report */
 .fg .tk-rcat.searching .tk-rtx em,
@@ -10364,7 +10360,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid rgba(5,5,5,.06); }
 .wb2-kbqrow:last-child { border-bottom:0; }
 .wb2-kbqhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.wb2-kbqhead b { font-size:14px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+.wb2-kbqhead b { font-size:14px; font-weight:700; color:var(--ink); }
 .wb2-kbqbody { margin:0; font-size:13px; line-height:1.55; color:var(--gray700); max-width:70ch; }
 .wb2-kbqrow .wb2-noteact { justify-content:flex-start; }
 
@@ -10882,8 +10878,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-phead h1 { display:flex; align-items:baseline; flex-wrap:wrap; gap:16px;
   margin:0; font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1;
   color:var(--ink); }
-.fg .hm-pdate { position:relative; padding-left:16px; font-size:16px; font-weight:600;
-  letter-spacing:-.005em; color:var(--gray500); }
+.fg .hm-pdate { position:relative; padding-left:16px; font-size:16px; font-weight:600; color:var(--gray500); }
 /* the hairline is the pseudo, not a border, so it sizes off the CAP height of
    the date rather than the h1's 38px line box */
 .fg .hm-pdate::before { content:""; position:absolute; left:0; top:1px; bottom:1px;
@@ -11059,7 +11054,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-row[data-sev="soon"] .hm-rtile { background:rgba(255,138,0,.14); color:var(--hm-warn);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
 .fg .hm-rmain { min-width:0; }
-.fg .hm-rmain b { display:block; font-size:14px; font-weight:700; letter-spacing:-.005em;
+.fg .hm-rmain b { display:block; font-size:14px; font-weight:700;
   color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fg .hm-rmain em { display:block; font-style:normal; font-size:13px; font-weight:500;
   /* .50 measured 4.56 — a pass, by six hundredths. The same step as every
@@ -11202,8 +11197,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-say:hover { background:#fff; border-color:rgba(5,5,5,.16); }
 .fg .hm-say:focus-visible { outline:none;
   box-shadow:0 1px 2px rgba(10,12,20,.04), var(--ring); }
-.fg .hm-saytx { flex:1; min-width:0; font-size:16px; font-weight:700;
-  letter-spacing:-.01em; color:var(--ink); }
+.fg .hm-saytx { flex:1; min-width:0; font-size:16px; font-weight:700; color:var(--ink); }
 .fg .hm-say:hover .hm-saytx { color:var(--ink); }
 
 /* THE MARK'S HOST IS A SPAN, not a button — a button inside a button is
@@ -11292,7 +11286,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    is that control, and two steppers on one card that looked different would
    be two vocabularies for one idea. */
 .fg .hm-jnav { display:flex; align-items:center; gap:8px; padding:2px 24px 8px; }
-.fg .hm-jnavd { font-size:13px; font-weight:700; letter-spacing:.02em;
+.fg .hm-jnavd { font-size:13px; font-weight:700;
   color:var(--ink); min-width:118px; }
 
 /* STICKY, and this is the half that makes it a diary rather than a column.
@@ -11492,8 +11486,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    words, underlined on hover because it is a door. The colour lives on the
    NUMBER — the `-t` text tones, never the fills — and the words stay quiet. */
 .fg .hm-gl { display:inline-flex; align-items:baseline; gap:4px; padding:0;
-  border:0; background:none; font-size:12px; font-weight:700;
-  letter-spacing:-.005em; color:var(--gray700); }
+  border:0; background:none; font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .hm-gl:hover { text-decoration:underline; text-underline-offset:3px; color:var(--ink); }
 .fg .hm-gl b { font-weight:700; font-size:13px; color:var(--ink); }
 .fg .hm-gl.dan b { color:var(--bad-t); }
@@ -11591,7 +11584,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-rlb::before { content:""; position:absolute; left:5px; top:7px; bottom:7px;
   width:4px; border-radius:999px; background:var(--bar,#7a818c); }
 .fg .hm-rlb b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  color:var(--btext,#0a0b10); font-size:13px; font-weight:700; letter-spacing:-.015em; }
+  color:var(--btext,#0a0b10); font-size:13px; font-weight:700; }
 .fg .hm-rlb u { flex:none; padding:1px 4px; border-radius:6px; text-decoration:none;
   font-size:12px; font-weight:700; color:var(--btext,#0a0b10);
   background:var(--chip,rgba(5,5,5,.09)); font-variant-numeric:tabular-nums; }
@@ -11648,7 +11641,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   width:4px; border-radius:999px; background:#46505f; }
 .fg .hm-rlt svg { flex:none; color:#7b8494; }
 .fg .hm-rlt b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  font-size:13px; font-weight:700; letter-spacing:-.015em; color:var(--ink); }
+  font-size:13px; font-weight:700; color:var(--ink); }
 .fg .hm-rlt u { margin-left:auto; flex:none; text-decoration:none; font-size:12px;
   font-weight:700; color:#7b8494; font-variant-numeric:tabular-nums; }
 /* A DEADLINE, not an appointment. `by` is the moment the time is UP, so the
@@ -11688,7 +11681,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:var(--teal-d); z-index:4; pointer-events:none; }
 .fg .hm-rlnow::before { content:attr(data-now); position:absolute; right:0; top:-9px;
   padding:2px 8px; border-radius:999px; background:var(--teal-d); color:#fff;
-  font-size:12px; font-weight:700; letter-spacing:.03em; white-space:nowrap;
+  font-size:12px; font-weight:700; white-space:nowrap;
   font-variant-numeric:tabular-nums; }
 .fg .hm-rlnow::after { content:""; position:absolute; left:-4px; top:-4px; width:10px;
   height:10px; border-radius:50%; background:var(--teal-d); }
@@ -11726,7 +11719,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    this face simply never claimed its share. */
 .fg .hm-dbf { display:flex; flex-direction:column; gap:16px; padding:8px 24px 16px;
   max-width:620px; min-height:0; overflow-y:auto; }
-.fg .hm-dbft { margin:0; font-size:20px; font-weight:700; letter-spacing:-.025em;
+.fg .hm-dbft { margin:0; font-size:20px; font-weight:700;
   color:var(--ink); }
 /* NOT CLAMPED ANY MORE. It was three lines with an ellipsis when this face
    showed a single entry as a reminder of what you last said. It is a record
@@ -11860,7 +11853,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-calhead { display:flex; align-items:center; gap:16px; flex-wrap:wrap;
   padding-bottom:12px; }
 .fg .hm-calstep { display:flex; align-items:center; gap:8px; }
-.fg .hm-calstep b { font-size:14px; font-weight:700; letter-spacing:-.015em; color:var(--ink);
+.fg .hm-calstep b { font-size:14px; font-weight:700; color:var(--ink);
   min-width:132px; }
 /* The switcher is a plain pill group, NOT `.wb2-seg`: that control is a light
    ground with a measured sliding thumb, and this card already carries one
@@ -11945,7 +11938,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-photo { position:relative; width:96px; height:72px; flex:none; border-radius:16px; overflow:hidden; padding:0; background:#f0f3f6; }
 .vm-photo img { width:100%; height:100%; display:block; object-fit:cover; }
 .vm-photo img.placeholder { object-fit:contain; }
-.vm-photochange { position:absolute; left:0; right:0; bottom:0; padding:4px 0; text-align:center; font-size:12px; font-weight:700; letter-spacing:.06em; color:#fff; background:rgba(5,5,5,.55); opacity:0; transition:opacity var(--t-fast) var(--ease); pointer-events:none; }
+.vm-photochange { position:absolute; left:0; right:0; bottom:0; padding:4px 0; text-align:center; font-size:12px; font-weight:700; color:#fff; background:rgba(5,5,5,.55); opacity:0; transition:opacity var(--t-fast) var(--ease); pointer-events:none; }
 .vm-photo:hover .vm-photochange, .vm-photo:focus-visible .vm-photochange { opacity:1; }
 .vm-statuspill { display:flex; align-items:center; gap:8px; }
 .vm-statuspill select { font-size:14px; font-weight:500; color:var(--ink); outline:none; cursor:pointer; }
@@ -12085,7 +12078,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-scannedl { display:flex; flex-direction:column; gap:1px; min-width:0; }
 .vm-scannedl b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vm-scannedl em { font-style:normal; font-size:12px; color:var(--q); }
-.vm-scannedtag { font-size:12px; font-weight:700; letter-spacing:.08em; color:var(--ink); flex:none; }
+.vm-scannedtag { font-size:12px; font-weight:700; color:var(--ink); flex:none; }
 .vm-warnline { font-size:13px; font-weight:600; color:var(--warn-t); }
 .vm-attach { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px dashed #d5dae1; border-radius:10px; padding:8px 12px; background:#fff; font-size:13px; color:var(--q); }
 
@@ -12148,7 +12141,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-ffield.wide { grid-column:span 2; }
 .vm-ffield.wide3 { grid-column:1 / -1; }
 .vm-hint { font-style:normal; font-size:12px; color:var(--vm-muted); line-height:1.35; }
-.vm-input.mono { letter-spacing:.04em; text-transform:uppercase; }
+.vm-input.mono { text-transform:uppercase; }
 .vm-textarea { min-height:72px; resize:vertical; line-height:1.4; }
 .vm-quiet { flex-direction:row; align-items:center; gap:8px; font-size:13px; color:var(--q); }
 .vm-attachbtn { display:inline-flex; align-items:center; gap:8px; align-self:flex-start; font-size:13px; font-weight:700; color:var(--ink); padding:0; }
@@ -12215,7 +12208,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    because it carried a display:contents `.fg` wrapper of its own.
    =================================================================== */
 .vm-badge { display:inline-flex; align-items:center; justify-content:center; min-width:38px; height:24px;
-  padding:0 8px; border-radius:6px; font-size:12px; font-weight:700; letter-spacing:.06em; }
+  padding:0 8px; border-radius:6px; font-size:12px; font-weight:700; }
 
 .vm-sw { display:flex; align-items:center; gap:8px; height:46px; }
 .vm-swb { width:26px; height:26px; border-radius:10px; border:2px solid transparent;

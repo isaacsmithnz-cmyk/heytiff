@@ -55,7 +55,7 @@ export function TopbarSkeleton() {
         <span className="si">
           <Icon name="search" size={18} />
         </span>
-        <div className="sf">Search workspaces, tools, or ask Tiff...</div>
+        <div className="sf">Search workspaces, tools, or ask Tiff…</div>
       </div>
       <div className="tbr" aria-hidden="true">
         {/* The clock's two lines, held open: the real one arrives with a date

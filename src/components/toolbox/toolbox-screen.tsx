@@ -90,7 +90,7 @@ export function ToolboxScreen({ today }: { today: string }) {
           <div className="tbx-search">
             <Icon name="search" size={18} />
             <input
-              placeholder="Search tools..."
+              placeholder="Search tools…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Search tools"

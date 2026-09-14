@@ -54,7 +54,6 @@
 .hq-brand {
   font-weight: 700;
   font-size: 16px;
-  letter-spacing: -0.01em;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -648,7 +647,6 @@
 .hq-brandcard-name {
   font-weight: 700;
   font-size: 16px;
-  letter-spacing: -0.01em;
 }
 .hq-brandcard-ver {
   color: var(--hq-mut);
@@ -715,7 +713,6 @@
 .hq-form-n {
   color: var(--hq-mut-2);
   font-weight: 600;
-  letter-spacing: 0;
   text-transform: none;
   font-size: 12px;
 }
@@ -1378,7 +1375,6 @@
 .hq-map-node-name {
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.01em;
 }
 .hq-map-node-blurb {
   font-size: 12px;
@@ -1501,7 +1497,6 @@
 .hq-map-side-name {
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.015em;
 }
 .hq-map-side-group {
   font-size: 12px;

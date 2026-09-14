@@ -257,7 +257,7 @@ export function FleetRegister({
             <Icon name="search" size={17} />
             <input
               className="dsearchin"
-              placeholder="Search rego, name or driver..."
+              placeholder="Search rego, name or driver…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

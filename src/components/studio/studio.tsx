@@ -994,7 +994,7 @@ function Home({
                 <label className="ds-search">
                   <Icon name="search" size={16} />
                   <input
-                    placeholder="Search designs..."
+                    placeholder="Search designs…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                   />

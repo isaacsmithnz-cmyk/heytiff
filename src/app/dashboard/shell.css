@@ -636,10 +636,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .drole { font-size:14px; color:var(--gray500); font-weight:600; }
 .fg .dstatus { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
 .fg .dstatus .sd { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
-.fg .dchip { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; padding:4px 12px; border-radius:999px; width:fit-content; }
-.fg .dchip.ok { background:var(--ok-tint); color:var(--ok-t); }
-.fg .dchip.warn { background:rgba(240,164,49,.13); color:var(--warn-t); }
-.fg .dchip.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
+.fg .dchip { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
+.fg .dchip.ok { color:var(--ok-t); }
+.fg .dchip.warn { color:var(--warn-t); }
+.fg .dchip.bad { color:var(--bad-t); }
 
 /* user moved to top-right of header — the whole block is the menu trigger */
 .fg .topbar .me-top { position:relative; display:flex; align-items:center; }
@@ -1361,12 +1361,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   font-size:14px; font-weight:600; color:var(--gray500); }
 /* the status pill, also declared in full: it was drawn for the dark rail, and
    on a light card it needs light ink rather than a translucent fill */
-.fg .pident .badge { display:inline-flex; align-items:center; gap:8px; padding:4px 12px;
-  border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.02em; width:fit-content; }
+.fg .pident .badge { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; }
 .fg .pident .badge .d { width:7px; height:7px; border-radius:50%; }
-.fg .pident .badge.active { background:var(--ok-tint); color:var(--ok-t); border:1px solid var(--ok-tint); }
+.fg .pident .badge.active { color:var(--ok-t); }
 .fg .pident .badge.active .d { background:var(--ok-t); }
-.fg .pident .badge.off { background:#f3f4f7; color:var(--gray500); border:1px solid #e6e8ee; }
+.fg .pident .badge.off { color:var(--gray500); }
 .fg .pident .badge.off .d { background:#b6bcc7; }
 
 /* the derived facts, as a quiet strip rather than a column of rows. The
@@ -1677,7 +1676,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .card2 .c2h b { font-size:16px; font-weight:600; letter-spacing:-0.01em; }
 .fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
 .fg .card2 .c2h .pill2 { margin-left:auto; }
-.fg .adminpill { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:999px; font-family:var(--mono); font-size:12px; font-weight:500; background:rgba(255,51,102,.1); color:var(--bad-t); border:1px solid rgba(255,51,102,.25); }
+.fg .adminpill { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:14px; font-weight:500; color:var(--bad-t); }
 
 /* form fields */
 .fg .frow { display:grid; gap:16px; }
@@ -2579,7 +2578,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    FILL is unchanged — this is a text rule. */
 .fg .tpr .dchip.ok, .fg .mts2 .dchip.ok,
 .fg .tpr .dchip2.ok, .fg .mts2 .dchip2.ok, .fg .lv-col .dchip2.ok {
-  background: rgba(34,197,94,.12);
   color: var(--ok-t);
 }
 /* THE PRIVATE PALETTE, AND THE THREE VALUES IN IT THAT WERE NEVER READABLE.
@@ -2783,11 +2781,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .chead { flex-wrap:wrap; }
 .fg .tpr .chead .who { min-width:0; }
 .fg .tpr .chead .cacts { margin-left:auto; flex-wrap:wrap; justify-content:flex-end; }
-.fg .tpr .badge { display:inline-flex; align-items:center; gap:4px; height:24px; padding:0 12px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
-.fg .tpr .badge.review { background:rgba(240,164,49,.16); color:var(--amber-d); }
+.fg .tpr .badge { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; white-space:nowrap; }
+.fg .tpr .badge.review { color:var(--amber-d); }
 .fg .tpr .badge.review .d { width:6px; height:6px; border-radius:50%; background:var(--amber); }
-.fg .tpr .badge.ready { background:rgba(46,104,255,.12); color:var(--blue-d); }
-.fg .tpr .badge.appr { background:rgba(34,197,94,.15); color:var(--teal-ink); }
+.fg .tpr .badge.ready { color:var(--blue-d); }
+.fg .tpr .badge.appr { color:var(--teal-ink); }
 
 .fg .tpr .capprove { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 24px; border-radius:16px; font-size:14px; font-weight:700; background:var(--ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tpr .capprove:hover { }
@@ -2810,7 +2808,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    row's 42px, for the same reason `.crow` shrinks `.capprove` on the line
    below: the pill matches the controls it stands among, whichever row it is
    on. `.crow` keeps its own smaller figures, unchanged. */
-.fg .tpr .apprtag { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 16px; border-radius:16px; font-size:13px; font-weight:700; color:var(--teal-ink); background:rgba(34,197,94,.13); white-space:nowrap; }
+.fg .tpr .apprtag { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--teal-ink); white-space:nowrap; }
 
 /* issue / overtime banner */
 .fg .tpr .obar { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:10px; background:#fbf3e2; margin-bottom:16px; }
@@ -3062,11 +3060,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .crow .rt em { font-style:normal; font-size:12px; color:var(--gray400); }
 .fg .tpr .crow .capprove { height:42px; padding:0 16px; }
 /* the compact row runs one size down, exactly as `.crow .capprove` does above */
-.fg .tpr .crow .apprtag { height:42px; padding:0 16px; border-radius:10px; }
+.fg .tpr .crow .apprtag { }
 
 .fg .tpr .cedit.sendback { color:var(--amber-d); background:rgba(240,164,49,.12); border-color:transparent; }
 .fg .tpr .cedit.sendback:hover { background:rgba(240,164,49,.2); }
-.fg .tpr .apprtag.sent { color:var(--amber-d); background:rgba(240,164,49,.14); }
+.fg .tpr .apprtag.sent { color:var(--amber-d); }
 
 /* send-back question form */
 .fg .tpr .qform { display:none; margin-bottom:16px; padding:16px 16px; border-radius:16px; background:rgba(240,164,49,.07); border:1px solid rgba(240,164,49,.32); }
@@ -3131,7 +3129,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .wz-card.on { border-color:var(--teal); background:rgba(34,197,94,.06); }
 .fg .tpr .wz-card b { display:block; font-size:16px; font-weight:700; }
 .fg .tpr .wz-card em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:12px; font-weight:500; color:var(--ink); background:rgba(34,197,94,.14); padding:4px 12px; border-radius:999px; }
+.fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:14px; font-weight:500; color:var(--ink); }
 
 .fg .tpr .wz-pills { display:flex; gap:8px; flex-wrap:wrap; }
 .fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 16px; border-radius:999px; border:2px solid #eceef1; background:#fff; font-size:14px; font-weight:700; color:var(--gray600); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
@@ -3291,7 +3289,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    every workspace. The width it freed goes to Name and Compliance, which are
    the two that get truncated. */
 .fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.6fr 1.4fr 1.9fr 44px; gap:16px; align-items:center; padding:16px 24px; width:100%; text-align:left;}
-.fg .dname > span:not(.dav):not(.dofftag) {min-width:0; flex:1;}
+.fg .dname > span:not(.dav):not(.dofftag) {min- flex:1;}
 .fg .dofftag {flex:0 0 auto;}
 
 /* THE ROW BECOMES TWO ROWS BEFORE THE NAME RUNS OUT OF ROOM.
@@ -3380,7 +3378,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    treatment as archived, its own class so the two states can ever diverge. */
 .fg .dirrow.unclaimed {background:#f7f8fa;}
 .fg .dirrow.unclaimed:hover {background:#f2f4f7;}
-.fg .dofftag {font-size:12px; font-weight:500; color:var(--q); background:#f1f2f4; padding:4px 8px; border-radius:999px; margin-left:4px;}
+.fg .dofftag {font-size:14px; font-weight:500; color:var(--q); margin-left:4px;}
 .fg .direm {display:none; padding:32px 24px; text-align:center; font-size:14px; font-weight:600; color:var(--q); border-top:1px solid #f5f6f8;}
 /* directory — per-row actions menu */
 .fg .dmorewrap {position:relative; display:flex; justify-content:flex-end;}
@@ -3565,19 +3563,19 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-btn.tiny.primary { background:var(--ink); border-color:transparent; color:var(--paper); box-shadow:none; }
 .fl-btn.tiny.primary:hover { background:var(--ink); color:var(--paper); }
 .fl-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
-.dchip2 { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; padding:4px 12px; border-radius:999px; width:fit-content; }
-.dchip2.ok { background:var(--ok-tint); color:var(--ok-t); }
-.dchip2.warn { background:rgba(240,164,49,.13); color:var(--warn-t); }
-.dchip2.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
+.dchip2 { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
+.dchip2.ok { color:var(--ok-t); }
+.dchip2.warn { color:var(--warn-t); }
+.dchip2.bad { color:var(--bad-t); }
 /* unpaid leave — KIND_TONE has named this since the leave screen shipped, but
    the rule was never written, so an unpaid chip rendered bare */
-.dchip2.mute { background:#f1f2f5; color:var(--gray500); }
+.dchip2.mute { color:var(--gray500); }
 /* A CASUAL WHO CAN'T BE ROSTERED, not somebody on leave. Deliberately the
    quietest chip on the screen and outlined rather than filled: it sits in the
    same list as approved leave and must not read as an arrangement anybody
    agreed to. */
-.dchip2.unavail { background:#fff; color:var(--gray500); box-shadow:inset 0 0 0 1px rgba(10,11,16,.14); }
-.dchip2.unavail em { font-style:normal; font-size:12px; font-weight:700; color:var(--q); letter-spacing:.02em; }
+.dchip2.unavail { color:var(--gray500); }
+.dchip2.unavail em { font-style:normal; font-size:14px; font-weight:500; color:var(--q); }
 .fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
 .fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:16px; padding:12px 12px; min-width:0; }
 .fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
@@ -3610,11 +3608,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-tiff { display:flex; align-items:center; justify-content:flex-end; gap:4px; font-style:normal; font-size:12px; font-weight:700; color:var(--ink); margin-top:2px; }
 .fg .fl-total .fl-tiff { display:inline-flex; margin:0 0 0 12px; }
 .fg .fl-value b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .dchip.mute { background:#f1f2f4; color:var(--q); }
+.fg .dchip.mute { color:var(--q); }
 .fg .fl-qa.paused { opacity:.55; cursor:not-allowed; }
 .fg .fl-qa.paused:hover { transform:none; border-color:#f0f0f2; }
 .fg .fl-offnote { display:flex; align-items:center; gap:8px; background:rgba(240,164,49,.09); border:1px solid rgba(240,164,49,.28); border-radius:16px; padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
-.dchip2.mute { background:#f1f2f4; color:var(--q); }
+.dchip2.mute { color:var(--q); }
 .fl-fact.tiff { background:var(--tint); border-color:var(--line); }
 .fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ink); }
 .fl-manage { display:flex; justify-content:flex-end; gap:8px; margin:-8px 0 16px; }
@@ -4011,7 +4009,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-who b { display:block; font-size:20px; font-weight:700; letter-spacing:-.02em; line-height:1.15; overflow-wrap:anywhere; }
 .fg .idc .idc-who em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
 .fg .idc.light .idc-who em { color:var(--gray500); }
-.fg .idc .idc-pill { display:inline-flex; padding:4px 8px; border-radius:999px; background:var(--tint-2); color:#2554d8; font-size:12px; font-weight:700; }
+.fg .idc .idc-pill { display:inline-flex; color:#2554d8; font-size:14px; font-weight:500; }
 .fg .idc .idc-note { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:10px; font-size:12px; font-weight:700; width:fit-content; }
 .fg .idc .idc-note.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .idc .idc-facts { margin-top:auto; display:flex; gap:24px; flex-wrap:wrap; }
@@ -4690,13 +4688,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* The row's state, said in a word. Semantic colour, never the page accent —
    ok #00A389 / warn amber / off grey (see the design-system note). */
-.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; max-width:210px; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fg .int-pill { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
-.fg .int-pill.on { background:var(--tint); color:var(--ink); }
-.fg .int-pill.on .int-dot { background:var(--ink); color:var(--paper); }
-.fg .int-pill.warn { background:rgba(240,164,49,.14); color:#a56a05; }
-.fg .int-pill.warn .int-dot { background:#F0A431; }
-.fg .int-pill.off { background:#f4f5f7; color:var(--gray500); }
+.fg .int-pill.on { color:var(--ink); }
+.fg .int-pill.on .int-dot { background:var(--ink); }
+.fg .int-pill.warn { color:#a56a05; }
+.fg .int-pill.warn .int-dot { background:var(--warn-t); }
+.fg .int-pill.off { color:var(--gray500); }
 .fg .int-pill.off .int-dot { background:var(--gray400); }
 @media (max-width:560px){ .fg .int-pill { display:none; } }
 
@@ -4746,14 +4744,14 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-scopes li:first-child { border-top:0; padding-top:0; }
 .fg .int-scopes li p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-.fg .int-tag { padding:4px 8px; border-radius:999px; background:#f4f5f7; font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .int-tag.warn { background:rgba(240,164,49,.16); color:#a56a05; }
+.fg .int-tag { font-size:14px; font-weight:500; color:var(--gray500); }
+.fg .int-tag.warn { color:#a56a05; }
 
 /* A backfill in progress is NOT a warning. It wears the ok green, because the
    thing it reports is working — the warn amber next to it now means one thing
    only, "somebody is needed", and that separation is the point. Semantic
    state, so #00A389 and never the page accent. */
-.fg .int-tag.live { display:inline-flex; align-items:center; gap:4px; background:var(--ok-tint); color:#007763; }
+.fg .int-tag.live { display:inline-flex; align-items:center; gap:4px; color:#007763; }
 .fg .int-pulse { width:6px; height:6px; border-radius:50%; background:var(--ink); animation:int-pulse 1.6s ease-in-out infinite; color:var(--paper); }
 @keyframes int-pulse { 0%,100% { opacity:.32; transform:scale(.82); } 50% { opacity:1; transform:scale(1); } }
 /* The dot carries no information the words don't; for anyone who has asked for
@@ -5249,14 +5247,14 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-amt { flex:0 0 auto; text-align:right; font-size:16px; font-weight:700; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
 .fg .xc-amt span { display:block; font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; letter-spacing:0; }
 .fg .xc-side { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-.fg .xc-pill { padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; background:#f4f5f7; color:var(--gray500); }
+.fg .xc-pill { font-size:14px; font-weight:500; white-space:nowrap; color:var(--gray500); }
 /* semantic state, never the page accent */
 /* the odd one out of five: its three siblings read a `-t` token and this one
    held a literal, at 4.05 on its own tint */
-.fg .xc-pill.pending { background:rgba(240,164,49,.15); color:var(--warn-t); }
-.fg .xc-pill.approved { background:var(--tint); color:var(--info-t); }
-.fg .xc-pill.reimbursed { background:var(--ok-tint); color:var(--ok-t); }
-.fg .xc-pill.declined { background:rgba(255,51,102,.09); color:var(--bad-t); }
+.fg .xc-pill.pending { color:var(--warn-t); }
+.fg .xc-pill.approved { color:var(--info-t); }
+.fg .xc-pill.reimbursed { color:var(--ok-t); }
+.fg .xc-pill.declined { color:var(--bad-t); }
 /* WHAT YOU ARE OWED, on the claimant's own screen. The approver's queue and
    the Time & Pay stat tile have carried this figure all along; the person out
    of pocket got a list and was left to add it up. */
@@ -5950,16 +5948,19 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 .wb2-chd > .wb2-chip, .wb2-chd > .pbtn, .wb2-chd > .wb2-mcnav, .wb2-chd > .wb2-mcsum { margin-left:auto; flex:none; }
 .wb2-sect { font-size:12px; font-weight:500; color:var(--q); }
 .wb2-hint { font-size:13px; color:var(--gray500); font-weight:500; margin:8px 0 0; }
-.wb2-chip { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; padding:4px 8px; border-radius:6px;
-  background:rgba(5,5,5,.055); color:var(--gray700); white-space:nowrap; }
-.wb2-chip.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t); }
-.wb2-chip.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t); }
-.wb2-chip.ok { background:var(--ok-tint); color:#00806b; }
-.wb2-chip.blue { background:rgba(0,168,224,.1); color:var(--ink2); }
+/* STATE IS A WORD (law 26). The chip was a tinted box at 12/700 in the state
+   colour; it is the word in the state colour at body size. The one chip that
+   keeps its form is the one a person taps — a button or a link — which wears
+   a hairline and the tile radius. */
+.wb2-chip { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); white-space:nowrap; }
+.wb2-chip.dan { color:var(--bad-t); }
+.wb2-chip.warn { color:var(--warn-t); }
+.wb2-chip.ok { color:var(--ok-t); }
+.wb2-chip.blue { color:var(--info-t); }
 /* a chip that IS a door — a tracked job wears its board in the band and the
    chip opens it. A real <button>, so the UA face is stripped here (the sheet
    portals outside .fg, so no house reset reaches it). */
-button.wb2-chip { border:0; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+button.wb2-chip { font:inherit; font-size:13px; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; }
 button.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
 button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-empty { display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; padding:32px 16px; color:var(--gray500); }
@@ -6027,7 +6028,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-trcad { font-style:normal; font-size:12px; font-weight:700; letter-spacing:.06em; color:var(--gray500);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-trw { display:block; min-width:0; }
-.wb2-trw .wb2-chip { max-width:100%; overflow:hidden; text-overflow:ellipsis; display:block; }
+.wb2-trw .wb2-chip { overflow:hidden; text-overflow:ellipsis; display:block; }
 .wb2-trd { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-trd b { font-size:13px; font-weight:700; letter-spacing:-.01em; }
 .wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -7138,17 +7139,17 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-jcaddr { margin:0; font-size:12px; font-weight:600; color:var(--gray500); text-wrap:pretty; }
 /* plain chips take a solid white face so they read over the wash; toned
    chips keep their own tint, which already reads over it */
-.wb2-jcband .wb2-chip { background:#fff; }
-.wb2-jcband .wb2-chip.dan { background:rgba(224,38,79,.13); }
-.wb2-jcband .wb2-chip.warn { background:rgba(255,138,0,.17); }
-.wb2-jcband .wb2-chip.ok { background:var(--ok-tint); }
-.wb2-jcband .wb2-chip.blue { background:rgba(0,168,224,.13); }
+.wb2-jcband .wb2-chip { }
+.wb2-jcband .wb2-chip.dan { }
+.wb2-jcband .wb2-chip.warn { }
+.wb2-jcband .wb2-chip.ok { }
+.wb2-jcband .wb2-chip.blue { }
 /* THE SERVICEM8 CHIP IS A DOOR. An <a> in a portalled sheet inherits the
    document's own anchor face, and the sheet lives outside `.fg` — so the
    colour and the underline are stripped here by hand, exactly as the
    tracked chip's button was. Hover/focus match button.wb2-chip so the two
    doors in one band cannot behave differently. */
-a.wb2-chip { text-decoration:none; color:var(--gray700); cursor:pointer; }
+a.wb2-chip { text-decoration:none; font-size:13px; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; }
 a.wb2-chip.dan { color:var(--wb2-dan-t); }
 a.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
 a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
@@ -7687,7 +7688,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* the claim badge on a document row was invoked as .wb2-chip.cat and never
    declared — it rendered as a plain grey chip */
-.wb2-chip.cat { background:rgba(122,90,248,.12); color:#5b3fd0; }
+.wb2-chip.cat { color:#5b3fd0; }
 
 /* ── the shared media viewer ───────────────────────────────────────────
    Same portal as the sheet, same law as the claim modal. THE PAIR IS A
@@ -7708,7 +7709,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mvtop b { font-size:13px; font-weight:700; color:#fff; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .wb2-mvtop em { font-style:normal; font-size:12px; font-weight:600; color:rgba(255,255,255,.55); white-space:nowrap; }
-.wb2-mvtop .wb2-chip { background:rgba(255,255,255,.1); color:rgba(255,255,255,.8); }
+.wb2-mvtop .wb2-chip { color:rgba(255,255,255,.8); }
 .wb2-mvsp { flex:1; }
 .wb2-mvcount { font-variant-numeric:tabular-nums; }
 .wb2-mvtop .wb2-ico { background:rgba(255,255,255,.08); color:#fff; }
@@ -9377,13 +9378,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fl-modal .tk-dstxt mark { padding:0 2px; border-radius:6px; background:rgba(255,214,0,.42); color:inherit; font-weight:700; }
 
 /* the status pill — the whole reason this screen exists */
-.fg .tk-pill { display:inline-flex; align-items:center; gap:8px; max-width:340px; padding:4px 12px; border-radius:999px;
-  font-size:12px; font-weight:700; line-height:1.35; }
+.fg .tk-pill { display:inline-flex; align-items:center; gap:8px;
+  font-size:14px; font-weight:500; line- }
 .fg .tk-pill svg { flex:none; }
-.fg .tk-pill.ok { background:var(--ok-tint); color:#00806c; }
-.fg .tk-pill.work { background:var(--tint); color:#1d4ed8; }
-.fg .tk-pill.warn { background:rgba(255,138,0,.1); color:var(--warn-t); }
-.fg .tk-pill.dan { background:rgba(224,38,79,.08); color:#b31038; }
+.fg .tk-pill.ok { color:#00806c; }
+.fg .tk-pill.work { color:#1d4ed8; }
+.fg .tk-pill.warn { color:var(--warn-t); }
+.fg .tk-pill.dan { color:#b31038; }
 .fg .tk-prog { display:block; width:60px; height:4px; flex:none; border-radius:999px; background:var(--tint-2); overflow:hidden; }
 .fg .tk-prog i { display:block; width:0; height:100%; border-radius:999px; background:var(--ink); transition:width var(--t-move) var(--ease); color:var(--paper); }
 .fg .tk-prog.ind i { width:42%; animation:tkSlide 1.25s ease-in-out infinite; }
@@ -10359,8 +10360,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   font-size:13px; }
 
 /* ── the KB curation queue ── */
-.fg .adm-badge { flex:none; margin-right:8px; padding:4px 8px; border-radius:999px;
-  background:rgba(0,127,168,.12); color:var(--ink); font-size:12px; font-weight:700; }
+.fg .adm-badge { flex:none; margin-right:8px; color:var(--ink); font-size:14px; font-weight:500; }
 .wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid rgba(5,5,5,.06); }
 .wb2-kbqrow:last-child { border-bottom:0; }
 .wb2-kbqhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -10419,9 +10419,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* the ribbon — it takes the button's own words up top, white on ink */
 .wb2-dusk .wb2-capribbon { border-bottom-color:rgba(255,255,255,.09); color:rgba(255,255,255,.6); }
 .wb2-dusk .wb2-capribbon b { color:#fff; }
-.wb2-dusk .wb2-chip { background:rgba(255,255,255,.08); color:rgba(255,255,255,.72); }
-.wb2-dusk .wb2-chip.blue { background:rgba(46,104,255,.2); color:#9DB9FF; }
-.wb2-dusk .wb2-chip.ok { background:rgba(0,229,192,.14); color:#7CEFD9; }
+.wb2-dusk .wb2-chip { color:rgba(255,255,255,.72); }
+.wb2-dusk .wb2-chip.blue { color:#9DB9FF; }
+.wb2-dusk .wb2-chip.ok { color:#7CEFD9; }
 .wb2-dusk .wb2-aimx:hover { background:rgba(46,104,255,.32); }
 .wb2-dusk .wb2-ico { background:rgba(255,255,255,.07); color:rgba(255,255,255,.6); }
 .wb2-dusk .wb2-ico:hover { background:rgba(255,255,255,.14); color:#fff; }
@@ -11102,10 +11102,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-card .wb2-tkb.on { border-color:rgba(0,128,107,.65); background:rgba(0,163,137,.12); color:var(--hm-teal); cursor:default; }
 .fg .hm-card .wb2-tkt b { color:var(--ink); }
 .fg .hm-card .wb2-tkt em { color:var(--hm-quiet); }
-.fg .hm-card .wb2-chip { background:rgba(5,5,5,.055); color:var(--gray700); }
-.fg .hm-card .wb2-chip.dan { background:rgba(224,38,79,.1); color:var(--hm-dan); }
-.fg .hm-card .wb2-chip.warn { background:rgba(255,138,0,.14); color:var(--hm-warn); }
-.fg .hm-card .wb2-chip.ok { background:rgba(0,163,137,.11); color:var(--hm-teal); }
+.fg .hm-card .wb2-chip { color:var(--gray700); }
+.fg .hm-card .wb2-chip.dan { color:var(--hm-dan); }
+.fg .hm-card .wb2-chip.warn { color:var(--hm-warn); }
+.fg .hm-card .wb2-chip.ok { color:var(--hm-teal); }
 /* A DONE TITLE, and why the selector carries `.hm-card`. The rule two lines
    up sets every `b` in a task row to `--ink` at (0,3,0), so `.fg .hm-struck`
    at (0,2,0) never won — the strikethrough landed but the de-emphasis never
@@ -11947,8 +11947,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-photo img.placeholder { object-fit:contain; }
 .vm-photochange { position:absolute; left:0; right:0; bottom:0; padding:4px 0; text-align:center; font-size:12px; font-weight:700; letter-spacing:.06em; color:#fff; background:rgba(5,5,5,.55); opacity:0; transition:opacity var(--t-fast) var(--ease); pointer-events:none; }
 .vm-photo:hover .vm-photochange, .vm-photo:focus-visible .vm-photochange { opacity:1; }
-.vm-statuspill { display:flex; align-items:center; gap:8px; background:var(--vm-chip); border-radius:999px; padding:8px 12px; }
-.vm-statuspill select { border:none; background:transparent; font-size:14px; font-weight:600; color:var(--ink); outline:none; cursor:pointer; }
+.vm-statuspill { display:flex; align-items:center; gap:8px; }
+.vm-statuspill select { font-size:14px; font-weight:500; color:var(--ink); outline:none; cursor:pointer; }
 .vm-dot { width:8px; height:8px; border-radius:50%; flex:none; }
 .vm-iconbtn { width:40px; height:40px; border-radius:10px; background:var(--vm-chip); color:var(--q); display:flex; align-items:center; justify-content:center; transition:background var(--t-fast) var(--ease); }
 .vm-iconbtn:hover { background:var(--vm-chip-h); color:var(--ink); }

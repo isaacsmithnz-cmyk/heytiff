@@ -221,7 +221,12 @@ approved together.
     microphone and stop in the dictation controls, undo and redo in the Studio
     toolbar.
 26. State is not a pill. A chip is for a filter you tap. The Workboard's
-    chips become words in the state colour at body size.
+    chips become words in the state colour at body size, and so do every
+    status pill, kind tag and badge on the light well: the word, 14/500, no
+    fill, no box. What keeps a chip's form is what a person taps or types
+    into — a filter, a segmented choice, a tag strip — which wears a hairline
+    and the tile radius. Time & Pay's day and rate vocabulary is settled in
+    its own fold.
 27. Nothing spins in the first half second. Past a second, a skeleton shaped
     like what is coming. The ring lives only inside a button that says what it
     is doing.

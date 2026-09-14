@@ -76,13 +76,13 @@ describe("Cockpit Components view", () => {
     expect(screen.getByText("Electrical")).toBeInTheDocument();
     expect(screen.getByText("Mounting")).toBeInTheDocument();
     // default electrical selection
-    expect(screen.getByText("Isolator · 20 A")).toBeInTheDocument();
+    expect(screen.getByText("Isolator, 20 A")).toBeInTheDocument();
   });
 
   it("expanding a choice row reveals its options", () => {
     renderComponents(mkDoc());
     fireEvent.click(screen.getByRole("button", { name: /Electrical/ }));
-    expect(screen.getByRole("button", { name: /Isolator · 32 A/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Isolator, 32 A/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Supplied by others/ })).toBeInTheDocument();
   });
 

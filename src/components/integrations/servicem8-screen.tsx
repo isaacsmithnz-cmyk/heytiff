@@ -198,7 +198,7 @@ export function Servicem8Screen({
                     <dd>
                       {reach.ok
                         ? reach.account.timezoneName
-                          ? `${reach.account.name} · ${reach.account.timezoneName}`
+                          ? `${reach.account.name}, ${reach.account.timezoneName}`
                           : reach.account.name
                         : "Couldn't read"}
                     </dd>
@@ -415,7 +415,7 @@ function ObjectTag({ o }: { o: Sm8ObjectStatus }) {
         {/* aria-hidden: the dot is the same news as the words beside it, and a
             screen reader announcing a decoration twice is noise. */}
         <i className="int-pulse" aria-hidden="true" />
-        Reading · {num(o.rowsPulled)} so far
+        Reading, {num(o.rowsPulled)} so far
       </span>
     );
 

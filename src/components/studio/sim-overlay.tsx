@@ -222,7 +222,7 @@ function draw(
       ctx,
       room.centroid,
       vp,
-      holding ? `${t.toFixed(1)}° · Holding` : `${t.toFixed(1)}° ${trend}`,
+      holding ? `${t.toFixed(1)}°, Holding` : `${t.toFixed(1)}° ${trend}`,
       false,
       holding
     );

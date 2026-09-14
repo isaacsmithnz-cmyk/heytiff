@@ -21,7 +21,7 @@ describe("HqBrandCards", () => {
     const a = screen.getByText("Mitsubishi Electric").closest("a")!;
     expect(a).toHaveAttribute("href", "/hq/data/mitsubishi-electric");
     expect(screen.getByText("2026.1")).toBeInTheDocument();
-    expect(screen.getByText(/172 indoor · 68 outdoor · 108 pairs/)).toBeInTheDocument();
+    expect(screen.getByText(/172 indoor, 68 outdoor, 108 pairs/)).toBeInTheDocument();
     expect(screen.getByText("62%")).toBeInTheDocument();
     expect(screen.getByText(/120 blocking/)).toBeInTheDocument();
   });

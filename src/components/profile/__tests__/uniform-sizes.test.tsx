@@ -210,7 +210,7 @@ describe("on Summary", () => {
   it("answers in one labelled line, under Personal", () => {
     summary();
     const row = screen.getByText("Uniform").closest(".pdrow") as HTMLElement;
-    expect(row.textContent).toBe("UniformShirt L · Jacket XL · Trousers 92 · Boots 10.5 AU/UK");
+    expect(row.textContent).toBe("UniformShirt L, Jacket XL, Trousers 92, Boots 10.5 AU/UK");
   });
 
   it("shows the dash when we hold no sizes — nothing to order from", () => {

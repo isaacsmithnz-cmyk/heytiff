@@ -125,7 +125,7 @@ export function checkSubline(record: WorkRightsRecord | null): string {
     record.expiresOn ? `expires ${fmtDay(record.expiresOn)}` : "no expiry",
     `checked ${fmtDay(record.checkedOn)}`,
   ].filter(Boolean);
-  return bits.join(" · ");
+  return bits.join(", ");
 }
 
 /* ---- the grid ---- */
@@ -159,7 +159,7 @@ export function checkFacts(r: WorkRightsRecord, state: CheckState): CheckFact[] 
 /** The one-line summary on a history row. */
 export function checkEvent(r: WorkRightsRecord): string {
   const visa = r.visaType?.trim();
-  return visa ? `${r.status} · ${visa}` : r.status;
+  return visa ? `${r.status}, ${visa}` : r.status;
 }
 
 /** "Added 4 Feb 2026 · VEVO check" — how this row got here. */
@@ -173,7 +173,7 @@ export function checkAddedText(r: WorkRightsRecord): string {
         : r.source === "manual"
           ? "entered manually"
           : "";
-  return [when, how].filter(Boolean).join(" · ");
+  return [when, how].filter(Boolean).join(", ");
 }
 
 /* ---- what goes in the table ---- */

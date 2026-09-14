@@ -269,7 +269,7 @@ function DiaryEntry({
             )}
           </div>
           <div className="wb2-evmeta">
-            {[entry.method, entry.takenBy].filter(Boolean).join(" · ") || "ServiceM8"}
+            {[entry.method, entry.takenBy].filter(Boolean).join(", ") || "ServiceM8"}
           </div>
         </Ev>
       );

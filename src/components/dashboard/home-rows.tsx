@@ -28,7 +28,7 @@ function ChipRow({ chip, sev }: { chip: ActionChip; sev: "over" | "soon" }) {
       <span className="hm-rmain">
         <b>{chip.label}</b>
         <em>
-          {chip.subject} · {group}
+          {chip.subject}, {group}
         </em>
       </span>
       <span className="hm-rowgo">
@@ -88,14 +88,14 @@ export function NoticeRows({ notices }: { notices: readonly BoardNotice[] }) {
               <b>{n.title}</b>
               <em>
                 {n.postedByName ?? "Someone"}
-                {n.pinned ? " · Pinned" : ""}
+                {n.pinned ? ", Pinned" : ""}
                 {n.mentionsMe > 0 && (
                   <>
-                    {" · "}
+                    {", "}
                     <b className="hm-warm">Mentions you</b>
                   </>
                 )}
-                {" · "}
+                {", "}
                 {unread ? "Unread" : "Read"}
               </em>
             </span>

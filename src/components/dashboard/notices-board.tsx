@@ -138,7 +138,7 @@ function PollBlock({
             : poll.multi
               ? "Pick as many as apply"
               : "Pick one — tap again to take it back"}
-          {" · "}
+          {", "}
           {poll.voters === 0
             ? "No answers yet"
             : `${poll.voters} ${poll.voters === 1 ? "person has" : "people have"} answered`}
@@ -181,7 +181,7 @@ function EventBlock({
         <span className="nb-whenline">
           <Icon name="calendar" size={13} />
           {when.day}
-          {when.time && ` · ${when.time}`}
+          {when.time && `, ${when.time}`}
           {when.soon && <span className="dchip2 warn">{when.soon}</span>}
         </span>
         {event.location && (
@@ -590,8 +590,8 @@ function NoticeCard({ notice: n, acts }: { notice: BoardNotice; acts: Acts }) {
           </div>
           <div className="nb-meta">
             {n.mine ? "Posted by you" : n.postedByName ? `Posted by ${n.postedByName}` : ""}
-            {` · ${fmtWhen(n.createdAt)}`}
-            {n.editedAt && <span style={{ fontStyle: "italic" }}> · Edited</span>}
+            {`, ${fmtWhen(n.createdAt)}`}
+            {n.editedAt && <span style={{ fontStyle: "italic" }}>, edited</span>}
           </div>
         </div>
         <span style={{ display: "flex", gap: 8, alignItems: "center", flex: "0 0 auto" }}>
@@ -1208,7 +1208,7 @@ export function NoticesBoard({
                 onClick={() => setShowArchive((v) => !v)}
               >
                 <Icon name={showArchive ? "chevD" : "chevR"} size={14} />
-                Archived · {archived.length}
+                Archived, {archived.length}
               </button>
               {showArchive && archived.map((n) => <NoticeCard key={n.id} notice={n} acts={acts} />)}
             </>

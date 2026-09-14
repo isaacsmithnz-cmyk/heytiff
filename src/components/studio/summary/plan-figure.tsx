@@ -381,7 +381,7 @@ export function PlanFigure({
                     ? "Data"
                     : "Power"
                   : null;
-            const label = [len, tag].filter(Boolean).join(" · ");
+            const label = [len, tag].filter(Boolean).join(", ");
             return (
               <g key={r.id} className={cls} style={{ color: colourOf(r) }}>
                 {curved ? (

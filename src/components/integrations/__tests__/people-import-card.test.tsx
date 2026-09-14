@@ -66,7 +66,7 @@ describe("the row is the review", () => {
   it("shows every value Import would write, right on the row", () => {
     show({ rows: [newRow("u-1")] });
     expect(screen.getByText("Dan Smith")).toBeInTheDocument();
-    expect(screen.getByText(/Technician · dan@acme\.com · 0412 000 111/)).toBeInTheDocument();
+    expect(screen.getByText(/Technician, dan@acme\.com, 0412 000 111/)).toBeInTheDocument();
   });
 
   it("imports the default-ticked fields as shown", async () => {

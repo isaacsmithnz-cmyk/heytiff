@@ -35,7 +35,7 @@ const pushOutcome = (r: {
   ].filter(Boolean);
   return {
     kind: r.heldBack > 0 || r.orphaned > 0 ? "warn" : "done",
-    msg: parts.length > 0 ? parts.join(" · ") : "Already on the job",
+    msg: parts.length > 0 ? parts.join(", ") : "Already on the job",
   };
 };
 

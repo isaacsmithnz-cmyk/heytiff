@@ -214,7 +214,7 @@ export function ProjectSheet({
             <span className="wb2-jcid">
               <h2 className="wb2-shname">{project.name}</h2>
               <p className="wb2-jcaddr">
-                {[project.clientName, project.siteLabel].filter(Boolean).join(" · ") ||
+                {[project.clientName, project.siteLabel].filter(Boolean).join(", ") ||
                   "No client on the project"}
               </p>
             </span>
@@ -375,7 +375,7 @@ export function ProjectSheet({
                   {pastDays > 0 && (
                     <em>
                       {`${pastDays} ${pastDays === 1 ? "day" : "days"}`}
-                      {pastMinutes > 0 ? ` · ${fmtMinutesAsHours(pastMinutes)} on site` : ""}
+                      {pastMinutes > 0 ? `, ${fmtMinutesAsHours(pastMinutes)} on site` : ""}
                     </em>
                   )}
                 </div>
@@ -533,7 +533,7 @@ function DiaryRow({
           <span key={p.name}>
             {i > 0 ? (anyTitle ? " — " : ", ") : ""}
             {p.name}
-            {p.title && <i className="wb2-jcrole">{` · ${p.title}`}</i>}
+            {p.title && <i className="wb2-jcrole">{`, ${p.title}`}</i>}
           </span>
         ))}
       </em>

@@ -160,7 +160,7 @@ describe("the facts grid", () => {
   });
 
   it("says how a term got here", () => {
-    expect(termAddedText(rec())).toBe("Added 1 Aug 2024 · scanned from the card");
+    expect(termAddedText(rec())).toBe("Added 1 Aug 2024, scanned from the card");
     expect(termAddedText(rec({ source: null, createdAt: null }))).toBe("");
   });
 });

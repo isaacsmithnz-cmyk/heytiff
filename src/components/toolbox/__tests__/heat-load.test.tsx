@@ -176,14 +176,14 @@ describe("HeatLoadCalculator UI", () => {
     // picking non-defaults echoes the factor into the summary line
     fireEvent.click(screen.getByRole("button", { name: "High ×1.24" }));
     fireEvent.click(screen.getByRole("button", { name: "Poor ×1.20" }));
-    expect(screen.getByText(/high glass ×1.24 · poor insulation ×1.20/)).toBeInTheDocument();
+    expect(screen.getByText(/high glass ×1.24, poor insulation ×1.20/)).toBeInTheDocument();
     // 2900 × 1.24 × 1.2 = 4315 W → 4.3 kW
     expect(screen.getByText("4.3")).toBeInTheDocument();
   });
 
   it("Advanced starts collapsed with a summary line; the header reveals the panel", () => {
     render(<HeatLoadCalculator />);
-    expect(screen.getByText(/Zone 5 · Residential · moderate glass/)).toBeInTheDocument();
+    expect(screen.getByText(/Zone 5, Residential, moderate glass/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Glazing")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
     expect(screen.getByLabelText("Glazing")).toBeInTheDocument();

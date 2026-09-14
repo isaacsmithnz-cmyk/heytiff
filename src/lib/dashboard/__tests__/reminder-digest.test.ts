@@ -12,7 +12,7 @@ it("one reminder: the subject is the reminder, and the body greets by name", () 
     items: [
       {
         title: "Renew rego — WORK TRITON (YLI59V)",
-        detail: "Expires 29 Sep 2027 · 30 days' notice",
+        detail: "Expires 29 Sep 2027, 30 days' notice",
         day: "2026-09-03",
         overdue: false,
       },
@@ -21,7 +21,7 @@ it("one reminder: the subject is the reminder, and the body greets by name", () 
   expect(subject).toBe("Reminder: Renew rego — WORK TRITON (YLI59V)");
   expect(html).toContain("Hi Isaac —");
   expect(html).toContain("Renew rego — WORK TRITON (YLI59V)");
-  expect(html).toMatch(/Expires 29 Sep 2027 · 30 days(?:&#39;|&apos;|')? notice/);
+  expect(html).toMatch(/Expires 29 Sep 2027, 30 days(?:&#39;|&apos;|')? notice/);
   expect(html).toContain("https://go.hey-tiff.com/dashboard");
   expect(html).not.toContain("came due earlier");
 });
@@ -34,7 +34,7 @@ it("several: counts them, marks the one that came due earlier, escapes what peop
       { title: "Call Smith & Sons", detail: null, day: "2026-09-01", overdue: true },
       {
         title: "Renew insurance — ZUCKY (EVD72G)",
-        detail: "Expires 23 Sep 2026 · 14 days' notice",
+        detail: "Expires 23 Sep 2026, 14 days' notice",
         day: "2026-09-03",
         overdue: false,
       },

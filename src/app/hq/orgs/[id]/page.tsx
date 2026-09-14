@@ -53,7 +53,7 @@ export default async function OrgDetailPage({
       </a>
       <h1 className="hq-h1">{org.name}</h1>
       <p className="hq-lede">
-        Signed up {formatDate(org.created_at)} · {rows.length} member
+        Signed up {formatDate(org.created_at)}, {rows.length} member
         {rows.length === 1 ? "" : "s"}
       </p>
 

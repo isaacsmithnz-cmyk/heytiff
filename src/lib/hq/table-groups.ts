@@ -1,7 +1,7 @@
 /* Comparison-table column model for the HQ universal-table editor.
 
    Arranges each section's editable value fields into ordered column groups
-   ("Capacity · kW", "Dimensions · mm", …) for the per-series comparison table,
+   ("Capacity, kW", "Dimensions, mm", …) for the per-series comparison table,
    and partitions a series' columns into mapped groups vs a trailing amber
    "To add" set (fields no row in the series has yet).
 

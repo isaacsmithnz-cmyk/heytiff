@@ -57,7 +57,7 @@ export function DocRows({
             <span className="vm-docl">
               <b>{documentTitle(d)}</b>
               <em>
-                {d.fileName} · {fmtBytes(d.sizeBytes)}
+                {d.fileName}, {fmtBytes(d.sizeBytes)}
               </em>
             </span>
             <span className="vm-docview">{d.id === openId ? "Close" : "View"}</span>
@@ -77,7 +77,7 @@ export function DocPreview({ doc, onClose, height = 180 }: { doc: StoredDocument
         <span className="vm-docl">
           <b>{documentTitle(doc)}</b>
           <em>
-            {doc.fileName} · uploaded {fmtDay(doc.createdAt)} · {fmtBytes(doc.sizeBytes)}
+            {doc.fileName}, uploaded {fmtDay(doc.createdAt)}, {fmtBytes(doc.sizeBytes)}
           </em>
         </span>
         <span className="vm-previewtools">

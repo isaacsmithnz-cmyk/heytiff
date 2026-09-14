@@ -167,7 +167,7 @@ export function CompanySetup({
         }}
       >
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          Set up your company · step {step + 1} of {SETUP_STEPS.length}
+          Set up your company, step {step + 1} of {SETUP_STEPS.length}
         </p>
         <h1 className="mt-1 text-xl font-semibold text-zinc-900">{SETUP_STEPS[step].title}</h1>
         <p className="mt-1 text-sm text-zinc-500">

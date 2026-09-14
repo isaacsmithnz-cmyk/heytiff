@@ -88,9 +88,9 @@ it("puts FAMILIES on the tabs, not the ten subjects", async () => {
   const tabs = screen.getByRole("tablist", { name: "What the photo is of" });
   /* The COUNT is on the tab: a filter that doesn't say how many it holds
      makes you click it to find out it was empty. */
-  expect(within(tabs).getByRole("tab", { name: "Everything · 3" })).toBeInTheDocument();
-  expect(within(tabs).getByRole("tab", { name: /Equipment · 1/ })).toBeInTheDocument();
-  expect(within(tabs).getByRole("tab", { name: /Installation · 2/ })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: "Everything (3)" })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: /Equipment \(1\)/ })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: /Installation \(2\)/ })).toBeInTheDocument();
   /* THE REGRESSION THIS PINS: a subject back on the row is the wall of
      labels coming back. Ductwork and pipework are one tab now. */
   expect(within(tabs).queryByRole("tab", { name: /Ductwork/ })).toBeNull();
@@ -105,7 +105,7 @@ it("narrows to a family when its tab is picked", async () => {
   render(<ShowcaseView />);
   await screen.findByText("2 starred photos");
 
-  await userEvent.click(screen.getByRole("tab", { name: /Installation · 1/ }));
+  await userEvent.click(screen.getByRole("tab", { name: /Installation \(1\)/ }));
   expect(screen.getByText("Flexible duct into a ceiling plenum")).toBeInTheDocument();
   expect(screen.queryByText("Rating plate on the outdoor unit")).toBeNull();
 });
@@ -151,7 +151,7 @@ it("lights a subject's family tab when the subject is picked", async () => {
   expect(screen.queryByRole("menu")).toBeNull();
   expect(screen.getByRole("button", { name: "Dataplate" })).toBeInTheDocument();
   // its family's tab is the lit one, and only that photo shows
-  expect(screen.getByRole("tab", { name: /Equipment · 2/ })).toHaveAttribute(
+  expect(screen.getByRole("tab", { name: /Equipment \(2\)/ })).toHaveAttribute(
     "aria-selected",
     "true"
   );
@@ -173,7 +173,7 @@ it("gives a fine filter a way back out", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Clear the Dataplate filter" }));
   expect(screen.getByText("Flexible duct")).toBeInTheDocument();
-  expect(screen.getByRole("tab", { name: "Everything · 2" })).toHaveAttribute(
+  expect(screen.getByRole("tab", { name: "Everything (2)" })).toHaveAttribute(
     "aria-selected",
     "true"
   );
@@ -213,7 +213,7 @@ it("keeps the unread ones reachable without inventing a family for them", async 
   await screen.findByText("2 starred photos");
 
   const tabs = screen.getByRole("tablist", { name: "What the photo is of" });
-  expect(within(tabs).getByRole("tab", { name: /Faults · 1/ })).toBeInTheDocument();
+  expect(within(tabs).getByRole("tab", { name: /Faults \(1\)/ })).toBeInTheDocument();
   /* Not a family, so not a tab — an unread photo has no answer yet and
      filing it under one would be inventing it. */
   expect(within(tabs).queryByRole("tab", { name: /Not read yet/ })).toBeNull();
@@ -277,10 +277,10 @@ it("re-counts the tabs when a photo leaves the gallery", async () => {
     photo({ remoteId: "p-2", subject: "outdoor-unit", read: true, caption: "The condenser" }),
   ]);
   render(<ShowcaseView />);
-  await screen.findByRole("tab", { name: /Equipment · 2/ });
+  await screen.findByRole("tab", { name: /Equipment \(2\)/ });
 
   await userEvent.click(screen.getByRole("button", { name: "Unstar Rating plate" }));
-  expect(await screen.findByRole("tab", { name: /Equipment · 1/ })).toBeInTheDocument();
+  expect(await screen.findByRole("tab", { name: /Equipment \(1\)/ })).toBeInTheDocument();
 });
 
 /* ── the viewer ───────────────────────────────────────────────────────────
@@ -305,7 +305,7 @@ it("opens the viewer on the photo you clicked, with the roll behind it", async (
   expect(within(viewer).getByText("2 / 3")).toBeInTheDocument();
   /* The origin line carries the job and the client — the photo is about the
      work, and the viewer must say whose. */
-  expect(within(viewer).getByText(/#907 · Heuvel Construction/)).toBeInTheDocument();
+  expect(within(viewer).getByText(/#907, Heuvel Construction/)).toBeInTheDocument();
 });
 
 it("closes on Escape — this tab has no sheet to do it for it", async () => {

@@ -94,7 +94,7 @@ describe("matching what was said to a job card", () => {
 describe("how a job card says who it is", () => {
   it("leads with the job number when there is one", () => {
     expect(describeJob(KINGSFORD_TRIP)).toBe(
-      "Kingsford Medical Centre — Ducted units — quarterly · Consult wing · job #1042"
+      "Kingsford Medical Centre — Ducted units — quarterly, Consult wing, job #1042"
     );
   });
 

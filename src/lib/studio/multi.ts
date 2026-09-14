@@ -7,7 +7,7 @@
    Selection reads ONLY the pack's multi sections for matching — which indoor
    units a multi outdoor accepts comes from `multi_rules.compatibility`
    (universal-table-schema.md §5), never a guess. The badge the cockpit shows
-   ("3/4 ports · 112% combo") is derived here. */
+   ("3/4 ports, 112% combo") is derived here. */
 
 import type { DesignDocument, DesignSystem } from "./document";
 import type {

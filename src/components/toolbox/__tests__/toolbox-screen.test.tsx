@@ -102,7 +102,7 @@ describe("ToolboxScreen", () => {
 
   /* A CATEGORY WITH NO TOOLS IS NOT A SHELF. "Design Tools" was a permanently
      empty quarter of the grid reading "Nothing here yet", and it collided with
-     "Design Studio · VRF design canvas" — a live rail row two items above it.
+     "Design Studio, VRF design canvas" — a live rail row two items above it.
      Someone hunting for a design tool clicked the empty card while the real
      one sat in the nav. The registry entry stays; it gets a chip with the
      first tool that lands on it. */

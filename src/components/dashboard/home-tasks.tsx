@@ -80,7 +80,7 @@ function Tick({
       <span className="wb2-tkt">
         <b>{task.title}</b>
         {(task.detail || who) && (
-          <em>{[who, task.detail].filter(Boolean).join(" · ")}</em>
+          <em>{[who, task.detail].filter(Boolean).join(", ")}</em>
         )}
       </span>
       <Due task={task} today={today} />
@@ -389,7 +389,7 @@ export function HomeTasks({
                       flash={flashId === t.id}
                       title={t.title}
                       detail={`${t.doneByName ?? t.assigneeName}${
-                        t.doneAt ? ` · ${doneLabel(t.doneAt, today).toLowerCase()}` : ""
+                        t.doneAt ? `, ${doneLabel(t.doneAt, today).toLowerCase()}` : ""
                       }`}
                     />
                   ))}

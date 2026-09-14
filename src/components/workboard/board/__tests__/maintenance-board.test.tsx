@@ -674,7 +674,7 @@ describe("the visit sheet — the editing heart", () => {
     expect(face.getByText("White card required")).toBeInTheDocument();
     expect(face.getByText("Roof ladder won't reach")).toBeInTheDocument();
     expect(face.getByText("Equipment on site")).toBeInTheDocument();
-    expect(face.getByText("Model UATYQ250 · Serial K1 · East deck")).toBeInTheDocument();
+    expect(face.getByText("Model UATYQ250, Serial K1, East deck")).toBeInTheDocument();
   });
 
   it("a quiet visit draws no Worth knowing box at all", async () => {
@@ -913,7 +913,7 @@ describe("Agreements — named clients, honest dates (B22/B10)", () => {
     );
     await toTab(/Service agreements/);
     expect(
-      screen.getByText("2 agreements · oldest overdue Mon 20 July · 1 overdue")
+      screen.getByText("2 agreements, oldest overdue Mon 20 July, 1 overdue")
     ).toBeInTheDocument();
   });
 
@@ -1447,7 +1447,7 @@ describe("the agreement sheet (A6/D4)", () => {
         equipment: [{ id: "e-1", description: "Rooftop package #1", model: "PKV-500", serial: "S123", location: "Roof" }],
       })
     );
-    expect(sheet.getByText(/Model PKV-500 · Serial S123 · Roof/)).toBeInTheDocument();
+    expect(sheet.getByText(/Model PKV-500, Serial S123, Roof/)).toBeInTheDocument();
 
     await userEvent.type(sheet.getByPlaceholderText(/Unit \(e\.g\./), "Rooftop package #2");
     await userEvent.type(sheet.getByPlaceholderText("Serial"), "S124");

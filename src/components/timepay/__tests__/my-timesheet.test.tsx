@@ -62,7 +62,7 @@ const WEEK: WeekDay[] = [
 
 const PERIODS: PayPeriod[] = [
   { start: "2026-06-29", range: "29 Jun – 5 Jul", year: "2026", live: true, note: "" },
-  { start: "2026-06-22", range: "22 – 28 Jun", year: "2026", live: false, note: "Closed period · historical" },
+  { start: "2026-06-22", range: "22 – 28 Jun", year: "2026", live: false, note: "Closed period, historical" },
 ];
 
 const W = (i: string, o: string, h: number): DayEntry => ({ t: "work", in: i, out: o, h });
@@ -805,8 +805,8 @@ describe("a day that was different", () => {
   /* FOUND BY FILLING A WEEK IN ON THE REAL SCREEN. The editor seeds kind/start
      /finish into local state on mount and was keyed by the day INDEX alone, so
      a save that changed the day underneath it left the editor showing the old
-     answer: the card returned to "Normal · 8h" while the panel still read
-     "Didn't work · 0h". Pressing Save from there wrote the `off` straight back
+     answer: the card returned to "Normal, 8h" while the panel still read
+     "Didn't work, 0h". Pressing Save from there wrote the `off` straight back
      and undid the correction without saying a word. */
   it("re-reads the day after a save instead of keeping what it mounted with", async () => {
     const user = userEvent.setup();
@@ -1119,7 +1119,7 @@ describe("the rail", () => {
 
      27 worked against 36.5 payroll is a nine-and-a-half-hour gap, and the chips
      used to contradict the left tile while reconciling the right: paid absence
-     was folded into the ×1.0 bucket, so they read "32h ×1.0 · 3h ×1.5" —
+     was folded into the ×1.0 bucket, so they read "32h ×1.0, 3h ×1.5" —
      32 + 3×1.5 = 36.5 ✓, 32 + 3 ≠ 27 ✗. A paragraph was bolted underneath to
      explain the difference. Splitting the bucket is what that paragraph was
      standing in for, so BOTH tiles now come off the chips, and there is no

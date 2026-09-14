@@ -86,7 +86,7 @@ export function ScheduleFocus({
           </span>
           <em>
             {job.label}
-            {job.suburb ? ` · ${job.suburb}` : ""}
+            {job.suburb ? `, ${job.suburb}` : ""}
           </em>
         </div>
 

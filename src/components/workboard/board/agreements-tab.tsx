@@ -55,7 +55,7 @@ function groupLine(list: BoardAgreement[], today: string): string {
   if (next) bits.push(`${next < today ? "oldest overdue" : "next"} ${fmtAuWeekdayDayMonth(next)}`);
   const overdue = list.reduce((n, a) => n + (a.status === "paused" ? 0 : a.overdueCount), 0);
   if (overdue > 0) bits.push(`${overdue} overdue`);
-  return bits.join(" · ");
+  return bits.join(", ");
 }
 
 export function AgreementsTab({
@@ -148,7 +148,7 @@ export function AgreementsTab({
                     <b>{a.clientName}</b>
                     <em>
                       {a.label}
-                      {a.siteLabel ? ` · ${a.siteLabel}` : ""}
+                      {a.siteLabel ? `, ${a.siteLabel}` : ""}
                     </em>
                   </div>
                   <em className="wb2-agcad">{cadenceLabel(a.intervalMonths)}</em>

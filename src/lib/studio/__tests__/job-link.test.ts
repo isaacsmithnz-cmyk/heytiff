@@ -62,7 +62,7 @@ describe("flatAddress", () => {
 
 describe("jobSubtitle", () => {
   it("says who, where and what state — never the number", () => {
-    expect(jobSubtitle(hit())).toBe("Diamond Air · Waverley · Work Order");
+    expect(jobSubtitle(hit())).toBe("Diamond Air, Waverley, Work Order");
   });
 
   it("closes the gaps rather than printing empty separators", () => {

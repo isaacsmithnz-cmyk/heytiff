@@ -162,7 +162,7 @@ function ProjectRow({
     <>
       <div className="wb2-trt">
         <b>{p.name}</b>
-        <em>{[p.clientName, p.siteLabel].filter(Boolean).join(" · ") || "—"}</em>
+        <em>{[p.clientName, p.siteLabel].filter(Boolean).join(", ") || "—"}</em>
       </div>
 
       <div className="wb2-plstage" aria-hidden="true" title={`Stage ${Math.max(idx + 1, 1)} of ${PROJECT_STAGES.length} — ${p.stage}`}>
@@ -213,7 +213,7 @@ function ProjectRow({
           </span>
         )}
         {!state && p.status === "active" && (
-          <span className="wb2-chip ok">Moving · {agoLabel(p.updatedAt.slice(0, 10), today)}</span>
+          <span className="wb2-chip ok">Moving, {agoLabel(p.updatedAt.slice(0, 10), today)}</span>
         )}
       </div>
     </>

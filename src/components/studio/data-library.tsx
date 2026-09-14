@@ -98,7 +98,7 @@ function PackCard({ view }: { view: PackView }) {
             {meta.sources?.map((s) => (
               <span className="dl-src" key={s.title}>
                 {s.title}
-                {s.edition ? ` · ${s.edition}` : ""}
+                {s.edition ? `, ${s.edition}` : ""}
               </span>
             ))}
           </div>
@@ -111,7 +111,7 @@ function PackCard({ view }: { view: PackView }) {
             ? "✓ Valid"
             : `${validation.errors.length} error${validation.errors.length === 1 ? "" : "s"}`}
           {validation.warnings.length > 0 && (
-            <span className="dl-warn"> · {validation.warnings.length} warn</span>
+            <span className="dl-warn">, {validation.warnings.length} warn</span>
           )}
         </div>
       </div>
@@ -169,7 +169,7 @@ function Overview({ view }: { view: PackView }) {
         <div className="dl-errs">
           {validation.errors.slice(0, 8).map((e, i) => (
             <div key={i}>
-              <code>{e.section}</code> · {e.row} — {e.message}
+              <code>{e.section}</code>, {e.row} — {e.message}
             </div>
           ))}
           {validation.errors.length > 8 && (

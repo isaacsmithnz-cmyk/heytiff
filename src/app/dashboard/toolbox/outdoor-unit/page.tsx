@@ -3,7 +3,7 @@ import { can } from "@/lib/permissions-server";
 import { ToolPage } from "@/components/toolbox/tool-page";
 import { OutdoorUnit } from "@/components/toolbox/outdoor-unit";
 
-export const metadata = { title: "Outdoor Unit Placement · Toolbox" };
+export const metadata = { title: "Outdoor unit placement – Toolbox" };
 
 // Deep-linkable leaf — same `toolbox` gate as the index page: the capability
 // is revocable, so every route checks for itself, not just the nav entry.

@@ -128,7 +128,7 @@ describe("derive — demo staff on default settings", () => {
     expect(d.bullets).toContain("Sat 4 Jul — 4h at Saturday rates (2h @1.5×, then 2h @2×)");
     /* Two kinds of issue, so the heading names both and drops the verb — see
        `issueHeading`. Double time leads: it is the more expensive one. */
-    expect(d.issueTitle).toBe("Double time · Overtime");
+    expect(d.issueTitle).toBe("Double time, Overtime");
   });
 
   /* THE BULLETS SAY WHICH DAY AND WHY. There used to be a closing
@@ -318,8 +318,8 @@ describe("formatting helpers", () => {
     expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).toBe("1.5× first 2h, then 2×");
   });
   it("builds the live-period note from settings", () => {
-    expect(submitNote(DEFAULT_SETTINGS)).toBe("Open · auto-submits Sun 3:00 PM, then locks");
-    expect(submitNote({ ...DEFAULT_SETTINGS, lock: false })).toBe("Open · auto-submits Sun 3:00 PM");
+    expect(submitNote(DEFAULT_SETTINGS)).toBe("Open, auto-submits Sun 3:00 PM, then locks");
+    expect(submitNote({ ...DEFAULT_SETTINGS, lock: false })).toBe("Open, auto-submits Sun 3:00 PM");
   });
 });
 
@@ -604,20 +604,20 @@ describe("breakLine", () => {
   });
 
   /* NO INTERIOR "·". The rules footnote joins its items with " · ", and this
-     string used to carry one of its own ("Break: 30 min · unpaid"), so the
-     footnote ran "30 min break · unpaid · Sat 1.5× first 2h · then 2×" with no
+     string used to carry one of its own ("Break: 30 min, unpaid"), so the
+     footnote ran "30 min break, unpaid, Sat 1.5× first 2h, then 2×" with no
      way to tell a divider from a continuation. Same reason `ruleSummary` uses
      a comma. */
   it("keeps the list separator out of the item", () => {
     expect(breakLine(withBreak(30, false))).not.toContain("·");
     expect(ruleSummary({ on: true, rate: 1.5, up: 2 })).not.toContain("·");
-    expect(submitNote({ ...DEFAULT_SETTINGS, lock: true }).replace(/^Open · /, "")).not.toContain(
+    expect(submitNote({ ...DEFAULT_SETTINGS, lock: true }).replace(/^Open, /, "")).not.toContain(
       "·",
     );
   });
 
   /* A day whose break is recovered as zero — `seedBreakMinutes` reads it back
-     out of what was saved — used to render "Break: 0 min · unpaid": a payment
+     out of what was saved — used to render "Break: 0 min, unpaid": a payment
      status for a break that isn't there. */
   it("does not price a break of no minutes", () => {
     expect(breakLine(withBreak(30, false), 0)).toBe("No break on this day");
@@ -875,12 +875,12 @@ describe("issueHeading — the approver's one-line summary", () => {
     /* The bug this replaces: a week with one unlogged day and two overtime
        days was headed "Missing entries to chase", which described a third of
        the list underneath it. */
-    expect(issueHeading({ ...none, missing: 1, ot: 2 })).toBe("Missing entries · Overtime");
+    expect(issueHeading({ ...none, missing: 1, ot: 2 })).toBe("Missing entries, Overtime");
   });
 
   it("stops at three and counts the rest — a heading is a glance", () => {
     expect(issueHeading({ ...none, missing: 1, off: 1, ot2: 1, ot: 1, sick: 1 })).toBe(
-      "Missing entries · Days not worked · Double time · +2",
+      "Missing entries, Days not worked, Double time, +2",
     );
   });
 

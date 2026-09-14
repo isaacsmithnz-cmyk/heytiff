@@ -63,9 +63,9 @@ export function evaluateAdditionalCharge(
 export const describeUnit = (pack: DataPack, model: string): string => {
   const idu = pack.indoor_units.find((u) => u.model === model);
   if (idu)
-    return `${idu.form_factor} indoor unit · ${idu.capacity_cool_kw}/${idu.capacity_heat_kw} kW`;
+    return `${idu.form_factor} indoor unit, ${idu.capacity_cool_kw}/${idu.capacity_heat_kw} kW`;
   const odu = pack.outdoor_units.find((o) => o.model === model);
   if (odu)
-    return `outdoor unit · ${odu.capacity_cool_kw}/${odu.capacity_heat_kw} kW`;
+    return `outdoor unit, ${odu.capacity_cool_kw}/${odu.capacity_heat_kw} kW`;
   return "unit";
 };

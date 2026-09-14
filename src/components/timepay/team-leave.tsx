@@ -63,7 +63,7 @@ function PendingCard({
         <b>{r.staffName}</b>
         <em>
           <span className={`dchip2 ${KIND_TONE[r.kind]}`}>{LEAVE_LABEL[r.kind]}</span>
-          {fmtRange(r.startDate, r.endDate)} · {fmt(r.hours)}h
+          {fmtRange(r.startDate, r.endDate)}, {fmt(r.hours)}h
         </em>
         {r.note && <span className="lv-pnote">{r.note}</span>}
         {/* THE EVIDENCE, WHERE THE DECISION IS MADE. This line only renders
@@ -152,9 +152,9 @@ function BalanceRow({
   const chip = (kind: BalanceKind, cell: TeamBalanceCell) => (
     <span
       className={`dchip2 ${cell ? (cell.available > 0 ? "ok" : "warn") : "mute"}`}
-      title={cell ? `As at ${cell.asAt} · ${SOURCE_LABEL[cell.source]}` : undefined}
+      title={cell ? `As at ${cell.asAt}, ${SOURCE_LABEL[cell.source]}` : undefined}
     >
-      {LEAVE_LABEL[kind]} ·{" "}
+      {LEAVE_LABEL[kind]},{" "}
       {cell ? `${fmt(cell.available)}h of ${fmt(cell.balanceHours)}h` : "not set"}
     </span>
   );
@@ -257,7 +257,7 @@ export function TeamLeave({
             <div className="lv-cols">
             <div className="lv-col">
               <div className="lv-ch">
-                Pending requests{pending.length ? ` · ${pending.length}` : ""}
+                Pending requests{pending.length ? `, ${pending.length}` : ""}
               </div>
               {pending.length === 0 ? (
                 <div className="fl-hempty">Nothing waiting. Leave requests to review land here.</div>

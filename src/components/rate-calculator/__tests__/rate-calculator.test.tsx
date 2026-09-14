@@ -43,7 +43,7 @@ describe("RateCalculator — first run (no saved state)", () => {
     await user.click(screen.getByText("I don't know yet — skip"));
 
     // Step 1, not ready
-    expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 1 of 5, Simple/)).toBeInTheDocument();
     expect(screen.getByText(/Almost there/)).toBeInTheDocument();
     expect(screen.getByText(/at least one month of wages/)).toBeInTheDocument();
 
@@ -104,7 +104,7 @@ describe("RateCalculator — question-at-a-time steps", () => {
     await dismissOnboarding(user);
 
     // The rail shows every step from the start again…
-    expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 1 of 5, Simple/)).toBeInTheDocument();
     expect(screen.getByText("Business costs")).toBeInTheDocument();
     expect(screen.getByText("Vehicles")).toBeInTheDocument();
     expect(screen.getByText("HVAC risk")).toBeInTheDocument();
@@ -199,7 +199,7 @@ describe("RateCalculator — Vehicles yes/no question", () => {
     await dismissOnboarding(user);
     await user.click(screen.getByText("Continue")); // → Business
     await user.click(screen.getByText("Continue")); // → Vehicles
-    expect(screen.getByText(/Step 3 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 3 of 5, Simple/)).toBeInTheDocument();
     expect(screen.getByText("Do you run vehicles for the business?")).toBeInTheDocument();
   }
 
@@ -242,7 +242,7 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
     saved.simpleLabour.months = [0, 0, 0];
     render(<RateCalculator initialState={saved} />);
 
-    expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 1 of 5, Simple/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull(); // staff gate: needs 12+ weeks of timesheets
     await user.click(screen.getByText("Continue")); // → Business
     expect(screen.getByRole("button", { name: "Detailed" })).toBeInTheDocument(); // ungated
@@ -394,7 +394,7 @@ describe("RateCalculator — results gated behind all five steps", () => {
     // Business is still incomplete, so no See-results label and the click
     // walks back to Step 2 rather than into Results.
     await user.click(screen.getByText("Continue"));
-    expect(screen.getByText(/Step 2 of 5 · Simple/)).toBeInTheDocument();
+    expect(screen.getByText(/Step 2 of 5, Simple/)).toBeInTheDocument();
     expect(screen.queryByText("Your recommended rates")).toBeNull();
   });
 });

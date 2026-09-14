@@ -213,7 +213,7 @@ function ItemRow({ item }: { item: TaxItem }) {
   /* The second line is whatever distinguishes THIS row from the one above it:
      which van the fuel went into, or who spent the money. Both when both are
      known, neither when neither is. */
-  const context = [item.vehicle, item.staffName].filter(Boolean).join(" · ");
+  const context = [item.vehicle, item.staffName].filter(Boolean).join(", ");
 
   return (
     <div className="tx-item">
@@ -227,9 +227,9 @@ function ItemRow({ item }: { item: TaxItem }) {
         </b>
         <em>
           {auDate(item.date)}
-          {item.supplier && ` · ${item.description}`}
-          {context && ` · ${context}`}
-          {item.abn && ` · ABN ${formatAbn(item.abn)}`}
+          {item.supplier && `, ${item.description}`}
+          {context && `, ${context}`}
+          {item.abn && `, ABN ${formatAbn(item.abn)}`}
         </em>
       </span>
       <span className="tx-amt">

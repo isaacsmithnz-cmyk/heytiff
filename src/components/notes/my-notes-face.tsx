@@ -122,8 +122,8 @@ export function MyNotesFace({
                     <span style={{ display: "block" }}>{n.body}</span>
                     <em className="wb2-capsaid" style={{ display: "block", marginTop: 3 }}>
                       {fmtAuWeekdayDayMonth(n.createdAt.slice(0, 10))}
-                      {n.source === "routed" && " · came off a note you sorted"}
-                      {n.source === "voice" && " · dictated"}
+                      {n.source === "routed" && ", came off a note you sorted"}
+                      {n.source === "voice" && ", dictated"}
                     </em>
                   </span>
                   <button

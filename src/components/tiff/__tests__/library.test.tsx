@@ -205,7 +205,7 @@ describe("what a row says about itself", () => {
   it("shows source, edition, when it changed and who added it", () => {
     render(<Library docs={[doc()]} />);
     expect(
-      screen.getByText("Mitsubishi Electric · 2026 revision B · Updated 1 Aug · Added by Dane Poulos")
+      screen.getByText("Mitsubishi Electric, 2026 revision B, Updated 1 Aug, Added by Dane Poulos")
     ).toBeInTheDocument();
   });
 
@@ -469,7 +469,7 @@ describe("the embedding gap", () => {
 describe("the month's page allowance", () => {
   it("shows the count and the reset date to a manager", () => {
     render(<Library docs={[doc()]} quota={quota()} canManage />);
-    expect(screen.getByText("1,240 of 2,000 pages this month · resets 1 Sept")).toBeInTheDocument();
+    expect(screen.getByText("1,240 of 2,000 pages this month, resets 1 Sept")).toBeInTheDocument();
   });
 
   it("says Unlimited pages rather than a number on the unlimited tier", () => {

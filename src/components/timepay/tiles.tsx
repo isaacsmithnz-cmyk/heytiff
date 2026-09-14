@@ -117,8 +117,8 @@ export function MiniTile({
     : fmt((d as { h: number }).h) +
       "h" +
       (weekendRate
-        ? " · weekend rates"
-        : cls === "std" ? " · standard" : cls === "over" ? " · overtime" : " · under standard");
+        ? ", weekend rates"
+        : cls === "std" ? ", standard" : cls === "over" ? ", overtime" : ", under standard");
   /* THE DAY IT IS, ABOVE THE COLOUR RATHER THAN INSIDE IT.
 
      This rendered as a bare coloured span — seven unlabelled bars, readable

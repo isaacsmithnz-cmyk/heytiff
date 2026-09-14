@@ -392,12 +392,12 @@ export function seedBreakMinutes(entry: DayEntry, s: Settings): number {
 /** "30 min unpaid break" — the one phrasing, so the editor and the rules
     footnote can't word it differently. Empty when no break is configured.
 
-    TWO THINGS IT USED TO GET WRONG. It read "Break: 30 min · unpaid", and that
+    TWO THINGS IT USED TO GET WRONG. It read "Break: 30 min, unpaid", and that
     interior "·" is the same separator the rules footnote joins its ITEMS with
-    — so the footnote ran "30 min break · unpaid · Sat 1.5× first 2h · then 2×"
+    — so the footnote ran "30 min break, unpaid, Sat 1.5× first 2h, then 2×"
     and there was no way to tell which dots divided rules from which dots were
     inside one. And a day whose break was recovered as zero (`seedBreakMinutes`
-    reads it back out of the saved entry) rendered "Break: 0 min · unpaid":
+    reads it back out of the saved entry) rendered "Break: 0 min, unpaid":
     a payment status for a break that isn't there. */
 export function breakLine(s: Settings, mins?: number): string {
   const n = mins ?? s.breakMinutes;
@@ -590,7 +590,7 @@ export function issueHeading(counts: Record<(typeof ISSUE_KINDS)[number][0], num
   if (present.length === 1) return `${present[0][1]} ${present[0][2]}`;
   const shown = present.slice(0, 3).map(([, label]) => label);
   const rest = present.length - shown.length;
-  return shown.join(" · ") + (rest > 0 ? ` · +${rest}` : "");
+  return shown.join(", ") + (rest > 0 ? `, +${rest}` : "");
 }
 
 export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
@@ -1114,14 +1114,14 @@ export function avatarFill(name: string): string {
 }
 
 /* "1.5× first 2h, then 2×" — a COMMA inside the rule, because the caller that
-   lists rules joins them with " · ". With a dot in both places the footnote
-   read "Sat 1.5× first 2h · then 2× · Sun 2× all day", where "then 2×" parses
+   lists rules joins them with ", ". With a dot in both places the footnote
+   read "Sat 1.5× first 2h, then 2×, Sun 2× all day", where "then 2×" parses
    as a rule of its own about nothing. */
 export const ruleSummary = (rl: RateRule): string =>
   rl.rate === 2 ? "2× all day" : "1.5× first " + fmtHval(rl.up ?? 0) + ", then 2×";
 
 export const submitNote = (s: Settings): string =>
-  "Open · auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? ", then locks" : "");
+  "Open, auto-submits " + s.submitDay + " " + s.submitTime + (s.lock ? ", then locks" : "");
 
 /* WHAT TO CALL THE PAY PERIOD, in the word the person on it would use.
 

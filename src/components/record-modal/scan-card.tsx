@@ -22,6 +22,17 @@ import { Eyebrow, Inline } from "./parts";
 
 export type ScanMode = "idle" | "reading" | "scanned" | "manual";
 
+/* A SCAN IN PROGRESS OUTLIVES A STRAY ESCAPE. Escape is the easiest key on the
+   board to press by accident — it is also how a name box's suggestion list is
+   dismissed — and closing the modal on it threw away a card that had already
+   been read and uploaded, leaving the file in storage owned by nothing. The
+   panel marks itself while it holds a file, and the modals ask this before
+   Escape or a click on the backdrop closes anything. The X and Start over
+   still do what they say. */
+export function scanInProgress(): boolean {
+  return typeof document !== "undefined" && document.querySelector("[data-scan-in-progress]") !== null;
+}
+
 export function ScanCard<R extends { ok: boolean }>({
   heading,
   prompt,
@@ -106,7 +117,10 @@ export function ScanCard<R extends { ok: boolean }>({
   };
 
   return (
-    <div className="vm-card vm-record">
+    <div
+      className="vm-card vm-record"
+      data-scan-in-progress={mode === "reading" || (mode !== "idle" && fileName !== null) ? "" : undefined}
+    >
       <div className="vm-cardhead">
         <Eyebrow>{heading}</Eyebrow>
         <div className="vm-recordtools">

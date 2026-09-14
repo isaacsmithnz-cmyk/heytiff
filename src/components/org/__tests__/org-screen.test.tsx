@@ -1774,3 +1774,64 @@ describe("the words on a business card", () => {
     expect(words(dialog)).not.toMatch(/\bterms?\b/i);
   });
 });
+
+/* A SCAN IN PROGRESS OUTLIVES A STRAY ESCAPE — the business side: adding a
+   card, and the update screen, which Escape used to leave for the card behind
+   it with the scan gone. */
+describe("a scan in progress survives Escape", () => {
+  const pdf = () => new File(["x"], "certificate.pdf", { type: "application/pdf" });
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readOrgCredentialDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readOrgCredentialDocument.mockResolvedValue({
+      ok: true,
+      issuer: "QBE",
+      number: "PL-9",
+      cover: null,
+      sumInsured: null,
+      premium: null,
+      excess: null,
+      workersCount: null,
+      wages: null,
+      startsOn: null,
+      expiresOn: null,
+    });
+  });
+
+  it("keeps the add window and the scan when Escape is pressed", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", credentials: [] });
+    await user.click(screen.getByRole("button", { name: /Add licence or insurance/ }));
+    const dialog = screen.getByRole("dialog");
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("Scanned");
+    await user.keyboard("{Escape}");
+    expect(within(screen.getByRole("dialog")).getByText("Scanned")).toBeInTheDocument();
+    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("stays on the update screen with the scan when Escape is pressed", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("Scanned");
+    await user.keyboard("{Escape}");
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "File the document" })).toBeInTheDocument();
+  });
+
+  it("still goes back to the card on Escape when nothing has been scanned", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials" });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.keyboard("{Escape}");
+    expect(await within(screen.getByRole("dialog")).findByRole("button", { name: "Update policy" })).toBeInTheDocument();
+  });
+});

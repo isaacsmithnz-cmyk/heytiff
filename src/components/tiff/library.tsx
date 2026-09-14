@@ -104,7 +104,7 @@ function metaLine(d: KbLibraryDoc): string {
   const updated = fmtAuDayMonth(auDayOf(d.updatedAt));
   if (updated) bits.push(`Updated ${updated}`);
   if (d.uploaderName) bits.push(`Added by ${d.uploaderName}`);
-  return bits.join(" · ");
+  return bits.join(", ");
 }
 
 /* ── the page ────────────────────────────────────────────────────────────── */
@@ -253,7 +253,7 @@ export function Library({
                 <Icon name="layers" size={14} />
                 {quota.pagesAllowed === null
                   ? "Unlimited pages"
-                  : `${n(quota.pagesUsed)} of ${n(quota.pagesAllowed)} pages this month · resets ${fmtAuDayMonth(quota.resetsOn)}`}
+                  : `${n(quota.pagesUsed)} of ${n(quota.pagesAllowed)} pages this month, resets ${fmtAuDayMonth(quota.resetsOn)}`}
               </p>
             )}
             {canManage && unembedded > 0 && <EmbedGap count={unembedded} />}
@@ -409,7 +409,7 @@ export function Library({
                         <p>
                           {counts[c.key] === 0
                             ? c.blurb
-                            : `${n(rows.length)} ${plural(rows.length, "document")} · ${c.blurb}`}
+                            : `${n(rows.length)} ${plural(rows.length, "document")}, ${c.blurb}`}
                         </p>
                       </div>
                     </header>

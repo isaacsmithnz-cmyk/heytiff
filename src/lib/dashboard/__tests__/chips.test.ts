@@ -210,7 +210,7 @@ describe("chipSummary / summaryLine", () => {
   });
 
   it("names only the buckets that have something in them", () => {
-    expect(summaryLine({ total: 3, bad: 1, warn: 2 })).toBe("1 overdue · 2 due soon");
+    expect(summaryLine({ total: 3, bad: 1, warn: 2 })).toBe("1 overdue, 2 due soon");
     expect(summaryLine({ total: 2, bad: 2, warn: 0 })).toBe("2 overdue");
     expect(summaryLine({ total: 1, bad: 0, warn: 1 })).toBe("1 due soon");
   });
@@ -444,13 +444,13 @@ describe("declinedClaimChip", () => {
       kind: "claim",
       state: "bad",
       label: "Expense claim declined",
-      subject: "Copper fittings · $214.50",
+      subject: "Copper fittings, $214.50",
       href: "/dashboard/my-expenses",
     });
   });
 
   it("drops the cents when there are none", () => {
-    expect(declinedClaimChip({ ...claim, amount: 340 }, ctx)!.subject).toBe("Copper fittings · $340");
+    expect(declinedClaimChip({ ...claim, amount: 340 }, ctx)!.subject).toBe("Copper fittings, $340");
   });
 
   it("stops nudging once the news is old", () => {

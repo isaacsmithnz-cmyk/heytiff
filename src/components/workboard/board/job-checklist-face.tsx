@@ -36,7 +36,7 @@ function tickStamp(item: JobPicklistItem, timezone: string | null): string | nul
   const when = [clockOf(at), at ? fmtAuWeekdayDayMonth(at.slice(0, 10)) : null]
     .filter(Boolean)
     .join(" ");
-  return [item.pickedBy, when].filter(Boolean).join(" · ") || null;
+  return [item.pickedBy, when].filter(Boolean).join(", ") || null;
 }
 
 /** Where an open row came from — a tooltip, not a printed line per row. */
@@ -44,7 +44,7 @@ function provenanceOf(item: JobPicklistItem, timezone: string | null): string {
   const at = naiveInZone(item.addedAt, timezone);
   const day = at ? fmtAuWeekdayDayMonth(at.slice(0, 10)) : null;
   const who = item.designId !== null ? "Pushed from the design" : item.addedBy ? `Added by ${item.addedBy}` : "Added";
-  return [who, day].filter(Boolean).join(" · ");
+  return [who, day].filter(Boolean).join(", ");
 }
 
 function ChecklistRow({
@@ -140,7 +140,7 @@ export function JobChecklistFace({
     <div className="wb2-jcck">
       <div className="wb2-jcdhead">
         <b>Checklist</b>
-        {anything && <em>{`${open} open · ${done} done`}</em>}
+        {anything && <em>{`${open} open, ${done} done`}</em>}
       </div>
 
       <form
@@ -249,7 +249,7 @@ export function JobChecklistFace({
                     {item.done
                       ? [item.doneBy, item.doneOn ? fmtAuWeekdayDayMonth(item.doneOn) : null]
                           .filter(Boolean)
-                          .join(" · ") || "done"
+                          .join(", ") || "done"
                       : ""}
                   </em>
                 </div>

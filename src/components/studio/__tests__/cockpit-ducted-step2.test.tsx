@@ -283,7 +283,7 @@ describe("AHU inspect card — plenum status line", () => {
       selectedId: "u1",
     });
     const row = screen.getByText("Plenums").closest(".ds-ck-objrow")!;
-    expect(row).toHaveTextContent("Supply plenum fitted · no return yet");
+    expect(row).toHaveTextContent("Supply plenum fitted, no return yet");
   });
 
   it("knows a built-in return from the pack", () => {
@@ -292,7 +292,7 @@ describe("AHU inspect card — plenum status line", () => {
       pack: packBuiltIn,
     });
     expect(screen.getByText("Plenums").closest(".ds-ck-objrow")!).toHaveTextContent(
-      "Supply plenum fitted · return built-in"
+      "Supply plenum fitted, return built-in"
     );
   });
 

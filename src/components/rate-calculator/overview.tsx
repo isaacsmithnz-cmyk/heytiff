@@ -41,7 +41,7 @@ function Hero({ label, c, soft, rec, be, cur, proj }: {
         </div>
         {rec != null && cur != null && <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: c, paddingBottom: 5, whiteSpace: "nowrap" }}>{Math.round(rec) - cur >= 0 ? "+" : ""}${Math.round(rec) - cur}/hr vs now</div>}
       </div>
-      <div style={{ fontSize: 12.5, color: RC.label, marginTop: 6 }}>+ GST <b style={{ color: RC.ink2, fontWeight: 700 }}>{gstOf(rec)}</b> · next year <b style={{ color: RC.ink2, fontWeight: 700 }}>{rate0(proj)}</b></div>
+      <div style={{ fontSize: 12.5, color: RC.label, marginTop: 6 }}>+ GST <b style={{ color: RC.ink2, fontWeight: 700 }}>{gstOf(rec)}</b>, next year <b style={{ color: RC.ink2, fontWeight: 700 }}>{rate0(proj)}</b></div>
       <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
         {([["Break-even", rate0(be)], ["You charge", cur != null ? "$" + cur : "—"]] as [string, string][]).map(([l, v]) => (
           <div key={l} style={{ flex: 1, background: RC.card2, borderRadius: 11, padding: "9px 12px" }}>
@@ -153,7 +153,7 @@ export function Overview({ s, calc, health, uplift, ready, missing, go, patch }:
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14, marginTop: 14 }}>
-        {([["After-hours", rate0(calc.afterHrs) + "/hr", RC.violet], ["Emergency", rate0(calc.emergency) + "/hr", RC.violet], ["Day rate · full day", money(calc.daily), RC.ink]] as [string, string, string][]).map(([l, v, c]) => (
+        {([["After-hours", rate0(calc.afterHrs) + "/hr", RC.violet], ["Emergency", rate0(calc.emergency) + "/hr", RC.violet], ["Day rate, full day", money(calc.daily), RC.ink]] as [string, string, string][]).map(([l, v, c]) => (
           <div key={l} style={{ background: "#fff", borderRadius: 14, border: `1px solid ${RC.line}`, boxShadow: "0 8px 30px rgba(0,0,0,.03)", padding: "15px 17px" }}>
             <div style={{ fontSize: 10.5, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{l}</div>
             <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 23, letterSpacing: "-0.02em", color: c, marginTop: 5, whiteSpace: "nowrap" }}>{v}</div>

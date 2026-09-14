@@ -71,7 +71,7 @@ export function jobSubtitle(hit: StudioJobHit): string {
   const suburb = (hit.suburb ?? "").trim();
   return [hit.clientName?.trim(), suburb, hit.status?.trim()]
     .filter((s): s is string => Boolean(s))
-    .join(" · ");
+    .join(", ");
 }
 
 /** What the picked job calls the design, and the three fields it fills.

@@ -378,7 +378,7 @@ export async function startRealtime({
     const cfg = (m.config ?? {}) as Record<string, unknown>;
     const landed = Array.isArray(cfg.keyterms) ? cfg.keyterms.length : "NOT PARSED";
     console.info(
-      `[realtime] session up · ${String(cfg.model_id ?? "?")} · ${rate}Hz · ` +
+      `[realtime] session up, ${String(cfg.model_id ?? "?")}, ${rate}Hz, ` +
         `keyterms sent ${keyterms.length}, landed ${landed}`
     );
   };

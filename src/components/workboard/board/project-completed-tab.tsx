@@ -74,7 +74,7 @@ export function ProjectCompletedTab({
     <div className="wb2-dn" key={p.id}>
       <div className="wb2-dnt">
         <b>{p.name}</b>
-        <em>{[p.clientName, p.siteLabel].filter(Boolean).join(" · ") || "—"}</em>
+        <em>{[p.clientName, p.siteLabel].filter(Boolean).join(", ") || "—"}</em>
       </div>
       <div className="wb2-dnw">
         <b>{closing ? "At Complete" : `Closed ${agoLabel(p.updatedAt.slice(0, 10), today)}`}</b>

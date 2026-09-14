@@ -274,7 +274,7 @@ export function HqBrandCatalog({
       section: row.section,
       rowKey: row.rowKey,
       field,
-      title: `${row.title} · ${spec.label}`,
+      title: `${row.title}, ${spec.label}`,
       value: cur == null || typeof cur === "object" ? "" : String(cur),
       opening,
       packValue: mark ? mark.packValue : null,
@@ -474,7 +474,7 @@ export function HqBrandCatalog({
           ) : (
             <>
               <b>{view.matches}</b> match{view.matches === 1 ? "" : "es"} for{" "}
-              <b className="hq-dt-q">{query}</b> · {view.counts.ready} of {unitTotal}{" "}
+              <b className="hq-dt-q">{query}</b>, {view.counts.ready} of {unitTotal}{" "}
               engine-ready
             </>
           )}
@@ -484,7 +484,7 @@ export function HqBrandCatalog({
           <b>{view.counts.ready}</b> of {unitTotal} engine-ready
           {view.counts.blocking > 0 ? (
             <>
-              {" · "}
+              {", "}
               <span className="hq-dt-block">
                 {view.counts.blocking} blocking gap
                 {view.counts.blocking === 1 ? "" : "s"}
@@ -896,7 +896,7 @@ function SeriesGroup({
             className="hq-series-tags"
             title="Set system tags for every unit in this series"
             onClick={() =>
-              onTags(group.rows, `${group.series} series · system tags`)
+              onTags(group.rows, `${group.series} series, system tags`)
             }
           >
             Tags…
@@ -979,12 +979,12 @@ function SeriesTable({
               {cols.groups.map((g) => (
                 <th key={g.key} className="hq-cmp-group" colSpan={g.columns.length}>
                   {g.label}
-                  {g.unit ? <span className="hq-cmp-gunit"> · {g.unit}</span> : null}
+                  {g.unit ? <span className="hq-cmp-gunit">, {g.unit}</span> : null}
                 </th>
               ))}
               {cols.toAdd.length > 0 ? (
                 <th className="hq-cmp-group toadd" colSpan={cols.toAdd.length}>
-                  To add · {cols.toAdd.length} field{cols.toAdd.length === 1 ? "" : "s"}
+                  To add, {cols.toAdd.length} field{cols.toAdd.length === 1 ? "" : "s"}
                 </th>
               ) : null}
               <th className="hq-cmp-status-h" rowSpan={2}>
@@ -1078,7 +1078,7 @@ function SeriesTableRow({
               className={`hq-xrole${tagsEdited ? " edited" : ""}`}
               disabled={!editable || !onTags}
               onClick={
-                onTags ? () => onTags([row], `${row.title} · system tags`) : undefined
+                onTags ? () => onTags([row], `${row.title}, system tags`) : undefined
               }
               title={
                 tagsEdited
@@ -1087,7 +1087,7 @@ function SeriesTableRow({
               }
             >
               {row.roles.length
-                ? row.roles.map((r) => ROLE_LABEL.get(r) ?? r).join(" · ")
+                ? row.roles.map((r) => ROLE_LABEL.get(r) ?? r).join(", ")
                 : "untagged"}
               {tagsEdited ? <span className="hq-fp-dot" /> : null}
             </button>
@@ -1102,7 +1102,7 @@ function SeriesTableRow({
               className="hq-xrole derived"
               title="Derived from outdoor compatibility rules in the pack — computed, never hand-set"
             >
-              + multi · rules
+              + multi, rules
             </span>
           ) : null}
         </div>

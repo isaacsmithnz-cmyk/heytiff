@@ -217,7 +217,7 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
           {/* live proportion bar — always exactly full */}
           <div style={{ display: "flex", height: 40, borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
             {([["Install", install, RC.install], ["Service", service, RC.service], ["Admin", admin, RC.faint]] as [string, number, string][]).map(([l, v, c]) => v > 0 && (
-              <div key={l} style={{ width: `${v}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .2s" }}>{v >= 18 ? `${l} · ${v}%` : v >= 8 ? `${v}%` : ""}</div>
+              <div key={l} style={{ width: `${v}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .2s" }}>{v >= 18 ? `${l}, ${v}%` : v >= 8 ? `${v}%` : ""}</div>
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -254,7 +254,7 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
 
   return (
     <>
-      <StepHead eyebrow={`Step 1 of 5 · ${s.mode.staff}`} title="Staff & wages"
+      <StepHead eyebrow={`Step 1 of 5, ${s.mode.staff}`} title="Staff & wages"
         mode={showToggle ? s.mode.staff : undefined}
         onMode={showToggle ? (v => patch({ mode: { ...s.mode, staff: v as EntryMode } })) : undefined} />
       {s.mode.staff === "Detailed" ? <StaffDetail s={s} patch={patch} calc={calc} /> : (
@@ -311,7 +311,7 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
   ];
   return (
     <>
-      <StepHead eyebrow={`Step 2 of 5 · ${onXero ? "From Xero" : s.mode.business}`} title="Business costs"
+      <StepHead eyebrow={`Step 2 of 5, ${onXero ? "From Xero" : s.mode.business}`} title="Business costs"
         // The Simple/Detailed toggle is about how you TYPE costs in, so it has
         // nothing to say while Xero is the source.
         mode={showToggle && !onXero ? s.mode.business : undefined}
@@ -436,8 +436,8 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
               <div key={v.vehicle_id} style={{ flex: 1, background: RC.card2, borderRadius: 13, border: `1px solid ${RC.line}`, padding: "12px 15px", display: "flex", alignItems: "center", gap: 11 }}>
                 <span style={{ width: 34, height: 34, borderRadius: 10, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={17} /></span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{v.vehicle_name} · {v.rego_number}</div>
-                  <div style={{ fontSize: 11.5, color: RC.faint }}>{v.allocation} · driver: {s.staff.find(p => p.id === v.assigned_driver_id)?.name || "Unassigned"}</div>
+                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{v.vehicle_name}, {v.rego_number}</div>
+                  <div style={{ fontSize: 11.5, color: RC.faint }}>{v.allocation}, driver: {s.staff.find(p => p.id === v.assigned_driver_id)?.name || "Unassigned"}</div>
                 </div>
               </div>
             ))}
@@ -452,7 +452,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
 
   return (
     <>
-      <StepHead eyebrow={`Step 3 of 5 · ${onXeroFleet ? "From Xero" : s.mode.vehicles}`} title="Vehicles"
+      <StepHead eyebrow={`Step 3 of 5, ${onXeroFleet ? "From Xero" : s.mode.vehicles}`} title="Vehicles"
         /* The Simple/Detailed toggle is about how you TYPE a fleet cost in, so
            it has nothing to say while Xero is the source — same rule the
            Business step follows. */
@@ -618,7 +618,7 @@ export function RiskStep({ s, patch, calc, revealAll }: StepBodyProps) {
       <StepHead eyebrow="Step 4 of 5" title="HVAC risk buffer" />
       <Body>
         <QuestionStack questions={questions} revealAll={revealAll} stageFromTop={!revealAll} />
-        <Note>Defaults: Warranty 3% · Defect 2% · Callback 4% · Diagnostic 3%. Most HVAC firms run 6–10% combined across install and service.</Note>
+        <Note>Defaults: Warranty 3%, Defect 2%, Callback 4%, Diagnostic 3%. Most HVAC firms run 6–10% combined across install and service.</Note>
       </Body>
     </>
   );
@@ -673,7 +673,7 @@ export function ProfitStep({ s, patch, calc, revealAll }: StepBodyProps) {
       answered: true,
       body: (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <div style={{ fontSize: 12.5, color: RC.faint }}>Next-year projection: install {rate0(calc.projInst)} · service {rate0(calc.projSvc)}</div>
+          <div style={{ fontSize: 12.5, color: RC.faint }}>Next-year projection: install {rate0(calc.projInst)}, service {rate0(calc.projSvc)}</div>
           <StepperRow value={s.profit.costIncrease ?? 3} display={`${s.profit.costIncrease ?? 3}%`} minWidth={52}
             onMinus={() => patch({ profit: { ...s.profit, costIncrease: Math.max(0, (s.profit.costIncrease ?? 3) - 1) } })}
             onPlus={() => patch({ profit: { ...s.profit, costIncrease: (s.profit.costIncrease ?? 3) + 1 } })} />

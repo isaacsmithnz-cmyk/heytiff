@@ -241,7 +241,7 @@ export function XeroPayroll({
             {data.unaccounted.map((e) => (
               <li key={e.employeeId}>
                 {e.name}
-                {e.jobTitle ? <span> · {e.jobTitle}</span> : null}
+                {e.jobTitle ? <span>, {e.jobTitle}</span> : null}
               </li>
             ))}
           </ul>

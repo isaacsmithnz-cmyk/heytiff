@@ -115,7 +115,7 @@ export function RecordScreen({
         expiry ? `expires ${fmtDay(expiry)}` : null,
       ]
         .filter(Boolean)
-        .join(" · ") || credentialStatusText(days);
+        .join(", ") || credentialStatusText(days);
   const tone = state === "none" ? "neutral" : state;
 
   const facts: DetailItem[] = current ? recordFacts(kind, current, state, credential.name) : [];

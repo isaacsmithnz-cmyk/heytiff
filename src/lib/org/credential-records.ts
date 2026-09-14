@@ -254,15 +254,15 @@ export function recordFacts(
 /** The one-line summary on a history row. */
 export function recordEvent(kind: OrgCredKind, r: OrgCredentialRecord): string {
   const who = r.issuer?.trim();
-  if (kind === "insurance") return who ? `Policy · ${who}` : "Policy";
-  return who ? `Licence · ${who}` : "Licence";
+  if (kind === "insurance") return who ? `Policy, ${who}` : "Policy";
+  return who ? `Licence, ${who}` : "Licence";
 }
 
 /** "Added 4 Feb 2026 · scanned from the document" — how this row got here. */
 export function recordAddedText(r: OrgCredentialRecord): string {
   const when = r.createdAt ? `Added ${fmtDay(r.createdAt)}` : "";
   const how = r.source === "scan" ? "scanned from the document" : r.source === "manual" ? "entered manually" : "";
-  return [when, how].filter(Boolean).join(" · ");
+  return [when, how].filter(Boolean).join(", ");
 }
 
 /* ---- what goes in the table ---- */

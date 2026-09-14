@@ -731,7 +731,7 @@ export function shapeProposal(raw: unknown, ctx: NoteContext): NoteProposal {
     proposal.issueEntries = [];
     proposal.plainNote = "";
   } else if (proposal.noteLines.length) {
-    proposal.plainNote = [proposal.plainNote, ...proposal.noteLines].filter(Boolean).join(" · ");
+    proposal.plainNote = [proposal.plainNote, ...proposal.noteLines].filter(Boolean).join(", ");
     proposal.noteLines = [];
   }
 

@@ -114,7 +114,7 @@ export function JobClaimModal({
                 : null,
             ]
               .filter(Boolean)
-              .join(" · ")}
+              .join(", ")}
           </em>
           <span className="wb2-clamt">
             {claim.amountCents !== null ? fmtAud(claim.amountCents) : "—"}
@@ -167,7 +167,7 @@ export function JobClaimModal({
                           p.takenBy,
                         ]
                           .filter(Boolean)
-                          .join(" · ")}
+                          .join(", ")}
                       </em>
                       <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
                     </div>
@@ -184,7 +184,7 @@ export function JobClaimModal({
                       <em>
                         {[n.writtenBy, n.writtenOn ? fmtAuWeekdayDayMonth(n.writtenOn) : null]
                           .filter(Boolean)
-                          .join(" · ")}
+                          .join(", ")}
                       </em>
                     </div>
                   ))

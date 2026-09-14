@@ -178,13 +178,13 @@ describe("A1 — single-floor split", () => {
          per-system consumables never list them */
       group: "units",
       name: "PLA-M100EA2-A",
-      sub: "cassette-4way indoor unit · 10/11.2 kW",
+      sub: "cassette-4way indoor unit, 10/11.2 kW",
       qty: "1",
     });
     expect(m.picklist).toContainEqual({
       group: "units",
       name: "PUZ-M100VKA-A",
-      sub: "outdoor unit · 10/11.2 kW",
+      sub: "outdoor unit, 10/11.2 kW",
       qty: "1",
     });
   });

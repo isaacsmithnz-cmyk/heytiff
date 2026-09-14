@@ -225,7 +225,7 @@ describe("buildSummaryModel — the merged sheet", () => {
   it("says what a system is, in words", () => {
     expect(buildSummaryModel(splitDoc(), pack).systems[0].kindLabel).toBe("Split");
     expect(buildSummaryModel(multiDoc(), pack).systems[0].kindLabel).toBe(
-      "Multi-split · 3 heads on one outdoor"
+      "Multi-split, 3 heads on one outdoor"
     );
   });
 

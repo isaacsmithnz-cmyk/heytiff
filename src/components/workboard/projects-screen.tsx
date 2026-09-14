@@ -79,7 +79,7 @@ export function ProjectsScreen({
                     )}
                   </div>
                   <em className="wb-projsub">
-                    {[p.clientName, p.siteLabel].filter(Boolean).join(" · ") || "—"}
+                    {[p.clientName, p.siteLabel].filter(Boolean).join(", ") || "—"}
                   </em>
                   <div className="wb-projmeta">
                     <span className="wb-chip on">{p.stage}</span>

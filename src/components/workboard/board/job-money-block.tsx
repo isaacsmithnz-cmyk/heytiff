@@ -79,7 +79,7 @@ function metaOf(claim: FamilyClaim): string {
       bits.push(`Due ${fmtAuWeekdayDayMonth(claim.dueOn)}`);
     }
   }
-  return bits.join(" · ");
+  return bits.join(", ");
 }
 
 /** What today's sheet says when the mirror can't be added up — kept word for
@@ -198,7 +198,7 @@ export function JobMoneyBlock({
      says it has not invoiced wants billing, not chasing — both sentences live
      in fallbackLine, which used to be reached only when no head row fired.
      Live that silenced #3169: a $4,015 Quote carrying an invoice_date drew an
-     amber "Awaiting payment · 100% of the job" under its Quote chip. */
+     amber "Awaiting payment, 100% of the job" under its Quote chip. */
   const ladderSpeaksFirst = statusLabel === "Quote" || money?.invoiced === false;
   const showAwaitingHead = !ladderSpeaksFirst && awaiting !== null && awaiting > 0;
   /* "Paid in full" is about the WHOLE job, so it needs both axes to agree:

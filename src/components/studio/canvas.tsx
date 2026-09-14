@@ -3343,7 +3343,7 @@ export function StudioCanvas({
             ? spec.series
             : null,
       capacity: spec
-        ? `${spec.capacity_cool_kw} kW cool · ${spec.capacity_heat_kw} kW heat`
+        ? `${spec.capacity_cool_kw} kW cool, ${spec.capacity_heat_kw} kW heat`
         : null,
       room: roomId
         ? ((rooms.find((r) => r.id === roomId)?.props.name as string | undefined) ?? null)
@@ -3511,8 +3511,8 @@ export function StudioCanvas({
              button, and Space is swallowed by the measurement field), drag
              past the slop is the mouse's. */
           text: calib.a
-            ? "Click the second point of the known dimension · scroll or drag to pan"
-            : "Select two points a known distance apart · scroll or drag to pan",
+            ? "Click the second point of the known dimension. Scroll or drag to pan"
+            : "Select two points a known distance apart. Scroll or drag to pan",
         }
       : tool === "measure"
         ? { icon: "ruler", text: "Drag across anything to measure it — nothing is saved" }
@@ -3537,8 +3537,8 @@ export function StudioCanvas({
             icon: tool === "cable" ? "zap" : tool === "drain" ? "droplet" : "pipe",
             text:
               tool === "cable" || (tool === "pipe" && draw.pipeForm === "soft")
-                ? "Place dots — the line curves through them · Enter, double-click or an anchor ends it · Esc to cancel"
-                : "Click each corner · Enter, double-click or an anchor ends it · Esc to cancel",
+                ? "Place dots — the line curves through them. Enter, double-click or an anchor ends it · Esc to cancel"
+                : "Click each corner. Enter, double-click or an anchor ends it · Esc to cancel",
           }
       : tool === "note"
         ? {
@@ -3549,8 +3549,8 @@ export function StudioCanvas({
           }
       : tool === "set-north"
         ? floor.northPos
-          ? { icon: "rotate", text: "Drag the N to rotate · drag the centre to move" }
-          : { icon: "rotate", text: "Click to place the north marker · scroll or drag to pan" }
+          ? { icon: "rotate", text: "Drag the N to rotate. Drag the centre to move" }
+          : { icon: "rotate", text: "Click to place the north marker. Scroll or drag to pan" }
         : tool === "crop"
           ? { icon: "maximize", text: "Drag a rectangle over the area to keep" }
           : tool === "component" && component?.kind === "plenum"
@@ -3763,7 +3763,7 @@ export function StudioCanvas({
                           block (ranking-not-gating) */}
                       {covFit && (
                         <tspan className={`ds-room-covfit ${covFit}`}>
-                          {covFit === "oversized" ? " · oversized" : " · undersized"}
+                          {covFit === "oversized" ? ", oversized" : ", undersized"}
                         </tspan>
                       )}
                     </text>
@@ -3837,7 +3837,7 @@ export function StudioCanvas({
             } else if (r.type === "cable-run") {
               tag = r.props.kind === "data" ? "Data" : "Power";
             }
-            const label = [len, tag].filter(Boolean).join(" · ");
+            const label = [len, tag].filter(Boolean).join(", ");
             return (
               <g
                 key={r.id}
@@ -4939,7 +4939,7 @@ export function StudioCanvas({
       <div className="ds-canvas-hud">
         <span>
           {mm
-            ? `1 grid = 1 m · ${mm.toFixed(2)} mm/px`
+            ? `1 grid = 1 m, ${mm.toFixed(2)} mm/px`
             : "uncalibrated — grid is arbitrary"}
         </span>
         {cursor && mm && (

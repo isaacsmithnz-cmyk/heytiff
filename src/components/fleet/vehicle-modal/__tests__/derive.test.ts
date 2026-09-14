@@ -99,7 +99,7 @@ describe("complianceRows", () => {
     const rows = complianceRows(van, [policy({})], WARN);
     expect(rows.find((r) => r.kind === "ctp")).toMatchObject({
       label: "Green slip",
-      value: "QBE · 29 Sep 2027",
+      value: "QBE, 29 Sep 2027",
       state: "ok",
       unset: false,
     });

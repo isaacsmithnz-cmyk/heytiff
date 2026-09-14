@@ -18,13 +18,13 @@ function missLine(m: Match): string {
 export function caseLine(score: CaseScore, conditions: string): string {
   const verdict = score.routable ? "ROUTED" : "FAILED";
   const soft = score.soft.length
-    ? ` · terms ${score.soft.filter((m) => m.hit).length}/${score.soft.length}`
+    ? `, terms ${score.soft.filter((m) => m.hit).length}/${score.soft.length}`
     : "";
   const head = `  ${verdict.padEnd(6)} ${score.id.padEnd(18)} WER ${pct(score.wer).padStart(6)}${soft}  [${conditions}]`;
   const misses = score.hard.filter((m) => !m.hit).map((m) => `\n           ✗ ${missLine(m)}`);
   const softMisses = score.soft
     .filter((m) => !m.hit)
-    .map((m) => `\n           · ${missLine(m)}`);
+    .map((m) => `\n          , ${missLine(m)}`);
   return head + misses.join("") + softMisses.join("");
 }
 

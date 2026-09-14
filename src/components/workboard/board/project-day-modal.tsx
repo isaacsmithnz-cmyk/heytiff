@@ -123,8 +123,8 @@ export function ProjectDayModal({
     run(
       () => placeVisit(v.id, dayISO),
       from
-        ? `${v.projectName} · ${v.label} moved to ${fmtAuWeekdayDayMonth(dayISO)}`
-        : `${v.projectName} · ${v.label} placed on ${fmtAuWeekdayDayMonth(dayISO)}`,
+        ? `${v.projectName}, ${v.label} moved to ${fmtAuWeekdayDayMonth(dayISO)}`
+        : `${v.projectName}, ${v.label} placed on ${fmtAuWeekdayDayMonth(dayISO)}`,
       undoable(() => (from ? placeVisit(v.id, from) : clearVisitPlacement(v.id)))
     );
   };
@@ -187,7 +187,7 @@ export function ProjectDayModal({
           </div>
           <div className="wb2-dcs">
             {v.label}
-            {v.techs.length > 0 ? ` · ${v.techs.map((t) => t.name).join(", ")}` : ""}
+            {v.techs.length > 0 ? `, ${v.techs.map((t) => t.name).join(", ")}` : ""}
           </div>
         </div>
       );
@@ -219,8 +219,8 @@ export function ProjectDayModal({
         </div>
         <div className="wb2-dcs">
           {v.label}
-          {v.siteLabel ? ` · ${v.siteLabel}` : ""}
-          {v.jobNumber ? ` · #${v.jobNumber}` : ""}
+          {v.siteLabel ? `, ${v.siteLabel}` : ""}
+          {v.jobNumber ? `, #${v.jobNumber}` : ""}
         </div>
         <div className="wb2-dcck" data-cols={missing.length}>
           {missing.map((g) =>

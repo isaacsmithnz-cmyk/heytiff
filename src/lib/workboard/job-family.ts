@@ -277,7 +277,7 @@ function amountOf(
        comparison — which is why this must not short-circuit on the flag. It
        once did, and that made any deposit against a tax-inclusive job the
        whole value of the job and marked it Paid: $1,100 in on an $11,000 job
-       read as "$1,100 · Paid in full".
+       read as "$1,100, Paid in full".
 
        With no lines at all there is nothing to test against. The payment is
        still the only figure ServiceM8 has ever stated for this claim, so it

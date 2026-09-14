@@ -158,7 +158,7 @@ export function RecordScreen({
     ? noTermLine
     : [current?.number ? `No. ${current.number}` : null, current?.issuer, expiry ? `expires ${fmtDay(expiry)}` : null]
         .filter(Boolean)
-        .join(" · ") || termStatusText(days);
+        .join(", ") || termStatusText(days);
   const tone = state === "none" ? "neutral" : state;
 
   const facts: DetailItem[] = current ? termFacts(current, state) : [];

@@ -281,7 +281,7 @@ export function WorkSearchPanel({
                           h.takenAt ? fmtAuWeekdayDayMonth(h.takenAt.slice(0, 10)) : null,
                         ]
                           .filter(Boolean)
-                          .join(" · ")}
+                          .join(", ")}
                       </em>
                       {/* WHY IT MATCHED, when the reason is not the caption.
                           A hit on a model number is invisible otherwise — the

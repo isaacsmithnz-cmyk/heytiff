@@ -163,12 +163,12 @@ describe("the facts grid", () => {
   });
 
   it("names a term by who it is with", () => {
-    expect(recordEvent("insurance", rec())).toBe("Policy · QBE");
+    expect(recordEvent("insurance", rec())).toBe("Policy, QBE");
     expect(recordEvent("licence", rec({ issuer: null }))).toBe("Licence");
   });
 
   it("says how a term got here", () => {
-    expect(recordAddedText(rec({ source: "scan" }))).toBe("Added 1 Aug 2025 · scanned from the document");
+    expect(recordAddedText(rec({ source: "scan" }))).toBe("Added 1 Aug 2025, scanned from the document");
     expect(recordAddedText(rec({ source: null, createdAt: null }))).toBe("");
   });
 });

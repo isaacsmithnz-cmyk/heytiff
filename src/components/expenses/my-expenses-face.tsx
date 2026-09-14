@@ -63,8 +63,8 @@ const money = (n: number) => `$${n.toLocaleString("en-AU", { minimumFractionDigi
    the person is looking at while they decide. */
 function describe(j: JobCandidate): string {
   const named =
-    !j.clientName || j.clientName === j.label ? j.label || j.clientName : `${j.clientName} · ${j.label}`;
-  return j.jobNumber ? `#${j.jobNumber} · ${named}` : named;
+    !j.clientName || j.clientName === j.label ? j.label || j.clientName : `${j.clientName}, ${j.label}`;
+  return j.jobNumber ? `#${j.jobNumber}, ${named}` : named;
 }
 
 /** A PDF has no thumbnail, so the strip names it instead of showing it. */
@@ -268,7 +268,7 @@ export function MyExpensesFace({
   const owed = owedTotal(claims);
 
   /* THREE FACES, THREE QUESTIONS. "What am I owed?" · "Where's the receipt for
-     the thing I bought on the card?" · "Did my claim get paid?"
+     the thing I bought on the card?", "Did my claim get paid?"
 
      Company rows are split off FIRST and never appear anywhere else. They are
      not open — nobody is waiting on them — so without this they would have
@@ -650,7 +650,7 @@ export function MyExpensesFace({
                     <b>{c.description}</b>
                     <em>
                       {fmtAuWeekdayDate(c.expenseDate)}
-                      {c.supplier ? ` · ${c.supplier}` : ""} · {CATEGORY_LABEL[c.category]}
+                      {c.supplier ? `, ${c.supplier}` : ""}, {CATEGORY_LABEL[c.category]}
                     </em>
                     {/* WHERE THIS CAME FROM. A claim raised by "Log fuel · my
                         own money" is one the person never filled in, so the
@@ -659,7 +659,7 @@ export function MyExpensesFace({
                       <p className="xc-from">
                         <Icon name="fuel" size={13} />
                         Raised from your fuel log
-                        {c.fuelLog.vehicle ? ` · ${c.fuelLog.vehicle}` : ""}
+                        {c.fuelLog.vehicle ? `, ${c.fuelLog.vehicle}` : ""}
                       </p>
                     )}
                     {/* WHICH JOB IT WENT ON — in the MAIN column, with the

@@ -131,7 +131,7 @@ const toItems = (rows: FactRow[]): DetailItem[] =>
 function addedText(f: VehicleFinance): string {
   const when = f.createdAt ? `Added ${fmtDay(f.createdAt)}` : "";
   const how = f.source === "scan" ? "scanned from the agreement" : f.source === "manual" ? "entered manually" : "";
-  return [when, how].filter(Boolean).join(" · ");
+  return [when, how].filter(Boolean).join(", ");
 }
 
 export function FinancialsScreen({
@@ -332,7 +332,7 @@ export function FinancialsScreen({
             ) : (
               <>
                 {valuation && <b>{fmtMoney(vehicle.value)}</b>}
-                <em>Manual · what the fleet total adds up</em>
+                <em>Manual, what the fleet total adds up</em>
                 <Inline
                   onClick={() => {
                     setValueDraft(String(vehicle.value));
@@ -636,7 +636,7 @@ export function FinancialsScreen({
                     <span className="vm-docl">
                       <b>
                         {agreement.lender}
-                        {agreement.kind ? ` · ${FINANCE_KIND_LABEL[agreement.kind]}` : ""}
+                        {agreement.kind ? `, ${FINANCE_KIND_LABEL[agreement.kind]}` : ""}
                       </b>
                       <em>{docs.length === 1 ? "1 document" : `${docs.length} documents`}</em>
                     </span>
@@ -666,7 +666,7 @@ export function FinancialsScreen({
         {/* ---- cost to run: actuals, never a forecast ---- */}
         <Card>
           <div className="vm-cardhead">
-            <Eyebrow>COST TO RUN · LAST 12 MONTHS</Eyebrow>
+            <Eyebrow>Cost to run, last 12 months</Eyebrow>
           </div>
           <span className="vm-caption">{costCaption}.</span>
           <div className="vm-costrow">

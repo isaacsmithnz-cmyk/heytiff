@@ -305,7 +305,7 @@ export function topDocFor(state: ResearchViz, cat: KbCategory): string | null {
 }
 
 /* THE WINNER NAMES ITS DOCUMENT, and only the winner — and it names ONLY the
-   document. This used to read "56 matches · Daikin VRV Diagnosis Ma…": the
+   document. This used to read "56 matches, Daikin VRV Diagnosis Ma…": the
    chunk tally is retrieval's own bookkeeping, no reader can act on it, and on
    the live walk it cost the one fact that matters — the title — its ellipsis.
    A hit shelf says "Also matched" rather than a number for the same reason;

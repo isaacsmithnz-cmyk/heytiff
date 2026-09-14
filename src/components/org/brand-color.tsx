@@ -106,7 +106,7 @@ export function BrandColorPicker({
         <div className="orgcol-well" />
         <div className="orgcol-page">
           <b>Handover sheet</b>
-          <span>Smith Air Conditioning &middot; ABN 51 824 753 556</span>
+          <span>Smith Air Conditioning, ABN 51 824 753 556</span>
           <i />
           <i className="short" />
         </div>

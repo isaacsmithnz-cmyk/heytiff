@@ -47,7 +47,7 @@ const WEEK: WeekDay[] = [
 
 const PERIODS: PayPeriod[] = [
   { start: "2026-06-29", range: "29 Jun – 5 Jul", year: "2026", live: true, note: "" },
-  { start: "2026-06-22", range: "22 – 28 Jun", year: "2026", live: false, note: "Closed period · historical" },
+  { start: "2026-06-22", range: "22 – 28 Jun", year: "2026", live: false, note: "Closed period, historical" },
 ];
 
 /** Overtime on Wednesday — lands in "Need review". */
@@ -111,7 +111,7 @@ describe("TimePay screen", () => {
     };
     renderTimePay({ sheets });
     expect(within(section("Approved")).getByText("Marcus Webb")).toBeInTheDocument();
-    expect(screen.getByText("Sent back · awaiting reply")).toBeInTheDocument();
+    expect(screen.getByText("Sent back, awaiting reply")).toBeInTheDocument();
   });
 
   /* WHOSE MOVE IT IS. A sent-back sheet sat inside "Need review" and counted
@@ -129,7 +129,7 @@ describe("TimePay screen", () => {
   });
 
   /* APPROVED IS NOT THE SAME AS FINISHED WITH. The tile counted
-     `ready + approved` under "Normal · No action needed", so people still
+     `ready + approved` under "Normal, No action needed", so people still
      waiting on one tap from this very screen were filed as needing nothing —
      directly above a section headed "Ready to approve" with an Approve all
      button in it.
@@ -148,13 +148,13 @@ describe("TimePay screen", () => {
     const tile = container.querySelector(".stat.normal") as HTMLElement;
     expect(within(tile).getByText("Approved")).toBeInTheDocument();
     expect(tile.querySelector(".sv")?.textContent).toBe("0 of 2");
-    expect(within(tile).getByText("1 to review · 1 ready")).toBeInTheDocument();
+    expect(within(tile).getByText("1 to review, 1 ready")).toBeInTheDocument();
     expect(within(tile).queryByText("No action needed")).toBeNull();
     expect(within(section("Ready to approve")).getByText("Marcus Webb")).toBeInTheDocument();
   });
 
   /* THE STRIP STOPPED COUNTING THE SECTIONS UNDERNEATH IT. Two of its four
-     tiles read "2 · NEED REVIEW" and "1 · APPROVED" directly above two section
+     tiles read "2, NEED REVIEW" and "1, APPROVED" directly above two section
      headings reading the same word and the same number — and the headings are
      the ones that have to stay, because they group the cards. */
   it("says nothing in the strip that a section heading below it already says", () => {
@@ -369,7 +369,7 @@ describe("pay settings", () => {
     const user = userEvent.setup();
     renderTimePay({ configured: false });
     await user.click(screen.getByLabelText("Settings"));
-    expect(screen.getByText("Setup · step 1 of 7")).toBeInTheDocument();
+    expect(screen.getByText("Setup, step 1 of 7")).toBeInTheDocument();
     for (let i = 0; i < 6; i++) await user.click(screen.getByText("Next"));
     await user.click(screen.getByText("Save settings"));
     expect(savePaySettings).toHaveBeenCalledTimes(1);

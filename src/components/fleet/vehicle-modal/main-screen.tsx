@@ -374,7 +374,7 @@ export function MainScreen({
                   <b className={valuationIsStale ? "stale" : undefined}>{fmtMoney(valuation.point)}</b>
                   <em>
                     {fmtMoney(valuation.low)}–{fmtMoney(valuation.high)}
-                    {valuationIsStale ? " · odometer has moved since" : ""}
+                    {valuationIsStale ? ", odometer has moved since" : ""}
                   </em>
                 </>
               ) : (
@@ -404,7 +404,7 @@ export function MainScreen({
                 <>
                   <b>{repaymentLabel(fin) ?? fin.lender}</b>
                   <em>
-                    {repaymentLabel(fin) ? `${fin.lender} · ` : ""}
+                    {repaymentLabel(fin) ? `${fin.lender}, ` : ""}
                     {finPos?.ended ? "schedule ended" : `${finPos?.made ?? 0} of ${finPos?.total ?? 0} on schedule`}
                   </em>
                 </>

@@ -106,7 +106,7 @@ export function JobPhotosFace({
             aria-pressed={filtered}
           >
             <Icon name="star" size={13} />
-            {`Starred · ${starred.length}`}
+            {`Starred (${starred.length})`}
           </button>
         )}
       </div>
@@ -126,7 +126,7 @@ export function JobPhotosFace({
                   {[crew && crew.length > 0 ? `${crew.join(", ")} on site` : null,
                     `${day.entries.length}`]
                     .filter(Boolean)
-                    .join(" · ")}
+                    .join(", ")}
                 </em>
               </div>
               <div className="wb2-mosaic">
@@ -165,7 +165,7 @@ export function JobPhotosFace({
                           <i className="wb2-mplay" aria-hidden>
                             ▶
                           </i>
-                          <u className="wb2-mvid">Video · in ServiceM8</u>
+                          <u className="wb2-mvid">Video, in ServiceM8</u>
                           {item.fromClaim && <u className="wb2-mfrom">{item.fromClaim}</u>}
                         </span>
                       </span>

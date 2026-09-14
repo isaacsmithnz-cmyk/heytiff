@@ -461,7 +461,7 @@ export function VisitSheet({
               <h2 className="wb2-shname">{visit.label}</h2>
               <p className="wb2-jcaddr">
                 {visit.clientName}
-                {visit.siteLabel ? ` · ${visit.siteLabel}` : ""}
+                {visit.siteLabel ? `, ${visit.siteLabel}` : ""}
               </p>
             </span>
             <span className="wb2-shchips">
@@ -613,7 +613,7 @@ export function VisitSheet({
                         aria-label="Change the estimated service time"
                         onClick={() => setHoursOpen(true)}
                       >
-                        every visit of this agreement · change
+                        every visit of this agreement, change
                       </button>
                     ) : (
                       <em>every visit of this agreement</em>
@@ -651,7 +651,7 @@ export function VisitSheet({
                         aria-label="Change the estimated crew size"
                         onClick={() => setCrewOpen(true)}
                       >
-                        every visit of this agreement · change
+                        every visit of this agreement, change
                       </button>
                     ) : (
                       <em>every visit of this agreement</em>
@@ -678,7 +678,7 @@ export function VisitSheet({
                     <b>Ready to run</b>
                     <span className={"wb2-chip" + (missing.length ? " warn" : " ok")}>
                       {missing.length
-                        ? `${3 - missing.length} of 3 · waiting on ${missing
+                        ? `${3 - missing.length} of 3, waiting on ${missing
                             .map((g) => (g === "equipment" ? "equipment" : g === "access" ? "access" : "crew"))
                             .join(", ")}`
                         : "All three confirmed"}
@@ -835,7 +835,7 @@ export function VisitSheet({
                     {bookedDay ? fmtAuWeekdayDayMonth(bookedDay) : "No visit scheduled"}
                     {/* the diary's start time, when ServiceM8 knows one */}
                     {bookedDay && visit.bookedStart && sm8TimeOf(visit.bookedStart)
-                      ? ` · ${sm8TimeOf(visit.bookedStart)}`
+                      ? `, ${sm8TimeOf(visit.bookedStart)}`
                       : ""}
                   </b>
                   <em className={mismatch?.late ? "dan" : undefined}>
@@ -1188,7 +1188,7 @@ export function VisitSheet({
                       <>
                         <b>{fmtAuWeekdayDayMonth(ranOn)}</b>
                         <button className="wb2-colink" onClick={() => setRanOnOpen(true)}>
-                          {ranOn === bookedDay ? "the day it was booked · pick another" : "pick another"}
+                          {ranOn === bookedDay ? "the day it was booked, pick another" : "pick another"}
                         </button>
                       </>
                     )}

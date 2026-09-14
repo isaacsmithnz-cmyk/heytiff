@@ -114,7 +114,7 @@ export function UpcomingTab({
         <>
           {/* Frequency and Due are TWO columns, as they are on the agreements
               ledger. They used to share one, stacked under a single
-              "Frequency · Due" heading — so the heading sat over a pair of
+              "Frequency, Due" heading — so the heading sat over a pair of
               values it only half named, and the second value hung under a
               column of its own with no label. */}
           <div className="wb2-trhd" aria-hidden="true">
@@ -182,7 +182,7 @@ function Row({
         <b>{v.clientName}</b>
         <em>
           {v.label}
-          {v.siteLabel ? ` · ${v.siteLabel}` : ""}
+          {v.siteLabel ? `, ${v.siteLabel}` : ""}
         </em>
       </div>
       <span className="wb2-trref">{v.jobNumber ? `#${v.jobNumber}` : "—"}</span>

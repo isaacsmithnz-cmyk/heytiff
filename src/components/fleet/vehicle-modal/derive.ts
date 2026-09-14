@@ -129,7 +129,7 @@ export function complianceRows(v: Vehicle, policies: readonly VehiclePolicy[], w
     const value = unset
       ? "Not set"
       : policy?.provider && days != null && days >= 0 && days > warnDays
-        ? `${policy.provider} · ${fmtDay(policy.expiresOn)}`
+        ? `${policy.provider}, ${fmtDay(policy.expiresOn)}`
         : renewalStatusText(days);
     return { kind, label: RENEWAL_ROW[kind], value, state: renewalState(v, kind, warnDays), unset };
   });

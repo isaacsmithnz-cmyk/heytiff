@@ -108,6 +108,6 @@ describe("Breaks", () => {
         onSave={jest.fn()}
       />,
     );
-    expect(screen.getByText("Setup · step 1 of 7")).toBeInTheDocument();
+    expect(screen.getByText("Setup, step 1 of 7")).toBeInTheDocument();
   });
 });

@@ -61,7 +61,7 @@ export default async function HqBrandPage({
       </Link>
       <h1 className="hq-h1">{displayName}</h1>
       <p className="hq-lede">
-        {ref.version} · {ref.meta.name}
+        {ref.version}, {ref.meta.name}
       </p>
 
       {view.orphans.length > 0 ? (
@@ -69,7 +69,7 @@ export default async function HqBrandPage({
           <b>{view.orphans.length}</b> stale override
           {view.orphans.length === 1 ? "" : "s"} no longer match a catalog row
           (likely a renamed/removed model):{" "}
-          {view.orphans.map((o) => `${o.rowKey}·${o.field}`).join(", ")}
+          {view.orphans.map((o) => `${o.rowKey}:${o.field}`).join(", ")}
         </div>
       ) : null}
 

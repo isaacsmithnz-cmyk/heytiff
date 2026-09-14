@@ -205,7 +205,7 @@ export function OutdoorUnit() {
         </div>
         <div className="meta">
           {done} of {result.total} answered
-          {result.failed.length > 0 && ` · ${result.failed.length} to fix`}
+          {result.failed.length > 0 && `, ${result.failed.length} to fix`}
         </div>
       </section>
 

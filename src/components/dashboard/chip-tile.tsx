@@ -21,7 +21,7 @@ export function ChipTile({ chip }: { chip: ActionChip }) {
       <span className="dt-main">
         <b className="dt-label">{chip.label}</b>
         <em className="dt-sub">
-          {chip.subject} · {group}
+          {chip.subject}, {group}
         </em>
       </span>
       <span className="dt-chev">

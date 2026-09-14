@@ -366,7 +366,7 @@ export function FleetRegister({
                       title={
                         stale
                           ? "Odometer has moved since Tiff valued this — run Value with Tiff again"
-                          : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? ` · ${val.note}` : ""}`
+                          : `Tiff: ${fmtMoney(val.low)}–${fmtMoney(val.high)}${val.note ? `, ${val.note}` : ""}`
                       }
                     >
                       <Chevron size={14} gradient decorative />
@@ -435,7 +435,7 @@ export function FleetRegister({
         <div className="fl-total">
           <span>
             {working.length} vehicle{working.length === 1 ? "" : "s"}
-            {sold.length > 0 && ` · ${sold.length} sold`}
+            {sold.length > 0 && `, ${sold.length} sold`}
           </span>
           <span>
             Fleet value <b>{fmtMoney(fleetValue(vehicles))}</b>

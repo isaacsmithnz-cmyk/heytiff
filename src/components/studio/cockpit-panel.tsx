@@ -1272,7 +1272,7 @@ export function AhuSection({
               <div className="ue-t">No air handler yet</div>
               <div className="ue-s">
                 {req.requiredKw != null
-                  ? `Needs ~${req.requiredKw.toFixed(1)} kW · ${req.roomCount} room${
+                  ? `Needs ~${req.requiredKw.toFixed(1)} kW, ${req.roomCount} room${
                       req.roomCount === 1 ? "" : "s"
                     }${req.spillRooms > 0 ? ` + ${req.spillRooms} spill` : ""}`
                   : "One concealed unit serves every room."}
@@ -1317,7 +1317,7 @@ export function AhuSection({
             role="odu"
             label="Outdoor"
             model={oduModel}
-            sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}` : undefined}
+            sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"}, ${oduSpec.refrigerant}` : undefined}
             kw={pairRow?.rated_cool_kw ?? oduSpec?.capacity_cool_kw ?? null}
             placed={Boolean(placedOdu)}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
@@ -1485,9 +1485,9 @@ export function OutdoorSection({
             k="Connected"
             v={
               conn.connectedKw != null
-                ? `${conn.connectedKw.toFixed(1)} kW · ${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"}`
+                ? `${conn.connectedKw.toFixed(1)} kW, ${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"}`
                 : conn.iduCount > 0
-                  ? `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"} · capacity unknown`
+                  ? `${conn.iduCount} unit${conn.iduCount === 1 ? "" : "s"}, capacity unknown`
                   : "None yet"
             }
           />
@@ -1511,7 +1511,7 @@ export function OutdoorSection({
             model={conn.oduModel}
             sub={
               oduSpec
-                ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}`
+                ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"}, ${oduSpec.refrigerant}`
                 : undefined
             }
             kw={conn.oduKw}
@@ -1770,7 +1770,7 @@ function RoomsView({
                   <button key={r.id} className="ds-ck-adoptrow" onClick={() => adoptRoom(r.id)}>
                     <span className="an">
                       {String(r.props.name ?? "Room")}
-                      <em> · {floorName(r.floorId)}</em>
+                      <em>, {floorName(r.floorId)}</em>
                     </span>
                     <Glyph name="plus" size={13} />
                   </button>
@@ -1911,7 +1911,7 @@ function RoomsView({
             <button key={r.id} className="ds-ck-adoptrow" onClick={() => adoptRoom(r.id)}>
               <span className="an">
                 {String(r.props.name ?? "Room")}
-                <em> · {floorName(r.floorId)}</em>
+                <em>, {floorName(r.floorId)}</em>
               </span>
               <Glyph name="plus" size={13} />
             </button>
@@ -2019,7 +2019,7 @@ export function RoomInspectCard({
           {/* how big it is and what it needs — the two facts you open a room
               for. Covered/short isn't repeated: the badge to the right of
               this already says it. With no scale there are no numbers to
-              give, so name the fix instead of printing "— · —". */}
+              give, so name the fix instead of printing "—, —". */}
           <div className="ds-ck-ifacts">
             {areaM2 == null && cov.loadKw == null
               ? "Calibrate the floor to size this room"
@@ -2028,7 +2028,7 @@ export function RoomInspectCard({
                   cov.loadKw == null ? null : `${cov.loadKw.toFixed(1)} kW required`,
                 ]
                   .filter(Boolean)
-                  .join(" · ")}
+                  .join(", ")}
           </div>
         </div>
         {shared && (
@@ -2236,7 +2236,7 @@ export function UnitsSub({
             role="odu"
             label="Outdoor"
             model={oduModel}
-            sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"} · ${oduSpec.refrigerant}` : undefined}
+            sub={oduSpec ? `${oduSpec.phase === "3" ? "3Ø" : "1Ø"}, ${oduSpec.refrigerant}` : undefined}
             kw={pairRow?.rated_cool_kw ?? oduSpec?.capacity_cool_kw ?? null}
             placed={Boolean(placedOdu)}
             onRecall={placedOdu ? () => recall(placedOdu.id) : undefined}
@@ -2374,7 +2374,7 @@ function PipeworkSub({
               </span>
               <div>
                 <div className="ds-ck-pt">Riser R-{String(r.props.group ?? "A")}</div>
-                <div className="ds-ck-ps">Vertical · up</div>
+                <div className="ds-ck-ps">Vertical, up</div>
               </div>
               <span className="ds-ck-pv">{String(r.props.heightM ?? 3)} m</span>
             </button>
@@ -2575,14 +2575,14 @@ function ObjectInspectCard({
     const returnBuiltIn = row?.return_opening === "built-in";
     const plenumStatus = supplyFitted
       ? returnBuiltIn
-        ? "Supply plenum fitted · return built-in"
+        ? "Supply plenum fitted, return built-in"
         : returnFitted
           ? "Supply + return plenums fitted"
-          : "Supply plenum fitted · no return yet"
+          : "Supply plenum fitted, no return yet"
       : returnBuiltIn
-        ? "Return built-in · no supply plenum yet"
+        ? "Return built-in, no supply plenum yet"
         : returnFitted
-          ? "Return plenum fitted · no supply yet"
+          ? "Return plenum fitted, no supply yet"
           : "No plenums yet";
     const floorRooms = doc.objects.filter((o) => o.type === "room" && o.floorId === obj.floorId);
     const serveRoom = (roomId: string) =>

@@ -383,7 +383,7 @@ export function LogModal({
   );
 
   return (
-    <FleetModal title={copy.title} sub={`${displayName(target)} · ${modelLabel(target)}`} onClose={onClose}>
+    <FleetModal title={copy.title} sub={`${displayName(target)}, ${modelLabel(target)}`} onClose={onClose}>
       {kind === "fuel" && mode === "scan" && (
         <>
           {vehiclePicker && <div className="fl-grid" style={{ marginBottom: 14 }}>{vehiclePicker}</div>}
@@ -590,7 +590,7 @@ export function EditLogModal({
   return (
     <FleetModal
       title="Correct this entry"
-      sub={`${LOG_COPY[log.kind].title} · ${log.when}`}
+      sub={`${LOG_COPY[log.kind].title}, ${log.when}`}
       onClose={onClose}
     >
       {confirming ? (
@@ -726,7 +726,7 @@ export function LogRow({
   const icon = LOG_COPY[log.kind].icon;
   const title =
     log.kind === "fuel"
-      ? `Fuel — ${log.litres ? `${log.litres} L` : "fill-up"}${log.cost ? ` · ${fmtCost(log.cost)}` : ""}`
+      ? `Fuel — ${log.litres ? `${log.litres} L` : "fill-up"}${log.cost ? `, ${fmtCost(log.cost)}` : ""}`
       : log.kind === "odo"
         ? "Odometer updated"
         : log.kind === "service"
@@ -734,7 +734,7 @@ export function LogRow({
           : `Issue — ${log.note ?? "reported"}`;
   const meta = [log.when, log.staffName, log.station, log.edited ? "edited" : null]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
   return (
     <div className={`fl-log${log.kind === "issue" && log.status === "open" ? " open" : ""}`}>
       <span className={`fl-li ${log.kind}`}>

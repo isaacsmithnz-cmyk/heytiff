@@ -255,7 +255,7 @@ export function SettingsPanel({ st: committed, patch: commit, onClose, onReset, 
           </Field>
 
           <WsEyebrow color={RC.install} style={{ marginTop: 24, marginBottom: 4 }}>Working pattern</WsEyebrow>
-          <Field label="Working weeks / year" hint="After leave & public holidays · feeds the rate maths" tip="Weeks your techs actually work once annual leave and public holidays come out — 52, less 4 weeks leave, less about 2 for public holidays. This one drives the rates: it sets annual paid hours and casual/subbie paid weeks. Sick days aren't netted off here — if your crew usually takes their full personal leave, drop this to about 44.">
+          <Field label="Working weeks / year" hint="After leave & public holidays, feeds the rate maths" tip="Weeks your techs actually work once annual leave and public holidays come out — 52, less 4 weeks leave, less about 2 for public holidays. This one drives the rates: it sets annual paid hours and casual/subbie paid weeks. Sick days aren't netted off here — if your crew usually takes their full personal leave, drop this to about 44.">
             <Stepper value={g.working_weeks ?? DEFAULT_WORKING_WEEKS} min={1} max={52} onChange={v => set("working_weeks", v)} />
           </Field>
           <Field label="Hours in a full day on-site" hint="Only sets the Day rate figure" tip="Hours billed when a tech spends the whole day on one job. Day rate = hourly rate × these hours. This isn't utilisation — travel, quoting and slow days are already priced into the hourly rate, so a full day on the tools bills all its hours.">

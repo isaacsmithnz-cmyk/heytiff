@@ -69,7 +69,7 @@ export function rsvpSummary(rsvp: PollResult): string | null {
   if (count("yes") > 0) parts.push(`${count("yes")} going`);
   if (count("maybe") > 0) parts.push(`${count("maybe")} maybe`);
   if (count("no") > 0) parts.push(`${count("no")} can't`);
-  return parts.length > 0 ? parts.join(" · ") : null;
+  return parts.length > 0 ? parts.join(", ") : null;
 }
 
 export type EventWhen = {

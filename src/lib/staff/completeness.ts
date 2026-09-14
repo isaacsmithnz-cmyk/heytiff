@@ -107,5 +107,5 @@ export function profileCompleteness(profile: StaffProfile | null): Completeness 
 export function completenessSummary(c: Completeness): string {
   if (c.complete) return "Every field we ask for is filled in";
   const fields = `${c.missing.length} of ${c.total} field${c.total === 1 ? "" : "s"} missing`;
-  return c.requiredMissing > 0 ? `${fields} · ${c.requiredMissing} required` : fields;
+  return c.requiredMissing > 0 ? `${fields}, ${c.requiredMissing} required` : fields;
 }

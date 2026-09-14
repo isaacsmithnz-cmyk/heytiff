@@ -503,7 +503,7 @@ export const NODES: MapNode[] = [
     name: "Accounts & orgs",
     kind: "store",
     group: "Supabase",
-    blurb: "organizations · profiles · memberships · invitations · org_credentials",
+    blurb: "organizations, profiles, memberships, invitations, org_credentials",
     detail:
       "The identity spine: who exists, which org they belong to, what role and permissions they hold, who's been invited — plus the org's own credential rows.",
   },
@@ -512,7 +512,7 @@ export const NODES: MapNode[] = [
     name: "People",
     kind: "store",
     group: "Supabase",
-    blurb: "staff_profiles · staff_licences · permission_audit",
+    blurb: "staff_profiles, staff_licences, permission_audit",
     detail:
       "The staff card is the single home for personal data; licences are rows with expiry dates; every permission change writes an audit row.",
   },
@@ -521,14 +521,14 @@ export const NODES: MapNode[] = [
     name: "Time, pay & leave",
     kind: "store",
     group: "Supabase",
-    blurb: "time_entries · timesheets · pay_settings · leave_requests · leave_balances · public_holidays · expense_claims",
+    blurb: "time_entries, timesheets, pay_settings, leave_requests, leave_balances, public_holidays, expense_claims",
   },
   {
     id: "db-fleet",
     name: "Fleet",
     kind: "store",
     group: "Supabase",
-    blurb: "vehicles · vehicle_logs",
+    blurb: "vehicles, vehicle_logs",
     detail:
       "Composite FKs carry org_id, so a vehicle can't be assigned to another org's staff nor a log point at another org's vehicle.",
   },
@@ -537,7 +537,7 @@ export const NODES: MapNode[] = [
     name: "Tasks & notices",
     kind: "store",
     group: "Supabase",
-    blurb: "tasks · notices · notice_reads · comments · reactions · polls · RSVPs",
+    blurb: "tasks, notices, notice_reads, comments, reactions, polls, RSVPs",
   },
   {
     id: "db-docs",
@@ -561,7 +561,7 @@ export const NODES: MapNode[] = [
     name: "Connected apps",
     kind: "store",
     group: "Supabase",
-    blurb: "integration_connections · integration_links — the grant, and who is who across it.",
+    blurb: "integration_connections, integration_links — the grant, and who is who across it.",
     detail:
       "Access and refresh tokens are stored AES-256-GCM sealed, never in plaintext, so the service-role key alone doesn't unlock a connected accounting system. integration_links holds the staff↔Xero-employee correspondence — scoped to a tenant, with unique indexes both ways so one remote record can never be claimed by two people. Deny-all RLS like every table here.",
   },
@@ -571,7 +571,7 @@ export const NODES: MapNode[] = [
     kind: "store",
     group: "Supabase",
     blurb:
-      "projects · checklists · equipment · maintenance_agreements · visits · notes · flags · the issue log.",
+      "projects · checklists, equipment, maintenance_agreements, visits, notes, flags, the issue log.",
     detail:
       "The board's own truth, and the reason it works with nothing connected. A remote reference is a provider-shaped pair (provider + remote_id, null = typed by hand) sitting NEXT TO the human fields — job number, client, address — so a row never depends on a mirror existing and a future CRM could adopt the same shape. Overdue is derived at read from the vendor's timezone, never stored, because a stored status goes stale overnight. Composite FKs carry org_id; the set-null ones name their column, or clearing a design would null the org_id beside it and the delete would fail.",
   },
@@ -580,7 +580,7 @@ export const NODES: MapNode[] = [
     name: "ServiceM8 mirror",
     kind: "store",
     group: "Supabase",
-    blurb: "sm8_jobs · sm8_companies · schedule, checklists, contacts, attachments — a disposable local copy.",
+    blurb: "sm8_jobs, sm8_companies, schedule, checklists, contacts, attachments — a disposable local copy.",
     detail:
       "Every ServiceM8-native column is TEXT (their timestamps are naive local strings with a '0000-00-00' null sentinel — timestamptz would shift schedules and reject the sentinel). Nothing FKs into a mirror, overlays never depend on one existing, and disconnect wipes the lot: a client book has no business outliving its grant. Deny-all RLS like every table here.",
   },
@@ -590,7 +590,7 @@ export const NODES: MapNode[] = [
     kind: "store",
     group: "Supabase",
     blurb:
-      "kb_documents · kb_chunks · kb_usage · kb_tags · kb_document_tags + the private kb bucket, signed-URL only.",
+      "kb_documents, kb_chunks, kb_usage, kb_tags, kb_document_tags + the private kb bucket, signed-URL only.",
     detail:
       "Its own bucket rather than the documents one: that bucket caps at 10 MB around notice photos, and a manufacturer's install manual is routinely 30. A chunk carries its page range, its keywords and a pgvector embedding that is allowed to be NULL — without an embeddings key the full-text leg carries search alone and a later re-run backfills. The search vector is a generated column, weighted keywords over heading over body, so nothing can insert a row whose index disagrees with its text. kb_usage counts pages and questions per org per Australian month and survives the deletion of the document that spent them. Tags are the second axis beside the five fixed categories — manufacturer, system type, topic — and they are rows rather than an array column because a tag has a colour and a name that can be corrected in one place; the join carries org_id in both composite keys, so a document can never wear another workspace's tag. Deny-all RLS like every table here.",
   },
@@ -599,7 +599,7 @@ export const NODES: MapNode[] = [
     name: "Universal table",
     kind: "store",
     group: "Supabase",
-    blurb: "pack_overrides · pack_override_log · pack_watchlist",
+    blurb: "pack_overrides, pack_override_log, pack_watchlist",
     detail: "HQ curation lives here — overrides on top of packs, a full audit log, and the extraction watch-list.",
   },
   {

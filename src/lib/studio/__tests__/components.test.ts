@@ -90,7 +90,7 @@ describe("systemComponents — derived rows (small split, no top-up)", () => {
     const odu = rows.find((r) => r.id === "odu")!;
     expect(odu.kind).toBe("odu");
     expect(odu.name).toBe("SUZ-M25VAD-A");
-    expect(odu.sub).toBe("1Ø · R32 condenser");
+    expect(odu.sub).toBe("1Ø, R32 condenser");
     expect(odu.value).toBe("2.5 kW"); // pair rated_cool_kw under the cooling basis
   });
 
@@ -131,7 +131,7 @@ describe("systemComponents — charge with pre-charge + run length", () => {
       },
     ];
     const charge = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "charge")!;
-    expect(charge.sub).toBe("Pre-charged · run length unknown");
+    expect(charge.sub).toBe("Pre-charged, run length unknown");
     expect(charge.value).toBe("3.10 kg"); // pre-charge still known
   });
 
@@ -166,7 +166,7 @@ describe("component choice rows", () => {
     const mount = rows.find((r) => r.id === "mounting")!;
     expect(elec.kind).toBe("choice");
     expect(elec.choice!.selectedId).toBe("isolator-20a");
-    expect(elec.name).toBe("Isolator · 20 A");
+    expect(elec.name).toBe("Isolator, 20 A");
     expect(mount.choice!.selectedId).toBe("wall-bracket");
     expect(mount.name).toBe("Wall bracket");
   });
@@ -178,7 +178,7 @@ describe("component choice rows", () => {
       components: { electrical: "isolator-32a", mounting: "roof-mount" },
     });
     const rows = systemComponents(doc, pack, system, "cooling");
-    expect(rows.find((r) => r.id === "electrical")!.name).toBe("Isolator · 32 A");
+    expect(rows.find((r) => r.id === "electrical")!.name).toBe("Isolator, 32 A");
     expect(rows.find((r) => r.id === "mounting")!.name).toBe("Roof frame");
   });
 
@@ -261,7 +261,7 @@ describe("insulation choice row", () => {
       run("r1", [{ x: 0, y: 0 }, { x: 500, y: 0 }]),
     ];
     const row = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "insulation")!;
-    expect(row.name).toBe("Lagging · 13 mm wall");
+    expect(row.name).toBe("Lagging, 13 mm wall");
     expect(row.value).toBe("5 m");
   });
 

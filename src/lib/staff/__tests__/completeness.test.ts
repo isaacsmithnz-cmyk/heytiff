@@ -147,7 +147,7 @@ describe("sections needing attention", () => {
 describe("the line under the ring", () => {
   it("counts the fields and calls out the required ones", () => {
     const c = profileCompleteness({ ...full, phone: null, birthday: null });
-    expect(completenessSummary(c)).toBe("2 of 11 fields missing · 1 required");
+    expect(completenessSummary(c)).toBe("2 of 11 fields missing, 1 required");
   });
 
   it("drops the required clause when none of the missing ones are", () => {

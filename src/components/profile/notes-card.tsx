@@ -38,7 +38,7 @@ export function NotesCard({
               {editing ? (
                 <TextArea
                   name="notes"
-                  placeholder="e.g. First-aid officer · prefers north-side jobs · on light duties until June"
+                  placeholder="e.g. First-aid officer, prefers north-side jobs, on light duties until June"
                   value={draft.notes}
                   style={{ minHeight: 120 }}
                   onChange={(v) => set("notes", v)}

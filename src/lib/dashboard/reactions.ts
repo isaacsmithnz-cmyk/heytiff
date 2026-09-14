@@ -11,7 +11,7 @@
    leave two.
 
    A FIXED PALETTE, not free text. Six reactions make a countable row —
-   "4 👍 · 1 🙏" — where an open emoji field makes a long tail of one-offs that
+   "4 👍, 1 🙏" — where an open emoji field makes a long tail of one-offs that
    nobody can read at a glance, and puts arbitrary text in a table the whole org
    sees. The database CHECK holds the same list. */
 

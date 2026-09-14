@@ -182,7 +182,7 @@ export function PrintDoc({
                 <b>{v.doc.meta.name || "Design"}</b>
                 <span>
                   {floorDisplayName(floor)}
-                  {v.label ? ` · ${v.label}` : ""}
+                  {v.label ? `, ${v.label}` : ""}
                 </span>
               </div>
               <div className="ds-print-plan">

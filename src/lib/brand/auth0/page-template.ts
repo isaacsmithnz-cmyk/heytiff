@@ -111,7 +111,7 @@ export function heytiffPageTemplate(assets: BrandAssets): string {
     <div class="ht-glow b" aria-hidden="true"></div>
     {%- auth0:widget -%}
     <div class="ht-foot">
-      HeyTiff — operations &amp; compliance for trades businesses{% if tenant.support_url %} · <a href="{{ tenant.support_url }}">Get help</a>{% endif %}
+      HeyTiff — operations &amp; compliance for trades businesses{% if tenant.support_url %}, <a href="{{ tenant.support_url }}">Get help</a>{% endif %}
     </div>
   </body>
 </html>`;

@@ -27,9 +27,9 @@ export type UnitFlow =
 
 /** What the live summary section emphasises for this type. */
 export type SummaryKind =
-  | "split" // pair · run length · badge
+  | "split" // pair, run length, badge
   | "capacity" // ODU + connected capacity gauge (green/amber/red) + IDU count
-  | "ducted"; // system size · zones · outlets · grilles
+  | "ducted"; // system size, zones, outlets, grilles
 
 export interface SystemModule {
   type: SystemType;

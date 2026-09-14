@@ -30,13 +30,13 @@ export function HqBrandCards({ brands }: { brands: BrandCardData[] }) {
           </div>
           <div className="hq-brandcard-pack">{b.packName}</div>
           <div className="hq-brandcard-stats hq-num">
-            {b.idu} indoor · {b.odu} outdoor · {b.pairs} pairs
+            {b.idu} indoor, {b.odu} outdoor, {b.pairs} pairs
           </div>
           <div className="hq-brandcard-foot">
             <span className="hq-brandcard-ready">
               <b>{b.readyPct}%</b> engine-ready
               {b.blockingGaps > 0 ? (
-                <span className="hq-brandcard-block"> · {b.blockingGaps} blocking</span>
+                <span className="hq-brandcard-block">, {b.blockingGaps} blocking</span>
               ) : null}
             </span>
             <span className="hq-brandcard-badges">

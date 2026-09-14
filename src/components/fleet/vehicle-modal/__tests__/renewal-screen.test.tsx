@@ -140,14 +140,14 @@ describe("green slip", () => {
     mount("ctp");
     expect(screen.getByRole("heading", { name: "Green slip (CTP)" })).toBeInTheDocument();
     expect(screen.getByText("Covered")).toBeInTheDocument();
-    expect(screen.getByText("CTP · QBE · expires 29 Sep 2027")).toBeInTheDocument();
+    expect(screen.getByText("CTP, QBE, expires 29 Sep 2027")).toBeInTheDocument();
     expect(screen.getByText("36-01023321955")).toBeInTheDocument();
     expect(screen.getByText("2031")).toBeInTheDocument();
     // the class comes from the GVM on the certificate, not from the icon
     expect(screen.getByText("Goods vehicle ≤4.5t")).toBeInTheDocument();
-    expect(screen.getByText("Yes · same expiry")).toBeInTheDocument();
-    expect(screen.getByText("Added 30 Aug 2026 · scanned from the document")).toBeInTheDocument();
-    expect(screen.getByText("greenslip.jpg · 1.8 MB")).toBeInTheDocument();
+    expect(screen.getByText("Yes, same expiry")).toBeInTheDocument();
+    expect(screen.getByText("Added 30 Aug 2026, scanned from the document")).toBeInTheDocument();
+    expect(screen.getByText("greenslip.jpg, 1.8 MB")).toBeInTheDocument();
     // a record exists, so the panel waits behind its button
     expect(screen.getByRole("button", { name: "Update green slip" })).toBeInTheDocument();
     expect(screen.queryByText("Scan or upload the green slip")).not.toBeInTheDocument();
@@ -212,7 +212,7 @@ describe("green slip", () => {
   it("lists previous slips as history and opens one to its detail", async () => {
     const older: VehiclePolicy = { ...greenSlip, id: "p-old", provider: "NRMA", premium: 612, expiresOn: "2026-09-29", documentId: null, policyNumber: "CTP-2209" };
     const { user } = mount("ctp", { policies: [greenSlip, rego, older] });
-    const row = screen.getByRole("button", { name: /CTP · NRMA/ });
+    const row = screen.getByRole("button", { name: /CTP, NRMA/ });
     expect(row).toHaveTextContent("$612");
     expect(row).toHaveTextContent("29 Sep 2026");
     await user.click(row);

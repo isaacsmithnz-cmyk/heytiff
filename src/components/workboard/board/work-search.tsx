@@ -176,11 +176,6 @@ export function WorkSearchPanel({
             query and how much it found. */}
         <div aria-live="polite">
           <b>{short ? "Keep typing" : `${total} ${total === 1 ? "match" : "matches"} for “${typed}”`}</b>
-          <em>
-            {short
-              ? "Two letters is where a search starts — one is a keystroke on the way to one."
-              : "Every side of the board at once — jobs, visits, agreements, projects, trips and photos."}
-          </em>
         </div>
         <button className="pbtn ghost" onClick={onClear}>
           <Icon name="x" size={15} />

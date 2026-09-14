@@ -19,10 +19,7 @@ import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
 
 export const SCAN_COPY = {
   prompt: "Scan or upload the VEVO result or visa grant notice",
-  hint:
-    "The entitlement, visa, work condition and dates are read from the document and it's " +
-    "filed as the evidence for this check. Nothing else on it is read — not the name, date " +
-    "of birth, nationality or passport number. PDF, JPG or photo.",
+  hint: "PDF, JPG or photo.",
   attach: "Optional: attach the VEVO result or grant notice",
 };
 

@@ -370,11 +370,10 @@ export function Library({
                   ? `No documents match “${query.trim()}”`
                   : "No documents wear all of those tags"}
             </h2>
-            <p>
-              {tagIds.length > 1
-                ? "Tags narrow together — a document has to wear every one you've picked."
-                : "Search runs over titles, sources, filenames and tags. Try the brand, or the model number."}
-            </p>
+            {/* why nothing matched belongs to the empty result it explains, not under the title (law 15) */}
+            {!query.trim() && tagIds.length > 1 && (
+              <p>Tags narrow together — a document has to wear every one you&apos;ve picked.</p>
+            )}
             <button type="button" className="tk-btn ghost" onClick={clearFilters}>
               {query.trim() && tagIds.length > 0
                 ? "Clear the filters"

@@ -21,7 +21,7 @@ export function ToolPage({
   /** darker readable shade of the accent for text on soft backgrounds */
   accentInk: string;
   title: string;
-  sub: string;
+  sub?: string;
   /** tighter header for single-viewport tools */
   compact?: boolean;
   children: React.ReactNode;
@@ -49,7 +49,7 @@ export function ToolPage({
               </Link>
             </div>
             <h1>{title}</h1>
-            <p className="tsub">{sub}</p>
+            {sub && <p className="tsub">{sub}</p>}
           </div>
           {children}
         </div>

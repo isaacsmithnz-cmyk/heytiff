@@ -86,7 +86,7 @@ export function SectionCard({
   startEditing = false,
 }: {
   title: string;
-  sub: string;
+  sub?: string;
   pill?: ReactNode;
   /** the read-mode values, straight from props — also the draft's seed */
   values: Record<string, string>;
@@ -176,7 +176,7 @@ export function SectionCard({
     return (
       <div className={["psec-body", saving ? "saving" : "", className ?? ""].filter(Boolean).join(" ")}>
         <div className="psechd">
-          <em>{sub}</em>
+          {sub && <em>{sub}</em>}
           {pill}
           {editable && (
             <span className="acts">
@@ -227,7 +227,7 @@ export function SectionCard({
       <div className="c2h">
         <span>
           <b>{title}</b>
-          <em>{sub}</em>
+          {sub && <em>{sub}</em>}
         </span>
         {pill}
         {editable && (
@@ -271,7 +271,7 @@ export function StaticCard({
   children,
 }: {
   title: string;
-  sub: string;
+  sub?: string;
   pill?: ReactNode;
   /** see the note on SectionCard's `variant` — "card" is what every caller
       outside the staff card still wants */
@@ -282,7 +282,7 @@ export function StaticCard({
     return (
       <div className="psec-body">
         <div className="psechd">
-          <em>{sub}</em>
+          {sub && <em>{sub}</em>}
           {pill}
         </div>
         {children}
@@ -295,7 +295,7 @@ export function StaticCard({
       <div className="c2h">
         <span>
           <b>{title}</b>
-          <em>{sub}</em>
+          {sub && <em>{sub}</em>}
         </span>
         {pill}
       </div>

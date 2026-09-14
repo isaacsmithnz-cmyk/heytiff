@@ -14,7 +14,6 @@ import { useNoteScope } from "./note-context";
 import { Cascade, JobPicker, ReviewRows, nothingTicked } from "./review-card";
 import { describeJob } from "@/lib/workboard/note-match";
 import { sniff } from "@/lib/notes/sniff";
-import { TiffMark } from "./tiff-mark";
 
 /* ONE TOKEN, EVERYWHERE.
 
@@ -440,7 +439,7 @@ function StageBody({ flow }: { flow: NoteFlow }) {
                  nobody had asked for a reason to doubt — the same sales
                  voice Isaac cut from the button above ("tag line is
                  cheesy"). What is left is the invitation. */
-              ? "Everything on your mind, in any order — jobs, people, things to chase, things you learned."
+              ? "What happened today?"
               : "Tell Luke he needs to order the grilles… or ask: what's outstanding here?"
           }
           disabled={flow.busy}

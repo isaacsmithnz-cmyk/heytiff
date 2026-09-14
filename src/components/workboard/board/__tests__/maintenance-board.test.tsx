@@ -1183,7 +1183,7 @@ describe("Urgent quick actions — each row fixes ITS fact (A1/A4)", () => {
       ]
     );
     expect(screen.queryByRole("button", { name: /Open Order more coil cleaner/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/stays up until somebody clears it/)).toBeInTheDocument();
+    expect(screen.getByText(/Raised from a note/)).toBeInTheDocument();
   });
 
   it("flag Clear and task Done carry their own inverses — two toasts, two undos, no crosstalk (B23)", async () => {

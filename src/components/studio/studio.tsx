@@ -2383,8 +2383,8 @@ function StudioMenu({
             "Reference sheets",
             onReference,
             onReference
-              ? "Browse every uploaded page — heights, sections, details"
-              : "Reference sheets — upload plan pages first"
+              ? undefined
+              : "Upload plan pages first"
           )}
           <div className="ds-menu-sep" />
           <div

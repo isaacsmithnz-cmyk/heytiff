@@ -17,9 +17,8 @@ import type { LicenceTermInput } from "@/lib/staff/licence-records";
 export const SCAN_COPY = {
   prompt: "Scan or photograph the licence",
   hint:
-    "The number, issuer, classes and expiry are read from the card and it's filed under this " +
-    "licence. Nothing else on it is read — not your name, date of birth or address. " +
-    "Photo or PDF.",
+    "Photo or PDF. Only the number, issuer, classes and expiry are read — not your name, " +
+    "date of birth or address.",
   attach: "Optional: attach a photo of the card",
 };
 

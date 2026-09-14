@@ -9,7 +9,6 @@ export function TrainingCard() {
     <StaticCard
       variant="section"
       title="Training"
-      sub="Pathways &amp; sign-offs · read-only"
     >
       <div className="ro-empty">
         <span className="ei">

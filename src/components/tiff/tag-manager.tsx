@@ -82,7 +82,7 @@ export function TagManager({
         <header className="tk-shtop">
           <div>
             <h2>Tags</h2>
-            <p>What goes on the spine — the manufacturer, the system type, the topic.</p>
+            {tags.length > 0 && <p>{tags.length === 1 ? "1 tag" : `${tags.length} tags`}</p>}
           </div>
           <button type="button" className="tk-shx" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={15} />

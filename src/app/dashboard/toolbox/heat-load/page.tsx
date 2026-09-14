@@ -12,7 +12,6 @@ export default async function HeatLoadPage() {
       accent="#00E5C0"
       accentInk="#00A389"
       title="Heat Load"
-      sub="Instant sizing check — type the room, get the kW and the unit class. Same engine as the Design Studio."
     >
       <HeatLoadCalculator />
     </ToolPage>

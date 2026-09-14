@@ -65,7 +65,6 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
     <StaticCard
       variant="section"
       title="My pay"
-      sub="The rates that apply to your hours"
     >
       {r === null ? (
         <div className="ro-empty">
@@ -116,7 +115,6 @@ export function MyPayCard({ pay }: { pay: MyPay }) {
           )}
         </DetailPanels>
       )}
-      <p className="mypay-foot">Set by your admin — talk to them if something looks off.</p>
     </StaticCard>
   );
 }

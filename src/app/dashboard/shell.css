@@ -514,7 +514,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .nb-clink { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray400); transition:color var(--t-fast) var(--ease); }
 .fg .nb-clink:hover:not(:disabled) { color:#1f4bd8; }
 .fg .nb-c { padding:8px 0 2px; }
-.fg .nb-c.atme { padding-left:12px; border-left:2px solid rgba(46,104,255,.35); }
+.fg .nb-c.atme { padding:8px 12px; background:var(--tint); border-radius:6px; }
 .fg .nb-chead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .fg .nb-chead b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .nb-chead span { font-size:12px; font-weight:600; color:#c3c8d2; }
@@ -3779,7 +3779,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
 /* blocks in a card, like the rail cards and the team screen's stat tiles */
 .fg .lv-baltile { position:relative; padding:16px 16px 16px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); overflow:hidden; }
-.fg .lv-baltile::before { content:''; position:absolute; top:0; bottom:0; left:0; width:3px; background:var(--lvk); }
 .fg .lv-baltop { display:flex; align-items:center; gap:8px; }
 .fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:10px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
 .fg .lv-baltile em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
@@ -3825,10 +3824,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
    height sets the bar, so it doesn't grow taller than its neighbour. */
 .fg .lv-ch.act { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 8px 8px 16px; }
 .fg .lv-req, .fg .lv-hol, .fg .lv-pend, .fg .lv-calday { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
-/* Inset left bar = CATEGORY in this design system (never pass/fail), which is
-   exactly what a leave kind is. It gives the list its colour without spending
-   a chip, so the row's only pill stays the status. */
-.fg .lv-req { padding-left:16px; box-shadow:inset 3px 0 0 var(--lvk); }
+/* The kind is the label the row prints in bold (law 14: kind is a label, not
+   a bar down the edge); the row's only pill stays the status. */
+.fg .lv-req { padding-left:16px; }
 .fg .lv-pend { align-items:flex-start; }
 /* A CANCELLED OR DECLINED REQUEST IS SETTLED, NOT ERASED. `opacity:.6` took
    every colour in the row down against the card: the dates to 2.63, the
@@ -5724,8 +5722,8 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* a flagged project card carries its colour on the edge, not the fill —
    the card stays readable and the rail of cards still scans as one grid */
-.wb-proj.urgent { border-color:rgba(224,38,79,.6); box-shadow:inset 3px 0 0 #e0264f; }
-.wb-proj.attention { border-color:rgba(255,138,0,.6); box-shadow:inset 3px 0 0 #FF8A00; }
+.wb-proj.urgent { border-color:rgba(224,38,79,.6); }
+.wb-proj.attention { border-color:rgba(255,138,0,.6); }
 
 @media (max-width:900px) {
   .wb-vitals { grid-template-columns:1fr; }
@@ -6021,10 +6019,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-wkgrp:last-child .wb2-trj:last-child { border-bottom:0; }
 .wb2-trj:hover { background:#fff; z-index:1; }
 .wb2-trj:focus-visible { outline:none; box-shadow:inset var(--ring); }
-.wb2-trj:before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; }
-.wb2-trj[data-sev="over"]:before, .wb2-trj[data-sev="flash"]:before { background:var(--wb2-dan); }
-.wb2-trj[data-sev="soon"]:before { background:var(--wb2-warn); }
-.wb2-trt { min-width:0; }
+.wb2-trj[data-sev="over"]:before, .wb2-trt { min-width:0; }
 .wb2-trt b { display:block; font-size:14px; font-weight:700; letter-spacing:-.01em; }
 .wb2-trt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:500; margin-top:2px;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -6094,9 +6089,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    deal with instead of one list to work down. */
 .wb2-ur { display:flex; align-items:center; gap:12px; border-radius:10px; padding:12px 12px 12px 12px;
   position:relative; transition:background var(--t-fast) var(--ease); }
-.wb2-ur:before { content:""; position:absolute; left:0; top:9px; bottom:9px; width:3px; border-radius:999px;
-  background:var(--wb2-warn); }
-.wb2-ur[data-sev="dan"]:before { background:var(--wb2-dan); }
 .wb2-ur:hover { background:rgba(5,5,5,.022); }
 .wb2-ur:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
@@ -7409,8 +7401,7 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-evmeta { margin-top:1px; font-size:12px; font-weight:600; color:var(--gray500); }
 /* a note's words — bordered like paper, the job type's colour on its spine.
    pre-wrap because a note holds its author's own line breaks. */
-.wb2-evcard { margin-top:4px; background:#fff; border:1px solid var(--wb2-line2);
-  border-left:2.5px solid var(--jc-soft, rgba(5,5,5,.16)); border-radius:16px; padding:8px 12px;
+.wb2-evcard { margin-top:4px; background:#fff; border:1px solid var(--wb2-line2); border-radius:16px; padding:8px 12px;
   font-size:14px; font-weight:500; color:var(--gray700); line-height:1.55; max-width:68ch;
   overflow-wrap:anywhere; white-space:pre-wrap; }
 .wb2-mention { font-weight:700; color:var(--ink); }
@@ -7540,8 +7531,8 @@ button.wb2-jmclaim { width:100%; border:0; background:transparent; font:inherit;
 button.wb2-jmclaim:hover { background:rgba(5,5,5,.032); }
 button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-radius:10px; }
 /* the claim this card was opened for */
-.wb2-jmclaim.here { background:rgba(122,90,248,.07); border-radius:10px; border-top:0;
-  padding-left:12px; box-shadow:inset 3px 0 0 -1px var(--wb2-eq); }
+.wb2-jmclaim.here { background:var(--tint); border-radius:10px; border-top:0;
+  padding-left:12px; }
 .wb2-jmclaim.here > b { color:#5b3fd0; }
 /* ── ONE CLAIM, over the card it belongs to ──────────────────────────────
    Its own scrim so the card dims behind it, and a z-index above the sheet
@@ -8269,14 +8260,10 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 /* day cards inside the modal */
 .wb2-dc { position:relative; border:1px solid rgba(5,5,5,.08); border-radius:16px; padding:12px 12px 12px 16px;
   display:flex; flex-direction:column; gap:8px; overflow:hidden; background:#fff; text-align:left; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.wb2-dc:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--lead, var(--wb2-ok)); }
 .wb2-dc[data-tone="go"], .wb2-dc[data-tone="done"] { background:var(--tint); border-color:var(--line); }
 .wb2-dc[data-tone="soon"] { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.36); }
-.wb2-dc[data-tone="soon"]:before { background:var(--wb2-warn); }
 .wb2-dc[data-tone="flash"], .wb2-dc[data-tone="over"] { background:rgba(224,38,79,.05); border-color:rgba(224,38,79,.32); }
-.wb2-dc[data-tone="flash"]:before, .wb2-dc[data-tone="over"]:before { background:var(--wb2-dan); }
-.wb2-dc[data-tone="quote"] { border-style:dashed; }
-.wb2-dc[data-tone="quote"]:before { display:none; }
+.wb2-dc[data-tone="flash"]:before, .wb2-dc[data-tone="quote"] { border-style:dashed; }
 .wb2-dc.mini:before { background:transparent; }
 .wb2-dc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-dch { display:flex; align-items:center; gap:8px; }
@@ -9026,15 +9013,15 @@ html[data-wb-display] .wb2-mcdots { margin-top:8px; flex-direction:column; align
 /* `font-style:normal` because the dot IS an <i> — the labels inside it
    inherit italics from the element that used to be nothing but a circle. */
 html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; display:block; min-width:0; font-style:normal;
-  padding:4px 8px; border-radius:10px; border-left:3px solid rgba(5,5,5,.28); background:rgba(5,5,5,.045); }
+  padding:4px 8px; border-radius:10px; background:rgba(5,5,5,.045); }
 html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 html[data-wb-display] .wb2-mcdots i > b { font-size:13px; font-weight:700; letter-spacing:-.012em; color:var(--ink); }
 html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:var(--tint); border-left-color:var(--wb2-ok); }
-html[data-wb-display] .wb2-mcdots i[data-tone="soon"] { background:rgba(255,138,0,.12); border-left-color:var(--wb2-warn); }
+html[data-wb-display] .wb2-mcdots i[data-tone="go"] { background:var(--tint); }
+html[data-wb-display] .wb2-mcdots i[data-tone="soon"] { background:rgba(255,138,0,.12); }
 html[data-wb-display] .wb2-mcdots i[data-tone="flash"],
-html[data-wb-display] .wb2-mcdots i[data-tone="over"] { background:rgba(224,38,79,.1); border-left-color:var(--wb2-dan); }
-html[data-wb-display] .wb2-mcdots i[data-tone="done"] { background:rgba(5,5,5,.045); border-left-color:rgba(5,5,5,.25); }
+html[data-wb-display] .wb2-mcdots i[data-tone="over"] { background:rgba(224,38,79,.1); }
+html[data-wb-display] .wb2-mcdots i[data-tone="done"] { background:rgba(5,5,5,.045); }
 html[data-wb-display] .wb2-mcdots > b { align-self:flex-start; font-size:12px; }
 /* the settled-day tick scales with the cell rather than floating in it */
 html[data-wb-display] .wb2-mcdone { margin-top:8px; }
@@ -9050,9 +9037,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-wkgrp:last-child .wb2-plrow:last-child { border-bottom:0; }
 .wb2-plrow:hover { background:#fff; z-index:1; }
 .wb2-plrow:focus-visible { outline:none; box-shadow:inset var(--ring); }
-.wb2-plrow:before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; }
-.wb2-plrow[data-sev="dan"]:before { background:var(--wb2-dan); }
-.wb2-plrow[data-sev="warn"]:before { background:var(--wb2-warn); }
 .wb2-plstage { display:flex; align-items:center; gap:4px; }
 .wb2-plstage i { width:9px; height:9px; border-radius:50%; background:rgba(5,5,5,.12); flex:none; }
 .wb2-plstage i.past { background:var(--ok-tint); }
@@ -9089,8 +9073,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .wb2-triprow.can-open:hover { background:rgba(5,5,5,.03); }
 .wb2-triprow.can-open:focus-visible { outline:none; box-shadow:inset var(--ring); }
-.wb2-triprow[data-sev="over"] { box-shadow:inset 3px 0 0 var(--wb2-dan, #e0264f); }
-.wb2-triprow[data-sev="soon"] { box-shadow:inset 3px 0 0 var(--wb2-warn, #FF8A00); }
 .wb2-triprow.donerow .wb2-trt b { opacity:.75; }
 .wb2-triprow.add { grid-template-columns:minmax(0,1fr) auto auto auto; align-items:end; }
 .wb2-triprow.add .wb2-fl { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--gray500); }
@@ -9832,10 +9814,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   transition:background var(--t-fast) var(--ease), padding-left var(--t-fast) var(--ease); }
 /* the category's colour, as an edge that arrives on hover rather than a dot
    that sits there — five coloured dots in a column read as a legend */
-.fg .tk-nd::before { content:""; position:absolute; left:0; top:6px; bottom:6px; width:2px;
-  border-radius:999px; background:var(--tkc, var(--q)); opacity:0; transition:opacity var(--t-fast) var(--ease); }
 .fg .tk-nd:hover { background:#fff; padding-left:16px; }
-.fg .tk-nd:hover::before { opacity:1; }
 .fg .tk-nd:focus-visible { outline:none; background:#fff; box-shadow:var(--ring); }
 .fg .tk-nd:focus-visible::before { opacity:1; }
 .fg .tk-ndt { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; color:var(--ink);
@@ -10107,7 +10086,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:linear-gradient(180deg, rgba(255,255,255,0), #fff 82%); opacity:0; transition:opacity var(--t-fast) var(--ease); }
 .tk-pkfade.on { opacity:1; }
 .tk-pkq { margin:0; padding:16px 16px; border-radius:16px; background:var(--tint);
-  border:1px solid #eceef2; border-left:3px solid var(--ink); font-family:var(--font-jakarta), sans-serif;
+  border:1px solid #eceef2; font-family:var(--font-jakarta), sans-serif;
   font-size:14px; font-weight:500; line-height:1.6; color:var(--ink); white-space:pre-wrap; }
 /* the page a passage came from, when the peek is showing more than one */
 .tk-pkqp { display:block; margin-bottom:4px; font-size:12px; font-weight:500; color:var(--q); }
@@ -12186,7 +12165,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-value.plain .vm-valuefig { color:var(--ink); }
 .vm-valuefig.stale { color:var(--q); }
 .vm-valuerange { font-size:13px; font-weight:600; color:var(--q); }
-.vm-notes { margin:4px 0 0; padding:0 0 0 12px; border-left:2px solid var(--vm-ok-line); list-style:none; display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--q); text-wrap:pretty; }
+.vm-notes { margin:4px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--q); text-wrap:pretty; }
 .vm-valuefoot { margin-top:8px; padding-top:8px; border-top:1px solid var(--vm-ok-line); font-size:12px; color:var(--vm-muted); }
 .vm-book { display:flex; flex-direction:column; gap:4px; align-items:flex-end; text-align:right; flex:none; min-width:160px; }
 .vm-book b { font-size:20px; font-weight:700; color:var(--ink); line-height:1.15; }

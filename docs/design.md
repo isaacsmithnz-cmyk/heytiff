@@ -161,7 +161,9 @@ starts with them.
     tile or nav item is not a state and not a selection. Selection is a fill.
     State is a word, or a dot, in the state colour. Kind is a label. The nav's
     active item is its white icon and its white label, nothing else (it was
-    teal until the ink-and-paper decision).
+    teal until the ink-and-paper decision). A dot may sit at the left edge; a
+    bar may not. One bar stays: the Schedule key's swatch mirrors the cap on
+    the board's blocks, which is that board's vocabulary, not a state.
 15. No taglines, and no caption that explains the section. The two shapes:
     three nouns in a row under a title ("splits, ducted, multi") and a line
     that says what the section is for ("What lets the business trade —

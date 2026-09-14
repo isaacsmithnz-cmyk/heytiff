@@ -5344,7 +5344,6 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-table tr.sel,
 .ds-ub-table tr.sel:hover {
   background: #e7f4f1;
-  box-shadow: inset 2px 0 0 var(--teal-d, #0f766e);
 }
 /* series subheader — a quiet band, not a selectable row */
 .ds-ub-table tr.ds-ub-group td,

@@ -187,14 +187,14 @@ function ReviewCard({
         <Avatar name={s.name} />
         <div className="who">
           <div className="nm">{s.name}</div>
-          <div className="rl">{s.role}{s.payBasis === "salary" ? " · Salaried" : ""}</div>
+          <div className="rl">{s.role}{s.payBasis === "salary" ? ", Salaried" : ""}</div>
         </div>
         <div className="sp"></div>
         <div className="cacts">
           {sent ? (
             <span className="apprtag sent">
               <Icon name="send" size={13} />
-              Sent back · awaiting reply
+              Sent back, awaiting reply
             </span>
           ) : !canApprove ? null : (
             <>
@@ -331,7 +331,7 @@ function CompactRow({
       <Avatar name={s.name} />
       <div className="who">
         <div className="nm">{s.name}</div>
-        <div className="rl">{s.role}{s.payBasis === "salary" ? " · Salaried" : ""}</div>
+        <div className="rl">{s.role}{s.payBasis === "salary" ? ", Salaried" : ""}</div>
       </div>
       <div className="mini">
         {s.days.map((day, i) => (
@@ -544,7 +544,7 @@ export function TimePay({
 
           {/* THE STRIP STOPPED COUNTING THE SECTIONS UNDERNEATH IT.
 
-              Two of its four tiles read "2 · NEED REVIEW" and "1 · APPROVED"
+              Two of its four tiles read "2, NEED REVIEW" and "1, APPROVED"
               forty pixels above two section headings reading "Need review 2"
               and "Approved 1" — the same word and the same number, twice, and
               the headings are the ones you can't remove because they group the
@@ -596,7 +596,7 @@ export function TimePay({
                         sentBack.length > 0 ? `${sentBack.length} sent back` : null,
                       ]
                         .filter(Boolean)
-                        .join(" · ")}
+                        .join(", ")}
                 </div>
               </div>
             </div>

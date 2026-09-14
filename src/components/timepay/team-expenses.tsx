@@ -127,8 +127,8 @@ export function TeamExpenses({
                   <div className="xc-main">
                     <b>{c.description}</b>
                     <em>
-                      {c.staffName} · {fmtAuWeekdayDate(c.expenseDate)}
-                      {c.supplier ? ` · ${c.supplier}` : ""} · {CATEGORY_LABEL[c.category]}
+                      {c.staffName}, {fmtAuWeekdayDate(c.expenseDate)}
+                      {c.supplier ? `, ${c.supplier}` : ""}, {CATEGORY_LABEL[c.category]}
                     </em>
                     {/* THE APPROVER'S VERSION OF THE SAME FACT, and the more
                         load-bearing one: without it, a fuel log AND a claim

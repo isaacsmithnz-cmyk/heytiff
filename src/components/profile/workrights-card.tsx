@@ -177,7 +177,7 @@ export function WorkRightsCard({
               value={
                 visaExpiry ? (
                   <span className={`ro-state ${expiryStatus.tone}`}>
-                    {visaExpiry} · {expiryStatus.label}
+                    {visaExpiry}, {expiryStatus.label}
                   </span>
                 ) : (
                   ""

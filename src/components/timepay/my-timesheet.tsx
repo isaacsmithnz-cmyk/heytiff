@@ -730,14 +730,14 @@ function DayEditor({
           )}
 
           {/* WHAT THE TIMES COME TO, and only that. It used to restate them —
-              "7:00 AM – 6:00 PM · 11h" — directly under two wheels whose own
+              "7:00 AM – 6:00 PM, 11h" — directly under two wheels whose own
               headings already read 7:00 AM and 6:00 PM in bold. Three
               statements of a fact, one of them new. */}
           <div className={`mts2-derv${short ? " short" : ""}`}>
             <Icon name="clock" size={13} />
             <span>
               <b>{fmtH(derived)}h</b> on this day
-              {short && ` · short of your ${fmtHval(settings.standard)} day — your manager will see it`}
+              {short && `, short of your ${fmtHval(settings.standard)} day — your manager will see it`}
             </span>
           </div>
         </>
@@ -1349,7 +1349,7 @@ export function MyTimesheet({
                   <Icon name="chevR" size={17} />
                 </button>
                 {/* NO STATUS PILL AND NO STATUS LINE. This bar said LIVE, the
-                    line under it said "Open · auto-submits Sun 3:00 PM, then
+                    line under it said "Open, auto-submits Sun 3:00 PM, then
                     locks", and the card beside it said Draft — three words for
                     where one sheet stood, two of them for the same thing. And
                     "auto-submits Sun" up here never met "you can send once your

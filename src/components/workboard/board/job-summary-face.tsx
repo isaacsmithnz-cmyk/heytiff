@@ -13,7 +13,7 @@ import { telHref } from "./job-sheet";
    only copy of what the customer was promised, and the "Scope ›" chip that
    briefly hid this died in the same round that promoted it back up here.
 
-   "WHERE IT'S UP TO" WEARS ITS STAMP — "Updated Sat 22 Aug · the final
+   "WHERE IT'S UP TO" WEARS ITS STAMP — "Updated Sat 22 Aug, the final
    payment": the newest story event the paragraph was written at, and what
    that event was. The reader knows exactly how current the words are
    without being told how they were made. No badge, no sparkle — the label
@@ -74,7 +74,7 @@ export function JobSummaryFace({
             {summary.eventOn && (
               <em>
                 {`Updated ${fmtAuWeekdayDayMonth(summary.eventOn)}`}
-                {summary.eventLabel ? ` · ${summary.eventLabel}` : ""}
+                {summary.eventLabel ? `, ${summary.eventLabel}` : ""}
               </em>
             )}
           </div>

@@ -510,7 +510,7 @@ describe("work somebody gave you", () => {
     await openPanel();
     const row = remRows()[0];
     expect(row.textContent).toContain("Order the return air box 1");
-    expect(row.querySelector(".bp-main em")?.textContent).toBe("From Luke Ingold · Due Fri 4 Sept");
+    expect(row.querySelector(".bp-main em")?.textContent).toBe("From Luke Ingold, Due Fri 4 Sept");
   });
 
   it("still rings when nobody can be named, and draws no second line at all", async () => {

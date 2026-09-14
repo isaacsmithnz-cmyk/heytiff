@@ -120,7 +120,7 @@ export function MoneyCard({
                   : "")
               : "not set"}
             {project.budgetSource && money.baseCents !== null
-              ? ` · ${
+              ? `, ${
                   project.budgetSource === "studio"
                     ? "from the design"
                     : project.budgetSource === "sm8_quote"
@@ -183,8 +183,8 @@ export function MoneyCard({
             <b>{c.label}</b>
             <em>
               claimed {fmtAuWeekdayDayMonth(c.claimedOn)}
-              {c.source !== "manual" ? ` · from ${c.source === "servicem8" ? "ServiceM8" : "Xero"}` : ""}
-              {c.status === "paid" && c.paidOn ? ` · paid ${fmtAuWeekdayDayMonth(c.paidOn)}` : ""}
+              {c.source !== "manual" ? `, from ${c.source === "servicem8" ? "ServiceM8" : "Xero"}` : ""}
+              {c.status === "paid" && c.paidOn ? `, paid ${fmtAuWeekdayDayMonth(c.paidOn)}` : ""}
             </em>
           </div>
           <div className="wb2-plmoney">
@@ -286,7 +286,7 @@ function AddClaimModal({
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Deposit · Rough-in claim · Final"
+            placeholder="Deposit, Rough-in claim, Final"
             autoFocus
           />
         </label>
@@ -385,9 +385,9 @@ export function VariationsCard({
                 {v.status === "pending"
                   ? "pending a decision"
                   : `${v.status}${v.decidedBy ? ` by ${v.decidedBy}` : ""}${
-                      v.decidedAt ? ` · ${fmtAuWeekdayDayMonth(v.decidedAt.slice(0, 10))}` : ""
+                      v.decidedAt ? `, ${fmtAuWeekdayDayMonth(v.decidedAt.slice(0, 10))}` : ""
                     }`}
-                {v.detail ? ` · ${v.detail}` : ""}
+                {v.detail ? `, ${v.detail}` : ""}
               </em>
             </div>
             <div className="wb2-plmoney">

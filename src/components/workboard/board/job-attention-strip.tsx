@@ -318,7 +318,7 @@ function faceOf(item: AttentionItem): Face {
         icon: "servicem8",
         tone: "warn",
         title: quoted(item.text),
-        meta: [item.author, dayOf(item.at), "Flagged in ServiceM8"].filter(Boolean).join(" · "),
+        meta: [item.author, dayOf(item.at), "Flagged in ServiceM8"].filter(Boolean).join(", "),
       };
     case "task":
       return {
@@ -333,7 +333,7 @@ function faceOf(item: AttentionItem): Face {
             : null,
         ]
           .filter(Boolean)
-          .join(" · "),
+          .join(", "),
       };
     case "mention":
       return {
@@ -346,7 +346,7 @@ function faceOf(item: AttentionItem): Face {
            `Luke Ingold — "@LukeIngold Bill 90%"` names him twice in one
            line. */
         title: `${item.named.map((n) => n.name).join(" and ")} — ${quoted(withoutHandles(item.text), 90)}`,
-        meta: [item.author, dayOf(item.at), "Mentioned in ServiceM8"].filter(Boolean).join(" · "),
+        meta: [item.author, dayOf(item.at), "Mentioned in ServiceM8"].filter(Boolean).join(", "),
       };
   }
 }

@@ -166,7 +166,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
     expect(screen.getByText("PEAD-M-JAA")).toBeInTheDocument(); // series
     expect(screen.getByText("0/1 ready")).toBeInTheDocument();
     // fields missing across the whole series collapse into the To-add group
-    expect(screen.getByText(/To add · \d+ fields/)).toBeInTheDocument();
+    expect(screen.getByText(/To add, \d+ fields/)).toBeInTheDocument();
     expect(screen.getByText("Airflow (Hi)")).toBeInTheDocument(); // To-add sub-header
     expect(screen.getByText(/of 22 specs mapped/)).toBeInTheDocument();
   });
@@ -306,7 +306,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
       />
     );
     // the tag chip lists every claimed system
-    expect(screen.getByText(/Split \(1:1\) · VRF/)).toBeInTheDocument();
+    expect(screen.getByText(/Split \(1:1\), VRF/)).toBeInTheDocument();
   });
 });
 

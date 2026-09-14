@@ -193,7 +193,7 @@ export function PeopleImportCard({
               ? "Everyone in this account is matched to a card here."
               : `${pending.filter((r) => r.kind === "suggested").length} possible ${
                   pending.filter((r) => r.kind === "suggested").length === 1 ? "match" : "matches"
-                } · ${pending.filter((r) => r.kind === "new").length} not here yet · ${linked.length} linked. Review each field before it lands — untick or edit anything stale.`}
+                }, ${pending.filter((r) => r.kind === "new").length} not here yet, ${linked.length} linked. Review each field before it lands — untick or edit anything stale.`}
           </em>
         </div>
       </div>
@@ -259,7 +259,7 @@ export function PeopleImportCard({
                     {!person.active && <span className="int-tag warn">Inactive in {meta.label}</span>}
                   </b>
                   {/* the values Import would write, always visible on the row */}
-                  <em>{willLand.length ? willLand.join(" · ") : "Name only"}</em>
+                  <em>{willLand.length ? willLand.join(", ") : "Name only"}</em>
                   {row.kind === "suggested" && (
                     <span className="sp-sug">
                       Looks like <b>{row.staffName}</b> — same {row.reason === "email" ? "email address" : "name"}

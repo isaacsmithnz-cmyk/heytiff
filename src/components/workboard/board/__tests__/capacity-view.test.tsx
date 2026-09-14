@@ -203,7 +203,7 @@ it("opens on the current week's Monday and says what it is", async () => {
   expect(scheduleCapacity).toHaveBeenCalledWith(WINDOW_START);
   // the Monday's figure is up, and the rail's lane meta is nowhere near it
   expect(screen.getByText("25%")).toBeInTheDocument();
-  expect(screen.queryByText("2 bookings · 9h")).not.toBeInTheDocument();
+  expect(screen.queryByText("2 bookings, 9h")).not.toBeInTheDocument();
   // the header names the window's grain on the left and the stepper says
   // WHICH four weeks; the chip is left with only the number it measures
   expect(screen.getByText("Four weeks")).toBeInTheDocument();
@@ -310,7 +310,7 @@ it("opens a day into its jobs, hours and everyone on them — as a card, not a s
   const dayCard = await screen.findByRole("dialog", { name: /Jobs on Fri 14 Aug/ });
   // a card over a scrim is a dialog the keyboard is IN — not a panel in flow
   expect(dayCard).toHaveFocus();
-  expect(within(dayCard).getByText("2 jobs · 18h")).toBeInTheDocument();
+  expect(within(dayCard).getByText("2 jobs, 18h")).toBeInTheDocument();
   expect(within(dayCard).getByText("Girgis, Katrina")).toBeInTheDocument();
   expect(within(dayCard).getByText("3171")).toBeInTheDocument();
   expect(within(dayCard).getByText("8h")).toBeInTheDocument();
@@ -318,24 +318,24 @@ it("opens a day into its jobs, hours and everyone on them — as a card, not a s
   expect(within(dayCard).getByText("10h")).toBeInTheDocument();
   // the crew job names EVERYONE on it
   expect(within(dayCard).getByText("Alex Lorenz, David Hann")).toBeInTheDocument();
-  expect(within(dayCard).getByText("Install · Enmore")).toBeInTheDocument();
+  expect(within(dayCard).getByText("Install, Enmore")).toBeInTheDocument();
 
   // Escape dismisses and hands focus back to the day it came from
   await userEvent.keyboard("{Escape}");
-  expect(screen.queryByText("2 jobs · 18h")).not.toBeInTheDocument();
+  expect(screen.queryByText("2 jobs, 18h")).not.toBeInTheDocument();
   expect(fri).toHaveFocus();
 
   // clicking the day again toggles it closed too
   await userEvent.click(fri);
-  await screen.findByText("2 jobs · 18h");
+  await screen.findByText("2 jobs, 18h");
   await userEvent.click(fri);
-  expect(screen.queryByText("2 jobs · 18h")).not.toBeInTheDocument();
+  expect(screen.queryByText("2 jobs, 18h")).not.toBeInTheDocument();
 
   // and the close button is the third door
   await userEvent.click(fri);
-  await screen.findByText("2 jobs · 18h");
+  await screen.findByText("2 jobs, 18h");
   await userEvent.click(screen.getByRole("button", { name: "Close the day" }));
-  expect(screen.queryByText("2 jobs · 18h")).not.toBeInTheDocument();
+  expect(screen.queryByText("2 jobs, 18h")).not.toBeInTheDocument();
 });
 
 /* A row in the day is the block it would be on the rail, and it opens the
@@ -401,15 +401,15 @@ it("edits the crew as a list, saves it in one write and re-reads the month", asy
   await openCapacity();
   await userEvent.click(screen.getByRole("button", { name: "Crew" }));
   expect(await screen.findByText("Who counts toward a day")).toBeInTheDocument();
-  expect(screen.getByText("2 people · 16h a day")).toBeInTheDocument();
+  expect(screen.getByText("2 people, 16h a day")).toBeInTheDocument();
 
   // set David aside — his hours survive the toggle, so the line halves
   await userEvent.click(screen.getByRole("switch", { name: /David Hann/ }));
-  expect(screen.getByText("1 person · 8h a day")).toBeInTheDocument();
+  expect(screen.getByText("1 person, 8h a day")).toBeInTheDocument();
 
   // and step Alex up half an hour
   await userEvent.click(screen.getByRole("button", { name: "More hours for Alex Lorenz" }));
-  expect(screen.getByText("1 person · 8h30 a day")).toBeInTheDocument();
+  expect(screen.getByText("1 person, 8h30 a day")).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(setScheduleCapacity).toHaveBeenCalledWith([

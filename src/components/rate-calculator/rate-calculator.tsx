@@ -115,10 +115,10 @@ const STEP_META = [
 // step summary lines (engine-derived)
 function stepSummary(key: string, s: RateCalcState, calc: CalcResult): string {
   switch (key) {
-    case "staff": return `${s.mode.staff === "Simple" ? (s.simpleLabour.staff_count || s.staff.length) : s.staff.length} staff · ${money(calc.instLab + calc.svcLab + calc.adminLab)}/yr`;
+    case "staff": return `${s.mode.staff === "Simple" ? (s.simpleLabour.staff_count || s.staff.length) : s.staff.length} staff, ${money(calc.instLab + calc.svcLab + calc.adminLab)}/yr`;
     case "business": return `${money(calc.enteredBiz)}/yr overheads`;
-    case "vehicles": return `${s.vehicles.length} vehicles · ${money(calc.instVehicle + calc.svcVehicle + calc.adminVehicle)}/yr`;
-    case "risk": return `Install ${s.risk.warranty + s.risk.defect}% · Service ${s.risk.callback + s.risk.diagnostic}%`;
+    case "vehicles": return `${s.vehicles.length} vehicles, ${money(calc.instVehicle + calc.svcVehicle + calc.adminVehicle)}/yr`;
+    case "risk": return `Install ${s.risk.warranty + s.risk.defect}%, Service ${s.risk.callback + s.risk.diagnostic}%`;
     case "profit": return `${s.profit.margin}% margin`;
     default: return "";
   }
@@ -262,7 +262,7 @@ function RatesIntro({ s, patch, onDone }: {
       <div style={{ position: "absolute", inset: 0, background: "rgba(5,5,5,0.45)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
       <div style={{ position: "relative", width: 580, background: "#fff", borderRadius: 24, boxShadow: "0 40px 100px rgba(5,5,5,0.4)", overflow: "hidden" }}>
         <div style={{ padding: "28px 34px 0" }}>
-          <WsEyebrow>Rate Calculator · Step 1</WsEyebrow>
+          <WsEyebrow>Rate Calculator, Step 1</WsEyebrow>
           <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 29, letterSpacing: "-0.03em", color: RC.ink, lineHeight: 1.1, marginTop: 12 }}>What do you charge right now?</div>
           <div style={{ fontSize: 14, color: RC.ink2, lineHeight: 1.6, marginTop: 9 }}>
             Enter your current hourly charge-out rates. This is the baseline we&apos;ll compare against — so you can see exactly where you stand versus what your costs say you should charge. You can change these any time.
@@ -500,7 +500,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
               </div>
               <div style={{ flexShrink: 0, padding: "14px 10px 0 2px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button className="rca-btn ghost" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</button>
-                <span style={{ fontSize: 12.5, color: RC.faint, whiteSpace: "nowrap" }}>Step {step + 1} of 5 · {saveLabel}</span>
+                <span style={{ fontSize: 12.5, color: RC.faint, whiteSpace: "nowrap" }}>Step {step + 1} of 5, {saveLabel}</span>
                 <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results" : "Continue"}</button>
               </div>
             </div>

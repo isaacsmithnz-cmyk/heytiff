@@ -284,7 +284,7 @@ export function NewAgreementModal({
                     <b>{h.clientName ?? "Unnamed client"}</b>
                     <em>
                       {h.jobNumber ? `#${h.jobNumber}` : "no number"}
-                      {h.suburb ? ` · ${h.suburb}` : ""}
+                      {h.suburb ? `, ${h.suburb}` : ""}
                     </em>
                   </div>
                   <span className="wb2-chip">Use this job</span>

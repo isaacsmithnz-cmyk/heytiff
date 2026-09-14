@@ -53,11 +53,11 @@ export function assignmentLine(
   dueLabel: (iso: string) => string
 ): string | null {
   /* Both fragments start with a capital, joined by the house's own middle
-     dot — the same shape the money block's "Raised Fri 27 Mar · Paid Thu 2
+     dot — the same shape the money block's "Raised Fri 27 Mar, Paid Thu 2
      Apr" wears, so two meta lines on one screen can't disagree about it. */
   const from = a.fromName ? `From ${a.fromName}` : null;
   const due = a.dueDate ? `Due ${dueLabel(a.dueDate)}` : null;
-  return [from, due].filter(Boolean).join(" · ") || null;
+  return [from, due].filter(Boolean).join(", ") || null;
 }
 
 /** The bell shows a task ONCE.

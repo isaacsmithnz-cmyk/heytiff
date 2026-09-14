@@ -55,7 +55,7 @@ describe("the completion strip", () => {
   it("counts what is missing and names the required ones", () => {
     setup(blankProfile);
     expect(screen.getByText("0% complete")).toBeInTheDocument();
-    expect(screen.getByText("11 of 11 fields missing · 7 required")).toBeInTheDocument();
+    expect(screen.getByText("11 of 11 fields missing, 7 required")).toBeInTheDocument();
   });
 
   it("draws the ring to the same percentage it prints", () => {
@@ -106,7 +106,7 @@ describe("the tabs' counts", () => {
     const { container } = setup(blankProfile);
     const badges = [...container.querySelectorAll(".wb2-vtn")].map((b) => Number(b.textContent));
     expect(badges.reduce((a, b) => a + b, 0)).toBe(11);
-    expect(screen.getByText("11 of 11 fields missing · 7 required")).toBeInTheDocument();
+    expect(screen.getByText("11 of 11 fields missing, 7 required")).toBeInTheDocument();
   });
 
   it("drops every badge when the card is finished", () => {

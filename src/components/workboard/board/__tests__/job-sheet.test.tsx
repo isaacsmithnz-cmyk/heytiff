@@ -406,7 +406,7 @@ describe("the band", () => {
     );
     render(<JobSheet row={row()} {...props} />);
     await detailLanded();
-    expect(screen.getByText("Completed · Fri 21 Aug")).toBeInTheDocument();
+    expect(screen.getByText("Completed, Fri 21 Aug")).toBeInTheDocument();
     expect(screen.queryByText(/^Raised /)).toBeNull();
   });
 
@@ -452,7 +452,7 @@ describe("the Summary face", () => {
 
     expect(await screen.findByText("First fix done across two visits.")).toBeInTheDocument();
     expect(screen.getByText("Where it’s up to")).toBeInTheDocument();
-    expect(screen.getByText("Updated Thu 13 Aug · Nathan's note")).toBeInTheDocument();
+    expect(screen.getByText("Updated Thu 13 Aug, Nathan's note")).toBeInTheDocument();
     /* each point is its own list line, not a clause of the lead */
     const points = document.querySelectorAll(".wb2-jcups-pts li");
     expect([...points].map((p) => p.textContent)).toEqual([
@@ -576,7 +576,7 @@ describe("the summary refresh", () => {
     expect(JSON.parse(String(init.body))).toEqual({ job: "j-1" });
 
     expect(await screen.findByText("Fresh words about the job.")).toBeInTheDocument();
-    expect(screen.getByText("Updated Fri 14 Aug · a site visit")).toBeInTheDocument();
+    expect(screen.getByText("Updated Fri 14 Aug, a site visit")).toBeInTheDocument();
   });
 
   it("does not kick when the stored stamp matches the story's", async () => {
@@ -1179,19 +1179,19 @@ describe("the Visits face", () => {
     await openTab("Visits");
 
     const f = face("visits");
-    expect(f.getByText("2 visits · 18h 30m on site")).toBeInTheDocument();
+    expect(f.getByText("2 visits, 18h 30m on site")).toBeInTheDocument();
     expect(f.getByText("Fri 14 Aug")).toBeInTheDocument();
     /* A NAME PLUS WHAT THEY ARE, and only on this face: the dash separates
        the two people because a comma cannot, once a title is in the line;
        a mate with no title in ServiceM8 keeps just his name. */
-    expect(crewLine(f, "Thu 13 Aug")).toBe("Callum Vrieze — Alex Lorenz · Senior HVAC");
+    expect(crewLine(f, "Thu 13 Aug")).toBe("Callum Vrieze — Alex Lorenz, Senior HVAC");
     expect(f.getByText("10h 20m")).toBeInTheDocument();
     /* the next booking leads, with its end time */
     expect(f.getByText("Next on site")).toBeInTheDocument();
     expect(f.getByText("7:30am–3:30pm Fri 14 Aug")).toBeInTheDocument();
     /* and the queue keeps its own fact */
     expect(f.getByText("Parts on Order")).toBeInTheDocument();
-    expect(f.getByText(/Luke Ingold · until Thu 20 Aug/)).toBeInTheDocument();
+    expect(f.getByText(/Luke Ingold, until Thu 20 Aug/)).toBeInTheDocument();
   });
 
   it("shows the recent visits and opens the rest in place", async () => {
@@ -1241,7 +1241,7 @@ describe("the Checklist face", () => {
 
     const done = screen.getByText("Isolate power").closest(".wb2-ckrow")!;
     expect(done.className).toContain("done");
-    expect(within(done as HTMLElement).getByText("Callum Vrieze · Thu 13 Aug")).toBeInTheDocument();
+    expect(within(done as HTMLElement).getByText("Callum Vrieze, Thu 13 Aug")).toBeInTheDocument();
 
     const form = screen.getByText("DAS Service Call").closest(".wb2-ckrow")!;
     expect(form.className).not.toContain("done");
@@ -1378,7 +1378,7 @@ describe("the Money face", () => {
     expect(screen.getByText("Payment 2 — Progress")).toBeInTheDocument();
     expect(screen.getByText("Payment 3 — Final")).toBeInTheDocument();
     expect(
-      screen.getByText("Invoice #2380A · 30% of the job · Raised Fri 27 Mar · Paid Thu 2 Apr")
+      screen.getByText("Invoice #2380A, 30% of the job, Raised Fri 27 Mar, Paid Thu 2 Apr")
     ).toBeInTheDocument();
   });
 
@@ -1946,7 +1946,7 @@ describe("a card opened from a progress claim", () => {
     );
 
     await screen.findByText("$31,340.35");
-    expect(screen.getByText("Completed · Fri 21 Aug")).toBeInTheDocument();
+    expect(screen.getByText("Completed, Fri 21 Aug")).toBeInTheDocument();
     expect(screen.queryByText("Quote")).toBeNull();
     expect(screen.queryByText(/^Raised /)).toBeNull();
   });
@@ -2395,7 +2395,7 @@ describe("designs started from this job", () => {
     expect(screen.getByText("Drawings — designed in the Studio")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /12\/3 Wallace St/ });
     expect(link).toHaveAttribute("href", "/dashboard/studio?design=dsn_1");
-    expect(within(link).getByText(/2 floors · 3 systems/)).toBeInTheDocument();
+    expect(within(link).getByText(/2 floors, 3 systems/)).toBeInTheDocument();
   });
 
   it("counts the options in the heading when a job has several", async () => {
@@ -2422,7 +2422,7 @@ describe("designs started from this job", () => {
     await detailLanded();
     await openTab("Documents");
 
-    expect(screen.getByText(/1 floor · 1 system/)).toBeInTheDocument();
+    expect(screen.getByText(/1 floor, 1 system/)).toBeInTheDocument();
   });
 
   it("is absent entirely when nothing has been designed", async () => {
@@ -2613,7 +2613,7 @@ describe("files on the job", () => {
     );
     const tile = document.querySelector("#jcsec-photos .wb2-mtile.video") as HTMLElement;
     expect(tile).not.toBeNull();
-    expect(within(tile).getByText("Video · in ServiceM8")).toBeInTheDocument();
+    expect(within(tile).getByText("Video, in ServiceM8")).toBeInTheDocument();
     expect(tile.tagName).not.toBe("BUTTON");
 
     /* AND IT IS NOT A STOP ON THE ARROW KEYS: two stills and a video read
@@ -2699,7 +2699,7 @@ describe("files on the job", () => {
        switch it unlocks counts one. */
     const unstar = await face("photos").findByRole("button", { name: "Unstar one.jpg" });
     expect(unstar).toHaveAttribute("aria-pressed", "true");
-    const filter = face("photos").getByRole("button", { name: /Starred · 1/ });
+    const filter = face("photos").getByRole("button", { name: /Starred \(1\)/ });
 
     await userEvent.click(filter);
     expect(face("photos").getByAltText("one.jpg")).toBeInTheDocument();
@@ -3152,7 +3152,7 @@ describe("the ledger obeys the money grant", () => {
     await openTab("Money");
 
     await screen.findByText("Bank Transfer");
-    expect(screen.getByText(/deposit · Sat 1 Aug · Luke Ingold/)).toBeInTheDocument();
+    expect(screen.getByText(/deposit, Sat 1 Aug, Luke Ingold/)).toBeInTheDocument();
   });
 
   it("renders no ledger at all when the server sent none", async () => {
@@ -3244,7 +3244,7 @@ describe("the job's own checklist", () => {
     const todos = ck.getByText("To do", { selector: ".wb2-sect" }).closest(".wb2-jcsec")!;
     expect(within(todos as HTMLElement).getByText("Pressure test new lineset")).toBeInTheDocument();
     /* the head counts BOTH lists — ours (2 open) and ServiceM8's (2 open, 1 done) */
-    expect(ck.getByText("4 open · 1 done")).toBeInTheDocument();
+    expect(ck.getByText("4 open, 1 done")).toBeInTheDocument();
   });
 
   it("a ticked row STAYS, stamped who and when to the minute", async () => {
@@ -3268,7 +3268,7 @@ describe("the job's own checklist", () => {
     const rowEl = (await screen.findByText("Isolate old unit")).closest(".wb2-pkrow")!;
     expect(rowEl.className).toContain("done");
     expect(
-      within(rowEl as HTMLElement).getByText("Jake Thompson · 11:52am Fri 14 Aug")
+      within(rowEl as HTMLElement).getByText("Jake Thompson, 11:52am Fri 14 Aug")
     ).toBeInTheDocument();
   });
 
@@ -3310,7 +3310,7 @@ describe("the job's own checklist", () => {
     await user.click(await screen.findByLabelText("Done: MSZ-AP25VGD"));
     const row_ = (await screen.findByText("MSZ-AP25VGD")).closest(".wb2-pkrow")!;
     await waitFor(() =>
-      expect(within(row_ as HTMLElement).getByText(/Isaac Smith · /)).toBeInTheDocument()
+      expect(within(row_ as HTMLElement).getByText(/Isaac Smith, /)).toBeInTheDocument()
     );
   });
 

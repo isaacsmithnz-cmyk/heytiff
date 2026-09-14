@@ -132,7 +132,7 @@ export function describeJob(c: JobCandidate): string {
   const bits = [`${c.clientName} — ${c.label}`];
   if (c.siteLabel) bits.push(c.siteLabel);
   bits.push(c.jobNumber ? `job #${c.jobNumber}` : jobless(c.kind));
-  return bits.join(" · ");
+  return bits.join(", ");
 }
 
 const jobless = (kind: JobCandidate["kind"]): string =>

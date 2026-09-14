@@ -563,7 +563,7 @@ export function UnitBrowser({
             {loadKw != null ? (
               <span>
                 {requiredKw != null ? "Requires" : "Room load"} ≈ <b>{loadKw.toFixed(1)} kW</b>{" "}
-                · {basis}
+               , {basis}
               </span>
             ) : (
               <span>No room selected — full catalogue</span>
@@ -928,7 +928,7 @@ function OduPicker({
               <PhaseBadge phase={p.odu.phase} />
             </span>
             <span className="ds-ub-odumeta">
-              {p.coolKw} / {p.heatKw} kW · max {p.pair.max_length_m} m
+              {p.coolKw} / {p.heatKw} kW, max {p.pair.max_length_m} m
             </span>
           </button>
         );

@@ -92,7 +92,7 @@ describe("new design — from a ServiceM8 job", () => {
     const list = await screen.findByRole("listbox", { name: "ServiceM8 jobs" });
     // the row says the street, the client and the number — enough to pick by
     expect(within(list).getByText("12/3 Wallace St")).toBeInTheDocument();
-    expect(within(list).getByText(/Diamond Air · Waverley · Work Order/)).toBeInTheDocument();
+    expect(within(list).getByText(/Diamond Air, Waverley, Work Order/)).toBeInTheDocument();
     expect(within(list).getByText("#3151")).toBeInTheDocument();
 
     await user.click(within(list).getByText("12/3 Wallace St"));

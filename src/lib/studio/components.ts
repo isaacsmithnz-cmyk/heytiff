@@ -83,8 +83,8 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
     icon: "bolt",
     defaultId: "isolator-20a",
     options: [
-      { id: "isolator-20a", name: "Isolator · 20 A", sub: "Weatherproof IP66", value: "1" },
-      { id: "isolator-32a", name: "Isolator · 32 A", sub: "3Ø · weatherproof IP66", value: "1" },
+      { id: "isolator-20a", name: "Isolator, 20 A", sub: "Weatherproof IP66", value: "1" },
+      { id: "isolator-32a", name: "Isolator, 32 A", sub: "3Ø, weatherproof IP66", value: "1" },
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
     ],
   },
@@ -94,9 +94,9 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
     icon: "mount",
     defaultId: "wall-bracket",
     options: [
-      { id: "wall-bracket", name: "Wall bracket", sub: "Galv. steel · anti-vib feet", value: "1 set" },
-      { id: "ground-pad", name: "Ground pad", sub: "Composite · anti-vib feet", value: "1" },
-      { id: "roof-mount", name: "Roof frame", sub: "Galv. steel · spring feet", value: "1 set" },
+      { id: "wall-bracket", name: "Wall bracket", sub: "Galv. steel, anti-vib feet", value: "1 set" },
+      { id: "ground-pad", name: "Ground pad", sub: "Composite, anti-vib feet", value: "1" },
+      { id: "roof-mount", name: "Roof frame", sub: "Galv. steel, spring feet", value: "1 set" },
     ],
   },
   /* Hard-drawn pipe arrives as raw copper — soft coil comes pre-insulated —
@@ -109,9 +109,9 @@ export const COMPONENT_CHOICES: ComponentChoiceGroup[] = [
     icon: "insulation",
     defaultId: "wall-13",
     options: [
-      { id: "wall-9", name: "Lagging · 9 mm wall", sub: "Closed-cell · hard drawn runs", value: "—" },
-      { id: "wall-13", name: "Lagging · 13 mm wall", sub: "Closed-cell · hard drawn runs", value: "—" },
-      { id: "wall-19", name: "Lagging · 19 mm wall", sub: "Closed-cell · hard drawn runs", value: "—" },
+      { id: "wall-9", name: "Lagging, 9 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
+      { id: "wall-13", name: "Lagging, 13 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
+      { id: "wall-19", name: "Lagging, 19 mm wall", sub: "Closed-cell, hard drawn runs", value: "—" },
       { id: "none", name: "Supplied by others", sub: "Not in this takeoff", value: "—" },
     ],
   },
@@ -184,7 +184,7 @@ function oduRow(
     kind: "odu",
     role: "Outdoor unit",
     name: odu.model,
-    sub: `${phaseLabel(odu)} · ${odu.refrigerant} condenser`,
+    sub: `${phaseLabel(odu)}, ${odu.refrigerant} condenser`,
     value: kw != null ? `${kw.toFixed(1)} kW` : "—",
     icon: "odu",
   };
@@ -227,7 +227,7 @@ function chargeRow(
   // sub: describe the pre-charge / top-up situation honestly
   let sub: string;
   if (charge && hasRuns && lengthM == null) {
-    sub = "Pre-charged · run length unknown";
+    sub = "Pre-charged, run length unknown";
   } else if (topupKg != null && topupKg > 0) {
     sub = `Pre-charged + ${topupKg.toFixed(2)} kg top-up`;
   } else if (topupKg === 0) {

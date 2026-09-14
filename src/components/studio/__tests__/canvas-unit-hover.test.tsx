@@ -158,7 +158,7 @@ describe("the hovered-unit card", () => {
     fireEvent.pointerMove(svg, ON_UNIT);
     const card = container.querySelector(".ds-unitcard")!;
     expect(card.textContent).toContain("Wall-mounted"); // form factor, spelled out
-    expect(card.textContent).toContain("2.5 kW cool · 3.2 kW heat");
+    expect(card.textContent).toContain("2.5 kW cool, 3.2 kW heat");
     expect(card.textContent).toContain("Lounge"); // the room it serves
     expect(card.textContent).toContain("800 × 300 mm");
   });

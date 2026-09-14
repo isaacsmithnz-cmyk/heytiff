@@ -166,7 +166,7 @@ export function ProjectDetailScreen({
               <p className="int-lede" style={{ margin: "6px 0 0" }}>
                 {[project.clientName, project.siteLabel, project.siteAddress]
                   .filter(Boolean)
-                  .join(" · ") || "No client details yet"}
+                  .join(", ") || "No client details yet"}
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -193,7 +193,7 @@ export function ProjectDetailScreen({
             <div className="int-note bad">
               <b>Blocked{project.blockedOn ? ` on ${project.blockedOn}` : ""}</b>
               {project.blockedReason ? ` — ${project.blockedReason}` : ""}
-              {project.blockedAt ? ` · since ${fmtAuWeekdayDayMonth(project.blockedAt.slice(0, 10))}` : ""}
+              {project.blockedAt ? `, since ${fmtAuWeekdayDayMonth(project.blockedAt.slice(0, 10))}` : ""}
               {manage && (
                 <button
                   className="pbtn ghost"
@@ -307,10 +307,10 @@ export function ProjectDetailScreen({
                     {(e.model || e.serial) && (
                       <em>
                         {" "}
-                        · {[e.model, e.serial && `s/n ${e.serial}`].filter(Boolean).join(" · ")}
+                       , {[e.model, e.serial && `s/n ${e.serial}`].filter(Boolean).join(", ")}
                       </em>
                     )}
-                    {e.locationNote && <em> · {e.locationNote}</em>}
+                    {e.locationNote && <em>, {e.locationNote}</em>}
                   </span>
                   <button
                     className={"wb-chip" + (e.manualLeft ? " on" : "")}
@@ -364,11 +364,11 @@ export function ProjectDetailScreen({
                     {j.mirror ? (
                       <>
                         <b>{j.mirror.status ?? "—"}</b>
-                        {j.mirror.suburb && <em> · {j.mirror.suburb}</em>}
+                        {j.mirror.suburb && <em>, {j.mirror.suburb}</em>}
                         {j.mirror.nextBooking && (
                           <em>
                             {" "}
-                            · {bookingLabel(j.mirror.nextBooking.start)}
+                           , {bookingLabel(j.mirror.nextBooking.start)}
                             {j.mirror.nextBooking.staffName
                               ? ` — ${j.mirror.nextBooking.staffName}`
                               : ""}
@@ -377,7 +377,7 @@ export function ProjectDetailScreen({
                         {j.mirror.checklist && j.mirror.checklist.total > 0 && (
                           <em>
                             {" "}
-                            · SM8 list {j.mirror.checklist.done}/{j.mirror.checklist.total}
+                            SM8 list {j.mirror.checklist.done}/{j.mirror.checklist.total}
                           </em>
                         )}
                       </>
@@ -388,7 +388,7 @@ export function ProjectDetailScreen({
                   {j.mirror?.contacts[0] && (
                     <span className="wb-tech">
                       {j.mirror.contacts[0].name}
-                      {j.mirror.contacts[0].phone ? ` · ${j.mirror.contacts[0].phone}` : ""}
+                      {j.mirror.contacts[0].phone ? `, ${j.mirror.contacts[0].phone}` : ""}
                     </span>
                   )}
                   {manage && (
@@ -433,7 +433,7 @@ export function ProjectDetailScreen({
             kind="commissioning"
             title="Commissioning"
             sub="Readings and settings, as recorded on site — the handover sheet reads these."
-            placeholder="Suction 8.2 bar · superheat 6.1 K · all zones balanced…"
+            placeholder="Suction 8.2 bar, superheat 6.1 K, all zones balanced…"
             headerExtra={
               <a
                 className="pbtn ghost"
@@ -463,7 +463,7 @@ export function ProjectDetailScreen({
                   </span>
                   <span className="wb-who">
                     <b>{i.summary}</b>
-                    {i.equipmentRef && <em> · {i.equipmentRef}</em>}
+                    {i.equipmentRef && <em>, {i.equipmentRef}</em>}
                   </span>
                   <span className="wb-tech">
                     {i.occurrences > 1
@@ -852,7 +852,7 @@ function DocumentsCard({
               <b>{d.fileName}</b>
               <em>
                 {" "}
-                · {fmtBytes(d.sizeBytes)} · {agoLabel(d.uploadedAt.slice(0, 10), today)}
+               , {fmtBytes(d.sizeBytes)}, {agoLabel(d.uploadedAt.slice(0, 10), today)}
               </em>
             </span>
             {d.url && (
@@ -1056,9 +1056,9 @@ function TripsCard({
               <b>{t.label}</b>
               <em>
                 around {fmtAuWeekdayDayMonth(t.dueDate)}
-                {t.jobNumber ? ` · #${t.jobNumber}` : ""}
+                {t.jobNumber ? `, #${t.jobNumber}` : ""}
                 {t.bringList.length
-                  ? ` · bring ${t.bringList.filter((i) => i.packed).length}/${t.bringList.length}`
+                  ? `, bring ${t.bringList.filter((i) => i.packed).length}/${t.bringList.length}`
                   : ""}
               </em>
             </div>
@@ -1196,7 +1196,7 @@ function BlockModal({
           <input
             value={on}
             onChange={(e) => setOn(e.target.value)}
-            placeholder="Dave the sparky · the builder · council"
+            placeholder="Dave the sparky, the builder, council"
             autoFocus
           />
         </label>
@@ -1588,7 +1588,7 @@ function AttachJobModal({
               <span className="wb-chip">#{h.jobNumber ?? "—"}</span>
               <span className="wb-who">
                 <b>{h.clientName ?? "—"}</b>
-                {h.suburb && <em> · {h.suburb}</em>}
+                {h.suburb && <em>, {h.suburb}</em>}
               </span>
               {h.status && <span className="wb-chip">{h.status}</span>}
               {h.linkedTo.length > 0 && (

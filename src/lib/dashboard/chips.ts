@@ -461,7 +461,7 @@ export function declinedClaimChip(
     kind: "claim",
     state: "bad",
     label: "Expense claim declined",
-    subject: `${claim.description} · ${fmtMoney(claim.amount)}`,
+    subject: `${claim.description}, ${fmtMoney(claim.amount)}`,
     href: "/dashboard/my-expenses",
     // newest first within the bad bucket — the freshest decision is the one
     // you are most likely to still be able to do something about
@@ -564,11 +564,11 @@ export function summaryLine(s: ChipSummary): string {
   const parts: string[] = [];
   if (s.bad > 0) parts.push(`${s.bad} overdue`);
   if (s.warn > 0) parts.push(`${s.warn} due soon`);
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 /* `heroAction` lived here — the hero's action band, which named the worst item
-   ("3 things need your attention · Rego expired 4 days ago · Hilux ute"). The
+   ("3 things need your attention, Rego expired 4 days ago, Hilux ute"). The
    hero now carries four counters instead, and the band under the greeting was
    saying the same thing twice, so it is gone. What it knew that a count does
    not — WHICH thing is worst — lives on the action-required board, which is

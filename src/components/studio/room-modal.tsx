@@ -330,7 +330,7 @@ export function RoomModal({
                   <div className="ds-rm-load-t">{draft.name || "Room"}</div>
                   <div className="ds-rm-load-sub">
                     {areaM2 != null
-                      ? `${trimM(areaM2)} m² · Zone ${activeZone} · ${wm2} W/m²`
+                      ? `${trimM(areaM2)} m², Zone ${activeZone}, ${wm2} W/m²`
                       : "Calibrate the floor to compute the load"}
                   </div>
                 </div>
@@ -589,7 +589,7 @@ export function RoomModal({
               <div className="ds-rm-load-t">Estimated heat load</div>
               <div className="ds-rm-load-sub">
                 {areaM2 != null
-                  ? `${trimM(areaM2)} m² · Zone ${activeZone} · ${wm2} W/m²`
+                  ? `${trimM(areaM2)} m², Zone ${activeZone}, ${wm2} W/m²`
                   : "Calibrate the floor to compute the load"}
               </div>
             </div>

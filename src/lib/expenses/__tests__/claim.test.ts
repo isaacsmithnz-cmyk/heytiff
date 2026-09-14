@@ -269,13 +269,13 @@ describe("the job it was bought for", () => {
 
   it("carries the job through when there is one", () => {
     const out = buildClaim(
-      input({ job: { kind: "visit", id: "v1", label: "#1042 · Northgate Realty · Quarterly" } }),
+      input({ job: { kind: "visit", id: "v1", label: "#1042, Northgate Realty, Quarterly" } }),
       TODAY,
     );
     expect("row" in out && out.row).toMatchObject({
       job_kind: "visit",
       job_id: "v1",
-      job_label: "#1042 · Northgate Realty · Quarterly",
+      job_label: "#1042, Northgate Realty, Quarterly",
     });
   });
 
@@ -295,7 +295,7 @@ describe("the job it was bought for", () => {
      that applied to one payer and not the other would be a hole to fall
      through. */
   it("is available to a claim and a card receipt alike", () => {
-    const job = { kind: "project" as const, id: "p1", label: "Acme · Plant room" };
+    const job = { kind: "project" as const, id: "p1", label: "Acme, Plant room" };
     for (const paidWith of ["own", "company"]) {
       const out = buildClaim(input({ paidWith, job }), TODAY);
       expect("row" in out && out.row).toMatchObject({ paid_with: paidWith, job_id: "p1" });

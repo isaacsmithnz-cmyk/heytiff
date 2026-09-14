@@ -426,7 +426,7 @@ describe("entries and bring-items", () => {
     rows.maintenance_agreements = { bring_list: "coil cleaner" };
     await applyNote("n-1", confirmed({ bringItems: ["2 × 595 filters"] }));
     const patch = updates.find((u) => u.table === "maintenance_agreements")!.patch;
-    expect(patch.bring_list).toBe("coil cleaner · 2 × 595 filters");
+    expect(patch.bring_list).toBe("coil cleaner, 2 × 595 filters");
   });
 });
 

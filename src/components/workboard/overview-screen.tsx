@@ -585,7 +585,7 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
           kind: "visit" as const,
           id: v.id,
           clientName: v.clientName ?? v.projectName,
-          label: `${v.projectName} · ${v.label}`,
+          label: `${v.projectName}, ${v.label}`,
           siteLabel: v.siteLabel,
           jobNumber: v.jobNumber,
         })),

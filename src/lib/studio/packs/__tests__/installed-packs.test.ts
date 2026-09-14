@@ -29,7 +29,7 @@ const log = (s: string) => {
 
 /** "12/22" with the gaps that explain the shortfall */
 function reportRange(r: RangeCompleteness): string {
-  const head = `    ${r.series} · ${r.role}: ${r.ready}/${r.total}`;
+  const head = `    ${r.series}, ${r.role}: ${r.ready}/${r.total}`;
   return r.gaps.length ? `${head} — missing: ${r.gaps.join(", ")}` : head;
 }
 
@@ -60,9 +60,9 @@ describe("installed packs (data/packs)", () => {
       );
       log(`\n${ref.brand}@${ref.version} — ${pack.meta.name ?? ""}`);
       log(
-        `  rows: ${pack.indoor_units.length} indoor · ${pack.outdoor_units.length} outdoor · ` +
-          `${pack.pair_tables.length} pair · ${pack.multi_rules.length} multi · ` +
-          `${pack.vrf_pipe_tables.length} vrf-pipe · ${pack.parts.length} parts`
+        `  rows: ${pack.indoor_units.length} indoor, ${pack.outdoor_units.length} outdoor, ` +
+          `${pack.pair_tables.length} pair, ${pack.multi_rules.length} multi, ` +
+          `${pack.vrf_pipe_tables.length} vrf-pipe, ${pack.parts.length} parts`
       );
       if (validation.warnings.length) {
         log(`  warnings (${validation.warnings.length}):`);

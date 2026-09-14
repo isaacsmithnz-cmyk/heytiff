@@ -244,7 +244,7 @@ export function HeatLoadCalculator() {
     s.internal ? "internal room" : `${s.orientation}-facing`,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
 
   /* height lives in the size card — it's a room dimension, not a factor */
   const heightInput = (

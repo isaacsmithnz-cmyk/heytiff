@@ -163,7 +163,7 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
                    of a panel whose read job is to be scanned */
                 sub={
                   editing
-                    ? `${hint}${locked ? " · owner-granted" : ""}`
+                    ? `${hint}${locked ? ", owner-granted" : ""}`
                     : locked
                       ? "owner-granted"
                       : undefined

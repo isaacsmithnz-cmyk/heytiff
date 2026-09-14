@@ -384,7 +384,7 @@ describe("what it is pointed at", () => {
     const Sheet = () => {
       const { pushFocus } = useNoteScope();
       React.useEffect(() => {
-        pushFocus({ target: { kind: "visit", id: "v-9" }, targetLabel: "Meridian · CRACs" });
+        pushFocus({ target: { kind: "visit", id: "v-9" }, targetLabel: "Meridian, CRACs" });
         return () => pushFocus(null);
       }, [pushFocus]);
       return null;
@@ -406,14 +406,14 @@ describe("what it is pointed at", () => {
         <TiffButton />
       </NoteScopeProvider>
     );
-    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian · CRACs|2");
+    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian, CRACs|2");
   });
 
   it("falls back to the screen when the sheet closes, not to nothing", () => {
     const Sheet = () => {
       const { pushFocus } = useNoteScope();
       React.useEffect(() => {
-        pushFocus({ target: { kind: "visit", id: "v-9" }, targetLabel: "Meridian · CRACs" });
+        pushFocus({ target: { kind: "visit", id: "v-9" }, targetLabel: "Meridian, CRACs" });
         return () => pushFocus(null);
       }, [pushFocus]);
       return null;
@@ -427,7 +427,7 @@ describe("what it is pointed at", () => {
       </NoteScopeProvider>
     );
     const { rerender } = render(tree(true));
-    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian · CRACs");
+    expect(screen.getByTestId("scope")).toHaveTextContent("visit|Meridian, CRACs");
 
     rerender(tree(false));
     expect(screen.getByTestId("scope")).toHaveTextContent("project|Smith St");
@@ -466,10 +466,10 @@ describe("what it is pointed at", () => {
     const { rerender } = render(
       <NoteScopeProvider voiceEnabled>
         <Probe />
-        <Aim label="Meridian · CRACs" />
+        <Aim label="Meridian, CRACs" />
       </NoteScopeProvider>
     );
-    expect(screen.getByTestId("scope")).toHaveTextContent("Meridian · CRACs");
+    expect(screen.getByTestId("scope")).toHaveTextContent("Meridian, CRACs");
 
     rerender(
       <NoteScopeProvider voiceEnabled>

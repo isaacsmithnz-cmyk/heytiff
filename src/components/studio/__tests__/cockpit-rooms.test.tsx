@@ -185,7 +185,7 @@ describe("Cockpit Rooms view", () => {
       const doc = baseDoc([room("room1", "Living", "sys1")]);
       const { container } = renderInspect(doc, "room1");
       const facts = container.querySelector(".ds-ck-ifacts")!;
-      expect(facts.textContent).toMatch(/^\d+\.\d m² · \d+\.\d kW required$/);
+      expect(facts.textContent).toMatch(/^\d+\.\d m², \d+\.\d kW required$/);
     });
 
     /* no scale, no numbers — the row stays quiet (the grey dot already says

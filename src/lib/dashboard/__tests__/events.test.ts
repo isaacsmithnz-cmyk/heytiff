@@ -74,7 +74,7 @@ describe("rsvpSummary", () => {
       ],
       null,
     );
-    expect(rsvpSummary(poll)).toBe("2 going · 1 maybe · 1 can't");
+    expect(rsvpSummary(poll)).toBe("2 going, 1 maybe, 1 can't");
   });
 });
 

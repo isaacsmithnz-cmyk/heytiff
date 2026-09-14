@@ -196,7 +196,7 @@ export function AgreementSheet({
           <h2>{a.label}</h2>
           <p>
             {a.clientName}
-            {a.siteLabel ? ` · ${a.siteLabel}` : ""}
+            {a.siteLabel ? `, ${a.siteLabel}` : ""}
           </p>
           <div className="wb2-facts">
             <div>

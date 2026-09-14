@@ -167,7 +167,7 @@ export function CommandPalette({
               <Icon name="arrowUp" size={9} />
               <Icon name="arrowDown" size={9} />
             </span>{" "}
-            Navigate ·{" "}
+            Navigate,{" "}
             <span style={{ display: "flex" }}>
               <Icon name="cornerDL" size={9} />
             </span>{" "}

@@ -247,7 +247,7 @@ export function JobMediaViewer({
         })(),
       ]
         .filter(Boolean)
-        .join(" · ")
+        .join(", ")
     : null;
 
   return (
@@ -256,7 +256,7 @@ export function JobMediaViewer({
       <div className="wb2-mv" role="dialog" aria-modal="true" aria-label={item.name}>
         <div className="wb2-mvtop">
           <b>{item.name}</b>
-          <em>{[when, item.origin].filter(Boolean).join(" · ")}</em>
+          <em>{[when, item.origin].filter(Boolean).join(", ")}</em>
           {item.fromClaim && <i className="wb2-chip">{`#${item.fromClaim}`}</i>}
           <span className="wb2-mvsp" />
           {/* THE STAR IS WHERE THE PHOTO IS BIG. Curating from a 66px tile is

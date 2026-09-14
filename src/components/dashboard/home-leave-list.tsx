@@ -69,7 +69,7 @@ function Row({ day, today }: { day: CalendarDay; today: string }) {
         {day.mine && (
           <span className="hm-lvp mine">
             {/* "You" and not your name: this is your own card. */}
-            You&nbsp;&middot;&nbsp;{day.mine.label}
+            You, {day.mine.label}
           </span>
         )}
         {day.others.map((o) => (

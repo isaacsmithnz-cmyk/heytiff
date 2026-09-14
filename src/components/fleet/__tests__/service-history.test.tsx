@@ -224,7 +224,7 @@ it("returns to the service history after logging one, not to the vehicle card", 
   await user.click(screen.getByRole("button", { name: "Service history" })); // the NEXT SERVICE card
   await user.click(screen.getByRole("button", { name: /log service/i }));
   // the log modal's subtitle is the vehicle line — nothing else renders it
-  expect(screen.getByText(/WORK TRITON · Mitsubishi Triton 2022/)).toBeInTheDocument();
+  expect(screen.getByText(/WORK TRITON, Mitsubishi Triton 2022/)).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: /cancel/i }));
   /* "Due at" only exists in the service history and "Log fuel" only on the

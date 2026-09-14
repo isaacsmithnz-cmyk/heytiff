@@ -149,8 +149,8 @@ export interface QuietHours {
 }
 
 export const QUIET_HOURS: QuietHours[] = [
-  { day: "Weekdays", window: "before 7 am · after 10 pm" },
-  { day: "Weekends & public holidays", window: "before 8 am · after 10 pm" },
+  { day: "Weekdays", window: "before 7 am, after 10 pm" },
+  { day: "Weekends & public holidays", window: "before 8 am, after 10 pm" },
 ];
 
 export const QUIET_HOURS_RULE =

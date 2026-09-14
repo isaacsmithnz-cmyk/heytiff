@@ -469,7 +469,7 @@ export function CapacityView({
                   : "";
               const title = [hours || null, d.over ? "over capacity" : null]
                 .filter(Boolean)
-                .join(" · ");
+                .join(", ");
               const cls =
                 "wb2-scmc" +
                 (hasPct ? " gauge" : " ns") +
@@ -569,7 +569,7 @@ export function CapacityView({
                   <b>{fmtAuWeekdayDayMonth(openDay)}</b>
                   {detailNow && (
                     <em>
-                      {detailJobs.length} {detailJobs.length === 1 ? "job" : "jobs"} ·{" "}
+                      {detailJobs.length} {detailJobs.length === 1 ? "job" : "jobs"},{" "}
                       {fmtHoursShort(detailMinutes)}
                     </em>
                   )}
@@ -616,7 +616,7 @@ export function CapacityView({
                       {row.jobNumber && <u>{row.jobNumber}</u>}
                       <em>{fmtHoursShort(row.minutes)}</em>
                     </span>
-                    <em>{[row.label, row.suburb].filter(Boolean).join(" · ")}</em>
+                    <em>{[row.label, row.suburb].filter(Boolean).join(", ")}</em>
                     <i>{row.people.join(", ")}</i>
                   </button>
                 ))}
@@ -699,7 +699,7 @@ function CrewEditor({
   return (
     <WbModal
       title="Who counts toward a day"
-      sub={`${included.length} ${included.length === 1 ? "person" : "people"} · ${fmtHoursShort(
+      sub={`${included.length} ${included.length === 1 ? "person" : "people"}, ${fmtHoursShort(
         dayMinutes
       )} a day`}
       onClose={onClose}

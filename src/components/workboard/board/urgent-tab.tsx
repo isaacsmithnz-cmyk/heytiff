@@ -265,7 +265,7 @@ export function UrgentTab({
                sitting six pixels to its right. The design spends the space on
                the DATE instead, which is the thing you can't work out from
                anywhere else on the row. */
-            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
+            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(", ")}</em>
           )}
         </div>
         <RowAction r={r} />

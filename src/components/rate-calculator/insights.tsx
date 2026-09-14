@@ -63,7 +63,7 @@ export function UtilisationCard({ calc }: { calc: CalcResult }) {
               <Gauge pct={u.pct} color={u.color} muted={isDefault} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontSize: 11.5, color: RC.faint }}>
                 <span>{Math.round(u.hrs).toLocaleString()} billable hrs/yr</span>
-                <span>65% healthy · 80% strong</span>
+                <span>65% healthy, 80% strong</span>
               </div>
               {!isDefault && u.pct < 65 && (
                 <div style={{ marginTop: 9, background: u.pct < 35 ? RC.redSoft : RC.amberSoft, borderRadius: 10, padding: "9px 12px", fontSize: 12, color: u.pct < 35 ? RC.redInk : RC.amberDeep, lineHeight: 1.5 }}>

@@ -225,7 +225,7 @@ describe("pushPicklistToJob", () => {
   it("reports a line the design has dropped, and deletes nothing", async () => {
     existingRows = [
       onJob(rows[0], { position: 0 }),
-      onJob({ name: "Isolator · 20 A", qty: "1" }, { position: 1 }),
+      onJob({ name: "Isolator, 20 A", qty: "1" }, { position: 1 }),
     ];
     const r = await pushPicklistToJob("job-uuid", "dsn_1", [rows[0]]);
     expect(r).toEqual({ ...NIL, orphaned: 1, unchanged: 1 });

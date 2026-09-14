@@ -185,7 +185,7 @@ describe("visit rows", () => {
       ["visit_overdue", "book"],
       ["visit_overdue", "close_out"],
     ]);
-    expect(rows[0].label).toBe("Bowden St ducted · Rough-in — day 1");
+    expect(rows[0].label).toBe("Bowden St ducted, Rough-in — day 1");
   });
 
   it("gate gaps fire only inside the window, lead gate in spine order", () => {

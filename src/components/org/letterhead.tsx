@@ -36,7 +36,7 @@ export function Letterhead({ brand }: { brand: OrgBrand }) {
             {/* joined with a middot as ONE string, not as separate spans with
                 a separator between them: a separator that can wrap onto a line
                 by itself is the classic way this row breaks. */}
-            {contact.join(" · ")}
+            {contact.join(", ")}
           </span>
         )}
       </div>

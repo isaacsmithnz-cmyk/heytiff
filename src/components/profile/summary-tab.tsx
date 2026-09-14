@@ -78,7 +78,7 @@ export function SummaryTab({
           <Row label="Mobile" value={profile?.phone} />
           <Row label="Address" value={profile?.address} small />
           <Row label="Employment" value={profile?.employment_type} />
-          {/* ONE row, not four: "Shirt L · Trousers 92 · Boots 10" is the whole
+          {/* ONE row, not four: "Shirt L, Trousers 92, Boots 10" is the whole
               answer a uniform order needs, and four rows of sizes would push
               the panel past everything above it that gets read more often. The
               sizes themselves are set on Personal, where "Open ›" already

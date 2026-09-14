@@ -783,7 +783,7 @@ export async function applyNote(
           .eq("id", agreementId)
           .maybeSingle();
         const current = (data as { bring_list: string | null } | null)?.bring_list ?? "";
-        const merged = [current.trim(), ...bring].filter(Boolean).join(" · ").slice(0, 2000);
+        const merged = [current.trim(), ...bring].filter(Boolean).join(", ").slice(0, 2000);
         await supabaseAdmin
           .from("maintenance_agreements")
           .update({ bring_list: merged, updated_at: new Date().toISOString() })

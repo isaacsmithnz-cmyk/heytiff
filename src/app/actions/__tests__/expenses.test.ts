@@ -323,7 +323,7 @@ describe("attaching a receipt to a job", () => {
       expect.objectContaining({
         job_kind: "project",
         job_id: "p1",
-        job_label: "Acme Industrial · Plant room",
+        job_label: "Acme Industrial, Plant room",
       }),
     );
   });

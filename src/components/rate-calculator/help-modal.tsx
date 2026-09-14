@@ -27,7 +27,7 @@ export function HelpModal({ onClose }: { onClose: (dontShow: boolean) => void })
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 30, height: 30, borderRadius: 10, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center" }}><RcIcon name="calc" size={16} /></div>
-              <WsEyebrow>Rate Calculator · Welcome</WsEyebrow>
+              <WsEyebrow>Rate Calculator, Welcome</WsEyebrow>
             </div>
             <button className="rca-iconbtn" onClick={close} title="Close"><RcIcon name="x" size={16} /></button>
           </div>

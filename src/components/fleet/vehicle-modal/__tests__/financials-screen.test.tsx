@@ -155,7 +155,7 @@ it("shows the agreement as the lender wrote it and where the schedule stands", (
   expect(screen.getByText("Balance financed")).toBeInTheDocument();
   expect(screen.getByText("Deposit + finance")).toBeInTheDocument();
   // a year of repayments in the cost to run — the finance line, and the total it is all of
-  expect(within(card("COST TO RUN · LAST 12 MONTHS")).getAllByText("$8,904")).toHaveLength(2);
+  expect(within(card("Cost to run, last 12 months")).getAllByText("$8,904")).toHaveLength(2);
   // and the contract filed under it
   expect(screen.getByText(/Finance-agreement-402193\.pdf/)).toBeInTheDocument();
 });

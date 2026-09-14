@@ -215,7 +215,7 @@ export function uniformDisplay(p: StaffProfile | null): Record<string, string> {
 
 /** "Shirt L · Trousers 92 · Boots 10 AU/UK" — the one-line answer for Summary.
 
-    Labelled, because a bare "L · 92 · 10" is unreadable, and only the sizes we
+    Labelled, because a bare "L, 92, 10" is unreadable, and only the sizes we
     hold appear: a partial answer is still an answer, and the blanks have their
     own "+ Add" one tab away. Null when we hold none of them, which is what
     lets the row fall back to Summary's dash rather than printing an empty
@@ -226,5 +226,5 @@ export function uniformSummary(p: StaffProfile | null): string | null {
     const v = (display[f.key] ?? "").trim();
     return v ? [`${f.short} ${v}`] : [];
   });
-  return parts.length ? parts.join(" · ") : null;
+  return parts.length ? parts.join(", ") : null;
 }

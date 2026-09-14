@@ -79,7 +79,7 @@ export function resolvePeriod(
     range: periodLabel(start, cfg),
     year: periodYear(start),
     live: start === current,
-    note: "Closed period · historical",
+    note: "Closed period, historical",
   }));
   const index = requested ? Math.max(0, starts.indexOf(requested)) : 0;
   return { start: starts[index], index, periods };

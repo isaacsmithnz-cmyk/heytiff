@@ -61,7 +61,7 @@ describe("RoomModal", () => {
     render(
       <RoomModal doc={docWithRoom()} roomId="room1" onMutate={() => {}} onClose={() => {}} />
     );
-    expect(screen.getByText(/20 m² · Zone 5 · 145 W\/m²/)).toBeInTheDocument();
+    expect(screen.getByText(/20 m², Zone 5, 145 W\/m²/)).toBeInTheDocument();
   });
 
   it("save writes the inputs + configured flag to the room", () => {

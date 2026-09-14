@@ -240,7 +240,7 @@ function SystemBand({ sys }: { sys: SummarySystem }) {
     sys.prechargedKg != null ? `${sys.prechargedKg} kg pre-charged` : null,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
   return (
     <header
       className={`dsd-band${sys.sharedOutdoor ? "" : " solo"}`}

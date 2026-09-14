@@ -252,6 +252,6 @@ describe("the fit verdict while a unit rides the cursor", () => {
       doc: mkDoc([fitsRoom()], {}),
       roomFits: { "r-fit": "undersized" },
     });
-    expect(container.textContent).toContain("· undersized");
+    expect(container.textContent).toContain(", undersized");
   });
 });

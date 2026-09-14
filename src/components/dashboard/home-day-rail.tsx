@@ -300,7 +300,7 @@ export function HomeDayRail({ rail }: { rail: HomeRail }) {
                   key={item.key}
                   title={[b.clientName, b.suburb, blockLabel(b), state.word]
                     .filter(Boolean)
-                    .join(" · ")}
+                    .join(", ")}
                   style={
                     {
                       ...style,

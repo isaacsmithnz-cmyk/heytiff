@@ -850,7 +850,7 @@ function AccountSection({
             {account.totalStaff === account.activeStaff
               ? "on the books"
               : `of ${account.totalStaff} on the books`}
-            {" · "}
+            {", "}
             <Link className="ro-link" href="/dashboard/team">
               Team
             </Link>

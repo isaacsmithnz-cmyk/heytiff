@@ -3289,7 +3289,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    every workspace. The width it freed goes to Name and Compliance, which are
    the two that get truncated. */
 .fg .dirhead, .fg .dirrow {display:grid; grid-template-columns:2.6fr 1.4fr 1.9fr 44px; gap:16px; align-items:center; padding:16px 24px; width:100%; text-align:left;}
-.fg .dname > span:not(.dav):not(.dofftag) {min- flex:1;}
+.fg .dname > span:not(.dav):not(.dofftag) {min-width:0; flex:1;}
 .fg .dofftag {flex:0 0 auto;}
 
 /* THE ROW BECOMES TWO ROWS BEFORE THE NAME RUNS OUT OF ROOM.
@@ -9379,7 +9379,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* the status pill — the whole reason this screen exists */
 .fg .tk-pill { display:inline-flex; align-items:center; gap:8px;
-  font-size:14px; font-weight:500; line- }
+  font-size:14px; font-weight:500; line-height:1.35; }
 .fg .tk-pill svg { flex:none; }
 .fg .tk-pill.ok { color:#00806c; }
 .fg .tk-pill.work { color:#1d4ed8; }

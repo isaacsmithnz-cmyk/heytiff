@@ -169,7 +169,7 @@
   box-shadow:20px 0 40px rgba(0,0,0,.1); }
 /* the rail's teal corner glow lived here until 2026-09-10; the frame is still
    now (frame-still.test.ts) */
-.fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4px, 38px) 24px clamp(18px, 3vh - 4px, 28px); position:relative; z-10:1; z-index:10; }
+.fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4px, 38px) 24px clamp(18px, 3vh - 4px, 28px); position:relative; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform var(--t-move) var(--ease); }
 .fg .ht-logo:hover svg { }

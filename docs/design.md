@@ -38,10 +38,17 @@ Every decision below is made once, here, and a guard test holds each number.
   hairline; the status dot is gone until presence means something. Open:
   whether orange remains the Studio's drawing colour on the canvas. It is not a
   UI accent either way.
-- **Icons are drawn in the chevron's language**, in house, most-used first: a
-  7% stroke (1.7 on a 24 grid), butt caps, round joins, and one stroke at 55%
-  for the detail or the motion. The Lucide paths in `shell/icon.tsx` are what
-  they replace.
+- **Icons are drawn in the chevron's language** (decided 2026-09-14, "use
+  whichever is best"): the renderer sets a 7% stroke (1.7 on a 24 grid), butt
+  caps and round joins on every icon at once, and a second stroke at 55% only
+  where an icon has a clear tail — the search handle, a bell's clapper, the
+  dot over an i, the tray under an arrow, sixteen in all, named in
+  `ICON_TAILS`. The tail is chosen, never guessed; an icon without a clear
+  second stroke has none. The geometry is still Lucide's, redrawn glyph by
+  glyph as each family is folded. Two glyphs are gone by law 5, the robot and
+  the sparkle, and nothing draws a robot anywhere. The house-drawn connector
+  glyphs (a circled X for Xero, a figure-8 for ServiceM8) do not read;
+  connectors will carry the providers' own logos, later.
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ stays as it is.** Its KPI tiles are not user-facing. Not in scope.
@@ -340,7 +347,8 @@ entry (a spinner is state; the orb breathing with the microphone is feedback).
 4a. **Open Graph for the public pages** (law 30). Its own small PR, and the
    first visual one to land: it is the only change a customer would notice
    this week.
-5. **The icons.**
+5. **The icons.** Done as a renderer change with chosen tails (above); the
+   glyph-by-glyph redraw rides with each family in step 6.
 6. **Fold the dress families into the tokens**, one per PR, deleting dead CSS as
    you go. The hover-only controls, the icon-only buttons, the spinners and
    the ten footer families are fixed family by family here (laws 24, 25, 27,

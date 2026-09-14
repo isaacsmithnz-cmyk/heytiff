@@ -150,7 +150,7 @@ describe("Plans stage", () => {
     await screen.findByTestId("studio-canvas");
     // the guided-step popup, not a silent tool arm
     expect(await screen.findByText("Calibrate the plan")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Calibrate scale →" }));
+    await user.click(screen.getByRole("button", { name: "Calibrate scale" }));
     expect(screen.queryByText("Calibrate the plan")).not.toBeInTheDocument();
     // the calibrate tool is now armed — the merged Calibrate pill shows it active
     expect(
@@ -163,7 +163,7 @@ describe("Plans stage", () => {
     await clickFloorDesign(user);
     const canvas = await screen.findByTestId("studio-canvas");
     const svg = canvas.querySelector("svg")!;
-    await user.click(await screen.findByRole("button", { name: "Calibrate scale →" }));
+    await user.click(await screen.findByRole("button", { name: "Calibrate scale" }));
     // two calibration clicks, then a real distance → Set scale
     fireEvent.pointerDown(svg, ptc(200, 150));
     fireEvent.pointerUp(svg, ptc(200, 150));

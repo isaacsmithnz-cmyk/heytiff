@@ -153,7 +153,7 @@ export function InsightsView({ s, patch, calc, ready, go }: {
           <div style={{ fontSize: 13.5, color: RC.ink2, lineHeight: 1.6, marginTop: 10 }}>
             Utilisation, profitability and your business summary appear once your rates are calculated. Finish the Staff step to get started.
           </div>
-          <button className="rca-btn primary lg" style={{ marginTop: 20 }} onClick={() => go(0)}>Go to setup →</button>
+          <button className="rca-btn primary lg" style={{ marginTop: 20 }} onClick={() => go(0)}>Go to setup</button>
         </div>
       </div>
     );

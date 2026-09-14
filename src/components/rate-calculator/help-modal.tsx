@@ -64,7 +64,7 @@ export function HelpModal({ onClose }: { onClose: (dontShow: boolean) => void })
             <span style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${dontShow ? RC.ink : RC.lineStrong}`, background: dontShow ? RC.ink : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: RC.teal, fontSize: 12, transition: "all .2s" }}>{dontShow ? "✓" : ""}</span>
             Don&apos;t show this again
           </label>
-          <button className="rca-btn primary lg" onClick={close}>Got it — start →</button>
+          <button className="rca-btn primary lg" onClick={close}>Start</button>
         </div>
       </div>
     </div>

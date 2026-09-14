@@ -126,7 +126,7 @@ describe("what the status says", () => {
   it("says the plain thing in the headline", () => {
     expect(credentialHeadline("insurance", "2026-12-01", TODAY, WARN)).toBe("Covered");
     expect(credentialHeadline("licence", "2026-12-01", TODAY, WARN)).toBe("Current");
-    expect(credentialHeadline("insurance", null, TODAY, WARN)).toBe("No policy recorded");
+    expect(credentialHeadline("insurance", null, TODAY, WARN)).toBe("No expiry recorded");
     expect(credentialHeadline("insurance", "2026-07-01", TODAY, WARN)).toMatch(/^Expired /);
   });
 });
@@ -164,7 +164,7 @@ describe("the facts grid", () => {
 
   it("names a term by who it is with", () => {
     expect(recordEvent("insurance", rec())).toBe("Policy · QBE");
-    expect(recordEvent("licence", rec({ issuer: null }))).toBe("Licence term");
+    expect(recordEvent("licence", rec({ issuer: null }))).toBe("Licence");
   });
 
   it("says how a term got here", () => {

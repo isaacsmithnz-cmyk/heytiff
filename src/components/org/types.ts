@@ -1,5 +1,5 @@
 import type { OrgCredentialInput } from "@/lib/org/credentials";
-import type { CredentialRecordInput } from "@/lib/org/credential-records";
+import type { CredentialRecordInput, CredentialScanDetails } from "@/lib/org/credential-records";
 
 /* Prop shapes for the Organisation screen, in their own module so the server
    page can import them without pulling a "use client" component into its graph
@@ -38,6 +38,7 @@ export type OrgActions = {
     credentialId: string,
     recordId: string | null,
     documentId: string,
+    details?: CredentialScanDetails,
   ) => Promise<CredResult>;
   /** Removes one term — a scan filed against the wrong card. */
   onRemoveTerm: (recordId: string) => Promise<CredResult>;

@@ -7,7 +7,7 @@ import { IconBtn } from "@/components/record-modal/parts";
 import type { StoredDocument } from "@/lib/documents/query";
 import { credBadgeCode } from "@/lib/staff/licence";
 import type { StaffLicence } from "@/lib/staff/types";
-import type { LicenceTermInput, StaffLicenceRecord } from "@/lib/staff/licence-records";
+import type { LicenceScanDetails, LicenceTermInput, StaffLicenceRecord } from "@/lib/staff/licence-records";
 import type { LicenceInput, SaveResult } from "../types";
 import { IdentityScreen, type IdentityDraft } from "./identity-screen";
 import { RecordScreen } from "./record-screen";
@@ -64,7 +64,7 @@ export function LicenceModal({
   onDelete: () => Promise<SaveResult>;
   onRecord: (input: LicenceTermInput) => Promise<SaveResult>;
   /** Files a document against the ticket; a null term means the card itself. */
-  onAttach: (termId: string | null, documentId: string) => Promise<SaveResult>;
+  onAttach: (termId: string | null, documentId: string, details?: LicenceScanDetails) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
   onClose: () => void;
 }) {
@@ -172,7 +172,7 @@ export function LicenceModal({
             error={error}
             onRecord={(input) => void run(() => onRecord(input), () => undefined)}
             onAttach={(termId, documentId) => void run(() => onAttach(termId, documentId), () => undefined)}
-            onFile={(documentId, after) => void run(() => onAttach(null, documentId), after)}
+            onFile={(documentId, details, after) => void run(() => onAttach(null, documentId, details), after)}
             onRemoveTerm={(termId) => void run(() => onRemoveTerm(termId), () => undefined)}
             onEdit={() => {
               setError(null);

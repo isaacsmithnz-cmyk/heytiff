@@ -158,7 +158,7 @@ export function termEvent(r: StaffLicenceRecord): string {
   const issuer = r.issuer?.trim();
   const state = r.issuingState?.trim();
   if (issuer) return state ? `${issuer} (${state})` : issuer;
-  return state ? `${state} licence` : "Term";
+  return state ? `${state} licence` : "Licence card";
 }
 
 /** "Added 4 Feb 2026 · scanned from the card". */
@@ -182,6 +182,10 @@ export type LicenceTermInput = {
   source?: string;
 };
 
+/** What a scan with no expiry leaves on a ticket that has no term: the number
+    is the one fact a bare ticket has a column for. */
+export type LicenceScanDetails = { number?: string };
+
 export type LicenceTermRow = {
   issuer: string | null;
   number: string | null;
@@ -204,7 +208,7 @@ export function buildLicenceTermRow(
   input: LicenceTermInput
 ): { row: LicenceTermRow } | { error: string } {
   const rawExpiry = (input.expiresOn ?? "").trim();
-  if (!rawExpiry) return { error: "An expiry date is what makes this a term — pick one." };
+  if (!rawExpiry) return { error: "Pick the expiry date first." };
   const expires = parseAuDate(rawExpiry);
   if (!expires) return { error: "Check the expiry date — use dd/mm/yyyy." };
 

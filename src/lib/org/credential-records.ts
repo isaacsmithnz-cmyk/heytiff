@@ -161,7 +161,7 @@ export function credentialHeadline(
   warnDays: number
 ): string {
   const state = credentialState(expiry, today, warnDays);
-  if (state === "none") return kind === "insurance" ? "No policy recorded" : "No licence term recorded";
+  if (state === "none") return "No expiry recorded";
   if (state === "ok") return kind === "insurance" ? "Covered" : "Current";
   return credentialStatusText(credentialDays(expiry, today));
 }
@@ -254,8 +254,8 @@ export function recordFacts(
 /** The one-line summary on a history row. */
 export function recordEvent(kind: OrgCredKind, r: OrgCredentialRecord): string {
   const who = r.issuer?.trim();
-  if (kind === "insurance") return who ? `Policy · ${who}` : "Policy term";
-  return who ? `Licence · ${who}` : "Licence term";
+  if (kind === "insurance") return who ? `Policy · ${who}` : "Policy";
+  return who ? `Licence · ${who}` : "Licence";
 }
 
 /** "Added 4 Feb 2026 · scanned from the document" — how this row got here. */
@@ -282,6 +282,10 @@ export type CredentialRecordInput = {
   documentId?: string | null;
   source?: string;
 };
+
+/** What a scan with no expiry leaves on a card that has no term: its number
+    and issuer, the two facts a bare card has columns for. */
+export type CredentialScanDetails = { number?: string; issuer?: string };
 
 export type CredentialRecordRow = {
   issuer: string | null;
@@ -333,7 +337,7 @@ export function buildCredentialRecordRow(
   input: CredentialRecordInput
 ): { row: CredentialRecordRow } | { error: string } {
   const rawExpiry = (input.expiresOn ?? "").trim();
-  if (!rawExpiry) return { error: "An expiry date is what makes this a term — pick one." };
+  if (!rawExpiry) return { error: "Pick the expiry date first." };
   const expires = parseAuDate(rawExpiry);
   if (!expires) return { error: "Check the expiry date — use dd/mm/yyyy." };
 

@@ -660,7 +660,7 @@ describe("the credential modal", () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(actions.onRemoveCredential).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole("button", { name: /Tap again to delete/ }));
+    await user.click(within(dialog).getByRole("button", { name: /Click again to delete/ }));
     expect(actions.onRemoveCredential).toHaveBeenCalledWith("C2");
   });
 
@@ -1556,7 +1556,7 @@ describe("scanning a certificate with no expiry on the update screen", () => {
     await user.click(within(dialog).getByRole("button", { name: "File the document" }));
 
     // the card owns it; nothing owns the filing — and no term was invented
-    expect(actions.onAttachCredentialDoc).toHaveBeenCalledWith("C2", null, "doc-7");
+    expect(actions.onAttachCredentialDoc).toHaveBeenCalledWith("C2", null, "doc-7", { number: "PL-9", issuer: "QBE" });
     expect(actions.onRecordTerm).not.toHaveBeenCalled();
   });
 
@@ -1688,5 +1688,89 @@ describe("the expiry's required star", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
     expect(star(dialog)).toBeNull();
+  });
+});
+
+/* WHAT A DAILY USER READS ON A BUSINESS CARD — the 2026-09-14 review. The line
+   under the status said "Nothing filed against this card yet" beside a
+   certificate listed under Documents, and "term" was still on the screen. */
+describe("the words on a business card", () => {
+  const doc = (over: Partial<StoredDocument> = {}): StoredDocument => ({
+    id: "doc-9",
+    kind: "org_insurance",
+    fileName: "certificate.pdf",
+    mimeType: "application/pdf",
+    sizeBytes: 2048,
+    uploadedById: "staff-1",
+    createdAt: "2026-09-01T00:00:00.000Z",
+    url: "https://signed.example/certificate.pdf",
+    image: false,
+    policyId: null,
+    financeId: null,
+    credentialRecordId: null,
+    licenceRecordId: null,
+    workRightsRecordId: null,
+    ...over,
+  });
+  const record = (over: Partial<OrgCredentialRecord> = {}): OrgCredentialRecord => ({
+    id: "R1",
+    credentialId: "C2",
+    issuer: "QBE",
+    number: "PL-9",
+    cover: null,
+    sumInsured: null,
+    premium: null,
+    excess: null,
+    workersCount: null,
+    wages: null,
+    startsOn: "2025-08-07",
+    expiresOn: "2026-08-07",
+    documentId: null,
+    source: "manual",
+    createdAt: "2025-08-01T00:00:00.000Z",
+    ...over,
+  });
+
+  /* Every text node, joined with a space. `textContent` glues neighbouring
+     elements together — "no term" beside a file name reads "termwhite-card",
+     which a word boundary never matches — and a sweep that cannot see the word
+     guards nothing. Seen passing with "Filed under no term" put back. */
+  const words = (el: HTMLElement) => {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const out: string[] = [];
+    while (walk.nextNode()) out.push(walk.currentNode.textContent ?? "");
+    return out.join(" ");
+  };
+
+  it("says what is on file once a certificate is filed against a card with no term", async () => {
+    const user = userEvent.setup();
+    setup({ sec: "credentials", documents: { C2: [doc()] } });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("1 document filed against this card")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Nothing filed against this card yet")).not.toBeInTheDocument();
+  });
+
+  it("never says term, and asks for a second click rather than a tap", async () => {
+    const user = userEvent.setup();
+    setup({
+      sec: "credentials",
+      records: { C2: [record(), record({ id: "R0", expiresOn: "2025-06-30", startsOn: "2024-07-01" })] },
+      documents: { C2: [doc()] },
+    });
+    await user.click(screen.getByRole("button", { name: "Edit Public liability" }));
+    const dialog = screen.getByRole("dialog");
+
+    const history = within(dialog).getByText("Policy history").closest(".vm-card") as HTMLElement;
+    await user.click(within(history).getByText("30 Jun 2025"));
+    await user.click(within(dialog).getByRole("button", { name: "Remove from history" }));
+    expect(within(dialog).getByRole("button", { name: "Click again to remove" })).toBeInTheDocument();
+    expect(within(dialog).getByText("Other documents")).toBeInTheDocument();
+    expect(words(dialog)).not.toMatch(/\bterms?\b/i);
+
+    await user.click(within(dialog).getByRole("button", { name: "Update policy" }));
+    await user.click(within(dialog).getByRole("button", { name: "Enter manually" }));
+    expect(dialog.textContent).toMatch(/The policy expiring/);
+    expect(words(dialog)).not.toMatch(/\bterms?\b/i);
   });
 });

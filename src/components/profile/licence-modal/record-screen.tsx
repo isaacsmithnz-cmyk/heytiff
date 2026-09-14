@@ -23,6 +23,7 @@ import {
   termHeadline,
   termState,
   termStatusText,
+  type LicenceScanDetails,
   type LicenceTermInput,
   type StaffLicenceRecord,
 } from "@/lib/staff/licence-records";
@@ -67,9 +68,9 @@ export function RecordScreen({
   onRecord: (input: LicenceTermInput) => void;
   /** Files a document against the ticket; a null term means the card itself. */
   onAttach: (termId: string | null, documentId: string) => void;
-  /** Files a scan that carries no expiry against the ticket itself. `after`
-      runs only once the filing has landed. */
-  onFile: (documentId: string, after: () => void) => void;
+  /** Files a scan that carries no expiry against the ticket itself, with the
+      number it read. `after` runs only once the filing has landed. */
+  onFile: (documentId: string, details: LicenceScanDetails, after: () => void) => void;
   onRemoveTerm: (termId: string) => void;
   onEdit: () => void;
   onClose: () => void;
@@ -129,7 +130,7 @@ export function RecordScreen({
          a retry rather than a re-upload. A ticket with a term goes back to
          leading with that term; one without keeps its panel, which is its
          screen. */
-      onFile(docId, () => {
+      onFile(docId, { number: term.number }, () => {
         setMode("idle");
         setTerm(emptyTerm);
         setDocId(null);
@@ -142,10 +143,19 @@ export function RecordScreen({
   };
 
   const headline = termHeadline(expiry, today, warnDays);
+  const loose = looseTermDocuments(documents, records);
+  /* With no term to describe, the line says what IS on file. It used to say
+     "scan the card" beside a photo of the card already listed under Documents. */
+  const docsText = loose.length === 1 ? "1 document" : `${loose.length} documents`;
+  const noTermLine = licence.expiryDate
+    ? loose.length > 0
+      ? `Expires ${fmtDay(licence.expiryDate)}`
+      : `Expires ${fmtDay(licence.expiryDate)} — scan the card to start the history.`
+    : loose.length > 0
+      ? `${docsText} filed against this ticket`
+      : "Scan the card or enter the details below.";
   const subline = !recorded
-    ? licence.expiryDate
-      ? `Expires ${fmtDay(licence.expiryDate)} — scan the card to start the history.`
-      : "Scan the card or enter the details below."
+    ? noTermLine
     : [current?.number ? `No. ${current.number}` : null, current?.issuer, expiry ? `expires ${fmtDay(expiry)}` : null]
         .filter(Boolean)
         .join(" · ") || termStatusText(days);
@@ -153,7 +163,6 @@ export function RecordScreen({
 
   const facts: DetailItem[] = current ? termFacts(current, state) : [];
   const currentDocs = current ? termDocuments(documents, current) : [];
-  const loose = looseTermDocuments(documents, records);
 
   return (
     <>
@@ -176,7 +185,7 @@ export function RecordScreen({
         {current && (
           <Card>
             <div className="vm-cardhead">
-              <Eyebrow>Current term</Eyebrow>
+              <Eyebrow>Current card</Eyebrow>
               <span className="vm-added">{termAddedText(current)}</span>
             </div>
             <DetailGrid items={facts} />
@@ -191,7 +200,7 @@ export function RecordScreen({
                 setOpenDoc(id);
                 if (id) setOpenHist(null);
               }}
-              emptyText="No photo or scan filed under this term yet."
+              emptyText="No photo or scan filed with this card yet."
             />
           </Card>
         )}
@@ -227,7 +236,7 @@ export function RecordScreen({
         {panelOpen && (
           <ScanCard<ReadLicenceResult>
             key={filed}
-            heading={current ? "Renew this ticket" : "Record the term"}
+            heading={current ? "Renew this ticket" : "Scan the card"}
             prompt={SCAN_COPY.prompt}
             hint={SCAN_COPY.hint}
             attachLabel={SCAN_COPY.attach}
@@ -254,10 +263,10 @@ export function RecordScreen({
 
         <Card className="vm-histcard">
           <div className="vm-cardhead">
-            <Eyebrow>Previous terms</Eyebrow>
+            <Eyebrow>Previous cards</Eyebrow>
           </div>
           {history.length === 0 ? (
-            <div className="vm-empty">No previous terms recorded.</div>
+            <div className="vm-empty">No previous cards recorded.</div>
           ) : (
             history.map((r) => {
               const expanded = openHist === r.id;
@@ -299,7 +308,7 @@ export function RecordScreen({
                           disabled={pending}
                           onClick={() => (armedTerm === r.id ? onRemoveTerm(r.id) : setArmedTerm(r.id))}
                         >
-                          {armedTerm === r.id ? "Tap again to remove" : "Remove term"}
+                          {armedTerm === r.id ? "Click again to remove" : "Remove from history"}
                         </button>
                       </div>
                     </div>
@@ -319,7 +328,6 @@ export function RecordScreen({
           <Card>
             <div className="vm-cardhead">
               <Eyebrow>Other documents</Eyebrow>
-              <span className="vm-caption">Filed under no term</span>
             </div>
             <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
           </Card>
@@ -336,7 +344,7 @@ export function RecordScreen({
           </Btn>
           {showFields && (
             <Btn kind="primary" onClick={save} disabled={!canSave}>
-              {pending ? "Saving…" : filingOnly ? "File the document" : "Save term"}
+              {pending ? "Saving…" : filingOnly ? "File the document" : "Save card"}
             </Btn>
           )}
         </span>

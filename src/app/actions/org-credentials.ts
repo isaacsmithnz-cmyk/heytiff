@@ -16,6 +16,7 @@ import {
   splitAddScan,
   type CredentialRecordInput,
   type CredentialRecordRow,
+  type CredentialScanDetails,
 } from "@/lib/org/credential-records";
 
 /* The business's own licences and insurance policies.
@@ -330,6 +331,8 @@ export async function fileCredentialDocument(
   /** null files it against the card itself. */
   recordId: string | null,
   documentId: string,
+  /** A scan's number and issuer, kept on a card that has no term to hold them. */
+  details?: CredentialScanDetails,
 ): Promise<CredResult> {
   const ctx = await ownerOrgId();
   if ("error" in ctx) return { ok: false, error: ctx.error };
@@ -354,7 +357,7 @@ export async function fileCredentialDocument(
       .eq("credential_id", credentialId)
       .eq("id", recordId)
       .maybeSingle();
-    if (!record) return { ok: false, error: "That term is no longer on file." };
+    if (!record) return { ok: false, error: "That entry has been removed from the history." };
   }
 
   const { data } = await supabaseAdmin
@@ -372,6 +375,31 @@ export async function fileCredentialDocument(
     .is("org_credential_id", null)
     .select("id");
   if (!data || data.length === 0) return { ok: false, error: "That document couldn't be filed." };
+
+  /* WHAT THE SCAN READ STAYS WITH THE CARD. A certificate filed without an
+     expiry showed its number and issuer on the panel, and filing it used to
+     drop both. A card with no term keeps them on itself, so they go there —
+     never onto one with terms, whose number and issuer are the newest term's. */
+  const number = (details?.number ?? "").trim();
+  const issuer = (details?.issuer ?? "").trim();
+  if (!recordId && (number || issuer)) {
+    const { count } = await supabaseAdmin
+      .from(RECORDS)
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", ctx.orgId)
+      .eq("credential_id", credentialId);
+    if ((count ?? 0) === 0) {
+      await supabaseAdmin
+        .from(TABLE)
+        .update({
+          ...(number ? { number: number.slice(0, 80) } : {}),
+          ...(issuer ? { issuer: issuer.slice(0, 120) } : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("org_id", ctx.orgId)
+        .eq("id", credentialId);
+    }
+  }
 
   revalidate();
   return { ok: true };
@@ -401,7 +429,7 @@ export async function removeCredentialTerm(recordId: string): Promise<CredResult
     .delete()
     .eq("org_id", ctx.orgId)
     .eq("id", recordId);
-  if (error) return { ok: false, error: "Couldn't remove that term." };
+  if (error) return { ok: false, error: "Couldn't remove that from the history." };
 
   const { data: rest } = await supabaseAdmin
     .from(RECORDS)

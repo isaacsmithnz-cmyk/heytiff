@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-server";
 import {
   LICENCE_DOC_KIND,
   buildLicenceTermRow,
+  type LicenceScanDetails,
   type LicenceTermInput,
   type LicenceTermRow,
 } from "./licence-records";
@@ -160,6 +161,8 @@ export async function fileLicenceDocument(
   /** null files it against the ticket itself. */
   termId: string | null,
   documentId: string,
+  /** A scan's number, kept on a ticket that has no term to hold it. */
+  details?: LicenceScanDetails,
 ): Promise<WriteResult> {
   if (!uploaderStaffId) return { ok: false, error: "Only a staff member can file documents." };
 
@@ -178,7 +181,7 @@ export async function fileLicenceDocument(
       .eq("licence_id", licenceId)
       .eq("id", termId)
       .maybeSingle();
-    if (!term) return { ok: false, error: "That term is no longer on file." };
+    if (!term) return { ok: false, error: "That entry has been removed from the history." };
   }
 
   const { data } = await supabaseAdmin
@@ -192,6 +195,28 @@ export async function fileLicenceDocument(
     .is("staff_licence_id", null)
     .select("id");
   if (!data || data.length === 0) return { ok: false, error: "That document couldn't be filed." };
+
+  /* WHAT THE SCAN READ STAYS WITH THE TICKET. A scan filed without an expiry
+     showed its number on the panel and the person checked it; filing the photo
+     and dropping the number meant typing it again behind Edit details. A
+     ticket with no term keeps its number on itself, so it goes there — never
+     onto one with terms, whose number is the newest term's. */
+  const number = (details?.number ?? "").trim();
+  if (termId === null && number) {
+    const { count } = await supabaseAdmin
+      .from(TERMS)
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId)
+      .eq("licence_id", licenceId);
+    if ((count ?? 0) === 0) {
+      await supabaseAdmin
+        .from(TABLE)
+        .update({ licence_number: number.slice(0, 80) })
+        .eq("org_id", orgId)
+        .eq("staff_profile_id", staffId)
+        .eq("id", licenceId);
+    }
+  }
   return { ok: true };
 }
 
@@ -222,7 +247,7 @@ export async function removeTerm(
     .eq("org_id", orgId)
     .eq("staff_profile_id", staffId)
     .eq("id", termId);
-  if (error) return { ok: false, error: "Couldn't remove that term." };
+  if (error) return { ok: false, error: "Couldn't remove that from the history." };
 
   const { data: rest } = await supabaseAdmin
     .from(TERMS)

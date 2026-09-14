@@ -96,10 +96,19 @@ export function RecordScreen({
   const [armedTerm, setArmedTerm] = useState<string | null>(null);
 
   const headline = credentialHeadline(kind, expiry, today, warnDays);
+  const loose = looseDocuments(documents, records);
+  /* With no term to describe, the line says what IS on file. It used to say
+     "nothing filed" beside a certificate listed under Documents. */
+  const docsText = loose.length === 1 ? "1 document" : `${loose.length} documents`;
+  const noTermLine = credential.expiryDate
+    ? loose.length > 0
+      ? `Expires ${fmtDay(credential.expiryDate)}`
+      : `Expires ${fmtDay(credential.expiryDate)} — nothing filed against it yet`
+    : loose.length > 0
+      ? `${docsText} filed against this card`
+      : "Nothing filed against this card yet";
   const subline = !recorded
-    ? credential.expiryDate
-      ? `Expires ${fmtDay(credential.expiryDate)} — nothing filed against it yet`
-      : "Nothing filed against this card yet"
+    ? noTermLine
     : [
         current?.issuer,
         current?.number ? `No. ${current.number}` : null,
@@ -111,7 +120,6 @@ export function RecordScreen({
 
   const facts: DetailItem[] = current ? recordFacts(kind, current, state, credential.name) : [];
   const currentDocs = current ? recordDocuments(documents, current) : [];
-  const loose = looseDocuments(documents, records);
 
   return (
     <>
@@ -149,7 +157,7 @@ export function RecordScreen({
                 setOpenDoc(id);
                 if (id) setOpenHist(null);
               }}
-              emptyText="No paperwork filed under this term yet."
+              emptyText={kind === "insurance" ? "No paperwork filed with this policy yet." : "No paperwork filed with this licence yet."}
             />
           </Card>
         )}
@@ -225,7 +233,7 @@ export function RecordScreen({
                           disabled={pending}
                           onClick={() => (armedTerm === r.id ? onRemoveTerm(r.id) : setArmedTerm(r.id))}
                         >
-                          {armedTerm === r.id ? "Tap again to remove" : "Remove term"}
+                          {armedTerm === r.id ? "Click again to remove" : "Remove from history"}
                         </button>
                       </div>
                     </div>
@@ -244,7 +252,6 @@ export function RecordScreen({
           <Card>
             <div className="vm-cardhead">
               <Eyebrow>Other documents</Eyebrow>
-              <span className="vm-caption">Filed under no term</span>
             </div>
             <DocRows docs={loose} openId={openDoc} onOpen={setOpenDoc} />
           </Card>

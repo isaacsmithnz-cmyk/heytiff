@@ -135,7 +135,6 @@ export function IdentityScreen({
         <div className="vm-card">
           <div className="vm-cardhead">
             <span className="vm-eyebrow">What it is</span>
-            {adding && scanned && <span className="vm-caption">Name it — the scan doesn&apos;t</span>}
           </div>
 
           {/* SOLO when the number is not asked here: one narrow field with two
@@ -221,7 +220,7 @@ export function IdentityScreen({
             disabled={pending}
             onClick={() => (armed ? onDelete() : setArmed(true))}
           >
-            {armed ? "Tap again to delete" : "Delete"}
+            {armed ? "Click again to delete" : "Delete"}
           </button>
         )}
         <Btn kind="primary" onClick={save} disabled={!canSave}>

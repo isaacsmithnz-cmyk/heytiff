@@ -18,7 +18,7 @@ import { withDerivedFullName } from "@/lib/staff/name";
 import { clearDrift } from "@/lib/integrations/drift-sweep";
 import { buildLicenceRow, type LicenceInput } from "@/lib/staff/licence";
 import { WORK_RIGHTS_LOCKED } from "@/lib/staff/work-rights-records";
-import { buildLicenceTermRow, splitAddScan, type LicenceTermInput } from "@/lib/staff/licence-records";
+import { buildLicenceTermRow, splitAddScan, type LicenceScanDetails, type LicenceTermInput } from "@/lib/staff/licence-records";
 import {
   fileLicenceDocument,
   recordTerm,
@@ -326,6 +326,7 @@ export async function attachStaffLicenceDocument(
   licenceId: string,
   termId: string | null,
   documentId: string,
+  details?: LicenceScanDetails,
 ): Promise<SaveResult> {
   const ctx = await context();
   if (!ctx) throw new Error("Not authenticated");
@@ -338,6 +339,7 @@ export async function attachStaffLicenceDocument(
     licenceId,
     termId,
     documentId,
+    details,
   );
   if (res.ok) revalidateStaff(staffId);
   return res;

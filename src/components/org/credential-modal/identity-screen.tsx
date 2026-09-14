@@ -296,7 +296,7 @@ export function IdentityScreen({
             disabled={pending}
             onClick={() => (armed ? onDelete() : setArmed(true))}
           >
-            {armed ? "Tap again to delete" : "Delete"}
+            {armed ? "Click again to delete" : "Delete"}
           </button>
         )}
         <Btn kind="primary" onClick={save} disabled={!canSave}>

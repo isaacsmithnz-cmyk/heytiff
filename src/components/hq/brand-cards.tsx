@@ -46,7 +46,6 @@ export function HqBrandCards({ brands }: { brands: BrandCardData[] }) {
               {b.orphans > 0 ? (
                 <span className="hq-badge warn">{b.orphans} stale</span>
               ) : null}
-              <span className="hq-arrow">→</span>
             </span>
           </div>
         </a>

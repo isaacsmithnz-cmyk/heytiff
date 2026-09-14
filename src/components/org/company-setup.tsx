@@ -346,7 +346,7 @@ export function CompanySetup({
       >
         {busy === "skip"
           ? "Heading to your dashboard…"
-          : "Skip for now — you can finish any time in Admin → Organisation"}
+          : "Skip for now — you can finish any time from Organisation, under Admin"}
       </button>
     </main>
   );

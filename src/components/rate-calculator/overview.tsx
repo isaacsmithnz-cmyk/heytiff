@@ -95,7 +95,7 @@ export function Overview({ s, calc, health, uplift, ready, missing, go, patch }:
           <div style={{ fontSize: 13.5, color: RC.ink2, lineHeight: 1.6, marginTop: 10 }}>
             Your recommended rates will appear here once you&apos;ve entered {missing.length === 1 ? missing[0] : missing.slice(0, -1).join(", ") + " and " + missing[missing.length - 1]}. It only takes a moment.
           </div>
-          <button className="rca-btn primary lg" style={{ marginTop: 20 }} onClick={() => go(0)}>Go to setup →</button>
+          <button className="rca-btn primary lg" style={{ marginTop: 20 }} onClick={() => go(0)}>Go to setup</button>
         </div>
       </div>
     );
@@ -147,7 +147,7 @@ export function Overview({ s, calc, health, uplift, ready, missing, go, patch }:
           <button onClick={apply} disabled={applied}
             style={{ marginTop: "auto", position: "relative", border: "none", background: applied ? "rgba(255,255,255,0.16)" : "#fff", color: applied ? "rgba(255,255,255,0.6)" : RC.inkDeep, borderRadius: 12, padding: "13px 0", fontFamily: RC.head, fontWeight: 800, fontSize: 14, cursor: applied ? "default" : "pointer", transition: "all .25s" }}
             onMouseEnter={e => { if (!applied) { e.currentTarget.style.background = RC.teal; } }}
-            onMouseLeave={e => { if (!applied) { e.currentTarget.style.background = "#fff"; } }}>{applied ? "Applied" : "Apply these rates →"}</button>
+            onMouseLeave={e => { if (!applied) { e.currentTarget.style.background = "#fff"; } }}>{applied ? "Applied" : "Apply these rates"}</button>
           )}
         </div>
       </div>

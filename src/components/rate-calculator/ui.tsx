@@ -212,7 +212,7 @@ export function QuestionStack({ questions, revealAll = false, stageFromTop = fal
             {typeof q.body === "function" ? q.body(advance) : q.body}
             {i === revealed && i < questions.length - 1 && !q.hideNext && (
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-                <button className="rca-btn primary sm" disabled={!q.answered} onClick={advance}>{q.nextLabel ?? "Next →"}</button>
+                <button className="rca-btn primary sm" disabled={!q.answered} onClick={advance}>{q.nextLabel ?? "Next"}</button>
               </div>
             )}
           </div>

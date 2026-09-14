@@ -887,7 +887,7 @@ function SeriesGroup({
               {cols.mappedFields} of {cols.totalFields} specs mapped
             </span>
             {cols.mappedFields + cols.toAdd.length > 6 ? (
-              <span className="hq-cmp-scrollhint">scroll for the rest →</span>
+              <span className="hq-cmp-scrollhint">Scroll for the rest</span>
             ) : null}
           </span>
         </button>

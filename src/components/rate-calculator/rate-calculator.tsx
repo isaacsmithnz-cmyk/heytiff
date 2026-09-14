@@ -294,7 +294,7 @@ function RatesIntro({ s, patch, onDone }: {
         </div>
         <div style={{ padding: "0 34px 26px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={skip} style={{ border: "none", background: "transparent", color: RC.faint, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: RC.body, textDecoration: "underline" }}>I don&apos;t know yet — skip</button>
-          <button className="rca-btn primary lg" onClick={save}>Start setup →</button>
+          <button className="rca-btn primary lg" onClick={save}>Start setup</button>
         </div>
       </div>
     </div>
@@ -501,7 +501,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
               <div style={{ flexShrink: 0, padding: "14px 10px 0 2px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <button className="rca-btn ghost" disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>← Back</button>
                 <span style={{ fontSize: 12.5, color: RC.faint, whiteSpace: "nowrap" }}>Step {step + 1} of 5 · {saveLabel}</span>
-                <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results →" : "Continue →"}</button>
+                <button className="rca-btn primary" style={{ padding: "0 26px" }} onClick={onContinue}>{step === 4 && completions.slice(0, 4).every(c => DONE_COMPLETIONS.includes(c)) ? "See results" : "Continue"}</button>
               </div>
             </div>
             <RatesRail s={s} calc={calc} uplift={uplift} ready={ready} missing={missing} patch={patch} />

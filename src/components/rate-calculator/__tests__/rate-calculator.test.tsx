@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 async function dismissOnboarding(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByText("Got it — start →"));
+  await user.click(screen.getByText("Start"));
   await user.click(screen.getByText("I don't know yet — skip"));
 }
 
@@ -36,7 +36,7 @@ describe("RateCalculator — first run (no saved state)", () => {
 
     // Help modal first
     expect(screen.getByText("How to use this tool")).toBeInTheDocument();
-    await user.click(screen.getByText("Got it — start →"));
+    await user.click(screen.getByText("Start"));
 
     // Then the current-rates intro
     expect(screen.getByText("What do you charge right now?")).toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("RateCalculator — question-at-a-time steps", () => {
     expect(screen.queryByText("How many staff in total?")).toBeNull();
 
     // Next is disabled until the question is answered.
-    const next = screen.getByText("Next →").closest("button")!;
+    const next = screen.getByText("Next").closest("button")!;
     expect(next).toBeDisabled();
 
     const monthInput = screen.getAllByDisplayValue("0")[0];
@@ -153,8 +153,8 @@ describe("RateCalculator — work split locked at 100%", () => {
     const month = screen.getAllByDisplayValue("0")[0];
     await user.click(month);
     await user.keyboard("40000");
-    await user.click(screen.getByText("Next →")); // → staff count
-    await user.click(screen.getByText("Next →")); // → split
+    await user.click(screen.getByText("Next")); // → staff count
+    await user.click(screen.getByText("Next")); // → split
     expect(screen.getByText("Split that time across the work")).toBeInTheDocument();
 
     const install = screen.getByLabelText("Install percent");
@@ -197,8 +197,8 @@ describe("RateCalculator — Vehicles yes/no question", () => {
   async function goToVehicles(user: ReturnType<typeof userEvent.setup>) {
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user);
-    await user.click(screen.getByText("Continue →")); // → Business
-    await user.click(screen.getByText("Continue →")); // → Vehicles
+    await user.click(screen.getByText("Continue")); // → Business
+    await user.click(screen.getByText("Continue")); // → Vehicles
     expect(screen.getByText(/Step 3 of 5 · Simple/)).toBeInTheDocument();
     expect(screen.getByText("Do you run vehicles for the business?")).toBeInTheDocument();
   }
@@ -229,7 +229,7 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
     render(<RateCalculator initialState={null} />);
     await dismissOnboarding(user);
     expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull();
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue")); // → Business
     expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull();
   });
 
@@ -244,9 +244,9 @@ describe("RateCalculator — Simple/Detailed toggle gating", () => {
 
     expect(screen.getByText(/Step 1 of 5 · Simple/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull(); // staff gate: needs 12+ weeks of timesheets
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue")); // → Business
     expect(screen.getByRole("button", { name: "Detailed" })).toBeInTheDocument(); // ungated
-    await user.click(screen.getByText("Continue →")); // → Vehicles
+    await user.click(screen.getByText("Continue")); // → Vehicles
     expect(screen.queryByRole("button", { name: "Detailed" })).toBeNull(); // vehicles gate: needs vehicle records
   });
 
@@ -274,7 +274,7 @@ describe("RateCalculator — Detailed business costs suggestions", () => {
     const saved = savedState();
     saved.businessCosts = [];
     render(<RateCalculator initialState={saved} />);
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue")); // → Business
     await user.click(screen.getByRole("button", { name: "Detailed" }));
 
     // The table arrives pre-filled with every suggested category at $0…
@@ -293,7 +293,7 @@ describe("RateCalculator — Detailed business costs suggestions", () => {
     saved.mode.business = "Detailed";
     saved.businessCosts = [{ name: "New cost", amount: 0, allocated_to: "shared" }];
     render(<RateCalculator initialState={saved} />);
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue")); // → Business
 
     expect(screen.getByDisplayValue("Public liability")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Accounting fees")).toBeInTheDocument();
@@ -306,7 +306,7 @@ describe("RateCalculator — Detailed business costs suggestions", () => {
     saved.mode.business = "Detailed";
     saved.businessCosts = [{ name: "Yard lease", amount: 21000, allocated_to: "install" }];
     render(<RateCalculator initialState={saved} />);
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue")); // → Business
 
     // The user's one priced row survives untouched; categories stay as chips.
     expect(screen.getByDisplayValue("Yard lease")).toBeInTheDocument();
@@ -320,7 +320,7 @@ describe("RateCalculator — Detailed business costs suggestions", () => {
     saved.businessCosts = [{ name: "Public liability", amount: 5500, allocated_to: "shared" }];
     saved.mode.business = "Detailed";
     render(<RateCalculator initialState={saved} />);
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Continue")); // → Business
 
     // Already-present categories don't repeat as chips; tapping one adds its row.
     expect(screen.queryByRole("button", { name: "+ Public liability" })).toBeNull();
@@ -351,27 +351,27 @@ describe("RateCalculator — results gated behind all five steps", () => {
     const month = screen.getAllByDisplayValue("0")[0];
     await user.click(month);
     await user.keyboard("40000");
-    await user.click(screen.getByText("Next →"));
-    await user.click(screen.getByText("Next →"));
-    await user.click(screen.getByText("Next →"));
-    await user.click(screen.getByText("Continue →")); // → Business
+    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByText("Next"));
+    await user.click(screen.getByText("Continue")); // → Business
 
     // Step 2 — overheads.
     const biz = screen.getAllByDisplayValue("0")[0];
     await user.click(biz);
     await user.keyboard("4000");
-    await user.click(screen.getByText("Continue →")); // → Vehicles
+    await user.click(screen.getByText("Continue")); // → Vehicles
 
     // Step 3 — no vehicles.
     await user.click(screen.getByText("No vehicles"));
-    await user.click(screen.getByText("Continue →")); // → Risk
+    await user.click(screen.getByText("Continue")); // → Risk
 
     // Step 4 — accepting the defaults is the Continue click itself.
     expect(screen.queryByText(/View results/)).toBeNull(); // risk not yet accepted
-    await user.click(screen.getByText("Continue →")); // accepts risk → Profit
+    await user.click(screen.getByText("Continue")); // accepts risk → Profit
 
     // Step 5 — everything else done, so the button reads See results.
-    await user.click(screen.getByText("See results →")); // accepts profit → Results
+    await user.click(screen.getByText("See results")); // accepts profit → Results
 
     expect(screen.getByText("Your recommended rates")).toBeInTheDocument();
     expect(screen.getByText(/View results/)).toBeInTheDocument(); // unlocked
@@ -386,14 +386,14 @@ describe("RateCalculator — results gated behind all five steps", () => {
     const month = screen.getAllByDisplayValue("0")[0];
     await user.click(month);
     await user.keyboard("40000");
-    await user.click(screen.getByText("Continue →")); // → Business (skipped)
-    await user.click(screen.getByText("Continue →")); // → Vehicles (skipped)
-    await user.click(screen.getByText("Continue →")); // → Risk
-    await user.click(screen.getByText("Continue →")); // accepts risk → Profit
+    await user.click(screen.getByText("Continue")); // → Business (skipped)
+    await user.click(screen.getByText("Continue")); // → Vehicles (skipped)
+    await user.click(screen.getByText("Continue")); // → Risk
+    await user.click(screen.getByText("Continue")); // accepts risk → Profit
 
     // Business is still incomplete, so no See-results label and the click
     // walks back to Step 2 rather than into Results.
-    await user.click(screen.getByText("Continue →"));
+    await user.click(screen.getByText("Continue"));
     expect(screen.getByText(/Step 2 of 5 · Simple/)).toBeInTheDocument();
     expect(screen.queryByText("Your recommended rates")).toBeNull();
   });
@@ -409,7 +409,7 @@ describe("RateCalculator — healthy-rate safeguard on Results", () => {
     expect(screen.getByText("Charging a healthy rate")).toBeInTheDocument();
     expect(screen.getByText("You're priced right")).toBeInTheDocument();
     expect(screen.getByText(/no increase needed/)).toBeInTheDocument();
-    expect(screen.queryByText("Apply these rates →")).toBeNull();
+    expect(screen.queryByText("Apply these rates")).toBeNull();
   });
 });
 
@@ -545,7 +545,7 @@ describe("RateCalculator — start fresh", () => {
     expect(screen.queryByText("Your recommended rates")).toBeNull();
 
     // …and the wiped figures do not come back through the setup rail
-    await user.click(screen.getByText("Got it — start →"));
+    await user.click(screen.getByText("Start"));
     await user.click(screen.getByText("I don't know yet — skip"));
     expect(screen.getByText(/Almost there/)).toBeInTheDocument();
   });

@@ -2252,7 +2252,7 @@ function Editor({
               right.
             </>,
           ]}
-          actionLabel="Calibrate scale →"
+          actionLabel="Calibrate scale"
           onSkip={() => setCalibPrompt(false)}
           onAction={() => {
             setCalibPrompt(false);
@@ -2276,7 +2276,7 @@ function Editor({
             </>,
             <>This drives each room&apos;s orientation and solar gain.</>,
           ]}
-          actionLabel="Set north →"
+          actionLabel="Set north"
           onSkip={() => setNorthPrompt(false)}
           onAction={() => {
             setNorthPrompt(false);

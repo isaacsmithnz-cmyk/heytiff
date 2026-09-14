@@ -289,8 +289,11 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform/.test(b) && /box-shadow/.test(b)), baseline: 1 },
   { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 0 },
   { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 23 },
-  { law: "pill, chip, tag and badge rules — state is a word", now: () => count(/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*\s*[{,]/g), baseline: 137 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 249 },
+  /* A pill is counted only while it is drawn as one: a pill, chip, tag or
+     badge selector whose own rule gives it a radius. A state word keeps the
+     class name and loses the box, so it stops counting. */
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 55 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 247 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
@@ -319,7 +322,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 462 },
+    }, baseline: 458 },
 ];
 
 describe("the design ratchets only go down", () => {

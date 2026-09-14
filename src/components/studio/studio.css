@@ -149,9 +149,37 @@ html[data-ds-display] .dstudio.editing {
   transition: opacity var(--t-fast) var(--ease);
 }
 
+/* THE ENTRANCE. Arriving from another page, the route's fallback is the
+   dark alone (studio-hold.tsx) and the start screen rises into it — the
+   same travel it makes coming back from the editor, so the screen has one
+   way of arriving, and the cloud blooms out of the mark on top of it. Held
+   off while `.swapping` is on, because then Home mounts in its "away" state
+   and the swap's own transition carries it in; the animation starts when the
+   class drops, from the same place, so the two never fight. */
+@keyframes dsRise {
+  from {
+    transform: translateY(72px);
+    opacity: 0;
+  }
+}
+@keyframes dsRiseStill {
+  from {
+    opacity: 0;
+  }
+}
+.dstudio .ds-home-stack {
+  animation: dsRise var(--t-move) var(--ease);
+}
+.dstudio.swapping .ds-home-stack {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dstudio.swapping .ds-home-stack {
     transform: none; /* keep the fade, drop the travel */
+  }
+  .dstudio .ds-home-stack {
+    animation-name: dsRiseStill;
   }
 }
 
@@ -1030,42 +1058,19 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-lib {
   min-height: 0;
 }
-.dstudio .ds-lib-head {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
+.dstudio .ds-lib .ds-cardt {
+  display: block;
   margin-bottom: 12px;
-}
-.dstudio .ds-lib-head .ds-cardt {
-  flex: 1 1 auto;
-}
-.dstudio .ds-lib-link {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  white-space: nowrap;
-  transition: color var(--t-fast) var(--ease);
-}
-.dstudio .ds-lib-link:hover {
-  color: #fff;
 }
 .dstudio .ds-lib-none {
   margin: 0;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
-/* one brand: its name, and the version the studio is reading */
-.dstudio .ds-lib-bl {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 4px 0 8px;
-}
+/* the brand, and the data year it is on */
 .dstudio .ds-lib-bn {
-  font-size: 14px;
+  margin: 0;
+  font-size: 16px;
   font-weight: 600;
   color: #fff;
 }
@@ -1073,110 +1078,57 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
-  white-space: nowrap;
 }
 .dstudio .ds-lib-brand + .ds-lib-brand {
+  margin-top: 24px;
+}
+/* one kind of system: its name, then the lineup as a label and a run —
+   "Wall-mounted   MSZ-AP, MSZ-EF, MSZ-GS" — no counts, no codes, no rows */
+.dstudio .ds-lib-sys {
   margin-top: 16px;
 }
-/* a system group: a row that opens to its series */
-.dstudio .ds-lib-sys {
-  border-top: 1px solid var(--ds-night-line);
-}
-.dstudio .ds-lib-sum {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 44px;
-  padding: 0 4px;
-  border-radius: 10px;
-  color: #fff;
+.dstudio .ds-lib-sn {
+  margin: 0 0 4px;
   font-size: 14px;
   font-weight: 600;
-  text-align: left;
-  transition: background-color var(--t-fast) var(--ease);
+  color: #fff;
 }
-.dstudio .ds-lib-sum:hover {
-  background: var(--ds-night);
-}
-.dstudio .ds-lib-sum:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
-}
-.dstudio .ds-lib-chev {
-  display: inline-flex;
-  color: rgba(255, 255, 255, 0.5);
-  transition: transform var(--t-move) var(--ease);
-}
-.dstudio .ds-lib-chev.open {
-  transform: rotate(180deg);
-}
-.dstudio .ds-lib-sn {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.dstudio .ds-lib-sc {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-/* the series: name, what it is, how many — and the codes under them */
-.dstudio .ds-lib-rows {
-  list-style: none;
+.dstudio .ds-lib-lineup {
   margin: 0;
-  padding: 0 4px 12px;
-}
-.dstudio .ds-lib-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 2px 12px;
-  align-items: baseline;
-  padding: 8px 0;
-  border-top: 1px solid var(--ds-night);
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 16px;
 }
-.dstudio .ds-lib-row:first-child {
-  border-top: 0;
+.dstudio .ds-lib-form {
+  display: contents;
 }
-.dstudio .ds-lib-ser {
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  white-space: nowrap;
-}
-.dstudio .ds-lib-kind {
+.dstudio .ds-lib-lineup dt {
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
-.dstudio .ds-lib-n {
+.dstudio .ds-lib-lineup dd {
+  margin: 0;
   font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-/* what is new is said in paper, the dark ground's emphasis — no chroma */
-.dstudio .ds-lib-mark {
-  margin-left: 8px;
-  font-weight: 600;
-  color: #fff;
-}
-.dstudio .ds-lib-models {
-  grid-column: 1 / -1;
-  font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.8);
   overflow-wrap: anywhere;
+}
+/* a series that just arrived reads in paper, the dark ground's emphasis —
+   no chroma */
+.dstudio .ds-lib-new {
+  color: #fff;
+  font-weight: 600;
+}
+.dstudio .ds-lib-new b {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
 }
 /* what arrived since this browser last looked */
 .dstudio .ds-lib-upd {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   padding: 12px 16px 16px;
   border: 1px solid var(--ds-night-line);
   border-radius: 10px;
@@ -1206,7 +1158,6 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 500;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.6);
-  overflow-wrap: anywhere;
 }
 .dstudio .ds-lib-upd-s {
   color: #fff;
@@ -1232,47 +1183,6 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-lib-dismiss:focus-visible {
   outline: none;
   box-shadow: var(--ring);
-}
-
-/* ── the start screen still loading (app/dashboard/studio/loading.tsx) ──
-   The same shapes the screen is about to draw, in the same places, on the
-   same dark: the title and the one action in the hero column, the two glass
-   cards in the side. Dark from the click: the route's fallback used to be
-   the shell's light skeleton, so the well went white for the beat the page
-   took to arrive and then snapped black — the one thing this screen must
-   not do. The bars are the Recent list's own `.ds-skb` sweep. */
-.dstudio .ds-skb-title {
-  width: min(100%, 260px);
-  height: 32px;
-  border-radius: 10px;
-  margin-bottom: 32px;
-}
-.dstudio .ds-skb-cta {
-  width: min(100%, 360px);
-  height: 68px;
-  border-radius: 10px;
-  /* where the real button lands: the cloud anchor's 190px less the
-     button's own 40px pull — see .ds-cloud and .ds-cta.ds-start */
-  margin-top: 150px;
-}
-.dstudio .ds-skb-ct {
-  width: 128px;
-  height: 16px;
-  margin-bottom: 12px;
-}
-.dstudio .ds-skb-tools {
-  width: 100%;
-  height: 42px;
-  border-radius: 10px;
-  margin-bottom: 12px;
-}
-.dstudio .ds-skb-sys {
-  width: 100%;
-  height: 44px;
-  border-radius: 10px;
-}
-.dstudio .ds-skb-sys + .ds-skb-sys {
-  margin-top: 8px;
 }
 
 /* ═════════════ Editor chrome ═════════════ */

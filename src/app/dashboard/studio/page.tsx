@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { can, getDbRole } from "@/lib/permissions-server";
-import { hasMinRole } from "@/lib/roles";
+import { can } from "@/lib/permissions-server";
 import { isProviderConnected } from "@/lib/integrations/store";
 import { orgBrand } from "@/lib/org/query";
 import { BRAND_TTL_S, NO_BRAND } from "@/lib/org/brand";
@@ -69,13 +68,12 @@ export default async function StudioPage({
      Signed for the same window the client re-signs for (see useOrgBrand), and
      asked for only when there is a session to ask with — the redirect above
      has already turned away anyone without one. */
-  const [sm8Connected, boardAccess, params, brand, library, role] = await Promise.all([
+  const [sm8Connected, boardAccess, params, brand, library] = await Promise.all([
     orgId ? isProviderConnected(orgId, "servicem8") : Promise.resolve(false),
     can("workboard"),
     searchParams,
     orgId ? orgBrand(orgId, { seconds: BRAND_TTL_S }) : Promise.resolve(NO_BRAND),
     studioLibrary(),
-    getDbRole(),
   ]);
 
   /* The id is a CHOICE handed in by whoever followed the link, so nothing
@@ -100,9 +98,6 @@ export default async function StudioPage({
       buildStamp={buildStamp}
       brand={brand}
       library={library}
-      /* the Data Library page is admin+ (its own gate); the card offers the
-         door only to someone it will open for */
-      libraryAdmin={hasMinRole(role, "admin")}
     />
   );
 }

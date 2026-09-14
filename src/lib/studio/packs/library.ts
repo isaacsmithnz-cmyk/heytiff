@@ -18,13 +18,15 @@
    server from the packs it loaded; the card compares it with a snapshot the
    browser kept, using the two functions at the bottom. */
 
-import type {
-  DataPack,
-  IndoorUnit,
-  MultiRule,
-  OutdoorUnit,
-  PackMeta,
-  SystemType,
+import {
+  FORM_FACTORS,
+  type DataPack,
+  type FormFactor,
+  type IndoorUnit,
+  type MultiRule,
+  type OutdoorUnit,
+  type PackMeta,
+  type SystemType,
 } from "./schema";
 import { indoorReadiness, outdoorReadiness } from "./ready";
 import { formFactorLabel } from "../form-factors";
@@ -45,6 +47,8 @@ export interface LibrarySeries {
   side: "indoor" | "outdoor";
   /** the form factor's name for an indoor series; null for an outdoor one */
   form: string | null;
+  /** the form factor itself, for ordering; null for an outdoor series */
+  formFactor: FormFactor | null;
   /** the model codes the engine offers, smallest first */
   models: string[];
 }
@@ -88,22 +92,36 @@ function seriesOf(
   const out: LibrarySeries[] = [];
   for (const [series, list] of bySeries) {
     const first = [...list].sort(byCapacity)[0];
-    const form =
-      side === "indoor" && first && "form_factor" in first
-        ? formFactorLabel(first.form_factor)
-        : null;
+    const formFactor =
+      side === "indoor" && first && "form_factor" in first ? first.form_factor : null;
     out.push({
       series,
       side,
-      form,
+      form: formFactor ? formFactorLabel(formFactor) : null,
+      formFactor,
       models: [...list].sort(byCapacity).map((u) => u.model),
     });
   }
-  /* indoor series read by what they are, then by name; outdoor by name */
-  out.sort(
-    (a, b) =>
-      (a.form ?? "").localeCompare(b.form ?? "") || a.series.localeCompare(b.series)
-  );
+  /* indoor series in the schema's form order (wall, ducted, the cassettes,
+     under-ceiling, the floors, bulkhead), then by name; outdoor by name */
+  const formRank = (s: LibrarySeries) =>
+    s.formFactor ? FORM_FACTORS.indexOf(s.formFactor) : FORM_FACTORS.length;
+  out.sort((a, b) => formRank(a) - formRank(b) || a.series.localeCompare(b.series));
+  return out;
+}
+
+/** The indoor series of a group by form, in the schema's form order — the
+    lineup the start screen prints ("Wall-mounted: MSZ-AP, MSZ-EF, …"). */
+export function indoorByForm(
+  series: readonly LibrarySeries[]
+): { form: string; series: LibrarySeries[] }[] {
+  const out: { form: string; series: LibrarySeries[] }[] = [];
+  for (const s of series) {
+    if (s.side !== "indoor" || !s.form) continue;
+    const last = out[out.length - 1];
+    if (last && last.form === s.form) last.series.push(s);
+    else out.push({ form: s.form, series: [s] });
+  }
   return out;
 }
 

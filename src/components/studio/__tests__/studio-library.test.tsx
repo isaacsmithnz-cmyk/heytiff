@@ -1,16 +1,33 @@
-/* The library on the start screen: what it lists, how it opens, and what it
-   calls new. The manifest is handed in the way the route hands it — already
+/* The library on the start screen: the lineup it prints, and what it calls
+   new. The manifest is handed in the way the route hands it — already
    built — so these are about the card, not the packs (library.test.ts is). */
 
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Studio } from "../studio";
 import { LocalDesignStore } from "@/lib/studio/store";
-import { librarySnapshot, type LibraryManifest } from "@/lib/studio/packs/library";
+import { librarySnapshot, type LibraryManifest, type LibrarySeries } from "@/lib/studio/packs/library";
 
 const SNAPSHOT_KEY = "heytiff.studio.library";
 
+const idu = (series: string, form: "wall" | "ducted" | "cassette-4way", models: string[]): LibrarySeries => ({
+  series,
+  side: "indoor",
+  form: { wall: "Wall-mounted", ducted: "Ducted", "cassette-4way": "4-way cassette" }[form],
+  formFactor: form,
+  models,
+});
+const odu = (series: string, models: string[]): LibrarySeries => ({
+  series,
+  side: "outdoor",
+  form: null,
+  formFactor: null,
+  models,
+});
+
 function manifest(version = "2026.1", ap: string[] = ["MSZ-AP25VGD", "MSZ-AP35VGD"]): LibraryManifest {
+  const split = [idu("MSZ-AP", "wall", ap), idu("MSZ-EF", "wall", ["MSZ-EF25VGK"]), idu("PEAD-M-JAA", "ducted", ["PEAD-M50JAA"])];
+  const vrf = [idu("PLFY-P-VEM-A", "cassette-4way", ["PLFY-P20VEM-A"])];
   return {
     brands: [
       {
@@ -18,28 +35,18 @@ function manifest(version = "2026.1", ap: string[] = ["MSZ-AP25VGD", "MSZ-AP35VG
         name: "Mitsubishi Electric",
         version,
         systems: [
-          {
-            system: "split",
-            label: "Split systems",
-            series: [
-              { series: "MSZ-AP", side: "indoor", form: "Wall-mounted", models: ap },
-              { series: "MUZ-AP", side: "outdoor", form: null, models: ["MUZ-AP25VG", "MUZ-AP35VG"] },
-            ],
-          },
-          { system: "multi", label: "Multi-split", series: [] },
-          {
-            system: "vrf",
-            label: "VRF",
-            series: [{ series: "PLFY-P-VEM-A", side: "indoor", form: "4-way cassette", models: ["PLFY-P20VEM-A"] }],
-          },
+          { system: "split", label: "Split systems", series: [...split, odu("MUZ-AP", ["MUZ-AP25VG", "MUZ-AP35VG"])] },
+          /* the multi's indoor units are the split and VRF ranges again */
+          { system: "multi", label: "Multi-split", series: [split[0], split[1], vrf[0], odu("MXZ-F", ["MXZ-2F52VGD"])] },
+          { system: "vrf", label: "VRF", series: [...vrf, odu("PUHY-P-YNW-A1", ["PUHY-P200YNW-A1"])] },
         ],
       },
     ],
   };
 }
 
-const studio = (library?: LibraryManifest, admin?: boolean) => (
-  <Studio store={new LocalDesignStore(window.localStorage)} library={library} libraryAdmin={admin} />
+const studio = (library?: LibraryManifest) => (
+  <Studio store={new LocalDesignStore(window.localStorage)} library={library} />
 );
 
 describe("the library card", () => {
@@ -53,46 +60,41 @@ describe("the library card", () => {
 
     render(studio(manifest()));
     const card = await screen.findByRole("region", { name: "Library" });
-    expect(within(card).getByText("Mitsubishi Electric")).toBeInTheDocument();
-    expect(within(card).getByText("Version 2026.1")).toBeInTheDocument();
+    expect(within(card).getByRole("heading", { name: "Mitsubishi Electric 2026.1" })).toBeInTheDocument();
   });
 
-  it("lists brand, system, series and model — the groups shut until pressed, an empty one not at all", async () => {
-    const user = userEvent.setup();
+  it("prints the lineup a brochure would: system, then series by form — no counts, no model codes", async () => {
     render(studio(manifest()));
     const card = await screen.findByRole("region", { name: "Library" });
+    expect(within(card).getAllByRole("heading", { level: 4 }).map((h) => h.textContent)).toEqual([
+      "Split systems",
+      "Multi-split",
+      "VRF",
+    ]);
 
-    const split = within(card).getByRole("button", { name: /Split systems/ });
-    expect(split).toHaveAttribute("aria-expanded", "false");
-    expect(split).toHaveTextContent("2 series");
-    expect(within(card).getByRole("button", { name: /VRF/ })).toHaveTextContent("1 series");
-    /* nothing multi-ready: no row rather than a row that opens on nothing */
-    expect(within(card).queryByRole("button", { name: /Multi-split/ })).not.toBeInTheDocument();
-    expect(within(card).queryByText("MSZ-AP")).not.toBeInTheDocument();
+    /* split: indoor by form, in the schema's form order; the outdoor comes
+       with the pair and is not printed */
+    const split = within(card).getByRole("heading", { name: "Split systems" }).parentElement!;
+    const terms = (el: HTMLElement) => within(el).getAllByRole("term").map((t) => t.textContent);
+    const defs = (el: HTMLElement) => within(el).getAllByRole("definition").map((d) => d.textContent);
+    expect(terms(split)).toEqual(["Wall-mounted", "Ducted"]);
+    expect(defs(split)).toEqual(["MSZ-AP, MSZ-EF", "PEAD-M-JAA"]);
+    expect(within(split).queryByText(/MUZ-AP/)).not.toBeInTheDocument();
 
-    await user.click(split);
-    expect(split).toHaveAttribute("aria-expanded", "true");
-    expect(within(card).getByText("MSZ-AP")).toBeInTheDocument();
-    expect(within(card).getByText("Wall-mounted")).toBeInTheDocument();
-    expect(within(card).getByText("MSZ-AP25VGD, MSZ-AP35VGD")).toBeInTheDocument();
-    expect(within(card).getByText("Outdoor")).toBeInTheDocument();
-    expect(within(card).getAllByText("2 models")).toHaveLength(2);
+    /* multi and VRF are their outdoor unit first; the multi's indoor units
+       are the ranges already printed, said as a phrase, not printed again */
+    const multi = within(card).getByRole("heading", { name: "Multi-split" }).parentElement!;
+    expect(terms(multi)).toEqual(["Outdoor", "Indoor"]);
+    expect(defs(multi)).toEqual(["MXZ-F", "The split and VRF indoor ranges"]);
+    const vrf = within(card).getByRole("heading", { name: "VRF" }).parentElement!;
+    expect(terms(vrf)).toEqual(["Outdoor", "4-way cassette"]);
+    expect(defs(vrf)).toEqual(["PUHY-P-YNW-A1", "PLFY-P-VEM-A"]);
 
-    await user.click(split);
-    expect(within(card).queryByText("MSZ-AP")).not.toBeInTheDocument();
-  });
-
-  it("offers the Data Library door to an admin only", async () => {
-    const { unmount } = render(studio(manifest(), true));
-    const card = await screen.findByRole("region", { name: "Library" });
-    expect(within(card).getByRole("link", { name: "Data Library" })).toHaveAttribute(
-      "href",
-      "/dashboard/studio/data-library"
-    );
-    unmount();
-    render(studio(manifest(), false));
-    const again = await screen.findByRole("region", { name: "Library" });
-    expect(within(again).queryByRole("link", { name: "Data Library" })).not.toBeInTheDocument();
+    /* and none of the detail that belongs to the unit browser */
+    expect(within(card).queryByText(/MSZ-AP25VGD/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/series$/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/models?$/)).not.toBeInTheDocument();
+    expect(within(card).queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("says nothing on a first visit, and records what it saw", async () => {
@@ -102,52 +104,45 @@ describe("the library card", () => {
     expect(JSON.parse(window.localStorage.getItem(SNAPSHOT_KEY)!)).toEqual(librarySnapshot(manifest()));
   });
 
-  it("says what arrived since this browser last looked, marks it in the directory, and Dismiss catches the snapshot up", async () => {
+  it("says what arrived since this browser last looked, in the lineup's words, and Dismiss catches the snapshot up", async () => {
     const user = userEvent.setup();
-    /* last time: version 2026.1, two AP models */
+    /* last time: version 2026.1, two AP sizes, no MSZ-GS */
     window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(librarySnapshot(manifest())));
-    /* now: a new version, a third AP model */
+    /* now: a new version, a third AP size, and a whole new wall series */
     const now = manifest("2026.2", ["MSZ-AP25VGD", "MSZ-AP35VGD", "MSZ-AP50VGD"]);
+    now.brands[0].systems[0].series.splice(2, 0, idu("MSZ-GS", "wall", ["MSZ-GS25VF", "MSZ-GS35VF"]));
     render(studio(now));
     const card = await screen.findByRole("region", { name: "Library" });
 
     const notice = within(card).getByRole("status");
     expect(notice).toHaveTextContent("Library updated");
-    expect(notice).toHaveTextContent("Mitsubishi Electric is now version 2026.2, from 2026.1.");
-    expect(notice).toHaveTextContent("1 model added.");
-    expect(notice).toHaveTextContent("MSZ-AP: MSZ-AP50VGD");
+    expect(notice).toHaveTextContent("Mitsubishi Electric is now on 2026.2.");
+    expect(notice).toHaveTextContent("MSZ-AP wall-mounted, 1 new size");
+    expect(notice).toHaveTextContent("MSZ-GS wall-mounted, new series");
+    /* never model codes */
+    expect(notice).not.toHaveTextContent("MSZ-AP50VGD");
     /* the snapshot is NOT overwritten by looking — only by dismissing */
     expect(JSON.parse(window.localStorage.getItem(SNAPSHOT_KEY)!).brands["mitsubishi-electric"].version).toBe("2026.1");
 
-    /* and the directory marks it */
-    const split = within(card).getByRole("button", { name: /Split systems/ });
-    expect(split).toHaveTextContent("2 series, 1 new");
-    await user.click(split);
-    expect(within(card).getByText("1 new")).toBeInTheDocument();
+    /* the lineup marks the series that arrived whole, and only that one */
+    const split = within(card).getByRole("heading", { name: "Split systems" }).parentElement!;
+    const wall = within(split).getAllByRole("definition")[0];
+    expect(wall).toHaveTextContent("MSZ-AP, MSZ-EF, MSZ-GS new");
+    expect(wall.querySelectorAll(".ds-lib-new")).toHaveLength(1);
+    expect(wall.querySelector(".ds-lib-new")).toHaveTextContent("MSZ-GS");
 
     await user.click(within(card).getByRole("button", { name: "Dismiss" }));
     expect(within(card).queryByRole("status")).not.toBeInTheDocument();
-    expect(split).toHaveTextContent("2 series");
-    expect(split).not.toHaveTextContent("new");
+    expect(wall.querySelectorAll(".ds-lib-new")).toHaveLength(0);
     expect(JSON.parse(window.localStorage.getItem(SNAPSHOT_KEY)!)).toEqual(librarySnapshot(now));
   });
 
-  it("calls a series that arrived whole a new series, and says which models are no longer offered", async () => {
-    const before = manifest();
-    window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(librarySnapshot(before)));
-    const now: LibraryManifest = manifest("2026.1", ["MSZ-AP25VGD"]);
-    now.brands[0].systems[0].series.push({
-      series: "MSZ-EF",
-      side: "indoor",
-      form: "Wall-mounted",
-      models: ["MSZ-EF25VGK"],
-    });
-    render(studio(now));
+  it("says which models are no longer offered, and skips the version line when it did not change", async () => {
+    window.localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(librarySnapshot(manifest())));
+    render(studio(manifest("2026.1", ["MSZ-AP25VGD"])));
     const notice = await screen.findByRole("status");
-    expect(notice).toHaveTextContent("MSZ-EF, new series: MSZ-EF25VGK");
     expect(notice).toHaveTextContent("No longer offered: MSZ-AP35VGD.");
-    /* no version line: the version did not change */
-    expect(notice).not.toHaveTextContent("is now version");
+    expect(notice).not.toHaveTextContent("is now on");
   });
 
   it("says so when nothing is installed", async () => {

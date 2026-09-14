@@ -7,7 +7,9 @@ import { installedPacks, loadInstalledPack } from "../server";
 import { proposePairs } from "../../split";
 import { proposeMultiOdus, multiCapableIdus } from "../../multi";
 import { indoorReadiness, outdoorReadiness } from "../ready";
+import { FORM_FACTORS } from "../schema";
 import {
+  indoorByForm,
   libraryChanges,
   libraryManifest,
   librarySnapshot,
@@ -84,27 +86,55 @@ describe("the library manifest", () => {
     }
   });
 
-  it("gives every indoor series its form factor's name, and outdoor series none", async () => {
+  it("gives every indoor series its form factor and its name, and outdoor series neither", async () => {
     const m = libraryManifest(await shipped());
     for (const b of m.brands)
       for (const g of b.systems)
         for (const s of g.series) {
-          if (s.side === "indoor") expect(s.form).toMatch(/^[A-Z0-9]/);
-          else expect(s.form).toBeNull();
+          if (s.side === "indoor") {
+            expect(s.form).toMatch(/^[A-Z0-9]/);
+            expect(FORM_FACTORS).toContain(s.formFactor);
+          } else {
+            expect(s.form).toBeNull();
+            expect(s.formFactor).toBeNull();
+          }
           expect(s.models.length).toBeGreaterThan(0);
         }
     const split = m.brands[0].systems[0];
     expect(split.series.find((s) => s.series === "MSZ-AP")?.form).toBe("Wall-mounted");
-    /* indoor before outdoor, both in name order within their kind */
+    /* indoor before outdoor; indoor in the schema's form order (wall first,
+       bulkhead last), by name within a form */
     const sides = split.series.map((s) => s.side);
     expect(sides.indexOf("outdoor")).toBe(sides.lastIndexOf("indoor") + 1);
+    const ranks = split.series.filter((s) => s.side === "indoor").map((s) => FORM_FACTORS.indexOf(s.formFactor!));
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(split.series[0].formFactor).toBe("wall");
+  });
+
+  it("lines the indoor series up by form, in that order, for the start screen", async () => {
+    const m = libraryManifest(await shipped());
+    const split = m.brands[0].systems[0];
+    const lineup = indoorByForm(split.series);
+    expect(lineup[0].form).toBe("Wall-mounted");
+    expect(lineup[0].series.map((s) => s.series)).toEqual(
+      expect.arrayContaining(["MSZ-AP", "MSZ-EF", "MSZ-GS", "MSZ-LN"])
+    );
+    expect(lineup.map((f) => f.form)).toEqual([...new Set(lineup.map((f) => f.form))]);
+    /* the outdoor units are not in it */
+    expect(lineup.flatMap((f) => f.series).every((s) => s.side === "indoor")).toBe(true);
   });
 });
 
 /* a small manifest to diff against, so the cases read at a glance */
 function manifest(version: string, split: Record<string, string[]>, vrf: Record<string, string[]> = {}): LibraryManifest {
   const series = (rows: Record<string, string[]>, side: "indoor" | "outdoor") =>
-    Object.entries(rows).map(([s, models]) => ({ series: s, side, form: side === "indoor" ? "Wall-mounted" : null, models }));
+    Object.entries(rows).map(([s, models]) => ({
+      series: s,
+      side,
+      form: side === "indoor" ? "Wall-mounted" : null,
+      formFactor: side === "indoor" ? ("wall" as const) : null,
+      models,
+    }));
   return {
     brands: [
       {

@@ -201,7 +201,6 @@ export function Studio({
   buildStamp,
   brand: servedBrand,
   library,
-  libraryAdmin,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
@@ -229,8 +228,6 @@ export function Studio({
       what arrived since this browser last looked. Absent (the tests, the
       harness), Home shows no library card at all. */
   library?: LibraryManifest;
-  /** this person may open the Data Library page — the card offers the door */
-  libraryAdmin?: boolean;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -717,7 +714,6 @@ export function Studio({
             jobSearch={jobSearch}
             openFailed={openFailed}
             library={library}
-            libraryAdmin={libraryAdmin}
             onCreate={(name, mode, job) =>
               throughSwap(async () => {
                 const d = createDesign({
@@ -770,7 +766,6 @@ function Home({
   jobSearch,
   openFailed,
   library,
-  libraryAdmin,
   onCreate,
   onOpen,
   onDelete,
@@ -780,7 +775,6 @@ function Home({
   recents: DesignSummary[] | null;
   /** the library card under Recent designs; absent, no card */
   library?: LibraryManifest;
-  libraryAdmin?: boolean;
   /** arrive with the new-design wizard already open (menu → New) */
   autoNew?: boolean;
   /** offer "start from a ServiceM8 job" on the naming step */
@@ -1132,7 +1126,7 @@ function Home({
             </div>
           )}
         </section>
-        {library && <LibraryCard library={library} admin={libraryAdmin} />}
+        {library && <LibraryCard library={library} />}
         </div>
       </div>
     </div>

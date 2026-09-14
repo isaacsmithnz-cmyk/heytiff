@@ -111,6 +111,8 @@ import {
   type StudioJobHit,
 } from "@/lib/studio/job-link";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
+import type { LibraryManifest } from "@/lib/studio/packs/library";
+import { LibraryCard } from "./library-card";
 import "./studio.css";
 
 /* The sim flag never changes after load, so there is nothing to subscribe to —
@@ -198,6 +200,8 @@ export function Studio({
   openDesignId,
   buildStamp,
   brand: servedBrand,
+  library,
+  libraryAdmin,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
@@ -220,6 +224,13 @@ export function Studio({
       paint already carries its frame. Absent (the tests), the hook asks for
       it itself. */
   brand?: OrgBrand;
+  /** What the studio can design with — brand, system, series, model — READ
+      ON THE SERVER by the route (packs/library.ts). Home lists it and says
+      what arrived since this browser last looked. Absent (the tests, the
+      harness), Home shows no library card at all. */
+  library?: LibraryManifest;
+  /** this person may open the Data Library page — the card offers the door */
+  libraryAdmin?: boolean;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -705,6 +716,8 @@ export function Studio({
             sm8Jobs={sm8Jobs}
             jobSearch={jobSearch}
             openFailed={openFailed}
+            library={library}
+            libraryAdmin={libraryAdmin}
             onCreate={(name, mode, job) =>
               throughSwap(async () => {
                 const d = createDesign({
@@ -756,6 +769,8 @@ function Home({
   sm8Jobs,
   jobSearch,
   openFailed,
+  library,
+  libraryAdmin,
   onCreate,
   onOpen,
   onDelete,
@@ -763,6 +778,9 @@ function Home({
 }: {
   /** null while the list is still being fetched — see the three states below */
   recents: DesignSummary[] | null;
+  /** the library card under Recent designs; absent, no card */
+  library?: LibraryManifest;
+  libraryAdmin?: boolean;
   /** arrive with the new-design wizard already open (menu → New) */
   autoNew?: boolean;
   /** offer "start from a ServiceM8 job" on the naming step */
@@ -986,6 +1004,10 @@ function Home({
           )}
         </section>
 
+        {/* the side column: Recent designs and, under it, the library. One
+            grid child, so the stack centres the two cards as a piece the way
+            it centred the one. */}
+        <div className="ds-home-side">
         <section className="ds-recent">
           <div className="ds-recent-head">
             <span className="ds-cardt">Recent designs</span>
@@ -1110,6 +1132,8 @@ function Home({
             </div>
           )}
         </section>
+        {library && <LibraryCard library={library} admin={libraryAdmin} />}
+        </div>
       </div>
     </div>
   );

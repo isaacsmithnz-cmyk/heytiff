@@ -90,16 +90,22 @@ function iduEligibleForRule(rule: MultiRule, idu: IndoorUnit): boolean {
 const hasNum = (n: number | undefined): boolean =>
   typeof n === "number" && Number.isFinite(n) && n > 0;
 
-/** placeable + sized indoor units accepted by at least one multi outdoor */
-export function multiCapableIdus(pack: DataPack): IndoorUnit[] {
-  if (pack.multi_rules.length === 0) return [];
+/** placeable + sized indoor units accepted by at least one multi outdoor.
+    `rules` narrows which outdoors do the accepting — the start screen's
+    library passes only the rules of outdoors the engine actually offers, so
+    an indoor unit is not listed on the strength of an outdoor that is not. */
+export function multiCapableIdus(
+  pack: DataPack,
+  rules: readonly MultiRule[] = pack.multi_rules
+): IndoorUnit[] {
+  if (rules.length === 0) return [];
   return pack.indoor_units.filter(
     (u) =>
       hasNum(u.capacity_cool_kw) &&
       hasNum(u.capacity_heat_kw) &&
       hasNum(u.width_mm) &&
       hasNum(u.depth_mm) &&
-      pack.multi_rules.some((r) => iduEligibleForRule(r, u))
+      rules.some((r) => iduEligibleForRule(r, u))
   );
 }
 

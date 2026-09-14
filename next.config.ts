@@ -59,6 +59,8 @@ const nextConfig: NextConfig = {
     // the public live link reads pack JSON off disk (packs/server.ts) from a
     // route Vercel's file tracer has no other reason to bundle data/ into
     "/live/[token]": ["./data/packs/**/*"],
+    // the studio's start screen lists the library off the same disk read
+    "/dashboard/studio": ["./data/packs/**/*"],
     /* pdfjs reaches for its worker with a DYNAMIC import, which is invisible
        to static file tracing: `pdf.mjs` gets bundled, `pdf.worker.mjs` does
        not, and the first document to be read dies on "Setting up fake worker

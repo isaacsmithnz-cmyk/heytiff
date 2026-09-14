@@ -28,12 +28,12 @@ export const SCAN_COPY: Record<OrgCredKind, { prompt: string; hint: string; atta
        promising it above a workers compensation certificate names a field the
        screen is about to not show. The figures it does carry are named as
        figures. */
-    hint: "The insurer, the policy number, the period and the figures printed on it are read from the document, and it's filed under this policy. PDF, JPG or photo.",
+    hint: "PDF, JPG or photo.",
     attach: "Optional: attach the certificate or policy schedule",
   },
   licence: {
     prompt: "Scan or upload the licence certificate",
-    hint: "Licence number, issuing authority, classes and expiry are read from the document, and it's filed under this licence. PDF, JPG or photo.",
+    hint: "PDF, JPG or photo.",
     attach: "Optional: attach the certificate",
   },
 };

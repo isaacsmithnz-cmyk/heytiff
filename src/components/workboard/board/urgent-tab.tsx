@@ -258,11 +258,7 @@ export function UrgentTab({
           </div>
           <b>{r.reason === "flag" ? r.label ?? r.headline : `${r.clientName} — ${r.label}`}</b>
           {r.reason === "flag" ? (
-            <em>
-              {r.visitId || r.agreementId
-                ? "Raised from a note — open the job, or clear it."
-                : "Raised from a note — stays up until somebody clears it."}
-            </em>
+            <em>Raised from a note.</em>
           ) : (
             /* Facts, not instructions. This line used to end with "book it in
                to get it moving" — a sentence telling you to press the button

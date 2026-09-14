@@ -83,7 +83,6 @@ export function PayrollCard({
     <SectionCard
       variant="section"
       title="Payroll"
-      sub="Drives charge-out rate & job costing"
       pill={
         <span className="pill2 adminpill">
           <Icon name="lock" size={11} />

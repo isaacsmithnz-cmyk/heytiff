@@ -206,7 +206,6 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
       <StaticCard
         variant="section"
         title="Permissions"
-        sub="Role & what this person can access"
         pill={pill}
       >
         {readOnlyBody}
@@ -218,7 +217,6 @@ export function PermissionsCard({ ctx, onSave }: { ctx: PermissionsCtx; onSave: 
     <SectionCard
       variant="section"
       title="Permissions"
-      sub="Role & what this person can access"
       pill={pill}
       values={values}
       onSave={(fields) => onSave("permissions", fields)}

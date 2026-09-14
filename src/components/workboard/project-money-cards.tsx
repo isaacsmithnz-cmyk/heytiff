@@ -651,7 +651,6 @@ export function ScopeCard({
       <div className="c2h">
         <div>
           <b>Scope of work</b>
-          <em>The baseline variations depart from — exclusions settle arguments before they start.</em>
         </div>
       </div>
       <div className="wb2-scope">
@@ -846,7 +845,7 @@ export function DatesCard({
         </div>
       ))}
       {project.milestones.length === 0 && (
-        <p className="int-hint">Crane day, shutdown window, inspection — the dates that don&apos;t move.</p>
+        <p className="int-hint">No dates yet.</p>
       )}
       {manage && (
         <div className="wb2-dayrow">
@@ -900,7 +899,6 @@ function HoursBudgetRow({
     <div className="wb2-moneyrow">
       <div className="wb2-trt">
         <b>Hours allowed</b>
-        <em>the labour the price assumed — burn reads against it, hours versus hours</em>
       </div>
       <div className="wb2-trd">
         {project.hoursBudget !== null ? (

@@ -63,17 +63,17 @@ const RECORD_LABEL: Record<RenewalKind, { fresh: string; again: string; button: 
 const SCAN_COPY: Record<RenewalKind, { prompt: string; hint: string; attach: string }> = {
   rego: {
     prompt: "Scan or upload the renewal notice",
-    hint: "Expiry date, term and amount are read from the document. PDF, JPG or photo.",
+    hint: "PDF, JPG or photo.",
     attach: "Optional: attach the receipt or rego papers",
   },
   insurance: {
     prompt: "Scan or upload the certificate of insurance",
-    hint: "Policy details are read from the document and it's filed under Documents for this policy. PDF, JPG or photo.",
+    hint: "PDF, JPG or photo.",
     attach: "Optional: attach the certificate or policy schedule",
   },
   ctp: {
     prompt: "Scan or upload the green slip",
-    hint: "CTP details are read from the document and it's filed under Documents. PDF, JPG or photo.",
+    hint: "PDF, JPG or photo.",
     attach: "Optional: attach the green slip",
   },
 };

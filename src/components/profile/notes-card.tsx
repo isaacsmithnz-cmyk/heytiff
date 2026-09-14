@@ -64,7 +64,6 @@ export function NotesCard({
       <StaticCard
         variant="card"
         title="Flags"
-        sub="Things that need attention"
       >
         <div className="ro-empty">
           <span className="ei">

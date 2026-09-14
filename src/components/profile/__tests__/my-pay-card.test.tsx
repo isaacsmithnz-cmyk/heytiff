@@ -132,6 +132,5 @@ describe("empty and read-only", () => {
     render(<MyPayCard pay={pay()} />);
     expect(screen.queryByRole("button", { name: /Edit/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Save\b/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Set by your admin — talk to them if something looks off.")).toBeInTheDocument();
   });
 });

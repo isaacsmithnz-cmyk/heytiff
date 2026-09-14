@@ -153,7 +153,6 @@ export function AssetsScreen({
                           <Icon name="box" size={24} />
                         </span>
                         <b>No equipment registered</b>
-                        <em>Register serials, holders and calibration / test-tag dates.</em>
                       </div>
                     </section>
                   </div>

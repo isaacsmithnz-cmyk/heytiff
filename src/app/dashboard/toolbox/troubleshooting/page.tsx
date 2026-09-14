@@ -32,7 +32,6 @@ export default async function TroubleshootingPage() {
       accent="#FF3366"
       accentInk="#E0244B"
       title="Fault Finder"
-      sub="Guided diagnosis for splits, ducted, multi and VRF — one question at a time, the way you'd walk an apprentice through it."
     >
       <FaultFinder library={library} />
     </ToolPage>

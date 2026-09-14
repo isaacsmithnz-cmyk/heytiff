@@ -124,7 +124,7 @@ export function ProjectCompletedTab({
         <div className="wb2-empty">
           <Icon name="clock" size={20} />
           <b>Nothing finished yet</b>
-          <em>Projects land here when they&apos;re marked done — money story attached.</em>
+          <em>Projects land here when they&apos;re marked done.</em>
         </div>
       ) : (
         <div className="wb2-dnlist">

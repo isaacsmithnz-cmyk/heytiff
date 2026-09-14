@@ -246,7 +246,6 @@ export function WorkRightsCard({
     <SectionCard
       variant="section"
       title="Work rights"
-      sub="Australian working-rights / visa status"
       values={values}
       startEditing={startEditing}
       onSave={(fields) => onSave("workrights", fields)}

@@ -522,7 +522,7 @@ export function FinancialsScreen({
           <ScanCard<ReadFinanceResult>
             heading={current ? "Record new agreement" : "Record finance agreement"}
             prompt="Scan or upload the finance agreement"
-            hint="Lender, repayments, term, rate and balloon are read from the document. PDF, JPG or photo."
+            hint="PDF, JPG or photo."
             attachLabel="Optional: attach the agreement"
             docKind="finance_agreement"
             read={(b64, mt) => readFinanceAgreement(b64, mt)}

@@ -394,7 +394,6 @@ export function PersonalCard({
       <SectionCard
         variant="section"
         title="Personal details"
-        sub="Identity, contact, employment & uniform sizes"
         values={values}
         startEditing={startEditing}
         onSave={(fields) => onSave("personal", fields)}

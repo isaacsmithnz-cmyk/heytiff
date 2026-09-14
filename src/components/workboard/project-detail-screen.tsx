@@ -288,7 +288,7 @@ export function ProjectDetailScreen({
             <div className="c2h">
               <div>
                 <b>Equipment on site</b>
-                <em>What was installed or left behind — and whether its manual stayed.</em>
+                {project.equipment.length > 0 && <em>{project.equipment.length === 1 ? "1 item" : `${project.equipment.length} items`}</em>}
               </div>
               {manage && (
                 <button className="pbtn ghost" style={{ marginLeft: "auto" }} onClick={() => setAddingEquip(true)}>
@@ -987,7 +987,6 @@ function TripsCard({
       <div className="c2h">
         <div>
           <b>Trips to site</b>
-          <em>Each trip carries its own gates, crew and bring list — close it out as it runs.</em>
         </div>
         {manage && live && (
           <button

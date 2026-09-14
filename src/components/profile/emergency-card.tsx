@@ -159,7 +159,6 @@ export function EmergencyCard({
     <SectionCard
       variant="section"
       title="Emergency contact"
-      sub="Who we call if something happens on site"
       values={values}
       startEditing={startEditing}
       onSave={(fields) => onSave("emergency", fields)}

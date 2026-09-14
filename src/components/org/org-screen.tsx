@@ -406,7 +406,6 @@ function IdentitySection({ org, actions }: { org: OrgSettings; actions: OrgActio
     <SectionCard
       variant="section"
       title="Company identity"
-      sub="Who the business is on paper"
       values={values}
       onSave={(fields) => actions.onSave("identity", fields)}
       validate={(fields) => preValidateOrg("identity", fields)}
@@ -570,7 +569,6 @@ function ContactSection({
     <SectionCard
       variant="section"
       title="Contact & address"
-      sub="Where the business lives & how to reach it"
       values={values}
       onSave={(fields) => actions.onSave("contact", fields)}
       read={read}
@@ -721,15 +719,8 @@ function CredentialsSection({
           the Account tab two sections down already uses it, so this is the
           panel's own furniture rather than a new one. */}
       <div className="psechd">
-        <em>
-          {credentials.length === 0
-            ? "What lets the business trade"
-            : attention === 0
-              ? "What lets the business trade — nothing expiring"
-              : attention === 1
-                ? "What lets the business trade — 1 needs attention"
-                : `What lets the business trade — ${attention} need attention`}
-        </em>
+        {/* the one line that earns its place is the figure (law 15) */}
+        {attention > 0 && <em>{attention === 1 ? "1 needs attention" : `${attention} need attention`}</em>}
         <span className="acts">
           <button className="pbtn ghost" type="button" onClick={() => setOpen("new")}>
             <Icon name="plus" size={14} />

@@ -35,7 +35,6 @@ export function QualificationsCard({
       // on the Compliance tab, so it genuinely has a name of its own to say —
       // the tab's title is already spoken for by the licence wall above it.
       title="Other qualifications"
-      sub="Free-text list of tickets & courses"
       values={values}
       onSave={(fields) => onSave("licences", fields)}
       validate={(fields) => preValidate(mode, "licences", fields)}

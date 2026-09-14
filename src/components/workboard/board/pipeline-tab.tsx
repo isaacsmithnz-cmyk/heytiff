@@ -83,7 +83,7 @@ export function PipelineTab({
         </span>
         <div>
           <b>Down the pipeline</b>
-          <em>Every stage in the trade&apos;s order — trouble floats first inside each.</em>
+          <em>{total === 1 ? "1 project" : `${total} projects`}</em>
         </div>
         <span className="wb2-chip">
           {total} {total === 1 ? "project" : "projects"} in flight

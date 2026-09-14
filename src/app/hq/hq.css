@@ -1351,7 +1351,6 @@
   text-align: left;
   background: var(--hq-panel);
   border: 1px solid var(--hq-line);
-  border-left: 3px solid var(--nk, var(--hq-accent));
   border-radius: 10px;
   padding: 8px 12px 12px;
   margin-bottom: 8px;

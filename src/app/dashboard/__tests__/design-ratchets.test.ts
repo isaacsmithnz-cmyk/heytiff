@@ -95,7 +95,8 @@ function leftBars(): number {
     if (border && parseFloat(border[1]) >= 2 && !/transparent|none/.test(border[1])) n++;
     const inset = body.match(/box-shadow\s*:\s*inset\s+(\d+(?:\.\d+)?)px\s+0\b/);
     if (inset && Number(inset[1]) >= 2) n++;
-    if (/::?(before|after)\b/.test(sel)) {
+    if (/::?(before|after)\b/.test(sel) && !/border-radius\s*:\s*50%/.test(body)) {
+      // a disc pinned to the left is a dot, which law 14 allows for state; a bar is not round
       const w = body.match(/\bwidth\s*:\s*(\d+(?:\.\d+)?)px/);
       const width = w ? Number(w[1]) : 0;
       if (width >= 2 && width <= 6 && /\bleft\s*:\s*(0|-1px)\b/.test(body) && /\b(top|bottom|inset|height)\s*:/.test(body)) n++;
@@ -275,7 +276,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 34 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 111 },
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 236 },
-  { law: "bars at the left edge — selection is a fill, state is a word", now: leftBars, baseline: 25 },
+  { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
@@ -287,7 +288,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 38 },
   { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform/.test(b) && /box-shadow/.test(b)), baseline: 1 },
   { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 0 },
-  { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 24 },
+  { law: "hover-revealed controls — shown on focus too, or not hidden", now: () => hoverBlocks((b) => /\bopacity\s*:\s*1\b/.test(b)), baseline: 23 },
   { law: "pill, chip, tag and badge rules — state is a word", now: () => count(/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*\s*[{,]/g), baseline: 137 },
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 249 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 34 },
@@ -318,7 +319,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 464 },
+    }, baseline: 462 },
 ];
 
 describe("the design ratchets only go down", () => {

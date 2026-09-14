@@ -79,11 +79,24 @@ function Column<T extends string | number>({
 
   /* Keep the chosen option under the wheel's centre line. Without this a wheel
      opens showing 1–4 o'clock with the real value scrolled out of sight, which
-     reads as "no time set". */
+     reads as "no time set".
+
+     MEASURED FROM THE SCROLLER. `offsetTop` counts from the nearest POSITIONED
+     ancestor, and that is `.tw-cols` — positioned for the highlight band — which
+     also holds this column's label, so the label's height went into the scroll
+     distance. Snapping hid it while the label was 9px; the type scale's 12px
+     label pushed it past half a row, and every wheel opened with the band on
+     the next value (7:00 AM chosen, 8:05 PM lit). When the option and the
+     scroller measure from the same ancestor, the scroller's own offset comes
+     off; if the scroller is ever positioned itself, the option already measures
+     from it. Not a rect: the drop opens under a scaling entrance animation that
+     a rect would include. */
   useEffect(() => {
-    const el = ref.current?.querySelector<HTMLElement>("[data-on='true']");
     const box = ref.current;
-    if (el && box) box.scrollTop = Math.max(0, el.offsetTop - (box.clientHeight - el.offsetHeight) / 2);
+    const el = box?.querySelector<HTMLElement>("[data-on='true']");
+    if (!el || !box) return;
+    const within = el.offsetParent === box ? el.offsetTop : el.offsetTop - box.offsetTop;
+    box.scrollTop = Math.max(0, within - (box.clientHeight - el.offsetHeight) / 2);
   }, [value]);
 
   return (

@@ -104,7 +104,7 @@ export function Sidebar({
                   title={rail ? n.label : undefined}
                 >
                   <span className="nicon">
-                    <Icon name={n.icon} size={16} sw={on ? 2.5 : 2} />
+                    <Icon name={n.icon} size={16} />
                   </span>
                   <span className="nlbl">{n.label}</span>
                 </Link>

@@ -1243,7 +1243,8 @@ export function TiffAssistant({
                   aria-pressed={!research}
                   onClick={() => setResearchPick(false)}
                 >
-                  <Icon name="bot" size={15} />
+                  {/* the mark, not a robot: what Tiff already knows is Tiff's (law 5) */}
+                  <Chevron size={15} decorative />
                   General knowledge
                 </button>
               </div>

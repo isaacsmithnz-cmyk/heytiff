@@ -143,7 +143,8 @@ describe("the library's vocabulary", () => {
 
    These two walk `src`. */
 
-const SPARKLE = /name="sparkles"|icon:\s*"sparkles"/;
+/* …and the robot went with it on 2026-09-14: "bot should not be used anywhere" (Isaac). */
+const SPARKLE = /name="(?:sparkles|bot)"|icon:\s*"(?:sparkles|bot)"/;
 
 /* Files whose "knowledge base" is addressed to the MODEL, not to a person:
    system prompts and tool descriptions. Left alone on purpose — that text is

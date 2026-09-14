@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { IconBtn } from "@/components/record-modal/parts";
+import { scanInProgress } from "@/components/record-modal/scan-card";
 import type { StoredDocument } from "@/lib/documents/query";
 import { credBadgeCode } from "@/lib/staff/licence";
 import type { StaffLicence } from "@/lib/staff/types";
@@ -74,10 +75,12 @@ export function LicenceModal({
   const [error, setError] = useState<string | null>(null);
 
   /* Escape leaves the way the back chevron does: the details screen of an
-     existing ticket goes home, everything else closes. */
+     existing ticket goes home, everything else closes. While a scan is in progress
+     it does nothing — see scanInProgress. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (scanInProgress()) return;
       if (screen === "details" && !adding) setScreen("record");
       else onClose();
     };
@@ -111,7 +114,7 @@ export function LicenceModal({
   const badge = licence ? credBadgeCode(licence.typeName) : null;
 
   return createPortal(
-    <div className="vm-ov" onClick={onClose}>
+    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
       <div
         className="vm"
         role="dialog"

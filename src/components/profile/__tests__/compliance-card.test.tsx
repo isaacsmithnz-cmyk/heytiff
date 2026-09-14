@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { StoredDocument } from "@/lib/documents/query";
 import type { StaffLicence } from "@/lib/staff/types";
@@ -835,5 +835,71 @@ describe("the words on a ticket", () => {
     await user.upload(within(dialog).getByLabelText("Scan document"), new File(["x"], "white-card.pdf", { type: "application/pdf" }));
     await within(dialog).findByText("Scanned");
     expect(within(dialog).queryByText(/Name it/)).not.toBeInTheDocument();
+  });
+});
+
+/* A SCAN IN PROGRESS OUTLIVES A STRAY ESCAPE. Pressing Escape to dismiss the
+   name box's suggestion list closed the whole modal, and the card that had just
+   been read and uploaded was lost — on the live app, with a real card. */
+describe("a scan in progress survives Escape", () => {
+  const pdf = () => new File(["x"], "white-card.pdf", { type: "application/pdf" });
+
+  beforeEach(() => {
+    uploadFile.mockReset();
+    readStaffLicenceDocument.mockReset();
+    uploadFile.mockResolvedValue({ ok: true, file: { documentId: "doc-7" } });
+    readStaffLicenceDocument.mockResolvedValue({
+      ok: true,
+      number: "719065",
+      issuer: "WorkSafe WA",
+      issuingState: "WA",
+      classes: "Construction Induction",
+      startsOn: "2013-12-24",
+      expiresOn: null,
+    });
+  });
+
+  const scanOnAdd = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
+    const dialog = screen.getByRole("dialog");
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("Scanned");
+    return dialog;
+  };
+
+  it("keeps the add window and the scan when Escape is pressed", async () => {
+    const user = userEvent.setup();
+    setup();
+    await scanOnAdd(user);
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByText("Scanned")).toBeInTheDocument();
+  });
+
+  it("keeps them when the backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    setup();
+    await scanOnAdd(user);
+    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("still closes on Escape when nothing has been scanned", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(screen.getByRole("button", { name: /Add a licence or ticket/ }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps a scan on a ticket's own panel too", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openCard(user, "White card");
+    const dialog = screen.getByRole("dialog");
+    await user.upload(within(dialog).getByLabelText("Scan document"), pdf());
+    await within(dialog).findByText("Scanned");
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

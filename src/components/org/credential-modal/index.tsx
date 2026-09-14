@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { IconBtn } from "@/components/record-modal/parts";
+import { scanInProgress } from "@/components/record-modal/scan-card";
 import type { StoredDocument } from "@/lib/documents/query";
 import {
   orgCredBadge,
@@ -85,10 +86,12 @@ export function CredentialModal({
 
   /* Escape leaves the way the back chevron does: a sub-screen of an existing
      card goes home, everything else closes. Never a surprise dismissal
-     mid-form. */
+     mid-form. While a scan is in progress
+     it does nothing — see scanInProgress. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (scanInProgress()) return;
       if (screen !== "record" && !adding) setScreen("record");
       else onClose();
     };
@@ -139,7 +142,7 @@ export function CredentialModal({
         : "Business licence";
 
   return createPortal(
-    <div className="vm-ov" onClick={onClose}>
+    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
       <div
         className="vm"
         role="dialog"

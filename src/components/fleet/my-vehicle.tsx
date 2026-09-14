@@ -9,12 +9,11 @@ import {
   type VehicleLog,
   type VehicleWithFacts,
   displayName,
-  fmtKm,
   fuelEconomy,
   modelLabel,
   openIssueCount,
-  vehicleChips,
   vehicleFacts,
+  type VehicleFact,
 } from "./logic";
 import type { LogEdit } from "@/app/actions/fleet";
 import { EditLogModal, LogModal, LogRow } from "./modals";
@@ -201,42 +200,39 @@ export function MyVehicle({
 
   const paused = vehicle.status === "offroad";
   const borrowable = pickable.filter((v) => v.id !== vehicle.id && v.status === "active");
-  const chips = vehicleChips(vehicle, openIssueCount(logs, vehicle.id), warnDays);
+  const openIssues = openIssueCount(logs, vehicle.id);
   const eco = fuelEconomy(logs);
   const recent = logs.slice(0, 8);
-  const tiles = vehicleFacts(vehicle, warnDays).filter((f) => f.key !== "odo");
+  // the odometer is a fact like the others now, and open issues are the one
+  // thing the chips knew that the facts did not
+  const facts: VehicleFact[] = [
+    ...vehicleFacts(vehicle, warnDays),
+    ...(openIssues > 0
+      ? [{ key: "issues", label: "Issues", text: openIssues === 1 ? "1 open" : `${openIssues} open`, state: "warn" as const }]
+      : []),
+  ];
 
   return (
     <div className="fl-my">
       {errBox}
-      <div className="fl-hero">
-        <div className="fl-hlead">
-          <h2>{displayName(vehicle)}</h2>
-          <div className="fl-hsub">
-            {modelLabel(vehicle)}
-            {vehicle.name && <Plate plate={vehicle.plate} state={vehicle.plateState} />}
-          </div>
-          <div className="fl-hchips">
-            {chips.length === 0 ? (
-              <span className="dchip ok">
-                <Icon name="check" size={12} />
-                All good
-              </span>
-            ) : (
-              chips.map((c) => (
-                <span key={c.label} className={`dchip ${c.state}`}>
-                  <Icon name={c.state === "bad" ? "alert" : "clock"} size={12} />
-                  {c.label}
-                </span>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="fl-odo">
-          <b>{fmtKm(vehicle.odometer)}</b>
-          <em>km on the clock</em>
-        </div>
+      {/* NO HERO INSIDE THE APP (law 11). This was a gradient card with the
+          name at 32px, a row of state chips and the odometer as a display
+          figure captioned "km on the clock". It is the title line and the
+          facts: the vehicle's name, its plate beside it, and every fact in one
+          list with its state on the word — the chips said what the list says. */}
+      <div className="fl-head">
+        <h2>{displayName(vehicle)}</h2>
+        {vehicle.name && <Plate plate={vehicle.plate} state={vehicle.plateState} />}
+        <span className="fl-model">{modelLabel(vehicle)}</span>
       </div>
+      <dl className="fl-facts2">
+        {facts.map((f) => (
+          <div key={f.key} className={`fl-frow ${f.state}`}>
+            <dt>{f.label}</dt>
+            <dd>{f.text}</dd>
+          </div>
+        ))}
+      </dl>
 
       <div className="fl-quick">
         {QUICK.map((q) => {
@@ -282,15 +278,6 @@ export function MyVehicle({
           )}
         </div>
       )}
-
-      <div className="fl-up">
-        {tiles.map((u) => (
-          <div key={u.key} className={`fl-ut ${u.state}`}>
-            <em>{u.label}</em>
-            <b>{u.text}</b>
-          </div>
-        ))}
-      </div>
 
       {/* Only the combined page keeps the recent-eight card — with tabs, the
           History face IS the history, all of it. */}

@@ -876,7 +876,7 @@ function Home({
                       <span className="ds-sm8-onl">
                         From ServiceM8{" "}
                         {picked.jobNumber ? <b>job {picked.jobNumber}</b> : <b>job</b>}
-                        {picked.clientName ? ` · ${picked.clientName}` : ""}
+                        {picked.clientName ? `, ${picked.clientName}` : ""}
                       </span>
                       <button
                         type="button"
@@ -924,7 +924,7 @@ function Home({
               <h3 className="ds-hero-etitle">How do you want to start?</h3>
               <p className="ds-hero-esub">
                 Designing <b>{trimmed}</b>
-                {picked?.jobNumber ? ` · ServiceM8 job ${picked.jobNumber}` : ""}
+                {picked?.jobNumber ? `, ServiceM8 job ${picked.jobNumber}` : ""}
               </p>
               <div className="ds-opts">
                 <button className="ds-opt" onClick={() => create("plan")}>
@@ -1068,8 +1068,8 @@ function Home({
                   <span className="ds-rbody">
                     <div className="ds-rnm">{r.name}</div>
                     <div className="ds-rmeta">
-                      {MODE_LABEL[r.mode]} · {r.floorCount}{" "}
-                      {r.floorCount === 1 ? "floor" : "floors"} · {r.systemCount}{" "}
+                      {MODE_LABEL[r.mode]}, {r.floorCount}{" "}
+                      {r.floorCount === 1 ? "floor" : "floors"}, {r.systemCount}{" "}
                       {r.systemCount === 1 ? "system" : "systems"}
                     </div>
                   </span>
@@ -2676,7 +2676,7 @@ function LensedUnitBrowser({
    with nothing naming them — this is the list, and the place they're picked
    up from.
 
-   It renders ONLY while something is owed. A permanent "Items to place · 0"
+   It renders ONLY while something is owed. A permanent "Items to place (0)"
    would be a dead control on an already-tight bench, and its mere PRESENCE
    is the signal that work is outstanding — the same reasoning that gave the
    cockpit no dead close chevron.

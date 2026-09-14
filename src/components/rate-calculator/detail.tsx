@@ -67,7 +67,7 @@ export function StaffDetail({ s, calc }: StepBodyProps) {
   return (
     <DBody>
       <WsHelpNote id="staff-detailed" style={{ marginBottom: 16 }}><b>Detailed mode</b> prices each person from their real timesheet weeks (incl. overtime at 1.5× / 2×), adds super, workers comp and leave loading, and measures billable utilisation. Wages come from <Link href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</Link> — change one there and the rates move.</WsHelpNote>
-      <WsEyebrow style={{ marginBottom: 11 }}>Per-person wages · {s.staff.length} staff · from your roster</WsEyebrow>
+      <WsEyebrow style={{ marginBottom: 11 }}>Per-person wages, {s.staff.length} staff · from your roster</WsEyebrow>
       {gaps.length > 0 && (
         <div style={{ background: RC.card2, borderRadius: 12, border: `1px solid ${RC.line}`, padding: "10px 15px", marginBottom: 11, fontSize: 12.5, color: RC.label }}>
           {gaps.length === 1 ? `${gaps[0].name} is` : `${gaps.length} people are`} missing a wage, employment type or work split — <Link href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>finish their Team card</Link> to price them accurately.
@@ -102,7 +102,7 @@ export function StaffDetail({ s, calc }: StepBodyProps) {
       <div style={{ display: "flex", gap: 14, marginTop: 12 }}>
         <div style={{ flex: 1, background: "#fff", borderRadius: 13, border: `1px solid ${RC.line}`, padding: "11px 15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 12.5, color: RC.label }}>Utilisation (from timesheets)</span>
-          <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink }}><span style={{ color: RC.install }}>{Math.round(normUtil(calc.instUtil))}%</span> install · <span style={{ color: RC.service }}>{Math.round(normUtil(calc.svcUtil))}%</span> service{calc.utilFromDefault ? " (default)" : ""}</span>
+          <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink }}><span style={{ color: RC.install }}>{Math.round(normUtil(calc.instUtil))}%</span> install, <span style={{ color: RC.service }}>{Math.round(normUtil(calc.svcUtil))}%</span> service{calc.utilFromDefault ? " (default)" : ""}</span>
         </div>
         <div style={{ flex: 1, background: "#fff", borderRadius: 13, border: `1px solid ${RC.line}`, padding: "11px 15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 12.5, color: RC.label }}>Confidence</span>
@@ -147,7 +147,7 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
   return (
     <DBody>
       <WsHelpNote id="business-detailed" style={{ marginBottom: 16 }}><b>shared</b> costs pool with admin labour and split by your labour ratio; <b>install</b> / <b>service</b> costs load directly onto that rate only — so a service-only phone plan never inflates your install rate.</WsHelpNote>
-      <WsEyebrow style={{ marginBottom: 11 }}>Overheads · itemised &amp; allocated — click a tag to change recovery</WsEyebrow>
+      <WsEyebrow style={{ marginBottom: 11 }}>Overheads, itemised &amp; allocated — click a tag to change recovery</WsEyebrow>
       <Table cols={cols}>
         {s.businessCosts.map((o, i) => {
           const ch = chipColor(o.allocated_to);
@@ -234,7 +234,7 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
           </em>
         </div>
       )}
-      <WsEyebrow style={{ marginBottom: 11 }}>Fleet · {s.vehicles.length} vehicles · costed individually</WsEyebrow>
+      <WsEyebrow style={{ marginBottom: 11 }}>Fleet, {s.vehicles.length} vehicles · costed individually</WsEyebrow>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {s.vehicles.map((v, vi) => {
           const driver = s.staff.find(p => p.id === v.assigned_driver_id);
@@ -251,7 +251,7 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
               <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 18px", borderBottom: `1px solid ${RC.line}` }}>
                 <span style={{ width: 38, height: 38, borderRadius: 11, background: ch.bg, color: ch.c, display: "flex", alignItems: "center", justifyContent: "center" }}><RcIcon name="truck" size={19} /></span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{v.vehicle_name} · {v.rego_number}</div>
+                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{v.vehicle_name}, {v.rego_number}</div>
                   <div style={{ fontSize: 12, color: RC.faint }}>Driver: {driver ? `${driver.name} (${driver.install_pct}/${driver.service_pct}/${driver.admin_pct} I/S/A)` : v.allocation}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>

@@ -545,7 +545,7 @@ export function JobSheet({
       : sm8.running
         ? "ServiceM8 syncing…"
         : hydrated
-          ? `ServiceM8 · synced ${syncedAgo(sm8.syncedAt)}`
+          ? `ServiceM8, synced ${syncedAgo(sm8.syncedAt)}`
           : "ServiceM8";
   const categoryColour = detail?.categoryColour ?? row.categoryColour ?? null;
   const categoryName = detail?.categoryName ?? row.categoryName ?? null;
@@ -979,7 +979,7 @@ export function JobSheet({
               {cardStatus && (
                 <span className={"wb2-chip" + (cardTone ? ` ${cardTone}` : "")}>
                   {cardStatus}
-                  {!dateStandsAlone && cardDate ? ` · ${fmtAuWeekdayDayMonth(cardDate)}` : ""}
+                  {!dateStandsAlone && cardDate ? `, ${fmtAuWeekdayDayMonth(cardDate)}` : ""}
                 </span>
               )}
               {dateStandsAlone && cardDate && (
@@ -1196,7 +1196,7 @@ export function JobSheet({
                               p.takenBy,
                             ]
                               .filter(Boolean)
-                              .join(" · ")}
+                              .join(", ")}
                           </em>
                           <span>{p.amountCents !== null ? fmtAud(p.amountCents) : "—"}</span>
                         </div>
@@ -1291,7 +1291,7 @@ export function JobSheet({
                   <em>
                     {detail.nextBooking.staffName ?? "Nobody named"}
                     {detail.nextBooking.staffName && detail.nextBooking.staffTitle && (
-                      <i className="wb2-jcrole">{` · ${detail.nextBooking.staffTitle}`}</i>
+                      <i className="wb2-jcrole">{`, ${detail.nextBooking.staffTitle}`}</i>
                     )}
                   </em>
                 </div>
@@ -1301,7 +1301,7 @@ export function JobSheet({
                   <span className="wb2-sect">In queue</span>
                   <p className="wb2-shtext">
                     <b>{detail.queue.name}</b>
-                    {" · "}
+                    {", "}
                     {[
                       detail.queue.staffName,
                       detail.queue.expiry
@@ -1309,7 +1309,7 @@ export function JobSheet({
                         : null,
                     ]
                       .filter(Boolean)
-                      .join(" · ") || "waiting"}
+                      .join(", ") || "waiting"}
                   </p>
                 </div>
               )}
@@ -1323,7 +1323,7 @@ export function JobSheet({
                     <em>
                       {`${detail.visits.length} visit${detail.visits.length === 1 ? "" : "s"}`}
                       {detail.timeOnSite
-                        ? ` · ${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site`
+                        ? `, ${fmtMinutesAsHours(detail.timeOnSite.minutes)} on site`
                         : ""}
                     </em>
                   </div>
@@ -1351,7 +1351,7 @@ export function JobSheet({
                                 {i > 0 ? (v.crew.some((m) => m.title) ? " — " : ", ") : ""}
                                 {c.name}
                                 {c.title && (
-                                  <i className="wb2-jcrole">{` · ${c.title}`}</i>
+                                  <i className="wb2-jcrole">{`, ${c.title}`}</i>
                                 )}
                               </span>
                             ))}

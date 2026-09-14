@@ -147,7 +147,7 @@ export function SimControllerCard({
             </button>
           </div>
           <div className="ds-sim-live">
-            {`room ${(state.roomTempC[active.roomId] ?? 0).toFixed(1)}° · supply ${hs.supplyC.toFixed(0)}°`}
+            {`room ${(state.roomTempC[active.roomId] ?? 0).toFixed(1)}°, supply ${hs.supplyC.toFixed(0)}°`}
           </div>
           <div className="ds-sim-eta">{etaLine(runtime, active.id)}</div>
 

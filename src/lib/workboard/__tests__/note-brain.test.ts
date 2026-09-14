@@ -300,7 +300,7 @@ describe("shapeProposal — the LEARN lane", () => {
   it("outside a debrief, stray note_lines fold into the plain note rather than vanish", () => {
     const p = shapeProposal(raw({ note_lines: ["ring the wholesaler"], plain_note: "gate 4417" }), ctx);
     expect(p.noteLines).toEqual([]);
-    expect(p.plainNote).toBe("gate 4417 · ring the wholesaler");
+    expect(p.plainNote).toBe("gate 4417, ring the wholesaler");
   });
 });
 

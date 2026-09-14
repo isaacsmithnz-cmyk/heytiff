@@ -57,7 +57,7 @@ export function ChangesList({ events }: { events: ChangeEvent[] }) {
                 <span className={`hq-change-act ${e.action}`}>
                   {e.action === "set" ? "set" : "cleared"}
                 </span>{" "}
-                <b>{e.rowKey}</b> · {label(e.section, e.field)}
+                <b>{e.rowKey}</b>, {label(e.section, e.field)}
                 <span className="hq-change-delta">
                   {" "}
                   {val(e.oldValue)} → {e.action === "clear" ? "pack" : val(e.newValue)}

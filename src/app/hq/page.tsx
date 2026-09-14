@@ -138,7 +138,7 @@ export default async function HqOverviewPage() {
   const kpis: Kpi[] = [
     { label: "Organisations", value: orgCount, sub: <><b>+{newOrgs}</b> in 30 days</> },
     {
-      label: "New signups · 30d",
+      label: "New signups, 30d",
       value: newOrgs,
       sub: <>{newUsers} new user{newUsers === 1 ? "" : "s"}</>,
     },

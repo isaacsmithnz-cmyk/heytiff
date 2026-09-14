@@ -224,7 +224,7 @@ function Coming({ rows }: { rows: AdminRow[] }) {
   return (
     <div className="adm-coming">
       <span>Coming</span>
-      {rows.map((r) => r.title).join(" · ")}
+      {rows.map((r) => r.title).join(", ")}
     </div>
   );
 }

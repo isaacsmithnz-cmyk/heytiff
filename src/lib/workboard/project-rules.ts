@@ -254,7 +254,7 @@ export function projectUrgentRows(input: {
     const base = {
       visitId: v.visitId,
       projectId: v.projectId,
-      label: `${v.projectName} · ${v.label}`,
+      label: `${v.projectName}, ${v.label}`,
       clientName: v.clientName,
       siteLabel: v.siteLabel,
       dueDate: v.dueDate,

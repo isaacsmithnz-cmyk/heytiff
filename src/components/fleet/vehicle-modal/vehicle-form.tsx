@@ -329,7 +329,7 @@ export function VehicleForm({
         purchaseDeposit: scan.deposit ?? x.purchaseDeposit,
         purchaseOdometer: scan.odometer ?? x.purchaseOdometer,
       }));
-      read = [scan.cost ? fmtMoney(scan.cost) : null, scan.purchasedOn, scan.supplier].filter(Boolean).join(" · ");
+      read = [scan.cost ? fmtMoney(scan.cost) : null, scan.purchasedOn, scan.supplier].filter(Boolean).join(", ");
     }
     setInvoice({ state: "attached", name: file.name, documentId: up.file.documentId, read });
   };

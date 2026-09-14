@@ -117,7 +117,7 @@ it("opens on the vehicle, warning about the one thing that is due", () => {
   expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
   expect(screen.getByText("Rego expires in 3 weeks")).toBeInTheDocument();
   expect(screen.getByText("108,375 km")).toBeInTheDocument();
-  expect(screen.getByText("QBE · 29 Sep 2027")).toBeInTheDocument(); // green slip, filed and clear
+  expect(screen.getByText("QBE, 29 Sep 2027")).toBeInTheDocument(); // green slip, filed and clear
   expect(screen.getByText("Not set")).toBeInTheDocument(); // insurance, nothing recorded
   expect(screen.getByText("MMAWLKL10NH035826")).toBeInTheDocument();
   expect(screen.getByText("Fuel logged — 62 L, $118.40")).toBeInTheDocument();
@@ -231,7 +231,7 @@ it("the FINANCIALS card is the door to the Financials screen, and Back returns",
   expect(screen.getByText("No finance agreement recorded")).toBeInTheDocument(); // the card's third column
   await user.click(screen.getByRole("button", { name: "Financials" }));
   expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
-  expect(screen.getByText("COST TO RUN · LAST 12 MONTHS")).toBeInTheDocument();
+  expect(screen.getByText("Cost to run, last 12 months")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByText("Vehicle details")).toBeInTheDocument();
 });

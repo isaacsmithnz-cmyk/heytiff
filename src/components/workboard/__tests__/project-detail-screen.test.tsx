@@ -417,7 +417,7 @@ describe("money (the two axes, never mixed)", () => {
   it("adds a claim through the modal", async () => {
     mount(withMoney);
     await userEvent.click(screen.getByRole("button", { name: /Add a claim/ }));
-    await userEvent.type(screen.getByPlaceholderText(/Deposit · Rough-in claim/), "Rough-in claim");
+    await userEvent.type(screen.getByPlaceholderText(/Deposit, Rough-in claim/), "Rough-in claim");
     await userEvent.type(screen.getByPlaceholderText("10,000"), "15,000");
     await userEvent.click(screen.getByRole("button", { name: "Add the claim" }));
     expect(pact.addClaim).toHaveBeenCalledWith("p-1", {

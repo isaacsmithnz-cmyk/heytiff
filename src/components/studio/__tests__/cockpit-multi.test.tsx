@@ -210,7 +210,7 @@ describe("Shared-outdoor section", () => {
     const sec = screen.getByTestId("outdoor-section");
     const row = (k: string) => within(sec).getByText(k).closest(".ds-ck-objrow")!;
     expect(row("Rated capacity")).toHaveTextContent("5.2 kW");
-    expect(row("Connected")).toHaveTextContent("4.0 kW · 2 units");
+    expect(row("Connected")).toHaveTextContent("4.0 kW, 2 units");
     expect(row("Ports")).toHaveTextContent("2 / 2");
     expect(row("Combination")).toHaveTextContent("77%");
     const oduCard = within(sec).getByTestId("unit-card-odu");

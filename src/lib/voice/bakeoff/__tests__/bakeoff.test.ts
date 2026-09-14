@@ -114,8 +114,8 @@ describe("voice bake-off", () => {
       }
 
       const configs: Config[] = [
-        { label: "scribe_v2 · bare", keyterms: [], languageHint: false },
-        { label: `scribe_v2 · ${built.terms.length} keyterms`, keyterms: built.terms, languageHint: true },
+        { label: "scribe_v2, bare", keyterms: [], languageHint: false },
+        { label: `scribe_v2, ${built.terms.length} keyterms`, keyterms: built.terms, languageHint: true },
       ];
 
       const transcriber: Transcriber = scribeV2(KEY);
@@ -152,7 +152,7 @@ describe("voice bake-off", () => {
         runs.push({ summary: summarise(config.label, scores), scores });
       }
 
-      const conditions = new Map(cases.map((c) => [c.id, `${c.speaker} · ${c.conditions}`]));
+      const conditions = new Map(cases.map((c) => [c.id, `${c.speaker}, ${c.conditions}`]));
       console.log(report(runs, conditions));
 
       // Keep every run: the transcripts are what you re-read when a score

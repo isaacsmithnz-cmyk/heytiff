@@ -90,7 +90,7 @@ export function showcaseMediaItem(p: GalleryMediaSource): JobMediaItem {
     fileType: null,
     kind: "photo",
     origin:
-      [p.jobNumber ? `#${p.jobNumber}` : null, p.clientName].filter(Boolean).join(" · ") ||
+      [p.jobNumber ? `#${p.jobNumber}` : null, p.clientName].filter(Boolean).join(", ") ||
       null,
     takenAt: p.takenAt,
     url: p.url,
@@ -298,7 +298,7 @@ export function ShowcaseView({
             className={`wb2-showchip${filter.kind === "all" ? " on" : ""}`}
             onClick={() => pick({ kind: "all" })}
           >
-            {`Everything · ${kept.length}`}
+            {`Everything (${kept.length})`}
           </button>
           {families.map(({ family, count }) => (
             <button
@@ -310,7 +310,7 @@ export function ShowcaseView({
               onClick={() => pick({ kind: "family", family })}
             >
               <i className="wb2-showdot" aria-hidden />
-              {`${FAMILY_LABEL[family]} · ${count}`}
+              {`${FAMILY_LABEL[family]} (${count})`}
             </button>
           ))}
         </div>
@@ -458,7 +458,7 @@ export function ShowcaseView({
                   p.takenAt ? fmtAuWeekdayDayMonth(p.takenAt.slice(0, 10)) : null,
                 ]
                   .filter(Boolean)
-                  .join(" · ")}
+                  .join(", ")}
               </em>
             </figcaption>
           </figure>

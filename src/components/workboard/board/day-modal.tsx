@@ -170,7 +170,7 @@ export function DayModal({
           <b>{v.clientName}</b>
           <em>
             {v.label} — {cadenceLabel(v.intervalMonths)}
-            {v.hoursEstimate !== null ? ` · ${hoursLabel(v.hoursEstimate)}` : ""}
+            {v.hoursEstimate !== null ? `, ${hoursLabel(v.hoursEstimate)}` : ""}
           </em>
         </div>
         <button className="pbtn ghost" disabled={busy} onClick={() => placeHere(v)}>
@@ -215,8 +215,8 @@ export function DayModal({
           </div>
           <div className="wb2-dcs">
             {v.label} — {cadenceLabel(v.intervalMonths)}
-            {v.hoursEstimate !== null ? ` · ${hoursLabel(v.hoursEstimate)}` : ""}
-            {v.techs.length > 0 ? ` · ${v.techs.map((t) => t.name).join(", ")}` : ""}
+            {v.hoursEstimate !== null ? `, ${hoursLabel(v.hoursEstimate)}` : ""}
+            {v.techs.length > 0 ? `, ${v.techs.map((t) => t.name).join(", ")}` : ""}
           </div>
         </div>
       );
@@ -247,8 +247,8 @@ export function DayModal({
         </div>
         <div className="wb2-dcs">
           {v.label} — {cadenceLabel(v.intervalMonths)}
-          {v.siteLabel ? ` · ${v.siteLabel}` : ""}
-          {v.jobNumber ? ` · #${v.jobNumber}` : ""}
+          {v.siteLabel ? `, ${v.siteLabel}` : ""}
+          {v.jobNumber ? `, #${v.jobNumber}` : ""}
         </div>
         <div className="wb2-dcck" data-cols={missing.length}>
           {missing.map((g) =>
@@ -334,7 +334,7 @@ export function DayModal({
             {dayVisits.length > 0 && (
               <span className="wb2-chip">
                 {dayVisits.length} {dayVisits.length === 1 ? "service" : "services"}
-                {totalHours > 0 ? ` · ${hoursLabel(totalHours)}` : ""}
+                {totalHours > 0 ? `, ${hoursLabel(totalHours)}` : ""}
               </span>
             )}
           </div>

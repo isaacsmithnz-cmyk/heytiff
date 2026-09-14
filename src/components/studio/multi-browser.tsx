@@ -85,7 +85,7 @@ export function MultiOduPicker({
               {requiredKw != null && (
                 <>
                   {" "}
-                  · rooms need ≈ <b>{requiredKw.toFixed(1)} kW</b> · {basis}
+                  rooms need ≈ <b>{requiredKw.toFixed(1)} kW</b>, {basis}
                 </>
               )}
             </span>
@@ -118,7 +118,7 @@ export function MultiOduPicker({
                       : p.findings
                           .filter((f) => f.severity === "red")
                           .map((f) => f.message)
-                          .join(" · ")
+                          .join(", ")
                   }
                 >
                   <td className="ds-ub-model">

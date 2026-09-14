@@ -1,7 +1,7 @@
 "use client";
 
 /* Running Pressures — the Toolbox troubleshooting tool, one screen with two
-   views (the original app carried a single "R32 · R410A · R22" tile here,
+   views (the original app carried a single "R32, R410A, R22" tile here,
    not a separate fault finder, so the two live together):
 
    ESTIMATE (default) — pick refrigerant, duty and the AMBIENT temperature and
@@ -228,11 +228,9 @@ export function RunningPressures() {
       <div className="rp2-facts stg">
         <b style={{ color: r.color }}>{r.key}</b>
         <span>{r.uses}</span>
-        <span className="sep">·</span>
         <span>{r.safety}</span>
         {r.glideK >= 1 && (
           <>
-            <span className="sep">·</span>
             <span className="glide">glide ~{r.glideK} K — two-column chart</span>
           </>
         )}
@@ -315,7 +313,7 @@ export function RunningPressures() {
           <div>
             <section className="tcard rp2-gauges">
               <h2 className="tct">
-                Expected at {ambientC}°C ambient — {r.key} · {DUTY_LABEL[activeDuty].toLowerCase()}
+                Expected at {ambientC}°C ambient — {r.key}, {DUTY_LABEL[activeDuty].toLowerCase()}
               </h2>
               <p className="tcs">
                 What the gauges should read once the system has run 10–15 minutes. Inverters
@@ -513,7 +511,7 @@ export function RunningPressures() {
                 </div>
               </div>
               <p className="rp2-basis">
-                Compared against {r.key} · {DUTY_LABEL[activeDuty].toLowerCase()} at {ambientC}°C
+                Compared against {r.key}, {DUTY_LABEL[activeDuty].toLowerCase()} at {ambientC}°C
                 ambient. {est.basis}
               </p>
             </section>

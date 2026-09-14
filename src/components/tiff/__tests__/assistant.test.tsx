@@ -310,10 +310,10 @@ describe("sources", () => {
     ]);
 
     expect(
-      await screen.findByRole("button", { name: /Source 1: City Multi fault codes, p\.41 · p\.106–107/ })
+      await screen.findByRole("button", { name: /Source 1: City Multi fault codes, p\.41, p\.106–107/ })
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Source 2: Install manual, p\.12/ })).toBeInTheDocument();
-    expect(screen.getByText("Sources · 2")).toBeInTheDocument();
+    expect(screen.getByText("Sources (2)")).toBeInTheDocument();
     // the manual's name appears ONCE in the chip row
     expect(screen.getAllByText("City Multi fault codes")).toHaveLength(1);
   });
@@ -521,7 +521,7 @@ describe("the recently added strip", () => {
   it("names the last few documents and what each one is", () => {
     render(<TiffAssistant readyCount={2} recentDocs={docs} />);
 
-    expect(row("Daikin VRV Diagnosis Manual")).toHaveTextContent("Service documents · 385 pages");
+    expect(row("Daikin VRV Diagnosis Manual")).toHaveTextContent("Service documents, 385 pages");
     // a document whose pages were never counted says what it is and stops
     expect(row("PUZ-ZM250 install guide")).toHaveTextContent("Installation documents");
     expect(row("PUZ-ZM250 install guide")).not.toHaveTextContent("pages");

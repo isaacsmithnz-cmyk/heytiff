@@ -165,7 +165,7 @@ export function termEvent(r: StaffLicenceRecord): string {
 export function termAddedText(r: StaffLicenceRecord): string {
   const when = r.createdAt ? `Added ${fmtDay(r.createdAt)}` : "";
   const how = r.source === "scan" ? "scanned from the card" : r.source === "manual" ? "entered manually" : "";
-  return [when, how].filter(Boolean).join(" · ");
+  return [when, how].filter(Boolean).join(", ");
 }
 
 /* ---- what goes in the table ---- */

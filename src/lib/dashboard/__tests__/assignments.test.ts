@@ -18,7 +18,7 @@ const a = (over: Partial<NewAssignment> = {}): NewAssignment => ({
 
 describe("assignmentLine", () => {
   it("names who gave it to you and when it is wanted", () => {
-    expect(assignmentLine(a(), day)).toBe("From Luke Ingold · Due on 2026-09-04");
+    expect(assignmentLine(a(), day)).toBe("From Luke Ingold, Due on 2026-09-04");
   });
 
   it("reads correctly with no due date — an ordinary task, not a broken one", () => {

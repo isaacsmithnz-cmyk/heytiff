@@ -96,7 +96,7 @@ export function WatchlistPanel({
               <span className="hq-watch-body">
                 <b>{it.item}</b>
                 {it.context ? <> — {it.context}</> : null}
-                <span className="hq-watch-by"> · {it.addedBy}</span>
+                <span className="hq-watch-by">, {it.addedBy}</span>
               </span>
               {onResolve ? (
                 <button

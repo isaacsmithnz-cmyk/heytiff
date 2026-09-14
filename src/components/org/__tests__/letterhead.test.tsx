@@ -27,7 +27,7 @@ describe("Letterhead", () => {
     expect(screen.getByText("Smith Air Conditioning")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "ABN 51 824 753 556 · (03) 9000 0000 · office@smithair.com.au · smithair.com.au"
+        "ABN 51 824 753 556, (03) 9000 0000, office@smithair.com.au, smithair.com.au"
       )
     ).toBeInTheDocument();
   });

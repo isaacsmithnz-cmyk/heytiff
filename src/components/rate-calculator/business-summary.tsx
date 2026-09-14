@@ -37,7 +37,7 @@ export function BusinessSummaryPanel({ s, calc }: { s: RateCalcState; calc: Calc
     } else fallback();
   };
   return (
-    <InsightCard title="Business summary" sub={`Plain-language read of your position · ${summary.generatedAt}`} accent={RC.ink}
+    <InsightCard title="Business summary" sub={`Plain-language read of your position, ${summary.generatedAt}`} accent={RC.ink}
       right={<button className={copied ? "rca-btn sm ghost" : "rca-btn sm primary"} onClick={handleCopy} style={copied ? { color: RC.service, borderColor: RC.serviceSoft, background: RC.serviceSoft } : undefined}>{copied ? "✓ Copied" : "Copy summary"}</button>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Section label="Where you stand" color={RC.install}>

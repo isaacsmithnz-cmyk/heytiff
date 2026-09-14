@@ -133,7 +133,7 @@ it("fetches today on open and lays out a lane per person", async () => {
   expect(screen.getAllByText("Rifkin, Julian")).toHaveLength(2);
   expect(screen.getAllByText("3145")).toHaveLength(2);
   // lane load is spoken: Lorenz has 8h + 1h across two bookings
-  expect(screen.getByText("2 bookings · 9h")).toBeInTheDocument();
+  expect(screen.getByText("2 bookings, 9h")).toBeInTheDocument();
 });
 
 it("never writes the time on a block — the rail already says it", async () => {

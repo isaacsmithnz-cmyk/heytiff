@@ -522,7 +522,7 @@ export function PlansPanel({
             )}
             {stage === "stack" && (
               <span className="ds-pstep-collapsed">
-                {chosen.length} {chosen.length === 1 ? "page" : "pages"} · edit
+                {chosen.length} {chosen.length === 1 ? "page" : "pages"}, edit
               </span>
             )}
           </div>
@@ -1027,7 +1027,7 @@ function FloorStackBuilder({
     >
       <span className="ds-dropzone-inner">
         <Icon name="plus" size={13} />
-        New floor · {formatLevel(previewInsertLevel(rows, anchorKey, side))}
+        New floor, {formatLevel(previewInsertLevel(rows, anchorKey, side))}
       </span>
     </div>
   );

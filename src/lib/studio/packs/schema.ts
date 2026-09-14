@@ -232,7 +232,7 @@ export function spigotLabel(o: unknown): string {
   return o.spigots
     .filter((g) => Number.isFinite(g.count) && Number.isFinite(g.dia_mm))
     .map((g) => `${Math.round(g.count)} × Ø${Math.round(g.dia_mm)}`)
-    .join(" · ");
+    .join(", ");
 }
 
 /** §2 indoor units — the largest section, one row per model. */

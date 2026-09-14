@@ -238,7 +238,7 @@ export function RenewalScreen({
           expiryIso ? `expires ${fmtDay(expiryIso)}` : null,
         ]
           .filter(Boolean)
-          .join(" · ");
+          .join(", ");
   const tone = !recorded ? "neutral" : state === "ok" ? "ok" : state;
 
   /* ---- the record in force, as a grid ---- */
@@ -529,21 +529,21 @@ function detailsFor(kind: RenewalKind, v: Vehicle, p: VehiclePolicy, state: "ok"
     { label: "Garaging postcode", value: p.garagingPostcode ?? dash, tone: faint(p.garagingPostcode) },
     ...(cls ? [{ label: "Vehicle class", value: cls }] : []),
     ...(regoDays != null && ctpDays != null
-      ? [{ label: "Linked to rego", value: regoDays === ctpDays ? "Yes · same expiry" : "No · differs from rego" }]
+      ? [{ label: "Linked to rego", value: regoDays === ctpDays ? "Yes, same expiry" : "No, differs from rego" }]
       : []),
   ];
 }
 
 function historyEvent(kind: RenewalKind, p: VehiclePolicy): string {
-  if (kind === "rego") return p.termMonths ? `Renewed · ${p.termMonths} months` : "Renewed";
-  if (kind === "insurance") return `${p.cover ? INSURANCE_COVER_LABEL[p.cover] : "Insurance"}${p.provider ? ` · ${p.provider}` : ""}`;
-  return `CTP${p.provider ? ` · ${p.provider}` : ""}`;
+  if (kind === "rego") return p.termMonths ? `Renewed, ${p.termMonths} months` : "Renewed";
+  if (kind === "insurance") return `${p.cover ? INSURANCE_COVER_LABEL[p.cover] : "Insurance"}${p.provider ? `, ${p.provider}` : ""}`;
+  return `CTP${p.provider ? `, ${p.provider}` : ""}`;
 }
 
 function addedText(p: VehiclePolicy): string {
   const when = p.createdAt ? `Added ${fmtDay(p.createdAt)}` : "";
   const how = p.source === "scan" ? "scanned from the document" : p.source === "manual" ? "entered manually" : "";
-  return [when, how].filter(Boolean).join(" · ");
+  return [when, how].filter(Boolean).join(", ");
 }
 
 /* ---- form atoms ---- */

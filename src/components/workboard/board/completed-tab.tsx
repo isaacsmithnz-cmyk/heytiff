@@ -100,7 +100,7 @@ export function CompletedTab({
           <b>{v.clientName}</b>
           <em>
             {v.label}
-            {v.siteLabel ? ` · ${v.siteLabel}` : ""}
+            {v.siteLabel ? `, ${v.siteLabel}` : ""}
           </em>
         </div>
         <div className="wb2-dnw">
@@ -150,7 +150,7 @@ export function CompletedTab({
               belongs to and the tooltip names the date it counted from. */}
           <span
             className={"wb2-chip " + (timing.onTime ? "ok" : "dan")}
-            title={`Due ${fmtAuWeekdayDayMonth(v.dueDate)} · done ${fmtAuWeekdayDayMonth(v.completedAt!)}`}
+            title={`Due ${fmtAuWeekdayDayMonth(v.dueDate)}, done ${fmtAuWeekdayDayMonth(v.completedAt!)}`}
           >
             {timing.onTime
               ? "Done on time"

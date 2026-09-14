@@ -96,7 +96,7 @@ export function estimatePressures(input: EstimateInput): Estimate {
     evapSatC = ambientC - HP_EVAP_SPLIT_K;
     condSatC = spaceC + HP_COND_SPLIT_K;
     basis =
-      `Evaporating ≈ ambient ${ambientC}°C − ${HP_EVAP_SPLIT_K} K · ` +
+      `Evaporating ≈ ambient ${ambientC}°C − ${HP_EVAP_SPLIT_K} K, ` +
       `condensing ≈ indoor ${spaceC}°C + ${HP_COND_SPLIT_K} K`;
   } else {
     const evapSplit =
@@ -105,7 +105,7 @@ export function estimatePressures(input: EstimateInput): Estimate {
     evapSatC = spaceC - evapSplit;
     const spaceLabel = duty === "refrigeration" ? "box" : "indoor";
     basis =
-      `Condensing ≈ ambient ${ambientC}°C + ${CONDENSER_SPLIT_K} K · ` +
+      `Condensing ≈ ambient ${ambientC}°C + ${CONDENSER_SPLIT_K} K, ` +
       `evaporating ≈ ${spaceLabel} ${spaceC}°C − ${evapSplit} K`;
   }
 

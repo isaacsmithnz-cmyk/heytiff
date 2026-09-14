@@ -238,7 +238,7 @@ function Inspector({
           ))}
         </div>
         <p className="hq-map-side-foot">
-          {NODES.length} pieces · {EDGES.length} connections. Grows with the product — new
+          {NODES.length} pieces, {EDGES.length} connections. Grows with the product — new
           entries go in <code>system-map.ts</code>.
         </p>
       </aside>

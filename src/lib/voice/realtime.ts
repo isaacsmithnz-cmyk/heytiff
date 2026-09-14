@@ -17,7 +17,7 @@
    the Xero invalid_scope lesson). What was verified:
 
      token   POST https://api.elevenlabs.io/v1/single-use-token/realtime_scribe
-             header xi-api-key · body none · out { token } · 15 min · one use
+             header xi-api-key · body none · out { token }, 15 min · one use
      socket  wss://api.elevenlabs.io/v1/speech-to-text/realtime
              query  model_id, audio_format, commit_strategy, keyterms,
                     token, no_verbatim

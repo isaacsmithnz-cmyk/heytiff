@@ -185,7 +185,7 @@ describe("bootLabel", () => {
 });
 
 describe("uniformSummary", () => {
-  it("labels every size — a bare 'L · 92 · 10' says nothing", () => {
+  it("labels every size — a bare 'L, 92, 10' says nothing", () => {
     const p = {
       ...blank,
       shirt_size: "L",
@@ -194,7 +194,7 @@ describe("uniformSummary", () => {
       boot_size: "10",
       boot_scale: "AU/UK",
     };
-    expect(uniformSummary(p)).toBe("Shirt L · Jacket XL · Trousers 92 · Boots 10 AU/UK");
+    expect(uniformSummary(p)).toBe("Shirt L, Jacket XL, Trousers 92, Boots 10 AU/UK");
   });
 
   it("carries the boot scale into the line, where the order is read from", () => {
@@ -202,7 +202,7 @@ describe("uniformSummary", () => {
   });
 
   it("answers with what we hold — a partial answer is still an answer", () => {
-    expect(uniformSummary({ ...blank, shirt_size: "M", boot_size: "9" })).toBe("Shirt M · Boots 9");
+    expect(uniformSummary({ ...blank, shirt_size: "M", boot_size: "9" })).toBe("Shirt M, Boots 9");
   });
 
   it("is null when we hold none, so Summary can show its dash", () => {

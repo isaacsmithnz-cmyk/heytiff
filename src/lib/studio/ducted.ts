@@ -380,7 +380,7 @@ export function plenumLabel(
 ): string {
   const h = openingHMm == null ? "—" : String(Math.round(openingHMm));
   const name = stream === "return" ? "Return" : "Supply";
-  return `${name} · ${Math.round(baseWMm)} × ${h}`;
+  return `${name}, ${Math.round(baseWMm)} × ${h}`;
 }
 
 /* ── Plenum supply-duct count guidance (spec §6b-iii) — the spigots are the

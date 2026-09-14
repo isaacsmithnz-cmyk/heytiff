@@ -251,10 +251,10 @@ export function ProjectUrgentTab({
             <em>Raised from a note — stays up until somebody clears it.</em>
           ) : r.visitId ? (
             /* Facts, not instructions — see the note in urgent-tab. */
-            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(" · ")}</em>
+            <em>{[r.siteLabel, dueWords(r)].filter(Boolean).join(", ")}</em>
           ) : (
             <em>
-              {r.clientName ? `${r.clientName} · ` : ""}
+              {r.clientName ? `${r.clientName}, ` : ""}
               {r.reason === "blocked"
                 ? "unblocking is a decision — open the project"
                 : r.reason === "promise"

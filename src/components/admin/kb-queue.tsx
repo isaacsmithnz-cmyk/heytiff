@@ -67,7 +67,7 @@ export function KbQueue({ entries }: { entries: FieldNoteRow[] }) {
                   <div className="wb2-kbqhead">
                     <b>{e.title}</b>
                     <span className="wb2-chip">
-                      {e.authorName ?? "someone"} · {fmtAuWeekdayDayMonth(e.createdAt.slice(0, 10))}
+                      {e.authorName ?? "someone"}, {fmtAuWeekdayDayMonth(e.createdAt.slice(0, 10))}
                     </span>
                   </div>
                   {e.heading && <em className="wb2-capsaid">{e.heading}</em>}

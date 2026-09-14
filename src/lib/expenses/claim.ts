@@ -53,7 +53,7 @@ export function isReadableReceipt(mediaType: string): boolean {
    that. Without the category it was being filed as "travel" or "other", which
    made it invisible to the tax screen's fuel reporting.
 
-   It is also the category the fleet's "Log fuel · my own money" path raises a
+   It is also the category the fleet's "Log fuel, my own money" path raises a
    claim under, so the two ways a person can end up out of pocket for fuel
    produce the same kind of row. */
 export const EXPENSE_CATEGORIES = ["materials", "tools", "travel", "meals", "fuel", "other"] as const;

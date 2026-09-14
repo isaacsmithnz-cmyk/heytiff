@@ -1,7 +1,7 @@
 /* Turning a question into something a keyword index can answer.
 
    "Why is the City Multi throwing P8 in heating?" is a sentence. The manual
-   that answers it says "P8 · piping temperature abnormality · check the
+   that answers it says "P8, piping temperature abnormality, check the
    thermistor harness" and never uses the word "throwing". So one cheap call
    expands the question into the terms a document would actually contain —
    codes, components, symptoms, the brand's own vocabulary — and those terms,

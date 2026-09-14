@@ -502,7 +502,7 @@ export function BellPanel({
               <span className="bp-main">
                 <b>{c.label}</b>
                 <em>
-                  {c.subject} · {chipGroup(c.kind)}
+                  {c.subject}, {chipGroup(c.kind)}
                 </em>
               </span>
               <span className="bp-chev">

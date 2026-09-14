@@ -56,7 +56,7 @@ function RateCompare({ label, last, rec, diff, diffPct, c }: {
   return last ? (
     <div style={{ flex: 1, background: RC.card2, borderRadius: 13, padding: "12px 15px", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label} · last year</div>
+        <div style={{ fontSize: 10, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}, last year</div>
         <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 23, letterSpacing: "-0.01em", color: RC.faint }}>${last}<span style={{ fontSize: 13 }}>/hr</span></div>
       </div>
       <span style={{ fontSize: 17, color: RC.faint }}>→</span>
@@ -152,7 +152,7 @@ export function EofyPanel({ s, patch, calc }: {
         {/* left: inputs */}
         <div>
           <WsEyebrow style={{ marginBottom: 4 }}>P&amp;L figures</WsEyebrow>
-          <EofyMoneyInput label="Total revenue" sub="Total income · top of P&L" value={eofy.revenue} onChange={v => update("revenue", v)} />
+          <EofyMoneyInput label="Total revenue" sub="Total income, top of P&L" value={eofy.revenue} onChange={v => update("revenue", v)} />
           <EofyMoneyInput label="Cost of sales" sub="Direct costs, consumables, subbies" value={eofy.cost_of_sales} onChange={v => update("cost_of_sales", v)} />
           <EofyMoneyInput label="Staff costs" sub="Wages, leave, super, workcover" value={eofy.staff_costs} onChange={v => update("staff_costs", v)} />
           <EofyMoneyInput label="Vehicle costs" sub="Running costs + depreciation" value={eofy.vehicle_costs} onChange={v => update("vehicle_costs", v)} />

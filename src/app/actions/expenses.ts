@@ -114,7 +114,7 @@ async function resolveJobLink(
      field — the same note job-candidates.ts carries. */
   const no = v.job_number ?? (v.job_no === null ? null : String(v.job_no));
   const named = label(a?.client_name ?? null, a?.label ?? "Visit");
-  return { link: { kind, id: job.id, label: no ? `#${no} · ${named}` : named } };
+  return { link: { kind, id: job.id, label: no ? `#${no}, ${named}` : named } };
 }
 
 /** "Client · what the work is", the shape the picker shows. A job whose client
@@ -123,7 +123,7 @@ function label(clientName: string | null, name: string): string {
   const client = (clientName ?? "").trim();
   const what = (name ?? "").trim();
   if (!client || client === what) return what || client;
-  return `${client} · ${what}`;
+  return `${client}, ${what}`;
 }
 
 type Ctx = { orgId: string; staffId: string | null };

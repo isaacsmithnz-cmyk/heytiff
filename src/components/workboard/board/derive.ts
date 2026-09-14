@@ -196,7 +196,7 @@ export const equipmentLine = (e: {
 }) =>
   [e.model && `Model ${e.model}`, e.serial && `Serial ${e.serial}`, e.location]
     .filter(Boolean)
-    .join(" · ") || "no details recorded";
+    .join(", ") || "no details recorded";
 
 /* `cadencePhrase` (the mid-sentence form) died with the visit card's
    "Comes round …" hint — the cadence is a band chip now, and a NAME is all

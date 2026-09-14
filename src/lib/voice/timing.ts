@@ -47,7 +47,7 @@ export function markTranscript(transport: Transport): void {
   if (!run) return;
   run.heard = now() - run.stopped;
   run.transport = transport;
-  console.info(`[voice] ${transport} · heard in ${secs(run.heard)}`);
+  console.info(`[voice] ${transport}, heard in ${secs(run.heard)}`);
 }
 
 /* THERE IS A PERSON IN THE MIDDLE NOW. A transcript lands in the box to be
@@ -67,7 +67,7 @@ export function markRouting(): void {
 export function markProposal(): void {
   if (!run) return;
   console.info(
-    `[voice] ${run.transport ?? "typed"} · heard ${secs(run.heard ?? 0)} · routed ${secs(
+    `[voice] ${run.transport ?? "typed"}, heard ${secs(run.heard ?? 0)}, routed ${secs(
       now() - (run.routing ?? run.stopped)
     )}`
   );

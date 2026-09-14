@@ -69,7 +69,7 @@ export default async function HandoverSheetPage({
 
       <h1>{project.name}</h1>
       <p className="ho-sub">
-        {[project.clientName, project.siteLabel, project.siteAddress].filter(Boolean).join(" · ")}
+        {[project.clientName, project.siteLabel, project.siteAddress].filter(Boolean).join(", ")}
       </p>
       <div className="ho-meta">
         <div>
@@ -208,7 +208,7 @@ export default async function HandoverSheetPage({
         <p className="ho-note ho-foot">
           Installed by {brand.name || "us"}
           {brand.phone ? ` — ${brand.phone}` : ""}
-          {brand.email ? ` · ${brand.email}` : ""}
+          {brand.email ? `, ${brand.email}` : ""}
         </p>
       )}
     </HandoverChrome>

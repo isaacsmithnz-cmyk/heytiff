@@ -269,7 +269,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.overSpigot).toBe(false);
     expect(b.depthMm).toBe(225); // 2 spigots: 200 + 1 × 25
     expect(b.derived).toBe(false);
-    expect(b.label).toBe("Supply · 1200 × 250");
+    expect(b.label).toBe("Supply, 1200 × 250");
   });
 
   it("one spigot → a near-point arrow (small spigot face), base unchanged", () => {
@@ -277,7 +277,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.baseWMm).toBe(1200); // base never shrinks
     expect(b.spigotFaceWMm).toBe(350 + 100); // 1×350 + 2×50 gaps
     expect(b.overSpigot).toBe(false);
-    expect(b.label).toBe("Supply · 1200 × 250");
+    expect(b.label).toBe("Supply, 1200 × 250");
   });
 
   it("too many ducts → overSpigot, base never grows past the unit", () => {
@@ -286,7 +286,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.overSpigot).toBe(true);
     expect(b.baseWMm).toBe(1200); // stays the opening width, does NOT grow
     expect(b.spigotFaceWMm).toBe(1200); // clamped to base for rendering
-    expect(b.label).toBe("Supply · 1200 × 250"); // duct sizes ride their own spigots now
+    expect(b.label).toBe("Supply, 1200 × 250"); // duct sizes ride their own spigots now
   });
 
   /* The plan label names the plenum and its opening — nothing else. Duct
@@ -295,7 +295,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
      now carries its own Ø at the takeoff (field feedback 2026-07-23). */
   it("the label is name + opening only — never the duct sizes", () => {
     const b = plenumBody({ opening, spigots: [spig(250), spig(350), spig(250)] });
-    expect(b.label).toBe("Supply · 1200 × 250");
+    expect(b.label).toBe("Supply, 1200 × 250");
     expect(b.label).not.toMatch(/Ø|"/); // no diameters in the bar
   });
 
@@ -316,7 +316,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     expect(b.baseWMm).toBe(660);
     expect(b.spigotFaceWMm).toBe(660); // equal ⇒ rectangle, not a wedge
     expect(b.depthMm).toBe(150); // a return box is shallow
-    expect(b.label).toBe("Return · 660 × 158"); // name + opening W × H, never the depth
+    expect(b.label).toBe("Return, 660 × 158"); // name + opening W × H, never the depth
   });
 
   it("a return box stays square even with a spigot on it", () => {
@@ -353,7 +353,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
      has to fit through (field feedback 2026-07-23). */
   it("labels the opening W × H, never the plan depth", () => {
     const b = plenumBody({ opening: { w_mm: 660, h_mm: 150 }, spigots: [] });
-    expect(b.label).toBe("Supply · 660 × 150");
+    expect(b.label).toBe("Supply, 660 × 150");
     expect(b.openingHMm).toBe(150);
     expect(b.depthMm).toBe(200); // no spigots yet → the shallow end of the range
     expect(b.label).not.toContain("200"); // depth is never in the label
@@ -363,7 +363,7 @@ describe("plenumBody — base ON the unit, tapering OUT (spec §1b)", () => {
     const b = plenumBody({ opening: null, unitWidthMm: 800, spigots: [] });
     expect(b.openingHMm).toBeNull();
     expect(b.derived).toBe(true);
-    expect(b.label).toBe("Supply · 720 × —");
+    expect(b.label).toBe("Supply, 720 × —");
   });
 
   /* A round takeoff can't be taller than the opening it lands on: a 150-high
@@ -522,7 +522,7 @@ describe("factory-spigot openings (pack schema helpers)", () => {
     expect(spigotLabel({ spigots: [{ count: 2, dia_mm: 400 }] })).toBe("2 × Ø400");
     expect(
       spigotLabel({ spigots: [{ count: 2, dia_mm: 400 }, { count: 1, dia_mm: 300 }] })
-    ).toBe("2 × Ø400 · 1 × Ø300");
+    ).toBe("2 × Ø400, 1 × Ø300");
     expect(spigotLabel("spigots")).toBe(""); // nothing published to show
   });
 });
@@ -543,7 +543,7 @@ describe("distributeSpigots", () => {
     face,
   });
 
-  it("packs gap · \u00d8 · gap along the face, preserving left-to-right order", () => {
+  it("packs gap, \u00d8, gap along the face, preserving left-to-right order", () => {
     const out = distributeSpigots([spig("a", 1 / 3), spig("b", 2 / 3), spig("new", 0.5)]);
     const byId = new Map(out.map((s) => [s.id, s.t]));
     // 3 \u00d7 \u00d8350 + 4 \u00d7 50 gaps = 1250 span; centres at 225 / 625 / 1025

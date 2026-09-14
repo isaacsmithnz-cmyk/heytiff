@@ -48,7 +48,7 @@ const BODY_MAX = 4000;
 /** The provenance line, built one way so retrieval, the library card and the
     admin queue all say the same thing. */
 export function fieldNoteHeading(input: Pick<FieldNoteInput, "authorName" | "dayLabel" | "jobLabel">): string {
-  const at = input.jobLabel ? ` · at ${input.jobLabel}` : "";
+  const at = input.jobLabel ? `, at ${input.jobLabel}` : "";
   return `Learned on the job — ${input.authorName}, ${input.dayLabel}${at}`;
 }
 

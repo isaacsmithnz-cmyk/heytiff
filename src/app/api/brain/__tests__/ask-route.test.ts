@@ -124,13 +124,13 @@ describe("the wire", () => {
       req({
         question: "what's left here?",
         target: { kind: "visit", id: "v-1" },
-        targetLabel: "Meridian Data · CRACs",
+        targetLabel: "Meridian Data, CRACs",
       })
     );
     expect(loopInput()).toMatchObject({
       orgId: "org-1",
       todayISO: "2026-08-06",
-      targetLabel: "Meridian Data · CRACs",
+      targetLabel: "Meridian Data, CRACs",
       targetRef: { kind: "visit", id: "v-1" },
     });
   });

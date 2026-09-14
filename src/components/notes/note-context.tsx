@@ -122,7 +122,7 @@ export const useNoteScope = () => useContext(Ctx);
 /** Point the token at this job for as long as the caller is mounted.
 
     Call it at the top of a sheet: `useNoteScopeTarget({ kind: "visit", id },
-    "Meridian Data · CRACs")`. Closing the sheet unmounts the caller and the
+    "Meridian Data, CRACs")`. Closing the sheet unmounts the caller and the
     token goes back to whatever the SCREEN underneath was about — which is the
     behaviour a person would predict, and the one the old `register`/`send`
     pair got wrong by leaving the last target in place. */

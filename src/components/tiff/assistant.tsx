@@ -1516,7 +1516,7 @@ function RecentDocs({
               <span className="tk-ndt">{d.title}</span>
               <em>
                 {cat?.label ?? "Document"}
-                {d.pageCount ? ` · ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
+                {d.pageCount ? `, ${d.pageCount.toLocaleString("en-AU")} pages` : ""}
               </em>
             </button>
           );
@@ -1807,7 +1807,7 @@ const pagesLabel = (doc: SourceDoc): string => {
     seen.add(label);
     out.push(label);
   }
-  return out.join(" · ");
+  return out.join(", ");
 };
 
 function SourceChips({
@@ -1823,7 +1823,7 @@ function SourceChips({
   return (
     <div className="tk-srcfoot">
       <span className="tk-srclbl">
-        {docs.length === 1 ? "Source" : `Sources · ${docs.length}`}
+        {docs.length === 1 ? "Source" : `Sources (${docs.length})`}
       </span>
       <div className="tk-srcs">
         {docs.map((d) => (
@@ -1910,7 +1910,7 @@ function SourcePeek({ source, onClose }: { source: SourceDoc; onClose: () => voi
             <b>{source.title}</b>
             <em>
               <span className="tk-pkdot" style={{ background: colourOf(source.category) }} />
-              {KB_CATEGORIES.find((c) => c.key === source.category)?.label ?? "Document"} ·{" "}
+              {KB_CATEGORIES.find((c) => c.key === source.category)?.label ?? "Document"},{" "}
               {pagesLabel(source)}
             </em>
           </span>

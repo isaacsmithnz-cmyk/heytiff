@@ -317,8 +317,8 @@ export function ProjectTripSheet({
             <Link href={`/dashboard/workboard/projects/${visit.projectId}`} className="ro-link">
               {visit.projectName}
             </Link>
-            {visit.clientName ? ` · ${visit.clientName}` : ""}
-            {visit.siteLabel ? ` · ${visit.siteLabel}` : ""}
+            {visit.clientName ? `, ${visit.clientName}` : ""}
+            {visit.siteLabel ? `, ${visit.siteLabel}` : ""}
           </p>
           <div className="wb2-facts">
             <div>
@@ -370,7 +370,7 @@ export function ProjectTripSheet({
               <span className="wb2-sect">Ready to run</span>
               <span className={"wb2-chip" + (missing.length ? " warn" : " ok")}>
                 {missing.length
-                  ? `${3 - missing.length} of 3 · waiting on ${missing
+                  ? `${3 - missing.length} of 3, waiting on ${missing
                       .map((g) => (g === "equipment" ? "equipment" : g === "access" ? "access" : "crew"))
                       .join(", ")}`
                   : "All three confirmed"}
@@ -597,7 +597,7 @@ export function ProjectTripSheet({
             {visit.jobNumber ? (
               <p className="wb2-hint">
                 #{visit.jobNumber}
-                {visit.mirrorStatus ? ` · ${visit.mirrorStatus} in ServiceM8` : ""}
+                {visit.mirrorStatus ? `, ${visit.mirrorStatus} in ServiceM8` : ""}
               </p>
             ) : linking ? (
               <div className="wb2-dayrow">
@@ -737,7 +737,7 @@ export function ProjectTripSheet({
                       <>
                         <b>{fmtAuWeekdayDayMonth(ranOn)}</b>
                         <button className="wb2-colink" onClick={() => setRanOnOpen(true)}>
-                          {ranOn === bookedDay ? "the day it was booked · pick another" : "pick another"}
+                          {ranOn === bookedDay ? "the day it was booked, pick another" : "pick another"}
                         </button>
                       </>
                     )}

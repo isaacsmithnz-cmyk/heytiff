@@ -83,7 +83,7 @@ export function breakdownLine(b: RangeBreakdown): string {
       `${plural(b.holidays.length, "public holiday", "public holidays")} skipped${named}`,
     );
   }
-  return parts.join(" · ");
+  return parts.join(", ");
 }
 
 export function MyLeave({
@@ -287,7 +287,7 @@ export function MyLeave({
                     </div>
                     <span className="lv-balsub">
                       {fmt(b.balanceHours)}h balance
-                      {b.booked > 0 ? ` · ${fmt(b.booked)}h booked` : ""}
+                      {b.booked > 0 ? `, ${fmt(b.booked)}h booked` : ""}
                     </span>
                     <span className={`lv-src${b.source === "manual" ? "" : " synced"}`}>
                       {b.source !== "manual" && <Icon name="check" size={11} />}
@@ -438,7 +438,7 @@ export function MyLeave({
               <div className="lv-fmeta">
                 <span>
                   {breakdownLine(breakdown)}
-                  {kind !== "unpaid" && balanceOf(kind) ? ` · ${fmt(balanceOf(kind)!.available)}h available` : ""}
+                  {kind !== "unpaid" && balanceOf(kind) ? `, ${fmt(balanceOf(kind)!.available)}h available` : ""}
                 </span>
                 <div className="mts-facts">
                   <button className="fl-btn primary" disabled={pending || !(effectiveHours > 0)} onClick={submit}>
@@ -460,7 +460,7 @@ export function MyLeave({
                     <div className="lv-reqmain">
                       <b>{LEAVE_LABEL[r.kind]}</b>
                       <em>
-                        {fmtRange(r.startDate, r.endDate)} · {fmt(r.hours)}h
+                        {fmtRange(r.startDate, r.endDate)}, {fmt(r.hours)}h
                       </em>
                       {r.status === "declined" && r.reviewNote && <span className="lv-declined">{r.reviewNote}</span>}
                       {/* ATTACH IT AFTERWARDS — the common case, not the
@@ -526,7 +526,7 @@ export function MyLeave({
                       <div className="lv-reqmain">
                         <b>{LEAVE_LABEL[r.kind]}</b>
                         <em>
-                          {fmtRange(r.startDate, r.endDate)} · {fmt(r.hours)}h
+                          {fmtRange(r.startDate, r.endDate)}, {fmt(r.hours)}h
                         </em>
                       </div>
                       <span className={`dchip ${STATUS_COPY[r.status].tone}`}>{STATUS_COPY[r.status].label}</span>

@@ -199,7 +199,7 @@ describe("provenance", () => {
 
   it("says a claim came from a fuel log, and names the vehicle", () => {
     render(<MyExpensesFace claims={[fuelClaim]} today={TODAY} />);
-    expect(screen.getByText(/Raised from your fuel log · Hilux/)).toBeInTheDocument();
+    expect(screen.getByText(/Raised from your fuel log, Hilux/)).toBeInTheDocument();
   });
 
   it("still says it when the vehicle has no name to show", () => {
@@ -528,7 +528,7 @@ describe("attaching a receipt to a job", () => {
 
     await user.click(screen.getByRole("button", { name: "Pick a job" }));
     await user.click(screen.getByRole("option", { name: /Northgate Realty/ }));
-    expect(screen.getByText("#1042 · Northgate Realty · Quarterly service")).toBeInTheDocument();
+    expect(screen.getByText("#1042, Northgate Realty, Quarterly service")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/What was it for/i), "Copper fittings");
     await user.type(screen.getByLabelText(/Total paid/i), "84.50");
@@ -552,7 +552,7 @@ describe("attaching a receipt to a job", () => {
     await user.click(screen.getByRole("button", { name: "Enter it myself" }));
     await user.click(screen.getByRole("button", { name: "Pick a job" }));
     await user.click(screen.getByRole("option", { name: /Acme Industrial/ }));
-    expect(screen.getByText("Acme Industrial · Plant room")).toBeInTheDocument();
+    expect(screen.getByText("Acme Industrial, Plant room")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Change" }));
     /* The escape hatch says what it means HERE — the picker's default words
@@ -579,19 +579,19 @@ describe("attaching a receipt to a job", () => {
       <MyExpensesFace
         today={TODAY}
         claims={[
-          claim({ id: "o1", status: "pending", job: { kind: "visit", id: "v1", label: "#1042 · Northgate" } }),
+          claim({ id: "o1", status: "pending", job: { kind: "visit", id: "v1", label: "#1042, Northgate" } }),
           claim({
             id: "cc1",
             paidWith: "company",
             status: "recorded",
             description: "Makita drill",
-            job: { kind: "project", id: "p1", label: "Acme · Plant room" },
+            job: { kind: "project", id: "p1", label: "Acme, Plant room" },
           }),
         ]}
       />,
     );
-    expect(screen.getByText("#1042 · Northgate")).toBeInTheDocument();
+    expect(screen.getByText("#1042, Northgate")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /Company card/ }));
-    expect(screen.getByText("Acme · Plant room")).toBeInTheDocument();
+    expect(screen.getByText("Acme, Plant room")).toBeInTheDocument();
   });
 });

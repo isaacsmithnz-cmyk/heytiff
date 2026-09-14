@@ -130,7 +130,7 @@ function blockTitle(b: ScheduleBlock): string {
     b.tracked?.label ?? null,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
 }
 
 export function ScheduleTab({
@@ -335,7 +335,7 @@ export function ScheduleTab({
         {day && day.totalBookings > 0 && (
           <span className="wb2-mcsum">
             <span className="wb2-chip">
-              {day.totalBookings} booked · {fmtHoursShort(day.totalMinutes)}
+              {day.totalBookings} booked, {fmtHoursShort(day.totalMinutes)}
             </span>
             <span className="wb2-chip">{day.lanes.length} on the road</span>
             <span className="wb2-chip ok">
@@ -555,7 +555,7 @@ export function ScheduleTab({
                   )}
                 </b>
                 <em>
-                  {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"} ·{" "}
+                  {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"},{" "}
                   {fmtHoursShort(l.minutes)}
                 </em>
                 {/* utilisation against an 8h day — neutral, a fact not a fault */}
@@ -676,10 +676,10 @@ export function ScheduleTab({
                             </span>
                             <em>
                               {blockLabel(b)}
-                              {b.status === "Quote" ? " · Quote" : ""}
+                              {b.status === "Quote" ? ", Quote" : ""}
                               {/* in words, because an amber ring alone would
                                   leave a screen reader with a normal booking */}
-                              {b.closure === "stale" ? " · Marked complete in ServiceM8" : ""}
+                              {b.closure === "stale" ? ", Marked complete in ServiceM8" : ""}
                             </em>
                             {b.suburb && <i>{b.suburb}</i>}
                           </button>

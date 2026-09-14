@@ -108,7 +108,7 @@ export function TimePaySettings({
     return (
       <div className="wz-step">
         <button className="wz-sbtn" aria-label="Decrease" onClick={() => stepSuper(-1)}>−</button>
-        <span className="wz-val">{shown}%{draft.superPct == null ? " · default" : ""}</span>
+        <span className="wz-val">{shown}%{draft.superPct == null ? ", default" : ""}</span>
         <button className="wz-sbtn" aria-label="Increase" onClick={() => stepSuper(1)}>+</button>
       </div>
     );
@@ -477,7 +477,7 @@ export function TimePaySettings({
                 fmtHval(draft.otAfter) +
                 " / " +
                 (draft.otUnit === "week" ? "week" : "day") +
-                " · 2× after " +
+                ", 2× after " +
                 fmtHval(draft.dblAfter),
               3,
             ],
@@ -490,10 +490,10 @@ export function TimePaySettings({
                     " " +
                     (draft.rules[k].rate === 2 ? "2×" : "1.5×→2×")
                 )
-                .join(" · "),
+                .join(", "),
               4,
             ],
-            ["Auto-submit", draft.submitDay + " " + draft.submitTime + (draft.lock ? " · locks" : ""), 5],
+            ["Auto-submit", draft.submitDay + " " + draft.submitTime + (draft.lock ? ", locks" : ""), 5],
           ] as [string, string, number][]).map(([label, val, target]) => (
             <div className="wz-rev" key={label}>
               <span>{label}</span>
@@ -562,7 +562,7 @@ export function TimePaySettings({
           <>
             <div className="wz-head">
               <div>
-                <div className="wz-k">Setup · step {step + 1} of {steps.length}</div>
+                <div className="wz-k">Setup, step {step + 1} of {steps.length}</div>
                 <h3>{cur.t}</h3>
                 <p>{cur.s}</p>
               </div>
@@ -757,7 +757,7 @@ export function TimePaySettings({
                 "Pay run export",
                 <>
                   <p className="ms-p">
-                    One PDF per pay period — a line per person with hours by rate (1× · 1.5× · 2×), sick, leave and
+                    One PDF per pay period — a line per person with hours by rate (1×, 1.5×, 2×), sick, leave and
                     approval status, plus the rate rules used. Hand it to your bookkeeper or keep it for records.
                   </p>
                   <Toggle

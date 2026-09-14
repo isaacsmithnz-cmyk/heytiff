@@ -344,7 +344,7 @@ export function systemKindLabel(
 ): string {
   const base = KIND_BASE[type];
   return headCount > 1 && (type === "multi-split" || type === "vrf")
-    ? `${base} · ${headCount} heads on one outdoor`
+    ? `${base}, ${headCount} heads on one outdoor`
     : base;
 }
 
@@ -594,7 +594,7 @@ function buildPicklist(
         topups.push({
           group: l.group,
           name: l.name,
-          sub: `${s.name} · ${l.sub}`,
+          sub: `${s.name}, ${l.sub}`,
           qty: l.qty,
         });
         continue;

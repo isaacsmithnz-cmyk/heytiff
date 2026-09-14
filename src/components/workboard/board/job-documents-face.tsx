@@ -46,7 +46,7 @@ function DocRow({ item, onOpen }: { item: JobMediaItem; onOpen: (item: JobMediaI
     !item.url ? "not brought across yet" : null,
   ]
     .filter(Boolean)
-    .join(" · ");
+    .join(", ");
   const inner = (
     <>
       <span className="wb2-doc-ic">
@@ -139,8 +139,8 @@ export function JobDocumentsFace({
               <span className="wb2-dsgn-b">
                 <b>{d.name}</b>
                 <em>
-                  {`${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"} · ` +
-                    `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"} · ` +
+                  {`${d.floorCount} ${d.floorCount === 1 ? "floor" : "floors"}, ` +
+                    `${d.systemCount} ${d.systemCount === 1 ? "system" : "systems"}, ` +
                     `edited ${editedOn(d.updatedAt)}`}
                 </em>
               </span>

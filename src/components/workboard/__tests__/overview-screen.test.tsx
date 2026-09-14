@@ -110,7 +110,7 @@ jest.mock("../board/all-jobs-board", () => ({
       {[p.backfilling.jobs && "jobs", p.backfilling.schedule && "schedule"]
         .filter(Boolean)
         .join("+") || "none"}
-      {" · open:"}
+      {", open:"}
       {handoffOf(p)}
       {p.tools}
       {p.searchPanel}
@@ -897,7 +897,7 @@ describe("the universal search", () => {
     );
 
     const viewer = screen.getByRole("dialog");
-    expect(within(viewer).getByText(/#907 · Heuvel Construction/)).toBeInTheDocument();
+    expect(within(viewer).getByText(/#907, Heuvel Construction/)).toBeInTheDocument();
     /* The hit said it was not starred, so the star draws ready to keep it —
        a search that just found the right photo is also the moment to keep it. */
     await userEvent.click(

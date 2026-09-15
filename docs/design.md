@@ -240,9 +240,10 @@ approved together.
     nudges or grows a shadow under the pointer, and a press moves 1px. A page
     appears, a panel appears, a tab's content appears: nothing arrives
     staggered. What may loop: a spinner, a skeleton sweep, a caret, a live
-    dot, the orb while the microphone is open, and a flash a row asked for
-    with data. A halo, a breathing glow, a logo drawing itself and a dot that
-    nudges toward the next step do not.
+    dot, the orb and the capture card's mark while the microphone is open or
+    Tiff is working, and a flash a row asked for with data. A halo, a
+    breathing glow, a logo drawing itself and a dot that nudges toward the
+    next step do not. Every loop that runs is named under Guards.
 19. Six layers, named: base 0, raised 1, sticky 10, overlay 100, modal 200,
     toast 300. There were 36 values from 0 to 1200.
 20. No arrow on a button. "Continue", not "Continue →". An arrow between two
@@ -302,7 +303,8 @@ became consequences of the ink-and-paper decision rather than choices.
 across every screen stylesheet and component under `src` and holds each count at the number
 recorded there. A PR may lower a number. A PR may never raise one. When a
 count drops, the PR lowers the recorded number with it, so the number is
-always the truth. Every guard was watched failing before it was trusted.
+always the truth. The twenty-eighth, the loops, it holds by name instead —
+the list below. Every guard was watched failing before it was trusted.
 
 The three paper stylesheets are outside the guards on purpose: the design
 sheet (`sheet-doc.css`), the letterhead and the live sheet are documents set
@@ -316,7 +318,7 @@ for print, with their own type.
 | `transition: all` | transitions name what moves | 96 |
 | `text-transform: uppercase` | the eyebrow is retired | 202 |
 | radius off the scale | four radii and a circle | 748 |
-| ambient `infinite` animation | motion is feedback or state | 45 |
+| ambient `infinite` animation | motion is feedback or state; held by name since 2026-09-15, below | 45 |
 | gradients | one accent, flat surfaces | 136 |
 | shadows that are not a focus ring | one shadow, overlays only | 291 |
 | bars at the left edge | selection is a fill, state is a word | 27 |
@@ -337,9 +339,44 @@ for print, with their own type.
 | uses of the OK text colour | colour only where it means something | 88 |
 | focus rings drawn as an alpha tint | 2px of solid ink | 137 |
 | colour declared on anchors | one link token | 26 |
+| accent colour uses | ink does the accent's jobs | 468 |
 
 The end state for each is zero, or a short allowlist with a reason beside each
 entry (a spinner is state; the orb breathing with the microphone is feedback).
+The loops reached theirs first.
+
+### The loops that stay
+
+Every rule that runs `infinite` is named here, with what it runs on and why
+it may. Each one is feedback or state under law 18: it starts when something
+starts and stops when that stops. This list is the guard.
+`design-ratchets.test.ts` reads it and holds the sheets to it by name, both
+ways: a loop the list does not name fails, and a row whose loop has left the
+sheets fails until the row goes with it. A new loop needs its row, with its
+reason, before it can run. Every one stops under `prefers-reduced-motion`, by
+name, because the frame's global duration override would otherwise turn an
+infinite loop into a strobe.
+
+| Keyframes | Runs on | Why it loops |
+|---|---|---|
+| `pkSweep` ×3 | the route skeleton, the chrome skeleton, and the job card's summary while its read is out | a skeleton sweep: the space a screen is about to fill |
+| `dsSweep` | the Studio's skeleton blocks | a skeleton sweep |
+| `ds-sheet-wait` | the sheet's outline while its raster downloads | a skeleton, breathing rather than swept because it is an outline: the plan lands into its place |
+| `vmShimmer` | the reading bar while a scanned document is read | a skeleton sweep for a scan in progress |
+| `orgLogoSweep` | the logo tile while a new logo uploads | a sweep across the subject, rather than an icon landing on it |
+| `tkShim` ×2 | the ask bar while a question is out; a library shelf while it is searched | a sweep on the thing being searched |
+| `tkSpin` | the ask bar's send glyph while a question is out | a spinner in the control you pressed |
+| `tkSlide` | the library's progress bar when it cannot say how far | a spinner, drawn as a bar |
+| `tkFlow` ×2 | a lane of the research trace, out to a shelf being searched and back from the shelf the answer is drawn from | a spinner, drawn as a pulse along the line that is waiting |
+| `tkCaret` | the last paragraph of an answer still streaming | a caret: "is that all of it" |
+| `wb2CursorBlink` | the board's answer while it streams | a caret |
+| `fgPulse` ×3 | the recording dot beside the capture clock; the row microphone while it listens; Time & Pay's live period | a live dot: something is open right now |
+| `int-pulse` | an integration's backfill while it runs | a live dot |
+| `orbSpin` | the orb, in the note rows and Tiff's waits | the orb: the microphone is open, or Tiff is working |
+| `orbSaySweep` | the wait's word beside the orb | the orb's label, lit while the orb works: the caret's job on a word |
+| `dotfSwell` | the capture card's mark while you talk | the microphone is open: a wave through the mark |
+| `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
+| `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
 
 ## The order of work
 

@@ -126,7 +126,7 @@ function fleet(): FleetActions {
     attachPurchaseDocument: jest.fn(),
     removeVehicle: jest.fn(),
     assignVehicle: jest.fn(),
-    addLog: jest.fn(),
+    addLog: jest.fn(async () => true),
     attachLogDocument: jest.fn(),
     editLog: jest.fn(),
     deleteLog: jest.fn(),
@@ -220,20 +220,22 @@ it("writes an odometer reading typed on the card as an odo log — Enter commits
   expect(f.addLog).toHaveBeenCalledWith({ vehicleId: "v1", kind: "odo", odo: 109200 });
 });
 
-it("keeps logging on the card: the + on History offers the four kinds, each a screen of the card", async () => {
+it("keeps logging on the card: the + on History offers fuel, an issue and a service, each a screen of the card", async () => {
   const { user } = mount();
   await user.click(screen.getByRole("button", { name: "Log something" }));
-  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual([
-    "Log fuel",
-    "Update odometer",
-    "Report an issue",
-    "Log service",
-  ]);
+  // not the odometer: the Odometer card's own Update writes a reading in place
+  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Log fuel", "Report an issue", "Log service"]);
   await user.click(screen.getByRole("menuitem", { name: "Log fuel" }));
   expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
   expect(screen.getByText("Scan or upload the receipt")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
+});
+
+it("offers no fuel on a vehicle that is off the road — the server would refuse it", async () => {
+  const { user } = mount({ status: "offroad" });
+  await user.click(screen.getByRole("button", { name: "Log something" }));
+  expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Report an issue", "Log service"]);
 });
 
 it("has no odometer, no fuel and a tow hitch for a trailer", async () => {

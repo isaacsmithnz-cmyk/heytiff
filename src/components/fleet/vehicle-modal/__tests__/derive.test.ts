@@ -203,6 +203,8 @@ describe("history", () => {
     expect(historyTabs(van).map((t) => t.key)).toEqual(["all", "fuel", "service", "issue"]);
     expect(historyTabs({ ...van, motorised: false }).map((t) => t.key)).toEqual(["all", "service", "issue"]);
     expect(logKinds({ ...van, motorised: false })).toEqual(["issue", "service"]);
+    expect(logKinds(van)).toEqual(["fuel", "issue", "service"]); // the odometer is updated on its own card
+    expect(logKinds({ ...van, status: "offroad" })).toEqual(["issue", "service"]);
   });
 
   it("filters by tab, newest first, capped", () => {

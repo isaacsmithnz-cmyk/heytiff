@@ -173,10 +173,8 @@ export function VehicleModal({
             pending={fleet.pending}
             error={fleet.error}
             onBack={back}
-            onSave={(log) => {
-              fleet.addLog(log);
-              back();
-            }}
+            onSave={(log) => fleet.addLog(log)}
+            onSaved={back}
           />
         ) : isLogScreen(screen) ? (
           (() => {

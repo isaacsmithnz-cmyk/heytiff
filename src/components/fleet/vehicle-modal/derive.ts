@@ -241,9 +241,15 @@ export function historyLine(log: VehicleLog): string {
   }
 }
 
-/** The log kinds the + menu offers this vehicle. */
+/** The log kinds the + menu offers this vehicle.
+
+    Not the odometer: the Odometer card's own Update writes a reading in
+    place, and a second door to the same act was double handling (walked
+    2026-09-15). Not fuel on a vehicle that is off the road, either — the
+    server refuses it, and a menu should not offer what it will refuse. */
 export function logKinds(v: Vehicle): LogKind[] {
-  return v.motorised ? ["fuel", "odo", "issue", "service"] : ["issue", "service"];
+  if (!v.motorised || v.status === "offroad") return ["issue", "service"];
+  return ["fuel", "issue", "service"];
 }
 
 /* ---- one entry, read on its own ---- */

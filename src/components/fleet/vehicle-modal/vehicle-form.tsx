@@ -27,6 +27,7 @@ import {
 } from "../logic";
 import { fmtDay } from "./derive";
 import { Btn, Eyebrow, IconBtn, Inline } from "@/components/record-modal/parts";
+import { scanInProgress } from "@/components/record-modal/scan-card";
 
 /* Adding or editing a vehicle, in the vehicle modal's language.
 
@@ -182,7 +183,9 @@ const strOrNull = (str: string): string | null => str.trim() || null;
 type Cert =
   | { state: "idle" }
   | { state: "reading"; name: string }
-  | { state: "read"; name: string; documentId: string | null; expiresOn: string | null };
+  | { state: "read"; name: string; documentId: string | null; expiresOn: string | null }
+  /* stored, but nothing read: filed the same as a read one */
+  | { state: "attached"; name: string; documentId: string };
 
 type Invoice =
   | { state: "none" }
@@ -222,9 +225,12 @@ export function VehicleForm({
   const certInput = useRef<HTMLInputElement>(null);
   const invoiceInput = useRef<HTMLInputElement>(null);
 
+  /* Escape closes the form, except while the certificate is being read or is
+     in hand: then it does nothing (see scanInProgress). The X and Cancel still
+     close. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !scanInProgress()) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -259,7 +265,10 @@ export function VehicleForm({
     const documentId = stored && stored.ok ? stored.file.documentId : null;
     if (adding && stored && !stored.ok) setCertWarn("The certificate couldn't be stored — the details will save without it.");
     if (!result.ok) {
-      setCert({ state: "idle" });
+      /* Nothing read: the fields open empty, and the certificate, if it landed,
+         is kept and filed under the first rego record all the same. The shared
+         ScanCard does the same with its paper. */
+      setCert(documentId ? { state: "attached", name: file.name, documentId } : { state: "idle" });
       setCertWarn((w) => w ?? "Tiff couldn't read that one — fill the form in below.");
       return;
     }
@@ -334,7 +343,12 @@ export function VehicleForm({
     setInvoice({ state: "attached", name: file.name, documentId: up.file.documentId, read });
   };
 
-  const ready = !!(f.plate.trim() && f.make.trim());
+  /* The certificate in hand, stored and waiting to be filed. Its only home is
+     the first rego record, and a rego record is its expiry, so while one is
+     held the expiry is asked for — the date is on the paper. Scan another lets
+     go of both. */
+  const certificateId = cert.state === "read" || cert.state === "attached" ? cert.documentId : null;
+  const ready = !!(f.plate.trim() && f.make.trim() && (certificateId === null || f.regoExpiry));
 
   const save = () => {
     if (!ready) return;
@@ -405,7 +419,7 @@ export function VehicleForm({
             provider: strOrNull(f.regoIssuer),
             premium: f.regoPaid.trim() ? num(f.regoPaid) : null,
             termMonths: intOrNull(f.regoTerm),
-            documentId: cert.state === "read" ? (cert.documentId ?? undefined) : undefined,
+            documentId: certificateId ?? undefined,
             source: cert.state === "read" ? "scan" : "manual",
           }
         : undefined;
@@ -415,7 +429,7 @@ export function VehicleForm({
   const previewType: BodyType = f.bodyType || (motorised ? "van" : "trailer");
 
   return createPortal(
-    <div className="vm-ov" onClick={onClose}>
+    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
       <div className="vm" role="dialog" aria-modal="true" aria-label={adding ? "Add vehicle" : "Edit vehicle"} onClick={(e) => e.stopPropagation()}>
         <div className="vm-head">
           <div className="vm-headl">
@@ -438,11 +452,17 @@ export function VehicleForm({
 
         <div className="vm-body">
           {/* ---- the certificate ---- */}
-          <div className="vm-card vm-record">
+          <div className="vm-card vm-record" data-scan-in-progress={cert.state !== "idle" ? "" : undefined}>
             <div className="vm-cardhead">
               <Eyebrow>Rego certificate</Eyebrow>
-              {cert.state === "read" && (
-                <Inline muted onClick={() => setCert({ state: "idle" })}>
+              {(cert.state === "read" || cert.state === "attached") && (
+                <Inline
+                  muted
+                  onClick={() => {
+                    setCert({ state: "idle" });
+                    setCertWarn(null);
+                  }}
+                >
                   Scan another
                 </Inline>
               )}
@@ -481,6 +501,11 @@ export function VehicleForm({
                   <em>Details read from the certificate — check the form before saving</em>
                 </span>
                 <span className="vm-scannedtag">Scanned</span>
+              </div>
+            )}
+            {cert.state === "attached" && (
+              <div className="vm-attach">
+                <span>Attached: {cert.name}</span>
               </div>
             )}
             {cert.state === "read" && !adding && cert.expiresOn && (
@@ -605,7 +630,7 @@ export function VehicleForm({
           {/* ---- the first registration, on the way in ---- */}
           {adding ? (
             <Section label="Registration" note="Filed as the vehicle's first rego record, with the certificate under it. Insurance and the green slip are added on the vehicle's card.">
-              <Field label="Rego expiry">
+              <Field label="Rego expiry" req={certificateId !== null}>
                 <DateField size="lg" clearable today={today} value={f.regoExpiry || null} onChange={setDate("regoExpiry")} />
               </Field>
               <Field label="Term">

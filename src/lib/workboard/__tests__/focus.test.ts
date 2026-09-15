@@ -4,7 +4,7 @@
    block go hollow, the narrower late case on top, and the marks a job's own
    paint is decoded into. */
 
-import { blockLabel, blockPaint, blockState, dayStateOfMarks, focusJobOf } from "../focus";
+import { blockLabel, blockPaint, blockState, dayStateOfBlock, dayStateOfMarks, focusJobOf } from "../focus";
 import { layoutScheduleDay, type ScheduleActivity } from "../schedule";
 import { scheduleBlockPaint, TRACKED_PAINT } from "../schedule-colour";
 import type { AllJobsMirrorJob } from "../all-jobs";
@@ -155,5 +155,41 @@ describe("the job brought forward", () => {
         { kind: "idle", word: "Not started — hollow cap" },
       ])
     ).toEqual({ kind: "idle", word: "Not started" });
+  });
+});
+
+describe("the same reading for one block — Home's pill, handed to the sheet", () => {
+  const blockOn = (activities: ScheduleActivity[], jobs?: AllJobsMirrorJob[], onSite?: string[]) =>
+    dayOf(activities, jobs, onSite).lanes[0].blocks[0];
+
+  it("names the day-state in the focus card's words", () => {
+    const b = blockOn([act({ uuid: "a-1" })]);
+    expect(dayStateOfBlock(b, clock())).toEqual({ kind: "late", word: "Nothing recorded yet" });
+    expect(dayStateOfBlock(b, clock({ nowMin: 6 * 60 }))).toEqual({ kind: "idle", word: "Not started" });
+    const on = blockOn([act({ uuid: "a-1" })], undefined, ["j-1|s-alex"]);
+    expect(dayStateOfBlock(on, clock())).toEqual({ kind: "on", word: "Started" });
+    const stale = blockOn(
+      [act({ uuid: "a-1" })],
+      [job({ remoteId: "j-1", status: "Completed", completionDate: "2026-08-12 16:00:00" })]
+    );
+    expect(dayStateOfBlock(stale, clock())).toEqual({
+      kind: "stale",
+      word: "Marked complete in ServiceM8, still booked",
+    });
+  });
+
+  it("says nothing for what the sheet already chips, or for a day still ahead", () => {
+    const done = blockOn(
+      [act({ uuid: "a-1" })],
+      [job({ remoteId: "j-1", status: "Completed", completionDate: `${DAY} 16:00:00` })]
+    );
+    expect(dayStateOfBlock(done, clock())).toBeNull();
+    expect(dayStateOfBlock(blockOn([act({ uuid: "a-1" })]), clock({ dayISO: "2026-08-15" }))).toBeNull();
+  });
+
+  it("is the focus card's own judgement, not a second one", () => {
+    const day = dayOf([act({ uuid: "a-1" })]);
+    const b = day.lanes[0].blocks[0];
+    expect(dayStateOfBlock(b, clock())).toEqual(dayStateOfMarks(focusJobOf(day, "j-1", clock())!.marks));
   });
 });

@@ -1,4 +1,5 @@
 import {
+  jobsOnRail,
   packColumns,
   placeRail,
   placeRibbon,
@@ -160,5 +161,21 @@ describe("placeRibbon", () => {
     const bounds = railBounds([job("a", 8 * 60, 10 * 60)], 18 * 60 + 7);
     expect(bounds).toEqual({ startMin: 7 * 60, endMin: 19 * 60 });
     expect(ribbonScale(bounds, 1200)).toBe(100);
+  });
+});
+
+describe("jobsOnRail — the rows behind the pills, and only those", () => {
+  it("keeps the blocks' jobs in the blocks' order, once each, and nobody else's", () => {
+    const jobs = [{ remoteId: "j2" }, { remoteId: "j1" }, { remoteId: "j3" }];
+    const blocks = [
+      block({ key: "a", remoteId: "j1" }),
+      block({ key: "b", remoteId: "j2" }),
+      block({ key: "c", remoteId: "j1" }),
+    ];
+    expect(jobsOnRail(blocks, jobs).map((j) => j.remoteId)).toEqual(["j1", "j2"]);
+  });
+
+  it("has nothing for a block whose job did not come", () => {
+    expect(jobsOnRail([block({ remoteId: "gone" })], [{ remoteId: "j1" }])).toEqual([]);
   });
 });

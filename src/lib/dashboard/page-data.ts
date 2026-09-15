@@ -39,7 +39,8 @@ import { getSm8Timezone } from "@/lib/workboard/query";
 import { todayInZone } from "@/lib/workboard/dates";
 import { EMPTY_SCHEDULE, loadScheduleDay } from "@/lib/workboard/schedule-query";
 import { layoutScheduleDay, type ScheduleBlock } from "@/lib/workboard/schedule";
-import { nowMinInZone, railTasksOf, type RailTask } from "./day-rail";
+import { jobsOnRail, nowMinInZone, railTasksOf, type RailTask } from "./day-rail";
+import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { sm8StaffLinkMap } from "@/lib/integrations/links";
 import { phaseOf, type DayPhase } from "./debrief-voice";
 
@@ -135,6 +136,15 @@ export type HomeRail = {
   /** False without `workboard`. The rail says so rather than drawing a day
       that only looks empty. */
   enabled: boolean;
+  /** The mirror rows behind the bookings drawn — what a pill opens the job
+      card on, the same row shape the board's sheet opens on. Only the jobs
+      on this band; the day's other jobs are other people's. */
+  jobs: AllJobsMirrorJob[];
+  /** `workboard_manage` — the card's promotion menu and its checklist
+      writes, exactly as the board decides them. */
+  manage: boolean;
+  /** `workboard_money` — whether the card may show a Money face at all. */
+  moneyVisible: boolean;
 };
 
 const EMPTY_RAIL: HomeRail = {
@@ -146,6 +156,9 @@ const EMPTY_RAIL: HomeRail = {
   tasks: [],
   nowMin: null,
   enabled: false,
+  jobs: [],
+  manage: false,
+  moneyVisible: false,
 };
 
 const EMPTY: DashboardData = {
@@ -259,6 +272,9 @@ export async function loadDashboard(): Promise<DashboardData> {
       tasks: railTasksOf(tasks.mine, railDay, railTz, railNowMin),
       nowMin: railNowMin,
       enabled: caps.has("workboard"),
+      jobs: jobsOnRail(railBlocks, schedule.jobs),
+      manage: caps.has("workboard_manage"),
+      moneyVisible: caps.has("workboard_money"),
     },
     phase: phaseOf(railNowMin),
   };

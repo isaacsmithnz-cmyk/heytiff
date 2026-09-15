@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { allJobsRows, type AllJobRow, type AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
+import { allJobsRows, sheetRowOf, type AllJobRow, type AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import type { AllJobsData } from "@/lib/workboard/all-jobs-query";
 import type { BoardVisit, BoardAgreement, BoardCategory } from "@/lib/workboard/board-query";
 import type { BoardProject, ProjectBoardVisit } from "@/lib/workboard/projects-board-query";
@@ -245,18 +245,10 @@ export function AllJobsBoard({
      open, on the same row shape: one job, one law. Both arrive already in the
      mirror shape, so the row builder that feeds the list feeds them too. */
   const openJob = (job: AllJobsMirrorJob, state: ScheduleJobState | null = null) => {
-    const found = allJobsRows({ jobs: [job], visits: [], projects: [], today });
-    const row = [
-      ...found.work.booked,
-      ...found.work.unbooked,
-      ...found.quotes,
-      ...found.completed,
-      ...found.unsuccessful,
-    ][0];
+    const row = sheetRowOf(job, today, trackedByJob.get(job.remoteId) ?? null);
     if (!row) return;
-    const t = trackedByJob.get(job.remoteId);
     setSheetState(state);
-    setSheetRow(t ? { ...row, tracked: t } : row);
+    setSheetRow(row);
   };
 
   /* TAKEN DURING RENDER, never in an effect — see the maintenance board for

@@ -10296,7 +10296,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    board's own vocabulary (law 14 names it), mirrored here at the pill's
    height. Its number, its name and its span step down by size and weight,
    never by alpha. */
-.fg .hm-job { background:var(--fill, var(--tint)); color:var(--btext, var(--ink)); border:0; padding-left:16px; }
+.fg .hm-job { background:var(--fill, var(--tint)); color:var(--btext, var(--ink)); border:0; padding-left:16px;
+  text-align:left; transition:background-color var(--t-fast) var(--ease); }
+/* A PILL IS A DOOR (Isaac, 2026-09-15): a booking opens the job card the
+   Schedule tab opens, over Home. So it is a button whose name is its words;
+   its hover is one step of its own fill, its focus the ink outline the rows
+   wear. A booking the mirror did not hand over stays a plain view. */
+.fg .hm-job:hover { background:color-mix(in srgb, var(--fill, var(--tint)) 93%, var(--ink)); }
+.fg .hm-job:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 .fg .hm-job::before { content:""; position:absolute; left:5px; top:7px; bottom:7px; width:4px;
   border-radius:999px; background:var(--bar, #7a818c); }
 .fg .hm-job u { flex:none; padding:1px 4px; border-radius:6px; background:var(--chip, var(--tint-2));
@@ -10311,7 +10318,9 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-job.done { background:var(--pale, var(--tint)); color:var(--ink); border:1px solid var(--pale-edge, var(--line)); padding-left:12px; }
 .fg .hm-job.done::before { display:none; }
 .fg .hm-job.done u { background:var(--tint-2); }
+.fg .hm-job.done:hover { background:color-mix(in srgb, var(--pale, var(--tint)) 93%, var(--ink)); }
 .fg .hm-job.qt { background:var(--paper); border:1px dashed var(--bar, var(--ink)); }
+.fg .hm-job.qt:hover { background:var(--tint); }
 .fg .hm-jobdot { flex:none; width:8px; height:8px; border-radius:50%; background:var(--bad);
   border:2px solid var(--paper); box-sizing:content-box; }
 /* A timed task is paper and a hairline, with a real checkbox: it can be

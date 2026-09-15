@@ -6,8 +6,11 @@ import { useRouter } from "next/navigation";
 import { completeTask } from "@/app/actions/dashboard";
 import { Icon } from "@/components/shell/icon";
 import { useNowMin } from "@/components/workboard/board/use-now-min";
-import { blockPaint, blockState } from "@/lib/workboard/focus";
-import { clockLabel } from "@/lib/workboard/schedule";
+import { JobSheet } from "@/components/workboard/board/job-sheet";
+import { ToastHost, useBoardToasts } from "@/components/workboard/board/toasts";
+import { sheetRowOf, type AllJobRow } from "@/lib/workboard/all-jobs";
+import { blockPaint, blockState, dayStateOfBlock } from "@/lib/workboard/focus";
+import { clockLabel, type ScheduleBlock } from "@/lib/workboard/schedule";
 import {
   placeRibbon,
   railBounds,
@@ -55,8 +58,16 @@ import type { HomeRail } from "@/lib/dashboard/page-data";
    that draw it; a quote is dashed; one that should have started and has not
    been clocked on wears a red dot. A task is paper and a hairline with a
    real checkbox, because a task on this band can be ticked off and a
-   booking cannot. The band is otherwise a view: opening a job lives on the
-   board. */
+   booking cannot.
+
+   A PILL IS A DOOR (Isaac, 2026-09-15: "build open a job from the day
+   band"). Pressing a booking opens the job card — the same sheet the
+   Schedule tab's block opens, on the same row, wearing the day-state the
+   pill wore — over Home, so "what is this job" is one press from "where
+   should I be". The mirror rows ride the rail for exactly this; a booking
+   whose row did not come stays a plain view rather than a button that does
+   nothing. The card's agreement door leaves for the board with the job in
+   the URL, where the modal it needs lives. */
 
 /** A 32px pill and its 8px of air. */
 export const BAND_LANE_PX = 40;
@@ -148,6 +159,27 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
     if (el) pills.current.set(key, el);
     else pills.current.delete(key);
   };
+
+  /* THE CARD A PILL OPENS. Held here, not on Home: the band owns the pills,
+     their refs and their clock, and closing has to land focus back on the
+     pill that was pressed. The row is built from the mirror row by the
+     board's own builder, so the sheet opens on what the board's would. */
+  const jobById = new Map(rail.jobs.map((j) => [j.remoteId, j]));
+  const rowFor = (b: ScheduleBlock): AllJobRow | null => {
+    const job = jobById.get(b.remoteId);
+    return job ? sheetRowOf(job, rail.dayISO) : null;
+  };
+  const [open, setOpen] = useState<{
+    row: AllJobRow;
+    state: ReturnType<typeof dayStateOfBlock>;
+    from: string;
+  } | null>(null);
+  const closeJob = () => {
+    const from = open?.from;
+    setOpen(null);
+    if (from) pills.current.get(from)?.focus();
+  };
+  const { toasts, toast, dismiss } = useBoardToasts();
 
   const width = measure?.width ?? BAND_NOMINAL_PX;
   const pph = ribbonScale(bounds, width);
@@ -273,28 +305,23 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
           const paint = blockPaint(b);
           const done = b.closure === "done";
           const qt = b.status === "Quote";
-          return (
-            <div
-              className={
-                "hm-job" + (done ? " done" : "") + (qt ? " qt" : "") + (state.late ? " late" : "")
-              }
-              key={p.item.key}
-              ref={hold(p.item.key)}
-              style={
-                {
-                  ...style,
-                  /* THE BOARD'S PAINT, as the six properties the Schedule tab
-                     sets — see `.fg .hm-job`. The colour law lives in
-                     `blockPaint`; nothing here decides a hue. */
-                  "--fill": paint.fill,
-                  "--btext": paint.ink,
-                  "--chip": paint.chip,
-                  "--bar": paint.bar,
-                  "--pale": paint.pale,
-                  "--pale-edge": paint.paleEdge,
-                } as React.CSSProperties
-              }
-            >
+          const row = rowFor(b);
+          const className =
+            "hm-job" + (done ? " done" : "") + (qt ? " qt" : "") + (state.late ? " late" : "");
+          const pillStyle = {
+            ...style,
+            /* THE BOARD'S PAINT, as the six properties the Schedule tab
+               sets — see `.fg .hm-job`. The colour law lives in
+               `blockPaint`; nothing here decides a hue. */
+            "--fill": paint.fill,
+            "--btext": paint.ink,
+            "--chip": paint.chip,
+            "--bar": paint.bar,
+            "--pale": paint.pale,
+            "--pale-edge": paint.paleEdge,
+          } as React.CSSProperties;
+          const words = (
+            <>
               {done && <Icon name="check" size={14} />}
               {state.late && <i className="hm-jobdot" aria-hidden="true" />}
               {b.jobNumber && <u>{b.jobNumber}</u>}
@@ -306,6 +333,25 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
               {(done || state.late || qt) && (
                 <span className="sr-only">{done ? "done" : state.late ? "late" : "quote"}</span>
               )}
+            </>
+          );
+          /* A button only when there is a card to open — the row rides the
+             rail for every booking the mirror knows, so a plain pill here is
+             a booking the mirror could not name, and it says nothing false. */
+          return row ? (
+            <button
+              type="button"
+              className={className}
+              key={p.item.key}
+              ref={hold(p.item.key)}
+              style={pillStyle}
+              onClick={() => setOpen({ row, state: dayStateOfBlock(b, clock), from: p.item.key })}
+            >
+              {words}
+            </button>
+          ) : (
+            <div className={className} key={p.item.key} ref={hold(p.item.key)} style={pillStyle}>
+              {words}
             </div>
           );
         })}
@@ -319,6 +365,36 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
           />
         )}
       </div>
+
+      {/* THE JOB CARD, over Home — portalled to <body> by the sheet itself.
+          `manage` and `moneyVisible` are the board's own answers, read by the
+          loader from the same capabilities, so the card offers here exactly
+          what it offers there. No mirror-health chip: the band does not
+          carry the sync clock, and the card says "Open in ServiceM8" in its
+          place rather than guessing a freshness. */}
+      {open && (
+        <JobSheet
+          key={open.row.id}
+          row={open.row}
+          manage={rail.manage}
+          moneyVisible={rail.moneyVisible}
+          scheduleState={open.state}
+          onClose={closeJob}
+          onCreateAgreement={(row) => {
+            /* The agreement modal wants the board's agreements and
+               categories, which Home does not load; the board opens this
+               same card from its URL, and the door is one press from there. */
+            setOpen(null);
+            router.push(`/dashboard/workboard?job=${encodeURIComponent(row.id)}`);
+          }}
+          onOpenTracked={(t) => {
+            setOpen(null);
+            router.push(t.kind === "project" ? `/dashboard/workboard/projects/${t.id}` : "/dashboard/workboard");
+          }}
+          onToast={(m) => toast(m)}
+        />
+      )}
+      <ToastHost toasts={toasts} onDismiss={dismiss} />
     </>
   );
 }

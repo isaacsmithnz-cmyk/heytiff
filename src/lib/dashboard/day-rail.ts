@@ -480,3 +480,20 @@ export function railItems(
   }
   return items;
 }
+
+/** The mirror rows behind the pills, and only those. The day's payload
+    carries every job booked on the day, but a job in somebody else's lane is
+    not on this band and must not ride to the browser with it. In the order
+    the blocks are drawn, once each. */
+export function jobsOnRail<J extends { remoteId: string }>(
+  blocks: readonly { remoteId: string }[],
+  jobs: readonly J[]
+): J[] {
+  const byId = new Map(jobs.map((j) => [j.remoteId, j]));
+  const out: J[] = [];
+  for (const b of blocks) {
+    const j = byId.get(b.remoteId);
+    if (j && !out.includes(j)) out.push(j);
+  }
+  return out;
+}

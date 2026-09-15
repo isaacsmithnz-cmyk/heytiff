@@ -56,7 +56,8 @@ const TOPBAR_POPOVERS = [PANEL, USER_MENU];
 
 it.each(TOPBAR_POPOVERS)("gives %s a ground that does not move with what is behind it", (sel) => {
   const bg = rule(sel).match(/(?:^|;)\s*background:([^;]+)/)?.[1]?.trim();
-  expect(bg).toBe("#0d0e13");
+  // the elevated dark, by token since the sweep (it was the literal #0d0e13)
+  expect(bg).toBe("var(--ink2)");
 });
 
 it.each(TOPBAR_POPOVERS)("lets nothing behind %s through — no alpha on the ground", (sel) => {
@@ -166,6 +167,20 @@ function contrast(a: number[], b: number[]): number {
 }
 
 const rgba = (v: string): number[] => {
+  /* a token resolves through its definition (tokens.css is in CSS); a hex is
+     opaque; the rest is an rgba() literal — the chrome wears the on-ink
+     tokens since the sweep of 2026-09-15 */
+  const t = /^\s*var\(--([a-z0-9-]+)\)\s*$/i.exec(v);
+  if (t) {
+    const def = new RegExp(`--${t[1]}\\s*:\\s*([^;]+);`).exec(CSS);
+    if (!def) throw new Error(`no token --${t[1]}`);
+    return rgba(def[1]!);
+  }
+  const h = /#([0-9a-f]{3}|[0-9a-f]{6})\b/i.exec(v);
+  if (h) {
+    const six = h[1]!.length === 3 ? [...h[1]!].map((c) => c + c).join("") : h[1]!;
+    return [1, 3, 5].map((i) => parseInt(six.slice(i - 1, i + 1), 16)).concat(1);
+  }
   const m = /rgba?\(([^)]+)\)/.exec(v);
   if (!m) throw new Error(`not a colour: ${v}`);
   return m[1].split(",").map((n) => Number(n.trim()));
@@ -179,7 +194,8 @@ const decl = (selector: string, prop: string): string => {
 };
 
 /** The panel's opaque ground — the fact everything above exists to protect. */
-const GROUND = [13, 14, 19];
+// the elevated dark, `--ink2`, by token since the sweep (it was the literal #0d0e13)
+const GROUND = rgba("var(--ink2)").slice(0, 3);
 const QUIET = rgba(/--on-ink-q\s*:\s*(rgba?\([^)]+\))/.exec(CSS)![1]);
 
 it("does not lift the ground under a reminder row", () => {
@@ -225,9 +241,10 @@ it("marks a reminder's glyph as its own kind, not as an urgency", () => {
      not a failure — it is a thing you asked for — so its glyph takes the
      product's own accent and the row takes no state class at all. */
   const ic = rule(".fg .topbar .bp-rem .bp-ic");
-  expect(ic).not.toMatch(/224,\s*38,\s*79/); // danger
-  expect(ic).not.toMatch(/245,\s*158,\s*11/); // warn
-  // the icon is a graphic, so AA is 3:1
+  expect(ic).not.toMatch(/224,\s*38,\s*79|var\(--bad/); // danger
+  expect(ic).not.toMatch(/245,\s*158,\s*11|var\(--warn/); // warn
+  // the icon is a graphic, so AA is 3:1 — paper on the paper tint, since the
+  // accent left the chrome (ink and paper; the sweep of 2026-09-15)
   const icGround = over(rgba(ic.match(/background:([^;]+)/)![1]), GROUND);
-  expect(contrast(rgba(`rgba(${[0x3f, 0xd7, 0xb6].join(",")},1)`), icGround)).toBeGreaterThanOrEqual(3);
+  expect(contrast(over(rgba(ic.match(/(?<!-)color:([^;]+)/)![1]), icGround), icGround)).toBeGreaterThanOrEqual(3);
 });

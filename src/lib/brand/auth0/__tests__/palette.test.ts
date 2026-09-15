@@ -11,7 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BRAND, WHITE, inputBorderOnWhite, flattenOnWhite } from "../palette";
+import { BRAND, WHITE, inputBorderOnWhite, flattenOnWhite, LINE_INK, LINE_ALPHA } from "../palette";
 
 const root = join(__dirname, "../../../../..");
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -68,14 +68,18 @@ describe("the Auth0 palette is the app's palette", () => {
 });
 
 describe("the input border is derived, not chosen", () => {
-  it("is the app's rgba(10,11,16,.14) flattened onto white", () => {
+  it("is the app's line token flattened onto white", () => {
     // Re-derived here rather than compared to a literal: the point of the
     // value is the rule, not the hex.
-    expect(inputBorderOnWhite).toBe(flattenOnWhite(BRAND.ink, 0.14));
+    expect(inputBorderOnWhite).toBe(flattenOnWhite(LINE_INK, LINE_ALPHA));
   });
 
-  it("is the border shell.css actually draws", () => {
-    expect(read("src/app/dashboard/shell.css")).toContain("rgba(10,11,16,.14)");
+  it("is the border the app actually draws — the line token", () => {
+    const m = /--line:rgba\((\d+),(\d+),(\d+),([\d.]+)\)/.exec(read("src/app/tokens.css"));
+    expect(m).not.toBeNull();
+    const hex = "#" + [m![1], m![2], m![3]].map((c) => Number(c).toString(16).padStart(2, "0")).join("");
+    expect(hex.toUpperCase()).toBe(LINE_INK.toUpperCase());
+    expect(Number(m![4])).toBe(LINE_ALPHA);
   });
 
   it("lands between the hairline and the body text", () => {

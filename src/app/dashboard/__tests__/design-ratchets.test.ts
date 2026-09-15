@@ -274,8 +274,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 32 },
-  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 75 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 152 },
+  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 73 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 150 },
   { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
@@ -295,7 +295,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   /* A pill is counted only while it is drawn as one: a pill, chip, tag or
      badge selector whose own rule gives it a radius. A state word keeps the
      class name and loses the box, so it stops counting. */
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 46 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 43 },
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 43 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 33 },
   // ink and paper
@@ -326,14 +326,15 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 300 },
+    }, baseline: 299 },
 ];
 
 describe("the design ratchets only go down", () => {
-  /* The tokens docs/design.md names exist, on :root, in shell.css. Not a
+  /* The tokens docs/design.md names exist, on :root, in tokens.css, which the
+     root layout loads so every route has them. Not a
      ratchet: a token that goes missing is a build that lost a decision. */
   it("defines every token the design doc names", () => {
-    const root = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+    const root = fs.readFileSync(path.join(process.cwd(), "src/app/tokens.css"), "utf8");
     for (const name of [
       "paper", "ground", "line", "tint", "tint-2", "link", "ring", "ring-bad", "ring-warn", "shadow-overlay", "ok-t", "ok-tint",
       "on-ink-line", "t-fast", "t-move", "ease", "z-raised", "z-sticky", "z-overlay", "z-modal", "z-toast",

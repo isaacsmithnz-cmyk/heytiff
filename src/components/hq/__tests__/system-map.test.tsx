@@ -41,7 +41,7 @@ describe("SystemMap", () => {
     // the planned Time & Pay pull is present and marked planned
     expect(screen.getByText("pull real wages & hours into rate inputs")).toBeInTheDocument();
     expect(screen.getAllByText(/Planned/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("Open Rate Calculator ↗")).toBeInTheDocument();
+    expect(screen.getByText("Open Rate Calculator")).toBeInTheDocument();
   });
 
   it("jumping via a connection re-selects the other node", async () => {
@@ -51,7 +51,7 @@ describe("SystemMap", () => {
     await user.click(
       screen.getByRole("button", { name: /pull real wages & hours into rate inputs/ })
     );
-    expect(screen.getByText("Open Time & Pay ↗")).toBeInTheDocument();
+    expect(screen.getByText("Open Time & Pay")).toBeInTheDocument();
   });
 
   it("a standalone selection says so", async () => {

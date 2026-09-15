@@ -15,6 +15,7 @@ import {
 } from "@/lib/studio/packs/fields";
 import { isSpigotOpening, spigotLabel } from "@/lib/studio/packs/schema";
 import type { SaveInput, ClearInput, SaveResult } from "./edit-types";
+import { Icon } from "@/components/shell/icon";
 
 /** system_roles values ↔ human labels for the tag editor */
 const ROLE_OPTIONS = [
@@ -39,7 +40,7 @@ const ROLE_LABEL = new Map<string, string>(ROLE_OPTIONS.map((o) => [o.role, o.la
    (manual overrides highlighted amber), missing cells render a "+" coloured by
    tier — red "blocks the engine" vs neutral dashed "nice to know". Fields no
    row in the series has yet collapse into a trailing amber "To add" column
-   group; structural gaps surface as a ⚠ chip in the sticky Status column.
+   group; structural gaps surface as a count in the sticky Status column.
    Model (left) and Status (right) columns stay sticky over the horizontal
    scroll. Multi-role units carry a cross-role badge (fan-out membership means
    the same row appears under every system type it claims).
@@ -416,7 +417,7 @@ export function HqBrandCatalog({
       <div className="hq-dt-bar">
         <div className="hq-search">
           <span className="hq-search-ic" aria-hidden="true">
-            ⌕
+            <Icon name="search" size={16} />
           </span>
           <input
             className="hq-search-in"
@@ -874,7 +875,9 @@ function SeriesGroup({
           aria-expanded={open}
           onClick={onToggle}
         >
-          <span className={`hq-series-chev${open ? " open" : ""}`}>›</span>
+          <span className="hq-series-chev">
+            <Icon name={open ? "chevD" : "chevR"} size={13} />
+          </span>
           <span className="hq-series-name">{group.series}</span>
           <span className="hq-series-meta">
             {group.total} model{group.total === 1 ? "" : "s"}
@@ -1119,7 +1122,7 @@ function SeriesTableRow({
       ))}
       <td className="hq-cmp-status">
         {row.engineReady ? (
-          <span className="hq-cmp-ready">✓ Ready</span>
+          <span className="hq-cmp-ready">Ready</span>
         ) : (
           <span className="hq-cmp-blocking">{row.blockingCount} blocking</span>
         )}
@@ -1133,7 +1136,7 @@ function SeriesTableRow({
               .map((g) => (g.blocks ? `${g.field} — blocks ${g.roles.join(", ")}` : g.field))
               .join("\n")}
           >
-            ⚠ {structural.length}
+            {structural.length} structural
           </span>
         ) : null}
       </td>

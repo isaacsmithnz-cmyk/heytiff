@@ -19,7 +19,7 @@ import path from "node:path";
    4.32 on the tab strip and 4.22 on the red tint, which is where most of its 184
    uses actually are. A test that only checked white would have agreed with it. */
 
-const CSS = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+const CSS = ["src/app/tokens.css", "src/app/dashboard/shell.css"].map((f) => fs.readFileSync(path.join(process.cwd(), f), "utf8")).join("\n");
 
 const lin = (c: number) => {
   const v = c / 255;

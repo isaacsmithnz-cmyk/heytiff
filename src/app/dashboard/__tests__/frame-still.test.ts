@@ -19,7 +19,7 @@ import path from "node:path";
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 const rules = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
-const SHELL = rules(read("src/app/dashboard/shell.css"));
+const SHELL = rules(read("src/app/tokens.css") + "\n" + read("src/app/dashboard/shell.css"));
 const STUDIO = rules(read("src/components/studio/studio.css"));
 
 /** Every declaration block whose selector list mentions `sel`. */
@@ -88,7 +88,7 @@ describe("the frame is still", () => {
      to ink — black on the near-black rail — because its selector carries no
      dark word. It is its own token now, and this holds it. */
   it("the wordmark's Tiff is the brand teal, not ink", () => {
-    const css = read("src/app/dashboard/shell.css");
+    const css = read("src/app/tokens.css") + "\n" + read("src/app/dashboard/shell.css");
     expect(css).toMatch(/\.fg \.ht-wm span \{[^}]*color:var\(--wordmark\)/);
     expect(css).toMatch(/--wordmark:#00E5C0;/);
   });

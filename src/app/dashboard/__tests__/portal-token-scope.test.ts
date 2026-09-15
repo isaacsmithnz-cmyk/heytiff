@@ -21,7 +21,7 @@ import path from "node:path";
    that DECLARES the tokens is `:root`, not `.fg`. Move them back and this
    fails by name. */
 
-const CSS = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+const CSS = ["src/app/tokens.css", "src/app/dashboard/shell.css"].map((f) => fs.readFileSync(path.join(process.cwd(), f), "utf8")).join("\n");
 
 /** The selector of the rule that first declares a custom property. */
 function declaringSelector(token: string): string | null {

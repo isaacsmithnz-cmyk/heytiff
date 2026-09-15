@@ -278,9 +278,10 @@ describe("the private .tpr palette resolves to readable text", () => {
 describe("the orb-say chip is readable on every surface it stands on", () => {
   const SAY_INK = scoped(".orb-say {", "say-ink");
   const SAY_LIT = scoped(".orb-say {", "say-lit");
-  /* `.wb2-capcard.wb2-dusk` is an alpha over whatever is behind it; composited
-     onto white, its own lightest possible backdrop, which is the worst case. */
-  const DUSK = over(hex("#0b0e15"), 0.96, WHITE);
+  /* `.wb2-capcard.wb2-dusk` is the elevated dark by token, opaque, since the
+     board's dark surfaces took the tokens (2026-09-16); it was an alpha over
+     whatever stood behind it, measured composited onto white. */
+  const DUSK = hex(CSS.match(/--ink2:(#[0-9A-Fa-f]{6})/)![1]!);
 
   /* THE GROUNDS IT ACTUALLY STANDS ON, traced site by site — not the shared
      list, which bottoms out at #f1f2f4 and would have passed this by luck.
@@ -417,7 +418,7 @@ describe("quiet text on the dark chrome", () => {
   });
 
   /* THE SWEEP. Every white-alpha `color:` under a shell selector, held to the
-     text floor — scoped to the chrome, because `.wb2-dusk` (rgba(11,14,21,.96)),
+     text floor — scoped to the chrome, because `.wb2-dusk` (the elevated dark),
      `.hm-card` (a backdrop-filter over several washes) and `.idc` are dark
      surfaces with DIFFERENT grounds and would be measured against the wrong one
      here. Those are named so the omission is a decision, not an oversight. */

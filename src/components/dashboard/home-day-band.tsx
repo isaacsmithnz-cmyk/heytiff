@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { completeTask } from "@/app/actions/dashboard";
 import { Icon } from "@/components/shell/icon";
 import { useNowMin } from "@/components/workboard/board/use-now-min";
-import { blockState } from "@/lib/workboard/focus";
+import { blockPaint, blockState } from "@/lib/workboard/focus";
 import { clockLabel } from "@/lib/workboard/schedule";
 import {
   placeRibbon,
@@ -49,12 +49,14 @@ import type { HomeRail } from "@/lib/dashboard/page-data";
    stands in — and the first paint is the same on the server and the
    browser, which is what keeps hydration whole.
 
-   INK PILLS. A booking is the mark on a light ground; a finished one gives
-   its ink up and keeps a tick; a quote is dashed; one that should have
-   started and has not been clocked on wears a red dot. A task is paper and
-   a hairline with a real checkbox, because a task on this band can be
-   ticked off and a booking cannot. The band is otherwise a view: opening a
-   job lives on the board. */
+   THE BOARD'S PAINT (Isaac, 2026-09-15). A booking wears the dispatch
+   diary's colours — `blockPaint`'s wash and cap by category, the stated
+   neutral once it is done — so one booking is one colour on the two screens
+   that draw it; a quote is dashed; one that should have started and has not
+   been clocked on wears a red dot. A task is paper and a hairline with a
+   real checkbox, because a task on this band can be ticked off and a
+   booking cannot. The band is otherwise a view: opening a job lives on the
+   board. */
 
 /** A 32px pill and its 8px of air. */
 export const BAND_LANE_PX = 40;
@@ -268,6 +270,7 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
 
           const b = p.item.job;
           const state = blockState(b, clock);
+          const paint = blockPaint(b);
           const done = b.closure === "done";
           const qt = b.status === "Quote";
           return (
@@ -277,7 +280,20 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
               }
               key={p.item.key}
               ref={hold(p.item.key)}
-              style={style}
+              style={
+                {
+                  ...style,
+                  /* THE BOARD'S PAINT, as the six properties the Schedule tab
+                     sets — see `.fg .hm-job`. The colour law lives in
+                     `blockPaint`; nothing here decides a hue. */
+                  "--fill": paint.fill,
+                  "--btext": paint.ink,
+                  "--chip": paint.chip,
+                  "--bar": paint.bar,
+                  "--pale": paint.pale,
+                  "--pale-edge": paint.paleEdge,
+                } as React.CSSProperties
+              }
             >
               {done && <Icon name="check" size={14} />}
               {state.late && <i className="hm-jobdot" aria-hidden="true" />}

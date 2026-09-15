@@ -245,14 +245,48 @@ it("has no odometer, no fuel and a tow hitch for a trailer", async () => {
   expect(screen.getByRole("button", { name: "Change photo" }).querySelector("img")).toHaveAttribute("src", "/fleet/trailer.svg");
 });
 
-it("filters history by tab and shows the full log on request", async () => {
+it("filters history by tab, and offers the full log only when there is more than the recent six", async () => {
   const { user } = mount();
   await user.click(screen.getByRole("tab", { name: "Issues" }));
   expect(screen.getByText("Issue reported — wiper blade")).toBeInTheDocument();
   expect(screen.queryByText(/Fuel logged/)).not.toBeInTheDocument();
+  // two entries in all: a link that would show the same two again is not offered
+  expect(screen.queryByText("View full history")).not.toBeInTheDocument();
+});
+
+it("shows the full log on request when the history runs past six", async () => {
+  const many: VehicleLog[] = Array.from({ length: 8 }, (_, i) => ({
+    id: `o${i}`,
+    vehicleId: "v1",
+    staffId: null,
+    kind: "odo",
+    when: "Mon 1 Sep",
+    ago: i + 1,
+    odo: 108000 - i * 100,
+  }));
+  render(
+    <VehicleModal
+      vehicle={triton}
+      logs={many}
+      eco={{}}
+      documents={[]}
+      policies={[]}
+      finance={[]}
+      staff={[]}
+      today={TODAY} warnDays={30}
+      fleet={fleet()}
+      onClose={jest.fn()}
+      onEdit={jest.fn()}
+      onLog={jest.fn()}
+      onCorrect={jest.fn()}
+    />,
+  );
+  const user = userEvent.setup();
+  expect(screen.getAllByText(/Odometer updated/)).toHaveLength(6);
   await user.click(screen.getByText("View full history"));
-  expect(screen.getByText("Issue reported — wiper blade")).toBeInTheDocument();
-  expect(screen.getByText("Show recent")).toBeInTheDocument();
+  expect(screen.getAllByText(/Odometer updated/)).toHaveLength(8);
+  await user.click(screen.getByText("Show recent"));
+  expect(screen.getAllByText(/Odometer updated/)).toHaveLength(6);
 });
 
 /* ---- every history row is a door ---- */
@@ -275,9 +309,16 @@ describe("a history row opens the entry on its own screen", () => {
     expect(screen.getByText("51 824 753 556")).toBeInTheDocument();
     expect(screen.getByText("9.4 L/100km")).toBeInTheDocument();
     expect(screen.getByText("Dane Poulos")).toBeInTheDocument();
-    expect(screen.getByText("Read from the paper")).toBeInTheDocument();
-    // the receipt is what the click was for, so it is open on arrival
+    expect(screen.getByText("Read from the receipt")).toBeInTheDocument();
+    // the receipt is what the click was for, so it is open on arrival — shown
+    // straight, with no row above it naming the same file a second time
     expect(screen.getByRole("img", { name: "IMG_2041.jpg" })).toHaveAttribute("src", "https://signed.example/doc-1");
+    expect(screen.queryByRole("button", { name: /Close$/ })).not.toBeInTheDocument();
+    // closed, it can be shown again
+    await user.click(screen.getByRole("button", { name: "Close preview" }));
+    expect(screen.queryByRole("img", { name: "IMG_2041.jpg" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show" }));
+    expect(screen.getByRole("img", { name: "IMG_2041.jpg" })).toBeInTheDocument();
     // nothing on this screen swaps the paper behind a figure
     expect(screen.queryByText(/Attach the receipt/)).not.toBeInTheDocument();
   });

@@ -264,43 +264,44 @@ describe("an entry on its own screen", () => {
     expect(entryTitle(log({ kind: "service", ago: 0 }), today)).toBe("Service, 2 Sep 2026");
   });
 
-  it("prints a fill's figures, the docket's tax lines, the economy and who logged it", () => {
-    const facts = Object.fromEntries(entryFacts(fill, 9.4, today).map((f) => [f.label, f.value]));
+  it("prints a fill's figures, the docket's tax lines, the economy and who logged it — and not the date, which the title carries", () => {
+    const facts = Object.fromEntries(entryFacts(fill, 9.4).map((f) => [f.label, f.value]));
     expect(facts).toMatchObject({
       Litres: "62 L",
       Cost: "$118.40",
       Station: "Shell Coburg",
-      Date: "1 Sep 2026",
-      Economy: "9.4 L/100km",
+      "Fuel economy": "9.4 L/100km",
       GST: "$10.76",
       "Supplier ABN": "51 824 753 556",
-      Entered: "Read from the paper",
+      Entered: "Read from the receipt",
       "Logged by": "Dane Poulos",
       Corrected: "Yes, after it was logged",
     });
+    expect(facts).not.toHaveProperty("Date");
   });
 
   it("says a blank as a blank — never a figure the row did not hold", () => {
-    const facts = entryFacts(log({ kind: "fuel", ago: 2, litres: 50 }), undefined, today);
+    const facts = entryFacts(log({ kind: "fuel", ago: 2, litres: 50 }), undefined);
     const byLabel = Object.fromEntries(facts.map((f) => [f.label, f]));
     expect(byLabel.Cost).toMatchObject({ value: "Not recorded", faint: true });
-    expect(byLabel.GST).toMatchObject({ value: "Not shown", faint: true });
-    expect(byLabel.Economy).toMatchObject({ value: "Not recorded", faint: true });
+    expect(byLabel.GST).toMatchObject({ value: "Not on the receipt", faint: true });
+    expect(byLabel["Fuel economy"]).toMatchObject({ value: "Not recorded", faint: true });
     expect(byLabel.Entered.value).toBe("Typed in");
     expect(facts.find((f) => f.label === "Corrected")).toBeUndefined();
   });
 
   it("gives a service its workshop and an issue its state, and a reading only its reading", () => {
-    const service = entryFacts(log({ kind: "service", ago: 3, station: "Braeside Auto", cost: 812.5 }), undefined, today);
-    expect(service.map((f) => f.label)).toEqual(["Workshop", "Cost", "Date", "Odometer", "GST", "Supplier ABN", "Entered", "Logged by"]);
-    const issue = entryFacts(log({ kind: "issue", ago: 3, status: "open" }), undefined, today);
-    expect(issue.map((f) => f.label)).toEqual(["Status", "Reported", "Reported by"]);
+    const service = entryFacts(log({ kind: "service", ago: 3, station: "Braeside Auto", cost: 812.5, source: "scan" }), undefined);
+    expect(service.map((f) => f.label)).toEqual(["Workshop", "Cost", "Odometer", "GST", "Supplier ABN", "Entered", "Logged by"]);
+    expect(service.find((f) => f.label === "GST")).toMatchObject({ value: "Not on the invoice" });
+    expect(service.find((f) => f.label === "Entered")).toMatchObject({ value: "Read from the invoice" });
+    const issue = entryFacts(log({ kind: "issue", ago: 3, status: "open" }), undefined);
+    expect(issue.map((f) => f.label)).toEqual(["Status", "Reported by"]);
     expect(issue[0]).toMatchObject({ value: "Open", warn: true });
-    expect(entryFacts(log({ kind: "issue", ago: 3, status: "resolved" }), undefined, today)[0]).toMatchObject({ value: "Resolved", warn: false });
-    const reading = entryFacts(log({ kind: "odo", ago: 0, odo: 108375 }), undefined, today);
+    expect(entryFacts(log({ kind: "issue", ago: 3, status: "resolved" }), undefined)[0]).toMatchObject({ value: "Resolved", warn: false });
+    const reading = entryFacts(log({ kind: "odo", ago: 0, odo: 108375 }), undefined);
     expect(reading.map((f) => [f.label, f.value])).toEqual([
       ["Reading", "108,375 km"],
-      ["Date", "2 Sep 2026"],
       ["Logged by", "Imported"], // staffId null is the import, not a blank
     ]);
   });

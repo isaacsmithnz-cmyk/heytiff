@@ -287,19 +287,22 @@ const notRecorded = (s: string | null | undefined): Pick<EntryFact, "value" | "f
 /** The facts of one entry, per kind. Only what a log of that kind can carry:
     a fuel line has litres and a docket's tax figures, a service has the
     workshop's, an issue has its state, a reading has its reading. A blank is
-    said as a blank — never a figure the row did not hold. */
-export function entryFacts(log: VehicleLog, eco: number | undefined, today: string): EntryFact[] {
-  const date: EntryFact = { label: "Date", value: fmtDay(logIso(log, today)) };
+    said as a blank — never a figure the row did not hold. The DATE is not
+    here: the screen's title carries it, and a fact that repeats the title is
+    the same thing said twice. */
+export function entryFacts(log: VehicleLog, eco: number | undefined): EntryFact[] {
   const by: EntryFact = { label: "Logged by", ...notRecorded(log.staffName ?? (log.staffId ? null : "Imported")) };
   const odo: EntryFact = {
     label: "Odometer",
     ...notRecorded(typeof log.odo === "number" ? `${fmtKm(log.odo)} km` : null),
   };
   const money = (n: number | undefined) => notRecorded(typeof n === "number" ? fmtCost(n) : null);
+  /* The tax lines, named after the paper they came off. */
+  const paper = log.kind === "fuel" ? "receipt" : "invoice";
   const tax: EntryFact[] = [
-    { label: "GST", ...(typeof log.gst === "number" ? { value: fmtCost(log.gst) } : { value: "Not shown", faint: true }) },
+    { label: "GST", ...(typeof log.gst === "number" ? { value: fmtCost(log.gst) } : { value: `Not on the ${paper}`, faint: true }) },
     { label: "Supplier ABN", ...notRecorded(log.abn ? formatAbn(log.abn) : null) },
-    { label: "Entered", value: log.source === "scan" ? "Read from the paper" : "Typed in" },
+    { label: "Entered", value: log.source === "scan" ? `Read from the ${paper}` : "Typed in" },
   ];
   const corrected: EntryFact[] = log.edited ? [{ label: "Corrected", value: "Yes, after it was logged" }] : [];
   switch (log.kind) {
@@ -308,32 +311,22 @@ export function entryFacts(log: VehicleLog, eco: number | undefined, today: stri
         { label: "Litres", ...notRecorded(typeof log.litres === "number" ? `${log.litres} L` : null) },
         { label: "Cost", ...money(log.cost) },
         { label: "Station", ...notRecorded(log.station) },
-        date,
         odo,
-        { label: "Economy", ...notRecorded(typeof eco === "number" ? `${eco} L/100km` : null) },
+        { label: "Fuel economy", ...notRecorded(typeof eco === "number" ? `${eco} L/100km` : null) },
         ...tax,
         by,
         ...corrected,
       ];
     case "service":
-      return [
-        { label: "Workshop", ...notRecorded(log.station) },
-        { label: "Cost", ...money(log.cost) },
-        date,
-        odo,
-        ...tax,
-        by,
-        ...corrected,
-      ];
+      return [{ label: "Workshop", ...notRecorded(log.station) }, { label: "Cost", ...money(log.cost) }, odo, ...tax, by, ...corrected];
     case "issue":
       return [
         { label: "Status", value: log.status === "resolved" ? "Resolved" : "Open", warn: log.status !== "resolved" },
-        { label: "Reported", value: date.value },
         { label: "Reported by", value: by.value, faint: by.faint },
         ...corrected,
       ];
     case "odo":
-      return [{ ...odo, label: "Reading" }, date, by, ...corrected];
+      return [{ ...odo, label: "Reading" }, by, ...corrected];
   }
 }
 

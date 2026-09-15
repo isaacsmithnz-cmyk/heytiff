@@ -212,6 +212,30 @@ describe("the checks strip", () => {
     expect(edit()).toBeInTheDocument();
   });
 
+  /* "VEVO" was the government's name for the visa check and nobody in the
+     office has heard of it: the words are the documents a person holds. */
+  it("asks for the visa check in plain words", () => {
+    setup(onVisa, { checkCount: 0, onOpenChecks: jest.fn() });
+    expect(
+      screen.getByText("Scan the visa check result or the grant letter to start the record")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/VEVO/)).not.toBeInTheDocument();
+  });
+
+  /* A citizen or permanent resident has no visa to check, so the empty state
+     stops asking for one and says what can be kept instead. */
+  it("does not ask a citizen to scan a visa check", () => {
+    setup(
+      { ...blankProfile, work_rights_status: "Australian citizen" },
+      { checkCount: 0, onOpenChecks: jest.fn() }
+    );
+    expect(screen.getByText("No checks recorded")).toBeInTheDocument();
+    expect(
+      screen.getByText("Keep the passport or citizenship certificate here as evidence")
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/visa check result/)).not.toBeInTheDocument();
+  });
+
   it("withdraws the edit cycle once a check exists", () => {
     setup(onVisa, { checkCount: 2, onOpenChecks: jest.fn() });
     expect(screen.getByText("2 checks on file")).toBeInTheDocument();

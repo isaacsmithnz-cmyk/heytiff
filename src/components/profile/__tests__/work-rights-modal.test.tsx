@@ -74,7 +74,7 @@ describe("a scan in progress survives Escape", () => {
 
   it("still closes on Escape and on the backdrop when nothing has been scanned", async () => {
     const { user, onClose } = mount();
-    expect(screen.getByText("Scan or upload the VEVO result or visa grant notice")).toBeInTheDocument();
+    expect(screen.getByText("Scan or upload the visa check result or the visa grant letter")).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledTimes(1);
     backdrop();

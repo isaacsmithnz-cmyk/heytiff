@@ -175,7 +175,7 @@ describe("the facts grid", () => {
   it("names a check by status and visa, and says how it got here", () => {
     expect(checkEvent(rec())).toBe("Full working rights (visa), 482 Temporary Skill Shortage");
     expect(checkEvent(rec({ visaType: null }))).toBe("Full working rights (visa)");
-    expect(checkAddedText(rec())).toBe("Added 3 Feb 2026, VEVO check");
+    expect(checkAddedText(rec())).toBe("Added 3 Feb 2026, visa check");
     expect(checkAddedText(rec({ source: null, createdAt: null }))).toBe("");
   });
 });

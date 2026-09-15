@@ -162,12 +162,14 @@ export function checkEvent(r: WorkRightsRecord): string {
   return visa ? `${r.status}, ${visa}` : r.status;
 }
 
-/** "Added 4 Feb 2026 · VEVO check" — how this row got here. */
+/** "Added 4 Feb 2026, visa check" — how this row got here. The source is
+    still called `vevo` in the table (that is the register the check is made
+    against); on screen it is the visa check, the words a person uses. */
 export function checkAddedText(r: WorkRightsRecord): string {
   const when = r.createdAt ? `Added ${fmtDay(r.createdAt)}` : "";
   const how =
     r.source === "vevo"
-      ? "VEVO check"
+      ? "visa check"
       : r.source === "scan"
         ? "scanned from the document"
         : r.source === "manual"

@@ -126,6 +126,7 @@ text it sits in.
 | surface | `#fff` | anything that holds content |
 | line | `rgba(5,5,5,.08)` | the one hairline; a raised thing is surface plus line |
 | overlay | `0 12px 32px rgba(10,12,20,.16)` | the one shadow, only for a thing that floats over the page |
+| scrim | `rgba(10,11,16,.45)` | the one veil under a modal or a sheet; a lightbox is darker on purpose |
 
 | Spacing | 2 · 4 · 8 · 12 · 16 · 24 · 32 · 48 | two is the hairline gap between chips |
 |---|---|---|

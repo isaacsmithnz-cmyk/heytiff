@@ -463,7 +463,7 @@ export function RenewalScreen({
         </Card>
       </div>
 
-      <div className="vm-foot">
+      <div className="fl-foot bar">
         <Btn kind="outline" onClick={onBack}>
           Cancel
         </Btn>

@@ -110,6 +110,7 @@
   --ring-bad:0 0 0 2px var(--paper), 0 0 0 4px var(--bad-t);
   --ring-warn:0 0 0 2px var(--paper), 0 0 0 4px var(--warn-t);
   --shadow-overlay:0 12px 32px rgba(10,12,20,.16);
+  --scrim:rgba(10,11,16,.45); /* the one veil under a modal or a sheet; a lightbox is darker on purpose */
   --ok-tint:rgba(25,107,45,.12); --bad:#e0264f; --bad-tint:rgba(224,38,79,.1); --warn:#F0A431; --warn-tint:rgba(240,164,49,.13); --info-tint:rgba(37,84,216,.1);
   --t-fast:120ms; --t-move:200ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;

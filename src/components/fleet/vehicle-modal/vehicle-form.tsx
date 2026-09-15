@@ -762,7 +762,7 @@ export function VehicleForm({
           </Section>
         </div>
 
-        <div className="vm-foot">
+        <div className="fl-foot bar">
           <Btn kind="outline" onClick={onClose}>
             Cancel
           </Btn>

@@ -382,6 +382,8 @@ export function VisitSheet({
         {tick ? (
           <button
             className="wb2-bx"
+            role="checkbox"
+            aria-checked={on}
             disabled={busy || !open || isQuote}
             title={on ? "Confirmed — click to reopen" : "Mark confirmed"}
             aria-label={`${label} — ${on ? "confirmed" : "not confirmed"}`}
@@ -599,8 +601,9 @@ export function VisitSheet({
                           if (e.key === "Escape") cancelEstimate();
                         }}
                       />
-                      <button className="wb2-addgo" disabled={busy} title="Save it" aria-label="Save the estimate" onClick={saveEstimate}>
-                        <Icon name="check" size={13} />
+                      {/* a field's save is a word; a composer's send is the glyph (law 25) */}
+                      <button type="button" className="pbtn sm" disabled={busy} aria-label="Save the estimate" onClick={saveEstimate}>
+                        Save
                       </button>
                     </div>
                   ) : (

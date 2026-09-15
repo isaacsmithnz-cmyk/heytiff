@@ -907,7 +907,7 @@ function Home({
                         type="button"
                         className="ds-sm8-clear"
                         onClick={unpickJob}
-                        aria-label="Start from a different job"
+                        aria-label="Clear the job — start from a different one"
                       >
                         <Icon name="x" size={13} />
                       </button>

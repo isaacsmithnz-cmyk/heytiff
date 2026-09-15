@@ -167,7 +167,7 @@ describe("the capsule", () => {
        Meridian Data · CRACs", which is a sentence about a setting; a tag is
        the thing itself, and it is now something you can take off. */
     expect(screen.getByText("Meridian Data, CRACs")).toBeInTheDocument();
-    expect(screen.getByLabelText(/take the tag off/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Clear the tag/i)).toBeInTheDocument();
   });
 
   it("says General note when it's standing on nothing", async () => {
@@ -200,7 +200,7 @@ describe("the capsule", () => {
       targetLabel: "Meridian Data, CRACs",
     });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
-    await userEvent.click(screen.getByLabelText(/take the tag off/i));
+    await userEvent.click(screen.getByLabelText(/Clear the tag/i));
 
     expect(screen.queryByText("Meridian Data, CRACs")).not.toBeInTheDocument();
     expect(screen.getByText("General note")).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe("the capsule", () => {
       targetLabel: "Meridian Data, CRACs",
     });
     await userEvent.click(screen.getByLabelText(/Ask or tell Tiff/));
-    await userEvent.click(screen.getByLabelText(/take the tag off/i));
+    await userEvent.click(screen.getByLabelText(/Clear the tag/i));
     expect(screen.getByText("General note")).toBeInTheDocument();
 
     // close it and open it again, exactly as somebody would (the ribbon's
@@ -424,7 +424,7 @@ describe("the strip — a job card's note row", () => {
       "Tell Luke he needs to order the grilles before Monday{Enter}"
     );
     await screen.findByText(/something to do in this/);
-    await userEvent.click(screen.getByLabelText(/Ignore that/));
+    await userEvent.click(screen.getByLabelText(/leave it as a note/));
     expect(screen.queryByText(/something to do in this/)).not.toBeInTheDocument();
     expect(routeNote).not.toHaveBeenCalled();
   });

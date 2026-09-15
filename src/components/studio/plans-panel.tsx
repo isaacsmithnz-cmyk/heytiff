@@ -431,7 +431,7 @@ export function PlansPanel({
                 aria-label="Discard this import"
                 onClick={discardImport}
               >
-                <Icon name="x" size={14} />
+                Discard
               </button>
             )}
           </div>

@@ -196,15 +196,37 @@ function hoverBlocks(test: (body: string) => boolean): number {
   return n;
 }
 
-/* A button whose only content is an icon, unless it is a close cross or the
-   clear cross in a search field — the two the law allows. */
-function iconOnlyButtons(): number {
-  let n = 0;
-  for (const m of TSX.matchAll(/<button\b([^>]*)>\s*(?:<span[^>]*>\s*)?<Icon\b[^>]*\/>\s*(?:<\/span>\s*)?<\/button>/g)) {
+/* THE BUTTONS THAT KEEP THEIR GLYPH ARE HELD BY NAME. A button whose only
+   content is an icon is a close cross or a clear cross — read off the label,
+   which begins "Close" or "Clear" — or a checkbox that says so, or one of
+   the few docs/design.md names by glyph and class with a reason beside it.
+   The sheets must match that list exactly, both ways, as the loops do. It
+   was a count (34 on 2026-09-10, 29 when the list was written). */
+function iconOnly(): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const m of TSX.matchAll(/<button\b([^>]*)>\s*(?:<span[^>]*>\s*)?<Icon\b([^>]*)\/>\s*(?:<\/span>\s*)?<\/button>/g)) {
     if (/aria-label=\{?["'`](Close|Clear)\b/.test(m[1])) continue;
-    n++;
+    if (/role="checkbox"/.test(m[1])) continue;
+    const glyph = /name=(?:"([\w-]+)"|\{[^}]*?"([\w-]+)")/.exec(m[2]);
+    const cls = /className=(?:"([^"]*)"|\{`([^`$]*)|\{"([^"]*)")/.exec(m[1]);
+    const key = `${glyph?.[1] ?? glyph?.[2] ?? "?"}@${(cls?.[1] ?? cls?.[2] ?? cls?.[3] ?? "?").trim().split(/\s+/)[0]}`;
+    out[key] = (out[key] ?? 0) + 1;
   }
-  return n;
+  return out;
+}
+function namedIconOnly(): Record<string, number> {
+  const doc = fs.readFileSync(path.join(process.cwd(), "docs/design.md"), "utf8");
+  const at = doc.indexOf("### The buttons that keep their glyph");
+  if (at < 0) throw new Error("docs/design.md has no section 'The buttons that keep their glyph'");
+  const end = doc.indexOf("\n#", at + 1);
+  const out: Record<string, number> = {};
+  for (const row of doc.slice(at, end < 0 ? undefined : end).split("\n")) {
+    if (!row.startsWith("| `")) continue;
+    const cells = row.split("|");
+    const glyph = /`([\w-]+)`/.exec(cells[1])?.[1] ?? "?";
+    for (const m of cells[2].matchAll(/`([\w-]+)`(?: ×(\d+))?/g)) out[`${glyph}@${m[1]}`] = (out[`${glyph}@${m[1]}`] ?? 0) + Number(m[2] ?? 1);
+  }
+  return out;
 }
 
 /* Every size a rule sets, whether as `font-size` or inside a `font:`
@@ -334,7 +356,6 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      class name and loses the box, so it stops counting. */
   { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 39 },
   { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 34 },
-  { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 29 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
      every use (88), then the accent migration named accent-on-state as state
@@ -391,6 +412,10 @@ describe("the design ratchets only go down", () => {
 
   it("runs no loop that docs/design.md does not name, and names none that has gone", () => {
     expect(loops()).toEqual(namedLoops());
+  });
+
+  it("keeps no glyph-only button that docs/design.md does not name, and names none that has gone", () => {
+    expect(iconOnly()).toEqual(namedIconOnly());
   });
 
   for (const r of RATCHETS) {

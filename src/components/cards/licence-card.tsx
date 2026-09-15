@@ -1,6 +1,5 @@
 "use client";
 
-import { Icon } from "@/components/shell/icon";
 import { credBadgeCode, type LicenceStatus } from "@/lib/staff/licence";
 import { IdCard } from "./id-card";
 
@@ -85,7 +84,7 @@ export function LicenceCard({
             disabled={removing}
             onClick={onRemove}
           >
-            <Icon name="x" size={14} />
+            Remove
           </button>
         )
       }

@@ -216,6 +216,8 @@ export function ProjectTripSheet({
         {tick ? (
           <button
             className="wb2-bx"
+            role="checkbox"
+            aria-checked={on}
             disabled={busy || !open}
             title={on ? "Confirmed — click to reopen" : "Mark confirmed"}
             aria-label={`${label} — ${on ? "confirmed" : "not confirmed"}`}

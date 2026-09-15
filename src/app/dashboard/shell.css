@@ -2294,7 +2294,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr, .fg .mts2, .fg .lv-cols, .fg .lv-col, .fg .tw {
   --teal: var(--day-std);
   --teal-d: var(--day-std-d);
-  --teal-ink: #0b5c2e;
+  --teal-ink: var(--ok-t);
 
   /* INK FOR A SOLID BRAND FILL — the day vocabulary's other half.
 
@@ -2352,8 +2352,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
    `--violet-d` #7322c4 stays: 5.94 on its own tint, measured, and it is the
    one that was already right. `--blue-d` #2554d8 IS `--info-t`, same value. */
-.fg .tpr { font-variant-numeric:tabular-nums; --gray600:var(--ink); --amber:#F0A431; --amber-d:var(--warn-t); --violet:#8A2BE2; --violet-d:#7322c4;
-  --red:#FF3366; --red-d:var(--bad-t); --blue:#2E68FF; --blue-d:var(--info-t); }
+/* the section's old accent names are aliases of the day and state tokens now — kept as names because
+   text-contrast.test.ts reads the on-fill pairs off this block */
+.fg .tpr { font-variant-numeric:tabular-nums; --gray600:var(--ink); --amber:var(--day-over); --amber-d:var(--warn-t); --violet:var(--day-ph); --violet-d:var(--day-ph-d);
+  --red:var(--day-sick); --red-d:var(--bad-t); --blue:var(--day-leave); --blue-d:var(--info-t); }
 
 /* ---------- header ---------- */
 .fg .tpr .rhead { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:24px; }
@@ -2369,27 +2371,29 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* the week's note and the content below it are separate thoughts — without
    this they read as one paragraph that happens to contain a day strip */
 .fg .tp-card > .mts2-cols { margin-top:16px; }
-.fg .tpr .wknav .arw { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wknav .arw:hover { color:var(--ink); border-color:rgba(34,197,94,.5); }
+.fg .tpr .wknav .arw { width:42px; height:42px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--paper); border:1px solid var(--line); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .wknav .arw:hover { color:var(--ink); border-color:var(--ink); }
 .fg .tpr .wknav .range { font-size:20px; font-weight:700; white-space:nowrap; }
 .fg .tpr .wknav .range em { font-style:normal; color:var(--gray400); font-weight:700; }
-.fg .tpr .wknav .pstatus { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px; font-size:12px; font-weight:700; }
-.fg .tpr .wknav .pstatus.live { background:rgba(34,197,94,.14); color:var(--ok-t); }
-.fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:tprPulse 2s infinite; }
-.fg .tpr .wknav .pstatus.hist { background:#eceef1; color:var(--gray500); }
-.fg .tpr .wknav .arw:disabled { opacity:.4; cursor:not-allowed; transform:none; border-color:rgba(0,0,0,.07); }
+/* the period's state is a word with a live dot, not a pill (law 26) */
+.fg .tpr .wknav .pstatus { display:inline-flex; align-items:center; gap:8px; height:30px; font-size:14px; font-weight:500; }
+.fg .tpr .wknav .pstatus.live { color:var(--ok-t); }
+.fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--ok-t); animation:tprPulse 2s infinite; }
+.fg .tpr .wknav .pstatus.hist { color:var(--gray500); }
+.fg .tpr .wknav .arw:disabled { opacity:.4; cursor:not-allowed; transform:none; border-color:var(--line); }
 @keyframes tprPulse { 0%{box-shadow:none} 70%{box-shadow:none} 100%{box-shadow:none} }
 .fg .tpr .autosub { font-size:13px; font-weight:600; color:var(--gray500); margin-top:12px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
 
 /* big buttons */
-.fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; background:#fff; color:var(--gray700); border:1px solid rgba(10,12,20,.08); box-shadow:0 1px 2px rgba(10,12,20,.04); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
-.fg .tpr .bbtn:hover { border-color:rgba(34,197,94,.5); }
+.fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; background:var(--paper); color:var(--gray700); border:1px solid var(--line); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
+.fg .tpr .bbtn:hover { border-color:var(--ink); }
 .fg .tpr .bbtn svg { opacity:.85; }
-.fg .tpr .bbtn.teal { background:var(--teal); color:var(--ink); border-color:var(--teal); box-shadow:0 12px 24px -12px rgba(34,197,94,.65); }
-.fg .tpr .bbtn.teal:hover { border-color:var(--teal); }
-.fg .tpr .bbtn.ink { background:var(--ink); color:#fff; border-color:var(--ink); }
-.fg .tpr .bbtn.ink svg { opacity:1; color:var(--teal); }
+/* the primary action is ink (ink and paper); `.teal` keeps its name for the markup */
+.fg .tpr .bbtn.teal { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.fg .tpr .bbtn.teal:hover { border-color:var(--ink); }
+.fg .tpr .bbtn.ink { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.fg .tpr .bbtn.ink svg { opacity:1; color:var(--paper); }
 .fg .tpr .bbtn.sq { width:50px; padding:0; justify-content:center; }
 .fg .tpr .bbtn.sq svg { opacity:.8; }
 .fg .tpr .bbtn.busy { pointer-events:none; }
@@ -2401,7 +2405,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* A held Submit still lifted on hover and still showed a pointer, which is a
    button telling you it will do something it won't. */
 .fg .tpr .bbtn:disabled { cursor:default; }
-.fg .tpr .bbtn:disabled:hover { transform:none; border-color:rgba(10,12,20,.08); }
+.fg .tpr .bbtn:disabled:hover { transform:none; border-color:var(--line); }
 .fg .tpr .bbtn.ink:disabled:hover { border-color:var(--ink); }
 .fg .tpr .bbtn.busy .sp { animation:tprSpin .8s linear infinite; }
 @keyframes tprSpin { to { transform:rotate(360deg); } }
@@ -2418,9 +2422,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    `.review` keeps its red edge and is now the only tile with one, which is
    the point of it — on the old treatment every tile had a border to compete
    with, and the one that meant "look at this" had to shout over three. */
-.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:12px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:16px 16px; overflow:hidden; }
-.fg .tpr .stat .si { position:static; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fg .tpr .stat .sv { font-family:var(--font); font-size:24px; font-weight:700; letter-spacing:-.03em; line-height:1; margin:0; }
+.fg .tpr .stat { position:relative; display:flex; align-items:center; gap:12px; background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 16px; overflow:hidden; }
+/* the icon alone, in ink or the state colour — the tinted square was the card tell (step 4) */
+.fg .tpr .stat .si { position:static; display:flex; align-items:center; justify-content:center; flex:0 0 auto; color:var(--ink); }
+.fg .tpr .stat .sv { font-family:var(--font); font-size:24px; font-weight:700; line-height:1; margin:0; }
 /* the denominator on the Approved tile — "1 of 4" is a ratio, and the half of
    it that isn't the answer is quiet */
 .fg .tpr .stat .sv em { font-style:normal; font-size:16px; font-weight:700; color:var(--gray500); }
@@ -2434,11 +2439,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    where the detail lives. */
 .fg .tpr .stat .ss { display:block; font-size:12px; font-weight:600; color:var(--gray500); margin-top:4px; line-height:1.35; }
 .fg .tpr .stat .sv { color:var(--ink); } .fg .tpr .stat .sl { color:var(--gray500); }
-.fg .tpr .stat.hrs .si { background:var(--ink); color:var(--teal); }
-.fg .tpr .stat.normal .si { background:var(--teal); color:#053b34; }
-.fg .tpr .stat.ot { background:rgba(240,164,49,.06); border-color:rgba(240,164,49,.26); }
-.fg .tpr .stat.ot .si { background:var(--amber); color:#4a2e05; }
-.fg .tpr .stat.exp .si { background:var(--violet); color:#fff; }
+.fg .tpr .stat.normal .si { color:var(--day-std-d); }
+.fg .tpr .stat.ot { background:var(--warn-tint); border-color:var(--warn); }
+.fg .tpr .stat.ot .si { color:var(--warn-t); }
 /* the strip is four figures of different lengths; below the card's two-column
    width they stack two-up rather than crushing to 140px each */
 @media (max-width:900px){ .fg .tpr .stats { grid-template-columns:repeat(2,1fr); } }
@@ -2456,19 +2459,19 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    keys is a solid grey one — so the only entry in the key that could not be
    matched to anything on screen was the one for the state that means nothing is
    there. Both now restate the tile exactly. */
-.fg .tpr .legend .sw.std { background:var(--teal); }
-.fg .tpr .legend .sw.over { background:var(--amber); }
+.fg .tpr .legend .sw.std { background:var(--day-std); }
+.fg .tpr .legend .sw.over { background:var(--day-over); }
 /* PINK, not the yellow this used to be. `under` sat at #FFDD57 next to `over`
    at #F0A431 — two yellows a shade apart for "worked too long" and "worked too
    little", the two states most worth telling apart — while my-timesheet drew
    the same state pink. One colour, and it is the one that isn't already
    overtime. */
-.fg .tpr .legend .sw.under { background:#f472b6; }
-.fg .tpr .legend .sw.leave { background:var(--blue); }
-.fg .tpr .legend .sw.sick { background:var(--red); }
-.fg .tpr .legend .sw.ph { background:var(--violet); }
+.fg .tpr .legend .sw.under { background:var(--day-under); }
+.fg .tpr .legend .sw.leave { background:var(--day-leave); }
+.fg .tpr .legend .sw.sick { background:var(--day-sick); }
+.fg .tpr .legend .sw.ph { background:var(--day-ph); }
 .fg .tpr .legend .sw.off { background:var(--gray400); }
-.fg .tpr .legend .sw.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; }
+.fg .tpr .legend .sw.empty { background:var(--tint-2); border:1.5px solid var(--line); }
 
 /* ---------- section heading ---------- */
 /* THE HEADING SITS ON ITS OWN LIST'S AXIS, NOT ON THE CARD'S.
@@ -2485,18 +2488,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    to move together. */
 .fg .tpr .sect { display:flex; align-items:center; gap:12px; margin:0 0 16px; padding:0 calc(24px + 1px); }
 .fg .tpr .sect .st { font-size:14px; font-weight:700; }
-.fg .tpr .sect.attn .st { color:var(--red-d); }
-.fg .tpr .sect .ct { font-family:var(--font); font-size:12px; font-weight:700; padding:4px 8px; border-radius:999px; background:#eceef1; color:var(--gray500); }
-.fg .tpr .sect.attn .ct { background:rgba(255,51,102,.12); color:var(--red-d); }
-.fg .tpr .sect .ln { flex:1; height:1px; background:rgba(10,12,20,.08); }
-.fg .tpr .sect .allbtn { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:10px; font-size:13px; font-weight:700; color:var(--ink); background:var(--teal); box-shadow:0 8px 18px -10px rgba(34,197,94,.6); }
+.fg .tpr .sect.attn .st { color:var(--bad-t); }
+.fg .tpr .sect .ct { font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray500); }
+.fg .tpr .sect.attn .ct { color:var(--bad-t); }
+.fg .tpr .sect .ln { flex:1; height:1px; background:var(--tint-2); }
+.fg .tpr .sect .allbtn { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--paper); background:var(--ink); }
 .fg .tpr .sect .allbtn:hover { }
 .fg .tpr .sectwrap + .sectwrap { margin-top:32px; }
 
 /* ---------- review card (rich, expandable) ---------- */
-.fg .tpr .card { display:block; background:#fff; border:1px solid rgba(10,12,20,.07); border-radius:16px; padding:24px; box-shadow:0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.24); }
+.fg .tpr .card { display:block; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:24px; }
 .fg .tpr .card + .card { margin-top:12px; }
-.fg .tpr .card.flag { border-color:rgba(240,164,49,.4); box-shadow:0 1px 2px rgba(10,12,20,.04), 0 22px 52px -28px rgba(240,164,49,.4); }
+.fg .tpr .card.flag { border-color:var(--warn); }
 
 /* 10px, so 46 + 10 lands the name on the same column as the compact row's
    40 + 16 four rows down. The two avatars are deliberately different sizes —
@@ -2504,7 +2507,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    as one column and were 4px apart. Change either avatar and this gap moves
    with it. */
 .fg .tpr .chead { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
-.fg .tpr .chead .av { width:48px; height:48px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:#fff; }
+.fg .tpr .chead .av { width:48px; height:48px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; color:var(--paper); }
 .fg .tpr .chead .who .nm { font-size:16px; font-weight:700; display:flex; align-items:center; gap:12px; }
 .fg .tpr .chead .who .rl { font-size:13px; font-weight:600; color:var(--gray400); margin-top:2px; }
 .fg .tpr .chead .sp { flex:1; }
@@ -2533,14 +2536,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .chead .who { min-width:0; }
 .fg .tpr .chead .cacts { margin-left:auto; flex-wrap:wrap; justify-content:flex-end; }
 .fg .tpr .badge { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; white-space:nowrap; }
-.fg .tpr .badge.review { color:var(--amber-d); }
-.fg .tpr .badge.review .d { width:6px; height:6px; border-radius:50%; background:var(--amber); }
-.fg .tpr .badge.ready { color:var(--blue-d); }
+.fg .tpr .badge.review { color:var(--warn-t); }
+.fg .tpr .badge.review .d { width:6px; height:6px; border-radius:50%; background:var(--day-over); }
+.fg .tpr .badge.ready { color:var(--info-t); }
 
-.fg .tpr .capprove { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 24px; border-radius:16px; font-size:14px; font-weight:700; background:var(--ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .capprove { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 24px; border-radius:var(--r-card); font-size:14px; font-weight:700; background:var(--ink); color:var(--paper); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tpr .capprove:hover { }
-.fg .tpr .cedit { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 16px; border-radius:16px; font-size:14px; font-weight:700; color:var(--gray700); background:#fff; border:1px solid rgba(10,12,20,.1); transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .cedit:hover { border-color:rgba(34,197,94,.5); }
+.fg .tpr .cedit { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 16px; border-radius:var(--r-card); font-size:14px; font-weight:700; color:var(--gray700); background:var(--paper); border:1px solid var(--line); transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .cedit:hover { border-color:var(--ink); }
 /* THE STATUS PILL, WHERE THE BUTTONS WOULD BE. `.cacts` holds Approve and Send
    back until a week has been decided, and this instead — so it is a control's
    twin and has to be built like one.
@@ -2558,19 +2561,19 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    row's 42px, for the same reason `.crow` shrinks `.capprove` on the line
    below: the pill matches the controls it stands among, whichever row it is
    on. `.crow` keeps its own smaller figures, unchanged. */
-.fg .tpr .apprtag { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--teal-ink); white-space:nowrap; }
+.fg .tpr .apprtag { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:500; color:var(--ok-t); white-space:nowrap; }
 
 /* issue / overtime banner */
-.fg .tpr .obar { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:10px; background:#fbf3e2; margin-bottom:16px; }
-.fg .tpr .obar.bad { background:#fdedf0; }
-.fg .tpr .obar .oi { width:28px; height:28px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(240,164,49,.18); color:var(--amber-d); }
-.fg .tpr .obar.bad .oi { background:rgba(255,51,102,.13); color:var(--red-d); }
-.fg .tpr .obar .ot b { font-size:12px; font-weight:500; color:var(--amber-d); display:block; margin-bottom:4px; }
-.fg .tpr .obar.bad .ot b { color:var(--red-d); }
+.fg .tpr .obar { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:var(--r-button); background:var(--warn-tint); margin-bottom:16px; }
+.fg .tpr .obar.bad { background:var(--bad-tint); }
+.fg .tpr .obar .oi { flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--warn-t); }
+.fg .tpr .obar.bad .oi { color:var(--bad-t); }
+.fg .tpr .obar .ot b { font-size:12px; font-weight:500; color:var(--warn-t); display:block; margin-bottom:4px; }
+.fg .tpr .obar.bad .ot b { color:var(--bad-t); }
 .fg .tpr .obul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
 .fg .tpr .obul li { position:relative; padding-left:16px; font-size:13px; font-weight:600; color:var(--gray600); line-height:1.45; }
-.fg .tpr .obul li::before { content:""; position:absolute; left:2px; top:.52em; width:6px; height:6px; border-radius:50%; background:var(--amber); }
-.fg .tpr .obar.bad .obul li::before { background:var(--red); }
+.fg .tpr .obul li::before { content:""; position:absolute; left:2px; top:.52em; width:6px; height:6px; border-radius:50%; background:var(--day-over); }
+.fg .tpr .obar.bad .obul li::before { background:var(--day-sick); }
 
 /* two-column card body: banner + tiles left (stacked), summary right — equal height */
 .fg .tpr .cbody { display:grid; grid-template-columns:1fr 288px; gap:16px; align-items:stretch; }
@@ -2596,7 +2599,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    what gives it — pinning the height here would have left the container
    growing and the tiles rattling around inside it. */
 .fg .tpr .cbody .tile { height:auto; }
-.fg .tpr .cside { background:#fafbfc; border:1px solid #eef0f3; border-radius:16px; padding:16px 16px; display:flex; flex-direction:column; }
+.fg .tpr .cside { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 16px; display:flex; flex-direction:column; }
 /* THE DAY STRIP IS A GRID HERE, SO THE WRAP FLOOR IS NOT ITS RULE.
 
    `.fg .tpr .tiles > *` pins every tile at `min-width:74px`, which is right for
@@ -2626,34 +2629,34 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* pay-breakdown proportion graphic */
 .fg .tpr .paybar { display:flex; gap:4px; height:12px; margin:12px 0 4px; }
 .fg .tpr .paybar .pseg { border-radius:999px; min-width:5px; }
-.fg .tpr .paybar .pseg.std { background:var(--teal); }
-.fg .tpr .paybar .pseg.ot15 { background:var(--amber); }
-.fg .tpr .paybar .pseg.ot2 { background:var(--violet); }
-.fg .tpr .paybar .pseg.empty { background:#e7e9ef; }
+.fg .tpr .paybar .pseg.std { background:var(--day-std); }
+.fg .tpr .paybar .pseg.ot15 { background:var(--day-over); }
+.fg .tpr .paybar .pseg.ot2 { background:var(--day-ph); }
+.fg .tpr .paybar .pseg.empty { background:var(--tint-2); }
 .fg .tpr .cs-buckets { display:flex; flex-direction:column; padding:4px 0 2px; }
 .fg .tpr .bkt { display:grid; grid-template-columns:1fr auto 52px; align-items:center; gap:12px; padding:8px 0; }
-.fg .tpr .rchip { display:inline-flex; align-items:center; justify-content:center; min-width:46px; height:25px; padding:0 8px; border-radius:6px; font-size:12px; font-weight:700; }
+.fg .tpr .rchip { display:inline-flex; align-items:center; justify-content:center; min-width:46px; height:25px; padding:0 8px; border-radius:var(--r-control); font-size:12px; font-weight:700; }
 /* The rate chip is the day palette at 25px — same fills, so the same inks, and
    `.sk` had the same white-on-#FF3366 3.55 the sick tile did. */
-.fg .tpr .rchip.std { background:var(--teal); color:var(--on-teal); }
-.fg .tpr .rchip.ot15 { background:var(--amber); color:var(--on-amber); }
-.fg .tpr .rchip.ot2 { background:var(--violet); color:#fff; }
-.fg .tpr .rchip.sk { background:var(--red); color:var(--on-red); }
-.fg .tpr .rchip.lv { background:var(--blue); color:#fff; }
-.fg .tpr .rchip.ph { background:var(--violet); color:#fff; }
+.fg .tpr .rchip.std { background:var(--day-std); color:var(--on-teal); }
+.fg .tpr .rchip.ot15 { background:var(--day-over); color:var(--on-amber); }
+.fg .tpr .rchip.ot2 { background:var(--day-ph); color:var(--paper); }
+.fg .tpr .rchip.sk { background:var(--day-sick); color:var(--on-red); }
+.fg .tpr .rchip.lv { background:var(--day-leave); color:var(--paper); }
+.fg .tpr .rchip.ph { background:var(--day-ph); color:var(--paper); }
 /* THE SUM OF THE BUCKETS, in the panel with them. It was "Weighted hours" at
    the far end of the daily-breakdown fold, in a band that also restated every
    bucket above it — so the figure being signed off was behind a button and
    under a different name from the one the person's own sheet gives it. Two
    columns, not the bucket's three: there is no rate chip on a total. */
-.fg .tpr .bkt.total { grid-template-columns:1fr auto; margin-top:4px; padding-top:12px; border-top:1px solid #e6e9ee; }
+.fg .tpr .bkt.total { grid-template-columns:1fr auto; margin-top:4px; padding-top:12px; border-top:1px solid var(--line); }
 .fg .tpr .bkt.total .bl { font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .tpr .bkt.total .bv { font-size:20px; }
 /* A ZERO BUCKET IS QUIET, NOT FADED. `opacity:.3` took the chip's own ink to
    1.72:1 against its fill — a rate a person cannot read, on the row that says
    there is none of it. It drops the brand fill for the neutral one instead, so
    the row recedes by COLOUR rather than by being half-erased. */
-.fg .tpr .bkt.zero .rchip { background:#eceef1; color:var(--gray500); }
+.fg .tpr .bkt.zero .rchip { background:var(--tint-2); color:var(--gray500); }
 .fg .tpr .bkt .bl { font-size:14px; font-weight:700; color:var(--gray700); }
 .fg .tpr .bkt .br { font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .tpr .bkt .bv { display:flex; align-items:baseline; justify-content:flex-end; gap:1px; font-family:var(--font); font-size:16px; font-weight:700; color:var(--ink); white-space:nowrap; }
@@ -2667,15 +2670,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* #c3c7cf on #fafbfc is 1.64:1 — the zero itself, the one character on the row
    carrying its whole meaning, was the least readable thing in the panel. */
 .fg .tpr .bkt.zero .bv { color:var(--gray500); }
-.fg .tpr .cs-expand { margin-top:8px; padding-top:12px; border-top:1px solid #eef0f3; display:flex; align-items:center; justify-content:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray600); transition:color var(--t-fast) var(--ease); }
+.fg .tpr .cs-expand { margin-top:8px; padding-top:12px; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray600); transition:color var(--t-fast) var(--ease); }
 .fg .tpr .cs-expand:hover { color:var(--ink); }
 .fg .tpr .card.open .cs-expand svg { transform:rotate(180deg); }
 
 /* day tiles */
 .fg .tpr .tiles { display:flex; gap:12px; margin-bottom:16px; }
 .fg .tpr .cbody .tiles { display:grid; gap:12px; }
-.fg .tpr .tile { position:relative; flex:1 1 0; min-width:0; height:96px; border-radius:10px; padding:8px 8px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; border:1.5px solid transparent; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tpr .tile:hover { z-index:2; }
+.fg .tpr .tile { position:relative; flex:1 1 0; min-width:0; height:96px; border-radius:var(--r-button); padding:8px 8px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; border:1.5px solid transparent; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .tpr .tile:hover { z-index:var(--z-raised); }
 /* NO `opacity:.85` ON THE WEEKDAY. It was the single widest contrast defect on
    either screen: the three-letter day label is the one part of a tile that is
    on EVERY tile, and dimming it multiplied every one of the nine inks against
@@ -2687,35 +2690,35 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .tile .wd { font-family:var(--font); font-size:12px; font-weight:700; }
 .fg .tpr .tile .dn { font-size:20px; font-weight:700; line-height:1; }
 .fg .tpr .tile .hh { font-family:var(--font); font-size:12px; font-weight:700; }
-.fg .tpr .tile.std { background:var(--teal); border-color:var(--teal); color:var(--on-teal); }
-.fg .tpr .tile.over { background:var(--amber); border-color:var(--amber); color:var(--on-amber); }
-.fg .tpr .tile.under { background:var(--pink); border-color:var(--pink); color:var(--on-pink); }
-.fg .tpr .tile.leave { background:var(--blue); border-color:var(--blue); color:#fff; }
+.fg .tpr .tile.std { background:var(--day-std); border-color:var(--day-std); color:var(--on-teal); }
+.fg .tpr .tile.over { background:var(--day-over); border-color:var(--day-over); color:var(--on-amber); }
+.fg .tpr .tile.under { background:var(--day-under); border-color:var(--day-under); color:var(--on-pink); }
+.fg .tpr .tile.leave { background:var(--day-leave); border-color:var(--day-leave); color:var(--paper); }
 /* THE ONE FILL WHITE CANNOT SIT ON. `--red` #FF3366 is a light red — white
    measures 3.55:1 on it, so "Sick", the date and the weekday all failed on the
    day state most worth seeing. The fill does NOT move: it is the same red as
    the legend swatch, the mini tile and the missing-day dash, and a colour that
    means one thing has to keep meaning it. The INK moves, to the same darkened
    same-hue treatment teal, amber and pink already use. */
-.fg .tpr .tile.sick { background:var(--red); border-color:var(--red); color:var(--on-red); }
-.fg .tpr .tile.ph { background:var(--violet); border-color:var(--violet); color:#fff; }
+.fg .tpr .tile.sick { background:var(--day-sick); border-color:var(--day-sick); color:var(--on-red); }
+.fg .tpr .tile.ph { background:var(--day-ph); border-color:var(--day-ph); color:var(--paper); }
 /* A day someone said they did NOT work. It had no rule at all, so it drew as
    a transparent tile with a "—h" where its hours would be — the one state on
    this screen that most needs to be seen, rendered as an absence of one. */
-.fg .tpr .tile.off { background:var(--gray400); border-color:var(--gray400); color:#fff; }
+.fg .tpr .tile.off { background:var(--gray400); border-color:var(--gray400); color:var(--paper); }
 /* #8f96a3 measured 2.10 on this fill and the hours line under it, at #a7adb8,
    measured 1.86 — two greys picked to say "nothing here" that ended up saying
    nothing at all. There is no accessible ramp below --gray500 on a #e7e9ef
    ground, so the two tiers are carried by size and weight, as everywhere else
    in this sheet. */
-.fg .tpr .tile.empty { background:#e7e9ef; border:1.5px solid #dcdfe6; color:var(--gray500); }
-.fg .tpr .tile.miss { background:#fff; border:2px dashed var(--red); color:var(--red-d); }
+.fg .tpr .tile.empty { background:var(--tint-2); border:1.5px solid var(--line); color:var(--gray500); }
+.fg .tpr .tile.miss { background:var(--paper); border:2px dashed var(--day-sick); color:var(--bad-t); }
 .fg .tpr .tile.miss .hh { font-weight:700; }
-.fg .tpr .crow .mt.miss { background:#fff; box-shadow:inset 0 0 0 2px var(--red); }
+.fg .tpr .crow .mt.miss { background:var(--paper);  box-shadow:inset 0 0 0 2px var(--day-sick); }
 /* `.tile.empty .hh`'s own #a7adb8 (1.86:1) is gone — it inherits the tile's
    --gray500 and stays quieter by being 11px against the date's 18. */
-.fg .tpr .tile.today { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--ink); }
-.fg .tpr .tile.today::after { content:"TODAY"; position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-family:var(--font); font-size:12px; font-weight:700; color:#fff; background:var(--ink); padding:2px 8px; border-radius:6px; }
+.fg .tpr .tile.today {  box-shadow:var(--ring); }
+.fg .tpr .tile.today::after { content:"Today"; position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-family:var(--font); font-size:12px; font-weight:700; color:var(--paper); background:var(--ink); padding:2px 8px; border-radius:var(--r-control); }
 
 /* summary line + expand */
  /* prominent pay-multiplier split (this determines pay) */
@@ -2723,19 +2726,19 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* expanded per-day rows */
 .fg .tpr .sectwrap { display:block; }
 .fg .tpr .detail { display:none; }
-.fg .tpr .card.open .detail { display:block; animation:tprUp .3s ease backwards; }
+.fg .tpr .card.open .detail { display:block; }
 @keyframes tprUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
-.fg .tpr .drows { margin-top:16px; border:1px solid #eef0f3; border-radius:16px; overflow:hidden; }
+.fg .tpr .drows { margin-top:16px; border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 /* four columns, not five — the fifth was an empty span held open for a `.tag`
    nothing has ever rendered */
-.fg .tpr .drow { display:grid; grid-template-columns:56px 96px 1fr 64px; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f2f3f6; font-size:13px; }
+.fg .tpr .drow { display:grid; grid-template-columns:56px 96px 1fr 64px; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); font-size:13px; }
 .fg .tpr .drow:first-child { border-top:none; }
-.fg .tpr .drow:nth-child(even) { background:#fafbfc; }
+.fg .tpr .drow:nth-child(even) { background:var(--tint); }
 .fg .tpr .drow .wd { font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .tpr .drow .dt { font-weight:700; color:var(--gray600); }
 .fg .tpr .drow .sh { font-family:var(--font); font-size:13px; font-weight:600; color:var(--gray600); }
-.fg .tpr .drow .tag { justify-self:start; font-size:12px; font-weight:700; padding:2px 8px; border-radius:6px; }
-.fg .tpr .drow .tag.ot { background:rgba(240,164,49,.16); color:var(--amber-d); }
+.fg .tpr .drow .tag { justify-self:start; font-size:12px; font-weight:500; }
+.fg .tpr .drow .tag.ot { color:var(--warn-t); }
 .fg .tpr .drow .hh { font-family:var(--font); font-size:14px; font-weight:700; text-align:right; }
 /* "No entry" and its em-dash were #c3c7cf — 1.69 on the row, 1.64 on the
    striped one. A row that says nothing was logged is a row an approver has to
@@ -2753,14 +2756,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    stand in one stack under one heading, so a name and an Approve on this row
    have to land on the same edges as the name and the Approve on that one. See
    the axis note on `.sect` — the third value in it is this one. */
-.fg .tpr .crow { display:flex; align-items:center; gap:16px; background:#fff; border:1px solid rgba(10,12,20,.06); border-radius:16px; padding:16px 24px; box-shadow:0 1px 2px rgba(10,12,20,.03); transition:box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
+.fg .tpr .crow { display:flex; align-items:center; gap:16px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 24px; transition:box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .tpr .crow + .crow { margin-top:8px; }
 .fg .tpr .crow:hover { }
 /* `opacity:.9` on the whole approved row took its role line to 4.42 and the
    green "Approved" tag to 3.37 — a 10% dim nobody would notice as a signal,
    costing the two quietest things on the row their legibility. The tag IS the
    signal; the row needs no second one. */
-.fg .tpr .crow .av { width:40px; height:40px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#fff; }
+.fg .tpr .crow .av { width:40px; height:40px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--paper); }
 .fg .tpr .crow .who { flex:0 1 170px; width:170px; min-width:0; }
 .fg .tpr .crow .who .nm { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tpr .crow .who .rl { font-size:12px; font-weight:600; color:var(--gray400); white-space:nowrap; }
@@ -2775,16 +2778,16 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    keep the exact colours they carry everywhere else on the screen. */
 .fg .tpr .crow .mtc { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:stretch; gap:4px; }
 .fg .tpr .crow .mtd { font-style:normal; text-align:center; font-family:var(--font); font-size:12px; font-weight:700; color:var(--gray500); }
-.fg .tpr .crow .mt { min-width:0; height:26px; border-radius:6px; }
-.fg .tpr .crow .mt.std { background:var(--teal); }
-.fg .tpr .crow .mt.over { background:var(--amber); }
-.fg .tpr .crow .mt.under { background:#f472b6; }
-.fg .tpr .crow .mt.leave { background:var(--blue); }
-.fg .tpr .crow .mt.sick { background:var(--red); }
-.fg .tpr .crow .mt.ph { background:var(--violet); }
+.fg .tpr .crow .mt { min-width:0; height:26px; border-radius:var(--r-control); }
+.fg .tpr .crow .mt.std { background:var(--day-std); }
+.fg .tpr .crow .mt.over { background:var(--day-over); }
+.fg .tpr .crow .mt.under { background:var(--day-under); }
+.fg .tpr .crow .mt.leave { background:var(--day-leave); }
+.fg .tpr .crow .mt.sick { background:var(--day-sick); }
+.fg .tpr .crow .mt.ph { background:var(--day-ph); }
 .fg .tpr .crow .mt.off { background:var(--gray400); }
-.fg .tpr .crow .mt.empty { background:#e7e9ef; }
-.fg .tpr .crow .mt.today { box-shadow:inset 0 0 0 2px var(--ink); }
+.fg .tpr .crow .mt.empty { background:var(--tint-2); }
+.fg .tpr .crow .mt.today {  box-shadow:inset 0 0 0 2px var(--ink); }
 .fg .tpr .crow .rt { width:74px; flex:0 0 auto; text-align:right; font-family:var(--font); margin-left:4px; }
 .fg .tpr .crow .rt b { font-size:16px; font-weight:700; }
 .fg .tpr .crow .rt em { font-style:normal; font-size:12px; color:var(--gray400); }
@@ -2792,33 +2795,33 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* the compact row runs one size down, exactly as `.crow .capprove` does above */
 .fg .tpr .crow .apprtag { }
 
-.fg .tpr .cedit.sendback { color:var(--amber-d); background:rgba(240,164,49,.12); border-color:transparent; }
-.fg .tpr .cedit.sendback:hover { background:rgba(240,164,49,.2); }
-.fg .tpr .apprtag.sent { color:var(--amber-d); }
+.fg .tpr .cedit.sendback { color:var(--warn-t); background:var(--warn-tint); border-color:transparent; }
+.fg .tpr .cedit.sendback:hover { background:var(--warn-tint); }
+.fg .tpr .apprtag.sent { color:var(--warn-t); }
 
 /* send-back question form */
-.fg .tpr .qform { display:none; margin-bottom:16px; padding:16px 16px; border-radius:16px; background:rgba(240,164,49,.07); border:1px solid rgba(240,164,49,.32); }
-.fg .tpr .card.sending .qform { display:block; animation:tprUp .25s ease backwards; }
-.fg .tpr .qform .ql { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--amber-d); margin-bottom:12px; }
+.fg .tpr .qform { display:none; margin-bottom:16px; padding:16px 16px; border-radius:var(--r-card); background:var(--warn-tint); border:1px solid var(--warn); }
+.fg .tpr .card.sending .qform { display:block; }
+.fg .tpr .qform .ql { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--warn-t); margin-bottom:12px; }
 .fg .tpr .qform .qrow { display:flex; gap:8px; }
-.fg .tpr .qform input { flex:1; height:42px; padding:0 16px; border-radius:6px; border:1px solid rgba(10,12,20,.1); font:inherit; font-size:13px; font-weight:600; color:var(--ink); background:#fff; outline:none; }
-.fg .tpr .qform input:focus { border-color:var(--amber); box-shadow:var(--ring-warn); }
+.fg .tpr .qform input { flex:1; height:42px; padding:0 16px; border-radius:var(--r-control); border:1px solid var(--line); font:inherit; font-size:13px; font-weight:600; color:var(--ink); background:var(--paper); outline:none; }
+.fg .tpr .qform input:focus { border-color:var(--warn);  box-shadow:var(--ring-warn); }
 .fg .tpr .qform input::placeholder { color:var(--gray400); }
-.fg .tpr .qform .qsend { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:10px; font-size:13px; font-weight:700; background:var(--amber); color:#4a2e05; }
-.fg .tpr .qform .qcancel { height:42px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; color:var(--gray600); background:#f4f5f7; }
+.fg .tpr .qform .qsend { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--warn); color:var(--on-amber); }
+.fg .tpr .qform .qcancel { height:42px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray600); background:var(--tint); }
 
 /* crow edit button */
 .fg .tpr .crow .cedit.crowedit { height:42px; padding:0 16px; }
 
 /* ---------- pay settings modal ---------- */
-.fg .tpr .tset { position:fixed; inset:0; z-index:120; display:none; align-items:center; justify-content:center; }
+.fg .tpr .tset { position:fixed; inset:0; z-index:var(--z-modal); display:none; align-items:center; justify-content:center; }
 .fg .tpr .tset.open { display:flex; }
-.fg .tpr .tset-bd { position:absolute; inset:0; background:rgba(10,12,20,.5); backdrop-filter:blur(4px); animation:tprFade .2s ease; }
+.fg .tpr .tset-bd { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(4px); animation:tprFade .2s ease; }
 @keyframes tprFade { from{opacity:0} to{opacity:1} }
-.fg .tpr .tset-panel { position:relative; width:560px; max-width:92vw; max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 40px 100px -30px rgba(10,12,20,.6); animation:tprPop .24s var(--ease); }
+.fg .tpr .tset-panel { position:relative; width:560px; max-width:92vw; max-height:88vh; overflow:auto; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); animation:tprPop .24s var(--ease); }
 @keyframes tprPop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
-.fg .tpr .tset-x { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#f4f5f7; flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tpr .tset-x:hover { background:#eceef1; color:var(--ink); }
+.fg .tpr .tset-x { width:38px; height:38px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--tint); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .tpr .tset-x:hover { background:var(--tint-2); color:var(--ink); }
 /* `.fg .tpr .seg` IS GONE, and it was doing more than it looked like. Its
    three `.segb` children were dead — nothing in the app renders that class —
    but the tray override was live: it out-ranks `.fg .seg` (0,3,0 to 0,2,0),
@@ -2833,58 +2836,58 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .wz-head h3 { font-size:24px; font-weight:700; letter-spacing:-.02em; margin:0; }
 .fg .tpr .wz-head p { font-size:14px; font-weight:600; color:var(--gray500); margin:8px 0 0; line-height:1.5; max-width:420px; text-wrap:pretty; }
 .fg .tpr .wz-dots { display:flex; gap:8px; padding:16px 24px 4px; }
-.fg .tpr .wz-dot { width:26px; height:6px; border-radius:999px; background:#e6e8ee; transition:background-color var(--t-fast) var(--ease), width var(--t-move) var(--ease); }
-.fg .tpr .wz-dot.done { background:rgba(34,197,94,.55); }
-.fg .tpr .wz-dot.on { background:var(--teal); width:40px; }
+.fg .tpr .wz-dot { width:26px; height:6px; border-radius:999px; background:var(--tint-2); transition:background-color var(--t-fast) var(--ease), width var(--t-move) var(--ease); }
+.fg .tpr .wz-dot.done { background:var(--q); }
+.fg .tpr .wz-dot.on { background:var(--ink); width:40px; }
 .fg .tpr .wz-body { padding:24px 24px 4px; min-height:260px; }
 .fg .tpr .wz-foot { display:flex; align-items:center; gap:8px; padding:16px 24px 24px; }
 .fg .tpr .wz-foot .spx { flex:1; }
 .fg .tpr .wz-foot .bbtn { height:52px; padding:0 24px; font-size:14px; }
 
 .fg .tpr .wz-cards { display:grid; gap:8px; }
-.fg .tpr .wz-card { position:relative; display:block; text-align:left; padding:16px 16px; border-radius:16px; border:2px solid #eceef1; background:#fff; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-card:hover { border-color:#dfe2e8; }
-.fg .tpr .wz-card.on { border-color:var(--teal); background:rgba(34,197,94,.06); }
+.fg .tpr .wz-card { position:relative; display:block; text-align:left; padding:16px 16px; border-radius:var(--r-card); border:2px solid var(--line); background:var(--paper); transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .wz-card:hover { background:var(--tint); }
+.fg .tpr .wz-card.on { border-color:var(--ink); background:var(--tint); }
 .fg .tpr .wz-card b { display:block; font-size:16px; font-weight:700; }
 .fg .tpr .wz-card em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
 .fg .tpr .wz-card .wz-tag { position:absolute; top:18px; right:18px; font-size:14px; font-weight:500; color:var(--ink); }
 
 .fg .tpr .wz-pills { display:flex; gap:8px; flex-wrap:wrap; }
-.fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 16px; border-radius:999px; border:2px solid #eceef1; background:#fff; font-size:14px; font-weight:700; color:var(--gray600); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .wz-pill:hover { border-color:#dfe2e8; }
-.fg .tpr .wz-pill.on { border-color:var(--teal); background:rgba(34,197,94,.08); color:var(--ink); }
+.fg .tpr .wz-pill { height:54px; min-width:66px; padding:0 16px; border-radius:var(--r-control); border:2px solid var(--line); background:var(--paper); font-size:14px; font-weight:700; color:var(--gray600); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .wz-pill:hover { background:var(--tint); }
+.fg .tpr .wz-pill.on { border-color:var(--ink); background:var(--tint-2); color:var(--ink); }
 .fg .tpr .wz-pills.sm .wz-pill { height:44px; font-size:13px; }
 .fg .tpr .wz-pills.ctr { justify-content:center; margin-top:16px; }
 
 .fg .tpr .wz-step { display:flex; align-items:center; justify-content:center; gap:16px; padding:12px 0; }
-.fg .tpr .wz-sbtn { width:58px; height:58px; border-radius:16px; background:var(--ink); color:#fff; font-size:24px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .wz-sbtn { width:58px; height:58px; border-radius:var(--r-card); background:var(--ink); color:var(--paper); font-size:24px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tpr .wz-sbtn:hover { }
 .fg .tpr .wz-val { min-width:140px; text-align:center; font-size:32px; font-weight:700; letter-spacing:-.03em; }
 
-.fg .tpr .wz-tglrow { display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px; border-radius:16px; border:2px solid #eceef1; background:#fff; margin-bottom:8px; font-size:14px; font-weight:700; color:var(--ink); transition:border-color var(--t-fast) var(--ease); text-align:left; }
-.fg .tpr .wz-tglrow:hover { border-color:#dfe2e8; }
-.fg .tpr .wz-sw { width:52px; height:30px; border-radius:999px; background:#e3e5eb; position:relative; transition:background var(--t-fast) var(--ease); flex:0 0 auto; }
-.fg .tpr .wz-sw i { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(10,12,20,.25); transition:left var(--t-move) var(--ease); }
-.fg .tpr .wz-sw.on { background:var(--teal); }
+.fg .tpr .wz-tglrow { display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; padding:16px 16px; border-radius:var(--r-card); border:2px solid var(--line); background:var(--paper); margin-bottom:8px; font-size:14px; font-weight:700; color:var(--ink); transition:border-color var(--t-fast) var(--ease); text-align:left; }
+.fg .tpr .wz-tglrow:hover { background:var(--tint); }
+.fg .tpr .wz-sw { width:52px; height:30px; border-radius:999px; background:var(--tint-2); position:relative; transition:background var(--t-fast) var(--ease); flex:0 0 auto; }
+.fg .tpr .wz-sw i { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:var(--paper); transition:left var(--t-move) var(--ease); }
+.fg .tpr .wz-sw.on { background:var(--ink); }
 .fg .tpr .wz-sw.on i { left:25px; }
 
 .fg .tpr .wz-subgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
 .fg .tpr .wz-sl { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:8px; text-align:center; }
-.fg .tpr .wz-scroll { position:relative; height:180px; overflow-y:auto; border:2px solid #eceef1; border-radius:16px; scroll-snap-type:y proximity; padding:4px; }
-.fg .tpr .wz-si { scroll-snap-align:center; height:44px; display:flex; align-items:center; justify-content:center; border-radius:10px; font-size:14px; font-weight:700; color:var(--gray600); cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .tpr .wz-si:hover { background:#f4f5f7; }
-.fg .tpr .wz-si.on { background:var(--ink); color:#fff; font-weight:700; }
+.fg .tpr .wz-scroll { position:relative; height:180px; overflow-y:auto; border:2px solid var(--line); border-radius:var(--r-card); scroll-snap-type:y proximity; padding:4px; }
+.fg .tpr .wz-si { scroll-snap-align:center; height:44px; display:flex; align-items:center; justify-content:center; border-radius:var(--r-button); font-size:14px; font-weight:700; color:var(--gray600); cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.fg .tpr .wz-si:hover { background:var(--tint); }
+.fg .tpr .wz-si.on { background:var(--ink); color:var(--paper); font-weight:700; }
 
-.fg .tpr .wz-rev { display:flex; align-items:center; gap:12px; padding:16px 0; border-top:1px solid #f0f1f5; font-size:14px; }
+.fg .tpr .wz-rev { display:flex; align-items:center; gap:12px; padding:16px 0; border-top:1px solid var(--line); font-size:14px; }
 .fg .tpr .wz-rev:first-child { border-top:none; }
 .fg .tpr .wz-rev > span { color:var(--gray500); font-weight:700; width:150px; flex:0 0 auto; }
 .fg .tpr .wz-rev b { font-weight:700; flex:1; min-width:0; }
-.fg .tpr .wz-edit { font-size:13px; font-weight:700; color:var(--ink); background:rgba(34,197,94,.1); padding:8px 16px; border-radius:999px; transition:background var(--t-fast) var(--ease); }
-.fg .tpr .wz-edit:hover { background:rgba(34,197,94,.18); }
+.fg .tpr .wz-edit { font-size:13px; font-weight:700; color:var(--ink); background:var(--tint-2); padding:8px 16px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
+.fg .tpr .wz-edit:hover { background:var(--tint); }
 
 /* settings menu (post-setup) */
 .fg .tpr .wz-menu { min-height:0; padding-top:4px; }
-.fg .tpr .wz-menu .ms { padding:16px 0; border-top:1px solid #f0f1f5; }
+.fg .tpr .wz-menu .ms { padding:16px 0; border-top:1px solid var(--line); }
 .fg .tpr .wz-menu .ms:first-child { border-top:none; }
 .fg .tpr .wz-menu .ms-l { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:12px; }
 .fg .tpr .wz-menu .ms-p { font-size:13px; font-weight:600; color:var(--gray500); line-height:1.55; margin:0 0 12px; text-wrap:pretty; }
@@ -2892,7 +2895,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    stepper it belongs to. Replaces `.wz-or` for this, which was tracked
    uppercase and read as a section divider rather than a field label — see
    overtimeControls in settings.tsx. */
-.fg .tpr .ms-rung + .ms-rung { margin-top:12px; padding-top:12px; border-top:1px solid #f0f0f2; }
+.fg .tpr .ms-rung + .ms-rung { margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
 .fg .tpr .ms-rungl { display:block; font-size:13px; font-weight:700; color:var(--gray700); text-align:center; }
 .fg .tpr .wz-menu .ms-rungl { text-align:left; }
 .fg .tpr .ms-rung .ms-p { margin:4px 0 0; }
@@ -2925,33 +2928,33 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* Advisory, not error: pay_settings is the record, and a business legitimately
    running Xero on another calendar is not a fault to correct. Amber says
    "check this", where red would say "you did something wrong". */
-.fg .tpr .xp-advisory { display:flex; align-items:flex-start; gap:8px; padding:8px 12px; margin:0 0 12px; border-radius:10px; background:rgba(240,164,49,.12); color:#8a5a05; font-size:13px; font-weight:600; line-height:1.5; }
+.fg .tpr .xp-advisory { display:flex; align-items:flex-start; gap:8px; padding:8px 12px; margin:0 0 12px; border-radius:var(--r-button); background:var(--warn-tint); color:var(--warn-t); font-size:13px; font-weight:600; line-height:1.5; }
 .fg .tpr .xp-advisory .i { flex:0 0 auto; margin-top:1px; }
 
 .fg .tpr .xp-rows { display:flex; flex-direction:column; gap:8px; }
-.fg .tpr .xp-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 12px; border-radius:10px; border:1px solid #eef0f4; background:#fafbfc; }
+.fg .tpr .xp-row { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--tint); }
 .fg .tpr .xp-who { flex:1 1 180px; min-width:0; }
 .fg .tpr .xp-who b { display:block; font-size:14px; font-weight:700; }
 .fg .tpr .xp-who em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-top:2px; }
 .fg .tpr .xp-act { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fg .tpr .xp-pick { display:flex; align-items:center; gap:8px; }
-.fg .tpr .xp-pick select { height:34px; max-width:180px; padding:0 8px; border-radius:10px; border:1px solid #e2e5ea; background:#fff; font-size:13px; font-weight:600; }
-.fg .tpr .xp-btn { height:34px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; background:#fff; border:1px solid #e2e5ea; color:var(--gray700); transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tpr .xp-btn:hover:not(:disabled) { background:#f4f5f7; }
-.fg .tpr .xp-btn.go { background:var(--ink); border-color:var(--ink); color:#fff; }
-.fg .tpr .xp-btn.go:hover:not(:disabled) { background:var(--teal); border-color:var(--teal); color:var(--ink); }
+.fg .tpr .xp-pick select { height:34px; max-width:180px; padding:0 8px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-size:13px; font-weight:600; }
+.fg .tpr .xp-btn { height:34px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; background:var(--paper); border:1px solid var(--line); color:var(--gray700); transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .tpr .xp-btn:hover:not(:disabled) { background:var(--tint); }
+.fg .tpr .xp-btn.go { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.fg .tpr .xp-btn.go:hover:not(:disabled) { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .fg .tpr .xp-btn:disabled { opacity:.5; cursor:default; }
-.fg .tpr .xp-drift { flex:1 1 100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:8px; margin-top:2px; border-top:1px solid #eef0f4; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.5; }
+.fg .tpr .xp-drift { flex:1 1 100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding-top:8px; margin-top:2px; border-top:1px solid var(--line); font-size:12px; font-weight:600; color:var(--gray500); line-height:1.5; }
 .fg .tpr .xp-drift b { color:var(--ink); }
 
 /* Pay rates are asked for, not fetched — one Xero call PER PERSON, where
    everything else on this screen is one for the whole organisation. The strip
    says what it will spend before it spends it. */
-.fg .tpr .xp-pay { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; margin:0 0 12px; border-radius:10px; background:#f4f5f7; font-size:13px; font-weight:600; color:var(--gray500); }
+.fg .tpr .xp-pay { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; margin:0 0 12px; border-radius:var(--r-button); background:var(--tint); font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .tpr .xp-pay span { flex:1 1 200px; }
 .fg .tpr .xp-pay .xp-btn { flex:0 0 auto; }
 /* agreement is quiet — a match needs no action, so it must not look like one */
-.fg .tpr .xp-drift.ok { color:#00806c; }
+.fg .tpr .xp-drift.ok { color:var(--ok-t); }
 .fg .tpr .xp-drift i { font-style:normal; color:var(--gray400); }
 
 /* The weekly sweep's one line on Time & Pay. Amber advisory, not red: Xero
@@ -2959,37 +2962,37 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tp-drift { display:flex; align-items:center; gap:8px; padding:12px 16px; margin-bottom:16px; border-radius:16px; background:rgba(240,164,49,.12); color:#8a5a05; font-size:13px; font-weight:600; line-height:1.5; }
 .fg .tp-drift .i { flex:0 0 auto; }
 
-.fg .tpr .xp-extra { margin-top:16px; padding:12px; border-radius:10px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
+.fg .tpr .xp-extra { margin-top:16px; padding:12px; border-radius:var(--r-button); border:1.5px dashed var(--line); background:var(--tint); }
 .fg .tpr .xp-extra b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .tpr .xp-extra em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); margin-top:4px; line-height:1.5; }
 .fg .tpr .xp-extra ul { margin:8px 0 0; padding-left:16px; }
 .fg .tpr .xp-extra li { font-size:13px; font-weight:700; color:var(--ink); line-height:1.7; }
 .fg .tpr .xp-extra li span { font-weight:600; color:var(--gray400); }
 .fg .tpr .wz-menu .wz-step { justify-content:flex-start; gap:12px; padding:4px 0; }
-.fg .tpr .wz-menu .wz-sbtn { width:44px; height:44px; border-radius:10px; font-size:20px; }
+.fg .tpr .wz-menu .wz-sbtn { width:44px; height:44px; border-radius:var(--r-button); font-size:20px; }
 .fg .tpr .wz-menu .wz-val { min-width:88px; font-size:24px; }
 .fg .tpr .wz-menu .wz-pill { height:42px; min-width:54px; padding:0 12px; font-size:13px; }
-.fg .tpr .wz-menu .wz-tglrow { padding:12px 16px; margin-bottom:8px; font-size:14px; border-radius:10px; }
+.fg .tpr .wz-menu .wz-tglrow { padding:12px 16px; margin-bottom:8px; font-size:14px; border-radius:var(--r-button); }
 .fg .tpr .wz-menu .wz-scroll { height:132px; }
-.fg .tpr .wz-foot.menu { position:sticky; bottom:0; background:#fff; border-top:1px solid #f0f1f5; border-radius:0 0 16px 16px; }
+.fg .tpr .wz-foot.menu { position:sticky; bottom:0; background:var(--paper); border-top:1px solid var(--line); border-radius:0 0 var(--r-card) var(--r-card); }
 .fg .tpr .wz-rerun { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); transition:color var(--t-fast) var(--ease); }
 .fg .tpr .wz-rerun:hover { color:var(--ink); }
 
 /* penalty-rate rule rows */
-.fg .tpr .prule { border:2px solid #eceef1; border-radius:16px; margin-bottom:8px; overflow:hidden; transition:border-color var(--t-fast) var(--ease); background:#fff; }
-.fg .tpr .prule.on { border-color:rgba(34,197,94,.45); }
+.fg .tpr .prule { border:2px solid var(--line); border-radius:var(--r-card); margin-bottom:8px; overflow:hidden; transition:border-color var(--t-fast) var(--ease); background:var(--paper); }
+.fg .tpr .prule.on { border-color:var(--ink); }
 .fg .tpr .rl-head { display:flex; width:100%; align-items:center; gap:12px; padding:12px 16px; text-align:left; }
 .fg .tpr .rl-nm { font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap; }
 .fg .tpr .rl-nm em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); margin-left:8px; }
-.fg .tpr .rl-sum { margin-left:auto; font-size:12px; font-weight:700; color:var(--ink); background:rgba(34,197,94,.1); padding:4px 12px; border-radius:999px; white-space:nowrap; }
-.fg .tpr .rl:not(.on) .rl-sum { color:var(--gray400); background:#f2f3f6; }
+.fg .tpr .rl-sum { margin-left:auto; font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; }
+.fg .tpr .rl:not(.on) .rl-sum { color:var(--gray400); }
 .fg .tpr .rl-head .wz-sw { flex:0 0 auto; }
 .fg .tpr .rl-ctl { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; padding:0 16px 12px; }
 .fg .tpr .wz-pills.xs { display:inline-flex; }
-.fg .tpr .wz-pills.xs .wz-pill { height:38px; min-width:52px; padding:0 12px; font-size:13px; border-radius:999px; }
+.fg .tpr .wz-pills.xs .wz-pill { height:38px; min-width:52px; padding:0 12px; font-size:13px; border-radius:var(--r-control); }
 .fg .tpr .rl-then { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .rl-step { display:inline-flex; align-items:center; gap:8px; }
-.fg .tpr .rl-step button { width:36px; height:36px; border-radius:10px; background:var(--ink); color:#fff; font-size:16px; font-weight:700; transition:transform var(--t-move) var(--ease); }
+.fg .tpr .rl-step button { width:36px; height:36px; border-radius:var(--r-button); background:var(--ink); color:var(--paper); font-size:16px; font-weight:700; transition:transform var(--t-move) var(--ease); }
 .fg .tpr .rl-step button:hover { }
 .fg .tpr .rl-step b { font-size:16px; font-weight:700; min-width:42px; text-align:center; }
 .fg .tpr .wz-menu .rl-head { padding:12px 12px; }
@@ -3409,12 +3412,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
    down; the period nav and status chip still come from `.tpr`. No money rules,
    because there is no money on the screen. */
 .fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,#c81a41); margin:-6px 0 12px; }
-.fg .mts-back { display:flex; gap:8px; align-items:flex-start; padding:12px 16px; border-radius:16px; background:rgba(255,51,102,.06); border:1px solid rgba(255,51,102,.2); color:var(--red-d,#c81a41); margin-bottom:16px; }
+.fg .mts-back { display:flex; gap:8px; align-items:flex-start; padding:12px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); margin-bottom:16px; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:700; }
 .fg .mts-back em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); margin-top:4px; }
 .fg .mts-f { display:flex; flex-direction:column; gap:4px; }
 .fg .mts-f span { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .mts-f input, .fg .mts-f select { height:38px; padding:0 12px; border-radius:6px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); min-width:120px; }
+.fg .mts-f input, .fg .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); min-width:120px; }
 /* THE PLACEHOLDER IS LOAD-BEARING HERE, and had no rule at all. My leave puts
    the SUGGESTED hours in it — `placeholder={String(suggested)}`, with a comment
    saying leave it alone and the span's own working days get booked — so it is
@@ -3435,8 +3438,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .mts-wh { display:flex; align-items:baseline; justify-content:space-between; padding:4px 2px 8px; }
 .fg .mts-wh span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .mts-wh em { font-style:normal; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .tpr .dweek + .dweek { border-top:2px solid #eef0f3; }
-.fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:8px 12px 4px; background:#fafbfc; }
+.fg .tpr .dweek + .dweek { border-top:2px solid var(--line); }
+.fg .tpr .dwh { display:flex; align-items:baseline; justify-content:space-between; padding:8px 12px 4px; background:var(--tint); }
 .fg .tpr .dwh span { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tpr .dwh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .wz-anchor { display:flex; flex-direction:column; gap:4px; margin-top:12px; width:100%; }
@@ -3462,35 +3465,35 @@ button.fl-btn { font-size:14px; font-weight:700; }
    kind is recoloured in one place rather than five. */
 .fg .lv-annual   { --lvk:var(--ink); --lvk-bg:var(--tint); }
 .fg .lv-personal { --lvk:var(--ink); --lvk-bg:var(--tint); }
-.fg .lv-unpaid   { --lvk:var(--q); --lvk-bg:rgba(100,116,139,.12); }
+.fg .lv-unpaid   { --lvk:var(--q); --lvk-bg:var(--tint-2); }
 
 .fg .lv-bal { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:16px; }
 /* blocks in a card, like the rail cards and the team screen's stat tiles */
-.fg .lv-baltile { position:relative; padding:16px 16px 16px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); overflow:hidden; }
+.fg .lv-baltile { position:relative; padding:16px 16px 16px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); overflow:hidden; }
 .fg .lv-baltop { display:flex; align-items:center; gap:8px; }
-.fg .lv-balic { display:flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:10px; background:var(--lvk-bg); color:var(--lvk); flex:0 0 auto; }
+.fg .lv-balic { display:flex; align-items:center; justify-content:center; color:var(--lvk); flex:0 0 auto; }
 .fg .lv-baltile em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .lv-baltile b { display:flex; align-items:baseline; gap:4px; font-size:32px; font-weight:700; color:var(--ink); margin:12px 0 0; letter-spacing:-.02em; }
 .fg .lv-baltile b span { font-size:13px; font-weight:700; color:var(--gray500); }
 /* What's left, drawn rather than only counted. The track is the whole
    entitlement; the solid run is what you can still book and the faded run
    beside it is what you already have booked but haven't taken. */
-.fg .lv-balbar { display:flex; height:6px; border-radius:999px; background:#eef0f3; overflow:hidden; margin:8px 0 8px; }
+.fg .lv-balbar { display:flex; height:6px; border-radius:999px; background:var(--tint-2); overflow:hidden; margin:8px 0 8px; }
 .fg .lv-balbar i { display:block; background:var(--lvk); transition:width var(--t-move) var(--ease); }
 .fg .lv-balbar i.bk { background:var(--lvk); opacity:.3; }
 .fg .lv-balsub { font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .lv-src { display:flex; align-items:center; gap:4px; margin-top:8px; font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .lv-src.synced { color:var(--ok-t); }
 .fg .lv-balempty, .fg .lv-declined, .fg .lv-pnote { font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .lv-declined { display:block; color:var(--red-d,#c81a41); margin-top:4px; }
-.fg .lv-form { padding:16px 16px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); margin-bottom:24px; }
+.fg .lv-declined { display:block; color:var(--bad-t); margin-top:4px; }
+.fg .lv-form { padding:16px 16px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); margin-bottom:24px; }
 /* IN THE COLUMN IT BELONGS TO. The form lives inside the requests card now,
    directly under the button that opens it, so it squares its own corners into
    that card rather than floating as a rounded block above the whole thing. */
-.fg .lv-col .lv-form { margin:0; border:0; border-bottom:1px solid rgba(10,11,16,.06); border-radius:0; }
+.fg .lv-col .lv-form { margin:0; border:0; border-bottom:1px solid var(--line); border-radius:0; }
 .fg .lv-frow { display:flex; flex-wrap:wrap; gap:12px; }
 .fg .lv-fnote { margin-top:12px; display:flex; }
-.fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 12px; border-radius:6px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
+.fg .lv-form .mts-f input, .fg .lv-form .mts-f select { height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
 /* The notice body. `.mts-f` only ever styled `input` and `select`, so the
    textarea that replaced the one-line body field would have landed on browser
    defaults — wrong font, square corners, grey ground. Everything but `height`
@@ -3498,20 +3501,20 @@ button.fl-btn { font-size:14px; font-weight:700; }
    them just gets to wrap. `resize:vertical` because the width belongs to the
    form and the height belongs to whoever is writing. */
 .fg .lv-form .mts-f textarea.nb-bodyin { width:100%; min-height:84px; padding:8px 12px;
-  border-radius:6px; border:1px solid rgba(10,11,16,.14); background:#fff;
+  border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper);
   font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink);
   line-height:1.5; resize:vertical; }
 .fg .lv-fmeta { display:flex; align-items:center; gap:16px; margin-top:12px; }
 .fg .lv-fmeta > span { flex:1; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .lv-cols { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; align-items:start; }
-.fg .lv-col { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .lv-ch { padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:rgba(5,5,5,.03); border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .lv-col { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
+.fg .lv-ch { padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:var(--tint); border-bottom:1px solid var(--line); }
 /* The variant that carries its own action. Kept a modifier rather than folded
    into .lv-ch, because the holidays column and the admin holiday-year headers
    reuse the plain bar and have nothing to put on the right. The button's own
    height sets the bar, so it doesn't grow taller than its neighbour. */
 .fg .lv-ch.act { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 8px 8px 16px; }
-.fg .lv-req, .fg .lv-hol, .fg .lv-pend, .fg .lv-calday { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
+.fg .lv-req, .fg .lv-hol, .fg .lv-pend, .fg .lv-calday { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
 /* The kind is the label the row prints in bold (law 14: kind is a label, not
    a bar down the edge); the row's only pill stays the status. */
 .fg .lv-req { padding-left:16px; }
@@ -3522,7 +3525,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    green chip to 1.90 — and the whole point of the row is that somebody can
    still read what was asked for and what happened to it. It recedes by GROUND
    instead, the same move the directory rows made. */
-.fg .lv-req.muted { background:#f7f8fa; }
+.fg .lv-req.muted { background:var(--tint); }
 .fg .lv-reqmain, .fg .lv-pmain { flex:1; min-width:0; }
 .fg .lv-reqmain b, .fg .lv-pmain b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .lv-reqmain em, .fg .lv-pmain em { display:flex; align-items:center; gap:8px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
@@ -3530,29 +3533,29 @@ button.fl-btn { font-size:14px; font-weight:700; }
    throwing away an approved booking. Now it says what it does and arms first:
    press once to ask, again to confirm, anywhere else to forget it. `.arm`
    borrows the filled-red confirm state .fl-btn.danger.arm already uses. */
-.fg .lv-cancel { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border-radius:10px; font-size:12px; font-weight:700; color:var(--gray500); border:1px solid rgba(10,11,16,.1); background:#fff; white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .lv-cancel:hover { color:var(--bad-t); border-color:rgba(224,38,79,.35); background:rgba(255,51,102,.05); }
-.fg .lv-cancel.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
-.fg .lv-hist { border-top:2px solid #eef0f3; }
+.fg .lv-cancel { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border-radius:var(--r-button); font-size:12px; font-weight:700; color:var(--gray500); border:1px solid var(--line); background:var(--paper); white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .lv-cancel:hover { color:var(--bad-t); border-color:var(--bad); background:var(--bad-tint); }
+.fg .lv-cancel.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
+.fg .lv-hist { border-top:2px solid var(--line); }
 .fg .lv-pacts { display:flex; gap:8px; }
 .fg .lv-decline { display:flex; gap:8px; margin-top:8px; }
-.fg .lv-decline input { flex:1; height:34px; padding:0 12px; border-radius:6px; border:1px solid rgba(10,11,16,.14); font-family:var(--font); font-size:13px; }
+.fg .lv-decline input { flex:1; height:34px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); font-family:var(--font); font-size:13px; }
 .fg .lv-caldate { min-width:120px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .lv-calnames { display:flex; flex-wrap:wrap; gap:4px; }
 .fg .lv-callegend { margin:0; padding:12px 16px; font-size:12px; font-weight:600; line-height:1.55; color:var(--gray400); }
 @media (max-width:820px){ .fg .lv-cols { grid-template-columns:1fr; } }
 
 /* ---- public holidays: upcoming panel + admin manager ---- */
-.fg .mts-hols { margin-top:24px; border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; }
-.fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:#fafbfc; border-bottom:1px solid rgba(10,11,16,.06); }
+.fg .mts-hols { margin-top:24px; border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
+.fg .mts-holh { display:flex; align-items:center; gap:8px; padding:12px 16px; font-size:13px; font-weight:500; color:var(--gray700); background:var(--tint); border-bottom:1px solid var(--line); }
 .fg .mts-hollist { display:flex; flex-direction:column; }
-.fg .mts-hol { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
+.fg .mts-hol { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
 .fg .mts-hol.next { background:var(--tint); }
 .fg .mts-hol b { font-size:13px; font-weight:700; color:var(--ink); min-width:120px; }
 .fg .mts-hol em { flex:1; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); }
-.fg .mts-holnext { font-size:12px; font-weight:500; color:var(--ink); background:var(--tint-2); padding:4px 8px; border-radius:6px; }
-.fg .hol-year { border:1px solid rgba(10,11,16,.08); border-radius:16px; overflow:hidden; margin-top:16px; }
-.fg .hol-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid rgba(10,11,16,.05); }
+.fg .mts-holnext { font-size:12px; font-weight:500; color:var(--ink); background:var(--tint-2); padding:4px 8px; border-radius:var(--r-control); }
+.fg .hol-year { border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; margin-top:16px; }
+.fg .hol-row { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--line); }
 .fg .hol-date { min-width:150px; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .hol-name { flex:1; font-size:14px; font-weight:600; color:var(--gray700); }
 .fg .hol-src { font-size:12px; font-weight:700; color:var(--gray400); text-transform:capitalize; }
@@ -3562,21 +3565,21 @@ button.fl-btn { font-size:14px; font-weight:700; }
    have to stay readable enough to restore the right one. `opacity:.75` on the
    block took the year heading to 3.11, the state code to 2.99 and the struck
    dates to 3.26; the strike-through and the ground already say "removed". */
-.fg .hol-year.removed { background:#f7f8fa; }
+.fg .hol-year.removed { background:var(--tint); }
 .fg .hol-year.removed .lv-ch { color:var(--gray500); }
 .fg .hol-row.off .hol-date, .fg .hol-row.off .hol-name { color:var(--q); text-decoration:line-through; text-decoration-thickness:1px; }
 
 /* "worth confirming" — proclamation-dependent days the rules can't date.
    Deliberately quiet: a hint, not a task list. */
-.fg .hol-sug { margin-top:16px; border:1px dashed rgba(10,11,16,.14); border-radius:16px; background:#fafbfc; overflow:hidden; }
+.fg .hol-sug { margin-top:16px; border:1px dashed var(--line); border-radius:var(--r-card); background:var(--tint); overflow:hidden; }
 .fg .hol-sugh { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; padding:12px 16px; font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .hol-sugh span { font-size:12px; font-weight:600; color:var(--gray400); text-transform:none; }
-.fg .hol-sugrow { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid rgba(10,11,16,.05); }
+.fg .hol-sugrow { display:flex; align-items:center; gap:12px; padding:8px 16px; border-top:1px solid var(--line); }
 .fg .hol-sugy { min-width:44px; font-size:13px; font-weight:700; color:var(--gray400); }
 .fg .hol-sugmain { flex:1; min-width:0; }
 .fg .hol-sugmain b { display:block; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .hol-sugmain em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); line-height:1.45; margin-top:2px; }
-.fg .hol-sugadd { display:flex; align-items:center; gap:4px; height:30px; padding:0 12px; border-radius:10px; border:1px solid rgba(10,11,16,.12); background:#fff; font-size:12px; font-weight:700; color:var(--gray700); }
+.fg .hol-sugadd { display:flex; align-items:center; gap:4px; height:30px; padding:0 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .hol-sugadd:hover { border-color:var(--line); color:var(--ink); }
 
 /* ---- pending invites: link + renew/revoke (Team page, `invites` only) ----
@@ -3798,7 +3801,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    `.legend .sw.miss` stays below — it is now reached by both screens, since
    this one renders the shared `<DayLegend/>` too. */
-.fg .tpr .legend .sw.miss { background:#fff; border:2px dashed var(--red); }
+.fg .tpr .legend .sw.miss { background:var(--paper); border:2px dashed var(--day-sick); }
 
 /* TWO COLUMNS AND TWO ROWS, and the second row is what fixed the shape.
 
@@ -4785,8 +4788,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    Deliberately quiet. This is the most sensitive row in the app and it should
    read as a checklist item, not an alarm: an approver can approve without one,
    and a person who hasn't seen a doctor yet is not doing anything wrong. */
-.fg .lv-cert { display:flex; align-items:center; gap:8px; margin-top:12px; padding:12px 12px; border-radius:10px; background:#fff; border:1px dashed rgba(10,11,16,.18); }
-.fg .lv-cert.on { border-style:solid; border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.05); }
+.fg .lv-cert { display:flex; align-items:center; gap:8px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--paper); border:1px dashed var(--line); }
+.fg .lv-cert.on { border-style:solid; border-color:var(--ok-t); background:var(--ok-tint); }
 .fg .lv-cert svg { flex:0 0 auto; color:var(--gray400); }
 .fg .lv-cert.on svg { color:var(--ok-t); }
 .fg .lv-cert > span { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
@@ -4795,21 +4798,21 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .lv-cert label { flex:0 0 auto; cursor:pointer; }
 
 /* the same fact on a booked row, one line rather than a card */
-.fg .lv-reqcert { display:inline-flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; font-weight:700; color:var(--amber-d,#a44b08); }
+.fg .lv-reqcert { display:inline-flex; align-items:center; gap:4px; margin-top:4px; font-size:12px; font-weight:700; color:var(--warn-t); }
 .fg .lv-reqcert.on { color:var(--ok-t); }
 .fg .lv-reqcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
-.fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:6px; background:rgba(10,11,16,.06); color:var(--gray700); cursor:pointer; }
-.fg .lv-certadd:hover { background:rgba(10,11,16,.1); }
+.fg .lv-certadd { margin-left:2px; padding:1px 8px; border-radius:var(--r-control); background:var(--tint-2); color:var(--gray700); cursor:pointer; }
+.fg .lv-certadd:hover { background:var(--tint-2); }
 
 /* the approver's copy, on the pending card where the decision is made */
-.fg .lv-pcert { display:inline-flex; align-items:center; gap:8px; margin-top:4px; font-size:12px; font-weight:700; color:var(--amber-d,#a44b08); }
+.fg .lv-pcert { display:inline-flex; align-items:center; gap:8px; margin-top:4px; font-size:12px; font-weight:700; color:var(--warn-t); }
 .fg .lv-pcert.on { color:var(--ok-t); }
 .fg .lv-pcert a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
 
 .fg .lv-cal { display:grid; grid-template-columns:300px minmax(0,1fr); gap:16px; align-items:start; }
 .fg .lv-col .lv-cal { grid-template-columns:minmax(0,1fr); }
 .fg .lv-col .lv-calside { max-width:340px; }
-.fg .lv-calside .cal { padding:12px 12px 12px; border-radius:16px; background:#fff; border:1px solid rgba(10,11,16,.08); }
+.fg .lv-calside .cal { padding:12px 12px 12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
 .fg .lv-callegend { display:flex; align-items:center; gap:8px; margin:8px 2px 0; font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .lv-legdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
 .fg .lv-legdot.hol { background:var(--ink); color:var(--paper); }

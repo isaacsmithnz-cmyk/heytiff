@@ -38,13 +38,15 @@ export type FleetActions = {
   error: string | null;
   clearError: () => void;
   saveVehicle: (v: Vehicle, purchaseInvoiceId?: string, initialRenewal?: Omit<RenewalInput, "vehicleId">) => void;
-  recordRenewal: (input: RenewalInput) => void;
+  /** Resolves to whether the renewal landed; the renewal screen waits on it. */
+  recordRenewal: (input: RenewalInput) => Promise<boolean>;
   /** Files another piece of paper under a renewal that already exists. */
   attachPolicyDocument: (policyId: string, documentId: string) => void;
   /** The photo on the card — an already-uploaded vehicle_photo document. */
   setVehiclePhoto: (vehicleId: string, documentId: string) => void;
-  /** A finance agreement, scanned or typed; the newest becomes the one in force. */
-  recordFinance: (input: FinanceInput) => void;
+  /** A finance agreement, scanned or typed; the newest becomes the one in
+      force. Resolves to whether it landed; the Financials screen waits on it. */
+  recordFinance: (input: FinanceInput) => Promise<boolean>;
   /** Another piece of paper under an agreement that already exists. */
   attachFinanceDocument: (financeId: string, documentId: string) => void;
   /** A purchase invoice filed against the vehicle from the Financials screen. */

@@ -140,6 +140,7 @@ export function RenewalScreen({
   error,
   onBack,
   onSave,
+  onSaved,
   onAttach,
 }: {
   vehicle: Vehicle;
@@ -152,7 +153,12 @@ export function RenewalScreen({
   error: string | null;
   /** A chip pressed: `on` creates the reminder task, off deletes it. */
   onBack: () => void;
-  onSave: (input: Omit<RenewalInput, "vehicleId">) => void;
+  /** Resolves to whether the renewal landed. */
+  onSave: (input: Omit<RenewalInput, "vehicleId">) => Promise<boolean> | void;
+  /** Where to go once it has. On a refusal the screen stays, with the
+      typing intact and the reason above the fields — a renewal the server
+      would not file used to vanish with the error landing on the card. */
+  onSaved: () => void;
   /** Files another document under an existing renewal. */
   onAttach: (policyId: string, documentId: string) => void;
 }) {
@@ -193,9 +199,9 @@ export function RenewalScreen({
     }));
   };
 
-  const save = () => {
+  const save = async () => {
     if (!canSave) return;
-    onSave({
+    const ok = await onSave({
       kind,
       expiresOn: f.expiresOn,
       startsOn: f.startsOn || null,
@@ -217,6 +223,7 @@ export function RenewalScreen({
       inspectionOn: kind === "rego" ? f.inspectionOn || null : null,
       source: mode === "scanned" ? "scan" : "manual",
     });
+    if (ok !== false) onSaved();
   };
 
   /* ---- status card copy ---- */

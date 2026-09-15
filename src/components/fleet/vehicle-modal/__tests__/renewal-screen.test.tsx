@@ -95,6 +95,7 @@ const slipDoc: StoredDocument = {
 
 function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; policies?: VehiclePolicy[]; documents?: StoredDocument[] } = {}) {
   const onSave = jest.fn();
+  const onSaved = jest.fn();
   const onAttach = jest.fn();
   const onBack = jest.fn();
   render(
@@ -108,6 +109,7 @@ function mount(kind: "rego" | "insurance" | "ctp", over: { vehicle?: Vehicle; po
       error={null}
       onBack={onBack}
       onSave={onSave}
+      onSaved={onSaved}
       onAttach={onAttach}
     />,
   );

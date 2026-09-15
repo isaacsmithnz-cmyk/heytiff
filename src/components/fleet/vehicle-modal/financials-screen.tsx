@@ -148,6 +148,7 @@ export function FinancialsScreen({
   onBack,
   onSaveVehicle,
   onRecordFinance,
+  onRecorded,
   onAttachFinance,
   onAttachInvoice,
 }: {
@@ -164,7 +165,11 @@ export function FinancialsScreen({
   onBack: () => void;
   /** The purchase fields and the book value are the vehicle's own columns. */
   onSaveVehicle: (v: Vehicle) => void;
-  onRecordFinance: (input: Omit<FinanceInput, "vehicleId">) => void;
+  /** Resolves to whether the agreement landed. */
+  onRecordFinance: (input: Omit<FinanceInput, "vehicleId">) => Promise<boolean> | void;
+  /** Where to go once it has. On a refusal the screen stays, typing intact,
+      the reason above the fields. */
+  onRecorded: () => void;
   onAttachFinance: (financeId: string, documentId: string) => void;
   onAttachInvoice: (documentId: string) => void;
 }) {
@@ -220,9 +225,9 @@ export function FinancialsScreen({
   const termOptions = Number.isFinite(termN) && termN > 0 && !TERMS.includes(termN) ? [...TERMS, termN].sort((a, b) => a - b) : TERMS;
   const canSave = f.lender.trim() !== "" && f.startsOn !== "" && Number.isFinite(termN) && termN > 0;
 
-  const saveFinance = () => {
+  const saveFinance = async () => {
     if (!canSave) return;
-    onRecordFinance({
+    const ok = await onRecordFinance({
       lender: f.lender.trim(),
       agreementNo: f.agreementNo.trim() || null,
       kind: f.kind || null,
@@ -236,6 +241,7 @@ export function FinancialsScreen({
       documentId: docId ?? undefined,
       source: mode === "scanned" ? "scan" : "manual",
     });
+    if (ok !== false) onRecorded();
   };
 
   /* ---- the purchase, edited in place ---- */

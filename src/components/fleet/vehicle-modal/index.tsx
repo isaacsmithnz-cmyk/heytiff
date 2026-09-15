@@ -217,10 +217,8 @@ export function VehicleModal({
             error={fleet.error}
             onBack={back}
             onSaveVehicle={(v) => fleet.saveVehicle(v)}
-            onRecordFinance={(input) => {
-              fleet.recordFinance({ ...input, vehicleId: vehicle.id });
-              back();
-            }}
+            onRecordFinance={(input) => fleet.recordFinance({ ...input, vehicleId: vehicle.id })}
+            onRecorded={back}
             onAttachFinance={fleet.attachFinanceDocument}
             onAttachInvoice={(documentId) => fleet.attachPurchaseDocument(vehicle.id, documentId)}
           />
@@ -236,10 +234,8 @@ export function VehicleModal({
             pending={fleet.pending}
             error={fleet.error}
             onBack={back}
-            onSave={(input) => {
-              fleet.recordRenewal({ ...input, vehicleId: vehicle.id });
-              back();
-            }}
+            onSave={(input) => fleet.recordRenewal({ ...input, vehicleId: vehicle.id })}
+            onSaved={back}
             onAttach={fleet.attachPolicyDocument}
           />
         )}

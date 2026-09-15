@@ -70,6 +70,11 @@ export function ScanCard<R extends { ok: boolean }>({
   children: ReactNode;
 }) {
   const [fileName, setFileName] = useState<string | null>(null);
+  /* What LANDED, which is not what was picked: a scan whose upload failed
+     still has a file name, and the attach row said "Attached:" under the line
+     saying the document couldn't be stored. Only a stored document is
+     attached; without one the row keeps its Upload button, which is the retry. */
+  const [attached, setAttached] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [warn, setWarn] = useState<string | null>(null);
   const scanInput = useRef<HTMLInputElement>(null);
@@ -87,6 +92,7 @@ export function ScanCard<R extends { ok: boolean }>({
         .catch(() => null),
     ]);
     const documentId = stored.ok ? stored.file.documentId : null;
+    setAttached(documentId ? file.name : null);
     if (!stored.ok) setWarn("The document couldn't be stored — the details below will save without it.");
     if (result && result.ok) {
       onRead(result, documentId, file.name);
@@ -106,16 +112,21 @@ export function ScanCard<R extends { ok: boolean }>({
     const stored = await uploadFile(file, docKind).catch(() => ({ ok: false, error: "upload" }) as const);
     if (stored.ok) {
       setFileName(file.name);
+      setAttached(file.name);
       onAttached(stored.file.documentId, file.name);
     } else setWarn("That upload didn't finish — try again.");
   };
 
   const reset = () => {
     setFileName(null);
+    setAttached(null);
     setWarn(null);
     onMode("idle");
   };
 
+  /* The guard reads the PICKED file, never `attached`. A scan whose upload
+     failed still holds Tiff's read or the fields it opened, and a stray Escape
+     would lose them all the same. */
   return (
     <div
       className="vm-card vm-record"
@@ -207,8 +218,8 @@ export function ScanCard<R extends { ok: boolean }>({
           {children}
           {mode === "manual" && (
             <div className="vm-attach">
-              <span>{fileName ? `Attached: ${fileName}` : attachLabel}</span>
-              <Inline onClick={() => attachInput.current?.click()}>{fileName ? "Replace" : "Upload"}</Inline>
+              <span>{attached ? `Attached: ${attached}` : attachLabel}</span>
+              <Inline onClick={() => attachInput.current?.click()}>{attached ? "Replace" : "Upload"}</Inline>
             </div>
           )}
         </>

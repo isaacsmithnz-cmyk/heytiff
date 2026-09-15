@@ -534,7 +534,7 @@ function CommentThread({
                   disabled={pending || !draft.trim()}
                   onClick={send}
                 >
-                  <Icon name="send" size={13} />
+                  Post
                 </button>
               </div>
             </div>

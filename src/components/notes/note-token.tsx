@@ -109,7 +109,7 @@ function Ribbon({ flow }: { flow: NoteFlow }) {
             className="wb2-aimx"
             onClick={flow.dropAim}
             title="This isn't about that — take the tag off"
-            aria-label={`Not about ${flow.targetLabel} — take the tag off`}
+            aria-label={`Clear the tag — not about ${flow.targetLabel}`}
           >
             <Icon name="x" size={11} />
           </button>
@@ -1163,7 +1163,7 @@ function Nudge({ onOpen, onDismiss }: { onOpen: () => void; onDismiss: () => voi
         type="button"
         className="wb2-ico"
         onClick={onDismiss}
-        aria-label="Ignore that — leave it as a note"
+        aria-label="Close — leave it as a note"
       >
         <Icon name="x" size={13} />
       </button>

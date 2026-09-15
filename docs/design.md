@@ -257,12 +257,14 @@ approved together.
     item is its teal icon.
 24. A control hidden until hover is also shown on `:focus-within`, or it is
     not hidden. Keyboard users get the delete control back.
-25. A button with only an icon is a close cross, or the clear cross in a
-    search field. Every other button carries its word: "Save estimate", not a
-    tick; "Discard", not a cross; "Actions", not three dots. A `title` is not a
-    label. Candidates for a named allowance when their family is folded: the
-    microphone and stop in the dictation controls, undo and redo in the Studio
-    toolbar.
+25. A button with only an icon is a close cross, or a clear cross: the one in
+    a search field, the one on a chip, the one beside a chosen value. Every
+    other button carries its word: "Save", not a tick; "Discard", not a
+    cross; "Actions", not three dots. A `title` is not a label. A box you
+    tick is a checkbox, not a button, and its word is the label beside it.
+    The few that keep their glyph — the dictation controls, undo and redo in
+    the Studio toolbar, the rail's handle, a thumbnail's cross — are named
+    under Guards, each with its reason.
 26. State is not a pill. A chip is for a filter you tap. The Workboard's
     chips become words in the state colour at body size, and so do every
     status pill, kind tag and badge on the light well: the word, 14/500, no
@@ -299,12 +301,13 @@ became consequences of the ink-and-paper decision rather than choices.
 
 ## Guards
 
-`src/app/dashboard/__tests__/design-ratchets.test.ts` counts twenty-seven things
+`src/app/dashboard/__tests__/design-ratchets.test.ts` counts twenty-six things
 across every screen stylesheet and component under `src` and holds each count at the number
 recorded there. A PR may lower a number. A PR may never raise one. When a
 count drops, the PR lowers the recorded number with it, so the number is
-always the truth. The twenty-eighth, the loops, it holds by name instead —
-the list below. Every guard was watched failing before it was trusted.
+always the truth. Two it holds by name instead — the loops, and the buttons
+that keep their glyph — in the lists below. Every guard was watched failing
+before it was trusted.
 
 The three paper stylesheets are outside the guards on purpose: the design
 sheet (`sheet-doc.css`), the letterhead and the live sheet are documents set
@@ -335,7 +338,7 @@ for print, with their own type.
 | hover-revealed controls | shown on focus too, or not hidden | 25 |
 | pill, chip, tag and badge rules | state is a word | 141 |
 | letter-spacing | display titles only | 451 |
-| icon-only buttons that are not a close or clear cross | every other button carries its word | 34 |
+| icon-only buttons that are not a close or clear cross | every other button carries its word; held by name since 2026-09-15, below | 34 |
 | uses of the OK text colour | colour only where it means something | 88 |
 | focus rings drawn as an alpha tint | 2px of solid ink | 137 |
 | colour declared on anchors | one link token | 26 |
@@ -377,6 +380,25 @@ infinite loop into a strobe.
 | `dotfSwell` | the capture card's mark while you talk | the microphone is open: a wave through the mark |
 | `dotfTurn`, `dotfZip`, `dotfFire` | the capture card's cloud while Tiff has the words | Tiff is working: the mark as a turning cloud until the answer comes back |
 | `wb2Flash` | a calendar day the board's data asked to flash | a flash a row asked for with data |
+
+### The buttons that keep their glyph
+
+Law 25 lets a button stand without its word only as a close cross or a clear
+cross, and the guard reads those off the label: it begins "Close" or "Clear".
+A box you tick is a checkbox, not a button, and says so (`role="checkbox"`);
+its word is the label beside it. Every other button that is only an icon is
+here, by glyph and class, with its reason, and the guard holds the sheets to
+this list the way it holds the loops: both ways, by name.
+
+| Glyph | On | Why it has no word |
+|---|---|---|
+| `mic` | `wb2-striprnd`, `wb2-micgo`, `tmic` | the microphone of the dictation controls, on a note strip, a note row and the ask bar: the field beside it is the word, and a microphone is the one glyph the trade reads without one |
+| `square` | `wb2-striprnd`, `wb2-micgo`, `wb2-dictmic` | stop, in the same controls: it takes the microphone's seat while it listens |
+| `x` | `wb2-striprnd`, `wb2-dictx` ×2, `wb2-ico` ×2 | the recording's cross beside stop, and the capture card's own cross: each closes a recording, and its label says what closing costs ("Discard") |
+| `plus` | `wb2-striprnd`, `wb2-addgo` | a note composer's commit at the end of its one-line field: the placeholder is the word and Enter is the same press. A form's save is a word; a composer's send is the glyph |
+| `rotate` | `ds-tool` ×2 | undo and redo in the Studio toolbar, the candidates law 25 named |
+| `chevR` | `railtg` | the rail's handle, a chevron riding the seam between rail and content; the shell stands as it is |
+| `x` | `camdel`, `ds-plancard-x` | a thumbnail's cross, on a photo badge and on a plan page in the Studio's import: a picture has no room for a word |
 
 ## The order of work
 

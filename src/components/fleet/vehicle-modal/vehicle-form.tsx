@@ -26,7 +26,7 @@ import {
   type VehicleStatus,
 } from "../logic";
 import { fmtDay } from "./derive";
-import { Btn, Eyebrow, IconBtn, Inline } from "@/components/record-modal/parts";
+import { Btn, CloseBtn, Eyebrow, Inline } from "@/components/record-modal/parts";
 import { scanInProgress } from "@/components/record-modal/scan-card";
 
 /* Adding or editing a vehicle, in the vehicle modal's language.
@@ -447,7 +447,7 @@ export function VehicleForm({
               </div>
             </div>
           </div>
-          <IconBtn icon="x" label="Close" onClick={onClose} />
+          <CloseBtn onClick={onClose} />
         </div>
 
         <div className="vm-body">

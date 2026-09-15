@@ -4212,7 +4212,8 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: var(--teal-d);
 }
-.dstudio .ds-pstep-discard { flex: none; }
+/* a word, not a cross: "Discard" (law 25), on the square's own grey and red */
+.dstudio .ds-pstep-discard { flex: none; width: auto; padding: 0 8px; font: 700 12px var(--font); }
 
 /* step ① once files are in: a file card + a compact "add more" zone */
 .dstudio .ds-addrow { display: flex; align-items: stretch; gap: 8px; }

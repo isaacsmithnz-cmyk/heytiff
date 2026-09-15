@@ -41,7 +41,7 @@ import {
   type HistoryTab,
   type Screen,
 } from "./derive";
-import { Btn, Card, DetailGrid, Eyebrow, IconBtn, Inline, Segmented } from "@/components/record-modal/parts";
+import { Btn, Card, CloseBtn, DetailGrid, Eyebrow, Inline, Segmented } from "@/components/record-modal/parts";
 
 /* The main screen: everything about one vehicle at a glance, and a door into
    each of its records.
@@ -204,7 +204,7 @@ export function MainScreen({
               ))}
             </select>
           </label>
-          <IconBtn icon="x" label="Close" onClick={onClose} />
+          <CloseBtn onClick={onClose} />
         </div>
       </div>
 

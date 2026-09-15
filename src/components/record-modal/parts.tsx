@@ -67,21 +67,14 @@ export function DetailGrid({ items, cols = 3, dense }: { items: DetailItem[]; co
   );
 }
 
-/** The 40×40 square control — back, close, the + on a card. */
-export function IconBtn({
-  icon,
-  label,
-  onClick,
-  size = 16,
-}: {
-  icon: string;
-  label: string;
-  onClick: () => void;
-  size?: number;
-}) {
+/** The 40×40 close cross — the one glyph a button may be on its own (law 25).
+    It was `IconBtn`, a square for any icon under any label; every use left was
+    a close, and a square for any icon is how a glyph without its word gets
+    back in. */
+export function CloseBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" className="vm-iconbtn" aria-label={label} onClick={onClick}>
-      <Icon name={icon} size={size} />
+    <button type="button" className="vm-iconbtn" aria-label="Close" onClick={onClick}>
+      <Icon name="x" size={16} />
     </button>
   );
 }

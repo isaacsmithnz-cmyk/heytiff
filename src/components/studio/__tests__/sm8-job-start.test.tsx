@@ -184,7 +184,7 @@ describe("new design — from a ServiceM8 job", () => {
     const list = await screen.findByRole("listbox", { name: "ServiceM8 jobs" });
     await user.click(within(list).getByText("12/3 Wallace St"));
 
-    await user.click(screen.getByRole("button", { name: /Start from a different job/ }));
+    await user.click(screen.getByRole("button", { name: /Clear the job/ }));
     expect(screen.getByLabelText(FIELD)).toHaveValue("");
     // the name it filled is now the person's own — unpicking must not erase it
     expect(screen.getByPlaceholderText(/Design name/)).toHaveValue("12/3 Wallace St");

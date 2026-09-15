@@ -1,4 +1,3 @@
-import { Icon } from "@/components/shell/icon";
 import { credBadgeCode, type CredBadge, type LicenceStatus } from "@/lib/staff/licence";
 
 /* One licence / ticket / policy, as the small card it is in real life.
@@ -84,7 +83,7 @@ export function CredentialCard({
           disabled={removing}
           onClick={onRemove}
         >
-          <Icon name="x" size={14} />
+          Remove
         </button>
       )}
     </div>

@@ -47,7 +47,7 @@ function Stepper({ value, onChange, suffix = "", step = 1, min = 0, max }: {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3, background: RC.card2, borderRadius: 10, padding: 4, border: `1px solid ${RC.line}`, flexShrink: 0 }}>
       <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 16, border: "none", background: "#fff", boxShadow: "0 1px 2px rgba(10,12,20,.08)" }} onClick={() => onChange(clamp(value - step))}>−</button>
-      <span style={{ minWidth: 54, textAlign: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink, whiteSpace: "nowrap" }}>{value}{suffix}</span>
+      <span style={{ minWidth: 54, textAlign: "center", fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, color: RC.ink, whiteSpace: "nowrap" }}>{value}{suffix}</span>
       <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 16, border: "none", background: "#fff", boxShadow: "0 1px 2px rgba(10,12,20,.08)" }} onClick={() => onChange(clamp(value + step))}>+</button>
     </div>
   );
@@ -214,9 +214,9 @@ export function SettingsPanel({ st: committed, patch: commit, onClose, onReset, 
         <div style={{ flexShrink: 0, padding: "20px 26px", background: "#fff", borderBottom: `1px solid ${RC.line}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <WsEyebrow>Rate Calculator</WsEyebrow>
-            <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 3 }}>Settings</div>
+            <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 22, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 3 }}>Settings</div>
           </div>
-          <button className="rca-iconbtn" onClick={onClose} title="Cancel"><RcIcon name="x" size={16} /></button>
+          <button className="rca-iconbtn" onClick={onClose} aria-label="Close"><RcIcon name="x" size={16} /></button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "8px 26px 26px" }}>
@@ -240,7 +240,7 @@ export function SettingsPanel({ st: committed, patch: commit, onClose, onReset, 
               here used to change what every My Pay card showed as super. */}
           <Field label="Superannuation" hint={superOwned ? "Set in Time & Pay settings — one owner, everywhere" : "Paid on top of wages"}>
             {superOwned ? (
-              <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.ink, padding: "6px 10px" }}>
+              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 15, color: RC.ink, padding: "6px 10px" }}>
                 {g.super_pct ?? 12}%
               </span>
             ) : (

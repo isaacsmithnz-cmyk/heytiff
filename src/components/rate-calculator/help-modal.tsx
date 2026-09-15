@@ -29,9 +29,9 @@ export function HelpModal({ onClose }: { onClose: (dontShow: boolean) => void })
               <div style={{ width: 30, height: 30, borderRadius: 10, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center" }}><RcIcon name="calc" size={16} /></div>
               <WsEyebrow>Rate Calculator, Welcome</WsEyebrow>
             </div>
-            <button className="rca-iconbtn" onClick={close} title="Close"><RcIcon name="x" size={16} /></button>
+            <button className="rca-iconbtn" onClick={close} aria-label="Close"><RcIcon name="x" size={16} /></button>
           </div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 30, letterSpacing: "-0.03em", color: RC.ink, lineHeight: 1.1, marginTop: 16 }}>How to use this tool</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 30, letterSpacing: "-0.03em", color: RC.ink, lineHeight: 1.1, marginTop: 16 }}>How to use this tool</div>
           <div style={{ fontSize: 14, color: RC.ink2, lineHeight: 1.6, marginTop: 9 }}>
             Rate Calculator helps you understand your <b style={{ color: RC.ink }}>charge-out rates</b>{" "}and spot the gap between what you charge today and what your costs suggest you should. Here&apos;s the quick version.
           </div>
@@ -40,9 +40,9 @@ export function HelpModal({ onClose }: { onClose: (dontShow: boolean) => void })
         <div style={{ padding: "18px 34px 0" }}>
           {steps.map(([t, d], i) => (
             <div key={t} style={{ display: "flex", gap: 15, padding: "12px 0", borderBottom: i < steps.length - 1 ? `1px solid ${RC.line}` : "none" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 14 }}>{i + 1}</div>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 700, fontSize: 14 }}>{i + 1}</div>
               <div style={{ flex: 1, paddingTop: 3 }}>
-                <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{t}</div>
+                <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{t}</div>
                 <div style={{ fontSize: 13, color: RC.ink2, lineHeight: 1.5, marginTop: 3 }}>{d}</div>
               </div>
             </div>
@@ -52,7 +52,7 @@ export function HelpModal({ onClose }: { onClose: (dontShow: boolean) => void })
         <div style={{ margin: "18px 34px 0", background: RC.amberSoft, borderRadius: 16, borderLeft: `4px solid ${RC.amber}`, padding: "15px 19px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7, color: RC.amberInk }}>
             <RcIcon name="alert" size={15} />
-            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 11, letterSpacing: "0.07em", textTransform: "uppercase" }}>Important — please read</span>
+            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 11, letterSpacing: "0.07em", textTransform: "uppercase" }}>Important — please read</span>
           </div>
           <div style={{ fontSize: 12.5, color: RC.amberDeep, lineHeight: 1.6 }}>
             Rate Calculator is a <b>planning tool, not a financial service.</b> It does not provide financial, accounting, taxation or legal advice. All figures are <b>estimates</b> based only on the information you enter and general assumptions, and may not reflect your full circumstances. Before making any pricing, tax or business decisions, please consult a <b>qualified accountant or financial adviser.</b> We accept no liability for decisions made on the basis of these outputs.

@@ -122,7 +122,8 @@ const LEAVES: [string, () => Promise<unknown>, string][] = [
   ["toolbox/troubleshooting", TroubleshootingPage, "toolbox"],
   ["tiff", TiffPage, "tiff"],
   ["tiff/library", LibraryPage, "tiff"],
-  ["workboard", WorkboardPage, "workboard"],
+  // the page takes the URL's `?job=`; the gate must fire before it is read
+  ["workboard", () => WorkboardPage({ searchParams: Promise.resolve({}) }), "workboard"],
   ["workboard/projects", WorkboardProjectsPage, "workboard"],
 ];
 

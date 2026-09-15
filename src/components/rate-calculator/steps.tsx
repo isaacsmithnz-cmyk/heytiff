@@ -32,7 +32,7 @@ function StepHead({ eyebrow, title, mode, onMode, desc }: {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14 }}>
         <div>
           <WsEyebrow color={RC.install}>{eyebrow}</WsEyebrow>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 25, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 5, whiteSpace: "nowrap" }}>{title}</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 25, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 5, whiteSpace: "nowrap" }}>{title}</div>
         </div>
         {mode && onMode && <WsToggle value={mode} onChange={onMode} />}
       </div>
@@ -79,7 +79,7 @@ function StepperRow({ value, display, onMinus, onPlus, minWidth = 44 }: {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <button className="rca-stepbtn" style={stepBtnStyle} onClick={onMinus}>−</button>
-      <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 19, color: RC.ink, minWidth, textAlign: "center" }}>{display ?? value}</span>
+      <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 19, color: RC.ink, minWidth, textAlign: "center" }}>{display ?? value}</span>
       <button className="rca-stepbtn" style={stepBtnStyle} onClick={onPlus}>+</button>
     </div>
   );
@@ -102,7 +102,7 @@ function PctRow({ label, color, value, onChange }: {
         <div style={{ display: "inline-flex", alignItems: "baseline", gap: 1, background: "#fff", borderRadius: 9, border: `1px solid ${RC.lineStrong}`, padding: "5px 10px", minWidth: 58, justifyContent: "center" }}>
           <input value={String(value)} inputMode="numeric" aria-label={`${label} percent`}
             onChange={e => { const d = e.target.value.replace(/[^0-9]/g, ""); onChange(d === "" ? 0 : parseInt(d, 10)); }}
-            style={{ width: 28, border: "none", background: "transparent", outline: "none", textAlign: "right", fontFamily: RC.head, fontWeight: 800, fontSize: 15, color, padding: 0 }} />
+            style={{ width: 28, border: "none", background: "transparent", outline: "none", textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 15, color, padding: 0 }} />
           <span style={{ fontSize: 13, color: RC.faint, fontWeight: 700 }}>%</span>
         </div>
         <button className="rca-stepbtn" style={{ width: 26, height: 26, borderRadius: 7, fontSize: 15 }} onClick={() => onChange(value + 5)}>+</button>
@@ -172,7 +172,7 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
                   <div style={{ fontSize: 12.5, color: RC.service, opacity: 0.85, marginTop: 3 }}>wages + super + workers comp + leave loading</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                  <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(totalLabour)}</span>
+                  <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(totalLabour)}</span>
                   <span style={{ display: "flex", color: RC.service, transform: showBreakdown ? "rotate(180deg)" : "none", transition: "transform .2s" }}><RcIcon name="chevD" size={18} /></span>
                 </div>
               </button>
@@ -186,8 +186,8 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
                     </div>
                   ))}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 9 }}>
-                    <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, color: RC.ink }}>True cost / yr</span>
-                    <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.service }}>{money(totalLabour)}</span>
+                    <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, color: RC.ink }}>True cost / yr</span>
+                    <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 15, color: RC.service }}>{money(totalLabour)}</span>
                   </div>
                 </div>
               )}
@@ -217,7 +217,7 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
           {/* live proportion bar — always exactly full */}
           <div style={{ display: "flex", height: 40, borderRadius: 12, overflow: "hidden", marginBottom: 14 }}>
             {([["Install", install, RC.install], ["Service", service, RC.service], ["Admin", admin, RC.faint]] as [string, number, string][]).map(([l, v, c]) => v > 0 && (
-              <div key={l} style={{ width: `${v}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .2s" }}>{v >= 18 ? `${l}, ${v}%` : v >= 8 ? `${v}%` : ""}</div>
+              <div key={l} style={{ width: `${v}%`, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", transition: "width .2s" }}>{v >= 18 ? `${l}, ${v}%` : v >= 8 ? `${v}%` : ""}</div>
             ))}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -230,7 +230,7 @@ export function StaffStep({ s, patch, calc, showToggle, revealAll }: StepBodyPro
                 <span style={{ fontSize: 13, color: RC.ink, fontWeight: 700 }}>Admin</span>
                 <span style={{ fontSize: 11.5, color: RC.faint, whiteSpace: "nowrap" }}>the rest — overhead &amp; non-billable</span>
               </span>
-              <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 17, color: RC.ink2, flexShrink: 0 }}>{admin}%</span>
+              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 17, color: RC.ink2, flexShrink: 0 }}>{admin}%</span>
             </div>
           </div>
         </>
@@ -302,7 +302,7 @@ export function BusinessStep({ s, patch, calc, showToggle, revealAll, xeroConnec
                 <WsEyebrow color={RC.install}>Projected overheads / yr</WsEyebrow>
                 <div style={{ fontSize: 12.5, color: RC.install, opacity: 0.85, marginTop: 3 }}>spread across every billable hour</div>
               </div>
-              <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", color: RC.install }}>{money(calc.enteredBiz)}</div>
+              <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.install }}>{money(calc.enteredBiz)}</div>
             </div>
           )}
         </>
@@ -380,7 +380,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
 
   const choiceBtn = (active: boolean): React.CSSProperties => ({
     flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 9, height: 52,
-    borderRadius: 13, cursor: "pointer", fontFamily: RC.head, fontWeight: 800, fontSize: 14,
+    borderRadius: 13, cursor: "pointer", fontFamily: RC.head, fontWeight: 700, fontSize: 14,
     border: active ? `1.5px solid ${RC.install}` : `1px solid ${RC.lineStrong}`,
     background: active ? RC.installSoft : "#fff", color: active ? RC.install : RC.ink2,
     boxShadow: active ? "none" : "0 1px 2px rgba(10,12,20,.04)", transition: "all .2s",
@@ -396,7 +396,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
       <div style={{ display: "flex", alignItems: "center", gap: 14, background: RC.serviceSoft, borderRadius: 13, padding: "13px 16px" }}>
         <span style={{ width: 38, height: 38, borderRadius: 11, background: "#fff", color: RC.service, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={19} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14, color: "#17703A" }}>No vehicles</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14, color: "#17703A" }}>No vehicles</div>
           <div style={{ fontSize: 12, color: "#17703A", opacity: 0.85, marginTop: 1 }}>Your rates carry no vehicle recovery. You can add fleet costs any time.</div>
         </div>
         <button className="rca-btn ghost sm" onClick={() => { setSaidYes(false); patch({ noVehicles: false }); }}>I do have vehicles</button>
@@ -427,7 +427,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
               <WsEyebrow color={RC.service}>Projected fleet cost / yr</WsEyebrow>
               <div style={{ fontSize: 12.5, color: RC.service, opacity: 0.85, marginTop: 3 }}>split by each driver&apos;s install / service mix</div>
             </div>
-            <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(fleetTotal)}</div>
+            <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.service }}>{money(fleetTotal)}</div>
           </div>
         )}
         {s.vehicles.length > 0 && (
@@ -436,7 +436,7 @@ export function VehiclesStep({ s, patch, calc, showToggle, revealAll, xeroConnec
               <div key={v.vehicle_id} style={{ flex: 1, background: RC.card2, borderRadius: 13, border: `1px solid ${RC.line}`, padding: "12px 15px", display: "flex", alignItems: "center", gap: 11 }}>
                 <span style={{ width: 34, height: 34, borderRadius: 10, background: RC.installSoft, color: RC.install, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><RcIcon name="truck" size={17} /></span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{v.vehicle_name}, {v.rego_number}</div>
+                  <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{v.vehicle_name}, {v.rego_number}</div>
                   <div style={{ fontSize: 11.5, color: RC.faint }}>{v.allocation}, driver: {s.staff.find(p => p.id === v.assigned_driver_id)?.name || "Unassigned"}</div>
                 </div>
               </div>
@@ -589,8 +589,8 @@ export function RiskStep({ s, patch, calc, revealAll }: StepBodyProps) {
             {items.map(([l, k, c, desc]) => (
               <div key={k} style={{ background: RC.card2, borderRadius: 14, border: `1px solid ${RC.line}`, padding: "14px 16px" }}>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-                  <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{l}</span>
-                  <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 21, color: c }}>{s.risk[k]}%</span>
+                  <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.01em", color: RC.ink, whiteSpace: "nowrap" }}>{l}</span>
+                  <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 21, color: c }}>{s.risk[k]}%</span>
                 </div>
                 <div style={{ fontSize: 12, color: RC.faint, marginTop: 3, marginBottom: 14 }}>{desc}</div>
                 <WsSlider value={s.risk[k]} min={0} max={10} onChange={val => set(k, val)} color={c} />
@@ -640,7 +640,7 @@ export function ProfitStep({ s, patch, calc, revealAll }: StepBodyProps) {
       body: (
         <>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
-            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, color: RC.install }}>{s.profit.margin}%</span>
+            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, color: RC.install }}>{s.profit.margin}%</span>
           </div>
           <WsSlider value={s.profit.margin} min={0} max={40} onChange={v => patch({ profit: { ...s.profit, margin: v } })} color={RC.install} />
         </>
@@ -657,9 +657,9 @@ export function ProfitStep({ s, patch, calc, revealAll }: StepBodyProps) {
             <div key={k} style={{ flex: 1, background: RC.card2, borderRadius: 14, border: `1px solid ${RC.line}`, padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13.5, color: RC.ink, fontWeight: 700, whiteSpace: "nowrap" }}>{l}</span>
-                <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 17, color: RC.violet }}>{s.multipliers[k].toFixed(2)}×</span>
+                <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 17, color: RC.violet }}>{s.multipliers[k].toFixed(2)}×</span>
               </div>
-              <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 27, letterSpacing: "-0.02em", color: RC.ink, margin: "6px 0 12px" }}>{rate0(val)}<span style={{ fontSize: 13, color: RC.faint, fontWeight: 600, letterSpacing: 0 }}>/hr</span></div>
+              <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 27, letterSpacing: "-0.02em", color: RC.ink, margin: "6px 0 12px" }}>{rate0(val)}<span style={{ fontSize: 13, color: RC.faint, fontWeight: 600, letterSpacing: 0 }}>/hr</span></div>
               <WsSlider value={s.multipliers[k]} min={1} max={3} step={0.05} onChange={v => patch({ multipliers: { ...s.multipliers, [k]: v } })} color={RC.violet} />
             </div>
           ))}

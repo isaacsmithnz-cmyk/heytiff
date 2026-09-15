@@ -97,6 +97,10 @@
      highlight. First use: the avatar's ring, which was a blue-to-teal
      gradient until the frame went still. */
   --on-ink-line: rgba(255,255,255,.35);
+  /* the two tints of paper on ink — the dark surfaces' `--tint` and `--tint-2`:
+     a row's hover, a field's well, a pressed chip (wb fold, 2026-09-15) */
+  --on-ink-tint: rgba(255,255,255,.06);
+  --on-ink-tint-2: rgba(255,255,255,.12);
 
   /* INK AND PAPER — the tokens docs/design.md names, decided 2026-09-10.
      Defined here first, in one place; the stylesheets move onto them family
@@ -116,15 +120,18 @@
      against the key on the screen (docs/design.md, law 26; settled in the
      mts2 fold, 2026-09-15). Blue and violet live here as vocabulary, the way
      the Schedule's categories and the Studio's drawing do, not as an accent.
-     The `-d` value is the ink a day's word is set in on the light well. The
-     values are the ones the screens were drawn with; the green pair is still
-     Tailwind's, and moves when the admin screen's tiles are folded, because
-     their on-fill inks are tuned to it. */
-  --day-std:#22c55e; --day-std-d:#16a34a; --day-std-tint:rgba(34,197,94,.1);
+     The `-d` value is the ink a day's word is set in on the light well, or
+     the darker step a bar is drawn in. The values are the ones the screens
+     were drawn with, except the green: Tailwind's green-500 pair became the
+     OK hue (#196B2D's) at the same lightness, so the on-fill inks the
+     contrast guard reads still clear (#053b34 on #2EC351, 5.4:1). Sick is
+     the tile red its ink was tuned to (#450012 on #FF3366, 4.7:1), not the
+     app's bad chip, which that ink cannot read on. */
+  --day-std:#2EC351; --day-std-d:#259D41; --day-std-tint:rgba(46,195,81,.1);
   --day-over:var(--warn); --day-over-tint:var(--warn-tint);
   --day-under:#f472b6; --day-under-d:#9d174d; --day-under-tint:rgba(244,114,182,.1);
   --day-leave:#2E68FF; --day-leave-tint:rgba(46,104,255,.09);
-  --day-sick:var(--bad); --day-sick-tint:var(--bad-tint);
+  --day-sick:#FF3366; --day-sick-tint:rgba(255,51,102,.08);
   --day-ph:#8A2BE2; --day-ph-d:#7322c4; --day-ph-tint:rgba(138,43,226,.09);
   --day-off:var(--q); --day-off-tint:rgba(120,126,140,.1);
   --day-empty:#d8dbe1; --day-empty-tint:rgba(216,219,225,.14);

@@ -142,13 +142,27 @@ export function focusJobOf(day: ScheduleDay, jobUuid: string, clock: DayClock): 
 
   const all = day.lanes.flatMap((l) => l.blocks).filter((b) => b.remoteId === jobUuid);
   const first = all[0];
-  const label = blockLabel(first);
-  /* WHAT THE BLOCK'S PAINT IS SAYING, in words — the footer key scoped to the
-     one job on the table. Only treatments this job actually wears; each one
-     draws its own swatch in the card, so the decode and the block can't
-     drift. The category leads because its colour is the loudest thing on the
-     block and the least self-explanatory. */
-  const marks: FocusMark[] = [{ kind: "cat", word: label }];
+  return {
+    jobNumber: first.jobNumber,
+    clientName: first.clientName,
+    suburb: first.suburb,
+    label: blockLabel(first),
+    paint: blockPaint(first),
+    marks: jobMarks(all, clock),
+    entries,
+  };
+}
+
+/** WHAT THE BLOCKS' PAINT IS SAYING, in words — the footer key scoped to the
+    one job on the table. Only treatments this job actually wears; each one
+    draws its own swatch in the card, so the decode and the block can't
+    drift. The category leads because its colour is the loudest thing on the
+    block and the least self-explanatory. Takes the blocks rather than the
+    day so Home's band, which draws one booking without the day's lanes, can
+    ask the same question of the one it drew. */
+export function jobMarks(all: readonly ScheduleBlock[], clock: DayClock): FocusMark[] {
+  const first = all[0];
+  const marks: FocusMark[] = [{ kind: "cat", word: blockLabel(first) }];
   if (first.status === "Quote") marks.push({ kind: "qt", word: "A quote — dashed edge" });
   if (first.status === "Unsuccessful") marks.push({ kind: "dan", word: "Didn't go ahead" });
   if (all.some((b) => b.closure === "stale"))
@@ -160,16 +174,7 @@ export function focusJobOf(day: ScheduleDay, jobUuid: string, clock: DayClock): 
     marks.push({ kind: "idle", word: "Not started — hollow cap" });
   else if (all.some((b) => b.onSite && b.closure !== "done"))
     marks.push({ kind: "on", word: "Started" });
-
-  return {
-    jobNumber: first.jobNumber,
-    clientName: first.clientName,
-    suburb: first.suburb,
-    label,
-    paint: blockPaint(first),
-    marks,
-    entries,
-  };
+  return marks;
 }
 
 /** The DAY-state among a job's marks, for the sheet's header — the ServiceM8
@@ -185,4 +190,12 @@ export function dayStateOfMarks(
   /* the mark's word carries its own decode ("Not started — hollow cap"); the
      sheet wants the state, not the key */
   return m ? { kind: m.kind, word: m.word.split(" — ")[0] } : null;
+}
+
+/** The same reading for ONE block. Home's day band draws a booking on its
+    own, with no lanes to gather a job from, and hands the sheet the state
+    the pill wore; built through the marks so its words are the focus
+    card's words, never a second spelling. */
+export function dayStateOfBlock(b: ScheduleBlock, clock: DayClock): ReturnType<typeof dayStateOfMarks> {
+  return dayStateOfMarks(jobMarks([b], clock));
 }

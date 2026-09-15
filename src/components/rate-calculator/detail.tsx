@@ -34,7 +34,7 @@ function Table({ cols, children }: { cols: TableCol[]; children: React.ReactNode
   return (
     <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, boxShadow: "0 8px 30px rgba(0,0,0,.03)", overflow: "hidden" }}>
       <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), padding: "11px 18px", borderBottom: `1px solid ${RC.line}` }}>
-        {cols.map(c => <div key={c.label} style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 10.5, letterSpacing: "0.07em", textTransform: "uppercase", color: RC.faint, textAlign: c.align || "left" }}>{c.label}</div>)}
+        {cols.map(c => <div key={c.label} style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 10.5, letterSpacing: "0.07em", textTransform: "uppercase", color: RC.faint, textAlign: c.align || "left" }}>{c.label}</div>)}
       </div>
       {children}
     </div>
@@ -58,7 +58,7 @@ export function StaffDetail({ s, calc }: StepBodyProps) {
     return (
       <DBody>
         <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, padding: "34px 24px", textAlign: "center" }}>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.ink }}>No staff on the roster yet</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 15, color: RC.ink }}>No staff on the roster yet</div>
           <div style={{ fontSize: 12.5, color: RC.faint, marginTop: 6, lineHeight: 1.5 }}>The calculator prices the people in <Link href="/dashboard/team" style={{ color: RC.service, fontWeight: 700 }}>Team</Link>. Add staff and their wages there and they&rsquo;ll appear here — or use Simple mode to estimate from a monthly wage bill.</div>
         </div>
       </DBody>
@@ -80,12 +80,12 @@ export function StaffDetail({ s, calc }: StepBodyProps) {
           return (
             <div key={p.id} style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${RC.line}`, opacity: incomplete ? 0.72 : 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, background: `hsl(${(String(p.name).split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 0))} 64% 42%)`, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 12.5 }}>{p.name[0]}</span>
+                <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, background: `hsl(${(String(p.name).split("").reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 0))} 64% 42%)`, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 700, fontSize: 12.5 }}>{p.name[0]}</span>
                 <div><div style={{ fontSize: 13.5, color: RC.ink, fontWeight: 700 }}>{p.name}</div><div style={{ fontSize: 11.5, color: RC.faint }}>{p.role || p.employment_type}</div></div>
               </div>
               <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 14, color: p.hourly_wage > 0 ? RC.ink : RC.faint }}>{p.hourly_wage > 0 ? money(p.hourly_wage) + "/h" : "—"}</div>
               <div style={{ textAlign: "right", fontSize: 13, color: b?.weeksSubmitted ? RC.ink2 : RC.faint, fontWeight: 600 }}>{b?.weeksSubmitted || 0} wks</div>
-              <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink }}>{money(b?.annualCost)}</div>
+              <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, color: RC.ink }}>{money(b?.annualCost)}</div>
               <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink2, whiteSpace: "nowrap" }}>
                 <span style={{ color: RC.install }}>{p.install_pct}</span> / <span style={{ color: RC.service }}>{p.service_pct}</span> / <span style={{ color: RC.faint }}>{p.admin_pct}</span>
               </div>
@@ -93,20 +93,20 @@ export function StaffDetail({ s, calc }: StepBodyProps) {
           );
         })}
         <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), alignItems: "center", padding: "13px 18px", background: RC.card2 }}>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, letterSpacing: "-0.01em", color: RC.ink }}>Total true labour cost</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, letterSpacing: "-0.01em", color: RC.ink }}>Total true labour cost</div>
           <div /><div />
-          <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 800, fontSize: 18, color: RC.service }}>{money(totalTrue)}</div>
+          <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 18, color: RC.service }}>{money(totalTrue)}</div>
           <div />
         </div>
       </Table>
       <div style={{ display: "flex", gap: 14, marginTop: 12 }}>
         <div style={{ flex: 1, background: "#fff", borderRadius: 13, border: `1px solid ${RC.line}`, padding: "11px 15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 12.5, color: RC.label }}>Utilisation (from timesheets)</span>
-          <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.ink }}><span style={{ color: RC.install }}>{Math.round(normUtil(calc.instUtil))}%</span> install, <span style={{ color: RC.service }}>{Math.round(normUtil(calc.svcUtil))}%</span> service{calc.utilFromDefault ? " (default)" : ""}</span>
+          <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, color: RC.ink }}><span style={{ color: RC.install }}>{Math.round(normUtil(calc.instUtil))}%</span> install, <span style={{ color: RC.service }}>{Math.round(normUtil(calc.svcUtil))}%</span> service{calc.utilFromDefault ? " (default)" : ""}</span>
         </div>
         <div style={{ flex: 1, background: "#fff", borderRadius: 13, border: `1px solid ${RC.line}`, padding: "11px 15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 12.5, color: RC.label }}>Confidence</span>
-          <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, color: RC.service }}>{calc.confidence.label}</span>
+          <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, color: RC.service }}>{calc.confidence.label}</span>
         </div>
       </div>
     </DBody>
@@ -165,9 +165,9 @@ export function BusinessDetail({ s, patch }: StepBodyProps) {
           );
         })}
         <div style={{ display: "grid", gridTemplateColumns: cols.map(c => c.w).join(" "), alignItems: "center", padding: "13px 18px", background: RC.card2 }}>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 12.5, letterSpacing: "-0.01em", color: RC.ink }}>Total overheads / yr</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 12.5, letterSpacing: "-0.01em", color: RC.ink }}>Total overheads / yr</div>
           <div />
-          <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 800, fontSize: 18, color: RC.install }}>{money(total)}</div>
+          <div style={{ textAlign: "right", fontFamily: RC.head, fontWeight: 700, fontSize: 18, color: RC.install }}>{money(total)}</div>
           <div />
         </div>
       </Table>
@@ -251,12 +251,12 @@ export function VehiclesDetail({ s, patch, calc }: StepBodyProps) {
               <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "13px 18px", borderBottom: `1px solid ${RC.line}` }}>
                 <span style={{ width: 38, height: 38, borderRadius: 11, background: ch.bg, color: ch.c, display: "flex", alignItems: "center", justifyContent: "center" }}><RcIcon name="truck" size={19} /></span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{v.vehicle_name}, {v.rego_number}</div>
+                  <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{v.vehicle_name}, {v.rego_number}</div>
                   <div style={{ fontSize: 12, color: RC.faint }}>Driver: {driver ? `${driver.name} (${driver.install_pct}/${driver.service_pct}/${driver.admin_pct} I/S/A)` : v.allocation}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 10, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>Annual cost</div>
-                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 20, letterSpacing: "-0.01em", color: ch.c }}>{money(annual)}</div>
+                  <div style={{ fontSize: 10, color: RC.faint, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Annual cost</div>
+                  <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 20, letterSpacing: "-0.01em", color: ch.c }}>{money(annual)}</div>
                 </div>
               </div>
               {resale > replacement && (

@@ -1257,7 +1257,7 @@ function ChecklistSection({
             onClick={() => setAdding((v) => !v)}
             aria-label={`Add to ${section}`}
           >
-            <Icon name="plus" size={12} />
+            Add
           </button>
         )}
       </div>

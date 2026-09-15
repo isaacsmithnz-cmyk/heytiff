@@ -446,6 +446,20 @@ export function allJobsRows(input: {
   return view;
 }
 
+/** THE ROW A SHEET OPENS ON, from one mirror job. A schedule block, a search
+    hit and Home's day band all arrive with the job in the mirror shape and
+    none of them is a list, so this is the list's own row builder applied to
+    one job — the sheet is opened on the same row everywhere, and a job the
+    list would not file (a status the board has no lane for) opens nowhere,
+    which is what null says. */
+export function sheetRowOf(
+  job: AllJobsMirrorJob,
+  today: string,
+  tracked: AllJobRow["tracked"] = null
+): AllJobRow | null {
+  return tabOfSm8(job.status) === null ? null : sm8Row(job, today, tracked);
+}
+
 /* ── ServiceM8 field readers, pure and shared by loader and sheet ── */
 
 /** ServiceM8 category colours arrive as BARE hex — "e7b5ff", no hash (the

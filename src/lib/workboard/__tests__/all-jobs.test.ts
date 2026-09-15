@@ -7,6 +7,7 @@ import {
   fmtMinutesAsHours,
   groupChecklist,
   quotesCountLine,
+  sheetRowOf,
   sm8CategoryColour,
   sm8JobIsOpen,
   sm8MinutesBetween,
@@ -539,5 +540,23 @@ describe("sm8JobIsOpen", () => {
        flag than swallow one. */
     expect(sm8JobIsOpen("On Hold")).toBe(true);
     expect(sm8JobIsOpen(null)).toBe(true);
+  });
+});
+
+describe("sheetRowOf — the row a sheet opens on, from one mirror job", () => {
+  it("is the list's own row for that job", () => {
+    const j = job({ remoteId: "j-9", nextBooking: `${TODAY} 08:00:00` });
+    const row = sheetRowOf(j, TODAY);
+    expect(row).toMatchObject({ kind: "sm8", id: "j-9", number: "2200", booked: true, tracked: null });
+    expect(row).toEqual(allJobsRows({ jobs: [j], visits: [], projects: [], today: TODAY }).work.booked[0]);
+  });
+
+  it("carries the tracked chip it is handed", () => {
+    const tracked = { kind: "project" as const, label: "Fit-out", id: "p-1" };
+    expect(sheetRowOf(job({ remoteId: "j-9" }), TODAY, tracked)!.tracked).toEqual(tracked);
+  });
+
+  it("opens nowhere for a job with no status — the one the list would not file either", () => {
+    expect(sheetRowOf(job({ remoteId: "j-9", status: null }), TODAY)).toBeNull();
   });
 });

@@ -58,7 +58,7 @@ export function UtilisationCard({ calc }: { calc: CalcResult }) {
                   <span style={{ fontSize: 13.5, fontWeight: 700, color: RC.ink }}>{u.label}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: st.c, background: st.bg, padding: "3px 10px", borderRadius: 100 }}>{st.label}</span>
                 </span>
-                <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 21, letterSpacing: "-0.01em", color: isDefault ? RC.ink2 : (u.pct < 65 ? RC.amberInk : u.color) }}>{u.pct.toFixed(1)}%</span>
+                <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 21, letterSpacing: "-0.01em", color: isDefault ? RC.ink2 : (u.pct < 65 ? RC.amberInk : u.color) }}>{u.pct.toFixed(1)}%</span>
               </div>
               <Gauge pct={u.pct} color={u.color} muted={isDefault} />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7, fontSize: 11.5, color: RC.faint }}>
@@ -100,8 +100,8 @@ export function UtilisationCard({ calc }: { calc: CalcResult }) {
 function Stat({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (
     <div style={{ background: RC.card2, borderRadius: 13, padding: "12px 15px" }}>
-      <div style={{ fontSize: 10, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{label}</div>
-      <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 21, letterSpacing: "-0.01em", color, marginTop: 3, whiteSpace: "nowrap" }}>{value}</div>
+      <div style={{ fontSize: 10, color: RC.faint, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{label}</div>
+      <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 21, letterSpacing: "-0.01em", color, marginTop: 3, whiteSpace: "nowrap" }}>{value}</div>
       <div style={{ fontSize: 11, color: RC.faint, marginTop: 2 }}>{sub}</div>
     </div>
   );
@@ -126,10 +126,10 @@ export function ProfitabilityCard({ calc, hoursPerDay = 8 }: { calc: CalcResult;
       </div>
       <div style={{ marginTop: 12, background: RC.serviceSoft, borderRadius: 13, padding: "13px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.07em", color: RC.service }}>Total profit at recommended rates</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.07em", color: RC.service }}>Total profit at recommended rates</div>
           <div style={{ fontSize: 11.5, color: RC.service, opacity: 0.85, marginTop: 1 }}>At your current volume</div>
         </div>
-        <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 26, letterSpacing: "-0.02em", color: RC.service, whiteSpace: "nowrap" }}>{money(totalAnnualProfit)}</div>
+        <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em", color: RC.service, whiteSpace: "nowrap" }}>{money(totalAnnualProfit)}</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
         <Stat label="Projected install rate" value={rate0(calc.projInst) + "/hr"} sub="Next year, with cost increase allowance" color={RC.install} />
@@ -149,7 +149,7 @@ export function InsightsView({ s, patch, calc, ready, go }: {
       <div className="rca-view" style={{ flex: 1, minWidth: 0, padding: "26px 32px", overflowY: "auto", overflowX: "hidden", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
         <div style={{ maxWidth: 460, textAlign: "center" }}>
           <div style={{ width: 54, height: 54, borderRadius: 16, background: "#f3f4f7", color: "#aeb4c0", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}><RcIcon name="activity" size={24} /></div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.15 }}>Insights unlock with your data</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 22, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.15 }}>Insights unlock with your data</div>
           <div style={{ fontSize: 13.5, color: RC.ink2, lineHeight: 1.6, marginTop: 10 }}>
             Utilisation, profitability and your business summary appear once your rates are calculated. Finish the Staff step to get started.
           </div>
@@ -167,7 +167,7 @@ export function InsightsView({ s, patch, calc, ready, go }: {
               <span key={t} style={{ fontSize: 11, fontWeight: 700, color: RC.label, background: "#fff", border: "1px solid rgba(10,12,20,.08)", padding: "3px 10px", borderRadius: 100, whiteSpace: "nowrap", boxShadow: "0 1px 2px rgba(10,12,20,.03)" }}>{t}</span>
             ))}
           </div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 27, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 8 }}>Insights</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 27, letterSpacing: "-0.02em", color: RC.ink, lineHeight: 1.1, marginTop: 8 }}>Insights</div>
         </div>
         <button className="rca-btn ghost" onClick={() => go(5)}>← Back to results</button>
       </div>

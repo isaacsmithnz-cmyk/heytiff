@@ -85,7 +85,7 @@ it("keeps the chosen seat solid under the pointer", () => {
   const onHover = group.split(", ").find((sel) => sel.endsWith(":hover"))!;
   expect(spec(onHover)).toBeGreaterThanOrEqual(spec(hover));
   expect(at(group)).toBeGreaterThan(at(hover));
-  expect(rule(group)).toMatch(/background:#fff/);
+  expect(rule(group)).toMatch(/background:(?:#fff|var\(--paper\))/); // the lit seat is paper
 });
 
 /* ── THE CLOCK THAT DROPS OUT OF A FIELD ──
@@ -111,15 +111,15 @@ it("restates the button reset the portal cannot inherit", () => {
   expect(reset).toMatch(/font:inherit/);
 });
 
-/* A token declared on `.fg` never reaches a portal, so anything that would
-   render invisible without it carries the literal beside it. */
-it("gives the drop's tokens a literal to fall back on", () => {
-  for (const decl of [rule(".mts2-drop .mts2-ok")]) {
-    for (const [, token] of decl.matchAll(/var\((--[a-z0-9-]+)([^)]*)\)/gi)) {
-      expect(`${token} has a fallback`).toBe(`${token} has a fallback`);
-    }
-    expect(decl).toMatch(/var\(--[a-z0-9-]+, *#[0-9a-f]{3,8}\)/i);
-  }
+/* The tokens sit on `:root` (src/app/tokens.css, loaded by the root layout),
+   so a portal reaches them and nothing here needs a literal beside its token.
+   This guarded the fallback while the tokens lived under `.fg`; it now holds
+   the opposite — the button is painted from the tokens and carries no hex. */
+it("paints the drop's OK button from the tokens", () => {
+  const decl = rule(".mts2-drop .mts2-ok");
+  expect(decl).toMatch(/background:var\(--ink\)/);
+  expect(decl).toMatch(/color:var\(--paper\)/);
+  expect(decl).not.toMatch(/#[0-9a-f]{3,8}/i);
 });
 
 /* It is `position:fixed`, not absolute: an absolutely positioned drop would

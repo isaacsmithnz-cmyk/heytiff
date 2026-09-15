@@ -2292,8 +2292,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    timesheet, `.lv-*` leave, `.tw` the time wheel). The sidebar, search and
    every other screen keep the teal. */
 .fg .tpr, .fg .mts2, .fg .lv-cols, .fg .lv-col, .fg .tw {
-  --teal: #22c55e;
-  --teal-d: #16a34a;
+  --teal: var(--day-std);
+  --teal-d: var(--day-std-d);
   --teal-ink: #0b5c2e;
 
   /* INK FOR A SOLID BRAND FILL — the day vocabulary's other half.
@@ -2315,7 +2315,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   --on-amber: #4a2e05;  /* on --amber  #F0A431 — 5.97:1 */
   --on-pink: #4d0929;   /* on --pink   #f472b6 — 5.72:1 */
   --on-red: #450012;    /* on --red    #FF3366 — 4.69:1 */
-  --pink: #f472b6;      /* `under` — the one day colour that had no token */
+  --pink: var(--day-under); /* `under` — the one day colour that had no token */
 }
 
 /* The two shared chip primitives hard-code the teal rather than reading the
@@ -3860,7 +3860,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    rather than part of it. The boards' Projects/Maintenance switcher had the
    answer already: a tinted track, a white pill on the live one, and no join to
    anything. Nothing here touches the panel now, so there is no seam to hide. */
-.fg .mts2-tabs { display:flex; gap:4px; align-items:stretch; padding:4px; border-radius:16px; background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); }
+.fg .mts2-tabs { display:flex; gap:4px; align-items:stretch; padding:4px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); }
 /* THE RESTING DAY IS TINTED, THE OPEN ONE IS WHITE. This strip is itself a
    tabs-on-a-card, and it now lives inside one — so if every day stayed white
    the open day would be the only thing on the screen with nothing to be open
@@ -3870,7 +3870,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    white deliberately — see the note below — which is why only the base moved.) */
 /* Each day is a seat in that track: no border, no fill of its own, the track
    showing through. Only the open day is drawn. */
-.fg .mts2-tab { --dc:#d8dbe1; --dt:rgba(216,219,225,.14); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px 12px; border-radius:10px; background:none; border:0; transition:background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .mts2-tab { --dc:var(--day-empty); --dt:var(--day-empty-tint); position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px 12px; border-radius:var(--r-button); background:none; border:0; transition:background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 /* the day's colour, inset so it reads inside the seat rather than as an edge
    of it — at the old top:0 it would now sit on the pill's rounded corner */
 .fg .mts2-tab .cbar { position:absolute; left:12px; right:12px; top:5px; height:3px; border-radius:999px; background:var(--dc); }
@@ -3884,8 +3884,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    background-color gives the intended tint wherever the strip lands. */
 /* the resting seat lifts under the pointer, it does not move — a seat that
    translates out of its own track is the tell that this was once a tab */
-.fg .mts2-tab:not(.on):hover { background:rgba(255,255,255,.7); }
-.fg .mts2-tab:focus-visible { outline:none; box-shadow:0 0 0 2px var(--teal-d); }
+.fg .mts2-tab:not(.on):hover { background:color-mix(in srgb, var(--paper) 70%, transparent); }
+.fg .mts2-tab:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* The day's state, one declaration each.
 
@@ -3910,12 +3910,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
    LIGHTNESS, not hue: #f472b6 beside #e0264f reads pink-vs-red at a glance,
    where a deep rose beside it read as two reds. The pill keeps a dark ink
    (#9d174d) so the label stays legible on the pale tint. */
-.fg .mts2-tab.std { --dc:var(--teal-d); --dt:rgba(34,197,94,.1); }
-.fg .mts2-tab.over { --dc:#f0a431; --dt:rgba(240,164,49,.12); }
-.fg .mts2-tab.under { --dc:#f472b6; --dt:rgba(244,114,182,.1); }
-.fg .mts2-tab.leave { --dc:#2e68ff; --dt:rgba(46,104,255,.09); }
-.fg .mts2-tab.sick { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
-.fg .mts2-tab.ph { --dc:#8a2be2; --dt:rgba(138,43,226,.09); }
+.fg .mts2-tab.std { --dc:var(--day-std-d); --dt:var(--day-std-tint); }
+.fg .mts2-tab.over { --dc:var(--day-over); --dt:var(--day-over-tint); }
+.fg .mts2-tab.under { --dc:var(--day-under); --dt:var(--day-under-tint); }
+.fg .mts2-tab.leave { --dc:var(--day-leave); --dt:var(--day-leave-tint); }
+.fg .mts2-tab.sick { --dc:var(--day-sick); --dt:var(--day-sick-tint); }
+.fg .mts2-tab.ph { --dc:var(--day-ph); --dt:var(--day-ph-tint); }
 /* MISSING IS NOT SICK, and it used to be exactly the same red bar. Both drew
    #e0264f, so an unlogged Tuesday and a sick day were one colour — and the
    legend underneath named only one of them, so the honest reading of a red bar
@@ -3923,10 +3923,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
    is a DASHED outline, because nothing is there. The bar borrows the same
    idea — same red, broken stroke — so the two are told apart by shape at a
    glance and the legend swatch (`.legend .sw.miss`) matches. */
-.fg .mts2-tab.miss { --dc:#e0264f; --dt:rgba(255,51,102,.08); }
+.fg .mts2-tab.miss { --dc:var(--day-sick); --dt:var(--day-sick-tint); }
 .fg .mts2-tab.miss .cbar { background:repeating-linear-gradient(90deg, var(--dc) 0 5px, transparent 5px 9px); }
-.fg .mts2-tab.off { --dc:var(--gray400); --dt:rgba(120,126,140,.1); }
-.fg .mts2-tab.empty { --dc:#e3e5ea; --dt:rgba(227,229,234,.3); }
+.fg .mts2-tab.off { --dc:var(--day-off); --dt:var(--day-off-tint); }
+.fg .mts2-tab.empty { --dc:var(--day-empty); --dt:var(--day-empty-tint); }
 
 /* A day you weren't rostered on and didn't work is background, not a to-do —
    a weekend for most people, a Wednesday for a part-timer, EVERY empty day for
@@ -3951,7 +3951,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    tint. Still composited over an opaque white rather than laid on as a
    translucent fill, for the reason in the note above: the strip sits on a
    white card here and on the dark shell frame elsewhere. */
-.fg .mts2-tab.on { background-color:#fff; background-image:linear-gradient(var(--dt),var(--dt)); box-shadow:0 3px 8px -3px rgba(10,12,20,.28); z-index:2; }
+.fg .mts2-tab.on { background-color:var(--paper); background-image:linear-gradient(var(--dt),var(--dt)); z-index:var(--z-raised); }
 /* the `opacity:1` counterweight here is gone with the `.45` it undid */
 .fg .mts2-tab.on .cbar { height:4px; }
 
@@ -3960,7 +3960,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    1px, its top border the line running under all seven days. Now it is its own
    block below the track, tinted like every other block in the card, with the
    white pill above it the only thing marking which day it belongs to. */
-.fg .mts2-panel { background:rgba(5,5,5,.03); border-radius:16px; margin-top:8px; animation:tprUp .2s ease backwards; }
+/* the panel appears; it does not arrive (law 18) */
+.fg .mts2-panel { background:var(--tint); border-radius:var(--r-card); margin-top:8px; }
 .fg .mts2-phead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 16px 0; }
 .fg .mts2-pd { font-size:16px; font-weight:700; color:var(--ink); }
 
@@ -3973,21 +3974,21 @@ button.fl-btn { font-size:14px; font-weight:700; }
    the FOOT of this screen rather than the head of the approver's — in the
    reference row, whose grid places it, so there is no spacing to restate. */
 
-/* the kind pill — the `.tpr` day palette, restated as a tinted pill */
-.fg .mts2-pill { display:inline-flex; align-items:center; height:24px; padding:0 8px; border-radius:999px; font-size:12px; font-weight:700; white-space:nowrap; }
-.fg .mts2-pill.std { background:rgba(34,197,94,.16); color:#04564a; }
-.fg .mts2-pill.over { background:rgba(240,164,49,.18); color:var(--amber-d,#a44b08); }
-.fg .mts2-pill.under { background:rgba(244,114,182,.16); color:#9d174d; }
-.fg .mts2-pill.leave { background:rgba(46,104,255,.12); color:#1d4ed8; }
-.fg .mts2-pill.sick { background:rgba(255,51,102,.12); color:var(--bad-t); }
-.fg .mts2-pill.ph { background:rgba(138,43,226,.12); color:var(--violet-d,#7322c4); }
-.fg .mts2-pill.miss { background:rgba(255,51,102,.1); color:var(--bad-t); box-shadow:inset 0 0 0 1px rgba(255,51,102,.45); }
-.fg .mts2-pill.off { background:#eceef1; color:var(--gray700); }
-.fg .mts2-pill.empty { background:#f1f2f5; color:var(--gray500); }
+/* the day's kind — a word in the day's own ink, no fill, no box (law 26) */
+.fg .mts2-pill { display:inline-flex; align-items:center; font-size:14px; font-weight:500; white-space:nowrap; }
+.fg .mts2-pill.std { color:var(--ok-t); }
+.fg .mts2-pill.over { color:var(--warn-t); }
+.fg .mts2-pill.under { color:var(--day-under-d); }
+.fg .mts2-pill.leave { color:var(--info-t); }
+.fg .mts2-pill.sick { color:var(--bad-t); }
+.fg .mts2-pill.ph { color:var(--day-ph-d); }
+.fg .mts2-pill.miss { color:var(--bad-t); }
+.fg .mts2-pill.off { color:var(--q); }
+.fg .mts2-pill.empty { color:var(--q); }
 
 /* ---- the day panel's editor ---- */
 .fg .mts2-edit { padding:2px 16px 16px; }
-.fg .mts2-ehol { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:6px; background:rgba(138,43,226,.1); color:#7322c4; font-size:12px; font-weight:700; }
+.fg .mts2-ehol { display:inline-flex; align-items:center; gap:4px; color:var(--day-ph-d); font-size:12px; font-weight:700; }
 
 /* why this day says what it says. A day filled in FOR you must never read as
    one you logged — if it's wrong, you need to know before you submit it. */
@@ -3997,7 +3998,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .mts2-esrc.presumed svg { color:var(--ok-t); }
 
 /* a day owned by another module — read it here, change it where it was booked */
-.fg .mts2-elock { display:flex; align-items:flex-start; gap:8px; margin-top:12px; padding:12px 12px; border-radius:10px; background:#f7f8fa; }
+.fg .mts2-elock { display:flex; align-items:flex-start; gap:8px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); }
 .fg .mts2-elock svg { color:var(--gray500); margin-top:1px; flex:none; }
 .fg .mts2-elock b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .mts2-elock em { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
@@ -4011,8 +4012,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    carries no padding of its own — `.mts2-elock` and `.mts2-edit` bring their
    own insets, so a bare child lands flush against both edges. */
 .fg .mts2-panel > .mts2-ph-worked { margin:0 12px 12px; }
-.fg .mts2-ph-worked { margin-top:8px; height:34px; padding:0 12px; border:1px solid #ececf0; border-radius:10px; background:#fff; font-size:13px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .mts2-ph-worked:hover:not(:disabled) { border-color:var(--gray300); color:var(--ink); }
+.fg .mts2-ph-worked { margin-top:8px; height:34px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .mts2-ph-worked:hover:not(:disabled) { border-color:var(--ink); color:var(--ink); }
 .fg .mts2-ph-worked:disabled { opacity:.5; cursor:default; }
 
 /* worked / off — the only choice a person makes on a day, in the place the
@@ -4030,13 +4031,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
    The tray is the house one (see segmented-tray-contrast.test.ts), at pill
    scale so it sits in the head where a 26px pill used to. */
 .fg .mts2-dsw { display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:4px;
-  padding:4px; border-radius:10px; background:#e6eaf1; border:1px solid rgba(10,12,20,.06); }
+  padding:4px; border-radius:var(--r-button); background:#e6eaf1; border:1px solid var(--line); }
 .fg .mts2-dswb { display:inline-flex; align-items:center; justify-content:center; height:26px;
-  padding:0 12px; border-radius:6px; font-size:12px; font-weight:700; color:var(--gray700);
+  padding:0 12px; border-radius:var(--r-control); font-size:12px; font-weight:700; color:var(--gray700);
   transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .mts2-dsw .mts2-dswb:hover:not(:disabled) { background:rgba(255,255,255,.75); color:var(--ink); }
-.fg .mts2-dsw .mts2-dswb.on, .fg .mts2-dsw .mts2-dswb.on:hover { background:#fff; color:var(--ink); }
-.fg .mts2-dswb:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .mts2-dsw .mts2-dswb:hover:not(:disabled) { background:color-mix(in srgb, var(--paper) 75%, transparent); color:var(--ink); }
+.fg .mts2-dsw .mts2-dswb.on, .fg .mts2-dsw .mts2-dswb.on:hover { background:var(--paper); color:var(--ink); }
+.fg .mts2-dswb:focus-visible { outline:none;  box-shadow:var(--ring); }
 .fg .mts2-dswb:disabled { cursor:default; }
 
 /* TWO FIELDS, NOT TWO WHEELS SIDE BY SIDE. The pair was six scroll columns
@@ -4050,11 +4051,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .mts2-card .mts2-fields { grid-template-columns:1fr; }
 .fg .mts2-field { position:relative; }
 .fg .mts2-fieldhd { display:flex; align-items:center; justify-content:space-between; gap:12px;
-  width:100%; padding:12px 16px; text-align:left; border-radius:10px; background:#fff;
-  border:1px solid rgba(10,12,20,.09);
+  width:100%; padding:12px 16px; text-align:left; border-radius:var(--r-button); background:var(--paper);
+  border:1px solid var(--line);
   transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .mts2-fieldhd:hover:not(:disabled) { border-color:rgba(10,12,20,.2); }
-.fg .mts2-field.open .mts2-fieldhd { border-color:var(--ink); box-shadow:var(--ring); }
+.fg .mts2-fieldhd:hover:not(:disabled) { border-color:var(--q); }
+.fg .mts2-field.open .mts2-fieldhd { border-color:var(--ink);  box-shadow:var(--ring); }
 .fg .mts2-fieldhd:disabled { opacity:.55; cursor:default; }
 /* Icon wraps its svg in a bare span, so the flex item is the SPAN — a margin
    on the svg inside it positions nothing. `justify-content` instead. */
@@ -4071,9 +4072,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    scoped under `.fg`: the drop is not inside it. Tokens are written with the
    literal beside them for the same reason, and the button ground rules
    `.fg button` would have supplied are restated here. */
-.mts2-drop { position:fixed; z-index:80; border-radius:16px; background:#fff;
-  border:1px solid rgba(10,12,20,.09);
-  box-shadow:0 18px 40px -18px rgba(10,12,20,.4), 0 2px 8px rgba(10,12,20,.06);
+.mts2-drop { position:fixed; z-index:var(--z-overlay); border-radius:var(--r-card); background:var(--paper);
+  border:1px solid var(--line); box-shadow:var(--shadow-overlay);
   padding:8px; transform-origin:top center;
   font-family:var(--font-jakarta), system-ui, sans-serif;
   animation:mtsDrop .2s var(--ease); }
@@ -4082,10 +4082,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    with that name again, in capitals, directly under it. */
 .mts2-drophd { display:flex; align-items:center; justify-content:flex-end; gap:12px;
   padding:2px 4px 8px; }
-.mts2-drop .mts2-ok { height:29px; padding:0 16px; border-radius:10px;
-  background:var(--ink, #050505); color:#fff; font-size:13px; font-weight:700;
-  transition:opacity var(--t-fast) var(--ease); }
-.mts2-drop .mts2-ok:hover { opacity:.85; }
+.mts2-drop .mts2-ok { height:29px; padding:0 16px; border-radius:var(--r-button);
+  background:var(--ink); color:var(--paper); font-size:13px; font-weight:700; }
 @keyframes mtsDrop { from { opacity:0; transform:translateY(-6px) scaleY(.96); } to { opacity:1; transform:none; } }
 /* A clock with no room below its field stands above it instead, and grows up
    out of the field rather than down away from it. */
@@ -4094,25 +4092,25 @@ button.fl-btn { font-size:14px; font-weight:700; }
 @media (prefers-reduced-motion:reduce) { .mts2-drop, .mts2-drop.up { animation:none; } }
 .fg .mts2-brk { display:flex; align-items:center; gap:8px; margin-top:12px; }
 .fg .mts2-brkl { font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid #ececf0; border-radius:10px; padding:2px; }
-.fg .mts2-brkstep button { width:26px; height:26px; border-radius:10px; font-size:16px; font-weight:700; color:var(--gray500); }
-.fg .mts2-brkstep button:hover { background:#f4f5f7; color:var(--ink); }
+.fg .mts2-brkstep { display:inline-flex; align-items:center; gap:2px; border:1px solid var(--line); border-radius:var(--r-button); padding:2px; }
+.fg .mts2-brkstep button { width:26px; height:26px; border-radius:var(--r-button); font-size:16px; font-weight:700; color:var(--gray500); }
+.fg .mts2-brkstep button:hover { background:var(--tint); color:var(--ink); }
 .fg .mts2-brkstep b { min-width:48px; text-align:center; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .mts2-brkstep b em { font-style:normal; font-weight:700; color:var(--gray400); }
 /* `.mts2-gap` is GONE — it was a paragraph explaining why the two totals above
    it disagreed, which the chips between them now do by splitting paid absence
    out of the ×1.0 bucket. See the rail in my-timesheet.tsx. */
 /* the derived hours — this line IS the hours field */
-.fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:12px; padding:8px 12px; border-radius:10px; background:rgba(34,197,94,.07); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
+.fg .mts2-derv { display:flex; align-items:center; gap:8px; margin-top:12px; padding:8px 12px; border-radius:var(--r-button); background:var(--tint); color:var(--gray700); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .fg .mts2-derv b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .mts2-derv svg { color:var(--ink); }
-.fg .mts2-derv.bad { background:rgba(255,51,102,.07); color:var(--bad-t); }
+.fg .mts2-derv.bad { background:var(--bad-tint); color:var(--bad-t); }
 .fg .mts2-derv.bad svg { color:var(--bad-t); }
 /* a short day is not an error — it's a real day that the approver will look
    at, so it's amber-flavoured rather than red */
-.fg .mts2-derv.short { background:rgba(244,114,182,.12); color:#9d174d; }
-.fg .mts2-derv.short svg { color:#db2777; }
-.fg .mts2-derv.off { background:#f4f5f7; color:var(--gray700); }
+.fg .mts2-derv.short { background:var(--day-under-tint); color:var(--day-under-d); }
+.fg .mts2-derv.short svg { color:var(--day-under-d); }
+.fg .mts2-derv.off { background:var(--tint); color:var(--gray700); }
 .fg .mts2-derv.off svg { color:var(--gray500); }
 .fg .mts2-derv b { font-weight:700; }
 
@@ -4130,32 +4128,32 @@ button.fl-btn { font-size:14px; font-weight:700; }
    A row of seven, because a working pattern is read as a shape: "Mon Tue Thu"
    is a glance, a list of checkboxes is a paragraph. */
 .fg .mts2-dow, .fg .tpr .wz-dow { display:flex; gap:4px; margin-top:12px; }
-.fg .mts2-dowb, .fg .tpr .wz-dowb { flex:1 1 0; height:34px; border-radius:10px; border:1px solid #ececf0; background:#fff; font-size:12px; font-weight:700; color:var(--gray400); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .mts2-dowb:hover, .fg .tpr .wz-dowb:hover { border-color:rgba(34,197,94,.6); color:var(--gray700); }
-.fg .mts2-dowb.on, .fg .tpr .wz-dowb.on { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .mts2-dowb, .fg .tpr .wz-dowb { flex:1 1 0; height:34px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:12px; font-weight:700; color:var(--gray400); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .mts2-dowb:hover, .fg .tpr .wz-dowb:hover { border-color:var(--ink); color:var(--gray700); }
+.fg .mts2-dowb.on, .fg .tpr .wz-dowb.on { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .fg .mts2-dowb:disabled { opacity:.45; pointer-events:none; }
 
 /* ---- when I can't work (casuals) ---- */
 .fg .mts2-ulist { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
-.fg .mts2-u { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; background:#f7f8fa; }
+.fg .mts2-u { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button); background:var(--tint); }
 .fg .mts2-u b { display:block; font-size:13px; font-weight:700; color:var(--ink); }
 .fg .mts2-u em { display:block; margin-top:1px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .mts2-ux { margin-left:auto; display:flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:6px; color:var(--gray400); flex:none; }
-.fg .mts2-ux:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
+.fg .mts2-ux { margin-left:auto; display:flex; width:26px; height:26px; align-items:center; justify-content:center; border-radius:var(--r-control); color:var(--gray400); flex:none; }
+.fg .mts2-ux:hover { background:var(--bad-tint); color:var(--bad-t); }
 .fg .mts2-udates { display:flex; gap:8px; margin-top:12px; }
 .fg .mts2-udates .mts-f { flex:1 1 0; min-width:0; }
 .fg .mts2-unote { margin-top:8px; }
-.fg .mts2-uerr { margin-top:8px; padding:8px 12px; border-radius:10px; background:rgba(255,51,102,.08); color:var(--bad-t); font-size:12px; font-weight:700; }
+.fg .mts2-uerr { margin-top:8px; padding:8px 12px; border-radius:var(--r-button); background:var(--bad-tint); color:var(--bad-t); font-size:12px; font-weight:700; }
 .fg .mts2-unote-p { margin:12px 0 0; font-size:12px; font-weight:600; line-height:1.5; color:var(--gray400); }
 .fg .mts2-pay { display:flex; align-items:center; gap:8px; margin-top:8px; padding:0 2px; }
 .fg .mts2-payl { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .mts2-paych { font-size:13px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
 .fg .mts2-paych b { font-weight:700; color:var(--ink); }
 .fg .mts2-eacts { display:flex; gap:8px; margin-top:16px; }
-.fg .mts2-btn { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:10px; border:1px solid #ececf0; background:#fff; font-size:13px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .mts2-btn:hover { border-color:rgba(34,197,94,.6); color:var(--ink); }
-.fg .mts2-btn.primary { background:var(--ink); border-color:var(--ink); color:#fff; }
-.fg .mts2-btn.primary svg { color:var(--teal); }
+.fg .mts2-btn { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 16px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .mts2-btn:hover { border-color:var(--ink); color:var(--ink); }
+.fg .mts2-btn.primary { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.fg .mts2-btn.primary svg { color:var(--paper); }
 .fg .mts2-btn:disabled { opacity:.45; pointer-events:none; }
 
 /* ---- the rail ---- */
@@ -4164,28 +4162,28 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* Rail cards are BLOCKS IN A CARD now — see the .tpr .stat note for the
    reasoning. White tiles lifted off a grey page; on the board's white card a
    white tile is its own 1px border and a shadow with nothing to fall on. */
-.fg .mts2-card { background:rgba(5,5,5,.03); border:1px solid rgba(10,12,20,.05); border-radius:16px; padding:16px; }
+.fg .mts2-card { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:16px; }
 .fg .mts2-ch { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:500; color:var(--gray400); }
 /* `.mts2-range` is gone with the line it styled — the period is named once,
    in `.wknav`, beside the arrows that change it. This card printed it a second
    time, next to nothing that could act on it. */
 .fg .mts2-tot { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
-.fg .mts2-t { padding:12px 12px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
-.fg .mts2-t b { display:block; font-size:24px; font-weight:700; letter-spacing:-.03em; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
+.fg .mts2-t { padding:12px 12px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); }
+.fg .mts2-t b { display:block; font-size:24px; font-weight:700; line-height:1; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .mts2-t em { display:block; font-style:normal; margin-top:4px; font-size:12px; font-weight:700; color:var(--gray500); }
-.fg .mts2-t.pay { background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.22); }
-.fg .mts2-bk { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
-.fg .mts2-bkc { font-size:12px; font-weight:700; padding:4px 8px; border-radius:999px; background:#f4f5f7; color:var(--gray700); font-variant-numeric:tabular-nums; }
+/* the rate buckets: words with air between them, not chips (law 26) */
+.fg .mts2-bk { display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:8px; }
+.fg .mts2-bkc { font-size:12px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
 /* The bucket that pays but wasn't worked — the gap between the two tiles
    above, which used to be a sentence. Tinted so the eye can see WHICH chip is
    the one that only lands on the right-hand total. */
-.fg .mts2-bkc.absence { background:rgba(46,104,255,.1); color:var(--info-t); }
+.fg .mts2-bkc.absence { color:var(--info-t); }
 .fg .mts2-sub { margin-top:12px; font-size:12px; font-weight:600; color:var(--gray500); line-height:1.45; }
 .fg .tpr .mts2-submit { width:100%; justify-content:center; height:46px; margin-top:12px; }
 .fg .tpr .mts2-submit:disabled { opacity:.45; pointer-events:none; }
 .fg .mts2-none { margin-top:12px; font-size:13px; font-weight:600; color:var(--gray400); }
 .fg .mts2-hlist { display:flex; flex-direction:column; margin-top:8px; }
-.fg .mts2-h { display:flex; align-items:baseline; gap:8px; padding:8px 0; border-bottom:1px solid #f4f5f7; }
+.fg .mts2-h { display:flex; align-items:baseline; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); }
 .fg .mts2-h:last-child { border-bottom:none; }
 .fg .mts2-h b { min-width:22px; font-size:13px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .mts2-h em { font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); }
@@ -4219,7 +4217,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    unstyled lists of bare digits, which is what it did the first time this was
    pointed at the real screen. Same specificity, so nothing about the in-page
    wheel moves. See [[project-fg-scoped-tokens-portal]]. */
-.fg .tw, .mts2-drop .tw { border:1px solid #eceef1; border-radius:16px; background:#fff; padding:8px 12px 12px; }
+.fg .tw, .mts2-drop .tw { border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); padding:8px 12px 12px; }
 .fg .tw-head, .mts2-drop .tw-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
 .fg .tw-title, .mts2-drop .tw-title { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tw-val, .mts2-drop .tw-val { font-size:14px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
@@ -4228,15 +4226,15 @@ button.fl-btn { font-size:14px; font-weight:700; }
    from 50%: the column is a label of uncertain height stacked on a scroll box
    of exactly 132px, so half the COLUMN is not half the SCROLL. 132/2 − 34/2 =
    49 puts it dead on the row the wheel snaps to. */
-.fg .tw-cols::before, .mts2-drop .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:10px; background:rgba(34,197,94,.09); pointer-events:none; }
+.fg .tw-cols::before, .mts2-drop .tw-cols::before { content:""; position:absolute; left:0; right:0; bottom:49px; height:34px; border-radius:var(--r-button); background:var(--tint-2); pointer-events:none; }
 .fg .tw-col, .mts2-drop .tw-col { flex:1 1 0; min-width:0; }
 .fg .tw-lab, .mts2-drop .tw-lab { display:block; font-size:12px; font-weight:500; color:var(--gray400); text-align:center; margin-bottom:4px; }
 .fg .tw-scroll, .mts2-drop .tw-scroll { height:132px; overflow-y:auto; scroll-snap-type:y proximity; padding:49px 0; scrollbar-width:none; }
 .fg .tw-scroll::-webkit-scrollbar, .mts2-drop .tw-scroll::-webkit-scrollbar { width:0; }
-.fg .tw-opt, .mts2-drop .tw-opt { display:block; width:100%; height:34px; border-radius:10px; scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .tw-opt:hover, .mts2-drop .tw-opt:hover { background:#f4f5f7; color:var(--gray700); }
+.fg .tw-opt, .mts2-drop .tw-opt { display:block; width:100%; height:34px; border-radius:var(--r-button); scroll-snap-align:center; font-size:14px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fg .tw-opt:hover, .mts2-drop .tw-opt:hover { background:var(--tint); color:var(--gray700); }
 .fg .tw-opt.on, .mts2-drop .tw-opt.on { color:var(--ink); font-weight:700; font-size:16px; }
-.fg .tw-opt:focus-visible, .mts2-drop .tw-opt:focus-visible { outline:2px solid var(--teal-d); outline-offset:-2px; }
+.fg .tw-opt:focus-visible, .mts2-drop .tw-opt:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
 .fg .tw-opt:disabled, .mts2-drop .tw-opt:disabled { pointer-events:none; opacity:.5; }
 /* …and the drop's own overrides come AFTER them. Same specificity as the
    shared block above, so the tie is broken by source order: written earlier,

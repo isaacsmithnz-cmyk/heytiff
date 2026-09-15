@@ -275,13 +275,13 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 30 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 70 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 129 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 128 },
   { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
-  { law: "distinct z-index values — six layers", now: distinctZ, baseline: 25 },
+  { law: "distinct z-index values — six layers", now: distinctZ, baseline: 24 },
   { law: "arrows on buttons — the word is the button; an arrow between two values is a fact", now: () => countTsx(onScreen("→")), baseline: 6 },
   { law: "middot chains — a sentence, or a label and a value; the nine left are keyboard hints", now: () => countTsx(onScreen("·")), baseline: 9 },
   { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 2 },
@@ -295,8 +295,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   /* A pill is counted only while it is drawn as one: a pill, chip, tag or
      badge selector whose own rule gives it a radius. A state word keeps the
      class name and loses the box, so it stops counting. */
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 42 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 40 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 41 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 39 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 29 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of
@@ -305,7 +305,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      what the law forbids. A state is named in the selector: ok, done, paid,
      verified, live, synced, past, active, now, and their kin. */
   { law: "the OK colour off a state selector — colour only where it means something", now: () => {
-      const STATE = /\.(ok|done|paid|verified|verify|waiting|live|now|synced|presumed|reimbursed|past|active|green|okw)\b|\.dchip2?\.ok|\.lv-cert\.on|\.vm-progress|\.wb2-waiting|\[data-tone="(?:done|ok|live|go)"\]|\.wb2-gate\.on/;
+      const STATE = /\.(ok|done|paid|verified|verify|waiting|live|now|synced|presumed|reimbursed|past|active|green|okw)\b|\.dchip2?\.ok|\.lv-cert\.on|\.vm-progress|\.wb2-waiting|\[data-tone="(?:done|ok|live|go)"\]|\.wb2-gate\.on|\.mts2-pill\.std/; // a normal day, said in the OK colour, is a state
       let n = 0;
       // a custom property that aliases the OK colour (`--wb2-ok: var(--ok-t)`) is a definition, not a use
       for (const [sel, body] of blocks()) if (!STATE.test(sel)) n += (body.replace(/--[\w-]+\s*:\s*var\(--ok-t\)/g, "").match(/var\(--ok-t\)/g) ?? []).length;
@@ -326,7 +326,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
         n += (body.match(/var\(--(?:teal|teal-d|blue|violet|violet-d|hm-teal|tool-accent)\b|#00e5c0|#00a389|#2e68ff|#8a2be2|#007fa8|#0089b8|rgba\(0,\s*229,\s*192,|rgba\(0,\s*163,\s*137,|rgba\(46,\s*104,\s*255,|rgba\(138,\s*43,\s*226,/gi) ?? []).length;
       }
       return n;
-    }, baseline: 299 },
+    }, baseline: 286 },
 ];
 
 describe("the design ratchets only go down", () => {

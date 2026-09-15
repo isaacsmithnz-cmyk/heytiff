@@ -907,7 +907,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    wrapper around both groups. Two scrollers in a 360px popover is the thing to
    avoid: whichever one the wheel happened to be over would move, and neither
    could reach the other group's rows. */
-.fg .topbar .bp-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
+.fg .topbar .bp-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--on-ink-line) transparent; }
 .fg .topbar .bp-scroll::-webkit-scrollbar { width:6px; }
 .fg .topbar .bp-scroll::-webkit-scrollbar-thumb { background:var(--on-ink-tint-2); border-radius:999px; }
 
@@ -5155,7 +5155,7 @@ button.wb-hit { width:100%; text-align:left; border:1px solid var(--line); backg
    and a date, and a control that squeezes the title to 40px to make room has
    made the card worse to read in order to be easier to reach. */
 .wb2-remindbox { display:flex; flex-direction:column; gap:8px; margin:0 8px 8px; padding:8px; border-radius:var(--r-button); background:var(--tint); }
-.wb2-capcard.wb2-dusk .wb2-remindbox { background:rgba(255,255,255,.05); }
+.wb2-capcard.wb2-dusk .wb2-remindbox { background:var(--on-ink-tint); }
 /* AT, OR BY. Two words above the wheel, because the time underneath means
    opposite things depending on which is lit — "do it at four" and "be done by
    four" are the same number and different instructions. The model reads it off
@@ -5169,14 +5169,14 @@ button.wb-hit { width:100%; text-align:left; border:1px solid var(--line); backg
 .wb2-rkindb:hover:not(.on) { color:var(--ink); }
 .wb2-rkindb.on { background:var(--paper); color:var(--ink); }
 .wb2-rkindb:focus-visible { outline:none; box-shadow:var(--ring);; }
-.wb2-capcard.wb2-dusk .wb2-rkind { background:rgba(255,255,255,.06); }
-.wb2-capcard.wb2-dusk .wb2-rkindb { color:rgba(255,255,255,.62); }
-.wb2-capcard.wb2-dusk .wb2-rkindb:hover:not(.on) { color:#fff; }
-.wb2-capcard.wb2-dusk .wb2-rkindb.on { background:rgba(255,255,255,.16); color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-rkind { background:var(--on-ink-tint); }
+.wb2-capcard.wb2-dusk .wb2-rkindb { color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-rkindb:hover:not(.on) { color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-rkindb.on { background:var(--paper); color:var(--ink); }
 .wb2-remindoff { align-self:flex-start; padding:4px 8px; border:0; border-radius:var(--r-control); background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .wb2-remindoff:hover { background:var(--tint-2); color:var(--ink); }
-.wb2-capcard.wb2-dusk .wb2-remindoff { color:rgba(255,255,255,.62); }
-.wb2-capcard.wb2-dusk .wb2-remindoff:hover { background:rgba(255,255,255,.08); color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-remindoff { color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-remindoff:hover { background:var(--on-ink-tint-2); color:var(--paper); }
 
 /* visits */
 .wb-chip:disabled { cursor:default; opacity:.7; }
@@ -7257,10 +7257,10 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a video tile — footage from the visit, sitting with the photos. Its bytes
    stay in ServiceM8 by charter, so the plate SAYS so instead of pretending
    to be a door. */
-.wb2-mtile.video { background:linear-gradient(160deg, #2b323c, #171b24); border-color:rgba(5,5,5,.14); }
-.wb2-mplay { font-style:normal; font-size:20px; color:rgba(255,255,255,.9); line-height:1; }
+.wb2-mtile.video { background:var(--ink2); border-color:var(--line); }
+.wb2-mplay { font-style:normal; font-size:20px; color:var(--paper); line-height:1; }
 .wb2-mvid { position:absolute; left:0; right:0; bottom:0; z-index:1; padding:4px 8px;
-  font-size:12px; font-weight:700; color:rgba(255,255,255,.82); text-align:center;
+  font-size:12px; font-weight:700; color:var(--paper); text-align:center;
   background:linear-gradient(180deg, transparent, rgba(8,10,16,.62)); }
 
 /* the claim badge on a document row was invoked as .wb2-chip.cat and never
@@ -7279,17 +7279,17 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
    every edge, so it still reads as a layer over the card, not a new page. */
 .wb2-mv { position:fixed; z-index:var(--z-overlay); display:flex; flex-direction:column;
   inset:24px; width:auto; height:auto; margin:0;
-  border-radius:var(--r-card); overflow:hidden; background:#0d0e13; }
+  border-radius:var(--r-card); overflow:hidden; background:var(--ink2); }
 .wb2-mvtop { display:flex; align-items:center; gap:8px; padding:12px 16px;
-  border-bottom:1px solid rgba(255,255,255,.08); min-height:48px; }
-.wb2-mvtop b { font-size:13px; font-weight:700; color:#fff; overflow:hidden;
+  border-bottom:1px solid var(--on-ink-line); min-height:48px; }
+.wb2-mvtop b { font-size:13px; font-weight:700; color:var(--paper); overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-.wb2-mvtop em { font-style:normal; font-size:12px; font-weight:600; color:rgba(255,255,255,.55); white-space:nowrap; }
-.wb2-mvtop .wb2-chip { color:rgba(255,255,255,.8); }
+.wb2-mvtop em { font-style:normal; font-size:12px; font-weight:600; color:var(--on-ink-q); white-space:nowrap; }
+.wb2-mvtop .wb2-chip { color:var(--paper); }
 .wb2-mvsp { flex:1; }
 .wb2-mvcount { font-variant-numeric:tabular-nums; }
-.wb2-mvtop .wb2-ico { background:rgba(255,255,255,.08); color:#fff; }
-.wb2-mvtop .wb2-ico:hover { background:rgba(255,255,255,.16); }
+.wb2-mvtop .wb2-ico { background:var(--on-ink-tint); color:var(--paper); }
+.wb2-mvtop .wb2-ico:hover { background:var(--on-ink-tint-2); }
 .wb2-mvstage { position:relative; flex:1; min-height:0; overflow:hidden; }
 /* FIT IS object-fit:contain ON A STAGE-SIZED BOX, not max-width on a
    natural-sized one. The old max-* pair only ever shrank: a photo smaller
@@ -7315,11 +7315,11 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mvstage .wb2-mvpending { position:absolute; inset:0; display:grid; place-items:center;
   margin:0; }
 .wb2-mvframe { width:100%; height:100%; border:0; background:var(--paper); }
-.wb2-mvpending { font-size:13px; font-weight:600; color:rgba(255,255,255,.55); max-width:36ch; text-align:center; }
+.wb2-mvpending { font-size:13px; font-weight:600; color:var(--on-ink-q); max-width:36ch; text-align:center; }
 .wb2-mvnav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px;
-  border:0; border-radius:50%; background:rgba(255,255,255,.14); color:var(--paper); font-size:20px;
+  border:0; border-radius:50%; background:var(--scrim); color:var(--paper); font-size:20px;
   line-height:1; cursor:pointer; display:grid; place-items:center; }
-.wb2-mvnav:hover { background:rgba(255,255,255,.26); }
+.wb2-mvnav:hover { background:var(--ink); }
 .wb2-mvnav:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mvnav.prev { left:20px; }
 .wb2-mvnav.next { right:20px; }
@@ -7327,10 +7327,10 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
    says what it is and how far the day runs — and it is the mosaic's own
    order, so the tile you clicked is where your eye already expects it. */
 .wb2-mvstrip { display:flex; gap:4px; flex:none; padding:8px 16px 12px; overflow-x:auto;
-  overflow-y:hidden; border-top:1px solid rgba(255,255,255,.08);
-  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent; }
+  overflow-y:hidden; border-top:1px solid var(--on-ink-line);
+  scrollbar-width:thin; scrollbar-color:var(--on-ink-line) transparent; }
 .wb2-mvthumb { flex:none; width:66px; height:48px; padding:0; border:0; border-radius:var(--r-control);
-  overflow:hidden; background:rgba(255,255,255,.07); color:rgba(255,255,255,.45);
+  overflow:hidden; background:var(--on-ink-tint); color:var(--on-ink-q);
   display:grid; place-items:center; cursor:pointer; opacity:.5;
   transition:opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-mvthumb img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -7859,9 +7859,9 @@ span.wb2-ck { cursor:default; }
 .wb2-toast { display:flex; align-items:center; gap:12px; padding:12px 8px 12px 16px; border-radius:var(--r-card);
   background:var(--ink); color:var(--paper); font-size:13px; font-weight:600;box-shadow:var(--shadow-overlay);
   pointer-events:auto; animation:wb2CardIn .32s var(--ease) both; max-width:min(520px, calc(100vw - 40px)); }
-.wb2-toast button { font:inherit; font-weight:700; color:#5ad7ff; background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:var(--r-button); }
-.wb2-toast button:hover { background:rgba(255,255,255,.08); }
-.wb2-toast .wb2-toastx { color:rgba(255,255,255,.55); font-size:16px; padding:0 8px; }
+.wb2-toast button { font:inherit; font-weight:700; color:var(--paper); background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:var(--r-button); }
+.wb2-toast button:hover { background:var(--on-ink-tint-2); }
+.wb2-toast .wb2-toastx { color:var(--on-ink-q); font-size:16px; padding:0 8px; }
 .wb2-toast .wb2-toastx:hover { color:var(--paper); }
 @media (prefers-reduced-motion:reduce) { .wb2-daymodal, .wb2-toast { animation:none !important; } }
 
@@ -9885,21 +9885,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    nothing swaps ground mid-flow any more, and it costs nothing to leave a
    colour change eased rather than cut. */
 .wb2-capcard.wb2-caps { transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-capcard.wb2-dusk { background:rgba(11,14,21,.96); border-color:rgba(255,255,255,.12);
-  color:#E8EAED;
-  box-shadow:0 40px 90px -30px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.07); }
-.wb2-dusk .wb2-grab { background:rgba(255,255,255,.24); }
+.wb2-capcard.wb2-dusk { background:var(--ink2); border-color:var(--on-ink-line);
+  color:var(--paper);
+  box-shadow:var(--shadow-overlay); }
+.wb2-dusk .wb2-grab { background:var(--on-ink-line); }
 
 /* the ribbon — it takes the button's own words up top, white on ink */
-.wb2-dusk .wb2-capribbon { border-bottom-color:rgba(255,255,255,.09); color:rgba(255,255,255,.6); }
-.wb2-dusk .wb2-capribbon b { color:#fff; }
-.wb2-dusk .wb2-chip { color:rgba(255,255,255,.72); }
+.wb2-dusk .wb2-capribbon { border-bottom-color:var(--on-ink-line); color:var(--paper); }
+.wb2-dusk .wb2-capribbon b { color:var(--paper); }
+.wb2-dusk .wb2-chip { color:var(--paper); }
 .wb2-dusk .wb2-chip.blue { color:#9DB9FF; }
 .wb2-dusk .wb2-chip.ok { color:#7CEFD9; }
 .wb2-dusk .wb2-aimx:hover { background:rgba(46,104,255,.32); }
-.wb2-dusk .wb2-ico { background:rgba(255,255,255,.07); color:rgba(255,255,255,.6); }
-.wb2-dusk .wb2-ico:hover { background:rgba(255,255,255,.14); color:#fff; }
-.wb2-dusk .wb2-capclock { color:rgba(255,255,255,.6); }
+.wb2-dusk .wb2-ico { background:var(--on-ink-tint); color:var(--paper); }
+.wb2-dusk .wb2-ico:hover { background:var(--on-ink-tint-2); color:var(--paper); }
+.wb2-dusk .wb2-capclock { color:var(--paper); }
 .wb2-dusk .wb2-sherr { background:rgba(224,38,79,.18); color:#FF9FB3; }
 
 /* the box — NOT A BOX AT ALL (Isaac, second pass): white words straight on
@@ -9909,18 +9909,18 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    skin, and the side padding drops to sit the words on the ribbon's own
    left edge instead of a ghost box's inset. */
 .wb2-dusk .wb2-notes { background:transparent; border-color:transparent;
-  padding:8px 2px; color:#F2F4F7; caret-color:#00E5C0;
+  padding:8px 2px; color:var(--paper); caret-color:#00E5C0;
   /* no box means the resize grip would float on nothing */ resize:none; }
-.wb2-dusk .wb2-notes::placeholder { color:rgba(255,255,255,.38); }
+.wb2-dusk .wb2-notes::placeholder { color:var(--on-ink-q); }
 .wb2-dusk .wb2-notes:focus { border-color:transparent; }
-.wb2-dusk .wb2-hint { color:rgba(255,255,255,.45); }
+.wb2-dusk .wb2-hint { color:var(--on-ink-q); }
 
 /* the actions — glass ghosts, one gradient primary, and Talk tinted just
    enough to read as a door rather than a fallback */
-.wb2-capcard.wb2-dusk .pbtn.ghost { background:rgba(255,255,255,.06); color:#E8EAED;
-  border-color:rgba(255,255,255,.14); }
-.wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:rgba(255,255,255,.12);
-  border-color:rgba(255,255,255,.22); color:#fff; }
+.wb2-capcard.wb2-dusk .pbtn.ghost { background:var(--on-ink-tint); color:var(--paper);
+  border-color:var(--on-ink-line); }
+.wb2-capcard.wb2-dusk .pbtn.ghost:hover:not(:disabled) { background:var(--on-ink-tint-2);
+  border-color:var(--on-ink-line); color:var(--paper); }
 /* THE MIC HOLDS THE LEFT OF THE ROW so it does not MOVE: `Go` arrives only
    once there are words, and with everything flush right it would slide
    sideways the moment you started typing.
@@ -9958,8 +9958,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .wb2-capcard.wb2-dusk .pbtn:not(.ghost):hover:not(:disabled) {
   background:linear-gradient(120deg,#00E5C0,#19B8FF); border-color:transparent;
   filter:brightness(1.07); }
-.wb2-capcard.wb2-dusk .pbtn:disabled { background:rgba(255,255,255,.07);
-  border-color:rgba(255,255,255,.08); color:rgba(255,255,255,.35); box-shadow:none; filter:none; }
+.wb2-capcard.wb2-dusk .pbtn:disabled { background:var(--on-ink-tint);
+  border-color:var(--on-ink-line); color:var(--on-ink-q); box-shadow:none; filter:none; }
 /* The focus ring, restated ABOVE the dusk primary's own shadow — the shared
    `.wb2-capcard .pbtn:focus-visible` ring is (0,3,0) and the gradient fill
    here is (0,4,0), so without this line a focused primary loses its ring. */
@@ -10017,22 +10017,22 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    would each paint an identical smear. The teal end of that gradient, flat,
    is the same statement without the pretence. */
 .wb2-dusk .wb-lvl { color:var(--paper); }
-.wb2-dusk .wb2-livetext { color:#E8EAED; }
+.wb2-dusk .wb2-livetext { color:var(--paper); }
 /* The record, in the dark. Not `opacity` — a dimmed white on this ground is
    a contrast figure nobody can read off the sheet, and this is the one the
    textarea it replaced was already carrying. */
-.wb2-dusk .wb2-lwsaid { color:rgba(255,255,255,.72); }
+.wb2-dusk .wb2-lwsaid { color:var(--paper); }
 
 /* sorting — the words you just said, held while Tiff works out what they
    become. The skeleton rows that used to need an ink cut of their own are
    gone; the field of dots above is the wait now. */
-.wb2-dusk .wb2-sortnote { color:#E8EAED; }
+.wb2-dusk .wb2-sortnote { color:var(--paper); }
 
 /* the answer — Tiff speaking is peak dusk */
-.wb2-dusk .wb2-ansq { background:rgba(255,255,255,.06); color:#D8DCE3; }
-.wb2-dusk .wb2-anstool { background:rgba(255,255,255,.08); color:rgba(255,255,255,.6); }
-.wb2-dusk .wb2-anstext { color:#ECEFF3; }
-.wb2-dusk .wb2-anscursor { background:#E8EAED; }
+.wb2-dusk .wb2-ansq { background:var(--on-ink-tint); color:var(--paper); }
+.wb2-dusk .wb2-anstool { background:var(--on-ink-tint); color:var(--paper); }
+.wb2-dusk .wb2-anstext { color:var(--paper); }
+.wb2-dusk .wb2-anscursor { background:var(--paper); }
 
 /* ── the entrance: the sheet grows OUT OF THE BUTTON ──
 
@@ -10160,48 +10160,48 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    which is not large text and so is the wrong side of AA by a hair. The one
    piece of a task that explains its urgency does not get to be the thing
    nobody can read. */
-.wb2-capcard.wb2-dusk .wb2-capsaid { color:rgba(255,255,255,.6); }
+.wb2-capcard.wb2-dusk .wb2-capsaid { color:var(--paper); }
 /* THE KNOWLEDGE BODY GETS ITS BOX BACK. It is a `.wb2-notes`, and the dusk
    skin deliberately strips that class to bare words on the card — right for
    the capture box, which is the one thing you are writing in, wrong for a
    field sitting inside a list of rows. */
-.wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody { background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.14); border-radius:var(--r-button); padding:8px 12px; }
+.wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody { background:var(--on-ink-tint);
+  border:1px solid var(--on-ink-line); border-radius:var(--r-button); padding:8px 12px; }
 .wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody:focus { border-color:rgba(0,229,192,.55);
   box-shadow:var(--ring); }
 .wb2-capcard.wb2-dusk .wb-chip { color:var(--paper); }
 .wb2-capcard.wb2-dusk button.wb-chip { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--paper); }
 .wb2-capcard.wb2-dusk button.wb-chip:hover:not(:disabled) { background:var(--on-ink-tint-2); }
 /* the cascade — where the note is going, in three numbered lines */
-.wb2-capcard.wb2-dusk .wb2-casc { background:rgba(255,255,255,.04);
-  border-color:rgba(255,255,255,.09); }
+.wb2-capcard.wb2-dusk .wb2-casc { background:var(--on-ink-tint);
+  border-color:var(--on-ink-line); }
 /* A row that is NOT carrying anything is still a sentence you have to read —
    "No job named" is the one that tells you where the note is about to land.
    `.4` measured 3.74 here, which is de-emphasis written as an alpha, the
    fourth way past the `-t` guard and the one this app keeps re-learning. The
    step down to the `.on` rows below stays; it just starts above the floor. */
-.wb2-capcard.wb2-dusk .wb2-cascrow { color:rgba(255,255,255,.58); }
-.wb2-capcard.wb2-dusk .wb2-cascrow.on { color:rgba(255,255,255,.92); }
-.wb2-capcard.wb2-dusk .wb2-cascn { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
+.wb2-capcard.wb2-dusk .wb2-cascrow { color:var(--on-ink-q); }
+.wb2-capcard.wb2-dusk .wb2-cascrow.on { color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-cascn { background:var(--on-ink-tint); color:var(--on-ink-q); }
 .wb2-capcard.wb2-dusk .wb2-cascrow.on .wb2-cascn { background:#00E5C0; color:#04262B; }
 /* the stop — WARN, not danger: nothing has failed, something is unfinished */
 .wb2-capcard.wb2-dusk .wb2-capstop { background:rgba(255,138,0,.16); color:#FFC07A; }
 /* the job line and its picker, the same dark glass as the fields */
-.wb2-capcard.wb2-dusk .wb2-capjob { background:rgba(255,255,255,.05);
-  border-color:rgba(255,255,255,.12); color:rgba(255,255,255,.78); }
+.wb2-capcard.wb2-dusk .wb2-capjob { background:var(--on-ink-tint);
+  border-color:var(--on-ink-line); color:var(--paper); }
 .wb2-capcard.wb2-dusk .wb2-capjob.on { background:rgba(0,229,192,.1);
   border-color:rgba(0,229,192,.34); color:#9FF4E4; }
-.wb2-capcard.wb2-dusk .wb2-capjob b { color:#fff; }
+.wb2-capcard.wb2-dusk .wb2-capjob b { color:var(--paper); }
 .wb2-capcard.wb2-dusk .wb2-capchange { background:rgba(0,229,192,.1);
   border-color:rgba(0,229,192,.34); color:#9FF4E4; }
 .wb2-capcard.wb2-dusk .wb2-capchange:hover { background:rgba(0,229,192,.18);
-  border-color:rgba(0,229,192,.5); color:#fff; }
-.wb2-capcard.wb2-dusk .wb2-jobpick { background:rgba(255,255,255,.04);
-  border-color:rgba(255,255,255,.1); }
-.wb2-capcard.wb2-dusk .wb2-jobopt { color:rgba(255,255,255,.82); }
-.wb2-capcard.wb2-dusk .wb2-jobopt:hover { background:rgba(255,255,255,.07); }
-.wb2-capcard.wb2-dusk .wb2-jobopt.on { background:rgba(0,229,192,.14); color:#fff; }
-.wb2-capcard.wb2-dusk .wb2-jobopt em { color:rgba(255,255,255,.5); }
+  border-color:rgba(0,229,192,.5); color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-jobpick { background:var(--on-ink-tint);
+  border-color:var(--on-ink-line); }
+.wb2-capcard.wb2-dusk .wb2-jobopt { color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-jobopt:hover { background:var(--on-ink-tint-2); }
+.wb2-capcard.wb2-dusk .wb2-jobopt.on { background:rgba(0,229,192,.14); color:var(--paper); }
+.wb2-capcard.wb2-dusk .wb2-jobopt em { color:var(--on-ink-q); }
 
 /* ============================ HOME ============================
    ONE CARD, THREE ROOMS (the handoff of 2026-09-14, redrawn to the laws).

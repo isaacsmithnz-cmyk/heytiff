@@ -455,8 +455,11 @@ this list the way it holds the loops: both ways, by name.
      chrome followed the same day: its start screen, its HUD, legend and
      zoom control, the unit card, present mode and the live sheet's door
      sit on the on-ink tokens, the elevated dark and the one overlay
-     shadow, with no glass. What is left of the count is three dark
-     surfaces on the board.
+     shadow, with no glass. The board's dark surfaces closed the count the
+     next day (2026-09-16): the media viewer, the capture card's dusk and
+     the toast, on the same tokens, and the last inner highlight went with
+     the dusk card's drop. White-alpha hairlines and inner highlights stand
+     at zero.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the

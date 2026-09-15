@@ -112,7 +112,7 @@ import {
 } from "@/lib/studio/job-link";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
 import type { LibraryManifest } from "@/lib/studio/packs/library";
-import { LibraryCard } from "./library-card";
+import { LibraryDoor } from "./library-modal";
 import "./studio.css";
 
 /* The sim flag never changes after load, so there is nothing to subscribe to —
@@ -226,7 +226,7 @@ export function Studio({
   /** What the studio can design with — brand, system, series, model — READ
       ON THE SERVER by the route (packs/library.ts). Home lists it and says
       what arrived since this browser last looked. Absent (the tests, the
-      harness), Home shows no library card at all. */
+      harness), Home has no library door at all. */
   library?: LibraryManifest;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
@@ -773,7 +773,7 @@ function Home({
 }: {
   /** null while the list is still being fetched — see the three states below */
   recents: DesignSummary[] | null;
-  /** the library card under Recent designs; absent, no card */
+  /** the library's door, top right; absent, no door */
   library?: LibraryManifest;
   /** arrive with the new-design wizard already open (menu → New) */
   autoNew?: boolean;
@@ -866,6 +866,9 @@ function Home({
           fade and kept things moving for ~600ms after the swap had landed. The
           fade is the transition now. */}
       <div className="ds-home-stack">
+        {/* top right, level with the title: "Library, updated …", and the
+            word New when something has arrived — the dialog is behind it */}
+        {library && <LibraryDoor library={library} />}
         <section className="ds-hero">
           {step === "name" ? (
             <>
@@ -998,9 +1001,8 @@ function Home({
           )}
         </section>
 
-        {/* the side column: Recent designs and, under it, the library. One
-            grid child, so the stack centres the two cards as a piece the way
-            it centred the one. */}
+        {/* the side column, padded at the top to clear the library's door
+            when the Recent list is tall enough to sit against it */}
         <div className="ds-home-side">
         <section className="ds-recent">
           <div className="ds-recent-head">
@@ -1126,7 +1128,6 @@ function Home({
             </div>
           )}
         </section>
-        {library && <LibraryCard library={library} />}
         </div>
       </div>
     </div>

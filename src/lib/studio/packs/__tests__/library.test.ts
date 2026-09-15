@@ -7,12 +7,15 @@ import { installedPacks, loadInstalledPack } from "../server";
 import { proposePairs } from "../../split";
 import { proposeMultiOdus, multiCapableIdus } from "../../multi";
 import { indoorReadiness, outdoorReadiness } from "../ready";
-import { FORM_FACTORS } from "../schema";
+import { emptyPack, FORM_FACTORS } from "../schema";
+const emptyPackFor = (brand: string) =>
+  emptyPack({ brand, version: "1", packSchemaVersion: 1, name: brand });
 import {
   indoorByForm,
   libraryChanges,
   libraryManifest,
   librarySnapshot,
+  libraryUpdatedOn,
   modelKey,
   type LibraryManifest,
 } from "../library";
@@ -31,6 +34,10 @@ describe("the library manifest", () => {
     expect(me?.name).toBe("Mitsubishi Electric");
     expect(me?.version).toMatch(/^\d{4}\.\d+$/);
     expect(me?.systems.map((s) => s.label)).toEqual(["Split systems", "Multi-split", "VRF"]);
+    /* and the day it last changed, as the pack says it (the gate in
+       installed-packs.test.ts is what requires the pack to say) */
+    expect(me?.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(libraryUpdatedOn(m)).toBe(me?.updated);
   });
 
   it("lists under split exactly the indoor and outdoor units a pair would propose", async () => {
@@ -141,6 +148,7 @@ function manifest(version: string, split: Record<string, string[]>, vrf: Record<
         id: "me",
         name: "Mitsubishi Electric",
         version,
+        updated: "2026-08-18",
         systems: [
           { system: "split", label: "Split systems", series: series(split, "indoor") },
           { system: "multi", label: "Multi-split", series: [] },
@@ -197,6 +205,15 @@ describe("what changed since this browser last looked", () => {
     const [c] = libraryChanges(less, librarySnapshot(v1));
     expect(c.removed).toEqual([modelKey("indoor", "MSZ-AP35")]);
     expect(c.added).toEqual([]);
+  });
+
+  it("dates the library by its latest brand, and not at all when no pack says", () => {
+    const two: LibraryManifest = { brands: [...v1.brands, { ...v1.brands[0], id: "daikin", name: "Daikin", updated: "2026-09-02" }] };
+    expect(libraryUpdatedOn(two)).toBe("2026-09-02");
+    expect(libraryUpdatedOn({ brands: [{ ...v1.brands[0], updated: null }] })).toBeNull();
+    /* a date the pack mangles is no date */
+    const bad = libraryManifest([{ meta: { brand: "x", version: "1", packSchemaVersion: 1, name: "X", updated: "yesterday" }, pack: { ...emptyPackFor("x") } }]);
+    expect(bad.brands[0].updated).toBeNull();
   });
 
   it("treats a brand this browser has never seen as arriving whole", () => {

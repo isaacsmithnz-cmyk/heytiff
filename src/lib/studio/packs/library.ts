@@ -63,6 +63,9 @@ export interface LibraryBrand {
   id: string;
   name: string;
   version: string;
+  /** the day the pack last changed ("YYYY-MM-DD"), null for a pack that
+      does not say (the gate test means a shipped one always does) */
+  updated: string | null;
   /** always the three systems, in split → multi → vrf order; a system the
       pack has nothing ready for carries an empty `series` */
   systems: LibrarySystemGroup[];
@@ -188,6 +191,7 @@ export function libraryManifest(
     id: meta.brand,
     name: pack.brands.find((b) => b.id === meta.brand)?.name ?? meta.name,
     version: meta.version,
+    updated: meta.updated && /^\d{4}-\d{2}-\d{2}$/.test(meta.updated) ? meta.updated : null,
     systems: LIBRARY_SYSTEMS.map((system) => ({
       system,
       label: LIBRARY_SYSTEM_LABELS[system],
@@ -196,6 +200,14 @@ export function libraryManifest(
   }));
   brands.sort((a, b) => a.name.localeCompare(b.name));
   return { brands };
+}
+
+/** The day the library last changed — the latest of the brands' own dates,
+    as the start screen's door says it. Null when no pack says. */
+export function libraryUpdatedOn(m: LibraryManifest): string | null {
+  let latest: string | null = null;
+  for (const b of m.brands) if (b.updated && (!latest || b.updated > latest)) latest = b.updated;
+  return latest;
 }
 
 /* ─────────────────────── what changed since last time ───────────────────────

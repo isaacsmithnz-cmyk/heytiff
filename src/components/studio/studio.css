@@ -777,10 +777,8 @@ html[data-ds-display] .dstudio.editing {
   --ds-night-drop: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
 }
 
-/* Recent designs — glass card on the dark canvas. The Library card under it
-   is the same glass (its own rules follow the Home section). */
-.dstudio .ds-recent,
-.dstudio .ds-lib {
+/* Recent designs — glass card on the dark canvas */
+.dstudio .ds-recent {
   /* Over the cloud. Below 1100px the two columns stack and the cloud's tail
      reaches the card's top edge; the card is the thing being read, so it
      covers the stray dots rather than wearing them. */
@@ -1044,145 +1042,155 @@ html[data-ds-display] .dstudio.editing {
 
 /* ═════════════ Library ═════════════ */
 
-/* The side column: the Recent card and, under it, the library — both the
-   landing's glass, stacked. The stack's grid centres the column as one
-   piece, the way it centred the Recent card alone. */
+/* The side column, one grid child: Recent designs, and room above it for
+   the library's door when the list is tall enough to reach it. The stack
+   centres the column as a piece; the padding only matters when the column
+   is top-aligned, which is when it would otherwise sit under the door. */
 .dstudio .ds-home-side {
   display: flex;
   flex-direction: column;
-  gap: 16px;
   min-width: 0;
+  padding-top: calc(38px + 16px);
 }
-/* the glass is .ds-recent's (its selector list, above); only the floor
-   differs — this card is as tall as what it holds */
-.dstudio .ds-lib {
-  min-height: 0;
-}
-.dstudio .ds-lib .ds-cardt {
-  display: block;
-  margin-bottom: 12px;
-}
-.dstudio .ds-lib-none {
-  margin: 0;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-}
-/* the brand, and the data year it is on */
-.dstudio .ds-lib-bn {
-  margin: 0;
-  font-size: 16px;
+
+/* THE DOOR. Top right of the start screen, level with the stack's top
+   padding: "Library, updated 18 Aug 2026", and the word New when something
+   has arrived since this browser last looked. The wizard's small glass
+   (.ds-hero-back), so the screen has one small button. Absolute in the
+   stack, so it rises with the screen and stays put while the Recent column
+   centres itself. */
+.dstudio .ds-lib-door {
+  position: absolute;
+  top: 52px;
+  right: 60px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ds-night-line);
+  color: #fff;
+  font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-lib-door:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.dstudio .ds-lib-door:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.dstudio .ds-lib-door svg {
+  color: rgba(255, 255, 255, 0.7);
+}
+.dstudio .ds-lib-door-s {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* what is new is said in paper, the dark ground's emphasis — no chroma */
+.dstudio .ds-lib-door-new {
+  padding-left: 4px;
   color: #fff;
 }
-.dstudio .ds-lib-bv {
+@media (max-width: 1100px) {
+  .dstudio .ds-lib-door {
+    top: 32px;
+    right: 24px;
+  }
+}
+
+/* THE DIALOG — the Summary step's shell (.ds-xm), on the light. Release
+   notes first, then the lineup as a label and a run: "Wall-mounted
+   MSZ-AP, MSZ-EF, MSZ-GS". */
+.ds-xm .ds-libm-none {
+  margin: 0;
+  font-size: 14px;
+  color: var(--q);
+}
+.ds-xm .ds-libm-brand {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ds-xm .ds-libm-bn {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-xm .ds-libm-bu {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--q);
+  white-space: nowrap;
 }
-.dstudio .ds-lib-brand + .ds-lib-brand {
-  margin-top: 24px;
+.ds-xm .ds-libm-sec {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
-/* one kind of system: its name, then the lineup as a label and a run —
-   "Wall-mounted   MSZ-AP, MSZ-EF, MSZ-GS" — no counts, no codes, no rows */
-.dstudio .ds-lib-sys {
-  margin-top: 16px;
-}
-.dstudio .ds-lib-sn {
-  margin: 0 0 4px;
+.ds-xm .ds-libm-sec h3 {
+  margin: 0 0 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--ink);
 }
-.dstudio .ds-lib-lineup {
+.ds-xm .ds-libm-new p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--q);
+}
+.ds-xm .ds-libm-new ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--q);
+}
+.ds-xm .ds-libm-new b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-xm .ds-libm-new-b + .ds-libm-new-b {
+  margin-top: 8px;
+}
+.ds-xm .ds-libm-lineup {
   margin: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 4px 16px;
 }
-.dstudio .ds-lib-form {
+.ds-xm .ds-libm-form {
   display: contents;
 }
-.dstudio .ds-lib-lineup dt {
+.ds-xm .ds-libm-lineup dt {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--q);
   white-space: nowrap;
 }
-.dstudio .ds-lib-lineup dd {
+.ds-xm .ds-libm-lineup dd {
   margin: 0;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
-/* a series that just arrived reads in paper, the dark ground's emphasis —
-   no chroma */
-.dstudio .ds-lib-new {
-  color: #fff;
+.ds-xm .ds-libm-arrived {
   font-weight: 600;
 }
-.dstudio .ds-lib-new b {
+.ds-xm .ds-libm-arrived b {
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-}
-/* what arrived since this browser last looked */
-.dstudio .ds-lib-upd {
-  margin-bottom: 16px;
-  padding: 12px 16px 16px;
-  border: 1px solid var(--ds-night-line);
-  border-radius: 10px;
-  background: var(--ds-night);
-}
-.dstudio .ds-lib-upd-t {
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 4px;
-}
-.dstudio .ds-lib-upd p {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.6);
-}
-.dstudio .ds-lib-upd-b + .ds-lib-upd-b {
-  margin-top: 8px;
-}
-.dstudio .ds-lib-upd-l {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.6);
-}
-.dstudio .ds-lib-upd-s {
-  color: #fff;
-  font-weight: 600;
-}
-/* the same small glass button as the wizard's Back (.ds-hero-back) */
-.dstudio .ds-lib-dismiss {
-  margin-top: 12px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--ds-night-line);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
-  font-weight: 600;
-  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-}
-.dstudio .ds-lib-dismiss:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-}
-.dstudio .ds-lib-dismiss:focus-visible {
-  outline: none;
-  box-shadow: var(--ring);
+  color: var(--q);
 }
 
 /* ═════════════ Editor chrome ═════════════ */

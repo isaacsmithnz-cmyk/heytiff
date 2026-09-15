@@ -303,3 +303,7 @@ look like going backwards.
   data fit. If something doesn't fit, that's a §3 report item.
 - Keep JSON formatting consistent with the ME pack (1-space indent, same key
   order) so diffs stay readable for the reviewer.
+- `meta.json` carries `updated`, the day the pack last changed (`YYYY-MM-DD`).
+  Set it to today's date whenever you change a pack, new version or not: the
+  Design Studio's start screen shows it ("Library, updated 18 Aug 2026"), and
+  the installed-packs gate fails a pack without it.

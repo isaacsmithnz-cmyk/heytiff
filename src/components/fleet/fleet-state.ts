@@ -52,7 +52,8 @@ export type FleetActions = {
   /** A REMIND ME chip: on creates the viewer's reminder task, off deletes it. */
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
-  addLog: (log: NewLog) => void;
+  /** Resolves to whether the entry landed; the logging screen waits on it. */
+  addLog: (log: NewLog) => Promise<boolean>;
   /** The paper for an entry logged without one — a docket, a service record. */
   attachLogDocument: (logId: string, documentId: string) => void;
   editLog: (logId: string, patch: LogEdit) => void;
@@ -79,15 +80,21 @@ export function useFleetActions(): FleetActions {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  /* Resolves to whether the write landed. A screen that asked can then stay
+     where it is on a refusal — with the typing intact and the reason on the
+     same screen — rather than closing and reporting the refusal somewhere
+     else. `error` is still set for the screens that don't wait. */
   const run = useCallback(
-    (action: () => Promise<Result>) => {
-      setError(null);
-      start(async () => {
-        const res = await action();
-        if (res.ok) router.refresh();
-        else setError(res.error);
-      });
-    },
+    (action: () => Promise<Result>) =>
+      new Promise<boolean>((resolve) => {
+        setError(null);
+        start(async () => {
+          const res = await action();
+          if (res.ok) router.refresh();
+          else setError(res.error);
+          resolve(res.ok);
+        });
+      }),
     [router],
   );
 

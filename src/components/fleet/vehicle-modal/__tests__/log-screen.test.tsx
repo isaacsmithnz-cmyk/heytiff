@@ -85,7 +85,7 @@ function fleet(): FleetActions {
     attachPurchaseDocument: jest.fn(),
     removeVehicle: jest.fn(),
     assignVehicle: jest.fn(),
-    addLog: jest.fn(),
+    addLog: jest.fn(async () => true),
     attachLogDocument: jest.fn(),
     editLog: jest.fn(),
     deleteLog: jest.fn(),
@@ -228,11 +228,23 @@ describe("Log service", () => {
     });
   });
 
+  it("stays put, typing intact, when the server refuses the entry", async () => {
+    const { f, user } = mount("add:service");
+    (f.addLog as jest.Mock).mockResolvedValue(false);
+    await user.click(screen.getByText("Enter manually"));
+    await user.type(screen.getByRole("textbox", { name: "Odometer at service (km)" }), "121000");
+    await user.type(screen.getByRole("textbox", { name: "Workshop" }), "Braeside Auto");
+    await user.click(screen.getByRole("button", { name: "Log service" }));
+    await waitFor(() => expect(f.addLog).toHaveBeenCalled());
+    expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Braeside Auto")).toBeInTheDocument();
+  });
+
   it("needs the odometer, and warns about a reading below the current one", async () => {
     const { user } = mount("add:service");
     await user.click(screen.getByText("Enter manually"));
     expect(screen.getByRole("button", { name: "Log service" })).toBeDisabled();
-    await user.type(screen.getByRole("textbox", { name: "Serviced at odo (km)" }), "100000");
+    await user.type(screen.getByRole("textbox", { name: "Odometer at service (km)" }), "100000");
     expect(screen.getByText(/Lower than the current 108,375 km/)).toBeInTheDocument();
     // a warning, not a gate — the server refuses it; here it can still be corrected
     expect(screen.getByRole("button", { name: "Log service" })).toBeEnabled();

@@ -31,6 +31,11 @@ import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
    may be fuelling a borrowed pool ute (the vehicle picker), and its scan
    opens the phone's camera. Here the vehicle is the one on the card.
 
+   A refusal keeps the screen. The server may still say no — the vehicle was
+   sold, the reading runs backwards — and the old modal had already closed
+   by then, so the reason landed on the card and the typing was gone. Save
+   waits for the outcome; the screen leaves only once the entry has landed.
+
    What is READ is a convenience; what is KEPT is the record. A docket or an
    invoice Tiff can't read is still stored and filed against the entry, and
    the fields open empty — nothing is invented (the staff lens's demo read
@@ -50,14 +55,14 @@ const SAVE: Record<LogKind, string> = {
 };
 const SCAN = {
   fuel: {
-    heading: "The receipt",
+    heading: "Receipt",
     prompt: "Scan or upload the receipt",
     hint: "PDF, JPG or photo. Tiff reads the litres, cost and servo.",
     attach: "Optional: attach the receipt",
     docKind: "fuel_receipt",
   },
   service: {
-    heading: "The invoice",
+    heading: "Invoice",
     prompt: "Scan or upload the service invoice",
     hint: "PDF, JPG or photo. Tiff reads the work done, the cost and the workshop.",
     attach: "Optional: attach the invoice",
@@ -99,6 +104,7 @@ export function LogScreen({
   error,
   onBack,
   onSave,
+  onSaved,
 }: {
   vehicle: Vehicle;
   kind: LogKind;
@@ -107,7 +113,11 @@ export function LogScreen({
   pending: boolean;
   error: string | null;
   onBack: () => void;
-  onSave: (log: NewLog) => void;
+  /** Resolves to whether the entry landed. */
+  onSave: (log: NewLog) => Promise<boolean> | void;
+  /** Where to go once it has — the screen that asked. On a refusal the
+      screen stays, with the typing intact and the reason above the fields. */
+  onSaved: () => void;
 }) {
   const scans = kind === "fuel" || kind === "service";
   const [mode, setMode] = useState<ScanMode>(scans ? "idle" : "manual");
@@ -166,9 +176,9 @@ export function LogScreen({
     owingNoCost ? "Enter what it cost — that is what gets reimbursed." : null,
   ].filter((w): w is string => w !== null);
 
-  const save = () => {
+  const save = async () => {
     if (!ready) return;
-    onSave({
+    const ok = await onSave({
       vehicleId: vehicle.id,
       kind,
       litres: kind === "fuel" ? num(f.litres) : undefined,
@@ -184,6 +194,7 @@ export function LogScreen({
       paidWith: kind === "fuel" ? f.paidWith : undefined,
       workDone: kind === "service" && f.workDone.trim() ? f.workDone.trim() : undefined,
     });
+    if (ok !== false) onSaved();
   };
 
   const odoField = (label: string, req: boolean) => (
@@ -205,7 +216,7 @@ export function LogScreen({
   );
   const taxFields = (
     <>
-      <Field label="GST ($)">
+      <Field label="GST">
         <MoneyInput value={f.gst} onChange={set("gst")} placeholder="Only if printed" ariaLabel="GST" />
       </Field>
       <Field label="Supplier ABN">
@@ -214,6 +225,8 @@ export function LogScreen({
     </>
   );
 
+  /* Odometer readings are written in place on the card's Odometer card; the
+     branch stays so a `add:odo` screen still renders if something names it. */
   const fields =
     kind === "fuel" ? (
       <>
@@ -254,7 +267,7 @@ export function LogScreen({
           <input className="vm-input" placeholder="e.g. Braeside Auto" aria-label="Workshop" value={f.station} onChange={(e) => set("station")(e.target.value)} />
         </Field>
         {dateField("Date on invoice")}
-        {odoField("Serviced at odo (km)", true)}
+        {odoField("Odometer at service (km)", true)}
         <Field label="Cost">
           <MoneyInput value={f.cost} onChange={set("cost")} placeholder="e.g. 480" ariaLabel="Cost" />
         </Field>

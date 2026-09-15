@@ -202,6 +202,36 @@ describe("green slip", () => {
     expect(screen.getByPlaceholderText("e.g. QBE")).toHaveValue("");
   });
 
+  it("calls nothing attached when the upload failed too, and Upload is the retry", async () => {
+    uploadFile.mockResolvedValueOnce({ ok: false, error: "That upload didn't finish." });
+    readRenewalDocument.mockResolvedValue({ ok: false, reason: "no-key" });
+    const { user, onSave } = mount("ctp");
+    await user.click(screen.getByRole("button", { name: "Update green slip" }));
+    await user.upload(screen.getByLabelText("Scan document"), new File(["x"], "slip.jpg", { type: "image/jpeg" }));
+    await waitFor(() =>
+      expect(screen.getByText("The document couldn't be stored — the details below will save without it.")).toBeInTheDocument(),
+    );
+    expect(readRenewalDocument).toHaveBeenCalled();
+    // nothing landed, so nothing beside that line says it did
+    expect(screen.queryByText(/Attached:/)).not.toBeInTheDocument();
+    expect(screen.getByText("Optional: attach the green slip")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+    // the fields are open on a scan, so Escape and the backdrop still leave them be
+    expect(document.querySelector("[data-scan-in-progress]")).not.toBeNull();
+
+    await user.upload(screen.getByLabelText("Attach document"), new File(["x"], "slip.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(screen.getByText("Attached: slip.jpg")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+    expect(screen.queryByText(/couldn't be stored/)).not.toBeInTheDocument();
+
+    // and what the retry stored is what Save files
+    await user.type(screen.getByPlaceholderText("e.g. QBE"), "QBE");
+    await user.click(screen.getByLabelText("Expires"));
+    await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
+    await user.click(screen.getByRole("button", { name: "Save green slip" }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ documentId: "doc-9", source: "manual" }));
+  });
+
   it("files another piece of paper under the record in force", async () => {
     const { user, onAttach } = mount("ctp");
     await user.upload(screen.getByLabelText("Add document"), new File(["x"], "receipt.pdf", { type: "application/pdf" }));

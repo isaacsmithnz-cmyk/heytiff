@@ -10376,7 +10376,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    hand out. */
 .fg .page:has(> .hm-wrap) { height:100%; display:flex; flex-direction:column; }
 .fg .hm-wrap { flex:1; min-height:0; display:flex; flex-direction:column;
-  width:100%; margin:0; align-self:center; padding:24px 32px 32px; }
+  width:100%; max-width:none; margin:0; align-self:center; padding:16px;
+  /* HOME'S ONE GREEN (Isaac, 2026-09-15: "we're missing a little bit of
+     colour"). Two places and no more: the part of the day that has gone,
+     and the entry being read. The handoff's own green, at a text tone that
+     clears 4.5:1 on its tint (5.2 on paper) and a mark that clears 3:1. */
+  --hm-green:#12a594; --hm-green-t:#137a6e; --hm-green-tint:#e6f7f3; }
 .fg .hm-wrap > .stg { flex:1; min-height:0; display:flex; flex-direction:column; }
 .fg .hm-card { flex:1; min-height:0; display:flex; flex-direction:column;
   background:var(--paper); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
@@ -10385,7 +10390,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    The date is the h1 — the shell's rail already says Home — and the day is
    drawn under it. The track's height is the lanes' (see home-day-band). */
 .fg .hm-band { flex:none; display:flex; flex-direction:column; gap:12px;
-  padding:16px 32px 12px; border-bottom:1px solid var(--line); }
+  padding:12px 24px 8px; border-bottom:1px solid var(--line); }
 .fg .hm-date { margin:0; font-size:24px; font-weight:700; line-height:1.2; color:var(--ink); }
 /* What ServiceM8 could not add, above the day rather than instead of it. */
 .fg .hm-daynote { margin:0; font-size:14px; color:var(--q); }
@@ -10393,17 +10398,17 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-track { position:relative; }
 /* the axis: a 3px track, the elapsed part in ink, a tick an hour */
 .fg .hm-axis { position:absolute; left:0; right:0; bottom:24px; height:3px; border-radius:999px; background:var(--tint-2); }
-.fg .hm-elapsed { position:absolute; left:0; bottom:24px; height:3px; border-radius:999px; background:var(--ink); }
+.fg .hm-elapsed { position:absolute; left:0; bottom:24px; height:3px; border-radius:999px; background:var(--hm-green); }
 .fg .hm-hrtick { position:absolute; bottom:24px; width:1px; height:8px; background:var(--tint-2); }
 .fg .hm-hour { position:absolute; bottom:0; transform:translateX(-50%); white-space:nowrap;
   font-size:12px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
 /* NOW: an ink dot on the track with the minute written over it. The label
    is a fact the hour labels cannot give — "2" is not "2:41". */
 .fg .hm-now { position:absolute; bottom:20px; transform:translateX(-50%); width:8px; height:8px;
-  border-radius:50%; background:var(--ink); border:2px solid var(--paper); outline:1px solid var(--ink);
+  border-radius:50%; background:var(--hm-green); border:2px solid var(--paper); outline:1px solid var(--hm-green);
   box-sizing:content-box; }
 .fg .hm-now::after { content:attr(data-now); position:absolute; left:50%; bottom:16px;
-  transform:translateX(-50%); white-space:nowrap; font-size:12px; font-weight:600; color:var(--ink);
+  transform:translateX(-50%); white-space:nowrap; font-size:12px; font-weight:600; color:var(--hm-green-t);
   font-variant-numeric:tabular-nums; }
 /* Only when the band has everything — see railSaysEmpty. */
 .fg .hm-daynone { position:absolute; left:0; top:8px; margin:0; font-size:14px; font-weight:500; color:var(--q); }
@@ -10414,19 +10419,31 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    halo to separate it. */
 .fg .hm-job, .fg .hm-tsk { position:absolute; height:32px; min-width:max-content; box-sizing:border-box;
   display:flex; align-items:center; gap:8px; padding:0 12px; border-radius:10px; white-space:nowrap; }
-/* A booking is ink: the mark on a light ground. Its number, its name and its
-   span step down by size and weight, never by alpha — text on ink at full
-   strength, always. */
-.fg .hm-job { background:var(--ink); color:var(--paper); border:1px solid var(--ink); }
-.fg .hm-job u { flex:none; text-decoration:none; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
+/* A BOOKING WEARS THE DISPATCH DIARY'S PAINT (Isaac, 2026-09-15: "the job
+   cards should be coloured to correspond to what the workboard says"). Every
+   colour arrives from `blockPaint` as the same six custom properties the
+   Schedule tab sets — the wash at 94% light, the cap walked down until it
+   clears 3:1 against its own wash, the stated neutral for finished work — so
+   one booking is one colour on the two screens that draw it. The cap is the
+   board's own vocabulary (law 14 names it), mirrored here at the pill's
+   height. Its number, its name and its span step down by size and weight,
+   never by alpha. */
+.fg .hm-job { background:var(--fill, var(--tint)); color:var(--btext, var(--ink)); border:0; padding-left:16px; }
+.fg .hm-job::before { content:""; position:absolute; left:5px; top:7px; bottom:7px; width:4px;
+  border-radius:999px; background:var(--bar, #7a818c); }
+.fg .hm-job u { flex:none; padding:1px 4px; border-radius:6px; background:var(--chip, var(--tint-2));
+  text-decoration:none; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
 .fg .hm-job b { flex:none; font-size:13px; font-weight:600; }
 .fg .hm-jobsp { flex:none; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
 .fg .hm-job svg { flex:none; }
-/* FINISHED gives its ink up and keeps a tick; a QUOTE is dashed, the board's
-   own vocabulary; LATE — past its start with nothing clocked on — wears a
-   red dot, ringed in paper so it reads against the ink. */
-.fg .hm-job.done { background:var(--paper); color:var(--q); border-color:var(--line); }
-.fg .hm-job.qt { background:var(--paper); color:var(--ink); border-style:dashed; }
+/* FINISHED is the board's stated neutral with a tick and no cap — colour
+   on this band means work still to do; a QUOTE is dashed in its own hue,
+   the board's vocabulary; LATE — past its start with nothing clocked on —
+   wears a red dot, ringed in paper. */
+.fg .hm-job.done { background:var(--pale, var(--tint)); color:var(--ink); border:1px solid var(--pale-edge, var(--line)); padding-left:12px; }
+.fg .hm-job.done::before { display:none; }
+.fg .hm-job.done u { background:var(--tint-2); }
+.fg .hm-job.qt { background:var(--paper); border:1px dashed var(--bar, var(--ink)); }
 .fg .hm-jobdot { flex:none; width:8px; height:8px; border-radius:50%; background:var(--bad);
   border:2px solid var(--paper); box-sizing:content-box; }
 /* A timed task is paper and a hairline, with a real checkbox: it can be
@@ -10465,14 +10482,14 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-face { min-height:0; }
 .fg .hm-face[hidden] { display:none; }
 .fg .hm-face.two { display:grid; grid-template-columns:380px minmax(0,1fr); }
-.fg .hm-face.one { display:flex; flex-direction:column; min-height:0; overflow-y:auto; padding:24px 48px 32px; }
+.fg .hm-face.one { display:flex; flex-direction:column; min-height:0; overflow-y:auto; padding:24px 32px; }
 
 /* ── THE RAIL: an edge, not a fill ──
    A hairline on its right and nothing behind it (law 1). The active face is
    the ink tint, because selection is a fill (law 14); the count is a quiet
    figure, red when it counts what is past its date. */
 .fg .hm-rail { display:flex; flex-direction:column; gap:2px; min-height:0; overflow-y:auto;
-  padding:16px 12px; border-right:1px solid var(--line); }
+  padding:12px 8px; border-right:1px solid var(--line); }
 .fg .hm-railtabs, .fg .hm-raildoors { display:flex; flex-direction:column; gap:2px; }
 .fg .hm-rail hr { width:100%; margin:8px 0; border:0; border-top:1px solid var(--line); }
 .fg .hm-rl { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; height:38px;
@@ -10491,7 +10508,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    A heading and a count, the composer, then the rows in their own scroller.
    The column keeps its head while the rows move. */
 .fg .hm-list { min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--line); }
-.fg .hm-lhead { flex:none; display:flex; flex-direction:column; gap:12px; padding:24px 24px 16px;
+.fg .hm-lhead { flex:none; display:flex; flex-direction:column; gap:12px; padding:16px 16px 12px;
   border-bottom:1px solid var(--line); }
 .fg .hm-lt { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
 .fg .hm-lt h2 { margin:0; font-size:20px; font-weight:600; line-height:1.2; color:var(--ink); }
@@ -10517,7 +10534,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-link { align-self:flex-start; padding:0; border:0; background:none; font-size:14px; font-weight:500;
   color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 .fg .hm-link:disabled { color:var(--q); cursor:default; }
-.fg .hm-assign { margin:12px 24px 0; }
+.fg .hm-assign { margin:12px 16px 0; }
 
 /* THE CAPTURE CARD, IN THE COLUMN. Pressing the composer swaps it for the
    sheet's own card (`wb2-capcard wb2-dusk`) — this rule says only WHERE IT
@@ -10535,11 +10552,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* ── A DIARY ROW ──
    The day and the time, two lines of the words, and what they made. The
    chosen row is the ink tint; a hover is one step below it. */
-.fg .hm-row { display:flex; flex-direction:column; gap:4px; width:100%; padding:12px 24px; border:0;
+.fg .hm-row { display:flex; flex-direction:column; gap:4px; width:100%; padding:12px 16px; border:0;
   border-bottom:1px solid var(--line); background:none; color:var(--ink); text-align:left; cursor:pointer;
   transition:background-color var(--t-fast) var(--ease); }
 .fg .hm-row:hover { background:var(--tint); }
-.fg .hm-row.on { background:var(--tint-2); }
+.fg .hm-row.on { background:var(--hm-green-tint); }
+.fg .hm-row.on .hm-rowm > span:first-child { color:var(--hm-green-t); }
 .fg .hm-row:focus-visible { outline:2px solid var(--ink); outline-offset:-2px; }
 .fg .hm-rowm { display:flex; justify-content:space-between; gap:12px; font-size:13px; font-weight:500;
   color:var(--q); font-variant-numeric:tabular-nums; }
@@ -10550,12 +10568,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* ── A TASK ROW ──
    The checkbox leads; the title and one line of who and when follow. The
    group label above each run is the same quiet label as everywhere. */
-.fg .hm-tgrp { display:flex; justify-content:space-between; padding:16px 24px 4px; font-size:13px;
+.fg .hm-tgrp { display:flex; justify-content:space-between; padding:16px 16px 4px; font-size:13px;
   font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; }
 .fg .hm-trow { display:grid; grid-template-columns:18px minmax(0,1fr); gap:0 12px; align-items:start;
-  padding:12px 24px; border-bottom:1px solid var(--line); transition:background-color var(--t-fast) var(--ease); }
+  padding:12px 16px; border-bottom:1px solid var(--line); transition:background-color var(--t-fast) var(--ease); }
 .fg .hm-trow:hover { background:var(--tint); }
-.fg .hm-trow.on { background:var(--tint-2); }
+.fg .hm-trow.on { background:var(--hm-green-tint); }
 .fg .hm-trow .hm-cb { margin-top:2px; }
 .fg .hm-tsel { display:flex; flex-direction:column; gap:4px; width:100%; padding:0; border:0; background:none;
   color:var(--ink); text-align:left; cursor:pointer; }
@@ -10577,7 +10595,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    below as hairline-topped groups (law 9: a box is for something you act
    on), and the actions pinned to the foot. */
 .fg .hm-read { min-width:0; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:24px;
-  padding:32px 48px 24px; }
+  padding:24px 32px; }
 .fg .hm-said { margin:0; max-width:640px; font-size:24px; font-weight:400; line-height:1.4; color:var(--ink);
   text-wrap:pretty; }
 .fg .hm-when { margin:0; max-width:640px; font-size:14px; color:var(--q); }
@@ -10619,7 +10637,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-btn:disabled { cursor:default; color:var(--q); }
 .fg .hm-btn:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .hm-confirm { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink); }
-.fg .hm-none { margin:0; padding:16px 24px; font-size:14px; color:var(--q); }
+.fg .hm-none { margin:0; padding:16px; font-size:14px; color:var(--q); }
 
 /* ── THE DEBRIEF, ON ITS OWN FACE ──
    One question, one button, and the debriefs you have filed under it. The

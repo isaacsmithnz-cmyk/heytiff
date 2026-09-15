@@ -118,10 +118,10 @@ function fleet(): FleetActions {
     error: null,
     clearError: jest.fn(),
     saveVehicle: jest.fn(),
-    recordRenewal: jest.fn(),
+    recordRenewal: jest.fn(async () => true),
     attachPolicyDocument: jest.fn(),
     setVehiclePhoto: jest.fn(),
-    recordFinance: jest.fn(),
+    recordFinance: jest.fn(async () => true),
     attachFinanceDocument: jest.fn(),
     attachPurchaseDocument: jest.fn(),
     removeVehicle: jest.fn(),
@@ -470,5 +470,79 @@ describe("a scan in progress survives Escape", () => {
     expect(screen.getByText("Scan or upload the certificate of insurance")).toBeInTheDocument();
     backdrop();
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+/* A REFUSAL KEEPS THE SCREEN. Save used to return to the card before the
+   server answered, so a renewal or an agreement the server would not file
+   vanished, with the reason landing on the card and the typing gone. The
+   screen now waits for the outcome and leaves only once the record is in. */
+describe("a refused save keeps the screen, typing intact", () => {
+  const pdf = (name: string) => new File(["x"], name, { type: "application/pdf" });
+  const stored = (documentId: string) => ({
+    ok: true,
+    file: { documentId, fileName: "scan.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
+  });
+
+  it("a renewal: refused, the Registration screen stays with its scan; landed, the card is back", async () => {
+    uploadFile.mockResolvedValue(stored("doc-7"));
+    readRenewalDocument.mockResolvedValue({
+      ok: true,
+      provider: "Transport for NSW",
+      premium: 1008,
+      startsOn: "2027-09-30",
+      expiresOn: "2028-09-29",
+      policyNumber: null,
+      cover: null,
+      excess: null,
+      termMonths: 12,
+      garagingPostcode: null,
+      inspectionOn: null,
+    });
+    const { user, f } = mount();
+    (f.recordRenewal as jest.Mock).mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("button", { name: "Update rego" }));
+    await user.upload(screen.getByLabelText("Scan document"), pdf("rego-2027.pdf"));
+    await screen.findByText("Scanned");
+
+    await user.click(screen.getByRole("button", { name: "Save renewal" }));
+    await waitFor(() => expect(f.recordRenewal).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
+    expect(screen.getByText("Scanned")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save renewal" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument());
+    expect(f.recordRenewal).toHaveBeenCalledTimes(2);
+  });
+
+  it("a finance agreement: refused, the Financials screen stays with its scan", async () => {
+    uploadFile.mockResolvedValue(stored("doc-8"));
+    readFinanceAgreement.mockResolvedValue({
+      ok: true,
+      lender: "Macquarie Leasing",
+      agreementNo: "ML-20931",
+      kind: null,
+      startsOn: "2026-09-01",
+      termMonths: 60,
+      repayment: null,
+      frequency: null,
+      ratePct: null,
+      balloon: null,
+      amountFinanced: null,
+    });
+    const { user, f } = mount();
+    (f.recordFinance as jest.Mock).mockResolvedValueOnce(false);
+    await user.click(screen.getByRole("button", { name: "Financials" }));
+    await user.click(screen.getByRole("button", { name: "Add finance agreement" }));
+    await user.upload(screen.getByLabelText("Scan document"), pdf("agreement.pdf"));
+    await screen.findByText("Scanned");
+
+    await user.click(screen.getByRole("button", { name: "Save agreement" }));
+    await waitFor(() => expect(f.recordFinance).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Macquarie Leasing")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Save agreement" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument());
   });
 });

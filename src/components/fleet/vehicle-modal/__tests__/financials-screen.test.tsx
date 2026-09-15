@@ -93,6 +93,7 @@ const contract: StoredDocument = {
 function mount(over: { finance?: VehicleFinance[]; documents?: StoredDocument[]; valuation?: boolean; vehicle?: Partial<Vehicle> } = {}) {
   const onSaveVehicle = jest.fn();
   const onRecordFinance = jest.fn();
+  const onRecorded = jest.fn();
   const onAttachFinance = jest.fn();
   const onAttachInvoice = jest.fn();
   const onBack = jest.fn();
@@ -115,6 +116,7 @@ function mount(over: { finance?: VehicleFinance[]; documents?: StoredDocument[];
       onBack={onBack}
       onSaveVehicle={onSaveVehicle}
       onRecordFinance={onRecordFinance}
+      onRecorded={onRecorded}
       onAttachFinance={onAttachFinance}
       onAttachInvoice={onAttachInvoice}
     />,

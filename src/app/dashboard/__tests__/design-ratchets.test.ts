@@ -275,7 +275,7 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 31 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 70 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 133 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 132 },
   { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
@@ -295,8 +295,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   /* A pill is counted only while it is drawn as one: a pill, chip, tag or
      badge selector whose own rule gives it a radius. A state word keeps the
      class name and loses the box, so it stops counting. */
-  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 43 },
-  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 43 },
+  { law: "pill, chip, tag and badge rules drawn as a box — state is a word, a chip is for a filter you tap", now: () => { let n = 0; for (const [sel, body] of blocks()) if (/\.[a-z0-9-]*(pill|tag|badge|chip)[a-z0-9-]*/.test(sel) && /border-radius\s*:\s*(?!0\b)/.test(body)) n++; return n; }, baseline: 42 },
+  { law: "letter-spacing — display titles only", now: () => count(/letter-spacing\s*:/g), baseline: 40 },
   { law: "icon-only buttons that are not a close or clear cross — every other button carries its word", now: iconOnlyButtons, baseline: 29 },
   // ink and paper
   /* The OK colour on a selector that is not a state. It began as a count of

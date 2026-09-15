@@ -115,10 +115,17 @@ export function WorkRightsCard({
         <div className="wr-checks">
           <span className="wr-checksl">
             <b>{checkCount === 0 ? "No checks recorded" : checkCount === 1 ? "1 check on file" : `${checkCount} checks on file`}</b>
+            {/* "VEVO" was the government's name for the visa check, and nobody
+                in the office has heard of it — the words are the documents a
+                person actually holds. A citizen or permanent resident has no
+                visa to check, so the empty state stops asking for one and
+                says what can be kept instead. */}
             <em>
-              {checkCount === 0
-                ? "Scan a VEVO result or grant notice to start the record"
-                : "The status above is the newest check"}
+              {checkCount > 0
+                ? "The status above is the newest check"
+                : isNoVisa(status)
+                  ? "Keep the passport or citizenship certificate here as evidence"
+                  : "Scan the visa check result or the grant letter to start the record"}
             </em>
           </span>
           <button type="button" className="pbtn" onClick={onOpenChecks}>

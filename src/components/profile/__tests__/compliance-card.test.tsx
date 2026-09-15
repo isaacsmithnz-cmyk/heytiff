@@ -148,9 +148,13 @@ describe("the licence wall", () => {
     expect(screen.getByText("2 terms on file")).toBeInTheDocument();
   });
 
-  it("shows the empty state when there are none", () => {
+  /* The add tile IS the empty state — it leads with the action. The block
+     under it that said "No licences added yet" and explained the wall was
+     the same thing said twice. */
+  it("leads with the add tile when there are none, and nothing else", () => {
     setup({ licences: [] });
-    expect(screen.getByText("No licences added yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add a licence or ticket/ })).toBeInTheDocument();
+    expect(screen.queryByText("No licences added yet")).not.toBeInTheDocument();
   });
 
   it("has no remove × on the wall — deleting is deliberate now", () => {
@@ -901,5 +905,29 @@ describe("a scan in progress survives Escape", () => {
     await within(dialog).findByText("Scanned");
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+/* A line under the tab is a fact or nothing (docs/design.md, law 15). The
+   line used to explain what the wall does when it was empty and reassure
+   when nothing was expiring; the cards carry their own state. */
+describe("the line above the wall", () => {
+  it("says how many need attention, and only that", () => {
+    const { container } = setup(); // L1 expires in 14 days
+    expect(container.querySelector(".psechd")).toHaveTextContent("1 needs attention");
+    expect(screen.queryByText(/nothing expiring/)).not.toBeInTheDocument();
+  });
+
+  it("is absent when nothing needs attention", () => {
+    const { container } = setup({ licences: [LICENCES[1]] });
+    expect(container.querySelector(".psechd")).toBeNull();
+  });
+
+  it("is absent on an empty wall, where the add tile is the empty state", () => {
+    const { container } = setup({ licences: [] });
+    expect(container.querySelector(".psechd")).toBeNull();
+    expect(screen.queryByText(/tracks its number/)).not.toBeInTheDocument();
+    expect(screen.queryByText("No licences added yet")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add a licence or ticket/ })).toBeInTheDocument();
   });
 });

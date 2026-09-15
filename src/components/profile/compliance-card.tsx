@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Icon } from "@/components/shell/icon";
 import { LicenceCard } from "@/components/cards/licence-card";
 import type { StoredDocument } from "@/lib/documents/query";
 import { licenceStatus } from "@/lib/staff/licence";
@@ -95,19 +94,15 @@ export function ComplianceCard({
 
   return (
     <div className="psec-body" data-live>
-      {/* The tab says "Compliance"; this says what the tab is for. See
-          section-card for why the framed header went. */}
-      <div className="psechd">
-        <em>
-          {licences.length === 0
-            ? "Licences & tickets — each one tracks its number and expiry, and warns on your dashboard before it lapses"
-            : attention === 0
-              ? "Licences & tickets — nothing expiring"
-              : attention === 1
-                ? "Licences & tickets — 1 needs attention"
-                : `Licences & tickets — ${attention} need attention`}
-        </em>
-      </div>
+      {/* A line under the tab is a fact or nothing (docs/design.md, law 15).
+          "N need attention" is the fact; "nothing expiring" was the same fact
+          as reassurance, and the sentence about what the wall does was an
+          explanation. The cards carry their own state. */}
+      {attention > 0 && (
+        <div className="psechd">
+          <em>{attention === 1 ? "1 needs attention" : `${attention} need attention`}</em>
+        </div>
+      )}
 
       <div className="liccards">
         {licences.map((l) => {
@@ -130,19 +125,6 @@ export function ComplianceCard({
           <em>Scan the card — driver licence, ARC, white card…</em>
         </button>
       </div>
-
-      {licences.length === 0 && (
-        <div className="ro-empty" style={{ marginTop: 18 }}>
-          <span className="ei">
-            <Icon name="shield" size={20} />
-          </span>
-          <b>No licences added yet</b>
-          <em>
-            Anything added here tracks its expiry, keeps every renewal on file, and raises a reminder on your
-            dashboard before it lapses.
-          </em>
-        </div>
-      )}
 
       {open && (
         <LicenceModal

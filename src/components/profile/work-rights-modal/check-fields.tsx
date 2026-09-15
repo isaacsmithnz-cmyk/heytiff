@@ -18,9 +18,9 @@ import type { WorkRightsCheckInput } from "@/lib/staff/work-rights-records";
    see lib/staff/work-rights-readers.ts for the whole argument. */
 
 export const SCAN_COPY = {
-  prompt: "Scan or upload the VEVO result or visa grant notice",
+  prompt: "Scan or upload the visa check result or the visa grant letter",
   hint: "PDF, JPG or photo.",
-  attach: "Optional: attach the VEVO result or grant notice",
+  attach: "Optional: attach the visa check result or the grant letter",
 };
 
 export type Check = {

@@ -262,7 +262,7 @@ function Inspector({
       <p className="hq-map-side-p">{selected.detail ?? selected.blurb}</p>
       {selected.href && (
         <a className="hq-map-open" href={selected.href}>
-          Open {selected.name} ↗
+          Open {selected.name}
         </a>
       )}
 

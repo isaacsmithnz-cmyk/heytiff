@@ -57,7 +57,7 @@ export default async function HqBrandPage({
   return (
     <main className="hq-main">
       <Link className="hq-back" href="/hq/data">
-        ← Data packs
+        Back to data packs
       </Link>
       <h1 className="hq-h1">{displayName}</h1>
       <p className="hq-lede">

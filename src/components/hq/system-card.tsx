@@ -26,7 +26,7 @@ export function SystemCard({ facts, env }: { facts: SysFact[]; env: EnvFlag[] })
       <div className="hq-sys-env">
         {env.map((e) => (
           <span key={e.name} className={`hq-env ${e.set ? "set" : "miss"}`}>
-            {e.set ? "✓" : "✗"} {e.name}
+            {e.name} {e.set ? "set" : "missing"}
           </span>
         ))}
       </div>

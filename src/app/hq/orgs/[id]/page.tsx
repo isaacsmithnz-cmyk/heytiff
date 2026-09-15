@@ -49,7 +49,7 @@ export default async function OrgDetailPage({
   return (
     <main className="hq-main">
       <a className="hq-back" href="/hq">
-        ← Overview
+        Back to overview
       </a>
       <h1 className="hq-h1">{org.name}</h1>
       <p className="hq-lede">

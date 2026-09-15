@@ -1,5 +1,6 @@
 import type { OrgRow } from "@/lib/hq/overview";
 import { formatDate } from "@/lib/hq/format";
+import { Icon } from "@/components/shell/icon";
 
 /* Organisations table for the HQ overview. Each row links to the org's
    drill-down (/hq/orgs/[id]) for the member list. Presentational — plain props,
@@ -34,7 +35,7 @@ export function OrgTable({ rows }: { rows: OrgRow[] }) {
               <td className="hq-muted">{formatDate(r.lastActivity)}</td>
               <td>
                 <a href={`/hq/orgs/${r.id}`} className="hq-arrow" aria-label={`Open ${r.name}`}>
-                  →
+                  <Icon name="chevR" size={16} />
                 </a>
               </td>
             </tr>

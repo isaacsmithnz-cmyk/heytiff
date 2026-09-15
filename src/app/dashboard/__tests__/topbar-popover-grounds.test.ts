@@ -27,7 +27,7 @@ import path from "node:path";
    can hold the two properties that made the composite knowable at all: the
    ground names ONE opaque colour, and no filter samples what is behind it. */
 
-const CSS = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+const CSS = ["src/app/tokens.css", "src/app/dashboard/shell.css"].map((f) => fs.readFileSync(path.join(process.cwd(), f), "utf8")).join("\n");
 
 /** The body of one rule, by its exact selector. */
 function rule(selector: string): string {

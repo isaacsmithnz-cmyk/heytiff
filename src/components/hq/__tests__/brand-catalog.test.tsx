@@ -221,7 +221,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows ✓ Ready for engine-ready rows", () => {
+  it("shows Ready for engine-ready rows", () => {
     renderOpen(
       <HqBrandCatalog
         groups={groupsOf((p) => {
@@ -229,7 +229,7 @@ describe("HqBrandCatalog — drill-down structure", () => {
         })}
       />
     );
-    expect(screen.getByText("✓ Ready")).toBeInTheDocument();
+    expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 
   it("shows a static system chip for outdoor units (not a tag button)", async () => {

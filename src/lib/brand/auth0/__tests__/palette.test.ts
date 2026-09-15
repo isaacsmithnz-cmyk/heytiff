@@ -7,7 +7,7 @@
    token, that the copy still says what the original says.
 
    To see it fail: change any value in palette.ts, or re-point `--q` in
-   shell.css, and run this. It names the token. */
+   tokens.css, and run this. It names the token. */
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -27,10 +27,10 @@ function customProperties(css: string): Map<string, string> {
 }
 
 const globals = customProperties(read("src/app/globals.css"));
-const shell = customProperties(read("src/app/dashboard/shell.css"));
+const shell = customProperties(read("src/app/tokens.css"));
 
 describe("the Auth0 palette is the app's palette", () => {
-  const sheets = { "globals.css": globals, "shell.css": shell };
+  const sheets = { "globals.css": globals, "tokens.css": shell };
 
   /* [our key, the token it claims to be, the sheet that declares it] */
   const claims: [keyof typeof BRAND, string, keyof typeof sheets][] = [
@@ -40,10 +40,10 @@ describe("the Auth0 palette is the app's palette", () => {
     ["ink", "color-ink-2", "globals.css"],
     ["surface", "color-surface", "globals.css"],
     ["line", "color-surface-line", "globals.css"],
-    ["body", "ink", "shell.css"],
-    ["quiet", "q", "shell.css"],
-    ["okText", "ok-t", "shell.css"],
-    ["badText", "bad-t", "shell.css"],
+    ["body", "ink", "tokens.css"],
+    ["quiet", "q", "tokens.css"],
+    ["okText", "ok-t", "tokens.css"],
+    ["badText", "bad-t", "tokens.css"],
   ];
 
   it.each(claims)("%s is --%s in %s", (key, token, sheet) => {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { metadataBaseFromEnv } from "@/lib/og/base";
 import "./globals.css";
+import "./tokens.css";
 
 // Jakarta is the only typeface in the system — no mono face, by design
 const jakarta = Plus_Jakarta_Sans({

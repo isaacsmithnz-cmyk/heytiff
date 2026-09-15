@@ -24,8 +24,7 @@ import { contrastRatio, scheduleBlockPaint } from "@/lib/workboard/schedule-colo
    against `scheduleBlockPaint`'s own output rather than pinned, so retuning
    the wash re-checks the mark that sits on it. */
 
-const CSS = fs
-  .readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8")
+const CSS = ["src/app/tokens.css", "src/app/dashboard/shell.css"].map((f) => fs.readFileSync(path.join(process.cwd(), f), "utf8")).join("\n")
   .replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** Every innermost rule in the sheet. `[^{}]` stops at the brace, so an

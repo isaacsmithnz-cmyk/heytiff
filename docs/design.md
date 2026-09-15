@@ -58,7 +58,15 @@ Every decision below is made once, here, and a guard test holds each number.
   that board's vocabulary. The rail stands beside the shell's rail on purpose.
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
-- **HQ stays as it is.** Its KPI tiles are not user-facing. Not in scope.
+- **HQ keeps its night ground and its KPI tiles**, and takes everything else.
+  On 2026-09-10 it was out of scope (its KPI tiles are not user-facing); on
+  2026-09-15 Isaac called its fold. The dark backstage ground stays, because
+  the context must be unmistakable against the light app, and the tiles stay,
+  because law 11 is for what a customer sees. The rest follows the laws: the
+  tokens (which now sit in `tokens.css`, loaded by the root layout, so a route
+  outside the frame is no longer a route without the palette), paper doing
+  the accent's jobs on the dark ground, state and kind as words, no glow, no
+  lift, no coloured left edge, the one overlay shadow, the six layers.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
@@ -318,7 +326,7 @@ entry (a spinner is state; the orb breathing with the microphone is feedback).
 1. **The shell**, still, with a white active item. Decided.
 2. **This file and the guards.** No pixels change.
 3. **Tokens before screens.** The scales above become custom properties on
-   `:root` — the greys, the spacing scale, the two motion tokens, the six
+   `:root` (in `src/app/tokens.css` since the HQ fold, so every route has them) — the greys, the spacing scale, the two motion tokens, the six
    layers, the dark chrome's hairline, and now ink in the accent's four jobs,
    the ink ring, the link token, one height per control size and the plain
    green for OK — and the stylesheets are migrated to them mechanically; the

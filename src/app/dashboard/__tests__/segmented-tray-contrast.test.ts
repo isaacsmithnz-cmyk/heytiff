@@ -31,7 +31,7 @@ import path from "node:path";
    bordered inputs, and the house switch itself sits at 1.207 on white. What a
    tray has to do is EXIST. 1.027 does not. */
 
-const CSS = fs.readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8");
+const CSS = ["src/app/tokens.css", "src/app/dashboard/shell.css"].map((f) => fs.readFileSync(path.join(process.cwd(), f), "utf8")).join("\n");
 
 /** Every block declared for exactly this selector, in source order — a
     selector can be written more than once (`.fg .outlet` is, and only the

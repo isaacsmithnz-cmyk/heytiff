@@ -18,14 +18,13 @@ export default async function HqLayout({
     <div className="hq">
       <header className="hq-top">
         <span className="hq-brand">
-          <span className="hq-dot" />
           HeyTiff <b>HQ</b>
         </span>
         <HqNav />
         <div className="hq-who">
           <span>{email}</span>
           <a className="hq-exit" href="/dashboard">
-            Exit ↗
+            Exit to dashboard
           </a>
         </div>
       </header>

@@ -49,6 +49,13 @@ Every decision below is made once, here, and a guard test holds each number.
   the sparkle, and nothing draws a robot anywhere. The house-drawn connector
   glyphs (a circled X for Xero, a figure-8 for ServiceM8) do not read;
   connectors will carry the providers' own logos, later.
+- **Home is one card with three rooms** (decided 2026-09-15, from the
+  three-room handoff): the day across the top, a rail of the four faces, the
+  face's list, and the page the chosen row opens onto. Its h1 is the date, not
+  the word Home: the shell's rail names the screen one column to the left, and
+  the day is what the screen is about. Bookings on the day are ink pills, the
+  mark on a light ground; the Schedule tab keeps its category wash, which is
+  that board's vocabulary. The rail stands beside the shell's rail on purpose.
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ stays as it is.** Its KPI tiles are not user-facing. Not in scope.
@@ -85,6 +92,7 @@ register is the sharper one.
 | 16px | 600 | heading in a card or section |
 | 20px | 600 | screen section title |
 | 24px | 700 | screen title |
+| 24px | 400 | reading: the one entry or task being read, one per screen |
 | 32px | 700 | display, one per screen at most |
 | 40px | 700 | display, the sheet and the door only |
 

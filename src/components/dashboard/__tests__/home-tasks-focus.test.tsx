@@ -1,7 +1,10 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { HomeTasks } from "../home-tasks";
 import type { DashTask } from "@/lib/dashboard/tasks";
 
+/* The composer reaches the note flow and its server actions, which cannot
+   be imported into jsdom; this suite is about the rows and the page. */
+jest.mock("@/components/notes/note-token", () => ({ NoteToken: () => <div /> }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/dashboard", () => ({
   completeTask: jest.fn(),
@@ -117,7 +120,7 @@ it("still switches cleanly when the task isn't on any lane", () => {
   // the whole journey, and nothing here may throw looking for the row
   const onFocusHandled = jest.fn();
   expect(() => renderTasks({ focusTaskId: "gone", onFocusHandled })).not.toThrow();
-  expect(screen.getByText("Order 2× MERV 11 filters")).toBeInTheDocument();
+  expect(rowFor("t1")).toBeInTheDocument();
   act(() => void jest.advanceTimersByTime(2000));
   expect(onFocusHandled).toHaveBeenCalledTimes(1);
 });

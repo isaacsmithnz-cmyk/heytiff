@@ -4,143 +4,80 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { DateField } from "@/components/ui/date-field";
-import { completeTask, createTask, deleteTask, reopenTask } from "@/app/actions/dashboard";
-import { dueLabel, type DashTask } from "@/lib/dashboard/tasks";
-import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
+import { NoteToken } from "@/components/notes/note-token";
+import {
+  completeTask,
+  createTask,
+  deleteTask,
+  reopenTask,
+  setTaskDue,
+} from "@/app/actions/dashboard";
+import { dueLabel, sortTasks, type DashTask } from "@/lib/dashboard/tasks";
+import { entryForTask, type JournalEntry } from "@/lib/dashboard/journal";
+import { zonedParts } from "@/lib/dashboard/day-rail";
+import { clockLabel } from "@/lib/workboard/schedule";
+import { auDayOf, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
-/* The Tasks tab — the board's own task body, `.wb2-urbody.twocol`.
+/* THE TASKS — the work you owe, and the work you handed out.
 
-   THE TICK LEADS, because ticking is the whole interaction. That is the
-   board's rule and it is the reason this stopped being a `.dash-row` with a
-   "Done" button floating at the end: on the board the circle is the first
-   thing under your thumb, and everything else on the row is context for it.
+   A LIST BESIDE A PAGE (the three-room handoff, 2026-09-14). The list is
+   three groups in the order they want you — Overdue, Open, Done — with a
+   real checkbox leading every row, because ticking is the whole interaction.
+   The chosen task is read in full beside it: its state in a word, the facts,
+   the words it came from, and the three things you can do to it.
 
-   Two lanes: yours on the left, everyone else's on the right behind a hair
-   rule. Under 1100px it stacks, because a 400px-wide task lane is worse than
-   one below the work. */
+   THE GROUPS ARE THE BADGE'S OWN TEST. A task is overdue when its date is
+   before today, which is exactly how the rail's red count is made; two
+   places that must agree use the one comparison. Yours and the team's share
+   the groups (the team's arrive only with `team`), and the assignee says
+   whose each is. Done holds your own recent completions, which reverse with
+   the same checkbox, and the work you handed out that came back finished.
 
-function Due({ task, today }: { task: DashTask; today: string }) {
-  const due = dueLabel(task.dueDate, today);
-  if (!due) return null;
-  return <span className={`wb2-chip ${due.state === "bad" ? "dan" : "warn"}`}>{due.label}</span>;
-}
+   A TASK KNOWS THE NOTE IT CAME FROM without asking for it. The diary is
+   already in the page's hands and every entry records the tasks it made, so
+   the source is found by looking, and "Open in diary" is a move within the
+   card rather than a page. A task typed straight in has no note and says
+   nothing about one.
 
-function Tick({
-  task,
-  today,
-  who,
-  onDone,
+   THE COMPOSER IS THE SAME DOOR AS THE DIARY'S — `NoteToken`, saying "Add a
+   task…" here — so a spoken "Luke to order grilles by Friday" is read by the
+   same router that files a note. "Assign a task", the form with a person and
+   a date on it, stays for anyone who may assign, under the composer. */
+
+function Confirm({
   pending,
-  del,
-  flash,
+  onGo,
+  onKeep,
 }: {
-  task: DashTask;
-  today: string;
-  who?: string;
-  onDone: (id: string) => void;
   pending: boolean;
-  /** Wired only when the viewer may delete this task — its creator, or `team`. */
-  del?: { confirming: boolean; ask: () => void; go: () => void; keep: () => void };
-  /** Arrived here from a journal chip naming this task. */
-  flash?: boolean;
+  onGo: () => void;
+  onKeep: () => void;
 }) {
   /* Deleting has no undo — unlike completing, there is no row left to reopen —
-     so the ✕ never fires the action itself: the row swaps into a confirm.
+     so the button never fires the action itself: it swaps into a confirm.
      Focus lands on Keep, so Enter twice backs out rather than deletes. */
-  if (del?.confirming) {
-    return (
-      <div className="wb2-tk hm-tkcf" data-task-id={task.id}>
-        <span className="wb2-tkb hm-tkcfx" aria-hidden="true">
-          <Icon name="x" size={13} />
-        </span>
-        <span className="wb2-tkt">
-          <b>{task.title}</b>
-          <em className="hm-tkq">Delete for good?</em>
-        </span>
-        <button className="hm-tkyes" type="button" disabled={pending} onClick={del.go}>
-          Delete
-        </button>
-        <button className="hm-tkno" type="button" disabled={pending} onClick={del.keep} autoFocus>
-          Keep
-        </button>
-      </div>
-    );
-  }
   return (
-    <div className={"wb2-tk" + (flash ? " hm-tkfl" : "")} data-task-id={task.id}>
-      <button
-        className="wb2-tkb"
-        type="button"
-        disabled={pending}
-        aria-label={`Mark "${task.title}" done`}
-        onClick={() => onDone(task.id)}
-      >
-        <Icon name="check" size={13} />
+    <span className="hm-confirm">
+      <span>Delete for good?</span>
+      <button className="hm-btn text del" type="button" disabled={pending} onClick={onGo}>
+        Delete
       </button>
-      <span className="wb2-tkt">
-        <b>{task.title}</b>
-        {(task.detail || who) && (
-          <em>{[who, task.detail].filter(Boolean).join(", ")}</em>
-        )}
-      </span>
-      <Due task={task} today={today} />
-      {del && (
-        <button
-          className="hm-tkdel"
-          type="button"
-          disabled={pending}
-          aria-label={`Delete "${task.title}"`}
-          onClick={del.ask}
-        >
-          <Icon name="x" size={12} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** Completed rows keep the shape but lose the control — the circle would
-    invite a second click that does nothing. */
-function DoneRow({
-  id,
-  title,
-  detail,
-  undo,
-  flash,
-}: {
-  id: string;
-  title: string;
-  detail: string;
-  undo?: () => void;
-  flash?: boolean;
-}) {
-  return (
-    <div className={"wb2-tk" + (flash ? " hm-tkfl" : "")} data-task-id={id}>
-      <span className="wb2-tkb on" aria-hidden="true">
-        <Icon name="check" size={13} />
-      </span>
-      <span className="wb2-tkt">
-        <b className="hm-struck">{title}</b>
-        <em>{detail}</em>
-      </span>
-      {undo ? (
-        <button className="hm-undo" type="button" onClick={undo}>
-          Undo
-        </button>
-      ) : (
-        <span className="wb2-chip ok">Done</span>
-      )}
-    </div>
+      <button className="hm-btn" type="button" disabled={pending} onClick={onKeep} autoFocus>
+        Keep
+      </button>
+    </span>
   );
 }
 
 /* "Done today" / "Done 22 July". `today` is an AU calendar date, so the
    completion has to resolve to one too — reading done_at's day in UTC puts
    anything finished before ~10am AEST on the previous date. */
-function doneLabel(iso: string, today: string): string {
+export function doneLabel(iso: string, today: string): string {
   const day = auDayOf(iso);
   return day === today ? "Done today" : `Done ${fmtAuDayMonth(day)}`;
 }
+
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 export function HomeTasks({
   today,
@@ -151,6 +88,9 @@ export function HomeTasks({
   viewerStaffId,
   canManage,
   assignable,
+  journal = [],
+  tz = null,
+  onOpenEntry,
   focusTaskId = null,
   onFocusHandled,
 }: {
@@ -162,28 +102,52 @@ export function HomeTasks({
   viewerStaffId: string | null;
   canManage: boolean;
   assignable: { id: string; name: string }[];
-  /** A task named by a journal chip: scroll to it and mark it, once. */
+  /** The diary, already loaded — where a task's words are found. */
+  journal?: JournalEntry[];
+  /** The workspace's zone, for reading a reminder's clock time. */
+  tz?: string | null;
+  /** Given by Home: switches to the Diary face on that entry. */
+  onOpenEntry?: (id: string) => void;
+  /** A task named by a diary door: choose it, scroll to it and mark it, once. */
   focusTaskId?: string | null;
   onFocusHandled?: () => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState(false);
   const [open, setOpen] = useState(false);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
   /* Which focus request has already burned out. The mark itself is DERIVED
-     from that below rather than stored: a row is marked because the chip
-     named it and its moment hasn't passed, which is a fact about the props,
-     not a second copy of them. */
+     from that rather than stored: a row is marked because a door named it
+     and its moment hasn't passed. */
   const [spentFocus, setSpentFocus] = useState<string | null>(null);
+  const [seenFocus, setSeenFocus] = useState<string | null>(null);
 
   const [assignedTo, setAssignedTo] = useState(assignable[0]?.id ?? "");
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
   const [dueDate, setDueDate] = useState("");
 
-  // the team lane is everyone else's open work — yours already has a lane
+  /* ARRIVING FROM A DIARY DOOR chooses the row it named. Answered in render
+     (the sanctioned adjust-during-render idiom) rather than in an effect, so
+     the pane shows the right task in the same paint as the face. */
+  if (focusTaskId && focusTaskId !== seenFocus) {
+    setSeenFocus(focusTaskId);
+    setSelId(focusTaskId);
+    setConfirm(false);
+  }
+
+  // the team's open work is everyone else's — yours is already in `mine`
   const others = (team ?? []).filter((t) => t.assigneeId !== viewerStaffId);
+  const past = (t: DashTask) => t.dueDate !== null && t.dueDate < today;
+  const openAll = sortTasks([...mine, ...others]);
+  const overdue = openAll.filter(past);
+  const openRows = openAll.filter((t) => !past(t));
+  /* Yours first (they reverse), then what came back to you. */
+  const doneRows = [...done, ...reported];
+  const all = [...overdue, ...openRows, ...doneRows];
+  const sel = all.find((t) => t.id === selId) ?? all[0] ?? null;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) => {
     setError(null);
@@ -200,20 +164,12 @@ export function HomeTasks({
   const markDone = (id: string) => run(() => completeTask(id));
   const undo = (id: string) => run(() => reopenTask(id));
 
-  /* ARRIVING FROM A JOURNAL CHIP. The panel was just revealed, so the row is
-     somewhere in a list the reader has never scrolled — bring it to the middle
-     and mark it for a moment, then hand the focus back so pressing the same
-     chip a second time works.
-
-     The row is found in the DOM rather than through a ref map: which of the
-     four lanes holds it (yours, the team's, recently done, reported) is the
-     server's answer, not this component's, and a query by `data-task-id`
-     doesn't care. A task that is on none of them — someone else's, older than
-     the done window — simply isn't found, and the tab switch is the whole
-     journey. `scrollIntoView` is optional-called: jsdom has no layout and does
-     not implement it. */
+  /* THE FLASH. The face was just revealed, so the row is somewhere in a list
+     the reader has never scrolled — bring it to the middle and mark it for a
+     moment, then hand the focus back so pressing the same door a second
+     time works. The row is found in the DOM by `data-task-id`: which group
+     holds it is the server's answer, not this component's. */
   const flashId = focusTaskId && focusTaskId !== spentFocus ? focusTaskId : null;
-
   useEffect(() => {
     if (!focusTaskId) return;
     const row = document.querySelector<HTMLElement>(`[data-task-id="${focusTaskId}"]`);
@@ -222,32 +178,34 @@ export function HomeTasks({
       setSpentFocus(focusTaskId);
       onFocusHandled?.();
     }, 1800);
-    /* The reset belongs here, not in the timeout: `onFocusHandled` sends the
-       chip's id back to null, and pressing the SAME chip a second time must
-       mark the row again — which it can't if this component still remembers
-       that id as spent. */
     return () => {
       clearTimeout(t);
       setSpentFocus(null);
     };
   }, [focusTaskId, onFocusHandled]);
 
-  /* Who gets the ✕ mirrors deleteTask's own rule: the creator, or a manager.
+  /* Who may delete mirrors deleteTask's own rule: the creator, or a manager.
      The action re-decides regardless. Guarded on viewerStaffId so a viewer
      with no staff record never reads an ownerless task (createdBy null) as
      theirs — null === null must not grant the control. */
-  const delFor = (t: DashTask) =>
-    canManage || (!!viewerStaffId && t.createdBy === viewerStaffId)
-      ? {
-          confirming: confirmId === t.id,
-          ask: () => setConfirmId(t.id),
-          go: () => run(() => deleteTask(t.id), () => setConfirmId(null)),
-          keep: () => setConfirmId(null),
-        }
-      : undefined;
+  const mayDelete = (t: DashTask) =>
+    canManage || (!!viewerStaffId && t.createdBy === viewerStaffId);
+  /* The assignee alone may finish, reopen and move it; the creator too. */
+  const isOwn = (t: DashTask) =>
+    !!viewerStaffId && (t.assigneeId === viewerStaffId || t.createdBy === viewerStaffId);
+  const who = (t: DashTask) => (t.assigneeId === viewerStaffId ? "You" : t.assigneeName);
+  /* Someone else's completion of work you handed out: no control, a tick. */
+  const isReported = (t: DashTask) => reported.some((r) => r.id === t.id);
+
   const assign = () =>
     run(
-      () => createTask({ assignedTo, title, detail: detail || undefined, dueDate: dueDate || undefined }),
+      () =>
+        createTask({
+          assignedTo,
+          title,
+          detail: detail || undefined,
+          dueDate: dueDate || undefined,
+        }),
       () => {
         setTitle("");
         setDetail("");
@@ -256,169 +214,317 @@ export function HomeTasks({
       },
     );
 
-  const hasSide = others.length > 0 || reported.length > 0 || done.length > 0;
+  const select = (id: string) => {
+    setSelId(id);
+    setConfirm(false);
+  };
+
+  /* One line under a title: who, and when — a label and a value, in words. */
+  const meta = (t: DashTask) => {
+    if (t.status === "done") {
+      const by = isReported(t) ? (t.doneByName ?? t.assigneeName) : who(t);
+      return (
+        <>
+          {by},{" "}
+          <span className="ok">{t.doneAt ? lower(doneLabel(t.doneAt, today)) : "done"}</span>
+        </>
+      );
+    }
+    if (past(t)) {
+      const late = -daysUntil(t.dueDate!, today);
+      return (
+        <>
+          {who(t)},{" "}
+          <span className="bad">
+            due {fmtAuDayMonth(t.dueDate)}, {late} {late === 1 ? "day" : "days"} late
+          </span>
+        </>
+      );
+    }
+    const due = dueLabel(t.dueDate, today);
+    if (!due) return <>{who(t)}, no due date</>;
+    return (
+      <>
+        {who(t)},{" "}
+        <span className={due.state === "warn" ? "warn" : undefined}>{lower(due.label)}</span>
+      </>
+    );
+  };
+
+  const groups: [string, DashTask[]][] = [
+    ["Overdue", overdue],
+    ["Open", openRows],
+    ["Done", doneRows],
+  ];
+
+  const src = sel ? entryForTask(journal, sel.id) : null;
+  const remind = sel?.remindAt ? zonedParts(sel.remindAt, tz) : null;
 
   return (
     <>
-      {error && <div className="tp-err">{error}</div>}
-
-      {canManage && (
-        <div className="hm-panelbar">
-          <button className="hm-link" type="button" disabled={pending} onClick={() => setOpen((v) => !v)}>
-            <Icon name="plus" size={13} />
-            Assign a task
-          </button>
-        </div>
-      )}
-
-      {canManage && open && (
-        <div className="lv-form">
-          <div className="lv-frow">
-            <label className="mts-f">
-              <span>Assign to</span>
-              <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
-                {assignable.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="mts-f" style={{ flex: 2 }}>
-              <span>Task</span>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Renew the WHS induction"
-              />
-            </label>
-            <label className="mts-f">
-              <span>Due (optional)</span>
-              <DateField
-                value={dueDate || null}
-                today={today}
-                clearable
-                placeholder="No date"
-                onChange={(iso) => setDueDate(iso ?? "")}
-              />
-            </label>
+      <div className="hm-list">
+        <div className="hm-lhead">
+          <div className="hm-lt">
+            <h2>Tasks</h2>
+            <span className="hm-lc">
+              {overdue.length + openRows.length} open, {doneRows.length} done
+            </span>
           </div>
-          <div className="lv-fnote">
-            <label className="mts-f" style={{ flex: 1 }}>
-              <span>Detail (optional)</span>
-              <input
-                value={detail}
-                onChange={(e) => setDetail(e.target.value)}
-                placeholder="Anything they need to know"
-              />
-            </label>
-          </div>
-          <div className="lv-fmeta">
-            <span />
-            <div className="mts-facts">
-              <button
-                className="fl-btn primary"
-                disabled={pending || !title.trim() || !assignedTo}
-                onClick={assign}
-              >
-                <Icon name="send" size={14} />
-                Assign
-              </button>
-              <button className="fl-btn ghost" onClick={() => setOpen(false)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={"wb2-urbody" + (hasSide ? " twocol" : "")}>
-        <div className="wb2-urqueue">
-          <div className="wb2-sect">Yours</div>
-          {mine.length === 0 ? (
-            <p className="hm-none">Nothing assigned to you right now.</p>
-          ) : (
-            <div className="wb2-tasks">
-              {mine.map((t) => (
-                <Tick
-                  key={t.id}
-                  task={t}
-                  today={today}
-                  onDone={markDone}
-                  pending={pending}
-                  del={delFor(t)}
-                  flash={flashId === t.id}
-                />
-              ))}
-            </div>
+          <NoteToken as="entry" placeholder="Add a task…" />
+          {canManage && (
+            <button
+              className="hm-link"
+              type="button"
+              disabled={pending}
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+            >
+              Assign a task
+            </button>
           )}
         </div>
 
-        {hasSide && (
-          <div className="wb2-urside">
-            {others.length > 0 && (
-              <>
-                <div className="wb2-sect">Across the team</div>
-                <div className="wb2-tasks">
-                  {others.map((t) => (
-                    <Tick
-                      key={t.id}
-                      task={t}
-                      today={today}
-                      who={t.assigneeName}
-                      onDone={markDone}
-                      pending={pending}
-                      del={delFor(t)}
-                      flash={flashId === t.id}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+        {error && <div className="tp-err">{error}</div>}
 
-            {/* Work you handed out, reported back when it's finished. Only ever
-                someone else's completion — you don't need telling about your own. */}
-            {reported.length > 0 && (
-              <>
-                <div className="wb2-sect">Completed for you</div>
-                <div className="wb2-tasks">
-                  {reported.map((t) => (
-                    <DoneRow
-                      key={t.id}
-                      id={t.id}
-                      flash={flashId === t.id}
-                      title={t.title}
-                      detail={`${t.doneByName ?? t.assigneeName}${
-                        t.doneAt ? `, ${doneLabel(t.doneAt, today).toLowerCase()}` : ""
-                      }`}
-                    />
+        {canManage && open && (
+          <div className="lv-form hm-assign">
+            <div className="lv-frow">
+              <label className="mts-f">
+                <span>Assign to</span>
+                <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+                  {assignable.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
                   ))}
-                </div>
-              </>
-            )}
-
-            {/* Finishing something shouldn't make it vanish without trace — and
-                a tap on the tick is easy to make by accident, so it reverses. */}
-            {done.length > 0 && (
-              <>
-                <div className="wb2-sect">Recently done</div>
-                <div className="wb2-tasks">
-                  {done.map((t) => (
-                    <DoneRow
-                      key={t.id}
-                      id={t.id}
-                      flash={flashId === t.id}
-                      title={t.title}
-                      detail={t.doneAt ? doneLabel(t.doneAt, today) : ""}
-                      undo={() => undo(t.id)}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+                </select>
+              </label>
+              <label className="mts-f" style={{ flex: 2 }}>
+                <span>Task</span>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Renew the WHS induction"
+                />
+              </label>
+              <label className="mts-f">
+                <span>Due (optional)</span>
+                <DateField
+                  value={dueDate || null}
+                  today={today}
+                  clearable
+                  placeholder="No date"
+                  onChange={(iso) => setDueDate(iso ?? "")}
+                />
+              </label>
+            </div>
+            <div className="lv-fnote">
+              <label className="mts-f" style={{ flex: 1 }}>
+                <span>Detail (optional)</span>
+                <input
+                  value={detail}
+                  onChange={(e) => setDetail(e.target.value)}
+                  placeholder="Anything they need to know"
+                />
+              </label>
+            </div>
+            <div className="lv-fmeta">
+              <span />
+              <div className="mts-facts">
+                <button
+                  className="fl-btn primary"
+                  disabled={pending || !title.trim() || !assignedTo}
+                  onClick={assign}
+                >
+                  <Icon name="send" size={14} />
+                  Assign
+                </button>
+                <button className="fl-btn ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         )}
+
+        {all.length === 0 ? (
+          <p className="hm-none">Nothing assigned to you right now.</p>
+        ) : (
+          <ul className="hm-rows" aria-label="Tasks">
+            {groups
+              .filter(([, ts]) => ts.length > 0)
+              .map(([label, ts]) => (
+                <li key={label} className="hm-tgroup">
+                  <div className="hm-tgrp">
+                    <span>{label}</span>
+                    <span>{ts.length}</span>
+                  </div>
+                  <ul>
+                    {ts.map((t) => {
+                      const on = sel?.id === t.id;
+                      const isDone = t.status === "done";
+                      return (
+                        <li
+                          key={t.id}
+                          className={
+                            "hm-trow" +
+                            (on ? " on" : "") +
+                            (isDone ? " done" : "") +
+                            (flashId === t.id ? " hm-tkfl" : "")
+                          }
+                          data-task-id={t.id}
+                        >
+                          {isReported(t) ? (
+                            <span className="hm-tick" aria-hidden="true">
+                              <Icon name="check" size={12} />
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className={"hm-cb" + (isDone ? " on" : "")}
+                              aria-label={isDone ? `Reopen "${t.title}"` : `Mark "${t.title}" done`}
+                              disabled={pending}
+                              onClick={() => {
+                                select(t.id);
+                                if (isDone) undo(t.id);
+                                else markDone(t.id);
+                              }}
+                            >
+                              {isDone ? <Icon name="check" size={12} /> : null}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="hm-tsel"
+                            aria-current={on ? "true" : undefined}
+                            onClick={() => select(t.id)}
+                          >
+                            <span className="hm-tt">{t.title}</span>
+                            <span className="hm-tm">{meta(t)}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              ))}
+          </ul>
+        )}
       </div>
+
+      <article className="hm-read" aria-label="The task">
+        {sel && (
+          <>
+            <p className="hm-said">{sel.title}</p>
+            {/* THE STATE IS A WORD IN ITS COLOUR, under the title (laws 10 and
+                26): red for past its date, amber for closing in, green for
+                done. Where the task came from follows in the same line. */}
+            <p className="hm-when">
+              {sel.status === "done" ? (
+                <b className="ok">{sel.doneAt ? doneLabel(sel.doneAt, today) : "Done"}.</b>
+              ) : past(sel) ? (
+                <b className="bad">
+                  Overdue, {-daysUntil(sel.dueDate!, today)}{" "}
+                  {-daysUntil(sel.dueDate!, today) === 1 ? "day" : "days"} late.
+                </b>
+              ) : dueLabel(sel.dueDate, today) ? (
+                <b className={dueLabel(sel.dueDate, today)!.state === "warn" ? "warn" : undefined}>
+                  {dueLabel(sel.dueDate, today)!.label}.
+                </b>
+              ) : (
+                <b>Open.</b>
+              )}
+              {src && <> Task from your {fmtAuWeekdayDayMonth(src.day)} note.</>}
+              {sel.detail && <> {sel.detail}</>}
+            </p>
+
+            <dl className="hm-facts">
+              <div>
+                <dt>Assigned to</dt>
+                <dd>{who(sel)}</dd>
+              </div>
+              <div>
+                <dt>Due</dt>
+                <dd className={sel.dueDate ? (past(sel) ? "bad" : undefined) : "unset"}>
+                  {sel.dueDate ? fmtAuDayMonth(sel.dueDate) : "Not set"}
+                </dd>
+              </div>
+              {remind && (
+                <div>
+                  <dt>Time</dt>
+                  <dd>
+                    {sel.remindKind === "by" ? "by" : "at"} {clockLabel(remind.min)}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            {src && (
+              <div className="hm-group">
+                <span className="hm-gl">From the diary</span>
+                <p className="hm-quote">{src.said}</p>
+                <span className="hm-qm">
+                  <span>
+                    {fmtAuWeekdayDayMonth(src.day)}, {src.at}
+                  </span>
+                  {onOpenEntry && (
+                    <button type="button" className="hm-link" onClick={() => onOpenEntry(src.id)}>
+                      Open in diary
+                    </button>
+                  )}
+                </span>
+              </div>
+            )}
+
+            <div className="hm-acts">
+              {!isReported(sel) && (isOwn(sel) || canManage) && (
+                <button
+                  className="hm-btn primary"
+                  type="button"
+                  disabled={pending}
+                  onClick={() => (sel.status === "done" ? undo(sel.id) : markDone(sel.id))}
+                >
+                  {sel.status === "done" ? "Reopen" : "Mark done"}
+                </button>
+              )}
+              {sel.status !== "done" && (isOwn(sel) || canManage) && (
+                /* THE DATE IS THE CONTROL. "Move due date" opened a picker
+                   in the handoff; here the picker IS the button, reading the
+                   date it holds or "Set due date" when there is none, and
+                   Clear takes the date off. A reminder rides with the date —
+                   see setTaskDue. */
+                <DateField
+                  value={sel.dueDate}
+                  today={today}
+                  clearable
+                  placeholder="Set due date"
+                  aria-label="Due date"
+                  disabled={pending}
+                  onChange={(iso) => run(() => setTaskDue(sel.id, iso))}
+                />
+              )}
+              {mayDelete(sel) &&
+                (confirm ? (
+                  <Confirm
+                    pending={pending}
+                    onGo={() => run(() => deleteTask(sel.id), () => setConfirm(false))}
+                    onKeep={() => setConfirm(false)}
+                  />
+                ) : (
+                  <button
+                    className="hm-btn text del"
+                    type="button"
+                    disabled={pending}
+                    aria-label={`Delete "${sel.title}"`}
+                    onClick={() => setConfirm(true)}
+                  >
+                    Delete task
+                  </button>
+                ))}
+            </div>
+          </>
+        )}
+      </article>
     </>
   );
 }

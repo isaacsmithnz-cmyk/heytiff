@@ -4,25 +4,25 @@ import type { StaffProfile } from "@/lib/staff/profile";
 import { ProfileScreen } from "../profile-screen";
 import { TODAY, blankProfile, header, jordan, okActions } from "./fixtures/staff";
 
-/* "What's still missing" — the strip in the breadcrumb row and the tabs' count
-   badges.
+/* "What's still missing" — the completion line in Summary's identity row, the
+   Adds beside its blanks, and the tabs' count badges.
 
-   Both read lib/staff/completeness, so the point of these is the WIRING: that
-   the count on screen matches the badges beside it, and that the one button
-   left still lands you in the right form.
+   All three read lib/staff/completeness, so the point of these is the WIRING:
+   that the count on screen matches the badges beside it, and that an Add lands
+   you in the right form.
 
-   WHAT WENT. The strip used to be a banner inside the card with a seven-item
-   checklist under it, and each item was a button into its section. Every one
-   of those items named a field the Summary panels already show as a dash, and
-   the tab badges already say which section owns it — so the list is gone and
-   the two things that replaced it are what these tests hold. */
+   WHAT WENT. The strip in the breadcrumb row — a ring, "82% complete", a line
+   and one button that opened the first missing field's form. Each blank on
+   Summary is that button now, for its own field, and the line moved into the
+   identity row where the person is. It renders on Summary only: the tabs'
+   counts carry the gaps to the other tabs. */
 
-function setup(profile: StaffProfile | null = jordan) {
+function setup(profile: StaffProfile | null = jordan, photoUrl?: string) {
   const actions = okActions();
   const view = render(
     <ProfileScreen
       mode="self"
-      header={header}
+      header={photoUrl ? { ...header, photoUrl } : header}
       profile={profile}
       licences={[]}
       vehicle={null}
@@ -44,42 +44,60 @@ const done: StaffProfile = {
 
 /* A section is in edit mode when its Save is on screen: the section head
    renders Edit OR the Cancel/Save pair, never both, so the button set is the
-   mode. (It used to be the `readonly` class on a `.card2` frame — the frame
-   went when the tab became the section's title.) */
+   mode. */
 const isEditing = () => screen.queryByRole("button", { name: /^Save\b/ }) !== null;
 
 const countOn = (name: RegExp) =>
   screen.getByRole("tab", { name }).querySelector(".wb2-vtn")?.textContent ?? null;
 
-describe("the completion strip", () => {
-  it("counts what is missing and names the required ones", () => {
+const line = () => document.querySelector(".pcompl") as HTMLElement;
+
+describe("the completion line", () => {
+  it("counts what is on file and names the required gaps, in the warn colour", () => {
     setup(blankProfile);
-    expect(screen.getByText("0% complete")).toBeInTheDocument();
-    expect(screen.getByText("11 of 11 fields missing, 7 required")).toBeInTheDocument();
+    expect(line()).toHaveTextContent("7 required details missing");
+    expect(line()).toHaveTextContent("0 of 11 on file");
+    expect(line().querySelector("b")).toHaveClass("warn");
+    expect(line().querySelector(".pprog i")).toHaveClass("warn");
   });
 
-  it("draws the ring to the same percentage it prints", () => {
-    const { container } = setup(jordan);
-    // two short of the eleven — work rights and the photo
-    expect(screen.getByText("82% complete")).toBeInTheDocument();
-    expect(container.querySelector(".pring .v")).toHaveAttribute("stroke-dasharray", "82 100");
+  it("draws the bar to the same proportion it counts", () => {
+    setup(jordan);
+    // nine of the eleven — work rights and the photo are the two short
+    expect(line()).toHaveTextContent("9 of 11 on file");
+    expect(line().querySelector(".pprog i")).toHaveStyle({ width: "82%" });
   });
 
-  it("gives the row back once there is nothing left to ask for", () => {
+  /* Work rights is the one required detail jordan lacks; the photo is wanted.
+     One required gap is a warn state; a card short of only wanted details is
+     cleared, and the bar goes to the OK colour with no word beside it. */
+  it("clears — the OK bar, no word — once every required detail is in", () => {
+    setup({ ...jordan, work_rights_status: "Australian citizen" });
+    expect(line()).toHaveTextContent("10 of 11 on file");
+    expect(line().querySelector("b")).toBeNull();
+    expect(line().querySelector(".pprog i")).toHaveClass("ok");
+  });
+
+  it("says the card is complete, in the OK colour, when nothing is left to ask for", () => {
     setup(done);
-    expect(screen.queryByText(/% complete/)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /Fill in missing details/ })
-    ).not.toBeInTheDocument();
+    expect(line()).toHaveTextContent("Profile complete");
+    expect(line().querySelector("b")).toHaveClass("ok");
+    expect(line()).toHaveTextContent("11 of 11 on file");
   });
 
-  /* It sits in the breadcrumb row, not in the card, so it is on screen from
-     every tab — you can be standing in a section and still see the total. */
-  it("stays on screen when you leave Summary", async () => {
+  it("singular when one is missing", () => {
+    setup(jordan);
+    expect(line()).toHaveTextContent("1 required detail missing");
+  });
+
+  /* Summary's row, not the breadcrumb's: on the other tabs the count badge is
+     what says the card is short. */
+  it("lives on Summary, and the tabs' counts carry the gaps elsewhere", async () => {
     const user = userEvent.setup();
     setup(jordan);
     await user.click(screen.getByRole("tab", { name: /Emergency/ }));
-    expect(screen.getByText("82% complete")).toBeInTheDocument();
+    expect(document.querySelector(".pcompl")).toBeNull();
+    expect(countOn(/Work rights/)).toBe("1");
   });
 });
 
@@ -90,23 +108,23 @@ describe("the tabs' counts", () => {
     expect(countOn(/Personal/)).toBeNull();
   });
 
-  /* The badge is a COUNT, and it is the only thing left saying which section
-     is short — a flag would under-report a blank Personal by six. */
+  /* The badge is a COUNT, and it is what says which section is short from any
+     tab — a flag would under-report a blank Personal by six. */
   it("says how many, not just that some are missing", () => {
     setup(blankProfile);
     expect(countOn(/Personal/)).toBe("7");
     expect(countOn(/Emergency/)).toBe("2");
     expect(countOn(/Work rights/)).toBe("1");
     // Summary counts too: the photo is a field, and the camera badge on the
-    // identity block is where you answer it
+    // identity row is where you answer it
     expect(countOn(/Summary/)).toBe("1");
   });
 
-  it("agrees with the strip — the badges sum to what the strip counts", () => {
+  it("agrees with the line — the badges sum to what the line counts", () => {
     const { container } = setup(blankProfile);
     const badges = [...container.querySelectorAll(".wb2-vtn")].map((b) => Number(b.textContent));
     expect(badges.reduce((a, b) => a + b, 0)).toBe(11);
-    expect(screen.getByText("11 of 11 fields missing, 7 required")).toBeInTheDocument();
+    expect(line()).toHaveTextContent("0 of 11 on file");
   });
 
   it("drops every badge when the card is finished", () => {
@@ -115,29 +133,29 @@ describe("the tabs' counts", () => {
   });
 });
 
-describe("answering the strip", () => {
-  it("goes to the first missing field's section and opens its form", async () => {
+describe("answering a blank", () => {
+  it("goes to the field's section and opens its form", async () => {
     const user = userEvent.setup();
     setup(blankProfile);
 
-    await user.click(screen.getByRole("button", { name: /Fill in missing details/ }));
+    await user.click(screen.getByRole("button", { name: "Add Date of birth" }));
 
-    // First name is the first missing field, and it lives in Personal
     expect(screen.getByRole("tab", { name: /Personal/ })).toHaveClass("on");
     expect(isEditing()).toBe(true);
-    expect(screen.getByLabelText(/First name/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Date of birth/)).toBeInTheDocument();
   });
 
   it("opens the form again when the same section is asked for twice", async () => {
     const user = userEvent.setup();
     setup(blankProfile);
-    const ask = () => screen.getByRole("button", { name: /Fill in missing details/ });
+    const ask = () => screen.getByRole("button", { name: "Add Date of birth" });
 
     await user.click(ask());
     await user.click(screen.getByRole("button", { name: /^Cancel$/ }));
     expect(isEditing()).toBe(false);
 
-    // the nonce moved, so the very same request lands a second time
+    // back to Summary, and the very same request lands a second time
+    await user.click(screen.getByRole("tab", { name: /Summary/ }));
     await user.click(ask());
     expect(isEditing()).toBe(true);
   });
@@ -146,25 +164,26 @@ describe("answering the strip", () => {
     const user = userEvent.setup();
     setup(blankProfile);
 
-    await user.click(screen.getByRole("button", { name: /Fill in missing details/ }));
+    await user.click(screen.getByRole("button", { name: "Add Date of birth" }));
     await user.click(screen.getByRole("tab", { name: /Emergency/ }));
 
     expect(isEditing()).toBe(false);
   });
 
-  /* Summary is the one section the strip can name that has no form to open —
-     the photo's control is the camera badge, already on screen. Asking for it
-     must land you there WITHOUT trying to open an edit cycle that isn't there. */
-  it("lands on Summary without an edit cycle when the photo is what's missing", async () => {
-    const user = userEvent.setup();
-    // everything but the photo
-    setup({ ...jordan, work_rights_status: "Australian citizen" });
-
-    await user.click(screen.getByRole("button", { name: /Fill in missing details/ }));
-
-    expect(screen.getByRole("tab", { name: /Summary/ })).toHaveClass("on");
-    expect(isEditing()).toBe(false);
+  /* The photo is the one blank on Summary with no Add beside it: the camera
+     badge is its Add, and it is on screen — not waiting for a hover — while
+     there is no photo. */
+  it("keeps the camera badge up while the photo is the blank", () => {
+    const { container } = setup({ ...jordan, work_rights_status: "Australian citizen" });
+    expect(container.querySelector(".pphoto")).toHaveClass("nophoto");
     expect(screen.getByRole("button", { name: /Add a photo/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Summary/ }).querySelector(".wb2-vtn")).toHaveTextContent("1");
+  });
+
+  it("lets the badge go back behind the hover once there is a photo", () => {
+    // the badge reads the header's signed URL, not the profile's storage ref
+    const { container } = setup(done, "https://storage.example/signed/doc-1.jpg");
+    expect(container.querySelector(".pphoto")).not.toHaveClass("nophoto");
   });
 });
 
@@ -183,12 +202,13 @@ describe("a blank value", () => {
     expect(screen.getByLabelText(/Mobile/)).toHaveValue("");
   });
 
-  /* Summary is read-only, so the same blank reads as a dash there. A button in
-     a panel nobody can edit from would be an affordance that lies. */
-  it("is a dash on Summary, where there is nothing to click", () => {
+  /* And on Summary the same blank is the same Add — into the same form. */
+  it("is the same Add on Summary, landing in the same form", async () => {
+    const user = userEvent.setup();
     setup({ ...jordan, phone: null });
-    expect(screen.queryByRole("button", { name: /Add Mobile/ })).not.toBeInTheDocument();
-    expect(screen.getAllByLabelText("not recorded").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: /Add Mobile/ }));
+    expect(screen.getByRole("tab", { name: /Personal/ })).toHaveClass("on");
+    expect(screen.getByLabelText(/Mobile/)).toHaveValue("");
   });
 
   it("does not offer to edit what this card cannot write", async () => {

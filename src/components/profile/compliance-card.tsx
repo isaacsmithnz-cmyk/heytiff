@@ -47,6 +47,7 @@ export function ComplianceCard({
   onRecordTerm,
   onAttachDoc,
   onRemoveTerm,
+  startAdding = false,
 }: {
   licences: StaffLicence[];
   /** Whose card this is — the scan action and every write are scoped to it. */
@@ -71,9 +72,13 @@ export function ComplianceCard({
     details?: LicenceScanDetails,
   ) => Promise<SaveResult>;
   onRemoveTerm: (termId: string) => Promise<SaveResult>;
+  /** Open on the add modal. Summary's "Add a licence or ticket" asks for it
+      the way its other Adds ask a section for its form: the screen remounts
+      this tab with the flag, so it is state here, never an effect. */
+  startAdding?: boolean;
 }) {
   // null = closed. A row = opened on it; "new" = adding one.
-  const [open, setOpen] = useState<StaffLicence | "new" | null>(null);
+  const [open, setOpen] = useState<StaffLicence | "new" | null>(() => (startAdding ? "new" : null));
 
   const editing = open === "new" ? null : open;
   const openId = editing?.id ?? "";

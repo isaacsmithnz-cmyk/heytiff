@@ -1,12 +1,8 @@
 import type { StaffProfile } from "../profile";
-import {
-  PROFILE_FIELDS,
-  completenessSummary,
-  profileCompleteness,
-} from "../completeness";
+import { PROFILE_FIELDS, profileCompleteness } from "../completeness";
 
-/* The ring and the tabs' count badges both read this one model, so what it
-   counts is the whole contract. */
+/* Summary's completion line and Adds and the tabs' count badges all read
+   this one model, so what it counts is the whole contract. */
 
 const blank: StaffProfile = {
   id: "p1",
@@ -141,23 +137,5 @@ describe("sections needing attention", () => {
     expect(new Set(c.sectionCounts.keys())).toEqual(new Set(c.sectionsMissing));
     const summed = [...c.sectionCounts.values()].reduce((a, b) => a + b, 0);
     expect(summed).toBe(c.missing.length);
-  });
-});
-
-describe("the line under the ring", () => {
-  it("counts the fields and calls out the required ones", () => {
-    const c = profileCompleteness({ ...full, phone: null, birthday: null });
-    expect(completenessSummary(c)).toBe("2 of 11 fields missing, 1 required");
-  });
-
-  it("drops the required clause when none of the missing ones are", () => {
-    const c = profileCompleteness({ ...full, phone: null });
-    expect(completenessSummary(c)).toBe("1 of 11 fields missing");
-  });
-
-  it("says so plainly when there is nothing left", () => {
-    expect(completenessSummary(profileCompleteness(full))).toBe(
-      "Every field we ask for is filled in"
-    );
   });
 });

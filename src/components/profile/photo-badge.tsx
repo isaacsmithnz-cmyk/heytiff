@@ -88,7 +88,7 @@ export function PhotoBadge({
 
   return (
     <>
-      <div className={"pphoto" + (busy ? " busy" : "")}>
+      <div className={"pphoto" + (photoUrl ? "" : " nophoto") + (busy ? " busy" : "")}>
         {photoUrl ? (
           /* a signed storage URL, not a build-time asset — next/image would
              want the host allowlisted, as on the ID cards */

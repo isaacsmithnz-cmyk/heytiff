@@ -6,8 +6,7 @@ import Link from "next/link";
 import type { StaffProfile } from "@/lib/staff/profile";
 import type { StaffLicence } from "@/lib/staff/types";
 import type { MyPay } from "@/lib/staff/my-pay";
-import { profileCompleteness, type CompletenessSection } from "@/lib/staff/completeness";
-import { CompletionStrip } from "./completion-strip";
+import { profileCompleteness } from "@/lib/staff/completeness";
 import { ProfileTabs, type NavItem } from "./profile-tabs";
 import { SummaryTab } from "./summary-tab";
 import { PersonalCard } from "./personal-card";
@@ -36,9 +35,11 @@ import {
 
 /* The staff card — the maintenance board's surface, holding a person.
 
-   WHAT THIS SCREEN IS NOW. A breadcrumb with the completion strip at its end,
-   one row of tabs, and ONE persistent white card. Summary leads and reads;
-   every tab after it is a section you fill in. It borrows `.wb2-vtabs` /
+   WHAT THIS SCREEN IS NOW. A breadcrumb, one row of tabs, and ONE persistent
+   white card. Summary leads and reads — and, since the 2026-09-15 handoff,
+   is the checklist: its blanks are Adds into the sections' forms, and the
+   completion line sits in its identity row (see summary-tab). Every tab
+   after it is a section you fill in. It borrows `.wb2-vtabs` /
    `.wb2-card` from the board rather than growing a second copy — including the
    view transition below, so switching tabs swaps the information while the
    surface stays put.
@@ -198,17 +199,6 @@ export function ProfileScreen({
     document.querySelector(".outlet")?.scrollTo({ top: 0 });
   };
 
-  /* The strip only ever names a section that has a field in it. `summary` is
-     among them now (the photo lives there), and it is always available — but
-     route through `available` anyway so a future gate can't strand the button
-     on a tab that isn't there. */
-  const fix = (section: CompletenessSection) => {
-    if (!available.some((n) => n.key === section)) return;
-    // Summary has no form to open — the camera badge is the control, and it is
-    // already on screen the moment you arrive.
-    go(section, section !== "summary");
-  };
-
   const completeness = profileCompleteness(profile);
   // asked for THIS section, and only until you move off it
   const startEditing = editing?.section === active ? editing.nonce : 0;
@@ -232,8 +222,6 @@ export function ProfileScreen({
               </>
             )}
           </div>
-
-          <CompletionStrip completeness={completeness} onFix={fix} />
         </div>
 
         <div className="pcard2">
@@ -272,6 +260,7 @@ export function ProfileScreen({
                     orgState={orgState}
                     mode={mode}
                     actions={actions}
+                    completeness={completeness}
                     onGo={go}
                   />
                 )}
@@ -319,6 +308,7 @@ export function ProfileScreen({
                       onRecordTerm={actions.onRecordLicenceTerm}
                       onAttachDoc={actions.onAttachLicenceDoc}
                       onRemoveTerm={actions.onRemoveLicenceTerm}
+                      startAdding={startEditing > 0}
                     />
                     <QualificationsCard profile={profile} mode={mode} onSave={actions.onSave} />
                   </>

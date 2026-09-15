@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { PersonalCard } from "../personal-card";
 import { SummaryTab } from "../summary-tab";
 import type { StaffProfile } from "@/lib/staff/profile";
+import { profileCompleteness } from "@/lib/staff/completeness";
 import { TODAY, header, jordan, okActions } from "./fixtures/staff";
 
 /* Uniform sizes, on the card and on Summary.
@@ -203,19 +204,20 @@ describe("on Summary", () => {
         orgState="NSW"
         mode="admin"
         actions={okActions()}
+        completeness={profileCompleteness(profile)}
         onGo={jest.fn()}
       />
     );
 
   it("answers in one labelled line, under Personal", () => {
     summary();
-    const row = screen.getByText("Uniform").closest(".pdrow") as HTMLElement;
+    const row = screen.getByText("Uniform").closest(".psum-c") as HTMLElement;
     expect(row.textContent).toBe("UniformShirt L, Jacket XL, Trousers 92, Boots 10.5 AU/UK");
   });
 
   it("shows the dash when we hold no sizes — nothing to order from", () => {
     summary(jordan);
-    const row = screen.getByText("Uniform").closest(".pdrow") as HTMLElement;
+    const row = screen.getByText("Uniform").closest(".psum-c") as HTMLElement;
     expect(within(row).getByLabelText("not recorded")).toBeInTheDocument();
   });
 });

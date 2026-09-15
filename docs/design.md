@@ -63,6 +63,23 @@ Every decision below is made once, here, and a guard test holds each number.
   opens the job card the Schedule tab opens, over Home, on the same row and
   wearing the same day-state; the card's agreement door lands on the board
   with the job open (`/dashboard/workboard?job=`), where the modal lives.
+- **The staff card's Summary is the checklist that fills itself in** (decided
+  2026-09-15, from the worker-profile handoff): the identity row carries the
+  person — name and status on one line, one sentence under them for the role
+  and the start, the plate as a door into Fleet — and, at its right, the
+  completion line: how many details are on file, a warn word and bar while a
+  required one is missing, the OK word and bar once the card is cleared. Three
+  groups follow, each a hairline top, a quiet label and a three-column grid of
+  facts, label over value. A blank the business is short of is an Add that
+  opens its section's form, with the word Required beside it where payroll or
+  the law needs the detail; a blank nobody is short of is a dash. The tickets
+  and the right to work are one row of tiles on the sunken card, the right to
+  work first and a required blank in the warn tint until it is set; every tile
+  is a door to the tab that manages it, and the state on each is a word in its
+  colour. Colour is state only, and kept where it means something ("keep colour
+  where it makes sense"): the completion line, the tiles' states, the status
+  dot. The completion strip left the breadcrumb row; the tabs' counts carry
+  the gaps to the other tabs.
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ keeps its night ground and its KPI tiles**, and takes everything else.

@@ -2,8 +2,9 @@ import type { StaffProfile } from "./profile";
 
 /* What is still missing from a staff card — one model, three consumers.
 
-   The ring, the checklist under it and the amber dot on a tab all have to
-   agree, so all three read THIS rather than each counting for themselves.
+   The completion line on Summary, the Adds beside its blanks and the count
+   on a tab all have to agree, so all three read THIS rather than each
+   counting for themselves.
 
    ONLY FIELDS THE SCREEN CAN ACTUALLY SET GET IN. A checklist item with no
    control behind it is a list that never empties — which is why preferred_name
@@ -101,11 +102,4 @@ export function profileCompleteness(profile: StaffProfile | null): Completeness 
     sectionCounts,
     complete: missing.length === 0,
   };
-}
-
-/** "6 of 10 fields missing · 2 required" — the line under the ring. */
-export function completenessSummary(c: Completeness): string {
-  if (c.complete) return "Every field we ask for is filled in";
-  const fields = `${c.missing.length} of ${c.total} field${c.total === 1 ? "" : "s"} missing`;
-  return c.requiredMissing > 0 ? `${fields}, ${c.requiredMissing} required` : fields;
 }

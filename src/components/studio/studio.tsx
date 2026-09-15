@@ -111,6 +111,8 @@ import {
   type StudioJobHit,
 } from "@/lib/studio/job-link";
 import type { DataPack, IndoorUnit } from "@/lib/studio/packs/schema";
+import type { LibraryManifest } from "@/lib/studio/packs/library";
+import { LibraryDoor } from "./library-modal";
 import "./studio.css";
 
 /* The sim flag never changes after load, so there is nothing to subscribe to —
@@ -148,6 +150,9 @@ const TABS = [
 ] as const;
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
+
+/** how many of the recent designs the start screen shows */
+const RECENT_CAP = 5;
 
 /* screen-swap timings — see throughSwap(). Must stay in step with the .2s
    exit transitions on `.dstudio.swapping .ds-home-stack` in studio.css: the
@@ -198,6 +203,7 @@ export function Studio({
   openDesignId,
   buildStamp,
   brand: servedBrand,
+  library,
 }: {
   store?: DesignStore;
   planImages?: PlanImages;
@@ -220,6 +226,11 @@ export function Studio({
       paint already carries its frame. Absent (the tests), the hook asks for
       it itself. */
   brand?: OrgBrand;
+  /** What the studio can design with — brand, system, series, model — READ
+      ON THE SERVER by the route (packs/library.ts). Home lists it and says
+      what arrived since this browser last looked. Absent (the tests, the
+      harness), Home has no library door at all. */
+  library?: LibraryManifest;
 }) {
   // the store is browser-only; create it lazily so SSR prerender never touches
   // it. Server rows are the source of truth; localStorage is the crash buffer.
@@ -705,6 +716,7 @@ export function Studio({
             sm8Jobs={sm8Jobs}
             jobSearch={jobSearch}
             openFailed={openFailed}
+            library={library}
             onCreate={(name, mode, job) =>
               throughSwap(async () => {
                 const d = createDesign({
@@ -756,6 +768,7 @@ function Home({
   sm8Jobs,
   jobSearch,
   openFailed,
+  library,
   onCreate,
   onOpen,
   onDelete,
@@ -763,6 +776,8 @@ function Home({
 }: {
   /** null while the list is still being fetched — see the three states below */
   recents: DesignSummary[] | null;
+  /** the library's door, top right; absent, no door */
+  library?: LibraryManifest;
   /** arrive with the new-design wizard already open (menu → New) */
   autoNew?: boolean;
   /** offer "start from a ServiceM8 job" on the naming step */
@@ -816,9 +831,16 @@ function Home({
 
   const loading = recents === null;
   const known = recents ?? [];
-  const visible = known.filter((r) =>
+  const matches = known.filter((r) =>
     r.name.toLowerCase().includes(query.trim().toLowerCase())
   );
+  /* THE FIVE MOST RECENT, not the archive: the list is newest first from the
+     store, and a card of everything ever drawn pushed the screen down by a
+     row per job (Isaac, 2026-09-15). Search still reaches the rest — it
+     narrows first and then takes the top five — and the line under the
+     list says how many more there are, so nothing reads as lost. */
+  const visible = matches.slice(0, RECENT_CAP);
+  const beyond = matches.length - visible.length;
 
   const trimmed = name.trim();
   const cancel = () => {
@@ -854,6 +876,9 @@ function Home({
           fade and kept things moving for ~600ms after the swap had landed. The
           fade is the transition now. */}
       <div className="ds-home-stack">
+        {/* top right, level with the title: "Library, updated …", and the
+            word New when something has arrived — the dialog is behind it */}
+        {library && <LibraryDoor library={library} />}
         <section className="ds-hero">
           {step === "name" ? (
             <>
@@ -986,6 +1011,9 @@ function Home({
           )}
         </section>
 
+        {/* the side column, padded at the top to clear the library's door
+            when the Recent list is tall enough to sit against it */}
+        <div className="ds-home-side">
         <section className="ds-recent">
           <div className="ds-recent-head">
             <span className="ds-cardt">Recent designs</span>
@@ -1096,6 +1124,11 @@ function Home({
                   </button>
                 </div>
               ))}
+              {beyond > 0 && (
+                <div className="ds-rmore">
+                  {beyond} more {beyond === 1 ? "design" : "designs"}
+                </div>
+              )}
             </div>
           ) : (
             <div className="ds-rempty">
@@ -1110,6 +1143,7 @@ function Home({
             </div>
           )}
         </section>
+        </div>
       </div>
     </div>
   );

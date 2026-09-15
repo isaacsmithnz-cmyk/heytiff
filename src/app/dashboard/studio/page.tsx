@@ -4,7 +4,37 @@ import { can } from "@/lib/permissions-server";
 import { isProviderConnected } from "@/lib/integrations/store";
 import { orgBrand } from "@/lib/org/query";
 import { BRAND_TTL_S, NO_BRAND } from "@/lib/org/brand";
+import { installedPacks, type InstalledPackRef } from "@/lib/studio/packs/server";
+import { loadPackWithOverrides } from "@/lib/studio/packs/overrides-server";
+import { libraryManifest, type LibraryManifest } from "@/lib/studio/packs/library";
 import { Studio } from "@/components/studio/studio";
+
+/* THE LIBRARY COMES WITH THE PAGE. The start screen lists what the studio
+   can design with — brand, system, series, model — and says what arrived
+   since this browser last looked. Read here, on the server, off the same
+   disk and through the same override-aware loader the engine reads
+   (`loadStudioPack`), so the listing and the unit browser agree.
+
+   The newest installed version of each brand, as `latestInstalledPack`
+   resolves it ("2026.1"-style versions sort lexically). A pack that fails to
+   load is left out rather than taking the screen down: the home is for
+   designing, and the Data Library is where a broken pack is reported. */
+async function studioLibrary(): Promise<LibraryManifest> {
+  const latest = new Map<string, InstalledPackRef>();
+  for (const ref of await installedPacks()) {
+    const cur = latest.get(ref.brand);
+    if (!cur || ref.version.localeCompare(cur.version) > 0) latest.set(ref.brand, ref);
+  }
+  const results = await Promise.allSettled(
+    [...latest.values()].map(async (ref) => {
+      const { meta, pack } = await loadPackWithOverrides(ref.brand, ref.version);
+      return { meta, pack };
+    })
+  );
+  const packs = [];
+  for (const r of results) if (r.status === "fulfilled") packs.push(r.value);
+  return libraryManifest(packs);
+}
 
 // `studio` is on by default for every role but revocable — gate the route,
 // not just the nav entry.
@@ -38,11 +68,12 @@ export default async function StudioPage({
      Signed for the same window the client re-signs for (see useOrgBrand), and
      asked for only when there is a session to ask with — the redirect above
      has already turned away anyone without one. */
-  const [sm8Connected, boardAccess, params, brand] = await Promise.all([
+  const [sm8Connected, boardAccess, params, brand, library] = await Promise.all([
     orgId ? isProviderConnected(orgId, "servicem8") : Promise.resolve(false),
     can("workboard"),
     searchParams,
     orgId ? orgBrand(orgId, { seconds: BRAND_TTL_S }) : Promise.resolve(NO_BRAND),
+    studioLibrary(),
   ]);
 
   /* The id is a CHOICE handed in by whoever followed the link, so nothing
@@ -66,6 +97,7 @@ export default async function StudioPage({
       openDesignId={openDesignId}
       buildStamp={buildStamp}
       brand={brand}
+      library={library}
     />
   );
 }

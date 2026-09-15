@@ -149,9 +149,37 @@ html[data-ds-display] .dstudio.editing {
   transition: opacity var(--t-fast) var(--ease);
 }
 
+/* THE ENTRANCE. Arriving from another page, the route's fallback is the
+   dark alone (studio-hold.tsx) and the start screen rises into it — the
+   same travel it makes coming back from the editor, so the screen has one
+   way of arriving, and the cloud blooms out of the mark on top of it. Held
+   off while `.swapping` is on, because then Home mounts in its "away" state
+   and the swap's own transition carries it in; the animation starts when the
+   class drops, from the same place, so the two never fight. */
+@keyframes dsRise {
+  from {
+    transform: translateY(72px);
+    opacity: 0;
+  }
+}
+@keyframes dsRiseStill {
+  from {
+    opacity: 0;
+  }
+}
+.dstudio .ds-home-stack {
+  animation: dsRise var(--t-move) var(--ease);
+}
+.dstudio.swapping .ds-home-stack {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dstudio.swapping .ds-home-stack {
     transform: none; /* keep the fade, drop the travel */
+  }
+  .dstudio .ds-home-stack {
+    animation-name: dsRiseStill;
   }
 }
 
@@ -983,6 +1011,15 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
 }
+/* under the five: how many the cap hid, so a long list never reads as
+   lost — the search above reaches them */
+.dstudio .ds-rmore {
+  padding: 8px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.45);
+}
 .dstudio .ds-rempty {
   flex: 1;
   display: flex;
@@ -1010,6 +1047,159 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 600;
   color: #ff6b8a;
   margin-bottom: 8px;
+}
+
+/* ═════════════ Library ═════════════ */
+
+/* The side column, one grid child: Recent designs, and room above it for
+   the library's door when the list is tall enough to reach it. The stack
+   centres the column as a piece; the padding only matters when the column
+   is top-aligned, which is when it would otherwise sit under the door. */
+.dstudio .ds-home-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: calc(38px + 16px);
+}
+
+/* THE DOOR. Top right of the start screen, level with the stack's top
+   padding: "Library, updated 18 Aug 2026", and the word New when something
+   has arrived since this browser last looked. The wizard's small glass
+   (.ds-hero-back), so the screen has one small button. Absolute in the
+   stack, so it rises with the screen and stays put while the Recent column
+   centres itself. */
+.dstudio .ds-lib-door {
+  position: absolute;
+  top: 52px;
+  right: 60px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ds-night-line);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-lib-door:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+.dstudio .ds-lib-door:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.dstudio .ds-lib-door svg {
+  color: rgba(255, 255, 255, 0.7);
+}
+.dstudio .ds-lib-door-s {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* what is new is said in paper, the dark ground's emphasis — no chroma */
+.dstudio .ds-lib-door-new {
+  padding-left: 4px;
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .dstudio .ds-lib-door {
+    top: 32px;
+    right: 24px;
+  }
+}
+
+/* THE DIALOG — the Summary step's shell (.ds-xm), on the light. Release
+   notes first, then the lineup as a label and a run: "Wall-mounted
+   MSZ-AP, MSZ-EF, MSZ-GS". */
+.ds-xm .ds-libm-none {
+  margin: 0;
+  font-size: 14px;
+  color: var(--q);
+}
+.ds-xm .ds-libm-brand {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ds-xm .ds-libm-bn {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-xm .ds-libm-bu {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
+  white-space: nowrap;
+}
+.ds-xm .ds-libm-sec {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.ds-xm .ds-libm-sec h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-xm .ds-libm-new p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--q);
+}
+.ds-xm .ds-libm-new ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--q);
+}
+.ds-xm .ds-libm-new b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-xm .ds-libm-new-b + .ds-libm-new-b {
+  margin-top: 8px;
+}
+.ds-xm .ds-libm-lineup {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 16px;
+}
+.ds-xm .ds-libm-form {
+  display: contents;
+}
+.ds-xm .ds-libm-lineup dt {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--q);
+  white-space: nowrap;
+}
+.ds-xm .ds-libm-lineup dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.ds-xm .ds-libm-arrived {
+  font-weight: 600;
+}
+.ds-xm .ds-libm-arrived b {
+  font-weight: 500;
+  color: var(--q);
 }
 
 /* ═════════════ Editor chrome ═════════════ */

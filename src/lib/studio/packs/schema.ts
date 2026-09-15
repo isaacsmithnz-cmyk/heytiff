@@ -521,6 +521,10 @@ export interface PackMeta {
   version: string; // e.g. "2026.1"
   packSchemaVersion: number;
   name: string;
+  /** the day the pack last changed, "YYYY-MM-DD" — set by whoever changes
+      it (data/packs/AGENTS.md §10). The studio's start screen shows it as
+      "Library, updated 18 Aug 2026"; the installed-packs gate requires it. */
+  updated?: string;
   /** how each source book was obtained — copyright posture (public vs dealer portal) */
   sources?: { title: string; edition?: string; access?: "public" | "dealer-portal" }[];
 }

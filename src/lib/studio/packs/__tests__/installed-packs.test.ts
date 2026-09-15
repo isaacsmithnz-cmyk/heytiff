@@ -51,6 +51,18 @@ describe("installed packs (data/packs)", () => {
     }
   });
 
+  it("every installed pack says when it was last updated", async () => {
+    /* `meta.updated` is what the studio's start screen shows as "Library,
+       updated …" — a pack that changes without moving it tells people the
+       library is older than it is (data/packs/AGENTS.md §10) */
+    for (const ref of await installedPacks()) {
+      expect({ pack: `${ref.brand}@${ref.version}`, updated: ref.meta.updated }).toEqual({
+        pack: `${ref.brand}@${ref.version}`,
+        updated: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
+    }
+  });
+
   it("reports engine-readiness per series (PACK_REPORT=1 to print)", async () => {
     const refs = await installedPacks();
     for (const ref of refs) {

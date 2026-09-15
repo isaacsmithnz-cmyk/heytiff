@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LogModal } from "../modals";
 import type { NewLog, VehicleIdentity } from "../logic";
@@ -53,10 +53,11 @@ function saveButton() {
 
 function setup() {
   const onSave = jest.fn();
+  const onClose = jest.fn();
   render(
-    <LogModal kind="fuel" today={TODAY} vehicle={mine} onSave={onSave} onClose={jest.fn()} />,
+    <LogModal kind="fuel" today={TODAY} vehicle={mine} onSave={onSave} onClose={onClose} />,
   );
-  return { onSave, user: userEvent.setup() };
+  return { onSave, onClose, user: userEvent.setup() };
 }
 
 async function scan(user: ReturnType<typeof userEvent.setup>) {
@@ -156,5 +157,41 @@ describe("scanning a fuel docket", () => {
     await user.click(screen.getByRole("button", { name: /re-scan/ }));
     expect(screen.getByText("Snap or upload the receipt")).toBeInTheDocument();
     expect(screen.queryByText(/Receipt saved/)).not.toBeInTheDocument();
+  });
+});
+
+/* A SCAN IN PROGRESS OUTLIVES A STRAY ESCAPE (see scanInProgress, in
+   record-modal/scan-card): closing the modal mid-scan threw away a docket
+   already stored, owned by nothing. */
+describe("a docket being scanned", () => {
+  const backdrop = () => fireEvent.click(document.querySelector(".fl-ov") as HTMLElement);
+
+  it("survives Escape and the backdrop while it is read or waits to be checked; the X still closes", async () => {
+    let finish: (v: unknown) => void = () => {};
+    readFuelReceipt.mockReturnValue(new Promise((r) => (finish = r)));
+    const { user, onClose } = setup();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["docket"], "receipt.jpg", { type: "image/jpeg" }));
+    await screen.findByText(/Tiff is reading the receipt/);
+    await user.keyboard("{Escape}");
+    backdrop();
+    expect(onClose).not.toHaveBeenCalled();
+
+    finish(READ_OK);
+    await screen.findByText(/Receipt saved/);
+    await user.keyboard("{Escape}");
+    backdrop();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("still closes on Escape and on the backdrop before anything is scanned", async () => {
+    const { user, onClose } = setup();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    backdrop();
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 });

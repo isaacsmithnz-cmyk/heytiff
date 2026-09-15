@@ -149,21 +149,11 @@ export function TagManager({
                         <span className="tgm-d" style={{ background: t.color }} />
                         <b>{t.label}</b>
                         <em>{used(usage[t.id] ?? 0)}</em>
-                        <button
-                          type="button"
-                          className="tk-abtn ico"
-                          aria-label={`Edit ${t.label}`}
-                          onClick={() => setEditing(t.id)}
-                        >
-                          <Icon name="edit" size={14} />
+                        <button type="button" className="tk-abtn" aria-label={`Edit ${t.label}`} onClick={() => setEditing(t.id)}>
+                          Edit
                         </button>
-                        <button
-                          type="button"
-                          className="tk-abtn ico dan"
-                          aria-label={`Remove ${t.label}`}
-                          onClick={() => setConfirming(t)}
-                        >
-                          <Icon name="x" size={14} />
+                        <button type="button" className="tk-abtn dan" aria-label={`Remove ${t.label}`} onClick={() => setConfirming(t)}>
+                          Remove
                         </button>
                       </div>
                     )

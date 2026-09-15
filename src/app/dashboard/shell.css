@@ -2257,16 +2257,12 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    under `.fg .hm-cap` and had already drifted from the sheet by the time
    anyone compared them side by side. */
 .fg .tk-rec {
-  /* out of the overlay and into the composer's column */
+                                                         
   position:static; transform:none; z-index:auto;
   width:auto; max-width:none; min-width:0;
-  /* the sheet is a scroll container because it floats; in the page the page
-     scrolls */
+                                                                                            
   max-height:none; overflow:visible;
-  /* a 30px drop shadow belongs under something floating, not in a column */
-  box-shadow:0 10px 30px -18px rgba(10,12,20,.5);
-  /* `wb2DropIn` carries `translateX(-50%)` for the centred sheet and would
-     shove this one half its width to the left */
+                                                                                                                             
   animation:tkRecIn .2s var(--ease) both;
 }
 @keyframes tkRecIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
@@ -8756,8 +8752,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    inline style objects nor a look down the list of `… h1` selectors found it. */
 .fg .tk-h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1; color:var(--ink); }
 .fg .tk-sub { margin:8px 0 0; font-size:14px; font-weight:600; color:var(--gray500); }
-.fg .tk-quota { display:inline-flex; align-items:center; gap:8px; margin:12px 0 0; padding:4px 12px; border-radius:999px;
-  background:var(--tint); color:#1d4ed8; font-size:13px; font-weight:700; }
+/* a line, not a pill: the figure under the title, in the quiet colour (law 26) */
+.fg .tk-quota { display:inline-flex; align-items:center; gap:8px; margin:12px 0 0; color:var(--q); font-size:13px; font-weight:500; }
 .fg .tk-quota svg { flex:none; }
 
 /* The passages stored without a vector. A LINE, NOT A PILL: the quota pill is
@@ -8768,60 +8764,57 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   font-size:13px; font-weight:600; line-height:1.5; color:var(--gray500); }
 .fg .tk-gap svg { flex:none; color:var(--gray400); }
 .fg .tk-gapb { padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
-  font-size:13px; font-weight:700; color:#1d4ed8; text-decoration:underline; text-underline-offset:3px;
+  font-size:13px; font-weight:700; color:var(--link); text-decoration:underline; text-underline-offset:3px;
   cursor:pointer; transition:color var(--t-fast) var(--ease); }
-.fg .tk-gapb:hover:not(:disabled) { color:var(--info-t); }
+.fg .tk-gapb:hover:not(:disabled) { color:var(--q); }
 .fg .tk-gapb:disabled { opacity:.45; pointer-events:none; }
-.fg .tk-gapb:focus-visible { outline:none; border-radius:6px; box-shadow:var(--ring); }
+.fg .tk-gapb:focus-visible { outline:none; border-radius:var(--r-control);  box-shadow:var(--ring); }
 
 /* ── buttons: one family, both roots ── */
 .fg .tk-btn, .tk-sheet .tk-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 16px;
-  border:1px solid transparent; border-radius:10px; font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;
+  border:1px solid transparent; border-radius:var(--r-button); font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:var(--ink); color:var(--paper); box-shadow:none; }
-.fg .tk-btn.primary:hover:not(:disabled), .tk-sheet .tk-btn.primary:hover:not(:disabled) { background:#1d4ed8; }
-.fg .tk-btn.ghost, .tk-sheet .tk-btn.ghost { background:#fff; border-color:var(--line); color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.fg .tk-btn.primary, .tk-sheet .tk-btn.primary { background:var(--ink); color:var(--paper);  box-shadow:none; }
+.fg .tk-btn.primary:hover:not(:disabled), .tk-sheet .tk-btn.primary:hover:not(:disabled) { background:var(--ink); }
+.fg .tk-btn.ghost, .tk-sheet .tk-btn.ghost { background:var(--paper); border-color:var(--line); color:var(--gray700); }
 .fg .tk-btn.ghost:hover:not(:disabled), .tk-sheet .tk-btn.ghost:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
 .fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:translateY(1px); }
 .fg .tk-btn:disabled, .tk-sheet .tk-btn:disabled { opacity:.45; pointer-events:none; }
-.fg .tk-btn:focus-visible, .tk-sheet .tk-btn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tk-btn:focus-visible, .tk-sheet .tk-btn:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* the small row actions — Retry, Resume, edit, remove */
 .fg .tk-abtn, .tk-sheet .tk-abtn { display:inline-flex; align-items:center; justify-content:center; gap:4px; height:32px; padding:0 12px;
-  border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--gray700);
+  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--gray700);
   font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tk-abtn:hover:not(:disabled), .tk-sheet .tk-abtn:hover:not(:disabled) { background:var(--tint); border-color:var(--line); color:var(--ink); }
-.fg .tk-abtn.ico, .tk-sheet .tk-abtn.ico { width:32px; padding:0; }
 .fg .tk-abtn.dan:hover:not(:disabled), .tk-sheet .tk-abtn.dan:hover:not(:disabled) {
-  background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.4); color:#b31038; }
+  background:var(--bad-tint); border-color:var(--bad); color:var(--bad-t); }
 .fg .tk-abtn:disabled, .tk-sheet .tk-abtn:disabled { opacity:.45; pointer-events:none; }
-.fg .tk-abtn:focus-visible, .tk-sheet .tk-abtn:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tk-abtn:focus-visible, .tk-sheet .tk-abtn:focus-visible { outline:none;  box-shadow:var(--ring); }
 
-/* the category dot, and the one piece of indeterminate motion */
-.fg .tk-dot, .tk-sheet .tk-dot { width:9px; height:9px; border-radius:50%; flex:none; box-shadow:0 1px 2px rgba(0,0,0,.1); }
-.fg .tk-spin, .tk-sheet .tk-spin { width:13px; height:13px; border-radius:50%; flex:none;
-  border:2px solid var(--line); border-top-color:var(--ink); animation:tkSpin .8s linear infinite; }
+/* the category dot. The ring beside a status word went (law 27): the word says what is happening, and the bar says how far. */
+.fg .tk-dot, .tk-sheet .tk-dot { width:9px; height:9px; border-radius:50%; flex:none; }
 @keyframes tkSpin { to { transform:rotate(360deg); } }
 
 /* ── search + category filter ── */
 .fg .tk-tools { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
 .fg .tk-search { position:relative; flex:1 1 280px; max-width:400px; }
 .fg .tk-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); }
-.fg .tk-search:focus-within svg { color:var(--info-t); }
-.fg .tk-search input { width:100%; height:46px; padding:0 16px 0 48px; background:#fff; border:1px solid var(--line); border-radius:16px;
-  font-size:14px; font-weight:500; color:var(--ink); outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03);
+.fg .tk-search:focus-within svg { color:var(--ink); }
+.fg .tk-search input { width:100%; height:46px; padding:0 16px 0 48px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-control);
+  font-size:14px; font-weight:500; color:var(--ink); outline:none;
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tk-search input:focus { border-color:var(--line); box-shadow:var(--ring); }
+.fg .tk-search input:focus { border-color:var(--line);  box-shadow:var(--ring); }
 .fg .tk-chips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.fg .tk-chip { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 12px; border:1px solid var(--line); border-radius:999px;
-  background:#fff; color:var(--gray700); font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
+.fg .tk-chip { display:inline-flex; align-items:center; gap:8px; height:38px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-control);
+  background:var(--paper); color:var(--gray700); font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tk-chip em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); }
-.fg .tk-chip:hover { border-color:var(--line); background:#fafbfc; }
-.fg .tk-chip.on { border-color:var(--tkc, #050505); color:var(--ink); box-shadow:0 2px 12px -5px rgba(5,5,5,.35); }
+.fg .tk-chip:hover { border-color:var(--line); background:var(--tint); }
+.fg .tk-chip.on { background:var(--tint-2); border-color:var(--tkc, var(--ink)); color:var(--ink); }
 .fg .tk-chip.on em { color:var(--gray700); }
-.fg .tk-chip:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tk-chip:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* ── a shelf: one card per category, coloured at the top ── */
 /* ══════════════════ TIFF — THE LIBRARY, AS AN INDEX ══════════════════════
@@ -8835,20 +8828,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
    THE COLOUR IS SAID ONCE PER GROUP, not three times. The bar, the tile and
    the per-row dot were all carrying the same fact. */
-.fg .tk-list { background:#fff; border:1px solid #fff; border-radius:16px;
-  box-shadow:0 8px 30px rgba(0,0,0,.04); overflow:hidden; }
+.fg .tk-list { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 .fg .tk-cat { position:relative; display:block; }
-.fg .tk-cat + .tk-cat { border-top:1px solid #f2f4f7; }
-.fg .tk-cin { position:relative; z-index:10; padding:16px 16px 12px; }
+.fg .tk-cat + .tk-cat { border-top:1px solid var(--line); }
+.fg .tk-cin { position:relative; z-index:var(--z-raised); padding:16px 16px 12px; }
 .fg .tk-chd { display:flex; align-items:center; gap:12px; margin-bottom:8px; padding:0 4px; }
-.fg .tk-cic { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; flex:none; }
+/* the icon in the category's colour, no tinted square (step 4) */
+.fg .tk-cic { display:grid; place-items:center; flex:none; }
 .fg .tk-chd h2 { margin:0; font-size:14px; font-weight:700; line-height:1.2; color:var(--ink); }
 .fg .tk-chd p { margin:2px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* ── a document ── */
-.fg .tk-row { display:flex; align-items:center; gap:12px; padding:12px 12px; border:1px solid transparent; border-radius:16px;
+.fg .tk-row { display:flex; align-items:center; gap:12px; padding:12px 12px; border:1px solid transparent; border-radius:var(--r-button);
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tk-row:hover { background:#fafbfc; border-color:#f0f0f2; }
+.fg .tk-row:hover { background:var(--tint); }
 .fg .tk-rmain { flex:1 1 auto; min-width:0; }
 /* Narrow enough and the row wraps, which drops the status dot onto the
    second line beside the buttons — a marker for the title, sitting next to
@@ -8860,24 +8853,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   cursor:pointer; transition:color var(--t-fast) var(--ease); }
 .fg .tk-rt svg { flex:none; opacity:0; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .tk-row:hover .tk-rt svg { opacity:.45; }
-.fg .tk-rt:hover { color:var(--info-t); }
-.fg .tk-rt:focus-visible { outline:none; color:var(--info-t); text-decoration:underline; }
+.fg .tk-rt:hover { text-decoration:underline; text-underline-offset:3px; }
+.fg .tk-rt:focus-visible { outline:none; border-radius:var(--r-control);  box-shadow:var(--ring); }
 .fg .tk-rt.flat { cursor:default; color:var(--gray700); }
 .fg .tk-rmeta { display:block; margin-top:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray400);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .tk-rerr { margin:8px 0 0; font-size:13px; font-weight:700; color:#b31038; }
+.fg .tk-rerr { margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
 .fg .tk-rstate { flex:0 1 auto; min-width:0; }
 .fg .tk-acts { display:flex; align-items:center; gap:4px; flex:none; }
 
 /* "Ask Tiff about this document" — Tiff blue, because it leaves the library
    for the assistant, and every OTHER row control is grey because it stays */
 .fg .tk-ask { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px; flex:none;
-  border:1px solid var(--line); border-radius:999px; background:var(--tint); color:#1d4ed8;
+  border:1px solid var(--line); border-radius:var(--r-button); background:var(--tint); color:var(--ink);
   font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700;
   white-space:nowrap; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tk-ask svg { flex:none; }
 .fg .tk-ask:hover { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-.fg .tk-ask:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tk-ask:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* Find-in-document, on the row and in its modal.
 
@@ -8889,7 +8882,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 .fl-modal .tk-dsbar { display:flex; align-items:center; gap:8px; }
 .fl-modal .tk-dsbar .fl-i { flex:1 1 auto; min-width:0; }
-.fl-modal .tk-dscount { margin:16px 0 8px; font-size:13px; font-weight:700; color:var(--gray400, var(--q)); }
+.fl-modal .tk-dscount { margin:16px 0 8px; font-size:13px; font-weight:700; color:var(--q); }
 .fl-modal .tk-dsnone { margin:12px 0 0; font-size:13px; font-weight:600; line-height:1.6; color:var(--gray500); }
 
 /* Capped so a hundred hits scroll inside the panel rather than growing it
@@ -8898,46 +8891,45 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    want to retype. */
 .fl-modal .tk-dshits { display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow:auto; }
 .fl-modal .tk-dshit { display:flex; align-items:flex-start; gap:12px; width:100%; padding:12px 12px; text-align:left;
-  border:1px solid #eef0f3; border-radius:16px; background:#fff; cursor:pointer;
+  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fl-modal .tk-dshit:hover { background:var(--tint); border-color:#dbe3ee; }
-.fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink); box-shadow:var(--ring); }
+.fl-modal .tk-dshit:hover { background:var(--tint); border-color:var(--line); }
+.fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink);  box-shadow:var(--ring); }
 .fl-modal .tk-dsp { flex:none; display:inline-flex; align-items:center; gap:4px; padding-top:1px;
-  color:#1d4ed8; font-size:12px; font-weight:700; }
+  color:var(--q); font-size:12px; font-weight:700; }
 .fl-modal .tk-dstxt { min-width:0; font-size:13px; font-weight:500; line-height:1.55; color:var(--ink); }
 .fl-modal .tk-dstxt b { display:block; margin-bottom:4px; font-size:13px; font-weight:700; color:var(--ink); }
-.fl-modal .tk-dstxt mark { padding:0 2px; border-radius:6px; background:rgba(255,214,0,.42); color:inherit; font-weight:700; }
+.fl-modal .tk-dstxt mark { padding:0 2px; border-radius:var(--r-control); background:var(--tint-2); color:inherit; font-weight:700; }
 
 /* the status pill — the whole reason this screen exists */
 .fg .tk-pill { display:inline-flex; align-items:center; gap:8px;
   font-size:14px; font-weight:500; line-height:1.35; }
 .fg .tk-pill svg { flex:none; }
-.fg .tk-pill.ok { color:#00806c; }
-.fg .tk-pill.work { color:#1d4ed8; }
+.fg .tk-pill.ok { color:var(--ok-t); }
+.fg .tk-pill.work { color:var(--info-t); }
 .fg .tk-pill.warn { color:var(--warn-t); }
-.fg .tk-pill.dan { color:#b31038; }
+.fg .tk-pill.dan { color:var(--bad-t); }
 .fg .tk-prog { display:block; width:60px; height:4px; flex:none; border-radius:999px; background:var(--tint-2); overflow:hidden; }
 .fg .tk-prog i { display:block; width:0; height:100%; border-radius:999px; background:var(--ink); transition:width var(--t-move) var(--ease); color:var(--paper); }
 .fg .tk-prog.ind i { width:42%; animation:tkSlide 1.25s ease-in-out infinite; }
 @keyframes tkSlide { from { transform:translateX(-110%); } to { transform:translateX(250%); } }
 
 /* ── nothing here (yet): the day-1 sell, and the smaller misses ── */
-.fg .tk-empty { margin:0 auto; max-width:760px; padding:56px 32px; text-align:center; background:#fff; border:1px solid #fff; border-radius:16px;
-  box-shadow:0 8px 30px rgba(0,0,0,.04); }
-.fg .tk-empty.small { padding:48px 32px; border-radius:16px; }
-.fg .tk-eic { width:64px; height:64px; margin:0 auto 16px; border-radius:16px; display:grid; place-items:center;
-  background:var(--tint); color:var(--info-t); }
+.fg .tk-empty { margin:0 auto; max-width:760px; padding:56px 32px; text-align:center; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); }
+.fg .tk-empty.small { padding:48px 32px; border-radius:var(--r-card); }
+/* the icon alone: the tinted square was the card tell (step 4) */
+.fg .tk-eic { display:flex; justify-content:center; margin:0 auto 16px; color:var(--q); }
 .fg .tk-empty h2 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.03em; color:var(--ink); }
 .fg .tk-empty p { margin:12px auto 0; max-width:580px; font-size:14px; font-weight:500; line-height:1.65; color:var(--gray500); }
 .fg .tk-empty .tk-btn { margin-top:24px; }
 .fg .tk-egrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px; margin:32px 0 4px; text-align:left; }
-.fg .tk-ecard { padding:16px 16px; border:1px solid #f0f0f2; border-radius:16px; background:#fafbfc; }
+.fg .tk-ecard { padding:16px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--tint); }
 .fg .tk-ecard .tk-dot { display:block; margin-bottom:8px; }
 .fg .tk-ecard b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .tk-ecard em { display:block; margin-top:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); }
 .fg .tk-ehint { margin-top:24px; font-size:14px; font-weight:700; color:var(--gray400); }
-.fg .tk-note { padding:8px 12px; text-align:left; border:none; border-radius:10px;
-  background:linear-gradient(180deg,#fafbfc,#fff); }
+.fg .tk-note { padding:8px 12px; text-align:left; border:none; border-radius:var(--r-button);
+  background:var(--tint); }
 .fg .tk-note b { display:inline; font-size:13px; font-weight:700; color:var(--gray500); }
 .fg .tk-note span { display:inline; margin-left:4px; font-size:13px; font-weight:600; color:var(--gray400); }
 
@@ -8945,58 +8937,57 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fl-modal .tk-confirm { margin:0; font-size:14px; font-weight:600; line-height:1.6; color:var(--ink); }
 
 /* ── the upload drawer: portalled, so the ramp and the font start again ── */
-.tk-scrim { position:fixed; inset:0; z-index:150; background:rgba(10,11,16,.45); backdrop-filter:blur(5px);
+.tk-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(10,11,16,.45); backdrop-filter:blur(5px);
   animation:tkFade .28s both;
-  --ink:#050505; --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink); color:var(--ink); }
+  color:var(--ink); }
 @keyframes tkFade { from { opacity:0; } to { opacity:1; } }
-.tk-sheet { position:fixed; top:0; right:0; bottom:0; z-index:151; width:min(560px, 100vw);
-  display:flex; flex-direction:column; background:#fff; border-left:1px solid rgba(5,5,5,.08);
-  box-shadow:-40px 0 90px -40px rgba(10,12,20,.55); overflow-y:auto; overscroll-behavior:contain;
+.tk-sheet { position:fixed; top:0; right:0; bottom:0; z-index:var(--z-modal); width:min(560px, 100vw);
+  display:flex; flex-direction:column; background:var(--paper); border-left:1px solid var(--line); box-shadow:var(--shadow-overlay); overflow-y:auto; overscroll-behavior:contain;
   animation:tkSheetIn .32s var(--ease) both;
   font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
-  --ink:#050505; --gray400:var(--q); --gray500:var(--q); --gray700:var(--ink); color:var(--ink); }
+  color:var(--ink); }
 /* docked to the edge, so the keyframe's `transform:none` end state is the
    resting position — nothing here is centred by a translate */
 @keyframes tkSheetIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
 .tk-sheet *, .tk-sheet *::before, .tk-sheet *::after { box-sizing:border-box; }
 .tk-sheet button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-.tk-shtop { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
-  padding:24px 24px 16px; background:#fff; border-bottom:1px solid #f1f2f4; }
+.tk-shtop { position:sticky; top:0; z-index:var(--z-sticky); display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  padding:24px 24px 16px; background:var(--paper); border-bottom:1px solid var(--line); }
 .tk-shtop h2 { margin:0; font-size:20px; font-weight:700; }
 .tk-shtop p { margin:4px 0 0; font-size:13px; font-weight:600; color:var(--gray500); }
-.tk-shx { width:34px; height:34px; flex:none; display:grid; place-items:center; border-radius:10px; background:#f1f2f4;
-  border:1px solid #e6e8ee; color:var(--gray700); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.tk-shx:hover { background:#e6e8ee; color:var(--ink); }
+.tk-shx { width:34px; height:34px; flex:none; display:grid; place-items:center; border-radius:var(--r-button); background:var(--tint);
+  border:1px solid var(--line); color:var(--gray700); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.tk-shx:hover { background:var(--tint-2); color:var(--ink); }
 .tk-drop { margin:16px 24px; padding:32px 16px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center;
-  border:1.5px dashed #d9dce4; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff);
+  border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint);
   transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .tk-drop.over { border-color:var(--ink); background:var(--tint); }
-.tk-drop svg { color:var(--info-t); }
+.tk-drop svg { color:var(--q); }
 .tk-drop b { font-size:14px; font-weight:700; color:var(--ink); }
 .tk-drop span { font-size:13px; font-weight:600; color:var(--gray400); }
 .tk-drop .tk-btn { margin-top:8px; height:38px; }
 .tk-files { display:flex; flex-direction:column; gap:12px; padding:0 24px 16px; }
-.tk-file { padding:12px 16px; border:1px solid #eceef2; border-radius:16px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.03); }
-.tk-file.bad { border-color:rgba(224,38,79,.3); background:rgba(224,38,79,.03); }
+.tk-file { padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
+.tk-file.bad { border-color:var(--bad); background:var(--bad-tint); }
 .tk-fhd { display:flex; align-items:center; gap:8px; }
 .tk-fhd b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tk-fhd em { flex:none; font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); }
-.tk-frr { margin:8px 0 0; font-size:13px; font-weight:700; color:#b31038; }
+.tk-frr { margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
 .tk-fform { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
 .tk-ff { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .tk-ff.span { grid-column:1 / -1; }
 .tk-ff > span { font-size:12px; font-weight:700; color:var(--gray700); }
-.tk-fi { width:100%; height:38px; padding:0 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff;
+.tk-fi { width:100%; height:38px; padding:0 12px; border:1.5px solid var(--line); border-radius:var(--r-control); background:var(--paper);
   font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:600; color:var(--ink); outline:none;
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.tk-fi:focus { border-color:var(--ink); box-shadow:var(--ring); }
+.tk-fi:focus { border-color:var(--ink);  box-shadow:var(--ring); }
 .tk-fst { display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px; font-weight:700; }
-.tk-fst.ok { color:#00806c; }
-.tk-fst.work { color:#1d4ed8; }
+.tk-fst.ok { color:var(--ok-t); }
+.tk-fst.work { color:var(--info-t); }
 .tk-fst.warn { color:var(--warn-t); }
-.tk-fst.dan { color:#b31038; }
+.tk-fst.dan { color:var(--bad-t); }
 .tk-shft { position:sticky; bottom:0; margin-top:auto; display:flex; justify-content:flex-end; gap:8px;
-  padding:16px 24px; background:#fff; border-top:1px solid #f1f2f4; }
+  padding:16px 24px; background:var(--paper); border-top:1px solid var(--line); }
 
 @media (max-width:980px) {
   .fg .tk-row { flex-wrap:wrap; }
@@ -9008,7 +8999,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* the page's own motion is entrance-only and handled globally; these three are
    LOOPS, which is the kind reduced motion is actually about */
 @media (prefers-reduced-motion:reduce) {
-  .fg .tk-spin, .tk-sheet .tk-spin { animation:none; }
   .fg .tk-prog.ind i { width:100%; opacity:.45; animation:none; }
   .fg .tk-btn:active:not(:disabled), .tk-sheet .tk-btn:active:not(:disabled) { transform:none; }
 }
@@ -9036,19 +9026,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .tgp-clear, .tk-sheet .tgp-clear, .fl-modal .tgp-clear {
   padding:0; border:none; background:none; font-family:var(--font-jakarta), sans-serif;
-  font-size:12px; font-weight:700; color:#1d4ed8; cursor:pointer;
+  font-size:12px; font-weight:700; color:var(--link); cursor:pointer;
   text-decoration:underline; text-underline-offset:3px; }
-.fg .tgp-clear:hover, .tk-sheet .tgp-clear:hover, .fl-modal .tgp-clear:hover { color:var(--info-t); }
+.fg .tgp-clear:hover, .tk-sheet .tgp-clear:hover, .fl-modal .tgp-clear:hover { color:var(--q); }
 
 /* the find/create box — one control, because typing a name that doesn't exist
    IS the create gesture and a separate "new tag" button would be a second
    place to look for the same thing */
 .fg .tgp-find, .tk-sheet .tgp-find, .fl-modal .tgp-find {
   position:relative; display:flex; align-items:center; gap:8px; height:36px; padding:0 12px;
-  border:1.5px solid var(--line); border-radius:10px; background:#fff;
+  border:1.5px solid var(--line); border-radius:var(--r-control); background:var(--paper);
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tgp-find:focus-within, .tk-sheet .tgp-find:focus-within, .fl-modal .tgp-find:focus-within {
-  border-color:var(--ink); box-shadow:var(--ring); }
+  border-color:var(--ink);  box-shadow:var(--ring); }
 .fg .tgp-find svg, .tk-sheet .tgp-find svg, .fl-modal .tgp-find svg { flex:none; color:var(--gray400); }
 .fg .tgp-find input, .tk-sheet .tgp-find input, .fl-modal .tgp-find input {
   flex:1 1 auto; min-width:0; height:100%; padding:0; border:none; background:none; outline:none;
@@ -9056,13 +9046,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 .fg .tgp-make, .tk-sheet .tgp-make, .fl-modal .tgp-make {
   display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:8px; padding:8px 12px;
-  border:1px dashed #d9dce4; border-radius:10px; background:linear-gradient(180deg,#fafbfc,#fff); }
+  border:1px dashed var(--line); border-radius:var(--r-button); background:var(--tint); }
 .fg .tgp-make > span, .tk-sheet .tgp-make > span, .fl-modal .tgp-make > span {
   font-size:12px; font-weight:600; color:var(--gray500); }
 .fg .tgp-make b, .tk-sheet .tgp-make b, .fl-modal .tgp-make b { font-weight:700; color:var(--ink); }
 .fg .tgp-mk, .tk-sheet .tgp-mk, .fl-modal .tgp-mk {
   display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px;
-  border:1px solid var(--line); border-radius:999px; background:var(--tint); color:#1d4ed8;
+  border:1px solid var(--line); border-radius:var(--r-control); background:var(--tint); color:var(--ink);
   font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tgp-mk:hover:not(:disabled), .tk-sheet .tgp-mk:hover:not(:disabled), .fl-modal .tgp-mk:hover:not(:disabled) {
@@ -9079,54 +9069,54 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    would be a wall of saturation at twelve tags and would read as a status. */
 .fg .tgp-t, .tk-sheet .tgp-t, .fl-modal .tgp-t {
   display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px;
-  border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--gray700);
+  border:1px solid var(--line); border-radius:var(--r-control); background:var(--paper); color:var(--gray700);
   font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tgp-t .tgp-d, .tk-sheet .tgp-t .tgp-d, .fl-modal .tgp-t .tgp-d {
   width:7px; height:7px; border-radius:50%; flex:none; background:var(--tgc, var(--q)); }
 .fg .tgp-t svg, .tk-sheet .tgp-t svg, .fl-modal .tgp-t svg { flex:none; color:var(--tgc, var(--ink)); }
 .fg .tgp-t:hover:not(:disabled), .tk-sheet .tgp-t:hover:not(:disabled), .fl-modal .tgp-t:hover:not(:disabled) {
-  border-color:var(--line); background:#fafbfc; }
+  border-color:var(--line); background:var(--tint); }
 .fg .tgp-t.on, .tk-sheet .tgp-t.on, .fl-modal .tgp-t.on {
   border-color:color-mix(in srgb, var(--tgc, var(--ink)) 45%, transparent);
-  background:color-mix(in srgb, var(--tgc, var(--ink)) 10%, #fff); color:var(--ink); }
+  background:color-mix(in srgb, var(--tgc, var(--ink)) 10%, var(--paper)); color:var(--ink); }
 .fg .tgp-t:disabled, .tk-sheet .tgp-t:disabled, .fl-modal .tgp-t:disabled { opacity:.4; pointer-events:none; }
 .fg .tgp-t:focus-visible, .tk-sheet .tgp-t:focus-visible, .fl-modal .tgp-t:focus-visible {
-  outline:none; box-shadow:var(--ring); }
+  outline:none;  box-shadow:var(--ring); }
 
 .fg .tgp-none, .tk-sheet .tgp-none, .fl-modal .tgp-none,
 .fg .tgp-full, .tk-sheet .tgp-full, .fl-modal .tgp-full {
   margin:8px 0 0; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tgp-err, .tk-sheet .tgp-err, .fl-modal .tgp-err {
-  margin:8px 0 0; font-size:13px; font-weight:700; color:#b31038; }
+  margin:8px 0 0; font-size:13px; font-weight:700; color:var(--bad-t); }
 
 /* the palette */
 .fg .tgs, .tk-sheet .tgs, .fl-modal .tgs { display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
 .fg .tgs-s, .tk-sheet .tgs-s, .fl-modal .tgs-s {
   width:20px; height:20px; padding:0; flex:none; border:2px solid transparent; border-radius:50%;
-  cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.12); transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease); }
+  cursor:pointer; transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tgs-s:hover, .tk-sheet .tgs-s:hover, .fl-modal .tgs-s:hover { }
 .fg .tgs-s.on, .tk-sheet .tgs-s.on, .fl-modal .tgs-s.on { border-color:var(--ink); }
 .fg .tgs-s:focus-visible, .tk-sheet .tgs-s:focus-visible, .fl-modal .tgs-s:focus-visible {
-  outline:none; box-shadow:var(--ring); }
+  outline:none;  box-shadow:var(--ring); }
 
 /* ── the pills on a library row ── */
 /* Small, quiet, and PRESSABLE: a tag on a row is the fastest way to the
    document's siblings, which is what earns the space on a row that already
    carries a title, a meta line and a status pill. */
 .fg .tgl { display:inline-flex; align-items:center; flex-wrap:wrap; gap:4px; margin-top:4px; }
-.fg .tgl-p { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:999px;
+.fg .tgl-p { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:var(--r-control);
   border:1px solid color-mix(in srgb, var(--tgc, var(--q)) 30%, transparent);
-  background:color-mix(in srgb, var(--tgc, var(--q)) 9%, #fff);
+  background:color-mix(in srgb, var(--tgc, var(--q)) 9%, var(--paper));
   color:color-mix(in srgb, var(--tgc, var(--q)) 72%, var(--ink));
   font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700;
   white-space:nowrap; }
 .fg button.tgl-p { cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg button.tgl-p:hover { background:color-mix(in srgb, var(--tgc, var(--q)) 18%, #fff);
+.fg button.tgl-p:hover { background:color-mix(in srgb, var(--tgc, var(--q)) 18%, var(--paper));
   border-color:color-mix(in srgb, var(--tgc, var(--q)) 55%, transparent); }
-.fg .tgl-p.on { background:color-mix(in srgb, var(--tgc, var(--q)) 20%, #fff);
+.fg .tgl-p.on { background:color-mix(in srgb, var(--tgc, var(--q)) 20%, var(--paper));
   border-color:color-mix(in srgb, var(--tgc, var(--q)) 60%, transparent); }
-.fg button.tgl-p:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg button.tgl-p:focus-visible { outline:none;  box-shadow:var(--ring); }
 .fg .tgl-more { font-size:12px; font-weight:700; color:var(--gray400); }
 
 /* ── the filter rail ── */
@@ -9140,29 +9130,28 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-chip.tag { height:32px; padding:0 12px; font-size:13px; }
 .fg .tk-chip.tag .tk-dot { width:7px; height:7px; }
 .fg .tk-tclr { align-self:center; padding:0 4px; border:none; background:none;
-  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:#1d4ed8;
+  font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:var(--link);
   text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-.fg .tk-tclr:hover { color:var(--info-t); }
+.fg .tk-tclr:hover { color:var(--q); }
 
 /* ── the manage sheet ── */
 .tk-sheet .tgm { display:flex; flex-direction:column; gap:16px; padding:16px 24px; }
-.tk-sheet .tgm-new { padding:12px 16px; border:1px solid #eceef2; border-radius:16px; background:#fff;
-  box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.tk-sheet .tgm-new { padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
 .tk-sheet .tgm-nrow { display:flex; align-items:center; gap:8px; }
 .tk-sheet .tgm-nrow .tk-fi { flex:1 1 auto; min-width:0; }
 .tk-sheet .tgm-nrow .tk-btn { height:38px; padding:0 12px; flex:none; }
 .tk-sheet .tgm-nopt { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:12px; }
-.tk-sheet .tgm-d { width:12px; height:12px; flex:none; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.tk-sheet .tgm-d { width:12px; height:12px; flex:none; border-radius:50%; }
 .tk-sheet .tgm-grp > em { display:block; margin-bottom:8px; font-style:normal; font-size:12px; font-weight:500; color:var(--gray400); }
 .tk-sheet .tgm-grp > em span { margin-left:8px; color:var(--gray400); font-weight:700; }
 .tk-sheet .tgm-empty { margin:0 0 4px; font-size:12px; font-weight:600; color:var(--gray400); }
-.tk-sheet .tgm-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px;
+.tk-sheet .tgm-row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button);
   transition:background var(--t-fast) var(--ease); }
-.tk-sheet .tgm-row:hover { background:#fafbfc; }
+.tk-sheet .tgm-row:hover { background:var(--tint); }
 .tk-sheet .tgm-row b { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tk-sheet .tgm-row em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
-.tk-sheet .tgm-edit { padding:12px 12px; border:1.5px solid var(--line); border-radius:16px;
+.tk-sheet .tgm-edit { padding:12px 12px; border:1.5px solid var(--line); border-radius:var(--r-card);
   background:var(--tint); }
 .tk-sheet .tgm-cbtn { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
 .tk-sheet .tgm-cbtn .tk-btn { height:38px; padding:0 12px; }
@@ -9170,13 +9159,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* the confirm, IN THE ROW rather than a second overlay: a modal over a drawer
    is two scrims deep, and a panel pinned to the bottom of a fifty-tag sheet
    would put the question forty rows below the button that asked it */
-.tk-sheet .tgm-conf { padding:12px 16px; border-radius:16px;
-  border:1px solid rgba(224,38,79,.28); background:rgba(224,38,79,.04); }
+.tk-sheet .tgm-conf { padding:12px 16px; border-radius:var(--r-card);
+  border:1px solid var(--bad); background:var(--bad-tint); }
 .tk-sheet .tgm-conf b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .tk-sheet .tgm-conf span { display:block; margin-top:4px; font-size:13px; font-weight:600; line-height:1.55;
   color:var(--gray500); }
-.tk-sheet .tk-btn.danger { background:#e0264f; color:#fff; box-shadow:0 10px 22px -14px rgba(224,38,79,.9); }
-.tk-sheet .tk-btn.danger:hover:not(:disabled) { background:#b31038; }
+.tk-sheet .tk-btn.danger { background:var(--bad); color:var(--paper); }
+.tk-sheet .tk-btn.danger:hover:not(:disabled) { background:var(--bad-t); }
 
 @media (max-width:980px) {
   .fg .tk-trail { flex-direction:column; gap:4px; }
@@ -9250,7 +9239,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* both columns paint above the lines — same arrangement as the system map's
    columns over its wire layer */
-.fg .tk-chatcol { position:relative; z-index:1; display:flex; flex-direction:column; min-width:0; min-height:0; }
+.fg .tk-chatcol { position:relative; z-index:var(--z-raised); display:flex; flex-direction:column; min-width:0; min-height:0; }
 
 /* ══════════════════ TIFF — THE SEARCH-FIRST LANDING ══════════════════════
    The page opens on the place to type, not on a greeting.
@@ -9319,8 +9308,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    always reserving for it — sentence case, because the eyebrow beside it is
    the only thing on this page that has earned uppercase */
 .fg .tk-lbla { display:inline-flex; align-items:center; gap:2px; flex:none; font-size:13px; font-weight:700;
-  color:var(--gray500); text-decoration:none; transition:color var(--t-fast) var(--ease); }
-.fg .tk-lbla:hover { color:var(--ink); }
+  color:var(--link); text-decoration:underline; text-underline-offset:3px; transition:color var(--t-fast) var(--ease); }
+.fg .tk-lbla:hover { color:var(--q); }
 .fg .tk-lbla svg { margin-top:1px; }
 
 .fg .tk-recent { flex:0 0 auto; margin-bottom:24px; }
@@ -9336,16 +9325,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    A ROW IS A BUTTON — it writes a question opener into the composer — so it
    is reached as `.fg .tk-nd` per the `.fg button` (0,1,1) reset. */
 .fg .tk-newdocs { flex:0 0 auto; margin-bottom:24px; }
-.fg .tk-ndrow { display:flex; flex-direction:column; border-top:1px solid #e9eaee; }
+.fg .tk-ndrow { display:flex; flex-direction:column; border-top:1px solid var(--line); }
 .fg .tk-nd { position:relative; display:flex; align-items:baseline; gap:12px; width:100%;
-  padding:12px 12px 12px 12px; border:0; border-bottom:1px solid #e9eaee; border-radius:0;
+  padding:12px 12px 12px 12px; border:0; border-bottom:1px solid var(--line); border-radius:0;
   background:none; text-align:left; font-family:var(--font-jakarta), sans-serif; cursor:pointer;
-  transition:background var(--t-fast) var(--ease), padding-left var(--t-fast) var(--ease); }
+  transition:background var(--t-fast) var(--ease); }
 /* the category's colour, as an edge that arrives on hover rather than a dot
    that sits there — five coloured dots in a column read as a legend */
-.fg .tk-nd:hover { background:#fff; padding-left:16px; }
-.fg .tk-nd:focus-visible { outline:none; background:#fff; box-shadow:var(--ring); }
-.fg .tk-nd:focus-visible::before { opacity:1; }
+.fg .tk-nd:hover { background:var(--paper); }
+.fg .tk-nd:focus-visible { outline:none; background:var(--paper);  box-shadow:var(--ring); }
 .fg .tk-ndt { flex:1 1 auto; min-width:0; font-size:14px; font-weight:700; color:var(--ink);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-nd em { flex:none; font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
@@ -9358,7 +9346,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    reads as something failing to load, not as a list of one */
 .fg .tk-threads > .tk-thr:only-child { grid-column:1 / -1; }
 @media (max-width:760px) { .fg .tk-threads { grid-template-columns:1fr; } }
-.fg .tk-threads .thread { padding:12px 16px; background:#fff; border-color:#f0f0f2; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+.fg .tk-threads .thread { padding:12px 16px; background:var(--paper); border-color:var(--line); }
 .fg .tk-threads .thread .th { margin-bottom:4px; }
 .fg .tk-threads .thread .th b { display:block; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
@@ -9369,13 +9357,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-tacts { display:flex; align-items:center; gap:4px; flex:none; }
 
 /* also the pair in the open chat's header, which is the only place the
-   conversation you are IN can be renamed or dropped */
-.fg .tk-tact { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; flex:none;
-  border:1px solid transparent; border-radius:10px; background:none; color:var(--gray400); cursor:pointer;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-tact:hover { background:var(--tint); border-color:var(--line); color:var(--ink); }
-.fg .tk-tact.dan:hover { background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.25); color:#b31038; }
-.fg .tk-tact:focus-visible { outline:none; box-shadow:var(--ring); }
+   conversation you are IN can be renamed or dropped. They wear the row
+   action (.tk-abtn) and say their word: Rename, Delete (law 25). */
 
 /* ── the composer, and the choice it makes explicit ──
    `.tk-res` (one pill labelled Research, with the OTHER mode's name in grey
@@ -9391,21 +9374,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* the track has to be darker than the well it sits in (#F0F2F5) or the two lit
    and unlit halves read as loose pills rather than one control */
-.fg .tk-mode { display:inline-flex; align-items:center; gap:4px; padding:4px; border-radius:999px;
-  background:#e3e6ec; border:1px solid #d9dde4; }
-.fg .tk-modeb { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:999px;
+.fg .tk-mode { display:inline-flex; align-items:center; gap:4px; padding:4px; border-radius:var(--r-button);
+  background:var(--tint-2); }
+.fg .tk-modeb { display:inline-flex; align-items:center; gap:8px; height:30px; padding:0 12px; border-radius:var(--r-button);
   border:1px solid transparent; background:none; color:var(--gray500); font-family:var(--font-jakarta), sans-serif;
   font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tk-modeb:hover:not(:disabled):not(.on) { color:var(--ink); }
-.fg .tk-modeb.on { background:#fff; border-color:#e2e5ea; color:var(--ink);
-  box-shadow:0 2px 6px -2px rgba(10,12,20,.18); }
-/* the library option carries the research colour when it is the live one —
-   the same blue the search lines are drawn in */
-.fg .tk-modeb.on:first-child { color:#1d4ed8; border-color:var(--line);
-  box-shadow:none; }
+.fg .tk-modeb.on { background:var(--paper); border-color:var(--line); color:var(--ink); }
 .fg .tk-modeb:disabled { opacity:.42; cursor:not-allowed; }
-.fg .tk-modeb:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tk-modeb:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* Given a floor rather than left to shrink: the hint is a sentence, and a
    sentence squeezed into 90px beside a 36px control wraps to three lines. Below
@@ -9428,12 +9406,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    getting less than half the column. */
 .fg .page.tk-lock .tinput { margin-top:12px; }
 .fg .page.tk-lock .tinput .tib { display:none; }
-.fg .page.tk-lock .tinput .tin { gap:12px; padding:8px; border-radius:16px; border-color:#ececf0;
-  box-shadow:0 12px 28px -16px rgba(10,12,20,.25); }
-.fg .page.tk-lock .tinput .tic { width:38px; height:38px; border-radius:10px; }
+.fg .page.tk-lock .tinput .tin { gap:12px; padding:8px; border-radius:var(--r-card); border-color:var(--line); }
+.fg .page.tk-lock .tinput .tic { width:38px; height:38px; border-radius:var(--r-button); }
 .fg .page.tk-lock .tinput .tic svg { width:20px; height:20px; }
 .fg .page.tk-lock .tinput input { font-size:16px; padding:8px 0; }
-.fg .page.tk-lock .tinput .tsend { width:40px; height:40px; border-radius:16px; }
+.fg .page.tk-lock .tinput .tsend { width:40px; height:40px; border-radius:var(--r-button); }
 .fg .page.tk-lock .tinput .tmic { width:36px; height:36px; }
 .fg .page.tk-lock .tk-crow { margin-top:8px; gap:8px; padding:0 4px; }
 .fg .page.tk-lock .tk-clbl, .fg .page.tk-lock .tk-chint { display:none; }
@@ -9450,26 +9427,26 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tmsg .tmb ul:last-child { margin-bottom:0; }
 .fg .tmsg .tmb li { line-height:1.5; }
 
-.fg .tk-miss { display:flex; align-items:flex-start; gap:8px; max-width:100%; padding:12px 12px; border-radius:16px;
-  background:rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.28); color:#92400e; }
+.fg .tk-miss { display:flex; align-items:flex-start; gap:8px; max-width:100%; padding:12px 12px; border-radius:var(--r-card);
+  background:var(--warn-tint); border:1px solid var(--warn); color:var(--warn-t); }
 .fg .tk-miss svg { flex:none; margin-top:1px; }
 .fg .tk-miss b { display:block; font-size:13px; font-weight:700; line-height:1.4; }
 .fg .tk-miss em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--warn-t); }
 
 .fg .tk-trunc { margin:0; font-size:13px; font-weight:700; color:var(--gray400); }
 
-.fg .tk-fail { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 16px; border-radius:16px;
-  border-bottom-left-radius:6px; background:rgba(224,38,79,.05); border:1px solid rgba(224,38,79,.25); }
-.fg .tk-fail > span { font-size:14px; font-weight:700; color:#b31038; }
-.fg .tk-retry { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:999px;
-  background:#fff; border:1px solid rgba(224,38,79,.3); color:#b31038; font-family:var(--font-jakarta), sans-serif;
+.fg .tk-fail { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px 16px; border-radius:var(--r-card);
+  border-bottom-left-radius:var(--r-control); background:var(--bad-tint); border:1px solid var(--bad); }
+.fg .tk-fail > span { font-size:14px; font-weight:700; color:var(--bad-t); }
+.fg .tk-retry { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:var(--r-button);
+  background:var(--paper); border:1px solid var(--bad); color:var(--bad-t); font-family:var(--font-jakarta), sans-serif;
   font-size:13px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-retry:hover { background:#b31038; border-color:#b31038; color:#fff; }
+.fg .tk-retry:hover { background:var(--bad-t); border-color:var(--bad-t); color:var(--paper); }
 
 /* the offer only a GENERAL answer gets: go and look in the library */
 .fg .tk-offer { display:flex; padding-left:48px; }
-.fg .tk-again { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px; border-radius:999px;
-  background:var(--tint); border:1px solid var(--line); color:#1d4ed8;
+.fg .tk-again { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px; border-radius:var(--r-button);
+  background:var(--tint); border:1px solid var(--line); color:var(--ink);
   font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tk-again:hover { background:var(--ink); border-color:var(--ink); color:var(--paper); }
@@ -9512,31 +9489,31 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tmb ol.tk-steps:last-child { margin-bottom:0; }
 .fg .tmb ol.tk-steps li { counter-increment:tkstep; position:relative; padding-left:32px; line-height:1.5; }
 .fg .tmb ol.tk-steps li::before { content:counter(tkstep); position:absolute; left:0; top:-1px;
-  display:flex; align-items:center; justify-content:center; width:23px; height:23px; border-radius:6px;
-  background:#f1f3f7; color:var(--gray700); font-size:12px; font-weight:700; }
+  display:flex; align-items:center; justify-content:center; width:23px; height:23px; border-radius:var(--r-control);
+  background:var(--tint); color:var(--gray700); font-size:12px; font-weight:700; }
 
 /* ── data with columns ──
    `tabular-nums` is load-bearing: a resistance column whose digits do not
    line up is a column you have to read twice. */
 .fg .tk-tw { margin:0 0 12px; max-width:100%; overflow-x:auto; overscroll-behavior-x:contain;
-  border:1px solid #eef0f4; border-radius:16px; }
+  border:1px solid var(--line); border-radius:var(--r-card); }
 .fg .tk-tw:last-child { margin-bottom:0; }
 .fg .tk-tbl { width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums; }
-.fg .tk-tbl th { padding:8px 12px; text-align:left; white-space:nowrap; background:#fafbfc;
-  border-bottom:1px solid #eef0f4; font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tk-tbl td { padding:8px 12px; border-bottom:1px solid #f4f6f8; font-weight:600; color:var(--ink); }
+.fg .tk-tbl th { padding:8px 12px; text-align:left; white-space:nowrap; background:var(--tint);
+  border-bottom:1px solid var(--line); font-size:12px; font-weight:500; color:var(--gray400); }
+.fg .tk-tbl td { padding:8px 12px; border-bottom:1px solid var(--line); font-weight:600; color:var(--ink); }
 .fg .tk-tbl tr:last-child td { border-bottom:none; }
-.fg .tk-tbl tbody tr:hover td { background:#fafbfc; }
+.fg .tk-tbl tbody tr:hover td { background:var(--tint); }
 
 /* ── where it came from ──
    Sources sit INSIDE the sheet, under a rule: a citation belongs to the
    answer it supports, and floating the chips underneath left them reading as
    three grey pills belonging to nothing. */
-.fg .tk-srcfoot { margin-top:16px; padding-top:16px; border-top:1px solid #f1f3f7; }
+.fg .tk-srcfoot { margin-top:16px; padding-top:16px; border-top:1px solid var(--line); }
 .fg .tk-srclbl { display:block; margin-bottom:8px; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .tk-srcs { display:flex; flex-wrap:wrap; gap:8px; max-width:100%; }
 .fg .tk-src { display:inline-flex; align-items:center; gap:8px; max-width:100%; height:32px; padding:0 12px 0 4px;
-  border-radius:999px; background:#fff; border:1px solid #eceef2; box-shadow:0 1px 2px rgba(0,0,0,.03);
+  border-radius:var(--r-control); background:var(--paper); border:1px solid var(--line);
   font-family:var(--font-jakarta), sans-serif; cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .tk-src:hover { border-color:var(--line); }
@@ -9553,7 +9530,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ── the rail ── */
-.fg .tk-rail { position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
+.fg .tk-rail { position:relative; z-index:var(--z-raised); display:flex; flex-direction:column; gap:12px; min-width:0; min-height:0; overflow-y:auto; padding-bottom:4px; }
 .fg .tk-rcats { display:flex; flex-direction:column; gap:8px; }
 /* Tighter than it was — 16px of pad and a 38px tile around labels as short as
    "Field notes" left a band of empty card down the right of every row. The
@@ -9563,10 +9540,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* 16px, not 14: the cards sat two registers more utilitarian than the
    composer and the sheets they share the screen with */
 .fg .tk-rcat { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:4px 12px; padding:16px;
-  border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 4px 20px rgba(0,0,0,.02);
+  border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line);
   text-decoration:none; transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease); }
 .fg .tk-rcat:hover { border-color:var(--line); }
-.fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; width:34px; height:34px; border-radius:10px; }
+.fg .tk-ric { display:flex; align-items:center; justify-content:center; flex:none; }
 .fg .tk-rtx { min-width:0; }
 .fg .tk-rtx b { display:block; font-size:14px; font-weight:700; line-height:1.25; color:var(--ink); }
 /* the microline carries "4 matches · City Multi fault codes" on the winning
@@ -9612,10 +9589,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .tk-pks { display:flex; flex-direction:column; gap:8px; max-height:44vh; overflow:auto;
   overscroll-behavior:contain; }
 .tk-pkfade { position:absolute; left:0; right:0; bottom:0; height:44px; pointer-events:none;
-  background:linear-gradient(180deg, rgba(255,255,255,0), #fff 82%); opacity:0; transition:opacity var(--t-fast) var(--ease); }
+  background:linear-gradient(180deg, rgba(255,255,255,0), var(--paper) 82%); opacity:0; transition:opacity var(--t-fast) var(--ease); }
 .tk-pkfade.on { opacity:1; }
-.tk-pkq { margin:0; padding:16px 16px; border-radius:16px; background:var(--tint);
-  border:1px solid #eceef2; font-family:var(--font-jakarta), sans-serif;
+.tk-pkq { margin:0; padding:16px 16px; border-radius:var(--r-card); background:var(--tint);
+  border:1px solid var(--line); font-family:var(--font-jakarta), sans-serif;
   font-size:14px; font-weight:500; line-height:1.6; color:var(--ink); white-space:pre-wrap; }
 /* the page a passage came from, when the peek is showing more than one */
 .tk-pkqp { display:block; margin-bottom:4px; font-size:12px; font-weight:500; color:var(--q); }
@@ -9653,7 +9630,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    screen. Orthogonal runs want the weight of a drawn service: 2px, butt caps
    (a round cap on a 2px line is a bead on the end of a pipe), and the mitre
    left to the paths' own swept elbows. */
-.fg .tk-line { fill:none; stroke:#b9c1cf; stroke-width:2; stroke-linecap:butt; stroke-linejoin:round;
+.fg .tk-line { fill:none; stroke:var(--q); stroke-width:2; stroke-linecap:butt; stroke-linejoin:round;
   transition:opacity var(--t-fast) var(--ease), stroke var(--t-fast) var(--ease), stroke-width var(--t-fast) var(--ease); }
 
 /* at rest on the landing: the page showing what it is about to do. Faint
@@ -9699,12 +9676,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 @keyframes tkShim { from{background-position:150% 0} to{background-position:-50% 0} }
 
 /* found something, but not what the answer was built from */
-.fg .tk-rcat.hit { border-color:color-mix(in oklab, var(--tkc, var(--q)) 26%, #f0f0f2); }
+.fg .tk-rcat.hit { border-color:color-mix(in oklab, var(--tkc, var(--q)) 26%, var(--line)); }
 
 /* where the answer came from: ring and glow in the shelf's colour. Declared
    after `.tk-rcat:hover` at equal specificity on purpose — hovering the
    winning card must not take its ring away. */
-.fg .tk-rcat.winner { transform:translateY(-2px); border-color:var(--tkc, var(--ink));
+.fg .tk-rcat.winner { border-color:var(--tkc, var(--ink)); 
   box-shadow:none; }
 
 /* searched, nothing there — dimmed but still a way into the library */

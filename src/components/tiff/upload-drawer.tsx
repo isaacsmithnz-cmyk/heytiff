@@ -286,7 +286,7 @@ function FileRow({
   onCreatedTag: (tag: KbTagRef) => void;
   onRemove: () => void;
 }) {
-  const colour = KB_CATEGORIES.find((c) => c.key === item.category)?.color ?? "#9ca3af";
+  const colour = KB_CATEGORIES.find((c) => c.key === item.category)?.color ?? "var(--q)";
   const editable = item.phase === "queued" && !item.invalid;
 
   return (
@@ -296,8 +296,8 @@ function FileRow({
         <b>{item.file.name}</b>
         <em>{fmtSize(item.file.size)}</em>
         {item.phase === "queued" && (
-          <button type="button" className="tk-abtn ico" aria-label={`Remove ${item.file.name}`} onClick={onRemove}>
-            <Icon name="x" size={14} />
+          <button type="button" className="tk-abtn dan" aria-label={`Remove ${item.file.name}`} onClick={onRemove}>
+            Remove
           </button>
         )}
       </div>
@@ -364,7 +364,6 @@ function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestPr
   if (item.phase === "uploading") {
     return (
       <p className="tk-fst work">
-        <span className="tk-spin" aria-hidden="true" />
         Uploading…
       </p>
     );
@@ -382,7 +381,6 @@ function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestPr
   if (!progress) {
     return (
       <p className="tk-fst work">
-        <span className="tk-spin" aria-hidden="true" />
         Queued for reading…
       </p>
     );
@@ -392,7 +390,6 @@ function FileProgress({ item, progress }: { item: Pending; progress?: KbIngestPr
     const known = progress.pageCount !== null && progress.pageCount > 0;
     return (
       <p className="tk-fst work">
-        <span className="tk-spin" aria-hidden="true" />
         {known
           ? `Reading… ${progress.pagesDone.toLocaleString("en-AU")} of ${progress.pageCount!.toLocaleString("en-AU")} pages`
           : "Reading…"}

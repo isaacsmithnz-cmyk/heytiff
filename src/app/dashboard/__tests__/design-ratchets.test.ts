@@ -275,13 +275,13 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
   { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 32 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 76 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 205 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 185 },
   { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 2 },
   { law: "spacing off the scale — 2, 4, 8, 12, 16, 24, 32, 48", now: offScaleSpacing, baseline: 0 },
   { law: "cubic-bezier — two motion tokens, no custom curves", now: () => count(/cubic-bezier\(/g), baseline: 0 },
-  { law: "distinct z-index values — six layers", now: distinctZ, baseline: 36 },
+  { law: "distinct z-index values — six layers", now: distinctZ, baseline: 30 },
   { law: "arrows on buttons — the word is the button; an arrow between two values is a fact", now: () => countTsx(onScreen("→")), baseline: 6 },
   { law: "middot chains — a sentence, or a label and a value; the nine left are keyboard hints", now: () => countTsx(onScreen("·")), baseline: 9 },
   { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 2 },
@@ -305,11 +305,12 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
      what the law forbids. A state is named in the selector: ok, done, paid,
      verified, live, synced, past, active, now, and their kin. */
   { law: "the OK colour off a state selector — colour only where it means something", now: () => {
-      const STATE = /\.(ok|done|paid|verified|verify|waiting|live|now|synced|presumed|reimbursed|past|active|green|okw)\b|\.dchip2?\.ok|\.lv-cert\.on|\.vm-progress|\.wb2-waiting/;
+      const STATE = /\.(ok|done|paid|verified|verify|waiting|live|now|synced|presumed|reimbursed|past|active|green|okw)\b|\.dchip2?\.ok|\.lv-cert\.on|\.vm-progress|\.wb2-waiting|\[data-tone="(?:done|ok|live|go)"\]|\.wb2-gate\.on/;
       let n = 0;
-      for (const [sel, body] of blocks()) if (!STATE.test(sel)) n += (body.match(/var\(--ok-t\)/g) ?? []).length;
+      // a custom property that aliases the OK colour (`--wb2-ok: var(--ok-t)`) is a definition, not a use
+      for (const [sel, body] of blocks()) if (!STATE.test(sel)) n += (body.replace(/--[\w-]+\s*:\s*var\(--ok-t\)/g, "").match(/var\(--ok-t\)/g) ?? []).length;
       return n;
-    }, baseline: 10 },
+    }, baseline: 9 },
   { law: "focus rings drawn as an alpha tint — 2px of solid ink", now: faintRings, baseline: 0 },
   { law: "colour declared on anchors — one link token", now: anchorColours, baseline: 12 },
   /* THE ACCENT. Teal, blue and violet in any spelling, doing any job, in a

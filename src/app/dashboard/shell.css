@@ -109,7 +109,7 @@
   --ring-bad:0 0 0 2px var(--paper), 0 0 0 4px var(--bad-t);
   --ring-warn:0 0 0 2px var(--paper), 0 0 0 4px var(--warn-t);
   --shadow-overlay:0 12px 32px rgba(10,12,20,.16);
-  --ok-tint:rgba(25,107,45,.12);
+  --ok-tint:rgba(25,107,45,.12); --bad:#e0264f; --bad-tint:rgba(224,38,79,.1); --warn:#F0A431; --warn-tint:rgba(240,164,49,.13); --info-tint:rgba(37,84,216,.1);
   --t-fast:120ms; --t-move:200ms; --ease:ease-out;
   --z-raised:1; --z-sticky:10; --z-overlay:100; --z-modal:200; --z-toast:300;
   --r-control:6px; --r-button:10px; --r-card:16px; --r-pill:999px;
@@ -1134,7 +1134,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    What it does NOT borrow is `.wb2`'s own button restyles: those are the
    board's cyan AND its 38px sizing, and this card keeps the profile's 42px.
    So only the tokens are declared here, and the fill is restated below. */
-.fg .pcard2, .fg .pbar { --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
+.fg .pcard2, .fg .pbar { --wb2-line:var(--line); --wb2-line2:var(--line);
   --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* The primary button wears the board's cyan here too. It is the SAME surface
@@ -1176,7 +1176,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .wb2-vt.on .lock { color:var(--wb2-cy); }
 /* the completeness model's half of the tab: a COUNT, in the board's warn
    colour — never the page accent, which means "selected" here */
-.fg .pcard2 .wb2-vtn.warn { background:rgba(240,164,49,.16); color:var(--warn-t); }
+.fg .pcard2 .wb2-vtn.warn { background:var(--warn-tint); color:var(--warn-t); }
 
 /* ── the panel ── */
 .fg .ppanel2 { min-width:0; padding:24px 24px 24px; }
@@ -1527,15 +1527,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg .pcard2 .wb2-vtabs[data-ovr]::after,
   .fg .orgcard2 .wb2-vtabs[data-ovl]::before,
   .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
-    width:0; box-shadow:none;
+    width:0; box-shadow:none;;
   }
   .fg .pcard2 .wb2-vtabs[data-ovl]::before,
   .fg .orgcard2 .wb2-vtabs[data-ovl]::before {
-    box-shadow:18px 0 18px -12px rgba(10,12,20,.28);
   }
   .fg .pcard2 .wb2-vtabs[data-ovr]::after,
   .fg .orgcard2 .wb2-vtabs[data-ovr]::after {
-    box-shadow:-18px 0 18px -12px rgba(10,12,20,.28);
   }
 }
 @media (max-width:920px){
@@ -4664,7 +4662,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    The panel chrome (`.ppanel2`, `.psec2`, `.psechd`, `.pdl*`) is already
    declared against `.fg` alone, so it reaches here with nothing restated. */
-.fg .orgcard2 { --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
+.fg .orgcard2 { --wb2-line:var(--line); --wb2-line2:var(--line);
   --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* Save wears the board's cyan here for the same reason it does on the staff
@@ -5286,7 +5284,7 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
    scrolling columns do not fit in a row that already carries a title, a person
    and a date, and a control that squeezes the title to 40px to make room has
    made the card worse to read in order to be easier to reach. */
-.wb2-remindbox { display:flex; flex-direction:column; gap:8px; margin:0 8px 8px; padding:8px; border-radius:10px; background:rgba(5,5,5,.04); }
+.wb2-remindbox { display:flex; flex-direction:column; gap:8px; margin:0 8px 8px; padding:8px; border-radius:var(--r-button); background:var(--tint); }
 .wb2-capcard.wb2-dusk .wb2-remindbox { background:rgba(255,255,255,.05); }
 /* AT, OR BY. Two words above the wheel, because the time underneath means
    opposite things depending on which is lit — "do it at four" and "be done by
@@ -5296,17 +5294,17 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
    A PAIR OF PILLS RATHER THAN A SWITCH. A switch has an off state, and there
    isn't one: every time is one of the two, so both words are always visible
    and one is always lit. Nothing here is a hint — the labels ARE the control. */
-.wb2-rkind { display:inline-flex; gap:2px; padding:2px; border-radius:10px; background:rgba(5,5,5,.05); }
-.wb2-rkindb { padding:4px 12px; border:0; border-radius:6px; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-rkind { display:inline-flex; gap:2px; padding:2px; border-radius:var(--r-button); background:var(--tint-2); }
+.wb2-rkindb { padding:4px 12px; border:0; border-radius:var(--r-control); background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-rkindb:hover:not(.on) { color:var(--ink); }
-.wb2-rkindb.on { background:#fff; color:var(--ink); box-shadow:0 2px 6px -3px rgba(10,12,20,.45); }
-.wb2-rkindb:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-rkindb.on { background:var(--paper); color:var(--ink); }
+.wb2-rkindb:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-capcard.wb2-dusk .wb2-rkind { background:rgba(255,255,255,.06); }
 .wb2-capcard.wb2-dusk .wb2-rkindb { color:rgba(255,255,255,.62); }
 .wb2-capcard.wb2-dusk .wb2-rkindb:hover:not(.on) { color:#fff; }
 .wb2-capcard.wb2-dusk .wb2-rkindb.on { background:rgba(255,255,255,.16); color:#fff; }
-.wb2-remindoff { align-self:flex-start; padding:4px 8px; border:0; border-radius:6px; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.wb2-remindoff:hover { background:rgba(5,5,5,.06); color:var(--ink); }
+.wb2-remindoff { align-self:flex-start; padding:4px 8px; border:0; border-radius:var(--r-control); background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.wb2-remindoff:hover { background:var(--tint-2); color:var(--ink); }
 .wb2-capcard.wb2-dusk .wb2-remindoff { color:rgba(255,255,255,.62); }
 .wb2-capcard.wb2-dusk .wb2-remindoff:hover { background:rgba(255,255,255,.08); color:#fff; }
 
@@ -5374,39 +5372,38 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    the right way round — and below 900 the block underneath stretches the
    tray to the full width, where they are even again. */
 .wb2-seg { position:relative; justify-self:center; display:grid; grid-auto-flow:column;
-  grid-auto-columns:1fr; gap:2px; padding:4px; border-radius:16px;
+  grid-auto-columns:1fr; gap:2px; padding:4px; border-radius:var(--r-card);
   background:#e6eaf1; border:1px solid rgba(10,12,20,.06); flex:none; }
-.wb2-segsl { position:absolute; top:3px; bottom:3px; left:0; border-radius:10px; background:#fff;
-  box-shadow:0 3px 10px -4px rgba(10,12,20,.4);
+.wb2-segsl { position:absolute; top:3px; bottom:3px; left:0; border-radius:var(--r-button); background:var(--paper);
   transition:transform var(--t-move) var(--ease), width var(--t-move) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-seg[data-on="maintenance"] .wb2-segsl { background:#00806b; box-shadow:0 6px 16px -7px rgba(0,128,107,.85); }
-.wb2-seg[data-on="projects"] .wb2-segsl { background:var(--ink2); box-shadow:0 6px 16px -7px rgba(0,137,184,.85); }
+.wb2-seg[data-on="maintenance"] .wb2-segsl { background:var(--ink); }
+.wb2-seg[data-on="projects"] .wb2-segsl { background:var(--ink2); }
 /* ALL JOBS IS INK, NOT A THIRD HUE. Green and cyan name the two halves of the
    business; a third colour beside them would read as a third kind of work,
    when what this side actually is is EVERYTHING — including the two already
    named. Slate says "the whole book" without competing, and it keeps the
    accent vocabulary at two. */
-.wb2-seg[data-on="jobs"] .wb2-segsl { background:#333d4f; box-shadow:0 6px 16px -7px rgba(51,61,79,.85); }
+.wb2-seg[data-on="jobs"] .wb2-segsl { background:#333d4f; }
 /* Centred, because the seat is now wider than its label — left-aligned text
    in an equal column puts three labels at three different distances from the
    thumb that sits under them. */
 .wb2-segb { position:relative; z-index:1; display:inline-flex; align-items:center; justify-content:center;
   gap:8px; height:42px; padding:0 16px;
-  border:0; background:none; border-radius:10px; font:inherit; font-size:14px; font-weight:700; color:var(--gray700);
+  border:0; background:none; border-radius:var(--r-button); font:inherit; font-size:14px; font-weight:700; color:var(--gray700);
   cursor:pointer; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 /* the resting side is TRACK, not a seat — it lifts only under the pointer */
 .wb2-segb:not(.on):hover { background:rgba(255,255,255,.75); color:var(--ink); }
-.wb2-segb.on, .wb2-segb.on:hover { color:#fff; background:none; }
-.wb2-segb:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-segb i { min-width:21px; height:21px; padding:0 4px; border-radius:6px; display:grid; place-items:center;
+.wb2-segb.on, .wb2-segb.on:hover { color:var(--paper); background:none; }
+.wb2-segb:focus-visible { outline:none; box-shadow:var(--ring);; }
+.wb2-segb i { min-width:21px; height:21px; padding:0 4px; border-radius:var(--r-control); display:grid; place-items:center;
   font-size:12px; font-weight:700; font-style:normal; font-variant-numeric:tabular-nums;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-segb i.dan { background:rgba(224,38,79,.12); color:#b31038; }
-.wb2-segb i.wrn { background:rgba(255,138,0,.16); color:var(--warn-t); }
-.wb2-segb i.clr { background:var(--tint-2); color:#00806b; }
+.wb2-segb i.dan { background:var(--bad-tint); color:var(--bad-t); }
+.wb2-segb i.wrn { background:var(--warn-tint); color:var(--warn-t); }
+.wb2-segb i.clr { background:var(--tint-2); color:var(--ink); }
 /* on the filled side the badge sits on colour — one translucent well, so a
    count never fights the fill it lives on */
-.wb2-segb.on i { background:rgba(0,0,0,.24) !important; color:#fff !important; }
+.wb2-segb.on i { background:rgba(0,0,0,.24) !important; color:var(--paper) !important; }
 
 @media (max-width:900px) {
   .wb2-head { grid-template-columns:1fr; justify-items:start; gap:12px; }
@@ -5472,9 +5469,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    family (E2) and is never a state colour. No horizontal motion anywhere —
    the sheet and tab swaps speak fgPageIn/fgPageOut's vertical language. */
 
-.wb2 { --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:var(--q);
-  --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
-  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:var(--ink);
+.wb2 { --wb2-eq:var(--ink); --wb2-acc:var(--ink); --wb2-crew:var(--q);
+  --wb2-line:var(--line); --wb2-line2:var(--line);
+  --wb2-dan:var(--bad); --wb2-dan-t:var(--bad-t); --wb2-warn:var(--warn); --wb2-warn-t:var(--warn-t); --wb2-ok:var(--ok-t);
   --wb2-cy:var(--ink); --wb2-cy2:var(--ink2); }
 
 /* the board's primary buttons wear the section accent, ghosts stay house */
@@ -5504,12 +5501,12 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    beside an outlined secondary is the pair saying which one is the default,
    and two fills would say neither. */
 .wb2 .pbtn.ghost, .wb2-sheet .pbtn.ghost, .wb2-capcard .pbtn.ghost {
-  height:38px; padding:0 16px; font-size:13px; border-radius:10px;
+  height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button);
   border:1px solid #89929f; box-shadow:none; }
 .wb2 .pbtn.ghost:hover:not(:disabled), .wb2-sheet .pbtn.ghost:hover:not(:disabled),
 .wb2-capcard .pbtn.ghost:hover:not(:disabled) { background:#f2f4f7; border-color:#6b7583; }
 .wb2 .pbtn:not(.ghost), .wb2-sheet .pbtn:not(.ghost), .wb2-capcard .pbtn:not(.ghost) {
-  height:38px; padding:0 16px; font-size:13px; border-radius:10px; }
+  height:38px; padding:0 16px; font-size:13px; border-radius:var(--r-button); }
 
 /* OFF has to LOOK off. A 55% fade of a coloured button still reads as a
    button you can press, and the only other signal was a hover that quietly
@@ -5518,10 +5515,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    and says so with the cursor. Wins over the fills above by specificity. */
 .wb2 .pbtn:disabled, .wb2-sheet .pbtn:disabled, .wb2-capcard .pbtn:disabled,
 .wb2-daymodal .pbtn:disabled {
-  background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none;
+  background:#eef0f4; border-color:#e3e6ec; color:var(--q); box-shadow:none;;
   cursor:not-allowed; opacity:1; }
 .wb2 .pbtn.ghost:disabled, .wb2-sheet .pbtn.ghost:disabled, .wb2-capcard .pbtn.ghost:disabled,
-.wb2-daymodal .pbtn.ghost:disabled { background:#f7f8fa; color:#a2a9b8; }
+.wb2-daymodal .pbtn.ghost:disabled { background:var(--tint); color:var(--q); }
 
 /* ── the view tabs — joined to the card ── */
 /* PADDING-LEFT IS LOAD-BEARING, and it is what finally settled the top-left
@@ -5556,9 +5553,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    It is not caught by the `.fg button` / `.fg input` resets: both exclude
    anything carrying a `wb2-` class outright (see the top of this file), which
    is what keeps a (0,1,1) reset off a (0,1,0) component rule here. */
-.wb2-find { display:flex; align-items:center; gap:8px; height:36px; padding:0 4px 0 12px; border-radius:999px;
-  border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); flex:0 1 320px; min-width:210px; }
-.wb2-find:focus-within { border-color:rgba(0,168,224,.5); box-shadow:var(--ring); }
+.wb2-find { display:flex; align-items:center; gap:8px; height:36px; padding:0 4px 0 12px; border-radius:var(--r-pill);
+  border:1px solid var(--wb2-line); background:var(--paper); color:var(--gray500); flex:0 1 320px; min-width:210px; }
+.wb2-find:focus-within { border-color:var(--info-t); box-shadow:var(--ring);; }
 .wb2-find input { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;
   color:var(--ink); outline:none; }
 .wb2-find input::placeholder { color:var(--q); font-weight:500; }
@@ -5566,10 +5563,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    empties the results and lets go of the mirror's answer, so the native one
    comes off rather than sitting beside it doing half the job. */
 .wb2-find input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
-.wb2-findx { width:24px; height:24px; flex:none; display:grid; place-items:center; border:0; border-radius:999px;
-  padding:0; background:rgba(5,5,5,.06); color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-findx:hover { background:rgba(5,5,5,.12); color:var(--ink); }
-.wb2-findx:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-findx { width:24px; height:24px; flex:none; display:grid; place-items:center; border:0; border-radius:var(--r-pill);
+  padding:0; background:var(--tint-2); color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-findx:hover { background:var(--tint-2); color:var(--ink); }
+.wb2-findx:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* THE TAB ROW RUNS OUT OF ROOM BEFORE THE SEARCH DOES. Five tabs, the mirror
    chip and the field's 210px floor want ~955px of CARD, and the shell (rail +
    paddings) takes ~320px of viewport before the card gets any — so the row is
@@ -5595,36 +5592,34 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
   .wb2-vtcap, .wb2-sm8 + .wb2-vtcap { flex:1 0 100%; margin:0 0 8px; padding-bottom:0; }
   .wb2-find { flex:1 1 auto; }
 }
-.wb2-vt { position:relative; z-index:1; height:44px; padding:0 24px; border:0; background:transparent; border-radius:10px 10px 0 0;
+.wb2-vt { position:relative; z-index:1; height:44px; padding:0 24px; border:0; background:transparent; border-radius:var(--r-button) var(--r-button) 0 0;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; display:inline-flex; align-items:center; gap:8px;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-vt:hover:not(.on) { color:var(--ink); background:rgba(5,5,5,.06); }
+.wb2-vt:hover:not(.on) { color:var(--ink); background:var(--tint-2); }
 .wb2-vt.on { color:var(--ink); }
-.wb2-vt:focus-visible { outline:none; box-shadow:var(--ring); z-index:4; }
-.wb2-vt:not(.on) + .wb2-vt:not(.on):before { content:""; position:absolute; left:0; top:14px; bottom:14px; width:1.5px; border-radius:999px; background:rgba(5,5,5,.14); }
+.wb2-vt:focus-visible { outline:none; box-shadow:var(--ring);; z-index:4; }
+.wb2-vt:not(.on) + .wb2-vt:not(.on):before { content:""; position:absolute; left:0; top:14px; bottom:14px; width:1.5px; border-radius:var(--r-pill); background:var(--tint-2); }
 /* count badges keep their severity colour even while active (E6) */
-.wb2-vtn { min-width:20px; height:19px; padding:0 4px; border-radius:6px; display:grid; place-items:center;
-  background:rgba(5,5,5,.07); color:var(--gray700); font-size:12px; font-weight:700; font-style:normal; }
-.wb2-vtn.dan { background:rgba(224,38,79,.12); color:var(--wb2-dan-t, #b31038); }
-.wb2-vtn.warn { background:rgba(255,138,0,.16); color:var(--wb2-warn-t, #B45309); }
+.wb2-vtn { min-width:20px; height:19px; padding:0 4px; border-radius:var(--r-control); display:grid; place-items:center;
+  background:var(--tint-2); color:var(--gray700); font-size:12px; font-weight:700; font-style:normal; }
+.wb2-vtn.dan { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
+.wb2-vtn.warn { background:var(--warn-tint); color:var(--wb2-warn-t, var(--warn-t)); }
 /* The thumb IS the card's top edge for the width of the active tab, so it
    carries the card's border. Without it the white sat inside a border that
    stopped at the card, and the join read as a step — "it doesn't actually
    perfectly line up with the rest of the card". */
-.wb2-vslide { position:absolute; left:0; bottom:-1px; height:45px; border-radius:10px 10px 0 0; background:#fff; z-index:0;
-  border:1px solid var(--wb2-line); border-bottom:0;
-  box-shadow:0 -10px 22px -18px rgba(10,12,20,.55); transition:transform var(--t-move) var(--ease), width var(--t-move) var(--ease); }
+.wb2-vslide { position:absolute; left:0; bottom:-1px; height:45px; border-radius:var(--r-button) var(--r-button) 0 0; background:var(--paper); z-index:0;
+  border:1px solid var(--wb2-line); border-bottom:0; transition:transform var(--t-move) var(--ease), width var(--t-move) var(--ease); }
 .wb2-vslide:before { content:""; position:absolute; left:-12px; bottom:0; width:12px; height:12px;
-  background:radial-gradient(circle 12px at 0 0, transparent 11.5px, #fff 12px); }
+  background:radial-gradient(circle 12px at 0 0, transparent 11.5px, var(--paper) 12px); }
 .wb2-vslide:after { content:""; position:absolute; right:-12px; bottom:0; width:12px; height:12px;
-  background:radial-gradient(circle 12px at 100% 0, transparent 11.5px, #fff 12px); }
+  background:radial-gradient(circle 12px at 100% 0, transparent 11.5px, var(--paper) 12px); }
 
 /* ── the persistent card ── */
 /* Four equal corners, always. Nothing about this card changes when you
    switch tabs any more — see the padding-left note on .wb2-vtabs for why
    that is the point and not an oversight. */
-.wb2-card { background:#fff; border:1px solid var(--wb2-line); border-radius:16px;
-  box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
+.wb2-card { background:var(--paper); border:1px solid var(--wb2-line); border-radius:var(--r-card); overflow:hidden; }
 @supports (view-transition-name: none) {
   .wb2-card { view-transition-name:wbcard; }
   .wb2-vtabs { view-transition-name:wbtabs; }
@@ -5664,10 +5659,10 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 
 /* ── card head (K9: icon tile + title + subtitle + status slot, every tab) ── */
 .wb2-chd { display:flex; align-items:center; gap:12px; padding:16px 16px; border-bottom:1px solid var(--wb2-line2); }
-.wb2-ci { width:38px; height:38px; border-radius:10px; display:grid; place-items:center; background:rgba(5,5,5,.05); color:var(--ink); flex:none; }
-.wb2-ci.blue { background:rgba(0,168,224,.1); color:var(--ink2); }
-.wb2-ci.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan); }
-.wb2-ci.ok { background:var(--ok-tint); color:#00806b; }
+.wb2-ci { width:38px; height:38px; border-radius:var(--r-button); display:grid; place-items:center; background:var(--tint); color:var(--ink); flex:none; }
+.wb2-ci.blue { background:var(--info-tint); color:var(--ink2); }
+.wb2-ci.dan { background:var(--bad-tint); color:var(--wb2-dan); }
+.wb2-ci.ok { background:var(--ok-tint); color:var(--ok-t); }
 .wb2-chd > div { min-width:0; }
 .wb2-chd b { display:block; font-size:16px; font-weight:700; }
 .wb2-chd em { display:block; font-style:normal; font-size:13px; color:var(--gray500); margin-top:2px; font-weight:500; }
@@ -5691,9 +5686,9 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* a chip that IS a door — a tracked job wears its board in the band and the
    chip opens it. A real <button>, so the UA face is stripped here (the sheet
    portals outside .fg, so no house reset reaches it). */
-button.wb2-chip { font:inherit; font-size:13px; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; }
-button.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
-button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
+button.wb2-chip { font:inherit; font-size:13px; font-weight:500; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:var(--r-control); padding:4px 8px; cursor:pointer; }
+button.wb2-chip:hover { box-shadow:0 0 0 1px var(--info-t) inset;; }
+button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-empty { display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; padding:32px 16px; color:var(--gray500); }
 .wb2-empty svg { color:var(--q); }
 .wb2-empty b { font-size:14px; color:var(--ink); }
@@ -5749,8 +5744,8 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-trj { display:grid; grid-template-columns:minmax(0,1fr) 72px 104px 118px 150px 200px; gap:12px; align-items:baseline; padding:12px 16px;
   border-bottom:1px solid var(--wb2-line2); position:relative; transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-wkgrp:last-child .wb2-trj:last-child { border-bottom:0; }
-.wb2-trj:hover { background:#fff; z-index:1; }
-.wb2-trj:focus-visible { outline:none; box-shadow:inset var(--ring); }
+.wb2-trj:hover { background:var(--paper); z-index:1; }
+.wb2-trj:focus-visible { outline:none; box-shadow:inset var(--ring);; }
 .wb2-trj[data-sev="over"]:before, .wb2-trt { min-width:0; }
 .wb2-trt b { display:block; font-size:14px; font-weight:700; }
 .wb2-trt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:500; margin-top:2px;
@@ -5764,21 +5759,21 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-trd b { font-size:13px; font-weight:700; }
 .wb2-trd em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); display:flex; align-items:center; gap:4px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-trd em.dan, .wb2-facts em.dan, .wb2-sched em.dan { color:var(--wb2-dan-t); }
-.wb2-av { width:18px; height:18px; border-radius:6px; background:rgba(5,5,5,.07); color:var(--gray700);
+.wb2-av { width:18px; height:18px; border-radius:var(--r-control); background:var(--tint-2); color:var(--gray700);
   display:inline-grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
 .wb2-trck { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; align-items:center; align-self:center; }
 .wb2-trnote { grid-column:1/-1; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.wb2-ckall { grid-column:1/-1; height:30px; border-radius:6px; border:1px solid var(--line); background:var(--tint);
-  color:#00806b; display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:700; }
+.wb2-ckall { grid-column:1/-1; height:30px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--tint);
+  color:var(--ink); display:flex; align-items:center; justify-content:center; gap:8px; font-size:12px; font-weight:700; }
 /* Gates ticked but no day yet: still good news, but not the same news, so it
    doesn't wear the full green a booked-and-ready job wears. */
 /* the softer "Ready to book" variant is gone — there is no such thing as
    half-ready. Nothing without a day in the diary wears this strip. */
-.wb2-ckall svg { color:#fff; background:var(--wb2-ok); border-radius:6px; padding:1px; }
-.wb2-ckq { width:100%; height:30px; border-radius:6px; border:1px solid color-mix(in oklab, var(--as) 34%, #fff);
-  background:color-mix(in oklab, var(--as) 8%, #fff); display:grid; place-items:center; }
+.wb2-ckall svg { color:var(--paper); background:var(--wb2-ok); border-radius:var(--r-control); padding:1px; }
+.wb2-ckq { width:100%; height:30px; border-radius:var(--r-control); border:1px solid color-mix(in oklab, var(--as) 34%, var(--paper));
+  background:color-mix(in oklab, var(--as) 8%, var(--paper)); display:grid; place-items:center; }
 .wb2-ckq i { width:8px; height:8px; border-radius:0; background:var(--as); }
-.wb2-ckq svg { color:#fff; background:var(--wb2-ok); border-radius:6px; padding:1px; width:15px; height:15px; }
+.wb2-ckq svg { color:var(--paper); background:var(--wb2-ok); border-radius:var(--r-control); padding:1px; width:15px; height:15px; }
 .wb2-ckq.on { background:var(--tint); border-color:var(--line); }
 
 /* ── urgent rows ── */
@@ -5802,13 +5797,13 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* Tasks: the tick leads, because ticking is the whole interaction. */
 .wb2-tasks { display:flex; flex-direction:column; }
-.wb2-tk { display:flex; align-items:center; gap:12px; padding:8px 8px; border-radius:10px; transition:background var(--t-fast) var(--ease); }
-.wb2-tk:hover { background:rgba(5,5,5,.022); }
-.wb2-tkb { width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid rgba(5,5,5,.22); background:#fff;
+.wb2-tk { display:flex; align-items:center; gap:12px; padding:8px 8px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
+.wb2-tk:hover { background:var(--tint); }
+.wb2-tkb { width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid rgba(5,5,5,.22); background:var(--paper);
   color:transparent; display:grid; place-items:center; cursor:pointer; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-tkb:hover:not(:disabled) { border-color:var(--wb2-ok); background:var(--tint); color:#00806b; }
+.wb2-tkb:hover:not(:disabled) { border-color:var(--wb2-ok); background:var(--tint); color:var(--ink); }
 .wb2-tkb:disabled { opacity:.5; cursor:default; }
-.wb2-tkb:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-tkb:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-tkt { flex:1; min-width:0; }
 .wb2-tkt b { display:block; font-size:13px; font-weight:700; line-height:1.35; text-wrap:pretty; }
 .wb2-tkt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; }
@@ -5818,10 +5813,10 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    group heading carries the grouping, so a box around each one only adds
    edges to count. Boxed, a five-row queue read as five separate things to
    deal with instead of one list to work down. */
-.wb2-ur { display:flex; align-items:center; gap:12px; border-radius:10px; padding:12px 12px 12px 12px;
+.wb2-ur { display:flex; align-items:center; gap:12px; border-radius:var(--r-button); padding:12px 12px 12px 12px;
   position:relative; transition:background var(--t-fast) var(--ease); }
-.wb2-ur:hover { background:rgba(5,5,5,.022); }
-.wb2-ur:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-ur:hover { background:var(--tint); }
+.wb2-ur:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-urt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
 .wb2-urt b { font-size:14px; font-weight:700; line-height:1.3; text-wrap:pretty; }
 .wb2-urt em { font-style:normal; font-size:12px; color:var(--gray500); font-weight:500;
@@ -5843,25 +5838,25 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    label. The load sits at the BOTTOM, centred — the date anchors the top
    left, the work collects at the foot, and a row of days compares at a
    glance because every cluster starts from the same baseline. */
-.wb2-mcc { position:relative; min-height:104px; border:1px solid var(--wb2-line2); border-radius:10px; padding:8px;
-  background:#fff; display:flex; flex-direction:column; gap:4px; text-align:left; }
+.wb2-mcc { position:relative; min-height:104px; border:1px solid var(--wb2-line2); border-radius:var(--r-button); padding:8px;
+  background:var(--paper); display:flex; flex-direction:column; gap:4px; text-align:left; }
 .wb2-mcc.past { opacity:.6; }
-.wb2-mcc.we { background:rgba(5,5,5,.022); }
+.wb2-mcc.we { background:var(--tint); }
 /* Today is the ink outline and a badge behind the number — the accent ring
    competed with the state tints for the same job (they say "what kind of
    day"; this says "you are here"). */
-.wb2-mcc.today { border-color:rgba(5,5,5,.55); box-shadow:0 0 0 1px rgba(5,5,5,.14); }
+.wb2-mcc.today { border-color:rgba(5,5,5,.55); box-shadow:0 0 0 1px rgba(5,5,5,.14);; }
 .wb2-mcc.today .wb2-mcn b { display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 4px;
-  border-radius:6px; background:rgba(5,5,5,.07); color:var(--ink); }
+  border-radius:var(--r-control); background:var(--tint-2); color:var(--ink); }
 .wb2-mcc.today .wb2-mcn i { color:var(--gray700); }
 /* A day's colour has to carry across the room — this is the wall-screen
    view as well as the desk one. Tints sit at the strength the handoff set;
    anything fainter and a red Monday and a green Monday look alike at 2 m. */
 .wb2-mcc[data-tone="go"] { background:var(--tint-2); border-color:var(--line); }
-.wb2-mcc[data-tone="soon"] { background:rgba(255,138,0,.16); border-color:rgba(255,138,0,.5); }
-.wb2-mcc[data-tone="flash"] { background:rgba(224,38,79,.1); border-color:rgba(224,38,79,.42); }
-.wb2-mcc[data-tone="over"] { background:rgba(224,38,79,.16); border-color:rgba(224,38,79,.52); }
-.wb2-mcc[data-tone="done"] { background:rgba(5,5,5,.045); border-color:rgba(5,5,5,.09); }
+.wb2-mcc[data-tone="soon"] { background:var(--warn-tint); border-color:var(--warn); }
+.wb2-mcc[data-tone="flash"] { background:var(--bad-tint); border-color:var(--bad); }
+.wb2-mcc[data-tone="over"] { background:var(--bad-tint); border-color:var(--bad); }
+.wb2-mcc[data-tone="done"] { background:var(--tint); border-color:var(--line); }
 .wb2-mcc[data-tone="done"] .wb2-mcn { color:var(--gray400); }
 .wb2-mcc:hover { border-color:rgba(5,5,5,.2); }
 .wb2-mcc { transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
@@ -5870,18 +5865,18 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    glance across the room on the wall screen. */
 .wb2-mcdone { margin-top:auto; display:grid; place-items:center; padding:4px 0 4px; }
 .wb2-mcdone span { display:grid; place-items:center; width:24px; height:24px; border-radius:50%;
-  background:var(--wb2-ok); color:#fff; box-shadow:none; }
-.wb2-mcc[data-tone="done"] .wb2-mcdone span { background:#00806b; }
+  background:var(--wb2-ok); color:var(--paper); box-shadow:none;; }
+.wb2-mcc[data-tone="done"] .wb2-mcdone span { background:var(--ok-t); }
 .wb2-mcsum { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 /* the window label with its own arrows, the way a stepper should read */
 .wb2-mchead { display:flex; align-items:center; gap:8px; }
 .wb2-mchead b { font-size:16px; font-weight:700; }
-.wb2-mcarrow { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:10px;
-  border:1px solid var(--wb2-line); background:#fff; color:var(--gray500); cursor:pointer;
+.wb2-mcarrow { width:30px; height:30px; flex:none; display:grid; place-items:center; border-radius:var(--r-button);
+  border:1px solid var(--wb2-line); background:var(--paper); color:var(--gray500); cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-mcarrow:hover { border-color:rgba(5,5,5,.24); color:var(--ink); background:#fbfbfc; }
-.wb2-mcarrow:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-mcnow { height:26px; padding:0 12px; border-radius:999px; border:1px solid var(--wb2-line); background:#fff;
+.wb2-mcarrow:focus-visible { outline:none; box-shadow:var(--ring);; }
+.wb2-mcnow { height:26px; padding:0 12px; border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
   font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
 .wb2-mcc[data-tone="flash"] { animation:wb2Flash 2.4s ease-in-out infinite; }
@@ -5988,10 +5983,10 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schstrip .wb2-schdays { flex:1 1 0; min-width:0; padding:0; }
 .wb2-schdays { display:flex; gap:4px; padding:12px 16px 0; }
 .wb2-schday { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px;
-  padding:8px 4px 8px; border-radius:10px; background:transparent; cursor:pointer;
+  padding:8px 4px 8px; border-radius:var(--r-button); background:transparent; cursor:pointer;
   transition:background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-schday:hover:not(.on) { background:rgba(5,5,5,.045); }
-.wb2-schday:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-schday:hover:not(.on) { background:var(--tint); }
+.wb2-schday:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-schday .cw { font-size:12px; font-weight:500; color:var(--gray400); }
 .wb2-schday .cd { font-size:16px; font-weight:700; color:var(--gray700); font-variant-numeric:tabular-nums; }
 .wb2-schday .cn { min-height:16px; font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
@@ -6001,7 +5996,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    strip's signal, so the two strips can never contradict each other */
 .wb2-schday.today .cw { color:var(--ink); }
 .wb2-schday.today .cw::after { content:" ·"; color:var(--ink); }
-.wb2-schday.on { background-color:#fff; box-shadow:0 3px 8px -3px rgba(10,12,20,.28), inset 0 0 0 1px var(--wb2-line); }
+.wb2-schday.on { background-color:var(--paper); }
 .wb2-schday.on .cd { color:var(--ink); }
 .wb2-schday.past .cd, .wb2-schday.past .cw { opacity:.55; }
 
@@ -6011,10 +6006,10 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    is — the lesson from the maintenance calendar's removed Everything view. */
 .wb2-schshelf { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:12px 16px 0; }
 .wb2-schshelf > b { font-size:12px; font-weight:500; color:var(--gray400); }
-.wb2-schsv { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:10px;
-  background:rgba(0,168,224,.08); font-size:12px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
-.wb2-schsv:hover { background:rgba(0,168,224,.14); }
-.wb2-schsv:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-schsv { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:var(--r-button);
+  background:var(--info-tint); font-size:12px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
+.wb2-schsv:hover { background:var(--info-tint); }
+.wb2-schsv:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-schsv em { font-style:normal; font-weight:600; color:var(--gray500); }
 
 .wb2-schload { padding:12px 16px; }
@@ -6023,7 +6018,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schboard { display:flex; margin-top:12px; border-top:1px solid var(--wb2-line2); }
 
 /* the frozen name column */
-.wb2-schnames { flex:none; width:148px; border-right:1px solid var(--wb2-line2); background:#fff; z-index:2; }
+.wb2-schnames { flex:none; width:148px; border-right:1px solid var(--wb2-line2); background:var(--paper); z-index:2; }
 .wb2-schnh { height:34px; border-bottom:1px solid var(--wb2-line2); }
 .wb2-schn { display:flex; flex-direction:column; justify-content:center; gap:1px;
   padding:0 12px 0 16px; border-bottom:1px solid var(--wb2-line2); }
@@ -6055,21 +6050,21 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    cannot see the colour. */
 .wb2-schpd { flex:none; width:8px; height:8px; border-radius:50%; }
 .wb2-schpd.on { background:var(--wb2-ok); }
-.wb2-schpd.wait { box-shadow:inset 0 0 0 1.5px #b9bec7; }
+.wb2-schpd.wait { box-shadow:inset 0 0 0 1.5px #b9bec7;; }
 .wb2-schpd.late { background:var(--wb2-dan); }
 .wb2-schn em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
 .wb2-schn.none b { color:var(--gray500); }
 /* the load meter — utilisation against an 8h day, in the neutral family.
    NOT a state colour: a light day is a fact for the admin to read, not a
    fault for the board to shout about. */
-.wb2-schmeter { width:52px; height:3px; border-radius:999px; background:rgba(5,5,5,.08); margin-top:4px; overflow:hidden; }
-.wb2-schmeter i { display:block; height:100%; border-radius:999px; background:#9aa1ad; }
+.wb2-schmeter { width:52px; height:3px; border-radius:var(--r-pill); background:var(--tint-2); margin-top:4px; overflow:hidden; }
+.wb2-schmeter i { display:block; height:100%; border-radius:var(--r-pill); background:#9aa1ad; }
 
 /* the scrolling rail. The fade says there is more day to the right — and
    lifts at the end, so it only ever promises what exists. */
 .wb2-schrailwrap { position:relative; flex:1 1 auto; min-width:0; }
 .wb2-schrailwrap::after { content:""; position:absolute; top:34px; right:0; bottom:0; width:34px;
-  pointer-events:none; z-index:4; background:linear-gradient(to right, rgba(255,255,255,0), #fff);
+  pointer-events:none; z-index:4; background:linear-gradient(to right, rgba(255,255,255,0), var(--paper));
   opacity:1; transition:opacity var(--t-fast) var(--ease); }
 .wb2-schrailwrap.atend::after { opacity:0; }
 .wb2-schrail { overflow-x:auto; overscroll-behavior-x:contain; }
@@ -6104,8 +6099,8 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    toward whatever is behind it, and on a saturated fill it takes the suburb
    line under 4.5:1. */
 .wb2-schb { position:absolute; display:flex; flex-direction:column; justify-content:center; gap:2px;
-  padding:4px 8px 4px 16px; border-radius:10px; text-align:left; overflow:hidden; cursor:pointer;
-  background:var(--fill, #f4f5f7);
+  padding:4px 8px 4px 16px; border-radius:var(--r-button); text-align:left; overflow:hidden; cursor:pointer;
+  background:var(--fill, var(--tint));
   transition:box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease);
   animation:wb2SchRise .26s var(--ease) backwards; }
 @keyframes wb2SchRise { from { opacity:0; transform:translateY(5px); } }
@@ -6114,9 +6109,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    an alarm — and the hue itself is this 4px cap, walked down by
    schedule-colour.ts until it clears 3:1 against the wash behind it. */
 .wb2-schb::before { content:""; position:absolute; left:5px; top:9px; bottom:9px;
-  width:4px; border-radius:999px; background:var(--bar, #7a818c); }
+  width:4px; border-radius:var(--r-pill); background:var(--bar, #7a818c); }
 .wb2-schb:hover { z-index:3; }
-.wb2-schb:focus-visible { outline:none; box-shadow:var(--ring); z-index:4; }
+.wb2-schb:focus-visible { outline:none; box-shadow:var(--ring);; z-index:4; }
 .wb2-schb b, .wb2-schb em, .wb2-schb i { color:var(--btext, var(--ink));
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3; }
 .wb2-schb b { font-size:12px; font-weight:700; }
@@ -6128,9 +6123,9 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    measurement — it can only ever be closer to the ground than the text is. */
 .wb2-schbh { display:flex; align-items:center; gap:4px; min-width:0; }
 .wb2-schbh b { min-width:0; }
-.wb2-schb u { flex:none; padding:1px 4px; border-radius:6px; text-decoration:none;
+.wb2-schb u { flex:none; padding:1px 4px; border-radius:var(--r-control); text-decoration:none;
   font-size:12px; font-weight:700; color:var(--btext, var(--ink));
-  background:var(--chip, rgba(5,5,5,.09));
+  background:var(--chip, var(--tint-2));
   font-variant-numeric:tabular-nums; }
 
 /* a job promoted onto one of our boards leaves the category palette and
@@ -6150,25 +6145,25 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 /* A finished job carries NO HUE — see schedule-colour.ts. Under a wash, a
    category-tinted "pale" and the live wash were the same colour twice, and
    done work stopped being distinguishable at a glance. Neutral, no cap. */
-.wb2-schb.done { background:var(--pale, #f4f5f7); padding:4px 24px 4px 12px;
-  box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4); }
+.wb2-schb.done { background:var(--pale, var(--tint)); padding:4px 24px 4px 12px;
+  box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4);; }
 .wb2-schb.done b, .wb2-schb.done em, .wb2-schb.done i { color:var(--ink); }
-.wb2-schb.done em { color:#2b3038; }
+.wb2-schb.done em { color:var(--ink); }
 .wb2-schb.done i { color:#5a616d; }
 /* on a pale block the chip goes the other way — the ground is already near
    white, so a lighter patch would not be a patch at all. Ink on this still
    measures ~12:1, well clear. */
-.wb2-schb.done u { color:var(--ink); background:rgba(5,5,5,.09); }
-.wb2-schb.done:hover { box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4), 0 5px 14px -5px rgba(10,12,20,.45); }
+.wb2-schb.done u { color:var(--ink); background:var(--tint-2); }
+.wb2-schb.done:hover { box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4), 0 5px 14px -5px rgba(10,12,20,.45);; }
 .wb2-schb.done::after { content:""; position:absolute; right:8px; top:50%; margin-top:-7px;
-  width:14px; height:14px; border-radius:50%; background:#00806b; }
+  width:14px; height:14px; border-radius:50%; background:var(--ok-t); }
 /* the tick itself — two borders of an empty box, rotated. The 4px bar that
    used to own ::before went with the wash, so this is free. */
 /* the tick itself — two borders of an empty box, rotated. It reclaims
    ::before from the cap, so every inherited value has to be put back. */
 .wb2-schb.done::before { left:auto; right:13px; top:50%; bottom:auto; margin-top:-4px;
   width:3.5px; height:7px; border-radius:0; background:none;
-  border:solid #fff; border-width:0 2px 2px 0;
+  border:solid var(--paper); border-width:0 2px 2px 0;
   transform:rotate(40deg); z-index:1; }
 
 /* NOBODY HAS STARTED IT — the cap goes hollow and NOTHING ELSE CHANGES.
@@ -6190,7 +6185,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    So the ground stays the category and the state lives entirely in the cap —
    filled means someone is on it, hollow means it is still only booked. What
    is actually WRONG gets a mark of its own, below. */
-.wb2-schb.idle::before { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #b9bec7); }
+.wb2-schb.idle::before { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #b9bec7);; }
 
 /* PAST ITS START WITH NOTHING RECORDED — the one block on the rail that is
    actually wrong, and now the only one wearing a mark.
@@ -6208,7 +6203,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-schb.late::after { content:"!"; position:absolute; right:8px; top:50%; margin-top:-7px;
   width:14px; height:14px; border-radius:50%; background:var(--wb2-dan);
   display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:700; line-height:1; color:#fff; }
+  font-size:12px; font-weight:700; line-height:1; color:var(--paper); }
 .wb2-schb.tight::before { top:6px; bottom:6px; }
 
 /* MARKED COMPLETE IN SERVICEM8, BOOKING STILL ON THE DAY. ServiceM8 has no
@@ -6224,12 +6219,12 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    were; what is gone is the decoration that made a fact look like a fault. */
 
 /* didn't go ahead — the one status that is an exception, so it gets the ring */
-.wb2-schb.dan { box-shadow:inset 0 0 0 2px var(--wb2-dan); }
-.wb2-schb.dan:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45); }
+.wb2-schb.dan { box-shadow:inset 0 0 0 2px var(--wb2-dan);; }
+.wb2-schb.dan:hover { box-shadow:inset 0 0 0 2px var(--wb2-dan), 0 5px 14px -5px rgba(10,12,20,.45);; }
 /* a quote is not won yet, and the dashed 4px bar that used to say so went
    with the bar. The dash moves to the block's own edge, where it survives
    any width — including the 46px minimum. */
-.wb2-schb.qt { outline:2px dashed color-mix(in srgb, var(--btext, #050505) 55%, transparent);
+.wb2-schb.qt { outline:2px dashed color-mix(in srgb, var(--btext, var(--ink)) 55%, transparent);
   outline-offset:-4px; }
 /* narrow blocks drop to the job number alone rather than clipping */
 .wb2-schb.tight { padding:4px 4px 4px 8px; justify-content:center; }
@@ -6260,19 +6255,18 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 
    It takes .fl-ov's scrim and centring but NOT .fl-modal: this is not a dialog
    box with a title bar, it is the cards coming forward. */
-.wb2-scf { width:min(420px, 100%); background:#fff; border-radius:16px; padding:16px;
-  box-shadow:0 30px 80px rgba(0,0,0,.3); animation:wb2ScfIn .26s var(--ease);
-  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:#050505; }
+.wb2-scf { width:min(420px, 100%); background:var(--paper); border-radius:var(--r-card); padding:16px; animation:wb2ScfIn .26s var(--ease);
+  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:var(--ink); }
 @keyframes wb2ScfIn { from { opacity:0; transform:translateY(10px) scale(.97); } }
 
 .wb2-scfh { display:flex; flex-direction:column; gap:4px; padding:0 2px 12px; }
 .wb2-scfh span { display:flex; align-items:center; gap:8px; min-width:0; }
-.wb2-scfh b { font-size:16px; font-weight:700; color:#050505;
+.wb2-scfh b { font-size:16px; font-weight:700; color:var(--ink);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-scfh u { flex:none; padding:2px 8px; border-radius:6px; text-decoration:none;
-  font-size:12px; font-weight:700; background:rgba(5,5,5,.07); color:var(--ink);
+.wb2-scfh u { flex:none; padding:2px 8px; border-radius:var(--r-control); text-decoration:none;
+  font-size:12px; font-weight:700; background:var(--tint-2); color:var(--ink);
   font-variant-numeric:tabular-nums; }
-.wb2-scfh em { font-style:normal; font-size:12px; font-weight:700; color:#57616f; }
+.wb2-scfh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 
 /* THE STATUS AND WHAT THE COLOURS MEAN — the rail's footer key scoped to the
    one job brought forward. Each swatch draws the treatment it decodes in the
@@ -6280,42 +6274,42 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    block cannot disagree. Same anatomy as .wb2-schkey, restated rather than
    reused so the footer can move without dragging the card. */
 .wb2-scfkey { display:flex; flex-wrap:wrap; gap:4px 12px; padding:0 2px 12px; }
-.wb2-scfkey span { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:#57616f; }
+.wb2-scfkey span { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-scfkey i { width:18px; height:12px; border-radius:0; flex:none; font-style:normal; }
 .wb2-scfkey i.cat { background:var(--bar, #7a818c); }
-.wb2-scfkey i.qt { background:var(--fill, #f4f5f7); outline:1.5px dashed rgba(5,5,5,.5); outline-offset:-1px; }
-.wb2-scfkey i.dan { background:var(--fill, #f4f5f7); box-shadow:inset 0 0 0 2px var(--wb2-dan); }
-.wb2-scfkey i.idle { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #7a818c); }
-.wb2-scfkey i.on, .wb2-scfkey i.stale { background:var(--fill, #f4f5f7); box-shadow:inset 4px 0 0 var(--bar, #7a818c); }
-.wb2-scfkey i.done { background:var(--pale, #f4f5f7); box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4); }
-.wb2-scfkey i.late { width:14px; height:14px; border-radius:50%; background:var(--wb2-dan); color:#fff;
+.wb2-scfkey i.qt { background:var(--fill, var(--tint)); outline:1.5px dashed rgba(5,5,5,.5); outline-offset:-1px; }
+.wb2-scfkey i.dan { background:var(--fill, var(--tint)); box-shadow:inset 0 0 0 2px var(--wb2-dan);; }
+.wb2-scfkey i.idle { background:none; box-shadow:inset 0 0 0 1.5px var(--bar, #7a818c);; }
+.wb2-scfkey i.on, .wb2-scfkey i.stale { background:var(--fill, var(--tint)); box-shadow:inset 4px 0 0 var(--bar, #7a818c);; }
+.wb2-scfkey i.done { background:var(--pale, var(--tint)); box-shadow:inset 0 0 0 1px var(--pale-edge, #dbdee4);; }
+.wb2-scfkey i.late { width:14px; height:14px; border-radius:50%; background:var(--wb2-dan); color:var(--paper);
   display:grid; place-items:center; font-size:12px; font-weight:700; line-height:1; }
 
 .wb2-scfstack { display:flex; flex-direction:column; gap:4px; }
 /* the count, said in words — the hover answered "which of these are one job"
    by moving pixels, and moving pixels reaches nobody who cannot see them */
 .wb2-scfc { font-size:12px; font-weight:500;
-  color:#636c7a; padding:0 2px 4px; }
+  color:var(--q); padding:0 2px 4px; }
 /* a card wears the paint its block wears, so what arrives is recognisably
    what was clicked — same wash, same cap, same ink */
 .wb2-scfcard { position:relative; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
-  padding:12px 12px 12px 16px; border-radius:16px; background:var(--fill, #f4f5f7); }
+  padding:12px 12px 12px 16px; border-radius:var(--r-card); background:var(--fill, var(--tint)); }
 .wb2-scfcard::before { content:""; position:absolute; left:6px; top:10px; bottom:10px;
-  width:4px; border-radius:999px; background:var(--bar, #7a818c); }
+  width:4px; border-radius:var(--r-pill); background:var(--bar, #7a818c); }
 .wb2-scfcard.done::before { display:none; }
-.wb2-scfcard b { font-size:14px; font-weight:700; color:var(--btext, #050505); }
-.wb2-scfcard span { font-size:12px; font-weight:700; color:#2b3038; font-variant-numeric:tabular-nums; }
-.wb2-scfcard em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:#57616f; }
+.wb2-scfcard b { font-size:14px; font-weight:700; color:var(--btext, var(--ink)); }
+.wb2-scfcard span { font-size:12px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.wb2-scfcard em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 
 .wb2-scfft { display:flex; align-items:center; gap:8px; padding-top:16px; }
-.wb2-scfx { font-size:13px; font-weight:700; color:#57616f; cursor:pointer;
-  padding:8px 12px; border-radius:10px; background:transparent; }
-.wb2-scfx:hover { background:rgba(5,5,5,.05); color:#050505; }
+.wb2-scfx { font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer;
+  padding:8px 12px; border-radius:var(--r-button); background:transparent; }
+.wb2-scfx:hover { background:var(--tint); color:var(--ink); }
 .wb2-scfgo { margin-left:auto; display:inline-flex; align-items:center; gap:4px;
-  padding:8px 16px; border-radius:10px; background:#006a8c; color:#fff;
+  padding:8px 16px; border-radius:var(--r-button); background:#006a8c; color:var(--paper);
   font-size:13px; font-weight:700; cursor:pointer; }
 .wb2-scfgo:hover { background:#005875; }
-.wb2-scfx:focus-visible, .wb2-scfgo:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-scfx:focus-visible, .wb2-scfgo:focus-visible { outline:none; box-shadow:var(--ring);; }
 @media (prefers-reduced-motion:reduce){ .wb2-scf { animation:none; } }
 
 /* the now line — only ever drawn on today. NOT the danger colour: red on
@@ -6331,8 +6325,8 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    left to sit against. */
 .wb2-schnow { position:absolute; top:0; bottom:0; width:2px; background:var(--ink); z-index:5; pointer-events:none; }
 .wb2-schnow::before { content:attr(data-now); position:absolute; top:8px; left:1px;
-  transform:translateX(-50%); padding:2px 8px; border-radius:999px;
-  background:var(--ink); color:#fff; font-size:12px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  transform:translateX(-50%); padding:2px 8px; border-radius:var(--r-pill);
+  background:var(--ink); color:var(--paper); font-size:12px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
 
 /* ── the foot: the legend for this day, and the queue cross-link ── */
 .wb2-schfoot { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:12px 16px 16px; border-top:1px solid var(--wb2-line2); }
@@ -6345,15 +6339,15 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    instead (which is what it was) it keys the reader to a treatment no block
    wears any more; drawn as a tiny outlined pill inside a rectangle, which was
    the first attempt at this, it reads as the digit 0. */
-.wb2-schkey i.hollow { background:none; box-shadow:inset 0 0 0 1.5px var(--kcap, #7a818c); }
+.wb2-schkey i.hollow { background:none; box-shadow:inset 0 0 0 1.5px var(--kcap, #7a818c);; }
 /* and the issue mark, at the size and colour it is on a block */
 .wb2-schkey i.mark { width:14px; height:14px; border-radius:50%; background:var(--wb2-dan);
   display:inline-flex; align-items:center; justify-content:center;
-  font-style:normal; font-size:12px; font-weight:700; line-height:1; color:#fff; }
+  font-style:normal; font-size:12px; font-weight:700; line-height:1; color:var(--paper); }
 .wb2-schwait { margin-left:auto; display:inline-flex; align-items:center; gap:4px;
   font-size:12px; font-weight:700; color:var(--wb2-cy); cursor:pointer; }
 .wb2-schwait:hover { text-decoration:underline; }
-.wb2-schwait:focus-visible { outline:none; box-shadow:var(--ring); border-radius:6px; }
+.wb2-schwait:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
 
 @media (max-width:920px){
   .wb2-schnames { width:106px; }
@@ -6377,25 +6371,25 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the crew button rides the header's chip cluster — mcnow's shape, plus the
    icon, because it opens the list every number on the month divides by */
 .wb2-scmcrew { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 12px;
-  border-radius:999px; border:1px solid var(--wb2-line); background:#fff;
+  border-radius:var(--r-pill); border:1px solid var(--wb2-line); background:var(--paper);
   font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-scmcrew:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
-.wb2-scmcrew:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-scmcrew:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* nobody allocated: the month cannot be scored and SAYS SO once, in a band
    above the grid, instead of printing 31 quiet zeros — capacity.ts's null
    promise, kept on the screen */
 .wb2-scmnone { display:flex; align-items:center; gap:4px 12px; flex-wrap:wrap;
-  margin:12px 16px 0; padding:12px 16px; border:1px solid var(--wb2-line); border-radius:16px;
-  background:rgba(5,5,5,.03); }
+  margin:12px 16px 0; padding:12px 16px; border:1px solid var(--wb2-line); border-radius:var(--r-card);
+  background:var(--tint); }
 .wb2-scmnone b { font-size:13px; }
 .wb2-scmnone em { font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); }
-.wb2-scmset { height:34px; padding:0 16px; border-radius:10px; margin-left:auto;
+.wb2-scmset { height:34px; padding:0 16px; border-radius:var(--r-button); margin-left:auto;
   background:var(--wb2-cy, var(--ink)); color:var(--paper); font-size:13px; font-weight:700; cursor:pointer;
   transition:background var(--t-fast) var(--ease); }
 .wb2-scmset:hover { background:var(--wb2-cy2, var(--ink2)); }
-.wb2-scmset:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-scmset:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* the month grid — the maintenance calendar's frame, re-stated rather than
    reused so the two can move apart without either dragging the other */
@@ -6405,23 +6399,23 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-scm { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; padding:4px 16px 16px; }
 /* Tall enough that the figure has a cell, not a label — and the same height
    whether a day is scored, unscored or inert, so the weeks stay level. */
-.wb2-scmc { position:relative; min-height:86px; border:1px solid var(--wb2-line2); border-radius:10px;
-  background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;
+.wb2-scmc { position:relative; min-height:86px; border:1px solid var(--wb2-line2); border-radius:var(--r-button);
+  background:var(--paper); display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:4px; text-align:center; padding:12px 4px 8px; }
 button.wb2-scmc { cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 button.wb2-scmc:hover { border-color:rgba(5,5,5,.2); }
-button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
+button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* selection is an ink ring — box-shadow, never a border or size change, so
    opening a day cannot move the grid under the pointer */
-.wb2-scmc.on { box-shadow:0 0 0 2px var(--ink); border-color:transparent; }
-.wb2-scmc.on:focus-visible { box-shadow:0 0 0 2px var(--ink), 0 0 0 5px rgba(0,168,224,.3); }
+.wb2-scmc.on { box-shadow:0 0 0 2px var(--ink);; border-color:transparent; }
+.wb2-scmc.on:focus-visible { box-shadow:0 0 0 2px var(--ink), 0 0 0 5px var(--info-t);; }
 /* THE CELL IS A GAUGE: it fills from the bottom as the day does. A hard-stop
    gradient, not a nested element, so the ring/hover/focus treatments keep
    working on the one box they already style. --capfill/--caplevel arrive
    per-day from capacity-paint.ts, which also picks black-or-white ink for
    whatever the gauge puts under the figure. */
-.wb2-scmc.gauge { background:linear-gradient(to top, var(--capfill, #fff) var(--caplevel, 0%), #fff var(--caplevel, 0%)); }
+.wb2-scmc.gauge { background:linear-gradient(to top, var(--capfill, var(--paper)) var(--caplevel, 0%), var(--paper) var(--caplevel, 0%)); }
 .wb2-scmd { position:absolute; top:7px; left:9px; font-size:12px; font-weight:700;
   color:var(--gray500); font-variant-numeric:tabular-nums; }
 /* the date label sits at the brim — it only changes ink once the gauge has
@@ -6430,7 +6424,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* today: the date goes on an ink badge — legible over any figure colour,
    and it cannot collide with the over ring the way a border treatment would */
 .wb2-scmc.today .wb2-scmd { top:4px; left:5px; min-width:21px; height:20px; display:grid;
-  place-items:center; padding:0 4px; border-radius:6px; background:var(--ink); color:#fff; }
+  place-items:center; padding:0 4px; border-radius:var(--r-control); background:var(--ink); color:var(--paper); }
 /* THE FIGURE IS THE CELL. --capink arrives per-day from capacity-paint.ts;
    the fallback ink only ever paints a cell a future change forgets to hand
    a colour — visible, and correct, rather than invisible. */
@@ -6444,11 +6438,11 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the one qualitative break: the word under the figure, in the same ink the
    figure already wears — on an over day the gauge is brimful danger and the
    paint hands white */
-.wb2-scmo { font-style:normal; font-size:12px; font-weight:500; color:var(--capink, var(--wb2-warn-t, #B45309)); }
+.wb2-scmo { font-style:normal; font-size:12px; font-weight:500; color:var(--capink, var(--wb2-warn-t, var(--warn-t))); }
 /* unscored: no figure, no ramp, a quieter ground — null is not zero. The
    dot is the one mark allowed: it says the day still holds work, which is
    what makes it clickable. */
-.wb2-scmc.ns { background:rgba(5,5,5,.022); border-color:transparent; }
+.wb2-scmc.ns { background:var(--tint); border-color:transparent; }
 .wb2-scmk { width:7px; height:7px; border-radius:50%; background:var(--gray500); }
 
 /* ── THE DAY, BROUGHT FORWARD (the capacity window's day) ──
@@ -6462,9 +6456,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    the screen: 28 cells above a job list meant the list ran off the bottom
    while three-quarters of the window sat unread above it. */
 .wb2-scd { width:min(560px, 100%); max-height:min(78vh, 760px); display:flex; flex-direction:column;
-  background:#fff; border-radius:16px; box-shadow:0 30px 80px rgba(0,0,0,.3);
+  background:var(--paper); border-radius:var(--r-card);
   animation:wb2ScfIn .26s var(--ease);
-  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:#050505; }
+  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:var(--ink); }
 .wb2-scd *, .wb2-scd *::before, .wb2-scd *::after { box-sizing:border-box; }
 /* the card takes focus when it opens (a dialog the keyboard is in), and says
    nothing about it — the ring belongs to the controls inside */
@@ -6474,13 +6468,13 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 
 .wb2-scdh { flex:none; display:flex; align-items:center; gap:12px; padding:16px 16px 12px; }
 .wb2-scdh span { display:flex; align-items:baseline; gap:8px; min-width:0; }
-.wb2-scdh b { font-size:16px; font-weight:700; color:#050505; }
-.wb2-scdh em { font-style:normal; font-size:12px; font-weight:700; color:#57616f;
+.wb2-scdh b { font-size:16px; font-weight:700; color:var(--ink); }
+.wb2-scdh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
   font-variant-numeric:tabular-nums; }
 .wb2-scdx { margin-left:auto; flex:none; width:28px; height:28px; display:grid; place-items:center;
-  border-radius:10px; color:#57616f; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-scdx:hover { background:rgba(5,5,5,.06); color:#050505; }
-.wb2-scdx:focus-visible { outline:none; box-shadow:var(--ring); }
+  border-radius:var(--r-button); color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-scdx:hover { background:var(--tint-2); color:var(--ink); }
+.wb2-scdx:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* the list scrolls INSIDE the card — a twelve-job day is a scroll, never a
    modal taller than the viewport with its own header pushed off the top */
@@ -6491,58 +6485,58 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL — same wash, same 4px cap, same
    number chip, so what the day holds is recognisable before it is read. */
 .wb2-scdjob { position:relative; display:flex; flex-direction:column; gap:2px; width:100%;
-  text-align:left; padding:12px 12px 12px 16px; border-radius:10px;
-  background:var(--fill, #f4f5f7); transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
+  text-align:left; padding:12px 12px 12px 16px; border-radius:var(--r-button);
+  background:var(--fill, var(--tint)); transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-scdjob::before { content:""; position:absolute; left:7px; top:11px; bottom:11px;
-  width:4px; border-radius:999px; background:var(--bar, #7a818c); }
+  width:4px; border-radius:var(--r-pill); background:var(--bar, #7a818c); }
 /* finished work keeps its hairline and loses its cap: colour on this board
    means work still to do */
-.wb2-scdjob.done { box-shadow:inset 0 0 0 1px rgba(5,5,5,.07); }
+.wb2-scdjob.done { box-shadow:inset 0 0 0 1px rgba(5,5,5,.07);; }
 .wb2-scdjob.done::before { display:none; }
 .wb2-scdjob:hover { }
-.wb2-scdjob:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-scdjob:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scdjh { display:flex; align-items:center; gap:8px; }
 .wb2-scdjh b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  font-size:14px; font-weight:700; color:var(--btext, #050505); }
-.wb2-scdjh u { flex:none; text-decoration:none; padding:1px 8px; border-radius:6px;
-  background:var(--chip, rgba(5,5,5,.06)); font-size:12px; font-weight:700; color:var(--ink);
+  font-size:14px; font-weight:700; color:var(--btext, var(--ink)); }
+.wb2-scdjh u { flex:none; text-decoration:none; padding:1px 8px; border-radius:var(--r-control);
+  background:var(--chip, var(--tint-2)); font-size:12px; font-weight:700; color:var(--ink);
   font-variant-numeric:tabular-nums; }
 .wb2-scdjh em { margin-left:auto; flex:none; font-style:normal; font-size:12px; font-weight:700;
-  color:#2b3038; font-variant-numeric:tabular-nums; }
-.wb2-scdjob > em { font-style:normal; font-size:12px; font-weight:700; color:#57616f; }
-.wb2-scdjob > i { font-style:normal; font-size:12px; font-weight:600; color:#2b3038; }
+  color:var(--ink); font-variant-numeric:tabular-nums; }
+.wb2-scdjob > em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
+.wb2-scdjob > i { font-style:normal; font-size:12px; font-weight:600; color:var(--ink); }
 
 /* ── the crew editor (inside .fl-modal, which PORTALS TO BODY — these are
    unscoped like every wb2- rule, so they reach it out there; a .fg prefix
    would style nothing) ── */
 .wb2-scmed { display:flex; flex-direction:column; }
 .wb2-scmrow { display:flex; align-items:center; gap:12px; padding:8px 2px;
-  border-bottom:1px solid rgba(5,5,5,.05); }
+  border-bottom:1px solid var(--line); }
 .wb2-scmrow b { flex:1; min-width:0; font-size:13px; font-weight:700;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* set aside, not deleted: the name steps back a tier — COLOUR, never
    opacity, which drags text toward whatever is behind it */
 .wb2-scmrow.off b { color:var(--gray500); }
-.wb2-scmtog { position:relative; flex:none; width:38px; height:22px; border-radius:999px;
-  background:rgba(5,5,5,.14); cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.wb2-scmtog { position:relative; flex:none; width:38px; height:22px; border-radius:var(--r-pill);
+  background:var(--tint-2); cursor:pointer; transition:background var(--t-fast) var(--ease); }
 .wb2-scmtog::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px;
-  border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(10,12,20,.35); transition:left var(--t-move) var(--ease); }
+  border-radius:50%; background:var(--paper); transition:left var(--t-move) var(--ease); }
 .wb2-scmtog[aria-checked="true"] { background:var(--wb2-ok, var(--ink)); color:var(--paper); }
 .wb2-scmtog[aria-checked="true"]::after { left:18px; }
-.wb2-scmtog:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-scmtog:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scmstep { display:flex; align-items:center; gap:2px; flex:none; }
 .wb2-scmstep > span { min-width:46px; text-align:center; font-size:13px; font-weight:700;
   font-variant-numeric:tabular-nums; }
 .wb2-scmrow.off .wb2-scmstep > span { color:var(--gray500); }
-.wb2-scmsb { width:26px; height:26px; display:grid; place-items:center; border-radius:6px;
-  border:1px solid var(--wb2-line, rgba(5,5,5,.08)); background:#fff; color:var(--gray700);
+.wb2-scmsb { width:26px; height:26px; display:grid; place-items:center; border-radius:var(--r-control);
+  border:1px solid var(--wb2-line, var(--line)); background:var(--paper); color:var(--gray700);
   font-size:14px; font-weight:700; cursor:pointer; transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-scmsb:hover:not(:disabled) { border-color:rgba(5,5,5,.24); color:var(--ink); }
-.wb2-scmsb:disabled { color:#c3c8d0; border-color:var(--wb2-line2, rgba(5,5,5,.06)); cursor:default; }
-.wb2-scmsb:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-scmsb:disabled { color:#c3c8d0; border-color:var(--wb2-line2, var(--line)); cursor:default; }
+.wb2-scmsb:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a failed save is a FAULT and may say so in the danger ink — the never-dan
    rule above is about the grid, where under-capacity is not one */
-.wb2-scmerr { margin:8px 0 0; font-size:13px; font-weight:600; color:var(--wb2-dan-t, #b31038); }
+.wb2-scmerr { margin:8px 0 0; font-size:13px; font-weight:600; color:var(--wb2-dan-t, var(--bad-t)); }
 .wb2-scmft { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
 
 @media (max-width:920px){
@@ -6560,16 +6554,16 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    cards, on a tinted bed, each holding its own close-out note. */
 .wb2-dnlist { display:flex; flex-direction:column; gap:8px; padding:4px 16px 16px; }
 .wb2-dn { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr) auto; gap:8px 12px;
-  align-items:center; padding:12px 16px; border:1px solid var(--wb2-line); border-radius:16px; background:#fff;
+  align-items:center; padding:12px 16px; border:1px solid var(--wb2-line); border-radius:var(--r-card); background:var(--paper);
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .wb2-dn.can-open:hover { border-color:rgba(5,5,5,.2); }
-.wb2-dn:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-dn:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dnt b { display:block; font-size:14px; font-weight:700; }
 .wb2-dnt em, .wb2-dnw em, .wb2-dnh em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dnw b, .wb2-dnh b { font-size:13px; font-weight:700; }
 /* The note sits in its own well and SIGNS ITSELF — a close-out note whose
    author you can't see is one nobody can follow up on. */
-.wb2-dnnote { grid-column:1/-1; margin:2px 0 0; padding:8px 12px; border-radius:10px; background:rgba(5,5,5,.03);
+.wb2-dnnote { grid-column:1/-1; margin:2px 0 0; padding:8px 12px; border-radius:var(--r-button); background:var(--tint);
   font-size:13px; font-weight:500; color:var(--gray700); line-height:1.55; text-wrap:pretty; }
 .wb2-dnnote span { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--gray400); }
 .wb2-dnnote.none { padding:0; background:none; color:var(--q); }
@@ -6578,7 +6572,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-agrp { padding-bottom:8px; }
 .wb2-aghd { display:flex; align-items:baseline; gap:8px; padding:12px 16px 4px; font-size:12px; font-weight:500; color:var(--gray500); }
 .wb2-aghd i { width:10px; height:10px; border-radius:0; background:rgba(5,5,5,.18); align-self:center; }
-.wb2-agrp[data-accent="violet"] .wb2-aghd i { background:#7A5AF8; }
+.wb2-agrp[data-accent="violet"] .wb2-aghd i { background:var(--ink); }
 .wb2-agrp[data-accent="blue"] .wb2-aghd i { background:var(--ink); color:var(--paper); }
 .wb2-agrp[data-accent="pink"] .wb2-aghd i { background:#C4419B; }
 .wb2-agrp[data-accent="slate"] .wb2-aghd i { background:var(--q); }
@@ -6596,38 +6590,38 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* hours first on the booked line — the load, then who is carrying it */
 .wb2-trhrs { font-weight:700; color:var(--gray700); }
 .wb2-trhrs:after { content:"·"; margin:0 4px; color:#c9ced6; font-weight:700; }
-.wb2-trd b.dan { color:var(--wb2-dan-t, #b31038); }
+.wb2-trd b.dan { color:var(--wb2-dan-t, var(--bad-t)); }
 .wb2-agr { display:grid; grid-template-columns:8px minmax(0,1.3fr) 96px minmax(0,.9fr) minmax(0,1fr) minmax(0,.7fr) minmax(0,.9fr); gap:12px; align-items:center;
   padding:12px 16px; border-bottom:1px solid var(--wb2-line2); text-decoration:none; color:inherit; transition:background var(--t-fast) var(--ease); }
-.wb2-agr:hover { background:rgba(5,5,5,.018); }
+.wb2-agr:hover { background:var(--tint); }
 .wb2-agrp:last-child .wb2-agr:last-child { border-bottom:0; }
 .wb2-agcad { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-agtags { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-self:start; }
 
 /* ── tags — the stored colour, worn everywhere the same (B2) ── */
-.wb2-tag { display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px; border-radius:999px;
-  background:rgba(5,5,5,.05); border:1px solid transparent; font-size:12px; font-weight:700; color:var(--gray700);
+.wb2-tag { display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px; border-radius:var(--r-pill);
+  background:var(--tint); border:1px solid transparent; font-size:12px; font-weight:700; color:var(--gray700);
   white-space:nowrap; font-style:normal; }
 .wb2-tag.t-slate { background:rgba(100,116,139,.12); border-color:rgba(100,116,139,.3); color:var(--ink); }
 .wb2-tag.on button { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; border:0; background:none;
   color:inherit; opacity:.55; cursor:pointer; transition:opacity var(--t-fast) var(--ease); }
 .wb2-tag.on button:hover, .wb2-tag.on button:focus-within { opacity:1; }
 .wb2-tag.add { color:var(--ink); border:1px dashed rgba(0,137,184,.45); background:none; cursor:pointer; font:inherit; font-size:12px; font-weight:700; }
-.wb2-tag.add:hover { background:rgba(0,168,224,.07); border-color:var(--ink); }
+.wb2-tag.add:hover { background:var(--info-tint); border-color:var(--ink); }
 .wb2-tag.sug { cursor:pointer; }
 /* Choosing a NEW tag's colour. Six swatches and a live preview of the tag
    itself, because the swatch is a solid and the tag is a tint — you can't
    read one off the other. Only shown for a name that doesn't exist yet. */
 .wb2-tagcol { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .wb2-tagcol .wb2-sect { margin-right:2px; }
-.wb2-swatch { width:22px; height:22px; border-radius:6px; padding:0; border:1px solid rgba(5,5,5,.12);
+.wb2-swatch { width:22px; height:22px; border-radius:var(--r-control); padding:0; border:1px solid rgba(5,5,5,.12);
   cursor:pointer; flex:none; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-swatch:hover { }
 .wb2-swatch.t-slate { background:var(--q); }
-.wb2-swatch.on { box-shadow:0 0 0 2px #fff, var(--ring); }
-.wb2-swatch:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, var(--ring); }
-.wb2-tagin { height:28px; padding:0 12px; border:1px solid #00A8E0; border-radius:999px; background:#fff; font:inherit;
-  font-size:12px; font-weight:700; color:var(--ink); box-shadow:var(--ring); }
+.wb2-swatch.on { box-shadow:0 0 0 2px var(--paper), var(--ring);; }
+.wb2-swatch:focus-visible { outline:none; box-shadow:0 0 0 2px var(--paper), var(--ring);; }
+.wb2-tagin { height:28px; padding:0 12px; border:1px solid var(--info-t); border-radius:var(--r-pill); background:var(--paper); font:inherit;
+  font-size:12px; font-weight:700; color:var(--ink); box-shadow:var(--ring);; }
 .wb2-tagin:focus { outline:none; }
 .wb2-tagsug { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; padding-top:8px; border-top:1px solid var(--wb2-line2); }
 .wb2-tags { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
@@ -6662,7 +6656,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    restated: the wb2 accent block sets those at higher specificity and must
    keep winning. */
 .wb2-sheet .pbtn, .wb2-daymodal .pbtn, .wb2-capcard .pbtn {
-  display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:10px;
+  display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button);
   font-size:14px; font-weight:700; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 /* THE OUTLINE IS THE SAME ONE THE IN-PAGE GHOST WEARS, and it has to be:
    this block is later in the sheet than the accent block, so whatever it says
@@ -6688,7 +6682,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the destructive ghost (`Skip this one`'s neighbour, `Really delete it`) */
 .wb2-sheet .pbtn.ghost.dan:hover:not(:disabled),
 .wb2-daymodal .pbtn.ghost.dan:hover:not(:disabled) {
-  background:rgba(224,38,79,.07); border-color:rgba(224,38,79,.55); color:var(--wb2-dan-t, #b31038); }
+  background:var(--bad-tint); border-color:var(--bad); color:var(--wb2-dan-t, var(--bad-t)); }
 @media (prefers-reduced-motion:reduce) {
   .wb2-sheet .pbtn:active, .wb2-daymodal .pbtn:active, .wb2-capcard .pbtn:active { transform:none; }
 }
@@ -6710,17 +6704,17 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    is how you divide a column, and it goes ragged the moment two columns of
    unequal height sit side by side. `align-items:start` with them — stretched,
    a two-button panel beside a fifteen-field one becomes a large empty box. */
-.wb2-scrim { position:fixed; inset:0; z-index:100; background:rgba(10,11,16,.42); animation:wb2Fade .3s both; }
+.wb2-scrim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(10,11,16,.42); animation:wb2Fade .3s both; }
 @keyframes wb2Fade { from { opacity:0; } to { opacity:1; } }
-.wb2-sheet { position:fixed; inset:0; margin:auto; z-index:101;
+.wb2-sheet { position:fixed; inset:0; margin:auto; z-index:var(--z-modal);
   width:min(1040px, calc(100vw - 40px)); height:max-content; max-height:calc(100vh - 40px);
   display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); align-content:start; align-items:start;
   gap:12px; padding:0 16px 16px;
-  overflow-y:auto; overscroll-behavior:contain; background:#fff; border:1px solid var(--wb2-line, rgba(5,5,5,.08));
-  border-radius:16px; box-shadow:0 40px 90px -40px rgba(10,12,20,.6);
+  overflow-y:auto; overscroll-behavior:contain; background:var(--paper); border:1px solid var(--wb2-line, var(--line));
+  border-radius:var(--r-card);box-shadow:var(--shadow-overlay);
   animation:wb2SheetIn .32s var(--ease) both;
-  --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:var(--q); --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06);
-  --wb2-dan:#e0264f; --wb2-dan-t:#b31038; --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:var(--ink); }
+  --wb2-eq:var(--ink); --wb2-acc:var(--ink); --wb2-crew:var(--q); --wb2-line:var(--line); --wb2-line2:var(--line);
+  --wb2-dan:var(--bad); --wb2-dan-t:var(--bad-t); --wb2-warn:var(--warn); --wb2-warn-t:var(--warn-t); --wb2-ok:var(--ok-t); }
 /* identity at the top and actions at the bottom run the full width; only the
    sections pair up. The negative margins put the bands back on the edges the
    grid's padding pulled them off. */
@@ -6735,7 +6729,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    the card — the two things you'd say on the phone. The name GROWS, so the
    auto margin on the × has no slack left to work with and the chips sit
    where they were put. */
-.wb2-shno { flex:none; padding:4px 8px; border-radius:6px; background:rgba(0,168,224,.09); color:var(--ink);
+.wb2-shno { flex:none; padding:4px 8px; border-radius:var(--r-control); background:var(--info-tint); color:var(--ink);
   font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
 .wb2-shname { flex:1 1 220px; min-width:0; margin:0; font-size:20px; font-weight:700;
   line-height:1.2; text-wrap:pretty; }
@@ -6743,19 +6737,19 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the rail's "!" disc, at chip scale — the one schedule state that is
    actually wrong keeps its mark when the job opens into the sheet */
 .wb2-shchips .wb2-shbang { width:13px; height:13px; border-radius:50%; background:var(--wb2-dan);
-  color:#fff; display:grid; place-items:center; font-style:normal; font-size:12px; font-weight:700;
+  color:var(--paper); display:grid; place-items:center; font-style:normal; font-size:12px; font-weight:700;
   line-height:1; flex:none; }
-.wb2-ico { width:30px; height:30px; border-radius:10px; border:0; background:rgba(5,5,5,.05); color:var(--gray700);
+.wb2-ico { width:30px; height:30px; border-radius:var(--r-button); border:0; background:var(--tint); color:var(--gray700);
   display:grid; place-items:center; cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.wb2-ico:hover { background:rgba(5,5,5,.1); }
-.wb2-ico:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-ico:hover { background:var(--tint-2); }
+.wb2-ico:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-shhd { padding:12px 24px 16px; border-bottom:1px solid var(--wb2-line2); }
 .wb2-shhd h2 { font-size:24px; font-weight:700; letter-spacing:-.03em; line-height:1.2; margin:0; text-wrap:pretty; }
 .wb2-shhd p { font-size:14px; color:var(--gray500); font-weight:600; margin:4px 0 0; }
 /* two tiles when it's closed out, three when it's open — the estimates are
    two facts now (service time, crew size), so the row sizes itself */
 .wb2-facts { display:grid; grid-template-columns:repeat(auto-fit, minmax(142px, 1fr)); gap:12px; margin-top:16px; }
-.wb2-facts > div { display:flex; flex-direction:column; gap:4px; padding:12px 12px; border-radius:10px; background:rgba(5,5,5,.026); }
+.wb2-facts > div { display:flex; flex-direction:column; gap:4px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); }
 .wb2-facts b { font-size:16px; font-weight:700; }
 .wb2-facts em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-facts .wb2-colink { margin-top:1px; }
@@ -6769,13 +6763,13 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    the picker underneath it. Replaced a fact tile and a card that each told
    half of it. */
 .wb2-sched { display:flex; flex-direction:column; gap:4px; padding:12px 12px; margin-bottom:12px;
-  border-radius:10px; background:rgba(5,5,5,.026); }
+  border-radius:var(--r-button); background:var(--tint); }
 .wb2-sched b { font-size:16px; font-weight:700; }
 .wb2-sched b.none { color:var(--gray500); }
 .wb2-sched em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.wb2-sherr { margin:12px 24px 0; padding:8px 12px; border-radius:10px; background:rgba(224,38,79,.07);
-  border:1px solid rgba(224,38,79,.25); color:var(--wb2-dan-t, #b31038); font-size:13px; font-weight:600; }
-.wb2-shsect { padding:16px 16px; border:1px solid var(--wb2-line2); border-radius:16px; }
+.wb2-sherr { margin:12px 24px 0; padding:8px 12px; border-radius:var(--r-button); background:var(--bad-tint);
+  border:1px solid var(--bad); color:var(--wb2-dan-t, var(--bad-t)); font-size:13px; font-weight:600; }
+.wb2-shsect { padding:16px 16px; border:1px solid var(--wb2-line2); border-radius:var(--r-card); }
 .wb2-shsh { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
 .wb2-shsh .wb2-chip, .wb2-shsh .pbtn { margin-left:auto; }
 .wb2-shsh.sub { margin:2px 0 8px; }
@@ -6783,7 +6777,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    makes no contrast promise, so it never becomes the chip's surface. The
    inset ring keeps a pale swatch visible on the pale chip. */
 .wb2-catdot { display:inline-block; width:7px; height:7px; border-radius:50%; flex:none;
-  box-shadow:inset 0 0 0 1px rgba(5,5,5,.14); }
+  box-shadow:inset 0 0 0 1px rgba(5,5,5,.14);; }
 /* the job's mirrored checklist — state on the dot, done rows fade */
 .wb2-ckgroup { display:flex; flex-direction:column; margin-top:4px; }
 .wb2-cksec { display:block; margin:8px 0 4px; color:var(--gray400); }
@@ -6836,9 +6830,9 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 /* …and the BODY is the scroller, so the band and its tabs never leave
    reach however long a diary runs. */
 .wb2-sheet.jc .wb2-jcbody { overflow-y:auto; overscroll-behavior:contain; }
-.wb2-jcband { position:relative; flex:none; padding:12px 16px 0; border-radius:16px 16px 0 0;
-  background:linear-gradient(var(--jc-band-a, rgba(5,5,5,.05)), var(--jc-band-b, rgba(5,5,5,.02))), #f2f3f7;
-  box-shadow:inset 0 3px 0 var(--jc-crown, rgba(5,5,5,.13)); }
+.wb2-jcband { position:relative; flex:none; padding:12px 16px 0; border-radius:var(--r-card) var(--r-card) 0 0;
+  background:linear-gradient(var(--jc-band-a, var(--tint)), var(--jc-band-b, var(--tint))), #f2f3f7;
+  box-shadow:inset 0 3px 0 var(--jc-crown, rgba(5,5,5,.13));; }
 /* The × is PINNED to the band's corner, not the last flex item: the chip row
    grows with the job (claim, status, schedule, category) and the walked band
    wrapped the close button onto its own line the moment it did. */
@@ -6867,12 +6861,12 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
    colour and the underline are stripped here by hand, exactly as the
    tracked chip's button was. Hover/focus match button.wb2-chip so the two
    doors in one band cannot behave differently. */
-a.wb2-chip { text-decoration:none; font-size:13px; font-weight:500; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; }
+a.wb2-chip { text-decoration:none; font-size:13px; font-weight:500; color:var(--ink); background:var(--paper); border:1px solid var(--line); border-radius:var(--r-control); padding:4px 8px; cursor:pointer; }
 a.wb2-chip.dan { color:var(--wb2-dan-t); }
-a.wb2-chip:hover { box-shadow:0 0 0 1px rgba(0,168,224,.25) inset; }
-a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
+a.wb2-chip:hover { box-shadow:0 0 0 1px var(--info-t) inset;; }
+a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-chip.door svg { opacity:.6; }
-.wb2-jcband .wb2-ico { background:#fff; }
+.wb2-jcband .wb2-ico { background:var(--paper); }
 .wb2-jcband .wb2-ico:hover { background:rgba(255,255,255,.75); }
 /* the tabs sit at the band's foot; the band's own padding keeps the first
    tab (and its 12px flare) off the card's corner, so the 36px page offset
@@ -6930,8 +6924,8 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    `.wb2-mline` rules out-rank it for the borders — only the block shape and
    the door affordances are new here. */
 button.wb2-mline { width:100%; text-align:left; }
-button.wb2-mline:hover { background:rgba(0,168,224,.05); }
-button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-radius:10px; }
+button.wb2-mline:hover { background:var(--info-tint); }
+button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-button); }
 /* ── THE ATTENTION STRIP (slice 5) ──────────────────────────────────────
    Pinned in the band, under the identity and OVER the tabs, so it is on
    every face and behind no click. A white panel, because the band wears the
@@ -6940,17 +6934,17 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
 
    Absent when quiet: there is no empty state here, and no rule below draws
    anything when the component returns null. */
-.wb2-jcatt { margin:8px 0 0; padding:8px 12px 8px; border-radius:16px;
-  background:#fff; box-shadow:0 0 0 1px rgba(255,138,0,.22); }
+.wb2-jcatt { margin:8px 0 0; padding:8px 12px 8px; border-radius:var(--r-card);
+  background:var(--paper); box-shadow:0 0 0 1px var(--warn);; }
 .wb2-jcatthd { display:flex; align-items:center; gap:8px; margin-bottom:2px; }
 .wb2-jcattrow { display:grid; grid-template-columns:26px minmax(0,1fr) auto; gap:8px;
   align-items:center; padding:4px 0; border-top:1px solid var(--wb2-line2); }
 .wb2-jcattrow:first-of-type { border-top:0; }
-.wb2-jcatttile { width:26px; height:26px; border-radius:10px; display:grid; place-items:center;
-  background:rgba(5,5,5,.05); color:var(--gray500); }
-.wb2-jcatttile.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
-.wb2-jcatttile.warn { background:rgba(255,138,0,.14); color:var(--wb2-warn-t, #B45309); }
-.wb2-jcatttile.cy { background:rgba(0,168,224,.1); color:var(--ink); }
+.wb2-jcatttile { width:26px; height:26px; border-radius:var(--r-button); display:grid; place-items:center;
+  background:var(--tint); color:var(--gray500); }
+.wb2-jcatttile.dan { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
+.wb2-jcatttile.warn { background:var(--warn-tint); color:var(--wb2-warn-t, var(--warn-t)); }
+.wb2-jcatttile.cy { background:var(--info-tint); color:var(--ink); }
 .wb2-jcatttext { min-width:0; display:flex; flex-direction:column; gap:1px; }
 /* ONE LINE EACH. A strip is a glance, and a row that wraps to three lines
    has become the diary entry it is meant to point at. */
@@ -6965,8 +6959,8 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
    covered it painted in full `.blue` — a live-looking button that does
    nothing. Muted by its OWN colours, never by opacity (the house ban:
    opacity is not de-emphasis for text). */
-.wb2-jcatt button.wb2-chip:disabled { background:rgba(5,5,5,.05); color:var(--gray400);
-  cursor:not-allowed; box-shadow:none; }
+.wb2-jcatt button.wb2-chip:disabled { background:var(--tint); color:var(--gray400);
+  cursor:not-allowed; box-shadow:none;; }
 .wb2-jcattmore { margin:4px 0 0; font-size:12px; font-weight:600; color:var(--gray500); }
 /* the miniature review card — a row that grew a form, so it spans the row's
    own grid rather than opening a second surface over the card */
@@ -6989,8 +6983,8 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
    on a short tab and 855px on a scrolling one, so every switch between them
    nudged the content 15px sideways. (macOS overlay scrollbars reserve
    nothing, so this is invisible there and plain on Windows.) */
-.wb2-jcbody { flex:1; background:#fff; border-top:1px solid var(--wb2-line);
-  border-radius:0 0 16px 16px; padding:16px 24px 24px; scrollbar-gutter:stable; }
+.wb2-jcbody { flex:1; background:var(--paper); border-top:1px solid var(--wb2-line);
+  border-radius:0 0 var(--r-card) var(--r-card); padding:16px 24px 24px; scrollbar-gutter:stable; }
 .wb2-jcface { display:flex; flex-direction:column; gap:16px; }
 .wb2-jcface[hidden] { display:none; }
 /* THE FACES' OWN TYPE RAMP — two sizes, said once. The rows these faces
@@ -7041,14 +7035,14 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
 .wb2-jcread { max-width:68ch; }
 /* "Where it's up to" — title + right-aligned stamp on one line, a
    reading-size paragraph, on a whisper of the job's own colour */
-.wb2-jcsec.ups { border-radius:16px; padding:12px 16px 12px;
-  background:linear-gradient(180deg, var(--jc-a05, rgba(5,5,5,.03)) 0, var(--jc-a025, rgba(5,5,5,.015)) 100%), #fff; }
+.wb2-jcsec.ups { border-radius:var(--r-card); padding:12px 16px 12px;
+  background:linear-gradient(180deg, var(--jc-a05, var(--tint)) 0, var(--jc-a025, var(--tint)) 100%), var(--paper); }
 /* the lead already carries its own 8px shoulder inside the tinted box */
 .wb2-jcsec.ups > .wb2-jcdhead { margin-bottom:0; }
 /* the summary slot while its read or first derive is still out — the route
    skeleton's slow sweep at the box's own shapes. Declared bare, not under
    .fg: the sheet portals to body and never sees .fg's dress. */
-.wb2-jcskel { display:block; border-radius:6px;
+.wb2-jcskel { display:block; border-radius:var(--r-control);
   background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
   background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
 .wb2-jcskel.t { width:150px; height:16px; }
@@ -7072,18 +7066,18 @@ button.wb2-mline:focus-visible { outline:none; box-shadow:var(--ring); border-ra
 /* contacts — who to ring, dissolved into Summary */
 .wb2-crow { display:flex; align-items:center; gap:8px; padding:8px 0; }
 .wb2-crow + .wb2-crow { border-top:1px solid var(--wb2-line2); }
-.wb2-cav { width:30px; height:30px; border-radius:10px; background:rgba(0,168,224,.1);
+.wb2-cav { width:30px; height:30px; border-radius:var(--r-button); background:var(--info-tint);
   color:var(--ink); font-size:12px; font-weight:700; display:inline-flex; align-items:center;
   justify-content:center; flex:none; }
 .wb2-cwho { min-width:0; flex:1; display:flex; flex-direction:column; }
 .wb2-cwho b { font-size:14px; font-weight:700; }
 .wb2-cwho em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 .wb2-ccalls { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
-.wb2-ccall { display:inline-flex; align-items:center; height:26px; padding:0 12px; border-radius:6px;
+.wb2-ccall { display:inline-flex; align-items:center; height:26px; padding:0 12px; border-radius:var(--r-control);
   background:rgba(0,127,168,.09); color:var(--ink); font-size:12px; font-weight:700;
   white-space:nowrap; text-decoration:none; }
 a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
-.wb2-ccall.plain { background:rgba(5,5,5,.05); color:var(--gray700); }
+.wb2-ccall.plain { background:var(--tint); color:var(--gray700); }
 .wb2-jcpo { margin:8px 0 0; display:flex; align-items:baseline; gap:8px; }
 .wb2-jcpo b { font-size:14px; font-weight:700; }
 /* ── the diary ── */
@@ -7100,43 +7094,43 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 /* THE NOTE THE FLAG CHIP SENT YOU TO — lit, not shouted: the chip was
    amber, so the entry it leads to is the same amber, and the tint sits
    behind the words rather than replacing their ground. */
-.wb2-ev.flag { background:rgba(255,138,0,.08); border-radius:10px;
-  box-shadow:inset 0 0 0 1px rgba(255,138,0,.22); }
+.wb2-ev.flag { background:var(--warn-tint); border-radius:var(--r-button);
+  box-shadow:inset 0 0 0 1px var(--warn);; }
 /* NO horizontal margin or padding on the lit row: `.wb2-ev::before` is the
    timeline spine, positioned from the row's own left edge, so shifting the
    box by 6px slid the spine 6px off every dot above and below it. The tint
    hugs the dot instead — and negative margins on a row have already cost
    this card a defect once (`.wb2-doc`, #561). */
-.wb2-evdot { width:27px; height:27px; border-radius:50%; background:#fff; border:1px solid var(--wb2-line);
+.wb2-evdot { width:27px; height:27px; border-radius:50%; background:var(--paper); border:1px solid var(--wb2-line);
   display:inline-flex; align-items:center; justify-content:center; color:var(--gray500);
   position:relative; z-index:1; align-self:start; margin-top:1px; }
-.wb2-evdot.ok { background:var(--ok-tint); border-color:var(--ok-tint); color:#00806b; }
-.wb2-evdot.cy { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.25); color:var(--ink); }
+.wb2-evdot.ok { background:var(--ok-tint); border-color:var(--ok-tint); color:var(--ok-t); }
+.wb2-evdot.cy { background:var(--info-tint); border-color:var(--info-t); color:var(--ink); }
 .wb2-evb { min-width:0; padding-top:4px; }
 .wb2-evhd { font-size:14px; font-weight:700; }
 .wb2-evhd .wb2-chip { margin-left:8px; vertical-align:middle; }
-.wb2-evamt { color:#00806b; font-variant-numeric:tabular-nums; }
+.wb2-evamt { color:var(--ink); font-variant-numeric:tabular-nums; }
 .wb2-evmeta { margin-top:1px; font-size:12px; font-weight:600; color:var(--gray500); }
 /* a note's words — bordered like paper, the job type's colour on its spine.
    pre-wrap because a note holds its author's own line breaks. */
-.wb2-evcard { margin-top:4px; background:#fff; border:1px solid var(--wb2-line2); border-radius:16px; padding:8px 12px;
+.wb2-evcard { margin-top:4px; background:var(--paper); border:1px solid var(--wb2-line2); border-radius:var(--r-card); padding:8px 12px;
   font-size:14px; font-weight:500; color:var(--gray700); line-height:1.55; max-width:68ch;
   overflow-wrap:anywhere; white-space:pre-wrap; }
 .wb2-mention { font-weight:700; color:var(--ink); }
 .wb2-evphotos { display:flex; gap:4px; margin-top:8px; flex-wrap:wrap; }
 .wb2-evphotos img, .wb2-evphotos .pending, .wb2-evphotos .more {
-  width:76px; height:76px; border-radius:10px; object-fit:cover; border:1px solid var(--wb2-line2); }
+  width:76px; height:76px; border-radius:var(--r-button); object-fit:cover; border:1px solid var(--wb2-line2); }
 .wb2-evphotos .pending { display:inline-flex; align-items:center; justify-content:center;
-  background:rgba(5,5,5,.04); color:var(--gray400); }
+  background:var(--tint); color:var(--gray400); }
 .wb2-evphotos .more { display:inline-flex; align-items:center; justify-content:center;
-  background:rgba(5,5,5,.05); color:var(--gray700); font-size:14px; font-weight:700;
+  background:var(--tint); color:var(--gray700); font-size:14px; font-weight:700;
   border:0; cursor:pointer; font-family:inherit; transition:background var(--t-fast) var(--ease); }
-.wb2-evphotos .more:hover { background:rgba(5,5,5,.1); }
+.wb2-evphotos .more:hover { background:var(--tint-2); }
 .wb2-evdoor { display:inline-flex; align-items:center; gap:4px; margin-top:4px; padding:0;
   border:0; background:none; font-family:inherit; font-size:12px; font-weight:700;
   color:var(--ink); cursor:pointer; }
 .wb2-evdoor:hover { text-decoration:underline; }
-.wb2-evdoor:focus-visible { outline:none; box-shadow:var(--ring); border-radius:6px; }
+.wb2-evdoor:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
 /* THE DIARY FILTER IS A FaceSwitch, AND THE SHEET IS PORTALLED OUTSIDE
    `.fg` — so `.fg .seg` and `.fg .me-fshd` never reach it (the exact drift
    that once rendered nine hints at the body's full ink). Restated here,
@@ -7144,15 +7138,15 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-sheet .me-fshd { display:flex; align-items:center; justify-content:space-between;
   gap:16px; margin:8px 0 0; }
 .wb2-sheet .seg { display:inline-flex; align-self:flex-start; width:fit-content;
-  background:#e6eaf1; border:1px solid rgba(10,12,20,.06); border-radius:10px; padding:4px; gap:4px; }
-.wb2-sheet .seg button { padding:8px 12px; border-radius:10px; border:0; background:transparent;
+  background:#e6eaf1; border:1px solid rgba(10,12,20,.06); border-radius:var(--r-button); padding:4px; gap:4px; }
+.wb2-sheet .seg button { padding:8px 12px; border-radius:var(--r-button); border:0; background:transparent;
   font:inherit; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer;
   transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.wb2-sheet .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.1); }
-.wb2-sheet .seg button:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-sheet .seg button.on { background:var(--paper); color:var(--ink);box-shadow:var(--shadow-overlay); }
+.wb2-sheet .seg button:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the next booking, first over the past visits, in the accent */
 .wb2-nextv { display:flex; flex-direction:column; gap:4px; padding:12px 12px;
-  border-radius:10px; background:rgba(0,168,224,.07); }
+  border-radius:var(--r-button); background:var(--info-tint); }
 .wb2-nextv b { font-size:16px; font-weight:700; color:var(--ink); }
 .wb2-nextv em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* WHAT SOMEBODY IS, after their name — quieter than the name, and the
@@ -7182,29 +7176,29 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-jmsub { margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
 /* paid → invoiced-and-awaiting → still to bill: the three states of a job's
    value, in the order money moves through them */
-.wb2-jmbar { display:flex; gap:2px; height:7px; margin-top:12px; border-radius:999px;
-  overflow:hidden; background:rgba(5,5,5,.06); }
-.wb2-jmbar > i { display:block; height:100%; border-radius:999px; min-width:0; }
+.wb2-jmbar { display:flex; gap:2px; height:7px; margin-top:12px; border-radius:var(--r-pill);
+  overflow:hidden; background:var(--tint-2); }
+.wb2-jmbar > i { display:block; height:100%; border-radius:var(--r-pill); min-width:0; }
 .wb2-jmbar > i.paid { background:var(--wb2-ok); }
 .wb2-jmbar > i.awaiting { background:var(--wb2-warn); }
-.wb2-jmbar > i.tocome { background:rgba(5,5,5,.14); }
+.wb2-jmbar > i.tocome { background:var(--tint-2); }
 .wb2-jmkey { display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:8px; }
 .wb2-jmkey > span { display:inline-flex; align-items:center; gap:4px; font-size:12px;
   font-weight:700; color:var(--gray500); }
 .wb2-jmkey > span > i { width:8px; height:8px; border-radius:0; flex:none; }
 .wb2-jmkey > span > i.paid { background:var(--wb2-ok); }
 .wb2-jmkey > span > i.awaiting { background:var(--wb2-warn); }
-.wb2-jmkey > span > i.tocome { background:rgba(5,5,5,.14); }
+.wb2-jmkey > span > i.tocome { background:var(--tint-2); }
 /* WHERE COLLECTION LIVES. The value above is the job's identity and stays
    ink; chasing is the ledger's business, so it wears the tint. */
 .wb2-mline.head { grid-template-columns:auto minmax(0,1fr) auto auto; margin-top:12px;
-  padding:12px 12px; border-top:0; border-radius:10px; background:rgba(5,5,5,.03); }
+  padding:12px 12px; border-top:0; border-radius:var(--r-button); background:var(--tint); }
 .wb2-mline.head > b { font-size:14px; font-weight:700; }
 .wb2-mline.head > span { font-size:16px; font-weight:700; }
-.wb2-mline.head.warn { background:rgba(255,138,0,.11); }
+.wb2-mline.head.warn { background:var(--warn-tint); }
 .wb2-mline.head.warn > span { color:var(--wb2-warn-t); }
 .wb2-mline.head.ok { background:var(--ok-tint); }
-.wb2-mline.head.ok > span { color:#00806b; }
+.wb2-mline.head.ok > span { color:var(--ok-t); }
 /* one claim against the job: its name, what it says about itself underneath,
    the amount, and an inert chip that follows ServiceM8 */
 .wb2-jmclaim { grid-template-columns:minmax(0,1fr) auto auto; align-items:center;
@@ -7222,49 +7216,47 @@ a.wb2-ccall:hover { background:rgba(0,127,168,.16); }
 .wb2-shnos { position:relative; display:inline-flex; align-items:center; gap:4px; flex:none; }
 .wb2-shnos > button.wb2-shno { border:0; font:inherit; cursor:pointer;
   font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; }
-.wb2-shnos > button.wb2-shno:hover { background:rgba(0,168,224,.16); }
-.wb2-shnos > button.wb2-shno:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-shno.here { background:rgba(122,90,248,.12); color:#5b3fd0; }
-.wb2-shnos > button.wb2-shno.here:hover { background:rgba(122,90,248,.2); }
+.wb2-shnos > button.wb2-shno:hover { background:var(--info-tint); }
+.wb2-shnos > button.wb2-shno:focus-visible { outline:none; box-shadow:var(--ring);; }
+.wb2-shno.here { background:var(--tint); color:var(--ink); }
+.wb2-shnos > button.wb2-shno.here:hover { background:var(--tint); }
 .wb2-shcar { font-style:normal; font-size:12px; margin-left:4px; vertical-align:middle; }
 .wb2-shcrumb { font-style:normal; color:var(--gray400); font-size:13px; font-weight:700; }
 /* the claims, addressable */
 .wb2-shnopop { position:absolute; top:calc(100% + 6px); left:0; z-index:4; width:max-content;
   max-width:min(330px, 76vw); display:flex; flex-direction:column; gap:1px; padding:4px;
-  border-radius:10px; background:#fff; border:1px solid var(--wb2-line);
-  box-shadow:0 24px 48px -22px rgba(10,12,20,.42); }
+  border-radius:var(--r-button); background:var(--paper); border:1px solid var(--wb2-line);box-shadow:var(--shadow-overlay); }
 .wb2-shnopop > button { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px;
-  align-items:center; padding:8px 8px; border:0; border-radius:10px; background:transparent;
+  align-items:center; padding:8px 8px; border:0; border-radius:var(--r-button); background:transparent;
   font:inherit; text-align:left; cursor:pointer; }
-.wb2-shnopop > button:hover { background:rgba(5,5,5,.05); }
-.wb2-shnopop > button.on { background:rgba(122,90,248,.09); }
-.wb2-shnopop > button:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-shnopop > button:hover { background:var(--tint); }
+.wb2-shnopop > button.on { background:var(--tint); }
+.wb2-shnopop > button:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-shnopop .n { font-size:12px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-shnopop > button.on .n { color:#5b3fd0; }
+.wb2-shnopop > button.on .n { color:var(--ink); }
 .wb2-shnopop .t { font-size:12px; font-weight:700; color:var(--gray700); }
 .wb2-shnopop .a { font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
 /* a claim row is a door, so it has to look and behave like one */
 button.wb2-jmclaim { width:100%; border:0; background:transparent; font:inherit; text-align:left;
   cursor:pointer; border-top:1px solid var(--wb2-line2); }
-button.wb2-jmclaim:hover { background:rgba(5,5,5,.032); }
-button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-radius:10px; }
+button.wb2-jmclaim:hover { background:var(--tint); }
+button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-button); }
 /* the claim this card was opened for */
-.wb2-jmclaim.here { background:var(--tint); border-radius:10px; border-top:0;
+.wb2-jmclaim.here { background:var(--tint); border-radius:var(--r-button); border-top:0;
   padding-left:12px; }
-.wb2-jmclaim.here > b { color:#5b3fd0; }
+.wb2-jmclaim.here > b { color:var(--ink); }
 /* ── ONE CLAIM, over the card it belongs to ──────────────────────────────
    Its own scrim so the card dims behind it, and a z-index above the sheet
    because it renders inside the sheet's portal rather than a second one. */
 /* ABOVE THE SHEET'S OWN PAIR (scrim 100 / sheet 101) — jsdom cannot see a
    stacking context, so this number is walked, not tested: at 61 the modal
    opened invisibly UNDER the card. */
-.wb2-clscrim { position:fixed; inset:0; z-index:110; background:rgba(8,10,16,.42);
+.wb2-clscrim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(8,10,16,.42);
   animation:wb2ClIn .2s ease both; }
-.wb2-claim { position:fixed; z-index:111; left:50%; top:50%; transform:translate(-50%,-50%);
+.wb2-claim { position:fixed; z-index:var(--z-overlay); left:50%; top:50%; transform:translate(-50%,-50%);
   width:min(440px, calc(100vw - 32px)); max-height:min(78vh, 720px); overflow:auto;
-  display:flex; flex-direction:column; background:#fff; border-radius:16px;
-  border:1px solid var(--wb2-line, rgba(5,5,5,.08));
-  box-shadow:0 40px 90px -40px rgba(10,12,20,.62);
+  display:flex; flex-direction:column; background:var(--paper); border-radius:var(--r-card);
+  border:1px solid var(--wb2-line, var(--line));
   animation:wb2ClRise .26s var(--ease) both; }
 @keyframes wb2ClIn { from { opacity:0; } to { opacity:1; } }
 @keyframes wb2ClRise { from { opacity:0; transform:translate(-50%,calc(-50% + 8px)); }
@@ -7274,7 +7266,7 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
 .wb2-cltop { display:flex; align-items:center; gap:4px; padding:12px 16px 0; }
 .wb2-clsp { flex:1; }
 .wb2-clhd { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px;
-  padding:8px 16px 12px; border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
+  padding:8px 16px 12px; border-bottom:1px solid var(--wb2-line2, var(--line)); }
 .wb2-clhd > b { grid-column:1; font-size:16px; font-weight:700; }
 .wb2-clhd > em { grid-column:1; font-style:normal; font-size:12px; font-weight:600;
   color:var(--gray500); }
@@ -7285,8 +7277,8 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
 .wb2-clgrp > .wb2-sect { margin-bottom:4px; }
 /* a file that arrived on a progress claim and rose to the job */
 .wb2-mfrom { position:absolute; left:4px; bottom:4px; text-decoration:none;
-  background:rgba(122,90,248,.92); color:#fff; font-size:12px; font-weight:700;
-  padding:2px 4px; border-radius:6px; font-variant-numeric:tabular-nums; }
+  background:var(--tint); color:var(--paper); font-size:12px; font-weight:700;
+  padding:2px 4px; border-radius:var(--r-control); font-variant-numeric:tabular-nums; }
 /* the ways out of the job, behind the ⋯ — a once-per-job act, off the floor */
 .wb2-shmenu { position:relative; margin-left:auto; }
 .wb2-shtop .wb2-shmenu .wb2-ico { margin-left:0; }
@@ -7304,15 +7296,15 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
    and their focus ring (z-index:4) both. */
 .wb2-shmpop { position:absolute; top:calc(100% + 6px); right:0; z-index:5;
   width:max-content; max-width:min(320px, 78vw);
-  display:flex; flex-direction:column; gap:1px; padding:4px; border-radius:16px;
-  background:#fff; border:1px solid var(--wb2-line); box-shadow:0 24px 48px -22px rgba(10,12,20,.42); }
+  display:flex; flex-direction:column; gap:1px; padding:4px; border-radius:var(--r-card);
+  background:var(--paper); border:1px solid var(--wb2-line);box-shadow:var(--shadow-overlay); }
 .wb2-shmpop > button { display:flex; align-items:center; gap:8px; width:100%; padding:8px 8px;
-  border:0; border-radius:10px; background:transparent; color:var(--gray700); font:inherit;
+  border:0; border-radius:var(--r-button); background:transparent; color:var(--gray700); font:inherit;
   font-size:13px; font-weight:700; text-align:left; white-space:nowrap; cursor:pointer; }
-.wb2-shmpop > button:hover:not(:disabled) { background:rgba(5,5,5,.05); }
+.wb2-shmpop > button:hover:not(:disabled) { background:var(--tint); }
 /* a disabled item goes GREY, never transparent — opacity is not de-emphasis */
 .wb2-shmpop > button:disabled { color:var(--gray400); cursor:default; }
-.wb2-shmpop > button:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-shmpop > button:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* THE PORTAL'S OWN RESTATEMENT, and the reason the sheet reuses .wb2-sheet at
    all. `.int-hint` is only ever declared as `.fg .int-hint` (line 4593), and
    this sheet portals to document.body — outside `.fg` — so every hint on it
@@ -7326,20 +7318,20 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
   margin-top:8px; padding:4px 2px; border:0; background:none; color:var(--ink); font:inherit;
   font-size:13px; font-weight:700; cursor:pointer; }
 .wb2-shmore:hover { text-decoration:underline; }
-.wb2-shmore:focus-visible { outline:none; box-shadow:var(--ring); border-radius:6px; }
+.wb2-shmore:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
 /* the job's files: a contact sheet, not a gallery — the grid is for scanning
    "what did they photograph", and a tap opens the real thing */
 /* the tabbed card gives the contact sheet a whole face, so the tiles take a
    size you can actually read a photo at */
 .wb2-mtile { position:relative; display:grid; place-items:center; aspect-ratio:1; overflow:hidden;
-  border-radius:10px; border:1px solid var(--wb2-line2); background:rgba(5,5,5,.026); }
+  border-radius:var(--r-button); border:1px solid var(--wb2-line2); background:var(--tint); }
 .wb2-mtile img { width:100%; height:100%; object-fit:cover; display:block; }
 /* a photo we know about but haven't fetched — says so rather than breaking */
 .wb2-mtile.pending { color:var(--gray400); }
 /* a tile is a BUTTON now (it opens the viewer), so the UA face goes — the
    sheet portals outside .fg, no house reset reaches it */
 button.wb2-mtile { padding:0; cursor:zoom-in; }
-button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
+button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* ── the photos face: day-grouped justified mosaic ─────────────────────
    Tiles carry aspect-ratio + flex-grow + flex-basis inline (all three
@@ -7364,14 +7356,14 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    page accent: a star is not a state of the job. */
 .wb2-mstar { position:absolute; top:5px; right:5px; z-index:2; width:24px; height:24px;
   display:grid; place-items:center; padding:0; border:0; border-radius:50%;
-  background:rgba(8,10,16,.5); color:#fff; cursor:pointer;
+  background:rgba(8,10,16,.5); color:var(--paper); cursor:pointer;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .wb2-mstar:hover { background:rgba(8,10,16,.72); }
-.wb2-mstar.on { color:#f5b400; }
+.wb2-mstar.on { color:var(--warn); }
 /* fill:currentColor beats the glyph's own fill="none" presentation attribute
    — one path, both states */
 .wb2-mstar.on .i { fill:currentColor; }
-.wb2-mstar:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-mstar:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* The head's switch. Same chip language as the rest of the card's furniture;
    `on` is the gold the stars themselves wear, so the filter and the thing it
    filters read as one idea. */
@@ -7379,18 +7371,18 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    auto margins SHARE the leftover space — the count line ended up floating in
    the middle of the head instead of sitting with the chip at the right. */
 .wb2-mfilt { display:inline-flex; align-items:center; gap:4px;
-  padding:4px 8px; border:1px solid var(--wb2-line2); border-radius:999px;
+  padding:4px 8px; border:1px solid var(--wb2-line2); border-radius:var(--r-pill);
   background:transparent; color:var(--gray600); font-size:12px; font-weight:700;
   cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.wb2-mfilt:hover { background:rgba(5,5,5,.04); }
-.wb2-mfilt.on { border-color:rgba(245,180,0,.5); background:rgba(245,180,0,.14); color:#8a6400; }
+.wb2-mfilt:hover { background:var(--tint); }
+.wb2-mfilt.on { border-color:var(--warn); background:var(--warn-tint); color:#8a6400; }
 .wb2-mfilt.on .i { fill:currentColor; }
-.wb2-mfilt:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-mfilt:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the marked-up badge — the photo somebody drew on is usually the one worth
    finding, so it says so on the tile, not in a tooltip */
 .wb2-mmark { position:absolute; right:5px; top:5px; z-index:1; font-style:normal;
-  font-size:12px; line-height:1; padding:4px 4px; border-radius:6px;
-  background:rgba(10,12,20,.6); color:#fff; }
+  font-size:12px; line-height:1; padding:4px 4px; border-radius:var(--r-control);
+  background:rgba(10,12,20,.6); color:var(--paper); }
 /* a video tile — footage from the visit, sitting with the photos. Its bytes
    stay in ServiceM8 by charter, so the plate SAYS so instead of pretending
    to be a door. */
@@ -7402,22 +7394,21 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* the claim badge on a document row was invoked as .wb2-chip.cat and never
    declared — it rendered as a plain grey chip */
-.wb2-chip.cat { color:#5b3fd0; }
+.wb2-chip.cat { color:var(--ink); }
 
 /* ── the shared media viewer ───────────────────────────────────────────
    Same portal as the sheet, same law as the claim modal. THE PAIR IS A
    WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking context:
    114/115 sits above the claim modal's 110/111 and under the toasts' 130. */
-.wb2-mvscrim { position:fixed; inset:0; z-index:114; background:rgba(8,10,16,.62); cursor:zoom-out; }
+.wb2-mvscrim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(8,10,16,.62); cursor:zoom-out; }
 /* THE VIEWER TAKES THE SCREEN (Isaac, 2026-08-29 — it replaces the card
    frame it used to wear). Boxed to the card's 920px the photo was a stamp
    in the middle of a wide monitor: the reader's place was kept at the cost
    of the thing they opened it to see. The inset keeps the scrim visible on
    every edge, so it still reads as a layer over the card, not a new page. */
-.wb2-mv { position:fixed; z-index:115; display:flex; flex-direction:column;
+.wb2-mv { position:fixed; z-index:var(--z-overlay); display:flex; flex-direction:column;
   inset:24px; width:auto; height:auto; margin:0;
-  border-radius:16px; overflow:hidden; background:#0d0e13;
-  box-shadow:0 40px 90px -30px rgba(0,0,0,.7); }
+  border-radius:var(--r-card); overflow:hidden; background:#0d0e13; }
 .wb2-mvtop { display:flex; align-items:center; gap:8px; padding:12px 16px;
   border-bottom:1px solid rgba(255,255,255,.08); min-height:48px; }
 .wb2-mvtop b { font-size:13px; font-weight:700; color:#fff; overflow:hidden;
@@ -7443,7 +7434,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    a photograph needs a mat, not a bleed. */
 .wb2-mvstage img { position:absolute; inset:20px; margin:0;
   width:calc(100% - 40px); height:calc(100% - 40px); object-fit:contain;
-  border-radius:6px; user-select:none; }
+  border-radius:var(--r-control); user-select:none; }
 .wb2-mvstage.zoomed { overflow:auto; display:flex; cursor:grab; }
 .wb2-mvstage.zoomed:active { cursor:grabbing; }
 /* Zoomed, the INLINE width rules and height follows the ratio — object-fit
@@ -7452,13 +7443,13 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
   max-width:none; max-height:none; object-fit:fill; border-radius:0; }
 .wb2-mvstage .wb2-mvpending { position:absolute; inset:0; display:grid; place-items:center;
   margin:0; }
-.wb2-mvframe { width:100%; height:100%; border:0; background:#fff; }
+.wb2-mvframe { width:100%; height:100%; border:0; background:var(--paper); }
 .wb2-mvpending { font-size:13px; font-weight:600; color:rgba(255,255,255,.55); max-width:36ch; text-align:center; }
 .wb2-mvnav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px;
-  border:0; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-size:20px;
+  border:0; border-radius:50%; background:rgba(255,255,255,.14); color:var(--paper); font-size:20px;
   line-height:1; cursor:pointer; display:grid; place-items:center; }
 .wb2-mvnav:hover { background:rgba(255,255,255,.26); }
-.wb2-mvnav:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-mvnav:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-mvnav.prev { left:20px; }
 .wb2-mvnav.next { right:20px; }
 /* THE ROLL ALONG THE BOTTOM. Two arrows say a neighbour exists; the strip
@@ -7467,7 +7458,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-mvstrip { display:flex; gap:4px; flex:none; padding:8px 16px 12px; overflow-x:auto;
   overflow-y:hidden; border-top:1px solid rgba(255,255,255,.08);
   scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.22) transparent; }
-.wb2-mvthumb { flex:none; width:66px; height:48px; padding:0; border:0; border-radius:6px;
+.wb2-mvthumb { flex:none; width:66px; height:48px; padding:0; border:0; border-radius:var(--r-control);
   overflow:hidden; background:rgba(255,255,255,.07); color:rgba(255,255,255,.45);
   display:grid; place-items:center; cursor:pointer; opacity:.5;
   transition:opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
@@ -7509,7 +7500,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-showimg .wb2-showopen { display:block; width:100%; height:100%; margin:0; padding:0;
   border:0; background:none; font:inherit; text-align:inherit; cursor:pointer; }
 .wb2-showimg .wb2-showopen:focus-visible { outline:none;
-  box-shadow:inset var(--ring); }
+  box-shadow:inset var(--ring);; }
 .wb2-showimg .wb2-showopen:hover img { }
 .wb2-showimg img { transition:transform var(--t-move) var(--ease); }
 /* THE STAR ON THE PICTURE — the mosaic tile's own star, same pill and same
@@ -7518,12 +7509,12 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    and clicking takes it out. */
 .wb2-showstar { position:absolute; top:6px; right:6px; z-index:2; width:26px; height:26px;
   display:grid; place-items:center; padding:0; border:0; border-radius:50%;
-  background:rgba(8,10,16,.5); color:#fff; cursor:pointer;
+  background:rgba(8,10,16,.5); color:var(--paper); cursor:pointer;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .wb2-showstar:hover { background:rgba(8,10,16,.72); }
-.wb2-showstar.on { color:#f5b400; }
+.wb2-showstar.on { color:var(--warn); }
 .wb2-showstar.on .i { fill:currentColor; }
-.wb2-showstar:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-showstar:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* ── the row above the pictures ──
    Tabs left, the filter button hard right. It wraps as one unit rather than
@@ -7533,33 +7524,32 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-showbar > .wb2-showfilters { flex:1 1 auto; margin:0; }
 .wb2-showfilt { position:relative; display:flex; align-items:center; gap:2px; flex:none; }
 .wb2-showfiltb { display:inline-flex; align-items:center; gap:4px; padding:4px 12px;
-  border:1px solid var(--wb2-line2); border-radius:999px; background:transparent;
+  border:1px solid var(--wb2-line2); border-radius:var(--r-pill); background:transparent;
   color:var(--gray600); font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-showfiltb:hover { background:rgba(5,5,5,.04); }
-.wb2-showfiltb.on { border-color:rgba(0,168,224,.45); background:rgba(0,168,224,.1);
+.wb2-showfiltb:hover { background:var(--tint); }
+.wb2-showfiltb.on { border-color:var(--info-t); background:var(--info-tint);
   color:#0b6f93; }
-.wb2-showfiltb:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-showfiltb:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-showfiltx { display:grid; place-items:center; width:22px; height:22px; padding:0;
   border:0; border-radius:50%; background:transparent; color:var(--gray500); cursor:pointer; }
-.wb2-showfiltx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
-.wb2-showfiltx:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-showfiltx:hover { background:var(--tint-2); color:var(--ink); }
+.wb2-showfiltx:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* The popover. ABSOLUTE, not fixed — inside `.fg` a fixed child is
    unreachable under any body-portalled scrim, and this needs no portal
    because it is not competing with one. */
 .wb2-showmenu { position:absolute; z-index:5; top:calc(100% + 6px); right:0; min-width:216px;
   max-height:min(60vh, 420px); overflow-y:auto; padding:4px;
-  border:1px solid var(--wb2-line); border-radius:16px; background:#fff;
-  box-shadow:0 18px 44px -12px rgba(0,0,0,.24); }
+  border:1px solid var(--wb2-line); border-radius:var(--r-card); background:var(--paper);box-shadow:var(--shadow-overlay); }
 .wb2-showmgrp + .wb2-showmgrp, .wb2-showmi + .wb2-showmgrp { margin-top:4px;
   padding-top:4px; border-top:1px solid var(--wb2-line2); }
 .wb2-showmsect { padding:4px 8px 4px; font-size:12px; font-weight:500; color:var(--q); }
 .wb2-showmi { display:flex; align-items:center; gap:8px; width:100%; padding:8px 8px;
-  border:0; border-radius:10px; background:transparent; color:var(--ink);
+  border:0; border-radius:var(--r-button); background:transparent; color:var(--ink);
   font-size:13px; font-weight:600; text-align:left; cursor:pointer; }
-.wb2-showmi:hover { background:rgba(5,5,5,.05); }
-.wb2-showmi.on { background:rgba(0,168,224,.12); color:#0b6f93; font-weight:700; }
-.wb2-showmi:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-showmi:hover { background:var(--tint); }
+.wb2-showmi.on { background:var(--info-tint); color:#0b6f93; font-weight:700; }
+.wb2-showmi:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the count sits right, tabular so a column of them lines up */
 .wb2-showmi em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700;
   color:var(--gray500); font-variant-numeric:tabular-nums; }
@@ -7568,8 +7558,8 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    number is otherwise invisible: the picture shows a plate and the words that
    found it are printed on it. Not a highlight colour; a quiet monospace-free
    strip, because the house has no mono font. */
-.wb2-showhit { display:block; margin-top:4px; padding:4px 8px; border-radius:6px;
-  background:rgba(245,180,0,.16); color:#7a5a00; font-size:12px; font-weight:700;
+.wb2-showhit { display:block; margin-top:4px; padding:4px 8px; border-radius:var(--r-control);
+  background:var(--warn-tint); color:#7a5a00; font-size:12px; font-weight:700;
   overflow-wrap:anywhere; }
 
 .wb2-showempty { display:grid; place-items:center; gap:8px; padding:48px 16px;
@@ -7582,14 +7572,14 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    one colour per kind of photograph. */
 .wb2-showfilters { display:flex; flex-wrap:wrap; gap:4px; margin:8px 0 4px; }
 .wb2-showchip { display:inline-flex; align-items:center; gap:4px; padding:4px 12px;
-  border:1px solid var(--wb2-line2); border-radius:999px; background:transparent;
+  border:1px solid var(--wb2-line2); border-radius:var(--r-pill); background:transparent;
   color:var(--gray600); font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-showchip:hover { background:rgba(5,5,5,.04); }
+.wb2-showchip:hover { background:var(--tint); }
 .wb2-showchip.on { border-color:color-mix(in srgb, var(--sc, var(--ink)) 45%, transparent);
-  background:color-mix(in srgb, var(--sc, var(--ink)) 12%, #fff);
+  background:color-mix(in srgb, var(--sc, var(--ink)) 12%, var(--paper));
   color:var(--paper); }
-.wb2-showchip:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-showchip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, var(--ink)); flex:none; color:var(--paper); }
 .wb2-showchip.quiet { border-style:dashed; }
 .wb2-showgrid { display:grid; gap:12px; margin-top:12px;
@@ -7599,13 +7589,12 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    alone on their own tab. */
 .wb2-findgrid { margin:4px 16px 16px; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); }
 .wb2-showcard { margin:0; display:flex; flex-direction:column; gap:8px; min-width:0; }
-.wb2-showimg { position:relative; display:block; aspect-ratio:4/3; border-radius:10px;
+.wb2-showimg { position:relative; display:block; aspect-ratio:4/3; border-radius:var(--r-button);
   overflow:hidden; background:var(--wb2-line2); }
 .wb2-showimg img { width:100%; height:100%; object-fit:cover; display:block; }
 .wb2-showpending { position:absolute; inset:0; display:grid; place-items:center; color:var(--gray400); }
-.wb2-showtag { position:absolute; left:7px; bottom:7px; padding:4px 8px; border-radius:999px;
-  font-size:12px; font-weight:700; color:#fff; text-decoration:none;
-  box-shadow:0 2px 8px rgba(0,0,0,.28); }
+.wb2-showtag { position:absolute; left:7px; bottom:7px; padding:4px 8px; border-radius:var(--r-pill);
+  font-size:12px; font-weight:700; color:var(--paper); text-decoration:none; }
 .wb2-showcard figcaption { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .wb2-showcard figcaption b { font-size:13px; font-weight:700; line-height:1.35;
   color:var(--ink); overflow-wrap:anywhere; }
@@ -7619,7 +7608,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-ckrow { display:flex; align-items:center; gap:8px; padding:8px 2px; min-width:0;
   border-top:1px solid var(--wb2-line2); }
 .wb2-ckdot { width:9px; height:9px; border-radius:50%; border:2px solid rgba(5,5,5,.18);
-  background:#fff; flex:none; }
+  background:var(--paper); flex:none; }
 .wb2-ckrow.done .wb2-ckdot { background:var(--wb2-ok); border-color:var(--wb2-ok); }
 .wb2-ckname { font-size:13px; font-weight:600; min-width:0; overflow-wrap:anywhere; }
 .wb2-ckrow.done .wb2-ckname { color:var(--gray500); }
@@ -7635,7 +7624,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the `.fg input` reset is (0,1,1) and eats a lone class — two classes here */
 .wb2-pkrow .wb2-pkbox input { width:15px; height:15px; accent-color:var(--wb2-ok);
   cursor:pointer; margin:0; }
-.wb2-pkrow .wb2-pkbox input:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-pkrow .wb2-pkbox input:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-pkname { font-size:13px; font-weight:600; min-width:0; overflow-wrap:anywhere;
   flex:1 1 140px; }
 .wb2-pkrow.done .wb2-pkname { color:var(--gray500); text-decoration:line-through; }
@@ -7654,19 +7643,18 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-ckadd { display:flex; gap:8px; align-items:center; margin:8px 0 2px; flex-wrap:wrap; }
 .wb2-ckadd .wb2-fi { flex:1 1 200px; }
 .wb2-ckadd .wb2-fi.qty { flex:0 1 88px; }
-.wb2-ckseg { display:inline-flex; flex:none; background:rgba(5,5,5,.05); border-radius:10px;
+.wb2-ckseg { display:inline-flex; flex:none; background:var(--tint-2); border-radius:var(--r-button);
   padding:4px; gap:2px; }
-.wb2-ckseg button { padding:4px 12px; border-radius:10px; font-size:12px; font-weight:700;
+.wb2-ckseg button { padding:4px 12px; border-radius:var(--r-button); font-size:12px; font-weight:700;
   color:var(--gray500); border:0; background:transparent; cursor:pointer; font-family:inherit; }
-.wb2-ckseg button.on { background:#fff; color:var(--ink); font-weight:700;
-  box-shadow:0 1px 2px rgba(0,0,0,.06); }
-.wb2-ckseg button:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-ckseg button.on { background:var(--paper); color:var(--ink); font-weight:700; }
+.wb2-ckseg button:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-pkrow.done .wb2-pkqty { color:var(--gray500); }
-.wb2-pkdel { flex:none; opacity:0; color:var(--gray500); padding:2px; border-radius:6px;
+.wb2-pkdel { flex:none; opacity:0; color:var(--gray500); padding:2px; border-radius:var(--r-control);
   transition:opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-pkrow:hover .wb2-pkdel, .wb2-pkdel:focus-visible { opacity:1; }
 .wb2-pkdel:hover { color:var(--wb2-dan-t); }
-.wb2-pkdel:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-pkdel:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* Studio designs started FROM this job — the other end of the document's
    jobLink. A row that OPENS the design (`?design=<id>`), so it is an <a> and
    has to un-do the browser's link dress; unscoped like everything else on
@@ -7676,13 +7664,13 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    the whole thing back so names still line up with the section's other
    content (a wash flush to the text reads as a highlighter mark). */
 .wb2-dsgn { display:flex; align-items:center; gap:12px; padding:8px 8px; margin:0 -6px; min-width:0;
-  border-top:1px solid var(--wb2-line2); border-radius:10px; color:inherit; text-decoration:none;
+  border-top:1px solid var(--wb2-line2); border-radius:var(--r-button); color:inherit; text-decoration:none;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-dsgn:first-of-type { border-top:0; }
-.wb2-dsgn:hover { background:rgba(0,168,224,.06); }
-.wb2-dsgn:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-dsgn:hover { background:var(--info-tint); }
+.wb2-dsgn:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dsgn-ic { display:flex; align-items:center; justify-content:center; flex:none;
-  width:30px; height:30px; border-radius:10px; background:rgba(0,168,224,.09); color:var(--ink); }
+  width:30px; height:30px; border-radius:var(--r-button); background:var(--info-tint); color:var(--ink); }
 .wb2-dsgn-b { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
 .wb2-dsgn-b b { font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dsgn-b em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500);
@@ -7698,11 +7686,11 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring); }
    paragraphs, two dresses for one kind of thing. One row: icon, name, what
    it is, and the chevron only where there are bytes to open. */
 .wb2-doc { display:flex; align-items:center; gap:12px; padding:8px 8px; margin:0 -6px; min-width:0;
-  border-top:1px solid var(--wb2-line2); border-radius:10px; color:inherit; text-decoration:none;
+  border-top:1px solid var(--wb2-line2); border-radius:var(--r-button); color:inherit; text-decoration:none;
   transition:background var(--t-fast) var(--ease); }
 .wb2-doc:first-of-type { border-top:0; }
-a.wb2-doc:hover { background:rgba(0,168,224,.06); }
-a.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring); }
+a.wb2-doc:hover { background:var(--info-tint); }
+a.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* a PDF's row is a BUTTON into the in-card viewer — same dress, UA face
    stripped by hand because the sheet portals outside .fg */
 /* NO `width:100%` here: `.wb2-doc` carries `margin:0 -6px` so the hover
@@ -7712,12 +7700,12 @@ a.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring); }
    flex container fills the line, margins included. */
 button.wb2-doc { width:auto; border:0; background:none; font:inherit; text-align:left;
   cursor:pointer; }
-button.wb2-doc:hover { background:rgba(0,168,224,.06); }
-button.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring); }
-button.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
+button.wb2-doc:hover { background:var(--info-tint); }
+button.wb2-doc:focus-visible { outline:none; box-shadow:var(--ring);; }
+button.wb2-doc .wb2-doc-ic { background:var(--info-tint); color:var(--ink); }
 .wb2-doc-ic { display:flex; align-items:center; justify-content:center; flex:none;
-  width:30px; height:30px; border-radius:10px; background:rgba(5,5,5,.045); color:var(--gray500); }
-a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
+  width:30px; height:30px; border-radius:var(--r-button); background:var(--tint); color:var(--gray500); }
+a.wb2-doc .wb2-doc-ic { background:var(--info-tint); color:var(--ink); }
 .wb2-doc-b { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
 .wb2-doc-b b { font-size:14px; font-weight:600; min-width:0;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -7727,22 +7715,22 @@ a.wb2-doc .wb2-doc-ic { background:rgba(0,168,224,.09); color:var(--ink); }
 .wb2-doc-go { display:flex; flex:none; color:var(--gray400); transition:transform var(--t-move) var(--ease), color var(--t-fast) var(--ease); }
 a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-gates { display:grid; gap:8px; }
-.wb2-gate { border:1px solid var(--wb2-line); border-radius:10px; background:#fff; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.wb2-gate { border:1px solid var(--wb2-line); border-radius:var(--r-button); background:var(--paper); transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-gate.on { background:var(--tint); border-color:var(--line); }
-.wb2-gate.open { border-color:rgba(5,5,5,.2); box-shadow:0 10px 26px -20px rgba(10,12,20,.7); }
+.wb2-gate.open { border-color:rgba(5,5,5,.2);box-shadow:var(--shadow-overlay); }
 .wb2-gck { display:flex; align-items:center; gap:12px; padding:12px 12px; }
-.wb2-bx { display:grid; place-items:center; width:21px; height:21px; border-radius:6px; border:1.5px solid rgba(5,5,5,.2);
-  background:#fff; color:transparent; flex:none; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-bx { display:grid; place-items:center; width:21px; height:21px; border-radius:var(--r-control); border:1.5px solid rgba(5,5,5,.2);
+  background:var(--paper); color:transparent; flex:none; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-bx:hover:not(:disabled) { border-color:var(--wb2-ok); color:var(--tint-2); }
 .wb2-bx:disabled { cursor:default; opacity:.6; }
-.wb2-gate.on .wb2-bx, .wb2-pk.on .wb2-bx, .wb2-bx.derived.on { background:var(--wb2-ok); border-color:var(--wb2-ok); color:#fff; }
+.wb2-gate.on .wb2-bx, .wb2-pk.on .wb2-bx, .wb2-bx.derived.on { background:var(--wb2-ok); border-color:var(--wb2-ok); color:var(--paper); }
 .wb2-bx.derived { cursor:default; }
 .wb2-as { width:9px; height:9px; border-radius:0; flex:none; }
 .wb2-gckl { flex:1; min-width:0; text-align:left; font:inherit; font-size:14px; font-weight:700; color:var(--ink);
   background:none; border:0; padding:2px 0; cursor:pointer; }
-.wb2-gckl:focus-visible { outline:none; box-shadow:var(--ring); border-radius:6px; }
+.wb2-gckl:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
 .wb2-gck > em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--q); flex:none; }
-.wb2-gate.on .wb2-gck > em { color:#00806b; }
+.wb2-gate.on .wb2-gck > em { color:var(--ok-t); }
 .wb2-chev { color:var(--q); flex:none; transition:transform var(--t-move) var(--ease); }
 .wb2-chev.up { transform:rotate(180deg); color:var(--ink); }
 .wb2-gbody { padding:2px 12px 12px 48px; border-top:1px solid var(--wb2-line2); margin:0 0 0 0; padding-top:12px; }
@@ -7750,33 +7738,33 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-ul li { position:relative; padding-left:12px; font-size:13px; font-weight:600; color:var(--gray700); text-wrap:pretty; }
 .wb2-ul li:before { content:""; position:absolute; left:0; top:8px; width:4px; height:4px; border-radius:50%; background:rgba(5,5,5,.28); }
 .wb2-pklist { display:grid; gap:4px; }
-.wb2-pk { display:flex; align-items:center; gap:8px; padding:8px 8px; border:1px solid var(--wb2-line); border-radius:10px;
-  background:#fff; font-size:13px; font-weight:700; color:var(--gray700); }
-.wb2-pk .wb2-bx { width:18px; height:18px; border-radius:6px; }
+.wb2-pk { display:flex; align-items:center; gap:8px; padding:8px 8px; border:1px solid var(--wb2-line); border-radius:var(--r-button);
+  background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); }
+.wb2-pk .wb2-bx { width:18px; height:18px; border-radius:var(--r-control); }
 .wb2-pkl { flex:1; min-width:0; text-align:left; }
 .wb2-pk.on { background:var(--tint); border-color:var(--line); color:var(--ink); }
 .wb2-pk.on .wb2-pkl { text-decoration:line-through; text-decoration-color:rgba(5,5,5,.32); }
-.wb2-pkx { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; color:var(--q); opacity:0; flex:none;
+.wb2-pkx { width:20px; height:20px; border-radius:var(--r-control); display:grid; place-items:center; color:var(--q); opacity:0; flex:none;
   border:0; background:none; cursor:pointer; transition:opacity var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-pk:hover .wb2-pkx, .wb2-pkx:focus-visible, .wb2-pkx.show { opacity:1; }
-.wb2-pkx:hover { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
+.wb2-pkx:hover { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
 .wb2-pk.add { color:var(--ink); border-style:dashed; border-color:rgba(0,137,184,.4); justify-content:flex-start; cursor:pointer;
   font:inherit; font-size:13px; font-weight:700; background:none; }
-.wb2-pk.add:hover { background:rgba(0,168,224,.06); border-color:var(--ink); }
+.wb2-pk.add:hover { background:var(--info-tint); border-color:var(--ink); }
 .wb2-crew { display:grid; gap:8px; }
 .wb2-crewrow { display:flex; align-items:center; gap:8px; }
 .wb2-crewrow b { font-size:13px; font-weight:700; flex:1; min-width:0; }
-.wb2-sel, .wb2-fi { font:inherit; font-size:13px; font-weight:700; color:var(--ink); background:#fff;
-  border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; max-width:100%; }
+.wb2-sel, .wb2-fi { font:inherit; font-size:13px; font-weight:700; color:var(--ink); background:var(--paper);
+  border:1px solid rgba(5,5,5,.12); border-radius:var(--r-button); padding:8px 12px; max-width:100%; }
 .wb2-sel { cursor:pointer; }
-.wb2-sel:focus, .wb2-fi:focus { outline:none; border-color:#00A8E0; box-shadow:var(--ring); }
+.wb2-sel:focus, .wb2-fi:focus { outline:none; border-color:var(--info-t); box-shadow:var(--ring);; }
 .wb2-dayrow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .wb2-fl { display:flex; flex-direction:column; gap:4px; flex:1; min-width:150px; font-size:12px; font-weight:500; color:var(--gray500); }
-.wb2-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:12px 12px; font:inherit; font-size:14px;
+.wb2-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:var(--r-button); padding:12px 12px; font:inherit; font-size:14px;
   resize:vertical; margin-bottom:8px; }
-.wb2-notes:focus { outline:none; border-color:#00A8E0; }
-.wb2-notetext { font-size:14px; font-weight:600; color:var(--gray700); line-height:1.55; padding:12px 16px; border-radius:10px;
-  background:rgba(5,5,5,.03); margin:0; white-space:pre-wrap; }
+.wb2-notes:focus { outline:none; border-color:var(--info-t); }
+.wb2-notetext { font-size:14px; font-weight:600; color:var(--gray700); line-height:1.55; padding:12px 16px; border-radius:var(--r-button);
+  background:var(--tint); margin:0; white-space:pre-wrap; }
 /* ── notes as bullets ──
    One note per line, because that's how they're said. Written notes READ by
    default and wrap in full — a row that clipped its own text was a note you
@@ -7789,10 +7777,10 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-bdot { flex:none; width:4px; height:4px; margin-left:4px; margin-top:12px; border-radius:50%;
   background:rgba(5,5,5,.3); }
 .wb2-bin { flex:1; min-width:0; font:inherit; font-size:13px; font-weight:600; color:var(--gray700);
-  background:none; border:1px solid transparent; border-radius:6px; padding:4px 8px;
+  background:none; border:1px solid transparent; border-radius:var(--r-control); padding:4px 8px;
   line-height:1.55; resize:none; overflow:hidden; }
-.wb2-bin:hover { border-color:rgba(5,5,5,.1); }
-.wb2-bin:focus { outline:none; background:#fff; border-color:#00A8E0; box-shadow:var(--ring); }
+.wb2-bin:hover { border-color:var(--line); }
+.wb2-bin:focus { outline:none; background:var(--paper); border-color:var(--info-t); box-shadow:var(--ring);; }
 .wb2-blist li > .wb2-pkx { margin-top:4px; }
 .wb2-blist li:hover .wb2-pkx, .wb2-blist .wb2-pkx:focus-visible { opacity:1; }
 .wb2-blist.read li { padding:2px 0; }
@@ -7807,17 +7795,17 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-dictline { display:grid; gap:8px; }
 .wb2-addrow { display:flex; align-items:center; gap:8px; }
 .wb2-addrow .wb2-fi { flex:1; min-width:0; }
-.wb2-addgo { flex:none; width:32px; height:32px; border-radius:10px; border:0; display:grid; place-items:center;
+.wb2-addgo { flex:none; width:32px; height:32px; border-radius:var(--r-button); border:0; display:grid; place-items:center;
   background:var(--ink); color:var(--paper); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-addgo:hover:not(:disabled) { background:var(--ink2); }
-.wb2-addgo:disabled { background:rgba(5,5,5,.07); color:var(--q); cursor:not-allowed; }
-.wb2-addgo:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-addgo:disabled { background:var(--tint-2); color:var(--q); cursor:not-allowed; }
+.wb2-addgo:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the pill's red mic at row size — same colour, because it's the same act */
-.wb2-micgo { flex:none; width:32px; height:32px; border-radius:10px; border:0; display:grid; place-items:center;
-  background:#e0264f; color:#fff; cursor:pointer; transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
+.wb2-micgo { flex:none; width:32px; height:32px; border-radius:var(--r-button); border:0; display:grid; place-items:center;
+  background:var(--bad); color:var(--paper); cursor:pointer; transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .wb2-micgo:hover:not(:disabled) { background:#c8203f; }
-.wb2-micgo:disabled { background:rgba(5,5,5,.07); color:var(--q); cursor:not-allowed; }
-.wb2-micgo:focus-visible { outline:none; box-shadow:var(--ring-bad); }
+.wb2-micgo:disabled { background:var(--tint-2); color:var(--q); cursor:not-allowed; }
+.wb2-micgo:focus-visible { outline:none; box-shadow:var(--ring-bad);; }
 /* listening: a soft pulse, so a row that's recording never looks like a row
    that's merely disabled */
 .wb2-micgo.on { animation:wb2micpulse 1.6s ease-in-out infinite; }
@@ -7829,7 +7817,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-addrow .wb-lvl { flex:none; --orb:20px; }
 .wb2-addrow .wb2-dictx { flex:none; margin-left:0; }
 .wb2-shft { display:flex; align-items:center; gap:8px; padding:16px 24px; margin-top:auto; position:sticky; bottom:0;
-  background:#fff; border-top:1px solid var(--wb2-line2); flex-wrap:wrap; }
+  background:var(--paper); border-top:1px solid var(--wb2-line2); flex-wrap:wrap; }
 /* one button belongs on the right, beside where the close-out card's own
    primary lands — not in the far corner from it */
 .wb2-shft.end { justify-content:flex-end; }
@@ -7847,8 +7835,8 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-sheet > .wb2-shsect, .wb2-sheet > .wb2-shhd { transition:opacity var(--t-fast) var(--ease), filter var(--t-fast) var(--ease); }
 .wb2-sheet.closingout > .wb2-shft { background:linear-gradient(180deg, rgba(0,127,168,.05), rgba(0,127,168,.02)); }
 
-.wb2-closeout { display:grid; gap:12px; width:100%; padding:16px 16px; border-radius:16px;
-  background:#fff; border:1px solid rgba(0,127,168,.28); box-shadow:0 18px 40px -26px rgba(10,12,20,.6); }
+.wb2-closeout { display:grid; gap:12px; width:100%; padding:16px 16px; border-radius:var(--r-card);
+  background:var(--paper); border:1px solid rgba(0,127,168,.28); }
 .wb2-closeout .wb2-shsh { margin-bottom:0; }
 .wb2-closeout .wb2-shsh .wb2-ico { margin-left:auto; }
 .wb2-corow { display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; }
@@ -7859,7 +7847,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
   font-weight:700; color:var(--ink); cursor:pointer; text-decoration:underline; text-underline-offset:2px;
   text-decoration-color:rgba(0,127,168,.35); transition:color var(--t-fast) var(--ease), text-decoration-color var(--t-fast) var(--ease); }
 .wb2-colink:hover { color:var(--ink2); text-decoration-color:var(--ink2); }
-.wb2-colink:focus-visible { outline:none; box-shadow:var(--ring); border-radius:6px; }
+.wb2-colink:focus-visible { outline:none; box-shadow:var(--ring);; border-radius:var(--r-control); }
 /* the one button that matters sits where a confirm sits — on the right */
 .wb2-coact { display:flex; justify-content:flex-end; }
 .wb2-noteact { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -7874,21 +7862,21 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-dict { display:grid; gap:8px; }
 .wb2-dict .wb2-notes { margin-bottom:0; }
 .wb2-dictbar { display:flex; align-items:center; gap:8px; min-height:28px; }
-.wb2-dictmic { display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 12px; border-radius:999px;
-  border:1px solid rgba(5,5,5,.12); background:#fff; font:inherit; font-size:12px; font-weight:700;
+.wb2-dictmic { display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 12px; border-radius:var(--r-pill);
+  border:1px solid rgba(5,5,5,.12); background:var(--paper); font:inherit; font-size:12px; font-weight:700;
   color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-dictmic:hover:not(:disabled) { background:rgba(224,38,79,.06); border-color:rgba(224,38,79,.45); color:#b31038; }
+.wb2-dictmic:hover:not(:disabled) { background:var(--bad-tint); border-color:var(--bad); color:var(--bad-t); }
 .wb2-dictmic:disabled { opacity:.5; cursor:default; }
-.wb2-dictmic:focus-visible { outline:none; box-shadow:var(--ring-bad); }
-.wb2-dictmic.on { width:28px; padding:0; justify-content:center; background:#e0264f; border-color:#e0264f; color:#fff; }
-.wb2-dictmic.on:hover { background:#c8203f; border-color:#c8203f; color:#fff; }
+.wb2-dictmic:focus-visible { outline:none; box-shadow:var(--ring-bad);; }
+.wb2-dictmic.on { width:28px; padding:0; justify-content:center; background:var(--bad); border-color:var(--bad); color:var(--paper); }
+.wb2-dictmic.on:hover { background:#c8203f; border-color:#c8203f; color:var(--paper); }
 .wb2-dictbar .wb-lvl { --orb:18px; }
-.wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:6px; border:0; background:none; color:var(--q);
+.wb2-dictx { width:24px; height:24px; margin-left:auto; border-radius:var(--r-control); border:0; background:none; color:var(--q);
   display:grid; place-items:center; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-dictx:hover { background:rgba(5,5,5,.06); color:var(--ink); }
+.wb2-dictx:hover { background:var(--tint-2); color:var(--ink); }
 .wb2-dicthint, .wb2-dicterr { font-size:12px; font-weight:700; margin:0; }
 .wb2-dicthint { color:var(--gray500); }
-.wb2-dicterr { color:var(--wb2-dan-t, #b31038); }
+.wb2-dicterr { color:var(--wb2-dan-t, var(--bad-t)); }
 @media (prefers-reduced-motion:reduce) {
   .wb2-sheet.closingout > .wb2-shsect, .wb2-sheet.closingout > .wb2-shhd { transition:none; }
 }
@@ -7917,7 +7905,7 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 }
 @media (prefers-reduced-motion: reduce) {
   .wb2-vslide, .wb2-sheet, .wb2-scrim, .wb2-swap { animation:none !important; transition:none var(--t-fast) var(--ease); }
-  .wb2-mcc[data-tone="flash"] { animation:none; box-shadow:var(--ring-bad); }
+  .wb2-mcc[data-tone="flash"] { animation:none; box-shadow:var(--ring-bad);; }
   ::view-transition-group(wbcard), ::view-transition-old(wbcard), ::view-transition-new(wbcard),
   ::view-transition-old(wbtabs), ::view-transition-new(wbtabs) { animation:none !important; }
 }
@@ -7932,55 +7920,55 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
    the label first and the count riding behind it as a badge that keeps its
    severity colour. */
 .wb2-filters { display:inline-flex; align-items:center; gap:2px; margin-left:auto; padding:4px; flex-wrap:wrap;
-  border-radius:10px; background:rgba(5,5,5,.05); border:1px solid rgba(5,5,5,.06); }
-.wb2-filter { display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 12px; border-radius:10px;
+  border-radius:var(--r-button); background:var(--tint-2); border:1px solid var(--line); }
+.wb2-filter { display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 12px; border-radius:var(--r-button);
   border:0; background:none; font:inherit; font-size:12px; font-weight:700; color:var(--gray500);
   cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-filter:hover:not(.on) { background:rgba(255,255,255,.75); color:var(--ink); }
-.wb2-filter.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(10,12,20,.14); }
-.wb2-filter:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-filter b { min-width:18px; height:18px; padding:0 4px; border-radius:6px; display:inline-grid; place-items:center;
-  background:rgba(5,5,5,.08); color:var(--gray700); font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
-.wb2-filter.dan b { background:rgba(224,38,79,.14); color:var(--wb2-dan-t, #b31038); }
-.wb2-filter.warn b { background:rgba(255,138,0,.18); color:var(--wb2-warn-t, #B45309); }
-.wb2-filter:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-filter.on { background:var(--paper); color:var(--ink); }
+.wb2-filter:focus-visible { outline:none; box-shadow:var(--ring);; }
+.wb2-filter b { min-width:18px; height:18px; padding:0 4px; border-radius:var(--r-control); display:inline-grid; place-items:center;
+  background:var(--tint-2); color:var(--gray700); font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.wb2-filter.dan b { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
+.wb2-filter.warn b { background:var(--warn-tint); color:var(--wb2-warn-t, var(--warn-t)); }
+.wb2-filter:focus-visible { outline:none; box-shadow:var(--ring);; }
 
 /* the mirror-health chip beside the tabs (D8) */
 .wb2-sm8 { margin-left:auto; align-self:center; font-size:12px; font-weight:700; color:var(--gray500);
-  padding:4px 8px; border-radius:10px; background:rgba(5,5,5,.045); white-space:nowrap; }
-.wb2-sm8.dan { background:rgba(224,38,79,.1); color:var(--wb2-dan-t, #b31038); }
+  padding:4px 8px; border-radius:var(--r-button); background:var(--tint); white-space:nowrap; }
+.wb2-sm8.dan { background:var(--bad-tint); color:var(--wb2-dan-t, var(--bad-t)); }
 
 /* the day modal — the list behind a day's colour */
-.wb2-daymodal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:101;
+.wb2-daymodal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:var(--z-modal);
   width:min(600px, calc(100vw - 32px)); max-height:min(78vh, 760px); display:flex; flex-direction:column;
-  background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:16px; box-shadow:0 30px 80px -30px rgba(10,12,20,.55);
+  background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card);box-shadow:var(--shadow-overlay);
   overflow:hidden; animation:wb2ModalIn .32s var(--ease) both;
-  --wb2-eq:#7A5AF8; --wb2-acc:#00A8E0; --wb2-crew:var(--q); --wb2-dan:#e0264f; --wb2-dan-t:#b31038;
-  --wb2-warn:#FF8A00; --wb2-warn-t:#B45309; --wb2-ok:var(--ink); --wb2-line:rgba(5,5,5,.08); --wb2-line2:rgba(5,5,5,.06); }
+  --wb2-eq:var(--ink); --wb2-acc:var(--ink); --wb2-crew:var(--q); --wb2-dan:var(--bad); --wb2-dan-t:var(--bad-t);
+  --wb2-warn:var(--warn); --wb2-warn-t:var(--warn-t); --wb2-ok:var(--ok-t); --wb2-line:var(--line); --wb2-line2:var(--line); }
 .wb2-dmhd { padding:12px 16px 16px; border-bottom:1px solid var(--wb2-line2); flex:none; }
 .wb2-dmhd[data-tone="go"], .wb2-dmhd[data-tone="done"] { background:var(--tint); }
-.wb2-dmhd[data-tone="soon"] { background:linear-gradient(160deg, rgba(255,138,0,.09), rgba(255,138,0,0) 70%); }
-.wb2-dmhd[data-tone="flash"], .wb2-dmhd[data-tone="over"] { background:linear-gradient(160deg, rgba(224,38,79,.08), rgba(224,38,79,0) 70%); }
+.wb2-dmhd[data-tone="soon"] { background:linear-gradient(160deg, var(--warn-tint), var(--warn-tint) 70%); }
+.wb2-dmhd[data-tone="flash"], .wb2-dmhd[data-tone="over"] { background:linear-gradient(160deg, var(--bad-tint), var(--bad-tint) 70%); }
 .wb2-dmtop { display:flex; align-items:center; justify-content:space-between; }
 .wb2-dmhd h2 { font-size:24px; font-weight:700; letter-spacing:-.03em; line-height:1.15; margin:4px 0 0; }
 .wb2-dmchips { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .wb2-dmbody { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px; display:flex; flex-direction:column; gap:8px; }
 .wb2-dmgrp { display:flex; flex-direction:column; gap:4px; border-top:1px solid var(--wb2-line2); margin-top:4px; padding-top:8px; }
 .wb2-dmgrp .wb2-sect { padding:2px 4px; }
-.wb2-dmft { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--wb2-line2); flex:none; background:#fff; }
-.wb2-lpr { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 4px; border-radius:10px; transition:background var(--t-fast) var(--ease); }
-.wb2-lpr:hover { background:rgba(5,5,5,.022); }
+.wb2-dmft { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--wb2-line2); flex:none; background:var(--paper); }
+.wb2-lpr { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:12px; align-items:center; padding:8px 4px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
+.wb2-lpr:hover { background:var(--tint); }
 .wb2-lpr .wb2-trt b { font-size:13px; }
 
 /* day cards inside the modal */
-.wb2-dc { position:relative; border:1px solid rgba(5,5,5,.08); border-radius:16px; padding:12px 12px 12px 16px;
-  display:flex; flex-direction:column; gap:8px; overflow:hidden; background:#fff; text-align:left; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.wb2-dc { position:relative; border:1px solid var(--line); border-radius:var(--r-card); padding:12px 12px 12px 16px;
+  display:flex; flex-direction:column; gap:8px; overflow:hidden; background:var(--paper); text-align:left; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .wb2-dc[data-tone="go"], .wb2-dc[data-tone="done"] { background:var(--tint); border-color:var(--line); }
-.wb2-dc[data-tone="soon"] { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.36); }
-.wb2-dc[data-tone="flash"], .wb2-dc[data-tone="over"] { background:rgba(224,38,79,.05); border-color:rgba(224,38,79,.32); }
+.wb2-dc[data-tone="soon"] { background:var(--warn-tint); border-color:var(--warn); }
+.wb2-dc[data-tone="flash"], .wb2-dc[data-tone="over"] { background:var(--bad-tint); border-color:var(--bad); }
 .wb2-dc[data-tone="flash"]:before, .wb2-dc[data-tone="quote"] { border-style:dashed; }
 .wb2-dc.mini:before { background:transparent; }
-.wb2-dc:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-dc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-dch { display:flex; align-items:center; gap:8px; }
 .wb2-dch b { font-size:14px; font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .wb2-dch em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
@@ -7988,25 +7976,25 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-dcck { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
 .wb2-dcck[data-cols="1"] { grid-template-columns:1fr; }
 .wb2-dcck[data-cols="3"] { grid-template-columns:repeat(3,1fr); }
-.wb2-ck { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:10px;
-  border:1px solid color-mix(in oklab, var(--as) 32%, #fff); background:color-mix(in oklab, var(--as) 7%, #fff);
+.wb2-ck { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button);
+  border:1px solid color-mix(in oklab, var(--as) 32%, var(--paper)); background:color-mix(in oklab, var(--as) 7%, var(--paper));
   font:inherit; font-size:12px; font-weight:700; color:var(--gray700); text-align:left; cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-ck i { width:9px; height:9px; border-radius:0; background:var(--as); flex:none; }
-.wb2-ck:hover { border-color:color-mix(in oklab, var(--as) 62%, #fff); background:color-mix(in oklab, var(--as) 13%, #fff); }
+.wb2-ck:hover { border-color:color-mix(in oklab, var(--as) 62%, var(--paper)); background:color-mix(in oklab, var(--as) 13%, var(--paper)); }
 span.wb2-ck { cursor:default; }
 .wb2-dcck .wb2-sel { padding:4px 8px; font-size:12px; }
 
 /* toasts — one slot PER ACTION (B23), stacked, each with its own undo */
-.wb2-toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:130;
+.wb2-toasts { position:fixed; left:50%; bottom:26px; transform:translateX(-50%); z-index:var(--z-toast);
   display:flex; flex-direction:column-reverse; gap:8px; align-items:center; pointer-events:none; }
-.wb2-toast { display:flex; align-items:center; gap:12px; padding:12px 8px 12px 16px; border-radius:16px;
-  background:#0A0B10; color:#fff; font-size:13px; font-weight:600; box-shadow:0 14px 40px -14px rgba(10,12,20,.7);
+.wb2-toast { display:flex; align-items:center; gap:12px; padding:12px 8px 12px 16px; border-radius:var(--r-card);
+  background:var(--ink); color:var(--paper); font-size:13px; font-weight:600;box-shadow:var(--shadow-overlay);
   pointer-events:auto; animation:wb2CardIn .32s var(--ease) both; max-width:min(520px, calc(100vw - 40px)); }
-.wb2-toast button { font:inherit; font-weight:700; color:#5ad7ff; background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:10px; }
+.wb2-toast button { font:inherit; font-weight:700; color:#5ad7ff; background:none; border:0; cursor:pointer; padding:2px 4px; border-radius:var(--r-button); }
 .wb2-toast button:hover { background:rgba(255,255,255,.08); }
 .wb2-toast .wb2-toastx { color:rgba(255,255,255,.55); font-size:16px; padding:0 8px; }
-.wb2-toast .wb2-toastx:hover { color:#fff; }
+.wb2-toast .wb2-toastx:hover { color:var(--paper); }
 @media (prefers-reduced-motion:reduce) { .wb2-daymodal, .wb2-toast { animation:none !important; } }
 
 /* ── wb2 step 4: agreement sheet forms, create modal, invoice folds ── */
@@ -8018,14 +8006,14 @@ span.wb2-ck { cursor:default; }
 .wb2-flcheck { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray700); align-self:end; padding:8px 0; cursor:pointer; }
 .wb2-flcheck input { width:16px; height:16px; accent-color:var(--ink2); }
 .wb2-eqlist { display:grid; gap:8px; }
-.wb2-eqrow { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:10px; }
+.wb2-eqrow { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--wb2-line, var(--line)); border-radius:var(--r-button); }
 .wb2-eqrow .wb2-trt { flex:1; min-width:0; }
 .wb2-dnact { display:flex; flex-direction:column; align-items:flex-end; gap:8px; justify-self:end; }
 .wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
 .wb2-newmodal .wb2-dmbody { gap:12px; }
 button.wb2-lpr.as-btn, button.wb2-agr.as-btn, button.wb2-ajr.as-btn { font:inherit; text-align:left; background:none; border:0; width:100%; cursor:pointer; color:inherit; }
-button.wb2-agr.as-btn, button.wb2-ajr.as-btn { border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); }
-button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button.wb2-ajr.as-btn:focus-visible { outline:none; box-shadow:inset var(--ring); border-radius:10px; }
+button.wb2-agr.as-btn, button.wb2-ajr.as-btn { border-bottom:1px solid var(--wb2-line2, var(--line)); }
+button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button.wb2-ajr.as-btn:focus-visible { outline:none; box-shadow:inset var(--ring);; border-radius:var(--r-button); }
 
 /* ── All jobs: the flat book ──────────────────────────────────────────────
    The ledger row from the agreements tab, re-proportioned for what a job is:
@@ -8037,7 +8025,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
    than left to a bare class. See project-css-button-reset-trap. */
 .wb2-ajr { display:grid; grid-template-columns:78px minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,1fr); gap:12px;
   align-items:center; padding:12px 16px; text-decoration:none; color:inherit; transition:background var(--t-fast) var(--ease); }
-.wb2-ajr:hover { background:rgba(5,5,5,.018); }
+.wb2-ajr:hover { background:var(--tint); }
 /* Money earns a sixth column only when there IS money to show — a reader
    without the grant gets five, not five plus a gap where the money was. */
 .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:78px minmax(0,1.5fr) minmax(0,.85fr) minmax(0,.75fr) minmax(0,1fr) 96px; }
@@ -8151,7 +8139,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    plain dim — they are workaday covers, not an arrival. UNPREFIXED ONLY: a
    -webkit- twin makes the build ship the prefixed one alone and the blur
    dies (see the backdrop-filter trap). */
-.wb2-capdim { position:fixed; inset:0; z-index:110; background:rgba(4,6,10,.62);
+.wb2-capdim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(4,6,10,.62);
   backdrop-filter:blur(10px) saturate(120%); animation:wb2Fade .3s both; }
 /* the halo, pooled under where the card rests — the button's glow arriving
    with the sheet. On the dim, not the card: the card scrolls (overflow-y),
@@ -8168,9 +8156,9 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   .wb2-capdim::after { top:50%; bottom:auto; height:260px;
     transform:translate(-50%,-50%); }
 }
-.wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:111;
+.wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:var(--z-overlay);
   width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
-  background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:16px;
+  background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:var(--r-card);
   box-shadow:0 30px 80px -30px rgba(10,12,20,.6); padding:16px 16px 16px;
   animation:wb2DropIn .32s var(--ease) both; }
 .wb2-capribbon { display:flex; align-items:center; gap:8px; padding-bottom:12px; margin-bottom:12px;
@@ -8296,10 +8284,10 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    once you go looking. Portalled surface, so no `.fg` scope here. */
 .wb2-aim { padding-right:4px; gap:2px; }
 .wb2-aimx { display:inline-flex; align-items:center; justify-content:center; flex:none;
-  width:18px; height:18px; margin-left:2px; border:0; border-radius:6px; padding:0;
+  width:18px; height:18px; margin-left:2px; border:0; border-radius:var(--r-control); padding:0;
   background:transparent; color:inherit; opacity:.55; cursor:pointer; transition:background-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-aimx:hover, .wb2-aimx:focus-within { opacity:1; background:rgba(0,137,184,.16); }
-.wb2-aimx:focus-visible { outline:none; opacity:1; box-shadow:var(--ring); }
+.wb2-aimx:focus-visible { outline:none; opacity:1; box-shadow:var(--ring);; }
 
 .wb2-capclock { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--gray700); white-space:nowrap; }
 /* Leading the trace rather than hiding in the ribbon corner. Tabular figures
@@ -8311,7 +8299,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    because the clock is the only thing on screen that can give it, but it does
    not flash, pulse or otherwise ask to be dealt with. */
 .wb2-capclock.closing { color:var(--bad-t); }
-.wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
+.wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
 /* the ribbon's target, when the note has to be told where it belongs */
 
@@ -8320,36 +8308,36 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    change it above, I'll hit the wrong one" (Isaac). And it's a SEARCH, not a
    select — a select is a list you navigate past the answer, this is one you
    narrow onto it. */
-.wb2-capchange { margin-left:auto; flex:none; height:26px; padding:0 12px; border-radius:999px;
+.wb2-capchange { margin-left:auto; flex:none; height:26px; padding:0 12px; border-radius:var(--r-pill);
   border:1px solid rgba(5,5,5,.14); background:#fff; font:inherit; font-size:12px; font-weight:700;
   color:var(--gray700); cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .wb2-capchange:hover { background:rgba(0,168,224,.07); border-color:var(--ink); color:#00607f; }
 .wb2-capchange:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:16px;
-  background:#fff; overflow:hidden; box-shadow:0 18px 40px -28px rgba(10,12,20,.55);
+.wb2-jobpick { margin-top:8px; border:1px solid var(--wb2-line, var(--line)); border-radius:var(--r-card);
+  background:var(--paper); overflow:hidden;
   animation:wb2PickIn .22s var(--ease) both; }
 .wb2-jobsearch { display:flex; align-items:center; gap:8px; padding:8px 12px;
-  border-bottom:1px solid var(--wb2-line2, rgba(5,5,5,.06)); color:var(--gray400); }
+  border-bottom:1px solid var(--wb2-line2, var(--line)); color:var(--gray400); }
 .wb2-jobq { flex:1; min-width:0; border:0; background:none; font:inherit; font-size:13px; font-weight:600;
   color:var(--ink); }
 .wb2-jobq:focus { outline:none; }
 .wb2-jobq::-webkit-search-cancel-button { -webkit-appearance:none; }
 .wb2-joblist { max-height:230px; overflow-y:auto; overscroll-behavior:contain; padding:4px; }
-.wb2-jobopt { display:block; width:100%; text-align:left; padding:8px 8px; border:0; border-radius:10px;
+.wb2-jobopt { display:block; width:100%; text-align:left; padding:8px 8px; border:0; border-radius:var(--r-button);
   background:none; font:inherit; font-size:13px; font-weight:600; color:var(--gray700); cursor:pointer;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-jobopt:hover { background:rgba(0,168,224,.08); color:var(--ink); }
+.wb2-jobopt:hover { background:var(--info-tint); color:var(--ink); }
 .wb2-jobopt.on { background:var(--tint); color:var(--ink); font-weight:700; }
-.wb2-jobopt:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-jobopt:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-joblist .wb2-hint { padding:8px; margin:0; }
 @media (prefers-reduced-motion:reduce) { .wb2-jobpick { animation:none; } }
 /* a row that CANNOT be saved says so here, and Save stays off until it can */
-.wb2-capstop { display:flex; align-items:flex-start; gap:8px; margin:8px 0 0; padding:8px 12px; border-radius:10px;
+.wb2-capstop { display:flex; align-items:flex-start; gap:8px; margin:8px 0 0; padding:8px 12px; border-radius:var(--r-button);
   background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.32);
   font-size:13px; font-weight:700; color:var(--wb2-warn-t, #B45309); }
 .wb2-capsaid { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); white-space:nowrap; }
 /* WHICH JOB — said back to you with its number, so agreeing is a glance */
-.wb2-capjob { display:flex; align-items:flex-start; gap:8px; margin:8px 0 0; padding:8px 12px; border-radius:10px;
+.wb2-capjob { display:flex; align-items:flex-start; gap:8px; margin:8px 0 0; padding:8px 12px; border-radius:var(--r-button);
   background:rgba(5,5,5,.035); border:1px solid var(--wb2-line2, rgba(5,5,5,.06));
   font-size:13px; font-weight:600; color:var(--gray700); }
 .wb2-capjob b { font-weight:700; color:var(--ink); }
@@ -8545,13 +8533,8 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    it followed the page's inherited 1.5 without being told. Walked on prod at
    rows=3: 86.75px either way. */
 .wb2-notes.wb2-lwbox { height:calc(var(--lwrows) * 1lh + 26px);
-  /* TWO THINGS A TEXTAREA HAD FOR FREE and a paragraph does not. The white
-     field is the UA's, so `.wb2-notes` never had to write it down — without
-     it the river is the only one of the four boxes you can see through. And
-     `resize:vertical` is NOT dead here: `resize` applies to anything whose
-     overflow is not visible, so the river inherited a drag grip in its
-     corner that resized a paragraph. */
-  background:#fff; resize:none; }
+                                                                                                                                                                                                                                                                                                                                                                                                                                  
+  background:var(--paper); resize:none; }
 
 /* ── and the box the CARD wears ── */
 .wb2-livetext {
@@ -8674,7 +8657,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    default). You can now read the run of the month from across the office
    instead of hovering each day for its tooltip. */
 html[data-wb-display] .wb2-mc { flex:1; min-height:0; grid-auto-rows:minmax(0,1fr); align-content:stretch; gap:8px; }
-html[data-wb-display] .wb2-mcc { min-height:0; padding:8px 12px; border-radius:16px; }
+html[data-wb-display] .wb2-mcc { min-height:0; padding:8px 12px; border-radius:var(--r-card); }
 html[data-wb-display] .wb2-mcn b { font-size:16px; }
 html[data-wb-display] .wb2-mcn em { font-size:12px; }
 html[data-wb-display] .wb2-mcdots { margin-top:8px; flex-direction:column; align-items:stretch; justify-content:flex-start;
@@ -8682,7 +8665,7 @@ html[data-wb-display] .wb2-mcdots { margin-top:8px; flex-direction:column; align
 /* `font-style:normal` because the dot IS an <i> — the labels inside it
    inherit italics from the element that used to be nothing but a circle. */
 html[data-wb-display] .wb2-mcdots i { width:auto; height:auto; flex:none; display:block; min-width:0; font-style:normal;
-  padding:4px 8px; border-radius:10px; background:rgba(5,5,5,.045); }
+  padding:4px 8px; border-radius:var(--r-button); background:rgba(5,5,5,.045); }
 html[data-wb-display] .wb2-mcdots i > * { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 html[data-wb-display] .wb2-mcdots i > b { font-size:13px; font-weight:700; color:var(--ink); }
 html[data-wb-display] .wb2-mcdots i > em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
@@ -8704,16 +8687,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   align-items:center; padding:12px 16px; border-bottom:1px solid var(--wb2-line2); position:relative; color:inherit; text-decoration:none;
   transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-wkgrp:last-child .wb2-plrow:last-child { border-bottom:0; }
-.wb2-plrow:hover { background:#fff; z-index:1; }
-.wb2-plrow:focus-visible { outline:none; box-shadow:inset var(--ring); }
+.wb2-plrow:hover { background:var(--paper); z-index:1; }
+.wb2-plrow:focus-visible { outline:none; box-shadow:inset var(--ring);; }
 .wb2-plstage { display:flex; align-items:center; gap:4px; }
-.wb2-plstage i { width:9px; height:9px; border-radius:50%; background:rgba(5,5,5,.12); flex:none; }
+.wb2-plstage i { width:9px; height:9px; border-radius:50%; background:var(--tint-2); flex:none; }
 .wb2-plstage i.past { background:var(--ok-tint); }
-.wb2-plstage i.now { background:var(--wb2-cy); box-shadow:var(--ring); }
+.wb2-plstage i.now { background:var(--wb2-cy); box-shadow:var(--ring);; }
 .wb2-plprog { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .wb2-plprog em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-.wb2-bar { display:block; height:7px; border-radius:999px; background:rgba(5,5,5,.08); overflow:hidden; }
-.wb2-bar i { display:block; height:100%; border-radius:999px; background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
+.wb2-bar { display:block; height:7px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
+.wb2-bar i { display:block; height:100%; border-radius:var(--r-pill); background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
 .wb2-plmoney { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .wb2-plmoney b { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -8724,10 +8707,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* the trip sheet's carry-forward choice + danger notes */
 .wb2-carry { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray700);
-  padding:8px 12px; border:1px solid var(--wb2-line); border-radius:10px; background:rgba(5,5,5,.02); cursor:pointer; }
+  padding:8px 12px; border:1px solid var(--wb2-line); border-radius:var(--r-button); background:var(--tint); cursor:pointer; }
 .wb2-carry input { accent-color:var(--wb2-cy); width:15px; height:15px; }
 .wb2-hint.dan { color:var(--wb2-dan-t); }
-.wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:rgba(224,38,79,.4); }
+.wb2 .pbtn.ghost.dan, .wb2-sheet .pbtn.ghost.dan { color:var(--wb2-dan-t); border-color:var(--bad); }
 
 @media (max-width:980px) {
   .wb2-plrow { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
@@ -8736,12 +8719,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* the project page's trip rows — the board's triage anatomy on a card2 */
 .wb2-triprow { display:grid; grid-template-columns:minmax(0,1fr) 170px 200px; gap:12px; align-items:center;
-  padding:12px 4px; border-bottom:1px solid rgba(5,5,5,.06); }
+  padding:12px 4px; border-bottom:1px solid var(--line); }
 .wb2-triprow:last-child { border-bottom:0; }
-.wb2-triprow.can-open { cursor:pointer; border-radius:10px; padding:12px 8px; margin:0 -10px;
+.wb2-triprow.can-open { cursor:pointer; border-radius:var(--r-button); padding:12px 8px; margin:0 -10px;
   transition:background var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.wb2-triprow.can-open:hover { background:rgba(5,5,5,.03); }
-.wb2-triprow.can-open:focus-visible { outline:none; box-shadow:inset var(--ring); }
+.wb2-triprow.can-open:hover { background:var(--tint); }
+.wb2-triprow.can-open:focus-visible { outline:none; box-shadow:inset var(--ring);; }
 .wb2-triprow.donerow .wb2-trt b { opacity:.75; }
 .wb2-triprow.add { grid-template-columns:minmax(0,1fr) auto auto auto; align-items:end; }
 .wb2-triprow.add .wb2-fl { display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:500; color:var(--gray500); }
@@ -8749,16 +8732,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* the money, scope and dates cards on the project page */
 .wb2-moneyrow { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; gap:12px; align-items:center;
-  padding:12px 4px; border-bottom:1px solid rgba(5,5,5,.06); }
+  padding:12px 4px; border-bottom:1px solid var(--line); }
 .wb2-moneyrow:last-child { border-bottom:0; }
-.wb2-moneyrow.head { background:rgba(5,5,5,.025); border-radius:10px; padding:12px 12px; margin-bottom:4px; border-bottom:0; }
+.wb2-moneyrow.head { background:var(--tint); border-radius:var(--r-button); padding:12px 12px; margin-bottom:4px; border-bottom:0; }
 .wb2-moneyrow .wb2-plmoney b { font-size:14px; }
 .wb2-moneystrip { display:flex; gap:8px; align-items:center; margin:4px 0 8px; }
 .wb2-scope { display:grid; grid-template-columns:1fr 1fr; gap:0 24px; }
 .wb2-scopecol { min-width:0; }
-.wb2-scopemark { width:20px; height:20px; border-radius:6px; display:inline-grid; place-items:center; flex:none;
-  background:var(--tint-2); color:#00806b; }
-.wb2-scopemark.out { background:rgba(224,38,79,.1); color:#b31038; }
+.wb2-scopemark { width:20px; height:20px; border-radius:var(--r-control); display:inline-grid; place-items:center; flex:none;
+  background:var(--tint-2); color:var(--ink); }
+.wb2-scopemark.out { background:var(--bad-tint); color:var(--bad-t); }
 @media (max-width:800px) { .wb2-scope { grid-template-columns:1fr; } .wb2-moneyrow { grid-template-columns:minmax(0,1fr) auto; } }
 
 /* the relative age beside the completion date — "yesterday", "6 days ago" */
@@ -9886,11 +9869,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    `translateX(-50%)` in both keyframes with `both` fill, so a sheet that
    inherited it would sit half its own width to the left, permanently. */
 .wb2-capcard.wb2-caps { top:auto; bottom:0; left:0; right:0; transform:none;
-  width:100%; max-width:none; max-height:88vh; border-radius:16px 16px 0 0;
+  width:100%; max-width:none; max-height:88vh; border-radius:var(--r-card) var(--r-card) 0 0;
   padding:8px 16px 24px; animation:wb2SheetUp .3s var(--ease) both; }
 @keyframes wb2SheetUp { from { transform:translateY(14%); opacity:.5; } to { transform:none; opacity:1; } }
-.wb2-grab { display:block; width:38px; height:4px; border-radius:999px; flex:none;
-  background:rgba(5,5,5,.14); margin:2px auto 8px; }
+.wb2-grab { display:block; width:38px; height:4px; border-radius:var(--r-pill); flex:none;
+  background:var(--tint-2); margin:2px auto 8px; }
 @media (min-width:760px) {
   /* On a desk it stops being a thumb surface and becomes a card again —
      bottom-anchored full width across a 1400px screen is a lot of nothing.
@@ -9904,7 +9887,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
      permanently off-centre (the wb2DropIn lesson, twice learned). */
   .wb2-capcard.wb2-caps { left:50%; right:auto; top:50%; bottom:auto;
     width:min(680px, calc(100vw - 32px));
-    transform:translate(-50%,-50%); border-radius:16px;
+    transform:translate(-50%,-50%); border-radius:var(--r-card);
     animation:wb2SheetUpWide .3s var(--ease) both; }
   @keyframes wb2SheetUpWide {
     from { transform:translate(-50%,-50%) translateY(14px); opacity:.5; }
@@ -9916,35 +9899,35 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    Lives in the column with the notes it joins, so the review can grow in
    place: the whole argument of this posture is that you keep seeing the job. */
 .wb2-strip { display:flex; align-items:center; gap:8px; padding:4px 4px 4px 16px;
-  border:1px solid rgba(5,5,5,.10); border-radius:999px; background:#f7f8fa;
+  border:1px solid var(--line); border-radius:var(--r-pill); background:var(--tint);
   transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-strip:focus-within { border-color:var(--wb2-cy, var(--ink)); background:#fff; }
-.wb2-strip.live { border-color:var(--wb2-dan, #e0264f); background:#fff; }
+.wb2-strip:focus-within { border-color:var(--wb2-cy, var(--ink)); background:var(--paper); }
+.wb2-strip.live { border-color:var(--wb2-dan, var(--bad)); background:var(--paper); }
 .wb2-stripin { flex:1; min-width:0; border:0; background:none; outline:none; padding:8px 0;
   font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); }
 .wb2-stripin::placeholder { color:var(--gray400); }
 .wb2-striprnd { flex:none; width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
-  border:1px solid rgba(5,5,5,.10); background:#fff; color:var(--gray500); cursor:pointer;
+  border:1px solid var(--line); background:var(--paper); color:var(--gray500); cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .wb2-striprnd:hover:not(:disabled) { border-color:var(--wb2-cy, var(--ink)); color:var(--wb2-cy, var(--ink)); }
 .wb2-striprnd.go { background:var(--wb2-cy, var(--ink)); border-color:var(--wb2-cy, var(--ink)); color:var(--paper); }
 .wb2-striprnd.go:hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
-.wb2-striprnd:disabled { background:rgba(5,5,5,.05); border-color:rgba(5,5,5,.06); color:#a2a9b8; cursor:not-allowed; }
-.wb2-striprnd:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-striprnd:disabled { background:var(--tint); border-color:var(--line); color:var(--q); cursor:not-allowed; }
+.wb2-striprnd:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* the review, in place — no portal, no dim, nothing covered */
-.wb2-stripopen { border:1px solid var(--wb2-cy, var(--ink)); border-radius:16px; background:#fff;
-  box-shadow:var(--ring); padding:12px 12px 16px; }
+.wb2-stripopen { border:1px solid var(--wb2-cy, var(--ink)); border-radius:var(--r-card); background:var(--paper);
+  box-shadow:var(--ring);; padding:12px 12px 16px; }
 
 /* ── the cascade ──
    Where the note is about to go, as fact rather than as a menu: by the time
    this shows, what's ticked and what job is named have already decided. */
 .wb2-casc { display:grid; gap:8px; margin-top:12px; padding:12px 12px;
-  border:1px solid rgba(5,5,5,.08); border-radius:10px; background:#f7f8fa; }
+  border:1px solid var(--line); border-radius:var(--r-button); background:var(--tint); }
 .wb2-cascrow { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray400); }
 .wb2-cascrow.on { color:var(--ink); font-weight:600; }
 .wb2-cascrow b { font-weight:700; }
 .wb2-cascn { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center;
-  font-size:12px; font-weight:700; background:rgba(5,5,5,.07); color:var(--gray500); }
+  font-size:12px; font-weight:700; background:var(--tint-2); color:var(--gray500); }
 .wb2-cascrow.on .wb2-cascn { background:var(--wb2-cy, var(--ink)); color:var(--paper); }
 
 /* ── the quiet nudge ──
@@ -9952,7 +9935,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    Dashed, unsaturated and dismissible — the field has already saved, so this
    is an offer and ignoring it must cost nothing. */
 .wb2-nudge { display:flex; align-items:center; gap:8px; margin-top:8px; padding:8px 8px;
-  border:1px dashed rgba(0,127,168,.45); border-radius:10px; background:rgba(0,127,168,.06);
+  border:1px dashed rgba(0,127,168,.45); border-radius:var(--r-button); background:rgba(0,127,168,.06);
   color:var(--gray700); font-size:13px; animation:wb2NudgeIn .3s var(--ease) both; }
 .wb2-nudge > svg { color:var(--wb2-cy, var(--ink)); flex:none; }
 .wb2-nudgetext { flex:1; min-width:0; }
@@ -9964,7 +9947,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* A smaller primary, for the nudge's inline action. Joins the portal-safe
    list rather than relying on `.fg`, which does not reach out here. */
 .wb2 .pbtn.sm, .wb2-sheet .pbtn.sm, .wb2-capcard .pbtn.sm, .wb2-stripopen .pbtn.sm,
-.wb2-nudge .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:10px; }
+.wb2-nudge .pbtn.sm { height:29px; padding:0 12px; font-size:12px; border-radius:var(--r-button); }
 
 /* THE TOKEN HAS TO WORK OFF THE BOARD TOO. The fills above are scoped to
    `.wb2` / `.wb2-sheet` / `.wb2-capcard`, which is fine while a control only
@@ -9975,13 +9958,13 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    surfaces carry the fill themselves rather than inheriting an ancestor. */
 .wb2-stripopen .pbtn:not(.ghost), .wb2-nudge .pbtn:not(.ghost) {
   background:var(--wb2-cy, var(--ink)); border:1px solid var(--wb2-cy, var(--ink)); color:var(--paper);
-  font-weight:700; box-shadow:0 6px 16px -10px rgba(0,127,168,.9); }
+  font-weight:700;box-shadow:var(--shadow-overlay); }
 .wb2-stripopen .pbtn:not(.ghost):hover:not(:disabled),
 .wb2-nudge .pbtn:not(.ghost):hover:not(:disabled) { background:var(--ink2); border-color:var(--ink); }
 .wb2-stripopen .pbtn.ghost, .wb2-nudge .pbtn.ghost {
-  background:#fff; border:1px solid rgba(5,5,5,.12); color:var(--gray700); font-weight:700; }
+  background:var(--paper); border:1px solid rgba(5,5,5,.12); color:var(--gray700); font-weight:700; }
 .wb2-stripopen .pbtn:disabled, .wb2-nudge .pbtn:disabled {
-  background:#eef0f4; border-color:#e3e6ec; color:#a2a9b8; box-shadow:none; cursor:not-allowed; }
+  background:#eef0f4; border-color:#e3e6ec; color:var(--q); box-shadow:none;; cursor:not-allowed; }
 
 /* ── the debrief ── DELETED, deliberately.
 
@@ -10002,7 +9985,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* ── the KB curation queue ── */
 .fg .adm-badge { flex:none; margin-right:8px; color:var(--ink); font-size:14px; font-weight:500; }
-.wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid rgba(5,5,5,.06); }
+.wb2-kbqrow { display:grid; gap:8px; padding:16px 16px; border-bottom:1px solid var(--line); }
 .wb2-kbqrow:last-child { border-bottom:0; }
 .wb2-kbqhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .wb2-kbqhead b { font-size:14px; font-weight:700; color:var(--ink); }
@@ -10014,11 +9997,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    tool chips are REAL progress — each one is a read that actually happened —
    which is what earns them the space the sorting skeleton refuses to fake. */
 .wb2-ans { display:grid; gap:12px; }
-.wb2-ansq { margin:0; padding:8px 12px; border-radius:10px; background:#f7f8fa;
-  border:1px solid rgba(5,5,5,.06); font-size:13px; font-weight:600; color:var(--gray700); }
+.wb2-ansq { margin:0; padding:8px 12px; border-radius:var(--r-button); background:var(--tint);
+  border:1px solid var(--line); font-size:13px; font-weight:600; color:var(--gray700); }
 .wb2-anstools { display:flex; flex-wrap:wrap; gap:4px; }
 .wb2-anstool { display:inline-flex; align-items:center; gap:4px; padding:4px 8px;
-  border-radius:999px; border:1px solid rgba(0,127,168,.25); background:rgba(0,127,168,.07);
+  border-radius:var(--r-pill); border:1px solid rgba(0,127,168,.25); background:rgba(0,127,168,.07);
   font-size:12px; font-weight:700; color:var(--ink); }
 .wb2-anstext { margin:0; font-size:14px; line-height:1.65; color:var(--ink);
   white-space:pre-wrap; overflow-wrap:anywhere; min-height:24px; }
@@ -10114,7 +10097,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    dusk fills do the rest; nothing here restates a skin. */
 .wb2-capdoor { display:flex; gap:12px; padding:8px 0 4px; }
 .wb2-capcard .wb2-capdoor .pbtn { flex:1 0 0; justify-content:center; height:54px;
-  font-size:16px; gap:8px; border-radius:10px; }
+  font-size:16px; gap:8px; border-radius:var(--r-button); }
 .wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk { background:rgba(0,229,192,.09);
   border-color:rgba(0,229,192,.42); color:#9FF4E4; }
 .wb2-capcard.wb2-dusk .pbtn.ghost.wb2-talk:hover:not(:disabled) { background:rgba(0,229,192,.16);
@@ -10332,7 +10315,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    the capture box, which is the one thing you are writing in, wrong for a
    field sitting inside a list of rows. */
 .wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody { background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:8px 12px; }
+  border:1px solid rgba(255,255,255,.14); border-radius:var(--r-button); padding:8px 12px; }
 .wb2-capcard.wb2-dusk .wb2-kbrow .wb2-kbbody:focus { border-color:rgba(0,229,192,.55);
   box-shadow:var(--ring); }
 .wb2-capcard.wb2-dusk .wb-chip { background:rgba(255,255,255,.08); color:rgba(255,255,255,.8); }

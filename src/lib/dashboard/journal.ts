@@ -263,3 +263,61 @@ export function groupByDay(
   }
   return days;
 }
+
+/* ── THE LIST ROW'S ONE LINE, AND THE PANE'S DATE ─────────────────────────
+
+   Home's diary is a list beside a reading pane now (the three-room handoff,
+   2026-09-14). A row has room for one quiet line under its words, and the
+   pane says when the entry was made in a sentence under the words rather
+   than in a label over them. Both are derivations of what the entry already
+   carries, so they live here with the rest. */
+
+/** "1 task, 1 line kept" — what a capture became, counted for a row that has
+    one line to say it in. Doors are counted by what they open; anything
+    without a door is already a count ("1 flag", "2 tasks removed") and is
+    said as it is, in the order the write side recorded it. */
+export function outcomeSummary(outcomes: readonly Outcome[]): string {
+  let tasks = 0;
+  let kb = 0;
+  const words: string[] = [];
+  for (const o of outcomes) {
+    if (o.go?.type === "task") tasks++;
+    else if (o.go?.type === "kb") kb++;
+    else words.push(o.text);
+  }
+  const parts: string[] = [];
+  if (tasks > 0) parts.push(`${tasks} ${tasks === 1 ? "task" : "tasks"}`);
+  if (kb > 0) parts.push(`${kb} ${kb === 1 ? "knowledge entry" : "knowledge entries"}`);
+  return [...parts, ...words].join(", ");
+}
+
+/** "today" · "yesterday" · "6 days ago" · "3 weeks ago" · "2 months ago".
+    Whole units, rounded: a reader wants the size of the gap, not a date they
+    can already see beside it. Both arguments are ISO calendar days. */
+export function agoLabel(day: string, today: string): string {
+  const at = Date.parse(`${day}T00:00:00Z`);
+  const now = Date.parse(`${today}T00:00:00Z`);
+  if (Number.isNaN(at) || Number.isNaN(now)) return "";
+  const days = Math.round((now - at) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 14) return `${days} days ago`;
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
+  const months = Math.round(days / 30);
+  return `${months} ${months === 1 ? "month" : "months"} ago`;
+}
+
+/** The entry a task came from, or null for a task that was typed straight in.
+
+    No query and no column: a task's door is recorded on the entry that made
+    it (`outcomes[].go`), and the journal is already in the page's hands. The
+    Tasks face reads the words a task was born from off the same list the
+    Diary face draws, so the two can never disagree about which note it was. */
+export function entryForTask(
+  entries: readonly JournalEntry[],
+  taskId: string,
+): JournalEntry | null {
+  for (const e of entries)
+    if (e.outcomes.some((o) => o.go?.type === "task" && o.go.id === taskId)) return e;
+  return null;
+}

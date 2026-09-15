@@ -4,6 +4,9 @@ import { HomeTasks } from "../home-tasks";
 
 const createTask = jest.fn(async () => ({ ok: true as const }));
 
+/* The composer reaches the note flow and its server actions, which cannot
+   be imported into jsdom; this suite is about the rows and the page. */
+jest.mock("@/components/notes/note-token", () => ({ NoteToken: () => <div /> }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/dashboard", () => ({
   completeTask: jest.fn(),

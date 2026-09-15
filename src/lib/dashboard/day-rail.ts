@@ -297,41 +297,128 @@ export function placeRail(items: readonly RailItem[], bounds: RailBounds): Place
     cols: 1,
   }));
 
-  /* One cluster is a run of items that overlap something already in it —
-     transitively, so A/B and B/C put all three in one cluster and each gets
-     its own column even though A and C never touch. */
-  let cluster: PlacedRailItem[] = [];
-  let clusterEnd = Number.NEGATIVE_INFINITY;
-  const groups: PlacedRailItem[][] = [];
-  for (const p of placed) {
-    if (cluster.length > 0 && p.top >= clusterEnd) {
-      groups.push(cluster);
-      cluster = [];
-      clusterEnd = Number.NEGATIVE_INFINITY;
-    }
-    cluster.push(p);
-    clusterEnd = Math.max(clusterEnd, p.top + p.height);
-  }
-  if (cluster.length > 0) groups.push(cluster);
+  const cols = packColumns(placed.map((p) => ({ start: p.top, size: p.height })));
+  placed.forEach((p, i) => {
+    p.col = cols[i].col;
+    p.cols = cols[i].cols;
+  });
+  return placed;
+}
 
-  for (const group of groups) {
-    /* Greedy: take the leftmost column whose last item has finished by the
-       time this one starts. Left-to-right order therefore follows the clock,
-       which is what makes a two-column stretch readable. */
+/** Greedy columns over things laid along one axis — the rail's rows, or the
+    band's pills. `start` and `size` are in whatever the caller DRAWS in, which
+    is pixels, because what has to move apart is what would otherwise be
+    painted on top of something else.
+
+    One cluster is a run of items that overlap something already in it —
+    transitively, so A/B and B/C put all three in one cluster and each gets
+    its own column even though A and C never touch. Inside a cluster the
+    leftmost column whose last item has finished takes the next one, so
+    left-to-right order follows the clock. Items arrive in start order. */
+export function packColumns(
+  items: readonly { start: number; size: number }[],
+): { col: number; cols: number }[] {
+  const out = items.map(() => ({ col: 0, cols: 1 }));
+  let cluster: number[] = [];
+  let clusterEnd = Number.NEGATIVE_INFINITY;
+  const close = () => {
+    if (cluster.length === 0) return;
     const ends: number[] = [];
-    for (const p of group) {
-      let col = ends.findIndex((end) => end <= p.top);
+    for (const i of cluster) {
+      let col = ends.findIndex((end) => end <= items[i].start);
       if (col < 0) {
         col = ends.length;
         ends.push(0);
       }
-      ends[col] = p.top + p.height;
-      p.col = col;
+      ends[col] = items[i].start + items[i].size;
+      out[i].col = col;
     }
-    for (const p of group) p.cols = ends.length;
-  }
+    for (const i of cluster) out[i].cols = ends.length;
+    cluster = [];
+    clusterEnd = Number.NEGATIVE_INFINITY;
+  };
+  items.forEach((it, i) => {
+    if (cluster.length > 0 && it.start >= clusterEnd) close();
+    cluster.push(i);
+    clusterEnd = Math.max(clusterEnd, it.start + it.size);
+  });
+  close();
+  return out;
+}
 
+/* ── THE BAND: the same day, laid ACROSS the top of Home ─────────────────
+
+   The rail above draws the day down a column at a fixed 64px an hour. The
+   band draws it along a row whose width is whatever the card has, so the
+   scale is the band's own: `ribbonScale` divides the width by the hours.
+   That is the Schedule tab's own 110px an hour on a 1440 window, which is
+   not a coincidence worth losing — one booking should be the same length
+   on the two screens that draw it.
+
+   A PILL IS NEVER NARROWER THAN ITS WORDS. A one-hour booking is 110px of
+   axis and "3271 Richard Ferns 12:30–1:30pm" is more than that, so the pill
+   grows past its hour rather than clipping the one fact a glance is after.
+   The packer has to know the drawn width, not the hours, or two pills that
+   overlap on screen would be told they do not; the component measures the
+   words and hands them in. Before anything is measured a guess does. */
+
+export type PlacedRibbonItem = {
+  item: RailItem;
+  /** Left edge, in pixels along the band. */
+  x: number;
+  /** Drawn width: the hours, or the words, whichever is wider. */
+  w: number;
+  lane: number;
+  lanes: number;
+};
+
+/** Pixels per hour for a band `width` wide. */
+export function ribbonScale(bounds: RailBounds, width: number): number {
+  return width / ((bounds.endMin - bounds.startMin) / 60);
+}
+
+/** Where a minute sits along the band. */
+export function ribbonX(min: number, bounds: RailBounds, pxPerHour: number): number {
+  return ((min - bounds.startMin) / 60) * pxPerHour;
+}
+
+/** Lay the day out along the band.
+
+    `wordsWidth` is what each pill's words come to, measured or guessed. A
+    pill that would run off the band's end hugs the end instead: its start is
+    still said by the span on it, and a pill hanging off the card said less.
+    Pass no `width` to leave pills where their minutes put them. */
+export function placeRibbon(
+  items: readonly RailItem[],
+  bounds: RailBounds,
+  pxPerHour: number,
+  wordsWidth: (item: RailItem) => number,
+  width?: number,
+): PlacedRibbonItem[] {
+  const sorted = [...items].sort(
+    (a, b) => a.startMin - b.startMin || a.key.localeCompare(b.key),
+  );
+  const placed: PlacedRibbonItem[] = sorted.map((item) => {
+    const x = ribbonX(item.startMin, bounds, pxPerHour);
+    /* A task is a moment: its width is its words, never a span it did not
+       claim — the same rule that keeps it from pushing a booking sideways
+       on the rail. */
+    const hours = item.kind === "job" ? ribbonX(item.endMin, bounds, pxPerHour) - x : 0;
+    const w = Math.max(hours, wordsWidth(item));
+    const left = width === undefined ? x : Math.max(0, Math.min(x, width - w));
+    return { item, x: left, w, lane: 0, lanes: 1 };
+  });
+  const cols = packColumns(placed.map((p) => ({ start: p.x, size: p.w })));
+  placed.forEach((p, i) => {
+    p.lane = cols[i].col;
+    p.lanes = cols[i].cols;
+  });
   return placed;
+}
+
+/** How many rows the band needs — the deepest lane anything landed in. */
+export function ribbonLanes(placed: readonly PlacedRibbonItem[]): number {
+  return placed.reduce((n, p) => Math.max(n, p.lane + 1), 1);
 }
 
 /** Today's tasks that named an hour, in the workspace's zone.

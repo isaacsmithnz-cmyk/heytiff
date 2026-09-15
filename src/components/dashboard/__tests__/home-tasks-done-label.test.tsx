@@ -1,8 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import { HomeTasks } from "../home-tasks";
 import { todayInAu } from "@/lib/au-dates";
 import type { DashTask } from "@/lib/dashboard/tasks";
 
+/* The composer reaches the note flow and its server actions, which cannot
+   be imported into jsdom; this suite is about the rows and the page. */
+jest.mock("@/components/notes/note-token", () => ({ NoteToken: () => <div /> }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 jest.mock("@/app/actions/dashboard", () => ({
   completeTask: jest.fn(),
@@ -45,6 +48,9 @@ const renderDone = (doneAt: string, today: string) =>
     />,
   );
 
+const row = () => document.querySelector(".hm-tm")!.textContent;
+const state = () => document.querySelector(".hm-when b")!.textContent;
+
 describe("doneLabel — AU calendar day", () => {
   it("reads 'Done today' for a task finished this morning in the yard", () => {
     // 8:00am Sat 25 Jul 2026 in Sydney (AEST, UTC+10) = 22:00 Fri 24 Jul UTC
@@ -52,19 +58,23 @@ describe("doneLabel — AU calendar day", () => {
     expect(todayInAu(new Date(doneAt))).toBe("2026-07-25");
 
     renderDone(doneAt, "2026-07-25");
-    expect(screen.getByText("Done today")).toBeInTheDocument();
+    // the row's line, and the page's state word for the same task
+    expect(row()).toContain("done today");
+    expect(state()).toBe("Done today.");
   });
 
   it("still reads 'Done today' later the same AU day", () => {
     const doneAt = "2026-07-25T10:00:00Z"; // 8pm Sydney
     renderDone(doneAt, "2026-07-25");
-    expect(screen.getByText("Done today")).toBeInTheDocument();
+    expect(row()).toContain("done today");
+    expect(state()).toBe("Done today.");
   });
 
   it("names the AU day for something finished earlier in the week", () => {
     // 9:00am Wed 22 Jul in Sydney = 23:00 Tue 21 Jul UTC — the label must say
     // the 22nd (the day it happened here), not the 21st
     renderDone("2026-07-21T23:00:00Z", "2026-07-25");
-    expect(screen.getByText("Done 22 July")).toBeInTheDocument();
+    expect(row()).toContain("done 22 July");
+    expect(state()).toBe("Done 22 July.");
   });
 });

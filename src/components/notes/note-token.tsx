@@ -732,7 +732,18 @@ function JobLine({ flow }: { flow: NoteFlow }) {
    The mic is its own button rather than a glyph on this one: `flow.talk()`
    opens the microphone as well as the card, so reaching for it is one press,
    not a press and then another inside the card that just opened. */
-function EntryRow({ flow }: { flow: NoteFlow }) {
+/* THE ENTRY ROW STANDS IN TWO ROOMS NOW (the three-room Home, 2026-09-14):
+   the Diary's, where it says "Add to the diary…", and the Tasks', where it
+   says "Add a task…". Same flow, same door, same router deciding what the
+   words are — only the placeholder differs, and the open card's name with it,
+   so a screen reader hears which room it is in. */
+function EntryRow({
+  flow,
+  placeholder = "Add to the diary…",
+}: {
+  flow: NoteFlow;
+  placeholder?: string;
+}) {
   const rowRef = useRef<HTMLButtonElement | null>(null);
   const wasOpen = useRef(false);
 
@@ -759,7 +770,7 @@ function EntryRow({ flow }: { flow: NoteFlow }) {
               the frame's Tiff button is one press from every screen — a
               second rendering of the mark at 26px was branding doing a
               label's job, badly. */}
-          Add to the diary&hellip;
+          {placeholder}
         </button>
         {flow.scope.voiceEnabled && (
           <button
@@ -779,7 +790,7 @@ function EntryRow({ flow }: { flow: NoteFlow }) {
   }
 
   return (
-    <section className="wb2-capcard hm-cap wb2-dusk" aria-label="Add to the diary">
+    <section className="wb2-capcard hm-cap wb2-dusk" aria-label={placeholder.replace(/…$/, "")}>
       <Ribbon flow={flow} />
       {flow.error && <p className="wb2-sherr">{flow.error}</p>}
       <JobLine flow={flow} />
@@ -1196,7 +1207,7 @@ export function NoteToken({
   const flow = useNoteFlow({ debrief: as === "debrief" });
 
   if (as === "debrief") return <DebriefButton flow={flow} cta={cta} />;
-  if (as === "entry") return <EntryRow flow={flow} />;
+  if (as === "entry") return <EntryRow flow={flow} placeholder={placeholder} />;
   if (as === "strip")
     return (
       <Strip

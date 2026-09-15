@@ -14,6 +14,9 @@ import { mentionableStaff, pollOptionIds } from "@/lib/dashboard/tasks-query";
 import { MAX_NOTICE_FILES, refIsOrgs } from "@/lib/documents/files";
 import { DOCUMENTS_BUCKET } from "@/lib/documents/query";
 import { todayInAu } from "@/lib/au-dates";
+import { getSm8Timezone } from "@/lib/workboard/query";
+import { zonedParts } from "@/lib/dashboard/day-rail";
+import { hhmm, remindAtFrom } from "@/lib/dashboard/reminders";
 
 /* Dashboard mutations — tasks and the noticeboard.
 
@@ -180,6 +183,53 @@ export async function reopenTask(taskId: string): Promise<DashResult> {
     .eq("org_id", ctx.orgId)
     .eq("id", taskId);
   if (error) return { ok: false, error: "Couldn't reopen that task." };
+  refresh();
+  return { ok: true };
+}
+
+/** Move a task's date, or take it off. The assignee, the creator, or `team`:
+    a due date belongs to the person doing the work as much as to whoever set
+    it, which is wider than deleting and the same width as completing.
+
+    A REMINDER RIDES WITH IT. `remind_at`'s date IS `due_date` by construction
+    (docs/migrations/task_reminders.sql), so a task nudged at 7:30 on the old
+    day is nudged at 7:30 on the new one — the clock time is read in the
+    workspace's zone and written back on the new date in the same zone.
+    Taking the date off takes the reminder with it: a nudge with no day is
+    not a thing, and leaving the old instant behind would fire it on a day
+    the task no longer names. */
+export async function setTaskDue(taskId: string, dueDate: string | null): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (dueDate !== null && !isISODate(dueDate)) return { ok: false, error: "Check the due date." };
+
+  const { data } = await supabaseAdmin
+    .from("tasks")
+    .select("assigned_to, created_by, status, remind_at")
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That task no longer exists." };
+  if (data.status === "done")
+    return { ok: false, error: "That task is done. Reopen it to change its date." };
+
+  const mine =
+    ctx.staffId && (ctx.staffId === data.assigned_to || ctx.staffId === data.created_by);
+  if (!mine && !(await can("team"))) return { ok: false, error: "That task isn't yours to move." };
+
+  let remindAt: string | null = null;
+  if (dueDate && data.remind_at) {
+    const tz = await getSm8Timezone(ctx.orgId);
+    const was = zonedParts(String(data.remind_at), tz);
+    remindAt = was ? remindAtFrom(dueDate, hhmm(was.min), tz) : null;
+  }
+
+  const { error } = await supabaseAdmin
+    .from("tasks")
+    .update({ due_date: dueDate, remind_at: remindAt, updated_at: new Date().toISOString() })
+    .eq("org_id", ctx.orgId)
+    .eq("id", taskId);
+  if (error) return { ok: false, error: "Couldn't move that task." };
   refresh();
   return { ok: true };
 }

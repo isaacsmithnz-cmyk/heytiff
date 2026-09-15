@@ -1,42 +1,40 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
-import { ViewTabs } from "@/components/shell/view-tabs";
-import { HomeDayRail } from "./home-day-rail";
+import { HomeDayBand } from "./home-day-band";
 import { HomeDebrief } from "./home-debrief";
-import { HomeJournal } from "./home-journal";
+import { HomeDiary } from "./home-diary";
 import { HomeCalendarFace } from "./home-calendar-face";
+import { HomeRailNav } from "./home-rail-nav";
 import { HomeTasks } from "./home-tasks";
 import { sortChips } from "@/lib/dashboard/chips";
-import { fmtAuWeekdayDayMonth, fmtAuWeekdayDateLong } from "@/lib/au-dates";
+import { fmtAuWeekdayDateLong } from "@/lib/au-dates";
 import { DEFAULT_TAB, homeTabs, type HomeTabKey } from "@/lib/dashboard/home-tabs";
 import { currentUnreadCount } from "@/lib/dashboard/notices";
 import type { DashboardData } from "@/lib/dashboard/page-data";
 
-/* HOME — the day on the left, the diary on the right.
+/* HOME — one card, three rooms.
 
-   It was one card with six faces: Journal, Urgent, Needs attention,
-   Noticeboard, Tasks, Calendar. Four of those were lists of things that
-   already have a whole screen, so the card could only ever show a sixth of
-   itself and the day's actual work — where you have to be, and when — was on
-   none of them.
+   The day across the top; under it a rail of the four faces, the list the
+   face holds, and the page the chosen row opens onto. That is the
+   three-room handoff of 2026-09-14, redrawn to the ink-and-paper laws (see
+   docs/design.md). It replaced the desk — a day rail down the left beside a
+   card of four tabs — which had put the day and the record in two materials
+   and left the tabs' faces a sixth of the height each.
 
-   TWO ROOMS (Isaac, 2026-08-30). The left is the day: today's bookings from
-   ServiceM8 and the tasks that named an hour, drawn on one timeline with the
-   now marker riding it, so "where should I be" is a glance down one column.
-   The right is the record: the diary, what you owe, the conversation that
-   produces both, and the month ahead — who is off, four weeks of it, read
-   downward as a list rather than a fortnight of squares.
+   THE DATE IS THE TITLE. The screen's name is on the shell's rail one column
+   to the left, so the h1 does not repeat it (Isaac, 2026-09-15: "do we need
+   the home title at the top?"); the day is what this screen is about, and
+   the day names it. It formats the loader's `today`, never a clock read in
+   render — see the hydration trap.
 
-   THE GLANCE SURVIVED THE TABS IT LIVED ON. Urgent and Needs attention were
-   badges on faces of this card; they are chips in the page head now, and they
-   are DOORS — /dashboard/action-required and /dashboard/notices are whole
-   screens that already exist and say more than a panel ever did. A chip is
-   absent at zero: five grey noughts is not a glance.
+   THE GLANCE LIVES ON THE RAIL. What needs attention and what is unread were
+   chips in the page head, then words on the strip; they are doors, so they
+   stand with the other doors, at the foot of the rail, absent at zero.
 
-   Client, for the tab state alone. Every panel's data arrives resolved from
-   the loader; only which face is showing lives here. */
+   Client, for the state the rooms share: which face is up, which entry the
+   diary is reading, and which task a diary door just named. Every panel's
+   data arrives resolved from the loader. */
 
 export function DashboardHome({ data }: { data: DashboardData }) {
   const {
@@ -54,42 +52,41 @@ export function DashboardHome({ data }: { data: DashboardData }) {
   } = data;
 
   const [tab, setTab] = useState<HomeTabKey>(DEFAULT_TAB);
+  /* The entry the diary's pane is reading — null reads the newest. Home
+     owns it so a task's "Open in diary" can choose one from next door. */
+  const [entryId, setEntryId] = useState<string | null>(null);
 
-  /* A diary chip naming a task opens it HERE — one card, and the task is on
-     the face next door. `focusTask` is handed to the Tasks panel, which
-     scrolls it into view and flashes it, then clears this so pressing the
-     same chip again works. */
+  /* A diary door naming a task opens it HERE — one card, and the task is on
+     the face next door. `focusTask` is handed to the Tasks face, which
+     chooses the row, scrolls it into view and marks it, then clears this so
+     pressing the same door again works. */
   const [focusTask, setFocusTask] = useState<string | null>(null);
   const openTask = useCallback((id: string) => {
     setTab("tasks");
     setFocusTask(id);
   }, []);
   const clearFocusTask = useCallback(() => setFocusTask(null), []);
+  const openEntry = useCallback((id: string) => {
+    setTab("diary");
+    setEntryId(id);
+  }, []);
 
-  /* ONE NUMBER, NOT TWO (Isaac, 2026-09-01: "you can group them together as
-     one thing saying three need attention instead of one past state and two
-     coming up").
-
-     They were always one list — the same one the topbar bell counts — split
-     on state purely so each half could have its own chip. Both halves are the
-     same KIND of thing (something dated that wants you) and both chips pointed
-     at the SAME screen, so the split bought two numbers and no extra meaning.
-
-     The severity is not lost: it moves onto the one number's colour. Anything
-     past its date makes it red, because red on this app means something is
-     wrong; otherwise amber, which is "closing in". Unread notices stay their
-     own count — a different screen and a different kind of fact, and merging
-     those really would be adding two unlike things together. */
+  /* ONE NUMBER, NOT TWO (Isaac, 2026-09-01). The dated states were always one
+     list — the same one the bell counts — split on state purely so each half
+     could have its own chip; both pointed at the same screen. The severity
+     moves onto the number's colour: anything past its date makes it red,
+     otherwise amber. Unread notices stay their own count — a different screen
+     and a different kind of fact. */
   const all = sortChips([...chips.self, ...chips.team]);
-  /* `chipsOverdue`, not `overdue` — there is a second overdue on this screen
-     below (the viewer's own tasks, which feed the Tasks tab's badge) and the
-     two count different things. */
+  /* `chipsOverdue`, not `overdue` — the viewer's own tasks have their own
+     overdue below, and the two count different things. */
   const chipsOverdue = all.filter((c) => c.state === "bad").length;
   const attention = chipsOverdue + all.filter((c) => c.state === "warn").length;
   const unread = currentUnreadCount(notices, today);
 
   /* Past its date, on the viewer's own tasks — the one number on this card
-     that means something is wrong. */
+     that means something is wrong. The same comparison the Tasks face
+     groups on. */
   const overdue = tasks.mine.filter((t) => t.dueDate !== null && t.dueDate < today).length;
 
   /* The dot goes out the moment anything lands in today's record — the
@@ -103,9 +100,9 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     debriefedToday,
   });
 
-  const panel = (key: HomeTabKey, body: React.ReactNode) => (
+  const panel = (key: HomeTabKey, shape: "two" | "one", body: React.ReactNode) => (
     <section
-      className="wb2-body hm-panel"
+      className={`hm-face ${shape}`}
       id={`hmsec-${key}`}
       role="tabpanel"
       aria-labelledby={`hmtab-${key}`}
@@ -119,65 +116,37 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     <div className="page in">
       <div className="wrap hm-wrap">
         <div className="stg">
-          <header className="hm-phead">
-            <h1>
-              Home
-              <span className="hm-pdate">{fmtAuWeekdayDateLong(today)}</span>
-            </h1>
+          <div className="hm-card">
+            <section className="hm-band" aria-label="Today">
+              <h1 className="hm-date">{fmtAuWeekdayDateLong(today)}</h1>
+              <HomeDayBand rail={rail} />
+            </section>
 
-          </header>
-
-          <div className="hm-desk">
-            <HomeDayRail rail={rail} />
-
-            {/* The strip is inside the card, and that is load-bearing: the
-                thumb IS the card's top edge, which cannot survive two
-                surfaces meeting. See the HOME section of shell.css. */}
-            <div className="wb2-card hm-card">
-              <ViewTabs
-                items={tabs}
+            <div className="hm-body">
+              <HomeRailNav
+                tabs={tabs}
                 active={tab}
                 onGo={(k) => setTab(k as HomeTabKey)}
-                ariaLabel="Home"
-                idPrefix="hmtab"
-                panelPrefix="hmsec"
-              >
-                {/* THE GLANCE LIVES ON THE CARD NOW (Isaac, 2026-09-01) —
-                    floating beside the heading it read as furniture someone
-                    generated, not part of the thing it was counting for.
-                    Absent at zero, all three: "nothing is past its date" is
-                    said by not being here. Still doors — the screens behind
-                    them say more than a panel ever did. */}
-                {(attention > 0 || unread > 0) && (
-                  <nav className="hm-glance" aria-label="Needs you">
-                    {attention > 0 && (
-                      <Link
-                        className={"hm-gl" + (chipsOverdue > 0 ? " dan" : " warn")}
-                        href="/dashboard/action-required"
-                      >
-                        <b>{attention}</b> need{attention === 1 ? "s" : ""} attention
-                      </Link>
-                    )}
-                    {unread > 0 && (
-                      <Link className="hm-gl" href="/dashboard/notices">
-                        <b>{unread}</b> unread
-                      </Link>
-                    )}
-                  </nav>
-                )}
-                {/* THE DAY THE CARD IS SHOWING, at the strip's far end. What
-                    may never come back into this cap is a second Tiff button:
-                    the frame's is one press from every screen. */}
-                <span className="hm-cardday">{fmtAuWeekdayDayMonth(today)}</span>
-              </ViewTabs>
+                attention={attention}
+                chipsOverdue={chipsOverdue}
+                unread={unread}
+              />
 
               {panel(
                 "diary",
-                <HomeJournal entries={journal} today={today} onOpenTask={openTask} />,
+                "two",
+                <HomeDiary
+                  entries={journal}
+                  today={today}
+                  selectedId={entryId}
+                  onSelect={setEntryId}
+                  onOpenTask={openTask}
+                />,
               )}
 
               {panel(
                 "tasks",
+                "two",
                 <HomeTasks
                   today={today}
                   mine={tasks.mine}
@@ -187,6 +156,9 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                   viewerStaffId={viewerStaffId}
                   canManage={canManage}
                   assignable={assignable}
+                  journal={journal}
+                  tz={rail.tz}
+                  onOpenEntry={openEntry}
                   focusTaskId={focusTask}
                   onFocusHandled={clearFocusTask}
                 />,
@@ -194,6 +166,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
 
               {panel(
                 "debrief",
+                "one",
                 <HomeDebrief
                   phase={phase}
                   /* Filtered here rather than loaded separately: the journal
@@ -205,7 +178,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                 />,
               )}
 
-              {panel("calendar", <HomeCalendarFace cal={calendar} today={today} />)}
+              {panel("calendar", "one", <HomeCalendarFace cal={calendar} today={today} />)}
             </div>
           </div>
         </div>

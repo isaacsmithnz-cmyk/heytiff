@@ -36,9 +36,10 @@ import {
 } from "../logic";
 
 /** The screens of the one modal. Main, one per renewal kind, the money, the
-    services, and one log entry read on its own — `log:<id>`. A string like
-    the rest, so the register can name it and Escape can leave it. */
-export type Screen = "main" | RenewalKind | "financials" | "services" | `log:${string}`;
+    services, one log entry read on its own — `log:<id>` — and one being
+    logged — `add:<kind>`. Strings like the rest, so the register can name
+    them and Escape can leave them. */
+export type Screen = "main" | RenewalKind | "financials" | "services" | `log:${string}` | `add:${LogKind}`;
 
 export const logScreen = (logId: string): `log:${string}` => `log:${logId}`;
 
@@ -48,6 +49,15 @@ export function isLogScreen(screen: Screen): screen is `log:${string}` {
 
 /** The log an entry screen names. */
 export const logIdOf = (screen: `log:${string}`): string => screen.slice(4);
+
+export const addScreen = (kind: LogKind): `add:${LogKind}` => `add:${kind}`;
+
+export function isAddScreen(screen: Screen): screen is `add:${LogKind}` {
+  return screen.startsWith("add:");
+}
+
+/** The kind a logging screen is for. */
+export const addKindOf = (screen: `add:${LogKind}`): LogKind => screen.slice(4) as LogKind;
 
 export const RENEWAL_TITLE: Record<RenewalKind, string> = {
   rego: "Registration",

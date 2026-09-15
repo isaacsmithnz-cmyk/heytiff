@@ -9,7 +9,6 @@ import {
   type FleetSort,
   type FleetStaff,
   type FleetTab,
-  type LogKind,
   type VehicleLog,
   displayName,
   filterVehicles,
@@ -25,8 +24,8 @@ import {
   vehicleChips,
   worstState,
 } from "./logic";
-import { EditLogModal, LogModal } from "./modals";
-import { VehicleModal, logScreen, type Screen } from "./vehicle-modal";
+import { EditLogModal } from "./modals";
+import { VehicleModal, addScreen, logScreen, type Screen } from "./vehicle-modal";
 import { VehicleForm } from "./vehicle-modal/vehicle-form";
 import { Plate } from "./plate";
 
@@ -41,17 +40,16 @@ function driverHue(name: string) {
 }
 
 /* The vehicle card is ONE modal with its own screens (vehicle-modal/): the
-   renewal, service-history and entry flows that used to be modals of their
-   own are `screen` values inside it, so this state no longer knows them.
-   `screen` is only set when something outside the card wants it opened on a
-   particular record — a log modal returning to the services screen it was
-   opened from, a correction returning to the entry it corrected. */
+   renewal, service-history, entry and logging flows that used to be modals
+   of their own are `screen` values inside it, so this state no longer knows
+   them. `screen` is only set when something outside the card wants it opened
+   on a particular screen — the row's Log service, a correction returning to
+   the entry it corrected. */
 type ModalState =
   | { t: "none" }
   | { t: "add" }
   | { t: "edit"; id: string }
   | { t: "detail"; id: string; screen?: Screen }
-  | { t: "log"; id: string; kind: LogKind; back?: "service" }
   | { t: "fix"; id: string; log: VehicleLog };
 
 /* The reason a refused valuation gave, or a plain one. Read inside a
@@ -418,7 +416,7 @@ export function FleetRegister({
                       </button>
                       <button
                         onClick={() => {
-                          setModal({ t: "log", id: v.id, kind: "service" });
+                          setModal({ t: "detail", id: v.id, screen: addScreen("service") });
                           setOpenMenu(null);
                         }}
                       >
@@ -491,9 +489,6 @@ export function FleetRegister({
           initialScreen={modal.screen}
           onClose={() => setModal({ t: "none" })}
           onEdit={() => setModal({ t: "edit", id: openVehicle.id })}
-          onLog={(kind, from) =>
-            setModal({ t: "log", id: openVehicle.id, kind, back: from === "services" ? "service" : undefined })
-          }
           onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
         />
       )}
@@ -512,29 +507,6 @@ export function FleetRegister({
             setModal({ t: "detail", id: openVehicle.id, screen: modal.log.kind === "service" ? "services" : undefined });
           }}
           onClose={() => setModal({ t: "detail", id: openVehicle.id, screen: logScreen(modal.log.id) })}
-        />
-      )}
-      {modal.t === "log" && openVehicle && (
-        <LogModal
-          kind={modal.kind}
-          today={today}
-          vehicle={openVehicle}
-          fleetVehicles={vehicles}
-          onSave={(log) => {
-            fleet.addLog(log);
-            setModal(
-              modal.back === "service"
-                ? { t: "detail", id: openVehicle.id, screen: "services" }
-                : { t: "detail", id: openVehicle.id },
-            );
-          }}
-          onClose={() =>
-            setModal(
-              modal.back === "service"
-                ? { t: "detail", id: openVehicle.id, screen: "services" }
-                : { t: "detail", id: openVehicle.id },
-            )
-          }
         />
       )}
     </div>

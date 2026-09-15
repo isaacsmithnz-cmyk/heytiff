@@ -137,7 +137,6 @@ function fleet(): FleetActions {
 function mount(over: Partial<Vehicle> = {}, documents: StoredDocument[] = []) {
   const f = fleet();
   const onClose = jest.fn();
-  const onLog = jest.fn();
   const onEdit = jest.fn();
   const onCorrect = jest.fn();
   render(
@@ -153,11 +152,10 @@ function mount(over: Partial<Vehicle> = {}, documents: StoredDocument[] = []) {
       fleet={f}
       onClose={onClose}
       onEdit={onEdit}
-      onLog={onLog}
       onCorrect={onCorrect}
     />,
   );
-  return { f, onClose, onLog, onEdit, onCorrect, user: userEvent.setup() };
+  return { f, onClose, onEdit, onCorrect, user: userEvent.setup() };
 }
 
 it("opens on the vehicle, warning about the one thing that is due", () => {
@@ -222,8 +220,8 @@ it("writes an odometer reading typed on the card as an odo log — Enter commits
   expect(f.addLog).toHaveBeenCalledWith({ vehicleId: "v1", kind: "odo", odo: 109200 });
 });
 
-it("keeps logging on the card: the + on History offers the four kinds", async () => {
-  const { user, onLog } = mount();
+it("keeps logging on the card: the + on History offers the four kinds, each a screen of the card", async () => {
+  const { user } = mount();
   await user.click(screen.getByRole("button", { name: "Log something" }));
   expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual([
     "Log fuel",
@@ -232,7 +230,10 @@ it("keeps logging on the card: the + on History offers the four kinds", async ()
     "Log service",
   ]);
   await user.click(screen.getByRole("menuitem", { name: "Log fuel" }));
-  expect(onLog).toHaveBeenCalledWith("fuel");
+  expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
+  expect(screen.getByText("Scan or upload the receipt")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
 });
 
 it("has no odometer, no fuel and a tow hitch for a trailer", async () => {
@@ -277,7 +278,6 @@ it("shows the full log on request when the history runs past six", async () => {
       fleet={fleet()}
       onClose={jest.fn()}
       onEdit={jest.fn()}
-      onLog={jest.fn()}
       onCorrect={jest.fn()}
     />,
   );

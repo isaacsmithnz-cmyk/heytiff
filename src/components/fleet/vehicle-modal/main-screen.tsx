@@ -31,6 +31,7 @@ import {
   fmtDay,
   historyEvents,
   historyTabs,
+  addScreen,
   logKinds,
   logScreen,
   photoSrc,
@@ -96,7 +97,6 @@ export function MainScreen({
   onClose,
   onStatus,
   onAssign,
-  onLog,
   onOdometer,
   onPhoto,
 }: {
@@ -119,7 +119,6 @@ export function MainScreen({
   onClose: () => void;
   onStatus: (status: VehicleStatus) => void;
   onAssign: (staffId: string | null) => void;
-  onLog: (kind: LogKind) => void;
   /** An odometer reading typed straight on the card. */
   onOdometer: (reading: number) => void;
   onPhoto: (file: File) => void;
@@ -321,7 +320,7 @@ export function MainScreen({
                           role="menuitem"
                           onClick={() => {
                             setLogMenu(false);
-                            onLog(k);
+                            onOpen(addScreen(k));
                           }}
                         >
                           <Icon name={LOG_ICON[k]} size={15} />

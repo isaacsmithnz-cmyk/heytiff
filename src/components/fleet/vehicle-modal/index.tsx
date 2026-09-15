@@ -9,34 +9,34 @@ import type { FleetActions } from "../fleet-state";
 import type {
   AiValuation,
   FleetStaff,
-  LogKind,
   Vehicle,
   VehicleFinance,
   VehicleLog,
   VehiclePolicy,
 } from "../logic";
-import { isLogScreen, logIdOf, logScreen, type Screen } from "./derive";
+import { addKindOf, addScreen, isAddScreen, isLogScreen, logIdOf, logScreen, type Screen } from "./derive";
 import { EntryScreen } from "./entry-screen";
 import { FinancialsScreen } from "./financials-screen";
+import { LogScreen } from "./log-screen";
 import { MainScreen } from "./main-screen";
 import { RenewalScreen } from "./renewal-screen";
 import { ServicesScreen } from "./services-screen";
 import { SubHeader } from "@/components/record-modal/parts";
 
-/* The vehicle modal: one modal, seven screens, one `screen` value.
+/* The vehicle modal: one modal, eight kinds of screen, one `screen` value.
 
    It replaces a stack of separate modals — detail, renewal, renewal history,
-   and now the service history — that each portalled over the last. A door in
-   the compliance list moves the screen, a row in the history opens the entry
-   it names, and the back chevron, Cancel and every save move it back. Nothing
-   is fetched here: the register hands down everything the vehicle owns (logs,
-   documents, policies, valuation) and every write is one of its actions
-   followed by router.refresh(), the same as everywhere else in the fleet.
+   the service history, and now logging — that each portalled over the last.
+   A door in the compliance list moves the screen, a row in the history opens
+   the entry it names, the + menu opens a logging screen, and the back
+   chevron, Cancel and every save move it back. Nothing is fetched here: the
+   register hands down everything the vehicle owns (logs, documents,
+   policies, valuation) and every write is one of its actions followed by
+   router.refresh(), the same as everywhere else in the fleet.
 
    The two flows the register still owns as their own modals — the vehicle
-   form and the log modals — open OVER this one, because they existed first,
-   they are used from other screens too, and a docket's scan step is a whole
-   modal of its own.
+   form and the correction — open OVER this one, because they existed first
+   and the form is used from the register's own Add vehicle too.
 
    THE WAY BACK IS ONE STEP DEEP. An entry can be opened from the card's
    history or from the services screen, and Back returns to whichever it
@@ -45,7 +45,7 @@ import { SubHeader } from "@/components/record-modal/parts";
    that is at most two screens deep. */
 
 export type { Screen } from "./derive";
-export { logScreen } from "./derive";
+export { addScreen, logScreen } from "./derive";
 
 export function VehicleModal({
   vehicle,
@@ -63,7 +63,6 @@ export function VehicleModal({
   initialScreen = "main",
   onClose,
   onEdit,
-  onLog,
   onCorrect,
 }: {
   vehicle: Vehicle;
@@ -81,9 +80,6 @@ export function VehicleModal({
   initialScreen?: Screen;
   onClose: () => void;
   onEdit: () => void;
-  /** `from` names the screen the log was asked for on, so the register can
-      bring the card back to it once the log modal closes. */
-  onLog: (kind: LogKind, from?: Screen) => void;
   onCorrect: (log: VehicleLog) => void;
 }) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
@@ -154,7 +150,6 @@ export function VehicleModal({
             onClose={onClose}
             onStatus={(status) => fleet.saveVehicle({ ...vehicle, status })}
             onAssign={(sid) => fleet.assignVehicle(vehicle.id, sid)}
-            onLog={onLog}
             onOdometer={(odo) => fleet.addLog({ vehicleId: vehicle.id, kind: "odo", odo })}
             onPhoto={(file) => void setPhoto(file)}
           />
@@ -166,8 +161,22 @@ export function VehicleModal({
             warnDays={warnDays}
             error={fleet.error}
             onBack={back}
-            onLog={() => onLog("service", "services")}
+            onLog={() => open(addScreen("service"))}
             onOpen={(log) => open(logScreen(log.id))}
+          />
+        ) : isAddScreen(screen) ? (
+          <LogScreen
+            key={screen}
+            vehicle={vehicle}
+            kind={addKindOf(screen)}
+            today={today}
+            pending={fleet.pending}
+            error={fleet.error}
+            onBack={back}
+            onSave={(log) => {
+              fleet.addLog(log);
+              back();
+            }}
           />
         ) : isLogScreen(screen) ? (
           (() => {

@@ -225,9 +225,9 @@ export function VehicleForm({
   const certInput = useRef<HTMLInputElement>(null);
   const invoiceInput = useRef<HTMLInputElement>(null);
 
-  /* Escape closes the form, except while the certificate is being read or is
-     in hand: then it does nothing (see scanInProgress). The X and Cancel still
-     close. */
+  /* Escape closes the form, except while the certificate or the purchase
+     invoice is being read or is in hand: then it does nothing (see
+     scanInProgress). The X and Cancel still close. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !scanInProgress()) onClose();
@@ -701,7 +701,7 @@ export function VehicleForm({
             <Field label="Invoice no.">
               <input className="vm-input" placeholder="On the tax invoice" value={f.purchaseInvoiceNo} onChange={set("purchaseInvoiceNo")} />
             </Field>
-            <div className="vm-ffield wide3">
+            <div className="vm-ffield wide3" data-scan-in-progress={invoice.state !== "none" ? "" : undefined}>
               <input
                 ref={invoiceInput}
                 type="file"

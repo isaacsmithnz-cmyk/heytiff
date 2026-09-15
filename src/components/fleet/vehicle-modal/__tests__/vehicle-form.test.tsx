@@ -407,6 +407,25 @@ describe("purchase invoice", () => {
     await waitFor(() => expect(field("Purchase date")).toHaveTextContent("15/03/2024"));
     expect(priceInput()).toHaveValue(41000);
   });
+
+  it("survives Escape and the backdrop while the invoice is read or attached; the X still closes", async () => {
+    let finish: (v: unknown) => void = () => {};
+    readPurchaseInvoice.mockReturnValue(new Promise((r) => (finish = r)));
+    const { user, onClose } = setup();
+    await pickInvoice(user);
+    await screen.findByText(/Tiff is reading the invoice/);
+    await user.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
+
+    finish({ ok: false, reason: "read" });
+    await screen.findByText("tax-invoice.pdf");
+    await user.keyboard("{Escape}");
+    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
 
 /* ---- dates: still pickers, still the modal's Escape to lose ---- */

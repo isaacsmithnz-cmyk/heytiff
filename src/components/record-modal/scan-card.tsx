@@ -28,7 +28,8 @@ export type ScanMode = "idle" | "reading" | "scanned" | "manual";
    been read and uploaded, leaving the file in storage owned by nothing. The
    panel marks itself while it holds a file, and the modals ask this before
    Escape or a click on the backdrop closes anything. The X and Start over
-   still do what they say. */
+   still do what they say. A scan that isn't a ScanCard — the rego
+   certificate, the purchase invoice, the fuel docket — carries the same mark. */
 export function scanInProgress(): boolean {
   return typeof document !== "undefined" && document.querySelector("[data-scan-in-progress]") !== null;
 }

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { Chevron } from "@/components/logo";
 import { DateField } from "@/components/ui/date-field";
+import { scanInProgress } from "@/components/record-modal/scan-card";
 import { readFuelReceipt } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
 import { fileToUprightBase64 } from "@/lib/images/upright";
@@ -56,16 +57,19 @@ export function FleetModal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  /* Escape and the backdrop close the modal, except while a scan in it is being
+     read or waits to be checked — today, the fuel docket: then they do nothing
+     (see scanInProgress). The X still closes. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !scanInProgress()) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return createPortal(
-    <div className="fl-ov" onClick={onClose}>
+    <div className="fl-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
       <div className={`fl-modal${wide ? " wide" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="fl-mh">
           <span>
@@ -422,8 +426,10 @@ export function LogModal({
         </>
       )}
 
+      {/* Both marked, so a stray Escape can't throw away a docket being read or
+          waiting to be checked — see scanInProgress. */}
       {kind === "fuel" && mode === "reading" && (
-        <div className="fl-readingwrap">
+        <div className="fl-readingwrap" data-scan-in-progress="">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {thumb && <img className="fl-scanthumb" src={thumb} alt="Receipt" />}
           <div className="fl-reading">
@@ -435,7 +441,7 @@ export function LogModal({
 
       {kind === "fuel" && mode === "confirm" && (
         <>
-          <div className="fl-scanhead">
+          <div className="fl-scanhead" data-scan-in-progress="">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {thumb && <img className="fl-scanthumb small" src={thumb} alt="Receipt" />}
             <span className={`dchip2 ${scanTag === "tiff" ? "ok" : "mute"}`}>

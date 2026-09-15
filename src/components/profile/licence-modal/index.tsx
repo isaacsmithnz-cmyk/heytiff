@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
-import { IconBtn } from "@/components/record-modal/parts";
+import { BackBtn } from "@/components/record-modal/parts";
 import { scanInProgress } from "@/components/record-modal/scan-card";
 import type { StoredDocument } from "@/lib/documents/query";
 import { credBadgeCode } from "@/lib/staff/licence";
@@ -125,7 +125,7 @@ export function LicenceModal({
         <div className="vm-head sub">
           <div className="vm-headl">
             {screen === "details" && !adding ? (
-              <IconBtn icon="chevL" label="Back" onClick={() => setScreen("record")} size={18} />
+              <BackBtn onClick={() => setScreen("record")} />
             ) : null}
             <div className="vm-titles">
               <h2 className="vm-title sub">

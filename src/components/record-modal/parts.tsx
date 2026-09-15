@@ -86,6 +86,16 @@ export function IconBtn({
   );
 }
 
+/** The way back to the record: a word beside the chevron, not a glyph alone (law 25). */
+export function BackBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="vm-back" onClick={onClick}>
+      <Icon name="chevL" size={16} />
+      Back
+    </button>
+  );
+}
+
 export type BtnKind = "primary" | "outline" | "danger" | "warn";
 
 export function Btn({
@@ -171,7 +181,7 @@ export function SubHeader({
   return (
     <div className="vm-head sub">
       <div className="vm-headl">
-        <IconBtn icon="chevL" label="Back" onClick={onBack} size={18} />
+        <BackBtn onClick={onBack} />
         <div className="vm-titles">
           <span className="vm-eyebrow">{eyebrow}</span>
           <h2 className="vm-title sub">{title}</h2>

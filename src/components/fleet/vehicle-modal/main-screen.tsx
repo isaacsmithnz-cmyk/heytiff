@@ -305,6 +305,7 @@ export function MainScreen({
                     onClick={() => setLogMenu((o) => !o)}
                   >
                     <Icon name="plus" size={14} />
+                    Log
                   </button>
                   {logMenu && (
                     <div className="vm-menu" role="menu">

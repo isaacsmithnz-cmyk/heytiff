@@ -10607,14 +10607,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    The ink primary button is by design and by precedent: .newbtn and
    .tsend are ink-on-white already.
    =================================================================== */
-.vm-ov { position:fixed; inset:0; z-index:140; display:flex; align-items:flex-start; justify-content:center; padding:32px 24px; overflow:auto;
+.vm-ov { position:fixed; inset:0; z-index:var(--z-modal); display:flex; align-items:flex-start; justify-content:center; padding:32px 24px; overflow:auto;
   background:rgba(10,11,16,.5); backdrop-filter:blur(6px); animation:flFade .2s ease;
   font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
-  --vm-muted:#8a92a1; --vm-faint:#b3bac4; --vm-sunk:#f7f8fa; --vm-sunk-h:#f1f3f6; --vm-chip:#f4f6f8; --vm-chip-h:#e9ecf0;
-  --vm-line:#eef0f3; --vm-line2:#eceef2; --vm-rule:#e6e9ee; --vm-border:#e2e5ea;
+                                                                                                                              
+  --vm-muted:var(--q); --vm-faint:var(--q); --vm-sunk:var(--tint); --vm-sunk-h:var(--tint-2); --vm-chip:var(--tint); --vm-chip-h:var(--tint-2);
+  --vm-line:var(--line); --vm-line2:var(--line); --vm-rule:var(--line); --vm-border:var(--line);
   --vm-ok-bg:var(--tint); --vm-ok-bg2:var(--tint-2); --vm-ok-line:var(--tint-2);
-  --vm-warn-bg:rgba(240,164,49,.13); --vm-warn-line:rgba(240,164,49,.38); }
-.vm { width:720px; max-width:100%; background:#fff; border-radius:16px; box-shadow:0 32px 80px rgba(0,0,0,.45); overflow:hidden;
+  --vm-warn-bg:var(--warn-tint); --vm-warn-line:var(--warn); }
+.vm { width:720px; max-width:100%; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); overflow:hidden;
   animation:flPop .3s var(--ease); color:var(--ink); }
 .vm *, .vm *::before, .vm *::after { box-sizing:border-box; }
 /* :where() keeps this reset at zero specificity, so any one class on a button — the dashed scan zone, a door card — paints over it. */
@@ -10634,26 +10635,29 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-kind { font-size:14px; font-weight:400; color:var(--vm-muted); }
 .vm-head.sub .vm-titles { gap:4px; }
 .vm-titlerow { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.vm-title { margin:0; font-size:24px; font-weight:700; letter-spacing:.02em; color:var(--ink); line-height:1.1; }
-.vm-title.sub { font-size:24px; letter-spacing:0; }
+.vm-title { margin:0; font-size:24px; font-weight:700; color:var(--ink); line-height:1.1; }
+.vm-title.sub { font-size:24px; }
 .vm-model { font-size:16px; color:var(--q); }
-.vm-photo { position:relative; width:96px; height:72px; flex:none; border-radius:16px; overflow:hidden; padding:0; background:#f0f3f6; }
+.vm-photo { position:relative; width:96px; height:72px; flex:none; border-radius:var(--r-card); overflow:hidden; padding:0; background:var(--tint); }
 .vm-photo img { width:100%; height:100%; display:block; object-fit:cover; }
 .vm-photo img.placeholder { object-fit:contain; }
-.vm-photochange { position:absolute; left:0; right:0; bottom:0; padding:4px 0; text-align:center; font-size:12px; font-weight:700; color:#fff; background:rgba(5,5,5,.55); opacity:0; transition:opacity var(--t-fast) var(--ease); pointer-events:none; }
+.vm-photochange { position:absolute; left:0; right:0; bottom:0; padding:4px 0; text-align:center; font-size:12px; font-weight:700; color:var(--paper); background:color-mix(in srgb, var(--ink) 55%, transparent); opacity:0; transition:opacity var(--t-fast) var(--ease); pointer-events:none; }
 .vm-photo:hover .vm-photochange, .vm-photo:focus-visible .vm-photochange { opacity:1; }
 .vm-statuspill { display:flex; align-items:center; gap:8px; }
 .vm-statuspill select { font-size:14px; font-weight:500; color:var(--ink); outline:none; cursor:pointer; }
 .vm-dot { width:8px; height:8px; border-radius:50%; flex:none; }
-.vm-iconbtn { width:40px; height:40px; border-radius:10px; background:var(--vm-chip); color:var(--q); display:flex; align-items:center; justify-content:center; transition:background var(--t-fast) var(--ease); }
+.vm-iconbtn { width:40px; height:40px; border-radius:var(--r-button); background:var(--vm-chip); color:var(--q); display:flex; align-items:center; justify-content:center; transition:background var(--t-fast) var(--ease); }
 .vm-iconbtn:hover { background:var(--vm-chip-h); color:var(--ink); }
+/* the way back, as a word beside the chevron (law 25) */
+.vm-back { display:inline-flex; align-items:center; gap:4px; height:40px; padding:0 12px 0 8px; border-radius:var(--r-button); background:var(--vm-chip); color:var(--ink); font-size:13px; font-weight:700; transition:background var(--t-fast) var(--ease); }
+.vm-back:hover { background:var(--vm-chip-h); }
 
 /* ---- body rhythm: 32px gutter, 12px between cards, 20px under a header ---- */
 .vm-body { display:flex; flex-direction:column; gap:12px; padding:16px 32px 0; }
-.vm-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); border-radius:10px; padding:8px 12px; font-size:13px; font-weight:600; }
-.vm-alert { display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--vm-warn-bg); border:1px solid var(--vm-warn-line); border-radius:16px; padding:12px 16px; font-size:14px; font-weight:600; color:var(--warn-t); }
+.vm-err { background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); border-radius:var(--r-button); padding:8px 12px; font-size:13px; font-weight:600; }
+.vm-alert { display:flex; align-items:center; justify-content:space-between; gap:12px; background:var(--vm-warn-bg); border:1px solid var(--vm-warn-line); border-radius:var(--r-card); padding:12px 16px; font-size:14px; font-weight:600; color:var(--warn-t); }
 
-.vm-card { display:flex; flex-direction:column; gap:4px; background:var(--vm-sunk); border-radius:16px; padding:16px 16px; min-width:0; text-align:left; }
+.vm-card { display:flex; flex-direction:column; gap:4px; background:var(--vm-sunk); border-radius:var(--r-card); padding:16px 16px; min-width:0; text-align:left; }
 .vm-card.clickable { transition:background var(--t-fast) var(--ease); }
 .vm-card.clickable:hover { background:var(--vm-sunk-h); }
 .vm-cardhead { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; color:var(--vm-faint); }
@@ -10662,7 +10666,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-eyebrow.warn { color:var(--warn-t); font-weight:700; }
 .vm-big { font-size:20px; font-weight:700; color:var(--ink); line-height:1.15; }
 .vm-bare { border:none; background:transparent; font-size:16px; font-weight:600; color:var(--ink); outline:none; margin-left:-4px; cursor:pointer; width:100%; }
-.vm-odoedit { display:flex; align-items:center; gap:4px; background:#fff; border:1px solid var(--vm-border); border-radius:10px; padding:4px 8px; }
+.vm-odoedit { display:flex; align-items:center; gap:4px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-control); padding:4px 8px; }
 .vm-odoedit input { border:none; outline:none; background:transparent; width:100%; font-size:16px; font-weight:700; color:var(--ink); }
 .vm-odoedit span { font-size:12px; font-weight:600; color:var(--vm-muted); }
 .vm-empty { font-size:13px; color:var(--vm-faint); padding:4px 0; }
@@ -10681,7 +10685,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-crowl b.warn, .vm-crowl b.bad { color:var(--warn-t); }
 .vm-crowl b.bad { color:var(--bad-t); }
 .vm-crowl b.faint { color:var(--vm-faint); }
-.vm-pill { font-size:13px; font-weight:700; color:var(--ink); background:#fff; border:1px solid var(--vm-border); border-radius:999px; padding:4px 8px; }
+/* "Add" on a row that has nothing yet: the word, no box (law 26) */
+.vm-pill { font-size:13px; font-weight:700; color:var(--ink); }
 
 /* history */
 .vm-history { gap:0; }
@@ -10690,14 +10695,15 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    as a tray it landed on `.vm-card`'s `--vm-sunk` at 1.093 — a switch you
    could not see the shape of. A tint of the ground holds 1.114 on the sunk
    card and on white, and leaves the eight borders alone. */
-.vm-seg { display:flex; gap:2px; background:rgba(5,5,5,.05); border-radius:10px; padding:2px; }
-.vm-segbtn { border-radius:10px; padding:4px 8px; font-size:12px; font-weight:700; color:var(--vm-muted); }
-.vm-segbtn.on { background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.vm-seg { display:flex; gap:2px; background:var(--tint-2); border-radius:var(--r-button); padding:2px; }
+.vm-segbtn { border-radius:var(--r-button); padding:4px 8px; font-size:12px; font-weight:700; color:var(--vm-muted); }
+.vm-segbtn.on { background:var(--paper); color:var(--ink); }
 .vm-menuwrap { position:relative; }
-.vm-plus { width:26px; height:26px; border-radius:6px; background:#fff; border:1px solid var(--vm-border); color:var(--q); display:flex; align-items:center; justify-content:center; }
+/* "Log", with its plus: a button carries its word (law 25) */
+.vm-plus { height:26px; padding:0 8px 0 4px; gap:4px; border-radius:var(--r-control); background:var(--paper); border:1px solid var(--vm-border); color:var(--ink); font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
 .vm-plus:hover { background:var(--vm-chip); color:var(--ink); }
-.vm-menu { position:absolute; right:0; top:32px; z-index:3; min-width:190px; background:#fff; border:1px solid var(--vm-border); border-radius:16px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.12); display:flex; flex-direction:column; }
-.vm-menu button { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:10px; font-size:13px; font-weight:600; color:var(--ink); text-align:left; }
+.vm-menu { position:absolute; right:0; top:32px; z-index:var(--z-overlay); min-width:190px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-card); padding:4px; box-shadow:var(--shadow-overlay); display:flex; flex-direction:column; }
+.vm-menu button { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button); font-size:13px; font-weight:600; color:var(--ink); text-align:left; }
 .vm-menu button:hover { background:var(--vm-chip); }
 .vm-evrow { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--vm-line2); font-size:14px; font-weight:600; color:var(--ink); }
 .vm-evdate { font-size:12px; font-weight:600; color:var(--vm-faint); flex:none; }
@@ -10731,19 +10737,19 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-inline { padding:0; font-size:13px; font-weight:700; color:var(--ink); }
 .vm-inline:hover { color:var(--ink); }
 .vm-inline.muted { color:var(--vm-muted); }
-.vm-btn { display:inline-flex; align-items:center; gap:8px; border-radius:10px; padding:12px 24px; font-size:14px; font-weight:700; white-space:nowrap; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.vm-btn { display:inline-flex; align-items:center; gap:8px; border-radius:var(--r-button); padding:12px 24px; font-size:14px; font-weight:700; white-space:nowrap; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .vm-btn:disabled { opacity:.45; pointer-events:none; }
-.vm-btn.primary { background:var(--ink); color:#fff; }
-.vm-btn.primary:hover { background:#232a38; }
-.vm-btn.outline { background:#fff; border:1px solid var(--vm-border); color:var(--ink); padding:12px 16px; }
+.vm-btn.primary { background:var(--ink); color:var(--paper); }
+.vm-btn.primary:hover { background:var(--ink); }
+.vm-btn.outline { background:var(--paper); border:1px solid var(--vm-border); color:var(--ink); padding:12px 16px; }
 .vm-btn.outline:hover { background:var(--vm-chip); }
-.vm-btn.danger { background:transparent; color:var(--bad-t); padding:8px 12px; border-radius:10px; }
-.vm-btn.danger:hover { background:rgba(255,51,102,.07); }
-.vm-btn.warn { background:var(--warn-t); color:#fff; padding:8px 12px; font-size:13px; border-radius:10px; }
-.vm-btn.warn:hover { background:#7a3706; }
+.vm-btn.danger { background:transparent; color:var(--bad-t); padding:8px 12px; border-radius:var(--r-button); }
+.vm-btn.danger:hover { background:var(--bad-tint); }
+.vm-btn.warn { background:var(--warn-t); color:var(--paper); padding:8px 12px; font-size:13px; border-radius:var(--r-button); }
+.vm-btn.warn:hover { background:var(--warn-t); }
 
 /* ---- footer ---- */
-.vm-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:16px; padding:16px 32px; border-top:1px solid var(--vm-line); background:#fbfcfd; }
+.vm-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:16px; padding:16px 32px; border-top:1px solid var(--vm-line); background:var(--tint); }
 .vm-foot.between { justify-content:space-between; }
 /* A fact about what the button is going to do to the data, sitting with the
    button rather than as a caption higher up the screen. `margin-right:auto`
@@ -10752,7 +10758,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-footnote { margin-right:auto; font-size:12px; color:var(--vm-muted); }
 
 /* ---- renewal screens ---- */
-.vm-status { display:flex; align-items:center; justify-content:space-between; gap:16px; border-radius:16px; padding:16px 16px; border:1px solid var(--vm-line2); background:var(--vm-sunk); }
+.vm-status { display:flex; align-items:center; justify-content:space-between; gap:16px; border-radius:var(--r-card); padding:16px 16px; border:1px solid var(--vm-line2); background:var(--vm-sunk); }
 .vm-status.ok { background:var(--vm-ok-bg); border-color:var(--vm-ok-line); }
 .vm-status.warn, .vm-status.bad { background:var(--vm-warn-bg); border-color:var(--vm-warn-line); }
 /* The status card's right-hand side: the one button that changes anything. */
@@ -10767,20 +10773,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 /* the record panel */
 .vm-record { gap:12px; }
 .vm-recordtools { display:flex; gap:12px; align-items:center; }
-.vm-scan { display:flex; flex-direction:column; align-items:center; gap:4px; width:100%; border:1.5px dashed #cfd5dd; border-radius:16px; padding:24px 16px; background:#fff; text-align:center; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.vm-scan { display:flex; flex-direction:column; align-items:center; gap:4px; width:100%; border:1.5px dashed var(--line); border-radius:var(--r-card); padding:24px 16px; background:var(--paper); text-align:center; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .vm-scan:hover, .vm-scan.over { border-color:var(--ink); background:var(--vm-ok-bg); }
 .vm-scan b { font-size:14px; font-weight:700; color:var(--ink); }
 .vm-scan span { font-size:13px; color:var(--vm-muted); text-wrap:pretty; }
-.vm-reading { display:flex; align-items:center; gap:12px; border:1px solid var(--vm-border); border-radius:16px; padding:16px 16px; background:#fff; font-size:13px; font-weight:600; color:var(--q); }
+.vm-reading { display:flex; align-items:center; gap:12px; border:1px solid var(--vm-border); border-radius:var(--r-card); padding:16px 16px; background:var(--paper); font-size:13px; font-weight:600; color:var(--q); }
 @keyframes vmShimmer { 0% { background-position:200% 0 } 100% { background-position:-200% 0 } }
-.vm-shimmer { width:110px; height:8px; border-radius:999px; background:linear-gradient(90deg,#e2e5ea 25%,#f4f6f8 50%,#e2e5ea 75%); background-size:200% 100%; animation:vmShimmer 1.2s linear infinite; }
-.vm-scanned { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--vm-ok-line); border-radius:10px; padding:8px 12px; background:var(--vm-ok-bg); }
+.vm-shimmer { width:110px; height:8px; border-radius:999px; background:linear-gradient(90deg,var(--tint-2) 25%,var(--tint) 50%,var(--tint-2) 75%); background-size:200% 100%; animation:vmShimmer 1.2s linear infinite; }
+.vm-scanned { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--vm-ok-line); border-radius:var(--r-button); padding:8px 12px; background:var(--vm-ok-bg); }
 .vm-scannedl { display:flex; flex-direction:column; gap:1px; min-width:0; }
 .vm-scannedl b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vm-scannedl em { font-style:normal; font-size:12px; color:var(--q); }
 .vm-scannedtag { font-size:12px; font-weight:700; color:var(--ink); flex:none; }
 .vm-warnline { font-size:13px; font-weight:600; color:var(--warn-t); }
-.vm-attach { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px dashed #d5dae1; border-radius:10px; padding:8px 12px; background:#fff; font-size:13px; color:var(--q); }
+.vm-attach { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px dashed var(--line); border-radius:var(--r-button); padding:8px 12px; background:var(--paper); font-size:13px; color:var(--q); }
 
 /* the form */
 .vm-fields { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
@@ -10793,12 +10799,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    ALPHA tint, so it stays a tray on `--vm-sunk` and on white alike. */
 .vm-typerow { display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:12px; }
 .vm-fields.solo > .vm-ffield { grid-column:span 2; }
-.vm-typerow .vm-seg { padding:4px; border-radius:10px; }
-.vm-typerow .vm-segbtn { padding:8px 16px; font-size:13px; border-radius:10px; }
+.vm-typerow .vm-seg { padding:4px; border-radius:var(--r-button); }
+.vm-typerow .vm-segbtn { padding:8px 16px; font-size:13px; border-radius:var(--r-button); }
 .vm-ffield { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .vm-ffield .vm-fl i { font-style:normal; color:var(--bad-t); margin-left:2px; }
-.vm-input, .vm-money-in, .vm-pct-in { width:100%; border:1px solid var(--vm-border); background:#fff; border-radius:10px; padding:8px 12px; font-size:14px; font-weight:600; color:var(--ink); outline:none; font-family:inherit; }
-.vm-input:focus, .vm-money-in:focus-within, .vm-pct-in:focus-within { border-color:var(--ink); box-shadow:0 0 0 3px var(--vm-ok-bg2); }
+.vm-input, .vm-money-in, .vm-pct-in { width:100%; border:1px solid var(--vm-border); background:var(--paper); border-radius:var(--r-control); padding:8px 12px; font-size:14px; font-weight:600; color:var(--ink); outline:none; font-family:inherit; }
+.vm-input:focus, .vm-money-in:focus-within, .vm-pct-in:focus-within { border-color:var(--ink);  box-shadow:var(--ring); }
 .vm-money-in { display:flex; align-items:center; gap:4px; }
 .vm-money-in > span { font-weight:700; color:var(--vm-muted); }
 .vm-money-in input { border:none; outline:none; background:transparent; width:100%; font:inherit; color:var(--ink); }
@@ -10807,20 +10813,20 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* documents */
 .vm-docs { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.vm-doc { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff; border:1px solid var(--vm-border); border-radius:10px; padding:8px 12px; text-align:left; transition:border-color var(--t-fast) var(--ease); }
+.vm-doc { display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-button); padding:8px 12px; text-align:left; transition:border-color var(--t-fast) var(--ease); }
 .vm-doc:hover { border-color:var(--vm-faint); }
 .vm-doc.open { border-color:var(--ink); }
 .vm-docl { display:flex; flex-direction:column; gap:1px; min-width:0; text-align:left; }
 .vm-docl b { font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .vm-docl em { font-style:normal; font-size:12px; color:var(--vm-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .vm-docview { font-size:12px; font-weight:700; color:var(--ink); flex:none; }
-.vm-preview { margin-top:8px; background:#fff; border:1px solid var(--vm-border); border-radius:10px; padding:12px 12px; display:flex; flex-direction:column; gap:8px; }
+.vm-preview { margin-top:8px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-button); padding:12px 12px; display:flex; flex-direction:column; gap:8px; }
 .vm-previewhead { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .vm-previewtools { display:flex; gap:8px; align-items:center; }
 .vm-previewtools .vm-inline { text-decoration:none; font-size:12px; }
-.vm-x { width:28px; height:28px; border-radius:6px; background:var(--vm-chip); color:var(--q); display:flex; align-items:center; justify-content:center; }
+.vm-x { width:28px; height:28px; border-radius:var(--r-control); background:var(--vm-chip); color:var(--q); display:flex; align-items:center; justify-content:center; }
 .vm-x:hover { background:var(--vm-chip-h); color:var(--ink); }
-.vm-previewbody { border-radius:6px; background:var(--vm-sunk); border:1px solid var(--vm-line2); display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:12px; color:var(--vm-faint); }
+.vm-previewbody { border-radius:var(--r-control); background:var(--vm-sunk); border:1px solid var(--vm-line2); display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:12px; color:var(--vm-faint); }
 .vm-previewbody img { max-width:100%; max-height:100%; object-fit:contain; }
 .vm-previewbody iframe { width:100%; height:100%; border:none; }
 
@@ -10833,7 +10839,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-histrow .vm-docl b { font-size:14px; font-weight:600; white-space:normal; }
 .vm-histr { display:flex; gap:12px; align-items:center; font-size:13px; font-weight:600; color:var(--q); flex:none; }
 .vm-histbody { display:flex; flex-direction:column; gap:8px; padding:2px 0 12px; }
-.vm-inset { background:#fff; border:1px solid var(--vm-line2); border-radius:10px; padding:8px 12px; }
+.vm-inset { background:var(--paper); border:1px solid var(--vm-line2); border-radius:var(--r-button); padding:8px 12px; }
 
 /* ---- add / edit vehicle ---- */
 .vm-photo.static { cursor:default; }
@@ -10851,10 +10857,10 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-attached i { font-style:normal; font-weight:600; color:var(--vm-muted); }
 
 /* ---- vehicle modal: financials ---- */
-.vm-value { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; border-radius:16px; padding:16px 16px; background:var(--vm-ok-bg); border:1px solid var(--vm-ok-line); }
+.vm-value { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; border-radius:var(--r-card); padding:16px 16px; background:var(--vm-ok-bg); border:1px solid var(--vm-ok-line); }
 .vm-value.plain { background:var(--vm-sunk); border-color:var(--vm-line); }
 .vm-valuel { display:flex; flex-direction:column; gap:4px; min-width:0; flex:1; }
-.vm-valuefig { font-size:24px; font-weight:700; color:var(--ink); line-height:1.1; letter-spacing:-.01em; }
+.vm-valuefig { font-size:24px; font-weight:700; color:var(--ink); line-height:1.1; }
 .vm-value.plain .vm-valuefig { color:var(--ink); }
 .vm-valuefig.stale { color:var(--q); }
 .vm-valuerange { font-size:13px; font-weight:600; color:var(--q); }
@@ -10863,25 +10869,25 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-book { display:flex; flex-direction:column; gap:4px; align-items:flex-end; text-align:right; flex:none; min-width:160px; }
 .vm-book b { font-size:20px; font-weight:700; color:var(--ink); line-height:1.15; }
 .vm-book em { font-style:normal; font-size:12px; font-weight:600; color:var(--vm-muted); }
-.vm-book .vm-money-in { width:160px; border:1px solid var(--vm-border); border-radius:10px; padding:8px 8px; background:#fff; font-size:16px; font-weight:700; }
+.vm-book .vm-money-in { width:160px; border:1px solid var(--vm-border); border-radius:var(--r-control); padding:8px 8px; background:var(--paper); font-size:16px; font-weight:700; }
 .vm-bookacts { display:flex; gap:12px; margin-top:2px; }
-.vm-position { margin-top:4px; border-radius:16px; padding:12px 16px; background:var(--vm-ok-bg); border:1px solid var(--vm-ok-line); display:flex; flex-direction:column; gap:8px; }
+.vm-position { margin-top:4px; border-radius:var(--r-card); padding:12px 16px; background:var(--vm-ok-bg); border:1px solid var(--vm-ok-line); display:flex; flex-direction:column; gap:8px; }
 .vm-poshead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
 .vm-caption { font-size:12px; color:var(--q); text-wrap:pretty; }
-.vm-progress { height:8px; border-radius:999px; background:#dceee9; overflow:hidden; }
+.vm-progress { height:8px; border-radius:999px; background:var(--ok-tint); overflow:hidden; }
 .vm-progress > span { display:block; height:100%; background:var(--ok-t); border-radius:999px; }
 .vm-posgrid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
 .vm-posgrid > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .vm-posgrid b { font-size:16px; font-weight:700; color:var(--ink); }
 .vm-posgrid b.faint { color:var(--vm-faint); }
-.vm-posnote { font-size:12px; color:var(--q); background:rgba(255,255,255,.65); border:1px solid var(--vm-ok-line); border-radius:10px; padding:8px 12px; text-wrap:pretty; }
+.vm-posnote { font-size:12px; color:var(--q); background:color-mix(in srgb, var(--paper) 65%, transparent); border:1px solid var(--vm-ok-line); border-radius:var(--r-button); padding:8px 12px; text-wrap:pretty; }
 .vm-costrow { display:flex; align-items:stretch; gap:16px; }
 .vm-costgrid { flex:1; display:grid; grid-template-columns:repeat(auto-fit, minmax(92px, 1fr)); gap:8px 12px; align-content:center; }
 .vm-costgrid > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .vm-costgrid .vm-fl { white-space:normal; line-height:1.2; }
 .vm-costgrid b { font-size:16px; font-weight:700; color:var(--q); }
 .vm-costgrid b.faint { color:var(--vm-faint); font-weight:600; }
-.vm-total { flex:none; display:flex; flex-direction:column; gap:2px; justify-content:center; background:#fff; border:1px solid var(--vm-border); border-radius:10px; padding:8px 16px; min-width:136px; }
+.vm-total { flex:none; display:flex; flex-direction:column; gap:2px; justify-content:center; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-button); padding:8px 16px; min-width:136px; }
 .vm-total b { font-size:20px; font-weight:700; color:var(--ink); line-height:1.15; }
 .vm-total em { font-style:normal; font-size:12px; color:var(--vm-muted); }
 .vm-pct-in { display:flex; align-items:center; gap:4px; }
@@ -10908,22 +10914,21 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    because it carried a display:contents `.fg` wrapper of its own.
    =================================================================== */
 .vm-badge { display:inline-flex; align-items:center; justify-content:center; min-width:38px; height:24px;
-  padding:0 8px; border-radius:6px; font-size:12px; font-weight:700; }
+  padding:0 8px; border-radius:var(--r-control); font-size:12px; font-weight:700; }
 
 .vm-sw { display:flex; align-items:center; gap:8px; height:46px; }
-.vm-swb { width:26px; height:26px; border-radius:10px; border:2px solid transparent;
-  box-shadow:0 0 0 1px rgba(10,12,20,.08) inset; transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease); }
-.vm-swb.auto { background:repeating-linear-gradient(45deg,#eef0f4,#eef0f4 4px,#fff 4px,#fff 8px); }
-.vm-swb:hover { }
+.vm-swb { width:26px; height:26px; border-radius:var(--r-button); border:2px solid transparent; 
+  box-shadow:0 0 0 1px var(--line) inset; transition:border-color var(--t-fast) var(--ease); }
+.vm-swb.auto { background:repeating-linear-gradient(45deg,var(--tint-2),var(--tint-2) 4px,var(--paper) 4px,var(--paper) 8px); }
 .vm-swb.on { border-color:var(--ink); }
 
 /* The armed state of a two-press destructive control: the second press is a
    different button, so it says so in the app's danger red rather than only in
    its words. */
-.vm-btn.danger.arm { background:var(--bad-t); color:#fff; }
-.vm-btn.danger.arm:hover { background:#c31f43; }
+.vm-btn.danger.arm { background:var(--bad-t); color:var(--paper); }
+.vm-btn.danger.arm:hover { background:var(--bad-t); }
 .vm-inline.danger { color:var(--bad-t); }
-.vm-inline.danger:hover { color:#c31f43; }
+.vm-inline.danger:hover { color:var(--bad-t); }
 .vm-inline.danger.arm { text-decoration:underline; }
 .vm-inline:disabled { opacity:.45; cursor:default; }
 

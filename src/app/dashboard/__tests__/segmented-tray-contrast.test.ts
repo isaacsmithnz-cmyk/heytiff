@@ -98,7 +98,8 @@ const GROUNDS: Record<string, RGBA> = {
   "the outlet": ground([bgOf(".fg .outlet")]),
   "the day panel": ground([bgOf(".fg .mts2-panel")]),
   "a form well on the page": ground([bgOf(".fg .outlet"), bgOf(".fg .lv-form")]),
-  "the vehicle modal's sunk card": colour(token("vm-sunk")),
+  // the sunk card is a tint since the vm fold, so it is composited on the modal's white
+  "the vehicle modal's sunk card": ground([colour(token("vm-sunk"))]),
 };
 
 /* ── ALPHA TRAYS: they hold everywhere, so they are checked everywhere ── */

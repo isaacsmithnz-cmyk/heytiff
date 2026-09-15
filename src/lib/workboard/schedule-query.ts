@@ -206,6 +206,23 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
     )
   );
 
+  /* THE BOOKING BEING DRAWN IS A BOOKING. The row builder dates a work order
+     by its next diary block ("Booked Tue 15 Sept" / "Raised Thu 10 Apr"), and
+     this payload used to leave that blank on the theory that the sheet
+     re-reads the full picture on open — which it does, but the first paint
+     of the card off a schedule block or Home's band then said "Raised" and
+     corrected itself to "Booked" a beat later, which is the picture being
+     WRONG rather than absent. The earliest block on this day is this job's
+     booking on this day, read from the same rows; on a day that has gone it
+     dates nothing (the builder wants a block on or after today), exactly as
+     a blank did. */
+  const firstStart = new Map<string, string>();
+  for (const a of activities) {
+    if (!a.jobUuid) continue;
+    const seen = firstStart.get(a.jobUuid);
+    if (seen === undefined || a.start < seen) firstStart.set(a.jobUuid, a.start);
+  }
+
   const staff: ScheduleStaff[] = ((staffRows ?? []) as {
     uuid: string;
     first: string | null;
@@ -232,11 +249,9 @@ export async function loadScheduleDay(orgId: string, dayISO: string): Promise<Sc
       date: j.date,
       quoteDate: j.quote_date,
       completionDate: j.completion_date,
-      /* The booking being drawn IS this job's diary presence — the sheet
-         re-reads the full picture on open, so nothing is guessed here. The
-         diary carries no money either: `money: null` already says the reader
+      nextBooking: firstStart.get(j.uuid) ?? null,
+      /* The diary carries no money: `money: null` already says the reader
          gets none, and nothing on this surface shows a figure. */
-      nextBooking: null,
       money: null,
       paidCents: 0,
     })),

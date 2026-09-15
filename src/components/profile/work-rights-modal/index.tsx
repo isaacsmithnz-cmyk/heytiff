@@ -9,7 +9,7 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { fmtDay } from "@/lib/format/day";
 import { Btn, Card, DetailGrid, Eyebrow, Inline, type DetailItem } from "@/components/record-modal/parts";
 import { DocRows } from "@/components/record-modal/doc-rows";
-import { ScanCard, type ScanMode } from "@/components/record-modal/scan-card";
+import { ScanCard, scanInProgress, type ScanMode } from "@/components/record-modal/scan-card";
 import {
   WORK_RIGHTS_DOC_KIND,
   checkAddedText,
@@ -87,9 +87,13 @@ export function WorkRightsModal({
   const [error, setError] = useState<string | null>(null);
   const attachInput = useRef<HTMLInputElement>(null);
 
+  /* Escape closes, and so does the backdrop, except while a scan is in
+     progress — see scanInProgress. The X and Close still close. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (scanInProgress()) return;
+      onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -143,7 +147,7 @@ export function WorkRightsModal({
   const who = subject?.trim();
 
   return createPortal(
-    <div className="vm-ov" onClick={onClose}>
+    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
       <div
         className="vm"
         role="dialog"

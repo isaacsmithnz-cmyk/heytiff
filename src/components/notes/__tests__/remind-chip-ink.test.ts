@@ -99,7 +99,8 @@ it("still says which state it is in, once it wins", () => {
   expect(off).toBeTruthy();
   expect(on).toBeTruthy();
   expect(off).not.toEqual(on);
-  // and the SET state is the louder of the two, not the quieter
-  expect(on).toContain("#fff");
-  expect(off).toMatch(/rgba\(255,255,255,\.\d+\)/);
+  // and the SET state is the louder of the two, not the quieter: paper, against
+  // the quiet paper (the dusk skin took the tokens in the wb fold, 2026-09-15)
+  expect(on).toMatch(/#fff|var\(--paper\)/);
+  expect(off).toMatch(/rgba\(255,255,255,\.\d+\)|var\(--on-ink-q\)/);
 });

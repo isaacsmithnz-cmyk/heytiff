@@ -194,9 +194,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .searchbtn { position:relative; flex:1; max-width:512px; text-align:left; }
 .fg .searchbtn .si { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); pointer-events:none; }
 .fg .searchbtn:hover .si { color:var(--ink); }
-.fg .searchbtn .sf { width:100%; padding:12px 48px; background:rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.08); border-radius:16px; font-size:14px; font-weight:500; color:var(--gray400); box-shadow:0 1px 2px rgba(0,0,0,.03); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .searchbtn:hover .sf { border-color:var(--line); background:#fff; }
-.fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:rgba(0,0,0,.05); padding:4px 8px; border-radius:6px; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .searchbtn .sf { width:100%; padding:12px 48px; background:var(--on-ink-tint-2); border:1px solid var(--line); border-radius:var(--r-card); font-size:14px; font-weight:500; color:var(--gray400); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .searchbtn:hover .sf { border-color:var(--line); background:var(--paper); }
+.fg .searchbtn .kbd { position:absolute; right:16px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--gray400); font-family:var(--mono); background:var(--tint-2); padding:4px 8px; border-radius:var(--r-control); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .searchbtn:hover .kbd { background:var(--tint); color:var(--ink); }
 .fg .tbr { display:flex; align-items:center; gap:24px; }
 /* THE FRAME'S CLOCK — the date that used to be a pill inside the home hero,
@@ -212,14 +212,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    line box at 13.5px/1.15; 16 covers it. Tabular figures hold it still every
    minute after that. */
 .fg .topbar .tbclock { display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:0 0 auto; text-align:right; }
-.fg .topbar .tbclock b { min-width:66px; min-height:16px; font-size:14px; font-weight:700; line-height:1.15; color:#fff; font-variant-numeric:tabular-nums; }
+.fg .topbar .tbclock b { min-width:66px; min-height:16px; font-size:14px; font-weight:700; line-height:1.15; color:var(--paper); font-variant-numeric:tabular-nums; }
 /* the date under the clock — .45 is the alpha that LOOKS safe and is 4.46 */
 .fg .topbar .tbclock em { font-style:normal; font-size:12px; font-weight:600; color:var(--on-ink-q); }
 /* The bell is an <a> now, not a button, so it needs the two things the button
    reset was giving it for free — no underline, and a box that wraps the glyph
    rather than a line of text. */
-.fg .bell { position:relative; display:inline-flex; padding:12px; border-radius:16px; background:rgba(255,255,255,.6); border:1px solid rgba(0,0,0,.08); color:var(--gray500); text-decoration:none; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .bell:hover { color:#111; background:#fff; }
+.fg .bell { position:relative; display:inline-flex; padding:12px; border-radius:var(--r-card); background:var(--on-ink-tint-2); border:1px solid var(--line); color:var(--gray500); text-decoration:none; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .bell:hover { color:#111; background:var(--paper); }
 /* `.d` is a COUNT now and only renders when there is something to count, so it
    no longer pulses: a number that is present at all is already the signal, and
    an animation that ran forever was what made the old dot invisible.
@@ -229,8 +229,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    the bell glyph's top-right quadrant and eats the shape you are meant to
    recognise. `.topbar` and `.tbr` are both `overflow:visible` and the gap to the
    separator is 24px, so the 4px overhang has room. */
-.fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:50%; background:#e0264f; border:2px solid #fff; color:#fff; font-size:12px; font-weight:700; line-height:1; }
-.fg .tbr .sep { width:1px; height:32px; background:rgba(0,0,0,.08); }
+.fg .bell .d { position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px; box-sizing:border-box; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--bad); border:2px solid var(--paper); color:var(--paper); font-size:12px; font-weight:700; line-height:1; }
+.fg .tbr .sep { width:1px; height:32px; background:var(--tint-2); }
 
 /* BOTH EDGES, OR EVERY SCREEN IN THE APP SITS OFF ITS OWN CENTRE.
 
@@ -282,15 +282,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   background:linear-gradient(100deg, rgba(10,12,20,.05) 30%, rgba(10,12,20,.09) 50%, rgba(10,12,20,.05) 70%);
   background-size:200% 100%; animation:pkSweep 1.6s ease-in-out infinite; }
 .fg .pk-head { margin-bottom:32px; }
-.fg .pk-eyebrow { width:118px; height:11px; border-radius:6px; margin-bottom:16px; }
-.fg .pk-title { width:min(340px, 60%); height:34px; border-radius:10px; margin-bottom:12px; }
+.fg .pk-eyebrow { width:118px; height:11px; border-radius:var(--r-control); margin-bottom:16px; }
+.fg .pk-title { width:min(340px, 60%); height:34px; border-radius:var(--r-button); margin-bottom:12px; }
 .fg .pk-sub { width:min(220px, 40%); height:13px; }
 .fg .pk-tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:32px; }
-.fg .pk-tile { background:#fff; border-radius:10px; padding:24px; box-shadow:0 8px 24px -14px rgba(10,12,20,.25); }
+.fg .pk-tile { background:var(--paper); border-radius:var(--r-button); padding:24px; }
 .fg .pk-tk { width:64px; height:10px; border-radius:999px; margin-bottom:16px; }
-.fg .pk-tv { width:88px; height:26px; border-radius:10px; }
-.fg .pk-card { background:#fff; border-radius:16px; padding:12px 24px; box-shadow:0 8px 24px -14px rgba(10,12,20,.25); }
-.fg .pk-row { display:flex; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid rgba(10,12,20,.05); }
+.fg .pk-tv { width:88px; height:26px; border-radius:var(--r-button); }
+.fg .pk-card { background:var(--paper); border-radius:var(--r-card); padding:12px 24px; }
+.fg .pk-row { display:flex; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--line); }
 .fg .pk-row:last-child { border-bottom:none; }
 .fg .pk-dot { width:38px; height:38px; border-radius:50%; flex:0 0 auto; }
 .fg .pk-l1 { flex:0 1 220px; height:13px; }
@@ -320,17 +320,17 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    Two channels, as before: the glyph is the DOMAIN, the colour is the URGENCY. */
 .fg .dash-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(440px, 1fr)); gap:8px; }
 @media (max-width:640px){ .fg .dash-grid { grid-template-columns:1fr; } }
-.fg .dash-tile { display:flex; align-items:center; gap:12px; padding:12px 12px; border:1px solid #f0f0f2; border-radius:10px; text-decoration:none; color:inherit; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .dash-tile:hover { border-color:#e2e4ea; background:#fafbfc; }
-.fg .dash-tile .dt-ic { width:32px; height:32px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .dash-tile.bad .dt-ic { background:rgba(255,51,102,.1); color:var(--bad-t); }
-.fg .dash-tile.warn .dt-ic { background:rgba(240,164,49,.13); color:var(--warn-t); }
+.fg .dash-tile { display:flex; align-items:center; gap:12px; padding:12px 12px; border:1px solid var(--line); border-radius:var(--r-button); text-decoration:none; color:inherit; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fg .dash-tile:hover { border-color:#e2e4ea; background:var(--tint); }
+.fg .dash-tile .dt-ic { width:32px; height:32px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+.fg .dash-tile.bad .dt-ic { background:var(--bad-tint); color:var(--bad-t); }
+.fg .dash-tile.warn .dt-ic { background:var(--warn-tint); color:var(--warn-t); }
 .fg .dash-tile .dt-main { min-width:0; flex:1; display:flex; flex-direction:column; gap:2px; }
 .fg .dash-tile .dt-label { font-size:14px; font-weight:700; }
 .fg .dash-tile.bad .dt-label { color:var(--bad-t); }
 .fg .dash-tile.warn .dt-label { color:var(--warn-t); }
 .fg .dash-tile .dt-sub { font-style:normal; font-size:13px; font-weight:600; color:var(--gray400); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fg .dash-tile .dt-chev { color:#c3c8d2; flex:0 0 auto; display:flex; }
+.fg .dash-tile .dt-chev { color:var(--q); flex:0 0 auto; display:flex; }
 .fg .dash-tile:hover .dt-chev { color:var(--gray500); }
 
 /* noticeboard page items */
@@ -348,30 +348,30 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* polls: the bar lives BEHIND the answer, so the row reads as a label with a
    fill rather than a chart with a caption */
 .fg .nb-poll { margin-top:16px; display:flex; flex-direction:column; gap:8px; }
-.fg .nb-opt { position:relative; overflow:hidden; display:flex; align-items:center; gap:12px; width:100%; padding:12px 12px; border:1px solid #eceef3; border-radius:10px; background:#fff; cursor:pointer; text-align:left; font-family:var(--font); transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .nb-opt:hover:not(:disabled) { border-color:#d8dbe4; }
-.fg .nb-opt.on { border-color:rgba(46,104,255,.4); }
+.fg .nb-opt { position:relative; overflow:hidden; display:flex; align-items:center; gap:12px; width:100%; padding:12px 12px; border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer; text-align:left; font-family:var(--font); transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fg .nb-opt:hover:not(:disabled) { border-color:var(--line); }
+.fg .nb-opt.on { border-color:var(--ink); }
 .fg .nb-opt.shut { cursor:default; }
 .fg .nb-opt:disabled { opacity:1; }
-.fg .nb-optbar { position:absolute; left:0; top:0; bottom:0; background:rgba(46,104,255,.08); transition:width var(--t-move) var(--ease); pointer-events:none; }
-.fg .nb-opt.on .nb-optbar { background:rgba(46,104,255,.14); }
-.fg .nb-optbox { position:relative; flex:0 0 auto; width:17px; height:17px; border-radius:999px; border:1.5px solid #cdd2dd; display:flex; align-items:center; justify-content:center; color:#fff; }
-.fg .nb-optbox.sq { border-radius:6px; }
-.fg .nb-opt.on .nb-optbox { background:#2e68ff; border-color:#2e68ff; }
+.fg .nb-optbar { position:absolute; left:0; top:0; bottom:0; background:var(--tint-2); transition:width var(--t-move) var(--ease); pointer-events:none; }
+.fg .nb-opt.on .nb-optbar { background:var(--tint-2); }
+.fg .nb-optbox { position:relative; flex:0 0 auto; width:17px; height:17px; border-radius:999px; border:1.5px solid #cdd2dd; display:flex; align-items:center; justify-content:center; color:var(--paper); }
+.fg .nb-optbox.sq { border-radius:var(--r-control); }
+.fg .nb-opt.on .nb-optbox { background:var(--ink); border-color:var(--ink); }
 .fg .nb-optlabel { position:relative; flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .nb-optn { position:relative; flex:0 0 auto; font-size:13px; font-weight:700; color:var(--gray400); font-variant-numeric:tabular-nums; }
 .fg .nb-optwho { font-size:12px; font-weight:600; color:var(--gray400); padding:4px 12px 2px; line-height:1.5; }
 .fg .nb-pollfoot { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:13px; font-weight:600; color:var(--gray400); padding:2px 2px 0; }
-.fg .nb-wholink { margin-left:auto; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:#1f4bd8; }
+.fg .nb-wholink { margin-left:auto; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--ink); }
 .fg .nb-wholink:hover { text-decoration:underline; }
 
 /* attachments: photos show as photos, everything else as a labelled chip */
 .fg .nb-files { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
-.fg .nb-file { display:flex; text-decoration:none; color:inherit; border-radius:16px; overflow:hidden; border:1px solid #eceef3; transition:border-color var(--t-fast) var(--ease); background:none; padding:0; margin:0; font:inherit; cursor:pointer; text-align:left; }
-.fg .nb-file:hover { border-color:#d8dbe4; }
+.fg .nb-file { display:flex; text-decoration:none; color:inherit; border-radius:var(--r-card); overflow:hidden; border:1px solid var(--line); transition:border-color var(--t-fast) var(--ease); background:none; padding:0; margin:0; font:inherit; cursor:pointer; text-align:left; }
+.fg .nb-file:hover { border-color:var(--line); }
 .fg .nb-file.img { width:132px; height:132px; }
 .fg .nb-file.img img { width:100%; height:100%; object-fit:cover; display:block; }
-.fg .nb-file.doc { align-items:center; gap:12px; padding:12px 16px; background:#fafbfc; }
+.fg .nb-file.doc { align-items:center; gap:12px; padding:12px 16px; background:var(--tint); }
 .fg .nb-file.doc svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-file.doc span { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .nb-file.doc b { font-size:13px; font-weight:700; color:var(--ink); }
@@ -380,52 +380,52 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* Attachment lightbox. UNSCOPED (no .fg prefix) on purpose: it portals to
    <body>, outside the shell root, so a .fg-scoped rule would never match — same
    reason .dchip2 is unscoped. Single backdrop-filter, no -webkit twin. */
-.nb-lb { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; padding:48px; background:rgba(5,5,5,.86); backdrop-filter:blur(4px); cursor:zoom-out; animation:nbLbIn .16s ease; }
+.nb-lb { position:fixed; inset:0; z-index:var(--z-modal); display:flex; align-items:center; justify-content:center; padding:48px; background:var(--scrim); backdrop-filter:blur(4px); cursor:zoom-out; animation:nbLbIn .16s ease; }
 @keyframes nbLbIn { from { opacity:0; } to { opacity:1; } }
-.nb-lb img { max-width:100%; max-height:100%; border-radius:10px; box-shadow:0 24px 90px rgba(0,0,0,.6); cursor:default; }
-.nb-lb-x { position:fixed; top:20px; right:24px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.14); color:#fff; border:none; cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.nb-lb-x:hover { background:rgba(255,255,255,.26); }
-.nb-lb-open { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:8px 16px; border-radius:999px; background:rgba(255,255,255,.12); color:rgba(255,255,255,.8); font-size:13px; font-weight:600; text-decoration:none; }
-.nb-lb-open:hover { color:#fff; background:rgba(255,255,255,.2); }
+.nb-lb img { max-width:100%; max-height:100%; border-radius:var(--r-button); box-shadow:var(--shadow-overlay); cursor:default; }
+.nb-lb-x { position:fixed; top:20px; right:24px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:var(--on-ink-tint); color:var(--paper); border:none; cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.nb-lb-x:hover { background:var(--on-ink-tint-2); }
+.nb-lb-open { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:8px 16px; border-radius:999px; background:var(--on-ink-tint); color:var(--paper); font-size:13px; font-weight:600; text-decoration:none; }
+.nb-lb-open:hover { color:var(--paper); background:var(--on-ink-tint-2); }
 /* the composer's copy, which also has a remove control */
-.fg .nb-pending { display:flex; align-items:center; gap:12px; padding:8px 8px 8px 8px; border:1px solid #eceef3; border-radius:16px; background:#fff; }
-.fg .nb-pending img { width:40px; height:40px; border-radius:10px; object-fit:cover; flex:0 0 auto; }
-.fg .nb-pendingdoc { width:40px; height:40px; border-radius:10px; background:#f3f4f7; color:var(--q); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.fg .nb-pending { display:flex; align-items:center; gap:12px; padding:8px 8px 8px 8px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--paper); }
+.fg .nb-pending img { width:40px; height:40px; border-radius:var(--r-button); object-fit:cover; flex:0 0 auto; }
+.fg .nb-pendingdoc { width:40px; height:40px; border-radius:var(--r-button); background:var(--tint); color:var(--q); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .nb-pendingname { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .nb-pendingname b { font-size:13px; font-weight:700; color:var(--ink); }
 .fg .nb-pendingname em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* comments: the conversation under a post, one level of indent and no more */
-.fg .nb-thread { margin-top:16px; padding-top:12px; border-top:1px solid #f3f4f7; }
+.fg .nb-thread { margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
 .fg .nb-threadhead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .fg .nb-clink { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray400); transition:color var(--t-fast) var(--ease); }
-.fg .nb-clink:hover:not(:disabled) { color:#1f4bd8; }
+.fg .nb-clink:hover:not(:disabled) { color:var(--ink); }
 .fg .nb-c { padding:8px 0 2px; }
-.fg .nb-c.atme { padding:8px 12px; background:var(--tint); border-radius:6px; }
+.fg .nb-c.atme { padding:8px 12px; background:var(--tint); border-radius:var(--r-control); }
 .fg .nb-chead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .fg .nb-chead b { font-size:13px; font-weight:700; color:var(--ink); }
-.fg .nb-chead span { font-size:12px; font-weight:600; color:#c3c8d2; }
+.fg .nb-chead span { font-size:12px; font-weight:600; color:var(--q); }
 .fg .nb-cbody { font-size:14px; font-weight:500; color:var(--ink); line-height:1.55; margin-top:4px; white-space:pre-wrap; }
-.fg .nb-at { font-weight:700; color:#1f4bd8; }
-.fg .nb-at.me { background:rgba(46,104,255,.12); border-radius:6px; padding:0 4px; }
-.fg .nb-creplies { margin-left:16px; padding-left:12px; border-left:1px solid #f0f0f2; }
+.fg .nb-at { font-weight:700; color:var(--ink); }
+.fg .nb-at.me { background:var(--tint-2); border-radius:var(--r-control); padding:0 4px; }
+.fg .nb-creplies { margin-left:16px; padding-left:12px; border-left:1px solid var(--line); }
 .fg .nb-cform { margin-top:12px; }
 .fg .nb-creplyto { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--gray400); margin-bottom:8px; }
 .fg .nb-crow { display:flex; align-items:center; gap:8px; }
-.fg .nb-crow input { flex:1; min-width:0; height:38px; padding:0 12px; border-radius:999px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); }
-.fg .nb-crow input:focus { outline:none; border-color:rgba(46,104,255,.4); }
+.fg .nb-crow input { flex:1; min-width:0; height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); }
+.fg .nb-crow input:focus { outline:none; border-color:var(--ink);  box-shadow:var(--ring); }
 
 /* reactions: given ones first, the palette behind one button */
 .fg .nb-reacts { display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-top:12px; }
-.fg .nb-react { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border:1px solid #eceef3; border-radius:999px; background:#fff; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); line-height:1; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .nb-react:hover:not(:disabled) { border-color:#d8dbe4; background:#fafbfc; }
-.fg .nb-react.on { border-color:rgba(46,104,255,.4); background:rgba(46,104,255,.07); color:#1f4bd8; }
-.fg .nb-react.add { width:28px; padding:0; justify-content:center; color:#c3c8d2; }
+.fg .nb-react { display:inline-flex; align-items:center; gap:4px; height:28px; padding:0 8px; border:1px solid var(--line); border-radius:var(--r-control); background:var(--paper); cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); line-height:1; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fg .nb-react:hover:not(:disabled) { border-color:var(--line); background:var(--tint); }
+.fg .nb-react.on { border-color:var(--ink); background:var(--tint-2); color:var(--ink); }
+.fg .nb-react.add { width:28px; padding:0; justify-content:center; color:var(--q); }
 .fg .nb-react.add:hover { color:var(--gray500); }
 .fg .nb-react.pick { font-size:14px; padding:0 8px; }
 
 /* events: the when and where sit above the RSVP, which IS the poll control */
-.fg .nb-when { display:flex; flex-direction:column; gap:8px; margin-top:12px; padding:12px 16px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
+.fg .nb-when { display:flex; flex-direction:column; gap:8px; margin-top:12px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--line); }
 .fg .nb-whenline { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .nb-whenline svg { color:var(--q); flex:0 0 auto; }
 .fg .nb-whensum { font-size:13px; font-weight:600; color:var(--gray400); padding-left:24px; }
@@ -437,15 +437,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    already tinted, and came out at 1.075 against it. A `rgba(5,5,5,.05)` tray
    is 1.114 on ANY light ground, which is what `.hm-calseg`, `.wb2-filters`
    and `.wb2-ckseg` already do and the reason none of them could drift. */
-.fg .nb-kinds { display:inline-flex; gap:4px; padding:4px; border-radius:10px; background:rgba(5,5,5,.05); margin-bottom:4px; }
-.fg .nb-kind { padding:4px 16px; border:0; border-radius:10px; background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .nb-kind.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.07); }
+.fg .nb-kinds { display:inline-flex; gap:4px; padding:4px; border-radius:var(--r-button); background:var(--tint-2); margin-bottom:4px; }
+.fg .nb-kind { padding:4px 16px; border:0; border-radius:var(--r-button); background:none; cursor:pointer; font-family:var(--font); font-size:13px; font-weight:700; color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .nb-kind.on { background:var(--paper); color:var(--ink); }
 .fg .nb-optedit { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:12px; }
 .fg .nb-optedith { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .nb-optrow { display:flex; align-items:center; gap:8px; width:100%; }
-.fg .nb-optrow input { flex:1; height:38px; padding:0 12px; border-radius:6px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
-.fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:16px; background:none; cursor:pointer; color:#c3c8d2; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .nb-optdrop:hover { background:#f3f4f7; color:var(--gray500); }
+.fg .nb-optrow input { flex:1; height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font); font-size:14px; font-weight:600; color:var(--ink); }
+.fg .nb-optdrop { flex:0 0 auto; width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:0; border-radius:var(--r-card); background:none; cursor:pointer; color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .nb-optdrop:hover { background:var(--tint); color:var(--gray500); }
 
 /* The v3 row-of-stats `.hstats` / `.hstat` block lived here. It was dead — no
    screen rendered that markup after the hero became a greeting plus an action
@@ -486,16 +486,16 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .v2head h1 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.035em; line-height:1; color:var(--ink); }
 
 /* staff directory (Team overview) */
-.fg .dir { background:#fff; border:1px solid #f0f0f2; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
+.fg .dir { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 /* NO GRID RULE HERE. `.fg .dirhead, .fg .dirrow` is declared again further
    down this stylesheet at the same specificity, so the later one has always
    won and this copy has never applied — it still carried the four-column
    track list from before the actions column arrived. Dead CSS at equal
    specificity has shadowed live rules in this file twice; the live one is in
    the Team directory section. */
-.fg .dirhead { font-size:12px; font-weight:500; color:var(--q); border-bottom:1px solid #f0f0f2; }
-.fg .dirrow { border-top:1px solid #f5f6f8; cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .dirrow:hover { background:#fafbfc; }
+.fg .dirhead { font-size:12px; font-weight:500; color:var(--q); border-bottom:1px solid var(--line); }
+.fg .dirrow { border-top:1px solid var(--line); cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.fg .dirrow:hover { background:var(--tint); }
 .fg .dname { display:flex; align-items:center; gap:12px; min-width:0; }
 /* Gradient ring over a dark fill: layer one is the inner face clipped to
    padding-box, layer two is the ring showing through the transparent border.
@@ -509,7 +509,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    generated hue, which fails 4.5:1 on 175 of the 360 hues that function can
    produce (worst 2.32 at hue 60). Against this fill they measure ~19:1, and
    the hue still identifies the person because it is the ring now. */
-.fg .dav { width:40px; height:40px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; background:#0A0B10; border:2px solid transparent; background-image:linear-gradient(#0A0B10,#0A0B10), linear-gradient(45deg,var(--av,var(--ink)),var(--ink)); background-origin:border-box; background-clip:padding-box, border-box; }
+.fg .dav { width:40px; height:40px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:var(--paper); background:var(--ink); border:2px solid var(--line); background-origin:border-box; background-clip:padding-box, border-box; }
 .fg .dname b { font-size:14px; font-weight:700; color:var(--ink); display:block; }
 /* The name is an anchor now (the row used to be a role="link" wrapping the
    actions button). It inherits rather than taking link styling, because the row
@@ -518,7 +518,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    and widens its hit area to the text it sits on. */
 .fg .dname b a { color:inherit; font:inherit; text-decoration:none; display:inline-block; }
 .fg .dname b a:hover { text-decoration:underline; text-underline-offset:2px; }
-.fg .dname b a:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:6px; }
+.fg .dname b a:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-control); }
 .fg .dname em { font-style:normal; font-size:12px; color:var(--q); display:block; }
 .fg .drole { font-size:14px; color:var(--gray500); font-weight:600; }
 .fg .dchip { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
@@ -530,17 +530,17 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar .me-top { position:relative; display:flex; align-items:center; }
 .fg .topbar .me-trigger { display:flex; align-items:center; gap:12px; padding:0; background:none; border:0; text-align:left; cursor:pointer; }
 .fg .topbar .me-top .mk { min-width:0; }
-.fg .topbar .me-top .mk b { display:block; font-size:14px; font-weight:700; color:#fff; line-height:1.1; }
+.fg .topbar .me-top .mk b { display:block; font-size:14px; font-weight:700; color:var(--paper); line-height:1.1; }
 /* the signed-in role — "Owner" — at 4.46 */
 .fg .topbar .me-top .mk em { display:block; font-style:normal; font-size:12px; color:var(--on-ink-q); font-family:var(--mono); }
 .fg .topbar .me-top .av { position:relative; display:block; width:38px; height:38px; flex:0 0 auto; }
 /* a hairline ring, not the blue-to-teal gradient it wore, and no status dot:
    the dot had no state behind it. docs/design.md, 2026-09-10. */
 .fg .topbar .me-top .av .ring { display:block; width:38px; height:38px; border-radius:50%; box-sizing:border-box; border:1px solid var(--on-ink-line); }
-.fg .topbar .me-top .av .inner { width:100%; height:100%; border-radius:50%; background:#0A0B10; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
-.fg .topbar .me-gear { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.55); background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .topbar .me-trigger:hover .me-gear { color:#fff; background:rgba(255,255,255,.12); }
-.fg .topbar .me-trigger.on .me-gear { color:#fff; background:rgba(255,255,255,.14); }
+.fg .topbar .me-top .av .inner { width:100%; height:100%; border-radius:50%; background:var(--ink); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--paper); }
+.fg .topbar .me-gear { width:42px; height:42px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--on-ink-q); background:var(--on-ink-tint); border:1px solid var(--on-ink-line); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .topbar .me-trigger:hover .me-gear { color:var(--paper); background:var(--on-ink-tint); }
+.fg .topbar .me-trigger.on .me-gear { color:var(--paper); background:var(--on-ink-tint); }
 
 /* user dropdown — absolute inside .me-top, NOT fixed (the .page.in will-change
    trap breaks position:fixed in this shell; the topbar sits outside .page).
@@ -565,29 +565,29 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    backdrop. `backdrop-filter` goes with it — at 92% it was invisible (swapped
    out on prod and compared) and dead CSS in this file has styled things by
    accident before. */
-.fg .topbar .me-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:60; width:250px; padding:8px; border-radius:16px; background:#0d0e13; border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); animation:meMenuIn .16s ease both; }
+.fg .topbar .me-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:var(--z-overlay); width:250px; padding:8px; border-radius:var(--r-card); background:var(--ink2); border:1px solid var(--on-ink-line); box-shadow:var(--shadow-overlay); animation:meMenuIn .16s ease both; }
 @keyframes meMenuIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
-.fg .topbar .me-item { display:flex; align-items:center; gap:12px; width:100%; padding:8px 12px; border-radius:10px; color:rgba(255,255,255,.7); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .me-item:hover { background:rgba(255,255,255,.08); color:#fff; }
-.fg .topbar .me-item .mi { display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex:0 0 auto; border-radius:10px; background:rgba(255,255,255,.06); }
+.fg .topbar .me-item { display:flex; align-items:center; gap:12px; width:100%; padding:8px 12px; border-radius:var(--r-button); color:var(--paper); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .topbar .me-item:hover { background:var(--on-ink-tint); color:var(--paper); }
+.fg .topbar .me-item .mi { display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex:0 0 auto; border-radius:var(--r-button); background:var(--on-ink-tint); }
 .fg .topbar .me-item .mk2 { min-width:0; }
 .fg .topbar .me-item .mk2 b { display:block; font-size:13px; font-weight:700; line-height:1.2; }
 /* the same role, inside the open user menu — 3.71 */
 .fg .topbar .me-item .mk2 em { display:block; font-style:normal; font-size:12px; color:var(--on-ink-q); }
-.fg .topbar .me-item.danger:hover { background:rgba(255,51,102,.14); color:#ff6b8a; }
-.fg .topbar .me-item.danger:hover .mi { background:rgba(255,51,102,.16); }
-.fg .topbar .me-div { height:1px; margin:4px 8px; background:rgba(255,255,255,.09); }
-.fg .topbar .sep { width:1px; height:30px; background:rgba(255,255,255,.14); }
+.fg .topbar .me-item.danger:hover { background:var(--bad-tint); color:#ff6b8a; }
+.fg .topbar .me-item.danger:hover .mi { background:var(--bad-tint); }
+.fg .topbar .me-div { height:1px; margin:4px 8px; background:var(--on-ink-tint); }
+.fg .topbar .sep { width:1px; height:30px; background:var(--on-ink-tint); }
 
 /* page-level tabs (Time & Pay, Assets) */
-.fg .ptabs { display:inline-flex; gap:4px; padding:4px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); margin-bottom:24px; }
-.fg .ptab { padding:8px 16px; border-radius:10px; font-size:14px; font-weight:700; color:var(--gray500,var(--q)); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .ptab:hover { color:var(--ink,#0A0B10); }
-.fg .ptab.on { background:var(--ink,#0A0B10); color:#fff; box-shadow:0 6px 14px -6px rgba(0,0,0,.35); }
+.fg .ptabs { display:inline-flex; gap:4px; padding:4px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); margin-bottom:24px; }
+.fg .ptab { padding:8px 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; color:var(--gray500,var(--q)); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .ptab:hover { color:var(--ink,var(--ink)); }
+.fg .ptab.on { background:var(--ink,var(--ink)); color:var(--paper); }
 .fg .ptabpanel { display:none; }
 .fg .ptabpanel.on { display:block; }
-.fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 16px; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
-.fg .emptybox .ei { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:var(--q); }
+.fg .emptybox { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:72px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
+.fg .emptybox .ei { width:54px; height:54px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--q); }
 .fg .emptybox b { font-size:16px; font-weight:700; color:var(--ink); }
 .fg .emptybox em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); max-width:380px; line-height:1.55; }
 
@@ -609,15 +609,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tinput { margin-top:32px; flex:0 0 auto; position:relative; }
 /* wider blur and a shade less ink: at 8px the violet end bloomed off one
    corner and read as a smear rather than a halo on the live walk */
-.fg .tinput .tib { position:absolute; inset:-5px; border-radius:16px; background:var(--ink); filter:blur(12px); opacity:.16; }
-.fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:16px; background:#fff; box-shadow:0 25px 50px -12px rgba(0,0,0,.25); border:1px solid #fff; }
-.fg .tinput .tic { width:48px; height:48px; border-radius:16px; background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.fg .tinput .tib { position:absolute; inset:-5px; border-radius:var(--r-card); background:var(--ink); filter:blur(12px); opacity:.16; }
+.fg .tinput .tin { position:relative; display:flex; align-items:center; gap:16px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--paper); }
+.fg .tinput .tic { width:48px; height:48px; border-radius:var(--r-card); background:var(--bg); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .fg .tinput .tic svg { color:var(--ink); }
 .fg .tinput input { flex:1; min-width:0; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:var(--ink); padding:16px 0; }
 .fg .tinput input::placeholder { color:var(--gray400); }
-.fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:16px; background:var(--ink); display:flex; align-items:center; justify-content:center; color:#fff; flex:0 0 auto; box-shadow:0 6px 14px -4px rgba(0,0,0,.3); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .tinput .tsend { position:relative; overflow:hidden; width:48px; height:48px; border-radius:var(--r-card); background:var(--ink); display:flex; align-items:center; justify-content:center; color:var(--paper); flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tinput .tsend:hover:not(:disabled) { background:var(--ink); color:var(--paper); }
-.fg .tinput .tsend:disabled { background:rgba(5,5,5,.14); box-shadow:none; cursor:not-allowed; }
+.fg .tinput .tsend:disabled { background:var(--tint-2);  box-shadow:none; cursor:not-allowed; }
 
 /* ── the bar says it is working ──
    THE EYE IS ON THE BAR WHEN THE WAIT STARTS. You press send and look at what
@@ -631,10 +631,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    (`tkShim`), so the bar and the shelves are visibly doing one thing. The
    button is NOT disabled: a second question mid-answer drops the first, which
    is a feature. */
-.fg .tinput .tsend.busy { background:var(--ink); color:#fff; }
-.fg .tinput .tsend.busy:hover { background:var(--ink); color:#fff; }
+.fg .tinput .tsend.busy { background:var(--ink); color:var(--paper); }
+.fg .tinput .tsend.busy:hover { background:var(--ink); color:var(--paper); }
 .fg .tinput .tsend-spin { width:17px; height:17px; border-radius:50%; flex:none;
-  border:2px solid rgba(255,255,255,.28); border-top-color:#fff; animation:tkSpin .8s linear infinite; }
+  border:2px solid var(--on-ink-line); border-top-color:var(--paper); animation:tkSpin .8s linear infinite; }
 
 /* the sheen sits under the controls, which is why the row's children take a
    layer of their own — otherwise it would wash over the typed text */
@@ -642,7 +642,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   border-radius:inherit;
   background:var(--tint);
   background-size:260% 100%; background-repeat:no-repeat; animation:tkShim 1.6s ease-in-out infinite; }
-.fg .tinput .tin > * { position:relative; z-index:1; }
+.fg .tinput .tin > * { position:relative; z-index:var(--z-raised); }
 
 @media (prefers-reduced-motion:reduce) {
   /* the global `.fg * { animation-duration:.001s }` turns an infinite
@@ -666,17 +666,17 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    token's own `field` and `line` postures wear a plain mic too. */
 .fg .tinput .tmic { width:44px; height:44px; border-radius:50%; flex:0 0 auto;
   display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line); background:#fff; color:var(--gray500);
+  border:1px solid var(--line); background:var(--paper); color:var(--gray500);
   transition:border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .fg .tinput .tmic:hover:not(:disabled) { border-color:var(--ink); color:var(--ink); background:#f9fefd; }
 .fg .tinput .tmic:disabled { opacity:.45; cursor:not-allowed; }
-.fg .tinput .tmic:focus-visible, .fg .tinput .tmicx:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .tinput .tmic:focus-visible, .fg .tinput .tmicx:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* Stop wears the send button's shape and position — the control the thumb is
    already travelling to — but the only red in the resting UI, and only once
    the mic is actually open. Same rule the token's capsule follows. */
-.fg .tinput .tsend.live { background:#e0264f; box-shadow:0 6px 14px -4px rgba(224,38,79,.45); }
-.fg .tinput .tsend.live:hover { background:#c81f44; color:#fff; }
+.fg .tinput .tsend.live { background:var(--bad); }
+.fg .tinput .tsend.live:hover { background:var(--bad-t); color:var(--paper); }
 /* The gap is 16px so the row can breathe; the recording cluster is four things
    and needs to read as one, so it closes up while the mic is open. */
 .fg .tinput .tin.live { gap:8px; }
@@ -695,8 +695,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    `.tk-rail` at the end of this file — deleted rather than left behind,
    because unused CSS is what the next person copies. Thread rows survived the
    move and are styled below. */
-.fg .thread { padding:16px; border-radius:16px; border:1px solid transparent; cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .thread:hover { background:#fff; border-color:#f0f0f2; }
+.fg .thread { padding:16px; border-radius:var(--r-card); border:1px solid transparent; cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .thread:hover { background:var(--paper); border-color:var(--line); }
 .fg .thread .th { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; }
 .fg .thread .th b { font-size:14px; font-weight:700; color:var(--ink); line-height:1.3; transition:color var(--t-fast) var(--ease); }
 .fg .thread:hover .th b { color:var(--ink); }
@@ -716,7 +716,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tbx-search:focus-within svg { color:var(--ink); }
 .fg .tbx-search input { width:100%; padding:12px 16px 12px 48px; background:var(--paper); border-radius:var(--r-control); border:1px solid var(--line); font-size:16px; font-weight:500; outline:none; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tbx-search input:focus {  box-shadow:var(--ring); border-color:var(--line); }
-.fg .cat { position:relative; background:#fff; border-radius:16px; border:1px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,.04); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
+.fg .cat { position:relative; background:var(--paper); border-radius:var(--r-card); border:1px solid var(--paper); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
 .fg .cat:hover { }
 .fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
 .fg .cat .cin { padding:32px; position:relative; z-index:10; }
@@ -724,10 +724,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* ---------------- DUCTR ---------------- */
 .fg .ductr { position:relative; display:flex; flex-direction:column; height:100%; background:var(--line); overflow:hidden; }
   
-.fg .odu { padding:24px; border-radius:16px; background:var(--tint); border:1px solid var(--tint); box-shadow:inset 0 2px 4px rgba(0,0,0,.03); }
+.fg .odu { padding:24px; border-radius:var(--r-card); background:var(--tint); border:1px solid var(--tint);  box-shadow:inset 0 2px 4px var(--line); }
 .fg .odu .or { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
 .fg .odu .ol { font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .odu .bar { height:10px; border-radius:999px; background:var(--line); overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,.1); }
+.fg .odu .bar { height:10px; border-radius:999px; background:var(--line); overflow:hidden;  box-shadow:inset 0 1px 2px var(--line); }
 .fg .odu .bar i { display:block; height:100%; width:0; background:var(--ink); transition:width var(--t-move) var(--ease) .3s; }
 .fg .odu .of { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
 .fg .odu .of .a { font-size:12px; font-weight:700; color:var(--gray400); }
@@ -774,11 +774,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar > * { position:relative; z-index:1; }
 
 /* topbar controls restyled to read on black */
-.fg .searchbtn .sf { background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.1); color:rgba(255,255,255,.5); box-shadow:none; }
-.fg .searchbtn:hover .sf { background:rgba(255,255,255,.09); border-color:var(--on-ink-line); }
-.fg .searchbtn .si { color:rgba(255,255,255,.4); }
-.fg .searchbtn:hover .si { color:#fff; }
-.fg .searchbtn .kbd { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
+.fg .searchbtn .sf { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--on-ink-q);  box-shadow:none; }
+.fg .searchbtn:hover .sf { background:var(--on-ink-tint); border-color:var(--on-ink-line); }
+.fg .searchbtn .si { color:var(--on-ink-q); }
+.fg .searchbtn:hover .si { color:var(--paper); }
+.fg .searchbtn .kbd { background:var(--on-ink-tint); color:var(--on-ink-q); }
 /* THE ONE PAIR IN THIS BLOCK THAT WAS NEVER GIVEN ITS DARK TWIN, and the miss
    only shows on hover — so it is invisible to a screenshot, and to any scan of
    the resting page.
@@ -793,10 +793,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
    Every other control here got its twin — `.sf`, `:hover .sf`, `.si`,
    `:hover .si`, `.kbd`. This is the fifth of five, added late. */
-.fg .searchbtn:hover .kbd { background:rgba(255,255,255,.18); color:#fff; }
-.fg .bell { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.6); }
-.fg .bell:hover { background:rgba(255,255,255,.12); color:#fff; box-shadow:none; }
-.fg .bell .d { border-color:#050505; }
+.fg .searchbtn:hover .kbd { background:var(--on-ink-tint-2); color:var(--paper); }
+.fg .bell { background:var(--on-ink-tint); border:1px solid var(--on-ink-line); color:var(--paper); }
+.fg .bell:hover { background:var(--on-ink-tint); color:var(--paper);  box-shadow:none; }
+.fg .bell .d { border-color:var(--ink); }
 
 /* ===== THE BELL'S PANEL — notifications where you already are =============
 
@@ -818,7 +818,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    button and the clock and stops well short of the sidebar at every width the
    app is used at. */
 .fg .topbar .bell-top { position:relative; display:flex; align-items:center; }
-.fg .bell.on { background:rgba(255,255,255,.14); color:#fff; }
+.fg .bell.on { background:var(--on-ink-tint); color:var(--paper); }
 /* THE GROUND IS OPAQUE, AND THAT IS THE WHOLE POINT.
 
    This was `rgba(14,15,20,.92)` + `backdrop-filter`, copied from the user menu.
@@ -841,7 +841,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
    `.me-menu` has the same construction and the same latent bug; it is spared
    only because it opens over the topbar and the sidebar rather than the card. */
-.fg .topbar .bell-panel { position:absolute; top:calc(100% + 9px); right:0; z-index:60; transform-origin:calc(100% - 23px) -9px; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:8px; border-radius:16px; background:#0d0e13; border:1px solid rgba(255,255,255,.1); box-shadow:0 24px 60px rgba(0,0,0,.5); animation:bellPanelIn .18s var(--ease) both; }
+.fg .topbar .bell-panel { position:absolute; top:calc(100% + 9px); right:0; z-index:var(--z-overlay); transform-origin:calc(100% - 23px) -9px; display:flex; flex-direction:column; width:360px; max-height:min(460px, calc(100vh - 120px)); padding:8px; border-radius:var(--r-card); background:var(--ink2); border:1px solid var(--on-ink-line); box-shadow:var(--shadow-overlay); animation:bellPanelIn .18s var(--ease) both; }
 
 /* IT GROWS OUT OF THE BELL, AND STAYS TIED TO IT.
 
@@ -884,7 +884,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
    Scale-and-fade, not scale-and-slide: a slide re-introduces the travel that
    made it look like a separate window. */
-.fg .topbar .bell-panel::before { content:""; position:absolute; bottom:calc(100% - 1px); right:17px; width:12px; height:12px; transform:rotate(45deg); border-radius:0; background:#0d0e13; border-top:1px solid rgba(255,255,255,.1); border-left:1px solid rgba(255,255,255,.1); }
+.fg .topbar .bell-panel::before { content:""; position:absolute; bottom:calc(100% - 1px); right:17px; width:12px; height:12px; transform:rotate(45deg); border-radius:0; background:var(--ink2); border-top:1px solid var(--on-ink-line); border-left:1px solid var(--on-ink-line); }
 @keyframes bellPanelIn { from { opacity:0; transform:scale(.92); } to { opacity:1; transform:none; } }
 /* The caret is a CHILD of the transformed element, so it scales too — and
    that is why the origin is its tip rather than the panel's corner. A point
@@ -894,8 +894,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    lands between two controls on the way in. */
 @media (prefers-reduced-motion:reduce) { .fg .topbar .bell-panel { animation:none; } }
 .fg .topbar .bp-head { display:flex; align-items:center; gap:8px; padding:8px 12px 8px; }
-.fg .topbar .bp-head b { font-size:13px; font-weight:700; color:#fff; }
-.fg .topbar .bp-n { min-width:20px; padding:2px 4px; border-radius:6px; background:rgba(255,255,255,.1); color:#fff; font-size:12px; font-weight:700; text-align:center; }
+.fg .topbar .bp-head b { font-size:13px; font-weight:700; color:var(--paper); }
+.fg .topbar .bp-n { min-width:20px; padding:2px 4px; border-radius:var(--r-control); background:var(--on-ink-tint); color:var(--paper); font-size:12px; font-weight:700; text-align:center; }
 
 /* The scroller, and the reason the panel is a column flexbox: the head and the
    footer stay put and only this moves. `min-height:0` because a flex child
@@ -908,18 +908,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    could reach the other group's rows. */
 .fg .topbar .bp-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
 .fg .topbar .bp-scroll::-webkit-scrollbar { width:6px; }
-.fg .topbar .bp-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:999px; }
+.fg .topbar .bp-scroll::-webkit-scrollbar-thumb { background:var(--on-ink-tint-2); border-radius:999px; }
 
 /* One row. Two channels, same as the board's tiles: the GLYPH is the domain
    (truck / shield / hexagon, matching the nav) and the COLOUR is the urgency —
    colour alone made an expiring rego and an expiring licence identical. */
-.fg .topbar .bp-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:10px; color:rgba(255,255,255,.7); text-decoration:none; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .bp-row:hover { background:rgba(255,255,255,.08); color:#fff; }
-.fg .topbar .bp-ic { display:flex; align-items:center; justify-content:center; width:30px; height:30px; flex:0 0 auto; border-radius:10px; background:rgba(255,255,255,.06); }
-.fg .topbar .bp-row.bad .bp-ic { background:rgba(224,38,79,.16); color:#ff7d99; }
+.fg .topbar .bp-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:var(--r-button); color:var(--paper); text-decoration:none; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .topbar .bp-row:hover { background:var(--on-ink-tint); color:var(--paper); }
+.fg .topbar .bp-ic { display:flex; align-items:center; justify-content:center; width:30px; height:30px; flex:0 0 auto; border-radius:var(--r-button); background:var(--on-ink-tint); }
+.fg .topbar .bp-row.bad .bp-ic { background:var(--bad-tint); color:#ff7d99; }
 .fg .topbar .bp-row.warn .bp-ic { background:rgba(245,158,11,.16); color:#f7b955; }
 .fg .topbar .bp-main { flex:1; min-width:0; }
-.fg .topbar .bp-main b { display:block; font-size:13px; font-weight:700; line-height:1.25; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fg .topbar .bp-main b { display:block; font-size:13px; font-weight:700; line-height:1.25; color:var(--paper); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* the subject line — the shell's quiet-on-ink token, 4.46 on #050505 */
 .fg .topbar .bp-main em { display:block; font-style:normal; font-size:12px; color:var(--on-ink-q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fg .topbar .bp-chev { flex:0 0 auto; opacity:0; transition:opacity var(--t-fast) var(--ease); }
@@ -928,13 +928,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar .bp-quiet { padding:16px 12px; font-size:12px; color:var(--on-ink-q); }
 .fg .topbar .bp-empty { display:flex; flex-direction:column; align-items:center; gap:4px; padding:24px 16px 24px; text-align:center; }
 .fg .topbar .bp-empty .bp-ei { display:flex; align-items:center; justify-content:center; width:38px; height:38px; margin-bottom:2px; border-radius:50%; background:rgba(0,163,137,.16); color:#3fd7b6; }
-.fg .topbar .bp-empty b { font-size:13px; font-weight:700; color:#fff; }
+.fg .topbar .bp-empty b { font-size:13px; font-weight:700; color:var(--paper); }
 .fg .topbar .bp-empty em { font-style:normal; font-size:12px; line-height:1.45; color:var(--on-ink-q); }
 
 /* Present ONLY when rows were actually cut. A "see all" under a list that is
    already all of it is a lie about there being more. */
-.fg .topbar .bp-more { display:flex; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; margin-top:4px; padding:8px; border-radius:10px; background:rgba(255,255,255,.05); color:rgba(255,255,255,.72); font-size:12px; font-weight:700; text-decoration:none; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .topbar .bp-more:hover { background:rgba(255,255,255,.1); color:#fff; }
+.fg .topbar .bp-more { display:flex; align-items:center; justify-content:center; gap:4px; flex:0 0 auto; margin-top:4px; padding:8px; border-radius:var(--r-button); background:var(--on-ink-tint); color:var(--paper); font-size:12px; font-weight:700; text-decoration:none; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .topbar .bp-more:hover { background:var(--on-ink-tint); color:var(--paper); }
 
 /* REMINDERS — the group above the chips.
 
@@ -950,9 +950,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    `topbar-popover-grounds.test.ts` holds all of this. */
 .fg .topbar .bp-grp { padding:8px 12px 4px; font-size:12px; font-weight:500; color:var(--on-ink-q); }
 .fg .topbar .bp-rems { display:flex; flex-direction:column; }
-.fg .topbar .bp-rem { border-radius:10px; }
+.fg .topbar .bp-rem { border-radius:var(--r-button); }
 .fg .topbar .bp-remrow { display:flex; align-items:center; gap:12px; padding:8px 12px; }
-.fg .topbar .bp-rem .bp-ic { background:rgba(0,229,192,.14); color:#3fd7b6; }
+.fg .topbar .bp-rem .bp-ic { background:var(--on-ink-tint); color:var(--paper); }
 .fg .topbar .bp-remacts { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
 
 /* THE TITLE WRAPS HERE, WHERE A CHIP'S DOES NOT, and the difference is what
@@ -967,18 +967,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .topbar .bp-rem .bp-main b { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; overflow:hidden; }
 .fg .topbar .bp-remrow { align-items:flex-start; }
 .fg .topbar .bp-rem .bp-ic, .fg .topbar .bp-remacts { margin-top:1px; }
-.fg .topbar :is(.bp-remdo, .bp-remsnz) { display:flex; align-items:center; justify-content:center; border:0; border-radius:10px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.72); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .topbar :is(.bp-remdo, .bp-remsnz) { display:flex; align-items:center; justify-content:center; border:0; border-radius:var(--r-button); background:var(--on-ink-tint); color:var(--paper); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .topbar .bp-remdo { width:28px; height:28px; }
 .fg .topbar .bp-remsnz { height:28px; padding:0 8px; }
-.fg .topbar :is(.bp-remdo, .bp-remsnz):hover { background:rgba(255,255,255,.14); color:#fff; }
-.fg .topbar .bp-remsnz.on { background:rgba(255,255,255,.16); color:#fff; }
+.fg .topbar :is(.bp-remdo, .bp-remsnz):hover { background:var(--on-ink-tint); color:var(--paper); }
+.fg .topbar .bp-remsnz.on { background:var(--on-ink-tint-2); color:var(--paper); }
 
 /* The three choices, in the row's own space rather than a menu over it. A
    popover inside a popover needs its own dismissal, its own escape key and its
    own outside-click — for three buttons that are already one tap away. */
 .fg .topbar .bp-snooze { display:flex; gap:4px; padding:0 12px 8px 52px; }
-.fg .topbar .bp-snzopt { flex:1 1 0; padding:8px 4px; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:none; color:rgba(255,255,255,.72); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .topbar .bp-snzopt:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.2); color:#fff; }
+.fg .topbar .bp-snzopt { flex:1 1 0; padding:8px 4px; border:1px solid var(--on-ink-line); border-radius:var(--r-button); background:none; color:var(--paper); font:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .topbar .bp-snzopt:hover { background:var(--on-ink-tint); border-color:var(--on-ink-line); color:var(--paper); }
 
 /* the light content well, inset so the dark frame shows across top / right / bottom */
 .fg .main { padding:0 16px 16px 0; }
@@ -1002,10 +1002,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .crumb a { color:var(--link); }
 .fg .crumb .sep { color:var(--q); }
 .fg .crumb b { color:var(--ink); font-weight:700; }
-.fg .pbtn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .pbtn.ghost { background:#fff; border:1px solid var(--line); color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.fg .pbtn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .pbtn.ghost { background:var(--paper); border:1px solid var(--line); color:var(--gray700); }
 .fg .pbtn.ghost:hover { background:var(--tint); }
-.fg .pbtn.primary { background:var(--ink); color:#fff; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
+.fg .pbtn.primary { background:var(--ink); color:var(--paper); }
 .fg .pbtn.primary:hover { background:var(--ink); color:var(--paper); }
 
 /* ── THE STAFF CARD — the maintenance board's surface, holding a person ──
@@ -1032,10 +1032,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    different screen. Green stays green — `Active` is a STATE, and a state is
    never the page accent (see the design rule in feedback_design_system). */
 .fg .pcard2 .pbtn.primary, .fg .pbar .pbtn.primary {
-  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:#fff;
-  box-shadow:0 8px 18px -8px rgba(0,127,168,.75); }
+  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:var(--paper); }
 .fg .pcard2 .pbtn.primary:hover:not(:disabled), .fg .pbar .pbtn.primary:hover:not(:disabled) {
-  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:#fff; }
+  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:var(--paper); }
 
 /* ── the completion strip, in the breadcrumb row ──
    It was a full-width banner inside the card carrying a ring, a headline, a
@@ -1049,7 +1048,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdone .pring .v { stroke:var(--wb2-cy); transition:stroke-dasharray var(--t-move) var(--ease); }
 .fg .pdone-k b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .pdone-k em { display:block; margin-top:1px; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
-.fg .pdone .pbtn { height:36px; padding:0 12px; font-size:13px; border-radius:10px; }
+.fg .pdone .pbtn { height:36px; padding:0 12px; font-size:13px; border-radius:var(--r-button); }
 
 /* ── the tabs ──
    21px a side is the board's number, and the board has FIVE tabs. This card
@@ -1103,10 +1102,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    is also LIGHT now: the dark inner face was drawn for a dark rail, and on a
    light card it was the one black square on the screen. The gradient stays as
    the ring — the only brand mark on the block. */
-.fg .pident .pphoto { position:relative; width:46px; height:46px; border-radius:16px; flex:0 0 auto;
+.fg .pident .pphoto { position:relative; width:46px; height:46px; border-radius:var(--r-card); flex:0 0 auto;
   background:var(--ink); padding:2px; }
-.fg .pident .pphoto .inn { width:100%; height:100%; border-radius:10px; display:flex;
-  align-items:center; justify-content:center; background:#fff; color:var(--ink);
+.fg .pident .pphoto .inn { width:100%; height:100%; border-radius:var(--r-button); display:flex;
+  align-items:center; justify-content:center; background:var(--paper); color:var(--ink);
   font-size:24px; font-weight:700; object-fit:cover; }
 
 /* THE PHOTO HAS A HOME NOW. There was a camera badge on this tile from the
@@ -1116,15 +1115,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    there IS a photo — a tile showing initials has nothing to remove. */
 .fg .pident .pphoto .cam { position:absolute; right:-5px; bottom:-5px; width:27px; height:27px;
   border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:#fff; color:var(--gray700); border:1px solid #e6e8ee;
-  box-shadow:0 4px 12px -4px rgba(10,12,20,.28); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+  background:var(--paper); color:var(--gray700); border:1px solid var(--line); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .pident .pphoto .cam:hover:not(:disabled) { color:var(--wb2-cy); border-color:rgba(0,127,168,.4); }
-.fg .pident .pphoto .cam:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .pident .pphoto .cam:focus-visible { outline:none;  box-shadow:var(--ring); }
 .fg .pident .pphoto .camdel { position:absolute; right:-6px; top:-6px; width:22px; height:22px;
   border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;
-  background:#fff; color:var(--q); border:1px solid #ecedf1;
-  box-shadow:0 4px 12px -6px rgba(10,12,20,.3); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .pident .pphoto .camdel:hover:not(:disabled) { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
+  background:var(--paper); color:var(--q); border:1px solid var(--line); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .pident .pphoto .camdel:hover:not(:disabled) { background:var(--bad-tint); color:var(--bad-t); border-color:var(--bad); }
 /* ON HOVER, NOT ALWAYS. Two controls parked permanently on a 68px tile read as
    damage to the photo rather than as things you can press — the × especially,
    which looks like the image failed to load. The tile is the affordance; the
@@ -1167,7 +1164,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    licence count used to be among them, until the licence wall two panels down
    started saying it better. */
 .fg .pfstrip { display:flex; align-items:center; gap:0; flex-wrap:wrap; flex:0 0 auto; margin:0; }
-.fg .pfs { padding:0 16px; border-left:1px solid #e2e5ea; }
+.fg .pfs { padding:0 16px; border-left:1px solid var(--line); }
 .fg .pfs:first-child { border-left:0; padding-left:0; }
 .fg .pfs dt { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .pfs dd { margin:4px 0 0; font-size:14px; font-weight:700; color:var(--ink); }
@@ -1179,9 +1176,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    from another, and Fleet is where the make, the odometer, the service history
    and every warning actually live — the staff card names the vehicle, it does
    not nag about it. */
-.fg .vehjump { display:inline-flex; border-radius:6px; transition:transform var(--t-move) var(--ease); }
+.fg .vehjump { display:inline-flex; border-radius:var(--r-control); transition:transform var(--t-move) var(--ease); }
 .fg .vehjump:hover { }
-.fg .vehjump:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .vehjump:focus-visible { outline:none;  box-shadow:var(--ring); }
 
 /* ── a section, with the card chrome taken off ──
    Each section used to render as a `.card2` with an icon, a title and a
@@ -1195,7 +1192,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .psec-body.saving { opacity:.7; pointer-events:none; }
 /* a tab holding TWO sections keeps a frame on the second one — see the
    `variant="card"` note in section-card */
-.fg .pcard2 .card2 { border-radius:16px; box-shadow:none; padding:16px 24px; margin-top:16px; margin-bottom:0; }
+.fg .pcard2 .card2 { border-radius:var(--r-card);  box-shadow:none; padding:16px 24px; margin-top:16px; margin-bottom:0; }
 .fg .pcard2 .card2 .c2h { margin-bottom:16px; }
 
 /* ── Summary's panels ──
@@ -1232,7 +1229,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdrow.live dd > .suffixwrap > .inp,
 .fg .pdrow.live dd > .scaled > .inp,
 .fg .pdrow.live dd > .inpd {
-  height:34px; padding:0 12px; border-radius:10px; font-size:16px; font-weight:600; background:#fafbfc; }
+  height:34px; padding:0 12px; border-radius:var(--r-button); font-size:16px; font-weight:600; background:var(--tint); }
 .fg .pdrow.live dd > .inpd { padding:0 12px; }
 /* a 34px box wants the symbol closer in than a 46px one — the gutters above
    are cut to match, so the figure still clears it */
@@ -1241,7 +1238,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdrow.live dd .suffixwrap .sfx { right:11px; font-size:14px; }
 .fg .pdrow.live dd .suffixwrap .sfx.pre { right:auto; left:11px; }
 .fg .pdrow.live dd .inp:focus, .fg .pdrow.live dd .inpd:focus-visible {
-  border-color:var(--wb2-cy); background:#fff; box-shadow:var(--ring); }
+  border-color:var(--wb2-cy); background:var(--paper);  box-shadow:var(--ring); }
 .fg .pdrow.live dd .inp::placeholder { color:var(--q); font-weight:500; }
 /* the select's chevron follows the shorter box in */
 .fg .pdrow.live dd .selwrap .chev { right:9px; }
@@ -1268,10 +1265,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdrow.live dd > .scaled { display:flex; align-items:center; gap:4px; }
 .fg .pdrow.live dd > .scaled > .inp { flex:1 1 auto; min-width:0; }
 .fg .pdrow.live dd > .scaled > .scalesel {
-  flex:0 0 auto; height:34px; padding:0 8px; border:1px solid var(--line); border-radius:10px;
+  flex:0 0 auto; height:34px; padding:0 8px; border:1px solid var(--line); border-radius:var(--r-button);
   background:var(--tint); font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .fg .pdrow.live dd > .scaled > .scalesel:focus-visible {
-  border-color:var(--wb2-cy); box-shadow:var(--ring); outline:none; }
+  border-color:var(--wb2-cy);  box-shadow:var(--ring); outline:none; }
 
 /* ── a percentage you can SEE ──
    Utilisation was a number you could only reach by clicking "+ Set" and then
@@ -1279,7 +1276,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    proportion has a shape. Read fills the track and greys it; edit puts the
    thumb back. Same object either way — see `Pct` in fields.tsx. */
 .fg .pslider { display:flex; align-items:center; gap:12px; min-width:0; }
-.fg .pslider .track { position:relative; flex:1; min-width:80px; height:6px; border-radius:999px; background:#eceef2; }
+.fg .pslider .track { position:relative; flex:1; min-width:80px; height:6px; border-radius:999px; background:var(--tint-2); }
 .fg .pslider .fill { position:absolute; inset:0 auto 0 0; border-radius:999px; background:var(--wb2-cy); transition:width var(--t-move) var(--ease); }
 .fg .pslider .num { flex:0 0 auto; font-size:16px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .pslider .num.none { color:var(--q); font-weight:600; }
@@ -1287,8 +1284,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    thumb below is what you actually see */
 .fg .pslider input[type="range"] { position:absolute; inset:-9px 0; width:100%; height:24px; margin:0; padding:0; opacity:0; cursor:pointer; }
 .fg .pslider .thumb { position:absolute; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%;
-  background:#fff; border:2px solid var(--wb2-cy); box-shadow:0 2px 6px -1px rgba(10,12,20,.3); pointer-events:none; transition:left var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .pslider input[type="range"]:focus-visible ~ .thumb { box-shadow:var(--ring); }
+  background:var(--paper); border:2px solid var(--wb2-cy); pointer-events:none; transition:left var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .pslider input[type="range"]:focus-visible ~ .thumb {  box-shadow:var(--ring); }
 /* read mode has no thumb, and says so in the fill — a control you cannot move
    should not look like one */
 .fg .pslider.readonly .fill { background:#c2c8d2; }
@@ -1300,7 +1297,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* align-items:start — panels size to their content. Stretched, a one-row panel
    beside a four-row one (Right to work next to Visa) is mostly void. */
 .fg .pdlgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
-.fg .pdlcard { border:1px solid #f0f0f2; border-radius:16px; padding:16px 16px 16px; min-width:0; }
+.fg .pdlcard { border:1px solid var(--line); border-radius:var(--r-card); padding:16px 16px 16px; min-width:0; }
 .fg .pdlcard.wide { grid-column:1/-1; }
 .fg .pdlh { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .pdl, .fg .pdlbody { margin:12px 0 0; display:grid; gap:8px; }
@@ -1327,7 +1324,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    in one look. Nothing here touches `.psec-body`, so the sections are
    untouched. */
 .fg .pdlgrid.tight { gap:12px; }
-.fg .tight .pdlcard { padding:12px 16px 12px; border-radius:16px; }
+.fg .tight .pdlcard { padding:12px 16px 12px; border-radius:var(--r-card); }
 .fg .tight .pdl, .fg .tight .pdlbody { margin-top:8px; gap:8px; }
 .fg .tight .pdl.split { column-gap:24px; }
 /* the label is small caps and narrower — at 12.5px sentence case it read as a
@@ -1346,7 +1343,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg .tight .pdrow { grid-template-columns:1fr; gap:1px; }
 }
 .fg .padd { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color var(--t-fast) var(--ease); }
-.fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:6px; flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:var(--r-control); flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .padd:hover { color:var(--ink); }
 .fg .padd:hover span { border-color:var(--ink); color:var(--ink); }
 
@@ -1366,9 +1363,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .idc.faceless .idc-id { margin-block:auto; }
 .fg .idc.faceless .idc-who b { font-size:20px; }
 .fg .idc-action { position:absolute; top:10px; right:10px; z-index:3; }
-.fg .idc-del { width:28px; height:28px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--q); background:rgba(255,255,255,.85); border:1px solid #ecedf1; opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .idc-del { width:28px; height:28px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--q); background:var(--on-ink-tint-2); border:1px solid var(--line); opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .idc:hover .idc-del, .fg .idc-del:focus-visible { opacity:1; }
-.fg .idc-del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
+.fg .idc-del:hover { background:var(--bad-tint); color:var(--bad-t); border-color:var(--bad); }
 .fg .idc-del:disabled { opacity:.5; cursor:default; }
 /* the badge would sit under the × — shift it clear when there is one */
 .fg .idc-action ~ .idc-in .idc-badge { margin-right:32px; }
@@ -1462,7 +1459,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    markup as well as from here: the heading names the object, and the icon
    was repeating it. Heading 600, subtitle 400 in the quiet colour: one thing
    loud. */
-.fg .card2 { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:16px; }
+.fg .card2 { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:24px; margin-bottom:16px; }
 .fg .card2 .c2h { display:flex; align-items:center; gap:12px; margin-bottom:24px; }
 .fg .card2 .c2h b { font-size:16px; font-weight:600; }
 .fg .card2 .c2h em { font-style:normal; display:block; font-size:13px; font-weight:400; color:var(--gray400); margin-top:2px; }
@@ -1478,9 +1475,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .field { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .fg .field > label { font-size:12px; font-weight:700; color:var(--gray700); display:flex; align-items:center; gap:8px; }
 .fg .field > label .req { color:var(--ink); }
-.fg .inp { height:46px; padding:0 16px; border-radius:6px; border:1px solid var(--line); background:#fafbfc; font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); outline:none; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); width:100%; }
+.fg .inp { height:46px; padding:0 16px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--tint); font-family:var(--font); font-size:14px; font-weight:500; color:var(--ink); outline:none; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); width:100%; }
 .fg .inp::placeholder { color:var(--q); font-weight:500; }
-.fg .inp:focus { background:#fff; border-color:var(--line); box-shadow:var(--ring); }
+.fg .inp:focus { background:var(--paper); border-color:var(--line);  box-shadow:var(--ring); }
 .fg textarea.inp { height:auto; padding:12px 16px; resize:vertical; min-height:84px; line-height:1.5; }
 .fg .selwrap { position:relative; }
 .fg .selwrap .chev { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--q); pointer-events:none; }
@@ -1507,7 +1504,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .card2.saving { pointer-events:none; }
 .fg .card2.saving .inp { opacity:.55; }
 .fg .card2 [data-save][disabled] { opacity:.6; cursor:default; }
-.fg .carderr { margin-top:12px; padding:8px 12px; border-radius:10px; font-size:13px; font-weight:600; color:var(--bad-t); background:rgba(255,51,102,.08); border:1px solid rgba(255,51,102,.2); }
+.fg .carderr { margin-top:12px; padding:8px 12px; border-radius:var(--r-button); font-size:13px; font-weight:600; color:var(--bad-t); background:var(--bad-tint); border:1px solid var(--bad); }
 
 /* THE "CHANGE" ON A ROW WHOSE VALUE IS ALREADY THERE. `.padd` serves the
    empty case with a "+ Add"; this is its opposite number — quiet, beside the
@@ -1516,7 +1513,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   font-size:12px; font-weight:700; color:var(--ink); cursor:pointer;
   text-decoration:underline; text-underline-offset:2px; }
 .fg .pdact:hover { color:#005f50; }
-.fg .pdact:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:6px; }
+.fg .pdact:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:var(--r-control); }
 
 /* THE SIGN-IN WARNING. It sits at the same weight as
    `.carderr` above and share its shape on purpose: they are the same KIND of
@@ -1528,17 +1525,17 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    address and nothing in the app can undo it — which is a fact the form
    itself cannot convey. */
 .fg .pacct-warn, .fg .pacct-ok { display:flex; align-items:flex-start; gap:8px;
-  margin:12px 0 0; padding:12px 12px; border-radius:10px;
+  margin:12px 0 0; padding:12px 12px; border-radius:var(--r-button);
   font-size:13px; font-weight:600; line-height:1.5; }
 .fg .pacct-warn svg, .fg .pacct-ok svg { flex:none; margin-top:1px; }
-.fg .pacct-warn { color:var(--warn-t); background:rgba(255,138,0,.09); border:1px solid rgba(255,138,0,.22); }
+.fg .pacct-warn { color:var(--warn-t); background:var(--warn-tint); border:1px solid var(--warn); }
 .fg .pacct-ok { color:#00695a; background:var(--tint); border:1px solid var(--line); }
 .fg .pacct-ok b { font-weight:700; }
 .fg .card2.readonly .carderr { display:none; }
 
 .fg .card2:not(.readonly) [data-edit] { display:none; }
 .fg .card2.readonly [data-cancel], .fg .card2.readonly [data-save] { display:none; }
-.fg .card2.readonly .inp { background:transparent; border-color:transparent; box-shadow:none; padding-left:0; padding-right:0; pointer-events:none; font-weight:600; }
+.fg .card2.readonly .inp { background:transparent; border-color:transparent;  box-shadow:none; padding-left:0; padding-right:0; pointer-events:none; font-weight:600; }
 .fg .card2.readonly textarea.inp { padding:0; }
 .fg .card2.readonly .selwrap .chev { display:none; }
 .fg .card2.readonly .drop, .fg .card2.readonly .licadd, .fg .card2.readonly .licdel, .fg .card2.readonly .docact, .fg .card2.readonly .pphoto .cam, .fg .card2.readonly #lic-empty { display:none; }
@@ -1548,16 +1545,16 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    would leave the read-only card inset a pixel from the editable one. */
 .fg .card2.readonly .seg { background:transparent; border:0; padding:0; }
 .fg .card2.readonly .seg button:not(.on) { display:none; }
-.fg .card2.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--ink); font-weight:700; }
+.fg .card2.readonly .seg button.on { background:transparent;  box-shadow:none; padding:0; color:var(--ink); font-weight:700; }
 
 /* per-card actions (edit / cancel / save) inline on the card header */
 .fg .cardactions { margin-left:auto; display:flex; gap:8px; align-items:center; flex:0 0 auto; }
-.fg .cardedit { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; color:var(--ink); background:var(--tint); border:1px solid var(--line); transition:background-color var(--t-fast) var(--ease); }
+.fg .cardedit { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--ink); background:var(--tint); border:1px solid var(--line); transition:background-color var(--t-fast) var(--ease); }
 .fg .cardedit:hover { background:var(--tint-2); }
-.fg .cardbtn { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .cardbtn.ghost { background:#fff; border:1px solid var(--line); color:var(--gray700); }
+.fg .cardbtn { display:inline-flex; align-items:center; gap:4px; height:32px; padding:0 12px; border-radius:var(--r-button); font-size:13px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .cardbtn.ghost { background:var(--paper); border:1px solid var(--line); color:var(--gray700); }
 .fg .cardbtn.ghost:hover { background:var(--tint); }
-.fg .cardbtn.save { background:var(--ink); color:#fff; }
+.fg .cardbtn.save { background:var(--ink); color:var(--paper); }
 .fg .cardbtn.save:hover { background:var(--ink); color:var(--paper); }
 .fg .card2.readonly .cardactions [data-cancel], .fg .card2.readonly .cardactions [data-save] { display:none; }
 .fg .card2:not(.readonly) .cardactions [data-edit] { display:none; }
@@ -1567,8 +1564,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* info button + tooltip */
 .fg .infobtn { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; color:var(--q); cursor:help; vertical-align:middle; margin-left:4px; }
 .fg .infobtn:hover, .fg .infobtn:focus { color:var(--ink); outline:none; }
-.fg .infobtn .tip { position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%) translateY(4px); width:260px; padding:12px 12px; border-radius:10px; background:#0A0B10; color:rgba(255,255,255,.92); font-size:12px; font-weight:500; line-height:1.5; text-transform:none; box-shadow:0 16px 40px -12px rgba(0,0,0,.5); opacity:0; visibility:hidden; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); z-index:50; pointer-events:none; }
-.fg .infobtn .tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:#0A0B10; }
+.fg .infobtn .tip { position:absolute; bottom:calc(100% + 9px); left:50%; transform:translateX(-50%) translateY(4px); width:260px; padding:12px 12px; border-radius:var(--r-button); background:var(--ink); color:var(--paper); font-size:12px; font-weight:500; line-height:1.5; text-transform:none; box-shadow:var(--shadow-overlay); opacity:0; visibility:hidden; transition:opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); z-index:var(--z-overlay); pointer-events:none; }
+.fg .infobtn .tip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--ink); }
 .fg .infobtn:hover .tip, .fg .infobtn:focus .tip, .fg .infobtn:focus-within .tip { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
 
 /* status segmented */
@@ -1578,9 +1575,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    `#f4f5f7` that made the timesheet's switch read as one button, and it was
    one placement away from doing it again. `#e6eaf1` plus `.wb2-seg`'s
    hairline is 1.207, and it is now the one tray value in the app. */
-.fg .seg { display:inline-flex; align-self:flex-start; width:fit-content; background:#e6eaf1; border:1px solid rgba(10,12,20,.06); border-radius:10px; padding:4px; gap:4px; }
-.fg .seg button { padding:8px 16px; border-radius:10px; font-size:13px; font-weight:700; color:var(--gray500); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.fg .seg { display:inline-flex; align-self:flex-start; width:fit-content; background:#e6eaf1; border:1px solid var(--line); border-radius:var(--r-button); padding:4px; gap:4px; }
+.fg .seg button { padding:8px 16px; border-radius:var(--r-button); font-size:13px; font-weight:700; color:var(--gray500); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .seg button.on { background:var(--paper); color:var(--ink); }
 .fg .seg button.on.green { color:var(--ok-t); }
 /* THE ME CARD'S IN-PANEL SWITCH — `.seg` doing the job Vehicle, Expenses and
    Notes each used a card-edge tab strip for, now that all three sit INSIDE a
@@ -1597,20 +1594,20 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    me/face-switch.tsx for why it is not allowed near the heading. */
 .fg .me-fsnote { margin:0; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .seg button .segn { display:inline-block; margin-left:8px; padding:0 4px; min-width:18px;
-  border-radius:6px; background:rgba(15,18,26,.07); color:var(--gray500);
+  border-radius:var(--r-control); background:rgba(15,18,26,.07); color:var(--gray500);
   font-size:12px; font-weight:700; font-style:normal; line-height:18px; text-align:center; }
 .fg .seg button.on .segn { background:rgba(15,18,26,.06); color:var(--ink); }
 
 /* toggle */
 .fg .toggle { width:48px; height:28px; border-radius:999px; background:#d8dbe2; position:relative; flex:0 0 auto; cursor:pointer; transition:background var(--t-fast) var(--ease); }
-.fg .toggle::after { content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform var(--t-move) var(--ease); }
+.fg .toggle::after { content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:var(--paper); transition:transform var(--t-move) var(--ease); }
 .fg .toggle.on { background:var(--ink); color:var(--paper); }
 .fg .toggle.on::after { transform:translateX(20px); }
 
 /* photo upload dropzone */
-.fg .drop { display:flex; align-items:center; gap:12px; padding:12px; border-radius:16px; border:1.5px dashed #d8dde6; background:#fafbfc; cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .drop { display:flex; align-items:center; gap:12px; padding:12px; border-radius:var(--r-card); border:1.5px dashed #d8dde6; background:var(--tint); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .drop:hover { border-color:var(--ink); background:var(--tint); }
-.fg .drop .di { width:42px; height:42px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ink); border:1px solid #eef0f4; }
+.fg .drop .di { width:42px; height:42px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:var(--paper); color:var(--ink); border:1px solid var(--line); }
 
 /* verified document row (work rights) */
 
@@ -1629,7 +1626,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* a toggle in a value slot has no row card around it any more — it is the
    value, so it sits where one would */
 .fg .pdrow.live dd > .toggle { margin-top:1px; }
-.fg .permrole { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:16px; background:#fafbfc; border:1.5px solid #f0f0f2; cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
+.fg .permrole { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint); border:1.5px solid var(--line); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
 .fg .permrole input { position:absolute; opacity:0; pointer-events:none; }
 .fg .permrole:hover { border-color:#e0e3ea; }
 .fg .permrole.on { border-color:var(--ink); background:var(--tint); }
@@ -1645,13 +1642,13 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .csgrid { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; margin-top:4px; }
 @media (max-width:680px){ .fg .csgrid{grid-template-columns:1fr} }
 .fg .costsplit { display:flex; flex-direction:column; gap:8px; }
-.fg .csrow { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:10px; background:#fafbfc; border:1px solid #f0f0f2; }
+.fg .csrow { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:var(--r-button); background:var(--tint); border:1px solid var(--line); }
 .fg .csrow .csdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .csrow .cslbl { flex:1; font-size:14px; font-weight:700; color:var(--gray700); }
 .fg .csrow .cspct { display:flex; align-items:center; gap:12px; flex:0 0 auto; width:170px; }
-.fg .csrange { -webkit-appearance:none; appearance:none; flex:1; min-width:0; height:6px; border-radius:999px; background:#e6e8ee; outline:none; cursor:pointer; }
-.fg .csrange::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
-.fg .csrange::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:2px solid var(--ink); box-shadow:0 2px 5px rgba(0,0,0,.18); cursor:grab; }
+.fg .csrange { -webkit-appearance:none; appearance:none; flex:1; min-width:0; height:6px; border-radius:999px; background:var(--tint-2); outline:none; cursor:pointer; }
+.fg .csrange::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%; background:var(--paper); border:2px solid var(--ink); cursor:grab; }
+.fg .csrange::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:var(--paper); border:2px solid var(--ink); cursor:grab; }
 .fg .csval { font-family:var(--mono); font-size:13px; font-weight:700; color:var(--ink); width:38px; text-align:right; flex:0 0 auto; }
 
 /* THE SPLIT DRAWS ITSELF IN READ MODE TOO.
@@ -1666,7 +1663,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    split is a PROPORTION, and 55/35/10 as three numbers makes you do the
    arithmetic to see the shape. The track fills instead — the same object in
    both modes, and in edit mode the thumb simply becomes draggable. */
-.fg .cstrack { position:relative; flex:1; min-width:0; height:6px; border-radius:999px; background:#e6e8ee; }
+.fg .cstrack { position:relative; flex:1; min-width:0; height:6px; border-radius:999px; background:var(--tint-2); }
 /* the fill takes the row's own dot colour, inline — the three shares have to
    be the same three colours as the donut beside them or the panel is lying */
 .fg .csfill { position:absolute; inset:0 auto 0 0; border-radius:999px; }
@@ -1679,36 +1676,36 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .cstot.over b { color:var(--bad-t); }
 
 /* read-only empty (training/notes) */
-.fg .ro-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:48px 16px; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
-.fg .ro-empty .ei { width:46px; height:46px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:var(--q); }
+.fg .ro-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:12px; padding:48px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
+.fg .ro-empty .ei { width:46px; height:46px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--q); }
 .fg .ro-empty b { font-size:14px; font-weight:700; color:var(--gray500); }
 .fg .ro-empty em { font-style:normal; font-size:13px; color:var(--gray400); max-width:280px; line-height:1.5; }
 
 /* flags */
-.fg .flag { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:16px; background:rgba(255,170,0,.07); border:1px solid rgba(240,164,49,.3); }
+.fg .flag { display:flex; align-items:flex-start; gap:12px; padding:12px 16px; border-radius:var(--r-card); background:rgba(255,170,0,.07); border:1px solid var(--warn); }
 .fg .flag .fi { color:#d98a00; flex:0 0 auto; margin-top:1px; }
 .fg .flag b { font-size:14px; font-weight:700; color:#9a6500; }
 .fg .flag em { font-style:normal; display:block; font-size:13px; color:#b58435; margin-top:2px; font-weight:500; }
 
-  .fg-cmd { position:fixed; inset:0; z-index:100; display:none; align-items:flex-start; justify-content:center; padding-top:15vh; font-family:var(--font-jakarta), sans-serif; }
+  .fg-cmd { position:fixed; inset:0; z-index:var(--z-overlay); display:none; align-items:flex-start; justify-content:center; padding-top:15vh; font-family:var(--font-jakarta), sans-serif; }
   .fg-cmd.open { display:flex; }
-  .fg-cmd .ov { position:absolute; inset:0; background:rgba(5,5,5,.4); backdrop-filter:blur(8px); animation:fgcFade .2s both; }
+  .fg-cmd .ov { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(8px); animation:fgcFade .2s both; }
   @keyframes fgcFade { from{opacity:0} to{opacity:1} }
-  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:16px; overflow:hidden; background:rgba(255,255,255,.9); backdrop-filter:blur(24px) saturate(1.6); border:1px solid #fff; box-shadow:0 30px 80px -20px rgba(0,0,0,.4); animation:fgcIn .3s var(--ease) both; }
+  .fg-cmd .box { position:relative; width:640px; max-width:calc(100vw - 32px); border-radius:var(--r-card); overflow:hidden; background:var(--on-ink-tint-2); backdrop-filter:blur(24px) saturate(1.6); border:1px solid var(--paper); box-shadow:var(--shadow-overlay); animation:fgcIn .3s var(--ease) both; }
   @keyframes fgcIn { from{opacity:0;transform:scale(.96) translateY(-8px)} to{opacity:1;transform:none} }
   .fg-cmd .cin { position:relative; display:flex; align-items:center; gap:16px; padding:16px 24px; border-bottom:1px solid var(--tint); }
   .fg-cmd .cin .ci { color:var(--q); display:flex; }
   .fg-cmd .cin input { flex:1; background:none; border:none; outline:none; font-size:16px; font-weight:500; color:var(--ink); font-family:inherit; }
   .fg-cmd .cin input::placeholder { color:var(--q); }
-  .fg-cmd .esc { font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:var(--q); background:var(--tint); padding:4px 8px; border-radius:6px; }
+  .fg-cmd .esc { font-family:var(--font-jakarta), sans-serif; font-size:12px; font-weight:700; color:var(--q); background:var(--tint); padding:4px 8px; border-radius:var(--r-control); }
   .fg-cmd .clist { max-height:380px; overflow-y:auto; padding:12px; }
   .fg-cmd .cgl { padding:8px 16px; font-size:12px; font-weight:500; color:var(--q); }
-  .fg-cmd .crow { position:relative; width:100%; display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:16px; cursor:pointer; text-align:left; }
+  .fg-cmd .crow { position:relative; width:100%; display:flex; align-items:center; gap:16px; padding:12px 16px; border-radius:var(--r-card); cursor:pointer; text-align:left; }
   .fg-cmd .crow.on { background:rgba(243,244,246,.8); }
-  .fg-cmd .crow .ci2 { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform var(--t-move) var(--ease); }
+  .fg-cmd .crow .ci2 { width:36px; height:36px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform var(--t-move) var(--ease); }
   .fg-cmd .crow.on .ci2 { transform:scale(1.05); }
   .fg-cmd .crow .ck { flex:1; min-width:0; }
-  .fg-cmd .crow .ck b { display:block; font-size:16px; font-weight:700; color:#050505; }
+  .fg-cmd .crow .ck b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
   .fg-cmd .crow .ck em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
   .fg-cmd .crow .cen { color:var(--q); opacity:0; }
   .fg-cmd .crow.on .cen { opacity:1; }
@@ -1727,11 +1724,11 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
 /* thread rows are buttons, not the design's divs */
 .fg button.thread { display:block; width:100%; text-align:left; }
-.fg .thread.on { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.05); border-color:#f0f0f2; }
+.fg .thread.on { background:var(--paper); border-color:var(--line); }
 
 /* active conversation */
 .fg .tchathead { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex:0 0 auto; }
-.fg .tchathead .tb2 { width:44px; height:44px; border-radius:16px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:linear-gradient(135deg,var(--tint-2),transparent); border:1px solid var(--line); color:var(--ink); }
+.fg .tchathead .tb2 { width:44px; height:44px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--tint); border:1px solid var(--line); color:var(--ink); }
 .fg .tchathead .tcht { flex:1; min-width:0; }
 /* the title outranks the buttons beside it — it is the name of the thing
    being read, and at 16px it lost to its own "New chat" ghost */
@@ -1740,9 +1737,9 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tchat { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:16px; padding:8px 4px 16px; }
 .fg .tmsg { display:flex; align-items:flex-end; gap:12px; max-width:76%; }
 .fg .tmsg.user { align-self:flex-end; }
-.fg .tmsg .tmb { padding:12px 16px; border-radius:16px; font-size:14px; font-weight:500; line-height:1.55; }
-.fg .tmsg.user .tmb { background:var(--ink); color:#fff; border-bottom-right-radius:6px; box-shadow:0 8px 18px -8px rgba(0,0,0,.35); }
-.fg .tmsg.bot .tmb { background:#fff; border:1px solid #f0f0f2; color:var(--ink); border-bottom-left-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.04); }
+.fg .tmsg .tmb { padding:12px 16px; border-radius:var(--r-card); font-size:14px; font-weight:500; line-height:1.55; }
+.fg .tmsg.user .tmb { background:var(--ink); color:var(--paper); border-bottom-right-radius:var(--r-control); }
+.fg .tmsg.bot .tmb { background:var(--paper); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:var(--r-control); }
 /* ══════════════════════ THE ORB (.orb) — SHARED ══════════════════════
    One sphere of dots, two instruments. Unscoped on purpose: Tiff's waiting
    chip is inside `.fg`, the dictation meter is rendered from the notes token
@@ -2381,7 +2378,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--ok-t); animation:tprPulse 2s infinite; }
 .fg .tpr .wknav .pstatus.hist { color:var(--gray500); }
 .fg .tpr .wknav .arw:disabled { opacity:.4; cursor:not-allowed; transform:none; border-color:var(--line); }
-@keyframes tprPulse { 0%{box-shadow:none} 70%{box-shadow:none} 100%{box-shadow:none} }
+@keyframes tprPulse { 0%{ box-shadow:none} 70%{ box-shadow:none} 100%{ box-shadow:none} }
 .fg .tpr .autosub { font-size:13px; font-weight:600; color:var(--gray500); margin-top:12px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
 
@@ -2959,7 +2956,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
 /* The weekly sweep's one line on Time & Pay. Amber advisory, not red: Xero
    changed and nobody has looked yet — a fact to act on, not a fault. */
-.fg .tp-drift { display:flex; align-items:center; gap:8px; padding:12px 16px; margin-bottom:16px; border-radius:16px; background:rgba(240,164,49,.12); color:#8a5a05; font-size:13px; font-weight:600; line-height:1.5; }
+.fg .tp-drift { display:flex; align-items:center; gap:8px; padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); background:var(--warn-tint); color:#8a5a05; font-size:13px; font-weight:600; line-height:1.5; }
 .fg .tp-drift .i { flex:0 0 auto; }
 
 .fg .tpr .xp-extra { margin-top:16px; padding:12px; border-radius:var(--r-button); border:1.5px dashed var(--line); background:var(--tint); }
@@ -3062,22 +3059,22 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    room for a toolbar floating between it and the card, so search and sort
    became the card's first row. */
 .fg .dirtools {display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
-.fg .dir > .dirtools {padding:16px 16px 12px; border-bottom:1px solid #f0f0f2;}
-.fg .dsearch {display:flex; align-items:center; gap:8px; flex:1; min-width:220px; height:44px; padding:0 16px; background:#fff; border:1px solid #e9eaee; border-radius:6px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
-.fg .dsearch:focus-within {border-color:var(--ink); box-shadow:var(--ring);}
+.fg .dir > .dirtools {padding:16px 16px 12px; border-bottom:1px solid var(--line);}
+.fg .dsearch {display:flex; align-items:center; gap:8px; flex:1; min-width:220px; height:44px; padding:0 16px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-control); color:var(--q);}
+.fg .dsearch:focus-within {border-color:var(--ink);  box-shadow:var(--ring);}
 .fg .dsearch input {flex:1; border:none; outline:none; background:none; font-size:14px; font-weight:600; color:var(--ink);}
 .fg .dsearch input::placeholder {color:var(--q); font-weight:500;}
-.fg .dsortwrap {display:flex; align-items:center; gap:8px; height:44px; padding:0 12px; background:#fff; border:1px solid #e9eaee; border-radius:10px; color:var(--q); box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.fg .dsortwrap {display:flex; align-items:center; gap:8px; height:44px; padding:0 12px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-button); color:var(--q);}
 .fg .dsort {border:none; outline:none; background:none; font-size:14px; font-weight:700; color:var(--ink); cursor:pointer; appearance:none; padding-right:2px;}
 /* `.dsort` zeroes its own outline and put nothing back, so this was the one
    control on the page that took keyboard focus and showed nothing at all —
    everything else still paints the browser's default ring. The wrapper carries
    it, as the search box does, because the select fills only 15px of the 44. */
-.fg .dsortwrap:focus-within {border-color:var(--ink); box-shadow:var(--ring);}
+.fg .dsortwrap:focus-within {border-color:var(--ink);  box-shadow:var(--ring);}
 /* directory — rows */
 .fg .dirrows {display:block;}
 .fg .dir:has(.dmenu.open) {overflow:visible;}
-.fg .dirrows > .dirrow:last-child {border-radius:0 0 16px 16px;}
+.fg .dirrows > .dirrow:last-child {border-radius:0 0 var(--r-card) var(--r-card);}
 /* DE-EMPHASIS BY GROUND, NOT BY OPACITY.
 
    Both of these were `opacity:.62`, which multiplies every colour inside the
@@ -3091,26 +3088,26 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    pure black at .5 measures 3.75 — there is no text colour that survives the
    multiply. So the row says "not active" with a tinted ground and its own
    `.dofftag` chip, both of which leave the text alone. */
-.fg .dirrow.off {background:#f7f8fa;}
-.fg .dirrow.off:hover {background:#f2f4f7;}
+.fg .dirrow.off {background:var(--tint);}
+.fg .dirrow.off:hover {background:var(--tint);}
 /* Imported/pre-seeded, no login yet — present but visibly not arrived. Same
    treatment as archived, its own class so the two states can ever diverge. */
-.fg .dirrow.unclaimed {background:#f7f8fa;}
-.fg .dirrow.unclaimed:hover {background:#f2f4f7;}
+.fg .dirrow.unclaimed {background:var(--tint);}
+.fg .dirrow.unclaimed:hover {background:var(--tint);}
 .fg .dofftag {font-size:14px; font-weight:500; color:var(--q); margin-left:4px;}
-.fg .direm {display:none; padding:32px 24px; text-align:center; font-size:14px; font-weight:600; color:var(--q); border-top:1px solid #f5f6f8;}
+.fg .direm {display:none; padding:32px 24px; text-align:center; font-size:14px; font-weight:600; color:var(--q); border-top:1px solid var(--line);}
 /* directory — per-row actions menu */
 .fg .dmorewrap {position:relative; display:flex; justify-content:flex-end;}
-.fg .dmore {width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--q); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);}
-.fg .dmore:hover {background:#f1f2f4; color:var(--ink);}
+.fg .dmore {width:34px; height:34px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--q); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);}
+.fg .dmore:hover {background:var(--tint); color:var(--ink);}
 /* .dir clips its corners, so a menu on the last row used to be cut off — the
    rows own the bottom radius now and the card lets the menu escape. */
-.fg .dmenu {position:absolute; top:38px; right:0; z-index:20; min-width:184px; background:#fff; border:1px solid #ebecef; border-radius:16px; box-shadow:0 18px 44px -10px rgba(0,0,0,.22); padding:4px; display:none; flex-direction:column; gap:2px;}
+.fg .dmenu {position:absolute; top:38px; right:0; z-index:var(--z-overlay); min-width:184px; background:var(--paper); border:1px solid #ebecef; border-radius:var(--r-card); box-shadow:var(--shadow-overlay); padding:4px; display:none; flex-direction:column; gap:2px;}
 .fg .dmenu.open {display:flex;}
 /* flipped above the button when the row sits near the bottom of the viewport */
 .fg .dmenu.up {top:auto; bottom:38px;}
-.fg .dmenu button {display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; font-size:14px; font-weight:600; color:var(--gray700); text-align:left; transition:background var(--t-fast) var(--ease);}
-.fg .dmenu button:hover {background:#f6f7f9;}
+.fg .dmenu button {display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button); font-size:14px; font-weight:600; color:var(--gray700); text-align:left; transition:background var(--t-fast) var(--ease);}
+.fg .dmenu button:hover {background:var(--tint);}
 .fg .dmenu button .i {color:var(--q);}
 .fg .dmenu button.danger {color:var(--bad-t);}
 .fg .dmenu button.danger .i {color:var(--bad-t);}
@@ -3118,18 +3115,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    to forget it. Same filled red the other two-step confirms in the app wear
    (.fl-btn.danger.arm, .lv-cancel.arm), because it is the same gesture; it has
    to beat `.dmenu button:hover`, hence the three classes. */
-.fg .dmenu button.danger.arm {background:#e0264f; color:#fff;}
-.fg .dmenu button.danger.arm .i {color:#fff;}
-.fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:12px 24px; border-top:1px solid #f5f6f8;}
+.fg .dmenu button.danger.arm {background:var(--bad); color:var(--paper);}
+.fg .dmenu button.danger.arm .i {color:var(--paper);}
+.fg .invrow {display:grid; grid-template-columns:2.4fr 1.4fr 1.4fr auto; gap:16px; align-items:center; padding:12px 24px; border-top:1px solid var(--line);}
 .fg .invrow:first-child {border-top:none;}
 .fg .invwho {display:flex; align-items:center; gap:12px; min-width:0;}
-.fg .invav {width:40px; height:40px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:var(--tint);}
-.fg .invrow.expired .invav {color:var(--bad-t); background:rgba(255,51,102,.1);}
+.fg .invav {width:40px; height:40px; border-radius:var(--r-button); flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--info-t); background:var(--tint);}
+.fg .invrow.expired .invav {color:var(--bad-t); background:var(--bad-tint);}
 /* A member with no staff card — a row that is not an invite, in a row shape
    that is. Colour only: the four tracks, the paddings and the phone rules
    are `.invrow`'s and this must not fork them. `.invexp` is already
    --warn-t, so the state text needs nothing. */
-.fg .dirnocards {border-bottom:1px solid #f5f6f8;}
+.fg .dirnocards {border-bottom:1px solid var(--line);}
 .fg .invrow.nocard .invav {color:var(--warn-t); background:rgba(164,75,8,.1);}
 .fg .invwho b {font-size:14px; font-weight:700; color:var(--ink); display:block;}
 .fg .invwho em {font-style:normal; font-size:12px; color:var(--q); display:block;}
@@ -3137,8 +3134,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .invexp {display:inline-flex; align-items:center; gap:4px; font-size:13px; font-weight:700; color:var(--warn-t);}
 .fg .invrow.expired .invexp {color:var(--bad-t);}
 /* directory port shims — anchor items in the row menu + toggled empty state */
-.fg .dmenu a { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:10px; font-size:14px; font-weight:600; color:var(--gray700); text-align:left; transition:background var(--t-fast) var(--ease); }
-.fg .dmenu a:hover { background:#f6f7f9; }
+.fg .dmenu a { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-button); font-size:14px; font-weight:600; color:var(--gray700); text-align:left; transition:background var(--t-fast) var(--ease); }
+.fg .dmenu a:hover { background:var(--tint); }
 .fg .dmenu a .i { color:var(--q); }
 .fg .direm.on { display:block; }
 
@@ -3411,7 +3408,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    Shared entry chrome. The screen's own layout is the `.mts2-*` block further
    down; the period nav and status chip still come from `.tpr`. No money rules,
    because there is no money on the screen. */
-.fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,#c81a41); margin:-6px 0 12px; }
+.fg .tp-err { font-size:13px; font-weight:600; color:var(--red-d,var(--bad-t)); margin:-6px 0 12px; }
 .fg .mts-back { display:flex; gap:8px; align-items:flex-start; padding:12px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); margin-bottom:16px; }
 .fg .mts-back b { display:block; font-size:13px; font-weight:700; }
 .fg .mts-back em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray700); margin-top:4px; }
@@ -3593,7 +3590,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    a revoke button neutral — the destructive one stays red until it's armed. */
 .fg .invbtns .fl-btn.danger { background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); }
 .fg .invbtns .fl-btn.danger.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
-.fg .invmsg { padding:12px 24px; font-size:13px; font-weight:600; color:var(--bad-t); border-bottom:1px solid #f5f6f8; }
+.fg .invmsg { padding:12px 24px; font-size:13px; font-weight:600; color:var(--bad-t); border-bottom:1px solid var(--line); }
 /* The same slot saying a letter went. --ok-t, not the page accent: this is
    state, and state is never the accent (feedback: design-system state colours). */
 .fg .invmsg.ok { color:var(--ok-t); }
@@ -3618,7 +3615,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    baked-in gradient would show its seams on two of the three. Font is
    inherited — Jakarta, never mono; a plate reads as a plate because of the
    slab and the tracking, not because of a typeface that isn't in the app. */
-.au-plate { display:inline-flex; align-items:center; gap:8px; width:fit-content; padding:4px 8px; border-radius:6px; background:#f8f9fb; border:1.5px solid #d7dae0; box-shadow:inset 0 -2px 0 rgba(10,11,16,.06); font-size:13px; font-weight:700; text-transform:uppercase; color:var(--ink); white-space:nowrap; }
+.au-plate { display:inline-flex; align-items:center; gap:8px; width:fit-content; padding:4px 8px; border-radius:var(--r-control); background:var(--tint); border:1.5px solid #d7dae0;  box-shadow:inset 0 -2px 0 var(--line); font-size:13px; font-weight:700; text-transform:uppercase; color:var(--ink); white-space:nowrap; }
 .au-plate .st { padding-left:8px; border-left:1px solid #d7dae0; font-size:12px; font-weight:700; color:var(--q); }
 .au-plate.sm { padding:4px 8px; font-size:12px; }
 .au-plate.sm .st { font-size:12px; }
@@ -3637,11 +3634,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
    CR80 (856:540) is the wallet-card ratio. Below 480px the ratio is unlocked:
    at phone width a fixed ratio squeezes the facts row past readability, and a
    card you have to pinch-zoom is not a card. */
-.fg .idc { position:relative; overflow:hidden; width:100%; max-width:460px; aspect-ratio:856/540; border-radius:16px; padding:24px; font-variant-numeric:tabular-nums; }
-.fg .idc.dark { background:var(--ink2); color:#fff; border:1px solid rgba(255,255,255,.08); box-shadow:0 16px 40px -16px rgba(0,0,0,.45); }
-.fg .idc.light { background:#fff; color:var(--ink); border:1px solid #ecedf1; box-shadow:0 16px 40px -22px rgba(10,12,20,.28); }
-.fg .idc .idc-sheen { position:absolute; inset:0; pointer-events:none; background:linear-gradient(115deg, rgba(255,255,255,.07), transparent 40%); }
-.fg .idc.light .idc-sheen { background:linear-gradient(115deg, rgba(10,12,20,.035), transparent 40%); }
+.fg .idc { position:relative; overflow:hidden; width:100%; max-width:460px; aspect-ratio:856/540; border-radius:var(--r-card); padding:24px; font-variant-numeric:tabular-nums; }
+.fg .idc.dark { background:var(--ink2); color:var(--paper); border:1px solid var(--on-ink-line); }
+.fg .idc.light { background:var(--paper); color:var(--ink); border:1px solid var(--line); }
+/* the sheen went: no glass (law 22) */
+.fg .idc .idc-sheen { display:none; }
 .fg .idc .idc-mesh { position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen; }
 .fg .idc.light .idc-mesh { display:none; }
 .fg .idc .idc-mesh i { position:absolute; border-radius:50%; filter:blur(70px); }
@@ -3650,7 +3647,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-in { position:relative; z-index:2; height:100%; display:flex; flex-direction:column; gap:12px; }
 .fg .idc .idc-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 .fg .idc .idc-top.noissuer { justify-content:flex-end; }
-.fg .idc .idc-org { font-size:12px; font-weight:500; color:rgba(255,255,255,.42); overflow-wrap:anywhere; }
+.fg .idc .idc-org { font-size:12px; font-weight:500; color:var(--on-ink-q); overflow-wrap:anywhere; }
 .fg .idc.light .idc-org { color:var(--q); }
 /* `--acc` is the licence type's own colour, set inline by id-card.tsx. The tint
    and the border are that colour; the TEXT is that colour mixed 45% into black.
@@ -3659,9 +3656,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
    worst case at 45% is 5.37 against the 13% tint, where the accent used neat
    was 2.75 for the teal and 3.87 for the blue. 55% already fails on yellow. */
 .fg .idc .idc-badge { flex:0 0 auto; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:500; white-space:nowrap;
-  background:color-mix(in srgb, var(--acc,#050505) 13%, #fff);
-  border:1px solid color-mix(in srgb, var(--acc,#050505) 33%, #fff);
-  color:color-mix(in srgb, var(--acc,#050505) 45%, #000); }
+  background:color-mix(in srgb, var(--acc,var(--ink)) 13%, var(--paper));
+  border:1px solid color-mix(in srgb, var(--acc,var(--ink)) 33%, var(--paper));
+  color:color-mix(in srgb, var(--acc,var(--ink)) 45%, var(--ink)); }
 
 /* ── the credential card ──
    A licence or a ticket, and the only `.idc` that sits in a WALL of itself.
@@ -3680,75 +3677,75 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-state { flex:0 0 auto; padding:4px 12px; border-radius:999px; border:1px solid transparent;
   font-size:12px; font-weight:700; white-space:nowrap; }
 .fg .idc.light .idc-state.ok { background:var(--ok-tint); color:var(--ok-t); border-color:var(--ok-tint); }
-.fg .idc.light .idc-state.warn { background:rgba(240,164,49,.15); color:var(--warn-t); border-color:rgba(240,164,49,.32); }
-.fg .idc.light .idc-state.bad { background:rgba(255,51,102,.1); color:var(--bad-t); border-color:rgba(255,51,102,.25); }
-.fg .idc.light .idc-state.mute { background:#f3f4f7; color:var(--q); border-color:#e9ebef; }
+.fg .idc.light .idc-state.warn { background:var(--warn-tint); color:var(--warn-t); border-color:var(--warn); }
+.fg .idc.light .idc-state.bad { background:var(--bad-tint); color:var(--bad-t); border-color:var(--bad); }
+.fg .idc.light .idc-state.mute { background:var(--tint); color:var(--q); border-color:#e9ebef; }
 .fg .idc.dark .idc-state.ok { background:var(--ok-tint); color:var(--ok-t); }
-.fg .idc.dark .idc-state.warn { background:rgba(240,164,49,.18); color:#F0A431; }
-.fg .idc.dark .idc-state.bad { background:rgba(255,51,102,.16); color:#FF3366; }
-.fg .idc.dark .idc-state.mute { background:rgba(255,255,255,.07); color:rgba(255,255,255,.5); }
+.fg .idc.dark .idc-state.warn { background:var(--warn-tint); color:#F0A431; }
+.fg .idc.dark .idc-state.bad { background:var(--bad-tint); color:var(--bad); }
+.fg .idc.dark .idc-state.mute { background:var(--on-ink-tint); color:var(--on-ink-q); }
 /* A GRID, not a flex row: three cards side by side is the point of the wall,
    and with flex each card's second column started wherever its first value
    happened to end — so "Expires" sat somewhere different on every card. */
 .fg .idc.cred .idc-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 16px; }
 
 .fg .idc .idc-id { display:flex; align-items:center; gap:12px; min-width:0; }
-.fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:16px; flex:0 0 auto; background:var(--ink); padding:2px; overflow:hidden; }
-.fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:16px; display:flex; align-items:center; justify-content:center; object-fit:cover; }
-.fg .idc.dark .idc-photo .inn { background:#0A0B10; color:#fff; }
-.fg .idc.light .idc-photo .inn { background:#f3f4f7; color:var(--ink); }
+.fg .idc .idc-photo { position:relative; width:76px; height:76px; border-radius:var(--r-card); flex:0 0 auto; background:var(--ink); padding:2px; overflow:hidden; }
+.fg .idc .idc-photo .inn, .fg .idc .idc-photo img { width:100%; height:100%; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; object-fit:cover; }
+.fg .idc.dark .idc-photo .inn { background:var(--ink); color:var(--paper); }
+.fg .idc.light .idc-photo .inn { background:var(--tint); color:var(--ink); }
 .fg .idc .idc-photo .inn { font-size:24px; font-weight:700; letter-spacing:-.02em; }
 .fg .idc .idc-who { min-width:0; }
 .fg .idc .idc-who b { display:block; font-size:20px; font-weight:700; line-height:1.15; overflow-wrap:anywhere; }
-.fg .idc .idc-who em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
+.fg .idc .idc-who em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--on-ink-q); }
 .fg .idc.light .idc-who em { color:var(--gray500); }
-.fg .idc .idc-pill { display:inline-flex; color:#2554d8; font-size:14px; font-weight:500; }
+.fg .idc .idc-pill { display:inline-flex; color:var(--ink); font-size:14px; font-weight:500; }
 .fg .idc .idc-facts { margin-top:auto; display:flex; gap:24px; flex-wrap:wrap; }
 .fg .idc .idc-facts .f { display:flex; flex-direction:column; gap:4px; min-width:0; }
-.fg .idc .idc-facts em { font-style:normal; font-size:12px; font-weight:500; color:rgba(255,255,255,.38); }
+.fg .idc .idc-facts em { font-style:normal; font-size:12px; font-weight:500; color:var(--on-ink-q); }
 .fg .idc.light .idc-facts em { color:var(--q); }
 .fg .idc .idc-facts b { font-size:13px; font-weight:700; }
 .fg .idc .idc-facts .f.ok b { color:var(--ok-t); }
 .fg .idc.light .idc-facts .f.ok b { color:var(--ok-t); }
 .fg .idc .idc-facts .f.warn b { color:#F0A431; }
 .fg .idc.light .idc-facts .f.warn b { color:var(--warn-t); }
-.fg .idc .idc-facts .f.bad b { color:#FF3366; }
+.fg .idc .idc-facts .f.bad b { color:var(--bad); }
 .fg .idc.light .idc-facts .f.bad b { color:var(--bad-t); }
-.fg .idc .idc-facts .f.mute b { color:rgba(255,255,255,.45); }
+.fg .idc .idc-facts .f.mute b { color:var(--on-ink-q); }
 .fg .idc.light .idc-facts .f.mute b { color:var(--q); }
 .fg .idc .idc-tel { color:inherit; text-decoration:none; border-bottom:1px solid currentColor; }
 @media (max-width:480px){ .fg .idc { aspect-ratio:auto; min-height:220px; } .fg .idc .idc-facts { margin-top:16px; } }
 
 /* ---- credential cards (.credgrid / .cred) ---- */
 .fg .credgrid { margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:12px; }
-.fg .cred { position:relative; background:#fff; border:1px solid #f0f0f2; border-radius:16px; padding:16px; font-variant-numeric:tabular-nums; }
+.fg .cred { position:relative; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:16px; font-variant-numeric:tabular-nums; }
 .fg .cred-top { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
 .fg .cred-top b { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
-.fg .cred-badge { flex:0 0 auto; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700; }
+.fg .cred-badge { flex:0 0 auto; padding:4px 8px; border-radius:var(--r-control); font-size:12px; font-weight:700; }
 .fg .cred-no { margin-top:8px; font-size:13px; font-weight:700; color:var(--gray700); }
 .fg .cred-no.none { color:#c1c6d0; font-weight:600; }
 .fg .cred-foot { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .fg .cred-exp { font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .lstat { flex:0 0 auto; font-size:12px; font-weight:700; padding:4px 8px; border-radius:6px; }
+.fg .lstat { flex:0 0 auto; font-size:12px; font-weight:700; padding:4px 8px; border-radius:var(--r-control); }
 .fg .lstat.ok { background:var(--ok-tint); color:var(--ok-t); }
-.fg .lstat.warn { background:rgba(240,164,49,.16); color:var(--warn-t); }
-.fg .lstat.bad { background:rgba(255,51,102,.12); color:var(--bad-t); }
+.fg .lstat.warn { background:var(--warn-tint); color:var(--warn-t); }
+.fg .lstat.bad { background:var(--bad-tint); color:var(--bad-t); }
 .fg .lstat.mute { background:var(--tint); color:var(--q); }
-.fg .cred-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--q); background:#f6f7f9; opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .cred-del { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:var(--r-control); display:flex; align-items:center; justify-content:center; color:var(--q); background:var(--tint); opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .cred:hover .cred-del, .fg .cred-del:focus-visible { opacity:1; }
-.fg .cred-del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
+.fg .cred-del:hover { background:var(--bad-tint); color:var(--bad-t); }
 .fg .cred-del:disabled { opacity:.5; cursor:default; }
 /* a hover-revealed control is an unreachable control on a phone, and this
    screen is used on one — on a touch pointer the × is simply always there */
 @media (hover:none), (pointer:coarse) { .fg .cred-del { opacity:1; } }
 
 /* ---- field-level validation ---- */
-.fg .inp.err { border-color:rgba(255,51,102,.55); background:rgba(255,51,102,.04); }
-.fg .inp.err:focus { border-color:#e0264f; box-shadow:var(--ring-bad); }
+.fg .inp.err { border-color:var(--bad); background:var(--bad-tint); }
+.fg .inp.err:focus { border-color:var(--bad);  box-shadow:var(--ring-bad); }
 .fg .ferr { font-size:12px; font-weight:700; color:var(--bad-t); }
 
 /* ---- read-mode fact rows (values that don't belong on the plastic) ---- */
-.fg .ro-row { display:flex; align-items:baseline; gap:16px; padding:12px 2px; border-bottom:1px solid #f4f5f7; }
+.fg .ro-row { display:flex; align-items:baseline; gap:16px; padding:12px 2px; border-bottom:1px solid var(--line); }
 .fg .ro-row:last-child { border-bottom:none; }
 .fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:700; color:var(--gray700); }
 .fg .ro-row b { flex:1; min-width:0; font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
@@ -3773,7 +3770,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* qualifications, as the list of tickets it is */
 .fg .qual-list { display:flex; flex-wrap:wrap; gap:8px; }
-.fg .qual { padding:8px 12px; border-radius:10px; background:#f6f7f9; border:1px solid #f0f0f2; font-size:13px; font-weight:700; color:var(--gray700); }
+.fg .qual { padding:8px 12px; border-radius:var(--r-button); background:var(--tint); border:1px solid var(--line); font-size:13px; font-weight:700; color:var(--gray700); }
 
 /* work rights: the no-visa answer, in edit mode */
 
@@ -4262,35 +4259,35 @@ button.fl-btn { font-size:14px; font-weight:700; }
    .cal-* CAN stay scoped: the popover always portals wrapped in
    `<div class="fg" style="display:contents">` (see timepay/settings.tsx), so
    `.fg .cal-…` matches in both placements. */
-.datef { box-sizing:border-box; display:flex; align-items:center; gap:8px; min-width:120px; height:38px; padding:0 12px; border-radius:10px; border:1px solid rgba(10,11,16,.14); background:#fff; font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:600; color:#050505; text-align:left; cursor:pointer; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.datef { box-sizing:border-box; display:flex; align-items:center; gap:8px; min-width:120px; height:38px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font-family:var(--font-jakarta), sans-serif; font-size:14px; font-weight:600; color:var(--ink); text-align:left; cursor:pointer; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .datef:hover:not(:disabled) { border-color:rgba(10,11,16,.3); }
-.datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:var(--ink); box-shadow:var(--ring); }
+.datef:focus-visible, .datef[aria-expanded="true"] { outline:none; border-color:var(--ink);  box-shadow:var(--ring); }
 .datef:disabled { opacity:.5; cursor:not-allowed; }
 .datef .datef-v { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
 .datef.empty .datef-v { color:var(--q); font-weight:500; }
 .datef .datef-ic { display:flex; flex:0 0 auto; color:var(--q); }
 .datef svg { display:block; }
 /* fleet modals run taller controls (.fl-i) — match them or the row steps */
-.datef.lg { width:100%; height:44px; padding:0 12px; border:1.5px solid var(--line); border-radius:10px; }
+.datef.lg { width:100%; height:44px; padding:0 12px; border:1.5px solid var(--line); border-radius:var(--r-control); }
 /* the staff card runs 46px .inp boxes — match them or the row steps
    (components/profile/fields.tsx) */
-.datef.inpd { width:100%; height:46px; padding:0 16px; border-radius:10px; border:1px solid var(--line); background:#fafbfc; font-size:14px; font-weight:500; }
-.datef.inpd.err { border-color:rgba(255,51,102,.55); background:rgba(255,51,102,.04); }
+.datef.inpd { width:100%; height:46px; padding:0 16px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:500; }
+.datef.inpd.err { border-color:var(--bad); background:var(--bad-tint); }
 
-.fg .cal-pop { position:fixed; z-index:200; width:300px; padding:12px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 20px 50px -20px rgba(0,0,0,.35); animation:calPop .16s ease; }
+.fg .cal-pop { position:fixed; z-index:var(--z-modal); width:300px; padding:12px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-overlay); animation:calPop .16s ease; }
 @keyframes calPop { from { opacity:0; transform:translateY(-4px); } }
 .fg .cal-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .fg .cal-mo { flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .cal-arw { width:30px; height:30px; flex:0 0 auto; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#fff; border:1px solid rgba(0,0,0,.07); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .cal-arw { width:30px; height:30px; flex:0 0 auto; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--gray500); background:var(--paper); border:1px solid var(--line); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .cal-arw:hover:not(:disabled) { color:var(--ink); border-color:var(--line); }
 .fg .cal-arw:disabled { opacity:.35; cursor:not-allowed; }
 .fg .cal-wd, .fg .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
 .fg .cal-wd span { text-align:center; padding-bottom:4px; font-size:12px; font-weight:500; color:var(--gray400); }
 /* Jakarta's proportional digits make a column of dates wobble; tabular figures
    are the one place a grid of numbers needs them (there is no mono face). */
-.fg .cal-d { position:relative; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); background:transparent; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .cal-d:hover:not(:disabled) { background:#f2f4f7; }
-.fg .cal-d.wknd { background:#fafbfc; }
+.fg .cal-d { position:relative; height:34px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink); background:transparent; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .cal-d:hover:not(:disabled) { background:var(--tint); }
+.fg .cal-d.wknd { background:var(--tint); }
 /* An out-of-month date is context, not decoration — it is still the number you
    read to know which week you are looking at, and #c3c7cf put it at 1.69:1.
    The tier below `--ink` is carried by weight, as everywhere else in this
@@ -4302,23 +4299,23 @@ button.fl-btn { font-size:14px; font-weight:700; }
    (.rng-s/.rng-e) read var(--teal), so a selected range drew green ends with a
    cyan band between them */
 .fg .cal-d.rng { background:rgba(34,197,94,.12); border-radius:0; }
-.fg .cal-d.rng-s { border-radius:10px 0 0 10px; }
-.fg .cal-d.rng-e { border-radius:0 10px 10px 0; }
-.fg .cal-d.rng-s.rng-e { border-radius:10px; }
+.fg .cal-d.rng-s { border-radius:var(--r-button) 0 0 var(--r-button); }
+.fg .cal-d.rng-e { border-radius:0 var(--r-button) var(--r-button) 0; }
+.fg .cal-d.rng-s.rng-e { border-radius:var(--r-button); }
 .fg .cal-d.rng-s, .fg .cal-d.rng-e { background:var(--ink); color:var(--paper); }
 /* violet = public holiday, the same one the day tiles use. Declared AFTER the
    range so it survives inside a band: a holiday isn't a day you're taking. */
 .fg .cal-d.hol { background:var(--tint-2); color:var(--ink); }
 .fg .cal-d.hol::after { content:""; position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--ink); color:var(--paper); }
 .fg .cal-d.on { background:var(--ink); color:var(--paper); }
-.fg .cal-d.today { box-shadow:0 0 0 1.5px #fff, 0 0 0 3px var(--ink); }
-.fg .cal-d:focus-visible { outline:none; box-shadow:0 0 0 2px #fff; }
-.fg .cal-foot { display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid #f0f0f2; }
-.fg .cal-fbtn { height:30px; padding:0 12px; border-radius:10px; font-size:12px; font-weight:700; color:var(--gray700); background:#f4f5f7; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .cal-d.today {  box-shadow:0 0 0 1.5px var(--paper), 0 0 0 3px var(--ink); }
+.fg .cal-d:focus-visible { outline:none;  box-shadow:0 0 0 2px var(--paper); }
+.fg .cal-foot { display:flex; align-items:center; gap:8px; margin-top:8px; padding-top:8px; border-top:1px solid var(--line); }
+.fg .cal-fbtn { height:30px; padding:0 12px; border-radius:var(--r-button); font-size:12px; font-weight:700; color:var(--gray700); background:var(--tint); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .cal-fbtn:hover:not(:disabled) { background:#eceef1; color:var(--ink); }
 .fg .cal-fbtn:disabled { opacity:.4; cursor:not-allowed; }
-.fg .cal-fbtn.clear { margin-left:auto; color:var(--bad-t); background:rgba(255,51,102,.07); }
-.fg .cal-fbtn.clear:hover { background:rgba(255,51,102,.13); color:var(--bad-t); }
+.fg .cal-fbtn.clear { margin-left:auto; color:var(--bad-t); background:var(--bad-tint); }
+.fg .cal-fbtn.clear:hover { background:var(--bad-tint); color:var(--bad-t); }
 
 /* ---- Admin settings index (components/admin/admin-index.tsx) ----
    A settings landing is a menu, so it is rows, not cards: one white card per
@@ -4330,11 +4327,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .adm-stg { max-width:760px; }
 .fg .adm-group + .adm-group { margin-top:32px; }
 .fg .adm-glabel { font-size:12px; font-weight:500; color:var(--gray400); margin:0 0 12px 2px; }
-.fg .adm-card { background:#fff; border:1px solid #f0f0f2; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); overflow:hidden; }
-.fg .adm-row { display:flex; align-items:center; gap:12px; padding:16px 16px; text-decoration:none; color:inherit; border-top:1px solid #f5f6f8; transition:background var(--t-fast) var(--ease); }
+.fg .adm-card { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
+.fg .adm-row { display:flex; align-items:center; gap:12px; padding:16px 16px; text-decoration:none; color:inherit; border-top:1px solid var(--line); transition:background var(--t-fast) var(--ease); }
 .fg .adm-row:first-child { border-top:0; }
-.fg a.adm-row:hover { background:#fafbfc; }
-.fg .adm-ic { flex:0 0 auto; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; }
+.fg a.adm-row:hover { background:var(--tint); }
+.fg .adm-ic { flex:0 0 auto; width:40px; height:40px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; }
 .fg .adm-main { flex:1; min-width:0; }
 .fg .adm-main b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
 .fg .adm-main em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:2px; }
@@ -4351,7 +4348,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .adm-coming { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
   margin:8px 2px 0; font-size:13px; font-weight:600; color:var(--gray500); }
 .fg .adm-coming span { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
+.fg .adm-empty { padding:80px 16px; text-align:center; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); }
 .fg .adm-empty b { display:block; font-size:16px; font-weight:700; color:var(--gray500); }
 .fg .adm-empty em { display:block; max-width:420px; margin:4px auto 0; font-style:normal; font-size:13px; font-weight:500; color:var(--gray400); line-height:1.5; }
 
@@ -4372,16 +4369,16 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-dot { width:7px; height:7px; border-radius:50%; flex:0 0 auto; }
 .fg .int-pill.on { color:var(--ink); }
 .fg .int-pill.on .int-dot { background:var(--ink); }
-.fg .int-pill.warn { color:#a56a05; }
+.fg .int-pill.warn { color:var(--warn-t); }
 .fg .int-pill.warn .int-dot { background:var(--warn-t); }
 .fg .int-pill.off { color:var(--gray500); }
 .fg .int-pill.off .int-dot { background:var(--gray400); }
 @media (max-width:560px){ .fg .int-pill { display:none; } }
 
 /* Outcome of a round trip that just finished — the OAuth redirect's one line. */
-.fg .int-note { padding:12px 16px; margin-bottom:16px; border-radius:16px; font-size:14px; font-weight:600; line-height:1.45; }
+.fg .int-note { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); font-size:14px; font-weight:600; line-height:1.45; }
 .fg .int-note.ok { background:var(--ok-tint); color:#00806c; }
-.fg .int-note.bad { background:rgba(255,51,102,.08); color:var(--bad-t); }
+.fg .int-note.bad { background:var(--bad-tint); color:var(--bad-t); }
 
 .fg .int-facts { display:flex; flex-wrap:wrap; gap:12px 32px; margin:0 0 16px; }
 .fg .int-facts dt { font-size:12px; font-weight:500; color:var(--gray400); }
@@ -4389,12 +4386,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* Why the button isn't there. A missing env var is an instruction, not an
    error, so it reads as one. */
-.fg .int-blocked { padding:12px 16px; margin-bottom:16px; border-radius:16px; border:1.5px dashed #e6e8ee; background:#fafbfc; }
+.fg .int-blocked { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); border:1.5px dashed var(--line); background:var(--tint); }
 .fg .int-blocked b { display:block; font-size:14px; font-weight:700; color:var(--gray700); }
 .fg .int-blocked p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fg .int-blocked ul { margin:8px 0 0; padding-left:16px; }
 .fg .int-blocked li { font-size:13px; font-weight:500; line-height:1.6; color:var(--gray500); }
-.fg .int-blocked code, .fg .int-scopes code { padding:1px 4px; border-radius:6px; background:#eef0f4; font-family:var(--mono); font-size:.92em; font-weight:700; color:var(--gray700); }
+.fg .int-blocked code, .fg .int-scopes code { padding:1px 4px; border-radius:var(--r-control); background:var(--tint-2); font-family:var(--mono); font-size:.92em; font-weight:700; color:var(--gray700); }
 
 .fg .int-act { display:flex; flex-wrap:wrap; gap:8px; }
 /* Connect is an <a> (an API route — see the note in xero-screen.tsx), and
@@ -4403,13 +4400,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-hint { margin:12px 2px 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 /* Disconnect's second click. The only destructive button in the section, so
    the variant lives with it rather than in the shared .pbtn block. */
-.fg .pbtn.danger { background:#e0264f; color:#fff; box-shadow:0 8px 18px -8px rgba(224,38,79,.6); }
-.fg .pbtn.danger:hover:not(:disabled) { background:#c81f44; }
+.fg .pbtn.danger { background:var(--bad); color:var(--paper); }
+.fg .pbtn.danger:hover:not(:disabled) { background:var(--bad-t); }
 .fg .pbtn:disabled { opacity:.55; cursor:default; }
 
 .fg .int-tenants { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-.fg .int-tenant { display:flex; align-items:center; gap:12px; padding:12px 12px; border-radius:10px; border:1px solid #eef0f4; background:#fafbfc; font-size:14px; font-weight:700; cursor:pointer; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fg .int-tenant:hover { border-color:#dfe3ea; background:#fff; }
+.fg .int-tenant { display:flex; align-items:center; gap:12px; padding:12px 12px; border-radius:var(--r-button); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:700; cursor:pointer; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fg .int-tenant:hover { border-color:var(--line); background:var(--paper); }
 .fg .int-tenant input { accent-color:var(--ink); width:16px; height:16px; }
 
 .fg .int-uses { display:flex; flex-direction:column; gap:16px; }
@@ -4420,12 +4417,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
    and the sentence. A scope the stored grant predates is marked, because that
    is the whole reason to render the list against a connection at all. */
 .fg .int-scopes { list-style:none; margin:0; padding:0; }
-.fg .int-scopes li { padding:12px 0; border-top:1px solid #f5f6f8; }
+.fg .int-scopes li { padding:12px 0; border-top:1px solid var(--line); }
 .fg .int-scopes li:first-child { border-top:0; padding-top:0; }
 .fg .int-scopes li p { margin:4px 0 0; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fg .int-scopehead { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
 .fg .int-tag { font-size:14px; font-weight:500; color:var(--gray500); }
-.fg .int-tag.warn { color:#a56a05; }
+.fg .int-tag.warn { color:var(--warn-t); }
 
 /* A backfill in progress is NOT a warning. It wears the ok green, because the
    thing it reports is working — the warn amber next to it now means one thing
@@ -4446,10 +4443,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .sp-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
 .fg .sp-selall { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .fg .sp-selall input { width:15px; height:15px; accent-color:var(--ink); }
-.fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:10px; border:0; background:transparent; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
-.fg .sp-ghostbtn:hover { background:#f4f5f7; color:var(--gray700); }
+.fg .sp-ghostbtn { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:var(--r-button); border:0; background:transparent; font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer; }
+.fg .sp-ghostbtn:hover { background:var(--tint); color:var(--gray700); }
 .fg .sp-rows { display:flex; flex-direction:column; }
-.fg .sp-row { border-top:1px solid #f5f6f8; }
+.fg .sp-row { border-top:1px solid var(--line); }
 .fg .sp-row:first-child { border-top:0; }
 .fg .sp-row.off .sp-main b { color:var(--gray400); }
 .fg .sp-line { display:flex; align-items:center; gap:12px; padding:12px 0; }
@@ -4464,15 +4461,15 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .sp-f { display:flex; flex-direction:column; gap:4px; }
 .fg .sp-f > span { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .sp-f > span input { width:14px; height:14px; accent-color:var(--ink); }
-.fg .sp-f > input { height:38px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:14px; font-weight:600; color:var(--gray700); }
+.fg .sp-f > input { height:38px; padding:0 12px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; color:var(--gray700); }
 .fg .sp-f > input:focus { outline:none; border-color:var(--ink); }
-.fg .sp-f.out > input { background:#fafbfc; color:var(--gray400); }
+.fg .sp-f.out > input { background:var(--tint); color:var(--gray400); }
 .fg .sp-editorfoot { grid-column:1 / -1; display:flex; align-items:center; gap:8px; }
 .fg .sp-linkpick { display:flex; align-items:center; gap:8px; }
-.fg .sp-linkpick select { height:34px; padding:0 8px; border-radius:6px; border:1.5px solid #e2e5ea; background:#fff; font-size:13px; font-weight:700; color:var(--gray700); }
-.fg .sp-bulk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:12px 12px; border-radius:10px; background:#f7f8fa; }
+.fg .sp-linkpick select { height:34px; padding:0 8px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:13px; font-weight:700; color:var(--gray700); }
+.fg .sp-bulk { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); }
 .fg .sp-bulk > span { font-size:13px; font-weight:700; color:var(--gray500); }
-.fg .sp-linked { margin-top:12px; border-top:1px solid #f5f6f8; padding-top:8px; }
+.fg .sp-linked { margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
 /* Where an unlink actually belongs, when it isn't this screen. */
 .fg .sp-elsewhere { max-width:230px; font-size:12px; font-weight:600; line-height:1.45; color:var(--gray400); text-align:right; }
 .fg .sp-empty { padding:12px 0; font-size:13px; font-weight:600; color:var(--gray400); }
@@ -4480,11 +4477,11 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* Connect/disconnect guards (components/integrations/connect-actions).
    The consent warning is quiet and informational; the disconnect confirm is
    the loud one, because it is the only control in this area that deletes. */
-.fg .int-consent { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; padding:12px 12px; border-radius:10px; background:#f7f8fa; color:var(--gray500); }
-.fg .int-consent svg { flex:0 0 auto; margin-top:1px; color:#a56a05; }
+.fg .int-consent { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; padding:12px 12px; border-radius:var(--r-button); background:var(--tint); color:var(--gray500); }
+.fg .int-consent svg { flex:0 0 auto; margin-top:1px; color:var(--warn-t); }
 .fg .int-consent p { margin:0; font-size:13px; font-weight:600; line-height:1.55; }
 .fg .int-consent b { font-weight:700; color:var(--gray700); }
-.fg .int-danger { margin:0 0 4px; padding:16px 16px; border-radius:16px; border:1.5px solid rgba(224,38,79,.28); background:rgba(255,51,102,.05); }
+.fg .int-danger { margin:0 0 4px; padding:16px 16px; border-radius:var(--r-card); border:1.5px solid var(--bad); background:var(--bad-tint); }
 .fg .int-danger > b { display:block; font-size:14px; font-weight:700; color:var(--bad-t); }
 .fg .int-danger ul { margin:8px 0 0; padding-left:16px; }
 .fg .int-danger li { margin-top:4px; font-size:13px; font-weight:600; line-height:1.55; color:var(--gray600, var(--gray500)); }
@@ -4493,8 +4490,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .int-typed { display:flex; flex-direction:column; gap:4px; margin-top:12px; }
 .fg .int-typed > span { font-size:12px; font-weight:700; color:var(--gray500); }
 .fg .int-typed > span b { font-weight:700; color:var(--gray700); }
-.fg .int-typed input { height:40px; padding:0 12px; border-radius:10px; border:1.5px solid #e2e5ea; background:#fff; font-size:14px; font-weight:600; color:var(--gray700); }
-.fg .int-typed input:focus { outline:none; border-color:#e0264f; }
+.fg .int-typed input { height:40px; padding:0 12px; border-radius:var(--r-control); border:1.5px solid var(--line); background:var(--paper); font-size:14px; font-weight:600; color:var(--gray700); }
+.fg .int-typed input:focus { outline:none; border-color:var(--bad); }
 
 /* ---- Organisation screen (components/org/) ----
    Additive: the company profile reuses .card2 / .idc / .cred wholesale, and
@@ -4508,8 +4505,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    is stretched over the whole card so the target is the card, while the
    accessible name stays on a real control. */
 .fg .cred.clickable { transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.fg .cred.clickable:hover { border-color:#e2e5ea; }
-.fg .cred-open { position:absolute; inset:0; z-index:1; border-radius:16px; }
+.fg .cred.clickable:hover { border-color:var(--line); }
+.fg .cred-open { position:absolute; inset:0; z-index:var(--z-raised); border-radius:var(--r-card); }
 .fg .cred-open:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 .fg .cred-issuer { margin-top:4px; font-size:12px; font-weight:600; color:var(--gray400); overflow-wrap:anywhere; }
 
@@ -4557,10 +4554,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
    card: it is the SAME white surface, and a black button on it would read as a
    different screen. */
 .fg .orgcard2 .pbtn.primary {
-  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:#fff;
-  box-shadow:0 8px 18px -8px rgba(0,127,168,.75); }
+  background:var(--wb2-cy); border:1px solid var(--wb2-cy); color:var(--paper); }
 .fg .orgcard2 .pbtn.primary:hover:not(:disabled) {
-  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:#fff; }
+  background:var(--wb2-cy2); border-color:var(--wb2-cy2); color:var(--paper); }
 
 /* Overview's lockup — the logo, the trading name, the legal name. The staff
    card's `.pident` verbatim, with two differences a business has and a person
@@ -4623,13 +4619,13 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* Logo uploader — a tile in READ mode, not a row inside an edit form. */
 .fg .orglogo { min-width:0; }
-.fg .orglogo-tile { position:relative; aspect-ratio:1; width:100%; max-width:260px; border-radius:10px;
+.fg .orglogo-tile { position:relative; aspect-ratio:1; width:100%; max-width:260px; border-radius:var(--r-button);
   display:flex; align-items:center; justify-content:center; overflow:hidden;
-  border:1.5px dashed #d3d9e2; background:#fafbfc; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+  border:1.5px dashed #d3d9e2; background:var(--tint); transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 /* Filled, it is no longer a target to aim at — it is the artwork, so the dashed
    edge becomes a plain one and the ground goes white to show the logo honestly
    against what it will actually be printed on. */
-.fg .orglogo-tile.has { border-style:solid; border-color:#ecedf1; background:#fff; }
+.fg .orglogo-tile.has { border-style:solid; border-color:var(--line); background:var(--paper); }
 .fg .orglogo-tile.over { border-color:var(--ink); background:var(--tint); }
 .fg .orglogo-tile.busy { opacity:.6; }
 .fg .orglogo-tile img { width:100%; height:100%; object-fit:contain; padding:16px; }
@@ -4660,7 +4656,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    The marks themselves bring their own sizing from letterhead.css. Nothing
    here restates it — these rows own the GROUND and the label, nothing else. */
-.fg .orglogo-uses { max-width:260px; margin:12px 0 0; border:1px solid #ecedf1; border-radius:16px; overflow:hidden; }
+.fg .orglogo-uses { max-width:260px; margin:12px 0 0; border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
 .fg .orglogo-use { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 12px; min-height:56px; }
 .fg .orglogo-use em { flex:0 0 auto; font-style:normal; font-size:12px; font-weight:500; }
 /* letterhead.css sizes these `flex:0 0 auto`, which is right on a letterhead
@@ -4670,9 +4666,9 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orglogo-use .org-lh-logo, .fg .orglogo-use .org-mark-logo { flex:0 1 auto; min-width:0; }
 /* the two grounds, quoted from the surfaces: paper is the handover sheet and
    the print document, #0b0d12 is the share link's bar */
-.fg .orglogo-use.paper { background:#fff; }
+.fg .orglogo-use.paper { background:var(--paper); }
 .fg .orglogo-use.paper em { color:var(--q); }
-.fg .orglogo-use.dark { background:#0b0d12; border-top:1px solid #ecedf1; }
+.fg .orglogo-use.dark { background:#0b0d12; border-top:1px solid var(--line); }
 .fg .orglogo-use.dark em { color:rgba(236,238,244,.65); }
 /* the document letterhead runs 52px tall; inside a 260px preview row that is
    the whole row, so it is scaled to sit in one without changing the ratio the
@@ -4684,7 +4680,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    preview that cannot fail. What is drawn here are the DERIVED roles
    (lib/org/theme.ts), painted inline by the component, so the only colours
    this sheet owns are the unthemed fallbacks. */
-.fg .orgcolrow { margin-top:32px; padding-top:24px; border-top:1px solid #ecedf1; }
+.fg .orgcolrow { margin-top:32px; padding-top:24px; border-top:1px solid var(--line); }
 .fg .orgcolrow > em { display:block; font-style:normal; margin-bottom:12px; font-size:12px;
   font-weight:500; color:var(--q); }
 .fg .orgcol { display:flex; align-items:flex-start; gap:24px; flex-wrap:wrap; }
@@ -4698,7 +4694,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    sides, so the colour survives as a frame around the page. Scaled here by the
    same ratio as the page, so what is on screen is the shape that prints. */
 .fg .orgcol-doc { position:relative; flex:0 0 auto; width:186px; aspect-ratio:210/297;
-  background:#fff; border:1px solid #ecedf1; border-radius:10px; overflow:hidden; }
+  background:var(--paper); border:1px solid var(--line); border-radius:var(--r-button); overflow:hidden; }
 /* THE SAME TWO NUMBERS AS THE REAL SHEETS, scaled: a 4mm gutter and the
    7.94mm radius on a 186px sheet standing for 210mm (x0.886). A FRAME, on all
    four sides, because that is what the documents draw — a preview showing a
@@ -4707,22 +4703,22 @@ button.fl-btn { font-size:14px; font-weight:700; }
    Written out rather than read from --doc-* because this must draw for a
    colour that has NOT been saved yet, which is exactly when those are absent. */
 .fg .orgcol-band { position:absolute; inset:0; pointer-events:none; }
-.fg .orgcol-well { position:absolute; inset:3.5px; background:#fff;
+.fg .orgcol-well { position:absolute; inset:3.5px; background:var(--paper);
   border-radius:calc(6px - 3.5px); pointer-events:none; }
 .fg .orgcol-page { position:relative; padding:12px 16px 0; display:flex; flex-direction:column; gap:4px; }
 .fg .orgcol-page b { font-size:12px; font-weight:700; color:#16181d; }
 .fg .orgcol-page span { font-size:12px; font-weight:600; color:var(--ink); }
-.fg .orgcol-page i { display:block; height:3px; border-radius:999px; background:#eef0f3; margin-top:4px; }
+.fg .orgcol-page i { display:block; height:3px; border-radius:999px; background:var(--tint-2); margin-top:4px; }
 .fg .orgcol-page i.short { width:58%; }
 .fg .orgcol-pick { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-top:2px; }
 /* A native colour input is a button with a swatch in it and no two browsers
    dress it alike; the padding/border reset is what makes the swatch fill the
    control instead of floating in chrome-drawn inset. */
-.fg .orgcol-swatch { width:46px; height:46px; padding:0; border:1px solid #d8dbe2; border-radius:6px;
+.fg .orgcol-swatch { width:46px; height:46px; padding:0; border:1px solid #d8dbe2; border-radius:var(--r-control);
   background:none; cursor:pointer; appearance:none; -webkit-appearance:none; }
 .fg .orgcol-swatch::-webkit-color-swatch-wrapper { padding:4px; }
-.fg .orgcol-swatch::-webkit-color-swatch { border:none; border-radius:6px; }
-.fg .orgcol-swatch::-moz-color-swatch { border:none; border-radius:6px; }
+.fg .orgcol-swatch::-webkit-color-swatch { border:none; border-radius:var(--r-control); }
+.fg .orgcol-swatch::-moz-color-swatch { border:none; border-radius:var(--r-control); }
 .fg .orgcol-hex { width:130px; height:46px; }
 .fg .orgcol .carderr { flex:1 0 100%; }
 
@@ -4734,7 +4730,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .orgacct-f b { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; font-size:16px; font-weight:700; color:var(--ink); }
 .fg .orgacct-f i { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
 /* "You" is a fact, not a state — the neutral chip, never the ok/danger pair. */
-.fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:6px;
+.fg .orgacct-you { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:var(--r-control);
   font-size:12px; font-weight:500;
   background:var(--tint); color:var(--info-t); }
 
@@ -4747,25 +4743,25 @@ button.fl-btn { font-size:14px; font-weight:700; }
    cards: these are people in a list, not objects in a wallet. */
 .fg .ownlist { display:flex; flex-direction:column; gap:8px; max-height:290px; overflow-y:auto; }
 .fg .ownrow { display:flex; align-items:center; gap:12px; width:100%; padding:12px 12px; text-align:left;
-  border:1.5px solid #e9ebf0; border-radius:16px; background:#fff; cursor:pointer;
+  border:1.5px solid #e9ebf0; border-radius:var(--r-card); background:var(--paper); cursor:pointer;
   transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .ownrow:hover { border-color:#d7dbe3; background:#fafbfc; }
+.fg .ownrow:hover { border-color:#d7dbe3; background:var(--tint); }
 /* Selected is a RING plus a tick, never colour alone — the tick is what still
    says "this one" to a screenshot in greyscale and to anyone who cannot
    separate the two greys. */
-.fg .ownrow.on { border-color:var(--ink); background:var(--tint); box-shadow:var(--ring); }
-.fg .ownrow:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .ownrow.on { border-color:var(--ink); background:var(--tint);  box-shadow:var(--ring); }
+.fg .ownrow:focus-visible { outline:none;  box-shadow:var(--ring); }
 .fg .ownrow-k { flex:1; min-width:0; display:block; }
 .fg .ownrow-k b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .ownrow-k i { display:block; margin-top:2px; font-style:normal; font-size:12px; font-weight:600; color:var(--q); overflow-wrap:anywhere; }
-.fg .ownrow-r { flex:0 0 auto; height:22px; padding:0 8px; display:inline-flex; align-items:center; border-radius:6px;
-  background:rgba(5,5,5,.06); color:var(--gray700); font-size:12px; font-weight:700; }
+.fg .ownrow-r { flex:0 0 auto; height:22px; padding:0 8px; display:inline-flex; align-items:center; border-radius:var(--r-control);
+  background:var(--tint-2); color:var(--gray700); font-size:12px; font-weight:700; }
 .fg .ownrow-t { flex:0 0 auto; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   background:var(--ink); color:var(--paper); }
 /* What the choice costs, in the neutral panel rather than in a warning tone:
    nothing here has gone wrong, and spending the status law's amber on a
    consequence would blunt it where it means "something needs you". */
-.fg .ownwarn { margin-top:16px; padding:12px 16px; border-radius:16px; background:rgba(5,5,5,.035);
+.fg .ownwarn { margin-top:16px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint-2);
   display:flex; flex-direction:column; gap:8px; }
 .fg .ownwarn b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .ownwarn span { font-size:13px; font-weight:600; line-height:1.55; color:var(--gray700); }
@@ -4841,22 +4837,22 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    Scrolls at eight-ish rows rather than growing to whatever Places returns —
    a dropdown taller than the card it hangs off reads as a page, not a hint. */
-.fg .adr-pop { position:fixed; z-index:200; min-width:220px; max-height:262px; overflow-y:auto; padding:4px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 20px 50px -20px rgba(0,0,0,.35); animation:calPop .16s ease; }
-.fg .adr-opt { padding:8px 12px; border-radius:10px; font-size:14px; font-weight:600; line-height:1.35; color:var(--ink); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .adr-pop { position:fixed; z-index:var(--z-modal); min-width:220px; max-height:262px; overflow-y:auto; padding:4px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); box-shadow:var(--shadow-overlay); animation:calPop .16s ease; }
+.fg .adr-opt { padding:8px 12px; border-radius:var(--r-button); font-size:14px; font-weight:600; line-height:1.35; color:var(--ink); cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 /* Hover and keyboard land on the SAME class: arrowing down and moving the
    mouse must not be able to highlight two different rows at once. */
-.fg .adr-opt:hover, .fg .adr-opt.on { background:#fafbfc; }
-.fg .adr-opt.on { box-shadow:none; color:var(--ink); }
+.fg .adr-opt:hover, .fg .adr-opt.on { background:var(--tint); }
+.fg .adr-opt.on {  box-shadow:none; color:var(--ink); }
 
 /* ---- My expenses (components/expenses/my-expenses.tsx) ----
    Receipt-first: the primary action is a camera, because a claim almost always
    starts as a photo in someone's hand at the end of a job. The form arrives
    pre-filled and every field stays editable — Tiff does the typing, the person
    does the deciding. */
-.fg .xc-err { padding:12px 16px; margin-bottom:16px; border-radius:16px; background:rgba(255,51,102,.08); color:var(--bad-t); font-size:14px; font-weight:600; line-height:1.45; }
+.fg .xc-err { padding:12px 16px; margin-bottom:16px; border-radius:var(--r-card); background:var(--bad-tint); color:var(--bad-t); font-size:14px; font-weight:600; line-height:1.45; }
 
-.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:24px; margin-bottom:24px; border-radius:16px; border:1.5px dashed #e0dcf0; background:linear-gradient(180deg,var(--tint),#fff); }
-.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
+.fg .xc-start { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:24px; margin-bottom:24px; border-radius:var(--r-card); border:1.5px dashed var(--line); background:var(--tint); }
+.fg .xc-ic { flex:0 0 auto; width:48px; height:48px; border-radius:var(--r-card); display:flex; align-items:center; justify-content:center; background:var(--tint); color:var(--ink); }
 .fg .xc-startk { flex:1 1 240px; min-width:0; }
 .fg .xc-startk b { display:block; font-size:16px; font-weight:700; }
 .fg .xc-startk em { display:block; font-style:normal; font-size:13px; font-weight:500; color:var(--gray500); margin-top:4px; line-height:1.5; }
@@ -4872,7 +4868,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
    `on` is the answered state, and it is the only place a tint appears, because
    "against a job" is a fact rather than a warning. */
 .fg .xc-job { display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:8px 12px;
-  border-radius:10px; background:#f6f7f9; color:var(--gray500);
+  border-radius:var(--r-button); background:var(--tint); color:var(--gray500);
   font-size:13px; font-weight:600; }
 .fg .xc-job.on { background:var(--tint); color:var(--ink); }
 /* `Icon` wraps its svg in a BARE span, so `> span` reached the glyph too and
@@ -4890,8 +4886,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
    change it. The preview's own bottom margin moves to the strip, so the two
    states leave the same gap above the form whether a file is attached or not. */
 .fg .xc-att { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:16px; }
-.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:16px; border:1px solid #eef0f4; object-fit:contain; background:#fafbfc; }
-.fg .xc-pdf { display:inline-flex; align-items:center; gap:8px; min-width:0; padding:12px 16px; border-radius:16px; border:1px solid #eef0f4; background:#fafbfc; font-size:14px; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
+.fg .xc-prev { display:block; max-height:220px; max-width:100%; border-radius:var(--r-card); border:1px solid var(--line); object-fit:contain; background:var(--tint); }
+.fg .xc-pdf { display:inline-flex; align-items:center; gap:8px; min-width:0; padding:12px 16px; border-radius:var(--r-card); border:1px solid var(--line); background:var(--tint); font-size:14px; font-weight:700; color:var(--ink); overflow-wrap:anywhere; }
 .fg .xc-pdf .i { flex:0 0 auto; color:var(--gray500); }
 .fg .xc-attk { flex:1 1 220px; min-width:0; }
 .fg .xc-attk b { display:block; font-size:14px; font-weight:700; }
@@ -4902,18 +4898,18 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-f { display:flex; flex-direction:column; gap:4px; grid-column:span 2; }
 .fg .xc-f.sm { grid-column:span 1; }
 .fg .xc-f > span { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .xc-f select, .fg .xc-f input[type=date] { height:46px; padding:0 12px; border-radius:6px; border:1px solid var(--line); background:#fff; font:inherit; font-size:14px; font-weight:600; color:var(--ink); }
+.fg .xc-f select, .fg .xc-f input[type=date] { height:46px; padding:0 12px; border-radius:var(--r-control); border:1px solid var(--line); background:var(--paper); font:inherit; font-size:14px; font-weight:600; color:var(--ink); }
 .fg .xc-act { display:flex; flex-wrap:wrap; gap:8px; }
 @media (max-width:560px){ .fg .xc-f.sm { grid-column:span 2; } }
 
 .fg .xc-list { display:flex; flex-direction:column; gap:8px; margin-top:24px; }
-.fg .xc-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; padding:16px 16px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .xc-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
 /* a decided claim steps back — it is history, not something to act on */
-.fg .xc-row.reimbursed, .fg .xc-row.cancelled, .fg .xc-row.declined { background:#fafbfc; box-shadow:none; }
+.fg .xc-row.reimbursed, .fg .xc-row.cancelled, .fg .xc-row.declined { background:var(--tint);  box-shadow:none; }
 .fg .xc-main { flex:1 1 220px; min-width:0; }
 .fg .xc-main b { display:block; font-size:14px; font-weight:700; }
 .fg .xc-main em { display:block; font-style:normal; font-size:13px; font-weight:600; color:var(--gray500); margin-top:4px; }
-.fg .xc-note { margin:8px 0 0; padding:8px 12px; border-radius:10px; background:#f4f5f7; font-size:13px; font-weight:600; color:var(--gray700); line-height:1.5; }
+.fg .xc-note { margin:8px 0 0; padding:8px 12px; border-radius:var(--r-button); background:var(--tint); font-size:13px; font-weight:600; color:var(--gray700); line-height:1.5; }
 /* Where a claim came from, when it came from somewhere. Quieter than a review
    note — that is somebody talking to you, this is provenance — and it sits
    above it so the order reads origin, then conversation. */
@@ -4933,7 +4929,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* WHAT YOU ARE OWED, on the claimant's own screen. The approver's queue and
    the Time & Pay stat tile have carried this figure all along; the person out
    of pocket got a list and was left to add it up. */
-.fg .xc-owed { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin:4px 0 12px; padding:12px 16px; border-radius:16px; background:rgba(34,197,94,.07); border:1px solid rgba(34,197,94,.18); }
+.fg .xc-owed { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin:4px 0 12px; padding:12px 16px; border-radius:var(--r-card); background:rgba(34,197,94,.07); border:1px solid rgba(34,197,94,.18); }
 .fg .xc-owedk { font-size:12px; font-weight:500; color:var(--gray500); }
 .fg .xc-owed b { font-size:24px; font-weight:700; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums; }
 .fg .xc-owed em { flex:1 1 100%; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); }
@@ -4941,34 +4937,34 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .xc-need { align-self:center; font-size:13px; font-weight:600; color:var(--gray500); }
 
 .fg .xc-rec { font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--line); }
-.fg .xc-cancel { font-size:12px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:6px; transition:color var(--t-fast) var(--ease); }
+.fg .xc-cancel { font-size:12px; font-weight:700; color:var(--gray500); padding:2px 8px; border-radius:var(--r-control); transition:color var(--t-fast) var(--ease); }
 .fg .xc-cancel:hover:not(:disabled) { color:var(--bad-t); }
 .fg .xc-cancel:disabled { opacity:.5; cursor:default; }
 /* ARMED. The second press is the one that fires — same treatment `.lv-cancel`
    gets on My leave, because this discards a claim for money you are owed. */
-.fg .xc-cancel.arm { background:#e0264f; color:#fff; }
+.fg .xc-cancel.arm { background:var(--bad); color:var(--paper); }
 
 /* ---- Expense review (components/timepay/team-expenses.tsx) ----
    Reuses My expenses' rows wholesale — the same claim seen from the other
    side — and adds only the summary strip, the decide controls, and the inline
    decline reason. */
 .fg .xr-sum { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
-.fg .xr-sum > div { flex:1 1 180px; padding:16px 16px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .xr-sum > div { flex:1 1 180px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
 .fg .xr-k { display:block; font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .xr-sum b { display:block; margin-top:4px; font-size:24px; font-weight:700; letter-spacing:-0.02em; font-variant-numeric:tabular-nums; }
 
 .fg .xr-acts { display:flex; gap:8px; }
-.fg .xr-btn { height:32px; padding:0 12px; border-radius:10px; font-size:12px; font-weight:700; background:#fff; border:1px solid #e2e5ea; color:var(--gray700); white-space:nowrap; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .xr-btn:hover:not(:disabled) { background:#f4f5f7; }
-.fg .xr-btn.go { background:var(--ink); border-color:var(--ink); color:#fff; }
+.fg .xr-btn { height:32px; padding:0 12px; border-radius:var(--r-button); font-size:12px; font-weight:700; background:var(--paper); border:1px solid var(--line); color:var(--gray700); white-space:nowrap; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fg .xr-btn:hover:not(:disabled) { background:var(--tint); }
+.fg .xr-btn.go { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .fg .xr-btn.go:hover:not(:disabled) { background:var(--ink); border-color:var(--ink); color:var(--paper); }
-.fg .xr-btn.bad { background:#e0264f; border-color:#e0264f; color:#fff; }
-.fg .xr-btn.bad:hover:not(:disabled) { background:#c81f44; }
+.fg .xr-btn.bad { background:var(--bad); border-color:var(--bad); color:var(--paper); }
+.fg .xr-btn.bad:hover:not(:disabled) { background:var(--bad-t); }
 .fg .xr-btn:disabled { opacity:.5; cursor:default; }
 
 /* The reason sits inline under the claim it belongs to — asking for it in a
    modal would separate the sentence from the thing it is about. */
-.fg .xr-decline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid #eef0f4; }
+.fg .xr-decline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line); }
 .fg .xr-decline .inp { flex:1 1 200px; height:38px; }
 
 /* A claim with no receipt is a judgement call, and the approver should know
@@ -5766,7 +5762,7 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
   font:inherit; font-size:12px; font-weight:700; color:var(--gray500); cursor:pointer; }
 .wb2-mcnow:hover { color:var(--ink); border-color:rgba(5,5,5,.24); }
 .wb2-mcc[data-tone="flash"] { animation:wb2Flash 2.4s ease-in-out infinite; }
-@keyframes wb2Flash { 0%,100% { box-shadow:0 0 0 0 rgba(224,38,79,.22); } 50% { box-shadow:0 0 0 5px rgba(224,38,79,0); } }
+@keyframes wb2Flash { 0%,100% {  box-shadow:0 0 0 0 var(--bad); } 50% {  box-shadow:0 0 0 5px var(--bad); } }
 .wb2-mcn { display:flex; align-items:baseline; gap:4px; font-variant-numeric:tabular-nums; }
 .wb2-mcn b { font-size:13px; font-weight:700; color:var(--gray700); }
 .wb2-mcn em { font-style:normal; font-size:12px; font-weight:500;
@@ -7696,8 +7692,8 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
    that's merely disabled */
 .wb2-micgo.on { animation:wb2micpulse 1.6s ease-in-out infinite; }
 @keyframes wb2micpulse {
-  0%, 100% { box-shadow:0 0 0 0 rgba(224,38,79,.42); }
-  50% { box-shadow:0 0 0 5px rgba(224,38,79,0); }
+  0%, 100% {  box-shadow:0 0 0 0 var(--bad); }
+  50% {  box-shadow:0 0 0 5px var(--bad); }
 }
 @media (prefers-reduced-motion:reduce) { .wb2-micgo.on { animation:none; } }
 .wb2-addrow .wb-lvl { flex:none; --orb:20px; }
@@ -7946,8 +7942,8 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
   .wb2-ajr, .wb2-ajr:has(.wb2-ajmoney) { grid-template-columns:70px minmax(0,1fr) minmax(0,.9fr); }
   .wb2-ajmeta, .wb2-ajmoney { display:none; }
 }
-.pbtn.ghost.danger { color:#b31038; border-color:rgba(224,38,79,.4); }
-.pbtn.ghost.danger:hover { background:rgba(224,38,79,.07); }
+.pbtn.ghost.danger { color:var(--bad-t); border-color:var(--bad); }
+.pbtn.ghost.danger:hover { background:var(--bad-tint); }
 @media (max-width: 1100px) {
   .wb2-formgrid { grid-template-columns:1fr; }
   .wb2-formgrid.eq { grid-template-columns:1fr 1fr; }
@@ -8089,7 +8085,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .tiffbtn-topbar { width:44px; height:44px; }
 .tiffbtn-topbar .tiffbtn-mk { transform:translate(-2px,-2px); }
 .tiffbtn-topbar .tiffbtn-spark { right:9px; bottom:9px; }
-.tiffbtn-topbar:focus-visible .tiffbtn-face { box-shadow:var(--ring); }
+.tiffbtn-topbar:focus-visible .tiffbtn-face {  box-shadow:var(--ring); }
 .tiffbtn-halo { position:absolute; inset:-6px; border-radius:50%; pointer-events:none;
   background:var(--ink);
   filter:blur(9px); opacity:.5; }
@@ -9468,8 +9464,8 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    is thinking, streaming and done — so an answer fills a space that is
    already there rather than the page jolting when the first token lands. */
 .fg .tmsg.bot { max-width:100%; align-items:flex-start; }
-.fg .tmsg.bot .tmb { width:100%; padding:24px 24px; border-radius:16px;
-  border-bottom-left-radius:16px; box-shadow:0 6px 26px -14px rgba(10,12,20,.28); font-size:16px; }
+.fg .tmsg.bot .tmb { width:100%; padding:24px 24px; border-radius:var(--r-card);
+  border-bottom-left-radius:var(--r-card); font-size:16px; }
 .fg .tmsg.bot .tmb p { margin:0 0 12px; }
 .fg .tmsg.user { max-width:min(560px, 78%); }
 
@@ -10953,7 +10949,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    it to click. Focus is drawn on the button so the ring follows the card. */
 .fg .idc.clickable { cursor:pointer; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .idc.clickable:hover { }
-.fg .idc-open { position:absolute; inset:0; z-index:3; background:none; border:none; border-radius:16px; cursor:pointer; }
+.fg .idc-open { position:absolute; inset:0; z-index:3; background:none; border:none; border-radius:var(--r-card); cursor:pointer; }
 .fg .idc-open:focus-visible { outline:2px solid var(--ink); outline-offset:-3px; }
 
 /* The "add a ticket" tile, sitting in the licence wall as a card-shaped
@@ -10962,11 +10958,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    slot. The organisation wall no longer has a twin — its Add moved into the
    panel header's `.acts` slot, which is where this one probably belongs too. */
 .fg .licadd-tile { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px;
-  min-height:150px; padding:24px; border:1.5px dashed #d7dbe2; border-radius:10px; background:#fff;
+  min-height:150px; padding:24px; border:1.5px dashed #d7dbe2; border-radius:var(--r-button); background:var(--paper);
   text-align:left; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .fg .licadd-tile:hover { border-color:var(--ink); background:var(--ok-bg, var(--tint)); }
 .fg .licadd-tile .ci { display:flex; align-items:center; justify-content:center; width:34px; height:34px;
-  border-radius:10px; background:#f4f6f8; color:var(--ink); margin-bottom:4px; }
+  border-radius:var(--r-button); background:#f4f6f8; color:var(--ink); margin-bottom:4px; }
 .fg .licadd-tile b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .licadd-tile em { font-style:normal; font-size:12px; font-weight:600; color:var(--q); }
 
@@ -10975,7 +10971,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    it is a fact about the record, not a control on the card's frame, and
    because once checks exist the frame has no Edit button left to sit beside. */
 .fg .wr-checks { display:flex; align-items:center; justify-content:space-between; gap:16px;
-  margin-bottom:12px; padding:12px 16px; border:1px solid #ecedf1; border-radius:16px; background:#fbfcfd; }
+  margin-bottom:12px; padding:12px 16px; border:1px solid var(--line); border-radius:var(--r-card); background:#fbfcfd; }
 .fg .wr-checksl { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .fg .wr-checksl b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .wr-checksl em { font-style:normal; font-size:12px; font-weight:600; color:var(--q); }

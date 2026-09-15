@@ -59,16 +59,19 @@ export const WHITE = "#FFFFFF";
 
 /* THE INPUT BORDER IS THE ONE COMPUTED VALUE.
 
-   The app draws it as `rgba(10,11,16,.14)` — an alpha over whatever is
-   behind. Auth0's theme API takes hex and nothing else, so the app's rule is
-   flattened onto the only ground the widget ever has (white):
+   The app draws it as `--line`, `rgba(5,5,5,.08)` (src/app/tokens.css) — ink
+   at 8% over whatever is behind; every input in the app wears it since the
+   fold of 2026-09-15. Auth0's theme API takes hex and nothing else, so the
+   token is flattened onto the only ground the widget ever has (white):
 
-     255 + (channel - 255) x 0.14
+     255 + (channel - 255) x 0.08
 
    Written as arithmetic rather than as a magic hex so the next person can
    see it is the app's border and not a grey somebody liked. The test
-   re-derives it from the same rule. */
-export const inputBorderOnWhite = flattenOnWhite(BRAND.ink, 0.14);
+   re-derives it from the token. */
+export const LINE_INK = "#050505";
+export const LINE_ALPHA = 0.08;
+export const inputBorderOnWhite = flattenOnWhite(LINE_INK, LINE_ALPHA);
 
 export function flattenOnWhite(hex: string, alpha: number): string {
   const ch = (i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);

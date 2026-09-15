@@ -64,7 +64,10 @@ const rgb = (css: string): [number, number, number] => {
 function token(name: string): string {
   const m = CSS.match(new RegExp(`--${name}: *([^;]+);`));
   if (!m) throw new Error(`--${name} is not declared in shell.css`);
-  return m[1]!.trim();
+  const raw = m[1]!.trim();
+  // since the wb2 fold the family's state tokens are aliases of the global ones
+  const alias = raw.match(/^var\(--([a-z0-9-]+)\)$/i);
+  return alias ? token(alias[1]!) : raw;
 }
 
 /** A ServiceM8-shaped category colour at one hue. Theirs arrive around 85%
@@ -165,7 +168,9 @@ describe("the one block that is actually wrong wears a mark", () => {
        the only thing carrying this one on the rail. */
     expect(worst.ratio).toBeGreaterThanOrEqual(3);
     /* and the glyph inside it is text on that disc */
-    expect(contrastRatio(hex(prop(mark[0]!.decls, "color")!), disc)).toBeGreaterThanOrEqual(4.5);
+    // the mark's ink is a token since the wb2 fold (`var(--paper)`); read it through
+    const inkOf = (v: string) => { const a = v.match(/^var\(--([a-z0-9-]+)\)$/i); return a ? token(a[1]!) : v; };
+    expect(contrastRatio(hex(inkOf(prop(mark[0]!.decls, "color")!)), disc)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

@@ -54,6 +54,8 @@ type Resolved = {
   kb: Map<string, string>;
   /** journal entry id → the grouped note its kept lines were filed as. */
   notes: Map<string, string>;
+  /** issueId → summary, resolved or not. */
+  issues: Map<string, string>;
 };
 
 const toEntry = (r: Row, found: Resolved): JournalEntry => ({
@@ -67,6 +69,7 @@ const toEntry = (r: Row, found: Resolved): JournalEntry => ({
   outcomes: describeAppliedResolved(r.applied, {
     tasks: found.tasks,
     kb: found.kb,
+    issues: found.issues,
     noteId: found.notes.get(r.id) ?? null,
   }),
   spoken: r.source === "voice",
@@ -85,7 +88,7 @@ function appliedIds(applied: unknown, key: string): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x !== "") : [];
 }
 
-/* THREE BATCHED READS FOR THE WHOLE PAGE, not one per chip. Sixty entries with
+/* FOUR BATCHED READS FOR THE WHOLE PAGE, not one per chip. Sixty entries with
    a task each would otherwise be sixty round trips to render one panel.
 
    Org-scoped like everything else, and the notes read is person-scoped too:
@@ -95,10 +98,11 @@ function appliedIds(applied: unknown, key: string): string[] {
 async function resolveOutcomes(orgId: string, staffId: string, rows: readonly Row[]): Promise<Resolved> {
   const taskIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "taskIds")))];
   const kbIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "kbIds")))];
+  const issueIds = [...new Set(rows.flatMap((r) => appliedIds(r.applied, "issueIds")))];
   // only the entries that actually kept lines have a note to find
   const keptIds = rows.filter((r) => appliedIds(r.applied, "noteLines").length > 0).map((r) => r.id);
 
-  const [tasks, kb, notes] = await Promise.all([
+  const [tasks, kb, notes, issues] = await Promise.all([
     taskIds.length
       ? supabaseAdmin.from("tasks").select("id, title").eq("org_id", orgId).in("id", taskIds)
       : Promise.resolve({ data: [] }),
@@ -113,15 +117,22 @@ async function resolveOutcomes(orgId: string, staffId: string, rows: readonly Ro
           .eq("staff_id", staffId)
           .in("source_note_id", keptIds)
       : Promise.resolve({ data: [] }),
+    /* Resolved or not — the row keeps its words either way, and Home's
+       issues list is where the door lands. */
+    issueIds.length
+      ? supabaseAdmin.from("workboard_issues").select("id, summary").eq("org_id", orgId).in("id", issueIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
-  const found: Resolved = { tasks: new Map(), kb: new Map(), notes: new Map() };
+  const found: Resolved = { tasks: new Map(), kb: new Map(), notes: new Map(), issues: new Map() };
   for (const r of (tasks.data ?? []) as Record<string, unknown>[])
     found.tasks.set(String(r.id), String(r.title ?? ""));
   for (const r of (kb.data ?? []) as Record<string, unknown>[])
     found.kb.set(String(r.id), String(r.title ?? ""));
   for (const r of (notes.data ?? []) as Record<string, unknown>[])
     found.notes.set(String(r.source_note_id), String(r.id));
+  for (const r of (issues.data ?? []) as Record<string, unknown>[])
+    found.issues.set(String(r.id), String(r.summary ?? ""));
   return found;
 }
 

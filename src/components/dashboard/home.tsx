@@ -43,6 +43,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
     tasks,
     notices,
     journal,
+    issues,
     assignable,
     canManage,
     viewerStaffId,
@@ -56,10 +57,10 @@ export function DashboardHome({ data }: { data: DashboardData }) {
      owns it so a task's "Open in diary" can choose one from next door. */
   const [entryId, setEntryId] = useState<string | null>(null);
 
-  /* A diary door naming a task opens it HERE — one card, and the task is on
-     the face next door. `focusTask` is handed to the Tasks face, which
-     chooses the row, scrolls it into view and marks it, then clears this so
-     pressing the same door again works. */
+  /* A diary door naming a task — or an issue, which stands on the same face
+     — opens it HERE: one card, and the row is next door. `focusTask` is
+     handed to the Tasks face, which chooses the row, scrolls it into view
+     and marks it, then clears this so pressing the same door again works. */
   const [focusTask, setFocusTask] = useState<string | null>(null);
   const openTask = useCallback((id: string) => {
     setTab("tasks");
@@ -141,6 +142,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                   selectedId={entryId}
                   onSelect={setEntryId}
                   onOpenTask={openTask}
+                  onOpenIssue={openTask}
                 />,
               )}
 
@@ -153,6 +155,7 @@ export function DashboardHome({ data }: { data: DashboardData }) {
                   team={tasks.team}
                   done={tasks.done}
                   reported={tasks.reported}
+                  issues={issues}
                   viewerStaffId={viewerStaffId}
                   canManage={canManage}
                   assignable={assignable}

@@ -17,6 +17,8 @@ import { ownDeclinedLeave, pendingLeaveCount } from "@/lib/timepay/leave-query";
 import { buildCalendar, calendarSpan, type LeaveCalendar } from "./calendar";
 import { listJournal } from "./journal-query";
 import { jobCandidates } from "./job-candidates";
+import { listOpenIssues } from "./issues-query";
+import type { HomeIssue } from "./issues";
 import type { JobCandidate } from "@/lib/workboard/note-match";
 import type { JournalEntry } from "./journal";
 import {
@@ -79,6 +81,10 @@ export type DashboardData = {
       on `workboard`: the picker offers jobs, and a viewer without the board
       may not see them. */
   jobs: JobCandidate[];
+  /** Every open issue in the workspace — the "this keeps happening" rows the
+      note router writes. Gated on `workboard` like the jobs: the row was made
+      under that gate and names a job. Empty without it. */
+  issues: HomeIssue[];
   /** `team`: can assign tasks / post notices / see the team's tasks. */
   canManage: boolean;
   /** Null when the account has no staff record — no tasks/acks are possible. */
@@ -150,6 +156,7 @@ const EMPTY: DashboardData = {
   journal: [],
   assignable: [],
   jobs: [],
+  issues: [],
   canManage: false,
   viewerStaffId: null,
   today: todayInAu(),
@@ -179,7 +186,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railDay = todayInZone(railTz);
   const railNowMin = nowMinInZone(railTz);
 
-  const [chips, calendar, tasks, notices, assignable, journal, jobs, schedule, sm8Links] = await Promise.all([
+  const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links] = await Promise.all([
     loadChips(orgId, viewerStaffId, caps, today),
     loadCalendar(orgId, today, viewerStaffId, canManage),
     loadTasks(orgId, viewerStaffId, canManage, names),
@@ -192,6 +199,8 @@ export async function loadDashboard(): Promise<DashboardData> {
     /* Rides the same Promise.all rather than adding a wait. Absent without
        `workboard` — the same capability the board itself is behind. */
     caps.has("workboard") ? jobCandidates(orgId) : Promise.resolve([] as JobCandidate[]),
+    /* The open issues, with their targets named — same gate, same reason. */
+    caps.has("workboard") ? listOpenIssues(orgId) : Promise.resolve([] as HomeIssue[]),
     /* The day rail. Same gate as the board it mirrors — a viewer without
        `workboard` may not see the crew's bookings, on Home or anywhere. */
     caps.has("workboard") ? loadScheduleDay(orgId, railDay) : Promise.resolve(EMPTY_SCHEDULE),
@@ -237,7 +246,7 @@ export async function loadDashboard(): Promise<DashboardData> {
     : [];
 
   return {
-    chips, calendar, tasks, notices, assignable, journal, jobs, canManage, viewerStaffId, today,
+    chips, calendar, tasks, notices, assignable, journal, jobs, issues, canManage, viewerStaffId, today,
     rail: {
       dayISO: railDay,
       tz: railTz,

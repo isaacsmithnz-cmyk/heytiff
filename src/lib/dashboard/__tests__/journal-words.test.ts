@@ -15,8 +15,9 @@ describe("outcomeSummary", () => {
         { kind: "kept", text: "Daikin VRV notes", go: { type: "kb", id: "k1" } },
         { kind: "todo", text: "1 flag" },
         { kind: "kept", text: "1 line kept", go: { type: "note", id: "n1" } },
+        { kind: "todo", text: "Middle rooftop unit has tripped again", go: { type: "issue", id: "i1" } },
       ]),
-    ).toBe("2 tasks, 1 knowledge entry, 1 flag, 1 line kept");
+    ).toBe("2 tasks, 1 issue, 1 knowledge entry, 1 flag, 1 line kept");
   });
 
   it("speaks in the singular for one", () => {

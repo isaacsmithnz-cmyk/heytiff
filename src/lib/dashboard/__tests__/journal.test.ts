@@ -1,4 +1,4 @@
-import { canPageDays, APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolved, groupByDay, type JournalEntry, topDayAt } from "../journal";
+import { canPageDays, APPLIED_GROUPS, CHIP_TITLE_MAX, describeApplied, describeAppliedResolved, groupByDay, type JournalEntry, topDayAt, entryForDoor } from "../journal";
 
 /* The journal reads a table nothing had ever read back to a person:
    `workboard_notes` keeps every transcript verbatim as the evidence for what
@@ -130,7 +130,8 @@ describe("describeAppliedResolved", () => {
   });
 
   it("leaves the groups with nowhere to go as plain counts", () => {
-    // linking a flag or an issue to "the workboard, roughly" would be a lie
+    // linking a flag or a bring-item to "the workboard, roughly" would be a
+    // lie; an issue stays a count too until it is handed the lookup below
     const applied = { flagIds: ["f1"], entryIds: ["e1", "e2"], issueIds: ["i1"], bringItems: ["b"] };
     const out = describeAppliedResolved(applied, { tasks, kb, noteId: "n1" });
     expect(out.every((o) => o.go === undefined)).toBe(true);
@@ -326,5 +327,39 @@ describe("canPageDays — whether the stepper earns its place", () => {
     /* A ref can be null for a frame. Unknown is not "yes". */
     const gappy = new Map([["2026-09-01", 6], ["2026-08-28", 291]]);
     expect(canPageDays(order, gappy, 9999)).toBe(false);
+  });
+});
+
+describe("an issue's door (2026-09-15, since Home lists issues)", () => {
+  it("wears the issue's own words and lands on its row", () => {
+    const out = describeAppliedResolved(
+      { issueIds: ["i1", "i2"] },
+      { issues: new Map([["i1", "Middle rooftop unit has tripped again"]]) },
+    );
+    expect(out).toEqual([
+      {
+        kind: "todo",
+        text: "Middle rooftop unit has tripped again",
+        go: { type: "issue", id: "i1" },
+      },
+      // the row that is gone is counted, never a dead door
+      { kind: "todo", text: "1 issue removed" },
+    ]);
+  });
+
+  it("finds the entry behind a door of any kind", () => {
+    const entries = [
+      {
+        id: "e1",
+        said: "words",
+        day: "2026-09-14",
+        at: "7:12 am",
+        outcomes: [{ kind: "todo" as const, text: "x", go: { type: "issue" as const, id: "i1" } }],
+        spoken: true,
+        isDebrief: false,
+      },
+    ];
+    expect(entryForDoor(entries, "issue", "i1")?.id).toBe("e1");
+    expect(entryForDoor(entries, "task", "i1")).toBeNull();
   });
 });

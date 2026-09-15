@@ -108,6 +108,7 @@ const data = (over: Partial<DashboardData> = {}): DashboardData => ({
   journal: [],
   assignable: [],
   jobs: [],
+  issues: [],
   canManage: false,
   viewerStaffId: "s1",
   today: TODAY,
@@ -375,6 +376,37 @@ describe("the rooms talk to each other", () => {
     await user.click(screen.getByRole("button", { name: /Order 2× MERV 11 filters/ }));
     expect(panel("tasks")).not.toHaveAttribute("hidden");
     expect(document.querySelector('[data-task-id="t1"]')).toHaveClass("on");
+  }, WHOLE_CARD);
+
+  it("an issue's door lands on its row on the Tasks face", async () => {
+    const user = userEvent.setup();
+    render(
+      <DashboardHome
+        data={data({
+          journal: [
+            entry({
+              outcomes: [{ kind: "todo", text: "Middle rooftop unit has tripped again", go: { type: "issue", id: "i1" } }],
+            }),
+          ],
+          issues: [
+            {
+              id: "i1",
+              summary: "Middle rooftop unit has tripped again",
+              equipmentRef: null,
+              occurrences: 2,
+              firstSeen: "2026-08-01",
+              lastSeen: TODAY,
+              targetKind: "none",
+              targetId: null,
+              where: null,
+            },
+          ],
+        })}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Middle rooftop/ }));
+    expect(panel("tasks")).not.toHaveAttribute("hidden");
+    expect(document.querySelector('[data-task-id="i1"]')).toHaveClass("on");
   }, WHOLE_CARD);
 
   it("a task's Open in diary lands on the entry that made it", async () => {

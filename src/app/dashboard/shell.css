@@ -10341,6 +10341,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-tsk .hm-cb { width:16px; height:16px; }
 /* Someone else's completion of work you handed out: no control, a tick. */
 .fg .hm-tick { width:18px; height:18px; display:grid; place-items:center; color:var(--q); margin-top:2px; }
+/* AN ISSUE'S SLOT: nothing to tick, so a dot in the warning colour — state
+   is a word or a dot in the state colour (law 14), and "open issue" is the
+   word beside it. The same dot, smaller, marks an issue's door in the diary. */
+.fg .hm-idot { width:18px; height:18px; display:grid; place-items:center; margin-top:2px; }
+.fg .hm-idot::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--warn-t); }
+.fg .hm-door .hm-idot { width:14px; height:14px; margin:0; }
 
 /* ── THE THREE ROOMS ──
    The rail, then the face. A two-column face is the list and its page; a

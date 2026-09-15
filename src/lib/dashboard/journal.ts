@@ -42,7 +42,7 @@ export type OutcomeKind = "todo" | "kept";
 /** Where a chip goes when it is the thing it names. Resolved server-side, so
     a door only ever exists for a row that was still there when the page was
     built — see `describeAppliedResolved`. */
-export type OutcomeDoor = { type: "task" | "kb" | "note"; id: string };
+export type OutcomeDoor = { type: "task" | "kb" | "note" | "issue"; id: string };
 
 export type Outcome = { kind: OutcomeKind; text: string; go?: OutcomeDoor };
 
@@ -53,6 +53,9 @@ export type AppliedLookups = {
   tasks?: ReadonlyMap<string, string>;
   /** kb documentId → title, for the documents that still exist. */
   kb?: ReadonlyMap<string, string>;
+  /** issueId → summary. Resolved or not: a resolved issue still has its
+      words, and its door lands on the face that lists issues. */
+  issues?: ReadonlyMap<string, string>;
   /** The grouped note THIS capture's kept lines were filed as, if still there. */
   noteId?: string | null;
 };
@@ -88,9 +91,13 @@ export function describeApplied(applied: unknown): Outcome[] {
    the capture really did make it, and it really isn't there any more. Both
    halves of that are true and a dead door would be neither.
 
-   The other six groups keep their counts and stay unlinked on purpose: a
-   flag, an issue, a diary entry and a bring-item have no canonical page in
-   this app, and sending them "to the workboard, roughly" would be a lie. Words
+   AN ISSUE HAS A DOOR SINCE 2026-09-15, when Home began listing them: given
+   the lookup, each issue is a chip wearing its summary that lands on its row.
+   Without the lookup it stays the count it always was.
+
+   The other groups keep their counts and stay unlinked on purpose: a flag, a
+   diary entry and a bring-item have no canonical page in this app, and
+   sending them "to the workboard, roughly" would be a lie. Words
    kept on a job are the same answer for a different reason — they are text in
    somebody else's `notes` column, and a visit or an agreement opens in a sheet
    ON the board rather than at a route a chip could point at. */
@@ -109,7 +116,14 @@ export function describeAppliedResolved(
     if (!Array.isArray(v) || v.length === 0) continue;
 
     const named =
-      key === "taskIds" ? lookups.tasks : key === "kbIds" ? lookups.kb : undefined;
+      key === "taskIds"
+        ? lookups.tasks
+        : key === "kbIds"
+          ? lookups.kb
+          : key === "issueIds"
+            ? lookups.issues
+            : undefined;
+    const door: OutcomeDoor["type"] = key === "taskIds" ? "task" : key === "kbIds" ? "kb" : "issue";
 
     if (named) {
       const gone: unknown[] = [];
@@ -122,7 +136,7 @@ export function describeAppliedResolved(
         out.push({
           kind,
           text: chipTitle(title),
-          go: { type: key === "taskIds" ? "task" : "kb", id: id as string },
+          go: { type: door, id: id as string },
         });
       }
       if (gone.length > 0)
@@ -278,15 +292,18 @@ export function groupByDay(
     said as it is, in the order the write side recorded it. */
 export function outcomeSummary(outcomes: readonly Outcome[]): string {
   let tasks = 0;
+  let issues = 0;
   let kb = 0;
   const words: string[] = [];
   for (const o of outcomes) {
     if (o.go?.type === "task") tasks++;
+    else if (o.go?.type === "issue") issues++;
     else if (o.go?.type === "kb") kb++;
     else words.push(o.text);
   }
   const parts: string[] = [];
   if (tasks > 0) parts.push(`${tasks} ${tasks === 1 ? "task" : "tasks"}`);
+  if (issues > 0) parts.push(`${issues} ${issues === 1 ? "issue" : "issues"}`);
   if (kb > 0) parts.push(`${kb} ${kb === 1 ? "knowledge entry" : "knowledge entries"}`);
   return [...parts, ...words].join(", ");
 }
@@ -317,7 +334,16 @@ export function entryForTask(
   entries: readonly JournalEntry[],
   taskId: string,
 ): JournalEntry | null {
+  return entryForDoor(entries, "task", taskId);
+}
+
+/** The same lookup for anything a door can name — a task, or an issue. */
+export function entryForDoor(
+  entries: readonly JournalEntry[],
+  type: OutcomeDoor["type"],
+  id: string,
+): JournalEntry | null {
   for (const e of entries)
-    if (e.outcomes.some((o) => o.go?.type === "task" && o.go.id === taskId)) return e;
+    if (e.outcomes.some((o) => o.go?.type === type && o.go.id === id)) return e;
   return null;
 }

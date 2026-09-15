@@ -151,3 +151,20 @@ it("reads nothing at all for an empty journal", async () => {
   expect(await listJournal("org-1", "s1")).toEqual([]);
   expect(calls.map((c) => c.table)).toEqual(["workboard_notes"]);
 });
+
+it("names an issue's door from one read, resolved or not", async () => {
+  rows.workboard_notes = [note("e1", { issueIds: ["i1", "i-gone"] }), note("e2", { issueIds: ["i2"] })];
+  rows.workboard_issues = [
+    { id: "i1", summary: "Middle rooftop unit has tripped again" },
+    { id: "i2", summary: "Compressor short-cycling" },
+  ];
+  const entries = await listJournal("org-1", "staff-1");
+  expect(of("workboard_issues")).toHaveLength(1);
+  expect(of("workboard_issues")[0].eq).toEqual({ org_id: "org-1" });
+  expect(of("workboard_issues")[0].in).toEqual(["id", ["i1", "i-gone", "i2"]]);
+  expect(chips(entries, 0)).toEqual([
+    ["Middle rooftop unit has tripped again", "issue"],
+    ["1 issue removed", null],
+  ]);
+  expect(chips(entries, 1)).toEqual([["Compressor short-cycling", "issue"]]);
+});

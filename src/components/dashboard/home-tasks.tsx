@@ -10,21 +10,24 @@ import {
   createTask,
   deleteTask,
   reopenTask,
+  resolveIssue,
   setTaskDue,
 } from "@/app/actions/dashboard";
 import { dueLabel, sortTasks, type DashTask } from "@/lib/dashboard/tasks";
-import { entryForTask, type JournalEntry } from "@/lib/dashboard/journal";
+import { entryForDoor, type JournalEntry } from "@/lib/dashboard/journal";
+import { issueSeen, type HomeIssue } from "@/lib/dashboard/issues";
 import { zonedParts } from "@/lib/dashboard/day-rail";
 import { clockLabel } from "@/lib/workboard/schedule";
 import { auDayOf, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 
-/* THE TASKS — the work you owe, and the work you handed out.
+/* THE TASKS — the work you owe, the work you handed out, and what keeps
+   going wrong.
 
    A LIST BESIDE A PAGE (the three-room handoff, 2026-09-14). The list is
-   three groups in the order they want you — Overdue, Open, Done — with a
-   real checkbox leading every row, because ticking is the whole interaction.
-   The chosen task is read in full beside it: its state in a word, the facts,
-   the words it came from, and the three things you can do to it.
+   four groups in the order they want you — Overdue, Open, Issues, Done — with
+   a real checkbox leading every task row, because ticking is the whole
+   interaction. The chosen row is read in full beside it: its state in a
+   word, the facts, the words it came from, and the things you can do to it.
 
    THE GROUPS ARE THE BADGE'S OWN TEST. A task is overdue when its date is
    before today, which is exactly how the rail's red count is made; two
@@ -33,16 +36,26 @@ import { auDayOf, daysUntil, fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/a
    whose each is. Done holds your own recent completions, which reverse with
    the same checkbox, and the work you handed out that came back finished.
 
-   A TASK KNOWS THE NOTE IT CAME FROM without asking for it. The diary is
-   already in the page's hands and every entry records the tasks it made, so
-   the source is found by looking, and "Open in diary" is a move within the
-   card rather than a page. A task typed straight in has no note and says
-   nothing about one.
+   ISSUES ARE NOT TASKS (2026-09-15). An issue is the "this keeps happening"
+   row a debrief writes: no assignee, no date, nothing to tick — a fact about
+   a site that stays true until somebody says it is not. So it is its own
+   group, its slot holds a dot instead of a checkbox, and its one action is
+   "Mark resolved". It arrives only with the workboard, like the jobs.
+
+   A ROW KNOWS THE NOTE IT CAME FROM without asking for it. The diary is
+   already in the page's hands and every entry records the tasks and issues
+   it made, so the source is found by looking, and "Open in diary" is a move
+   within the card rather than a page. A task typed straight in has no note
+   and says nothing about one.
 
    THE COMPOSER IS THE SAME DOOR AS THE DIARY'S — `NoteToken`, saying "Add a
    task…" here — so a spoken "Luke to order grilles by Friday" is read by the
    same router that files a note. "Assign a task", the form with a person and
    a date on it, stays for anyone who may assign, under the composer. */
+
+type Row =
+  | { kind: "task"; id: string; task: DashTask }
+  | { kind: "issue"; id: string; issue: HomeIssue };
 
 function Confirm({
   pending,
@@ -85,6 +98,7 @@ export function HomeTasks({
   team,
   done,
   reported,
+  issues = [],
   viewerStaffId,
   canManage,
   assignable,
@@ -99,16 +113,19 @@ export function HomeTasks({
   team: DashTask[] | null;
   done: DashTask[];
   reported: DashTask[];
+  /** The workspace's open issues; empty without the workboard. */
+  issues?: HomeIssue[];
   viewerStaffId: string | null;
   canManage: boolean;
   assignable: { id: string; name: string }[];
-  /** The diary, already loaded — where a task's words are found. */
+  /** The diary, already loaded — where a row's words are found. */
   journal?: JournalEntry[];
   /** The workspace's zone, for reading a reminder's clock time. */
   tz?: string | null;
   /** Given by Home: switches to the Diary face on that entry. */
   onOpenEntry?: (id: string) => void;
-  /** A task named by a diary door: choose it, scroll to it and mark it, once. */
+  /** A row named by a diary door — a task's id or an issue's: choose it,
+      scroll to it and mark it, once. */
   focusTaskId?: string | null;
   onFocusHandled?: () => void;
 }) {
@@ -131,7 +148,7 @@ export function HomeTasks({
 
   /* ARRIVING FROM A DIARY DOOR chooses the row it named. Answered in render
      (the sanctioned adjust-during-render idiom) rather than in an effect, so
-     the pane shows the right task in the same paint as the face. */
+     the pane shows the right row in the same paint as the face. */
   if (focusTaskId && focusTaskId !== seenFocus) {
     setSeenFocus(focusTaskId);
     setSelId(focusTaskId);
@@ -142,12 +159,14 @@ export function HomeTasks({
   const others = (team ?? []).filter((t) => t.assigneeId !== viewerStaffId);
   const past = (t: DashTask) => t.dueDate !== null && t.dueDate < today;
   const openAll = sortTasks([...mine, ...others]);
-  const overdue = openAll.filter(past);
-  const openRows = openAll.filter((t) => !past(t));
+  const asRow = (t: DashTask): Row => ({ kind: "task", id: t.id, task: t });
+  const overdue = openAll.filter(past).map(asRow);
+  const openRows = openAll.filter((t) => !past(t)).map(asRow);
+  const issueRows: Row[] = issues.map((i) => ({ kind: "issue", id: i.id, issue: i }));
   /* Yours first (they reverse), then what came back to you. */
-  const doneRows = [...done, ...reported];
-  const all = [...overdue, ...openRows, ...doneRows];
-  const sel = all.find((t) => t.id === selId) ?? all[0] ?? null;
+  const doneRows = [...done, ...reported].map(asRow);
+  const all = [...overdue, ...openRows, ...issueRows, ...doneRows];
+  const sel = all.find((r) => r.id === selId) ?? all[0] ?? null;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) => {
     setError(null);
@@ -251,14 +270,26 @@ export function HomeTasks({
     );
   };
 
-  const groups: [string, DashTask[]][] = [
+  /* An issue's line: where it is, then how often. Two sentences, because
+     "where" already carries a comma of its own. */
+  const issueMeta = (i: HomeIssue) =>
+    `${i.where ?? "Not on a job"}. Seen ${issueSeen(i.occurrences)}, last ${fmtAuDayMonth(i.lastSeen)}.`;
+
+  const groups: [string, Row[]][] = [
     ["Overdue", overdue],
     ["Open", openRows],
+    ["Issues", issueRows],
     ["Done", doneRows],
   ];
+  const openCount = overdue.length + openRows.length;
+  const counts = [
+    `${openCount} open`,
+    ...(issueRows.length > 0 ? [`${issueRows.length} ${issueRows.length === 1 ? "issue" : "issues"}`] : []),
+    `${doneRows.length} done`,
+  ].join(", ");
 
-  const src = sel ? entryForTask(journal, sel.id) : null;
-  const remind = sel?.remindAt ? zonedParts(sel.remindAt, tz) : null;
+  const src = sel ? entryForDoor(journal, sel.kind, sel.id) : null;
+  const remind = sel?.kind === "task" && sel.task.remindAt ? zonedParts(sel.task.remindAt, tz) : null;
 
   return (
     <>
@@ -266,9 +297,7 @@ export function HomeTasks({
         <div className="hm-lhead">
           <div className="hm-lt">
             <h2>Tasks</h2>
-            <span className="hm-lc">
-              {overdue.length + openRows.length} open, {doneRows.length} done
-            </span>
+            <span className="hm-lc">{counts}</span>
           </div>
           <NoteToken as="entry" placeholder="Add a task…" />
           {canManage && (
@@ -352,29 +381,31 @@ export function HomeTasks({
         ) : (
           <ul className="hm-rows" aria-label="Tasks">
             {groups
-              .filter(([, ts]) => ts.length > 0)
-              .map(([label, ts]) => (
+              .filter(([, rows]) => rows.length > 0)
+              .map(([label, rows]) => (
                 <li key={label} className="hm-tgroup">
                   <div className="hm-tgrp">
                     <span>{label}</span>
-                    <span>{ts.length}</span>
+                    <span>{rows.length}</span>
                   </div>
                   <ul>
-                    {ts.map((t) => {
-                      const on = sel?.id === t.id;
-                      const isDone = t.status === "done";
+                    {rows.map((r) => {
+                      const on = sel?.id === r.id;
+                      const isDone = r.kind === "task" && r.task.status === "done";
                       return (
                         <li
-                          key={t.id}
+                          key={r.id}
                           className={
                             "hm-trow" +
                             (on ? " on" : "") +
                             (isDone ? " done" : "") +
-                            (flashId === t.id ? " hm-tkfl" : "")
+                            (flashId === r.id ? " hm-tkfl" : "")
                           }
-                          data-task-id={t.id}
+                          data-task-id={r.id}
                         >
-                          {isReported(t) ? (
+                          {r.kind === "issue" ? (
+                            <span className="hm-idot" role="img" aria-label="Open issue" />
+                          ) : isReported(r.task) ? (
                             <span className="hm-tick" aria-hidden="true">
                               <Icon name="check" size={12} />
                             </span>
@@ -382,12 +413,14 @@ export function HomeTasks({
                             <button
                               type="button"
                               className={"hm-cb" + (isDone ? " on" : "")}
-                              aria-label={isDone ? `Reopen "${t.title}"` : `Mark "${t.title}" done`}
+                              aria-label={
+                                isDone ? `Reopen "${r.task.title}"` : `Mark "${r.task.title}" done`
+                              }
                               disabled={pending}
                               onClick={() => {
-                                select(t.id);
-                                if (isDone) undo(t.id);
-                                else markDone(t.id);
+                                select(r.id);
+                                if (isDone) undo(r.id);
+                                else markDone(r.id);
                               }}
                             >
                               {isDone ? <Icon name="check" size={12} /> : null}
@@ -397,10 +430,14 @@ export function HomeTasks({
                             type="button"
                             className="hm-tsel"
                             aria-current={on ? "true" : undefined}
-                            onClick={() => select(t.id)}
+                            onClick={() => select(r.id)}
                           >
-                            <span className="hm-tt">{t.title}</span>
-                            <span className="hm-tm">{meta(t)}</span>
+                            <span className="hm-tt">
+                              {r.kind === "issue" ? r.issue.summary : r.task.title}
+                            </span>
+                            <span className="hm-tm">
+                              {r.kind === "issue" ? issueMeta(r.issue) : meta(r.task)}
+                            </span>
                           </button>
                         </li>
                       );
@@ -412,48 +449,109 @@ export function HomeTasks({
         )}
       </div>
 
-      <article className="hm-read" aria-label="The task">
-        {sel && (
+      <article className="hm-read" aria-label={sel?.kind === "issue" ? "The issue" : "The task"}>
+        {sel?.kind === "issue" && (
           <>
-            <p className="hm-said">{sel.title}</p>
+            <p className="hm-said">{sel.issue.summary}</p>
+            {/* THE STATE IS A WORD IN ITS COLOUR, under the words (laws 10 and
+                26): an open issue is amber, "closing in", never red — a fault
+                is not a missed date. Then how often, then where it came from. */}
+            <p className="hm-when">
+              <b className="warn">Open issue.</b>{" "}
+              {sel.issue.occurrences > 1
+                ? `Seen ${issueSeen(sel.issue.occurrences)}, first ${fmtAuWeekdayDayMonth(sel.issue.firstSeen)}, last ${fmtAuWeekdayDayMonth(sel.issue.lastSeen)}.`
+                : `Seen once, on ${fmtAuWeekdayDayMonth(sel.issue.lastSeen)}.`}
+              {src && <> Issue from your {fmtAuWeekdayDayMonth(src.day)} note.</>}
+            </p>
+
+            <dl className="hm-facts">
+              <div>
+                <dt>Where</dt>
+                <dd className={sel.issue.where ? undefined : "unset"}>{sel.issue.where ?? "Not on a job"}</dd>
+              </div>
+              <div>
+                <dt>Equipment</dt>
+                <dd className={sel.issue.equipmentRef ? undefined : "unset"}>
+                  {sel.issue.equipmentRef ?? "Not named"}
+                </dd>
+              </div>
+              <div>
+                <dt>Seen</dt>
+                <dd>{issueSeen(sel.issue.occurrences)}</dd>
+              </div>
+            </dl>
+
+            {src && (
+              <div className="hm-group">
+                <span className="hm-gl">From the diary</span>
+                <p className="hm-quote">{src.said}</p>
+                <span className="hm-qm">
+                  <span>
+                    {fmtAuWeekdayDayMonth(src.day)}, {src.at}
+                  </span>
+                  {onOpenEntry && (
+                    <button type="button" className="hm-link" onClick={() => onOpenEntry(src.id)}>
+                      Open in diary
+                    </button>
+                  )}
+                </span>
+              </div>
+            )}
+
+            <div className="hm-acts">
+              <button
+                className="hm-btn primary"
+                type="button"
+                disabled={pending}
+                onClick={() => run(() => resolveIssue(sel.id))}
+              >
+                Mark resolved
+              </button>
+            </div>
+          </>
+        )}
+
+        {sel?.kind === "task" && (
+          <>
+            <p className="hm-said">{sel.task.title}</p>
             {/* THE STATE IS A WORD IN ITS COLOUR, under the title (laws 10 and
                 26): red for past its date, amber for closing in, green for
                 done. Where the task came from follows in the same line. */}
             <p className="hm-when">
-              {sel.status === "done" ? (
-                <b className="ok">{sel.doneAt ? doneLabel(sel.doneAt, today) : "Done"}.</b>
-              ) : past(sel) ? (
+              {sel.task.status === "done" ? (
+                <b className="ok">{sel.task.doneAt ? doneLabel(sel.task.doneAt, today) : "Done"}.</b>
+              ) : past(sel.task) ? (
                 <b className="bad">
-                  Overdue, {-daysUntil(sel.dueDate!, today)}{" "}
-                  {-daysUntil(sel.dueDate!, today) === 1 ? "day" : "days"} late.
+                  Overdue, {-daysUntil(sel.task.dueDate!, today)}{" "}
+                  {-daysUntil(sel.task.dueDate!, today) === 1 ? "day" : "days"} late.
                 </b>
-              ) : dueLabel(sel.dueDate, today) ? (
-                <b className={dueLabel(sel.dueDate, today)!.state === "warn" ? "warn" : undefined}>
-                  {dueLabel(sel.dueDate, today)!.label}.
+              ) : dueLabel(sel.task.dueDate, today) ? (
+                <b className={dueLabel(sel.task.dueDate, today)!.state === "warn" ? "warn" : undefined}>
+                  {dueLabel(sel.task.dueDate, today)!.label}.
                 </b>
               ) : (
                 <b>Open.</b>
               )}
               {src && <> Task from your {fmtAuWeekdayDayMonth(src.day)} note.</>}
-              {sel.detail && <> {sel.detail}</>}
+              {sel.task.detail && <> {sel.task.detail}</>}
             </p>
 
             <dl className="hm-facts">
               <div>
                 <dt>Assigned to</dt>
-                <dd>{who(sel)}</dd>
+                <dd>{who(sel.task)}</dd>
               </div>
               <div>
                 <dt>Due</dt>
-                <dd className={sel.dueDate ? (past(sel) ? "bad" : undefined) : "unset"}>
-                  {sel.dueDate ? fmtAuDayMonth(sel.dueDate) : "Not set"}
+                <dd className={sel.task.dueDate ? (past(sel.task) ? "bad" : undefined) : "unset"}>
+                  {sel.task.dueDate ? fmtAuDayMonth(sel.task.dueDate) : "Not set"}
                 </dd>
               </div>
               {remind && (
                 <div>
                   <dt>Time</dt>
                   <dd>
-                    {sel.remindKind === "by" ? "by" : "at"} {clockLabel(remind.min)}
+                    {sel.task.remindKind === "by" ? "by" : "at"} {clockLabel(remind.min)}
                   </dd>
                 </div>
               )}
@@ -477,24 +575,24 @@ export function HomeTasks({
             )}
 
             <div className="hm-acts">
-              {!isReported(sel) && (isOwn(sel) || canManage) && (
+              {!isReported(sel.task) && (isOwn(sel.task) || canManage) && (
                 <button
                   className="hm-btn primary"
                   type="button"
                   disabled={pending}
-                  onClick={() => (sel.status === "done" ? undo(sel.id) : markDone(sel.id))}
+                  onClick={() => (sel.task.status === "done" ? undo(sel.id) : markDone(sel.id))}
                 >
-                  {sel.status === "done" ? "Reopen" : "Mark done"}
+                  {sel.task.status === "done" ? "Reopen" : "Mark done"}
                 </button>
               )}
-              {sel.status !== "done" && (isOwn(sel) || canManage) && (
+              {sel.task.status !== "done" && (isOwn(sel.task) || canManage) && (
                 /* THE DATE IS THE CONTROL. "Move due date" opened a picker
                    in the handoff; here the picker IS the button, reading the
                    date it holds or "Set due date" when there is none, and
                    Clear takes the date off. A reminder rides with the date —
                    see setTaskDue. */
                 <DateField
-                  value={sel.dueDate}
+                  value={sel.task.dueDate}
                   today={today}
                   clearable
                   placeholder="Set due date"
@@ -503,7 +601,7 @@ export function HomeTasks({
                   onChange={(iso) => run(() => setTaskDue(sel.id, iso))}
                 />
               )}
-              {mayDelete(sel) &&
+              {mayDelete(sel.task) &&
                 (confirm ? (
                   <Confirm
                     pending={pending}
@@ -515,7 +613,7 @@ export function HomeTasks({
                     className="hm-btn text del"
                     type="button"
                     disabled={pending}
-                    aria-label={`Delete "${sel.title}"`}
+                    aria-label={`Delete "${sel.task.title}"`}
                     onClick={() => setConfirm(true)}
                   >
                     Delete task

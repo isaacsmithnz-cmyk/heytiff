@@ -56,7 +56,7 @@ const HISTORY_LABEL: Record<RenewalKind, string> = {
   ctp: "Green slip history",
 };
 const RECORD_LABEL: Record<RenewalKind, { fresh: string; again: string; button: string }> = {
-  rego: { fresh: "Record renewal", again: "Record renewal", button: "Update rego" },
+  rego: { fresh: "Record registration", again: "Update rego", button: "Update rego" },
   insurance: { fresh: "Record policy", again: "Update policy", button: "Update policy" },
   ctp: { fresh: "Record green slip", again: "Update green slip", button: "Update green slip" },
 };
@@ -168,10 +168,15 @@ export function RenewalScreen({
   const state = renewalState(vehicle, kind, warnDays);
   const recorded = current !== null || days !== null;
 
-  /* The record panel: always open for rego (the design's choice — a rego is
-     renewed every year and the panel IS the screen), opened on demand for a
-     policy that exists, forced open when nothing has been filed. */
-  const [panelOpen, setPanelOpen] = useState(kind === "rego" || !recorded);
+  /* The record panel opens on the visit that came to renew: forced open when
+     nothing has been filed, open when the record in force is inside the
+     warning window (the amber bar and the compliance row both lead here
+     then), and closed behind the status card's button otherwise — the same
+     rule for all three kinds. Rego used to keep its panel open always, so a
+     look at a registration renewed last month opened on a scan zone, while
+     an insurance row reading "Renews in 3 weeks" opened on a closed panel and
+     asked for one more press. */
+  const [panelOpen, setPanelOpen] = useState(!recorded || state !== "ok");
   const [mode, setMode] = useState<ScanMode>("idle");
   const [f, setF] = useState<Fields>(EMPTY);
   const [docId, setDocId] = useState<string | null>(null);
@@ -227,10 +232,17 @@ export function RenewalScreen({
   };
 
   /* ---- status card copy ---- */
+  /* A record in force and clear reads as its state — "Registered", "Covered"
+     — with the expiry under it; inside the window it reads as the countdown,
+     and the date under it. The headline and the subline never say the same
+     fact twice (a rego clear of its window used to read "Renews in 11 months"
+     over "Expires 29 Sep 2027"). */
   const headline = !recorded
     ? `No ${kind === "rego" ? "registration" : kind === "insurance" ? "policy" : "green slip"} recorded`
-    : state === "ok" && kind !== "rego"
-      ? "Covered"
+    : state === "ok"
+      ? kind === "rego"
+        ? "Registered"
+        : "Covered"
       : renewalStatusText(days);
   const expiryIso = current?.expiresOn ?? null;
   const subline = !recorded
@@ -271,7 +283,7 @@ export function RenewalScreen({
             <span className="vm-headline">{headline}</span>
             <span className="vm-subline">{subline}</span>
           </div>
-          {kind !== "rego" && recorded && !panelOpen && (
+          {recorded && !panelOpen && (
             <Btn kind="primary" onClick={() => setPanelOpen(true)}>
               {RECORD_LABEL[kind].button}
             </Btn>
@@ -330,7 +342,7 @@ export function RenewalScreen({
               setDocId(id);
             }}
             onAttached={(id) => setDocId(id)}
-            onCancel={kind !== "rego" && recorded ? () => setPanelOpen(false) : undefined}
+            onCancel={recorded ? () => setPanelOpen(false) : undefined}
             mode={mode}
             onMode={(m) => {
               setMode(m);
@@ -387,10 +399,10 @@ export function RenewalScreen({
                   </select>
                 </Field>
               )}
-              <Field label={kind === "rego" ? "Renewed from" : "Starts"}>
+              <Field label="Starts">
                 <DateField size="lg" clearable today={today} value={f.startsOn || null} onChange={(iso) => set("startsOn")(iso ?? "")} aria-label="Starts" />
               </Field>
-              <Field label={kind === "rego" ? "New expiry" : "Expiry"} req>
+              <Field label="Expiry" req>
                 <DateField size="lg" clearable today={today} value={f.expiresOn || null} onChange={(iso) => set("expiresOn")(iso ?? "")} aria-label="Expires" />
               </Field>
               <Field label={kind === "rego" ? "Amount paid" : kind === "insurance" ? "Premium / yr" : "Premium"}>
@@ -505,7 +517,7 @@ function detailsFor(kind: RenewalKind, v: Vehicle, p: VehiclePolicy, state: "ok"
       { label: "State", value: v.plateState ?? dash, tone: faint(v.plateState) },
       expiry,
       { label: "Term", value: p.termMonths ? `${p.termMonths} months` : dash, tone: faint(p.termMonths ? "x" : null) },
-      { label: "Renewed from", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
+      { label: "Starts", value: p.startsOn ? fmtDay(p.startsOn) : dash, tone: faint(p.startsOn) },
       { label: "Safety check", value: p.inspectionOn ? fmtDay(p.inspectionOn) : "Not recorded", tone: faint(p.inspectionOn) },
       { label: "Authority", value: p.provider ?? dash, tone: faint(p.provider) },
       { label: "Paid", value: money(p.premium), tone: faint(p.premium != null ? "x" : null) },

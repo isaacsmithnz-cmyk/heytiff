@@ -254,12 +254,17 @@ describe("green slip", () => {
 });
 
 describe("registration", () => {
-  it("keeps the record panel open — a rego is renewed every year — and fills from the notice", async () => {
+  it("reads as registered when clear of its window, keeps the panel behind Update rego, and fills from the notice", async () => {
     const { user, onSave } = mount("rego");
-    expect(screen.getByText("Renews in 13 months")).toBeInTheDocument();
+    // the state and the date, said once each — not "Renews in 13 months" over "Expires 29 Sep 2027"
+    expect(screen.getByText("Registered")).toBeInTheDocument();
     expect(screen.getByText("Expires 29 Sep 2027")).toBeInTheDocument();
+    expect(screen.queryByText("Renews in 13 months")).not.toBeInTheDocument();
+    // a look at a rego renewed last year does not open on a scan zone
+    expect(screen.queryByText("Scan or upload the renewal notice")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Update rego" }));
     expect(screen.getByText("Scan or upload the renewal notice")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel" })).toBeInTheDocument(); // the footer's, not the panel's
+    expect(screen.getByText("Update rego")).toBeInTheDocument(); // the panel is headed by the button that opened it
     // safety check: not recorded is said, not blanked
     expect(screen.getByText("Not recorded")).toBeInTheDocument();
 
@@ -284,6 +289,20 @@ describe("registration", () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ kind: "rego", expiresOn: "2028-09-29", inspectionOn: "2027-08-30", premium: 1008, cover: null, garagingPostcode: null }),
     );
+  });
+
+  it("opens on the panel when the rego is inside its window — the visit that came to renew", () => {
+    mount("rego", { vehicle: { ...triton, regoDays: 21 } });
+    expect(screen.getByText("Renews in 3 weeks")).toBeInTheDocument();
+    expect(screen.getByText("Scan or upload the renewal notice")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update rego" })).not.toBeInTheDocument();
+  });
+
+  it("the same rule for a policy: inside its window the panel is already open", () => {
+    mount("ctp", { vehicle: { ...triton, ctpDays: 9 } });
+    expect(screen.getByText("Renews in 9 days")).toBeInTheDocument();
+    expect(screen.getByText("Scan or upload the green slip")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update green slip" })).not.toBeInTheDocument();
   });
 });
 

@@ -37,12 +37,12 @@ function ToolTile({ shelved, today }: { shelved: ShelvedTool; today: string }) {
   const name = toolBadge(tool, today);
   const badge = name ? BADGE_COLORS[name] : null;
   return (
-    <Link href={tool.href} className="tbx2-tile" style={{ "--ac": cat.accent } as React.CSSProperties}>
+    <Link href={tool.href} className="tbx2-tile">
       <span className="tbx2-ic">
         <Icon name={toolIcon(shelved)} size={26} />
       </span>
       {badge && name && (
-        <span className="tbx2-bg" style={{ background: badge[0], color: badge[1] }}>
+        <span className="tbx2-bg">
           {name}
         </span>
       )}

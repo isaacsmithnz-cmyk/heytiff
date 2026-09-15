@@ -37,7 +37,7 @@ export function EofyMoneyInput({ label, sub, value, onChange, suffix }: {
             const n = parseFloat(raw);
             onChange(isNaN(n) ? 0 : n);
           }}
-          style={{ border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 800, fontSize: 15, color: RC.ink, width: 104, textAlign: "right", padding: 0 }} />
+          style={{ border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 700, fontSize: 15, color: RC.ink, width: 104, textAlign: "right", padding: 0 }} />
         {suffix && <span style={{ fontSize: 12, color: RC.faint }}>{suffix}</span>}
       </div>
     </div>
@@ -56,13 +56,13 @@ function RateCompare({ label, last, rec, diff, diffPct, c }: {
   return last ? (
     <div style={{ flex: 1, background: RC.card2, borderRadius: 13, padding: "12px 15px", display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}, last year</div>
-        <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 23, letterSpacing: "-0.01em", color: RC.faint }}>${last}<span style={{ fontSize: 13 }}>/hr</span></div>
+        <div style={{ fontSize: 10, color: RC.faint, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}, last year</div>
+        <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 23, letterSpacing: "-0.01em", color: RC.faint }}>${last}<span style={{ fontSize: 13 }}>/hr</span></div>
       </div>
       <span style={{ fontSize: 17, color: RC.faint }}>→</span>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, color: c, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>Recommended now</div>
-        <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 23, letterSpacing: "-0.01em", color: c }}>{rate0(rec)}<span style={{ fontSize: 13 }}>/hr</span></div>
+        <div style={{ fontSize: 10, color: c, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Recommended now</div>
+        <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 23, letterSpacing: "-0.01em", color: c }}>{rate0(rec)}<span style={{ fontSize: 13 }}>/hr</span></div>
         {diff != null && <div style={{ fontSize: 11.5, fontWeight: 700, color: diff > 0 ? RC.amberInk : RC.service }}>{diff > 0 ? `+$${diff}/hr (+${diffPct}%)` : "Already above recommended"}</div>}
       </div>
     </div>
@@ -182,8 +182,8 @@ export function EofyPanel({ s, patch, calc }: {
           {hasAnyInput && margin != null && (
             <div style={{ background: RC.card2, borderRadius: 13, padding: "13px 16px", borderLeft: `4px solid ${mColor}` }}>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 10.5, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em" }}>Last year margin</span>
-                <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 25, letterSpacing: "-0.01em", color: mColor }}>{marginR?.toFixed(1)}%</span>
+                <span style={{ fontSize: 10.5, color: RC.faint, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>Last year margin</span>
+                <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 25, letterSpacing: "-0.01em", color: mColor }}>{marginR?.toFixed(1)}%</span>
               </div>
               <div style={{ fontSize: 12.5, color: RC.ink2, lineHeight: 1.5, marginTop: 4 }}>
                 {money(eofy.operating_profit)} profit on {money(eofy.revenue)} revenue · target is <b>{profitTarget}%</b>{mState === "success" ? " — you were hitting it." : mState === "danger" ? " — costs exceeded revenue; speak to your accountant." : ` — the recommended ${rate0(recInst)}/hr is designed to close the gap.`}
@@ -202,11 +202,11 @@ export function EofyPanel({ s, patch, calc }: {
             <div style={{ background: RC.amberSoft, borderRadius: 13, padding: "12px 15px", borderLeft: `4px solid ${RC.amber}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 10.5, fontWeight: 800, color: RC.amberInk, textTransform: "uppercase", letterSpacing: "0.07em" }}>≈ Estimated overtime</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: RC.amberInk, textTransform: "uppercase", letterSpacing: "0.07em" }}>≈ Estimated overtime</div>
                   <div style={{ fontSize: 11.5, color: RC.amberDeep, marginTop: 2 }}>{overtimeEst.staffCount} staff × {overtimeEst.avgContractedHrs}hrs × 52wks · standard pay ≈ {money(overtimeEst.stdTotal)}</div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 20, color: RC.amberInk, lineHeight: 1 }}>{money(overtimeEst.overtimeDollars)}</div>
+                  <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 20, color: RC.amberInk, lineHeight: 1 }}>{money(overtimeEst.overtimeDollars)}</div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: RC.amberInk, marginTop: 2 }}>{overtimeEst.overtimePct.toFixed(1)}% of staff costs</div>
                 </div>
               </div>
@@ -216,7 +216,7 @@ export function EofyPanel({ s, patch, calc }: {
 
           {hasAnyInput && growthRows.some(r => r.last > 0) && (
             <div style={{ background: RC.card2, borderRadius: 13, padding: "11px 15px" }}>
-              <div style={{ fontSize: 10.5, color: RC.faint, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Cost growth vs your calculator</div>
+              <div style={{ fontSize: 10.5, color: RC.faint, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Cost growth vs your calculator</div>
               {growthRows.filter(r => r.last > 0).map((r, i, arr) => (
                 <div key={r.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "7px 0", borderBottom: i < arr.length - 1 ? `1px solid ${RC.lineStrong}` : "none" }}>
                   <span style={{ fontSize: 13, color: RC.ink, fontWeight: 600, whiteSpace: "nowrap" }}>{r.label}</span>
@@ -231,9 +231,9 @@ export function EofyPanel({ s, patch, calc }: {
 
           {hasAnyInput && betterOff != null && hasRates && (
             <div style={{ background: boPositive ? RC.serviceSoft : RC.amberSoft, borderRadius: 13, padding: "13px 16px" }}>
-              <div style={{ fontSize: 10.5, fontWeight: 800, color: boPositive ? RC.service : RC.amberInk, textTransform: "uppercase", letterSpacing: "0.07em" }}>If you charge the recommended rate this year</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: boPositive ? RC.service : RC.amberInk, textTransform: "uppercase", letterSpacing: "0.07em" }}>If you charge the recommended rate this year</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginTop: 5 }}>
-                <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 29, letterSpacing: "-0.02em", color: boPositive ? RC.service : RC.amberInk }}>{boPositive ? "+" : "−"}{money(Math.abs(betterOff))}</span>
+                <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 29, letterSpacing: "-0.02em", color: boPositive ? RC.service : RC.amberInk }}>{boPositive ? "+" : "−"}{money(Math.abs(betterOff))}</span>
                 <span style={{ fontSize: 13, color: RC.ink2 }}>{boPositive ? "more profit vs last year" : "shortfall vs target"}</span>
               </div>
               <div style={{ fontSize: 12, color: RC.ink2, lineHeight: 1.55, marginTop: 5 }}>At your {profitTarget}% target on {money(eofy.revenue)} revenue that&apos;s {money(targetProfit)} — same work, same volume, just priced correctly.</div>

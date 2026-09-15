@@ -319,7 +319,7 @@ export function XeroCostsPanel({ s, patch, onFetch }: XeroCostsPanelProps) {
 
           <div className="rcx-total">
             <WsEyebrow color={RC.install}>Overheads / yr</WsEyebrow>
-            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 24, color: RC.install }}>
+            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 24, color: RC.install }}>
               {money(total)}
             </span>
           </div>

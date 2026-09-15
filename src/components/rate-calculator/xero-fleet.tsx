@@ -111,7 +111,7 @@ export function XeroFleetPanel({ s, patch, onFetch }: XeroFleetPanelProps) {
 
           <div className="rcx-total">
             <WsEyebrow color={RC.service}>Fleet / yr</WsEyebrow>
-            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 24, color: RC.service }}>
+            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 24, color: RC.service }}>
               {money(total)}
             </span>
           </div>

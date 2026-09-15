@@ -4,32 +4,33 @@
    Type: Plus Jakarta Sans everywhere — the system has no mono face. */
 export const RC = {
   // surfaces
-  bg:      "#EDEFF4",             // light well inside the dark frame
-  card:    "#FFFFFF",
-  card2:   "#F4F5F7",             // subtle panel
-  ink:     "#0A0B10",             // fg --ink2 (text ink)
-  inkDeep: "#050505",             // fg --ink (dark surfaces)
-  ink2:    "#374151",             // gray700 — secondary text
-  label:   "#6b7280",             // gray500
-  faint:   "#9ca3af",             // gray400 — tertiary text
-  line:    "#eef0f3",             // hairline
-  lineStrong: "#e5e7eb",
+  // the tokens (docs/design.md), as strings an inline style can carry
+  bg:      "var(--ground)",
+  card:    "var(--paper)",
+  card2:   "var(--tint)",
+  ink:     "var(--ink)",
+  inkDeep: "var(--ink)",
+  ink2:    "var(--ink)",
+  label:   "var(--q)",
+  faint:   "var(--q)",
+  line:    "var(--line)",
+  lineStrong: "var(--line)",
 
-  // brand mapping — Install = HeyTiff blue, Service = readable teal
-  install: "#2E68FF",
-  installSoft: "#EAF0FF",
-  service: "#22A54E",
-  serviceSoft: "#E7F6EC",
-  teal:    "#00E5C0",             // accent glow / dark-surface highlight
-  amber:   "#F0A431",
-  amberSoft: "#FCF3E3",
-  amberInk: "#B45309",            // headings on amber
-  amberDeep: "#7C5116",           // body text on amber
-  red:     "#FF3366",
-  redSoft: "#FFEBF0",
-  redInk:  "#D61F53",
-  violet:  "#8A2BE2",
-  violetSoft: "#F3EBFC",
+  // install and service are told apart by their words, not a colour (ink and paper)
+  install: "var(--ink)",
+  installSoft: "var(--tint)",
+  service: "var(--ink)",
+  serviceSoft: "var(--tint)",
+  teal:    "var(--ink)",
+  amber:   "var(--warn)",
+  amberSoft: "var(--warn-tint)",
+  amberInk: "var(--warn-t)",
+  amberDeep: "var(--warn-t)",
+  red:     "var(--bad)",
+  redSoft: "var(--bad-tint)",
+  redInk:  "var(--bad-t)",
+  violet:  "var(--ink)",
+  violetSoft: "var(--tint)",
 
   head: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",
   body: "var(--font-jakarta), 'Plus Jakarta Sans', sans-serif",

@@ -29,18 +29,8 @@ export function ToolPage({
   return (
     <div className="page in">
       <div className="wrap">
-        <div
-          className={"tool" + (compact ? " compact" : "")}
-          style={
-            {
-              "--tool-accent": accent,
-              "--tool-accent-ink": accentInk,
-              "--tool-accent-soft": accent + "1f",
-              "--tool-accent-line": accent + "4d",
-              "--tool-ring": accent + "2e",
-            } as React.CSSProperties
-          }
-        >
+        {/* the per-tool accent went with the fold (ink and paper): the page is ink and paper like every other */}
+        <div className={"tool" + (compact ? " compact" : "")}>
           <div className="thead stg">
             <div className="trow1">
               <Link href="/dashboard/toolbox" className="tback">

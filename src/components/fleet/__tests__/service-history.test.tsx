@@ -218,7 +218,7 @@ it("a service in the list opens on its own screen — what was done, the worksho
   expect(screen.getByText("Braeside Auto")).toBeInTheDocument();
   expect(screen.getByText("$812.50")).toBeInTheDocument();
   expect(screen.getByText("51 824 753 556")).toBeInTheDocument();
-  expect(screen.getByText("Read from the paper")).toBeInTheDocument();
+  expect(screen.getByText("Read from the invoice")).toBeInTheDocument();
   // the record was marked kept but this test handed down no documents: the
   // screen says nothing is filed rather than drawing a broken preview
   expect(screen.getByText("No record filed for this service.")).toBeInTheDocument();

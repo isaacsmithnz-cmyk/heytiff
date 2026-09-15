@@ -11,7 +11,7 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { fileToUprightBase64 } from "@/lib/images/upright";
 import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
-import { logIso } from "./vehicle-modal/derive";
+import { LOG_WORD, fmtDay, logIso } from "./vehicle-modal/derive";
 import {
   FUEL_PAYERS,
   FUEL_PAYER_LABEL,
@@ -516,11 +516,11 @@ export function LogModal({
       >
         <input className="fl-i" inputMode="numeric" placeholder="e.g. 51 824 753 556" value={abn} onChange={(e) => setAbn(e.target.value)} />
       </Field>
-      <Field label="Service" span hint="The one line the history shows">
+      <Field label="Summary" span>
         <input className="fl-i" placeholder="e.g. 100,000 km logbook service" value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <Field label="Work done" span hint="One line per item, as the invoice lists it">
-        <textarea className="fl-i tall" placeholder="Optional" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
+      <Field label="Work done" span>
+        <textarea className="fl-i tall" placeholder="One line per item, as the invoice lists them" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
       </Field>
     </>
   );
@@ -735,7 +735,7 @@ export function EditLogModal({
   return (
     <FleetModal
       title="Correct this entry"
-      sub={`${LOG_COPY[log.kind].title}, ${log.when}`}
+      sub={`${LOG_WORD[log.kind]}, ${fmtDay(logIso(log, today))}`}
       onClose={onClose}
     >
       {confirming ? (
@@ -769,30 +769,53 @@ export function EditLogModal({
               log it again.
             </div>
           )}
+          {/* The fields in the ORDER THE LOG MODAL ASKS THEM, per kind, so
+              correcting reads like logging did — a fill: litres, cost, station,
+              date, GST, ABN, odometer, note; a service: workshop, date,
+              odometer, cost, GST, ABN, summary, work done. */}
           <div className="fl-grid">
             {isFuel && (
-              <Field label="Litres" req>
-                <input className="fl-i" type="number" value={litres} onChange={(e) => setLitres(e.target.value)} />
-              </Field>
-            )}
-            {purchase && (
               <>
+                <Field label="Litres" req>
+                  <input className="fl-i" type="number" value={litres} onChange={(e) => setLitres(e.target.value)} />
+                </Field>
                 <Field label="Cost ($)">
                   <input className="fl-i" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
                 </Field>
-                <Field label={isFuel ? "Station" : "Workshop"}>
+                <Field label="Station">
                   <input className="fl-i" value={station} onChange={(e) => setStation(e.target.value)} />
                 </Field>
-                <Field label={isFuel ? "Date on receipt" : "Date on invoice"}>
-                  <DateField
-                    size="lg"
-                    clearable
-                    today={today}
-                    max={today}
-                    value={bought || null}
-                    onChange={(iso) => setBought(iso ?? "")}
-                  />
+              </>
+            )}
+            {isService && (
+              <Field label="Workshop">
+                <input className="fl-i" value={station} onChange={(e) => setStation(e.target.value)} />
+              </Field>
+            )}
+            {purchase && (
+              <Field label={isFuel ? "Date on receipt" : "Date on invoice"}>
+                <DateField
+                  size="lg"
+                  clearable
+                  today={today}
+                  max={today}
+                  value={bought || null}
+                  onChange={(iso) => setBought(iso ?? "")}
+                />
+              </Field>
+            )}
+            {isService && (
+              <>
+                <Field label="Serviced at odo (km)">
+                  <input className="fl-i" type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
                 </Field>
+                <Field label="Cost ($)">
+                  <input className="fl-i" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+                </Field>
+              </>
+            )}
+            {purchase && (
+              <>
                 <Field
                   label="GST ($)"
                   hint={gstOver ? `More than an eleventh of the total — check the ${paper}` : `Only if the ${paper} shows it`}
@@ -809,17 +832,17 @@ export function EditLogModal({
                 </Field>
               </>
             )}
-            {log.kind !== "issue" && (
-              <Field label="Odometer (km)" span={!purchase}>
+            {(isFuel || log.kind === "odo") && (
+              <Field label="Odometer (km)" span={!isFuel}>
                 <input className="fl-i" type="number" value={odo} onChange={(e) => setOdo(e.target.value)} />
               </Field>
             )}
             {isService ? (
               <>
-                <Field label="Service" span hint="The one line the history shows">
+                <Field label="Summary" span>
                   <input className="fl-i" value={note} onChange={(e) => setNote(e.target.value)} />
                 </Field>
-                <Field label="Work done" span hint="One line per item, as the invoice lists it">
+                <Field label="Work done" span>
                   <textarea className="fl-i tall" value={workDone} onChange={(e) => setWorkDone(e.target.value)} />
                 </Field>
               </>

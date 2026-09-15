@@ -74,6 +74,8 @@ const LOG_LABEL: Record<LogKind, string> = {
   service: "Log service",
 };
 const LOG_ICON: Record<LogKind, string> = { fuel: "fuel", odo: "gauge", issue: "alert", service: "wrench" };
+/** How many rows the History card shows before "View full history". */
+const RECENT = 6;
 
 export function MainScreen({
   vehicle,
@@ -134,7 +136,10 @@ export function MainScreen({
   const rows = complianceRows(vehicle, policies, warnDays);
   const specs = specRows(vehicle);
   const tabs = historyTabs(vehicle);
-  const events = historyEvents(logs, tab, fullHistory ? Infinity : undefined);
+  const events = historyEvents(logs, tab, fullHistory ? Infinity : RECENT);
+  /* "View full history" only when there is more than the recent six to see —
+     a link that shows the same rows again is a link that does nothing. */
+  const more = historyEvents(logs, tab, Infinity).length > RECENT;
   const photo = photoSrc(vehicle, documents);
   const service = serviceDueText(vehicle, warnDays);
   const fin = currentFinance(finance);
@@ -335,9 +340,11 @@ export function MainScreen({
                 <EventRow key={l.id} log={l} eco={eco[l.id]} onOpen={(x) => onOpen(logScreen(x.id))} />
               ))
             )}
-            <Inline onClick={() => setFullHistory((f) => !f)}>
-              {fullHistory ? "Show recent" : "View full history"}
-            </Inline>
+            {more && (
+              <Inline onClick={() => setFullHistory((f) => !f)}>
+                {fullHistory ? "Show recent" : "View full history"}
+              </Inline>
+            )}
           </Card>
         </div>
 

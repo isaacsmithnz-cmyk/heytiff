@@ -6,7 +6,7 @@ import { uploadFile } from "@/lib/documents/upload-client";
 import { Plate } from "../plate";
 import { displayName, type Vehicle, type VehicleLog } from "../logic";
 import { entryFacts, entryTitle, logDocuments } from "./derive";
-import { DocRows } from "@/components/record-modal/doc-rows";
+import { DocPreview, DocRows } from "@/components/record-modal/doc-rows";
 import { Btn, Card, DetailGrid, Eyebrow, Inline, SubHeader } from "@/components/record-modal/parts";
 
 /* One entry, read on its own: the facts a row could not hold, and the paper
@@ -54,12 +54,16 @@ export function EntryScreen({
   onAttach: (logId: string, documentId: string) => void;
 }) {
   const docs = logDocuments(documents, log);
-  /* Opened on arrival: the document is what the click was for. */
+  /* Opened on arrival: the document is what the click was for. With ONE
+     document — the usual case — it is shown straight, with no row above it
+     naming the same file a second time; the row list is for the entry that
+     somehow has several. */
   const [openDoc, setOpenDoc] = useState<string | null>(docs[0]?.id ?? null);
   const [attachWarn, setAttachWarn] = useState<string | null>(null);
   const attachInput = useRef<HTMLInputElement>(null);
   const paper = PAPER[log.kind];
-  const facts = entryFacts(log, eco, today);
+  const facts = entryFacts(log, eco);
+  const only = docs.length === 1 ? docs[0] : null;
 
   const attach = async (file: File | null | undefined) => {
     if (!file || !paper) return;
@@ -114,6 +118,7 @@ export function EntryScreen({
               {docs.length === 0 && (
                 <Inline onClick={() => attachInput.current?.click()}>Attach the {paper.word}</Inline>
               )}
+              {only && openDoc === null && <Inline onClick={() => setOpenDoc(only.id)}>Show</Inline>}
             </div>
             <input
               ref={attachInput}
@@ -127,7 +132,11 @@ export function EntryScreen({
               }}
             />
             {attachWarn && <div className="vm-warnline">{attachWarn}</div>}
-            <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} previewHeight={480} emptyText={paper.none} />
+            {only ? (
+              openDoc !== null && <DocPreview doc={only} onClose={() => setOpenDoc(null)} height={480} />
+            ) : (
+              <DocRows docs={docs} openId={openDoc} onOpen={setOpenDoc} previewHeight={480} emptyText={paper.none} />
+            )}
           </Card>
         )}
       </div>

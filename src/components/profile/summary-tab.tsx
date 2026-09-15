@@ -70,11 +70,11 @@ export function SummaryTab({
   mode: ProfileMode;
   actions: Pick<ProfileActions, "onSetPhoto" | "onClearPhoto">;
   completeness: Completeness;
-  /** open a tab; `true` opens it straight into its form */
-  onGo: (key: SectionKey, withEdit?: boolean) => void;
+  /** open a tab; `true` opens it straight into its form, on `field` */
+  onGo: (key: SectionKey, withEdit?: boolean, field?: keyof StaffProfile) => void;
 }) {
-  const addPersonal = () => onGo("personal", true);
-  const addEmergency = () => onGo("emergency", true);
+  const addPersonal = (field?: keyof StaffProfile) => onGo("personal", true, field);
+  const addEmergency = (field?: keyof StaffProfile) => onGo("emergency", true, field);
   const rights = workRightsTile(profile, today, warnDays);
 
   return (
@@ -84,10 +84,10 @@ export function SummaryTab({
         vehicle={vehicle}
         actions={actions}
         completeness={completeness}
-        onAddStart={addPersonal}
+        onAddStart={() => addPersonal("start_date")}
       />
 
-      <Group title="Personal" link="Edit" onLink={addPersonal}>
+      <Group title="Personal" link="Edit" onLink={() => addPersonal()}>
         <Cell label="Date of birth" value={formatAuDate(profile?.birthday)} field="birthday" onAdd={addPersonal} />
         <Cell label="Mobile" value={profile?.phone} field="phone" onAdd={addPersonal} />
         {/* the sign-in address on your own card, the contact address on a
@@ -112,7 +112,7 @@ export function SummaryTab({
         )}
       </Group>
 
-      <Group title="Emergency contact" link="Edit" onLink={addEmergency}>
+      <Group title="Emergency contact" link="Edit" onLink={() => addEmergency()}>
         <Cell
           label="Name"
           value={profile?.emergency_name}
@@ -146,7 +146,7 @@ export function SummaryTab({
             foot={rights.foot}
             required={rights.unset}
             open={rights.unset ? "Add work rights" : "Open Work rights"}
-            onOpen={() => onGo("workrights", rights.unset)}
+            onOpen={() => onGo("workrights", rights.unset, rights.unset ? "work_rights_status" : undefined)}
           />
           {licences.map((l) => {
             const status = licenceStatus(l.expiryDate, today, warnDays);
@@ -230,7 +230,8 @@ function Cell({
   field?: keyof StaffProfile;
   /** the Add's accessible name, where the cell's label alone is ambiguous */
   addName?: string;
-  onAdd?: () => void;
+  /** opens the section's form on this cell's column */
+  onAdd?: (field: keyof StaffProfile) => void;
 }) {
   const spec = field ? PROFILE_FIELDS.find((f) => f.key === field) : undefined;
   const empty = value === null || value === undefined || value === "";
@@ -240,9 +241,9 @@ function Cell({
       <dd>
         {!empty ? (
           <span className="psum-v">{value}</span>
-        ) : spec && onAdd ? (
+        ) : spec && onAdd && field ? (
           <span className="psum-add">
-            <button type="button" className="psum-addl" onClick={onAdd}>
+            <button type="button" className="psum-addl" onClick={() => onAdd(field)}>
               Add
               <i className="sr-only"> {addName ?? label}</i>
             </button>

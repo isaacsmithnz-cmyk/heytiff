@@ -145,6 +145,39 @@ describe("answering a blank", () => {
     expect(screen.getByLabelText(/Date of birth/)).toBeInTheDocument();
   });
 
+  /* The form is fourteen rows. The person pointed at ONE of them, so the
+     form opens with that control focused rather than the cursor nowhere —
+     and on the control that was named, not the first one. */
+  it("opens the form on the field that was asked for", async () => {
+    const user = userEvent.setup();
+    setup(blankProfile);
+
+    await user.click(screen.getByRole("button", { name: "Add Address" }));
+    expect(document.getElementById("address")).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: /^Cancel$/ }));
+    await user.click(screen.getByRole("tab", { name: /Summary/ }));
+    await user.click(screen.getByRole("button", { name: "Add Emergency contact phone" }));
+    expect(document.getElementById("emergency_phone")).toHaveFocus();
+  });
+
+  it("opens the work-rights form on the status, from the tile", async () => {
+    const user = userEvent.setup();
+    setup(blankProfile);
+    await user.click(screen.getByRole("button", { name: "Add work rights" }));
+    expect(document.getElementById("work_rights_status")).toHaveFocus();
+  });
+
+  /* A group's Edit is the way in with nothing pointed at: the form opens and
+     the cursor stays where the reader is. */
+  it("leaves the cursor alone when the whole section was asked for", async () => {
+    const user = userEvent.setup();
+    setup(blankProfile);
+    await user.click(screen.getByRole("button", { name: "Edit Personal" }));
+    expect(isEditing()).toBe(true);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("opens the form again when the same section is asked for twice", async () => {
     const user = userEvent.setup();
     setup(blankProfile);
@@ -184,6 +217,36 @@ describe("answering a blank", () => {
     // the badge reads the header's signed URL, not the profile's storage ref
     const { container } = setup(done, "https://storage.example/signed/doc-1.jpg");
     expect(container.querySelector(".pphoto")).not.toHaveClass("nophoto");
+  });
+});
+
+/* ONE LIST. The star on a form's label and the word Required on Summary say
+   the same thing — the business is obliged to hold this — and used to come
+   from two lists. A mobile number wore a star the model called wanted; a
+   date of birth wore none and the model called it required. Both read
+   lib/staff/completeness now, so they cannot disagree. */
+describe("the forms' stars", () => {
+  const starred = () =>
+    [...document.querySelectorAll(".psec2 .pdrow dt")]
+      .filter((dt) => dt.querySelector(".req"))
+      .map((dt) => (dt.textContent ?? "").replace("*", "").trim());
+
+  it("agree with Summary's Required words", async () => {
+    const user = userEvent.setup();
+    setup(blankProfile);
+    const required = [...document.querySelectorAll(".psum-c")]
+      .filter((c) => c.querySelector(".psum-req"))
+      .map((c) => c.querySelector("dt")?.textContent);
+    expect(required).toEqual(["Date of birth", "Address", "Employment"]);
+
+    await user.click(screen.getByRole("button", { name: "Edit Personal" }));
+    expect(starred()).toEqual(["First name", "Last name", "Date of birth", "Address", "Start date", "Type"]);
+
+    await user.click(screen.getByRole("button", { name: /^Cancel$/ }));
+    await user.click(screen.getByRole("tab", { name: /Emergency/ }));
+    await user.click(screen.getByRole("button", { name: /^Edit$/ }));
+    // wanted, not required — nothing stops payroll running without them
+    expect(starred()).toEqual([]);
   });
 });
 

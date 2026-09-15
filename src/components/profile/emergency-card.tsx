@@ -1,5 +1,6 @@
 "use client";
 
+import { requiredField } from "@/lib/staff/completeness";
 import { IdCard } from "@/components/cards/id-card";
 import type { StaffProfile } from "@/lib/staff/profile";
 import { preValidate } from "@/lib/staff/pre-validate";
@@ -27,12 +28,15 @@ export function EmergencyCard({
   mode,
   org,
   startEditing,
+  focusField,
   onSave,
 }: {
   profile: StaffProfile | null;
   mode: ProfileMode;
   org: string | null;
   startEditing?: boolean;
+  /** the column Summary's Add pointed at — the form opens on it */
+  focusField?: string;
   onSave: SaveSection;
 }) {
   const values = emergencyValues(profile);
@@ -89,7 +93,7 @@ export function EmergencyCard({
         <DetailPanel title="In case of emergency" wide split>
           <Detail
             label="Contact name"
-            req
+            req={requiredField("emergency_name")}
             editing={editing}
             value={values.emergency_name}
             onAdd={edit}
@@ -104,7 +108,7 @@ export function EmergencyCard({
           />
           <Detail
             label="Contact phone"
-            req
+            req={requiredField("emergency_phone")}
             editing={editing}
             value={values.emergency_phone}
             onAdd={edit}
@@ -161,6 +165,7 @@ export function EmergencyCard({
       title="Emergency contact"
       values={values}
       startEditing={startEditing}
+      focusField={focusField}
       onSave={(fields) => onSave("emergency", fields)}
       validate={(fields) => preValidate(mode, "emergency", fields)}
       body={body}

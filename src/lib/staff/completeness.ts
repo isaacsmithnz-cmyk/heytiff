@@ -57,6 +57,15 @@ export const PROFILE_FIELDS: readonly ProfileFieldSpec[] = [
   { key: "photo_url", label: "Profile photo", section: "summary", required: false },
 ];
 
+/** Whether the business is obliged to hold a column — the star on a form's
+    label, the word Required beside a blank on Summary. ONE answer for both:
+    the forms used to carry their own `req` flags, and the two lists had
+    drifted until a mobile number wore a star the model called wanted while
+    a date of birth wore none and the model called it required. */
+export function requiredField(key: keyof StaffProfile): boolean {
+  return PROFILE_FIELDS.some((f) => f.key === key && f.required);
+}
+
 export type Completeness = {
   filled: number;
   total: number;

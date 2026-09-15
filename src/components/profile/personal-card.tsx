@@ -1,5 +1,6 @@
 "use client";
 
+import { requiredField } from "@/lib/staff/completeness";
 import { useState } from "react";
 import { Icon } from "@/components/shell/icon";
 import { AddressField } from "@/components/address/address-field";
@@ -60,6 +61,7 @@ export function PersonalCard({
   today,
   orgState = null,
   startEditing,
+  focusField,
   onSave,
 }: {
   profile: StaffProfile | null;
@@ -81,6 +83,8 @@ export function PersonalCard({
   /** the org's home state — see the Holiday state row in the read view */
   orgState?: string | null;
   startEditing?: boolean;
+  /** the column Summary's Add pointed at — the form opens on it */
+  focusField?: string;
   onSave: SaveSection;
 }) {
   const values = personalValues(profile, mode);
@@ -120,7 +124,7 @@ export function PersonalCard({
       <DetailPanel title="Identity">
         <Detail
           label="First name"
-          req
+          req={requiredField("first_name")}
           editing={editing}
           value={values.first_name}
           onAdd={edit}
@@ -137,7 +141,7 @@ export function PersonalCard({
         />
         <Detail
           label="Last name"
-          req
+          req={requiredField("last_name")}
           editing={editing}
           value={values.last_name}
           onAdd={edit}
@@ -166,6 +170,7 @@ export function PersonalCard({
         />
         <Detail
           label="Date of birth"
+          req={requiredField("birthday")}
           editing={editing}
           value={born}
           onAdd={edit}
@@ -204,7 +209,7 @@ export function PersonalCard({
         />
         <Detail
           label="Mobile"
-          req
+          req={requiredField("phone")}
           editing={editing}
           value={values.phone}
           onAdd={edit}
@@ -224,6 +229,7 @@ export function PersonalCard({
             there are no sibling fields here to fill. */}
         <Detail
           label="Address"
+          req={requiredField("address")}
           editing={editing}
           value={values.address}
           onAdd={edit}
@@ -243,6 +249,7 @@ export function PersonalCard({
       <DetailPanel title="Employment" wide split>
         <Detail
           label="Start date"
+          req={requiredField("start_date")}
           editing={editing}
           value={started}
           onAdd={edit}
@@ -281,6 +288,7 @@ export function PersonalCard({
         />
         <Detail
           label="Type"
+          req={requiredField("employment_type")}
           editing={editing}
           value={values.employment_type}
           onAdd={edit}
@@ -396,6 +404,7 @@ export function PersonalCard({
         title="Personal details"
         values={values}
         startEditing={startEditing}
+        focusField={focusField}
         onSave={(fields) => onSave("personal", fields)}
         validate={(fields) => preValidate(mode, "personal", fields)}
         body={body}

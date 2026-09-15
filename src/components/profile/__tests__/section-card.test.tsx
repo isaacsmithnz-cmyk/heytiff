@@ -48,8 +48,10 @@ const openPersonal = (user: ReturnType<typeof userEvent.setup>) =>
    reader would read out. The day is chosen from the month the field opens on
    (its own value's), because paging a decade at a time is not what a person
    does either. */
+// anchored, not exact: a required label carries the star, and the star is not the name
+const byLabel = (label: string) => screen.getByLabelText(new RegExp("^" + label));
 const pick = async (user: ReturnType<typeof userEvent.setup>, label: string, day: string) => {
-  await user.click(screen.getByLabelText(label));
+  await user.click(byLabel(label));
   await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: day }));
 };
 
@@ -71,9 +73,9 @@ describe("a rejected save", () => {
 
     expect(await screen.findByText("Check the date format — use dd/mm/yyyy.")).toBeInTheDocument();
     // what was entered is still there…
-    expect(screen.getByLabelText("Date of birth")).toHaveTextContent("03/12/1990");
+    expect(byLabel("Date of birth")).toHaveTextContent("03/12/1990");
     // …the field is marked…
-    expect(screen.getByLabelText("Date of birth")).toHaveAttribute("aria-invalid", "true");
+    expect(byLabel("Date of birth")).toHaveAttribute("aria-invalid", "true");
     // …and the card never went back to read mode
     expect(screen.getByRole("button", { name: /^Save\b/ })).toBeInTheDocument();
   });
@@ -268,7 +270,7 @@ describe("dates are picked, never typed", () => {
     await openPersonal(user);
     await user.click(editButtons()[0]);
     for (const label of ["Date of birth", "Start date"]) {
-      const field = screen.getByLabelText(label);
+      const field = byLabel(label);
       expect(field.tagName).toBe("BUTTON");
       expect(field).toHaveAttribute("aria-haspopup", "dialog");
     }
@@ -308,10 +310,10 @@ describe("dates are picked, never typed", () => {
     setup(okActions());
     await openPersonal(user);
     await user.click(editButtons()[0]);
-    expect(screen.getByLabelText("Date of birth")).toHaveTextContent("25/12/1990");
+    expect(byLabel("Date of birth")).toHaveTextContent("25/12/1990");
 
     // and it opens ON that date's month rather than on today
-    await user.click(screen.getByLabelText("Date of birth"));
+    await user.click(byLabel("Date of birth"));
     expect(within(screen.getByRole("dialog")).getByText("December 1990")).toBeInTheDocument();
   });
 });

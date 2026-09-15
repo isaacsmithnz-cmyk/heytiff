@@ -41,7 +41,8 @@ function setup(addressLookup = false) {
 const edit = async (user: ReturnType<typeof userEvent.setup>) =>
   user.click(screen.getByRole("button", { name: /^Edit$/ }));
 
-const address = () => screen.getByLabelText("Address") as HTMLInputElement;
+// anchored, not exact: the label carries the required star now, and the star is not the name
+const address = () => screen.getByLabelText(/^Address\*?$/) as HTMLInputElement;
 
 beforeEach(() => {
   jest.clearAllMocks();

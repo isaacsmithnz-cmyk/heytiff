@@ -151,6 +151,9 @@ const TABS = [
 
 const MODE_LABEL = { plan: "Floor plans", blank: "Blank canvas" } as const;
 
+/** how many of the recent designs the start screen shows */
+const RECENT_CAP = 5;
+
 /* screen-swap timings — see throughSwap(). Must stay in step with the .2s
    exit transitions on `.dstudio.swapping .ds-home-stack` in studio.css: the
    leaving screen has to be fully gone before the swap lands. */
@@ -828,9 +831,16 @@ function Home({
 
   const loading = recents === null;
   const known = recents ?? [];
-  const visible = known.filter((r) =>
+  const matches = known.filter((r) =>
     r.name.toLowerCase().includes(query.trim().toLowerCase())
   );
+  /* THE FIVE MOST RECENT, not the archive: the list is newest first from the
+     store, and a card of everything ever drawn pushed the screen down by a
+     row per job (Isaac, 2026-09-15). Search still reaches the rest — it
+     narrows first and then takes the top five — and the line under the
+     list says how many more there are, so nothing reads as lost. */
+  const visible = matches.slice(0, RECENT_CAP);
+  const beyond = matches.length - visible.length;
 
   const trimmed = name.trim();
   const cancel = () => {
@@ -1114,6 +1124,11 @@ function Home({
                   </button>
                 </div>
               ))}
+              {beyond > 0 && (
+                <div className="ds-rmore">
+                  {beyond} more {beyond === 1 ? "design" : "designs"}
+                </div>
+              )}
             </div>
           ) : (
             <div className="ds-rempty">

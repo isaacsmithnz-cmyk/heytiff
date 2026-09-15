@@ -256,14 +256,14 @@ function RatesIntro({ s, patch, onDone }: {
   const fieldWrap: React.CSSProperties = { flex: 1 };
   const labelRow: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 };
   const box: React.CSSProperties = { display: "flex", alignItems: "baseline", gap: 4, background: RC.card2, borderRadius: 12, padding: "13px 16px", border: `1px solid ${RC.lineStrong}` };
-  const inputStyle: React.CSSProperties = { border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 800, fontSize: 30, letterSpacing: "-0.02em", color: RC.ink, width: "100%", padding: 0 };
+  const inputStyle: React.CSSProperties = { border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 700, fontSize: 30, letterSpacing: "-0.02em", color: RC.ink, width: "100%", padding: 0 };
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.body }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(5,5,5,0.45)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }} />
       <div style={{ position: "relative", width: 580, background: "#fff", borderRadius: 24, boxShadow: "0 40px 100px rgba(5,5,5,0.4)", overflow: "hidden" }}>
         <div style={{ padding: "28px 34px 0" }}>
           <WsEyebrow>Rate Calculator, Step 1</WsEyebrow>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 29, letterSpacing: "-0.03em", color: RC.ink, lineHeight: 1.1, marginTop: 12 }}>What do you charge right now?</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 29, letterSpacing: "-0.03em", color: RC.ink, lineHeight: 1.1, marginTop: 12 }}>What do you charge right now?</div>
           <div style={{ fontSize: 14, color: RC.ink2, lineHeight: 1.6, marginTop: 9 }}>
             Enter your current hourly charge-out rates. This is the baseline we&apos;ll compare against — so you can see exactly where you stand versus what your costs say you should charge. You can change these any time.
           </div>
@@ -272,7 +272,7 @@ function RatesIntro({ s, patch, onDone }: {
           <div style={fieldWrap}>
             <div style={labelRow}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: RC.install }} />
-              <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13, color: RC.ink }}>Install</span>
+              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink }}>Install</span>
             </div>
             <div style={box}>
               <span style={{ fontSize: 18, color: RC.faint }}>$</span>
@@ -283,7 +283,7 @@ function RatesIntro({ s, patch, onDone }: {
           <div style={fieldWrap}>
             <div style={labelRow}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: RC.service }} />
-              <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13, color: RC.ink }}>Service</span>
+              <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink }}>Service</span>
             </div>
             <div style={box}>
               <span style={{ fontSize: 18, color: RC.faint }}>$</span>
@@ -436,13 +436,13 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
           600-weight sub, transparent on the well */}
       <div style={{ height: 70, flexShrink: 0, display: "flex", alignItems: "center", gap: 14, padding: "16px 24px 0", position: "relative", zIndex: 20 }}>
         <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", gap: 13 }}>
-          <div style={{ fontFamily: RC.head, fontSize: 23, fontWeight: 800, letterSpacing: "-0.01em", color: RC.ink, lineHeight: 1, whiteSpace: "nowrap" }}>Rate Calculator</div>
+          <div style={{ fontFamily: RC.head, fontSize: 23, fontWeight: 700, letterSpacing: "-0.01em", color: RC.ink, lineHeight: 1, whiteSpace: "nowrap" }}>Rate Calculator</div>
           <span style={{ width: 1, height: 22, background: "rgba(28,38,70,.12)", margin: "0 2px", flexShrink: 0 }} />
           <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 700, color: hc.fg, background: hc.bg, padding: "6px 13px", borderRadius: 100, whiteSpace: "nowrap", flexShrink: 0 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: hc.dot }} />{health.status}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {s.businessName && <span style={{ fontFamily: RC.head, fontSize: 12, fontWeight: 700, color: RC.label, background: "#fff", border: `1px solid rgba(10,12,20,.07)`, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap" }}>{s.businessName}</span>}
-          <button className="rca-iconbtn" onClick={() => setHelpOpen(true)} title="How to use" style={{ fontWeight: 800, fontSize: 15 }}>?</button>
+          <button className="rca-iconbtn" onClick={() => setHelpOpen(true)} title="How to use" style={{ fontWeight: 700, fontSize: 15 }}>?</button>
           <button className="rca-iconbtn" onClick={() => setShowSettings(true)} title="Settings"><RcIcon name="settings" size={16} /></button>
         </div>
       </div>
@@ -454,7 +454,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
         <div style={{ width: 236, flexShrink: 0, background: "#fff", borderRadius: 18, border: `1px solid rgba(10,12,20,.06)`, boxShadow: "0 1px 2px rgba(10,12,20,.04), 0 20px 50px -30px rgba(10,12,20,.18)", padding: "18px 16px 16px", display: "flex", flexDirection: "column", overflow: "hidden auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <WsEyebrow color={RC.label}>Setup path</WsEyebrow>
-            <span style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 13, color: RC.ink }}>{enteredCount}<span style={{ color: RC.faint }}> / 5</span></span>
+            <span style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 13, color: RC.ink }}>{enteredCount}<span style={{ color: RC.faint }}> / 5</span></span>
           </div>
           {STEP_META.map((m, i) => {
             const cur = i === step && !overview && !insights;
@@ -465,7 +465,7 @@ function CalculatorApp({ initial, hasData, showOnboarding, onPersist, onReset, s
             return (
               <div key={m.key} className="rca-step" style={{ animationDelay: `${i * 60}ms` }} onClick={() => setStep(i)}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 28 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: ns.bg, border: ns.border, display: "flex", alignItems: "center", justifyContent: "center", color: ns.fg, fontFamily: RC.head, fontWeight: 800, fontSize: 13, boxShadow: cur ? `0 0 0 5px ${RC.installSoft}` : "none", transition: "all .2s" }}>{ns.icon || i + 1}</div>
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: ns.bg, border: ns.border, display: "flex", alignItems: "center", justifyContent: "center", color: ns.fg, fontFamily: RC.head, fontWeight: 700, fontSize: 13, boxShadow: cur ? `0 0 0 5px ${RC.installSoft}` : "none", transition: "all .2s" }}>{ns.icon || i + 1}</div>
                   {!last && <div style={{ flex: 1, width: 2, background: lineDone ? RC.service : "#ECEEF1", minHeight: 24, transition: "background .2s" }} />}
                 </div>
                 <div style={{ flex: 1, paddingBottom: last ? 0 : 13, paddingTop: 3, opacity: lineDone || cur ? 1 : 0.65 }}>

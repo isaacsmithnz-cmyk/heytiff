@@ -49,7 +49,6 @@ function SymptomPicker({ onPick }: { onPick: (key: string) => void }) {
             key={s.key}
             type="button"
             className="ffg-sym"
-            style={{ "--sc2": s.color } as React.CSSProperties}
             onClick={() => onPick(s.key)}
           >
             <span className="ic">
@@ -84,7 +83,7 @@ function Trail({
         <li key={s.questionId}>
           <button type="button" onClick={() => onBack(i)} title="Go back to this step">
             <span className="q">{s.ask}</span>
-            <span className="a" style={{ color }}>
+            <span className="a">
               {s.answer}
             </span>
             <Icon name="edit" size={12} />
@@ -126,7 +125,7 @@ function CodeLookup({ color }: { color: string }) {
   };
 
   return (
-    <section className="tcard ffg-look" style={{ "--sc2": color } as React.CSSProperties}>
+    <section className="tcard ffg-look">
       <h3 className="tct">Look the code up</h3>
       <p className="tcs">Tiff reads the manuals in your Library and shows you the page.</p>
       <form
@@ -185,8 +184,7 @@ function OutcomeCard({
 }) {
   return (
     <>
-      <section ref={ref} className="ffg-outcome" style={{ "--sc2": color } as React.CSSProperties}>
-        <span className="gl" />
+      <section ref={ref} className="ffg-outcome">
         <div className="lab">
           {CONFIDENCE_LABEL[outcome.confidence]}
           {outcome.escalate && <span className="esc">Specialist work</span>}
@@ -207,7 +205,7 @@ function OutcomeCard({
       {/* explaining it first, then doing it — on these calls the words are
           most of the job */}
       {outcome.customer && (
-        <section className="tcard ffg-say" style={{ "--sc2": color } as React.CSSProperties}>
+        <section className="tcard ffg-say">
           <h3 className="tct">What to tell the customer</h3>
           <p>{outcome.customer}</p>
         </section>

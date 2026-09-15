@@ -714,8 +714,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tbx-search { position:relative; width:100%; max-width:384px; }
 .fg .tbx-search svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); }
 .fg .tbx-search:focus-within svg { color:var(--ink); }
-.fg .tbx-search input { width:100%; padding:12px 16px 12px 48px; background:#fff; border-radius:16px; border:1px solid var(--line); font-size:16px; font-weight:500; outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03); transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .tbx-search input:focus { box-shadow:var(--ring); border-color:var(--line); }
+.fg .tbx-search input { width:100%; padding:12px 16px 12px 48px; background:var(--paper); border-radius:var(--r-control); border:1px solid var(--line); font-size:16px; font-weight:500; outline:none; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fg .tbx-search input:focus {  box-shadow:var(--ring); border-color:var(--line); }
 .fg .cat { position:relative; background:#fff; border-radius:16px; border:1px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,.04); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
 .fg .cat:hover { }
 .fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
@@ -8653,46 +8653,44 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .wb2-vt .tx-sofar { font-style:normal; font-size:12px; font-weight:700; color:var(--q); }
 
 .fg .tx-sumrow { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 16px; }
-.fg .tx-stat { display:flex; flex-direction:column; gap:4px; padding:16px 16px; border-radius:16px; background:#fff; border:1px solid #f0f0f2; box-shadow:0 8px 30px rgba(0,0,0,.03); }
+.fg .tx-stat { display:flex; flex-direction:column; gap:4px; padding:16px 16px; border-radius:var(--r-card); background:var(--paper); border:1px solid var(--line); }
 .fg .tx-statlab { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .tx-statval { font-size:24px; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+.fg .tx-statval { font-size:24px; font-weight:700; color:var(--ink); }
 .fg .tx-statsub { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tx-stat.ok .tx-statval { color:var(--ok-t); }
-.fg .tx-stat.warn { border-color:rgba(240,164,49,.4); background:rgba(240,164,49,.05); }
-.fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:#a56a05; }
+.fg .tx-stat.warn { border-color:var(--warn); background:var(--warn-tint); }
+.fg .tx-stat.warn .tx-statval, .fg .tx-stat.warn .tx-statsub { color:var(--warn-t); }
 
-.fg .tx-note { display:flex; align-items:flex-start; gap:8px; margin:0 0 12px; padding:12px 12px; border-radius:16px; background:rgba(240,164,49,.1); font-size:13px; font-weight:600; line-height:1.5; color:#a56a05; }
+.fg .tx-note { display:flex; align-items:flex-start; gap:8px; margin:0 0 12px; padding:12px 12px; border-radius:var(--r-card); background:var(--warn-tint); font-size:13px; font-weight:600; line-height:1.5; color:var(--warn-t); }
 .fg .tx-note .i { flex:none; margin-top:1px; }
 
 .fg .tx-cats { margin:0 0 32px; }
-.fg .tx-cat { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f5f6f8; }
+.fg .tx-cat { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); }
 .fg .tx-cat:first-child { border-top:0; }
 .fg .tx-catname { flex:1; min-width:0; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .tx-catcount { flex:none; min-width:26px; padding:2px 8px; border-radius:999px; background:#f4f5f7; font-size:12px; font-weight:700; color:var(--gray500); text-align:center; }
+.fg .tx-catcount { flex:none; min-width:26px; font-size:12px; font-weight:700; color:var(--gray500); text-align:right; }
 .fg .tx-catgst { flex:none; font-size:12px; font-weight:600; color:var(--gray400); }
 .fg .tx-catamt { flex:none; min-width:92px; text-align:right; font-size:14px; font-weight:700; color:var(--ink); }
 
 .fg .tx-listhead { display:flex; align-items:center; gap:12px; margin:0 0 12px; }
 .fg .tx-listhead h2 { flex:1; margin:0; font-size:16px; font-weight:700; color:var(--ink); }
 
-.fg .tx-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid #f5f6f8; }
+.fg .tx-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line); }
 .fg .tx-item:first-child { border-top:0; }
-.fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; }
-.fg .tx-ic.fuel { background:var(--tint); color:var(--info-t); }
-.fg .tx-ic.expense { background:var(--tint); color:var(--ink); }
+.fg .tx-ic { flex:none; display:inline-flex; align-items:center; justify-content:center; color:var(--ink); }
 .fg .tx-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
 .fg .tx-main b { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .tx-main em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.fg .tx-flag { flex:none; padding:2px 8px; border-radius:999px; background:rgba(240,164,49,.14); font-size:12px; font-weight:700; color:#a56a05; }
+.fg .tx-flag { flex:none; font-size:12px; font-weight:500; color:var(--warn-t); }
 .fg .tx-amt { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
 .fg .tx-amt b { font-size:14px; font-weight:700; color:var(--ink); }
 .fg .tx-amt em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); }
 
 /* The row's verdict. An anchor when there is something to open, a span when
    there is not — so the amber one is deliberately not clickable. */
-.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:4px; min-width:96px; padding:4px 12px; border-radius:999px; background:var(--tint); font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
+.fg .tx-rcpt { flex:none; display:inline-flex; align-items:center; gap:4px; min-width:96px; padding:4px 12px; border-radius:var(--r-button); background:var(--tint); font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; transition:background var(--t-fast) var(--ease); }
 .fg a.tx-rcpt:hover { background:var(--tint-2); }
-.fg .tx-rcpt.none { background:rgba(240,164,49,.12); color:#a56a05; }
+.fg .tx-rcpt.none { background:var(--warn-tint); color:var(--warn-t); }
 
 @media (max-width:700px){
   .fg .tx-sumrow { grid-template-columns:1fr; }

@@ -27,7 +27,7 @@ export function RcIcon({ name, size = 16, sw, style }: {
 export function WsEyebrow({ children, color, style = {} }: {
   children: React.ReactNode; color?: string; style?: React.CSSProperties;
 }) {
-  return <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 10, letterSpacing: "0.07em", textTransform: "uppercase", color: color || RC.faint, ...style }}>{children}</div>;
+  return <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 10, letterSpacing: "0.07em", textTransform: "uppercase", color: color || RC.faint, ...style }}>{children}</div>;
 }
 
 // Segmented toggle — timesheets .ptabs vocabulary (gray well, white active pill)
@@ -83,7 +83,7 @@ export function NumInput({ value, onChange, w = "100%", size = 22, prefix = "$" 
           const n = parseFloat(raw);
           onChange(isNaN(n) ? 0 : n);
         }}
-        style={{ border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 800, fontSize: size, letterSpacing: "-0.01em", color: RC.ink, width: "100%", padding: 0 }} />
+        style={{ border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 700, fontSize: size, letterSpacing: "-0.01em", color: RC.ink, width: "100%", padding: 0 }} />
     </div>
   );
 }
@@ -133,7 +133,7 @@ export function InsightCard({ title, sub, accent, children, right }: {
     <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${RC.line}`, boxShadow: "0 8px 30px rgba(0,0,0,.03)", overflow: "hidden" }}>
       <div style={{ padding: "14px 20px", borderBottom: `1px solid ${RC.line}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: accent || RC.ink }}>{title}</div>
+          <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em", color: accent || RC.ink }}>{title}</div>
           {sub && <div style={{ fontSize: 11.5, color: RC.faint, marginTop: 1 }}>{sub}</div>}
         </div>
         {right}
@@ -203,9 +203,9 @@ export function QuestionStack({ questions, revealAll = false, stageFromTop = fal
         return (
           <div key={q.id} className="rca-q" style={{ background: "#fff", borderRadius: 16, border: cur ? `1.5px solid ${RC.install}` : `1px solid ${RC.line}`, boxShadow: cur ? `0 0 0 4px ${RC.installSoft}, 0 8px 30px rgba(0,0,0,.04)` : "0 8px 30px rgba(0,0,0,.03)", padding: "16px 20px 18px", transition: "border-color .25s, box-shadow .25s" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <span style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 11.5, background: done ? RC.service : cur ? RC.install : RC.card2, color: done || cur ? "#fff" : RC.faint, transition: "background .25s" }}>{done ? "✓" : i + 1}</span>
+              <span style={{ width: 24, height: 24, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 700, fontSize: 11.5, background: done ? RC.service : cur ? RC.install : RC.card2, color: done || cur ? "#fff" : RC.faint, transition: "background .25s" }}>{done ? "✓" : i + 1}</span>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: RC.head, fontWeight: 800, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{q.title}</div>
+                <div style={{ fontFamily: RC.head, fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em", color: RC.ink }}>{q.title}</div>
                 {q.hint && <div style={{ fontSize: 11.5, color: RC.faint, marginTop: 1 }}>{q.hint}</div>}
               </div>
             </div>
@@ -239,7 +239,7 @@ export function RateNumberInput({ value, onChange, color, ariaLabel }: {
       <span style={{ fontSize: 13, color: RC.faint, fontWeight: 600 }}>$</span>
       <input value={value == null ? "" : String(value)} inputMode="decimal" placeholder="0" aria-label={ariaLabel}
         onChange={e => onChange(parseRate(e.target.value))}
-        style={{ width: 56, border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 800, fontSize: 16, color: color ?? RC.ink, padding: 0 }} />
+        style={{ width: 56, border: "none", background: "transparent", outline: "none", fontFamily: RC.head, fontWeight: 700, fontSize: 16, color: color ?? RC.ink, padding: 0 }} />
       <span style={{ fontSize: 12, color: RC.faint, fontWeight: 600 }}>/hr</span>
     </div>
   );

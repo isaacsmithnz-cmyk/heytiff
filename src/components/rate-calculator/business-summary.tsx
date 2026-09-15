@@ -48,7 +48,7 @@ export function BusinessSummaryPanel({ s, calc }: { s: RateCalcState; calc: Calc
             <p style={{ fontSize: 13.5, color: RC.service, fontWeight: 600, margin: 0 }}>No immediate concerns — your rates, costs and utilisation are all in a healthy position.</p>
           ) : summary.attentionItems.map((item, i) => (
             <div key={i} style={{ display: "flex", gap: 11, marginBottom: i < summary.attentionItems.length - 1 ? 12 : 0 }}>
-              <span style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, background: RC.amberSoft, color: RC.amberInk, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 800, fontSize: 11.5, marginTop: 1 }}>{i + 1}</span>
+              <span style={{ width: 22, height: 22, borderRadius: "50%", flexShrink: 0, background: RC.amberSoft, color: RC.amberInk, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: RC.head, fontWeight: 700, fontSize: 11.5, marginTop: 1 }}>{i + 1}</span>
               <div>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: RC.ink, marginBottom: 2 }}>{item.heading}</div>
                 <div style={{ fontSize: 13, color: RC.ink2, lineHeight: 1.6, maxWidth: 720 }}>{item.text}</div>
@@ -59,7 +59,7 @@ export function BusinessSummaryPanel({ s, calc }: { s: RateCalcState; calc: Calc
         <Section label="What's working" color={RC.service}>
           {summary.workingItems.map((item, i) => (
             <div key={i} style={{ display: "flex", gap: 11, marginBottom: i < summary.workingItems.length - 1 ? 8 : 0 }}>
-              <span style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: RC.serviceSoft, color: RC.service, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 800, marginTop: 1 }}>✓</span>
+              <span style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: RC.serviceSoft, color: RC.service, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 700, marginTop: 1 }}>✓</span>
               <div style={{ fontSize: 13, color: RC.ink2, lineHeight: 1.6, maxWidth: 720 }}>{item}</div>
             </div>
           ))}

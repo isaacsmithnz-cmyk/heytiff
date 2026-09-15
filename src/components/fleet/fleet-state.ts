@@ -8,6 +8,7 @@ import {
   attachFinanceDocument as attachFinanceDocumentAction,
   attachPolicyDocument as attachPolicyDocumentAction,
   attachPurchaseDocument as attachPurchaseDocumentAction,
+  attachLogDocument as attachLogDocumentAction,
   deleteLog as deleteLogAction,
   editLog as editLogAction,
   recordFinance as recordFinanceAction,
@@ -52,6 +53,8 @@ export type FleetActions = {
   removeVehicle: (id: string) => void;
   assignVehicle: (id: string, staffId: string | null) => void;
   addLog: (log: NewLog) => void;
+  /** The paper for an entry logged without one — a docket, a service record. */
+  attachLogDocument: (logId: string, documentId: string) => void;
   editLog: (logId: string, patch: LogEdit) => void;
   deleteLog: (logId: string) => void;
   resolveIssue: (logId: string) => void;
@@ -121,6 +124,10 @@ export function useFleetActions(): FleetActions {
       [run],
     ),
     addLog: useCallback((log: NewLog) => run(() => addLogAction(log)), [run]),
+    attachLogDocument: useCallback(
+      (logId: string, documentId: string) => run(() => attachLogDocumentAction(logId, documentId)),
+      [run],
+    ),
     editLog: useCallback(
       (logId: string, patch: LogEdit) => run(() => editLogAction(logId, patch)),
       [run],

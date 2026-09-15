@@ -11,10 +11,12 @@ import type { NewLog, VehicleIdentity } from "../logic";
    docket, including its own date. */
 
 const readFuelReceipt = jest.fn();
+const readServiceRecord = jest.fn();
 const uploadFile = jest.fn();
 
 jest.mock("@/app/actions/fleet-ai", () => ({
   readFuelReceipt: (...a: unknown[]) => readFuelReceipt(...a),
+  readServiceRecord: (...a: unknown[]) => readServiceRecord(...a),
 }));
 jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: (...a: unknown[]) => uploadFile(...a),
@@ -193,5 +195,108 @@ describe("a docket being scanned", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     backdrop();
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+});
+
+/* THE SERVICE INVOICE GETS THE DOCKET'S TREATMENT. Log service used to type a
+   note; the mechanic's invoice — the one document that says what was done —
+   had nowhere to go. Now it is scanned, read and kept the way a docket is:
+   the workshop, the date, the reading, the cost and its GST, the one line
+   the history prints, and the itemised work under it. */
+describe("scanning a service invoice", () => {
+  const READ_SERVICE = {
+    ok: true,
+    workshop: "Braeside Auto",
+    servicedOn: "2026-07-28",
+    odometer: 120000,
+    cost: 812.5,
+    gst: 73.86,
+    abn: "51824753556",
+    summary: "120,000 km logbook service",
+    workDone: ["Engine oil and filter", "Brake pads, front", "Wheel alignment"],
+  };
+
+  function setupService() {
+    const onSave = jest.fn();
+    render(<LogModal kind="service" today={TODAY} vehicle={mine} onSave={onSave} onClose={jest.fn()} />);
+    return { onSave, user: userEvent.setup() };
+  }
+
+  async function scanInvoice(user: ReturnType<typeof userEvent.setup>) {
+    const file = new File(["invoice"], "braeside-12041.pdf", { type: "application/pdf" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+    await waitFor(() => expect(screen.getByText(/Work done/)).toBeInTheDocument());
+    return file;
+  }
+
+  beforeEach(() => {
+    readServiceRecord.mockReset().mockResolvedValue(READ_SERVICE);
+    uploadFile.mockReset().mockResolvedValue({ ok: true, file: { documentId: "doc-41" } });
+  });
+
+  it("opens on the scan, and takes a PDF — a dealer's invoice usually is one", () => {
+    setupService();
+    expect(screen.getByText("Snap or upload the service invoice")).toBeInTheDocument();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input.accept).toContain("application/pdf");
+    // a phone is not forced open: the picker offers the camera as one choice
+    expect(input.hasAttribute("capture")).toBe(false);
+  });
+
+  it("stores the invoice as a service record, not as a fuel docket or an expense receipt", async () => {
+    const { user } = setupService();
+    const file = await scanInvoice(user);
+    expect(uploadFile).toHaveBeenCalledWith(file, "service_record");
+    expect(screen.getByText(/Service record saved/)).toBeInTheDocument();
+  });
+
+  it("fills the form from the invoice and hands Save the record, the work and the invoice's date", async () => {
+    const { onSave, user } = setupService();
+    await scanInvoice(user);
+    expect(screen.getByDisplayValue("Braeside Auto")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("120,000 km logbook service")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("120000")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Log service/ }));
+
+    const log = onSave.mock.calls[0][0] as NewLog;
+    expect(log.kind).toBe("service");
+    expect(log.receiptDocumentId).toBe("doc-41");
+    expect(log.station).toBe("Braeside Auto");
+    expect(log.cost).toBe(812.5);
+    expect(log.gst).toBe(73.86);
+    expect(log.abn).toBe("51824753556");
+    expect(log.odo).toBe(120000);
+    expect(log.note).toBe("120,000 km logbook service");
+    expect(log.workDone).toBe("Engine oil and filter\nBrake pads, front\nWheel alignment");
+    // the invoice's date, not today's: a service on the 28th happened on the 28th
+    expect(log.purchasedOn).toBe("2026-07-28");
+    expect(log.source).toBe("scan");
+  });
+
+  it("keeps the record and opens the fields empty when Tiff can't read it — nothing is invented", async () => {
+    readServiceRecord.mockResolvedValue({ ok: false, reason: "no-key" });
+    const { onSave, user } = setupService();
+    await scanInvoice(user);
+    expect(screen.getByText(/Tiff couldn't read that one/)).toBeInTheDocument();
+    expect(screen.getByText(/Service record saved/)).toBeInTheDocument();
+    expect(screen.queryByText(/Demo read/)).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(/Currently/), "121000");
+    await user.click(screen.getByRole("button", { name: /Log service/ }));
+    const log = onSave.mock.calls[0][0] as NewLog;
+    expect(log.receiptDocumentId).toBe("doc-41");
+    expect(log.source).toBe("manual");
+    expect(log.station).toBeUndefined();
+  });
+
+  it("blocks a GST bigger than an eleventh of the total, as the docket does", async () => {
+    const { user } = setupService();
+    await scanInvoice(user);
+    const gst = screen.getByPlaceholderText("e.g. 43.64");
+    await user.clear(gst);
+    await user.type(gst, "200");
+    expect(screen.getByText(/More than an eleventh/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Log service/ })).toBeDisabled();
   });
 });

@@ -14,11 +14,25 @@ let staffRow: Record<string, unknown> | null = { id: "staff-1" };
 let logRow: Record<string, unknown> | null = null;
 /* What the surviving-logs read returns, for the odometer resync. */
 let survivingLogs: Record<string, unknown>[] = [];
+/* attachLogDocument's two reads on `documents`: is one already filed against
+   the log (a select that ends in maybeSingle), and did the adoption land (an
+   update that ends in maybeSingle). */
+let existingDocument: Record<string, unknown> | null = null;
+let documentRow: Record<string, unknown> | null = null;
+
+/* The `.eq(column, value)` clauses a chain was built with, oldest first —
+   the adoption filter's KIND is the whole point of two document kinds. */
+const eqs: [string, unknown][] = [];
+const eqCalls = (column: string) => eqs.filter(([c]) => c === column).map(([, v]) => v);
 
 const table = (name: string) => {
   const chain: Record<string, unknown> = { _table: name };
   const self = () => chain;
-  chain.eq = self;
+  chain.eq = (column: string, value: unknown) => {
+    eqs.push([column, value]);
+    return chain;
+  };
+  chain.limit = self;
   // adoptReceipt filters on "not uploaded_at is null" and "vehicle_log_id is
   // null" — both are pass-throughs here; what the test cares about is the
   // update that reaches `documents`, not the shape of the filter.
@@ -31,6 +45,7 @@ const table = (name: string) => {
   /* An insert now reads its id back, so maybeSingle has to answer as the
      inserted row once one has been made on this chain. */
   let inserted = false;
+  let updated = false;
   chain.maybeSingle = async () => ({
     data: inserted
       ? { id: "log-1" }
@@ -38,7 +53,12 @@ const table = (name: string) => {
         ? vehicleRow
         : name === "vehicle_logs"
           ? logRow
-          : staffRow,
+          : name === "documents"
+            ? updated
+              ? documentRow
+              : existingDocument
+            : staffRow,
+    error: null,
   });
   /* A select that is awaited rather than narrowed to one row — the surviving
      logs the odometer is recomputed from. */
@@ -51,6 +71,7 @@ const table = (name: string) => {
   };
   chain.update = (row: unknown) => {
     update(name, row);
+    updated = true;
     return chain;
   };
   chain.delete = () => {
@@ -71,12 +92,15 @@ jest.mock("@/lib/permissions-server", () => ({
 }));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-import { addLog, assignVehicle, deleteLog, editLog, removeVehicle, resolveIssue } from "../fleet";
+import { addLog, assignVehicle, attachLogDocument, deleteLog, editLog, removeVehicle, resolveIssue } from "../fleet";
 
 const VEHICLE = { id: "v-1", status: "active", odometer: 84120, last_service_odo: 80000, assigned_to: null };
 
 beforeEach(() => {
   [insert, update, del, select].forEach((m) => m.mockClear());
+  eqs.length = 0;
+  existingDocument = null;
+  documentRow = null;
   caps = new Set(["assets_all"]);
   vehicleRow = { ...VEHICLE };
   staffRow = { id: "staff-1" };
@@ -220,10 +244,61 @@ describe("fuel logs carry their tax record", () => {
     expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
   });
 
-  it("never carries tax columns onto a log that isn't fuel", async () => {
+  it("never carries tax columns onto a log that isn't a purchase", async () => {
     // a stale field on a reused form must not put a supplier on an odo reading
-    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, gst: 9, abn: "51824753556" });
-    expect(insert.mock.calls[0][1]).toMatchObject({ gst: null, supplier_abn: null });
+    await addLog({ vehicleId: "v-1", kind: "odo", odo: 84800, gst: 9, abn: "51824753556", station: "Shell" });
+    expect(insert.mock.calls[0][1]).toMatchObject({ gst: null, supplier_abn: null, station: null, source: null });
+  });
+});
+
+/* A SERVICE IS A PURCHASE TOO. The workshop's invoice carries the same tax
+   record a docket does — a supplier, a GST line, a date — and the one thing
+   a docket has not got: what was done. */
+describe("service logs carry their record", () => {
+  it("writes the workshop, the tax figures, the invoice's date and the itemised work", async () => {
+    const res = await addLog({
+      vehicleId: "v-1",
+      kind: "service",
+      odo: 84800,
+      cost: 812.5,
+      gst: 73.86,
+      abn: "51 824 753 556",
+      station: "Braeside Auto",
+      note: "120,000 km logbook service",
+      workDone: "Engine oil and filter\nBrake pads, front",
+      purchasedOn: "2026-07-28",
+      source: "scan",
+    });
+    expect(res).toEqual({ ok: true });
+    expect(insert.mock.calls[0][1]).toMatchObject({
+      kind: "service",
+      station: "Braeside Auto",
+      gst: 73.86,
+      supplier_abn: "51824753556",
+      logged_on: "2026-07-28",
+      work_done: "Engine oil and filter\nBrake pads, front",
+      source: "scan",
+    });
+    // the by-date limit is re-anchored on the invoice's date, not on today
+    expect(update).toHaveBeenCalledWith("vehicles", expect.objectContaining({ last_service_on: "2026-07-28" }));
+  });
+
+  it("refuses a GST bigger than an eleventh on a service too, and writes nothing", async () => {
+    const res = await addLog({ vehicleId: "v-1", kind: "service", odo: 84800, cost: 100, gst: 40 });
+    expect(res.ok).toBe(false);
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("binds the uploaded invoice to the service log, as a service record and never as a docket", async () => {
+    await addLog({ vehicleId: "v-1", kind: "service", odo: 84800, receiptDocumentId: "doc-41" });
+    expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
+    expect(eqCalls("kind")).toContain("service_record");
+    expect(eqCalls("kind")).not.toContain("fuel_receipt");
+  });
+
+  it("never puts a work list on a fuel log", async () => {
+    await addLog({ vehicleId: "v-1", kind: "fuel", litres: 50, cost: 100, workDone: "stale" });
+    expect(insert.mock.calls[0][1]).toMatchObject({ work_done: null });
   });
 });
 
@@ -377,6 +452,27 @@ describe("editing and removing a log", () => {
     expect(update).toHaveBeenCalledWith("vehicles", expect.objectContaining({ odometer: 84800 }));
   });
 
+  it("re-anchors the last service DATE on the newest surviving service", async () => {
+    // correcting a service's date from its invoice moves when the vehicle was
+    // last serviced, so the by-date limit follows the record
+    logRow = { ...FUEL_LOG, kind: "service" };
+    vehicleRow = { ...VEHICLE, last_service_on: "2026-08-01" };
+    survivingLogs = [
+      { kind: "service", odo: 80000, logged_on: "2026-07-28" },
+      { kind: "service", odo: 70000, logged_on: "2026-02-02" },
+      { kind: "fuel", odo: 84120, logged_on: "2026-08-20" },
+    ];
+    await editLog("log-1", { purchasedOn: "2026-07-28" });
+    expect(update).toHaveBeenCalledWith("vehicles", expect.objectContaining({ last_service_on: "2026-07-28" }));
+  });
+
+  it("corrects a service's workshop, cost and work list, and never its litres", async () => {
+    logRow = { ...FUEL_LOG, kind: "service" };
+    await editLog("log-1", { station: "Braeside Auto", cost: 900, workDone: "Oil", litres: 60 });
+    expect(update.mock.calls[0][1]).toMatchObject({ station: "Braeside Auto", cost: 900, work_done: "Oil" });
+    expect(update.mock.calls[0][1]).not.toHaveProperty("litres");
+  });
+
   it("leaves the odometer alone when no reading survives", async () => {
     // the number a vehicle was added with exists nowhere else, so it cannot be
     // recovered — and reading high is the safe direction
@@ -392,5 +488,45 @@ describe("editing and removing a log", () => {
     logRow = { ...FUEL_LOG, deleted_at: "2026-08-01T00:00:00Z" };
     expect((await editLog("log-1", { litres: 60 })).ok).toBe(false);
     expect((await deleteLog("log-1")).ok).toBe(false);
+  });
+});
+
+/* THE PAPER FOR AN ENTRY LOGGED WITHOUT IT. Adding evidence is not swapping
+   it: an entry with no document takes one, an entry that has one keeps it. */
+describe("attaching a document to an existing log", () => {
+  const SERVICE_LOG = { id: "log-1", vehicle_id: "v-1", kind: "service", staff_profile_id: "staff-1", cost: null, deleted_at: null };
+
+  it("files a service record against a service log the caller may touch", async () => {
+    logRow = { ...SERVICE_LOG };
+    documentRow = { id: "doc-41" };
+    const res = await attachLogDocument("log-1", "doc-41");
+    expect(res).toEqual({ ok: true });
+    expect(update).toHaveBeenCalledWith("documents", { vehicle_log_id: "log-1" });
+    expect(eqCalls("kind")).toEqual(["service_record"]);
+  });
+
+  it("refuses when the entry already has its document", async () => {
+    logRow = { ...SERVICE_LOG };
+    existingDocument = { id: "doc-old" };
+    const res = await attachLogDocument("log-1", "doc-41");
+    expect(res).toEqual({ ok: false, error: "This entry already has its document." });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses someone else's entry without assets_all, and a kind that keeps no paper", async () => {
+    caps = new Set();
+    logRow = { ...SERVICE_LOG, staff_profile_id: "staff-9" };
+    expect((await attachLogDocument("log-1", "doc-41")).ok).toBe(false);
+    caps = new Set(["assets_all"]);
+    logRow = { ...SERVICE_LOG, kind: "odo" };
+    expect((await attachLogDocument("log-1", "doc-41")).ok).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("says so when the document refused adoption — wrong kind, wrong uploader, already owned", async () => {
+    logRow = { ...SERVICE_LOG };
+    documentRow = null;
+    const res = await attachLogDocument("log-1", "doc-41");
+    expect(res.ok).toBe(false);
   });
 });

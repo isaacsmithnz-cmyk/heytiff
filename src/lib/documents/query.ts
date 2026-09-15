@@ -35,6 +35,10 @@ export type StoredDocument = {
   licenceRecordId: string | null;
   /** The right-to-work CHECK this document is the evidence for. */
   workRightsRecordId: string | null;
+  /** The vehicle log this is the paper for — a fuel docket, a service record.
+      Optional in the type only so the fixtures that build these by hand need
+      not learn it; every row read here carries it. */
+  vehicleLogId?: string | null;
 };
 
 const COLUMNS =
@@ -143,6 +147,7 @@ function toStored(r: Record<string, unknown>, urls: Map<string, string>): Stored
     licenceRecordId: typeof r.licence_record_id === "string" ? r.licence_record_id : null,
     workRightsRecordId:
       typeof r.work_rights_record_id === "string" ? r.work_rights_record_id : null,
+    vehicleLogId: typeof r.vehicle_log_id === "string" ? r.vehicle_log_id : null,
   };
 }
 

@@ -1,19 +1,21 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ServiceHistoryModal } from "../modals";
 import { VehicleModal } from "../vehicle-modal";
 import { FleetRegister } from "../register";
 import type { FleetActions, FleetState } from "../fleet-state";
 import type { Vehicle, VehicleLog } from "../logic";
 
-/* Service history. The gap this closes is NOT the one renewals had: Log
+/* Service history. The gap this closed was NOT the one renewals had: Log
    service was never gated — it has always sat in the actions row. What was
-   missing is the VIEW. Services were mixed into one History list with fuel,
+   missing was the VIEW. Services were mixed into one History list with fuel,
    odometer readings and issues, so "when was this last serviced, and what was
    done" had nowhere to be read.
 
-   The thing to hold onto here is what was deliberately NOT copied across: a
-   service supersedes nothing, so no row is tagged Current or Previous. */
+   It was a modal of its own over the vehicle card; it is a screen of the card
+   now (Sep 2026), so a service in the list opens on its own screen and comes
+   back here. The thing to hold onto is what was deliberately NOT copied
+   across: a service supersedes nothing, so no row is tagged Current or
+   Previous. */
 
 jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
 
@@ -21,6 +23,7 @@ jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) 
    auth0 (and `Request`) into jsdom, killing the suite before it runs. */
 jest.mock("@/app/actions/fleet-ai", () => ({
   readFuelReceipt: jest.fn(async () => ({ ok: false, reason: "no-key" })),
+  readServiceRecord: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readPurchaseInvoice: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readRenewalDocument: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readRegoCertificate: jest.fn(async () => ({ ok: false, reason: "no-key" })),
@@ -72,7 +75,7 @@ const mixed: VehicleLog[] = [
   log({ id: "f1", kind: "fuel", litres: 62, cost: 118.4, odo: 104000, when: "Tue 4 Aug" }),
   log({ id: "o1", kind: "odo", odo: 108375, when: "Mon 10 Aug" }),
   log({ id: "i1", kind: "issue", note: "rattle in the tray", status: "open", when: "Fri 1 Aug" }),
-  log({ id: "s1", kind: "service", note: "90,000 km minor", odo: 90000, when: "Mon 2 Feb" }),
+  log({ id: "s1", kind: "service", note: "90,000 km minor", odo: 90000, when: "Mon 2 Feb", ago: 204 }),
 ];
 
 function actions(): FleetActions {
@@ -91,18 +94,19 @@ function actions(): FleetActions {
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
+    attachLogDocument: noop,
     editLog: noop,
     deleteLog: noop,
     resolveIssue: noop,
   };
 }
 
-function detail(vehicle: Vehicle) {
-  const onServiceHistory = jest.fn();
+function detail(vehicle: Vehicle, logs: VehicleLog[] = [], initialScreen?: "services") {
+  const onLog = jest.fn();
   render(
     <VehicleModal
       vehicle={vehicle}
-      logs={[]}
+      logs={logs}
       eco={{}}
       documents={[]}
       policies={[]}
@@ -110,15 +114,17 @@ function detail(vehicle: Vehicle) {
       staff={[]}
       today={TODAY} warnDays={30}
       fleet={actions()}
+      initialScreen={initialScreen}
       onClose={jest.fn()}
       onEdit={jest.fn()}
-      onLog={jest.fn()}
+      onLog={onLog}
       onCorrect={jest.fn()}
-      onServiceHistory={onServiceHistory}
     />,
   );
-  return { onServiceHistory, user: userEvent.setup() };
+  return { onLog, user: userEvent.setup() };
 }
+
+const services = (logs: VehicleLog[]) => detail(van, logs, "services");
 
 it("offers no fuel or odometer entry on something with no motor", async () => {
   /* Update odo writes the very reading the card stops showing for a motorless
@@ -133,25 +139,26 @@ it("offers no fuel or odometer entry on something with no motor", async () => {
   expect(screen.getByRole("menuitem", { name: /report an issue/i })).toBeInTheDocument();
 });
 
-it("opens the service history from the Next service card", async () => {
-  const { onServiceHistory, user } = detail(van);
+it("opens the service history from the Next service card, and Back returns to the card", async () => {
+  const { user } = detail(van, mixed);
   await user.click(screen.getByRole("button", { name: "Service history" }));
-  expect(onServiceHistory).toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: "Service" })).toBeInTheDocument();
+  expect(screen.getByText("Service history")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
 });
 
 it("still opens when no service is anywhere near due", async () => {
   // the whole point of a door rather than a warning: reading the history is
   // not something you only want to do once the vehicle is overdue
-  const { onServiceHistory, user } = detail({ ...van, odometer: 100000 });
+  const { user } = detail({ ...van, odometer: 100000 });
   expect(screen.getByText("in 10,000 km")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Service history" }));
-  expect(onServiceHistory).toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: "Service" })).toBeInTheDocument();
 });
 
 it("lists the services and leaves the fuel, odometer and issues out of it", () => {
-  render(
-    <ServiceHistoryModal vehicle={van} warnDays={30} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
-  );
+  services(mixed);
   expect(screen.getByText("Service — 100,000 km major")).toBeInTheDocument();
   expect(screen.getByText("Service — 90,000 km minor")).toBeInTheDocument();
   expect(screen.queryByText(/Fuel/)).not.toBeInTheDocument();
@@ -160,33 +167,65 @@ it("lists the services and leaves the fuel, odometer and issues out of it", () =
 });
 
 it("tags no service Current or Previous — a service supersedes nothing", () => {
-  render(
-    <ServiceHistoryModal vehicle={van} warnDays={30} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
-  );
+  services(mixed);
   expect(screen.queryByText("Current")).not.toBeInTheDocument();
   expect(screen.queryByText("Previous")).not.toBeInTheDocument();
 });
 
 it("shows the cycle the services set", () => {
-  render(
-    <ServiceHistoryModal vehicle={van} warnDays={30} logs={mixed} onAdd={jest.fn()} onClose={jest.fn()} />,
-  );
+  services(mixed);
   expect(screen.getByText("in 1,625 km")).toBeInTheDocument(); // 100,000 + 10,000 − 108,375
-  expect(screen.getByText("110,000 km")).toBeInTheDocument(); // due at
+  expect(screen.getByText("Due at")).toBeInTheDocument();
+  expect(screen.getByText("110,000 km")).toBeInTheDocument();
+  expect(screen.getByText("10,000 km")).toBeInTheDocument(); // every
 });
 
 it("says none are logged rather than claiming the vehicle was never serviced", () => {
   // the cycle above is read off last_service_odo, which a manager can set by
   // hand — an empty log list does not license the stronger claim
-  render(
-    <ServiceHistoryModal
-      vehicle={van} warnDays={30}
-      logs={mixed.filter((l) => l.kind !== "service")}
-      onAdd={jest.fn()}
-      onClose={jest.fn()}
-    />,
-  );
+  services(mixed.filter((l) => l.kind !== "service"));
   expect(screen.getByText("No services logged yet")).toBeInTheDocument();
+});
+
+it("asks for a service log from its own screen, saying where it was asked", async () => {
+  const { onLog, user } = services(mixed);
+  await user.click(screen.getByRole("button", { name: /log service/i }));
+  expect(onLog).toHaveBeenCalledWith("service", "services");
+});
+
+it("a service in the list opens on its own screen — what was done, the workshop — and Back returns to the list", async () => {
+  const { user } = services([
+    ...mixed,
+    log({
+      id: "s3",
+      note: "120,000 km logbook service",
+      workDone: "Engine oil and filter\nBrake pads, front\nWheel alignment",
+      station: "Braeside Auto",
+      cost: 812.5,
+      gst: 73.86,
+      abn: "51824753556",
+      odo: 120000,
+      source: "scan",
+      hasReceipt: true,
+      ago: 0,
+    }),
+  ]);
+  expect(screen.getByText("Record kept")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /120,000 km logbook service/ }));
+  expect(screen.getByRole("heading", { name: "Service, 25 Aug 2026" })).toBeInTheDocument();
+  expect(screen.getByText("What was done")).toBeInTheDocument();
+  expect(screen.getByText(/Brake pads, front/)).toBeInTheDocument();
+  expect(screen.getByText("Braeside Auto")).toBeInTheDocument();
+  expect(screen.getByText("$812.50")).toBeInTheDocument();
+  expect(screen.getByText("51 824 753 556")).toBeInTheDocument();
+  expect(screen.getByText("Read from the paper")).toBeInTheDocument();
+  // the record was marked kept but this test handed down no documents: the
+  // screen says nothing is filed rather than drawing a broken preview
+  expect(screen.getByText("No record filed for this service.")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("heading", { name: "Service" })).toBeInTheDocument();
+  expect(screen.getByText("Service — 100,000 km major")).toBeInTheDocument();
 });
 
 it("returns to the service history after logging one, not to the vehicle card", async () => {
@@ -205,6 +244,7 @@ it("returns to the service history after logging one, not to the vehicle card", 
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
+    attachLogDocument: noop,
     editLog: noop,
     deleteLog: noop,
     resolveIssue: noop,
@@ -227,8 +267,8 @@ it("returns to the service history after logging one, not to the vehicle card", 
   expect(screen.getByText(/WORK TRITON, Mitsubishi Triton 2022/)).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: /cancel/i }));
-  /* "Due at" only exists in the service history and "Log fuel" only on the
-     vehicle card — the service ROWS render in both, so they cannot tell the
+  /* "Due at" only exists in the service history and "Vehicle details" only on
+     the vehicle card — the service ROWS render in both, so they cannot tell the
      two apart and are the wrong thing to assert on here. */
   expect(screen.getByText("Due at")).toBeInTheDocument();
   expect(screen.queryByText("Vehicle details")).not.toBeInTheDocument();

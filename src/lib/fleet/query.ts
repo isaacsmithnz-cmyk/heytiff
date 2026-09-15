@@ -131,7 +131,7 @@ export async function listLogs(
   let q = supabaseAdmin
     .from("vehicle_logs")
     .select(
-      "id, vehicle_id, staff_profile_id, kind, logged_on, note, litres, cost, odo, status, source, station, gst, supplier_abn, edited_at",
+      "id, vehicle_id, staff_profile_id, kind, logged_on, note, litres, cost, odo, status, source, station, gst, supplier_abn, work_done, edited_at",
     )
     .eq("org_id", orgId)
     // a corrected-away entry is gone from every screen; the row survives so a
@@ -150,17 +150,18 @@ export async function listLogs(
     toLog(r, today, nameOf),
   );
 
-  /* Which of these have the docket behind them. Ids only — the URL is not
-     signed here, because the fleet screens show a CHIP, not the photo; the
-     Tax screen is where a receipt gets opened, and it signs its own. */
+  /* Which of these have their paper behind them — a fuel docket, a service
+     record. Ids only: the URL is not signed here, because a log ROW says
+     "Receipt kept", not the photo. The register's documents payload signs the
+     vehicle's papers for the entry screen, and the Tax screen signs its own. */
   const withReceipt = await logsWithReceipts(
     orgId,
-    logs.filter((l) => l.kind === "fuel").map((l) => l.id),
+    logs.filter((l) => l.kind === "fuel" || l.kind === "service").map((l) => l.id),
   );
   return logs.map((l) => (withReceipt.has(l.id) ? { ...l, hasReceipt: true } : l));
 }
 
-/** The subset of these logs that have a stored receipt. */
+/** The subset of these logs that have a stored document. */
 async function logsWithReceipts(orgId: string, logIds: string[]): Promise<Set<string>> {
   if (logIds.length === 0) return new Set();
   const { data } = await supabaseAdmin

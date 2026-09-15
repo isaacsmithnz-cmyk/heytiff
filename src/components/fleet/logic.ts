@@ -186,11 +186,16 @@ export type NewLog = {
   gst?: number;
   /** Supplier ABN, eleven digits, no spaces. */
   abn?: string;
-  /** The date on the docket. Absent = bought today, which is the common case;
-      the server decides either way and refuses anything implausible. */
+  /** The date on the docket, or on the service invoice. Absent = today, which
+      is the common case; the server decides either way and refuses anything
+      implausible. */
   purchasedOn?: string;
-  /** The stored receipt photo, already uploaded, waiting to be adopted. */
+  /** The stored paper — the docket photo, or the service record — already
+      uploaded, waiting to be adopted by the row this becomes. */
   receiptDocumentId?: string;
+  /** Service only: what the workshop did, one line per item as the invoice
+      lists it. `note` stays the one line the history prints. */
+  workDone?: string;
   /** Fuel only. Defaults to `company` — the common case, and the one that
       raises nothing extra. `own` also raises a reimbursement claim. */
   paidWith?: FuelPayer;
@@ -209,12 +214,15 @@ export type VehicleLog = {
   cost?: number;
   odo?: number;
   status?: "open" | "resolved"; // issues only
-  source?: "scan" | "manual"; // fuel logs: receipt-scanned vs typed
-  station?: string; // fuel logs: where the fill happened
-  gst?: number; // fuel logs: GST as printed on the docket
-  abn?: string; // fuel logs: supplier ABN, eleven digits
-  /** True when the docket photo is stored against this log — the difference
-      between a figure somebody typed and one you can produce at audit. */
+  source?: "scan" | "manual"; // fuel and service: read off the paper vs typed
+  station?: string; // the supplier: the servo on a fuel log, the workshop on a service
+  gst?: number; // fuel and service: GST as printed
+  abn?: string; // fuel and service: supplier ABN, eleven digits
+  /** Service only: what was done, one line per item. */
+  workDone?: string;
+  /** True when the paper is stored against this log — the docket photo, the
+      service record — the difference between a figure somebody typed and one
+      you can produce at audit. */
   hasReceipt?: boolean;
   /** True once somebody has corrected this entry. Said on the row rather than
       hidden: a figure that has been changed is a different kind of fact from

@@ -194,6 +194,7 @@ export function toLog(
     station: typeof r.station === "string" && r.station ? r.station : undefined,
     gst: optNum(r.gst),
     abn: typeof r.supplier_abn === "string" && r.supplier_abn ? r.supplier_abn : undefined,
+    workDone: typeof r.work_done === "string" && r.work_done ? r.work_done : undefined,
     edited: r.edited_at ? true : undefined,
   };
 }

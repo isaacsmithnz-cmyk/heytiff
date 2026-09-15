@@ -78,6 +78,7 @@ async function mayUpload(kind: DocumentKind): Promise<boolean> {
     kind === "staff_photo" ||
     kind === "receipt" ||
     kind === "fuel_receipt" ||
+    kind === "service_record" ||
     kind === "medical_certificate"
   )
     return true;

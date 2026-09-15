@@ -72,6 +72,11 @@ export type DocumentKind =
      liability filed there would surface on a van's renewal screen. */
   | "org_licence"
   | "org_insurance"
+  /* The mechanic's invoice behind a SERVICE log — what was done, by whom, for
+     how much. Its own kind for the standing reason: adopted by a service log
+     and nothing else, so it can neither count as fuel in the tax export nor
+     be reimbursed through an expense claim. */
+  | "service_record"
   | "other";
 
 export const DOCUMENT_KINDS: readonly DocumentKind[] = [
@@ -93,6 +98,7 @@ export const DOCUMENT_KINDS: readonly DocumentKind[] = [
   "finance_agreement",
   "org_licence",
   "org_insurance",
+  "service_record",
   "other",
 ];
 

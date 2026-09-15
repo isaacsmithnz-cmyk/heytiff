@@ -16,10 +16,14 @@ import {
   REGO_CERT_SCHEMA,
   RENEWAL_READ_SCHEMA,
   renewalPrompt,
+  parseServiceRecord,
+  SERVICE_PROMPT,
+  SERVICE_READ_SCHEMA,
   type FinanceRead,
   type PurchaseInvoiceRead,
   type RegoCertificateRead,
   type RenewalRead,
+  type ServiceRecordRead,
 } from "@/lib/fleet/readers";
 
 /* Fleet ← Tiff: live AU-market vehicle valuations + fuel-receipt reading.
@@ -400,6 +404,54 @@ export async function readFinanceAgreement(fileBase64: string, mediaType: string
     }
     const text = response.content.find((b) => b.type === "text")?.text ?? "";
     return { ok: true, ...parseFinanceRead(JSON.parse(text)) };
+  } catch (err) {
+    return { ok: false, reason: reasonFor(err) };
+  }
+}
+
+/* ---------------- the service record (any signed-in member) ---------------- */
+
+/* The mechanic's invoice behind a service log. Same tier as the fuel docket
+   and for the same reason: logging a service is intrinsic — a driver who drops
+   the van at the workshop is the one holding the invoice — and the paper is
+   kept whether or not Tiff could read it. PDFs are accepted because a
+   dealer's invoice usually arrives as one. What to ask for and what to
+   believe live in lib/fleet/readers.ts; scan-then-confirm, like the rest. */
+
+export type ReadServiceResult = ({ ok: true } & ServiceRecordRead) | { ok: false; reason: string };
+
+export async function readServiceRecord(fileBase64: string, mediaType: string): Promise<ReadServiceResult> {
+  if (!(await getDbRole())) return { ok: false, reason: "Sign in to scan service records." };
+  if (offline()) return { ok: false, reason: "no-key" };
+  const isPdf = mediaType === "application/pdf";
+  if (!isPdf && !RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
+    return { ok: false, reason: "Unsupported file type." };
+  }
+  if (!fileBase64 || fileBase64.length > 14_000_000) {
+    return { ok: false, reason: "That file is too large to read." };
+  }
+
+  try {
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: SERVICE_READ_SCHEMA },
+      },
+      messages: [
+        {
+          role: "user",
+          content: [documentBlock(fileBase64, mediaType, isPdf), { type: "text", text: SERVICE_PROMPT }],
+        },
+      ],
+    });
+    if (response.stop_reason === "refusal") {
+      return { ok: false, reason: "Tiff declined to read this document." };
+    }
+    const text = response.content.find((b) => b.type === "text")?.text ?? "";
+    return { ok: true, ...parseServiceRecord(JSON.parse(text)) };
   } catch (err) {
     return { ok: false, reason: reasonFor(err) };
   }

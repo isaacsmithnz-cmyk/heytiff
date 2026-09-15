@@ -3,9 +3,17 @@ import type { Vehicle, VehicleLog, VehiclePolicy } from "../../logic";
 import {
   complianceRows,
   currentPolicy,
+  entryFacts,
+  entryTitle,
   historyEvents,
   historyLine,
+  historyMeta,
   historyTabs,
+  isLogScreen,
+  logDocuments,
+  logIdOf,
+  logIso,
+  logScreen,
   logKinds,
   photoSrc,
   policyDocuments,
@@ -222,5 +230,89 @@ describe("honours the org's window", () => {
     expect(at(30)).toBe("warn");
     expect(regoAlert({ ...van, regoDays: 21 }, 14)).toBeNull();
     expect(regoAlert({ ...van, regoDays: 21 }, 30)).toBe("Rego expires in 3 weeks");
+  });
+});
+
+/* ---- one entry, read on its own ---- */
+
+describe("an entry on its own screen", () => {
+  const today = "2026-09-02";
+  const fill = log({
+    id: "f",
+    kind: "fuel",
+    ago: 1,
+    litres: 62,
+    cost: 118.4,
+    station: "Shell Coburg",
+    gst: 10.76,
+    abn: "51824753556",
+    source: "scan",
+    staffName: "Dane Poulos",
+    edited: true,
+  });
+
+  it("names its screen as a string the register can pass, and reads the id back", () => {
+    expect(logScreen("f")).toBe("log:f");
+    expect(isLogScreen("log:f")).toBe(true);
+    expect(isLogScreen("services")).toBe(false);
+    expect(logIdOf("log:f")).toBe("f");
+  });
+
+  it("recovers the date from `ago` against the server's day, never the browser's", () => {
+    expect(logIso(fill, today)).toBe("2026-09-01");
+    expect(entryTitle(fill, today)).toBe("Fuel, 1 Sep 2026");
+    expect(entryTitle(log({ kind: "service", ago: 0 }), today)).toBe("Service, 2 Sep 2026");
+  });
+
+  it("prints a fill's figures, the docket's tax lines, the economy and who logged it", () => {
+    const facts = Object.fromEntries(entryFacts(fill, 9.4, today).map((f) => [f.label, f.value]));
+    expect(facts).toMatchObject({
+      Litres: "62 L",
+      Cost: "$118.40",
+      Station: "Shell Coburg",
+      Date: "1 Sep 2026",
+      Economy: "9.4 L/100km",
+      GST: "$10.76",
+      "Supplier ABN": "51 824 753 556",
+      Entered: "Read from the paper",
+      "Logged by": "Dane Poulos",
+      Corrected: "Yes, after it was logged",
+    });
+  });
+
+  it("says a blank as a blank — never a figure the row did not hold", () => {
+    const facts = entryFacts(log({ kind: "fuel", ago: 2, litres: 50 }), undefined, today);
+    const byLabel = Object.fromEntries(facts.map((f) => [f.label, f]));
+    expect(byLabel.Cost).toMatchObject({ value: "Not recorded", faint: true });
+    expect(byLabel.GST).toMatchObject({ value: "Not shown", faint: true });
+    expect(byLabel.Economy).toMatchObject({ value: "Not recorded", faint: true });
+    expect(byLabel.Entered.value).toBe("Typed in");
+    expect(facts.find((f) => f.label === "Corrected")).toBeUndefined();
+  });
+
+  it("gives a service its workshop and an issue its state, and a reading only its reading", () => {
+    const service = entryFacts(log({ kind: "service", ago: 3, station: "Braeside Auto", cost: 812.5 }), undefined, today);
+    expect(service.map((f) => f.label)).toEqual(["Workshop", "Cost", "Date", "Odometer", "GST", "Supplier ABN", "Entered", "Logged by"]);
+    const issue = entryFacts(log({ kind: "issue", ago: 3, status: "open" }), undefined, today);
+    expect(issue.map((f) => f.label)).toEqual(["Status", "Reported", "Reported by"]);
+    expect(issue[0]).toMatchObject({ value: "Open", warn: true });
+    expect(entryFacts(log({ kind: "issue", ago: 3, status: "resolved" }), undefined, today)[0]).toMatchObject({ value: "Resolved", warn: false });
+    const reading = entryFacts(log({ kind: "odo", ago: 0, odo: 108375 }), undefined, today);
+    expect(reading.map((f) => [f.label, f.value])).toEqual([
+      ["Reading", "108,375 km"],
+      ["Date", "2 Sep 2026"],
+      ["Logged by", "Imported"], // staffId null is the import, not a blank
+    ]);
+  });
+
+  it("finds the paper filed against the entry and nothing else", () => {
+    const doc = (id: string, vehicleLogId: string | null) =>
+      ({ id, vehicleLogId, kind: "fuel_receipt", policyId: null, financeId: null }) as never;
+    expect(logDocuments([doc("a", "f"), doc("b", "g"), doc("c", null)], fill).map((d) => d.id)).toEqual(["a"]);
+  });
+
+  it("writes a row's second line as who, where and whether it was corrected", () => {
+    expect(historyMeta(fill, 9.4)).toBe("Dane Poulos, Shell Coburg, 9.4 L/100km, corrected");
+    expect(historyMeta(log({ kind: "odo", ago: 0 }))).toBe("");
   });
 });

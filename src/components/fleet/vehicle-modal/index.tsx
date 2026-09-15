@@ -15,26 +15,37 @@ import type {
   VehicleLog,
   VehiclePolicy,
 } from "../logic";
-import type { Screen } from "./derive";
+import { isLogScreen, logIdOf, logScreen, type Screen } from "./derive";
+import { EntryScreen } from "./entry-screen";
 import { FinancialsScreen } from "./financials-screen";
 import { MainScreen } from "./main-screen";
 import { RenewalScreen } from "./renewal-screen";
+import { ServicesScreen } from "./services-screen";
+import { SubHeader } from "@/components/record-modal/parts";
 
-/* The vehicle modal: one modal, five screens, one `screen` value.
+/* The vehicle modal: one modal, seven screens, one `screen` value.
 
-   It replaces a stack of separate modals — detail, renewal, renewal history —
-   that each portalled over the last. A door in the compliance list now moves
-   the screen; the back chevron, Cancel and every save move it home. Nothing is
-   fetched here: the register hands down everything the vehicle owns (logs,
+   It replaces a stack of separate modals — detail, renewal, renewal history,
+   and now the service history — that each portalled over the last. A door in
+   the compliance list moves the screen, a row in the history opens the entry
+   it names, and the back chevron, Cancel and every save move it back. Nothing
+   is fetched here: the register hands down everything the vehicle owns (logs,
    documents, policies, valuation) and every write is one of its actions
    followed by router.refresh(), the same as everywhere else in the fleet.
 
    The two flows the register still owns as their own modals — the vehicle
    form and the log modals — open OVER this one, because they existed first,
-   they are used from other screens too, and a fuel docket's scan step is a
-   whole modal of its own. */
+   they are used from other screens too, and a docket's scan step is a whole
+   modal of its own.
+
+   THE WAY BACK IS ONE STEP DEEP. An entry can be opened from the card's
+   history or from the services screen, and Back returns to whichever it
+   was; the services screen goes back to the card. `from` remembers the one
+   screen underneath — a trail would be a second navigation model for a modal
+   that is at most two screens deep. */
 
 export type { Screen } from "./derive";
+export { logScreen } from "./derive";
 
 export function VehicleModal({
   vehicle,
@@ -54,7 +65,6 @@ export function VehicleModal({
   onEdit,
   onLog,
   onCorrect,
-  onServiceHistory,
 }: {
   vehicle: Vehicle;
   logs: VehicleLog[];
@@ -71,28 +81,47 @@ export function VehicleModal({
   initialScreen?: Screen;
   onClose: () => void;
   onEdit: () => void;
-  onLog: (kind: LogKind) => void;
+  /** `from` names the screen the log was asked for on, so the register can
+      bring the card back to it once the log modal closes. */
+  onLog: (kind: LogKind, from?: Screen) => void;
   onCorrect: (log: VehicleLog) => void;
-  onServiceHistory: () => void;
 }) {
   const [screen, setScreen] = useState<Screen>(initialScreen);
+  /* Where Back goes. A service entry the register reopens (after a
+     correction) belongs under the services screen; everything else under the
+     card. Opening a screen from another sets it. */
+  const [from, setFrom] = useState<Screen>(() => {
+    if (!isLogScreen(initialScreen)) return "main";
+    return logs.find((l) => l.id === logIdOf(initialScreen))?.kind === "service" ? "services" : "main";
+  });
+  const open = (next: Screen) => {
+    setFrom(screen);
+    setScreen(next);
+  };
+  const back = () => {
+    setScreen(from);
+    setFrom("main");
+  };
 
-  /* Escape leaves the way the back chevron does: a sub-screen goes home, the
-     main screen closes. Two presses to get out from anywhere, never a surprise
-     dismissal mid-form. While a scan is in progress it does nothing, and nor
-     does a click on the backdrop: the renewal and financials screens hold the
-     scan panel, and leaving one threw away a document already read and
-     uploaded — see scanInProgress. The back chevron still goes home. */
+  /* Escape leaves the way the back chevron does: a sub-screen goes back, the
+     main screen closes. Two or three presses to get out from anywhere, never a
+     surprise dismissal mid-form. While a scan is in progress it does nothing,
+     and nor does a click on the backdrop: the renewal and financials screens
+     hold the scan panel, and leaving one threw away a document already read
+     and uploaded — see scanInProgress. The back chevron still goes back. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (scanInProgress()) return;
       if (screen === "main") onClose();
-      else setScreen("main");
+      else {
+        setScreen(from);
+        setFrom("main");
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [screen, onClose]);
+  }, [screen, from, onClose]);
 
   const setPhoto = async (file: File) => {
     const up = await uploadFile(file, "vehicle_photo").catch(() => null);
@@ -116,8 +145,7 @@ export function VehicleModal({
             today={today}
             warnDays={warnDays}
             error={fleet.error}
-            onOpen={(s) => setScreen(s)}
-            onServiceHistory={onServiceHistory}
+            onOpen={open}
             onEdit={onEdit}
             onRemove={() => {
               fleet.removeVehicle(vehicle.id);
@@ -129,9 +157,45 @@ export function VehicleModal({
             onLog={onLog}
             onOdometer={(odo) => fleet.addLog({ vehicleId: vehicle.id, kind: "odo", odo })}
             onPhoto={(file) => void setPhoto(file)}
-            onResolve={fleet.resolveIssue}
-            onCorrect={onCorrect}
           />
+        ) : screen === "services" ? (
+          <ServicesScreen
+            vehicle={vehicle}
+            logs={logs}
+            today={today}
+            warnDays={warnDays}
+            error={fleet.error}
+            onBack={back}
+            onLog={() => onLog("service", "services")}
+            onOpen={(log) => open(logScreen(log.id))}
+          />
+        ) : isLogScreen(screen) ? (
+          (() => {
+            const entry = logs.find((l) => l.id === logIdOf(screen));
+            return entry ? (
+              <EntryScreen
+                vehicle={vehicle}
+                log={entry}
+                eco={eco[entry.id]}
+                documents={documents}
+                today={today}
+                error={fleet.error}
+                onBack={back}
+                onCorrect={onCorrect}
+                onResolve={fleet.resolveIssue}
+                onAttach={fleet.attachLogDocument}
+              />
+            ) : (
+              /* Removed from under us — a correction that deleted it, another
+                 tab. Nothing to show but the way back. */
+              <>
+                <SubHeader eyebrow={vehicle.name || vehicle.plate} title="Entry" onBack={back} />
+                <div className="vm-body">
+                  <div className="vm-empty">That entry is no longer in the history.</div>
+                </div>
+              </>
+            );
+          })()
         ) : screen === "financials" ? (
           <FinancialsScreen
             vehicle={vehicle}
@@ -144,11 +208,11 @@ export function VehicleModal({
             finance={finance}
             pending={fleet.pending}
             error={fleet.error}
-            onBack={() => setScreen("main")}
+            onBack={back}
             onSaveVehicle={(v) => fleet.saveVehicle(v)}
             onRecordFinance={(input) => {
               fleet.recordFinance({ ...input, vehicleId: vehicle.id });
-              setScreen("main");
+              back();
             }}
             onAttachFinance={fleet.attachFinanceDocument}
             onAttachInvoice={(documentId) => fleet.attachPurchaseDocument(vehicle.id, documentId)}
@@ -164,10 +228,10 @@ export function VehicleModal({
             policies={policies}
             pending={fleet.pending}
             error={fleet.error}
-            onBack={() => setScreen("main")}
+            onBack={back}
             onSave={(input) => {
               fleet.recordRenewal({ ...input, vehicleId: vehicle.id });
-              setScreen("main");
+              back();
             }}
             onAttach={fleet.attachPolicyDocument}
           />

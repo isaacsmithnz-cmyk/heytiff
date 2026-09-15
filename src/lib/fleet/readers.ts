@@ -34,6 +34,7 @@ import {
   type RenewalKind,
 } from "@/components/fleet/logic";
 import { canonicalMake } from "./makes";
+import { normaliseAbn } from "./receipt";
 
 /* ---------------- shared validation ---------------- */
 
@@ -560,5 +561,90 @@ export function parsePurchaseInvoice(raw: unknown): PurchaseInvoiceRead {
     onRoadCosts: money(r.onRoadCosts),
     deposit: money(r.deposit),
     odometer: nonNegInt(r.odometer),
+  };
+}
+
+/* ---------------- the service record ---------------- */
+
+/* The mechanic's tax invoice, job sheet or service report — the one document
+   that says what was actually done to the vehicle. It fills the Log service
+   form the way a docket fills Log fuel: the person checks it against the
+   paper and saves, and the file is kept as the record behind the entry.
+
+   Two shapes of text come off it. `summary` is the ONE LINE the history row
+   prints ("100,000 km logbook service"); `workDone` is the list under it,
+   one item per line as the invoice itemises it. Asked for separately so the
+   row never has to truncate a list, and the entry screen never has to guess
+   where the title ends. */
+
+export type ServiceRecordRead = {
+  workshop: string | null;
+  servicedOn: string | null;
+  odometer: number | null;
+  cost: number | null;
+  gst: number | null;
+  abn: string | null;
+  summary: string | null;
+  workDone: string[];
+};
+
+export const SERVICE_READ_SCHEMA = {
+  type: "object",
+  properties: {
+    workshop: nullable("string"),
+    servicedOn: nullable("string"),
+    odometer: nullable("integer"),
+    cost: nullable("number"),
+    gst: nullable("number"),
+    abn: nullable("string"),
+    summary: nullable("string"),
+    workDone: { type: "array", items: { type: "string" } },
+  },
+  required: ["workshop", "servicedOn", "odometer", "cost", "gst", "abn", "summary", "workDone"],
+  additionalProperties: false,
+} as const;
+
+export const SERVICE_PROMPT =
+  "This is an Australian mechanic's or dealer's tax invoice, job card or service report for " +
+  "work done on a vehicle. Extract:\n" +
+  '- workshop: the workshop or dealer\'s trading name, short (e.g. "Braeside Auto")\n' +
+  "- servicedOn: the date the work was done, as yyyy-mm-dd — the invoice date if no other " +
+  "date is printed\n" +
+  "- odometer: the odometer reading in km at the time of the service, if printed\n" +
+  "- cost: the TOTAL amount payable in AUD, GST inclusive\n" +
+  "- gst: the GST amount as printed. Do not calculate it from the total — if no GST line " +
+  "is shown, return null.\n" +
+  '- abn: the workshop\'s ABN, digits only, ONLY if one is printed. It is 11 digits and ' +
+  'usually labelled "ABN". Do not confuse it with a phone number, an invoice or job ' +
+  "number, or an ACN (9 digits).\n" +
+  '- summary: one short line naming the service the way the invoice does ("100,000 km ' +
+  'logbook service", "Brake pads and rotors, front"); null if it does not say\n' +
+  "- workDone: the work performed and the parts fitted, one short line per item in the " +
+  "order printed. Leave out subtotals, GST, payment lines and the workshop's own details. " +
+  "An empty list if none is legible.\n\n" +
+  "Use null for anything not clearly readable — a guessed figure is worse than a blank " +
+  "one, and a guessed GST ends up on a BAS. If this is not a vehicle service document at " +
+  "all, return null for every field and an empty list.";
+
+/** The model's answer, believed only where it is well-formed. The GST rule is
+    the docket's: on a GST-inclusive total the tax is at most one eleventh, and
+    a figure above that came off the wrong line. */
+export function parseServiceRecord(raw: unknown): ServiceRecordRead {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const cost = money(r.cost);
+  const gstRead = money(r.gst);
+  const gst = gstRead != null && gstRead > 0 && cost != null && gstRead <= cost / 11 + 0.01 ? gstRead : null;
+  const workDone = Array.isArray(r.workDone)
+    ? r.workDone.map((x) => text(x, 160)).filter((x): x is string => x !== null).slice(0, 40)
+    : [];
+  return {
+    workshop: text(r.workshop, 80),
+    servicedOn: isoDate(r.servicedOn),
+    odometer: positiveInt(r.odometer, 2_000_000),
+    cost: cost != null && cost > 0 ? cost : null,
+    gst,
+    abn: normaliseAbn(typeof r.abn === "string" ? r.abn : null),
+    summary: text(r.summary, 120),
+    workDone,
   };
 }

@@ -3237,6 +3237,7 @@ select.fl-i { cursor:pointer; }
 .fl-payb.on { border-color:var(--ink); background:var(--tint);  box-shadow:var(--ring); }
 .fl-payb.on em { color:var(--ink); }
 .fl-i.slim { height:36px; font-size:13px; margin-top:4px; padding:0 8px; border-radius:var(--r-control); }
+.fl-i.tall { min-height:120px; }
 /* THE ONE FOOTER (law 28). A row of buttons at the end of a form, the commit
    pair on the right; `.spread` puts a destructive action on the left; `.bar`
    is the same footer pinned across a tall sheet, with a hairline and the tint
@@ -3295,11 +3296,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    agreed to. */
 .dchip2.unavail { color:var(--gray500); }
 .dchip2.unavail em { font-style:normal; font-size:14px; font-weight:500; color:var(--q); }
-.fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
-.fl-fact { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:12px 12px; min-width:0; }
-.fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
-.fl-fact b { display:block; font-size:14px; font-weight:700; color:var(--ink); margin-top:4px; }
-.fl-hist { border-top:1px solid var(--line); padding-top:16px; }
 .fl-hempty { padding:24px 16px; text-align:center; font-size:13px; font-weight:600; color:var(--q); border:1.5px dashed var(--line); border-radius:var(--r-card); }
 .fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 12px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
 .fl-log:hover { background:var(--tint); }
@@ -3312,7 +3308,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* In the mixed History list a one-line row keeps the log scannable, but the
    service history exists TO say what was done — so there it wraps instead of
    ending in an ellipsis. */
-.fl-hist.full .fl-lk b { overflow:visible; text-overflow:clip; white-space:normal; }
 .fl-lr { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fl-lo { font-size:13px; font-weight:700; color:var(--ink); flex:0 0 auto; }
 
@@ -3325,8 +3320,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-qa.paused:hover { background:var(--paper); }
 .fg .fl-offnote { display:flex; align-items:center; gap:8px; background:var(--warn-tint); border:1px solid var(--warn); border-radius:var(--r-card); padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
 .dchip2.mute { color:var(--q); }
-.fl-fact.tiff { background:var(--tint); border-color:var(--line); }
-.fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ink); }
 .fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 /* neutral sibling of fl-warnhint — explains a field rather than cautioning about
    it. Literal colour, not a var: these modals portal to body, outside .fg. */
@@ -3357,10 +3350,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-tiffinfo { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:var(--r-control); color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .fl-tiffinfo:hover { background:var(--tint); color:var(--ink); }
 @keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
-.fl-fact.tiff.stale { opacity:.55; }
 /* Unscoped like the rest of the modal's fl-*: the detail modal portals to
    <body>, so anything under .fg would simply be absent here. */
-.fl-fact .fl-tiffnote { display:block; font-size:12px; font-weight:600; color:var(--gray500); margin-top:4px; line-height:1.45; }
 /* The paper trail in the detail modal, and the invoice chip on the form —
    both portal to <body>, so unscoped like the rest of fl-*. */
 /* Update — the fix for an expiry, sitting on the fact that warns about it. */
@@ -3375,7 +3366,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-factdoor:hover .i { color:var(--ink); }
 .fl-factdoor:hover b { text-decoration:underline; }
 /* Add renewal — open whatever the expiry says, so it sits above the list. */
-.fl-histadd { display:flex; justify-content:flex-end; margin-bottom:16px; }
 /* flex:1 on the name, not margin-left:auto on the price — a renewal whose
    document printed no premium has no price element to push the rest right. */
 /* Current vs previous on a renewal document. Derived from the file list, so
@@ -10622,7 +10612,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   --vm-line:var(--line); --vm-line2:var(--line); --vm-rule:var(--line); --vm-border:var(--line);
   --vm-ok-bg:var(--tint); --vm-ok-bg2:var(--tint-2); --vm-ok-line:var(--tint-2);
   --vm-warn-bg:var(--warn-tint); --vm-warn-line:var(--warn); }
-.vm { width:720px; max-width:100%; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); overflow:hidden;
+/* 1200 wide, from 720 (Isaac, 2026-09-15: "the width could almost double so
+   that the history has more space"). The history column takes two thirds of
+   the row it shares with the compliance list, and a docket opens at a size
+   it can be read at. */
+.vm { width:1200px; max-width:100%; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); overflow:hidden;
   animation:flPop .3s var(--ease); color:var(--ink); }
 .vm *, .vm *::before, .vm *::after { box-sizing:border-box; }
 /* :where() keeps this reset at zero specificity, so any one class on a button — the dashed scan zone, a door card — paints over it. */
@@ -10680,7 +10674,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 .vm-vitals { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
 .vm-vitals.two { grid-template-columns:1fr 1fr; }
-.vm-two { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; align-items:start; }
+.vm-two { display:grid; grid-template-columns:1fr 2fr; gap:12px; align-items:start; }
 
 /* compliance list */
 .vm-compliance { padding:4px 16px; gap:0; }
@@ -10712,10 +10706,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-menu { position:absolute; right:0; top:32px; z-index:var(--z-overlay); min-width:190px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-card); padding:4px; box-shadow:var(--shadow-overlay); display:flex; flex-direction:column; }
 .vm-menu button { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button); font-size:13px; font-weight:600; color:var(--ink); text-align:left; }
 .vm-menu button:hover { background:var(--vm-chip); }
-.vm-evrow { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--vm-line2); font-size:14px; font-weight:600; color:var(--ink); }
+/* A history row is a DOOR: the line, a quiet second line (who, where,
+   corrected), whether the paper was kept, the date, a chevron. It opens the
+   entry on its own screen, where the docket or the invoice can be read. */
+.vm-evrow { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:8px 0; border-bottom:1px solid var(--vm-line2); text-align:left; color:var(--ink); transition:opacity var(--t-fast) var(--ease); }
+.vm-evrow:hover { opacity:.8; }
+.vm-evl { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.vm-evl b { font-size:14px; font-weight:600; color:var(--ink); }
+.vm-evl em { font-style:normal; font-size:12px; font-weight:500; color:var(--vm-muted); }
+.vm-evr { display:flex; align-items:center; gap:12px; flex:none; font-size:12px; font-weight:600; color:var(--vm-faint); }
 .vm-evdate { font-size:12px; font-weight:600; color:var(--vm-faint); flex:none; }
 .vm-history > .vm-inline { padding-top:12px; align-self:flex-start; }
-.vm-fulllog { display:flex; flex-direction:column; }
+
+/* one entry on its own: the line it was logged under, and the itemised work */
+.vm-entrynote { font-size:16px; font-weight:600; color:var(--ink); line-height:1.4; }
+.vm-entrynote.faint { color:var(--vm-faint); font-weight:500; }
+.vm-worklist { white-space:pre-line; font-size:14px; color:var(--ink); line-height:1.6; }
+/* the services screen's cycle card: the facts grid takes the room, the button keeps its width */
+.vm-statusl.grow { flex:1; }
 
 /* money */
 .vm-moneycols { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
@@ -10728,6 +10736,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* detail grids */
 .vm-grid { display:grid; gap:12px 16px; }
+/* Three columns by default, four for the specs — DetailGrid has set these
+   classes since the Sep 2026 handoff, and no rule answered them: every fact
+   grid on the card stacked in one column. minmax(0,1fr) so a long VIN
+   wraps inside its cell instead of widening it. */
+.vm-grid.cols3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.vm-grid.cols4 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
 .vm-grid.dense { gap:8px 12px; }
 .vm-field { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .vm-field.wide { grid-column:span 2; }

@@ -63,7 +63,7 @@ async function vehicleIn(orgId: string, vehicleId: string) {
   const { data } = await supabaseAdmin
     .from("vehicles")
     .select(
-      "id, status, odometer, last_service_odo, assigned_to, rego_expiry, insurance_expiry, ctp_expiry",
+      "id, status, odometer, last_service_odo, last_service_on, assigned_to, rego_expiry, insurance_expiry, ctp_expiry",
     )
     .eq("org_id", orgId)
     .eq("id", vehicleId)
@@ -221,13 +221,16 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
     return { ok: false, error: "Enter what it cost, so the reimbursement is for the right amount." };
   }
 
-  /* The tax columns only exist on a fuel log — an odometer reading has no
-     supplier and a reported fault has no GST. Anything sent alongside another
-     kind is dropped here rather than refused: it can only be a stale field on
-     a reused form, and it changes nothing that gets exported. */
+  /* The tax columns exist on the two logs that are PURCHASES — fuel and a
+     service — because those are the two with a supplier, a GST line and a
+     date on the paper. An odometer reading has no supplier and a reported
+     fault has no GST. Anything sent alongside those kinds is dropped here
+     rather than refused: it can only be a stale field on a reused form, and
+     it changes nothing that gets exported. */
   const today = todayInAu();
+  const purchase = log.kind === "fuel" || log.kind === "service";
   const tax =
-    log.kind === "fuel"
+    purchase
       ? fuelTaxColumns(
           { cost: log.cost, gst: log.gst, abn: log.abn, purchasedOn: log.purchasedOn },
           today,
@@ -248,10 +251,12 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
       cost: log.cost ?? null,
       odo: log.odo ?? null,
       status: log.kind === "issue" ? "open" : null,
-      source: log.kind === "fuel" ? log.source ?? "manual" : null,
-      station: log.station ?? null,
+      source: purchase ? log.source ?? "manual" : null,
+      station: purchase ? log.station ?? null : null,
       gst: tax.columns.gst,
       supplier_abn: tax.columns.supplier_abn,
+      // what the workshop did, as the invoice lists it — service only
+      work_done: log.kind === "service" ? log.workDone?.trim() || null : null,
       // fuel only; null on every other kind, and on fuel logged before the
       // question was asked
       paid_with: log.kind === "fuel" ? log.paidWith ?? "company" : null,
@@ -260,8 +265,8 @@ export async function addLog(log: NewLog): Promise<FleetResult> {
     .maybeSingle();
   if (error || !created) return { ok: false, error: "Couldn't save that entry." };
 
-  if (log.kind === "fuel" && log.receiptDocumentId) {
-    await adoptReceipt(ctx, String(created.id), log.receiptDocumentId);
+  if (purchase && log.receiptDocumentId) {
+    await adoptReceipt(ctx, String(created.id), log.receiptDocumentId, log.kind);
   }
 
   if (ownMoney) {
@@ -344,17 +349,74 @@ async function raiseFuelReimbursement(
   return !error;
 }
 
-async function adoptReceipt(ctx: Ctx, logId: string, documentId: string): Promise<void> {
+async function adoptReceipt(ctx: Ctx, logId: string, documentId: string, kind: NewLog["kind"]): Promise<void> {
   if (!ctx.staffId) return;
+  const docKind = LOG_DOC_KIND[kind];
+  if (!docKind) return;
   await supabaseAdmin
     .from("documents")
     .update({ vehicle_log_id: logId })
     .eq("org_id", ctx.orgId)
     .eq("id", documentId)
     .eq("uploaded_by", ctx.staffId)
-    .eq("kind", "fuel_receipt")
+    .eq("kind", docKind)
     .not("uploaded_at", "is", null)
     .is("vehicle_log_id", null);
+}
+
+/* The paper each kind of log may own. The kind is the adoption gate: a fuel
+   log takes a fuel docket and a service log takes a service record, and a
+   document of the wrong kind — an expense claim's receipt, a purchase invoice
+   — is never claimed by a log, however it arrived. Odometer readings and
+   issue reports own nothing. */
+const LOG_DOC_KIND: Partial<Record<NewLog["kind"], "fuel_receipt" | "service_record">> = {
+  fuel: "fuel_receipt",
+  service: "service_record",
+};
+
+/* The paper for an entry that was logged without it — a docket found in the
+   glovebox a week later, the invoice for a service somebody typed in from
+   memory. Same "who may touch this log" rule as a correction, and the same
+   adoption contract as the docket at logging time, with one more clause: an
+   entry that already has its document keeps it. Swapping the evidence behind
+   a figure after the fact is not a correction (see EditLogModal), so the
+   second file is refused rather than filed beside the first. */
+export async function attachLogDocument(logId: string, documentId: string): Promise<FleetResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!ctx.staffId) return { ok: false, error: "Your account isn't linked to a staff record." };
+
+  const row = await logYouMayTouch(ctx, logId);
+  if (!row) return { ok: false, error: "That entry can't be changed." };
+  const kind = String(row.kind) as NewLog["kind"];
+  const docKind = LOG_DOC_KIND[kind];
+  if (!docKind) return { ok: false, error: "Only a fuel or service entry keeps a document." };
+
+  const { data: existing } = await supabaseAdmin
+    .from("documents")
+    .select("id")
+    .eq("org_id", ctx.orgId)
+    .eq("vehicle_log_id", logId)
+    .not("uploaded_at", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { ok: false, error: "This entry already has its document." };
+
+  const { data: adopted, error } = await supabaseAdmin
+    .from("documents")
+    .update({ vehicle_log_id: logId })
+    .eq("org_id", ctx.orgId)
+    .eq("id", documentId)
+    .eq("uploaded_by", ctx.staffId)
+    .eq("kind", docKind)
+    .not("uploaded_at", "is", null)
+    .is("vehicle_log_id", null)
+    .select("id")
+    .maybeSingle();
+  if (error || !adopted) return { ok: false, error: "That document couldn't be filed against the entry." };
+
+  refresh();
+  return { ok: true };
 }
 
 /* ---------------- correcting an entry ---------------- */
@@ -396,12 +458,13 @@ async function resyncVehicle(ctx: Ctx, vehicleId: string): Promise<void> {
 
   const { data } = await supabaseAdmin
     .from("vehicle_logs")
-    .select("kind, odo")
+    .select("kind, odo, logged_on")
     .eq("org_id", ctx.orgId)
     .eq("vehicle_id", vehicleId)
     .is("deleted_at", null);
 
-  const logs = ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const logs = rows.map((r) => ({
     kind: String(r.kind) as NewLog["kind"],
     odo: r.odo === null || r.odo === undefined ? undefined : Number(r.odo),
   }));
@@ -410,11 +473,27 @@ async function resyncVehicle(ctx: Ctx, vehicleId: string): Promise<void> {
     odometer: v.odometer as number,
     lastServiceOdo: v.last_service_odo as number,
   });
-  if (next.odometer === v.odometer && next.lastServiceOdo === v.last_service_odo) return;
+  const patch: Record<string, unknown> = {};
+  if (next.odometer !== v.odometer || next.lastServiceOdo !== v.last_service_odo) {
+    patch.odometer = next.odometer;
+    patch.last_service_odo = next.lastServiceOdo;
+  }
+  /* The by-DATE anchor follows the surviving services the way the by-km one
+     does: a service's date can now be corrected from the invoice, and the
+     vehicle must not go on saying it was last serviced on a day the record no
+     longer claims. Left alone when no service survives, like the odometer —
+     reading late is the safe direction. */
+  const serviced = rows
+    .filter((r) => r.kind === "service" && typeof r.logged_on === "string")
+    .map((r) => String(r.logged_on))
+    .sort();
+  const lastServiceOn = serviced.length > 0 ? serviced[serviced.length - 1] : null;
+  if (lastServiceOn && lastServiceOn !== v.last_service_on) patch.last_service_on = lastServiceOn;
+  if (Object.keys(patch).length === 0) return;
 
   await supabaseAdmin
     .from("vehicles")
-    .update({ odometer: next.odometer, last_service_odo: next.lastServiceOdo })
+    .update(patch)
     .eq("org_id", ctx.orgId)
     .eq("id", vehicleId);
 }
@@ -428,6 +507,8 @@ export type LogEdit = {
   gst?: number;
   abn?: string;
   purchasedOn?: string;
+  /** Service only: the itemised work, one line per item. */
+  workDone?: string;
 };
 
 /** Correct an entry in place. Same rules the original save was held to. */
@@ -445,8 +526,9 @@ export async function editLog(logId: string, patch: LogEdit): Promise<FleetResul
      mistyped once — so this is the last place it can be caught, and the
      figures are re-checked against the EDITED cost, not the stored one. */
   const cost = patch.cost ?? (row.cost === null ? undefined : Number(row.cost));
+  const purchase = kind === "fuel" || kind === "service";
   const tax =
-    kind === "fuel"
+    purchase
       ? fuelTaxColumns(
           { cost, gst: patch.gst, abn: patch.abn, purchasedOn: patch.purchasedOn },
           todayInAu(),
@@ -470,13 +552,17 @@ export async function editLog(logId: string, patch: LogEdit): Promise<FleetResul
   };
   if (patch.note !== undefined) update.note = patch.note || null;
   if (patch.odo !== undefined) update.odo = patch.odo;
-  if (kind === "fuel") {
-    if (patch.litres !== undefined) update.litres = patch.litres;
+  if (kind === "fuel" && patch.litres !== undefined) update.litres = patch.litres;
+  if (kind === "service" && patch.workDone !== undefined) update.work_done = patch.workDone.trim() || null;
+  if (purchase) {
     if (patch.cost !== undefined) update.cost = patch.cost;
     if (patch.station !== undefined) update.station = patch.station || null;
     if (tax?.ok) {
       update.gst = tax.columns.gst;
       update.supplier_abn = tax.columns.supplier_abn;
+      /* The date moves with the paper for a service too, and resyncVehicle
+         below re-anchors the by-date limit from it: correcting the invoice
+         date is correcting when the vehicle was last serviced. */
       if (patch.purchasedOn !== undefined) update.logged_on = tax.columns.logged_on;
     }
   }

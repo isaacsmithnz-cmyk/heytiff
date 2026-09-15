@@ -25,6 +25,7 @@ const TITLE: Partial<Record<StoredDocument["kind"], string>> = {
   org_licence: "Licence certificate",
   org_insurance: "Certificate of insurance",
   fuel_receipt: "Fuel docket",
+  service_record: "Service record",
   vehicle_photo: "Photo",
   receipt: "Receipt",
 };
@@ -36,11 +37,14 @@ export function DocRows({
   openId,
   onOpen,
   emptyText = "No documents filed.",
+  previewHeight,
 }: {
   docs: StoredDocument[];
   openId: string | null;
   onOpen: (id: string | null) => void;
   emptyText?: string;
+  /** Taller where the document IS the screen — a docket opened to be read. */
+  previewHeight?: number;
 }) {
   const open = openId ? docs.find((d) => d.id === openId) : undefined;
   if (docs.length === 0) return <div className="vm-empty">{emptyText}</div>;
@@ -64,7 +68,7 @@ export function DocRows({
           </button>
         ))}
       </div>
-      {open && <DocPreview doc={open} onClose={() => onOpen(null)} />}
+      {open && <DocPreview doc={open} onClose={() => onOpen(null)} height={previewHeight} />}
     </>
   );
 }

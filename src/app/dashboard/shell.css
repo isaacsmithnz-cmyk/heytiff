@@ -3237,6 +3237,7 @@ select.fl-i { cursor:pointer; }
 .fl-payb.on { border-color:var(--ink); background:var(--tint);  box-shadow:var(--ring); }
 .fl-payb.on em { color:var(--ink); }
 .fl-i.slim { height:36px; font-size:13px; margin-top:4px; padding:0 8px; border-radius:var(--r-control); }
+.fl-i.tall { min-height:120px; }
 /* THE ONE FOOTER (law 28). A row of buttons at the end of a form, the commit
    pair on the right; `.spread` puts a destructive action on the left; `.bar`
    is the same footer pinned across a tall sheet, with a hairline and the tint
@@ -10616,7 +10617,11 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   --vm-line:var(--line); --vm-line2:var(--line); --vm-rule:var(--line); --vm-border:var(--line);
   --vm-ok-bg:var(--tint); --vm-ok-bg2:var(--tint-2); --vm-ok-line:var(--tint-2);
   --vm-warn-bg:var(--warn-tint); --vm-warn-line:var(--warn); }
-.vm { width:720px; max-width:100%; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); overflow:hidden;
+/* 1200 wide, from 720 (Isaac, 2026-09-15: "the width could almost double so
+   that the history has more space"). The history column takes two thirds of
+   the row it shares with the compliance list, and a docket opens at a size
+   it can be read at. */
+.vm { width:1200px; max-width:100%; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); overflow:hidden;
   animation:flPop .3s var(--ease); color:var(--ink); }
 .vm *, .vm *::before, .vm *::after { box-sizing:border-box; }
 /* :where() keeps this reset at zero specificity, so any one class on a button — the dashed scan zone, a door card — paints over it. */
@@ -10674,7 +10679,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 .vm-vitals { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
 .vm-vitals.two { grid-template-columns:1fr 1fr; }
-.vm-two { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; align-items:start; }
+.vm-two { display:grid; grid-template-columns:1fr 2fr; gap:12px; align-items:start; }
 
 /* compliance list */
 .vm-compliance { padding:4px 16px; gap:0; }
@@ -10706,10 +10711,24 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-menu { position:absolute; right:0; top:32px; z-index:var(--z-overlay); min-width:190px; background:var(--paper); border:1px solid var(--vm-border); border-radius:var(--r-card); padding:4px; box-shadow:var(--shadow-overlay); display:flex; flex-direction:column; }
 .vm-menu button { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:var(--r-button); font-size:13px; font-weight:600; color:var(--ink); text-align:left; }
 .vm-menu button:hover { background:var(--vm-chip); }
-.vm-evrow { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid var(--vm-line2); font-size:14px; font-weight:600; color:var(--ink); }
+/* A history row is a DOOR: the line, a quiet second line (who, where,
+   corrected), whether the paper was kept, the date, a chevron. It opens the
+   entry on its own screen, where the docket or the invoice can be read. */
+.vm-evrow { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:8px 0; border-bottom:1px solid var(--vm-line2); text-align:left; color:var(--ink); transition:opacity var(--t-fast) var(--ease); }
+.vm-evrow:hover { opacity:.8; }
+.vm-evl { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.vm-evl b { font-size:14px; font-weight:600; color:var(--ink); }
+.vm-evl em { font-style:normal; font-size:12px; font-weight:500; color:var(--vm-muted); }
+.vm-evr { display:flex; align-items:center; gap:12px; flex:none; font-size:12px; font-weight:600; color:var(--vm-faint); }
 .vm-evdate { font-size:12px; font-weight:600; color:var(--vm-faint); flex:none; }
 .vm-history > .vm-inline { padding-top:12px; align-self:flex-start; }
-.vm-fulllog { display:flex; flex-direction:column; }
+
+/* one entry on its own: the line it was logged under, and the itemised work */
+.vm-entrynote { font-size:16px; font-weight:600; color:var(--ink); line-height:1.4; }
+.vm-entrynote.faint { color:var(--vm-faint); font-weight:500; }
+.vm-worklist { white-space:pre-line; font-size:14px; color:var(--ink); line-height:1.6; }
+/* the services screen's cycle card: the facts grid takes the room, the button keeps its width */
+.vm-statusl.grow { flex:1; }
 
 /* money */
 .vm-moneycols { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }

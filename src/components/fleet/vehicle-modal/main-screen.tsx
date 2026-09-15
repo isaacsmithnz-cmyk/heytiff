@@ -6,7 +6,7 @@ import { Chevron } from "@/components/logo";
 import type { StoredDocument } from "@/lib/documents/query";
 import { dateFromDays } from "@/lib/fleet/map";
 import { Plate } from "../plate";
-import { LogRow } from "../modals";
+import { EventRow } from "./event-row";
 import {
   STATUS_LABEL,
   displayName,
@@ -30,9 +30,9 @@ import {
   financePosition,
   fmtDay,
   historyEvents,
-  historyLine,
   historyTabs,
   logKinds,
+  logScreen,
   photoSrc,
   regoAlert,
   repaymentLabel,
@@ -59,7 +59,13 @@ import { Btn, Card, DetailGrid, Eyebrow, IconBtn, Inline, Segmented } from "@/co
    manager at the register is where a pool vehicle's fuel gets logged. And
    "Sold" stays in the status select beside the design's "For sale" — for sale
    is a vehicle still in the fleet, sold is the exit, and the register's Sold
-   filter needs the second to mean anything. */
+   filter needs the second to mean anything.
+
+   EVERY HISTORY ROW IS A DOOR (Sep 2026). The rows were text with a pencil;
+   the docket behind a fill and the invoice behind a service could be stored
+   but not seen from here. A row opens its entry on its own screen now, and
+   correcting and resolving moved there with it, so the card has one kind of
+   row and the card is wide enough (1200px) for the history to read. */
 
 const LOG_LABEL: Record<LogKind, string> = {
   fuel: "Log fuel",
@@ -83,7 +89,6 @@ export function MainScreen({
   warnDays,
   error,
   onOpen,
-  onServiceHistory,
   onEdit,
   onRemove,
   onClose,
@@ -92,8 +97,6 @@ export function MainScreen({
   onLog,
   onOdometer,
   onPhoto,
-  onResolve,
-  onCorrect,
 }: {
   vehicle: Vehicle;
   logs: VehicleLog[];
@@ -107,9 +110,8 @@ export function MainScreen({
   today: string;
   warnDays: number;
   error?: string | null;
-  /** Opens a renewal screen, or the money. */
+  /** Opens a renewal screen, the money, the services, or one entry. */
   onOpen: (screen: Exclude<Screen, "main">) => void;
-  onServiceHistory: () => void;
   onEdit: () => void;
   onRemove: () => void;
   onClose: () => void;
@@ -119,8 +121,6 @@ export function MainScreen({
   /** An odometer reading typed straight on the card. */
   onOdometer: (reading: number) => void;
   onPhoto: (file: File) => void;
-  onResolve: (logId: string) => void;
-  onCorrect: (log: VehicleLog) => void;
 }) {
   const [tab, setTab] = useState<HistoryTab>("all");
   const [fullHistory, setFullHistory] = useState(false);
@@ -134,7 +134,7 @@ export function MainScreen({
   const rows = complianceRows(vehicle, policies, warnDays);
   const specs = specRows(vehicle);
   const tabs = historyTabs(vehicle);
-  const events = historyEvents(logs, tab);
+  const events = historyEvents(logs, tab, fullHistory ? Infinity : undefined);
   const photo = photoSrc(vehicle, documents);
   const service = serviceDueText(vehicle, warnDays);
   const fin = currentFinance(finance);
@@ -245,7 +245,7 @@ export function MainScreen({
               )}
             </Card>
           )}
-          <Card onClick={onServiceHistory} ariaLabel="Service history">
+          <Card onClick={() => onOpen("services")} ariaLabel="Service history">
             <div className="vm-cardhead">
               <Eyebrow>Next service</Eyebrow>
               <Icon name="chevR" size={14} />
@@ -328,24 +328,11 @@ export function MainScreen({
                 </div>
               </div>
             </div>
-            {fullHistory ? (
-              <div className="vm-fulllog">
-                {logs.length === 0 ? (
-                  <div className="vm-empty">No activity yet.</div>
-                ) : (
-                  logs.map((l) => (
-                    <LogRow key={l.id} log={l} manager eco={eco[l.id]} onResolve={onResolve} onCorrect={onCorrect} />
-                  ))
-                )}
-              </div>
-            ) : events.length === 0 ? (
+            {events.length === 0 ? (
               <div className="vm-empty">Nothing logged{tab === "all" ? " yet" : " under this tab"}.</div>
             ) : (
               events.map((l) => (
-                <div key={l.id} className="vm-evrow">
-                  <span>{historyLine(l)}</span>
-                  <span className="vm-evdate">{l.when}</span>
-                </div>
+                <EventRow key={l.id} log={l} eco={eco[l.id]} onOpen={(x) => onOpen(logScreen(x.id))} />
               ))
             )}
             <Inline onClick={() => setFullHistory((f) => !f)}>

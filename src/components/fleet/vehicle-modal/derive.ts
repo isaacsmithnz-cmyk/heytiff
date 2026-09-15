@@ -15,6 +15,7 @@ import type { StoredDocument } from "@/lib/documents/query";
 import { agoLabel, inLabel } from "@/lib/format/duration";
 import { fmtDay } from "@/lib/format/day";
 import { dateFromDays } from "@/lib/fleet/map";
+import { formatAbn } from "@/lib/fleet/receipt";
 import {
   FINANCE_KIND_LABEL,
   PAYMENTS_PER_YEAR,
@@ -34,8 +35,19 @@ import {
   type VehicleStatus,
 } from "../logic";
 
-/** The screens of the one modal. Main, one per renewal kind, and the money. */
-export type Screen = "main" | RenewalKind | "financials";
+/** The screens of the one modal. Main, one per renewal kind, the money, the
+    services, and one log entry read on its own — `log:<id>`. A string like
+    the rest, so the register can name it and Escape can leave it. */
+export type Screen = "main" | RenewalKind | "financials" | "services" | `log:${string}`;
+
+export const logScreen = (logId: string): Screen => `log:${logId}`;
+
+export function isLogScreen(screen: Screen): screen is `log:${string}` {
+  return screen.startsWith("log:");
+}
+
+/** The log an entry screen names. */
+export const logIdOf = (screen: `log:${string}`): string => screen.slice(4);
 
 export const RENEWAL_TITLE: Record<RenewalKind, string> = {
   rego: "Registration",
@@ -222,6 +234,107 @@ export function historyLine(log: VehicleLog): string {
 /** The log kinds the + menu offers this vehicle. */
 export function logKinds(v: Vehicle): LogKind[] {
   return v.motorised ? ["fuel", "odo", "issue", "service"] : ["issue", "service"];
+}
+
+/* ---- one entry, read on its own ---- */
+
+/** The log's date back as ISO. VehicleLog carries a DISPLAY date ("Wed 15
+    Jul") plus how many days ago it was, and `ago` is exact, so the date is
+    recoverable without widening the projection. Anchored on the SERVER's
+    `today`, never on Date.now(): the browser clock is the previous day for
+    most of an Australian working morning, and this value goes back as the
+    date a purchase happened. */
+export function logIso(log: Pick<VehicleLog, "ago">, today: string): string {
+  const t = Date.parse(`${today}T00:00:00Z`) - log.ago * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+export const LOG_WORD: Record<LogKind, string> = {
+  fuel: "Fuel",
+  odo: "Odometer",
+  issue: "Issue",
+  service: "Service",
+};
+
+/** "Service, 15 Jul 2026" — the entry screen's title. The year is back: a
+    row's "Wed 15 Jul" is enough beside its neighbours, and not enough alone. */
+export function entryTitle(log: VehicleLog, today: string): string {
+  return `${LOG_WORD[log.kind]}, ${fmtDay(logIso(log, today))}`;
+}
+
+/** The paper filed against one log — the docket, the service record. */
+export function logDocuments(documents: readonly StoredDocument[], log: Pick<VehicleLog, "id">): StoredDocument[] {
+  return documents.filter((d) => d.vehicleLogId === log.id);
+}
+
+/** A meta line under a history row: who, where, and whether it was corrected. */
+export function historyMeta(log: VehicleLog, eco?: number): string {
+  return [
+    log.staffName,
+    log.station,
+    typeof eco === "number" ? `${eco} L/100km` : null,
+    log.edited ? "corrected" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+export type EntryFact = { label: string; value: string; faint?: boolean; warn?: boolean };
+
+const notRecorded = (s: string | null | undefined): Pick<EntryFact, "value" | "faint"> =>
+  s ? { value: s } : { value: "Not recorded", faint: true };
+
+/** The facts of one entry, per kind. Only what a log of that kind can carry:
+    a fuel line has litres and a docket's tax figures, a service has the
+    workshop's, an issue has its state, a reading has its reading. A blank is
+    said as a blank — never a figure the row did not hold. */
+export function entryFacts(log: VehicleLog, eco: number | undefined, today: string): EntryFact[] {
+  const date: EntryFact = { label: "Date", value: fmtDay(logIso(log, today)) };
+  const by: EntryFact = { label: "Logged by", ...notRecorded(log.staffName ?? (log.staffId ? null : "Imported")) };
+  const odo: EntryFact = {
+    label: "Odometer",
+    ...notRecorded(typeof log.odo === "number" ? `${fmtKm(log.odo)} km` : null),
+  };
+  const money = (n: number | undefined) => notRecorded(typeof n === "number" ? fmtCost(n) : null);
+  const tax: EntryFact[] = [
+    { label: "GST", ...(typeof log.gst === "number" ? { value: fmtCost(log.gst) } : { value: "Not shown", faint: true }) },
+    { label: "Supplier ABN", ...notRecorded(log.abn ? formatAbn(log.abn) : null) },
+    { label: "Entered", value: log.source === "scan" ? "Read from the paper" : "Typed in" },
+  ];
+  const corrected: EntryFact[] = log.edited ? [{ label: "Corrected", value: "Yes, after it was logged" }] : [];
+  switch (log.kind) {
+    case "fuel":
+      return [
+        { label: "Litres", ...notRecorded(typeof log.litres === "number" ? `${log.litres} L` : null) },
+        { label: "Cost", ...money(log.cost) },
+        { label: "Station", ...notRecorded(log.station) },
+        date,
+        odo,
+        { label: "Economy", ...notRecorded(typeof eco === "number" ? `${eco} L/100km` : null) },
+        ...tax,
+        by,
+        ...corrected,
+      ];
+    case "service":
+      return [
+        { label: "Workshop", ...notRecorded(log.station) },
+        { label: "Cost", ...money(log.cost) },
+        date,
+        odo,
+        ...tax,
+        by,
+        ...corrected,
+      ];
+    case "issue":
+      return [
+        { label: "Status", value: log.status === "resolved" ? "Resolved" : "Open", warn: log.status !== "resolved" },
+        { label: "Reported", value: date.value },
+        { label: "Reported by", value: by.value, faint: by.faint },
+        ...corrected,
+      ];
+    case "odo":
+      return [{ label: "Reading", ...odo }, date, by, ...corrected];
+  }
 }
 
 /* ---- financials ---- */

@@ -25,8 +25,8 @@ import {
   vehicleChips,
   worstState,
 } from "./logic";
-import { EditLogModal, LogModal, ServiceHistoryModal } from "./modals";
-import { VehicleModal, type Screen } from "./vehicle-modal";
+import { EditLogModal, LogModal } from "./modals";
+import { VehicleModal, logScreen, type Screen } from "./vehicle-modal";
 import { VehicleForm } from "./vehicle-modal/vehicle-form";
 import { Plate } from "./plate";
 
@@ -41,17 +41,18 @@ function driverHue(name: string) {
 }
 
 /* The vehicle card is ONE modal with its own screens (vehicle-modal/): the
-   renewal and history flows that used to be modals of their own are `screen`
-   values inside it, so this state no longer knows them. `screen` is only set
-   when something outside the card wants it opened on a particular record. */
+   renewal, service-history and entry flows that used to be modals of their
+   own are `screen` values inside it, so this state no longer knows them.
+   `screen` is only set when something outside the card wants it opened on a
+   particular record — a log modal returning to the services screen it was
+   opened from, a correction returning to the entry it corrected. */
 type ModalState =
   | { t: "none" }
   | { t: "add" }
   | { t: "edit"; id: string }
   | { t: "detail"; id: string; screen?: Screen }
   | { t: "log"; id: string; kind: LogKind; back?: "service" }
-  | { t: "fix"; id: string; log: VehicleLog }
-  | { t: "services"; id: string };
+  | { t: "fix"; id: string; log: VehicleLog };
 
 /* The reason a refused valuation gave, or a plain one. Read inside a
    try/catch, where a `??` is a value block React Compiler 1.0 cannot lower —
@@ -490,36 +491,27 @@ export function FleetRegister({
           initialScreen={modal.screen}
           onClose={() => setModal({ t: "none" })}
           onEdit={() => setModal({ t: "edit", id: openVehicle.id })}
-          onLog={(kind) => setModal({ t: "log", id: openVehicle.id, kind })}
-          onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
-          onServiceHistory={() => setModal({ t: "services", id: openVehicle.id })}
-        />
-      )}
-      {modal.t === "services" && openVehicle && (
-        <ServiceHistoryModal
-          vehicle={openVehicle}
-          warnDays={warnDays}
-          logs={logsFor(logs, openVehicle.id)}
-          onAdd={() =>
-            setModal({ t: "log", id: openVehicle.id, kind: "service", back: "service" })
+          onLog={(kind, from) =>
+            setModal({ t: "log", id: openVehicle.id, kind, back: from === "services" ? "service" : undefined })
           }
           onCorrect={(log) => setModal({ t: "fix", id: openVehicle.id, log })}
-          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
         />
       )}
       {modal.t === "fix" && openVehicle && (
+        /* A correction opens over the entry and returns to it; a removal
+           returns to where the entry was listed, because the entry is gone. */
         <EditLogModal
           log={modal.log}
           today={today}
           onSave={(patch) => {
             fleet.editLog(modal.log.id, patch);
-            setModal({ t: "detail", id: openVehicle.id });
+            setModal({ t: "detail", id: openVehicle.id, screen: logScreen(modal.log.id) });
           }}
           onDelete={() => {
             fleet.deleteLog(modal.log.id);
-            setModal({ t: "detail", id: openVehicle.id });
+            setModal({ t: "detail", id: openVehicle.id, screen: modal.log.kind === "service" ? "services" : undefined });
           }}
-          onClose={() => setModal({ t: "detail", id: openVehicle.id })}
+          onClose={() => setModal({ t: "detail", id: openVehicle.id, screen: logScreen(modal.log.id) })}
         />
       )}
       {modal.t === "log" && openVehicle && (
@@ -532,14 +524,14 @@ export function FleetRegister({
             fleet.addLog(log);
             setModal(
               modal.back === "service"
-                ? { t: "services", id: openVehicle.id }
+                ? { t: "detail", id: openVehicle.id, screen: "services" }
                 : { t: "detail", id: openVehicle.id },
             );
           }}
           onClose={() =>
             setModal(
               modal.back === "service"
-                ? { t: "services", id: openVehicle.id }
+                ? { t: "detail", id: openVehicle.id, screen: "services" }
                 : { t: "detail", id: openVehicle.id },
             )
           }

@@ -122,10 +122,6 @@
   transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .fg .tool .tback:hover { color: var(--ink); border-color: #e0e3e9; }
-.fg .tool .teyebrow {
-  display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500;
-}
-.fg .tool .teyebrow .edot { width: 7px; height: 7px; border-radius: 50%; }
 /* 38/-.035em, the app's one page-title size — see the note on `.tbx-head h1`.
    `.compact` below still overrides it to 26 for the single-viewport tools;
    that is a different kind of header, not a second opinion about this one. */
@@ -218,13 +214,6 @@
 .fg .tool .tbtn:hover { }
 .fg .tool .tbtn.ghost { background: #fff; color: var(--gray700); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
 .fg .tool .tbtn.ghost:hover { border-color: #d4d8e0; color: var(--ink); }
-.fg .tool .ticon {
-  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 10px; background: #fff; border: 1px solid #eceef2; color: var(--gray400);
-  cursor: pointer; transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); flex: 0 0 auto;
-}
-.fg .tool .ticon:hover { color: var(--ink); border-color: #d4d8e0; background: var(--tint); }
-.fg .tool .ticon.danger:hover { color: var(--red); border-color: rgba(255, 51, 102, 0.4); background: rgba(255, 51, 102, 0.06); }
 
 /* ---------- heat-load (quick check) ----------
    Layout: two cards up top (size | answer, equal height), Advanced panel
@@ -335,9 +324,6 @@
 .fg .tool .hl2-adv .ttog .tl { font-size: 13px; }
 
 /* ---------- running-pressures specifics ---------- */
-.fg .tool .rp-ctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.fg .tool .rp-ctl .tseg { flex: 0 0 auto; }
-.fg .tool .rp-ctl .tseg button { padding: 8px 16px; }
 
 /* refrigerant picker — colour-coded cards, most relevant first */
 .fg .tool .rp2-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -435,12 +421,6 @@
 .fg .tool .rp-table td.sel { color: var(--ink); font-weight: 700; background: var(--tool-accent-soft, rgba(255, 51, 102, 0.05)); }
 .fg .tool .rp-table tr.evap td:first-child { box-shadow:none; }
 .fg .tool .rp-table tr.cond td { background: var(--tint); }
-.fg .tool .rp-res { margin-top: 12px; padding: 16px; border-radius: 16px; background: var(--tint); border: 1px solid #eef0f4; }
-.fg .tool .rp-res .val { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
-.fg .tool .rp-res .val small { font-size: 16px; font-weight: 700; color: var(--gray400); margin-left: 4px; }
-.fg .tool .rp-res .st { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-.fg .tool .rp-res .why { font-size: 13px; color: var(--gray500); font-weight: 500; line-height: 1.5; margin: 8px 0 0; }
-.fg .tool .rp-sat { font-size: 13px; font-weight: 700; color: var(--gray400); margin-top: 8px; }
 
 /* ---------- fault-finder: guided one-question-at-a-time flow (.ffg-*) ----------
    Optimised for a phone at a job: one decision on screen, big tap targets,
@@ -617,8 +597,6 @@
 .fg .tool .ffg-links a:hover { color: var(--ink); }
 .fg .tool .ffg-links a .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .fg .tool .ffg-links a svg { margin-left: auto; color: #c8cdd6; }
-
-
 
 /* ---------- outdoor-unit-placement specifics ----------
    Same shape as the heat-load quick check: primary input + dark answer two-up,

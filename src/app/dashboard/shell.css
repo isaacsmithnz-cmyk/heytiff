@@ -292,7 +292,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    kbd chips and group labels yield below 1600px so the bar and the Next chip
    share one row even beside the full 224px rail */
 
-
 /* ============================ MAIN + TOPBAR ============================ */
 .fg .main { flex:1; min-width:0; display:flex; flex-direction:column; position:relative; z-index:10; }
 /* No backdrop-filter here. The one-piece frame further down makes this bar
@@ -409,8 +408,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 @media (prefers-reduced-motion:reduce) {
   .fg .pk-b { animation:none; background:rgba(10,12,20,.06); }
 }
-
-@keyframes fgBreath { 0%,100%{opacity:.12} 50%{opacity:.26} }
 
 /* ---- Dashboard home: action-required / roster / payroll section rows.
    Additive only — reuses the existing .card2 / .c2h / .dchip2 primitives. ---- */
@@ -634,8 +631,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .dname b a:focus-visible { outline:2px solid var(--ink); outline-offset:2px; border-radius:6px; }
 .fg .dname em { font-style:normal; font-size:12px; color:var(--q); display:block; }
 .fg .drole { font-size:14px; color:var(--gray500); font-weight:600; }
-.fg .dstatus { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--ink); }
-.fg .dstatus .sd { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
 .fg .dchip { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
 .fg .dchip.ok { color:var(--ok-t); }
 .fg .dchip.warn { color:var(--warn-t); }
@@ -705,7 +700,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .emptybox .ei { width:54px; height:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#f3f4f7; color:var(--q); }
 .fg .emptybox b { font-size:16px; font-weight:700; color:var(--ink); }
 .fg .emptybox em { font-style:normal; font-size:13px; font-weight:500; color:var(--q); max-width:380px; line-height:1.55; }
-
 
 /* ===== HeyTiff · FIGMA REPLICA — Tiff / Toolbox / Ductr screens ===== */
 
@@ -793,10 +787,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    the mic is actually open. Same rule the token's capsule follows. */
 .fg .tinput .tsend.live { background:#e0264f; box-shadow:0 6px 14px -4px rgba(224,38,79,.45); }
 .fg .tinput .tsend.live:hover { background:#c81f44; color:#fff; }
-.fg .tinput .tmicx { width:32px; height:32px; border-radius:50%; flex:0 0 auto;
-  display:flex; align-items:center; justify-content:center;
-  border:1px solid var(--line); background:#fff; color:var(--gray500); transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .tinput .tmicx:hover { border-color:#e0264f; color:var(--bad-t); }
 /* The gap is 16px so the row can breathe; the recording cluster is four things
    and needs to read as one, so it closes up while the mic is open. */
 .fg .tinput .tin.live { gap:8px; }
@@ -824,7 +814,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 
 /* ---------------- TOOLBOX ---------------- */
 .fg .tbx-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; gap:24px; flex-wrap:wrap; }
-.fg .tbx-eb { display:inline-flex; align-items:center; gap:8px; color:var(--ink); font-size:12px; font-weight:500; font-family:var(--mono); margin-bottom:12px; }
 /* 38/-.035em, like every other page title. #350 swept THIRTEEN inline 44s into
    `.v2head h1` and missed this one and the tool pages' 40 — both were CSS
    rules rather than style objects, so a sweep looking for the copied object
@@ -837,105 +826,22 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tbx-search:focus-within svg { color:var(--ink); }
 .fg .tbx-search input { width:100%; padding:12px 16px 12px 48px; background:#fff; border-radius:16px; border:1px solid var(--line); font-size:16px; font-weight:500; outline:none; box-shadow:0 1px 2px rgba(0,0,0,.03); transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tbx-search input:focus { box-shadow:var(--ring); border-color:var(--line); }
-.fg .tbx-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; }
-@media (max-width:880px){ .fg .tbx-grid{grid-template-columns:1fr} }
-.fg .catwrap { transition:transform var(--t-move) var(--ease); }
-.fg .catwrap:hover { }
 .fg .cat { position:relative; background:#fff; border-radius:16px; border:1px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,.04); transition:box-shadow var(--t-fast) var(--ease); height:100%; }
 .fg .cat:hover { }
 .fg .cat .ctop { position:absolute; top:0; left:0; right:0; height:6px; opacity:.8; z-index:10; border-radius:999px 999px 0 0; }
 .fg .cat .cin { padding:32px; position:relative; z-index:10; }
-.fg .cat .chd { display:flex; align-items:center; gap:16px; margin-bottom:32px; }
-.fg .cat .cic { width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; box-shadow:inset 0 2px 4px rgba(0,0,0,.04); }
-.fg .cat .cht { font-size:24px; font-weight:700; color:var(--ink); line-height:1.2; margin-bottom:4px; }
-.fg .cat .chs { font-size:14px; color:var(--gray500); font-weight:500; }
-.fg .toolrow { display:flex; align-items:center; gap:16px; padding:16px; border-radius:16px; cursor:pointer; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease); border:1px solid transparent; }
-.fg .toolrow:hover { background:var(--tint); border-color:#f0f0f2; }
-.fg .toolrow .tdot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; box-shadow:0 1px 2px rgba(0,0,0,.1); }
-.fg .toolrow .tnm { display:flex; align-items:center; gap:12px; flex:1; min-width:0; }
-.fg .toolrow .tnm b { font-size:16px; font-weight:700; color:var(--gray700); transition:color var(--t-fast) var(--ease); white-space:nowrap; }
-.fg .toolrow:hover .tnm b { color:var(--ink); }
-.fg .toolrow .tnm em { font-style:normal; font-size:13px; color:var(--gray400); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-@media (max-width:640px){ .fg .toolrow .tnm em{display:none} }
-.fg .toolrow .tbg { font-size:12px; font-weight:700; padding:4px 12px; border-radius:6px; font-family:var(--mono); flex:0 0 auto; border:1px solid; }
-.fg .toolrow .tch { color:var(--q); opacity:0; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); flex:0 0 auto; }
-.fg .toolrow:hover .tch, .fg .toolrow:focus-within .tch { opacity:1; }
 
 /* ---------------- DUCTR ---------------- */
 .fg .ductr { position:relative; display:flex; flex-direction:column; height:100%; background:var(--line); overflow:hidden; }
-.fg .ductr .cad1 { position:absolute; inset:0; z-index:0; pointer-events:none; background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); background-size:40px 40px; background-position:-1px -1px; }
-.fg .ductr .cad2 { position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.4; background-image:linear-gradient(var(--q) 1px,transparent 1px),linear-gradient(90deg,var(--q) 1px,transparent 1px); background-size:200px 200px; background-position:-1px -1px; }
-.fg .dhead { position:absolute; top:16px; left:16px; right:16px; height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.05); z-index:20; animation:fgDrop .5s var(--ease) both; }
-@keyframes fgDrop { from{opacity:0;transform:translateY(-40px)} to{opacity:1;transform:none} }
-.fg .dsteps { display:flex; align-items:center; gap:8px; background:rgba(243,244,246,.5); padding:4px; border-radius:999px; border:1px solid rgba(229,231,235,.5); }
-.fg .dstep { display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; font-size:13px; font-weight:700; color:var(--gray500); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .dstep:hover { color:#111; }
-.fg .dstep .dn { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:rgba(229,231,235,.5); color:var(--gray500); }
-.fg .dstep.done { color:var(--ok-t); } .fg .dstep.done .dn { background:var(--ok-tint); color:var(--ok-t); }
-.fg .dstep.active { background:var(--ink); color:#fff; box-shadow:0 4px 12px rgba(0,0,0,.15); } .fg .dstep.active .dn { background:rgba(255,255,255,.2); color:#fff; }
-.fg .dhr { display:flex; align-items:center; gap:16px; }
-.fg .dlay { display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:10px; font-size:13px; font-weight:700; color:var(--gray500); transition:background-color var(--t-fast) var(--ease); }
-.fg .dlay:hover { background:#fff; }
-.fg .dscale { display:flex; align-items:center; gap:8px; padding:4px 12px; border-radius:10px; background:var(--tint); border:1px solid var(--line); color:var(--ink); font-size:12px; font-weight:700; }
-.fg .ping { position:relative; display:flex; width:8px; height:8px; }
-.fg .ping .p1 { position:absolute; inset:0; border-radius:50%; background:var(--ink); opacity:.75; animation:fgPingFull 1.4s var(--ease) infinite; color:var(--paper); }
-.fg .ping .p2 { position:relative; width:8px; height:8px; border-radius:50%; background:var(--ink); color:var(--paper); }
-@keyframes fgPingFull { 75%,100%{transform:scale(2.2);opacity:0} }
-.fg .dsep { width:1px; height:24px; background:rgba(0,0,0,.1); margin:0 8px; }
-.fg .dsave { padding:8px 16px; border-radius:10px; font-size:13px; font-weight:700; color:var(--gray700); background:#fff; border:1px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.05); transition:background-color var(--t-fast) var(--ease); }
-.fg .dsave:hover { background:var(--tint); }
-.fg .dexport { display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:10px; font-size:13px; font-weight:700; color:var(--paper); background:var(--ink); box-shadow:none; transition:background-color var(--t-fast) var(--ease); }
-.fg .dexport:hover { background:#00D0AE; }
-
-.fg .dwork { flex:1; display:flex; gap:16px; padding:16px; padding-top:84px; position:relative; z-index:10; min-height:0; }
-.fg .dtools { width:64px; flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 0; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.05); align-self:flex-start; animation:fgSlideL .5s var(--ease) both; }
-@keyframes fgSlideL { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:none} }
-.fg .dtools .tdv { width:32px; height:1px; background:var(--line); margin:8px 0; }
-.fg .dtbtn { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fg .dtbtn:hover { background:#fff; color:#111; }
-.fg .dtbtn.active { background:var(--ink); color:var(--paper); box-shadow:0 4px 12px rgba(0,0,0,.15); transform:scale(1.1); }
-.fg .dcanvas { flex:1; position:relative; display:flex; align-items:center; justify-content:center; padding:32px; min-width:0; }
-.fg .dcanvas svg.plan { width:100%; height:100%; max-width:820px; max-height:100%; filter:drop-shadow(0 20px 40px rgba(0,0,0,.08)); }
-.fg .dstatus { position:absolute; top:24px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:8px; padding:8px 16px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.05); z-index:20; }
-.fg .dstatus .sl { font-size:12px; font-weight:700; color:var(--gray700); }
-.fg .dstatus .slv { font-size:12px; font-weight:700; color:var(--gray400); font-family:var(--mono); }
-.fg .dprops { width:340px; flex:0 0 auto; display:flex; flex-direction:column; background:rgba(255,255,255,.9); backdrop-filter:blur(24px); border:1px solid #fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.05); overflow:hidden; animation:fgSlideR .5s var(--ease) both; }
-@media (max-width:1080px){ .fg .dprops{display:none} }
-@keyframes fgSlideR { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:none} }
-.fg .dprops .ph { padding:24px; border-bottom:1px solid var(--tint); display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.5); }
-.fg .dprops .ph h3 { font-size:20px; font-weight:700; color:var(--ink); margin:0; }
-.fg .dprops .ph button { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:10px; background:var(--tint); color:var(--ink); font-size:20px; font-weight:700; transition:background var(--t-fast) var(--ease); }
-.fg .dprops .ph button:hover { background:var(--tint-2); }
-.fg .dpbody { padding:24px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:24px; }
+  
 .fg .odu { padding:24px; border-radius:16px; background:var(--tint); border:1px solid var(--tint); box-shadow:inset 0 2px 4px rgba(0,0,0,.03); }
 .fg .odu .or { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
 .fg .odu .ol { font-size:12px; font-weight:500; color:var(--gray500); }
-.fg .odu .okw { padding:4px 12px; border-radius:6px; background:var(--ok-tint); color:var(--ok-t); font-size:12px; font-weight:700; font-family:var(--mono); border:1px solid var(--ok-tint); }
-.fg .odu .ld { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.fg .odu .ld b { font-size:14px; font-weight:700; color:var(--gray700); }
-.fg .odu .ld em { font-style:normal; font-size:14px; font-weight:700; color:var(--ink); font-family:var(--mono); }
 .fg .odu .bar { height:10px; border-radius:999px; background:var(--line); overflow:hidden; box-shadow:inset 0 1px 2px rgba(0,0,0,.1); }
 .fg .odu .bar i { display:block; height:100%; width:0; background:var(--ink); transition:width var(--t-move) var(--ease) .3s; }
 .fg .odu .of { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
 .fg .odu .of .a { font-size:12px; font-weight:700; color:var(--gray400); }
 .fg .odu .of .b { font-size:12px; font-weight:700; color:var(--ink); font-family:var(--mono); }
-.fg .droom { display:flex; align-items:center; gap:12px; padding:12px; border-radius:16px; background:var(--tint); border:1px solid var(--tint); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .droom + .droom { margin-top:8px; }
-.fg .droom:hover { border-color:var(--line); background:#fff; }
-.fg .droom .ri { width:36px; height:36px; border-radius:10px; background:var(--tint); display:flex; align-items:center; justify-content:center; flex:0 0 auto; transition:transform var(--t-move) var(--ease); }
-.fg .droom:hover .ri { }
-.fg .droom .ri svg { color:var(--ink); }
-.fg .droom .rk { flex:1; min-width:0; }
-.fg .droom .rk b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
-.fg .droom .rk em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray400); font-family:var(--mono); }
-.fg .droom .rkw { font-size:13px; font-weight:700; color:var(--ink); font-family:var(--mono); flex:0 0 auto; }
-.fg .dview { position:absolute; bottom:24px; left:100px; display:flex; border-radius:10px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; box-shadow:0 8px 30px rgba(0,0,0,.05); overflow:hidden; z-index:20; }
-.fg .dview button { width:48px; height:48px; display:flex; align-items:center; justify-content:center; color:var(--gray700); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .dview button:hover { background:#fff; color:var(--ink); }
-.fg .dview button:not(:last-child) { border-right:1px solid rgba(0,0,0,.08); }
-.fg .dread { position:absolute; bottom:24px; right:380px; display:flex; gap:12px; pointer-events:none; z-index:20; }
-@media (max-width:1080px){ .fg .dread{right:24px} }
-.fg .dread .rd { padding:8px 16px; border-radius:10px; background:rgba(255,255,255,.8); backdrop-filter:blur(16px); border:1px solid #fff; font-size:13px; font-weight:700; font-family:var(--mono); color:var(--gray500); box-shadow:0 8px 30px rgba(0,0,0,.05); }
 
 /* The `.plan .pl-*` SVG animation block that stood here — draw-in, travelling
    flow dash, room/unit pops, ring and fan — is GONE. Nothing has rendered a
@@ -1206,7 +1112,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .crumb a { color:var(--link); }
 .fg .crumb .sep { color:var(--q); }
 .fg .crumb b { color:var(--ink); font-weight:700; }
-.fg .pactions { display:flex; align-items:center; gap:12px; }
 .fg .pbtn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .pbtn.ghost { background:#fff; border:1px solid var(--line); color:var(--gray700); box-shadow:0 1px 2px rgba(0,0,0,.04); }
 .fg .pbtn.ghost:hover { background:var(--tint); }
@@ -1756,7 +1661,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .card2.readonly .seg { background:transparent; border:0; padding:0; }
 .fg .card2.readonly .seg button:not(.on) { display:none; }
 .fg .card2.readonly .seg button.on { background:transparent; box-shadow:none; padding:0; color:var(--ink); font-weight:700; }
-.fg .card2.readonly .docrow { background:transparent; border-color:#f0f0f2; }
 
 /* per-card actions (edit / cancel / save) inline on the card header */
 .fg .cardactions { margin-left:auto; display:flex; gap:8px; align-items:center; flex:0 0 auto; }
@@ -1770,9 +1674,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .card2.readonly .cardactions [data-cancel], .fg .card2.readonly .cardactions [data-save] { display:none; }
 .fg .card2:not(.readonly) .cardactions [data-edit] { display:none; }
 /* evident empty state */
-.fg .card2.readonly .inp.is-empty::placeholder { color:#bcc2cd; font-style:italic; opacity:1; }
-.fg .card2.readonly .inp:not(.is-empty) { color:var(--ink); }
-.fg select.inp.is-empty { color:var(--q); font-weight:500; }
 .fg .field > label { position:relative; }
 
 /* info button + tooltip */
@@ -1813,9 +1714,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .seg button.on .segn { background:rgba(15,18,26,.06); color:var(--ink); }
 
 /* toggle */
-.fg .togrow { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px; border-radius:16px; background:#fafbfc; border:1px solid #f0f0f2; }
-.fg .togrow .tk b { font-size:14px; font-weight:700; }
-.fg .togrow .tk em { font-style:normal; display:block; font-size:12px; color:var(--gray400); margin-top:4px; font-weight:500; }
 .fg .toggle { width:48px; height:28px; border-radius:999px; background:#d8dbe2; position:relative; flex:0 0 auto; cursor:pointer; transition:background var(--t-fast) var(--ease); }
 .fg .toggle::after { content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:transform var(--t-move) var(--ease); }
 .fg .toggle.on { background:var(--ink); color:var(--paper); }
@@ -1825,32 +1723,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .drop { display:flex; align-items:center; gap:12px; padding:12px; border-radius:16px; border:1.5px dashed #d8dde6; background:#fafbfc; cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .drop:hover { border-color:var(--ink); background:var(--tint); }
 .fg .drop .di { width:42px; height:42px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ink); border:1px solid #eef0f4; }
-.fg .drop .dk b { font-size:13px; font-weight:700; }
-.fg .drop .dk em { font-style:normal; display:block; font-size:12px; color:var(--gray400); margin-top:2px; }
-
-.fg .licadd { display:flex; gap:12px; align-items:center; }
 
 /* verified document row (work rights) */
-.fg .docrow { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:16px; border:1px solid var(--line); background:#fafbfc; }
-.fg .docrow .docic { width:40px; height:40px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:#fff; color:var(--ink); border:1px solid #eef0f4; }
-.fg .docrow .dock { flex:1; min-width:0; }
-.fg .docrow .dock b { font-size:14px; font-weight:700; color:var(--ink); display:block; }
-.fg .docrow .dock em { font-style:normal; font-size:12px; color:var(--gray400); }
-.fg .docrow.verified .dock em { color:var(--ok-t); font-weight:700; }
-.fg .docrow .docact { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
-.fg .docbtn { display:inline-flex; align-items:center; gap:4px; height:34px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .docbtn.verify { background:var(--ok-tint); color:var(--ok-t); border:1px solid var(--ok-tint); }
-.fg .docbtn.verify:hover { background:var(--ok-tint); }
-.fg .docbtn.verify.done { background:var(--ok-t); color:var(--ink); border-color:var(--ok-t); }
-.fg .docbtn.del { width:34px; padding:0; justify-content:center; color:var(--q); background:var(--tint); }
-.fg .docbtn.del:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
-.fg .docbtn.ghostbtn { background:#fff; border:1px solid var(--line); color:var(--gray700); }
-.fg .docbtn.ghostbtn:hover { background:var(--tint); }
-.fg .docrow.verified .docbtn.ghostbtn { display:none; }
-.fg .docrow.removed { display:none; }
-@media (max-width:560px){ .fg .licadd{flex-wrap:wrap} .fg .licadd .pbtn{width:100%; justify-content:center} }
-.fg .licdel { margin-left:8px; width:30px; height:30px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--q); background:#f6f7f9; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .licdel:hover { background:rgba(255,51,102,.1); color:var(--bad-t); }
 
 /* licence cards */
 
@@ -1879,7 +1753,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .permrole.on .prcheck { opacity:1; transform:scale(1); }
 .fg .card2.readonly .permrole { cursor:default; }
 .fg .card2.readonly .permrole:not(.on) { display:none; }
-.fg .accessgrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 @media (max-width:680px){ .fg .permroles, .fg .accessgrid { grid-template-columns:1fr; } }
 .fg .csgrid { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:center; margin-top:4px; }
 @media (max-width:680px){ .fg .csgrid{grid-template-columns:1fr} }
@@ -1929,7 +1802,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .flag b { font-size:14px; font-weight:700; color:#9a6500; }
 .fg .flag em { font-style:normal; display:block; font-size:13px; color:#b58435; margin-top:2px; font-weight:500; }
 
-
   .fg-cmd { position:fixed; inset:0; z-index:100; display:none; align-items:flex-start; justify-content:center; padding-top:15vh; font-family:var(--font-jakarta), sans-serif; }
   .fg-cmd.open { display:flex; }
   .fg-cmd .ov { position:absolute; inset:0; background:rgba(5,5,5,.4); backdrop-filter:blur(8px); animation:fgcFade .2s both; }
@@ -1961,7 +1833,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg-cmd .cfoot { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid var(--tint); background:rgba(249,250,251,.5); }
   .fg-cmd .cf-l { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--q); }
   .fg-cmd .cf-r { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--q); }
-
 
 /* ===== TIFF AI · stage 1 additions (chat thread + Knowledge Base page) =====
    Additive only — the ported v3 rules above are untouched. */
@@ -2521,7 +2392,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* Knowledge Base page */
 .fg .kbcrumb { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:500; color:var(--gray400); text-decoration:none; margin-bottom:12px; transition:color var(--t-fast) var(--ease); }
 .fg .kbcrumb:hover { color:var(--ink); }
-.fg .kbhint { padding:24px; text-align:center; color:var(--q); font-size:13px; font-weight:600; border:1.5px dashed #e6e8ee; border-radius:16px; background:linear-gradient(180deg,#fafbfc,#fff); }
 
 /* ===== Time & Pay — weekly payroll review (ported from design_handoff_time_and_pay) ===== */
 
@@ -2627,7 +2497,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 @keyframes tprPulse { 0%{box-shadow:none} 70%{box-shadow:none} 100%{box-shadow:none} }
 .fg .tpr .autosub { font-size:13px; font-weight:600; color:var(--gray500); margin-top:12px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
-.fg .tpr .rhead .racts { display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end; }
 
 /* big buttons */
 .fg .tpr .bbtn { display:inline-flex; align-items:center; gap:8px; height:50px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; background:#fff; color:var(--gray700); border:1px solid rgba(10,12,20,.08); box-shadow:0 1px 2px rgba(10,12,20,.04); transition:border-color var(--t-fast) var(--ease); white-space:nowrap; }
@@ -2783,7 +2652,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .badge.review { color:var(--amber-d); }
 .fg .tpr .badge.review .d { width:6px; height:6px; border-radius:50%; background:var(--amber); }
 .fg .tpr .badge.ready { color:var(--blue-d); }
-.fg .tpr .badge.appr { color:var(--teal-ink); }
 
 .fg .tpr .capprove { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 24px; border-radius:16px; font-size:14px; font-weight:700; background:var(--ink); color:#fff; box-shadow:0 12px 24px -12px rgba(10,12,20,.55); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fg .tpr .capprove:hover { }
@@ -2964,30 +2832,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    --gray500 and stays quieter by being 11px against the date's 18. */
 .fg .tpr .tile.today { box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--ink); }
 .fg .tpr .tile.today::after { content:"TODAY"; position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-family:var(--font); font-size:12px; font-weight:700; color:#fff; background:var(--ink); padding:2px 8px; border-radius:6px; }
-.fg .tpr .tile .otf { position:absolute; top:8px; right:9px; font-size:12px; font-weight:700; }
 
 /* summary line + expand */
-.fg .tpr .csum { display:flex; align-items:center; gap:8px 16px; flex-wrap:wrap; padding-top:16px; border-top:1px solid #f2f3f6; }
-.fg .tpr .csum .big { font-size:20px; font-weight:700; }
-.fg .tpr .csum .big em { font-style:normal; font-weight:600; font-size:13px; color:var(--gray400); }
-.fg .tpr .csum .m { font-size:13px; font-weight:700; color:var(--gray500); }
-.fg .tpr .csum .rate { font-family:var(--font); font-size:13px; font-weight:700; display:inline-flex; gap:8px; }
-.fg .tpr .csum .rate span { display:inline-flex; align-items:center; gap:4px; color:var(--gray600); }
-.fg .tpr .csum .rate i { width:8px; height:8px; border-radius:0; font-style:normal; }
-.fg .tpr .csum .rate .r1 i { background:var(--teal); } .fg .tpr .csum .rate .r15 i { background:var(--amber); }
-.fg .tpr .csum .dot { width:3px; height:3px; border-radius:50%; background:#d0d4db; }
-/* prominent pay-multiplier split (this determines pay) */
-.fg .tpr .csum .paysplit { display:inline-flex; align-items:center; gap:8px; }
-.fg .tpr .csum .ps { display:inline-flex; align-items:center; gap:8px; height:34px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:700; }
-.fg .tpr .csum .ps i { width:9px; height:9px; border-radius:0; font-style:normal; flex:0 0 auto; }
-.fg .tpr .csum .ps b { font-family:var(--font); font-size:16px; font-weight:700; }
-.fg .tpr .csum .ps.ord { background:rgba(34,197,94,.12); color:var(--teal-ink); } .fg .tpr .csum .ps.ord i { background:var(--teal); }
-.fg .tpr .csum .ps.ot { background:rgba(240,164,49,.16); color:var(--amber-d); } .fg .tpr .csum .ps.ot i { background:var(--amber); }
-.fg .tpr .csum .sp { flex:1; }
-.fg .tpr .csum .chev { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#f4f5f7; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tpr .csum .chev:hover { background:#eceef1; color:var(--ink); }
-.fg .tpr .card.open .csum .chev { background:var(--ink); color:#fff; transform:rotate(180deg); }
-
+ /* prominent pay-multiplier split (this determines pay) */
+  
 /* expanded per-day rows */
 .fg .tpr .sectwrap { display:block; }
 .fg .tpr .detail { display:none; }
@@ -3085,26 +2933,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 @keyframes tprFade { from{opacity:0} to{opacity:1} }
 .fg .tpr .tset-panel { position:relative; width:560px; max-width:92vw; max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 40px 100px -30px rgba(10,12,20,.6); animation:tprPop .24s var(--ease); }
 @keyframes tprPop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
-.fg .tpr .tset-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 16px; border-bottom:1px solid #f0f1f5; }
-.fg .tpr .tset-head h3 { font-size:20px; font-weight:700; margin:0; }
-.fg .tpr .tset-head p { font-size:13px; font-weight:600; color:var(--gray500); margin:4px 0 0; }
 .fg .tpr .tset-x { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--gray500); background:#f4f5f7; flex:0 0 auto; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .tpr .tset-x:hover { background:#eceef1; color:var(--ink); }
-.fg .tpr .tset-body { padding:8px 24px; }
-.fg .tpr .tset-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; border-top:1px solid #f0f1f5; }
-.fg .tpr .tset-row:first-child { border-top:none; }
-.fg .tpr .tset-row .tr-l { min-width:0; }
-.fg .tpr .tset-row .tr-l b { display:block; font-size:14px; font-weight:700; }
-.fg .tpr .tset-row .tr-l em { font-style:normal; font-size:12px; font-weight:600; color:var(--gray400); margin-top:2px; display:block; }
-.fg .tpr .tset-row .tr-c { flex:0 0 auto; }
 /* `.fg .tpr .seg` IS GONE, and it was doing more than it looked like. Its
    three `.segb` children were dead — nothing in the app renders that class —
    but the tray override was live: it out-ranks `.fg .seg` (0,3,0 to 0,2,0),
    so every FaceSwitch on a `.tpr` screen was painted `#eceef1` while the same
    control on the staff card was `#f3f4f6`. One control, two trays, decided by
    which screen you were on. There is one tray value in this app now. */
-.fg .tpr .tset-foot { display:flex; justify-content:flex-end; gap:8px; padding:16px 24px 24px; border-top:1px solid #f0f1f5; position:sticky; bottom:0; background:#fff; }
-.fg .tpr .tset-foot .bbtn { height:44px; }
 
 /* ---------- setup wizard ---------- */
 .fg .tpr .tset-panel.wz { width:620px; padding:0; }
@@ -3147,7 +2983,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .wz-sw i { position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(10,12,20,.25); transition:left var(--t-move) var(--ease); }
 .fg .tpr .wz-sw.on { background:var(--teal); }
 .fg .tpr .wz-sw.on i { left:25px; }
-.fg .tpr .wz-or { text-align:center; font-size:12px; font-weight:500; color:var(--gray400); margin:8px 0 2px; }
 
 .fg .tpr .wz-subgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
 .fg .tpr .wz-sl { font-size:12px; font-weight:500; color:var(--gray400); margin-bottom:8px; text-align:center; }
@@ -3252,7 +3087,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .wz-menu .wz-pill { height:42px; min-width:54px; padding:0 12px; font-size:13px; }
 .fg .tpr .wz-menu .wz-tglrow { padding:12px 16px; margin-bottom:8px; font-size:14px; border-radius:10px; }
 .fg .tpr .wz-menu .wz-scroll { height:132px; }
-.fg .tpr .wz-menu .wz-or { margin:8px 0 2px; }
 .fg .tpr .wz-foot.menu { position:sticky; bottom:0; background:#fff; border-top:1px solid #f0f1f5; border-radius:0 0 16px 16px; }
 .fg .tpr .wz-rerun { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--gray500); transition:color var(--t-fast) var(--ease); }
 .fg .tpr .wz-rerun:hover { color:var(--ink); }
@@ -3471,7 +3305,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .fl-ch em { font-style:normal; display:block; font-size:13px; font-weight:500; color:var(--q); margin-top:2px; }
 
 /* profile — assigned-vehicle card */
-.fg .pvchips { display:flex; flex-wrap:wrap; gap:8px; }
 
 /* ---- fleet modals & log rows — UNSCOPED: modals portal to <body> (like
    .fg-cmd) and .fl-log/.dchip2 render both in-shell and inside the portal ---- */
@@ -3560,7 +3393,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    because .tiny's whole job is to overwrite the resting fill. */
 .fl-btn.tiny.primary { background:var(--ink); border-color:transparent; color:var(--paper); box-shadow:none; }
 .fl-btn.tiny.primary:hover { background:var(--ink); color:var(--paper); }
-.fl-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
 .dchip2 { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
 .dchip2.ok { color:var(--ok-t); }
 .dchip2.warn { color:var(--warn-t); }
@@ -3578,11 +3410,7 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:16px; padding:12px 12px; min-width:0; }
 .fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
 .fl-fact b { display:block; font-size:14px; font-weight:700; color:#050505; margin-top:4px; }
-.fl-note { background:#fafbfc; border:1px solid #f0f0f2; border-radius:10px; padding:12px 12px; font-size:13px; font-weight:600; color:var(--gray500); margin-bottom:16px; }
-.fl-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:16px; }
-.fl-gap { flex:1; }
 .fl-hist { border-top:1px solid #f0f0f2; padding-top:16px; }
-.fl-hh { font-size:12px; font-weight:500; color:var(--q); margin-bottom:8px; }
 .fl-hempty { padding:24px 16px; text-align:center; font-size:13px; font-weight:600; color:var(--q); border:1.5px dashed #e6e8ee; border-radius:16px; }
 .fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 12px; border-radius:16px; transition:background var(--t-fast) var(--ease); }
 .fl-log:hover { background:#fafbfc; }
@@ -3613,7 +3441,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .dchip2.mute { color:var(--q); }
 .fl-fact.tiff { background:var(--tint); border-color:var(--line); }
 .fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ink); }
-.fl-manage { display:flex; justify-content:flex-end; gap:8px; margin:-8px 0 16px; }
 .fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 /* neutral sibling of fl-warnhint — explains a field rather than cautioning about
    it. Literal colour, not a var: these modals portal to body, outside .fg. */
@@ -3645,22 +3472,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-tiffinfo:hover { background:#eef0f3; color:var(--ink); }
 @keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
 .fl-fact.tiff.stale { opacity:.55; }
-.fl-fact .fl-range { display:block; font-size:12px; font-weight:600; color:var(--gray500); margin-top:2px; }
 /* Unscoped like the rest of the modal's fl-*: the detail modal portals to
    <body>, so anything under .fg would simply be absent here. */
 .fl-fact .fl-tiffnote { display:block; font-size:12px; font-weight:600; color:var(--gray500); margin-top:4px; line-height:1.45; }
 /* The paper trail in the detail modal, and the invoice chip on the form —
    both portal to <body>, so unscoped like the rest of fl-*. */
-.fl-docrow { display:flex; align-items:center; gap:8px; padding:8px 2px; border-bottom:1px solid #f4f4f6; color:var(--ink); text-decoration:none; font-size:13px; }
-.fl-docrow:last-child { border-bottom:none; }
-.fl-docrow b { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-.fl-docrow em { font-style:normal; font-size:12px; font-weight:600; color:var(--q); margin-left:auto; white-space:nowrap; }
-.fl-docrow:hover b { text-decoration:underline; }
-.fl-invoice { display:flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--ink); margin-top:2px; min-width:0; }
-.fl-invoice i { font-style:normal; font-weight:600; color:var(--q); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* Update — the fix for an expiry, sitting on the fact that warns about it. */
-.fl-renew { display:inline-flex; align-items:center; gap:4px; margin-top:4px; padding:4px 8px; border-radius:6px; background:#fff; border:1px solid var(--line); font-size:12px; font-weight:700; color:var(--ink); }
-.fl-renew:hover { border-color:var(--ink); color:var(--info-t); }
 /* The rego/insurance fact as a door to its own paperwork. A full reset, not a
    tweak: these modals portal to <body>, so the .fg button reset never lands
    here and the UA's own button styling would otherwise show through. */
@@ -3673,20 +3490,10 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-factdoor:hover b { color:var(--info-t); }
 /* Add renewal — open whatever the expiry says, so it sits above the list. */
 .fl-histadd { display:flex; justify-content:flex-end; margin-bottom:16px; }
-.fl-renrow { display:flex; align-items:center; gap:8px; padding:8px 2px; border-bottom:1px solid #f4f4f6; font-size:13px; color:var(--ink); }
-.fl-renrow:last-child { border-bottom:none; }
 /* flex:1 on the name, not margin-left:auto on the price — a renewal whose
    document printed no premium has no price element to push the rest right. */
-.fl-renwho { display:flex; flex-direction:column; flex:1; min-width:0; }
-.fl-renwho b { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.fl-renwho i { font-style:normal; font-size:12px; font-weight:600; color:var(--q); }
-.fl-renrow em { font-style:normal; font-weight:700; white-space:nowrap; }
-.fl-renfile { display:inline-flex; align-items:center; gap:4px; max-width:150px; font-size:12px; font-weight:700; color:var(--q); text-decoration:none; }
-.fl-renfile:hover { color:var(--info-t); text-decoration:underline; }
 /* Current vs previous on a renewal document. Derived from the file list, so
    the tag can never disagree with what is above it. */
-.fl-doctag { flex:none; padding:2px 8px; border-radius:6px; background:#f1f2f4; font-size:12px; font-weight:500; color:var(--q); }
-.fl-doctag.now { background:var(--ok-tint); color:var(--ok-t); }
 .fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:32px 16px; border:1.5px dashed #d7dae0; border-radius:16px; background:#fafbfc; cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fl-scan:hover, .fl-scan.over { border-color:var(--ink); background:var(--tint); }
 .fl-scan input { display:none; }
@@ -4008,8 +3815,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .idc .idc-who em { font-style:normal; display:block; margin-top:4px; font-size:13px; font-weight:600; color:rgba(255,255,255,.5); }
 .fg .idc.light .idc-who em { color:var(--gray500); }
 .fg .idc .idc-pill { display:inline-flex; color:#2554d8; font-size:14px; font-weight:500; }
-.fg .idc .idc-note { display:inline-flex; align-items:center; gap:8px; padding:4px 12px; border-radius:10px; font-size:12px; font-weight:700; width:fit-content; }
-.fg .idc .idc-note.ok { background:var(--ok-tint); color:var(--ok-t); }
 .fg .idc .idc-facts { margin-top:auto; display:flex; gap:24px; flex-wrap:wrap; }
 .fg .idc .idc-facts .f { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .fg .idc .idc-facts em { font-style:normal; font-size:12px; font-weight:500; color:rgba(255,255,255,.38); }
@@ -4055,7 +3860,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .ferr { font-size:12px; font-weight:700; color:var(--bad-t); }
 
 /* ---- read-mode fact rows (values that don't belong on the plastic) ---- */
-.fg .ro-rows { display:flex; flex-direction:column; }
 .fg .ro-row { display:flex; align-items:baseline; gap:16px; padding:12px 2px; border-bottom:1px solid #f4f5f7; }
 .fg .ro-row:last-child { border-bottom:none; }
 .fg .ro-row em { font-style:normal; flex:0 0 190px; font-size:12px; font-weight:700; color:var(--gray700); }
@@ -4077,7 +3881,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* the role dot outside its picker — .permrole .prdot doesn't reach read mode */
 .fg .ro-state .prdot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
 .fg .ro-note { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--gray700); white-space:pre-wrap; }
-.fg .card2 > .idc + .ro-rows { margin-top:16px; }
 @media (max-width:560px){ .fg .ro-row { flex-direction:column; gap:4px; } .fg .ro-row em { flex:none; } }
 
 /* qualifications, as the list of tickets it is */
@@ -4085,12 +3888,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .qual { padding:8px 12px; border-radius:10px; background:#f6f7f9; border:1px solid #f0f0f2; font-size:13px; font-weight:700; color:var(--gray700); }
 
 /* work rights: the no-visa answer, in edit mode */
-.fg .wr-nov { display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:16px; background:var(--tint); border:1px solid var(--line); color:var(--ink); }
-.fg .wr-nov b { display:block; font-size:14px; font-weight:700; }
-.fg .wr-nov em { font-style:normal; display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--gray500); }
 
 /* ---- My pay ---- */
-.fg .mypay-foot { margin:16px 0 0; font-size:13px; font-weight:600; color:var(--gray400); }
 
 /* ---- date entry (components/profile/fields.tsx :: DateField) ----
    Every date is picked. A native date input carries its own metrics and its
@@ -4102,9 +3901,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .inp.date:hover::-webkit-calendar-picker-indicator { opacity:.85; }
 /* iOS shrink-wraps a date input to its content and left-aligns the text */
 .fg .inp.date::-webkit-date-and-time-value { text-align:left; }
-.fg .licexp { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
-.fg .licexp > span { flex:0 0 auto; font-size:12px; font-weight:700; color:var(--gray700); }
-@media (max-width:560px){ .fg .licexp { width:100%; } }
 
 /* ---- My timesheet (.mts2-*) ----
    The original staff-facing design's mechanics — a week strip of day chips
@@ -5091,11 +4887,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* Colour swatches in the credential modal. Scoped like every field beside
    them: the modal portals to <body> inside a display:contents `.fg`, so the
    design tokens and `.fg .inp` styles still reach it. */
-.fg .oc-sw { display:flex; align-items:center; gap:8px; height:46px; }
-.fg .oc-swb { width:26px; height:26px; border-radius:10px; border:2px solid transparent; box-shadow:0 0 0 1px rgba(10,12,20,.08) inset; transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .oc-swb.auto { background:repeating-linear-gradient(45deg,#eef0f4,#eef0f4 4px,#fff 4px,#fff 8px); }
-.fg .oc-swb:hover { }
-.fg .oc-swb.on { border-color:var(--ink); }
 
 /* ---- My leave: the request calendar (components/timepay/my-leave.tsx) ----
    The month grid is INLINE here, not a popover: choosing leave is choosing a
@@ -5335,11 +5126,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 .wb-board { display:flex; flex-direction:column; gap:16px; }
 
-.wb-stats { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
-.wb-stat { background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:16px; padding:16px 16px; }
-.wb-stat b { display:block; font-size:32px; font-weight:700; letter-spacing:-0.03em; line-height:1; }
-.wb-stat em { display:block; font-style:normal; color:var(--gray500); font-size:13px; font-weight:600; margin-top:4px; }
-
 .wb-day { padding:4px 0 2px; }
 .wb-dayhead { font-size:12px; font-weight:500; color:var(--gray500); margin:8px 0 4px; }
 .wb-row { display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:10px; }
@@ -5359,7 +5145,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 }
 .wb-pulse { animation:wbPulse 2.4s ease-in-out infinite; border:1px solid rgba(224,38,79,.5); }
 @media (prefers-reduced-motion:reduce) { .wb-pulse { animation:none; } }
-
 
 /* projects */
 .wb-projgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
@@ -5400,8 +5185,6 @@ button.wb-add { width:20px; height:20px; border-radius:6px; border:1px solid rgb
 input.wb-inline { flex:1; min-width:0; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; }
 .wb-inline:focus { outline:none; border-color:#00A8E0; }
 .wb-select { border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; background:#fff; cursor:pointer; }
-.wb-notes { width:100%; border:1px solid rgba(5,5,5,.12); border-radius:10px; padding:12px 12px; font:inherit; font-size:14px; resize:vertical; }
-.wb-notes:focus { outline:none; border-color:#00A8E0; }
 .wb-notetext { font-size:14px; color:var(--gray700); white-space:pre-wrap; margin:0; }
 /* the search result's card. Without the `button.` its border went to
    `border:none`, which also made `.wb-hit:hover`'s border-COLOR a no-op —
@@ -5410,8 +5193,6 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
 .wb-hit:hover { border-color:rgba(0,168,224,.5); }
 
 /* the Overview strip */
-.wb-strip { display:flex; flex-direction:column; gap:2px; }
-.wb-strip .wb-bar { width:120px; flex:none; }
 
 /* smart notes — the live input meter. Driven by real samples, so a meter that
    doesn't move means nothing is being captured.
@@ -5530,8 +5311,6 @@ button.wb-hit { width:100%; text-align:left; border:1px solid rgba(5,5,5,.08); b
 .wb2-capcard.wb2-dusk .wb2-remindoff:hover { background:rgba(255,255,255,.08); color:#fff; }
 
 /* visits */
-.wb-visit { border:1px solid rgba(5,5,5,.07); border-radius:16px; padding:4px 8px; margin-bottom:8px; }
-.wb-visit.wb-pulse { border-color:rgba(224,38,79,.5); }
 .wb-chip:disabled { cursor:default; opacity:.7; }
 /* This rule already existed to win the TYPE back, but stopped there — so a
    plain chip on a button kept its 11px/700 and still lost its grey pill and
@@ -5550,8 +5329,6 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
    Three tones, used consistently and nowhere else: danger #e0264f, warn
    #FF8A00, ok #00A389. They are STATE, never the page accent — the accent
    stays the #00A8E0 → #00E5C0 gradient the bars and thumbs already use. */
-
-.wb-headtools { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 
 /* ── the board's own page header (the handoff's) ──────────────────────────
    Title left, the side switcher DEAD CENTRE, tools right — a three-column
@@ -5653,79 +5430,35 @@ button.wb-chip:hover:not(:disabled) { filter:brightness(.96); }
 /* the three numbers — and they FILTER, because a number you can't act on is
    decoration. Pressed state is the ring, not a colour swap, so the tone keeps
    meaning the same thing whether or not it's the active filter. */
-.wb-vitals { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
-.wb-vital { position:relative; display:block; text-align:left; background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:16px; padding:16px 16px; cursor:pointer; font-family:inherit; transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.wb-vital:hover { }
-.wb-vital b { display:block; font-size:32px; font-weight:700; letter-spacing:-.03em; line-height:1; color:var(--ink); }
-.wb-vital span { display:block; font-size:13px; font-weight:700; color:var(--gray700); margin-top:8px; }
-.wb-vital em { display:block; font-style:normal; font-size:12px; font-weight:600; color:var(--gray500); margin-top:4px; }
 /* A tile that means trouble is COLOURED, not just captioned — across a
    workshop you read the block of colour long before you read the 40px number,
    and a red tile beside two white ones is the whole point of the row. */
-.wb-vital.urgent { background:rgba(224,38,79,.06); border-color:rgba(224,38,79,.3); }
-.wb-vital.urgent b { color:var(--bad-t); }
-.wb-vital.attention { background:rgba(255,138,0,.07); border-color:rgba(255,138,0,.32); }
-.wb-vital.attention b { color:var(--warn-t); }
 /* pressed = "this is what you're looking at". Kept neutral on the calm tile
    so the default state doesn't shout louder than an actual problem. */
-.wb-vital.on { border-color:rgba(5,5,5,.3); box-shadow:var(--ring); }
-.wb-vital.urgent.on { border-color:rgba(224,38,79,.6); box-shadow:var(--ring-bad); }
-.wb-vital.attention.on { border-color:rgba(255,138,0,.65); box-shadow:var(--ring); }
 
 /* the load rail — calendar weeks on the maintenance side, pipeline stages on
    the projects side. Same shape because it answers the same question: where
    does the work pile up. Dots stack from the BASE so the humps read as a
    histogram at a glance rather than a list you have to count. */
-.wb-rail { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:4px; align-items:end; padding:4px 0 2px; overflow-x:auto; }
-.wb-railcol { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:60px; padding:8px 4px 8px; border-radius:10px; }
-.wb-railcol:hover { background:rgba(5,5,5,.03); }
-.wb-railcol.over { background:rgba(224,38,79,.06); }
-.wb-railcol.urgent { background:rgba(224,38,79,.06); }
-.wb-railcol.attention { background:rgba(255,138,0,.08); }
 /* Stacks sit ON a baseline rule, so one dot reads as a short bar rather than
    a dot floating in space — the difference between a chart and a scatter. */
-.wb-railstack { display:flex; flex-direction:column-reverse; align-items:center; justify-content:flex-start; gap:4px; min-height:62px; padding-bottom:4px; border-bottom:1px solid rgba(5,5,5,.09); width:100%; }
-.wb-raildot { width:26px; height:11px; border-radius:0; background:var(--tint-2); }
-.wb-raildot.attention { background:#FF8A00; }
-.wb-raildot.overdue { background:#e0264f; }
-.wb-railmore { font-size:12px; font-weight:700; color:var(--gray500); }
-.wb-railcol b { font-size:16px; font-weight:700; line-height:1; min-height:15px; }
-.wb-railcol em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); text-align:center; line-height:1.25; }
-.wb-railcol i { font-style:normal; font-size:12px; color:var(--gray400); }
 
 /* readiness — four pips in a FIXED order (access · time · parts · customer),
    so the third pip always means parts, with the missing ones named beside
    them. "3/4 ready" is a fact; "Parts · Customer told" is this afternoon. */
-.wb-pips { display:inline-flex; align-items:center; gap:8px; flex:none; }
-.wb-pips i { width:8px; height:8px; border-radius:0; background:rgba(5,5,5,.14); }
-.wb-pips i.on { background:var(--ink); color:var(--paper); }
-.wb-pips i + i { margin-left:-4px; }
-.wb-pipnote { font-size:12px; font-weight:700; color:var(--gray500); margin-left:4px; white-space:nowrap; }
 
 /* the pipeline, compressed onto a card */
-.wb-stagerail { display:flex; align-items:center; gap:4px; height:8px; }
-.wb-sdot { flex:1; height:4px; border-radius:999px; background:rgba(5,5,5,.09); }
-.wb-sdot.past { background:var(--ok-tint); }
 /* the current stage is TALLER, not just a different colour — it has to be
    findable in a grid of cards without reading any of them */
-.wb-sdot.now { height:8px; background:linear-gradient(90deg,#00A8E0,var(--ok-t)); }
 
 .wb-chip.warn { background:rgba(255,138,0,.14); color:var(--warn-t); }
 .wb-chip.ghost { background:transparent; border:1px dashed rgba(5,5,5,.2); color:var(--gray400); }
 .wb-dayhead i { font-style:normal; color:var(--gray400); margin-left:4px; }
-.wb-runcounts { margin-left:auto; font-size:12px; font-weight:600; color:var(--gray500); white-space:nowrap; }
-.wb-runcounts i { font-style:normal; font-weight:700; color:var(--gray700); }
 
 /* a flagged project card carries its colour on the edge, not the fill —
    the card stays readable and the rail of cards still scans as one grid */
 .wb-proj.urgent { border-color:rgba(224,38,79,.6); }
 .wb-proj.attention { border-color:rgba(255,138,0,.6); }
-
-@media (max-width:900px) {
-  .wb-vitals { grid-template-columns:1fr; }
-  .wb-headtools { flex-wrap:wrap; }
-  .wb-pipnote { display:none; }
-}
 
 /* background too, not just the border — the base :fullscreen .wb-chip fill
    would otherwise turn the outline chip back into a solid one */
@@ -6081,7 +5814,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tkt em { display:block; font-style:normal; font-size:12px; color:var(--gray500); font-weight:600; margin-top:2px; }
 .wb2-tk .wb2-chip { flex:none; }
 
-.wb2-urlist { display:flex; flex-direction:column; gap:8px; padding:12px 16px 16px; }
 /* A row is a LINE, not a card: the severity bar carries the state and the
    group heading carries the grouping, so a box around each one only adds
    edges to count. Boxed, a five-row queue read as five separate things to
@@ -6098,7 +5830,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-ur .pbtn { flex:none; }
 
 /* ── the month ── */
-.wb2-mcnav { display:flex; align-items:center; gap:4px; }
 .wb2-mckey { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:12px 16px; border-bottom:1px solid var(--wb2-line2);
   font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-mckey span { display:inline-flex; align-items:center; gap:4px; }
@@ -6877,11 +6608,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-tag { display:inline-flex; align-items:center; gap:4px; height:26px; padding:0 8px; border-radius:999px;
   background:rgba(5,5,5,.05); border:1px solid transparent; font-size:12px; font-weight:700; color:var(--gray700);
   white-space:nowrap; font-style:normal; }
-.wb2-tag.t-violet { background:rgba(122,90,248,.09); border-color:rgba(122,90,248,.26); color:#5b3fd6; }
-.wb2-tag.t-blue { background:var(--tint); border-color:var(--line); color:#2e56d6; }
-.wb2-tag.t-cyan { background:rgba(0,168,224,.1); border-color:rgba(0,168,224,.28); color:#0075a0; }
-.wb2-tag.t-pink { background:rgba(196,65,155,.09); border-color:rgba(196,65,155,.28); color:#b0338a; }
-.wb2-tag.t-amber { background:rgba(255,138,0,.12); border-color:rgba(255,138,0,.3); color:var(--warn-t); }
 .wb2-tag.t-slate { background:rgba(100,116,139,.12); border-color:rgba(100,116,139,.3); color:var(--ink); }
 .wb2-tag.on button { display:grid; place-items:center; width:16px; height:16px; border-radius:50%; border:0; background:none;
   color:inherit; opacity:.55; cursor:pointer; transition:opacity var(--t-fast) var(--ease); }
@@ -6897,11 +6623,6 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring); }
 .wb2-swatch { width:22px; height:22px; border-radius:6px; padding:0; border:1px solid rgba(5,5,5,.12);
   cursor:pointer; flex:none; transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-swatch:hover { }
-.wb2-swatch.t-violet { background:#7A5AF8; }
-.wb2-swatch.t-blue { background:var(--ink); color:var(--paper); }
-.wb2-swatch.t-cyan { background:#00A8E0; }
-.wb2-swatch.t-pink { background:#C4419B; }
-.wb2-swatch.t-amber { background:#FF8A00; }
 .wb2-swatch.t-slate { background:var(--q); }
 .wb2-swatch.on { box-shadow:0 0 0 2px #fff, var(--ring); }
 .wb2-swatch:focus-visible { outline:none; box-shadow:0 0 0 2px #fff, var(--ring); }
@@ -7168,7 +6889,6 @@ a.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring); }
    reading one. */
 /* the Tiff button pins beside the ✕ the way the job card's ⋯ does, and the
    identity row keeps clear of both */
-.wb2-jcband .tiffbtn-sheet { position:absolute; top:12px; right:52px; margin-left:0; }
 .wb2-sheet.mv .wb2-jcband .wb2-shtop, .wb2-sheet.pv .wb2-jcband .wb2-shtop { padding-right:84px; }
 /* a section head can carry its state chip or its one action at the right —
    centred against the title, because a padded chip sat low on the baseline */
@@ -7609,11 +7329,8 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring); border-
 .wb2-shmore:focus-visible { outline:none; box-shadow:var(--ring); border-radius:6px; }
 /* the job's files: a contact sheet, not a gallery — the grid is for scanning
    "what did they photograph", and a tap opens the real thing */
-.wb2-mgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(74px, 1fr)); gap:8px;
-  margin:4px 0 12px; }
 /* the tabbed card gives the contact sheet a whole face, so the tiles take a
    size you can actually read a photo at */
-.wb2-jcface .wb2-mgrid { grid-template-columns:repeat(auto-fill, minmax(108px, 1fr)); gap:8px; }
 .wb2-mtile { position:relative; display:grid; place-items:center; aspect-ratio:1; overflow:hidden;
   border-radius:10px; border:1px solid var(--wb2-line2); background:rgba(5,5,5,.026); }
 .wb2-mtile img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -8303,8 +8020,6 @@ span.wb2-ck { cursor:default; }
 .wb2-eqlist { display:grid; gap:8px; }
 .wb2-eqrow { display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid var(--wb2-line, rgba(5,5,5,.08)); border-radius:10px; }
 .wb2-eqrow .wb2-trt { flex:1; min-width:0; }
-.wb2-agbook { margin-left:auto; display:flex; align-items:center; gap:8px; text-transform:none; }
-.wb2-agbook .wb2-fi { height:32px; padding:0 8px; font-size:12px; }
 .wb2-dnact { display:flex; flex-direction:column; align-items:flex-end; gap:8px; justify-self:end; }
 .wb2-newmodal { width:min(760px, calc(100vw - 32px)); }
 .wb2-newmodal .wb2-dmbody { gap:12px; }
@@ -8362,8 +8077,7 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
 @media (max-width: 1100px) {
   .wb2-formgrid { grid-template-columns:1fr; }
   .wb2-formgrid.eq { grid-template-columns:1fr 1fr; }
-  .wb2-agbook { margin-left:0; flex-wrap:wrap; }
-  .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
+    .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
 }
 
 /* ── wb2 step 5: the capture pill + overlay, and DISPLAY MODE ──
@@ -8429,26 +8143,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    filled red disc at its end. Red because recording is the one destructive-
    feeling act on the board (it's listening), and the disc is what your eye
    finds when you're holding a torch in the other hand. */
-.wb2-pill { display:inline-flex; align-items:center; gap:8px; height:52px; padding:4px 4px 4px 8px; border-radius:999px;
-  background:#fff; border:1px solid rgba(5,5,5,.08); color:var(--ink);
-  box-shadow:0 8px 20px -12px rgba(10,12,20,.5);
-  transition:transform var(--t-move) var(--ease), border-color var(--t-fast) var(--ease); }
-.wb2-pill:hover { border-color:rgba(5,5,5,.2); }
-.wb2-pillbtn { display:inline-flex; align-items:center; gap:8px; height:100%; padding:0 12px; border:0; background:none;
-  border-radius:999px 10px 10px 999px; font:inherit; font-size:14px; font-weight:700; color:var(--gray700);
-  cursor:pointer; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-pillbtn:hover { background:rgba(5,5,5,.04); color:var(--ink); }
-.wb2-pillbtn svg { opacity:.6; }
-.wb2-pillmic { width:42px; height:42px; border-radius:50%; border:0; background:#e0264f; color:#fff;
-  display:grid; place-items:center; flex:none; cursor:pointer;
-  box-shadow:0 6px 16px -8px rgba(224,38,79,.8);
-  transition:transform var(--t-move) var(--ease), background var(--t-fast) var(--ease); }
-.wb2-pillmic:hover { background:#c8203f; }
-.wb2-pillbtn:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-pillmic:focus-visible { outline:none; box-shadow:var(--ring-bad); }
-@media (prefers-reduced-motion:reduce) {
-  .wb2-pill:hover, .wb2-pillmic:hover { transform:none; }
-}
 
 /* the overlay — the one scrim in the app that BLURS. "A dim, never a blur"
    held here until the premium capture sheet (Isaac, 2026-08-08): the capture
@@ -8582,17 +8276,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 
    No `.fg` scope: sheets portal to body, where anything declared under `.fg`
    is absent rather than outranked. */
-.tiffbtn-sheet { width:30px; height:30px; }
-.tiffbtn-sheet .tiffbtn-face { background:rgba(6,9,13,.92); border:1px solid rgba(255,255,255,.14); }
-.tiffbtn-sheet:hover .tiffbtn-face { background:#050505; }
-.tiffbtn-sheet .tiffbtn-core { position:absolute; inset:0; border-radius:50%; pointer-events:none;
-  background:radial-gradient(circle at 42% 40%, rgba(3,6,10,.96) 0%, rgba(3,6,10,.9) 46%, rgba(3,6,10,0) 82%); }
-.tiffbtn-sheet .tiffbtn-mk { transform:translate(-1px,-1px); }
-.tiffbtn-sheet .tiffbtn-spark { right:5px; bottom:5px; }
-.tiffbtn-sheet:focus-visible .tiffbtn-face { box-shadow:var(--ring); }
 /* The close × takes the auto margin; Tiff sits just before it. */
-.wb2-shtop .tiffbtn-sheet { margin-left:auto; }
-.wb2-shtop .tiffbtn-sheet + .wb2-ico { margin-left:0; }
 
 @media (max-width:760px) { .fg .tbr { gap:12px; } }
 @media (prefers-reduced-motion:reduce) {
@@ -8630,8 +8314,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:#e0264f; flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
 /* the ribbon's target, when the note has to be told where it belongs */
-.wb2-capattach { margin-left:auto; display:flex; align-items:center; gap:8px; min-width:0; }
-.wb2-capattach .wb2-sel { max-width:300px; font-size:13px; padding:4px 8px; }
 
 /* ── which job — confirm it, or search for the right one ──
    The control sits ON the line it changes, not above it: "instead of saying
@@ -8955,14 +8637,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    and can't be mistaken for "recording".
    Both mask declarations survive lightningcss (checked — the backdrop-filter
    prefix trap does not apply to `mask`). */
-@keyframes wb2Spin { to { transform:rotate(360deg); } }
-.wb2-spin {
-  width:16px; height:16px; flex:0 0 auto; border-radius:50%;
-  background:conic-gradient(from 0deg, var(--wb2-ok, var(--ink)), var(--tint) 70%);
-  -webkit-mask:radial-gradient(circle, transparent 4.5px, #000 5px);
-  mask:radial-gradient(circle, transparent 4.5px, #000 5px);
-  animation:wb2Spin .8s linear infinite;
-}
 .wb2-sorting { display:flex; flex-direction:column; gap:12px; padding:4px 0 2px; }
 /* The transcript, as WORDS — it left the disabled textarea because the next
    screen asks you to confirm what was made of it, and this is the only quiet
@@ -8981,9 +8655,6 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
 .wb2-sorting .wb2-hint { margin:0; }
 /* Motion off, signal kept: the state still says "Sorting it out" in words
    either way — the animation was always the enhancement, not the message. */
-@media (prefers-reduced-motion:reduce) {
-  .wb2-spin { animation:none; }
-}
 .wb2-capcard .wb2-sherr { margin:0 0 8px; }
 .wb2-capcard .wb2-notes { margin-bottom:0; }
 
@@ -9322,8 +8993,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tk-rmeta { display:block; margin-top:4px; font-style:normal; font-size:13px; font-weight:600; color:var(--gray400);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fg .tk-rerr { margin:8px 0 0; font-size:13px; font-weight:700; color:#b31038; }
-.fg .tk-kind { flex:none; padding:4px 8px; border-radius:6px; background:rgba(5,5,5,.05); color:var(--gray700);
-  font-size:12px; font-weight:700; }
 .fg .tk-rstate { flex:0 1 auto; min-width:0; }
 .fg .tk-acts { display:flex; align-items:center; gap:4px; flex:none; }
 
@@ -9344,13 +9013,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    this file hangs off never reaches it — and `.fl-modal button` is (0,1,1),
    which beats a lone `.tk-dshit`. Two classes is what it takes to win, and a
    result row that lost would render as the modal's stripped-bare button. */
-.fg .tk-find { display:inline-flex; align-items:center; justify-content:center; gap:4px; height:32px; padding:0 12px; flex:none;
-  border:1px solid #e8e9ec; border-radius:999px; background:#fff; color:var(--gray700);
-  font-family:var(--font-jakarta), sans-serif; font-size:13px; font-weight:700;
-  white-space:nowrap; cursor:pointer; transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .tk-find svg { flex:none; }
-.fg .tk-find:hover { background:#f6f7f9; border-color:#d8dade; color:var(--ink); }
-.fg .tk-find:focus-visible { outline:none; box-shadow:var(--ring); }
 
 .fl-modal .tk-dsbar { display:flex; align-items:center; gap:8px; }
 .fl-modal .tk-dsbar .fl-i { flex:1 1 auto; min-width:0; }
@@ -9777,9 +9439,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    file has shadowed a live component at equal specificity before. */
 
 /* ── the returning line above the threads ── */
-.fg .tk-welcome { flex:0 0 auto; margin-bottom:24px; }
-.fg .tk-welcome h2 { margin:0; font-size:32px; font-weight:700; letter-spacing:-.03em; line-height:1.1; color:var(--ink); }
-.fg .tk-welcome p { margin:8px 0 0; max-width:640px; font-size:16px; font-weight:600; line-height:1.5; color:var(--gray500); }
 
 .fg .tk-lbl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
 .fg .tk-lbl > span { font-size:12px; font-weight:500; color:var(--gray400); }
@@ -10218,20 +9877,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    full targets so typing is never a sliver, but the note you speak is what
    this was built for and the shape should say so without being told. */
 .wb2-tokdock { display:inline-flex; align-items:center; gap:8px; }
-.wb2-tok { display:inline-flex; align-items:stretch; height:42px; border-radius:999px;
-  background:var(--wb2-cy, var(--ink)); box-shadow:0 10px 24px -12px rgba(0,127,168,.85);
-  transition:box-shadow var(--t-fast) var(--ease), transform var(--t-move) var(--ease); color:var(--paper); }
-.wb2-tok:hover { }
-.wb2-tokhalf { display:inline-flex; align-items:center; justify-content:center; width:42px;
-  border:0; border-radius:999px; background:none; color:#fff; cursor:pointer;
-  transition:background var(--t-fast) var(--ease); }
-.wb2-tokhalf:hover { background:rgba(0,0,0,.14); }
-.wb2-tokhalf.mic { width:54px; }
-.wb2-tokhalf:focus-visible { outline:none; box-shadow:var(--ring); }
-.wb2-tokdiv { width:1px; flex:none; margin:8px 0; background:rgba(255,255,255,.34); }
 /* the only red in the resting UI, and only once the mic is open */
-.wb2-tok.live { background:linear-gradient(90deg, var(--wb2-cy, var(--ink)) 44%, var(--wb2-dan, #e0264f) 44%); }
-.wb2-tok.live .wb2-tokhalf.mic { background:var(--wb2-dan, #e0264f); }
 
 /* ── the sheet ──
    `.wb2-capcard` is also on this element and is doing the real work (button
@@ -10313,8 +9959,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 @keyframes wb2NudgeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion:reduce) {
   .wb2-nudge, .wb2-capcard.wb2-caps { animation:none; }
-  .wb2-tok, .wb2-tok:hover { transition:none; transform:none; }
-}
+  }
 
 /* A smaller primary, for the nudge's inline action. Joins the portal-safe
    list rather than relying on `.fg`, which does not reach out here. */
@@ -10883,7 +10528,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    the date rather than the h1's 38px line box */
 .fg .hm-pdate::before { content:""; position:absolute; left:0; top:1px; bottom:1px;
   width:1px; background:rgba(5,5,5,.16); }
-.fg .hm-psub { margin:8px 0 0; font-size:14px; font-weight:600; color:var(--gray500); }
 
 /* ── THE STRIP, INSIDE THE GLASS ──
    Every rule here exists to undo one piece of the board's tab-join, which is
@@ -11214,7 +10858,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    background still lifts on hover, and the halo answers the same way it does
    on the topbar — `animation:none` first, because until the breath stops the
    opacity here is not the author's to set. */
-.fg .hm-saymk { position:relative; flex:none; }
 .fg .hm-say:hover .tiffbtn-halo { animation:none; opacity:.40; }
 
 /* ══ THE DEBRIEF, IN THE PAGE ══════════════════════════════════════════════
@@ -11440,7 +11083,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border-radius:50%; background:rgba(5,5,5,.1); box-shadow:none;
   font-style:normal; font-size:12px; font-weight:700; color:var(--gray700); }
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    HOME — THE DESK (2026-08-30)
 
@@ -11527,8 +11169,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .hm-dayrl::-webkit-scrollbar { width:6px; }
 .fg .hm-dayrl::-webkit-scrollbar-thumb { background:rgba(5,5,5,.16); border-radius:999px; }
 .fg .hm-day > .wb2-sect { color:var(--q); flex:none; }
-.fg .hm-dayoff { flex:none; margin:4px 0 12px; font-size:13px; font-weight:600;
-  color:var(--q); }
 .fg .hm-daynone { margin:0; font-size:13px; font-weight:600; color:var(--q); line-height:1.5; }
 /* The way out of the one empty state that has one. Teal and underlined —
    quiet text with a door in it has to look like a door, and colour alone is
@@ -11784,7 +11424,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   box-shadow:var(--ring); }
 .fg .hm-dbf .hm-saytx { flex:none; font-size:14px; font-weight:700; color:inherit; }
 /* the mark is not in the button — see note-token's debrief posture */
-.fg .hm-dbf .hm-saymk { display:none; }
 
 /* ── THE DEBRIEFS YOU HAVE FILED ──
    A log, under the button that makes them. Deliberately plainer than the
@@ -12013,8 +11652,6 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* detail grids */
 .vm-grid { display:grid; gap:12px 16px; }
-.vm-grid.cols3 { grid-template-columns:repeat(3, 1fr); }
-.vm-grid.cols4 { grid-template-columns:repeat(4, 1fr); gap:12px 16px; }
 .vm-grid.dense { gap:8px 12px; }
 .vm-field { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .vm-field.wide { grid-column:span 2; }

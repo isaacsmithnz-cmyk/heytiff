@@ -234,6 +234,37 @@ export async function setTaskDue(taskId: string, dueDate: string | null): Promis
   return { ok: true };
 }
 
+/** Close an issue off. The same gate as the note that raised it: anyone who
+    may see the board may say a fault is fixed, because the row was made by a
+    debrief under exactly that gate. There is no assignee to be narrower than.
+
+    A resolved issue keeps its row — the "this keeps happening" memory is the
+    point of the table — so a repeat of the same summary later is a NEW pattern
+    starting, not a bump of an old one (the router only bumps open rows). */
+export async function resolveIssue(issueId: string): Promise<DashResult> {
+  const ctx = await context();
+  if (!ctx) return { ok: false, error: "Not signed in." };
+  if (!(await can("workboard"))) return { ok: false, error: "Issues need the workboard." };
+
+  const { data } = await supabaseAdmin
+    .from("workboard_issues")
+    .select("resolved")
+    .eq("org_id", ctx.orgId)
+    .eq("id", issueId)
+    .maybeSingle();
+  if (!data) return { ok: false, error: "That issue no longer exists." };
+  if (data.resolved) return { ok: false, error: "That issue is already resolved." };
+
+  const { error } = await supabaseAdmin
+    .from("workboard_issues")
+    .update({ resolved: true })
+    .eq("org_id", ctx.orgId)
+    .eq("id", issueId);
+  if (error) return { ok: false, error: "Couldn't resolve that issue." };
+  refresh();
+  return { ok: true };
+}
+
 /** Remove a task outright — its CREATOR, or `team`. Deliberately narrower than
     complete/reopen, which also allow the assignee: finishing your assignment is
     intrinsic to you, erasing someone else's record of having assigned it is

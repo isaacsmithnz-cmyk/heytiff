@@ -79,6 +79,18 @@ describe("the doors", () => {
     expect(within(pane()).getByText("1 task removed")).toHaveClass("hm-word");
   });
 
+  it("makes an issue door a button too, on the same face as a task", async () => {
+    const onOpenIssue = jest.fn();
+    const user = userEvent.setup();
+    draw(withOutcomes([{ kind: "todo", text: "Middle rooftop unit has tripped again", go: { type: "issue", id: "i1" } }]), {
+      onOpenIssue,
+    });
+    const door = within(pane()).getByRole("button", { name: /Middle rooftop/ });
+    expect(door.querySelector(".hm-idot")).not.toBeNull();
+    await user.click(door);
+    expect(onOpenIssue).toHaveBeenCalledWith("i1");
+  });
+
   it("does not offer a task door when Home hasn't wired one", () => {
     draw(withOutcomes([{ kind: "todo", text: "Order filters", go: { type: "task", id: "t1" } }]));
     expect(within(pane()).queryByRole("button")).toBeNull();

@@ -54,14 +54,32 @@ function DoorBody({ o }: { o: Outcome }) {
   );
 }
 
-function OutcomeDoor({ o, onOpenTask }: { o: Outcome; onOpenTask?: (id: string) => void }) {
+function OutcomeDoor({
+  o,
+  onOpenTask,
+  onOpenIssue,
+}: {
+  o: Outcome;
+  onOpenTask?: (id: string) => void;
+  onOpenIssue?: (id: string) => void;
+}) {
   /* A task is not a page — it is a row on the face next door — so its door
-     is a button that moves the card, not a link that reloads the screen. */
+     is a button that moves the card, not a link that reloads the screen. An
+     issue is the same kind of row, on the same face, since 2026-09-15. */
   if (o.go?.type === "task" && onOpenTask) {
     const id = o.go.id;
     return (
       <button type="button" className="hm-door" onClick={() => onOpenTask(id)}>
         <DoorBody o={o} />
+      </button>
+    );
+  }
+  if (o.go?.type === "issue" && onOpenIssue) {
+    const id = o.go.id;
+    return (
+      <button type="button" className="hm-door" onClick={() => onOpenIssue(id)}>
+        <span className="hm-idot" aria-hidden="true" />
+        {o.text}
       </button>
     );
   }
@@ -90,6 +108,7 @@ export function HomeDiary({
   selectedId,
   onSelect,
   onOpenTask,
+  onOpenIssue,
 }: {
   entries: JournalEntry[];
   today: string;
@@ -99,6 +118,8 @@ export function HomeDiary({
   onSelect: (id: string) => void;
   /** Given by Home: switches to the Tasks face and marks the row. */
   onOpenTask?: (id: string) => void;
+  /** The same door for an issue, which lives on the same face. */
+  onOpenIssue?: (id: string) => void;
 }) {
   /* "Today" and "Yesterday" earn their names; older days say their date.
      The same labelling the debrief log uses, so one rule names a day. */
@@ -170,7 +191,7 @@ export function HomeDiary({
                 <div className="hm-doors">
                   {selected.outcomes.map((o, i) => (
                     // by index: two tasks may honestly carry the same title
-                    <OutcomeDoor key={i} o={o} onOpenTask={onOpenTask} />
+                    <OutcomeDoor key={i} o={o} onOpenTask={onOpenTask} onOpenIssue={onOpenIssue} />
                   ))}
                 </div>
               </div>

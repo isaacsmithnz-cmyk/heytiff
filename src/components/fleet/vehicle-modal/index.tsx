@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { scanInProgress } from "@/components/record-modal/scan-card";
 import type { StoredDocument } from "@/lib/documents/query";
 import { uploadFile } from "@/lib/documents/upload-client";
 import type { FleetActions } from "../fleet-state";
@@ -78,10 +79,14 @@ export function VehicleModal({
 
   /* Escape leaves the way the back chevron does: a sub-screen goes home, the
      main screen closes. Two presses to get out from anywhere, never a surprise
-     dismissal mid-form. */
+     dismissal mid-form. While a scan is in progress it does nothing, and nor
+     does a click on the backdrop: the renewal and financials screens hold the
+     scan panel, and leaving one threw away a document already read and
+     uploaded — see scanInProgress. The back chevron still goes home. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (scanInProgress()) return;
       if (screen === "main") onClose();
       else setScreen("main");
     };
@@ -95,7 +100,7 @@ export function VehicleModal({
   };
 
   return createPortal(
-    <div className="vm-ov" onClick={onClose}>
+    <div className="vm-ov" onClick={() => (scanInProgress() ? undefined : onClose())}>
       <div className="vm" role="dialog" aria-modal="true" aria-label={vehicle.name || vehicle.plate} onClick={(e) => e.stopPropagation()}>
         {screen === "main" ? (
           <MainScreen

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FleetActions } from "../../fleet-state";
 import type { Vehicle, VehicleLog, VehiclePolicy } from "../../logic";
@@ -10,14 +10,26 @@ import { VehicleModal } from "..";
    the action it should, and that nothing on the card can write anything the
    register wouldn't. */
 
+/* Nothing lands and nothing is read unless a test says so; the scan tests at
+   the end of the file do. */
+const uploadFile = jest.fn();
 jest.mock("@/lib/documents/upload-client", () => ({
-  uploadFile: jest.fn(async () => ({ ok: false, error: "not in a test" })),
+  uploadFile: (...a: unknown[]) => uploadFile(...a),
 }));
+const readRenewalDocument = jest.fn();
+const readFinanceAgreement = jest.fn();
 jest.mock("@/app/actions/fleet-ai", () => ({
-  readRenewalDocument: jest.fn(async () => ({ ok: false, reason: "no-key" })),
+  readRenewalDocument: (...a: unknown[]) => readRenewalDocument(...a),
+  readFinanceAgreement: (...a: unknown[]) => readFinanceAgreement(...a),
   readFuelReceipt: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readPurchaseInvoice: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
+
+beforeEach(() => {
+  uploadFile.mockReset().mockResolvedValue({ ok: false, error: "not in a test" });
+  readRenewalDocument.mockReset().mockResolvedValue({ ok: false, reason: "no-key" });
+  readFinanceAgreement.mockReset().mockResolvedValue({ ok: false, reason: "no-key" });
+});
 
 const TODAY = "2026-09-02";
 
@@ -234,4 +246,85 @@ it("the FINANCIALS card is the door to the Financials screen, and Back returns",
   expect(screen.getByText("Cost to run, last 12 months")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByText("Vehicle details")).toBeInTheDocument();
+});
+
+/* ---- a scan in progress outlives a stray Escape ---- */
+
+/* The renewal and financials screens hold the scan panel. Escape sent them home
+   and the backdrop closed the modal, and either one threw away a document
+   already read and uploaded, leaving the file owned by nothing. */
+describe("a scan in progress survives Escape", () => {
+  const pdf = (name: string) => new File(["x"], name, { type: "application/pdf" });
+  const stored = (documentId: string) => ({
+    ok: true,
+    file: { documentId, fileName: "scan.pdf", mimeType: "application/pdf", sizeBytes: 1, previewUrl: null },
+  });
+  const backdrop = () => fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+
+  it("keeps a renewal screen and its scan when Escape is pressed or the backdrop clicked", async () => {
+    uploadFile.mockResolvedValue(stored("doc-7"));
+    readRenewalDocument.mockResolvedValue({
+      ok: true,
+      provider: "Transport for NSW",
+      premium: 1008,
+      startsOn: "2027-09-30",
+      expiresOn: "2028-09-29",
+      policyNumber: null,
+      cover: null,
+      excess: null,
+      termMonths: 12,
+      garagingPostcode: null,
+      inspectionOn: null,
+    });
+    const { user, onClose } = mount();
+    await user.click(screen.getByRole("button", { name: "Update rego" }));
+    await user.upload(screen.getByLabelText("Scan document"), pdf("rego-2027.pdf"));
+    await screen.findByText("Scanned");
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { name: "Registration" })).toBeInTheDocument();
+    expect(screen.getByText("Scanned")).toBeInTheDocument();
+    backdrop();
+    expect(onClose).not.toHaveBeenCalled();
+
+    // the back chevron still goes home
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
+  });
+
+  it("keeps the Financials screen and its scan", async () => {
+    uploadFile.mockResolvedValue(stored("doc-8"));
+    readFinanceAgreement.mockResolvedValue({
+      ok: true,
+      lender: "Macquarie Leasing",
+      agreementNo: "ML-20931",
+      kind: null,
+      startsOn: null,
+      termMonths: 60,
+      repayment: null,
+      frequency: null,
+      ratePct: null,
+      balloon: null,
+      amountFinanced: null,
+    });
+    const { user, onClose } = mount();
+    await user.click(screen.getByRole("button", { name: "Financials" }));
+    await user.click(screen.getByRole("button", { name: "Add finance agreement" }));
+    await user.upload(screen.getByLabelText("Scan document"), pdf("agreement.pdf"));
+    await screen.findByText("Scanned");
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { name: "Financials" })).toBeInTheDocument();
+    expect(screen.getByText("Scanned")).toBeInTheDocument();
+    backdrop();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("still closes from the backdrop when nothing has been scanned", async () => {
+    const { user, onClose } = mount();
+    await user.click(screen.getByRole("button", { name: /Insurance/ }));
+    expect(screen.getByText("Scan or upload the certificate of insurance")).toBeInTheDocument();
+    backdrop();
+    expect(onClose).toHaveBeenCalled();
+  });
 });

@@ -59,7 +59,10 @@ Every decision below is made once, here, and a guard test holds each number.
   2026-09-15: "we're missing a little bit of colour"): the part of the day
   that has gone, and the entry being read — two places, and nowhere else. The
   card fills the well to a 16px edge with no width cap. The rail stands
-  beside the shell's rail on purpose.
+  beside the shell's rail on purpose. A booking on the band is a door: it
+  opens the job card the Schedule tab opens, over Home, on the same row and
+  wearing the same day-state; the card's agreement door lands on the board
+  with the job open (`/dashboard/workboard?job=`), where the modal lives.
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ keeps its night ground and its KPI tiles**, and takes everything else.

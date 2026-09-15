@@ -947,6 +947,40 @@ describe("the universal search", () => {
   });
 });
 
+describe("a job named in the URL", () => {
+  const job = {
+    remoteId: "j-7",
+    jobNumber: "2231",
+    status: "Work Order",
+    clientName: "Kingsford Bakery",
+    description: null,
+    suburb: "Kingsford",
+    categoryName: null,
+    categoryColour: null,
+    date: "2026-07-20 09:00:00",
+    quoteDate: null,
+    completionDate: null,
+    nextBooking: null,
+    money: null,
+    paidCents: 0,
+  };
+
+  it("lands on the jobs side with that job handed to the board, the way a search hit is", () => {
+    render(
+      <OverviewScreen
+        data={{ ...base, allJobs: { jobs: [job], truncated: false, projectLinks: [] } }}
+        openJob={job}
+      />
+    );
+    expect(screen.getByTestId("jboard").textContent).toContain("open:job:j-7");
+  });
+
+  it("hands the board nothing when no job was named", () => {
+    render(<OverviewScreen data={base} />);
+    expect(screen.getByTestId("jboard").textContent).toContain("open:none");
+  });
+});
+
 describe("what the screen tells the Tiff button", () => {
   const withProbe = (data: WorkboardData) =>
     render(

@@ -99,7 +99,14 @@ const SIDES = [
 ] as const;
 type SideKey = (typeof SIDES)[number]["key"];
 
-export function OverviewScreen({ data }: { data: WorkboardData }) {
+export function OverviewScreen({
+  data,
+  openJob = null,
+}: {
+  data: WorkboardData;
+  /** A job named in the URL — the page resolved it; this screen lands on it. */
+  openJob?: AllJobsMirrorJob | null;
+}) {
   const router = useRouter();
   const [display, setDisplay] = useState(false);
   const [tab, setTab] = useState<SideKey>("jobs");
@@ -121,7 +128,12 @@ export function OverviewScreen({ data }: { data: WorkboardData }) {
     | { side: "maintenance"; kind: "visit" | "agreement"; id: string }
     | { side: "projects"; kind: "trip"; id: string }
     | { side: "jobs"; kind: "job"; job: AllJobsMirrorJob };
-  const [handoff, setHandoff] = useState<Handoff | null>(null);
+  const [handoff, setHandoff] = useState<Handoff | null>(
+    /* A job named in the URL arrives the way a search hit does: the jobs
+       side, its sheet open on that job. Seeded once — the outlet is keyed on
+       the pathname, so a navigation here always mounts this fresh. */
+    openJob ? { side: "jobs", kind: "job", job: openJob } : null
+  );
   const pickSide = (side: SideKey) => {
     setHandoff(null);
     setTab(side);

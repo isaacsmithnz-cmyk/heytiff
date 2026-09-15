@@ -6,6 +6,7 @@ import type { ActionChip } from "@/lib/dashboard/chips";
 import type { DashTask } from "@/lib/dashboard/tasks";
 import type { JournalEntry } from "@/lib/dashboard/journal";
 import type { ScheduleBlock } from "@/lib/workboard/schedule";
+import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 
 /* Home as one card with three rooms: the day across the top, a rail of four
    faces, the face's list, and the page the chosen row opens onto.
@@ -20,7 +21,31 @@ jest.mock("@/components/notes/note-token", () => ({
     </button>
   ),
 }));
-jest.mock("next/navigation", () => ({ useRouter: () => ({ refresh: jest.fn() }) }));
+const push = jest.fn();
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: jest.fn(), push: (...a: unknown[]) => push(...(a as [])) }),
+}));
+/* The job card is the board's own component, a thousand lines with its own
+   suite and its own server actions; here it is a window that prints what it
+   was opened on, so what is pinned is the DOOR — which pill opens it, on
+   which row, wearing which state, and where its own doors lead. */
+jest.mock("@/components/workboard/board/job-sheet", () => ({
+  JobSheet: (p: {
+    row: { id: string; number: string | null; clientName: string | null };
+    manage: boolean;
+    moneyVisible: boolean;
+    scheduleState: { word: string } | null;
+    onClose: () => void;
+    onCreateAgreement: (row: { id: string }) => void;
+  }) => (
+    <div role="dialog" aria-label={`Job ${p.row.number ?? ""}`}>
+      {p.row.clientName} · {p.scheduleState?.word ?? "no state"} · manage:{String(p.manage)} · money:
+      {String(p.moneyVisible)}
+      <button onClick={p.onClose}>Close the card</button>
+      <button onClick={() => p.onCreateAgreement(p.row)}>Create an agreement from this job</button>
+    </div>
+  ),
+}));
 jest.mock("@/app/actions/dashboard", () => ({
   completeTask: jest.fn(),
   createTask: jest.fn(),
@@ -77,6 +102,24 @@ const block = (over: Partial<ScheduleBlock> = {}): ScheduleBlock => ({
   ...over,
 });
 
+const mirror = (over: Partial<AllJobsMirrorJob> = {}): AllJobsMirrorJob => ({
+  remoteId: "j1",
+  jobNumber: "1042",
+  status: "Work Order",
+  clientName: "Bayview Apartments",
+  description: null,
+  suburb: "Chatswood",
+  categoryName: "Service",
+  categoryColour: null,
+  date: null,
+  quoteDate: null,
+  completionDate: null,
+  nextBooking: null,
+  money: null,
+  paidCents: 0,
+  ...over,
+});
+
 const rail = (over: Partial<HomeRail> = {}): HomeRail => ({
   dayISO: TODAY,
   tz: "Australia/Brisbane",
@@ -86,6 +129,9 @@ const rail = (over: Partial<HomeRail> = {}): HomeRail => ({
   tasks: [],
   nowMin: null,
   enabled: true,
+  jobs: [],
+  manage: false,
+  moneyVisible: false,
   ...over,
 });
 
@@ -421,5 +467,66 @@ describe("the rooms talk to each other", () => {
     expect(panel("diary").querySelector(".hm-said")!.textContent).toBe(
       "Order the filters for Bayview before Thursday",
     );
+  }, WHOLE_CARD);
+});
+
+describe("a booking is a door", () => {
+  const booked = (over: Partial<HomeRail> = {}) =>
+    rail({ blocks: [block()], jobs: [mirror()], manage: true, moneyVisible: false, ...over });
+  const pill = () => screen.getByRole("button", { name: /1042.*Bayview Apartments/ });
+
+  beforeEach(() => push.mockClear());
+
+  it("is a button whose name is its words, and opens the job card on the job's own row", async () => {
+    const user = userEvent.setup();
+    draw({ rail: booked() });
+    await user.click(pill());
+    const card = screen.getByRole("dialog", { name: "Job 1042" });
+    expect(card.textContent).toContain("Bayview Apartments");
+    // the board's own answers, not Home's `team` capability
+    expect(card.textContent).toContain("manage:true");
+    expect(card.textContent).toContain("money:false");
+  }, WHOLE_CARD);
+
+  it("hands the card the day-state the pill wore", async () => {
+    const user = userEvent.setup();
+    draw({
+      rail: booked({
+        blocks: [
+          block({ key: "a", onSite: true }),
+          block({ key: "b", remoteId: "j2", jobNumber: "1043", clientName: "Northgate", startMin: 11 * 60, endMin: 12 * 60 }),
+        ],
+        jobs: [mirror(), mirror({ remoteId: "j2", jobNumber: "1043", clientName: "Northgate" })],
+      }),
+    });
+    await user.click(screen.getByRole("button", { name: /1043.*Northgate/ }));
+    expect(screen.getByRole("dialog", { name: "Job 1043" }).textContent).toContain("Not started");
+    await user.click(screen.getByRole("button", { name: "Close the card" }));
+    await user.click(pill());
+    expect(screen.getByRole("dialog", { name: "Job 1042" }).textContent).toContain("Started");
+  }, WHOLE_CARD);
+
+  it("lands focus back on the pill when the card closes", async () => {
+    const user = userEvent.setup();
+    draw({ rail: booked() });
+    await user.click(pill());
+    await user.click(screen.getByRole("button", { name: "Close the card" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(pill());
+  }, WHOLE_CARD);
+
+  it("stays a plain view for a booking the mirror could not name — never a button that does nothing", () => {
+    draw({ rail: booked({ jobs: [] }) });
+    expect(band().querySelector(".hm-job")!.textContent).toContain("Bayview Apartments");
+    expect(band().querySelector("button.hm-job")).toBeNull();
+  });
+
+  it("sends the card's agreement door to the board with the job in the URL", async () => {
+    const user = userEvent.setup();
+    draw({ rail: booked() });
+    await user.click(pill());
+    await user.click(screen.getByRole("button", { name: "Create an agreement from this job" }));
+    expect(push).toHaveBeenCalledWith("/dashboard/workboard?job=j1");
+    expect(screen.queryByRole("dialog")).toBeNull();
   }, WHOLE_CARD);
 });

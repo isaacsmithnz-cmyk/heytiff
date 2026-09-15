@@ -48,22 +48,22 @@
 .fg .no-sb::-webkit-scrollbar { display:none; }
 .fg .no-sb { scrollbar-width:none; }
 
-/* global grid backdrop */
-.fg .gridbg { position:absolute; inset:0; z-index:0; pointer-events:none;
-  background-image:linear-gradient(rgba(0,0,0,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.03) 1px,transparent 1px);
-  background-size:32px 32px; }
+/* the full-frame grid layer. It paints nothing of its own: it sits at opacity
+   0 (below) and the Studio start screen gives it the dot grid it shows there
+   (studio.css). Its two grey line gradients went with the frame fold — they
+   were never on screen. */
+.fg .gridbg { position:absolute; inset:0; z-index:0; pointer-events:none; }
 
 /* ============================ SIDEBAR ============================ */
 .fg .side { position:relative; z-index:30; display:flex; flex-direction:column; width:224px; flex:0 0 224px; height:100%;
-  background:var(--ink); color:#E8EAED; overflow:hidden; border-right:1px solid rgba(255,255,255,.04);
-  box-shadow:20px 0 40px rgba(0,0,0,.1); }
+  background:var(--ink); color:var(--paper); overflow:hidden; }
 /* the rail's teal corner glow lived here until 2026-09-10; the frame is still
    now (frame-still.test.ts) */
 .fg .brand { display:flex; align-items:center; gap:16px; padding:clamp(24px, 4vh - 4px, 38px) 24px clamp(18px, 3vh - 4px, 28px); position:relative; z-index:10; }
 .fg .ht-logo { display:flex; align-items:center; gap:2px; }
 .fg .ht-logo svg { transition:transform var(--t-move) var(--ease); }
 .fg .ht-logo:hover svg { }
-.fg .ht-wm { font-size:24px; font-weight:700; letter-spacing:-0.035em; line-height:1; color:#fff; }
+.fg .ht-wm { font-size:24px; font-weight:700; letter-spacing:-0.035em; line-height:1; color:var(--paper); }
 .fg .ht-wm span { color:var(--wordmark); }
 /* The business using HeyTiff — trading name from Organisation settings, as a
    chip under the wordmark. Additive only: the brand row's layout and
@@ -82,7 +82,7 @@
    1px less on the right pays back the trailing letter-spacing, which otherwise
    parks a single-line chip 1.4px off its own centre. */
 .fg .ht-orgpill { max-width:100%; padding:4px 12px 4px 12px; border-radius:999px;
-  background:rgba(255,255,255,.06); font-size:12px; font-weight:500; line-height:1.35; text-align:center; color:rgba(255,255,255,.5);
+  background:var(--on-ink-tint); font-size:12px; font-weight:500; line-height:1.35; text-align:center; color:var(--on-ink-q);
   overflow-wrap:anywhere; }
 .fg .ht-logo .htmk-p1, .fg .ht-logo .htmk-p2 { stroke-dasharray:1; }
 /* 0=fully drawn, 1=undrawn. Hold 30s drawn, undraw slowly, redraw, hold 30s, loop. */
@@ -120,24 +120,24 @@
    sum of the slopes is ~0.58vh per vh — the window always grows faster than
    the rail, so no height between floor and ceiling can reopen the fold.
    Change a coefficient and re-check that sum, not just the endpoints. */
-.fg .navgrp + .navgrp { margin-top:clamp(14px, 2.8vh - 8px, 26px); padding-top:clamp(14px, 2.8vh - 8px, 26px); border-top:1px solid rgba(255,255,255,.07); }
+.fg .navgrp + .navgrp { margin-top:clamp(14px, 2.8vh - 8px, 26px); padding-top:clamp(14px, 2.8vh - 8px, 26px); border-top:1px solid var(--on-ink-line); }
 /* `.navlbl` LIVED HERE — WORKSPACE / PERSONAL / OPERATIONS, at 2.53:1 until
    the contrast sweep lifted them to `--on-ink-q`. The rule is gone with the
    markup rather than left behind: a dead selector on this sheet is one shadow
    away from matching something else, which is exactly how `.fg .me` and
    `.ni .pdot` bit it twice already. `.sk-navlbl` went with it. */
 .fg .ni { position:relative; width:100%; display:flex; align-items:center; gap:12px; padding:clamp(9px, 1.5vh - 2px, 13px) 16px; border-radius:16px; overflow:hidden; transition:background var(--t-fast) var(--ease); margin-bottom:clamp(2px, 1vh - 4px, 6px); }
-.fg .ni:hover { background:rgba(255,255,255,.05); }
+.fg .ni:hover { background:var(--on-ink-tint); }
 .fg .ni .nicon { position:relative; z-index:10; display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:10px; background:rgba(255,255,255,.03); color:rgba(255,255,255,.4); transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 .fg .ni:hover .nicon { color:rgba(255,255,255,.9); }
 /* THE ACTIVE ITEM IS WHITE. It was the teal icon with a 15px glow and a 2px
    teal bar down the item's edge (.nibg); docs/design.md, 2026-09-10: ink and
    paper, and on the rail that is paper. A hover changes one thing, a colour,
    and slides nothing — the 4px nudge and the 1.1 scale went with the glow. */
-.fg .ni.on .nicon { background:#fff; color:var(--ink); }
-.fg .ni .nlbl { position:relative; z-index:10; font-size:14px; font-weight:700; color:rgba(255,255,255,.5); transition:color var(--t-fast) var(--ease); }
-.fg .ni:hover .nlbl { color:#fff; }
-.fg .ni.on .nlbl { color:#fff; }
+.fg .ni.on .nicon { background:var(--paper); color:var(--ink); }
+.fg .ni .nlbl { position:relative; z-index:10; font-size:14px; font-weight:700; color:var(--on-ink-q); transition:color var(--t-fast) var(--ease); }
+.fg .ni:hover .nlbl { color:var(--paper); }
+.fg .ni.on .nlbl { color:var(--paper); }
 /* `.ni .pdot` lived here — the sidebar's hard-coded "new" pulse. Deleted with
    the `dot` field it rendered (see nav.ts); left behind it would be dead CSS
    waiting to shadow something, which this stylesheet has been bitten by before.
@@ -170,7 +170,7 @@ html[data-rail][data-ds-canvas] .fg .nav { display:none; } /* the skeleton rows 
   background:transparent; color:rgba(255,255,255,.45);
   transition:left var(--t-move) var(--ease), color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
 html[data-ds-canvas]:not([data-ds-display]) .fg .railtg { display:flex; }
-.fg .railtg:hover { color:#fff; background:rgba(255,255,255,.09); }
+.fg .railtg:hover { color:var(--paper); background:var(--on-ink-tint); }
 .fg .railtg:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
 /* the arrow leans the way the rail will move — in on hover-to-close, out on
    hover-to-open — so the chip explains itself before the click */
@@ -189,7 +189,7 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    used to carry never painted — and it carried it as a `-webkit-` PAIR, which
    is the footgun that silently kills the blur wherever it IS wanted. */
 .fg .topbar { height:80px; flex:0 0 80px; display:flex; align-items:center; justify-content:space-between; padding:0 32px;
-  background:rgba(255,255,255,.4); border-bottom:1px solid #fff; box-shadow:0 4px 30px rgba(0,0,0,.02); z-index:20; }
+  z-index:20; }
 .fg .topbar.hide { display:none; }
 .fg .searchbtn { position:relative; flex:1; max-width:512px; text-align:left; }
 .fg .searchbtn .si { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--gray400); transition:color var(--t-fast) var(--ease); pointer-events:none; }
@@ -751,18 +751,19 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    home hero card, 40px). Linked only by the v3 shell. ============================ */
 
 /* the frame colour */
-.fg { background:#050505; }
+.fg { background:var(--ink); }
 /* the light page's dotted grid is off in the dark frame — hidden via opacity (not
    display) so routes that DO paint this layer, like the studio start screen, can
    cross-fade it in/out. It's absolute + pointer-events:none, so it costs no layout. */
 .fg .gridbg { opacity:0; transition:opacity var(--t-fast) var(--ease); }
 
-/* sidebar melts into the frame (no edge / shadow / own background — the root's
-   #050505 shows through so the frame reads as one piece). */
-.fg .side { box-shadow:none; border-right:none; background:transparent; }
+/* sidebar melts into the frame (no own background — the root's ink shows
+   through so the frame reads as one piece; its edge hairline and its shadow,
+   which this rule used to cancel, are gone from the rule above). */
+.fg .side { background:transparent; }
 
 /* top header becomes part of the black frame */
-.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; border-bottom:none; box-shadow:none; padding:0 24px; position:relative; }
+.fg .topbar { background:transparent; -webkit-backdrop-filter:none; backdrop-filter:none; padding:0 24px; position:relative; }
 
 /* THE FRAME IS STILL. From July to September 2026 this layer carried the
    one-piece frame's ambient light: two aurora blobs and seven rising orbs in
@@ -987,7 +988,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   border-radius:16px;   /* top-left 40px = same as the home hero card */
   background-image:radial-gradient(circle at 1px 1px, rgba(40,38,70,.05) 1px, transparent 0);
   background-size:26px 26px;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.6);
 }
 
 /* the page sits flush; its own top padding gives breathing room under the header */

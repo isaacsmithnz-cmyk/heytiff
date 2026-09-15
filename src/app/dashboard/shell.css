@@ -2375,10 +2375,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* the period's state is a word with a live dot, not a pill (law 26) */
 .fg .tpr .wknav .pstatus { display:inline-flex; align-items:center; gap:8px; height:30px; font-size:14px; font-weight:500; }
 .fg .tpr .wknav .pstatus.live { color:var(--ok-t); }
-.fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--ok-t); animation:tprPulse 2s infinite; }
+.fg .tpr .wknav .pstatus.live .d { width:7px; height:7px; border-radius:50%; background:var(--ok-t); animation:fgPulse 1.6s ease-in-out infinite; }
 .fg .tpr .wknav .pstatus.hist { color:var(--gray500); }
 .fg .tpr .wknav .arw:disabled { opacity:.4; cursor:not-allowed; transform:none; border-color:var(--line); }
-@keyframes tprPulse { 0%{ box-shadow:none} 70%{ box-shadow:none} 100%{ box-shadow:none} }
+/* the live dot breathes on the frame's own pulse (`fgPulse`, the recording
+   dot's). The fold that took its ring left `tprPulse` as three `none`s — a
+   loop that drew nothing. Dropped, not shortened, under reduced motion: the
+   frame's global duration override would strobe it. */
+@media (prefers-reduced-motion:reduce) { .fg .tpr .wknav .pstatus.live .d { animation:none; } }
 .fg .tpr .autosub { font-size:13px; font-weight:600; color:var(--gray500); margin-top:12px; }
 .fg .tpr .autosub:empty { display:none; margin:0; }
 
@@ -2393,7 +2397,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .bbtn.ink svg { opacity:1; color:var(--paper); }
 .fg .tpr .bbtn.sq { width:50px; padding:0; justify-content:center; }
 .fg .tpr .bbtn.sq svg { opacity:.8; }
-.fg .tpr .bbtn.busy { pointer-events:none; }
 /* The settings gear, in the period bar. It used to sit in the page heading —
    which belongs to timepay/layout.tsx now, and can't hold it: the settings
    modal is client state the timesheets screen owns. `margin-left:auto` parks
@@ -2404,8 +2407,6 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .bbtn:disabled { cursor:default; }
 .fg .tpr .bbtn:disabled:hover { transform:none; border-color:var(--line); }
 .fg .tpr .bbtn.ink:disabled:hover { border-color:var(--ink); }
-.fg .tpr .bbtn.busy .sp { animation:tprSpin .8s linear infinite; }
-@keyframes tprSpin { to { transform:rotate(360deg); } }
 
 /* ---------- stat strip (compact) ---------- */
 .fg .tpr .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 16px; }
@@ -3341,15 +3342,12 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* ---- fleet r3: live Tiff valuations + receipt scanner ---- */
 .fg .fl-valuebtn { color:var(--ink); }
 .fg .fl-valuebtn.busy { opacity:.6; pointer-events:none; }
-.fg .fl-valuebtn .i { animation:none; }
-.fg .fl-valuebtn.busy .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
 .fg .fl-aierr { font-size:13px; font-weight:600; color:var(--warn-t); margin:-6px 0 12px; }
 .fg .fl-tiff.stale { opacity:.45; }
 /* The visible door to the valuation's source — the note was title-attr-only
    and got found by accident. `.fg` scope outranks the `.fg button` reset. */
 .fg .fl-tiffinfo { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:var(--r-control); color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .fl-tiffinfo:hover { background:var(--tint); color:var(--ink); }
-@keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
 /* Unscoped like the rest of the modal's fl-*: the detail modal portals to
    <body>, so anything under .fg would simply be absent here. */
 /* The paper trail in the detail modal, and the invoice chip on the form —
@@ -7679,12 +7677,9 @@ a.wb2-doc:hover .wb2-doc-go { color:var(--ink); }
 .wb2-micgo:disabled { background:var(--tint-2); color:var(--q); cursor:not-allowed; }
 .wb2-micgo:focus-visible { outline:none; box-shadow:var(--ring-bad);; }
 /* listening: a soft pulse, so a row that's recording never looks like a row
-   that's merely disabled */
-.wb2-micgo.on { animation:wb2micpulse 1.6s ease-in-out infinite; }
-@keyframes wb2micpulse {
-  0%, 100% {  box-shadow:0 0 0 0 var(--bad); }
-  50% {  box-shadow:0 0 0 5px var(--bad); }
-}
+   that's merely disabled. The frame's pulse, the recording dot's — a halo
+   does not loop (law 18). */
+.wb2-micgo.on { animation:fgPulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion:reduce) { .wb2-micgo.on { animation:none; } }
 .wb2-addrow .wb-lvl { flex:none; --orb:20px; }
 .wb2-addrow .wb2-dictx { flex:none; margin-left:0; }
@@ -8172,6 +8167,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    not flash, pulse or otherwise ask to be dealt with. */
 .wb2-capclock.closing { color:var(--bad-t); }
 .wb2-recdot { width:10px; height:10px; border-radius:50%; background:var(--bad); flex:none; animation:fgPulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion:reduce) { .wb2-recdot { animation:none; } }
 .wb2-capact { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
 /* the ribbon's target, when the note has to be told where it belongs */
 
@@ -10794,6 +10790,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-reading { display:flex; align-items:center; gap:12px; border:1px solid var(--vm-border); border-radius:var(--r-card); padding:16px 16px; background:var(--paper); font-size:13px; font-weight:600; color:var(--q); }
 @keyframes vmShimmer { 0% { background-position:200% 0 } 100% { background-position:-200% 0 } }
 .vm-shimmer { width:110px; height:8px; border-radius:999px; background:linear-gradient(90deg,var(--tint-2) 25%,var(--tint) 50%,var(--tint-2) 75%); background-size:200% 100%; animation:vmShimmer 1.2s linear infinite; }
+@media (prefers-reduced-motion:reduce) { .vm-shimmer { animation:none; background:var(--tint-2); } }
 .vm-scanned { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--vm-ok-line); border-radius:var(--r-button); padding:8px 12px; background:var(--vm-ok-bg); }
 .vm-scannedl { display:flex; flex-direction:column; gap:1px; min-width:0; }
 .vm-scannedl b { font-size:13px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

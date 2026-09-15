@@ -266,6 +266,44 @@ function anchorColours(): number {
   return n;
 }
 
+/* THE LOOPS ARE HELD BY NAME, NOT BY NUMBER. Law 18 says what may run
+   `infinite` — a spinner, a skeleton sweep, a caret, a live dot, the orb and
+   the mark while the microphone is open or Tiff is working, and a flash a
+   row asked for — and docs/design.md lists every keyframe that does, how
+   many rules run it and why. The sheets must match that list exactly, both
+   ways: a loop the doc does not name fails here by its name, and a named
+   loop that has left the sheets fails until its row goes with it. It was a
+   count (45 on 2026-09-10, 28 when the list was written, 26 once two dead
+   rules went); a count cannot admit a lawful new spinner without breaking
+   "never raise", and the list can — with a row and a reason. */
+const NOT_A_NAME = new Set(["infinite", "linear", "ease", "ease-in", "ease-out", "ease-in-out", "normal", "reverse", "alternate", "alternate-reverse", "forwards", "backwards", "both", "none", "running", "paused"]);
+function loops(): Record<string, number> {
+  const out: Record<string, number> = {};
+  const add = (name: string) => { out[name] = (out[name] ?? 0) + 1; };
+  for (const [, body] of blocks()) {
+    for (const m of body.matchAll(/(?:^|[^-\w])animation\s*:\s*([^;}]*\binfinite\b[^;}]*)/g)) {
+      const tokens = m[1].replace(/\b(?:var|steps|cubic-bezier)\([^)]*\)/g, " ").split(/\s+/);
+      add(tokens.find((t) => /^[a-zA-Z][\w-]*$/.test(t) && !NOT_A_NAME.has(t)) ?? "(unnamed)");
+    }
+    // the longhand names no keyframe on the line the loop is declared, so it is never on the list
+    for (const _ of body.matchAll(/animation-iteration-count\s*:\s*infinite/g)) add("(animation-iteration-count)");
+  }
+  return out;
+}
+function namedLoops(): Record<string, number> {
+  const doc = fs.readFileSync(path.join(process.cwd(), "docs/design.md"), "utf8");
+  const at = doc.indexOf("### The loops that stay");
+  if (at < 0) throw new Error("docs/design.md has no section 'The loops that stay'");
+  const end = doc.indexOf("\n#", at + 1);
+  const out: Record<string, number> = {};
+  for (const row of doc.slice(at, end < 0 ? undefined : end).split("\n")) {
+    if (!row.startsWith("| `")) continue;
+    const cell = row.slice(1, row.indexOf("|", 1));
+    for (const m of cell.matchAll(/`([\w-]+)`(?: ×(\d+))?/g)) out[m[1]] = Number(m[2] ?? 1);
+  }
+  return out;
+}
+
 const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "type below 12px — the floor", now: small, baseline: 0 },
   { law: "type off the scale — 12, 13, 14, 16, 20, 24, 32, 40", now: offScaleType, baseline: 0 },
@@ -273,7 +311,6 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
-  { law: "ambient `infinite` animation — motion is feedback or state", now: () => count(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b/g), baseline: 28 },
   { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 50 },
   { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 57 },
   { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
@@ -352,13 +389,17 @@ describe("the design ratchets only go down", () => {
     for (const paper of PAPER) expect(files).not.toContain(paper);
   });
 
+  it("runs no loop that docs/design.md does not name, and names none that has gone", () => {
+    expect(loops()).toEqual(namedLoops());
+  });
+
   for (const r of RATCHETS) {
     it(r.law, () => {
       const n = r.now();
       const verdict =
         n < r.baseline
           ? `${r.law}: ${n} now, the baseline says ${r.baseline}. You removed some — lower the baseline in design-ratchets.test.ts to ${n}.`
-          : `${r.law}: ${n} now, the baseline says ${r.baseline}. Something added ${n - r.baseline} — take it out, or if it is a spinner or the orb, name it in docs/design.md and lower the count another way.`;
+          : `${r.law}: ${n} now, the baseline says ${r.baseline}. Something added ${n - r.baseline} — take it out.`;
       expect({ count: n, verdict }).toEqual({ count: r.baseline, verdict: expect.any(String) });
     });
   }

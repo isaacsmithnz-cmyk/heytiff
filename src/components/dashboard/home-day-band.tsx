@@ -115,10 +115,11 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
   const pct = (min: number) => `${(((min - bounds.startMin) / span) * 100).toFixed(3)}%`;
   const pctOf = (mins: number) => `${((mins / span) * 100).toFixed(3)}%`;
 
-  /* Not `rail.tasks.length > 0` — the hollow/late law only means anything on
-     an account that clocks on at all, and that is a fact about the bookings. */
-  const tracksTime = rail.blocks.some((b) => b.onSite);
-  const clock = { dayISO: rail.dayISO, today: rail.dayISO, nowMin: liveNow, tracksTime };
+  /* The hollow/late law only means anything on an account that clocks on at
+     all, and that is the CREW's habit — the loader reads it off the whole
+     day. It was read off the viewer's own bookings here, which said "no" for
+     anyone who had not clocked on themselves. */
+  const clock = { dayISO: rail.dayISO, today: rail.dayISO, nowMin: liveNow, tracksTime: rail.tracksTime };
 
   const showNow =
     liveNow !== null && liveNow >= bounds.startMin && liveNow <= bounds.endMin;

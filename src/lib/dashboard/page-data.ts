@@ -140,6 +140,12 @@ export type HomeRail = {
       card on, the same row shape the board's sheet opens on. Only the jobs
       on this band; the day's other jobs are other people's. */
   jobs: AllJobsMirrorJob[];
+  /** Does anyone on this account record time on site today — the board's
+      own `tracksTime`, read off the WHOLE day before it is narrowed to the
+      viewer's lane. The hollow/late reading means nothing on a crew that
+      never clocks on, and it is the crew's habit that decides, not whether
+      the viewer clocked on themselves. */
+  tracksTime: boolean;
   /** `workboard_manage` — the card's promotion menu and its checklist
       writes, exactly as the board decides them. */
   manage: boolean;
@@ -157,6 +163,7 @@ const EMPTY_RAIL: HomeRail = {
   nowMin: null,
   enabled: false,
   jobs: [],
+  tracksTime: false,
   manage: false,
   moneyVisible: false,
 };
@@ -238,22 +245,25 @@ export async function loadDashboard(): Promise<DashboardData> {
      only in wanting one chronological column instead of a lane per person.
      `tracked` is not passed: the project/maintenance labels come from board
      payloads Home doesn't load, so a category name is the honest fallback. */
-  const railBlocks: ScheduleBlock[] = caps.has("workboard")
+  const day = caps.has("workboard")
     ? layoutScheduleDay({
         activities: schedule.activities,
         staff: schedule.staff,
         jobs: schedule.jobs,
         onSite: new Set(schedule.onSite),
       })
-        /* NARROWED TO ONE LANE — the viewer's. A lane already IS a person's
-           day, so "just mine" is a filter on the board's own answer rather
-           than a second way of deciding who owns a booking.
+    : null;
+  /* NARROWED TO ONE LANE — the viewer's. A lane already IS a person's day,
+     so "just mine" is a filter on the board's own answer rather than a
+     second way of deciding who owns a booking.
 
-           An unknown viewer keeps NOTHING, deliberately. Falling back to the
-           whole crew would make the rail mean "my day" or "everyone's day"
-           depending on a table row the reader cannot see, and the two look
-           identical. `linked` says which case this is instead. */
-        .lanes.filter((lane) => mineUuid !== null && lane.staffUuid === mineUuid)
+     An unknown viewer keeps NOTHING, deliberately. Falling back to the whole
+     crew would make the rail mean "my day" or "everyone's day" depending on
+     a table row the reader cannot see, and the two look identical. `linked`
+     says which case this is instead. */
+  const railBlocks: ScheduleBlock[] = day
+    ? day.lanes
+        .filter((lane) => mineUuid !== null && lane.staffUuid === mineUuid)
         .flatMap((lane) => lane.blocks)
         .sort((a, b) => a.startMin - b.startMin || a.key.localeCompare(b.key))
     : [];
@@ -273,6 +283,11 @@ export async function loadDashboard(): Promise<DashboardData> {
       nowMin: railNowMin,
       enabled: caps.has("workboard"),
       jobs: jobsOnRail(railBlocks, schedule.jobs),
+      /* THE WHOLE DAY'S ANSWER, not the viewer's lane: whether this account
+         clocks on is a fact about the crew, and asking it of one person's
+         bookings said "no" for anyone who had not clocked on themselves —
+         so their pills never went hollow or late (walked 2026-09-15). */
+      tracksTime: day?.tracksTime ?? false,
       manage: caps.has("workboard_manage"),
       moneyVisible: caps.has("workboard_money"),
     },

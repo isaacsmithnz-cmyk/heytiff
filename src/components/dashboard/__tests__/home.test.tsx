@@ -130,6 +130,7 @@ const rail = (over: Partial<HomeRail> = {}): HomeRail => ({
   nowMin: null,
   enabled: true,
   jobs: [],
+  tracksTime: false,
   manage: false,
   moneyVisible: false,
   ...over,
@@ -492,6 +493,7 @@ describe("a booking is a door", () => {
     const user = userEvent.setup();
     draw({
       rail: booked({
+        tracksTime: true,
         blocks: [
           block({ key: "a", onSite: true }),
           block({ key: "b", remoteId: "j2", jobNumber: "1043", clientName: "Northgate", startMin: 11 * 60, endMin: 12 * 60 }),
@@ -504,6 +506,19 @@ describe("a booking is a door", () => {
     await user.click(screen.getByRole("button", { name: "Close the card" }));
     await user.click(pill());
     expect(screen.getByRole("dialog", { name: "Job 1042" }).textContent).toContain("Started");
+  }, WHOLE_CARD);
+
+  it("asks whether the CREW clocks on, not whether you did — the loader's whole-day answer", async () => {
+    const user = userEvent.setup();
+    /* the same booking, not clocked on, on a crew that records time: hollow */
+    draw({ rail: booked({ tracksTime: true }) });
+    await user.click(pill());
+    expect(screen.getByRole("dialog", { name: "Job 1042" }).textContent).toContain("Not started");
+    cleanup();
+    /* and on a crew that never clocks on, the reading is withheld */
+    draw({ rail: booked({ tracksTime: false }) });
+    await user.click(pill());
+    expect(screen.getByRole("dialog", { name: "Job 1042" }).textContent).toContain("no state");
   }, WHOLE_CARD);
 
   it("lands focus back on the pill when the card closes", async () => {

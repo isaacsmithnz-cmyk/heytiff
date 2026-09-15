@@ -71,6 +71,17 @@ Every decision below is made once, here, and a guard test holds each number.
   outside the frame is no longer a route without the palette), paper doing
   the accent's jobs on the dark ground, state and kind as words, no glow, no
   lift, no coloured left edge, the one overlay shadow, the six layers.
+- **The day vocabulary stays, and it is named** (decided 2026-09-15, in the
+  mts2 fold). Time & Pay's nine day states — normal, overtime, short, leave,
+  sick, public holiday, missing, off, empty — keep a colour each, read against
+  the key on the screen, as `--day-*` tokens on `:root`. Blue and violet live
+  there as vocabulary, the way the Schedule's categories and the Studio's
+  drawing do, not as an accent. What the vocabulary does not cover is ink and
+  paper: a day's kind in the panel head is a word in the day's ink, not a
+  pill; the rate buckets are words; the pay figure is a figure, not a green
+  tile; the derived-hours line, the clock's centre line and the hover borders
+  stop borrowing the green. The green pair is still Tailwind's until the
+  admin screen's tiles fold, because their on-fill inks are tuned to it.
 - **The job sheet is parked.** A ruled-list job sheet reads as paper but scans
   worse than the row. Nothing in that direction moves until a version keeps the
   row's scannability.
@@ -253,8 +264,9 @@ approved together.
     status pill, kind tag and badge on the light well: the word, 14/500, no
     fill, no box. What keeps a chip's form is what a person taps or types
     into — a filter, a segmented choice, a tag strip — which wears a hairline
-    and the tile radius. Time & Pay's day and rate vocabulary is settled in
-    its own fold.
+    and the tile radius. Time & Pay's day and rate vocabulary is settled
+    above: the day's colour is a bar and a tint with a key, the kind and the
+    rate buckets are words.
 27. Nothing spins in the first half second. Past a second, a skeleton shaped
     like what is coming. The ring lives only inside a button that says what it
     is doing.

@@ -163,7 +163,7 @@ export function ProfileScreen({
      panel's key, so the section remounts and SectionCard can seed its draft
      from state — no effect, and asking twice for the SAME section still works
      because the nonce moved. 0 means "nobody asked". */
-  const [editing, setEditing] = useState<{ section: SectionKey; nonce: number } | null>(null);
+  const [editing, setEditing] = useState<{ section: SectionKey; nonce: number; field?: string } | null>(null);
 
   /* The board's switch: the information swaps, the surface stays. `.wb2-card`
      carries `view-transition-name: wbcard`, so the box morphs while the
@@ -174,10 +174,13 @@ export function ProfileScreen({
      work stays ONE tab — the checks are what is behind it, not a sibling. */
   const [checksOpen, setChecksOpen] = useState(false);
 
-  const go = (key: SectionKey, withEdit = false) => {
+  /* `field` is the column an Add on Summary pointed at; the section opens
+     its form on that control. It rides in the same state as the ask, so it
+     is cleared with it. */
+  const go = (key: SectionKey, withEdit = false, field?: string) => {
     const apply = () => {
       setActive(key);
-      setEditing(withEdit ? { section: key, nonce: (editing?.nonce ?? 0) + 1 } : null);
+      setEditing(withEdit ? { section: key, nonce: (editing?.nonce ?? 0) + 1, field } : null);
     };
 
     const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
@@ -202,6 +205,7 @@ export function ProfileScreen({
   const completeness = profileCompleteness(profile);
   // asked for THIS section, and only until you move off it
   const startEditing = editing?.section === active ? editing.nonce : 0;
+  const focusField = startEditing > 0 ? editing?.field : undefined;
 
   return (
     <div className="page in">
@@ -281,6 +285,7 @@ export function ProfileScreen({
                       mode === "self" ? actions.onChangeSignInEmail : undefined
                     }
                     startEditing={startEditing > 0}
+                    focusField={focusField}
                     onSave={actions.onSave}
                   />
                 )}
@@ -290,6 +295,7 @@ export function ProfileScreen({
                     mode={mode}
                     org={org}
                     startEditing={startEditing > 0}
+                    focusField={focusField}
                     onSave={actions.onSave}
                   />
                 )}
@@ -322,6 +328,7 @@ export function ProfileScreen({
                     today={today}
             warnDays={warnDays}
                     startEditing={startEditing > 0}
+                    focusField={focusField}
                     onSave={actions.onSave}
                   />
                 )}

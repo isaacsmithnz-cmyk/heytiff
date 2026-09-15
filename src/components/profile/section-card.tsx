@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "@/components/shell/icon";
 import type { PreValidation } from "@/lib/staff/pre-validate";
 import { useSectionSave } from "./use-section-save";
@@ -84,6 +84,7 @@ export function SectionCard({
       missing details", and remounts the section so it takes — see the psec key
       in profile-screen. State, not an effect: the card is already fresh. */
   startEditing = false,
+  focusField,
 }: {
   title: string;
   sub?: string;
@@ -115,6 +116,13 @@ export function SectionCard({
   editable?: boolean;
   className?: string;
   startEditing?: boolean;
+  /** THE FIELD THAT WAS ASKED FOR. Summary's Add beside a blank opens this
+      section's form; without this it opened a form of fourteen rows with the
+      cursor nowhere, and the person who had just pointed at "Date of birth"
+      went looking for it. The control's id is its column name (see Field),
+      so the form opens with that control focused. Only with `startEditing`:
+      a section opened to read has nothing to point at. */
+  focusField?: string;
   /** "card" (default) is the framed `.card2` every caller had. "section" is
       the staff card's redesign — no frame, no repeated title, because its TAB
       is the title. Opt-in on purpose: the Organisation screen renders these
@@ -128,6 +136,18 @@ export function SectionCard({
   const { saving, error, fieldErrors, submit, clear } = useSectionSave(onSave, validate);
 
   const editing = draft !== null;
+
+  /* Focus is a DOM concern, so it is the one effect here. Mount-only on
+     purpose: the screen remounts the section for every ask (its key carries
+     the nonce), so asking twice focuses twice, and a later re-render never
+     steals the cursor back. */
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!startEditing || !focusField) return;
+    const el = root.current?.querySelector<HTMLElement>(`#${CSS.escape(focusField)}`);
+    el?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startEdit = () => {
     clear();
@@ -174,7 +194,7 @@ export function SectionCard({
      so nothing that drives this card by attribute had to move. */
   if (variant === "section") {
     return (
-      <div className={["psec-body", saving ? "saving" : "", className ?? ""].filter(Boolean).join(" ")}>
+      <div ref={root} className={["psec-body", saving ? "saving" : "", className ?? ""].filter(Boolean).join(" ")}>
         <div className="psechd">
           {sub && <em>{sub}</em>}
           {pill}

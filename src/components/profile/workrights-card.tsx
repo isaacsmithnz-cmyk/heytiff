@@ -1,5 +1,6 @@
 "use client";
 
+import { requiredField } from "@/lib/staff/completeness";
 import { Icon } from "@/components/shell/icon";
 import { type StaffProfile } from "@/lib/staff/profile";
 import { dateInputValue, formatAuDate } from "@/lib/au-dates";
@@ -45,6 +46,7 @@ export function WorkRightsCard({
   today,
   warnDays,
   startEditing,
+  focusField,
   checkCount = 0,
   onOpenChecks,
   onSave,
@@ -54,6 +56,8 @@ export function WorkRightsCard({
   today: string;
   warnDays: number;
   startEditing?: boolean;
+  /** the column Summary's Add pointed at — the form opens on it */
+  focusField?: string;
   /* HOW MANY CHECKS ARE ON FILE, and the reason this card can be read-only.
 
      These five columns are a CACHE of the newest check
@@ -127,7 +131,7 @@ export function WorkRightsCard({
         <DetailPanel title="Right to work" wide={liveNoVisa || !liveStatus}>
           <Detail
             label="Status"
-            req
+            req={requiredField("work_rights_status")}
             editing={editing}
             value={status}
             onAdd={edit}
@@ -248,6 +252,7 @@ export function WorkRightsCard({
       title="Work rights"
       values={values}
       startEditing={startEditing}
+      focusField={focusField}
       onSave={(fields) => onSave("workrights", fields)}
       validate={(fields) => preValidate(mode, "workrights", fields)}
       transform={workRightsPayload}

@@ -3299,11 +3299,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
    agreed to. */
 .dchip2.unavail { color:var(--gray500); }
 .dchip2.unavail em { font-style:normal; font-size:14px; font-weight:500; color:var(--q); }
-.fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
-.fl-fact { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:12px 12px; min-width:0; }
-.fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
-.fl-fact b { display:block; font-size:14px; font-weight:700; color:var(--ink); margin-top:4px; }
-.fl-hist { border-top:1px solid var(--line); padding-top:16px; }
 .fl-hempty { padding:24px 16px; text-align:center; font-size:13px; font-weight:600; color:var(--q); border:1.5px dashed var(--line); border-radius:var(--r-card); }
 .fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 12px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
 .fl-log:hover { background:var(--tint); }
@@ -3316,7 +3311,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 /* In the mixed History list a one-line row keeps the log scannable, but the
    service history exists TO say what was done — so there it wraps instead of
    ending in an ellipsis. */
-.fl-hist.full .fl-lk b { overflow:visible; text-overflow:clip; white-space:normal; }
 .fl-lr { display:flex; align-items:center; gap:8px; flex:0 0 auto; }
 .fl-lo { font-size:13px; font-weight:700; color:var(--ink); flex:0 0 auto; }
 
@@ -3329,8 +3323,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-qa.paused:hover { background:var(--paper); }
 .fg .fl-offnote { display:flex; align-items:center; gap:8px; background:var(--warn-tint); border:1px solid var(--warn); border-radius:var(--r-card); padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
 .dchip2.mute { color:var(--q); }
-.fl-fact.tiff { background:var(--tint); border-color:var(--line); }
-.fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ink); }
 .fl-warnhint { font-style:normal; font-size:12px; font-weight:600; color:var(--warn-t); }
 /* neutral sibling of fl-warnhint — explains a field rather than cautioning about
    it. Literal colour, not a var: these modals portal to body, outside .fg. */
@@ -3361,10 +3353,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-tiffinfo { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:var(--r-control); color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fg .fl-tiffinfo:hover { background:var(--tint); color:var(--ink); }
 @keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
-.fl-fact.tiff.stale { opacity:.55; }
 /* Unscoped like the rest of the modal's fl-*: the detail modal portals to
    <body>, so anything under .fg would simply be absent here. */
-.fl-fact .fl-tiffnote { display:block; font-size:12px; font-weight:600; color:var(--gray500); margin-top:4px; line-height:1.45; }
 /* The paper trail in the detail modal, and the invoice chip on the form —
    both portal to <body>, so unscoped like the rest of fl-*. */
 /* Update — the fix for an expiry, sitting on the fact that warns about it. */
@@ -3379,7 +3369,6 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fl-factdoor:hover .i { color:var(--ink); }
 .fl-factdoor:hover b { text-decoration:underline; }
 /* Add renewal — open whatever the expiry says, so it sits above the list. */
-.fl-histadd { display:flex; justify-content:flex-end; margin-bottom:16px; }
 /* flex:1 on the name, not margin-left:auto on the price — a renewal whose
    document printed no premium has no price element to push the rest right. */
 /* Current vs previous on a renewal document. Derived from the file list, so
@@ -10751,6 +10740,12 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 
 /* detail grids */
 .vm-grid { display:grid; gap:12px 16px; }
+/* Three columns by default, four for the specs — DetailGrid has set these
+   classes since the Sep 2026 handoff, and no rule answered them: every fact
+   grid on the card stacked in one column. minmax(0,1fr) so a long VIN
+   wraps inside its cell instead of widening it. */
+.vm-grid.cols3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+.vm-grid.cols4 { grid-template-columns:repeat(4, minmax(0, 1fr)); }
 .vm-grid.dense { gap:8px 12px; }
 .vm-field { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .vm-field.wide { grid-column:span 2; }

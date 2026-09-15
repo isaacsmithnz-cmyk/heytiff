@@ -40,7 +40,7 @@ import {
     the rest, so the register can name it and Escape can leave it. */
 export type Screen = "main" | RenewalKind | "financials" | "services" | `log:${string}`;
 
-export const logScreen = (logId: string): Screen => `log:${logId}`;
+export const logScreen = (logId: string): `log:${string}` => `log:${logId}`;
 
 export function isLogScreen(screen: Screen): screen is `log:${string}` {
   return screen.startsWith("log:");
@@ -333,7 +333,7 @@ export function entryFacts(log: VehicleLog, eco: number | undefined, today: stri
         ...corrected,
       ];
     case "odo":
-      return [{ label: "Reading", ...odo }, date, by, ...corrected];
+      return [{ ...odo, label: "Reading" }, date, by, ...corrected];
   }
 }
 

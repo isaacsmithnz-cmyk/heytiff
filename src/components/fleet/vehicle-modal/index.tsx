@@ -114,7 +114,10 @@ export function VehicleModal({
       if (e.key !== "Escape") return;
       if (scanInProgress()) return;
       if (screen === "main") onClose();
-      else back();
+      else {
+        setScreen(from);
+        setFrom("main");
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);

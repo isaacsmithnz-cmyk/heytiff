@@ -3,6 +3,7 @@ import {
   parsePurchaseInvoice,
   parseRegoCertificate,
   parseRenewalRead,
+  parseServiceRecord,
   renewalPrompt,
 } from "../readers";
 
@@ -271,5 +272,62 @@ describe("parsePurchaseInvoice", () => {
   it("still carries the three fields the form always read", () => {
     const r = parsePurchaseInvoice({ cost: 30000, purchasedOn: "2024-03-01", supplier: "Private sale" });
     expect(r).toMatchObject({ cost: 30000, purchasedOn: "2024-03-01", supplier: "Private sale", invoiceNo: null, exGst: null });
+  });
+});
+
+/* The mechanic's invoice. What is believed of it follows the docket: the
+   figures that reach a BAS are refused rather than corrected. */
+describe("parseServiceRecord", () => {
+  const INVOICE = {
+    workshop: "Braeside Auto",
+    servicedOn: "2026-07-28",
+    odometer: 120000,
+    cost: 812.5,
+    gst: 73.86,
+    abn: "51 824 753 556",
+    summary: "120,000 km logbook service",
+    workDone: ["Engine oil and filter", "Brake pads, front", "Wheel alignment"],
+  };
+
+  it("reads the invoice as the form will receive it", () => {
+    expect(parseServiceRecord(INVOICE)).toEqual({ ...INVOICE, abn: "51824753556" });
+  });
+
+  it("drops a GST above an eleventh of the total — it came off the wrong line", () => {
+    expect(parseServiceRecord({ ...INVOICE, gst: 200 }).gst).toBeNull();
+    // and a GST with no total to check it against
+    expect(parseServiceRecord({ ...INVOICE, cost: null, gst: 73.86 }).gst).toBeNull();
+    expect(parseServiceRecord({ ...INVOICE, cost: 812.5, gst: 73.86 }).gst).toBe(73.86);
+  });
+
+  it("keeps only an ABN that is eleven digits", () => {
+    expect(parseServiceRecord({ ...INVOICE, abn: "004085616" }).abn).toBeNull(); // an ACN
+    expect(parseServiceRecord({ ...INVOICE, abn: null }).abn).toBeNull();
+  });
+
+  it("takes the work list as lines and nothing else as one", () => {
+    expect(parseServiceRecord({ ...INVOICE, workDone: ["  Oil  ", "", 4, null] }).workDone).toEqual(["Oil"]);
+    expect(parseServiceRecord({ ...INVOICE, workDone: "Oil" }).workDone).toEqual([]);
+    expect(parseServiceRecord({ ...INVOICE, workDone: undefined }).workDone).toEqual([]);
+  });
+
+  it("refuses a zero cost, a bad date and a reading that isn't one", () => {
+    const r = parseServiceRecord({ ...INVOICE, cost: 0, servicedOn: "28/07/2026", odometer: "120000" });
+    expect(r.cost).toBeNull();
+    expect(r.servicedOn).toBeNull();
+    expect(r.odometer).toBeNull();
+  });
+
+  it("is all null and an empty list for a document that isn't one", () => {
+    expect(parseServiceRecord(null)).toEqual({
+      workshop: null,
+      servicedOn: null,
+      odometer: null,
+      cost: null,
+      gst: null,
+      abn: null,
+      summary: null,
+      workDone: [],
+    });
   });
 });

@@ -35,8 +35,10 @@ export type StoredDocument = {
   licenceRecordId: string | null;
   /** The right-to-work CHECK this document is the evidence for. */
   workRightsRecordId: string | null;
-  /** The vehicle log this is the paper for — a fuel docket, a service record. */
-  vehicleLogId: string | null;
+  /** The vehicle log this is the paper for — a fuel docket, a service record.
+      Optional in the type only so the fixtures that build these by hand need
+      not learn it; every row read here carries it. */
+  vehicleLogId?: string | null;
 };
 
 const COLUMNS =

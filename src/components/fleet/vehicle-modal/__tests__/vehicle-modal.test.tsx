@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { FleetActions } from "../../fleet-state";
+import type { StoredDocument } from "@/lib/documents/query";
 import type { Vehicle, VehicleLog, VehiclePolicy } from "../../logic";
 import { VehicleModal } from "..";
 
@@ -22,6 +23,7 @@ jest.mock("@/app/actions/fleet-ai", () => ({
   readRenewalDocument: (...a: unknown[]) => readRenewalDocument(...a),
   readFinanceAgreement: (...a: unknown[]) => readFinanceAgreement(...a),
   readFuelReceipt: jest.fn(async () => ({ ok: false, reason: "no-key" })),
+  readServiceRecord: jest.fn(async () => ({ ok: false, reason: "no-key" })),
   readPurchaseInvoice: jest.fn(async () => ({ ok: false, reason: "no-key" })),
 }));
 
@@ -72,9 +74,43 @@ const slip: VehiclePolicy = {
 };
 
 const logs: VehicleLog[] = [
-  { id: "l1", vehicleId: "v1", staffId: null, kind: "fuel", when: "Mon 1 Sep", ago: 1, litres: 62, cost: 118.4 },
+  {
+    id: "l1",
+    vehicleId: "v1",
+    staffId: "s1",
+    staffName: "Dane Poulos",
+    kind: "fuel",
+    when: "Mon 1 Sep",
+    ago: 1,
+    litres: 62,
+    cost: 118.4,
+    station: "Shell Coburg",
+    gst: 10.76,
+    abn: "51824753556",
+    source: "scan",
+    hasReceipt: true,
+  },
   { id: "l2", vehicleId: "v1", staffId: null, kind: "issue", when: "Sat 30 Aug", ago: 3, note: "wiper blade", status: "open" },
 ];
+
+/** The docket behind l1, as the register hands it down: signed, and owned by the log. */
+const docket: StoredDocument = {
+  id: "doc-1",
+  kind: "fuel_receipt",
+  fileName: "IMG_2041.jpg",
+  mimeType: "image/jpeg",
+  sizeBytes: 812_000,
+  uploadedById: "s1",
+  createdAt: "2026-09-01T03:00:00Z",
+  url: "https://signed.example/doc-1",
+  image: true,
+  policyId: null,
+  financeId: null,
+  credentialRecordId: null,
+  licenceRecordId: null,
+  workRightsRecordId: null,
+  vehicleLogId: "l1",
+};
 
 function fleet(): FleetActions {
   return {
@@ -91,24 +127,25 @@ function fleet(): FleetActions {
     removeVehicle: jest.fn(),
     assignVehicle: jest.fn(),
     addLog: jest.fn(),
+    attachLogDocument: jest.fn(),
     editLog: jest.fn(),
     deleteLog: jest.fn(),
     resolveIssue: jest.fn(),
   };
 }
 
-function mount(over: Partial<Vehicle> = {}) {
+function mount(over: Partial<Vehicle> = {}, documents: StoredDocument[] = []) {
   const f = fleet();
   const onClose = jest.fn();
   const onLog = jest.fn();
   const onEdit = jest.fn();
-  const onServiceHistory = jest.fn();
+  const onCorrect = jest.fn();
   render(
     <VehicleModal
       vehicle={{ ...triton, ...over }}
       logs={logs}
-      eco={{}}
-      documents={[]}
+      eco={{ l1: 9.4 }}
+      documents={documents}
       policies={[slip]}
       finance={[]}
       staff={[{ id: "s1", name: "Dane Poulos", status: "Active" }]}
@@ -117,11 +154,10 @@ function mount(over: Partial<Vehicle> = {}) {
       onClose={onClose}
       onEdit={onEdit}
       onLog={onLog}
-      onCorrect={jest.fn()}
-      onServiceHistory={onServiceHistory}
+      onCorrect={onCorrect}
     />,
   );
-  return { f, onClose, onLog, onEdit, onServiceHistory, user: userEvent.setup() };
+  return { f, onClose, onLog, onEdit, onCorrect, user: userEvent.setup() };
 }
 
 it("opens on the vehicle, warning about the one thing that is due", () => {
@@ -201,7 +237,7 @@ it("keeps logging on the card: the + on History offers the four kinds", async ()
 
 it("has no odometer, no fuel and a tow hitch for a trailer", async () => {
   const { user } = mount({ motorised: false, bodyType: "trailer" });
-  expect(screen.queryByText(/km$/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/^\d[\d,]* km$/)).not.toBeInTheDocument(); // no odometer figure anywhere
   expect(screen.getByText("Towed by")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Log something" }));
   expect(screen.getAllByRole("menuitem").map((m) => m.textContent)).toEqual(["Report an issue", "Log service"]);
@@ -215,7 +251,72 @@ it("filters history by tab and shows the full log on request", async () => {
   expect(screen.getByText("Issue reported — wiper blade")).toBeInTheDocument();
   expect(screen.queryByText(/Fuel logged/)).not.toBeInTheDocument();
   await user.click(screen.getByText("View full history"));
-  expect(screen.getByRole("button", { name: "Resolve" })).toBeInTheDocument();
+  expect(screen.getByText("Issue reported — wiper blade")).toBeInTheDocument();
+  expect(screen.getByText("Show recent")).toBeInTheDocument();
+});
+
+/* ---- every history row is a door ---- */
+
+/* The rows were text with a pencil: an entry could be corrected from the
+   card but not read, and the docket behind a fill — stored, marked with a
+   chip — was openable only from the Tax screen months later. Isaac's
+   instinct was to click the line and see the receipt. */
+describe("a history row opens the entry on its own screen", () => {
+  it("a fill: the docket's figures, who logged it, and the receipt itself, open", async () => {
+    const { user } = mount({}, [docket]);
+    expect(screen.getByText("Receipt kept")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Fuel logged — 62 L/ }));
+
+    expect(screen.getByRole("heading", { name: "Fuel, 1 Sep 2026" })).toBeInTheDocument();
+    expect(screen.getByText("62 L")).toBeInTheDocument();
+    expect(screen.getByText("$118.40")).toBeInTheDocument();
+    expect(screen.getByText("Shell Coburg")).toBeInTheDocument();
+    expect(screen.getByText("$10.76")).toBeInTheDocument();
+    expect(screen.getByText("51 824 753 556")).toBeInTheDocument();
+    expect(screen.getByText("9.4 L/100km")).toBeInTheDocument();
+    expect(screen.getByText("Dane Poulos")).toBeInTheDocument();
+    expect(screen.getByText("Read from the paper")).toBeInTheDocument();
+    // the receipt is what the click was for, so it is open on arrival
+    expect(screen.getByRole("img", { name: "IMG_2041.jpg" })).toHaveAttribute("src", "https://signed.example/doc-1");
+    // nothing on this screen swaps the paper behind a figure
+    expect(screen.queryByText(/Attach the receipt/)).not.toBeInTheDocument();
+  });
+
+  it("a fill logged without its docket says so, and can be given it", async () => {
+    uploadFile.mockResolvedValue({
+      ok: true,
+      file: { documentId: "doc-9", fileName: "docket.jpg", mimeType: "image/jpeg", sizeBytes: 1, previewUrl: null },
+    });
+    const { user, f } = mount();
+    await user.click(screen.getByRole("button", { name: /Fuel logged — 62 L/ }));
+    expect(screen.getByText("No receipt was kept for this fill.")).toBeInTheDocument();
+    await user.upload(screen.getByLabelText("Attach document"), new File(["x"], "docket.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(f.attachLogDocument).toHaveBeenCalledWith("l1", "doc-9"));
+    expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "fuel_receipt");
+  });
+
+  it("an open issue can be resolved from its screen, and Correct entry is the way to the correction", async () => {
+    const { user, f, onCorrect } = mount();
+    await user.click(screen.getByRole("button", { name: /Issue reported — wiper blade/ }));
+    expect(screen.getByRole("heading", { name: "Issue, 30 Aug 2026" })).toBeInTheDocument();
+    expect(screen.getByText("What's wrong")).toBeInTheDocument();
+    expect(screen.getByText("Open")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Mark resolved" }));
+    expect(f.resolveIssue).toHaveBeenCalledWith("l2");
+    await user.click(screen.getByRole("button", { name: "Correct entry" }));
+    expect(onCorrect).toHaveBeenCalledWith(expect.objectContaining({ id: "l2" }));
+  });
+
+  it("Back returns to the card, and Escape does the same", async () => {
+    const { user, onClose } = mount();
+    await user.click(screen.getByRole("button", { name: /Fuel logged — 62 L/ }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Fuel logged — 62 L/ }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });
 
 it("removes only on the second press, and Edit is a door", async () => {

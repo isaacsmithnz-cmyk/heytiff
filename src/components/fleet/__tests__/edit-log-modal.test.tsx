@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { EditLogModal } from "../modals";
 import type { VehicleLog } from "../logic";
 
-jest.mock("@/app/actions/fleet-ai", () => ({ readFuelReceipt: jest.fn() }));
+jest.mock("@/app/actions/fleet-ai", () => ({ readFuelReceipt: jest.fn(), readServiceRecord: jest.fn() }));
 jest.mock("@/lib/documents/upload-client", () => ({ uploadFile: jest.fn() }));
 
 /* Correcting an entry. The modal opens on the FIGURES, not on a camera — this
@@ -105,5 +105,54 @@ describe("EditLogModal", () => {
     expect(screen.queryByText("GST ($)")).not.toBeInTheDocument();
     expect(screen.queryByText("Supplier ABN")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Brakes squealing")).toBeInTheDocument();
+  });
+});
+
+/* A service is corrected on the invoice's terms: the workshop, the date, the
+   cost and its tax lines, the one line the history prints and the itemised
+   work — and never a litres box. */
+describe("correcting a service", () => {
+  const serviceLog = (): VehicleLog => ({
+    id: "log-2",
+    vehicleId: "v-1",
+    staffId: "staff-1",
+    kind: "service",
+    when: "Tue 28 Jul",
+    ago: 7,
+    note: "120,000 km logbook service",
+    workDone: "Engine oil and filter\nBrake pads, front",
+    station: "Braeside Auto",
+    cost: 812.5,
+    gst: 73.86,
+    abn: "51824753556",
+    odo: 120000,
+    hasReceipt: true,
+  });
+
+  it("opens on the workshop, the work and the tax lines, with no litres anywhere", () => {
+    const onSave = jest.fn();
+    render(<EditLogModal log={serviceLog()} today={TODAY} onSave={onSave} onDelete={jest.fn()} onClose={jest.fn()} />);
+    expect(screen.getByDisplayValue("Braeside Auto")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("120,000 km logbook service")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/Brake pads, front/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("73.86")).toBeInTheDocument();
+    expect(screen.queryByText("Litres")).not.toBeInTheDocument();
+    expect(screen.getByText(/service record on this entry stays as it is/)).toBeInTheDocument();
+  });
+
+  it("hands back the service's correction, dated from the invoice", async () => {
+    const onSave = jest.fn();
+    render(<EditLogModal log={serviceLog()} today={TODAY} onSave={onSave} onDelete={jest.fn()} onClose={jest.fn()} />);
+    const user = userEvent.setup();
+    const work = screen.getByDisplayValue(/Brake pads, front/);
+    await user.clear(work);
+    await user.type(work, "Engine oil and filter");
+    await user.click(screen.getByRole("button", { name: /Save correction/ }));
+    const patch = onSave.mock.calls[0][0];
+    expect(patch.workDone).toBe("Engine oil and filter");
+    expect(patch.station).toBe("Braeside Auto");
+    expect(patch.cost).toBe(812.5);
+    expect(patch.purchasedOn).toBe("2026-07-28");
+    expect(patch).not.toHaveProperty("litres");
   });
 });

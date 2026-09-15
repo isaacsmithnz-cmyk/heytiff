@@ -110,6 +110,7 @@ function fleetWith(vehicles: Vehicle[]): FleetState {
     removeVehicle: noop,
     assignVehicle: noop,
     addLog: noop,
+    attachLogDocument: noop,
     editLog: noop,
     deleteLog: noop,
     resolveIssue: noop,

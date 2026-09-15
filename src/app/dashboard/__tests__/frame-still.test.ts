@@ -50,7 +50,7 @@ describe("the frame is still", () => {
     const on = blocksFor(SHELL, ".ni.on .nicon");
     expect(on.length).toBeGreaterThan(0);
     for (const body of on) {
-      expect(body).toMatch(/background\s*:\s*#fff\b/);
+      expect(body).toMatch(/background\s*:\s*(?:#fff\b|var\(--paper\))/); // paper, by name or by token
       expect(body).not.toMatch(/box-shadow/);
     }
     expect(blocksFor(SHELL, ".nibg")).toHaveLength(0);

@@ -89,7 +89,7 @@ describe("dashboard text tokens clear WCAG AA on every ground they land on", () 
      already fails on a pale yellow; if someone loosens the mix, this catches it
      for every accent a licence type could carry. */
   it("derives the id-card badge label dark enough for any accent", () => {
-    const m = CSS.match(/\.idc-badge[^}]*color: *color-mix\(in srgb, *var\(--acc[^)]*\) *(\d+)%, *#000\)/);
+    const m = CSS.match(/\.idc-badge[^}]*color: *color-mix\(in srgb, *var\(--acc[^%]*\) *(\d+)%, *(?:#000|var\(--ink\))\)/);
     expect(m).not.toBeNull();
     const pct = Number(m![1]) / 100;
     for (const acc of ["#2E68FF", "#00A389", "#F0A431", "#FF3366", "#8A2BE2", "#00E5C0", "#FFEB3B", "#7CFC00", "#C0C0C0"]) {
@@ -423,11 +423,18 @@ describe("quiet text on the dark chrome", () => {
      here. Those are named so the omission is a decision, not an oversight. */
   const OTHER_DARK = /wb2-dusk|wb2-capcard|wb2-caprec|wb2-toast|hm-|idc|nb-lb-open/;
   const code = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  /* The chrome's text is written as the tokens since the sweep (2026-09-15):
+     `--on-ink-q` is the quiet paper, `--paper` the full one. Both resolve to an
+     alpha here, so the floor is measured exactly as it was on the literals. */
+  const TOKEN_ALPHA: Record<string, number> = {
+    "on-ink-q": Number(CSS.match(/--on-ink-q: *rgba\(255,255,255,([\d.]+)\)/)![1]),
+    paper: 1,
+  };
   const shellText = [...code.matchAll(/([^{}]+)\{([^}]*)\}/g)]
     .flatMap(([, sel, body]) =>
-      [...body!.matchAll(/(?<!-)color: *rgba\(255, *255, *255, *([\d.]+)\)/g)].map((c) => ({
+      [...body!.matchAll(/(?<!-)color: *(?:rgba\(255, *255, *255, *([\d.]+)\)|var\(--(on-ink-q|paper)\))/g)].map((c) => ({
         sel: sel!.trim().replace(/\s+/g, " "),
-        alpha: Number(c[1]),
+        alpha: c[1] !== undefined ? Number(c[1]) : TOKEN_ALPHA[c[2]!]!,
       })),
     )
     .filter((r) => /\.fg (\.side|\.topbar|\.nav|\.navlbl|\.ni |\.brand|\.me |\.pro|\.searchbtn|\.bell)/.test(r.sel))
@@ -475,20 +482,29 @@ describe("quiet text on the dark chrome", () => {
     const rule = dark.match(/\.fg \.searchbtn:hover \.kbd \{([^}]*)\}/);
     expect(rule).not.toBeNull();
 
-    const bg = rule![1]!.match(/background: *rgba\((\d+), *(\d+), *(\d+), *([\d.]+)\)/);
-    const fg = rule![1]!.match(/color: *(#[0-9a-f]{3,6}|rgba?\([^)]+\))/i);
-    expect(bg).not.toBeNull();
-    expect(fg).not.toBeNull();
+    const bgRaw = rule![1]!.match(/background: *([^;]+)/)?.[1]?.trim();
+    const fgRaw = rule![1]!.match(/(?<!-)color: *([^;]+)/)?.[1]?.trim();
+    expect(bgRaw).toBeTruthy();
+    expect(fgRaw).toBeTruthy();
+    /* a literal or a token (the chrome wears the on-ink tokens since the
+       sweep); `hex()` wants six digits and the sheet writes `#fff`, expanded
+       here rather than in the sheet */
+    const long = (h: string) =>
+      h.length === 4 ? "#" + [...h.slice(1)].map((c) => c + c).join("") : h;
+    const rgbaOf = (raw: string): [number, number, number, number] => {
+      const t = raw.match(/^var\(--([a-z0-9-]+)\)$/i);
+      const v = t ? token(t[1]!) : raw;
+      const m = v.match(/rgba?\((\d+), *(\d+), *(\d+)(?:, *([\d.]+))?\)/);
+      if (m) return [+m[1]!, +m[2]!, +m[3]!, m[4] === undefined ? 1 : +m[4]];
+      return [...(hex(long(v)) as [number, number, number]), 1];
+    };
+    const bg = rgbaOf(bgRaw!);
+    const fg = rgbaOf(fgRaw!);
 
     // the hovered field lifts the ground before the chip's own tint lands on it
     const lifted = over(WHITE, 0.09, CHROME);
-    const chip = over([+bg![1]!, +bg![2]!, +bg![3]!], Number(bg![4]), lifted);
-    /* `hex()` wants six digits and the sheet writes `#fff` — expanded here
-       rather than in the sheet, because three-digit hex is idiomatic
-       throughout it and a test should read what is actually written. */
-    const long = (h: string) =>
-      h.length === 4 ? "#" + [...h.slice(1)].map((c) => c + c).join("") : h;
-    const ink = fg![1]!.startsWith("#") ? hex(long(fg![1]!)) : WHITE;
+    const chip = over(bg.slice(0, 3), bg[3], lifted);
+    const ink = over(fg.slice(0, 3), fg[3], chip);
     expect(ratio(ink, chip)).toBeGreaterThanOrEqual(4.5);
   });
 

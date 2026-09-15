@@ -97,6 +97,10 @@
      highlight. First use: the avatar's ring, which was a blue-to-teal
      gradient until the frame went still. */
   --on-ink-line: rgba(255,255,255,.35);
+  /* the two tints of paper on ink — the dark surfaces' `--tint` and `--tint-2`:
+     a row's hover, a field's well, a pressed chip (wb fold, 2026-09-15) */
+  --on-ink-tint: rgba(255,255,255,.06);
+  --on-ink-tint-2: rgba(255,255,255,.12);
 
   /* INK AND PAPER — the tokens docs/design.md names, decided 2026-09-10.
      Defined here first, in one place; the stylesheets move onto them family

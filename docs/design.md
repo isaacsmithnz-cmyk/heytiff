@@ -143,7 +143,7 @@ text it sits in.
 |---|---|---|
 | Motion | `--t-fast` 120 ms ease-out · `--t-move` 200 ms ease-out | hover and focus · anything that changes place |
 | Layers | base 0 · raised 1 · sticky 10 · overlay 100 · modal 200 · toast 300 | nothing else |
-| Dark chrome | one hairline token, no inner highlight | overlays take the one overlay shadow |
+| Dark chrome | one hairline token, two tints of paper on ink, no inner highlight | overlays take the one overlay shadow; paper does the accent's jobs there |
 
 A box is one of three things. A **card** is something you act on: surface,
 line, 16px. A **group** is something you read: no box, a hairline top. An

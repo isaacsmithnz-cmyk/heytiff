@@ -394,15 +394,8 @@ export function Library({
                 >
                   <div className="tk-cin">
                     <header className="tk-chd">
-                      <div
-                        className="tk-cic"
-                        style={{
-                          background: `${c.color}15`,
-                          border: `1px solid ${c.color}30`,
-                          color: c.color,
-                        }}
-                      >
-                        <Icon name={c.icon} size={16} />
+                      <div className="tk-cic" style={{ color: c.color }}>
+                        <Icon name={c.icon} size={18} />
                       </div>
                       <div>
                         <h2>{c.label}</h2>
@@ -717,18 +710,12 @@ function DocRow({
               {state.status === "paused" ? "Resume" : "Retry"}
             </button>
           )}
-          <button type="button" className="tk-abtn ico" title="Edit details" aria-label={`Edit ${doc.title}`} onClick={onEdit}>
-            <Icon name="edit" size={15} />
+          <button type="button" className="tk-abtn" aria-label={`Edit ${doc.title}`} onClick={onEdit}>
+            Edit
           </button>
           {isOwner && (
-            <button
-              type="button"
-              className="tk-abtn ico dan"
-              title="Remove"
-              aria-label={`Remove ${doc.title}`}
-              onClick={onDelete}
-            >
-              <Icon name="x" size={15} />
+            <button type="button" className="tk-abtn dan" aria-label={`Remove ${doc.title}`} onClick={onDelete}>
+              Remove
             </button>
           )}
         </div>
@@ -742,7 +729,6 @@ function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
     const known = state.pageCount !== null && state.pageCount > 0;
     return (
       <span className="tk-pill work">
-        <span className="tk-spin" aria-hidden="true" />
         <span>
           {known
             ? `Reading… ${n(state.pagesDone)} of ${n(state.pageCount as number)} pages`
@@ -778,7 +764,6 @@ function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
   if (state.status === "uploading") {
     return (
       <span className="tk-pill work">
-        <span className="tk-spin" aria-hidden="true" />
         Uploading…
       </span>
     );
@@ -790,7 +775,6 @@ function StatusPill({ state, ocr }: { state: RowState; ocr: OcrView }) {
   if (ocr.reading) {
     return (
       <span className="tk-pill work">
-        <span className="tk-spin" aria-hidden="true" />
         {`Reading ${n(ocr.left)} scanned ${plural(ocr.left, "page")}…`}
       </span>
     );

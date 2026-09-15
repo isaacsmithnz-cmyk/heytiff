@@ -913,14 +913,9 @@ export function TiffAssistant({
               <div className="tchathead">
                 {/* the way OUT is the first thing in the row, where every
                     other screen's crumb already lives */}
-                <button
-                  type="button"
-                  className="tk-tact"
-                  aria-label="Back to the library"
-                  title="Back to the library"
-                  onClick={goHome}
-                >
-                  <Icon name="chevL" size={16} />
+                <button type="button" className="tk-abtn" aria-label="Back to the library" onClick={goHome}>
+                  <Icon name="chevL" size={14} />
+                  Library
                 </button>
                 {/* the brand mark, not a robot: the same chevron as the
                     sidebar and the Tiff button, because the thing answering
@@ -935,23 +930,11 @@ export function TiffAssistant({
                 </div>
                 {/* the two things you can do TO a conversation, next to the
                     one thing you can do instead of it */}
-                <button
-                  type="button"
-                  className="tk-tact"
-                  aria-label={`Rename “${active.title}”`}
-                  title="Rename this chat"
-                  onClick={() => setRenaming(active)}
-                >
-                  <Icon name="edit" size={15} />
+                <button type="button" className="tk-abtn" aria-label={`Rename “${active.title}”`} onClick={() => setRenaming(active)}>
+                  Rename
                 </button>
-                <button
-                  type="button"
-                  className="tk-tact dan"
-                  aria-label={`Delete “${active.title}”`}
-                  title="Delete this chat"
-                  onClick={() => setRemoving(active)}
-                >
-                  <Icon name="x" size={15} />
+                <button type="button" className="tk-abtn dan" aria-label={`Delete “${active.title}”`} onClick={() => setRemoving(active)}>
+                  Delete
                 </button>
                 <button className="pbtn ghost" onClick={newChat}>
                   <Icon name="plus" size={15} />
@@ -1509,7 +1492,7 @@ function RecentDocs({
               key={d.id}
               type="button"
               className="tk-nd"
-              style={{ "--tkc": cat?.color ?? "#9ca3af" } as React.CSSProperties}
+              style={{ "--tkc": cat?.color ?? "var(--q)" } as React.CSSProperties}
               aria-label={`Ask Tiff about ${d.title}`}
               title={d.title}
               onClick={() => onAsk(d.title)}
@@ -1600,23 +1583,11 @@ function Landing({
                   <em>{ago(t.updatedAt)}</em>
                 </button>
                 <span className="tk-tacts">
-                  <button
-                    type="button"
-                    className="tk-tact"
-                    aria-label={`Rename “${t.title}”`}
-                    title="Rename"
-                    onClick={() => onRename(t)}
-                  >
-                    <Icon name="edit" size={14} />
+                  <button type="button" className="tk-abtn" aria-label={`Rename “${t.title}”`} onClick={() => onRename(t)}>
+                    Rename
                   </button>
-                  <button
-                    type="button"
-                    className="tk-tact dan"
-                    aria-label={`Delete “${t.title}”`}
-                    title="Delete"
-                    onClick={() => onDelete(t)}
-                  >
-                    <Icon name="x" size={14} />
+                  <button type="button" className="tk-abtn dan" aria-label={`Delete “${t.title}”`} onClick={() => onDelete(t)}>
+                    Delete
                   </button>
                 </span>
               </div>
@@ -1683,15 +1654,8 @@ function Rail({
               {/* the glyph is mixed toward ink: the raw category colours were
                   chosen for tinted tiles, and mint or amber STROKES on a pale
                   wash sat under 2:1 — decoration where a symbol should be */}
-              <span
-                className="tk-ric"
-                style={{
-                  background: `${c.color}15`,
-                  border: `1px solid ${c.color}30`,
-                  color: `color-mix(in oklab, ${c.color} 62%, var(--ink))`,
-                }}
-              >
-                <Icon name={c.icon} size={19} />
+              <span className="tk-ric" style={{ color: `color-mix(in oklab, ${c.color} 62%, var(--ink))` }}>
+                <Icon name={c.icon} size={20} />
               </span>
               <div className="tk-rtx">
                 <b>{c.label}</b>
@@ -1745,7 +1709,7 @@ function MissBanner({ canManage }: { canManage: boolean }) {
 /* ── citations ───────────────────────────────────────────────────────────── */
 
 const colourOf = (key: KbCategoryKey): string =>
-  KB_CATEGORIES.find((c) => c.key === key)?.color ?? "#9ca3af";
+  KB_CATEGORIES.find((c) => c.key === key)?.color ?? "var(--q)";
 
 const pagesOf = (s: { pageFrom: number; pageTo: number }): string =>
   s.pageTo > s.pageFrom ? `p.${s.pageFrom}–${s.pageTo}` : `p.${s.pageFrom}`;

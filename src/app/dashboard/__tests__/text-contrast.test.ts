@@ -213,7 +213,10 @@ describe("Time & Pay ink on a solid brand fill", () => {
     expect(scoped(TP_PRIVATE, "red")).toBe("#FF3366");
     expect(scoped(TP_PRIVATE, "blue")).toBe("#2E68FF");
     expect(scoped(TP_PRIVATE, "violet")).toBe("#8A2BE2");
-    expect(scoped(TP_VARS, "teal")).toBe("#22c55e");
+    // the green moved once, on purpose: Tailwind's green-500 became the OK hue
+    // at the same lightness in the Time & Pay fold (docs/design.md, the day
+    // vocabulary), and the on-fill pair above re-checks it
+    expect(scoped(TP_VARS, "teal")).toBe("#2EC351");
   });
 });
 

@@ -142,13 +142,13 @@ export function UpdateScreen({
         </ScanCard>
       </div>
 
-      <div className="vm-foot">
+      <div className="fl-foot bar">
         {/* What happens to the one it replaces, said where the decision is made
             rather than as a caption on a screen nobody is reading yet. It only
             appears when there IS one to keep — and never while the button is
             filing a document, because then nothing moves into the history. */}
         {current && !filingOnly && (
-          <span className="vm-footnote">
+          <span className="fl-footnote">
             The {kind === "insurance" ? "policy" : "licence"} expiring {fmtDay(current.expiresOn)} moves into the history.
           </span>
         )}

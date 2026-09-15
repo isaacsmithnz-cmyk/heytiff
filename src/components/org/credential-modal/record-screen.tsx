@@ -258,7 +258,7 @@ export function RecordScreen({
         )}
       </div>
 
-      <div className="vm-foot between">
+      <div className="fl-foot bar spread">
         <Btn kind="outline" onClick={onEdit} icon="edit">
           Edit details
         </Btn>

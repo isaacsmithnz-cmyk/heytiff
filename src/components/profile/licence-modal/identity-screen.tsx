@@ -211,7 +211,7 @@ export function IdentityScreen({
         </div>
       </div>
 
-      <div className="vm-foot">
+      <div className="fl-foot bar">
         {onDelete && (
           <button
             type="button"

@@ -3144,16 +3144,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .dirtools .fl-add { height:44px; flex:0 0 auto; }
 .fg .fl-emptyadd { display:flex; justify-content:center; margin-top:16px; }
 .fg .flhead, .fg .flrow { grid-template-columns:2.1fr .9fr 1.5fr 1.7fr .9fr 40px; }
-.fg .fl-av { width:40px; height:40px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.12); color:var(--warn-t); }
-.fg .fl-av.warn { background:rgba(240,164,49,.14); color:var(--warn-t); }
-.fg .fl-av.bad { background:rgba(255,51,102,.1); color:var(--bad-t); }
+/* the vehicle's icon, in ink or the state colour — no tinted square (step 4) */
+.fg .fl-av { width:40px; height:40px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--ink); }
+.fg .fl-av.warn { color:var(--warn-t); }
+.fg .fl-av.bad { color:var(--bad-t); }
 .fg .fl-driver { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; color:var(--ink); min-width:0; }
-.fg .fl-dav { width:26px; height:26px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; }
-.fg .fl-pool { font-size:12px; font-weight:500; color:var(--q); border:1.5px dashed #d7dae0; padding:4px 12px; border-radius:999px; }
+.fg .fl-dav { width:26px; height:26px; border-radius:50%; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--paper); }
+/* "Pool" is a kind, and kind is a label: the word (law 26) */
+.fg .fl-pool { font-size:12px; font-weight:500; color:var(--q); }
 .fg .fl-more { font-style:normal; font-weight:700; opacity:.65; margin-left:2px; }
 .fg .flhead .flval, .fg .fl-value { text-align:right; }
 .fg .fl-value { font-size:14px; font-weight:700; color:var(--ink); }
-.fg .fl-total { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid #f0f0f2; background:#fafbfc; font-size:13px; font-weight:600; color:var(--q); }
+.fg .fl-total { display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid var(--line); background:var(--tint); font-size:13px; font-weight:600; color:var(--q); }
 .fg .fl-total b { color:var(--ink); font-weight:700; }
 
 /* my vehicle — staff lens */
@@ -3174,17 +3176,15 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .fl-frow.warn dd { color:var(--warn-t); }
 .fg .fl-frow.bad dd { color:var(--bad-t); }
 .fg .fl-quick { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.fg .fl-qa { display:flex; align-items:center; gap:12px; text-align:left; background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; transition:border-color var(--t-fast) var(--ease); }
-.fg .fl-qa:hover { border-color:#e2e5ea; }
-.fg .fl-qi { width:42px; height:42px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
-.fg .fl-qi.fuel { background:var(--tint-2); color:var(--ink); }
-.fg .fl-qi.odo { background:var(--tint); color:var(--info-t); }
-.fg .fl-qi.issue { background:rgba(255,51,102,.1); color:var(--bad-t); }
+.fg .fl-qa { display:flex; align-items:center; gap:12px; text-align:left; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-button); padding:16px; transition:border-color var(--t-fast) var(--ease); }
+.fg .fl-qa:hover { background:var(--tint); }
+.fg .fl-qi { width:42px; height:42px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--ink); }
+.fg .fl-qi.issue { color:var(--bad-t); }
 .fg .fl-qa b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .fl-qa em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:2px; }
-.fg .fl-card { background:#fff; border:1px solid #f0f0f2; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.03); padding:24px 24px; }
+.fg .fl-card { background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card); padding:24px 24px; }
 .fg .fl-ch { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-.fg .fl-ci { width:38px; height:38px; border-radius:10px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; background:rgba(255,138,0,.1); color:var(--warn-t); }
+.fg .fl-ci { flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:var(--q); }
 .fg .fl-ch b { display:block; font-size:16px; font-weight:700; color:var(--ink); }
 .fg .fl-ch em { font-style:normal; display:block; font-size:13px; font-weight:500; color:var(--q); margin-top:2px; }
 
@@ -3194,14 +3194,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    .fg-cmd) and .fl-log/.dchip2 render both in-shell and inside the portal ---- */
 @keyframes flFade { from { opacity:0; } }
 @keyframes flPop { from { opacity:0; transform:translateY(12px) scale(.98); } }
-.fl-ov { position:fixed; inset:0; z-index:140; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(10,11,16,.45); backdrop-filter:blur(6px); animation:flFade .2s ease; font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; }
-.fl-modal { width:min(560px, 100%); max-height:88vh; overflow:auto; background:#fff; border-radius:16px; box-shadow:0 30px 80px rgba(0,0,0,.28); animation:flPop .3s var(--ease); }
+.fl-ov { position:fixed; inset:0; z-index:var(--z-modal); display:flex; align-items:center; justify-content:center; padding:24px; background:var(--scrim); backdrop-filter:blur(6px); animation:flFade .2s ease; font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; }
+.fl-modal { width:min(560px, 100%); max-height:88vh; overflow:auto; background:var(--paper); border-radius:var(--r-card); box-shadow:var(--shadow-overlay); animation:flPop .3s var(--ease); }
 .fl-modal.wide { width:min(680px, 100%); }
 .fl-modal *, .fl-modal *::before, .fl-modal *::after { box-sizing:border-box; }
 .fl-modal button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
 .fl-modal svg.i { display:block; flex:0 0 auto; }
-.fl-mh { position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 12px; background:#fff; border-bottom:1px solid #f5f6f8; }
-.fl-mh b { display:block; font-size:20px; font-weight:700; color:#050505; }
+.fl-mh { position:sticky; top:0; z-index:var(--z-sticky); display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:24px 24px 12px; background:var(--paper); border-bottom:1px solid var(--line); }
+.fl-mh b { display:block; font-size:20px; font-weight:700; color:var(--ink); }
 .fl-mh em { font-style:normal; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--q); margin-top:4px; }
 /* Resting state carries a surface and a readable glyph: bare #9ca3af on white is
    ~2.6:1, under the 3:1 minimum for an interactive control, so the close button
@@ -3210,16 +3210,16 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
    grey square, its border and its ink to the reset, leaving a naked ✕ that
    only grew a background on :hover (0,2,0). Fine in the modals, which portal
    out of `.fg`; wrong on the workboard detail screens, which don't. */
-button.fl-x { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--ink); background:#f1f2f4; border:1px solid #e6e8ee; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); flex:0 0 auto; }
-.fl-x:hover { background:#e6e8ee; border-color:#d6d9e0; color:#050505; }
+button.fl-x { width:34px; height:34px; border-radius:var(--r-button); display:flex; align-items:center; justify-content:center; color:var(--ink); background:var(--tint); border:1px solid var(--line); transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); flex:0 0 auto; }
+.fl-x:hover { background:var(--tint-2); border-color:var(--line); color:var(--ink); }
 .fl-mb { padding:16px 24px 24px; }
 .fl-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .fl-f { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .fl-f.span { grid-column:1/-1; }
 .fl-f > span { font-size:12px; font-weight:700; color:var(--ink); }
 .fl-f > span i { font-style:normal; color:var(--bad-t); margin-left:2px; }
-.fl-i { height:44px; width:100%; border:1.5px solid var(--line); border-radius:10px; padding:0 12px; font:inherit; font-size:14px; font-weight:600; color:#050505; background:#fff; outline:none; transition:border var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
-.fl-i:focus { border-color:var(--ink); box-shadow:var(--ring); }
+.fl-i { height:44px; width:100%; border:1.5px solid var(--line); border-radius:var(--r-control); padding:0 12px; font:inherit; font-size:14px; font-weight:600; color:var(--ink); background:var(--paper); outline:none; transition:border var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.fl-i:focus { border-color:var(--ink);  box-shadow:var(--ring); }
 .fl-i::placeholder { color:var(--q); font-weight:500; }
 textarea.fl-i { min-height:86px; padding:12px 12px; resize:vertical; }
 select.fl-i { cursor:pointer; }
@@ -3230,27 +3230,32 @@ select.fl-i { cursor:pointer; }
    is ABSENT in a portal rather than merely outranked, which is how the .pbtn
    family lost its hover once already. Unprefixed, like the rest of .fl-*. */
 .fl-pay { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-.fl-payb { display:block; width:100%; text-align:left; padding:8px 12px 8px; border:1.5px solid var(--line); border-radius:10px; background:#fff; cursor:pointer; font:inherit; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.fl-payb:hover { border-color:#d3d7e0; background:#fafbfc; }
-.fl-payb b { display:block; font-size:13px; font-weight:700; color:#050505; }
-.fl-payb em { display:block; font-style:normal; font-size:12px; font-weight:500; color:#8b93a3; margin-top:2px; line-height:1.35; }
-.fl-payb.on { border-color:var(--ink); background:var(--tint); box-shadow:var(--ring); }
-.fl-payb.on em { color:#0d9b86; }
-.fl-i.slim { height:36px; font-size:13px; margin-top:4px; padding:0 8px; border-radius:10px; }
-.fl-foot { display:flex; justify-content:flex-end; gap:8px; margin-top:24px; }
+.fl-payb { display:block; width:100%; text-align:left; padding:8px 12px 8px; border:1.5px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer; font:inherit; transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.fl-payb:hover { background:var(--tint); }
+.fl-payb b { display:block; font-size:13px; font-weight:700; color:var(--ink); }
+.fl-payb em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--q); margin-top:2px; line-height:1.35; }
+.fl-payb.on { border-color:var(--ink); background:var(--tint);  box-shadow:var(--ring); }
+.fl-payb.on em { color:var(--ink); }
+.fl-i.slim { height:36px; font-size:13px; margin-top:4px; padding:0 8px; border-radius:var(--r-control); }
+/* THE ONE FOOTER (law 28). A row of buttons at the end of a form, the commit
+   pair on the right; `.spread` puts a destructive action on the left; `.bar`
+   is the same footer pinned across a tall sheet, with a hairline and the tint
+   ground (the vehicle modal's, which wore `.vm-foot`); `.fl-footnote` is the
+   fact about what the button will do to the data, beside the button. */
+.fl-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:24px; }
 /* `white-space:nowrap` makes the fixed height honest. A 42px box whose label
    is allowed to wrap doesn't grow — it deforms, and the buttons beside it get
    squeezed to make room for the wrap (watched happen on the delete-thread
    confirm, whose label used to repeat the whole thread title). An action
    button's words are a verb; if one ever needs two lines, the words are
    wrong. */
-.fl-btn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:10px; font-size:14px; font-weight:700; white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fl-btn { display:inline-flex; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:var(--r-button); font-size:14px; font-weight:700; white-space:nowrap; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 /* ADDITIVE, not a rename: one `.fl-btn` in the noticeboard is a <label> (a file
    picker), which the reset never touched and which `button.` would strip. So
    this restores only the two declarations the reset ate, and leaves the label
    reading off the rule above. `.tiny` (0,2,0) keeps its own 12px. */
 button.fl-btn { font-size:14px; font-weight:700; }
-.fl-btn.ghost { background:#fff; border:1px solid var(--line); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.04); }
+.fl-btn.ghost { background:var(--paper); border:1px solid var(--line); color:var(--ink); }
 .fl-btn.ghost:hover { background:var(--tint); }
 /* The primary action wears the brand teal, not ink.
 
@@ -3264,18 +3269,18 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
    Literal hex, not var(--teal): .fl-btn is deliberately unscoped so it can
    render inside modals portalled to body, where .fg's tokens don't reach. */
-.fl-btn.primary { background:var(--ink); color:var(--paper); box-shadow:none; }
+.fl-btn.primary { background:var(--ink); color:var(--paper);  box-shadow:none; }
 .fl-btn.primary:hover { background:var(--ink); color:var(--paper); }
 .fl-btn:disabled { opacity:.4; pointer-events:none; }
-.fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); }
-.fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
-.fl-btn.tiny { height:28px; padding:0 12px; font-size:12px; border-radius:10px; background:#fff; border:1px solid var(--line); color:var(--ink); }
+.fl-btn.danger { background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); }
+.fl-btn.danger.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
+.fl-btn.tiny { height:28px; padding:0 12px; font-size:12px; border-radius:var(--r-button); background:var(--paper); border:1px solid var(--line); color:var(--ink); }
 .fl-btn.tiny:hover { background:var(--tint); }
 /* .fl-btn.tiny is declared after .fl-btn.primary and repaints the background,
    so a tiny primary would come out white — the same ordering trap the .invbtns
    danger rule further down documents. Restated here rather than reordered,
    because .tiny's whole job is to overwrite the resting fill. */
-.fl-btn.tiny.primary { background:var(--ink); border-color:transparent; color:var(--paper); box-shadow:none; }
+.fl-btn.tiny.primary { background:var(--ink); border-color:transparent; color:var(--paper);  box-shadow:none; }
 .fl-btn.tiny.primary:hover { background:var(--ink); color:var(--paper); }
 .dchip2 { display:inline-flex; align-items:center; gap:4px; font-size:14px; font-weight:500; color:var(--q); }
 .dchip2.ok { color:var(--ok-t); }
@@ -3291,21 +3296,18 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .dchip2.unavail { color:var(--gray500); }
 .dchip2.unavail em { font-style:normal; font-size:14px; font-weight:500; color:var(--q); }
 .fl-facts { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px; }
-.fl-fact { background:#fafbfc; border:1px solid #f0f0f2; border-radius:16px; padding:12px 12px; min-width:0; }
+.fl-fact { background:var(--tint); border:1px solid var(--line); border-radius:var(--r-card); padding:12px 12px; min-width:0; }
 .fl-fact em { font-style:normal; display:block; font-size:12px; font-weight:500; color:var(--q); }
-.fl-fact b { display:block; font-size:14px; font-weight:700; color:#050505; margin-top:4px; }
-.fl-hist { border-top:1px solid #f0f0f2; padding-top:16px; }
-.fl-hempty { padding:24px 16px; text-align:center; font-size:13px; font-weight:600; color:var(--q); border:1.5px dashed #e6e8ee; border-radius:16px; }
-.fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 12px; border-radius:16px; transition:background var(--t-fast) var(--ease); }
-.fl-log:hover { background:#fafbfc; }
-.fl-log.open { background:rgba(240,164,49,.07); }
-.fl-li { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
-.fl-li.fuel { background:var(--tint-2); color:var(--ink); }
-.fl-li.odo { background:var(--tint); color:var(--info-t); }
-.fl-li.issue { background:rgba(240,164,49,.14); color:var(--warn-t); }
-.fl-li.service { background:var(--tint); color:var(--ink); }
+.fl-fact b { display:block; font-size:14px; font-weight:700; color:var(--ink); margin-top:4px; }
+.fl-hist { border-top:1px solid var(--line); padding-top:16px; }
+.fl-hempty { padding:24px 16px; text-align:center; font-size:13px; font-weight:600; color:var(--q); border:1.5px dashed var(--line); border-radius:var(--r-card); }
+.fl-log { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 12px; border-radius:var(--r-button); transition:background var(--t-fast) var(--ease); }
+.fl-log:hover { background:var(--tint); }
+.fl-log.open { background:var(--tint-2); }
+.fl-li { width:34px; height:34px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; color:var(--ink); }
+.fl-li.issue { color:var(--warn-t); }
 .fl-lk { min-width:0; }
-.fl-lk b { display:block; font-size:14px; font-weight:700; color:#050505; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fl-lk b { display:block; font-size:14px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fl-lk em { font-style:normal; display:block; font-size:12px; font-weight:600; color:var(--q); margin-top:1px; }
 /* In the mixed History list a one-line row keeps the log scannable, but the
    service history exists TO say what was done — so there it wraps instead of
@@ -3320,8 +3322,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-value b { display:block; font-size:14px; font-weight:700; color:var(--ink); }
 .fg .dchip.mute { color:var(--q); }
 .fg .fl-qa.paused { opacity:.55; cursor:not-allowed; }
-.fg .fl-qa.paused:hover { transform:none; border-color:#f0f0f2; }
-.fg .fl-offnote { display:flex; align-items:center; gap:8px; background:rgba(240,164,49,.09); border:1px solid rgba(240,164,49,.28); border-radius:16px; padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
+.fg .fl-qa.paused:hover { background:var(--paper); }
+.fg .fl-offnote { display:flex; align-items:center; gap:8px; background:var(--warn-tint); border:1px solid var(--warn); border-radius:var(--r-card); padding:12px 16px; font-size:13px; font-weight:600; color:var(--warn-t); }
 .dchip2.mute { color:var(--q); }
 .fl-fact.tiff { background:var(--tint); border-color:var(--line); }
 .fl-fact.tiff em { display:flex; align-items:center; gap:4px; color:var(--ink); }
@@ -3352,8 +3354,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .fl-tiff.stale { opacity:.45; }
 /* The visible door to the valuation's source — the note was title-attr-only
    and got found by accident. `.fg` scope outranks the `.fg button` reset. */
-.fg .fl-tiffinfo { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:6px; color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.fg .fl-tiffinfo:hover { background:#eef0f3; color:var(--ink); }
+.fg .fl-tiffinfo { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:var(--r-control); color:var(--q); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fg .fl-tiffinfo:hover { background:var(--tint); color:var(--ink); }
 @keyframes flSpinPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.45; transform:scale(.85); } }
 .fl-fact.tiff.stale { opacity:.55; }
 /* Unscoped like the rest of the modal's fl-*: the detail modal portals to
@@ -3370,28 +3372,27 @@ button.fl-btn { font-size:14px; font-weight:700; }
    a positional selector would catch the chevron too. */
 .fl-factmain { flex:1; min-width:0; }
 .fl-factdoor .i { color:var(--q); transition:color var(--t-fast) var(--ease), transform var(--t-move) var(--ease); }
-.fl-factdoor:hover .i { color:var(--info-t); }
-.fl-factdoor:hover b { color:var(--info-t); }
+.fl-factdoor:hover .i { color:var(--ink); }
+.fl-factdoor:hover b { text-decoration:underline; }
 /* Add renewal — open whatever the expiry says, so it sits above the list. */
 .fl-histadd { display:flex; justify-content:flex-end; margin-bottom:16px; }
 /* flex:1 on the name, not margin-left:auto on the price — a renewal whose
    document printed no premium has no price element to push the rest right. */
 /* Current vs previous on a renewal document. Derived from the file list, so
    the tag can never disagree with what is above it. */
-.fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:32px 16px; border:1.5px dashed #d7dae0; border-radius:16px; background:#fafbfc; cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.fl-scan { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:32px 16px; border:1.5px dashed var(--line); border-radius:var(--r-card); background:var(--tint); cursor:pointer; transition:background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fl-scan:hover, .fl-scan.over { border-color:var(--ink); background:var(--tint); }
 .fl-scan input { display:none; }
-.fl-scan .fl-scanic { width:46px; height:46px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:var(--tint-2); color:var(--ink); }
-.fl-scan b { font-size:14px; font-weight:700; color:#050505; }
+.fl-scan .fl-scanic { display:flex; align-items:center; justify-content:center; color:var(--q); }
+.fl-scan b { font-size:14px; font-weight:700; color:var(--ink); }
 .fl-scan em { font-style:normal; font-size:13px; font-weight:600; color:var(--q); }
 .fl-modeline { display:block; margin:12px auto 0; font-size:13px; font-weight:700; color:var(--ink); }
 .fl-modeline:hover { text-decoration:underline; }
 .fl-modeline.inline { margin:0 0 0 auto; }
 .fl-readingwrap { display:flex; flex-direction:column; align-items:center; gap:12px; padding:24px 0 8px; }
-.fl-scanthumb { max-height:120px; max-width:100%; border-radius:16px; border:1px solid #ebecef; box-shadow:0 8px 24px rgba(0,0,0,.1); }
-.fl-scanthumb.small { max-height:44px; border-radius:10px; }
+.fl-scanthumb { max-height:120px; max-width:100%; border-radius:var(--r-card); border:1px solid var(--line); }
+.fl-scanthumb.small { max-height:44px; border-radius:var(--r-button); }
 .fl-reading { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; color:var(--ink); }
-.fl-reading .i { animation:flSpinPulse 1.2s ease-in-out infinite; }
 .fl-scanhead { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
 /* "Receipt saved" / "saving without it" — unscoped like the rest of this
    block, because the log modal portals to <body> and never sees `.fg`. */
@@ -3400,8 +3401,8 @@ button.fl-btn { font-size:14px; font-weight:700; }
 
 /* ---- fleet r4: rego picker for borrowed vehicles ---- */
 .fg .fl-offnote { flex-wrap:wrap; }
-.fg .fl-offbtn { display:inline-flex; align-items:center; gap:4px; margin-left:auto; height:30px; padding:0 12px; border-radius:10px; background:#fff; border:1px solid rgba(240,164,49,.4); font-size:12px; font-weight:700; color:var(--warn-t); transition:background-color var(--t-fast) var(--ease); }
-.fg .fl-offbtn:hover { background:rgba(240,164,49,.12); }
+.fg .fl-offbtn { display:inline-flex; align-items:center; gap:4px; margin-left:auto; height:30px; padding:0 12px; border-radius:var(--r-button); background:var(--paper); border:1px solid var(--warn); font-size:12px; font-weight:700; color:var(--warn-t); transition:background-color var(--t-fast) var(--ease); }
+.fg .fl-offbtn:hover { background:var(--warn-tint); }
 
 /* ---- Time & Pay: My timesheet ----
    Shared entry chrome. The screen's own layout is the `.mts2-*` block further
@@ -3587,15 +3588,15 @@ button.fl-btn { font-size:14px; font-weight:700; }
 .fg .invbtns { display:flex; gap:8px; flex:0 0 auto; margin-top:12px; }
 /* .fl-btn.tiny is declared after .fl-btn.danger, so on its own it would repaint
    a revoke button neutral — the destructive one stays red until it's armed. */
-.fg .invbtns .fl-btn.danger { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); color:var(--bad-t); }
-.fg .invbtns .fl-btn.danger.arm { background:#e0264f; border-color:#e0264f; color:#fff; }
+.fg .invbtns .fl-btn.danger { background:var(--bad-tint); border:1px solid var(--bad); color:var(--bad-t); }
+.fg .invbtns .fl-btn.danger.arm { background:var(--bad); border-color:var(--bad); color:var(--paper); }
 .fg .invmsg { padding:12px 24px; font-size:13px; font-weight:600; color:var(--bad-t); border-bottom:1px solid #f5f6f8; }
 /* The same slot saying a letter went. --ok-t, not the page accent: this is
    state, and state is never the accent (feedback: design-system state colours). */
 .fg .invmsg.ok { color:var(--ok-t); }
 
 /* invite modal — UNSCOPED: it portals to <body>, outside .fg (see .fl-ov) */
-.fl-err { background:rgba(255,51,102,.07); border:1px solid rgba(255,51,102,.22); border-radius:10px; padding:8px 12px; margin-bottom:12px; font-size:13px; font-weight:600; color:var(--bad-t); }
+.fl-err { background:var(--bad-tint); border:1px solid var(--bad); border-radius:var(--r-button); padding:8px 12px; margin-bottom:12px; font-size:13px; font-weight:600; color:var(--bad-t); }
 
 /* ---- adaptive durations (lib/format/duration.ts) ----
    The number does the work; the unit only has to be legible. Muting it keeps a
@@ -6590,7 +6591,7 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
    is how you divide a column, and it goes ragged the moment two columns of
    unequal height sit side by side. `align-items:start` with them — stretched,
    a two-button panel beside a fifteen-field one becomes a large empty box. */
-.wb2-scrim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(10,11,16,.42); animation:wb2Fade .3s both; }
+.wb2-scrim { position:fixed; inset:0; z-index:var(--z-overlay); background:var(--scrim); animation:wb2Fade .3s both; }
 @keyframes wb2Fade { from { opacity:0; } to { opacity:1; } }
 .wb2-sheet { position:fixed; inset:0; margin:auto; z-index:var(--z-modal);
   width:min(1040px, calc(100vw - 40px)); height:max-content; max-height:calc(100vh - 40px);
@@ -7137,7 +7138,7 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring);; border
 /* ABOVE THE SHEET'S OWN PAIR (scrim 100 / sheet 101) — jsdom cannot see a
    stacking context, so this number is walked, not tested: at 61 the modal
    opened invisibly UNDER the card. */
-.wb2-clscrim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(8,10,16,.42);
+.wb2-clscrim { position:fixed; inset:0; z-index:var(--z-overlay); background:var(--scrim);
   animation:wb2ClIn .2s ease both; }
 .wb2-claim { position:fixed; z-index:var(--z-overlay); left:50%; top:50%; transform:translate(-50%,-50%);
   width:min(440px, calc(100vw - 32px)); max-height:min(78vh, 720px); overflow:auto;
@@ -8715,21 +8716,23 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    the modal — the same class looking right in one place and flat in the other,
    which is exactly how this trap has bitten before. The descendant selector is
    (0,2,0) and wins in both. */
-.fl-log .fl-lfix { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-left:2px; border-radius:10px; color:#c3c6cc; opacity:0; transition:opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.fl-log .fl-lfix { flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; margin-left:2px; border-radius:var(--r-button); color:var(--q); opacity:0; transition:opacity var(--t-fast) var(--ease), background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .fl-log:hover .fl-lfix, .fl-log .fl-lfix:focus-visible { opacity:1; }
-.fl-log .fl-lfix:hover { background:#f4f5f7; color:var(--ink); }
+.fl-log .fl-lfix:hover { background:var(--tint); color:var(--ink); }
 /* Touch has no hover, so the affordance is simply always visible there. */
 @media (hover:none){ .fl-log .fl-lfix { opacity:1; } }
 
 /* The remove confirmation. Says what happens rather than asking twice. */
-.fl-danger { display:flex; flex-direction:column; gap:8px; padding:16px 16px; border-radius:16px; background:rgba(255,51,102,.05); border:1px solid rgba(255,51,102,.16); }
-.fl-danger b { font-size:16px; font-weight:700; color:#050505; }
+.fl-danger { display:flex; flex-direction:column; gap:8px; padding:16px 16px; border-radius:var(--r-card); background:var(--bad-tint); border:1px solid var(--bad); }
+.fl-danger b { font-size:16px; font-weight:700; color:var(--ink); }
 .fl-danger em { font-style:normal; font-size:13px; font-weight:500; line-height:1.55; color:var(--gray500); }
 .fl-danger .fl-foot { margin-top:4px; }
 
 /* A footer with a destructive action on the left and the commit pair right. */
 .fl-foot.spread { justify-content:space-between; }
 .fl-footright { display:inline-flex; gap:8px; }
+.fl-foot.bar { margin-top:16px; padding:16px 32px; border-top:1px solid var(--line); background:var(--tint); }
+.fl-footnote { margin-right:auto; font-size:12px; color:var(--q); }
 /* ══════════════════ TIFF — KNOWLEDGE BASE (.tk-) ══════════════════════════
    The library page and its upload drawer. Everything the LIBRARY draws is
    scoped `.fg .tk-…`: `.fg button` and `.fg input` are (0,1,1) resets, so a
@@ -8894,7 +8897,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); cursor:pointer;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .fl-modal .tk-dshit:hover { background:var(--tint); border-color:var(--line); }
-.fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink);  box-shadow:var(--ring); }
+.fl-modal .tk-dshit:focus-visible { outline:none; border-color:var(--ink);   box-shadow:var(--ring); }
 .fl-modal .tk-dsp { flex:none; display:inline-flex; align-items:center; gap:4px; padding-top:1px;
   color:var(--q); font-size:12px; font-weight:700; }
 .fl-modal .tk-dstxt { min-width:0; font-size:13px; font-weight:500; line-height:1.55; color:var(--ink); }
@@ -8937,7 +8940,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fl-modal .tk-confirm { margin:0; font-size:14px; font-weight:600; line-height:1.6; color:var(--ink); }
 
 /* ── the upload drawer: portalled, so the ramp and the font start again ── */
-.tk-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(10,11,16,.45); backdrop-filter:blur(5px);
+.tk-scrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim); backdrop-filter:blur(5px);
   animation:tkFade .28s both;
   color:var(--ink); }
 @keyframes tkFade { from { opacity:0; } to { opacity:1; } }
@@ -9038,7 +9041,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   border:1.5px solid var(--line); border-radius:var(--r-control); background:var(--paper);
   transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .fg .tgp-find:focus-within, .tk-sheet .tgp-find:focus-within, .fl-modal .tgp-find:focus-within {
-  border-color:var(--ink);  box-shadow:var(--ring); }
+  border-color:var(--ink);   box-shadow:var(--ring); }
 .fg .tgp-find svg, .tk-sheet .tgp-find svg, .fl-modal .tgp-find svg { flex:none; color:var(--gray400); }
 .fg .tgp-find input, .tk-sheet .tgp-find input, .fl-modal .tgp-find input {
   flex:1 1 auto; min-width:0; height:100%; padding:0; border:none; background:none; outline:none;
@@ -9082,7 +9085,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
   background:color-mix(in srgb, var(--tgc, var(--ink)) 10%, var(--paper)); color:var(--ink); }
 .fg .tgp-t:disabled, .tk-sheet .tgp-t:disabled, .fl-modal .tgp-t:disabled { opacity:.4; pointer-events:none; }
 .fg .tgp-t:focus-visible, .tk-sheet .tgp-t:focus-visible, .fl-modal .tgp-t:focus-visible {
-  outline:none;  box-shadow:var(--ring); }
+  outline:none;   box-shadow:var(--ring); }
 
 .fg .tgp-none, .tk-sheet .tgp-none, .fl-modal .tgp-none,
 .fg .tgp-full, .tk-sheet .tgp-full, .fl-modal .tgp-full {
@@ -9098,7 +9101,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .fg .tgs-s:hover, .tk-sheet .tgs-s:hover, .fl-modal .tgs-s:hover { }
 .fg .tgs-s.on, .tk-sheet .tgs-s.on, .fl-modal .tgs-s.on { border-color:var(--ink); }
 .fg .tgs-s:focus-visible, .tk-sheet .tgs-s:focus-visible, .fl-modal .tgs-s:focus-visible {
-  outline:none;  box-shadow:var(--ring); }
+  outline:none;   box-shadow:var(--ring); }
 
 /* ── the pills on a library row ── */
 /* Small, quiet, and PRESSABLE: a tag on a row is the fastest way to the
@@ -10608,7 +10611,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    .tsend are ink-on-white already.
    =================================================================== */
 .vm-ov { position:fixed; inset:0; z-index:var(--z-modal); display:flex; align-items:flex-start; justify-content:center; padding:32px 24px; overflow:auto;
-  background:rgba(10,11,16,.5); backdrop-filter:blur(6px); animation:flFade .2s ease;
+  background:var(--scrim); backdrop-filter:blur(6px); animation:flFade .2s ease;
   font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased;
                                                                                                                               
   --vm-muted:var(--q); --vm-faint:var(--q); --vm-sunk:var(--tint); --vm-sunk-h:var(--tint-2); --vm-chip:var(--tint); --vm-chip-h:var(--tint-2);
@@ -10748,14 +10751,7 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
 .vm-btn.warn { background:var(--warn-t); color:var(--paper); padding:8px 12px; font-size:13px; border-radius:var(--r-button); }
 .vm-btn.warn:hover { background:var(--warn-t); }
 
-/* ---- footer ---- */
-.vm-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:16px; padding:16px 32px; border-top:1px solid var(--vm-line); background:var(--tint); }
-.vm-foot.between { justify-content:space-between; }
-/* A fact about what the button is going to do to the data, sitting with the
-   button rather than as a caption higher up the screen. `margin-right:auto`
-   rather than `.between`, so it takes the room the buttons don't and the two
-   buttons stay a pair. */
-.vm-footnote { margin-right:auto; font-size:12px; color:var(--vm-muted); }
+/* ---- footer: the one footer, `.fl-foot.bar` (law 28) ---- */
 
 /* ---- renewal screens ---- */
 .vm-status { display:flex; align-items:center; justify-content:space-between; gap:16px; border-radius:var(--r-card); padding:16px 16px; border:1px solid var(--vm-line2); background:var(--vm-sunk); }

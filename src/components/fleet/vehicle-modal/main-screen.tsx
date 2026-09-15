@@ -437,7 +437,7 @@ export function MainScreen({
       </div>
 
       {/* ---- footer ---- */}
-      <div className="vm-foot between">
+      <div className="fl-foot bar spread">
         <Btn
           kind="danger"
           onClick={() => (confirmRemove ? onRemove() : setConfirmRemove(true))}

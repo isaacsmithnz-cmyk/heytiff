@@ -14,33 +14,32 @@
   --ds-ck-pad-l: 9px;
   --ds-ck-pad-r: 4px;
   --ds-syscard-w: calc(var(--ds-cockpit-w) - var(--ds-ck-pad-l) - var(--ds-ck-pad-r));
-  --ds-border: rgba(10, 12, 20, 0.07);
-  --ds-card-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
-    0 20px 50px -30px rgba(10, 12, 20, 0.24);
+  --ds-border: var(--line);
+  --ds-card-shadow: none;
   /* ── cockpit panel tokens (imported from the dev handoff, exact values) ──
      --label/--faint from the handoff are byte-identical to the shell's
      --gray500/--gray400, so those are reused directly. Mono maps to Jakarta
      (no monospaced face anywhere in the studio). */
-  --ds-card2: #f4f5f7;
+  --ds-card2: var(--tint);
   --ds-border-s: rgba(10, 12, 20, 0.13);
-  --ds-ok: #00a389;
-  --ds-ok-bg: rgba(0, 229, 192, 0.13);
-  --ds-amber: #f0a431;
-  --ds-amber-d: #b45309;
+  --ds-ok: var(--ok-t);
+  --ds-ok-bg: var(--ok-tint);
+  --ds-amber: var(--warn);
+  --ds-amber-d: var(--warn-t);
   /* COVERAGE INK, and the one green that is allowed to carry meaning.
      `--ds-ok` (#00a389) is the accent teal and measures 2.97 on the panel
      grey — under the 3:1 graphic floor — so it cannot say "covered". This
      darker green is what every "covered" figure has actually been painted
      in, written out as a literal in five places before it had a name. Its
      bright twin lands in the dark-chrome block below with --ds-amber-d. */
-  --ds-ok-d: #00806c;
-  --ds-amber-bg: rgba(240, 164, 49, 0.14);
-  --ds-teal-ink: #05887a;
-  --ds-teal-bg: rgba(0, 229, 192, 0.15);
-  --ds-ink-hero: #11141b;
-  --ds-red-d: #e0264f;
-  --ds-grad: linear-gradient(90deg, #00e5c0 0%, #2e68ff 100%);
-  --ds-sh-sm: 0 1px 2px rgba(10, 12, 20, 0.05);
+  --ds-ok-d: var(--ok-t);
+  --ds-amber-bg: var(--warn-tint);
+  --ds-teal-ink: var(--ink);
+  --ds-teal-bg: var(--tint-2);
+  --ds-ink-hero: var(--ink);
+  --ds-red-d: var(--bad);
+  --ds-grad: var(--ink);
+  --ds-sh-sm: none;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -196,10 +195,10 @@ html[data-ds-display] .dstudio.editing {
    up with the canvas rather than behind it. */
 .fg .outlet:has(.dstudio:not(.editing)),
 .fg .outlet:has(.dstudio.editing.exiting) {
-  background: transparent; /* was #EDEFF4 — show the #050505 frame through */
-  background-image: none; /* drop the light dot-grid */
-  border-radius: 0; /* drop the rounded well corners/notch */
-  box-shadow: none; /* drop the bright white inset top line */
+  background: transparent;                                                   
+  background-image: none;                              
+  border-radius:0;                                           
+  box-shadow: none;                                           
 }
 /* ...and paint the start screen's dot grid on the FRAME itself via the shell's
    (otherwise unused) full-frame .gridbg layer, so the backdrop spans
@@ -264,14 +263,11 @@ html[data-ds-display] .dstudio.editing {
    no scrim; the frame's dot grid is the only backdrop) */
 .dstudio .ds-hero {
   position: relative;
-  color: #fff;
+  color: var(--paper);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  /* The stack centres both columns. With the pitch copy gone the hero is two
-     elements tall, so centring it against the full-height Recent card left a
-     deep well of nothing above the title — it sits at the top instead, level
-     with the card's own head. The Recent column keeps its centring. */
+                                                                                                                                                                                                                                                                                                                 
   align-self: start;
   padding-top: 24px;
 }
@@ -299,12 +295,11 @@ html[data-ds-display] .dstudio.editing {
   align-self: flex-start;
   height: 52px;
   padding: 0 24px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: var(--teal);
   color: var(--ink);
   font-size: 16px;
   font-weight: 700;
-  box-shadow: 0 12px 24px -8px rgba(0, 229, 192, 0.45);
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-cta:hover {
@@ -369,39 +364,22 @@ html[data-ds-display] .dstudio.editing {
 /* The landing's single action. Sized on its own class, not on `.ds-cta`: the
    wizard's nav buttons share that base and must stay small. */
 .dstudio .ds-cta.ds-start {
-  /* IN THE MIDDLE OF THE CLOUD. The anchor above places the cloud's centre;
-     this puts the button's centre on the same point — half its own height
-     above it, hence the negative margin, and 6px further for the field's own
-     centroid, which measured that far below the anchor — so the dots are
-     evenly distributed around it rather than sitting on top of it.
-
-     This is what the shared glass buys. The button was held clear of the
-     field while it was an opaque fill, because an opaque box in the middle of
-     a cloud is a hole in it; the same box in glass has the dots passing
-     BEHIND it, softened by the 16px backdrop blur. */
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
   position: relative;
   z-index: 1;
   margin-top: -40px;
   height: 68px;
-  /* THE SAME GLASS AS THE RECENT CARD, from the same three tokens. It was its
-     own darker, bluer mix with a teal-and-blue pair of glows under it, which
-     put two different glasses on one screen — side by side, the difference
-     read as an accident rather than as emphasis.
-
-     No `-webkit-backdrop-filter` twin: the pair collapses to the prefixed
-     property alone in the build and the blur is silently dropped (see
-     .ds-veil). */
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                
   background: var(--ds-night);
   backdrop-filter: blur(16px);
   border: 1px solid var(--ds-night-line);
-  color: #fff;
+  color: var(--paper); 
   box-shadow: var(--ds-night-drop);
-  /* Wide enough to carry the title's weight, capped so it never outruns the
-     column on a big screen. */
+                                                                                                            
   width: min(100%, 360px);
   justify-content: space-between;
   padding: 0 12px 0 32px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 16px;
 }
 /* The button's end-cap: a plain white arrow on the glass, no chip behind it.
@@ -415,7 +393,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 48px;
   height: 48px;
-  color: #fff;
+  color: var(--paper);
   transition: transform var(--t-move) var(--ease);
 }
 .dstudio .ds-cta.ds-start:hover .ds-start-mk {
@@ -441,9 +419,9 @@ html[data-ds-display] .dstudio.editing {
   align-self: flex-start;
   font: 700 12px var(--mono);
   color: var(--teal);
-  background: rgba(0, 229, 192, 0.12);
-  border: 1px solid rgba(0, 229, 192, 0.28);
-  border-radius: 999px;
+  background: var(--tint);
+  border: 1px solid var(--ink);
+  border-radius:var(--r-pill);
   padding: 4px 12px;
   margin-bottom: 16px;
 }
@@ -454,7 +432,7 @@ html[data-ds-display] .dstudio.editing {
   margin: 0 0 4px;
 }
 .dstudio .ds-hero-esub b {
-  color: #fff;
+  color: var(--paper);
   font-weight: 700;
 }
 .dstudio .ds-hero-nav {
@@ -469,7 +447,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-cta:disabled {
   opacity: 0.4;
-  cursor: default;
+  cursor: default; 
   box-shadow: none;
   transform: none;
 }
@@ -483,10 +461,10 @@ html[data-ds-display] .dstudio.editing {
   max-width: 420px;
   height: 48px;
   padding: 0 16px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: var(--paper);
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 16px;
@@ -498,7 +476,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-name-input:focus {
   outline: none;
-  border-color: rgba(0, 229, 192, 0.6);
+  border-color: var(--ink);
 }
 
 /* ── Start from a ServiceM8 job ───────────────────────────────────────────
@@ -527,13 +505,13 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   height: 46px;
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.14);
   transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-search:focus-within {
-  border-color: rgba(0, 229, 192, 0.6);
+  border-color: var(--ink);
 }
 .dstudio .ds-sm8-search svg {
   color: rgba(255, 255, 255, 0.42);
@@ -545,7 +523,7 @@ html[data-ds-display] .dstudio.editing {
   border: none;
   outline: none;
   background: transparent;
-  color: #fff;
+  color: var(--paper);
   font-size: 14px;
   font-weight: 600;
 }
@@ -565,18 +543,16 @@ html[data-ds-display] .dstudio.editing {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  /* the hero is vertically centred and `.ds-home` clips — cap against the
-     viewport too so a short window scrolls the list instead of losing it */
+                                                                                                                                                       
   max-height: min(264px, 38vh);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 4px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: rgba(16, 16, 18, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  box-shadow: 0 26px 50px -18px rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.13); box-shadow: var(--shadow-overlay);
 }
 .dstudio .ds-sm8-opt {
   display: flex;
@@ -585,15 +561,15 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   text-align: left;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1px solid transparent;
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-opt:hover,
 .dstudio .ds-sm8-opt:focus-visible {
   outline: none;
-  background: rgba(0, 229, 192, 0.1);
-  border-color: rgba(0, 229, 192, 0.32);
+  background: var(--tint);
+  border-color: var(--ink);
 }
 /* A FIXED column, not a shrink-wrapped chip: job numbers run 4 digits with an
    occasional letter ("3077A"), and letting the chip size to its content sets
@@ -605,7 +581,7 @@ html[data-ds-display] .dstudio.editing {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 4px 4px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: rgba(255, 255, 255, 0.07);
   color: rgba(255, 255, 255, 0.62);
   font-size: 12px;
@@ -629,7 +605,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sm8-t {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--paper);
 }
 /* Both of these sit on the panel's near-black, where a white at .5 and one at
    .36 read as "grey" and "not quite there" rather than as two levels. The
@@ -660,9 +636,9 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   min-height: 46px;
   padding: 8px 8px 8px 12px;
-  border-radius: 10px;
-  background: rgba(0, 229, 192, 0.09);
-  border: 1px solid rgba(0, 229, 192, 0.32);
+  border-radius:var(--r-button);
+  background: var(--tint);
+  border: 1px solid var(--ink);
   color: rgba(255, 255, 255, 0.8);
 }
 .dstudio .ds-sm8-on svg {
@@ -679,7 +655,7 @@ html[data-ds-display] .dstudio.editing {
   white-space: nowrap;
 }
 .dstudio .ds-sm8-onl b {
-  color: #fff;
+  color: var(--paper);
   font-weight: 700;
 }
 .dstudio .ds-sm8-clear {
@@ -689,13 +665,13 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   color: rgba(255, 255, 255, 0.5);
   transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-sm8-clear:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-opts {
   display: grid;
@@ -710,7 +686,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 12px;
   text-align: left;
   padding: 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
@@ -718,8 +694,8 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-opt:hover {
-  background: rgba(0, 229, 192, 0.08);
-  border-color: rgba(0, 229, 192, 0.45);
+  background: var(--tint);
+  border-color: var(--ink);
 }
 .dstudio .ds-opt-ic {
   display: flex;
@@ -727,13 +703,13 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 42px;
   height: 42px;
-  border-radius: 10px;
-  background: rgba(0, 229, 192, 0.12);
-  border: 1px solid rgba(0, 229, 192, 0.25);
+  border-radius:var(--r-button);
+  background: var(--tint);
+  border: 1px solid var(--ink);
   color: var(--teal);
 }
 .dstudio .ds-opt-n {
-  color: #fff;
+  color: var(--paper);
   font-size: 16px;
   font-weight: 700;
 }
@@ -750,7 +726,7 @@ html[data-ds-display] .dstudio.editing {
   align-self: flex-start;
   height: 38px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.7);
@@ -760,7 +736,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-hero-back:hover {
   background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  color: var(--paper);
 }
 
 /* THE LANDING'S GLASS, ONCE. The Recent card and the New design button are
@@ -779,17 +755,14 @@ html[data-ds-display] .dstudio.editing {
 
 /* Recent designs — glass card on the dark canvas */
 .dstudio .ds-recent {
-  /* Over the cloud. Below 1100px the two columns stack and the cloud's tail
-     reaches the card's top edge; the card is the thing being read, so it
-     covers the stray dots rather than wearing them. */
+                                                                                                                                                                                                              
   position: relative;
   z-index: 1;
   background: var(--ds-night);
   border: 1px solid var(--ds-night-line);
-  border-radius: 16px;
+  border-radius:var(--r-card); 
   box-shadow: var(--ds-night-drop);
-  /* no -webkit- twin — see .ds-veil: the pair collapses to the prefixed
-     property alone and the blur is silently dropped */
+                                                                                                                                
   backdrop-filter: blur(16px);
   padding: 24px 24px;
   display: flex;
@@ -807,7 +780,7 @@ html[data-ds-display] .dstudio.editing {
   flex: 1 1 100%;
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-recent-tools {
   width: 100%;
@@ -821,7 +794,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   height: 42px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: rgba(255, 255, 255, 0.82);
@@ -832,8 +805,8 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
 }
 .dstudio .ds-import:hover {
-  border-color: rgba(0, 229, 192, 0.5);
-  color: #fff;
+  border-color: var(--ink);
+  color: var(--paper);
 }
 .dstudio .ds-search {
   flex: 1;
@@ -842,13 +815,13 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
+  border-radius:var(--r-control);
   height: 42px;
   padding: 0 12px;
   transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-search:focus-within {
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 .dstudio .ds-search svg {
   color: rgba(255, 255, 255, 0.42);
@@ -862,7 +835,7 @@ html[data-ds-display] .dstudio.editing {
   background: transparent;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-search input::placeholder {
   color: rgba(255, 255, 255, 0.42);
@@ -881,7 +854,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 12px;
   padding: 12px 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
@@ -889,8 +862,8 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
 }
 .dstudio .ds-rcard:hover {
-  background: rgba(0, 229, 192, 0.07);
-  border-color: rgba(0, 229, 192, 0.45);
+  background: var(--tint);
+  border-color: var(--ink);
 }
 
 /* ── the list still loading ──
@@ -924,7 +897,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-rcard.skel .ds-rthumb.ds-skb {
   display: block;
   border: 0;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: rgba(255, 255, 255, 0.07);
   background-image: linear-gradient(
     100deg,
@@ -936,7 +909,7 @@ html[data-ds-display] .dstudio.editing {
   animation: dsSweep 1.6s ease-in-out infinite;
 }
 /* the thumb keeps its own 46px box; the rest are the real lines' heights */
-.dstudio .ds-rcard.skel .ds-rthumb.ds-skb { border-radius: 10px; }
+.dstudio .ds-rcard.skel .ds-rthumb.ds-skb { border-radius:var(--r-button); }
 .dstudio .ds-skb-nm { width: 46%; height: 12px; margin-bottom: 8px; }
 .dstudio .ds-skb-mt { width: 72%; height: 9px; }
 .dstudio .ds-skb-wh { flex: 0 0 auto; width: 52px; height: 9px; }
@@ -961,7 +934,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 46px;
   height: 46px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.7);
@@ -973,7 +946,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-rnm {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--paper);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -995,13 +968,13 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   color: rgba(255, 255, 255, 0.4);
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-rdel:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-rdel.arm {
   width: auto;
@@ -1256,10 +1229,8 @@ html[data-ds-display] .dstudio.editing {
   grid-column: 1;
   grid-row: 2;
   z-index: 0;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
-    0 30px 70px -30px rgba(0, 0, 0, 0.75);
+  background: var(--paper);
+  border-radius:var(--r-card);
   transition: margin-left var(--t-move) var(--ease);
 }
 /* The Design step's cards (bench · canvas · cockpit) sit straight on the
@@ -1277,7 +1248,7 @@ html[data-ds-display] .dstudio.editing {
    out-specify the base .ds-panel-card fill defined further down the file. */
 .dstudio .ds-editor .ds-panel-card {
   background: transparent;
-  border-color: transparent;
+  border-color: transparent; 
   box-shadow: none;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1302,30 +1273,28 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.08);
-  color: var(--gray500);
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
+  border-radius:var(--r-button);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  color: var(--gray500); box-shadow: var(--shadow-overlay);
   transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-menu-btn:hover {
   color: var(--ink);
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 .dstudio .ds-menu-btn.on {
   color: var(--ink);
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 .dstudio .ds-menu-pop {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
   width: 200px;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
+  border-radius:var(--r-card); box-shadow: var(--shadow-overlay);
   padding: 4px;
   z-index: 30;
 }
@@ -1336,14 +1305,14 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   height: 34px;
   padding: 0 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   font-weight: 700;
   color: var(--gray700);
   text-align: left;
 }
 .dstudio .ds-menu-item:hover:not(:disabled) {
-  background: #f4f5f7;
+  background: var(--tint);
   color: var(--ink);
 }
 .dstudio .ds-menu-item:disabled {
@@ -1353,7 +1322,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-menu-sep {
   height: 1px;
   margin: 4px 4px;
-  background: rgba(10, 12, 20, 0.08);
+  background: var(--tint-2);
 }
 /* load settings — the engine inputs ride the bottom of the menu (see
    StudioMenu). Stacked label-over-select rows sized to the 200px pop;
@@ -1384,8 +1353,8 @@ html[data-ds-display] .dstudio.editing {
   height: 30px;
   padding: 0 4px;
   border: 1px solid var(--ds-border);
-  border-radius: 6px;
-  background: #fff;
+  border-radius:var(--r-control);
+  background: var(--paper);
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -1407,7 +1376,7 @@ html[data-ds-display] .dstudio.editing {
   max-width: 320px;
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: transparent;
   padding: 4px 8px;
   font-family: var(--font);
@@ -1417,12 +1386,12 @@ html[data-ds-display] .dstudio.editing {
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-title-input:hover {
-  background: rgba(10, 12, 20, 0.04);
+  background: var(--tint);
 }
 .dstudio .ds-title-input:focus {
   outline: none;
-  background: #fff;
-  border-color: rgba(0, 229, 192, 0.6);
+  background: var(--paper);
+  border-color: var(--ink); 
   box-shadow: var(--ring);
 }
 /* The topbar job PILL used to live here. Nothing renders it any more — the
@@ -1442,8 +1411,8 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   gap: 4px;
   background: #e4e6ec;
-  border: 1px solid rgba(10, 12, 20, 0.05);
-  border-radius: 16px;
+  border: 1px solid var(--line);
+  border-radius:var(--r-card);
   padding: 4px;
 }
 /* Sized off the track, so it stays exact at any switcher width: two equal
@@ -1454,9 +1423,8 @@ html[data-ds-display] .dstudio.editing {
   bottom: 4px;
   left: 4px;
   width: calc((100% - 11px) / 2);
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 3px 8px -3px rgba(10, 12, 20, 0.28);
+  border-radius:var(--r-button);
+  background: var(--paper);
   transition: transform var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-steps[data-active="0"] .ds-steps-thumb {
@@ -1475,14 +1443,12 @@ html[data-ds-display] .dstudio.editing {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 700;
   color: var(--gray500);
-  /* the thumb carries the movement; the label's colour snaps, because
-     crossfading it between dark and light passes through a mid-grey that's
-     unreadable against the pill sliding underneath it */
+                                                                                                                                                                                                            
   transition: none;
 }
 .dstudio .ds-step:hover {
@@ -1519,21 +1485,19 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-save .dot {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius:50%;
   background: var(--teal);
-  box-shadow: 0 0 8px rgba(0, 229, 192, 0.8);
 }
 .dstudio .ds-save.saving .dot {
-  background: var(--gray400);
+  background: var(--gray400); 
   box-shadow: none;
 }
 /* server unreachable — the local buffer has it */
 .dstudio .ds-save.local {
-  color: #b45309;
+  color: var(--warn-t);
 }
 .dstudio .ds-save.local .dot {
-  background: #f0a431;
-  box-shadow: 0 0 8px rgba(240, 164, 49, 0.7);
+  background: var(--warn);
 }
 /* …and in that state the label IS the retry control. It keeps the status
    type — a button that shouted would read as an error banner for something
@@ -1548,17 +1512,17 @@ html[data-ds-display] .dstudio.editing {
   margin-left: -6px;
   padding: 4px 8px 4px 16px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   cursor: pointer;
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-save.retry:hover,
 .dstudio .ds-save.retry:focus-visible {
-  background: rgba(240, 164, 49, 0.14);
-  border-color: rgba(240, 164, 49, 0.45);
+  background: var(--warn-tint);
+  border-color: var(--warn);
 }
 .dstudio .ds-save.retry:active {
-  background: rgba(240, 164, 49, 0.22);
+  background: var(--warn-tint);
 }
 .dstudio .ds-tbbtn {
   display: inline-flex;
@@ -1566,17 +1530,16 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.08);
+  border-radius:var(--r-button);
+  background: var(--paper);
+  border: 1px solid var(--line);
   color: var(--gray700);
   font-size: 13px;
   font-weight: 700;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
   transition: border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-tbbtn:hover {
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 /* fullscreen toggle — .ds-menu-btn's square, docked in the right flank */
 .dstudio .ds-fsbtn {
@@ -1586,20 +1549,19 @@ html[data-ds-display] .dstudio.editing {
   flex: 0 0 auto;
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: #fff;
-  border: 1px solid rgba(10, 12, 20, 0.08);
+  border-radius:var(--r-button);
+  background: var(--paper);
+  border: 1px solid var(--line);
   color: var(--gray500);
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
   transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-fsbtn:hover {
   color: var(--ink);
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 .dstudio .ds-fsbtn.on {
   color: var(--ink);
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 
 /* ── design variations (Option 1/2/3…) + export menu ── */
@@ -1681,7 +1643,7 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   border: 1.5px dashed rgba(10, 12, 20, 0.14);
   background: linear-gradient(160deg, #edeff4, #e3e6ee);
 }
@@ -1701,11 +1663,10 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 56px;
   height: 56px;
-  border-radius: 16px;
-  background: #fff;
+  border-radius:var(--r-card);
+  background: var(--paper);
   border: 1px solid var(--ds-border);
   color: var(--gray500);
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
   margin-bottom: 8px;
 }
 .dstudio .ds-empty-t {
@@ -1720,10 +1681,9 @@ html[data-ds-display] .dstudio.editing {
   line-height: 1.55;
 }
 .dstudio .ds-panel-card {
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: var(--ds-card-shadow);
+  border-radius:var(--r-card);
   padding: 24px;
 }
 
@@ -1746,17 +1706,16 @@ html[data-ds-display] .dstudio.editing {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  flex-wrap: wrap; /* never push the cockpit off-screen — overflow wraps */
+  flex-wrap: wrap;                                                         
   gap: 2px;
   row-gap: 4px;
   min-width: 0;
   position: relative;
   z-index: 20;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 4px 8px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04);
 }
 .dstudio .ds-tool {
   display: inline-flex;
@@ -1764,22 +1723,22 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   height: 36px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   color: var(--gray700);
   font: 600 13px var(--font);
   white-space: nowrap;
   transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dstudio .ds-tool:hover:not(:disabled) {
-  background: #f4f5f7;
+  background: var(--tint);
   color: var(--ink);
 }
 /* the armed tool wears a coloured pill, not the black block (Isaac,
    2026-08-24 walk) — a tinted ground and a ring in the working teal, the
    label staying legible ink-on-tint */
 .dstudio .ds-tool.on {
-  background: rgba(0, 163, 137, 0.1);
-  color: var(--teal-d);
+  background: var(--tint);
+  color: var(--teal-d); 
   box-shadow: inset 0 0 0 1.5px var(--teal-d);
 }
 .dstudio .ds-tool.on svg {
@@ -1803,7 +1762,7 @@ html[data-ds-display] .dstudio.editing {
   width: 1px;
   height: 22px;
   margin: 0 4px;
-  background: rgba(10, 12, 20, 0.08);
+  background: var(--tint-2);
   flex: none;
 }
 .dstudio .ds-tb-spring {
@@ -1860,10 +1819,10 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   padding: 4px 12px;
   cursor: pointer;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   border: 1px solid rgba(0, 169, 143, 0.38);
   background: rgba(0, 190, 160, 0.12);
-  color: var(--ds-teal-ink, #007a67);
+  color: var(--ds-teal-ink, var(--ink));
   font: 700 12px var(--font);
   white-space: nowrap;
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
@@ -1879,7 +1838,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-nextdot {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: #00b896;
   flex: none;
 }
@@ -1890,11 +1849,11 @@ html[data-ds-display] .dstudio.editing {
 /* complete: a made choice — calm, neutral, still a door to the Summary */
 .dstudio .ds-nextchip.done {
   border-color: var(--ds-border);
-  background: #fff;
+  background: var(--paper);
   color: var(--gray700);
 }
 .dstudio .ds-nextchip.done .ds-nextdot {
-  background: var(--ds-ok, #00a389);
+  background: var(--ds-ok, var(--ink));
 }
 
 .dstudio .ds-canvas-col {
@@ -1927,19 +1886,19 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: #444;
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 999px;
+  color: var(--q);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius:var(--r-pill);
   padding: 4px 12px;
   cursor: pointer;
   white-space: nowrap;
 }
-.dstudio .ds-ctl-btn:hover { border-color: #cfcfcc; color: #1a1a1a; }
+.dstudio .ds-ctl-btn:hover { border-color: var(--line); color: var(--ink); }
 .dstudio .ds-ctl-btn.on {
   color: var(--teal-d);
   border-color: var(--teal-d);
-  background: rgba(20, 184, 166, 0.08);
+  background: var(--tint);
 }
 .dstudio .ds-layers-menu {
   position: absolute;
@@ -1947,10 +1906,9 @@ html[data-ds-display] .dstudio.editing {
   left: 0;
   z-index: 20;
   min-width: 168px;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid #e5e5e2;
-  border-radius: 16px;
-  box-shadow: 0 12px 30px -10px rgba(10, 12, 20, 0.3);
+  border-radius:var(--r-card); box-shadow: var(--shadow-overlay);
   padding: 4px;
 }
 .dstudio .ds-layer-row {
@@ -1958,7 +1916,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 8px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
@@ -2008,7 +1966,7 @@ html[data-ds-display] .dstudio.editing {
   left: 14px;
   z-index: 15;
   min-width: 176px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 12px 12px;
 }
 .dstudio .ds-legend-h {
@@ -2041,7 +1999,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-legend-sw {
   width: 22px;
   height: 4px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   flex: none;
 }
 .dstudio .ds-legend-sym {
@@ -2062,9 +2020,9 @@ html[data-ds-display] .dstudio.editing {
   box-shadow: none;
 }
 .dstudio .ds-legend-ic.room { background: rgba(240, 164, 49, 0.2); border: 1.5px solid #d98f1f; }
-.dstudio .ds-legend-ic.idu { border: 1.5px solid var(--ink); border-radius: 0; }
-.dstudio .ds-legend-ic.odu { border: 1.5px solid var(--ink); border-radius: 50%; }
-.dstudio .ds-legend-ic.riser { background: var(--ink); border-radius: 50%; }
+.dstudio .ds-legend-ic.idu { border: 1.5px solid var(--ink); border-radius:0; }
+.dstudio .ds-legend-ic.odu { border: 1.5px solid var(--ink); border-radius:50%; }
+.dstudio .ds-legend-ic.riser { background: var(--ink); border-radius:50%; }
 .dstudio .ds-legend-ic.drain {
   height: 0;
   border-top: 2px dashed var(--ink);
@@ -2119,7 +2077,7 @@ html[data-ds-display] .dstudio.editing {
   dominant-baseline: central;
 }
 .dstudio .ds-crop-preview {
-  fill: rgba(20, 184, 166, 0.12);
+  fill: var(--ink);
   stroke: var(--teal-d);
   stroke-width: 1.5;
   stroke-dasharray: 6 3;
@@ -2139,23 +2097,23 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  color: #b45309;
-  background: rgba(240, 164, 49, 0.16);
-  border: 1px solid rgba(240, 164, 49, 0.4);
-  border-radius: 999px;
+  color: var(--warn-t);
+  background: var(--warn-tint);
+  border: 1px solid var(--warn);
+  border-radius:var(--r-pill);
   padding: 4px 12px;
   cursor: pointer;
   white-space: nowrap;
 }
-.dstudio .ds-calib-pill:hover { background: rgba(240, 164, 49, 0.26); }
+.dstudio .ds-calib-pill:hover { background: var(--warn-tint); }
 .dstudio .ds-calib-pill.done {
   color: var(--teal-d);
-  background: rgba(20, 184, 166, 0.08);
+  background: var(--tint);
   border-color: var(--teal-d);
 }
-.dstudio .ds-calib-pill.done:hover { background: rgba(20, 184, 166, 0.14); }
-.dstudio .ds-calib-pill.on { box-shadow: var(--ring-warn); }
-.dstudio .ds-calib-pill.done.on { box-shadow: var(--ring); }
+.dstudio .ds-calib-pill.done:hover { background: var(--tint); }
+.dstudio .ds-calib-pill.on {  box-shadow: var(--ring-warn); }
+.dstudio .ds-calib-pill.done.on {  box-shadow: var(--ring); }
 /* wide enough that "Move plans" can't wrap — it was breaking onto a second
    line and making that row half again as tall as its neighbours */
 .dstudio .ds-calib-menu { min-width: 212px; }
@@ -2165,7 +2123,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   width: 100%;
   padding: 8px 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
@@ -2173,7 +2131,7 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
 }
 .dstudio .ds-calib-item:hover { background: var(--tint); }
-.dstudio .ds-calib-item.on { color: var(--teal-d); background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-calib-item.on { color: var(--teal-d); background: var(--tint); }
 .dstudio .ds-calib-item .k { font-weight: 700; white-space: nowrap; }
 .dstudio .ds-calib-item .v {
   margin-left: auto;
@@ -2189,8 +2147,8 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   color: var(--gray500);
-  background: #f1f2f4;
-  border-radius: 6px;
+  background: var(--tint);
+  border-radius:var(--r-control);
   padding: 1px 4px;
 }
 .dstudio .ds-calib-item:disabled {
@@ -2209,18 +2167,18 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius:var(--r-pill);
   padding: 4px 12px;
   cursor: pointer;
   white-space: nowrap;
 }
-.dstudio .ds-floor-trigger:hover { border-color: #cfcfcc; }
+.dstudio .ds-floor-trigger:hover { border-color: var(--line); }
 .dstudio .ds-floor-trigger.on { border-color: var(--teal-d); color: var(--teal-d); }
 .dstudio .ds-floor-menu { min-width: 200px; }
-.dstudio .ds-floor-row { display: flex; align-items: center; border-radius: 6px; }
-.dstudio .ds-floor-row.on { background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-floor-row { display: flex; align-items: center; border-radius:var(--r-control); }
+.dstudio .ds-floor-row.on { background: var(--tint); }
 .dstudio .ds-floor-pick {
   display: flex;
   align-items: center;
@@ -2228,7 +2186,7 @@ html[data-ds-display] .dstudio.editing {
   flex: 1;
   min-width: 0;
   padding: 8px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
@@ -2241,14 +2199,14 @@ html[data-ds-display] .dstudio.editing {
   flex: 0 0 auto;
   min-width: 26px;
   padding: 2px 4px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: #e4e6ec;
   font-size: 12px;
   font-weight: 700;
   color: var(--gray500);
   text-align: center;
 }
-.dstudio .ds-floor-row.on .ds-floor-pick .lvl { background: var(--teal-d); color: #fff; }
+.dstudio .ds-floor-row.on .ds-floor-pick .lvl { background: var(--teal-d); color: var(--paper); }
 .dstudio .ds-floor-pick .nm {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2262,7 +2220,7 @@ html[data-ds-display] .dstudio.editing {
   width: 24px;
   height: 24px;
   margin-right: 4px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   color: var(--gray400);
   cursor: pointer;
 }
@@ -2275,9 +2233,9 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-floor-confirm .yes {
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: var(--bad-t);
-  color: #fff;
+  color: var(--paper);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -2288,7 +2246,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   color: var(--gray500);
   cursor: pointer;
 }
@@ -2306,7 +2264,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--teal-d);
   cursor: pointer;
 }
-.dstudio .ds-floor-add:hover { background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-floor-add:hover { background: var(--tint); }
 
 /* System selector — dropdown in the hero top-left (mirrors the floor picker;
    reuses .ds-layers-menu + .ds-floor-confirm/x/add). */
@@ -2318,21 +2276,21 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink2);
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border-s);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 8px 4px 8px;
   cursor: pointer;
   white-space: nowrap;
   max-width: 160px;
 }
-.dstudio .ds-sys-trigger:hover { border-color: #cfcfcc; }
+.dstudio .ds-sys-trigger:hover { border-color: var(--line); }
 .dstudio .ds-sys-trigger.on { border-color: var(--teal-d); }
-.dstudio .ds-sys-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.dstudio .ds-sys-dot { width: 8px; height: 8px; border-radius:50%; flex: 0 0 auto; }
 .dstudio .ds-sys-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dstudio .ds-sys-menu { min-width: 214px; }
-.dstudio .ds-sys-row { display: flex; align-items: center; border-radius: 6px; }
-.dstudio .ds-sys-row.on { background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-sys-row { display: flex; align-items: center; border-radius:var(--r-control); }
+.dstudio .ds-sys-row.on { background: var(--tint); }
 .dstudio .ds-sys-pick {
   display: flex;
   align-items: center;
@@ -2340,7 +2298,7 @@ html[data-ds-display] .dstudio.editing {
   flex: 1;
   min-width: 0;
   padding: 8px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
@@ -2375,9 +2333,9 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-var-row {
   display: flex;
   align-items: center;
-  border-radius: 6px;
+  border-radius:var(--r-control);
 }
-.dstudio .ds-var-row.on { background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-var-row.on { background: var(--tint); }
 .dstudio .ds-var-pick {
   display: flex;
   align-items: center;
@@ -2385,7 +2343,7 @@ html[data-ds-display] .dstudio.editing {
   flex: 1;
   min-width: 0;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font-size: 12px;
   font-weight: 600;
   color: var(--gray700);
@@ -2410,7 +2368,7 @@ html[data-ds-display] .dstudio.editing {
   width: 22px;
   height: 22px;
   margin-right: 4px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   color: var(--gray400);
   cursor: pointer;
 }
@@ -2421,27 +2379,27 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   width: 100%;
   padding: 4px 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 12px;
   font-weight: 700;
   color: var(--teal-d);
   cursor: pointer;
 }
-.dstudio .ds-var-add:hover { background: rgba(20, 184, 166, 0.08); }
+.dstudio .ds-var-add:hover { background: var(--tint); }
 .dstudio .ds-var-rename { padding: 2px 2px 4px; }
 .dstudio .ds-var-rename input {
   width: 100%;
   height: 28px;
   padding: 0 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 229, 192, 0.55);
-  background: #fafbfc;
+  border-radius:var(--r-control);
+  border: 1px solid var(--ink);
+  background: var(--tint);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
 }
 .dstudio .ds-var-rename input:focus {
-  outline: none;
+  outline: none; 
   box-shadow: var(--ring);
 }
 
@@ -2462,10 +2420,9 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   width: min(1000px, 100%);
   height: min(90vh, 100%);
-  background: #fff;
-  border-radius: 16px;
+  background: var(--paper);
+  border-radius:var(--r-card);
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
 }
 .ds-ref-head {
   display: flex;
@@ -2473,7 +2430,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
 }
 .ds-ref-title {
   display: flex;
@@ -2481,15 +2438,13 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   font-size: 14px;
   min-width: 0;
-  /* the dialog PORTALS to body, so it inherits the body ink ramp rather than
-     the studio's — without this the heading lands mid-grey on white and can't
-     be read. Set here, not on .ds-ref, so .ds-ref-sub stays deliberately quiet */
-  color: #1a1a1a;
+                                                                                                                                                                                                                                               
+  color: var(--ink);
 }
 .ds-ref-sub {
   font-size: 12px;
   font-weight: 400;
-  color: #8a8a8a;
+  color: var(--q);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2504,24 +2459,24 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: #565656;
+  color: var(--q);
   background: #f5f5f4;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 4px 12px;
   cursor: pointer;
 }
 .ds-ref-tabs button.on {
-  background: #fff;
+  background: var(--paper);
   border-color: #d8d8d5;
-  color: #1a1a1a;
+  color: var(--ink);
 }
 /* the sheet's own messages — same portal-inheritance trap as the title */
-.ds-ref-msg { color: #1a1a1a; }
+.ds-ref-msg { color: var(--ink); }
 .ds-ref-body {
   flex: 1;
   min-height: 0;
-  background: #f0f0ee;
+  background: var(--tint);
   display: flex;
 }
 .ds-ref-frame { flex: 1; border: none; width: 100%; height: 100%; }
@@ -2533,7 +2488,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-ref-msg {
   margin: auto;
-  color: #8a8a8a;
+  color: var(--q);
   font-size: 13px;
 }
 
@@ -2542,16 +2497,14 @@ html[data-ds-display] .dstudio.editing {
   position: relative;
   flex: 1;
   min-height: 420px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   border: 1px solid rgba(10, 12, 20, 0.1);
   background: linear-gradient(160deg, #f2f3f7, #e9ebf2);
   box-shadow: 0 2px 8px rgba(10, 12, 20, 0.05),
     0 20px 44px -24px rgba(10, 12, 20, 0.3);
   overflow: hidden;
   touch-action: none;
-  /* belt to the root-level brace in canvas.tsx: if this element ever gains
-     real scrollable overflow, the sideways pan must stop here rather than
-     chain outwards and become a browser back-swipe */
+                                                                                                                                                                                                             
   overscroll-behavior: none;
 }
 .dstudio .ds-canvas svg {
@@ -2599,7 +2552,7 @@ html[data-ds-display] .dstudio.editing {
 }
 
 /* white paper backdrop under the dot grid */
-.dstudio .ds-paper { fill: #ffffff; }
+.dstudio .ds-paper { fill: var(--paper); }
 /* graph-paper dots (screen-space pattern) */
 .dstudio .ds-dot-major { fill: var(--q); opacity: 0.55; }
 .dstudio .ds-dot-sub { fill: var(--q); opacity: 0.22; }
@@ -2676,7 +2629,7 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 600;
 }
 .dstudio .ds-vertex {
-  fill: #fff;
+  fill: var(--paper);
   stroke: var(--teal-d);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
@@ -2742,7 +2695,7 @@ html[data-ds-display] .dstudio.editing {
   width: min(360px, calc(100% - 32px));
   background: #fff;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
   padding: 12px 16px;
   z-index: 6;
@@ -2974,10 +2927,9 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-calib-card {
   position: absolute;
   width: 226px;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
+  border-radius:var(--r-card);
   padding: 12px;
   z-index: 5;
 }
@@ -2998,17 +2950,17 @@ html[data-ds-display] .dstudio.editing {
   min-width: 0;
   height: 38px;
   padding: 0 12px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   border: 1px solid var(--line);
-  background: #fafbfc;
+  background: var(--tint);
   font-size: 14px;
   font-weight: 600;
 }
 .dstudio .ds-calib-row input:focus {
   outline: none;
-  border-color: rgba(0, 229, 192, 0.65);
+  border-color: var(--ink); 
   box-shadow: var(--ring);
-  background: #fff;
+  background: var(--paper);
 }
 .dstudio .ds-calib-row span {
   font-size: 13px;
@@ -3022,22 +2974,22 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-calib-cancel {
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 12px;
   font-weight: 700;
   color: var(--gray500);
 }
 .dstudio .ds-calib-cancel:hover {
-  background: #f4f5f7;
+  background: var(--tint);
   color: var(--ink);
 }
 .dstudio .ds-calib-ok {
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 12px;
   font-weight: 700;
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-calib-ok:hover {
   background: #16181f;
@@ -3049,7 +3001,7 @@ html[data-ds-display] .dstudio.editing {
   width: 264px;
   background: #fff;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   box-shadow: 0 24px 60px -18px rgba(10, 12, 20, 0.4);
   padding: 12px;
   z-index: 6;
@@ -3059,7 +3011,7 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   resize: none;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   border: 1px solid var(--line);
   background: #fafbfc;
   font-family: inherit;
@@ -3081,11 +3033,10 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-note-ink {
   width: 22px;
   height: 22px;
-  /* `.fg button` resets background/border but NOT padding, and the UA's own
-     button padding would squash these circles into ovals */
+                                                                                                                                         
   padding: 0;
   border: none;
-  border-radius: 50%;
+  border-radius:50%;
   flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px rgba(10, 12, 20, 0.16);
 }
@@ -3110,7 +3061,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-noteink-dot {
   width: 13px;
   height: 13px;
-  border-radius: 50%;
+  border-radius:50%;
   flex: 0 0 auto;
   box-shadow: inset 0 0 0 1px rgba(10, 12, 20, 0.22);
 }
@@ -3133,10 +3084,9 @@ html[data-ds-display] .dstudio.editing {
   z-index: 12;
   width: 232px;
   padding: 12px 12px 12px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: #0c0d12;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
   color: #eceef4;
   font: 500 12px var(--font);
   pointer-events: none;
@@ -3161,12 +3111,12 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-unitcard-sw {
   width: 9px;
   height: 9px;
-  border-radius: 0;
+  border-radius:0;
   flex: none;
 }
 .dstudio .ds-unitcard-role {
   font: 700 12px var(--font);
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-unitcard-sys {
   margin-left: auto;
@@ -3179,7 +3129,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-unitcard-model {
   margin-top: 4px;
   font: 700 16px var(--font);
-  color: #fff;
+  color: var(--paper);
   word-break: break-word;
 }
 .dstudio .ds-unitcard-kind {
@@ -3229,23 +3179,19 @@ html[data-ds-display] .dstudio.editing {
   position: absolute;
   right: 14px;
   bottom: 12px;
-  /* The one canvas HUD that never declared a layer. Its glass makes it a
-     stacking context, so on z-index:auto it sat at the bottom of the
-     positioned pile and ANY other overlay would cover it. 12 puts it with
-     the persistent canvas furniture (present banner, sim readout) — above
-     the transient guidance cards, below the interactive HUDs and menus. */
+                                                                                                                                                                                                                                                                                                                                                                                 
   z-index: 12;
   display: flex;
   align-items: center;
   gap: 2px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 4px;
 }
 .dstudio .ds-zoomctl button {
   min-width: 30px;
   height: 30px;
   padding: 0 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   font-weight: 700;
   color: var(--gray500);
@@ -3326,13 +3272,12 @@ html[data-ds-display] .dstudio.editing {
   line-height: 1.45;
   color: var(--ink);
   background: var(--ds-card2);
-  /* the two inner edges only — the outer two are the canvas's own border */
+                                                                            
   border-left: 1px solid var(--ds-border-s);
   border-bottom: 1px solid var(--ds-border-s);
-  border-radius: 0 16px 0 16px;
+  border-radius:0 var(--r-card) 0 var(--r-card);
   padding: 12px 12px 12px 16px;
-  box-shadow: -6px 8px 20px -14px rgba(10, 12, 20, 0.5);
-  /* the window never eats a click meant for the plan; only the × does */
+                                                                         
   pointer-events: none;
   animation: ds-tool-hint-in 0.14s ease-out;
 }
@@ -3369,15 +3314,14 @@ html[data-ds-display] .dstudio.editing {
   height: 20px;
   margin: -1px -4px 0 2px;
   padding: 0;
-  border-radius: 6px;
-  /* --gray400 (#9ca3af) is 2.4:1 on the panel grey — under the 3:1 graphic
-     floor. gray500 is the faintest ink this surface can carry. */
+  border-radius:var(--r-control);
+                                                                                                                                              
   color: var(--gray500);
   pointer-events: auto;
   cursor: pointer;
 }
 .dstudio .ds-tool-hint-x:hover {
-  background: rgba(10, 12, 20, 0.07);
+  background: var(--tint-2);
   color: var(--ink);
 }
 
@@ -3491,8 +3435,8 @@ html[data-ds-display] .dstudio.editing {
   overflow-y: auto;
   padding: 12px;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  background: #f7f8fa;
+  border-radius:var(--r-card);
+  background: var(--tint);
   transition: flex-basis var(--t-move) var(--ease), margin var(--t-move) var(--ease), padding var(--t-move) var(--ease), border-width var(--t-move) var(--ease), opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-tray-head {
@@ -3517,13 +3461,13 @@ html[data-ds-display] .dstudio.editing {
   pointer-events: none;
 }
 .dstudio .ds-tray.live {
-  border-color: rgba(0, 163, 137, 0.5);
+  border-color: var(--ink);
   border-style: dashed;
 }
 .dstudio .ds-tray.over {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.12);
+  background: var(--tint); 
   box-shadow: inset var(--ring);
 }
 
@@ -3537,14 +3481,13 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   padding: 8px;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  background: #fff;
+  border-radius:var(--r-card);
+  background: var(--paper);
   cursor: grab;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
   transition: transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-plancard:hover {
-  border-color: rgba(0, 229, 192, 0.5);
+  border-color: var(--ink);
 }
 .dstudio .ds-plancard:active {
   cursor: grabbing;
@@ -3557,7 +3500,7 @@ html[data-ds-display] .dstudio.editing {
   height: 88px;
   object-fit: cover;
   object-position: top;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: #eef0f4;
   pointer-events: none;
   display: block;
@@ -3571,9 +3514,9 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: rgba(10, 12, 20, 0.6);
-  color: #fff;
+  color: var(--paper);
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
 }
@@ -3604,7 +3547,7 @@ html[data-ds-display] .dstudio.editing {
   overflow-y: auto;
   padding: 8px 12px;
   border: 1px solid rgba(10, 12, 20, 0.1);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: linear-gradient(180deg, #eef1f6, #e6e9f1);
 }
 .dstudio .ds-yard-cap {
@@ -3630,9 +3573,9 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed rgba(0, 163, 137, 0.4);
-  border-radius: 16px;
-  background: rgba(0, 229, 192, 0.04);
+  border: 2px dashed var(--ink);
+  border-radius:var(--r-card);
+  background: var(--tint);
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-move) var(--ease);
 }
 .dstudio .ds-dropzone.live .ds-dropzone-inner {
@@ -3647,7 +3590,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-dropzone.live.over {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.28);
+  background: var(--tint); 
   box-shadow: inset var(--ring);
 }
 .dstudio .ds-dropzone.live.over .ds-dropzone-inner {
@@ -3662,7 +3605,7 @@ html[data-ds-display] .dstudio.editing {
   min-height: 110px;
   margin: 4px;
   border: 2px dashed rgba(0, 163, 137, 0.4);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: rgba(0, 229, 192, 0.05);
   color: var(--teal-d);
   font-size: 13px;
@@ -3696,23 +3639,22 @@ html[data-ds-display] .dstudio.editing {
   gap: 12px;
   padding: 8px 12px;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.05);
+  border-radius:var(--r-card);
+  background: var(--paper);
   transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-level.targetable {
   border-style: dashed;
-  border-color: rgba(0, 163, 137, 0.55);
+  border-color: var(--ink);
 }
 .dstudio .ds-level.targetable.over {
   border-style: solid;
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.22);
+  background: var(--tint); 
   box-shadow: inset var(--ring);
 }
 .dstudio .ds-level.existing {
-  background: #f7f8fa;
+  background: var(--tint);
 }
 .dstudio .ds-level.sub {
   background: #f3f4f8;
@@ -3732,10 +3674,10 @@ html[data-ds-display] .dstudio.editing {
   min-width: 58px;
   height: 30px;
   padding: 0 4px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 163, 137, 0.45);
+  border-radius:var(--r-control);
+  border: 1px solid var(--ink);
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
   font: 700 12px var(--font);
   cursor: pointer;
 }
@@ -3801,7 +3743,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-lightbox {
   position: fixed;
   inset: 0;
-  z-index: 300;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3819,7 +3761,7 @@ html[data-ds-display] .dstudio.editing {
   width: min(1060px, calc(100vw - 64px));
   height: calc(100vh - 64px);
   background: #fff;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   box-shadow: 0 40px 100px -30px rgba(10, 12, 20, 0.6);
   display: flex;
   flex-direction: column;
@@ -3864,7 +3806,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   height: 38px;
   padding: 0 16px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   border: 1px solid rgba(10, 12, 20, 0.1);
   background: #fff;
   color: var(--ink);
@@ -3889,7 +3831,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   color: var(--q);
 }
 .ds-lightbox .ds-lb-close:hover {
@@ -3908,7 +3850,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-lightbox .ds-lb-img img {
   max-width: 100%;
   height: auto;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   box-shadow: 0 10px 30px -12px rgba(10, 12, 20, 0.3);
 }
 .ds-lightbox .ds-lb-nav {
@@ -3920,7 +3862,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 42px;
   height: 42px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: #fff;
   border: 1px solid rgba(10, 12, 20, 0.1);
   color: var(--ink);
@@ -3948,14 +3890,14 @@ html[data-ds-display] .dstudio.editing {
   color: var(--teal-d, #0f766e);
   background: rgba(0, 229, 192, 0.14);
   border: 1px solid rgba(0, 229, 192, 0.3);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 8px;
 }
 .ds-lightbox .ds-lb-name {
   width: 100%;
   height: 46px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1.5px solid var(--line);
   background: #fafbfc;
   font-family: var(--font-jakarta), sans-serif;
@@ -3983,7 +3925,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-lightbox .ds-lb-foot .ds-calib-cancel {
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   font-weight: 700;
   color: var(--q);
@@ -3994,7 +3936,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-lightbox .ds-lb-foot .ds-calib-ok {
   padding: 8px 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   font-weight: 700;
   background: #050505;
@@ -4012,14 +3954,14 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   padding: 8px 12px;
   border: 1.5px dashed rgba(10, 12, 20, 0.16);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   cursor: pointer;
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-upzone:hover,
 .dstudio .ds-upzone.drag {
-  border-color: rgba(0, 229, 192, 0.6);
-  background: rgba(0, 229, 192, 0.05);
+  border-color: var(--ink);
+  background: var(--tint);
 }
 .dstudio .ds-upzone-ic {
   flex: none;
@@ -4028,9 +3970,9 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 10px;
-  background: rgba(0, 229, 192, 0.12);
-  border: 1px solid rgba(0, 229, 192, 0.25);
+  border-radius:var(--r-button);
+  background: var(--tint);
+  border: 1px solid var(--ink);
   color: var(--teal-d);
 }
 .dstudio .ds-upzone-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -4055,13 +3997,13 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-progress {
   height: 8px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: #e4e6ec;
   overflow: hidden;
 }
 .dstudio .ds-progress div {
   height: 100%;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: var(--teal);
   transition: width var(--t-move) var(--ease);
 }
@@ -4095,9 +4037,9 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   flex-direction: column;
   border: 2px solid #eceef2;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   overflow: hidden;
-  background: #fff;
+  background: var(--paper);
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease);
   text-align: left;
 }
@@ -4108,7 +4050,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-page:focus-visible {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--blue); 
   box-shadow: var(--ring);
 }
 .dstudio .ds-page.on {
@@ -4123,7 +4065,7 @@ html[data-ds-display] .dstudio.editing {
   height: 130px;
   object-fit: cover;
   object-position: top;
-  background: #f4f5f7;
+  background: var(--tint);
   display: block;
 }
 .dstudio .ds-page-expand {
@@ -4135,9 +4077,9 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: rgba(10, 12, 20, 0.62);
-  color: #fff;
+  color: var(--paper);
   opacity: 0;
   transform: scale(0.9);
   transition: opacity var(--t-fast) var(--ease), transform var(--t-move) var(--ease), background var(--t-fast) var(--ease);
@@ -4167,9 +4109,9 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 17px;
   height: 17px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   border: 1.5px solid #d3d6dd;
-  background: #fff;
+  background: var(--paper);
   color: #053b34;
   flex: 0 0 auto;
 }
@@ -4198,7 +4140,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   gap: 8px;
   height: 48px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: var(--teal);
   color: var(--ink);
   font-size: 14px;
@@ -4238,7 +4180,7 @@ html[data-ds-display] .dstudio.editing {
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 50%;
+  border-radius:50%;
   background: #eef0f3;
   border: 1px solid var(--ds-border);
   color: var(--gray400);
@@ -4246,14 +4188,14 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
 }
 .dstudio .ds-pstep-num.active {
-  background: rgba(0, 229, 192, 0.14);
-  border-color: rgba(0, 229, 192, 0.5);
+  background: var(--tint);
+  border-color: var(--ink);
   color: var(--teal-d);
 }
 .dstudio .ds-pstep-num.done {
-  background: var(--teal, #17a398);
-  border-color: var(--teal, #17a398);
-  color: #fff;
+  background: var(--teal, var(--ink));
+  border-color: var(--teal, var(--ink));
+  color: var(--paper);
 }
 .dstudio .ds-pstep-t {
   flex: 1;
@@ -4282,7 +4224,7 @@ html[data-ds-display] .dstudio.editing {
   min-width: 0;
   padding: 8px 12px;
   border: 1px solid var(--ds-border);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: #fbfcfd;
 }
 .dstudio .ds-addfile-thumb {
@@ -4290,9 +4232,9 @@ html[data-ds-display] .dstudio.editing {
   width: 38px;
   height: 38px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   border: 1px solid var(--ds-border);
-  background: #fff;
+  background: var(--paper);
 }
 .dstudio .ds-addfile-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .dstudio .ds-addfile-text b { font-size: 13px; font-weight: 700; color: var(--ink); }
@@ -4304,8 +4246,8 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-pstep-empty {
   padding: 12px 16px;
-  border: 1.5px dashed rgba(10, 12, 20, 0.1);
-  border-radius: 16px;
+  border: 1.5px dashed var(--line);
+  border-radius:var(--r-card);
   font-size: 13px;
   font-weight: 600;
   color: var(--gray400);
@@ -4340,9 +4282,9 @@ html[data-ds-display] .dstudio.editing {
   place-items: center;
   width: 26px;
   height: 26px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1px solid var(--ds-border);
-  background: #fff;
+  background: var(--paper);
   color: var(--gray600, var(--ink));
   cursor: pointer;
 }
@@ -4356,7 +4298,7 @@ html[data-ds-display] .dstudio.editing {
   min-width: 0;
   height: 34px;
   padding: 0 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1px solid transparent;
   background: transparent;
   font-size: 14px;
@@ -4365,12 +4307,12 @@ html[data-ds-display] .dstudio.editing {
   transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .dstudio .ds-floor-name:hover {
-  background: rgba(10, 12, 20, 0.04);
+  background: var(--tint);
 }
 .dstudio .ds-floor-name:focus {
   outline: none;
-  background: #fff;
-  border-color: rgba(0, 229, 192, 0.6);
+  background: var(--paper);
+  border-color: var(--ink); 
   box-shadow: var(--ring);
 }
 .dstudio .ds-floor-plan {
@@ -4385,9 +4327,9 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   height: 32px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
   font-size: 12px;
   font-weight: 700;
   transition: background-color var(--t-fast) var(--ease);
@@ -4409,7 +4351,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 12px;
   padding: 12px 16px;
   border: 1px solid var(--color-surface-line, #f0f0f2);
-  border-radius: 16px;
+  border-radius:var(--r-card);
 }
 .dstudio .ds-floor-lvl {
   display: flex;
@@ -4418,21 +4360,21 @@ html[data-ds-display] .dstudio.editing {
   min-width: 34px;
   height: 26px;
   padding: 0 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: var(--ink);
-  color: #fff;
+  color: var(--paper);
   font: 700 12px var(--mono);
 }
 .dstudio .ds-floor-scale {
   font: 700 12px var(--mono);
   color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.13);
-  border-radius: 999px;
+  background: var(--tint);
+  border-radius:var(--r-pill);
   padding: 4px 8px;
 }
 .dstudio .ds-floor-scale.none {
   color: var(--gray400);
-  background: rgba(10, 12, 20, 0.05);
+  background: var(--tint);
 }
 
 /* ═════════════ Stage 4 — systems, split flow, materials ═════════════ */
@@ -4489,10 +4431,9 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 12px 0;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: var(--ds-card-shadow);
+  border-radius:var(--r-card);
   cursor: pointer;
   font: inherit;
 }
@@ -4510,14 +4451,14 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-cktab-dot {
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius:50%;
 }
 /* the fit donut in miniature — same verdict colours as the hero ring */
 .dstudio .ds-cktab-donut {
   --ck-ring: var(--ds-ok, #00a389);
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   position: relative;
   background: conic-gradient(var(--ck-ring) 0 var(--p, 0%), #e6e8ec var(--p, 0%) 100%);
 }
@@ -4525,8 +4466,8 @@ html[data-ds-display] .dstudio.editing {
   content: "";
   position: absolute;
   inset: 5px;
-  background: #fff;
-  border-radius: 999px;
+  background: var(--paper);
+  border-radius:var(--r-pill);
 }
 .dstudio .ds-cktab-donut.warn { --ck-ring: var(--ds-amber-d, #b45309); }
 .dstudio .ds-cktab-donut.bad { --ck-ring: var(--ds-red-d, #e0264f); }
@@ -4538,15 +4479,15 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
   font-variant-numeric: tabular-nums;
 }
-.dstudio .ds-cktab-ticks.ok { color: var(--ds-ok-d, #00806c); display: inline-flex; }
+.dstudio .ds-cktab-ticks.ok { color: var(--ds-ok-d, var(--ink)); display: inline-flex; }
 /* unplaced-count badge — dormant for split (unplaced units hold the panel
    open), standing ready for per-room modules */
 .dstudio .ds-cktab-badge {
   width: 20px;
   height: 20px;
-  border-radius: 999px;
-  background: var(--ds-ok-bg, rgba(0, 229, 192, 0.13));
-  color: var(--ds-ok-d, #00806c);
+  border-radius:var(--r-pill);
+  background: var(--ds-ok-bg, var(--tint));
+  color: var(--ds-ok-d, var(--ink));
   font-size: 12px;
   font-weight: 700;
   display: inline-flex;
@@ -4558,10 +4499,9 @@ html[data-ds-display] .dstudio.editing {
   }
   }
 .dstudio .ds-syscard {
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: var(--ds-card-shadow);
+  border-radius:var(--r-card);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -4652,7 +4592,7 @@ html[data-ds-display] .dstudio.editing {
   stroke-width: 3px;
 }
 .dstudio .ds-riser circle {
-  fill: #fff;
+  fill: var(--paper);
   stroke: currentColor;
   stroke-width: 2px;
   vector-effect: non-scaling-stroke;
@@ -4723,9 +4663,8 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub {
   width: min(1360px, calc(100vw - 48px));
   height: min(920px, calc(100vh - 48px));
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  background: var(--paper);
+  border-radius:var(--r-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4745,7 +4684,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-detail {
   width: 340px;
   flex: none;
-  border-left: 1px solid #ececec;
+  border-left: 1px solid var(--line);
   background: #fcfcfb;
   display: flex;
   flex-direction: column;
@@ -4757,7 +4696,7 @@ html[data-ds-display] .dstudio.editing {
     width: auto;
     height: 44%;
     border-left: none;
-    border-top: 1px solid #ececec;
+    border-top: 1px solid var(--line);
   }
 }
 .ds-ub-head {
@@ -4765,11 +4704,11 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 16px 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
 }
 .ds-ub-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.ds-ub-title > b { font-size: 16px; font-weight: 700; color: #1a1a1a; }
-.ds-ub-title > span { font-size: 13px; color: #767676; }
+.ds-ub-title > b { font-size: 16px; font-weight: 700; color: var(--ink); }
+.ds-ub-title > span { font-size: 13px; color: var(--q); }
 /* supply-phase segmented filter (header) */
 .ds-ub-powerseg {
   display: inline-flex;
@@ -4780,7 +4719,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-seglabel {
   font-size: 12px;
   font-weight: 500;
-  color: #767676;
+  color: var(--q);
   margin-right: 8px;
 }
 .ds-ub-powerseg button {
@@ -4788,22 +4727,22 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  color: #565656;
-  background: #fff;
-  border: 1px solid #e0e0de;
+  color: var(--q);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-left-width: 0;
   padding: 4px 12px;
   cursor: pointer;
 }
 .ds-ub-powerseg button:first-of-type {
   border-left-width: 1px;
-  border-radius: 10px 0 0 10px;
+  border-radius:var(--r-button) 0 0 var(--r-button);
 }
-.ds-ub-powerseg button:last-of-type { border-radius: 0 10px 10px 0; }
+.ds-ub-powerseg button:last-of-type { border-radius:0 var(--r-button) var(--r-button) 0; }
 .ds-ub-powerseg button.on {
-  background: var(--teal-d, #0f766e);
-  border-color: var(--teal-d, #0f766e);
-  color: #fff;
+  background: var(--teal-d, var(--ink));
+  border-color: var(--teal-d, var(--ink));
+  color: var(--paper);
 }
 /* phase pill — 1φ neutral, 3φ amber (never mistake a three-phase unit) */
 .ds-ub-phase {
@@ -4811,7 +4750,7 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 8px;
   background: #eef2f7;
   color: #3b4a5a;
@@ -4821,13 +4760,13 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-close {
   border: none;
   background: #f2f2f0;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   width: 32px;
   height: 32px;
   display: grid;
   place-items: center;
   cursor: pointer;
-  color: #444;
+  color: var(--q);
 }
 /* room chips — the ranking lens, the outside-a-room fallback attribution and
    the system's placement progress in one row over the tabs */
@@ -4839,7 +4778,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-roomcol {
   width: 232px;
   flex: none;
-  border-left: 1px solid #ececec;
+  border-left: 1px solid var(--line);
   background: #fcfcfb;
   display: flex;
   flex-direction: column;
@@ -4852,14 +4791,14 @@ html[data-ds-display] .dstudio.editing {
   padding: 12px 12px 8px;
   font-size: 12px;
   font-weight: 500;
-  color: #767676;
+  color: var(--q);
 }
 .ds-ub-rchead span {
   font-size: 12px;
   font-weight: 700;
-  color: #8a8a8a;
-  background: #f0f0ee;
-  border-radius: 999px;
+  color: var(--q);
+  background: var(--tint);
+  border-radius:var(--r-pill);
   padding: 1px 8px;
 }
 .ds-ub-rclist {
@@ -4878,9 +4817,9 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   text-align: left;
   font: inherit;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid #e4e4e2;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -4892,13 +4831,13 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: #22242b;
 }
-.ds-ub-rcname svg { stroke: var(--ds-ok-d, #00806c); }
+.ds-ub-rcname svg { stroke: var(--ds-ok-d, var(--ink)); }
 .ds-ub-rcfig {
   display: flex;
   gap: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #767676;
+  color: var(--q);
   font-variant-numeric: tabular-nums;
 }
 .ds-ub-rcfig b { font-weight: 700; color: #5c6068; }
@@ -4910,11 +4849,11 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   align-items: center;
   border: 1px dashed #d6d6d3;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   padding: 0 8px;
   font-size: 12px;
   font-weight: 700;
-  color: #9a9a9a;
+  color: var(--q);
 }
 /* the outdoor line, quieter than the head it pairs with */
 .ds-ub-rcodu {
@@ -4929,17 +4868,17 @@ html[data-ds-display] .dstudio.editing {
   font-style: normal;
   font-size: 12px;
   font-weight: 500;
-  color: #9a9a9a;
+  color: var(--q);
 }
 .ds-ub-rcard.has .ds-ub-rcslot {
   border-style: solid;
-  border-color: #e0e0de;
+  border-color: var(--line);
   background: #f6f6f4;
   color: #22242b;
 }
 .ds-ub-rcard.on {
-  border-color: #1a1a1a;
-  box-shadow: 0 0 0 1px #1a1a1a;
+  border-color: var(--ink); 
+  box-shadow: 0 0 0 1px var(--ink);
 }
 /* While a unit is in flight every card advertises itself, and the one under
    the pointer commits — the lit target replaces the caption.
@@ -4953,13 +4892,13 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-rcard.target { border-color: #c9cbd0; }
 .ds-ub-rcard.target .ds-ub-rcslot { border-color: #b9bcc2; }
 .ds-ub-rcard.over {
-  border-color: var(--teal-d, #00a389);
-  box-shadow: 0 0 0 1px var(--teal-d, #00a389);
+  border-color: var(--teal-d, var(--ink)); 
+  box-shadow: 0 0 0 1px var(--teal-d, var(--ink));
 }
 .ds-ub-rcard.over .ds-ub-rcslot {
   border-style: solid;
-  border-color: var(--teal-d, #00a389);
-  background: rgba(0, 163, 137, 0.1);
+  border-color: var(--teal-d, var(--ink));
+  background: var(--tint);
 }
 /* a draggable row says so by the cursor, the one place it costs no ink */
 .ds-ub-table tbody tr.drag { cursor: grab; }
@@ -4968,7 +4907,7 @@ html[data-ds-display] .dstudio.editing {
   .ds-ub-roomcol {
     width: auto;
     border-left: none;
-    border-top: 1px solid #ececec;
+    border-top: 1px solid var(--line);
   }
   .ds-ub-rclist { flex-direction: row; overflow-x: auto; }
   .ds-ub-rcard { width: 168px; flex: none; }
@@ -4977,7 +4916,7 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   gap: 2px;
   padding: 0 12px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }
 .ds-ub-tabs button {
@@ -4987,7 +4926,7 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: #767676;
+  color: var(--q);
   padding: 12px 12px;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -4996,19 +4935,19 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   white-space: nowrap;
 }
-.ds-ub-tabs button.on { color: #1a1a1a; border-bottom-color: var(--teal-d, #0f766e); }
+.ds-ub-tabs button.on { color: var(--ink); border-bottom-color: var(--teal-d, var(--ink)); }
 .ds-ub-tabs button:disabled { opacity: 0.4; cursor: default; }
 .ds-ub-count {
   font-size: 12px;
   font-weight: 700;
-  background: #f0f0ee;
-  border-radius: 999px;
+  background: var(--tint);
+  border-radius:var(--r-pill);
   padding: 1px 8px;
 }
 /* tab count under a load: "4/17" — the fits number leads in teal, the full
    catalogue trails behind it so a 0 reads as "none suit", not "none here" */
-.ds-ub-count.fit { background: rgba(15, 118, 110, 0.1); color: var(--teal-d, #0f766e); }
-.ds-ub-count.none { background: #f0f0ee; color: #767676; }
+.ds-ub-count.fit { background: rgba(15, 118, 110, 0.1); color: var(--teal-d, var(--ink)); }
+.ds-ub-count.none { background: var(--tint); color: var(--q); }
 .ds-ub-count i {
   font-style: normal;
   font-weight: 700;
@@ -5019,26 +4958,26 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
 }
 .ds-ub-flabel {
   font-size: 12px;
   font-weight: 500;
-  color: #767676;
+  color: var(--q);
 }
 .ds-ub-filters label {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #444;
+  color: var(--q);
 }
 .ds-ub-filters input {
   width: 64px;
   padding: 4px 8px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font: inherit;
   font-size: 13px;
 }
@@ -5048,7 +4987,7 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 700;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   cursor: pointer;
 }
 .ds-ub-scroll { overflow: auto; flex: 1; }
@@ -5059,9 +4998,9 @@ html[data-ds-display] .dstudio.editing {
   background: #fafaf9;
   text-align: left;
   font-size: 12px;
-  color: #767676;
+  color: var(--q);
   padding: 8px 12px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
   z-index: 1;
 }
@@ -5073,13 +5012,13 @@ html[data-ds-display] .dstudio.editing {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.ds-ub-table th.sortable:hover { color: #1a1a1a; }
-.ds-ub-table th.on { color: var(--teal-d, #0f766e); }
+.ds-ub-table th.sortable:hover { color: var(--ink); }
+.ds-ub-table th.on { color: var(--teal-d, var(--ink)); }
 .ds-ub-sortmark { margin-left: 4px; }
 .ds-ub-table td {
   padding: 8px 12px;
   border-bottom: 1px solid #f5f5f4;
-  color: #444;
+  color: var(--q);
   white-space: nowrap;
 }
 .ds-ub-table tbody tr { cursor: pointer; }
@@ -5102,7 +5041,7 @@ html[data-ds-display] .dstudio.editing {
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: #565656;
+  color: var(--q);
 }
 .ds-ub-table tr.ds-ub-group .ds-ub-count { margin-left: 8px; }
 
@@ -5117,11 +5056,10 @@ html[data-ds-display] .dstudio.editing {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #fff;
-  /* the break: a wide inset rule above, drawn with the row's own colour so
-     the boundary and the verdict are the same signal */
-  border-top: 1px solid #ececec;
-  border-bottom: 1px solid #ececec;
+  background: var(--paper);
+                                                                                                                                    
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   padding: 24px 12px 8px;
 }
 /* the accent bar that opens each section, sat in the padding above the label */
@@ -5132,7 +5070,7 @@ html[data-ds-display] .dstudio.editing {
   top: 11px;
   width: 22px;
   height: 2.5px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: currentColor;
   opacity: 0.85;
 }
@@ -5149,14 +5087,14 @@ html[data-ds-display] .dstudio.editing {
    chip under it are never telling you different things */
 .ds-ub-table tr.ds-ub-sec .ds-ub-count {
   margin-left: 8px;
-  color: #565656;
+  color: var(--q);
 }
 .ds-ub-sechint {
   margin-left: 8px;
   font-size: 12px;
   font-weight: 500;
-  /* the hint stays neutral — the colour belongs to the verdict, not the prose */
-  color: #767676;
+                                                                                 
+  color: var(--q);
 }
 .ds-ub-fright {
   display: inline-flex;
@@ -5169,7 +5107,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #565656;
+  color: var(--q);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -5182,31 +5120,30 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: #444;
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 10px;
+  color: var(--q);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius:var(--r-button);
   padding: 4px 8px;
   cursor: pointer;
   white-space: nowrap;
 }
-.ds-ub-colsbtn:hover { border-color: #cfcfcc; }
+.ds-ub-colsbtn:hover { border-color: var(--line); }
 .ds-ub-colsmenu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
   z-index: 5;
   min-width: 190px;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid #e6e6e4;
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border-radius:var(--r-button); box-shadow: var(--shadow-overlay);
   padding: 4px;
 }
 .ds-ub-colshead {
   font-size: 12px;
   font-weight: 500;
-  color: #8a8a8a;
+  color: var(--q);
   padding: 4px 8px 4px;
 }
 .ds-ub-colsitem {
@@ -5214,20 +5151,20 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   color: #333;
   cursor: pointer;
 }
 .ds-ub-colsitem:hover { background: #f6f6f5; }
 .ds-ub-colsname { flex: 1; }
-.ds-ub-colsunit { font-size: 12px; color: #9a9a9a; }
+.ds-ub-colsunit { font-size: 12px; color: var(--q); }
 .ds-ub-colsgroup { padding-top: 4px; }
-.ds-ub-colsgroup + .ds-ub-colsgroup { border-top: 1px solid #f0f0ee; margin-top: 4px; }
+.ds-ub-colsgroup + .ds-ub-colsgroup { border-top: 1px solid var(--line); margin-top: 4px; }
 .ds-ub-colsghead {
   font-size: 12px;
   font-weight: 500;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   padding: 4px 8px 2px;
 }
 
@@ -5240,7 +5177,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-top: 1px solid #ececec;
+  border-top: 1px solid var(--line);
   background: #fafaf9;
 }
 .ds-ub-cmpchips {
@@ -5254,7 +5191,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-cmplabel {
   font-size: 12px;
   font-weight: 500;
-  color: #8a8a8a;
+  color: var(--q);
 }
 .ds-ub-cmpchip {
   display: inline-flex;
@@ -5263,17 +5200,17 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 600;
   color: #333;
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius:var(--r-pill);
   padding: 4px 4px 4px 8px;
 }
 .ds-ub-cmpchip button {
   display: grid;
   place-items: center;
-  background: #f0f0ee;
+  background: var(--tint);
   border: none;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -5283,7 +5220,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-ub-cmpclear {
   font: inherit;
   font-size: 12px;
-  color: #767676;
+  color: var(--q);
   background: none;
   border: none;
   cursor: pointer;
@@ -5293,14 +5230,14 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
-  background: var(--teal-d, #0f766e);
+  color: var(--paper);
+  background: var(--teal-d, var(--ink));
   border: none;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 12px;
   cursor: pointer;
 }
-.ds-ub-cmpgo:disabled { background: #cfcfcc; cursor: not-allowed; }
+.ds-ub-cmpgo:disabled { background: var(--tint-2); cursor: not-allowed; }
 
 /* comparison overlay — a body-portal SIBLING of .ds-ub-overlay (z 1000), so
    it must sit above it */
@@ -5318,17 +5255,16 @@ html[data-ds-display] .dstudio.editing {
   flex-direction: column;
   max-height: 88vh;
   max-width: min(980px, calc(100vw - 48px));
-  background: #fff;
-  border-radius: 16px;
+  background: var(--paper);
+  border-radius:var(--r-card);
   overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
 }
 .ds-cmp-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
   font-size: 14px;
 }
 .ds-cmp-scroll { overflow: auto; }
@@ -5346,8 +5282,8 @@ html[data-ds-display] .dstudio.editing {
   background: #fafaf9;
   border-bottom: 1px solid #e6e6e4;
 }
-.ds-cmp-model { font-weight: 700; color: #1a1a1a; }
-.ds-cmp-brand { font-size: 12px; color: #8a8a8a; font-weight: 600; }
+.ds-cmp-model { font-weight: 700; color: var(--ink); }
+.ds-cmp-brand { font-size: 12px; color: var(--q); font-weight: 600; }
 .ds-cmp-rm {
   margin-top: 4px;
   background: none;
@@ -5359,12 +5295,12 @@ html[data-ds-display] .dstudio.editing {
 .ds-cmp-rowh {
   text-align: left;
   font-weight: 600;
-  color: #565656;
+  color: var(--q);
   background: #fbfbfa;
   position: sticky;
   left: 0;
 }
-.ds-cmp-unit { color: #9a9a9a; font-weight: 400; }
+.ds-cmp-unit { color: var(--q); font-weight: 400; }
 /* section band: Indoor unit / Outdoor unit / Pairing */
 .ds-cmp-table tr.ds-cmp-group td {
   background: #f5f5f4;
@@ -5372,54 +5308,54 @@ html[data-ds-display] .dstudio.editing {
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
 }
-.ds-cmp-odumodel { font-weight: 700; color: #1a1a1a; }
+.ds-cmp-odumodel { font-weight: 700; color: var(--ink); }
 .ds-cmp-table td.best {
   background: #ecf7f4;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   font-weight: 700;
 }
 .ds-cmp-addrow td { padding-top: 12px; padding-bottom: 12px; }
-.ds-ub-model { font-weight: 700; color: #1a1a1a; }
+.ds-ub-model { font-weight: 700; color: var(--ink); }
 .ds-ub-model em {
   font-style: normal;
   font-size: 12px;
   font-weight: 500;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   margin-left: 8px;
 }
 /* sizing flags. Undersized is the only one that's actually a mistake, so it
    carries the semantic danger red; oversized is a judgement call and stays
    amber. Neither is the page accent (that's the teal "best fit"). */
-.ds-ub-model em.ds-ub-under { color: var(--ds-red-d, #e0264f); }
-.ds-ub-model em.ds-ub-over { color: var(--ds-amber-d, #b45309); }
+.ds-ub-model em.ds-ub-under { color: var(--ds-red-d, var(--bad-t)); }
+.ds-ub-model em.ds-ub-over { color: var(--ds-amber-d, var(--warn-t)); }
 /* the whole row steps back — these are the ones you scrolled past on purpose */
 .ds-ub-table tr.undersized .ds-ub-model,
-.ds-ub-table tr.oversized .ds-ub-model { color: #565656; }
+.ds-ub-table tr.oversized .ds-ub-model { color: var(--q); }
 .ds-ub-table tr.undersized td,
-.ds-ub-table tr.oversized td { color: #767676; }
+.ds-ub-table tr.oversized td { color: var(--q); }
 .ds-ub-odu { font-size: 13px; }
 .ds-ub-oducell .ds-ub-phase { margin-left: 8px; }
 .ds-ub-morepairs {
   font-size: 12px;
   font-weight: 700;
-  color: #8a8a8a;
+  color: var(--q);
   margin-left: 4px;
 }
 .ds-ub-place {
-  border: 1px solid var(--teal-d, #0f766e);
-  color: var(--teal-d, #0f766e);
-  background: #fff;
+  border: 1px solid var(--teal-d, var(--ink));
+  color: var(--teal-d, var(--ink));
+  background: var(--paper);
   font: inherit;
   font-size: 12px;
   font-weight: 700;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   cursor: pointer;
 }
-.ds-ub-place:hover { background: var(--teal-d, #0f766e); color: #fff; }
-.ds-ub-none { text-align: center; color: #767676; padding: 24px !important; }
+.ds-ub-place:hover { background: var(--teal-d, var(--ink)); color: var(--paper); }
+.ds-ub-none { text-align: center; color: var(--q); padding: 24px !important; }
 
 /* ── detail panel: the highlighted option's spec sheet ── */
 .ds-ub-dwrap {
@@ -5439,7 +5375,7 @@ html[data-ds-display] .dstudio.editing {
   flex: 1;
   padding: 24px;
   font-size: 13px;
-  color: #8a8a8a;
+  color: var(--q);
   text-align: center;
 }
 .ds-ub-dhead {
@@ -5449,15 +5385,15 @@ html[data-ds-display] .dstudio.editing {
   flex-wrap: wrap;
   padding-bottom: 12px;
 }
-.ds-ub-dhead > b { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.ds-ub-dhead > b { font-size: 14px; font-weight: 700; color: var(--ink); }
 .ds-ub-dhead em {
   font-style: normal;
   font-size: 12px;
   font-weight: 500;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
 }
-.ds-ub-dseries { font-size: 12px; font-weight: 600; color: #8a8a8a; }
-.ds-ub-dsec { padding: 8px 0 4px; border-top: 1px solid #ececec; }
+.ds-ub-dseries { font-size: 12px; font-weight: 600; color: var(--q); }
+.ds-ub-dsec { padding: 8px 0 4px; border-top: 1px solid var(--line); }
 .ds-ub-dsech {
   display: flex;
   align-items: center;
@@ -5465,7 +5401,7 @@ html[data-ds-display] .dstudio.editing {
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
 }
 .ds-ub-drow {
   display: flex;
@@ -5474,11 +5410,11 @@ html[data-ds-display] .dstudio.editing {
   gap: 12px;
   padding: 4px 0;
 }
-.ds-ub-dlabel { font-size: 12px; color: #767676; }
+.ds-ub-dlabel { font-size: 12px; color: var(--q); }
 .ds-ub-dval {
   font-size: 13px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--ink);
   text-align: right;
 }
 /* outdoor pairing picker (radio list) */
@@ -5495,41 +5431,41 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: #fff;
-  border: 1px solid #e0e0de;
-  border-radius: 10px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius:var(--r-button);
   padding: 8px 8px;
   cursor: pointer;
 }
-.ds-ub-oduopt:hover { border-color: #cfcfcc; }
+.ds-ub-oduopt:hover { border-color: var(--line); }
 .ds-ub-oduopt.on {
-  border-color: var(--teal-d, #0f766e);
-  background: #f4fbf9;
-  box-shadow: inset 0 0 0 1px var(--teal-d, #0f766e);
+  border-color: var(--teal-d, var(--ink));
+  background: #f4fbf9; 
+  box-shadow: inset 0 0 0 1px var(--teal-d, var(--ink));
 }
 .ds-ub-oduname {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #1a1a1a;
+  color: var(--ink);
 }
-.ds-ub-odumeta { font-size: 12px; color: #767676; }
+.ds-ub-odumeta { font-size: 12px; color: var(--q); }
 /* panel footer — the primary Add */
 .ds-ub-addbar {
   padding: 12px 16px;
-  border-top: 1px solid #ececec;
-  background: #fff;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
 }
 .ds-ub-addbtn {
   width: 100%;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
-  background: var(--teal-d, #0f766e);
+  color: var(--paper);
+  background: var(--teal-d, var(--ink));
   border: none;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 12px;
   cursor: pointer;
 }
@@ -5545,7 +5481,7 @@ html[data-ds-display] .dstudio.editing {
   place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: transparent;
   color: var(--gray400);
   cursor: pointer;
@@ -5566,19 +5502,19 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   text-align: left;
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  background: #fff;
+  border-radius:var(--r-card);
+  background: var(--paper);
   padding: 12px 12px;
   cursor: pointer;
   font: inherit;
 }
-.dstudio .ds-chooser-card:hover:not(:disabled) { border-color: var(--teal-d); box-shadow: 0 0 0 1px var(--teal-d); }
+.dstudio .ds-chooser-card:hover:not(:disabled) { border-color: var(--teal-d);  box-shadow: 0 0 0 1px var(--teal-d); }
 .dstudio .ds-chooser-card:disabled { cursor: default; opacity: 0.62; }
 .dstudio .ds-chooser-ic {
   grid-row: 1 / span 2;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   display: grid;
   place-items: center;
   background: var(--teal-bg, #eafaf4);
@@ -5596,7 +5532,7 @@ html[data-ds-display] .dstudio.editing {
   color: var(--gray500);
   background: #f2f2f0;
   padding: 2px 8px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
 }
 .dstudio .ds-chooser-cancel { align-self: flex-start; }
 
@@ -5617,7 +5553,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-prompt-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: var(--z-modal);
   background: rgba(20, 22, 24, 0.5);
   backdrop-filter: blur(4px);
   display: flex;
@@ -5628,10 +5564,9 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-prompt {
   width: min(400px, 100%);
-  background: #fff;
-  color: #1a1a1a;
-  border-radius: 16px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius:var(--r-card); box-shadow: var(--shadow-overlay);
   padding: 24px;
 }
 .ds-prompt-head {
@@ -5645,16 +5580,16 @@ html[data-ds-display] .dstudio.editing {
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
-  background: rgba(0, 163, 137, 0.12);
-  color: #00a389;
+  border-radius:var(--r-button);
+  background: var(--tint);
+  color: var(--ink);
   flex: none;
 }
 .ds-prompt-head h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--ink);
 }
 .ds-prompt-intro {
   font-size: 13px;
@@ -5685,10 +5620,10 @@ html[data-ds-display] .dstudio.editing {
   top: 7px;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
-  background: #00a389;
+  border-radius:50%;
+  background: var(--ink);
 }
-.ds-prompt-bullets strong { color: #1a1a1a; }
+.ds-prompt-bullets strong { color: var(--ink); }
 .ds-prompt-actions {
   display: flex;
   gap: 8px;
@@ -5699,40 +5634,38 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 16px;
   cursor: pointer;
   border: 1px solid transparent;
 }
 .ds-prompt-skip {
   color: #555;
-  background: #f1f2f4;
+  background: var(--tint);
 }
 .ds-prompt-skip:hover { background: #e7e8ea; }
 .ds-prompt-go {
-  color: #fff;
-  background: #00a389;
+  color: var(--paper);
+  background: var(--ink);
 }
 .ds-prompt-go:hover { background: #00917a; }
 .ds-rm {
   width: min(520px, 100%);
   max-height: 92vh;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  background: var(--paper);
+  border-radius:var(--r-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* portalled to <body>, outside .dstudio — set text colour explicitly so
-     inputs/selects don't inherit the shell's light-on-dark colour */
-  color: #1a1a1a;
+                                                                                                                                                
+  color: var(--ink);
 }
 .ds-rm-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
 }
 .ds-rm-drag { cursor: grab; touch-action: none; user-select: none; }
 .ds-rm-drag:active { cursor: grabbing; }
@@ -5742,15 +5675,15 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 500;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: #eef0f3;
   color: var(--q);
 }
-.ds-rm-mode.edit { background: rgba(23, 163, 152, 0.14); color: var(--teal-d, #0f766e); }
+.ds-rm-mode.edit { background: rgba(23, 163, 152, 0.14); color: var(--teal-d, var(--ink)); }
 .ds-rm-head b {
   font-size: 16px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5779,14 +5712,14 @@ html[data-ds-display] .dstudio.editing {
   font-size: 13px;
   padding: 8px 8px;
   border: 1px solid #d9dbe0;
-  border-radius: 6px;
-  background: #fff;
-  color: #1a1a1a;
+  border-radius:var(--r-control);
+  background: var(--paper);
+  color: var(--ink);
 }
 .ds-rm-field input:focus,
 .ds-rm-field select:focus {
   outline: none;
-  border-color: var(--teal, #17a398);
+  border-color: var(--teal, var(--ink)); 
   box-shadow: var(--ring);
 }
 .ds-rm-name { font-size: 16px !important; font-weight: 700; }
@@ -5796,16 +5729,16 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-chip {
   padding: 4px 12px;
   border: 1px solid #d9dbe0;
-  border-radius: 999px;
-  background: #fafbfc;
+  border-radius:var(--r-pill);
+  background: var(--tint);
   font-size: 12px;
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
 }
 .ds-rm-chip:hover {
-  border-color: var(--teal, #17a398);
-  color: var(--teal-d, #0f766e);
+  border-color: var(--teal, var(--ink));
+  color: var(--teal-d, var(--ink));
   background: #f0fdf9;
 }
 
@@ -5816,7 +5749,7 @@ html[data-ds-display] .dstudio.editing {
 /* dimensions as prominent centered formulas (floor space, then volume) */
 .ds-rm-dims {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: #fbfcfd;
   overflow: hidden;
 }
@@ -5831,7 +5764,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-dimcap {
   font-size: 12px;
   font-weight: 500;
-  color: #9aa2ad;
+  color: var(--q);
 }
 .ds-rm-dimexpr {
   display: flex;
@@ -5845,7 +5778,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-rm-dimexpr .op { color: #c2c7cf; font-weight: 700; }
 .ds-rm-dimexpr > b:not(.op) {
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   font-weight: 700;
   font-size: 16px;
 }
@@ -5858,7 +5791,7 @@ html[data-ds-display] .dstudio.editing {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   background: none;
   border: none;
   padding: 2px 0;
@@ -5870,16 +5803,16 @@ html[data-ds-display] .dstudio.editing {
   width: 54px;
   padding: 4px 8px;
   border: 1px solid #d9dbe0;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font-size: 14px;
   font-weight: 700;
   text-align: center;
-  color: #1a1a1a;
-  background: #fff;
+  color: var(--ink);
+  background: var(--paper);
 }
 .ds-rm-hin:focus {
   outline: none;
-  border-color: var(--teal, #17a398);
+  border-color: var(--teal, var(--ink)); 
   box-shadow: var(--ring);
 }
 
@@ -5890,7 +5823,7 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 13px;
   height: 13px;
-  border-radius: 50%;
+  border-radius:50%;
   background: #d9dbe0;
   color: var(--ink);
   font-size: 12px;
@@ -5913,15 +5846,14 @@ html[data-ds-display] .dstudio.editing {
   line-height: 1.4;
   text-transform: none;
   padding: 8px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   width: max-content;
   max-width: 200px;
   white-space: normal;
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--t-fast) var(--ease);
-  z-index: 30;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  z-index: 30; box-shadow: var(--shadow-overlay);
 }
 /* anchor edge tips inward so the tooltip stays inside the modal */
 .ds-tip.tip-l::after { left: 0; transform: none; }
@@ -5940,10 +5872,10 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   text-transform: none;
 }
-.ds-rm-badge.auto { background: rgba(23, 163, 152, 0.14); color: var(--teal-d, #0f766e); }
+.ds-rm-badge.auto { background: rgba(23, 163, 152, 0.14); color: var(--teal-d, var(--ink)); }
 .ds-rm-badge.override { background: #fef3c7; color: #92400e; }
 .ds-rm-badge.muted { background: #eef0f3; color: var(--q); }
 .ds-rm-badge-reset {
@@ -5951,10 +5883,10 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: var(--q);
   padding: 1px 4px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   cursor: pointer;
 }
-.ds-rm-badge-reset:hover { color: var(--teal-d, #0f766e); background: #f0fdf9; }
+.ds-rm-badge-reset:hover { color: var(--teal-d, var(--ink)); background: #f0fdf9; }
 
 .ds-rm-remark {
   display: flex;
@@ -5963,7 +5895,7 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #d9dbe0;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   background: #f6f7f9;
   font-size: 12px;
   font-weight: 600;
@@ -5971,14 +5903,14 @@ html[data-ds-display] .dstudio.editing {
   cursor: pointer;
   text-align: left;
 }
-.ds-rm-remark:hover { border-color: var(--teal, #17a398); color: var(--teal-d, #0f766e); background: #f0fdf9; }
+.ds-rm-remark:hover { border-color: var(--teal, var(--ink)); color: var(--teal-d, var(--ink)); background: #f0fdf9; }
 .ds-rm-note {
   font-size: 12px;
   line-height: 1.4;
   color: #92400e;
   background: #fffbeb;
   border: 1px solid #fcd34d;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   padding: 8px 12px;
 }
 
@@ -5991,7 +5923,7 @@ html[data-ds-display] .dstudio.editing {
   padding: 12px 16px;
   background: rgba(23, 163, 152, 0.09);
   border: 1px solid rgba(23, 163, 152, 0.22);
-  border-radius: 10px;
+  border-radius:var(--r-button);
 }
 .ds-rm-load-t {
   font-size: 13px;
@@ -6002,7 +5934,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-rm-load-kw {
   font-size: 32px;
   font-weight: 700;
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   white-space: nowrap;
 }
 
@@ -6012,20 +5944,20 @@ html[data-ds-display] .dstudio.editing {
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 16px;
-  border-top: 1px solid #ececec;
+  border-top: 1px solid var(--line);
   background: #fbfbfa;
 }
 .ds-rm-btn {
   padding: 8px 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
-.ds-rm-btn.secondary { background: #f1f2f4; color: var(--ink); border: 1px solid #d9dbe0; }
+.ds-rm-btn.secondary { background: var(--tint); color: var(--ink); border: 1px solid #d9dbe0; }
 .ds-rm-btn.secondary:hover { background: #e7e9ec; }
-.ds-rm-btn.primary { background: var(--teal, #17a398); color: #fff; min-width: 104px; }
-.ds-rm-btn.primary:hover { background: var(--teal-d, #0f766e); }
+.ds-rm-btn.primary { background: var(--teal, var(--ink)); color: var(--paper); min-width: 104px; }
+.ds-rm-btn.primary:hover { background: var(--teal-d, var(--ink)); }
 
 /* ═════════ summary page (job details + takeoff + printable pack) ═════════ */
 .dstudio .ds-summary { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
@@ -6037,7 +5969,7 @@ html[data-ds-display] .dstudio.editing {
    doesn't, so this is belt-and-braces — it also just costs nothing. */
 .dstudio .ds-job-print,
 .dstudio .ds-job-print:disabled { opacity: 0.45; cursor: default; }
-.dstudio .ds-job-print:disabled:hover { transform: none; border-color: rgba(10, 12, 20, 0.08); }
+.dstudio .ds-job-print:disabled:hover { transform: none; border-color: var(--line); }
 
 #ds-printdoc { display: none; }
 #ds-printdoc .ds-print-cap {
@@ -6191,9 +6123,9 @@ html[data-ds-display] .dstudio.editing {
       Stays on the light paper; numbers are Jakarta with tabular figures. ── */
 .dstudio .ds-act-card {
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 12px 16px;
-  background: #fff;
+  background: var(--paper);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6222,7 +6154,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-act-go:disabled { opacity: 0.45; cursor: default; }
 .dstudio .ds-act-go:disabled:hover {
   transform: none;
-  border-color: rgba(10, 12, 20, 0.08);
+  border-color: var(--line);
 }
 
 /* ═════════ the Summary step's dialogs (Share, Export) ═════════
@@ -6266,9 +6198,8 @@ html[data-ds-display] .dstudio.editing {
   min-height: 0;
   width: min(520px, 100%);
   max-height: 88vh;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  background: var(--paper);
+  border-radius:var(--r-card);
   overflow: hidden;
   color: var(--ink);
 }
@@ -6277,7 +6208,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid var(--line);
 }
 .dstudio .ds-xm-t {
   display: flex;
@@ -6299,7 +6230,7 @@ html[data-ds-display] .dstudio.editing {
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px;
-  border-top: 1px solid #ececec;
+  border-top: 1px solid var(--line);
   background: #fbfbfa;
 }
 /* the ONE thing the dialog exists to do spans the bar; the rest (Copy,
@@ -6323,21 +6254,21 @@ html[data-ds-display] .dstudio.editing {
   gap: 2px;
   text-align: left;
   padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(10, 12, 20, 0.1);
-  background: #fff;
+  border-radius:var(--r-button);
+  border: 1px solid var(--line);
+  background: var(--paper);
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-export-pick:hover { background: #f6f7f9; border-color: rgba(10, 12, 20, 0.2); }
 .dstudio .ds-export-pick:focus-visible {
-  outline: none;
+  outline: none; 
   box-shadow: var(--ring);
 }
 /* the chosen one carries the teal edge and a tinted ground — the same
    "selected" language the segment pills below already speak */
 .dstudio .ds-export-pick.on {
   border-color: var(--teal-d);
-  background: rgba(0, 229, 192, 0.09);
+  background: var(--tint);
 }
 .dstudio .ds-export-pick-t { font-size: 13px; font-weight: 700; color: var(--ink); }
 .dstudio .ds-export-pick-s {
@@ -6362,7 +6293,7 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 1px solid rgba(10, 12, 20, 0.07);
+  border-top: 1px solid var(--line);
   padding-top: 8px;
 }
 .dstudio .ds-export-grp {
@@ -6397,16 +6328,16 @@ html[data-ds-display] .dstudio.editing {
   flex: 1 1 0;
   height: 26px;
   border: 1px solid var(--ds-border);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   font-size: 12px;
   font-weight: 700;
   color: var(--gray700);
-  background: #fff;
+  background: var(--paper);
 }
 .dstudio .ds-export-seg.on {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-export-seg:not(.on):hover { border-color: var(--gray400); }
 
@@ -6453,13 +6384,11 @@ html[data-ds-display] .dstudio.editing {
   z-index: 0;
   left: 0;
   right: 0;
-  /* was 35px to clear the old tab strip; now the hero dropdown replaces it, so
-     the white page rises to the top and the grey hero card sits on it */
+                                                                                                                                                         
   top: 0;
   bottom: 0;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04), 0 24px 50px -30px rgba(10, 12, 20, 0.28);
+  background: var(--paper);
+  border-radius:var(--r-card);
 }
 .dstudio .ds-ck > * {
   position: relative;
@@ -6496,9 +6425,9 @@ html[data-ds-display] .dstudio.editing {
 /* ── system-type hero: capacity donut (light panel · ledger + coverage ring) ── */
 .dstudio .ds-ck-caphero {
   position: relative;
-  /* visible so the system-selector dropdown can overflow the card downward */
+                                                                              
   overflow: visible;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 12px 12px;
   color: var(--ink2);
   background: var(--ds-card2);
@@ -6526,12 +6455,12 @@ html[data-ds-display] .dstudio.editing {
   height: 24px;
                                                                                
   margin-right: -6px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   color: var(--gray500);
   cursor: pointer;
   transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
-.dstudio .ds-ck-caphero-x:hover { background: rgba(10, 12, 20, 0.07); color: var(--ink2); }
+.dstudio .ds-ck-caphero-x:hover { background: var(--tint-2); color: var(--ink2); }
 .dstudio .ds-ck-caphero-cols { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 /* the type label now lives top-right and is the click target to change type */
 .dstudio .ds-ck-caphero-type {
@@ -6543,7 +6472,7 @@ html[data-ds-display] .dstudio.editing {
   margin: 0 -8px;
   padding: 4px 8px;
   border: none;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: none;
   color: var(--ink2);
   cursor: pointer;
@@ -6551,30 +6480,30 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-caphero-type span { color: var(--teal-d); font-weight: 700; }
 /* clickable variant: a clear hover pill signals "click to change system type" */
-.dstudio button.ds-ck-caphero-type:hover { color: var(--teal-d); background: rgba(0, 163, 137, 0.1); }
+.dstudio button.ds-ck-caphero-type:hover { color: var(--teal-d); background: var(--tint); }
 
 /* equation ledger */
 .dstudio .ds-ck-ledger { display: flex; flex-direction: column; }
-.dstudio .ds-ck-ledger-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; }
+.dstudio .ds-ck-ledger-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius:var(--r-control); }
 .dstudio .ds-ck-ledger-row .k { font: 700 12px var(--font); }
 .dstudio .ds-ck-ledger-row .v { margin-left: auto; font: 700 13px var(--font); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dstudio .ds-ck-ledger-row.req .k { color: var(--gray400); }
 .dstudio .ds-ck-ledger-row.req .v { color: var(--ink2); }
 .dstudio .ds-ck-ledger-row.sel .k { color: var(--gray500); }
 .dstudio .ds-ck-ledger-row.sel .v { color: var(--ink2); }
-.dstudio .ds-ck-ledger-row.sum { margin-top: 4px; border-top: 1.5px solid var(--ds-border-s); border-radius: 0 0 6px 6px; padding-top: 8px; }
+.dstudio .ds-ck-ledger-row.sum { margin-top: 4px; border-top: 1.5px solid var(--ds-border-s); border-radius:0 0 var(--r-control) var(--r-control); padding-top: 8px; }
 /* SPARE row matches REQUIRED/SELECTED — inherits base .k 8px / .v 13px */
 /* verdict tint on the sum row — set by [data-state] on .ds-ck-caphero */
-.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum { background: rgba(0, 163, 137, 0.1); }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum { background: var(--tint); }
 .dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum .k,
 .dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-ledger-row.sum .v { color: var(--ds-ok); }
-.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum { background: rgba(240, 164, 49, 0.14); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum { background: var(--warn-tint); }
 .dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum .k,
 .dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-ledger-row.sum .v { color: var(--ds-amber-d); }
-.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum { background: rgba(224, 38, 79, 0.1); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum { background: var(--bad-tint); }
 .dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum .k,
 .dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-ledger-row.sum .v { color: var(--ds-red-d); }
-.dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum { background: rgba(10, 12, 20, 0.05); }
+.dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum { background: var(--tint); }
 .dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum .k,
 .dstudio .ds-ck-caphero[data-state="empty"] .ds-ck-ledger-row.sum .v { color: var(--gray500); }
 
@@ -6586,9 +6515,9 @@ html[data-ds-display] .dstudio.editing {
   stroke-dasharray: 282.7;
   transition: stroke-dashoffset var(--t-move) var(--ease);
 }
-.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .val { stroke: url(#capGrad); filter: drop-shadow(0 3px 6px rgba(0, 163, 137, 0.4)); }
-.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .val { stroke: var(--ds-amber); filter: drop-shadow(0 3px 6px rgba(240, 164, 49, 0.4)); }
-.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .val { stroke: var(--ds-red-d); filter: drop-shadow(0 3px 6px rgba(224, 38, 79, 0.35)); }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .val { stroke: url(#capGrad); filter: drop-shadow(0 3px 6px var(--ink)); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .val { stroke: var(--ds-amber); filter: drop-shadow(0 3px 6px var(--warn)); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .val { stroke: var(--ds-red-d); filter: drop-shadow(0 3px 6px var(--bad)); }
 /* overshoot segment — only meaningful when >100% (ok) */
 .dstudio .ds-ck-donut .over { stroke: #7ff3de; stroke-dasharray: 56.5 282.7; stroke-dashoffset: 0; opacity: 0; transition: opacity var(--t-fast) var(--ease); }
 .dstudio .ds-ck-donut .over.on { opacity: 1; }
@@ -6598,12 +6527,12 @@ html[data-ds-display] .dstudio.editing {
   position: absolute;
   width: 66px;
   height: 66px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(10, 12, 20, 0.05), transparent 70%);
+  border-radius:50%;
+  background: radial-gradient(circle, var(--tint), transparent 70%);
 }
-.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(0, 163, 137, 0.1), transparent 70%); }
-.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(240, 164, 49, 0.12), transparent 70%); }
-.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, rgba(224, 38, 79, 0.1), transparent 70%); }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, var(--tint), transparent 70%); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, var(--warn-tint), transparent 70%); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .ctr::before { background: radial-gradient(circle, var(--bad-tint), transparent 70%); }
 .dstudio .ds-ck-donut .n {
   position: relative;
   font: 700 20px var(--font);
@@ -6618,13 +6547,13 @@ html[data-ds-display] .dstudio.editing {
 /* status badge, bottom-right of the ring */
 .dstudio .ds-ck-donut .badge-tip {
   position: absolute;
-  /* sit just off the ring's bottom-right so it clears the centred "of required" */
+                                                                                   
   right: -3px;
   bottom: -3px;
   width: 22px;
   height: 22px;
-  border-radius: 50%;
-  color: #fff;
+  border-radius:50%;
+  color: var(--paper);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6632,16 +6561,16 @@ html[data-ds-display] .dstudio.editing {
 /* the badge glyph must NOT inherit the ring svg's −90° rotation (it's a
    separate svg matched by `.ds-ck-donut svg`) — keep the tick upright */
 .dstudio .ds-ck-donut .badge-tip svg { width: 13px; height: 13px; transform: none; }
-.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .badge-tip { background: var(--ds-ok); box-shadow: 0 3px 8px rgba(0, 163, 137, 0.5); }
-.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .badge-tip { background: var(--ds-amber); box-shadow: 0 3px 8px rgba(240, 164, 49, 0.5); }
-.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .badge-tip { background: var(--ds-red-d); box-shadow: 0 3px 8px rgba(224, 38, 79, 0.45); }
+.dstudio .ds-ck-caphero[data-state="ok"] .ds-ck-donut .badge-tip { background: var(--ds-ok); box-shadow: var(--shadow-overlay); }
+.dstudio .ds-ck-caphero[data-state="warn"] .ds-ck-donut .badge-tip { background: var(--ds-amber); box-shadow: var(--shadow-overlay); }
+.dstudio .ds-ck-caphero[data-state="bad"] .ds-ck-donut .badge-tip { background: var(--ds-red-d); box-shadow: var(--shadow-overlay); }
 
 /* ── Rooms / Components segmented switch ── */
 .dstudio .ds-ck-seg {
   display: flex;
   gap: 2px;
   background: #eaebef;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 4px;
 }
 .dstudio .ds-ck-segbtn {
@@ -6652,7 +6581,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   border: none;
   background: none;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 12px;
   font: 700 13px var(--font);
   color: var(--gray500);
@@ -6661,15 +6590,14 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-segbtn:hover { color: var(--gray700); }
 .dstudio .ds-ck-segbtn.on {
-  background: #fff;
+  background: var(--paper);
   color: var(--ink2);
-  box-shadow: 0 1px 3px rgba(10, 12, 20, 0.14), 0 1px 1px rgba(10, 12, 20, 0.05);
 }
 .dstudio .ds-ck-segn {
   font: 700 12px var(--font);
   color: var(--gray400);
   background: #e1e3e9;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 2px 8px;
   min-width: 16px;
   text-align: center;
@@ -6713,7 +6641,7 @@ html[data-ds-display] .dstudio.editing {
   text-align: left;
   border: 1px solid var(--ds-border);
   background: var(--ds-card2);
-  border-radius: 10px;
+  border-radius:var(--r-button);
                                                                                                                                                                                                                                                                                                                           
   padding: 8px 48px 8px 12px;
   cursor: pointer;
@@ -6725,9 +6653,9 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-ck-rrow:active { transform: translateY(0); }
 .dstudio .ds-ck-rrow.on {
-  background: #fff;
-  border-color: rgba(0, 163, 137, 0.5);
-  box-shadow: 0 0 0 1px rgba(0, 163, 137, 0.4), 0 10px 22px -14px rgba(10, 12, 20, 0.4);
+  background: var(--paper);
+  border-color: var(--ink); 
+  box-shadow: 0 0 0 1px var(--ink), 0 10px 22px -14px rgba(10, 12, 20, 0.4);
 }
 .dstudio .ds-ck-rnum {
   width: 20px;
@@ -6736,16 +6664,16 @@ html[data-ds-display] .dstudio.editing {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius:50%;
   font: 700 12px var(--font);
   font-variant-numeric: tabular-nums;
-  background: rgba(10, 12, 20, 0.06);
+  background: var(--tint-2);
   color: var(--gray500);
 }
-.dstudio .ds-ck-rrow.on .ds-ck-rnum { background: rgba(0, 163, 137, 0.16); color: var(--ds-teal-ink); }
-.dstudio .ds-ck-rdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.dstudio .ds-ck-rrow.on .ds-ck-rnum { background: var(--tint); color: var(--ds-teal-ink); }
+.dstudio .ds-ck-rdot { width: 9px; height: 9px; border-radius:50%; flex: none; }
 .dstudio .ds-ck-rdot.done { background: var(--ds-ok); }
-.dstudio .ds-ck-rdot.pending { background: #f0a431; }
+.dstudio .ds-ck-rdot.pending { background: var(--warn); }
 .dstudio .ds-ck-rdot.none { background: var(--gray400); }
 .dstudio .ds-ck-rnm {
   flex: 1;
@@ -6776,7 +6704,7 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   border: 1px dashed var(--ds-border-s);
   background: transparent;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 12px;
   color: var(--gray500);
   font: 700 12px var(--font);
@@ -6876,8 +6804,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-inspect {
   background: var(--ds-card2);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: var(--ds-sh-sm);
+  border-radius:var(--r-card);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -6892,7 +6819,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-cdot {
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius:50%;
   background: var(--gray400);
   flex: none;
 }
@@ -6913,7 +6840,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: var(--ds-ok-bg);
   color: var(--teal-d);
   font: 700 12px var(--font);
@@ -6925,8 +6852,8 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 4px;
   padding: 4px 4px 4px 8px;
-  border-radius: 999px;
-  background: rgba(10, 12, 20, 0.05);
+  border-radius:var(--r-pill);
+  background: var(--tint);
   color: var(--gray500);
   font: 700 12px var(--font);
 }
@@ -6944,10 +6871,9 @@ html[data-ds-display] .dstudio.editing {
 
 /* ── neutral sub-cards with a coloured title pill ── */
 .dstudio .ds-ck-sub {
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: var(--ds-sh-sm);
+  border-radius:var(--r-card);
   padding: 12px;
 }
 .dstudio .ds-ck-subh {
@@ -6960,10 +6886,10 @@ html[data-ds-display] .dstudio.editing {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(10, 12, 20, 0.05);
+  background: var(--tint);
   color: var(--gray700);
   padding: 4px 8px 4px 8px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   font: 700 12px var(--font);
 }
 /* the sub icon is teal; the type/colour distinction now lives on the sub-tabs */
@@ -6992,7 +6918,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 12px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: var(--ds-card2);
   border: 1px solid var(--ds-border);
 }
@@ -7002,7 +6928,7 @@ html[data-ds-display] .dstudio.editing {
   position: relative;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   flex: none;
   display: flex;
   align-items: center;
@@ -7017,9 +6943,9 @@ html[data-ds-display] .dstudio.editing {
   bottom: -4px;
   width: 16px;
   height: 16px;
-  border-radius: 50%;
+  border-radius:50%;
   background: var(--teal-d);
-  color: #fff;
+  color: var(--paper);
   border: 2px solid var(--ds-card2);
   display: flex;
   align-items: center;
@@ -7044,8 +6970,8 @@ html[data-ds-display] .dstudio.editing {
   font: 600 12px var(--font);
   padding: 4px 8px;
   border: 1px solid var(--gray200);
-  border-radius: 999px;
-  background: #fff;
+  border-radius:var(--r-pill);
+  background: var(--paper);
   cursor: pointer;
 }
 .dstudio .ds-ck-airflip button:disabled { color: var(--gray400); cursor: default; }
@@ -7072,13 +6998,12 @@ html[data-ds-display] .dstudio.editing {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1px solid var(--ds-border-s);
-  background: #fff;
+  background: var(--paper);
   color: var(--ds-teal-ink);
   cursor: pointer;
   opacity: 0;
-  box-shadow: var(--ds-sh-sm);
   transition: opacity var(--t-fast) var(--ease);
 }
 .dstudio .ds-ck-recall svg { width: 14px; height: 14px; }
@@ -7102,7 +7027,7 @@ html[data-ds-display] .dstudio.editing {
   font: 700 12px var(--font);
   color: var(--ds-amber-d);
   background: var(--ds-amber-bg);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 2px 8px;
 }
 /* no-units-selected prompt inside the Units sub */
@@ -7111,14 +7036,14 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: var(--ds-card2);
   border: 1px dashed var(--ds-border-s);
 }
 .dstudio .ds-ck-uempty .ue-ic {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   flex: none;
   background: var(--ds-teal-bg);
   color: var(--teal-d);
@@ -7136,7 +7061,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: var(--ds-card2);
   border: 1px solid var(--ds-border);
   width: 100%;
@@ -7149,12 +7074,12 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-pico {
   width: 28px;
   height: 28px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
   color: var(--gray500);
 }
@@ -7167,7 +7092,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: var(--ds-card2);
   border: 1px dashed var(--ds-border-s);
   font: 600 12px var(--font);
@@ -7182,10 +7107,9 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 12px;
   padding: 12px 12px;
-  border-radius: 10px;
-  background: #fff;
+  border-radius:var(--r-button);
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  box-shadow: var(--ds-sh-sm);
   width: 100%;
   text-align: left;
   font-family: var(--font);
@@ -7195,7 +7119,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-compic {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   flex: none;
   display: flex;
   align-items: center;
@@ -7228,8 +7152,8 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 10px;
-  background: #fff;
+  border-radius:var(--r-button);
+  background: var(--paper);
   border: 1px solid var(--ds-border);
   cursor: pointer;
   width: 100%;
@@ -7237,7 +7161,7 @@ html[data-ds-display] .dstudio.editing {
   font-family: var(--font);
 }
 .dstudio .ds-ck-opt:hover { border-color: var(--ds-border-s); }
-.dstudio .ds-ck-opt.on { border-color: var(--ds-ok); box-shadow: 0 0 0 1px rgba(0, 163, 137, 0.35); }
+.dstudio .ds-ck-opt.on { border-color: var(--ds-ok);  box-shadow: 0 0 0 1px var(--ink); }
 .dstudio .ds-ck-opt-nm { flex: 1; font: 700 12px var(--font); color: var(--ink2); }
 .dstudio .ds-ck-opt-nm small { display: block; font-weight: 500; color: var(--gray500); margin-top: 1px; }
 .dstudio .ds-ck-opt-tick { width: 15px; height: 15px; flex: none; color: var(--ds-ok); opacity: 0; }
@@ -7245,17 +7169,16 @@ html[data-ds-display] .dstudio.editing {
 
 /* ── empty states ── */
 .dstudio .ds-ck-emptycard {
-  background: #fff;
+  background: var(--paper);
   border: 1px dashed var(--ds-border-s);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 24px 16px;
   text-align: center;
-  box-shadow: var(--ds-sh-sm);
 }
 .dstudio .ds-ck-emptyic {
   width: 48px;
   height: 48px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: var(--ds-teal-bg);
   color: var(--teal-d);
   display: flex;
@@ -7285,10 +7208,9 @@ html[data-ds-display] .dstudio.editing {
   border: none;
   cursor: pointer;
   background: var(--ink2);
-  color: #fff;
-  border-radius: 10px;
+  color: var(--paper);
+  border-radius:var(--r-button);
   font: 700 13px var(--font);
-  box-shadow: 0 12px 24px -12px rgba(10, 12, 20, 0.55);
 }
 .dstudio .ds-ck-inkbtn:hover { background: #16181f; }
 .dstudio .ds-ck-inkbtn svg { width: 16px; height: 16px; color: var(--teal); }
@@ -7300,7 +7222,7 @@ html[data-ds-display] .dstudio.editing {
   width: 100%;
   padding: 12px;
   border: 1px dashed var(--ds-border-s);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   background: transparent;
   color: var(--gray500);
   font: 700 12px var(--font);
@@ -7321,9 +7243,9 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1px solid var(--ds-border);
-  background: #fff;
+  background: var(--paper);
   cursor: pointer;
   font-family: var(--font);
   text-align: left;
@@ -7338,10 +7260,9 @@ html[data-ds-display] .dstudio.editing {
 
 /* ── "coming at Stage X" (unavailable module) ── */
 .dstudio .ds-ck-coming {
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: var(--ds-sh-sm);
+  border-radius:var(--r-card);
   padding: 24px 16px;
   text-align: center;
 }
@@ -7380,11 +7301,11 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-objfield select,
 .dstudio .ds-ck-objfield input {
   border: 1px solid var(--ds-border-s);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 8px;
   font: 600 12px var(--font);
   color: var(--ink2);
-  background: #fff;
+  background: var(--paper);
 }
 .dstudio .ds-ck-objdel {
   display: inline-flex;
@@ -7393,14 +7314,14 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   margin-top: 4px;
   padding: 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   border: 1px solid var(--ds-border-s);
-  background: #fff;
+  background: var(--paper);
   color: var(--ds-red-d);
   font: 700 12px var(--font);
   cursor: pointer;
 }
-.dstudio .ds-ck-objdel:hover { background: var(--ds-red-d); color: #fff; border-color: var(--ds-red-d); }
+.dstudio .ds-ck-objdel:hover { background: var(--ds-red-d); color: var(--paper); border-color: var(--ds-red-d); }
 
 /* ── Multi-split (Stage 5): lean pickers + cockpit findings ── */
 /* the multi pickers reuse the unit-browser chrome at a smaller fixed size */
@@ -7410,11 +7331,11 @@ html[data-ds-display] .dstudio.editing {
 }
 .ds-mp-choose {
   font: 700 12px var(--font, "Plus Jakarta Sans", sans-serif);
-  color: var(--teal-d, #0f766e);
+  color: var(--teal-d, var(--ink));
   text-align: right;
   white-space: nowrap;
 }
-.ds-ub-model em.ds-mp-nofit { color: var(--ds-amber-d, #b45309); }
+.ds-ub-model em.ds-mp-nofit { color: var(--ds-amber-d, var(--warn-t)); }
 /* rule findings under the shared-outdoor figures (red = breach, amber = unchecked) */
 .dstudio .ds-ck-mwarn {
   display: flex;
@@ -7439,14 +7360,14 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #fff;
-  background: var(--teal-d, #00a389);
-  border-radius: 999px;
+  color: var(--paper);
+  background: var(--teal-d, var(--ink));
+  border-radius:var(--r-pill);
   min-width: 17px;
   padding: 1px 4px;
   text-align: center;
 }
-.dstudio .ds-tray-btn.on .ds-tray-n { background: #1a1a1a; }
+.dstudio .ds-tray-btn.on .ds-tray-n { background: var(--ink); }
 .dstudio .ds-tray {
   position: absolute;
   top: calc(100% + 6px);
@@ -7454,10 +7375,9 @@ html[data-ds-display] .dstudio.editing {
   z-index: 60;
   min-width: 218px;
   padding: 4px;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
-  box-shadow: 0 14px 34px -18px rgba(10, 12, 20, 0.4);
+  border-radius:var(--r-card);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -7467,7 +7387,7 @@ html[data-ds-display] .dstudio.editing {
   grid-template-columns: auto 1fr;
   gap: 2px 8px;
   padding: 8px 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   cursor: grab;
   user-select: none;
 }
@@ -7477,11 +7397,11 @@ html[data-ds-display] .dstudio.editing {
   background: #f5f5f3;
   outline: none;
 }
-.dstudio .ds-tray-item:focus-visible { box-shadow: inset 0 0 0 1.5px var(--teal-d, #00a389); }
+.dstudio .ds-tray-item:focus-visible {  box-shadow: inset 0 0 0 1.5px var(--teal-d, var(--ink)); }
 .dstudio .ds-tray-role {
   grid-row: 1;
   font: 700 12px var(--font);
-  color: #8a8a8a;
+  color: var(--q);
   align-self: center;
 }
 .dstudio .ds-tray-model {
@@ -7494,7 +7414,7 @@ html[data-ds-display] .dstudio.editing {
   grid-row: 2;
   grid-column: 2;
   font: 600 12px var(--font);
-  color: #767676;
+  color: var(--q);
 }
 /* the Room button's shape flyout — the choice lands where the click did */
 .dstudio .ds-roomfly {
@@ -7506,7 +7426,7 @@ html[data-ds-display] .dstudio.editing {
   padding: 4px;
   background: #fff;
   border: 1px solid var(--ds-border);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   box-shadow: 0 14px 34px -18px rgba(10, 12, 20, 0.4);
   display: flex;
   flex-direction: column;
@@ -7518,7 +7438,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   width: 100%;
   padding: 8px 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font: 600 13px var(--font);
   color: var(--ink);
   text-align: left;
@@ -7554,7 +7474,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-notefly .ds-note-ink {
   width: 22px;
   padding: 0;
-  border-radius: 50%;
+  border-radius:50%;
 }
 
 /* the Draw button's flyout — the line families plus the riser, each row
@@ -7569,7 +7489,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 4px 4px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
 }
 .dstudio .ds-drawfly .ds-drawk {
   display: flex;
@@ -7589,10 +7509,10 @@ html[data-ds-display] .dstudio.editing {
   width: auto;
   padding: 4px 8px;
   border: 1px solid var(--ds-border);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   font: 600 12px var(--font);
   color: var(--ink);
-  background: #fff;
+  background: var(--paper);
   cursor: pointer;
 }
 .dstudio .ds-drawfly button.ds-drawchip:hover:not(:disabled) { background: var(--tint); }
@@ -7602,26 +7522,24 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-drawfly button.ds-drawchip:disabled {
   color: var(--gray500);
   border-color: var(--gray200);
-  background: #fafbfc;
+  background: var(--tint);
   cursor: not-allowed;
 }
 .dstudio .ds-drawfly .ds-drawk.off { color: var(--gray500); }
 .dstudio .ds-drawfly button.ds-drawchip.on {
   background: var(--teal-d);
   border-color: var(--teal-d);
-  color: #fff;
+  color: var(--paper);
 }
 .dstudio .ds-pal {
   position: absolute;
   left: 0;
   top: calc(100% + 8px);
   z-index: 30;
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 16px;
+  border-radius:var(--r-card);
   padding: 8px;
-  box-shadow: 0 1px 2px rgba(10, 12, 20, 0.04),
-    0 18px 44px -20px rgba(10, 12, 20, 0.38);
   width: 264px;
 }
 .dstudio .ds-pal-grid {
@@ -7635,11 +7553,11 @@ html[data-ds-display] .dstudio.editing {
   align-items: flex-start;
   gap: 4px;
   padding: 8px 8px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   text-align: left;
   transition: background var(--t-fast) var(--ease);
 }
-.dstudio .ds-pal-item:hover:not(:disabled) { background: #f4f5f7; }
+.dstudio .ds-pal-item:hover:not(:disabled) { background: var(--tint); }
 .dstudio .ds-pal-item.off { opacity: 0.45; cursor: not-allowed; }
 .dstudio .ds-pal-ic { color: var(--gray500); display: flex; }
 .dstudio .ds-pal-item:hover:not(:disabled) .ds-pal-ic { color: var(--ink); }
@@ -7657,14 +7575,14 @@ html[data-ds-display] .dstudio.editing {
 /* options HUD — floating pill strip, top-centre over the canvas */
 .dstudio .ds-hud {
   position: absolute;
-  top: 56px; /* clears the canvas-top strip */
+  top: 56px;                                  
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
   display: flex;
   align-items: center;
   gap: 8px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 4px 4px 12px;
 }
 .dstudio .ds-hud-label {
@@ -7675,17 +7593,16 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-hud-seg {
   display: flex;
   gap: 4px;
-  /* the segmented track is an inset well, so it goes DARKER than the pill,
-     not lighter — a light track would be the old white pill in miniature */
+                                                                                                                                                        
   background: rgba(0, 0, 0, 0.32);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 2px;
 }
 .dstudio .ds-hud-chip {
   font-size: 12px;
   font-weight: 700;
   color: var(--gray500);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 12px;
   transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
@@ -7874,7 +7791,7 @@ html[data-ds-display] .dstudio.editing {
   margin-top: 12px;
   padding: 8px 12px;
   border: 1px solid var(--ds-border);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   cursor: pointer;
 }
 .dstudio .ds-ck-spill input { margin-top: 2px; accent-color: var(--teal-d); }
@@ -7903,7 +7820,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   padding: 4px 8px;
   border: 1px solid var(--ds-border);
-  border-radius: 10px;
+  border-radius:var(--r-button);
 }
 .dstudio .ds-ck-spig-size {
   font-size: 12px;
@@ -7919,16 +7836,16 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-ck-spig-cap {
   font-size: 12px;
   font-weight: 500;
-  color: var(--ds-amber-d, #b45309);
+  color: var(--ds-amber-d, var(--warn-t));
 }
 .dstudio .ds-ck-spig-del {
   margin-left: auto;
   display: flex;
   color: var(--gray500);
-  border-radius: 6px;
+  border-radius:var(--r-control);
   padding: 4px;
 }
-.dstudio .ds-ck-spig-del:hover { color: var(--ds-red-d, #b91c1c); background: #f4f5f7; }
+.dstudio .ds-ck-spig-del:hover { color: var(--ds-red-d, #b91c1c); background: var(--tint); }
 .dstudio .ds-ck-addspig { margin-top: 12px; }
 .dstudio .ds-ck-addspig-t {
   font-size: 12px;
@@ -7942,13 +7859,13 @@ html[data-ds-display] .dstudio.editing {
   font-weight: 700;
   color: var(--gray500);
   border: 1px solid var(--ds-border);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 12px;
 }
 .dstudio .ds-ck-facebtn.on {
   color: var(--ink);
   border-color: var(--ink);
-  background: #f4f5f7;
+  background: var(--tint);
 }
 .dstudio .ds-ck-sizechips { display: flex; flex-wrap: wrap; gap: 4px; }
 .dstudio .ds-ck-sizechip {
@@ -7957,7 +7874,7 @@ html[data-ds-display] .dstudio.editing {
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   border: 1px solid var(--ds-border);
-  border-radius: 6px;
+  border-radius:var(--r-control);
   padding: 4px 8px;
   transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
@@ -7999,7 +7916,7 @@ html[data-ds-display] .dstudio.editing {
   width: 252px;
   background: #fff;
   border: 1px solid #e5e5e2;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   box-shadow: 0 14px 34px -12px rgba(10, 12, 20, 0.32);
   padding: 12px 12px;
   display: flex;
@@ -8016,7 +7933,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sim-power {
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius:50%;
   border: 1px solid var(--ds-border);
   background: #fff;
   color: var(--gray500);
@@ -8054,7 +7971,7 @@ html[data-ds-display] .dstudio.editing {
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius:var(--r-control);
 }
 .dstudio .ds-sim-x:hover {
   background: var(--ds-card2);
@@ -8071,7 +7988,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 4px;
   border: 1px solid var(--ds-border);
   background: #fff;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 8px;
   font: 600 12px var(--font);
   color: var(--gray700);
@@ -8084,7 +8001,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sim-tabdot {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius:50%;
   background: var(--sys, var(--gray400));
 }
 .dstudio .ds-sim-body {
@@ -8111,7 +8028,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sim-step {
   width: 30px;
   height: 30px;
-  border-radius: 50%;
+  border-radius:50%;
   border: 1px solid var(--ds-border);
   background: #fff;
   font: 600 16px var(--font);
@@ -8149,7 +8066,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sim-chip {
   border: 1px solid var(--ds-border);
   background: #fff;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 8px;
   font: 700 12px var(--font);
   color: var(--gray700);
@@ -8259,14 +8176,14 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-present-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius:50%;
 }
 .dstudio .ds-present-exit {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.04);
   color: #eceef4;
@@ -8296,7 +8213,7 @@ html[data-ds-display] .dstudio.editing {
   align-items: center;
   gap: 8px;
   padding: 8px 12px 8px 8px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.04);
   color: rgba(236, 238, 244, 0.78);
@@ -8318,7 +8235,7 @@ html[data-ds-display] .dstudio.editing {
   flex: none;
   width: 17px;
   height: 17px;
-  border-radius: 6px;
+  border-radius:var(--r-control);
   border: 1px solid rgba(255, 255, 255, 0.4);
   display: flex;
   align-items: center;
@@ -8353,7 +8270,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-present-stage .ds-canvas {
   flex: 1 1 0;
   min-height: 0;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
 }
@@ -8363,13 +8280,13 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-sim-phase.p-airflow,
 .dstudio .ds-sim-compbar {
   height: 6px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: var(--ds-card2);
   overflow: hidden;
 }
 .dstudio .ds-sim-compfill {
   height: 100%;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   background: var(--teal-d);
   transition: width var(--t-move) var(--ease), background var(--t-fast) var(--ease);
 }
@@ -8554,7 +8471,7 @@ html[data-ds-display] .dstudio.editing {
 .dstudio .ds-live-brand {
   font-weight: 700;
   font-size: 13px;
-  color: var(--teal, #00e5c0);
+  color: var(--teal, var(--ink));
   white-space: nowrap;
 }
 /* The logo's light plate on this bar USED TO LIVE HERE. It moved to
@@ -8570,7 +8487,7 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-live-floor {
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.04);
   color: #eceef4;
@@ -8580,8 +8497,8 @@ html[data-ds-display] .dstudio.editing {
 }
 .dstudio .ds-live-floor:hover { background: rgba(255, 255, 255, 0.1); }
 .dstudio .ds-live-floor.on {
-  background: var(--teal, #00e5c0);
-  border-color: var(--teal, #00e5c0);
+  background: var(--teal, var(--ink));
+  border-color: var(--teal, var(--ink));
   color: #04241f;
 }
 .ds-live-404 {
@@ -8597,7 +8514,7 @@ html[data-ds-display] .dstudio.editing {
   padding: 24px;
   font-family: var(--font, 'Plus Jakarta Sans', sans-serif);
 }
-.ds-live-404 .ds-live-brand { font-size: 16px; margin-bottom: 4px; color: var(--teal, #00e5c0); }
+.ds-live-404 .ds-live-brand { font-size: 16px; margin-bottom: 4px; color: var(--teal, var(--ink)); }
 .ds-live-404 h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .ds-live-404 p { margin: 0; max-width: 420px; font-size: 13px; line-height: 1.55; color: rgba(236, 238, 244, 0.65); }
 /* the dead-end branch reached FROM the sheet needs a way back to it; the
@@ -8605,7 +8522,7 @@ html[data-ds-display] .dstudio.editing {
 .ds-live-404 .ds-live-back {
   margin-top: 4px;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.06);
   color: #eceef4;
@@ -8619,9 +8536,9 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
-  background: var(--ds-card2, #f4f5f7);
+  background: var(--ds-card2, var(--tint));
   border: 1px solid var(--ds-border);
-  border-radius: 6px;
+  border-radius:var(--r-control);
   padding: 8px 8px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -8638,7 +8555,7 @@ html[data-ds-display] .dstudio.editing {
   text-decoration: line-through;
 }
 .dstudio .ds-share-meta.dead {
-  color: var(--ds-red-d, #e0264f);
+  color: var(--ds-red-d, var(--bad-t));
   font-weight: 600;
 }
 
@@ -8676,12 +8593,12 @@ html[data-ds-display] .dstudio.editing {
   flex: none;
   width: 24px;
   height: 24px;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ds-card2, #f4f5f7);
+  background: var(--ds-card2, var(--tint));
   border: 1px solid var(--ds-border);
   font-size: 12px;
   font-weight: 700;
@@ -8754,7 +8671,7 @@ html[data-ds-display] .dstudio.editing {
   flex-wrap: wrap;
   margin: -8px -8px 0;
   padding: 8px;
-  border-radius: 16px;
+  border-radius:var(--r-card);
   background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(10px);
 }
@@ -8767,19 +8684,19 @@ html[data-ds-display] .dstudio.editing {
   color: #7c4a03;
   background: #fff5e6;
   border: 1px solid #f0cf9a;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 12px;
 }
 .dstudio .ds-chrome-warn b {
   font-weight: 700;
-  background: #f0a431;
+  background: var(--warn);
   color: #2b1a02;
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 0 8px;
 }
 .dstudio .ds-chrome-warn:hover { background: #ffefd6; }
-.dstudio .ds-chrome-warn:focus-visible { outline: none; box-shadow: var(--ring-warn); }
-.dstudio .ds-chrome-warn svg { color: #b45309; }
+.dstudio .ds-chrome-warn:focus-visible { outline: none;  box-shadow: var(--ring-warn); }
+.dstudio .ds-chrome-warn svg { color: var(--warn-t); }
 .dstudio .ds-chrome-ok {
   display: inline-flex;
   align-items: center;
@@ -8798,19 +8715,19 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   height: 36px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius:var(--r-button);
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
-  background: #fff;
+  background: var(--paper);
   border: 1px solid rgba(10, 12, 20, 0.14);
   transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
 .dstudio .ds-chrome-btn:hover { background: #f6f7f9; }
-.dstudio .ds-chrome-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-chrome-btn:focus-visible { outline: none;  box-shadow: var(--ring); }
 .dstudio .ds-chrome-btn.on { background: #eef0f3; border-color: rgba(10, 12, 20, 0.24); }
 .dstudio .ds-chrome-btn:disabled { opacity: 0.45; cursor: default; }
-.dstudio .ds-chrome-btn:disabled:hover { background: #fff; }
+.dstudio .ds-chrome-btn:disabled:hover { background: var(--paper); }
 /* the app's CTA convention: teal ground, ink text (10.25:1) — white on
    --teal-d measured 3.18 and is banned as a pair */
 .dstudio .ds-chrome-btn.cta { background: var(--teal); border-color: var(--teal); color: #04231f; }
@@ -8824,7 +8741,7 @@ html[data-ds-display] .dstudio.editing {
   gap: 8px;
   background: #fff8ec;
   border: 1px solid #f0cf9a;
-  border-radius: 16px;
+  border-radius:var(--r-card);
 }
 .dstudio .ds-chrome-list li { display: flex; flex-direction: column; gap: 1px; }
 .dstudio .ds-chrome-list b { font-size: 13px; font-weight: 700; color: #5c3a06; }
@@ -8849,14 +8766,14 @@ html[data-ds-display] .dstudio.editing {
   font-size: 12px;
   font-weight: 700;
   color: var(--gray700);
-  background: #fff;
+  background: var(--paper);
   border: 1px dashed rgba(10, 12, 20, 0.28);
-  border-radius: 999px;
+  border-radius:var(--r-pill);
   padding: 4px 12px;
   transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
 }
 .dstudio .ds-letter-attach:hover { border-color: var(--teal-d); color: var(--teal-d); background: #f0fdf9; }
-.dstudio .ds-letter-attach:focus-visible { outline: none; box-shadow: var(--ring); }
+.dstudio .ds-letter-attach:focus-visible { outline: none;  box-shadow: var(--ring); }
 .dstudio .ds-letter-unlink {
   margin-left: 8px;
   font-size: 12px;
@@ -8866,7 +8783,7 @@ html[data-ds-display] .dstudio.editing {
   text-underline-offset: 2px;
 }
 .dstudio .ds-letter-unlink:hover { color: var(--ds-amber-d); }
-.dstudio .ds-letter-unlink:focus-visible { outline: none; box-shadow: var(--ring); border-radius: 6px; }
+.dstudio .ds-letter-unlink:focus-visible { outline: none;  box-shadow: var(--ring); border-radius:var(--r-control); }
 /* the picker overlays the sheet rather than pushing the title row apart */
 .dstudio .ds-letter-pick { display: inline-flex; align-items: center; gap: 8px; position: relative; }
 .dstudio .ds-letter-pick .ds-sm8-field { min-width: 19rem; }
@@ -8887,9 +8804,9 @@ html[data-ds-display] .dstudio.editing {
   justify-self: start;
   font: 700 13px var(--font);
   color: var(--ink);
-  background: #fff;
+  background: var(--paper);
   border: 1px solid var(--ds-border);
-  border-radius: 10px;
+  border-radius:var(--r-button);
   padding: 8px 12px;
   cursor: pointer;
 }

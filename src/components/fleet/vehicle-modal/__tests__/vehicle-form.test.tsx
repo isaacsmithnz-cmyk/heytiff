@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { RenewalInput } from "@/app/actions/fleet";
 import type { Vehicle } from "../../logic";
@@ -110,7 +110,7 @@ describe("adding a vehicle from its rego certificate", () => {
     expect(screen.getByPlaceholderText("e.g. Hiace ZR")).toHaveValue("Triton");
     expect(screen.getByPlaceholderText("17 characters on the certificate")).toHaveValue("MMAWLKL10NH035826");
     expect(screen.getByRole("combobox", { name: /body type/i })).toHaveValue("ute");
-    expect(field("Rego expiry")).toHaveTextContent("29/09/2027");
+    expect(field(/^Rego expiry/)).toHaveTextContent("29/09/2027");
     expect(screen.getByPlaceholderText("e.g. 1008")).toHaveValue(1008);
     expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "rego_notice");
 
@@ -157,17 +157,94 @@ describe("adding a vehicle from its rego certificate", () => {
     expect(plateInput()).toHaveValue("abc123");
   });
 
-  it("files nothing and says so when Tiff can't read the certificate", async () => {
+  it("keeps a certificate Tiff can't read, and files it under the first rego record typed by hand", async () => {
     readRegoCertificate.mockResolvedValue({ ok: false, reason: "no-key" });
     const { user, onSave } = setup();
     await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
     await waitFor(() => expect(screen.getByText("Tiff couldn't read that one — fill the form in below.")).toBeInTheDocument());
-    // the form is still there to fill, and the scan card offers again
+    expect(screen.getByText("Attached: cert.jpg")).toBeInTheDocument();
+    expect(plateInput()).toHaveValue(""); // nothing read, nothing filled
+    await user.type(plateInput(), "MKT482");
+    await user.selectOptions(makeSelect(), "Toyota");
+    await user.click(field(/^Rego expiry/));
+    await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
+    await user.click(addBtn());
+    expect(uploadFile).toHaveBeenCalledWith(expect.anything(), "rego_notice");
+    expect(onSave.mock.calls[0][2]).toEqual({
+      kind: "rego",
+      expiresOn: "2026-09-29",
+      startsOn: null,
+      provider: null,
+      premium: null,
+      termMonths: 12,
+      documentId: "doc-1",
+      source: "manual",
+    });
+  });
+
+  it("asks for the expiry while it holds a certificate, and Scan another lets go of both", async () => {
+    readRegoCertificate.mockResolvedValue({ ok: false, reason: "read" });
+    const { user, onSave, onClose } = setup();
+    await user.type(plateInput(), "MKT482");
+    await user.selectOptions(makeSelect(), "Toyota");
+    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(screen.getByText("Attached: cert.jpg")).toBeInTheDocument());
+    // the paper's only home is a rego record, and a rego record is its expiry
+    expect(screen.getByText("Rego expiry")).toHaveTextContent("Rego expiry*");
+    expect(addBtn()).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Scan another" }));
+    expect(screen.getByText("Scan or upload the rego certificate")).toBeInTheDocument();
+    expect(screen.queryByText("Tiff couldn't read that one — fill the form in below.")).not.toBeInTheDocument();
+    expect(screen.getByText("Rego expiry")).toHaveTextContent(/^Rego expiry$/);
+    await user.click(addBtn());
+    expect(onSave.mock.calls[0][2]).toBeUndefined(); // no expiry, nothing held, no record
+    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    expect(onClose).toHaveBeenCalled(); // nothing in hand, so the backdrop closes again
+  });
+
+  it("asks for the expiry when the read found none, then files the certificate as scanned", async () => {
+    readRegoCertificate.mockResolvedValue({ ...TRITON_CERT, expiresOn: null });
+    const { user, onSave } = setup();
+    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(makeSelect()).toHaveValue("Mitsubishi"));
+    expect(addBtn()).toBeDisabled();
+    await user.click(field(/^Rego expiry/));
+    await user.click(screen.getByRole("button", { name: "Tuesday 29 September 2026" }));
+    await user.click(addBtn());
+    expect(onSave.mock.calls[0][2]).toMatchObject({ expiresOn: "2026-09-29", documentId: "doc-1", source: "scan" });
+  });
+
+  it("files nothing when neither the read nor the upload lands, and offers the scan again", async () => {
+    uploadFile.mockResolvedValue({ ok: false, error: "too big" });
+    readRegoCertificate.mockResolvedValue({ ok: false, reason: "no-key" });
+    const { user, onSave } = setup();
+    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
+    await waitFor(() => expect(screen.getByText("The certificate couldn't be stored — the details will save without it.")).toBeInTheDocument());
     expect(screen.getByText("Scan or upload the rego certificate")).toBeInTheDocument();
     await user.type(plateInput(), "MKT482");
     await user.selectOptions(makeSelect(), "Toyota");
     await user.click(addBtn());
     expect(onSave.mock.calls[0][2]).toBeUndefined(); // no expiry, no record
+  });
+
+  it("survives Escape and the backdrop while the certificate is read or held; the X still closes", async () => {
+    let finish: (v: unknown) => void = () => {};
+    readRegoCertificate.mockReturnValue(new Promise((r) => (finish = r)));
+    const { user, onClose } = setup();
+    await user.upload(field("Scan certificate"), new File(["x"], "cert.jpg", { type: "image/jpeg" }));
+    await screen.findByText("Reading cert.jpg…");
+    await user.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
+
+    finish({ ok: false, reason: "read" });
+    await screen.findByText("Attached: cert.jpg");
+    await user.keyboard("{Escape}");
+    fireEvent.click(document.querySelector(".vm-ov") as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("types a first registration by hand as a manual record", async () => {

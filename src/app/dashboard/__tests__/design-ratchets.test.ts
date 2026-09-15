@@ -333,8 +333,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "`transition: all` — a transition names what moves", now: () => count(/transition\s*:\s*all\b/g), baseline: 0 },
   { law: "`text-transform: uppercase` — the eyebrow is retired; a registration plate is the one thing set in caps", now: () => count(/text-transform\s*:\s*uppercase/g), baseline: 2 },
   { law: "radius off the scale — four radii and a circle", now: offScaleRadii, baseline: 0 },
-  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 50 },
-  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 57 },
+  { law: "gradients — one accent, flat surfaces", now: () => count(/(?:linear|radial|conic)-gradient\(/g), baseline: 48 },
+  { law: "shadows that are not a focus ring — one shadow, overlays only", now: shadows, baseline: 55 },
   { law: "bars at the left edge — selection is a fill, state is a word; the schedule key mirrors its board's cap", now: leftBars, baseline: 1 },
   // round two
   { law: "Tailwind palette hexes — colour comes from the tokens", now: tailwindHexes, baseline: 0 },
@@ -343,8 +343,8 @@ const RATCHETS: Array<{ law: string; now: () => number; baseline: number }> = [
   { law: "distinct z-index values — six layers", now: distinctZ, baseline: 20 },
   { law: "arrows on buttons — the word is the button; an arrow between two values is a fact", now: () => countTsx(onScreen("→")), baseline: 6 },
   { law: "middot chains — a sentence, or a label and a value; the nine left are keyboard hints", now: () => countTsx(onScreen("·")), baseline: 9 },
-  { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 2 },
-  { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 24 },
+  { law: "inner-highlight glass edges — no glass", now: () => count(/inset 0 1px 0 rgba\(255/g), baseline: 1 },
+  { law: "white-alpha hairlines on the dark chrome — one hairline token", now: () => count(/border(?:-[a-z]+)?\s*:\s*1px solid rgba\(255,\s*255,\s*255,\s*0?\.[0-2]\d*\)/g), baseline: 22 },
   { law: "stacked hovers — a hover is one change", now: () => hoverBlocks((b) => /transform\s*:\s*(?!none\b)/.test(b) && /box-shadow\s*:\s*(?!none\b)/.test(b)), baseline: 1 },
   { law: "hover nudges — nothing slides on hover", now: () => hoverBlocks((b) => /translateX\([1-6]px\)/.test(b)), baseline: 0 },
   /* A control revealed on hover counts only while nothing reveals it on focus:

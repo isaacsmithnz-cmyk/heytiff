@@ -447,7 +447,11 @@ this list the way it holds the loops: both ways, by name.
      Each walked; each reflows.
    - z-index and the dark chrome's hairlines are settled family by family in
      the fold (step 6): a layer scale collapses siblings that rely on their
-     order, and only the family knows which.
+     order, and only the family knows which. The frame's own went last
+     (2026-09-15): its edge hairline, its two shadows, the topbar's glass and
+     the well's inner highlight were paint the one-piece frame had already
+     cancelled, so they went without a change on screen; the nav's group
+     divider is the one hairline token, and now shows.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the

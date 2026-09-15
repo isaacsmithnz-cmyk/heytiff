@@ -102,7 +102,7 @@ function actions(): FleetActions {
 }
 
 function detail(vehicle: Vehicle, logs: VehicleLog[] = [], initialScreen?: "services") {
-  const onLog = jest.fn();
+  const fleet = actions();
   render(
     <VehicleModal
       vehicle={vehicle}
@@ -113,15 +113,14 @@ function detail(vehicle: Vehicle, logs: VehicleLog[] = [], initialScreen?: "serv
       finance={[]}
       staff={[]}
       today={TODAY} warnDays={30}
-      fleet={actions()}
+      fleet={fleet}
       initialScreen={initialScreen}
       onClose={jest.fn()}
       onEdit={jest.fn()}
-      onLog={onLog}
       onCorrect={jest.fn()}
     />,
   );
-  return { onLog, user: userEvent.setup() };
+  return { fleet, user: userEvent.setup() };
 }
 
 const services = (logs: VehicleLog[]) => detail(van, logs, "services");
@@ -187,10 +186,14 @@ it("says none are logged rather than claiming the vehicle was never serviced", (
   expect(screen.getByText("No services logged yet")).toBeInTheDocument();
 });
 
-it("asks for a service log from its own screen, saying where it was asked", async () => {
-  const { onLog, user } = services(mixed);
+it("Log service from the services screen is a screen of the card, and Cancel returns to the list", async () => {
+  const { user } = services(mixed);
   await user.click(screen.getByRole("button", { name: /log service/i }));
-  expect(onLog).toHaveBeenCalledWith("service", "services");
+  expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();
+  expect(screen.getByText("Scan or upload the service invoice")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("heading", { name: "Service" })).toBeInTheDocument();
+  expect(screen.getByText("Due at")).toBeInTheDocument();
 });
 
 it("a service in the list opens on its own screen — what was done, the workshop — and Back returns to the list", async () => {
@@ -263,8 +266,7 @@ it("returns to the service history after logging one, not to the vehicle card", 
   await user.click(screen.getByText("WORK TRITON"));
   await user.click(screen.getByRole("button", { name: "Service history" })); // the NEXT SERVICE card
   await user.click(screen.getByRole("button", { name: /log service/i }));
-  // the log modal's subtitle is the vehicle line — nothing else renders it
-  expect(screen.getByText(/WORK TRITON, Mitsubishi Triton 2022/)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Log service" })).toBeInTheDocument();
 
   await user.click(screen.getByRole("button", { name: /cancel/i }));
   /* "Due at" only exists in the service history and "Vehicle details" only on

@@ -103,12 +103,15 @@ export async function readFuelReceipt(
   // someone with no vehicle assigned (they may fuel a pool vehicle).
   if (!(await getDbRole())) return { ok: false, reason: "Sign in to scan receipts." };
   if (offline()) return { ok: false, reason: "no-key" };
-  if (!RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
-    return { ok: false, reason: "Unsupported image type." };
+  /* A photo of thermal paper, usually — but a fuel card's monthly tax
+     invoice arrives as a PDF, and it is the same tax record. */
+  const isPdf = mediaType === "application/pdf";
+  if (!isPdf && !RECEIPT_MEDIA.includes(mediaType as ReceiptMedia)) {
+    return { ok: false, reason: "Unsupported file type." };
   }
   if (!imageBase64 || imageBase64.length > 14_000_000) {
     // ~10MB decoded — plenty for a phone photo of a docket
-    return { ok: false, reason: "That photo is too large to read." };
+    return { ok: false, reason: "That file is too large to read." };
   }
 
   try {
@@ -124,14 +127,11 @@ export async function readFuelReceipt(
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType as ReceiptMedia, data: imageBase64 },
-            },
+            documentBlock(imageBase64, mediaType, isPdf),
             {
               type: "text",
               text:
-                "This is a photo of a fuel receipt/docket from an Australian servo. Extract:\n" +
+                "This is a fuel receipt/docket or fuel tax invoice from an Australian servo. Extract:\n" +
                 "- litres: litres of fuel purchased\n" +
                 "- cost: the total cost in dollars, GST inclusive, with cents\n" +
                 "- station: a short station name (brand + suburb if shown, e.g. \"Shell Coburg\")\n" +

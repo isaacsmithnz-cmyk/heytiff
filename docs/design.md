@@ -451,7 +451,12 @@ this list the way it holds the loops: both ways, by name.
      (2026-09-15): its edge hairline, its two shadows, the topbar's glass and
      the well's inner highlight were paint the one-piece frame had already
      cancelled, so they went without a change on screen; the nav's group
-     divider is the one hairline token, and now shows.
+     divider is the one hairline token, and now shows. The Studio's dark
+     chrome followed the same day: its start screen, its HUD, legend and
+     zoom control, the unit card, present mode and the live sheet's door
+     sit on the on-ink tokens, the elevated dark and the one overlay
+     shadow, with no glass. What is left of the count is three dark
+     surfaces on the board.
 4. **The inherited tells**, one walked PR each: the orbs, the card and its
    icon square, the eyebrows, the stagger and shimmer and spotlight, the
    hero on My Vehicle. Then the two Isaac named on 2026-09-10: the bars at the

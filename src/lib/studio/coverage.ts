@@ -4,6 +4,7 @@ import { roomLoadKw, type RoomObj } from "./loads-room";
 import { sizingCapacityKw, type SizingBasis } from "./loads";
 import { pointInPolygon } from "./geometry";
 import { moduleFor } from "./modules";
+import { allocationsOf, hasAllocations } from "./allocations";
 
 /* Room coverage (plan step: units → spaces) — pure derivations only.
    Attribution model:
@@ -15,6 +16,10 @@ import { moduleFor } from "./modules";
    Coverage of a room = Σ sizing capacity of every PLACED IDU stamped to it,
    across ALL systems (the user's call: placed-only counts; a chosen-but-
    unplaced pair shows as pending).
+   A system built in the system builder is different: its ALLOCATIONS are the
+   units it has, placed or not (allocations.ts). The builder decides the room,
+   so an allocated unit covers its room before it is on the plan, and a placed
+   one is never counted twice.
    What a placed IDU is WORTH depends on the owning module's unit flow:
    pair/ducted systems rate the IDU via their pair table (systemPairKw);
    per-room systems (multi / VRF) rate each IDU at its own catalogue
@@ -191,11 +196,26 @@ export function roomCoverage(
 
   const contributors: CoverageContributor[] = [];
   if (pack) {
+    for (const sys of doc.systems) {
+      if (!hasAllocations(sys)) continue;
+      for (const a of allocationsOf(sys)) {
+        if (a.role !== "idu" || a.roomId !== room.id || !a.model) continue;
+        const kw = placedIduKw(doc, pack, sys, a.model, basis) ?? 0;
+        contributors.push({
+          systemId: sys.id,
+          systemName: sys.name,
+          colour: sys.colour,
+          unitId: a.id,
+          model: a.model,
+          kw,
+        });
+      }
+    }
     for (const o of doc.objects) {
       if (o.type !== "unit" || o.props.role !== "idu") continue;
       if (o.props.roomId !== room.id) continue;
       const sys = doc.systems.find((s) => s.id === o.systemId);
-      if (!sys) continue;
+      if (!sys || hasAllocations(sys)) continue;
       const kw = placedIduKw(doc, pack, sys, String(o.props.model ?? ""), basis) ?? 0;
       contributors.push({
         systemId: sys.id,
@@ -235,6 +255,7 @@ export function roomCoverage(
   let pendingKw = 0;
   if (pack) {
     for (const sys of doc.systems) {
+      if (hasAllocations(sys)) continue; // allocated units already cover
       if (moduleFor(sys.type).unitFlow === "per-room") {
         const model = multiIduFor(sys, room.id);
         if (!model) continue;

@@ -19,6 +19,17 @@ const DUCTED_ENABLED = process.env.NEXT_PUBLIC_STUDIO_DUCTED === "1";
     build was made with NEXT_PUBLIC_STUDIO_MULTI=1. Removed at go-live. */
 const MULTI_ENABLED = process.env.NEXT_PUBLIC_STUDIO_MULTI === "1";
 
+/** The system builder (spec: Studio System Builder). Rooms belong to the plan,
+    systems are built in the builder's schematic, and units are placed from a
+    tray. Off, the Studio keeps the type-first flow untouched. Read at call
+    time so tests can flip it; inlined at build like the other flags. */
+export const builderEnabled = (): boolean =>
+  process.env.NEXT_PUBLIC_STUDIO_BUILDER === "1";
+
+/** A system's colour, handed out in order — the cockpit's Add system and the
+    builder share it, so the Nth system is the same colour whichever made it. */
+export const SYSTEM_COLOURS = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "#D63384"];
+
 /** How a type gathers indoor units once rooms are configured. */
 export type UnitFlow =
   | "pair" // split 1:1 — one IDU + one ODU, placed separately

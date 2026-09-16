@@ -236,6 +236,11 @@ export interface PlacingUnit {
   model: string;
   widthMm: number;
   depthMm: number;
+  /** a builder unit from the tray: the dropped object takes this id, this
+      system and this room — never the active system or the room it lands in */
+  allocationId?: string;
+  systemId?: string;
+  roomId?: string | null;
 }
 
 /* ── Air components (Stage 7) — armed from the component palette. The eight

@@ -687,7 +687,13 @@ export function OverviewScreen({
      and falls back to the board itself, which is the "universal note taker"
      half of the widget. */
   return (
-    <div className="page in">
+    /* `wb2-full` is the board asking for the whole well: paper to the dark
+       rail and the dark bar, no grey margin, no width cap, no radius. The
+       rules are in shell.css under "THE BOARD IS THE WELL" and reach the
+       frame's own `.main` and `.outlet` with `:has()`, because a route cannot
+       reach up. It is a class rather than an effect-set attribute so the first
+       paint is already right. */
+    <div className="page in wb2-full">
       <div className="wrap">
         <div className="stg">
           <header className="wb2-head">

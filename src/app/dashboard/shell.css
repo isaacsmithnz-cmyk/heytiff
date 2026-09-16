@@ -8019,6 +8019,97 @@ button.wb2-lpr.as-btn:focus-visible, button.wb2-agr.as-btn:focus-visible, button
     .wb2-dnact { align-items:flex-start; justify-self:start; flex-direction:row; }
 }
 
+/* ── THE BOARD IS THE WELL ─────────────────────────────────────────────
+   The Workboard is one full-bleed paper surface: it runs to the dark rail and
+   the dark bar, with no grey margin, no width cap, no radius and no dot grid.
+
+   FOUR RULES IN THIS FILE WERE TAKING 260px OF WIDTH AND 144px OF HEIGHT
+   before the board had drawn anything, measured at 1920x1080:
+
+     .fg .wrap { max-width:1500px; margin:0 auto }   90px of grey down each
+       side at 1920, and everything past 1500 on anything wider;
+     .fg .wrap { padding:32px }                      inside a card that already
+       carries 24px gutters of its own;
+     .fg .wrap { padding-bottom:96px }               scroll clearance for a
+       page that scrolls, and this one does not;
+     .fg .main { padding:0 16px 16px 0 }             the inset that lets the
+       dark frame show across the right and the bottom.
+
+   That is 1436x716 of usable board inside them against 1696x860 without, and
+   on a 2560px monitor the width gain roughly doubles, because the cap is
+   discarding a third of that screen.
+
+   DISPLAY MODE ALREADY PROVED IT. `html[data-wb-display]`, below, zeroes
+   exactly these paddings and this radius so the board can go on the workshop
+   wall. This makes the board's ordinary state what display mode showed it
+   could be, and leaves display mode the one job that is genuinely its own:
+   taking the money off the wall for whoever walks past.
+
+   THE SHELL DOES NOT MOVE. The rail, the bar and the dark frame stay exactly
+   where they are (docs/design.md: the shell is still). What goes is the inset
+   between them and the content.
+
+   SCOPED WITH `:has()`, because the padding and the radius belong to `.main`
+   and `.outlet` — the frame's elements, not the route's — and a route cannot
+   reach up. Pure CSS, so it is right on the first paint: an attribute set
+   from an effect would flash the framed layout on every navigation. */
+.fg .main:has(> .outlet > .page.wb2-full) { padding:0; }
+.fg .outlet:has(> .page.wb2-full) {
+  border-radius:0; overflow:hidden;
+  background:var(--paper); background-image:none;
+}
+.fg .page.wb2-full { height:100%; display:flex; flex-direction:column; }
+/* `width:100%` and the killed auto margins are load-bearing: `.wrap` carries
+   `margin:0 auto`, and an auto CROSS-axis margin on a flex item cancels the
+   default stretch, so the wrap would quietly shrink to fit-content and sit in
+   the middle of the screen. Display mode learned this the hard way; the note
+   is on its block too. */
+.fg .page.wb2-full > .wrap {
+  max-width:none; width:100%; margin:0; padding:0;
+  flex:1; min-height:0; display:flex; flex-direction:column;
+}
+.fg .page.wb2-full .stg,
+.fg .page.wb2-full .wb-board,
+.fg .page.wb2-full .wb2 { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
+
+/* The gutter the wrap used to hand out now belongs to each band, so each one
+   can choose its own: the header and the tab row stand in 24px, and whatever
+   is inside the card keeps the gutters it already had. */
+.fg .page.wb2-full .wb2-head { padding:16px 24px; }
+.fg .page.wb2-full .wb2-vtabs { padding:0 24px; }
+
+/* ONE PAPER SURFACE, SO THE CARD STOPS BEING A CARD, AND THE TABS STOP BEING
+   FOLDERS. With the well itself paper, a border and a 16px radius around the
+   board draw a line between two identical whites; and the folder join — the
+   sliding thumb that IS the card's top edge for the width of the active tab —
+   has nothing left to join. So the card fills and loses its edges, the thumb
+   goes, and the row becomes underline tabs: the active one in ink with a 2px
+   ink rule under it, sitting on the hairline that now separates the tab row
+   from the board.
+
+   This is the same signal the thumb was making, drawn with the one hairline
+   instead of a second white shape with two radial-gradient corners — and it
+   is what leaves the row foldable into the header, which the thumb's
+   `offsetLeft` measurement did not. */
+.fg .page.wb2-full .wb2-card {
+  flex:1; min-height:0; display:flex; flex-direction:column;
+  border:0; border-radius:0; border-top:1px solid var(--line);
+}
+/* The card fills and the PANEL is what scrolls, because `.outlet` no longer
+   can: a full-height board that let the page scroll would take its own header
+   and tab row off the top with it. Same arrangement display mode uses. */
+.fg .page.wb2-full .wb2-panel { flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; }
+.fg .page.wb2-full .wb2-vslide { display:none; }
+.fg .page.wb2-full .wb2-vt {
+  border-radius:0; font-weight:500; color:var(--q);
+  border-bottom:2px solid transparent;
+}
+.fg .page.wb2-full .wb2-vt.on { font-weight:600; color:var(--ink); border-bottom-color:var(--ink); }
+.fg .page.wb2-full .wb2-vt:hover:not(.on) { background:transparent; color:var(--ink); }
+/* the 1.5px rule between two inactive tabs separated folder lids. An
+   underline row separates by weight and colour, so it has nothing to do. */
+.fg .page.wb2-full .wb2-vt:not(.on) + .wb2-vt:not(.on):before { content:none; }
+
 /* ── wb2 step 5: the capture pill + overlay, and DISPLAY MODE ──
    Display mode is the SAME light board (decided 2026-08-01 — the old dark
    flip is gone and stays gone), and as of 2026-08-02 the same PAGE: it

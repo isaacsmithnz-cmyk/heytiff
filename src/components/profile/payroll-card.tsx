@@ -109,7 +109,6 @@ export function PayrollCard({
                 editing={editing}
                 value={values.hourly_wage ? `$${values.hourly_wage}` : ""}
                 onAdd={edit}
-                addLabel="Set"
                 error={errorFor("hourly_wage", "Plain figures only")}
                 control={
                   <MoneyInput
@@ -138,7 +137,6 @@ export function PayrollCard({
                 editing={editing}
                 value={values.employment_type}
                 onAdd={edit}
-                addLabel="Select"
                 control={
                   <SelectInput
                     name="employment_type"
@@ -155,7 +153,6 @@ export function PayrollCard({
                 value={values.contracted_hours}
                 sub={hoursNote}
                 onAdd={edit}
-                addLabel="Set"
                 error={errorFor("contracted_hours", "Plain figures only")}
                 control={
                   <TextInput
@@ -194,7 +191,6 @@ export function PayrollCard({
                 editing={editing}
                 value={values.super_override ? `${values.super_override}%` : ""}
                 onAdd={edit}
-                addLabel="Set"
                 sub={values.super_override ? undefined : "Using the org default"}
                 error={errorFor("super_override", "Plain figures only")}
                 control={
@@ -214,7 +210,6 @@ export function PayrollCard({
                   values.workers_comp_override ? `${values.workers_comp_override}%` : ""
                 }
                 onAdd={edit}
-                addLabel="Set"
                 sub={values.workers_comp_override ? undefined : "Using the org default"}
                 error={errorFor("workers_comp_override", "Plain figures only")}
                 control={

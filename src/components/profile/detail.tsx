@@ -102,6 +102,15 @@ export function Detail({
       instead — which is right for a card with nothing to edit. */
   onAdd,
   /** the add button's verb: "Add" for a box you type in, "Select" for a list */
+  /* ONE VERB FOR A BLANK, and it is this one. The overrides were "Set" on a
+     date or a figure and "Select" on a dropdown — the verb naming the CONTROL
+     rather than the act, which the reader neither knows nor cares about, and
+     which opened the same form either way. Three words for "there is nothing
+     here" also gave one field two accessible names depending on the tab:
+     Summary said "Add Date of birth" while Personal said "Set Date of birth".
+     The visible word is the verb alone because the label column beside it IS
+     the noun; a button with no label beside it (a plain panel's) carries its
+     own, and does not use this. */
   addLabel = "Add",
   /** long values (an address, an email) that shouldn't sit at value size */
   small = false,

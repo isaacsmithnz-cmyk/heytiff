@@ -47,8 +47,7 @@ export function NotesCard({
                 <p className="ro-note">{values.notes}</p>
               ) : (
                 <button type="button" className="padd" onClick={edit}>
-                  Write
-                  <i className="sr-only"> internal notes</i>
+                  Write a note
                 </button>
               )}
             </DetailPanel>

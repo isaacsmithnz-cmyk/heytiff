@@ -174,7 +174,6 @@ export function PersonalCard({
           editing={editing}
           value={born}
           onAdd={edit}
-          addLabel="Set"
           error={errorFor("birthday", "Pick a real date")}
           control={
             <DateField
@@ -253,7 +252,6 @@ export function PersonalCard({
           editing={editing}
           value={started}
           onAdd={edit}
-          addLabel="Set"
           error={errorFor("start_date", "Pick a real date")}
           control={
             <DateField
@@ -292,7 +290,6 @@ export function PersonalCard({
           editing={editing}
           value={values.employment_type}
           onAdd={edit}
-          addLabel="Select"
           control={
             <SelectInput
               name="employment_type"
@@ -330,7 +327,6 @@ export function PersonalCard({
             value={values.state || orgState || ""}
             sub={!values.state && orgState ? "Organisation default" : undefined}
             onAdd={edit}
-            addLabel="Set"
             control={
               <SelectInput
                 name="state"

@@ -428,6 +428,6 @@ describe("the holiday state, in the Personal section", () => {
     setup({ profile: { ...jordan, state: null }, orgState: null });
     await user.click(screen.getByRole("tab", { name: /Personal/ }));
 
-    expect(screen.getByRole("button", { name: /Set Holiday state/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Add Holiday state/ })).toBeInTheDocument();
   });
 });

@@ -164,7 +164,7 @@ describe("the read view", () => {
     // and ONLY the status is asked for — the visa fields follow from it
     expect(screen.queryByRole("button", { name: /Add Type/ })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Select Status/ }));
+    await user.click(screen.getByRole("button", { name: /Add Status/ }));
     expect(screen.getByLabelText(/^Status/)).toBeInTheDocument();
   });
 });

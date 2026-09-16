@@ -130,7 +130,6 @@ export function EmergencyCard({
             editing={editing}
             value={values.emergency_relationship}
             onAdd={edit}
-            addLabel="Select"
             control={
               <SelectInput
                 name="emergency_relationship"

@@ -150,6 +150,18 @@ Every decision below is made once, here, and a guard test holds each number.
   lost its chevron with it — law 20's arrow in another alphabet, and no other
   group on this card draws one.
 
+  **One verb for a blank, and it is Add.** The overrides were "Set" on a date
+  or a figure and "Select" on a dropdown — the verb naming the CONTROL rather
+  than the act, which the reader neither knows nor cares about and which opens
+  the same form either way. Three words for "there is nothing here" also gave
+  one field two accessible names depending on the tab: Summary said "Add Date
+  of birth" where Personal said "Set Date of birth". Law 12 still wants a verb
+  AND a noun, and in a ledger row the label column beside the button is the
+  noun — which is why the visible word is the verb alone and the field name is
+  read out with it. A button with no label beside it, in a panel that holds
+  prose or chips rather than rows, carries its own: "Write a note", "List
+  qualifications".
+
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ keeps its night ground and its KPI tiles**, and takes everything else.

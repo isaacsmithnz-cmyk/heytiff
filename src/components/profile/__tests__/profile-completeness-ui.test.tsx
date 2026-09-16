@@ -238,6 +238,45 @@ describe("answering a blank", () => {
   });
 });
 
+/* ONE VERB FOR A BLANK.
+
+   The overrides were "Set" on a date or a figure and "Select" on a dropdown —
+   the verb naming the CONTROL rather than the act, which the reader neither
+   knows nor cares about and which opened the same form either way. Three words
+   for "there is nothing here" also gave one field two accessible names
+   depending on which tab you were on: Summary said "Add Date of birth" while
+   Personal said "Set Date of birth". */
+describe("a blank's verb", () => {
+  const verbs = () =>
+    [...document.querySelectorAll(".pdrow .padd")].map((b) =>
+      (b.textContent ?? "").replace(/\s+/g, " ").trim().split(" ")[0],
+    );
+
+  it("is Add, on every tab and in every row", async () => {
+    const user = userEvent.setup();
+    setup(blankProfile);
+
+    const seen: string[] = [];
+    for (const tab of [/Personal/, /Emergency/, /Work rights/]) {
+      await user.click(screen.getByRole("tab", { name: tab }));
+      const here = verbs();
+      // each of those tabs has blanks to offer, or this guard proves nothing
+      expect(here.length).toBeGreaterThan(0);
+      seen.push(...here);
+    }
+    expect([...new Set(seen)]).toEqual(["Add"]);
+  });
+
+  /* A button with no label column beside it has to carry its own noun — the
+     ledger's rows borrow theirs from the label, and these have none. */
+  it("carries its own noun where no label sits beside it", async () => {
+    const user = userEvent.setup();
+    setup(blankProfile);
+    await user.click(screen.getByRole("tab", { name: /Compliance/ }));
+    expect(screen.getByRole("button", { name: "List qualifications" })).toBeInTheDocument();
+  });
+});
+
 /* ONE LIST, and now one PLACE. The star on a form's label and the count on
    Summary's record line say the same thing — the business is obliged to hold
    this — and used to come from two lists: a mobile number wore a star the

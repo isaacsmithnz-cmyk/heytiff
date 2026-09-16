@@ -151,7 +151,6 @@ export function WorkRightsCard({
             editing={editing}
             value={status}
             onAdd={edit}
-            addLabel="Select"
             control={
               <SelectInput
                 name="work_rights_status"
@@ -204,7 +203,6 @@ export function WorkRightsCard({
                 )
               }
               onAdd={edit}
-              addLabel="Set"
               error={errorFor("visa_expiry", "Pick a real date")}
               control={
                 <DateField
@@ -241,7 +239,6 @@ export function WorkRightsCard({
               editing={editing}
               value={vevoChecked}
               onAdd={edit}
-              addLabel="Set"
               error={errorFor("vevo_checked_at", "Pick a real date")}
               control={
                 /* a check you already did — it can't be in the future */

@@ -27,6 +27,14 @@ client id is `AUTH0_CLIENT_ID`) → toggle it **Authorized** → expand it and t
 | scope | what it is for |
 | --- | --- |
 | `update:users` | moving the address — `PATCH /api/v2/users/{id}` |
+| `read:users` | an invitation: does this address already have a login, and has it been used — `GET /api/v2/users-by-email` |
+| `create:users` | an invitation: the invitee's password login — `POST /api/v2/users` |
+| `create:user_tickets` | an invitation: the "Set your password" link — `POST /api/v2/tickets/password-change` |
+
+The last three were ticked on 2026-09-16, under **Client Access** on the
+application's **API Access** tab (the dashboard's current name for the grant),
+together with the application's **Application Login URI** set to
+`https://go.hey-tiff.com/auth/login` — see *Invitations* below for why both.
 
 `POST /api/v2/jobs/verification-email` is covered by the same grant.
 
@@ -85,3 +93,46 @@ claim minted at LOGIN. The action rewrites the cookie itself via
 before that was added, a real change looked like it had silently failed:
 Auth0 had the new address, `profiles` had it, and every screen still rendered
 the old one until the person signed out and back in.
+
+## Invitations: "Set your password" instead of the sign-up screen
+
+An invitation used to open Auth0's **sign-up** screen, which on this plan is one
+set of words shared with the founder at the front door, one password box, and
+"Create your account" — it read as signing in, or as founding a company. Since
+2026-09-16 [`/invite/accept`](../src/app/invite/accept/route.ts) does this for an
+anonymous visitor holding a live invitation:
+
+1. `GET /users-by-email` for the **invitation's** address.
+2. Any login there that has **been used** (`logins_count > 0`) → the sign-in
+   screen with the address filled in. Nothing is created and no ticket is ever
+   minted for it.
+3. Otherwise → create the password login (or reuse the unused one an earlier
+   click made), `POST /tickets/password-change` for it, **accept the invitation
+   there and then** (Isaac: "accept at the click"), and redirect to the ticket.
+4. Every failure falls back to the old sign-up door, except a ticket that fails
+   after the login exists, which goes to sign-in (the sign-up screen would now
+   refuse the address; "Forgot password?" still works).
+
+The ticket opens Auth0's **reset-password** screen — reworded in
+[`prompts.ts`](../src/lib/brand/auth0/prompts.ts) to words true for both an
+invitee and a forgotten password: *Set your password*, two boxes, *Set password*.
+
+**The Application Login URI is load-bearing.** On the New Universal Login a
+ticket's `result_url` is ignored; the finished screen's button goes to the
+application's Login URI instead, and only because the ticket carries
+`client_id`. Unset, the invitee finishes on "Password set" with nowhere to go.
+
+### What these scopes can do, and what stops it
+
+`create:user_tickets` can mint a password reset for **any** account in the
+tenant — the same class of power `update:users` already had. Two things keep it
+from being an account-takeover endpoint:
+
+- The address is read off the invitation row the **token** found, never from
+  the request. Holding a live invitation token was already enough to join that
+  workspace; it grants nothing more here.
+- A ticket is only ever minted for a login that has **never been used**. A
+  login somebody has signed in with — a password one or a Google one — gets the
+  sign-in screen. `src/app/invite/__tests__/accept.test.ts` holds this, and the
+  test was checked to fail with the guard removed.
+

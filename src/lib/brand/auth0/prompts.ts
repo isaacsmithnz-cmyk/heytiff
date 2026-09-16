@@ -121,16 +121,78 @@ export const SIGNUP_PROMPT_TEXT = {
   },
 } as const;
 
-/** Auth0 keys custom text by prompt and language. `reset-password` is still
-    unwritten: it is one prompt spanning five screens that a single PUT
-    replaces together, and unlike this one it has never been looked at — so
-    there is nothing yet to say is wrong with it.
+/* THE PASSWORD SCREENS — and, since 2026-09-16, the screen an invitation opens.
+
+   WHY THEY ARE WRITTEN NOW. An invitation used to land on the sign-up screen
+   above, which Isaac read as either signing in or founding a company: one
+   password box, "create your account", shared word for word with the founder
+   at the front door. The invite route now hands a new invitee a password-change
+   ticket instead (app/invite/accept/route.ts), and this prompt is what that
+   ticket opens — a title, a New and a Re-enter box.
+
+   ONE PROMPT, TWO PEOPLE, SO EVERY WORD HAS TO BE TRUE FOR BOTH. The same
+   screens serve somebody who pressed "Forgot password?". "Set your password",
+   "Choose a password to sign in with." and "Set password" are right for an
+   invitee choosing their first and for somebody replacing a forgotten one;
+   "Change your password" and "Reset password" were only ever right for the
+   second.
+
+   THE PUT REPLACES ALL FIVE SCREENS TOGETHER, so the three this flow does not
+   reword still carry their known faults fixed here: `${clientName}` in the tab
+   and the back link (the application's misspelled "Heytiff"), `${companyName}`
+   in the logo's alt text (the tenant id). The key names were read from Auth0's
+   own per-prompt source, `auth0/docs` →
+   articles/universal-login/text-customization-prompts/reset-password.md, on
+   2026-09-16 — `eventTitle`, not `title`, on the success screen, and
+   `reEnterpasswordPlaceholder` with that lowercase p. */
+export const RESET_PASSWORD_PROMPT_TEXT = {
+  "reset-password-request": {
+    pageTitle: "Reset your HeyTiff password",
+    logoAltText: "HeyTiff",
+    backToLoginLinkText: "Back to sign in",
+  },
+  "reset-password-email": {
+    pageTitle: "Check your email for HeyTiff",
+  },
+  "reset-password": {
+    pageTitle: "Set your HeyTiff password",
+    /* Was: "Change Your Password" — Title Case, and only true for somebody who
+       already had one. */
+    title: "Set your password",
+    /* Was: "Enter a new password below to change your password." The lockup says
+       who; the line says what the password is FOR, which an invitee does not
+       yet know and somebody resetting one already does. */
+    description: "Choose a password to sign in with.",
+    /* The boxes, not "New password": nothing about a first password is new. */
+    passwordPlaceholder: "Password",
+    reEnterpasswordPlaceholder: "Re-enter password",
+    buttonText: "Set password",
+    logoAltText: "HeyTiff",
+  },
+  "reset-password-success": {
+    pageTitle: "HeyTiff password set",
+    /* Was: "Password Changed!" — no exclamation marks (law 12), and "changed"
+       again only for one of the two people reading it. */
+    eventTitle: "Password set",
+    description: "Sign in with it to continue.",
+    /* Was: "Back to ${clientName}". The button goes to the application's Login
+       URI, which starts a sign-in — so it says the verb it performs. */
+    buttonText: "Sign in",
+  },
+  "reset-password-error": {
+    pageTitle: "HeyTiff password link",
+    backToLoginLinkText: "Back to sign in",
+  },
+} as const;
+
+/** Auth0 keys custom text by prompt and language.
 
     `satisfies`, not an annotation: `Record<string, …>` widens `keyof` to
     `string` and throws away the very key names the script sends. */
 export const PROMPT_TEXT = {
   login: LOGIN_PROMPT_TEXT,
   signup: SIGNUP_PROMPT_TEXT,
+  "reset-password": RESET_PASSWORD_PROMPT_TEXT,
 } satisfies Record<string, Record<string, Record<string, string>>>;
 
 /** Auth0 stores custom text per locale and falls back to its own defaults for

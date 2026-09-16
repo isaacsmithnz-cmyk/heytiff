@@ -14,6 +14,7 @@
 import {
   LOGIN_PROMPT_TEXT,
   SIGNUP_PROMPT_TEXT,
+  RESET_PASSWORD_PROMPT_TEXT,
   PROMPT_TEXT,
   PROMPT_LANGUAGE,
 } from "../prompts";
@@ -96,7 +97,7 @@ describe("what gets sent", () => {
   it("targets prompts Auth0 publishes", () => {
     // A prompt name Auth0 does not know is a 404 the script reports as a
     // missing scope, which would send the next person to the wrong place.
-    expect(Object.keys(PROMPT_TEXT)).toEqual(["login", "signup"]);
+    expect(Object.keys(PROMPT_TEXT)).toEqual(["login", "signup", "reset-password"]);
     expect(PROMPT_LANGUAGE).toBe("en");
   });
 
@@ -163,3 +164,63 @@ describe("the two screens are one flow and use one verb", () => {
     expect(signup.pageTitle).toBe("Sign up to HeyTiff");
   });
 });
+
+/* ── the password screens (2026-09-16) ─────────────────────────────────────
+
+   The screen an invitation opens now, AND the screen "Forgot password?" opens.
+   One prompt, two people, so every word below has to be true for both. */
+describe("the password screens serve an invitee and a reset alike", () => {
+  const reset = RESET_PASSWORD_PROMPT_TEXT["reset-password"];
+  const done = RESET_PASSWORD_PROMPT_TEXT["reset-password-success"];
+
+  /* The key names are Auth0's, read off its per-prompt source. A wrong one is
+     accepted by the PUT, reported as a success, and changes nothing — and on
+     this prompt two of them are easy to "correct" into silence. */
+  it("uses the screens and keys Auth0 publishes for this prompt", () => {
+    expect(Object.keys(RESET_PASSWORD_PROMPT_TEXT)).toEqual([
+      "reset-password-request",
+      "reset-password-email",
+      "reset-password",
+      "reset-password-success",
+      "reset-password-error",
+    ]);
+    // `eventTitle`, not `title`, on the finished screen
+    expect(done).toHaveProperty("eventTitle");
+    expect(done).not.toHaveProperty("title");
+    // lowercase p, as Auth0 spells it
+    expect(reset).toHaveProperty("reEnterpasswordPlaceholder");
+  });
+
+  it("never speaks only to somebody who already had a password", () => {
+    const words = Object.values(RESET_PASSWORD_PROMPT_TEXT)
+      .flatMap((screen) => Object.values(screen))
+      .join(" ");
+    expect(words).not.toMatch(/\b(change|changed|new password|reset password)\b/i);
+  });
+
+  it("says what the screen does, and the button the verb it performs", () => {
+    expect(reset.title).toBe("Set your password");
+    expect(reset.buttonText).toBe("Set password");
+    // the finished screen's button goes to the app's login route
+    expect(done.buttonText).toBe("Sign in");
+  });
+
+  it("keeps the line under the logo free of the product's name", () => {
+    expect(reset.description).not.toMatch(/HeyTiff/i);
+    expect(done.description).not.toMatch(/HeyTiff/i);
+  });
+
+  it("names the product in every tab, and fixes the alt text where it exists", () => {
+    for (const screen of Object.values(RESET_PASSWORD_PROMPT_TEXT)) {
+      expect(screen.pageTitle).toMatch(/HeyTiff/);
+    }
+    expect(RESET_PASSWORD_PROMPT_TEXT["reset-password-request"].logoAltText).toBe("HeyTiff");
+    expect(reset.logoAltText).toBe("HeyTiff");
+  });
+
+  it("does not shout", () => {
+    const words = Object.values(RESET_PASSWORD_PROMPT_TEXT).flatMap((screen) => Object.values(screen));
+    for (const w of words) expect(w).not.toMatch(/!/);
+  });
+});
+

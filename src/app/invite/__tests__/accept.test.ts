@@ -119,6 +119,36 @@ var updateSessionSpy = jest.fn(async () => {});
 // eslint-disable-next-line no-var
 var capturedOptions: Record<string, unknown>;
 
+/* THE MANAGEMENT API, stubbed explicitly. Unconfigured by default, which is
+   exactly what a tenant without the grant answers — so every case above the
+   set-password block exercises the old sign-up door ON PURPOSE rather than by
+   the accident of an empty environment. `var` for the same hoisting reason as
+   the spies below. */
+type MgmtOk<T> = { ok: true; value: T };
+type MgmtErr = { ok: false; error: string };
+// eslint-disable-next-line no-var
+var mgmt: {
+  find: Array<MgmtOk<{ userId: string; loginsCount: number }[]> | MgmtErr>;
+  create: MgmtOk<{ userId: string }> | MgmtErr;
+  ticket: MgmtOk<string> | MgmtErr;
+  calls: { fn: string; args: unknown[] }[];
+} = { find: [], create: { ok: false, error: "NOT_CONFIGURED" }, ticket: { ok: false, error: "NOT_CONFIGURED" }, calls: [] };
+
+jest.mock("@/lib/integrations/auth0-management", () => ({
+  findUsersByEmail: async (...args: unknown[]) => {
+    mgmt.calls.push({ fn: "find", args });
+    return mgmt.find.length ? mgmt.find.shift() : { ok: false, error: "NOT_CONFIGURED" };
+  },
+  createPasswordUser: async (...args: unknown[]) => {
+    mgmt.calls.push({ fn: "create", args });
+    return mgmt.create;
+  },
+  createPasswordTicket: async (...args: unknown[]) => {
+    mgmt.calls.push({ fn: "ticket", args });
+    return mgmt.ticket;
+  },
+}));
+
 /* A stand-in for the SDK client. Constructing it is what lib/auth0.ts does at
    import time; capturing the options lets the last describe block below call
    the real beforeSessionSaved hook. */
@@ -161,6 +191,10 @@ const req = (token = "tok-1") =>
 const staffInserts = () => calls.filter((c) => c.table === "staff_profiles" && c.op === "insert");
 
 beforeEach(() => {
+  mgmt.find = [];
+  mgmt.create = { ok: false, error: "NOT_CONFIGURED" };
+  mgmt.ticket = { ok: false, error: "NOT_CONFIGURED" };
+  mgmt.calls = [];
   calls.length = 0;
   eqCalls.length = 0;
   updateSessionSpy.mockClear();
@@ -513,3 +547,159 @@ function res_location(res: { headers: { get(k: string): string | null } }): stri
   if (!to) throw new Error("expected a redirect");
   return to;
 }
+
+/* ── THE INVITEE'S OWN DOOR: "Set your password" ──────────────────────────
+
+   Isaac, 2026-09-16: the sign-up screen an invitation opened said "create your
+   account", took the password once, and read like signing in or like founding a
+   company. A new invitee now gets a login made for them, Auth0's password
+   screen (two boxes), and — "accept at the click" — a membership before they
+   ever type. What must hold: the address is always the invitation's, a login
+   that has been USED never gets a ticket, and every failure falls back to the
+   old door rather than to an error. */
+describe("a new invitee sets a password instead of signing up", () => {
+  const TICKET = "https://tenant.test/u/reset-verify?ticket=abc#";
+  const NEW_USER = "auth0|made-for-them";
+
+  beforeEach(() => {
+    sessionValue = null;
+    inviteRow = validInvite({ name: "Luke Brennan" });
+  });
+
+  const memberships = () => calls.filter((c) => c.table === "memberships" && c.op === "upsert");
+  const accepted = () =>
+    calls.filter((c) => c.table === "invitations" && c.op === "update" && (c.payload as Row).accepted_at);
+
+  it("makes their login, accepts at the click, and opens the password screen", async () => {
+    mgmt.find = [{ ok: true, value: [] }];
+    mgmt.create = { ok: true, value: { userId: NEW_USER } };
+    mgmt.ticket = { ok: true, value: TICKET };
+
+    const res = await GET(req());
+
+    expect(res.headers.get("location")).toBe(TICKET);
+    // the address and the name are the invitation's
+    expect(mgmt.calls.find((c) => c.fn === "find")?.args).toEqual([EMAIL]);
+    expect(mgmt.calls.find((c) => c.fn === "create")?.args).toEqual([{ email: EMAIL, name: "Luke Brennan" }]);
+    expect(mgmt.calls.find((c) => c.fn === "ticket")?.args).toEqual([NEW_USER]);
+    // accepted now, against the login just made
+    expect(memberships()).toHaveLength(1);
+    expect(memberships()[0].payload).toMatchObject({ user_id: NEW_USER, org_id: ORG, role: "staff" });
+    expect(accepted()).toHaveLength(1);
+    // and their card is seated and named from the invitation, not from an address
+    expect(staffInserts()).toHaveLength(1);
+    expect(staffInserts()[0].payload).toMatchObject({
+      user_id: NEW_USER,
+      first_name: "Luke",
+      last_name: "Brennan",
+    });
+    // no session is written on this door — they sign in after choosing a password
+    expect(updateSessionSpy).not.toHaveBeenCalled();
+  });
+
+  /* A ticket is a password reset. Handing one to whoever holds an invitation
+     link, for a login somebody has actually used, would be an account takeover. */
+  it("sends somebody who has signed in before to sign in, and mints nothing", async () => {
+    mgmt.find = [{ ok: true, value: [{ userId: "google-oauth2|123", loginsCount: 4 }] }];
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(to.pathname).toBe("/auth/login");
+    expect(to.searchParams.get("login_hint")).toBe(EMAIL);
+    expect(to.searchParams.get("screen_hint")).toBeNull();
+    expect(to.searchParams.get("returnTo")).toBe("/invite/accept?token=tok-1");
+    expect(mgmt.calls.map((c) => c.fn)).toEqual(["find"]);
+    expect(memberships()).toHaveLength(0);
+    expect(accepted()).toHaveLength(0);
+  });
+
+  /* Clicked once, closed the tab, clicked again: the unused login from the
+     first click is theirs, and the invitation is already accepted. */
+  it("reuses the unused login an earlier click made, and accepts only once", async () => {
+    inviteRow = validInvite({ name: "Luke Brennan", accepted_at: "2026-09-16T01:00:00Z" });
+    mgmt.find = [{ ok: true, value: [{ userId: NEW_USER, loginsCount: 0 }] }];
+    mgmt.ticket = { ok: true, value: TICKET };
+
+    const res = await GET(req());
+
+    expect(res.headers.get("location")).toBe(TICKET);
+    expect(mgmt.calls.map((c) => c.fn)).toEqual(["find", "ticket"]);
+    expect(memberships()).toHaveLength(0);
+    expect(accepted()).toHaveLength(0);
+  });
+
+  it("uses the other click's login when two arrive at once", async () => {
+    mgmt.find = [{ ok: true, value: [] }, { ok: true, value: [{ userId: NEW_USER, loginsCount: 0 }] }];
+    mgmt.create = { ok: false, error: "EMAIL_IN_USE" };
+    mgmt.ticket = { ok: true, value: TICKET };
+
+    const res = await GET(req());
+
+    expect(res.headers.get("location")).toBe(TICKET);
+    expect(mgmt.calls.find((c) => c.fn === "ticket")?.args).toEqual([NEW_USER]);
+  });
+
+  /* The grant missing, the tenant unreachable: the invitee still gets in,
+     through exactly the door they had before this existed. */
+  it("falls back to the old sign-up door when Auth0 cannot be asked", async () => {
+    mgmt.find = [{ ok: false, error: "NO_GRANT" }];
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(to.searchParams.get("screen_hint")).toBe("signup");
+    expect(to.searchParams.get("login_hint")).toBe(EMAIL);
+    expect(memberships()).toHaveLength(0);
+    expect(staffInserts()).toHaveLength(0);
+  });
+
+  it("falls back when the login cannot be made, and accepts nothing", async () => {
+    mgmt.find = [{ ok: true, value: [] }];
+    mgmt.create = { ok: false, error: "REJECTED" };
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(to.searchParams.get("screen_hint")).toBe("signup");
+    expect(mgmt.calls.map((c) => c.fn)).toEqual(["find", "create"]);
+    expect(accepted()).toHaveLength(0);
+  });
+
+  /* Once the login exists the old sign-up screen would refuse the address, so
+     a ticket that fails AFTER creation sends them to sign in, where "Forgot
+     password?" still works — and nothing is accepted on a door that failed. */
+  it("sends them to sign in when the ticket fails after the login exists", async () => {
+    mgmt.find = [{ ok: true, value: [] }];
+    mgmt.create = { ok: true, value: { userId: NEW_USER } };
+    mgmt.ticket = { ok: false, error: "UNAVAILABLE" };
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(to.pathname).toBe("/auth/login");
+    expect(to.searchParams.get("screen_hint")).toBeNull();
+    expect(to.searchParams.get("login_hint")).toBe(EMAIL);
+    expect(accepted()).toHaveLength(0);
+    expect(memberships()).toHaveLength(0);
+  });
+
+  it("makes nobody a login for an invitation that has expired", async () => {
+    inviteRow = validInvite({ expires_at: new Date(Date.now() - 1000).toISOString() });
+
+    const to = new URL(res_location(await GET(req())));
+
+    expect(mgmt.calls).toEqual([]);
+    expect(to.searchParams.get("screen_hint")).toBe("signup");
+  });
+
+  /* The address is read off the invitation row the token found — a query
+     parameter naming somebody else changes nothing. */
+  it("never takes the address from the request", async () => {
+    mgmt.find = [{ ok: true, value: [] }];
+    mgmt.create = { ok: true, value: { userId: NEW_USER } };
+    mgmt.ticket = { ok: true, value: TICKET };
+
+    await GET(new NextRequest("https://app.test/invite/accept?token=tok-1&email=owner@diamondairsolutions.com"));
+
+    expect(mgmt.calls.find((c) => c.fn === "find")?.args).toEqual([EMAIL]);
+    expect(mgmt.calls.find((c) => c.fn === "create")?.args).toEqual([{ email: EMAIL, name: "Luke Brennan" }]);
+  });
+});
+

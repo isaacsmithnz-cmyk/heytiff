@@ -281,36 +281,40 @@ export function ShowcaseView({
   };
 
   return (
-    <div className="wb2-show">
-      <div className="wb2-jcdhead">
-        <b>Gallery</b>
-        <em>{kept.length === 1 ? "1 starred photo" : `${kept.length} starred photos`}</em>
-      </div>
-
-      <div className="wb2-showbar">
+    <>
+      {/* ONE TOOLBAR, the board's own. The head said "Gallery" under a tab
+          that already says it, and the count sat in a second band above the
+          filters; the count leads the row now and the filters follow it. */}
+      <div className="wb2-tbar wb2-showbar">
+        <span className="wb2-tbh2">
+          {kept.length === 1 ? "1 starred photo" : `${kept.length} starred photos`}
+        </span>
+        <span className="wb2-tbsep" aria-hidden="true" />
         {/* THE TABS — the broad move. Order is the family list's own, and
             empty families are absent rather than drawn dead, so the row
             never reshuffles under the cursor as photos are read. */}
-        <div className="wb2-showfilters" role="tablist" aria-label="What the photo is of">
+        <div className="wb2-fchips" role="tablist" aria-label="What the photo is of">
           <button
             role="tab"
             aria-selected={filter.kind === "all"}
-            className={`wb2-showchip${filter.kind === "all" ? " on" : ""}`}
+            className={`wb2-fchip${filter.kind === "all" ? " on" : ""}`}
             onClick={() => pick({ kind: "all" })}
           >
-            {`Everything (${kept.length})`}
+            Everything{" "}
+            <i>{kept.length}</i>
           </button>
           {families.map(({ family, count }) => (
             <button
               key={family}
               role="tab"
               aria-selected={lit === family}
-              className={`wb2-showchip${lit === family ? " on" : ""}`}
+              className={`wb2-fchip${lit === family ? " on" : ""}`}
               style={{ ["--sc" as string]: FAMILY_COLOUR[family] }}
               onClick={() => pick({ kind: "family", family })}
             >
-              <i className="wb2-showdot" aria-hidden />
-              {`${FAMILY_LABEL[family]} (${count})`}
+              <span className="wb2-showdot" aria-hidden />
+              {FAMILY_LABEL[family]}{" "}
+              <i>{count}</i>
             </button>
           ))}
         </div>
@@ -397,6 +401,7 @@ export function ShowcaseView({
         </div>
       </div>
 
+      <div className="wb2-show">
       {/* Nothing here spends. A starred photo whose job is still being read
           says so, rather than being filed under a subject it hasn't earned —
           the reading happens on the job card and lands on its own clock. */}
@@ -466,6 +471,7 @@ export function ShowcaseView({
       </div>
 
       {shown.length === 0 && <p className="int-hint">Nothing under that one yet.</p>}
+      </div>
 
       {/* PORTALLED TO BODY, unlike the job card's viewer, which rides the
           sheet's portal. This tab has no sheet — and the board sits inside
@@ -483,7 +489,7 @@ export function ShowcaseView({
           />,
           document.body
         )}
-    </div>
+    </>
   );
 }
 

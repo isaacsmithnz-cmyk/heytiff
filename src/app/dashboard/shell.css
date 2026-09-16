@@ -5928,59 +5928,176 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* `flex:none` because the panel is a flex COLUMN once the card fills the
    well: without it a 48px band is a flex item free to shrink, and it was
    rendering at 29. */
-.wb2-schbar { flex:none; display:flex; align-items:center; gap:12px; height:48px; padding:0 24px;
+.wb2-tbar { flex:none; display:flex; align-items:center; gap:12px; height:48px; padding:0 24px;
   border-bottom:1px solid var(--line); }
-.wb2-schstep { display:flex; align-items:center; gap:2px; flex:none; }
-.wb2-schar { width:24px; height:24px; flex:none; display:grid; place-items:center; padding:0; border:0;
+.wb2-tbstep { display:flex; align-items:center; gap:2px; flex:none; }
+.wb2-tbarrow { width:24px; height:24px; flex:none; display:grid; place-items:center; padding:0; border:0;
   border-radius:var(--r-control); background:transparent; color:var(--q); cursor:pointer;
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-schar:hover { background:var(--tint); color:var(--ink); }
-.wb2-schar:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-tbarrow:hover { background:var(--tint); color:var(--ink); }
+.wb2-tbarrow:focus-visible { outline:none; box-shadow:var(--ring); }
 /* the open day is the row's title — a heading in a section, not a display */
-.wb2-schh2 { flex:none; margin:0; font-size:var(--fs-4); font-weight:var(--fw-heading);
+.wb2-tbh2 { flex:none; margin:0; font-size:var(--fs-4); font-weight:var(--fw-heading);
   white-space:nowrap; }
 /* the one link token: ink, underlined (law 34) */
-.wb2-schtoday { flex:none; padding:0; border:0; background:none; font:inherit; font-size:var(--fs-2);
+.wb2-tbtoday { flex:none; padding:0; border:0; background:none; font:inherit; font-size:var(--fs-2);
   font-weight:var(--fw-label); color:var(--link); text-decoration:underline;
   text-underline-offset:3px; text-decoration-thickness:1px; cursor:pointer; }
-.wb2-schtoday:hover { text-decoration-thickness:2px; }
-.wb2-schtoday:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
-.wb2-schsep { width:1px; height:16px; flex:none; background:var(--line); }
+.wb2-tbtoday:hover { text-decoration-thickness:2px; }
+.wb2-tbtoday:focus-visible { outline:none; border-radius:var(--r-control); box-shadow:var(--ring); }
+.wb2-tbsep { width:1px; height:16px; flex:none; background:var(--line); }
 
-.wb2-schbar .wb2-schdays { display:flex; align-items:center; gap:2px; padding:0; min-width:0; }
+.wb2-tbar .wb2-schdays { display:flex; align-items:center; gap:2px; padding:0; min-width:0; }
 /* one line, not three: the row is what makes these read as a week, so the
    card each day used to be is a chip that takes the width of its own label */
-.wb2-schbar .wb2-schday { flex:none; flex-direction:row; align-items:center; gap:4px;
+.wb2-tbar .wb2-schday { flex:none; flex-direction:row; align-items:center; gap:4px;
   height:28px; padding:0 8px; border-radius:var(--r-control); }
-.wb2-schbar .wb2-schday .cw,
-.wb2-schbar .wb2-schday .cd { font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q); }
-.wb2-schbar .wb2-schday .cd { font-weight:var(--fw-heading); color:var(--ink); }
-.wb2-schbar .wb2-schday .cn { min-height:0; font-size:var(--fs-1); font-weight:var(--fw-label);
+.wb2-tbar .wb2-schday .cw,
+.wb2-tbar .wb2-schday .cd { font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q); }
+.wb2-tbar .wb2-schday .cd { font-weight:var(--fw-heading); color:var(--ink); }
+.wb2-tbar .wb2-schday .cn { min-height:0; font-size:var(--fs-1); font-weight:var(--fw-label);
   color:var(--q); }
 /* SELECTION IS A FILL (law 14). On the old strip the chosen day went white,
    which was a fill against the grey card — against paper it is nothing. */
-.wb2-schbar .wb2-schday.on { background:var(--tint-2); }
-.wb2-schbar .wb2-schday.on .cw,
-.wb2-schbar .wb2-schday.on .cd,
-.wb2-schbar .wb2-schday.on .cn { color:var(--ink); }
+.wb2-tbar .wb2-schday.on { background:var(--tint-2); }
+.wb2-tbar .wb2-schday.on .cw,
+.wb2-tbar .wb2-schday.on .cd,
+.wb2-tbar .wb2-schday.on .cn { color:var(--ink); }
 /* today is its weekday in ink. The trailing middot the card used to carry was
    a second signal for a strip you read in a column; in a row the ink is it. */
-.wb2-schbar .wb2-schday.today .cw::after { content:none; }
-.wb2-schbar .wb2-schday.past .cd,
-.wb2-schbar .wb2-schday.past .cw { opacity:1; color:var(--q); }
+.wb2-tbar .wb2-schday.today .cw::after { content:none; }
+.wb2-tbar .wb2-schday.past .cd,
+.wb2-tbar .wb2-schday.past .cw { opacity:1; color:var(--q); }
 
 /* the capacity window's grain beside its range — "Four weeks" under
    "14 Sept – 11 Oct" was the chip that named the window; it is a label now */
-.wb2-schwin { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
+.wb2-tbwin { flex:none; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
   white-space:nowrap; }
 /* the crew control keeps its word and the row's control height */
-.wb2-schbar .wb2-scmcrew { flex:none; height:28px; }
+.wb2-tbar .wb2-scmcrew { flex:none; height:28px; }
 
 /* the figures are a sentence, not three chips: a chip is for something you
    tap (law 26), and nobody taps these */
-.wb2-schsum { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+.wb2-tbsum { margin-left:auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
   white-space:nowrap; font-size:var(--fs-2); font-weight:var(--fw-label); color:var(--q);
   font-variant-numeric:tabular-nums; }
+
+/* ── THE INSPECTOR ─────────────────────────────────────────────────────
+   What is selected on the board, beside the board (board/inspector.tsx says
+   what it replaced and why). One 400px column with a hairline on its left:
+   no second grey behind it, because content and panel are both paper and the
+   one hairline is what docs/design.md gives a boundary between two of them.
+
+   The board and the panel each scroll on their own, so the toolbar above
+   them stays put — which means a panel that holds a split must not scroll
+   itself, or the toolbar would go with it. */
+.wb2-split { flex:1; min-height:0; display:flex; }
+.wb2-splitm { flex:1; min-width:0; min-height:0; overflow:auto; }
+.fg .page.wb2-full .wb2-panel:has(> .wb2-split) { overflow:hidden; }
+
+.wb2-insp { flex:none; width:400px; min-height:0; display:flex; flex-direction:column;
+  border-left:1px solid var(--line); background:var(--paper); }
+.wb2-insph { flex:none; display:flex; align-items:flex-start; gap:12px; padding:24px 24px 16px; }
+.wb2-inspt { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+/* the line above the title: the number and whose it is, or the day's figures
+   — a quiet label, sentence case, no tracking (law 10) */
+.wb2-inspk { display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:500; color:var(--q); }
+.wb2-inspk b { font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+/* the panel's title is a section title, not a display: 20/600 */
+.wb2-insp h3 { margin:0; font-size:20px; font-weight:600; line-height:1.25; color:var(--ink);
+  overflow-wrap:anywhere; text-wrap:balance; }
+/* the close cross — the one icon-only button law 25 allows, and it says so */
+.wb2-inspx { flex:none; width:28px; height:28px; display:grid; place-items:center; padding:0; border:0;
+  border-radius:var(--r-control); background:transparent; color:var(--q); cursor:pointer;
+  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-inspx:hover { background:var(--tint); color:var(--ink); }
+.wb2-inspx:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-inspb { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:24px;
+  padding:0 24px 24px; }
+/* the foot is pinned: the action is always where it was, however long the
+   reading above it runs */
+.wb2-inspa { flex:none; display:flex; gap:8px; padding:16px 24px; border-top:1px solid var(--line); }
+.wb2-inspa .pbtn { white-space:nowrap; }
+
+/* THE LEDGER — the staff card's `.pdrow`, verbatim in its numbers: a 132px
+   label column, the label 12/500 in the quiet colour, the answer 16/600 in
+   ink beside it, a hairline between rows. One vocabulary for a fact, in two
+   places, rather than a second dress for the same kind of thing. */
+.wb2-insl { margin:0; display:flex; flex-direction:column; }
+.wb2-insr { display:grid; grid-template-columns:132px minmax(0,1fr); gap:12px; align-items:baseline;
+  padding:8px 0; border-top:1px solid var(--line); }
+.wb2-insr:last-child { border-bottom:1px solid var(--line); }
+.wb2-insr dt { font-size:12px; font-weight:500; color:var(--q); }
+.wb2-insr dd { margin:0; min-width:0; font-size:16px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.wb2-insr dd small { display:block; margin-top:4px; font-size:12px; font-weight:500; }
+.wb2-inspnone { font-weight:500; color:var(--q); }
+.wb2-inspcat { display:inline-flex; align-items:center; gap:8px; }
+
+/* STATE IS A WORD, in its state colour, with no fill and no box (law 26) —
+   the row's own tones, read as words */
+.wb2-inspword { color:var(--ink); }
+.wb2-inspword.ok { color:var(--ok-t); }
+.wb2-inspword.warn { color:var(--warn-t); }
+.wb2-inspword.dan { color:var(--bad-t); }
+
+/* SOMETHING YOU READ is a group, not a card (law 9): a quiet label and the
+   text, no box */
+.wb2-insg { display:flex; flex-direction:column; gap:8px; }
+.wb2-insgl { font-size:12px; font-weight:500; color:var(--q); }
+.wb2-insg p { margin:0; font-size:14px; font-weight:400; line-height:1.5; color:var(--ink);
+  overflow-wrap:anywhere; white-space:pre-wrap; }
+
+/* the job's key, drawn by `.wb2-scfkey`, sits in an answer cell now and takes
+   a body word's size and weight. Doubled class because `.wb2-scfkey span`
+   (12/700 quiet, for a card's footer) comes later in the sheet at the same
+   weight and was winning. */
+.wb2-scfkey.wb2-inspkey span { font-size:14px; font-weight:500; color:var(--ink); }
+
+/* who is on the job: a name, the hours they hold, what their booking is doing */
+.wb2-inspcrew { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; }
+.wb2-inspcrew li { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px;
+  padding:8px 0; border-top:1px solid var(--line); }
+.wb2-inspcrew li:last-child { border-bottom:1px solid var(--line); }
+.wb2-inspcrew b { min-width:0; font-size:14px; font-weight:600; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wb2-inspcrew span { font-size:14px; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums; }
+.wb2-inspcrew em { grid-column:1 / -1; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+/* finished work is neutral on the rail and neutral here */
+.wb2-inspcrew li.done b, .wb2-inspcrew li.done span { color:var(--q); }
+
+/* ── WHAT IS SELECTED, ON THE BOARD ──
+   Selection is a fill (law 14) — on a list row, the ink tint. A schedule
+   block already spends its fill on its category's wash and its box-shadow on
+   its states (the red ring, the hollow inset), so the block being read takes
+   an ink OUTLINE, which neither of those uses. Never red: red is the bad
+   state, and a selection drawn in it says the job is wrong (law 2). */
+/* `button.wb2-ajr.as-btn { background:none }` is (0,2,1), so a bare
+   `.wb2-ajr.on` (0,2,0) lost to it and the chosen row showed nothing — and
+   so did `.wb2-ajr:hover`, which is why a row never lit under the pointer
+   either. Both are stated at the reset's own weight plus one. */
+button.wb2-ajr.as-btn:hover { background:var(--tint); }
+button.wb2-ajr.as-btn.on, button.wb2-ajr.as-btn.on:hover { background:var(--tint-2); }
+.wb2-schb.on { outline:2px solid var(--ink); outline-offset:1px; z-index:3; }
+
+/* ── THE FILTER CHIPS ──
+   What a person taps keeps a chip's form (law 26): a hairline and the
+   control radius, and the chosen one filled in ink. The count rides inside
+   the chip it belongs to, as a figure; where the count is a state (money
+   still out) the figure takes the state's colour and the word does not. */
+.wb2-fchips { display:flex; align-items:center; gap:2px; min-width:0; }
+.wb2-fchip { flex:none; display:inline-flex; align-items:center; gap:8px; height:28px; padding:0 8px;
+  border:1px solid var(--line); border-radius:var(--r-control); background:var(--paper);
+  font:inherit; font-size:13px; font-weight:500; color:var(--q); white-space:nowrap; cursor:pointer;
+  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.wb2-fchip:hover { background:var(--tint); color:var(--ink); }
+.wb2-fchip:focus-visible { outline:none; box-shadow:var(--ring); }
+.wb2-fchip i { font-style:normal; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; }
+.wb2-fchip i.warn { color:var(--warn-t); }
+.wb2-fchip.on { background:var(--ink); border-color:var(--ink); color:var(--paper); font-weight:600; }
+.wb2-fchip.on i, .wb2-fchip.on i.warn { color:var(--paper); }
+
+/* the list's rows sit under a toolbar now, so their own top gutter goes */
+.wb2-splitm > .wb2-sect:first-child { padding-top:12px; }
 
 /* ── the board ── */
 .wb2-schboard { display:flex; }
@@ -6209,39 +6326,23 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-schb.done.tight::before { top:50%; bottom:auto; }
 /* THE CREW LINK USED TO BE A HOVER: hovering any block of a multi-person job
    lifted its siblings and rested the rest of the day at opacity .35. It is a
-   CLICK now (see schedule-focus.tsx) — it answered a real question, but only
+   CLICK now (see board/focus-inspector.tsx) — it answered a real question, but only
    while the mouse was still, and never for a keyboard or a touchscreen. The
-   rules that dimmed forty blocks to emphasise four are gone with it; the
-   overlay's own scrim does that job once, over the whole page. */
+   rules that dimmed forty blocks to emphasise four are gone with it, and the
+   block being read carries an ink outline instead. */
 
-/* ── ONE JOB, BROUGHT FORWARD (schedule-focus.tsx) ──
-   UNSCOPED, like .fl-ov and the fleet modals: this portals to <body>, outside
-   `.fg`, so a scoped rule would silently miss it. It reuses .fl-ov's scrim
-   rather than growing another — the page gets ONE backdrop-filter, and never a
-   `-webkit-` twin, because the build ships only the prefixed one and the blur
-   then vanishes everywhere else.
-
-   It takes .fl-ov's scrim and centring but NOT .fl-modal: this is not a dialog
-   box with a title bar, it is the cards coming forward. */
-.wb2-scf { width:min(420px, 100%); background:var(--paper); border-radius:var(--r-card); padding:16px; animation:wb2ScfIn .26s var(--ease);
-  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:var(--ink); }
-@keyframes wb2ScfIn { from { opacity:0; transform:translateY(10px) scale(.97); } }
-
-.wb2-scfh { display:flex; flex-direction:column; gap:4px; padding:0 2px 12px; }
-.wb2-scfh span { display:flex; align-items:center; gap:8px; min-width:0; }
-.wb2-scfh b { font-size:16px; font-weight:700; color:var(--ink);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.wb2-scfh u { flex:none; padding:2px 8px; border-radius:var(--r-control); text-decoration:none;
-  font-size:12px; font-weight:700; background:var(--tint-2); color:var(--ink);
-  font-variant-numeric:tabular-nums; }
-.wb2-scfh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
+/* THE FOCUS STACK WENT INTO THE INSPECTOR (board/focus-inspector.tsx). It
+   was a card per person over `.fl-ov`'s scrim; the inspector holds the same
+   `focusJobOf` reading beside the day with nothing to dismiss. What stays
+   from it is the key below — the swatches that decode a job's paint — which
+   the inspector draws in an answer cell. */
 
 /* THE STATUS AND WHAT THE COLOURS MEAN — the rail's footer key scoped to the
    one job brought forward. Each swatch draws the treatment it decodes in the
    job's OWN paint (the vars arrive from the component), so the key and the
    block cannot disagree. Same anatomy as .wb2-schkey, restated rather than
    reused so the footer can move without dragging the card. */
-.wb2-scfkey { display:flex; flex-wrap:wrap; gap:4px 12px; padding:0 2px 12px; }
+.wb2-scfkey { display:flex; flex-wrap:wrap; gap:4px 12px; }
 .wb2-scfkey span { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--gray500); }
 .wb2-scfkey i { width:18px; height:12px; border-radius:0; flex:none; font-style:normal; }
 .wb2-scfkey i.cat { background:var(--bar, #7a818c); }
@@ -6253,32 +6354,6 @@ button.wb2-chip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scfkey i.late { width:14px; height:14px; border-radius:50%; background:var(--wb2-dan); color:var(--paper);
   display:grid; place-items:center; font-size:12px; font-weight:700; line-height:1; }
 
-.wb2-scfstack { display:flex; flex-direction:column; gap:4px; }
-/* the count, said in words — the hover answered "which of these are one job"
-   by moving pixels, and moving pixels reaches nobody who cannot see them */
-.wb2-scfc { font-size:12px; font-weight:500;
-  color:var(--q); padding:0 2px 4px; }
-/* a card wears the paint its block wears, so what arrives is recognisably
-   what was clicked — same wash, same cap, same ink */
-.wb2-scfcard { position:relative; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
-  padding:12px 12px 12px 16px; border-radius:var(--r-card); background:var(--fill, var(--tint)); }
-.wb2-scfcard::before { content:""; position:absolute; left:6px; top:10px; bottom:10px;
-  width:4px; border-radius:var(--r-pill); background:var(--bar, #7a818c); }
-.wb2-scfcard.done::before { display:none; }
-.wb2-scfcard b { font-size:14px; font-weight:700; color:var(--btext, var(--ink)); }
-.wb2-scfcard span { font-size:12px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
-.wb2-scfcard em { margin-left:auto; font-style:normal; font-size:12px; font-weight:700; color:var(--gray500); }
-
-.wb2-scfft { display:flex; align-items:center; gap:8px; padding-top:16px; }
-.wb2-scfx { font-size:13px; font-weight:700; color:var(--gray500); cursor:pointer;
-  padding:8px 12px; border-radius:var(--r-button); background:transparent; }
-.wb2-scfx:hover { background:var(--tint); color:var(--ink); }
-.wb2-scfgo { margin-left:auto; display:inline-flex; align-items:center; gap:4px;
-  padding:8px 16px; border-radius:var(--r-button); background:#006a8c; color:var(--paper);
-  font-size:13px; font-weight:700; cursor:pointer; }
-.wb2-scfgo:hover { background:#005875; }
-.wb2-scfx:focus-visible, .wb2-scfgo:focus-visible { outline:none; box-shadow:var(--ring);; }
-@media (prefers-reduced-motion:reduce){ .wb2-scf { animation:none; } }
 
 /* the now line — only ever drawn on today. NOT the danger colour: red on
    this board means "didn't go ahead", and a red rule down a healthy day
@@ -6413,47 +6488,23 @@ button.wb2-scmc:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-scmc.ns { background:var(--tint); border-color:transparent; }
 .wb2-scmk { width:7px; height:7px; border-radius:50%; background:var(--gray500); }
 
-/* ── THE DAY, BROUGHT FORWARD (the capacity window's day) ──
-   UNSCOPED, like .fl-ov and .wb2-scf: this portals to <body>, outside `.fg`,
-   so a scoped rule would silently miss it. It takes .fl-ov's scrim and
-   centring — ONE backdrop-filter on the page, and never a `-webkit-` twin —
-   and then the focus card's own anatomy, because the two are the same object
-   at two grains: the day, and one job out of it.
-
-   It used to be a panel under the weeks. Nothing was wrong with it except
-   the screen: 28 cells above a job list meant the list ran off the bottom
-   while three-quarters of the window sat unread above it. */
-.wb2-scd { width:min(560px, 100%); max-height:min(78vh, 760px); display:flex; flex-direction:column;
-  background:var(--paper); border-radius:var(--r-card);
-  animation:wb2ScfIn .26s var(--ease);
-  font-family:var(--font-jakarta), sans-serif; -webkit-font-smoothing:antialiased; color:var(--ink); }
-.wb2-scd *, .wb2-scd *::before, .wb2-scd *::after { box-sizing:border-box; }
-/* the card takes focus when it opens (a dialog the keyboard is in), and says
-   nothing about it — the ring belongs to the controls inside */
-.wb2-scd:focus { outline:none; }
-.wb2-scd button { font:inherit; color:inherit; background:none; border:none; cursor:pointer; }
-@media (prefers-reduced-motion:reduce){ .wb2-scd { animation:none; } }
-
-.wb2-scdh { flex:none; display:flex; align-items:center; gap:12px; padding:16px 16px 12px; }
-.wb2-scdh span { display:flex; align-items:baseline; gap:8px; min-width:0; }
-.wb2-scdh b { font-size:16px; font-weight:700; color:var(--ink); }
-.wb2-scdh em { font-style:normal; font-size:12px; font-weight:700; color:var(--gray500);
-  font-variant-numeric:tabular-nums; }
-.wb2-scdx { margin-left:auto; flex:none; width:28px; height:28px; display:grid; place-items:center;
-  border-radius:var(--r-button); color:var(--gray500); transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-scdx:hover { background:var(--tint-2); color:var(--ink); }
-.wb2-scdx:focus-visible { outline:none; box-shadow:var(--ring);; }
-
-/* the list scrolls INSIDE the card — a twelve-job day is a scroll, never a
-   modal taller than the viewport with its own header pushed off the top */
-.wb2-scdlist { flex:1 1 auto; min-height:0; overflow:auto; display:flex; flex-direction:column;
-  gap:4px; padding:2px 16px 16px; }
+/* ── THE CAPACITY DAY, IN THE INSPECTOR ──
+   It was a card over `.fl-ov`'s scrim, and before that a panel under the
+   weeks — where 28 cells above a job list ran the list off the bottom of the
+   screen. Beside the grid it has the height of the board and nothing to
+   dismiss. What stays is the list of the day's jobs, each drawn as the block
+   it would be on the rail. */
+/* the inspector's body is what scrolls, so the list is only a column */
+.wb2-scdlist { display:flex; flex-direction:column; gap:4px; }
 .wb2-scdlist .wb2-hint { margin:8px 4px 4px; }
 
 /* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL — same wash, same 4px cap, same
    number chip, so what the day holds is recognisable before it is read. */
 .wb2-scdjob { position:relative; display:flex; flex-direction:column; gap:2px; width:100%;
   text-align:left; padding:12px 12px 12px 16px; border-radius:var(--r-button);
+  /* the reset `.wb2-scd button` used to give them, when they lived in a card
+     portalled outside `.fg`; the wb2- prefix still keeps `.fg button` off */
+  border:0; font:inherit; color:inherit; cursor:pointer;
   background:var(--fill, var(--tint)); transition:transform var(--t-move) var(--ease), box-shadow var(--t-fast) var(--ease); }
 .wb2-scdjob::before { content:""; position:absolute; left:7px; top:11px; bottom:11px;
   width:4px; border-radius:var(--r-pill); background:var(--bar, #7a818c); }
@@ -7451,7 +7502,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* The tab's own gutter — the grid used to sit 1px off the card's edge, which
    read as pictures glued to the frame. 20px is the panel's own inset, so the
    gallery hangs level with every other face of this card. */
-.wb2-show { padding:12px 16px 24px; }
+.wb2-show { padding:12px 24px 24px; }
 /* THE SEARCH BOX IS GONE FROM THIS TAB — it sat a hand's width under the
    board's universal field with the same face and different reach. The bank
    search lives in the one field now (see work-search.tsx); what is left here
@@ -7487,9 +7538,13 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* ── the row above the pictures ──
    Tabs left, the filter button hard right. It wraps as one unit rather than
    letting the button drift into the middle of a wrapped tab row. */
-.wb2-showbar { display:flex; align-items:flex-start; gap:8px; flex-wrap:wrap;
-  margin:8px 0 2px; }
-.wb2-showbar > .wb2-showfilters { flex:1 1 auto; margin:0; }
+/* the gallery wears the board's toolbar (`.wb2-tbar`); what is its own is
+   the fine filter, parked at the far end of it. Its chips are the list
+   filters' chip (`.wb2-fchip`): one vocabulary for a filter you tap, where
+   the gallery drew a second, pill-shaped one whose chosen state set paper
+   text on a 12% tint of the family colour. The family's dot rides inside. */
+.wb2-showbar .wb2-showfilt { margin-left:auto; }
+.wb2-fchip .wb2-showdot { width:8px; height:8px; }
 .wb2-showfilt { position:relative; display:flex; align-items:center; gap:2px; flex:none; }
 .wb2-showfiltb { display:inline-flex; align-items:center; gap:4px; padding:4px 12px;
   border:1px solid var(--wb2-line2); border-radius:var(--r-pill); background:transparent;
@@ -7538,18 +7593,7 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 /* THE FILTER ROW IS THE CATEGORIES — a chip per subject, each carrying its
    own hue through `--sc` so the dot, the lit ground and the card's badge are
    one colour per kind of photograph. */
-.wb2-showfilters { display:flex; flex-wrap:wrap; gap:4px; margin:8px 0 4px; }
-.wb2-showchip { display:inline-flex; align-items:center; gap:4px; padding:4px 12px;
-  border:1px solid var(--wb2-line2); border-radius:var(--r-pill); background:transparent;
-  color:var(--gray600); font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;
-  transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
-.wb2-showchip:hover { background:var(--tint); }
-.wb2-showchip.on { border-color:color-mix(in srgb, var(--sc, var(--ink)) 45%, transparent);
-  background:color-mix(in srgb, var(--sc, var(--ink)) 12%, var(--paper));
-  color:var(--paper); }
-.wb2-showchip:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-showdot { width:7px; height:7px; border-radius:50%; background:var(--sc, var(--ink)); flex:none; color:var(--paper); }
-.wb2-showchip.quiet { border-style:dashed; }
 .wb2-showgrid { display:grid; gap:12px; margin-top:12px;
   grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
 /* The same cards inside the universal search panel — inset to the panel's

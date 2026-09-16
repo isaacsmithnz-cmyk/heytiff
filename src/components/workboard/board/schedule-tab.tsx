@@ -32,7 +32,8 @@ import {
 } from "@/lib/workboard/focus";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { useNowMin } from "./use-now-min";
-import { ScheduleFocus } from "./schedule-focus";
+import { FocusInspector } from "./focus-inspector";
+import { Split } from "./inspector";
 
 /* Schedule — who is on what, and when. The Dispatch Board's question,
    answered from the mirror this account already syncs: one lane per staff
@@ -331,23 +332,23 @@ export function ScheduleTab({
 
      The capacity window wears this row too, from its own tab. */
   const head = (
-    <div className="wb2-schbar">
-      <div className="wb2-schstep" role="group" aria-label="Week">
-        <button className="wb2-schar" aria-label="The week before" onClick={() => goWeek(-1)}>
+    <div className="wb2-tbar">
+      <div className="wb2-tbstep" role="group" aria-label="Week">
+        <button className="wb2-tbarrow" aria-label="The week before" onClick={() => goWeek(-1)}>
           <Icon name="chevL" size={15} />
         </button>
-        <button className="wb2-schar" aria-label="The week after" onClick={() => goWeek(1)}>
+        <button className="wb2-tbarrow" aria-label="The week after" onClick={() => goWeek(1)}>
           <Icon name="chevR" size={15} />
         </button>
       </div>
-      <h2 className="wb2-schh2">{fmtAuWeekdayDayMonth(openDay)}</h2>
-      <span className="wb2-schwin">{weekWord}</span>
+      <h2 className="wb2-tbh2">{fmtAuWeekdayDayMonth(openDay)}</h2>
+      <span className="wb2-tbwin">{weekWord}</span>
       {(openDay !== today || stripStart !== thisMon) && (
-        <button className="wb2-schtoday" onClick={goToday}>
+        <button className="wb2-tbtoday" onClick={goToday}>
           Today
         </button>
       )}
-      <span className="wb2-schsep" aria-hidden="true" />
+      <span className="wb2-tbsep" aria-hidden="true" />
       <div className="wb2-schdays" role="group" aria-label="Days">
         {week.map((iso) => {
           const n = counts[iso] ?? null;
@@ -375,7 +376,7 @@ export function ScheduleTab({
         })}
       </div>
       {day && day.totalBookings > 0 && (
-        <span className="wb2-schsum">
+        <span className="wb2-tbsum">
           {day.totalBookings} booked, {fmtHoursShort(day.totalMinutes)}, {day.lanes.length} on the
           road, {day.jobCount} {day.jobCount === 1 ? "job" : "jobs"}
         </span>
@@ -483,317 +484,329 @@ export function ScheduleTab({
   return (
     <>
       {head}
+      {/* THE JOB BROUGHT FORWARD, beside the day rather than over it. The
+          focus stack this replaces was a scrim and a card per person; the
+          inspector holds the same `focusJobOf` reading with the board still in
+          view, and the next block clicked replaces it. The rail is laid out in
+          pixels per hour, so opening it narrows the view and moves no block. */}
+      <Split
+        aside={
+          focus ? (
+            <FocusInspector
+              job={focus}
+              onClose={closeFocus}
+              onOpen={() => {
+                const job = focusJob ? jobById.get(focusJob) : null;
+                /* the day-state rides along so the sheet's header can wear the
+                   same reading the rail drew — the statuses the sheet already
+                   chips (Quote, Unsuccessful, Completed) stay its own. The
+                   panel stays open under the sheet: closing the sheet comes
+                   back to the job you were reading. */
+                if (job) onOpenJob(job, dayStateOfMarks(focus.marks));
+              }}
+            />
+          ) : null
+        }
+      >
 
-      {shelf.length > 0 && (
-        <div className="wb2-schshelf">
-          <b>Also on this day</b>
-          {shelf.map((s) => (
-            <button
-              key={s.key}
-              type="button"
-              className="wb2-schsv"
-              onClick={() => onOpenTracked({ kind: s.kind, id: s.id })}
-            >
-              {s.label}
-              {s.sub && <em>{s.sub}</em>}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {loading && !current && <p className="wb2-hint wb2-schload">Reading the day…</p>}
-
-      {day && day.totalBookings === 0 && (
-        <div className="wb2-empty">
-          <Icon name="calendar" size={20} />
-          <b>Nobody was dispatched</b>
-          <em>A clear day in ServiceM8 — jobs waiting on a day are under Work orders, not here.</em>
-        </div>
-      )}
-
-      {day && day.totalBookings > 0 && (
-        <div className="wb2-schboard">
-          <div className="wb2-schnames">
-            <div className="wb2-schnh" />
-            {day.lanes.map((l) => {
-              /* The gates are the block treatment's, unchanged: a day that has
-                 begun, and an account that records time at all. An account
-                 that never clocks on gets no dots rather than a column of
-                 empty rings saying nothing. */
-              const presence = hollowReads ? lanePresence(l.blocks, overdueBefore) : null;
-              return (
-              <div
-                key={l.staffUuid || "unassigned"}
-                className={"wb2-schn" + (l.staffUuid === "" ? " none" : "")}
-                style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
+        {shelf.length > 0 && (
+          <div className="wb2-schshelf">
+            <b>Also on this day</b>
+            {shelf.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                className="wb2-schsv"
+                onClick={() => onOpenTracked({ kind: s.kind, id: s.id })}
               >
-                <b>
-                  {/* WHO IS ACTUALLY OUT THERE, before you look at the rail.
-                      Colour is not the only carrier and does not need to be:
-                      every state here is already written on the blocks it
-                      summarises — hollow ones say "not started", overdue ones
-                      say so in their own label. The dot is emphasis, and the
-                      word rides with it for anyone who cannot see it. */}
-                  {presence && (
-                    <span className={"wb2-schpd " + presence} aria-hidden="true" />
-                  )}
-                  <span className="wb2-schnn">{l.name}</span>
-                  {presence && (
-                    <span className="wb2-sr">
-                      {presence === "late"
-                        ? " — nothing recorded yet"
-                        : presence === "wait"
-                          ? " — not started"
-                          : " — started"}
-                    </span>
-                  )}
-                </b>
-                <em>
-                  {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"},{" "}
-                  {fmtHoursShort(l.minutes)}
-                </em>
-                {/* utilisation against an 8h day — neutral, a fact not a fault */}
-                <span className="wb2-schmeter" aria-hidden="true">
-                  <i style={{ width: `${Math.min(100, Math.round((l.minutes / 480) * 100))}%` }} />
-                </span>
-              </div>
-              );
-            })}
+                {s.label}
+                {s.sub && <em>{s.sub}</em>}
+              </button>
+            ))}
           </div>
+        )}
 
-          <div className={"wb2-schrailwrap" + (atEnd ? " atend" : "")}>
-            <div className="wb2-schrail" ref={railRef} onScroll={judgeEnd}>
-              <div
-                className="wb2-schinner"
-                style={{
-                  width: ((day.railEnd - day.railStart) / 60) * PX_PER_HOUR,
-                  "--hr": `${PX_PER_HOUR}px`,
-                } as CSSProperties}
-              >
-                <div className="wb2-schhours">
-                  {Array.from(
-                    { length: (day.railEnd - day.railStart) / 60 },
-                    (_, i) => day.railStart + i * 60
-                  ).map((m) => (
-                    <span key={m} className="wb2-schhr" style={{ width: PX_PER_HOUR }}>
-                      {clockLabel(m)}
-                    </span>
-                  ))}
-                </div>
+        {loading && !current && <p className="wb2-hint wb2-schload">Reading the day…</p>}
 
-                {day.lanes.map((l) => (
-                  <div
-                    key={l.staffUuid || "unassigned"}
-                    className="wb2-schlane"
-                    style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
-                  >
-                    {l.rows.flatMap((row, ri) =>
-                      row.map((b) => {
-                        const left = ((b.startMin - day.railStart) / 60) * PX_PER_HOUR;
-                        const w = Math.max(
-                          ((b.endMin - b.startMin) / 60) * PX_PER_HOUR,
-                          46
-                        );
-                        const { hollow, late } = blockState(b);
-                        const cls =
-                          "wb2-schb" +
-                          (b.tracked ? " proj" : "") +
-                          (b.closure === "done" ? " done" : "") +
-                          (b.closure === "stale" ? " stale" : "") +
-                          (b.status === "Unsuccessful" ? " dan" : "") +
-                          (b.status === "Quote" ? " qt" : "") +
-                          (hollow ? " idle" : "") +
-                          (late ? " late" : "") +
-                          (w < TIGHT_PX ? " tight" : "") +
-                          "";
-                        /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
-                           boards wears the tracked blue, everything else is
-                           painted from its ServiceM8 category. */
-                        const paint = blockPaint(b);
-                        return (
-                          <button
-                            key={b.key}
-                            type="button"
-                            className={cls}
-                            style={{
-                              left,
-                              width: w - 3,
-                              top: LANE_PAD_PX + ri * LANE_ROW_PX,
-                              height: LANE_ROW_PX - 6,
-                              animationDelay: `${Math.min((staggerAt.get(b.key) ?? 0) * 14, 400)}ms`,
-                              "--fill": paint.fill,
-                              "--btext": paint.ink,
-                              "--chip": paint.chip,
-                              "--bar": paint.bar,
-                              "--pale": paint.pale,
-                              "--pale-edge": paint.paleEdge,
-                            } as CSSProperties}
-                            title={blockTitle(b)}
-                            aria-label={`Job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
-                              b.clientName ?? ""
-                            }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${
-                              /* the outline and the ring are not available to a
-                                 screen reader, so the state is spoken as well */
-                              b.closure === "stale"
-                                ? ", marked complete in ServiceM8"
-                                : late
-                                  ? ", nothing recorded yet"
-                                  : hollow
-                                    ? ", not started"
-                                    : b.closure === "done"
-                                      ? ", done"
-                                      : ""
-                            }`}
-                            ref={(el) => {
-                              if (el) blockRefs.current.set(b.remoteId, el);
-                            }}
-                            /* A CLICK BRINGS IT FORWARD; it no longer opens
-                               the sheet directly. Every block does it, crew or
-                               not — a stack of one is still the same rule, and
-                               "Open job" then sits in the same place whatever
-                               was clicked. */
-                            onClick={() => setFocusJob(b.remoteId)}
-                          >
-                            {/* THE CLIENT LEADS. The job number is the one
-                                thing on this block that means nothing until
-                                you have looked it up, and it used to be the
-                                biggest word on it. It rides beside the name as
-                                a chip now — still there for cross-referencing
-                                ServiceM8, no longer the headline — and a tight
-                                block drops back to it alone, which is the old
-                                behaviour unchanged. The second line becomes
-                                the category IN WORDS, so the hue is never the
-                                only thing naming one. */}
-                            <span className="wb2-schbh">
-                              <b>{b.clientName ?? "Unnamed client"}</b>
-                              {b.jobNumber && <u>{b.jobNumber}</u>}
-                            </span>
-                            <em>
-                              {blockLabel(b)}
-                              {b.status === "Quote" ? ", Quote" : ""}
-                              {/* in words, because an amber ring alone would
-                                  leave a screen reader with a normal booking */}
-                              {b.closure === "stale" ? ", Marked complete in ServiceM8" : ""}
-                            </em>
-                            {b.suburb && <i>{b.suburb}</i>}
-                          </button>
-                        );
-                      })
+        {day && day.totalBookings === 0 && (
+          <div className="wb2-empty">
+            <Icon name="calendar" size={20} />
+            <b>Nobody was dispatched</b>
+            <em>A clear day in ServiceM8 — jobs waiting on a day are under Work orders, not here.</em>
+          </div>
+        )}
+
+        {day && day.totalBookings > 0 && (
+          <div className="wb2-schboard">
+            <div className="wb2-schnames">
+              <div className="wb2-schnh" />
+              {day.lanes.map((l) => {
+                /* The gates are the block treatment's, unchanged: a day that has
+                   begun, and an account that records time at all. An account
+                   that never clocks on gets no dots rather than a column of
+                   empty rings saying nothing. */
+                const presence = hollowReads ? lanePresence(l.blocks, overdueBefore) : null;
+                return (
+                <div
+                  key={l.staffUuid || "unassigned"}
+                  className={"wb2-schn" + (l.staffUuid === "" ? " none" : "")}
+                  style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
+                >
+                  <b>
+                    {/* WHO IS ACTUALLY OUT THERE, before you look at the rail.
+                        Colour is not the only carrier and does not need to be:
+                        every state here is already written on the blocks it
+                        summarises — hollow ones say "not started", overdue ones
+                        say so in their own label. The dot is emphasis, and the
+                        word rides with it for anyone who cannot see it. */}
+                    {presence && (
+                      <span className={"wb2-schpd " + presence} aria-hidden="true" />
                     )}
-                  </div>
-                ))}
+                    <span className="wb2-schnn">{l.name}</span>
+                    {presence && (
+                      <span className="wb2-sr">
+                        {presence === "late"
+                          ? " — nothing recorded yet"
+                          : presence === "wait"
+                            ? " — not started"
+                            : " — started"}
+                      </span>
+                    )}
+                  </b>
+                  <em>
+                    {l.blocks.length} {l.blocks.length === 1 ? "booking" : "bookings"},{" "}
+                    {fmtHoursShort(l.minutes)}
+                  </em>
+                  {/* utilisation against an 8h day — neutral, a fact not a fault */}
+                  <span className="wb2-schmeter" aria-hidden="true">
+                    <i style={{ width: `${Math.min(100, Math.round((l.minutes / 480) * 100))}%` }} />
+                  </span>
+                </div>
+                );
+              })}
+            </div>
 
-                {openDay === today &&
-                  nowMin !== null &&
-                  nowMin >= day.railStart &&
-                  nowMin <= day.railEnd && (
-                    <span
-                      className="wb2-schnow"
-                      style={{ left: ((nowMin - day.railStart) / 60) * PX_PER_HOUR }}
-                      /* the cap's text — the sheet draws it, so the line and
-                         its label can never end up in two different places */
-                      data-now={clockLabel(nowMin)}
-                      aria-hidden="true"
-                    />
-                  )}
+            <div className={"wb2-schrailwrap" + (atEnd ? " atend" : "")}>
+              <div className="wb2-schrail" ref={railRef} onScroll={judgeEnd}>
+                <div
+                  className="wb2-schinner"
+                  style={{
+                    width: ((day.railEnd - day.railStart) / 60) * PX_PER_HOUR,
+                    "--hr": `${PX_PER_HOUR}px`,
+                  } as CSSProperties}
+                >
+                  <div className="wb2-schhours">
+                    {Array.from(
+                      { length: (day.railEnd - day.railStart) / 60 },
+                      (_, i) => day.railStart + i * 60
+                    ).map((m) => (
+                      <span key={m} className="wb2-schhr" style={{ width: PX_PER_HOUR }}>
+                        {clockLabel(m)}
+                      </span>
+                    ))}
+                  </div>
+
+                  {day.lanes.map((l) => (
+                    <div
+                      key={l.staffUuid || "unassigned"}
+                      className="wb2-schlane"
+                      style={{ height: l.rows.length * LANE_ROW_PX + LANE_PAD_PX * 2 }}
+                    >
+                      {l.rows.flatMap((row, ri) =>
+                        row.map((b) => {
+                          const left = ((b.startMin - day.railStart) / 60) * PX_PER_HOUR;
+                          const w = Math.max(
+                            ((b.endMin - b.startMin) / 60) * PX_PER_HOUR,
+                            46
+                          );
+                          const { hollow, late } = blockState(b);
+                          const cls =
+                            "wb2-schb" +
+                            (b.tracked ? " proj" : "") +
+                            (b.closure === "done" ? " done" : "") +
+                            (b.closure === "stale" ? " stale" : "") +
+                            (b.status === "Unsuccessful" ? " dan" : "") +
+                            (b.status === "Quote" ? " qt" : "") +
+                            (hollow ? " idle" : "") +
+                            (late ? " late" : "") +
+                            (w < TIGHT_PX ? " tight" : "") +
+                          (b.remoteId === focusJob ? " on" : "") +
+                            "";
+                          /* OWNERSHIP OUTRANKS CATEGORY: a job on one of our
+                             boards wears the tracked blue, everything else is
+                             painted from its ServiceM8 category. */
+                          const paint = blockPaint(b);
+                          return (
+                            <button
+                              key={b.key}
+                              type="button"
+                              className={cls}
+                              style={{
+                                left,
+                                width: w - 3,
+                                top: LANE_PAD_PX + ri * LANE_ROW_PX,
+                                height: LANE_ROW_PX - 6,
+                                animationDelay: `${Math.min((staggerAt.get(b.key) ?? 0) * 14, 400)}ms`,
+                                "--fill": paint.fill,
+                                "--btext": paint.ink,
+                                "--chip": paint.chip,
+                                "--bar": paint.bar,
+                                "--pale": paint.pale,
+                                "--pale-edge": paint.paleEdge,
+                              } as CSSProperties}
+                              title={blockTitle(b)}
+                              aria-label={`Job ${b.jobNumber ? `#${b.jobNumber}` : ""} ${
+                                b.clientName ?? ""
+                              }, ${clockLabel(b.startMin)} to ${clockLabel(b.endMin)}${
+                                /* the outline and the ring are not available to a
+                                   screen reader, so the state is spoken as well */
+                                b.closure === "stale"
+                                  ? ", marked complete in ServiceM8"
+                                  : late
+                                    ? ", nothing recorded yet"
+                                    : hollow
+                                      ? ", not started"
+                                      : b.closure === "done"
+                                        ? ", done"
+                                        : ""
+                              }`}
+                              ref={(el) => {
+                                if (el) blockRefs.current.set(b.remoteId, el);
+                              }}
+                              /* A CLICK BRINGS IT FORWARD; it no longer opens
+                                 the sheet directly. Every block does it, crew or
+                                 not — a stack of one is still the same rule, and
+                                 "Open job" then sits in the same place whatever
+                                 was clicked. */
+                              aria-pressed={b.remoteId === focusJob}
+                            onClick={() => setFocusJob(b.remoteId)}
+                            >
+                              {/* THE CLIENT LEADS. The job number is the one
+                                  thing on this block that means nothing until
+                                  you have looked it up, and it used to be the
+                                  biggest word on it. It rides beside the name as
+                                  a chip now — still there for cross-referencing
+                                  ServiceM8, no longer the headline — and a tight
+                                  block drops back to it alone, which is the old
+                                  behaviour unchanged. The second line becomes
+                                  the category IN WORDS, so the hue is never the
+                                  only thing naming one. */}
+                              <span className="wb2-schbh">
+                                <b>{b.clientName ?? "Unnamed client"}</b>
+                                {b.jobNumber && <u>{b.jobNumber}</u>}
+                              </span>
+                              <em>
+                                {blockLabel(b)}
+                                {b.status === "Quote" ? ", Quote" : ""}
+                                {/* in words, because an amber ring alone would
+                                    leave a screen reader with a normal booking */}
+                                {b.closure === "stale" ? ", Marked complete in ServiceM8" : ""}
+                              </em>
+                              {b.suburb && <i>{b.suburb}</i>}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  ))}
+
+                  {openDay === today &&
+                    nowMin !== null &&
+                    nowMin >= day.railStart &&
+                    nowMin <= day.railEnd && (
+                      <span
+                        className="wb2-schnow"
+                        style={{ left: ((nowMin - day.railStart) / 60) * PX_PER_HOUR }}
+                        /* the cap's text — the sheet draws it, so the line and
+                           its label can never end up in two different places */
+                        data-now={clockLabel(nowMin)}
+                        aria-hidden="true"
+                      />
+                    )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {focus && (
-        <ScheduleFocus
-          job={focus}
-          onClose={closeFocus}
-          onOpen={() => {
-            const job = focusJob ? jobById.get(focusJob) : null;
-            /* the day-state rides along so the sheet's header can wear the
-               same reading the rail drew — the statuses the sheet already
-               chips (Quote, Unsuccessful, Completed) stay its own */
-            const dayState = dayStateOfMarks(focus.marks);
-            setFocusJob(null);
-            if (job) onOpenJob(job, dayState);
-          }}
-        />
-      )}
 
-      {day && day.totalBookings > 0 && (
-        <div className="wb2-schfoot">
-          <div className="wb2-schkey">
-            {categoriesOnDay.map(([name, colour]) => (
-              <span key={name}>
-                <i style={{ background: scheduleBlockPaint(colour).bar }} />
-                {name}
-              </span>
-            ))}
-            {hasBare && (
-              <span>
-                <i style={{ background: NO_CATEGORY_PAINT.bar }} />
-                No category
-              </span>
-            )}
-            {hasTracked && (
-              <span>
-                <i style={{ background: TRACKED_PAINT.bar }} />
-                On a board here
-              </span>
-            )}
-            {/* The day's OTHER reading, and the one that needs saying in words:
-                a pale block is finished, not a category we forgot to colour.
+        {day && day.totalBookings > 0 && (
+          <div className="wb2-schfoot">
+            <div className="wb2-schkey">
+              {categoriesOnDay.map(([name, colour]) => (
+                <span key={name}>
+                  <i style={{ background: scheduleBlockPaint(colour).bar }} />
+                  {name}
+                </span>
+              ))}
+              {hasBare && (
+                <span>
+                  <i style={{ background: NO_CATEGORY_PAINT.bar }} />
+                  No category
+                </span>
+              )}
+              {hasTracked && (
+                <span>
+                  <i style={{ background: TRACKED_PAINT.bar }} />
+                  On a board here
+                </span>
+              )}
+              {/* The day's OTHER reading, and the one that needs saying in words:
+                  a pale block is finished, not a category we forgot to colour.
 
-                THE SWATCH SHOWS THE CAP, because the cap is where the state
-                is. This used to be a white rectangle, back when the block was
-                one too — and a key that points at a treatment nothing wears
-                any more is worse than no key. */}
-            {hasIdle && (
-              <span>
-                <i className="hollow" style={{ "--kcap": NO_CATEGORY_PAINT.bar } as CSSProperties} />
-                Not started
-              </span>
-            )}
-            {/* the one thing on the rail that is actually wrong, and the only
-                one carrying a mark — so it is the one entry here that is an
-                icon rather than a swatch. */}
-            {hasLate && (
-              <span>
-                <i className="mark" aria-hidden="true">
-                  !
-                </i>
-                Nothing recorded yet
-              </span>
-            )}
-            {hasDone && (
-              <span>
-                <i
-                  style={{
-                    background: NO_CATEGORY_PAINT.pale,
-                    boxShadow: `inset 0 0 0 1px ${NO_CATEGORY_PAINT.paleEdge}`,
-                  }}
-                />
-                Done and closed
-              </span>
-            )}
-            {hasStale && (
-              <span>
-                <i
-                  style={{
-                    background: NO_CATEGORY_PAINT.fill,
-                    boxShadow: `inset 4px 0 0 ${NO_CATEGORY_PAINT.bar}`,
-                  }}
-                />
-                Marked complete in ServiceM8, still booked
-              </span>
+                  THE SWATCH SHOWS THE CAP, because the cap is where the state
+                  is. This used to be a white rectangle, back when the block was
+                  one too — and a key that points at a treatment nothing wears
+                  any more is worse than no key. */}
+              {hasIdle && (
+                <span>
+                  <i className="hollow" style={{ "--kcap": NO_CATEGORY_PAINT.bar } as CSSProperties} />
+                  Not started
+                </span>
+              )}
+              {/* the one thing on the rail that is actually wrong, and the only
+                  one carrying a mark — so it is the one entry here that is an
+                  icon rather than a swatch. */}
+              {hasLate && (
+                <span>
+                  <i className="mark" aria-hidden="true">
+                    !
+                  </i>
+                  Nothing recorded yet
+                </span>
+              )}
+              {hasDone && (
+                <span>
+                  <i
+                    style={{
+                      background: NO_CATEGORY_PAINT.pale,
+                      boxShadow: `inset 0 0 0 1px ${NO_CATEGORY_PAINT.paleEdge}`,
+                    }}
+                  />
+                  Done and closed
+                </span>
+              )}
+              {hasStale && (
+                <span>
+                  <i
+                    style={{
+                      background: NO_CATEGORY_PAINT.fill,
+                      boxShadow: `inset 4px 0 0 ${NO_CATEGORY_PAINT.bar}`,
+                    }}
+                  />
+                  Marked complete in ServiceM8, still booked
+                </span>
+              )}
+            </div>
+            {waitingCount > 0 && (
+              <button type="button" className="wb2-schwait" onClick={onGoWork}>
+                {waitingCount} work {waitingCount === 1 ? "order is" : "orders are"} waiting on a
+                day — see Work orders →
+              </button>
             )}
           </div>
-          {waitingCount > 0 && (
-            <button type="button" className="wb2-schwait" onClick={onGoWork}>
-              {waitingCount} work {waitingCount === 1 ? "order is" : "orders are"} waiting on a
-              day — see Work orders →
-            </button>
-          )}
-        </div>
-      )}
+        )}
+      </Split>
     </>
   );
 }

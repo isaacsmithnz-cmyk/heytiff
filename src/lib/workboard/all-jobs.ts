@@ -550,25 +550,9 @@ export function groupChecklist(
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export function workCountLine(view: AllJobsView): string {
-  const total = view.work.booked.length + view.work.unbooked.length;
-  if (total === 0) return "Nothing open";
-  return `${plural(total, "job", "jobs")} on — ${view.work.booked.length} booked, ${
-    view.work.unbooked.length
-  } waiting on a day`;
-}
-
 export function quotesCountLine(view: AllJobsView): string {
   const n = view.quotes.length;
   return n === 0 ? "No quotes out" : `${plural(n, "quote", "quotes")} awaiting an answer`;
-}
-
-export function completedCountLine(view: AllJobsView, showUnsuccessful: boolean): string {
-  const n = view.completed.length;
-  const u = view.unsuccessful.length;
-  const head = n === 0 ? "Nothing finished recently" : `${plural(n, "job", "jobs")} finished`;
-  if (u === 0) return head;
-  return showUnsuccessful ? `${head}, ${u} that didn't go ahead` : head;
 }
 
 /** Money owed on finished work — the question a completed list is really
@@ -576,9 +560,15 @@ export function completedCountLine(view: AllJobsView, showUnsuccessful: boolean)
     can't be inflated by the many jobs whose total ServiceM8 never filled in.
     Null when the reader has no money access. */
 export function awaitingPaymentCount(view: AllJobsView): number | null {
-  const withMoney = view.completed.filter((r) => r.money !== null);
-  if (withMoney.length === 0) return null;
-  return withMoney.filter((r) => isAwaitingPayment(r.money!.collection)).length;
+  if (!view.completed.some((r) => r.money !== null)) return null;
+  return awaitingPaymentRows(view).length;
+}
+
+/** The finished jobs behind that count — the Completed tab's filter. The count
+    is these rows' length and nothing else, so a chip's figure and the rows it
+    shows are one rule read once. Empty when the reader has no money access. */
+export function awaitingPaymentRows(view: AllJobsView): AllJobRow[] {
+  return view.completed.filter((r) => r.money !== null && isAwaitingPayment(r.money.collection));
 }
 
 /** What's still out on finished work, in cents — the figure behind the count.

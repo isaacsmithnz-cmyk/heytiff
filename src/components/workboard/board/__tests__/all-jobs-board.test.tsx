@@ -217,6 +217,9 @@ function mount(over: {
 
 const toTab = (name: string) => userEvent.click(screen.getByRole("tab", { name }));
 const rows = () => [...document.querySelectorAll(".wb2-ajr")];
+/* A click reads a row into the inspector; the sheet is the second step. A
+   double-click is that second step in one gesture. */
+const openRow = (i = 0) => userEvent.dblClick(rows()[i]);
 
 /* The board lands on Schedule now, so the book-of-work tests walk to their
    panel first — the same click a person makes. */
@@ -271,7 +274,7 @@ describe("the shell", () => {
 });
 
 describe("work orders", () => {
-  it("splits booked from waiting, and says so in the head", async () => {
+  it("splits booked from waiting, and filters on either", async () => {
     await mountWork({
       data: data({
         jobs: [
@@ -280,9 +283,21 @@ describe("work orders", () => {
         ],
       }),
     });
-    expect(screen.getByText("2 jobs on — 1 booked, 1 waiting on a day")).toBeInTheDocument();
-    expect(screen.getByText("Booked in")).toBeInTheDocument();
-    expect(screen.getByText("Waiting on a day")).toBeInTheDocument();
+    // the counts ARE the toolbar — each one a filter you can tap
+    expect(screen.getByRole("button", { name: "All 2" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Booked 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Waiting on a day 1" })).toBeInTheDocument();
+    // under All, both groups keep their heads
+    expect(document.querySelectorAll(".wb2-sect")).toHaveLength(2);
+    expect(rows()).toHaveLength(2);
+
+    // a filter narrows to its own rows, and the heads go — one group needs none
+    await userEvent.click(screen.getByRole("button", { name: "Booked 1" }));
+    expect(rows()).toHaveLength(1);
+    expect(document.querySelectorAll(".wb2-sect")).toHaveLength(0);
+    await userEvent.click(screen.getByRole("button", { name: "Waiting on a day 1" }));
+    expect(rows()).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "All 2" }));
     expect(rows()).toHaveLength(2);
   });
 
@@ -387,13 +402,18 @@ describe("completed", () => {
     ],
   });
 
-  it("folds the ones that didn't go ahead behind a toggle", async () => {
+  it("keeps the ones that didn't go ahead behind their own filter", async () => {
     mount({ data: done });
     await toTab("Completed");
     expect(rows()).toHaveLength(1);
 
-    await userEvent.click(screen.getByRole("button", { name: /Show 1 that did not go ahead/ }));
-    expect(rows()).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Didn't go ahead 1" }));
+    expect(rows()).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Didn't go ahead 1" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(rows()[0].textContent).toContain("Unsuccessful");
   });
 
   /* The chip is COUNTED from payment rows now. Under the old flag read it
@@ -415,8 +435,11 @@ describe("completed", () => {
       }),
     });
     await toTab("Completed");
-    expect(screen.getByText(/1 of these is invoiced and still awaiting payment/)).toBeInTheDocument();
-    expect(screen.getByText("Awaiting payment")).toBeInTheDocument();
+    // the sentence that said so is the filter now, counted off the rows it shows
+    await userEvent.click(screen.getByRole("button", { name: "Awaiting payment 1" }));
+    expect(rows()).toHaveLength(1);
+    // and the row still says it in its own words
+    expect(within(rows()[0] as HTMLElement).getByText("Awaiting payment")).toBeInTheDocument();
   });
 
   it("says how much is left on a part-paid job", async () => {
@@ -564,11 +587,30 @@ describe("the page's search slots", () => {
 });
 
 describe("opening a row", () => {
-  it("opens the sheet for a ServiceM8 job", async () => {
+  it("reads a ServiceM8 job into the inspector, and opens the sheet from there", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
     await userEvent.click(rows()[0]);
+    // a click reads the row; nothing to dismiss before the next one
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(rows()[0]).toHaveAttribute("aria-pressed", "true");
+    const panel = screen.getByRole("complementary", { name: /Ardex Logistics/ });
+    await userEvent.click(within(panel).getByRole("button", { name: "Open job" }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(readMirrorJob).toHaveBeenCalledWith("j-1");
+  });
+
+  it("opens the sheet on a double-click, in one gesture", async () => {
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
+    await openRow();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("closes the inspector on its own cross", async () => {
+    await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
+    await userEvent.click(rows()[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Close the panel" }));
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(rows()[0]).toHaveAttribute("aria-pressed", "false");
   });
 
   /* A native row already has a home. Sending it to a viewer that knows less
@@ -576,6 +618,8 @@ describe("opening a row", () => {
   it("sends a native row to the board that owns it, without a sheet", async () => {
     await mountWork({ visits: [visitFix({ id: "v-1" })] });
     await userEvent.click(rows()[0]);
+    // the action names where it goes
+    await userEvent.click(screen.getByRole("button", { name: "Open the visit" }));
     expect(onOpenTracked).toHaveBeenCalledWith({ kind: "visit", id: "v-1" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -584,7 +628,7 @@ describe("opening a row", () => {
 describe("promotion", () => {
   it("offers both ways out of a job, to a manager", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: true });
-    await userEvent.click(rows()[0]);
+    await openRow();
     const sheet = await screen.findByRole("dialog");
     // both live behind the band's ⋯ — a once-per-job act does not belong
     // on a face whose daily job is to be read, and it never earned one
@@ -599,7 +643,7 @@ describe("promotion", () => {
 
   it("offers no ⋯ to someone who can't manage the board", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }), manage: false });
-    await userEvent.click(rows()[0]);
+    await openRow();
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).queryByLabelText("More actions")).not.toBeInTheDocument();
     expect(within(sheet).queryByRole("button", { name: /Create a project/ })).not.toBeInTheDocument();
@@ -610,7 +654,7 @@ describe("promotion", () => {
 
   it("names the project before creating it, then calls with that name", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1" })] }) });
-    await userEvent.click(rows()[0]);
+    await openRow();
     const sheet = await screen.findByRole("dialog");
     await userEvent.click(within(sheet).getByLabelText("More actions"));
     await userEvent.click(
@@ -629,7 +673,7 @@ describe("promotion", () => {
 
   it("hands the job straight to the agreement modal, pre-picked", async () => {
     await mountWork({ data: data({ jobs: [mirrorJob({ remoteId: "j-1", jobNumber: "2214" })] }) });
-    await userEvent.click(rows()[0]);
+    await openRow();
     const sheet = await screen.findByRole("dialog");
     await userEvent.click(within(sheet).getByLabelText("More actions"));
     await userEvent.click(

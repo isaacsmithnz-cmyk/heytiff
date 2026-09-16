@@ -151,7 +151,9 @@ it("never writes the time on a block — the rail already says it", async () => 
    screen. A click brings the job forward instead, and Open job is the second
    step — the same second step whether one person is on it or four. */
 describe("clicking a block", () => {
-  const stack = () => screen.queryByRole("dialog");
+  /* the job comes forward into the inspector beside the day — a region, not
+     a dialog: no scrim, and the board stays in view */
+  const stack = () => screen.queryByRole("complementary", { name: /^Job / });
 
   it("brings the job forward rather than opening it", async () => {
     const onOpenJob = jest.fn();
@@ -163,7 +165,7 @@ describe("clicking a block", () => {
     expect(onOpenJob).not.toHaveBeenCalled();
   });
 
-  it("opens the job from the stack, and closes it on the way", async () => {
+  it("opens the job from the inspector, and keeps it beside the day for the way back", async () => {
     const onOpenJob = jest.fn();
     render(tab({ onOpenJob }));
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
@@ -173,7 +175,9 @@ describe("clicking a block", () => {
       /* the diary's reading rides along, so the sheet can chip it */
       { kind: "on", word: "Started" }
     );
-    expect(stack()).not.toBeInTheDocument();
+    /* nothing to dismiss under the sheet any more: closing the sheet comes
+       back to the job that was being read */
+    expect(stack()).toBeInTheDocument();
   });
 
   it("brings EVERYONE on the job forward, with their own hours", async () => {
@@ -188,14 +192,14 @@ describe("clicking a block", () => {
     expect(within(panel).getByText("3pm–4pm")).toBeInTheDocument();
   });
 
-  it("gives a lone booking a stack of one rather than a different screen", async () => {
+  it("gives a lone booking a list of one rather than a different layout", async () => {
     render(tab());
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
     expect(screen.getByText("On this job")).toBeInTheDocument();
     expect(within(stack()!).getByText("Alex Lorenz")).toBeInTheDocument();
   });
 
-  it("tells the status of the job and what its colours mean, on the card", async () => {
+  it("tells the status of the job and what its colours mean, in the inspector", async () => {
     /* the key row decodes the treatments THIS job wears: its category (the
        colour), and the state the rail drew — nothing it doesn't wear */
     render(tab());
@@ -217,13 +221,26 @@ describe("clicking a block", () => {
     expect(within(panel).getByText("Not started")).toBeInTheDocument();
   });
 
-  it("goes back to the day on a click outside, without opening anything", async () => {
+  it("closes on its own cross, without opening anything", async () => {
     const onOpenJob = jest.fn();
     render(tab({ onOpenJob }));
     await userEvent.click((await screen.findAllByRole("button", { name: /Job #3171/ }))[0]);
-    await userEvent.click(document.querySelector(".wb2-scfov")!);
+    await userEvent.click(screen.getByRole("button", { name: "Close the panel" }));
     expect(stack()).not.toBeInTheDocument();
     expect(onOpenJob).not.toHaveBeenCalled();
+  });
+
+  it("marks the block it is reading, and moves when another is clicked", async () => {
+    render(tab());
+    const a = (await screen.findAllByRole("button", { name: /Job #3171/ }))[0];
+    const b = (await screen.findAllByRole("button", { name: /Job #3145/ }))[0];
+    await userEvent.click(a);
+    expect(a).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(b);
+    expect(a).toHaveAttribute("aria-pressed", "false");
+    expect(b).toHaveAttribute("aria-pressed", "true");
+    // one panel, replaced — not a second one stacked on the first
+    expect(screen.getAllByRole("complementary", { name: /^Job / })).toHaveLength(1);
   });
 
   it("goes back to the day on Escape", async () => {

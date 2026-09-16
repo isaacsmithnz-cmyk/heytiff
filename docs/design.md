@@ -137,6 +137,19 @@ Every decision below is made once, here, and a guard test holds each number.
   two declarations, one scoped to `.psec2`, so the same absence read as
   italic grey on one screen and clean ink-quiet on another.
 
+  **And the field panels stopped being cards.** `.pdlcard` drew a 1px box with
+  a 16px radius around every group of four rows — four of them inside a card,
+  inside a panel, inside a tab that already names the screen. Law 9 gives a
+  card to something you ACT ON, and you act on the section: one Edit at the
+  top, one Save at the bottom, never on a panel. So it is a group now, the
+  same one Summary's `.psum-g` has been since it was redrawn — a hairline top
+  and a title in ink at 20/600, where the title used to be 12/500 in the quiet
+  grey, lighter than the labels underneath it. The first row drops its own top
+  rule because the section head already ends in one 16px above: two hairlines
+  that close read as a doubled border, not as two things. The panel's "Open"
+  lost its chevron with it — law 20's arrow in another alphabet, and no other
+  group on this card draws one.
+
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ keeps its night ground and its KPI tiles**, and takes everything else.

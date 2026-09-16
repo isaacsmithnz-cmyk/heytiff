@@ -1281,11 +1281,14 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* ── Summary's panels ──
    One per tab, named the same, with the heading carrying the jump: the panel
    IS the tab's overview, so opening it belongs with its name. */
-.fg .pdlcard .pdlh.jump { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.fg .pdlh .jumpb { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; text-transform:none; color:var(--gray400); transition:color var(--t-fast) var(--ease); }
-.fg .pdlh .jumpb:hover { color:var(--wb2-cy); }
+.fg .pdlcard .pdlh.jump { display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+/* the same door Summary's groups carry (`.psum-lnk`): the link token, and the
+   word alone — the chevron beside it was law 20's arrow in another alphabet,
+   and no other group on this card draws one */
+.fg .pdlh .jumpb { font-size:13px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:3px; border-radius:var(--r-control); cursor:pointer; flex:0 0 auto; }
+.fg .pdlh .jumpb:focus-visible { outline:none; box-shadow:var(--ring); }
 /* where a panel's facts come from, when the panel isn't a tab */
-.fg .pdlh-q { margin-left:8px; font-weight:600; text-transform:none; color:var(--q); }
+.fg .pdlh-q { margin-left:8px; font-size:13px; font-weight:500; text-transform:none; color:var(--q); }
 /* A blank is a DASH, everywhere, and `.pdnone` below says it once. This used
    to be an override scoped to `.psec2` — Summary's old panels — which left the
    org screens on a 14px italic grey and the staff card's sections on a clean
@@ -1372,14 +1375,34 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 /* `.liccards` already lays CR80 cards out; the panel header supplies the gap */
 .fg .psec2 .liccards { margin-top:12px; }
 
-/* grouped read view: label/value pairs, and a blank that is a BUTTON */
-/* align-items:start — panels size to their content. Stretched, a one-row panel
+/* ── A PANEL IS A GROUP, NOT A CARD ──
+   Law 9: a card is for something you ACT ON; everything else is grouped by
+   space, proximity and type. You act on the SECTION — one Edit at the top, one
+   Save at the bottom — and never on a panel, so the 1px box with the 16px
+   radius around every four rows was a frame claiming an interaction that does
+   not exist. Four of them stacked inside a card, inside a panel, inside a tab
+   that already names the screen, is the same nesting `.psec2` was invented to
+   take off. Summary's groups (`.psum-g`) have been a hairline top and a title
+   in ink since it was redrawn; this is the rest of the card agreeing.
+
+   The title comes up with it: at 12/500 in the quiet grey it was lighter than
+   the labels beneath it and a tier below its own content. It is the group
+   title the scale names, 20/600 in ink, the same one Summary's groups wear.
+
+   align-items:start — groups size to their content. Stretched, a one-row group
    beside a four-row one (Right to work next to Visa) is mostly void. */
-.fg .pdlgrid { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
-.fg .pdlcard { border:1px solid var(--line); border-radius:var(--r-card); padding:16px 16px 16px; min-width:0; }
+.fg .pdlgrid { display:grid; grid-template-columns:1fr 1fr; gap:32px 48px; align-items:start; }
+.fg .pdlcard { min-width:0; border-top:1px solid var(--line); padding-top:16px; }
+/* THE FIRST ROW DOES NOT DRAW ITS OWN RULE. The section head already ends in
+   one 16px above it, and two hairlines that close read as a doubled border
+   rather than as two things — the same reason Summary's first group drops its
+   top. The second selector is the first row's right-hand group, which exists
+   only while the first group is not `wide` and taking the whole row itself. */
+.fg .pdlgrid > .pdlcard:first-child,
+.fg .pdlgrid > .pdlcard:first-child:not(.wide) + .pdlcard { border-top:0; padding-top:0; }
 .fg .pdlcard.wide { grid-column:1/-1; }
-.fg .pdlh { font-size:12px; font-weight:500; color:var(--gray400); }
-.fg .pdl, .fg .pdlbody { margin:12px 0 0; display:grid; gap:8px; }
+.fg .pdlh { font-size:20px; font-weight:600; color:var(--ink); }
+.fg .pdl, .fg .pdlbody { margin:8px 0 0; display:grid; gap:8px; }
 .fg .pdl.split { grid-template-columns:1fr 1fr; column-gap:32px; }
 /* THE LEDGER, and it is the same one Summary uses: a fixed label column, the
    answer beside it, the label a tier below what it introduces. It was 112px

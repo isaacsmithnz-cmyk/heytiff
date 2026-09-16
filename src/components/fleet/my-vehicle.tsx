@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Icon } from "@/components/shell/icon";
 import {
   type LogKind,
@@ -17,6 +17,27 @@ import {
 } from "./logic";
 import type { LogEdit } from "@/app/actions/fleet";
 import { EditLogModal, LogModal, LogRow } from "./modals";
+import { consumeFuelHandoff, type FuelHandoff } from "@/lib/fleet/fuel-handoff";
+
+/* A DOCKET HANDED OVER FROM MY EXPENSES, read once on the way in.
+
+   Same shape as the library's ask handoff, and for the same two reasons:
+   `consumeFuelHandoff` READS AND TEARS UP the note, so it cannot be called
+   twice for a second snapshot — hence the latch — and the value has to be
+   there in the FIRST render rather than set from an effect, which is a
+   cascading render the lint rule (rightly) refuses. The latch is dropped on
+   unmount, so a remount opens an empty Log fuel. */
+let latchedFuel: FuelHandoff | null | undefined;
+
+const fuelAtMount = () => {
+  if (latchedFuel === undefined) latchedFuel = consumeFuelHandoff();
+  return latchedFuel;
+};
+const forgetFuel = () => {
+  latchedFuel = undefined;
+};
+const noFuelAtMount = () => null;
+const noFuelSubscription = () => () => {};
 import { Plate } from "./plate";
 
 /* "My vehicle" — the Staff lens: just the vehicle assigned to you, with log
@@ -94,13 +115,21 @@ export function MyVehicle({
       stands; the other three are the log, split by what you came to ask. */
   face?: VehicleFace;
 }) {
-  const [logKind, setLogKind] = useState<LogKind | null>(null);
+  /* A fuel docket scanned on My expenses lands here rather than raising a
+     second record for the same tank — see lib/fleet/fuel-handoff. */
+  const handedOver = useSyncExternalStore(noFuelSubscription, fuelAtMount, noFuelAtMount);
+  const [fuelSeed, setFuelSeed] = useState<FuelHandoff | null>(handedOver);
+  const [logKind, setLogKind] = useState<LogKind | null>(handedOver ? "fuel" : null);
+  /* The latch belongs to this mount — see fuelAtMount. */
+  useEffect(() => forgetFuel, []);
   const [logTarget, setLogTarget] = useState<string | null>(null);
   const [correcting, setCorrecting] = useState<VehicleLog | null>(null);
   const mine = (l: VehicleLog) => viewerStaffId !== null && l.staffId === viewerStaffId;
   const closeLog = () => {
     setLogKind(null);
     setLogTarget(null);
+    // the handed-over docket belongs to the window it opened
+    setFuelSeed(null);
   };
   const errBox = error ? <div className="fl-aierr">{error}</div> : null;
 
@@ -187,6 +216,7 @@ export function MyVehicle({
             today={today}
             vehicle={fallback}
             fleetVehicles={pickable}
+            seed={fuelSeed}
             onSave={(log) => {
               onLog(log);
               closeLog();
@@ -329,6 +359,7 @@ export function MyVehicle({
           today={today}
           vehicle={(logTarget && pickable.find((v) => v.id === logTarget)) || vehicle}
           fleetVehicles={pickable}
+          seed={fuelSeed}
           onSave={(log) => {
             onLog(log);
             closeLog();

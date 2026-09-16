@@ -26,6 +26,7 @@ import {
 import { cancelClaim, submitClaim, type ExpenseResult } from "@/app/actions/expenses";
 import { readExpenseReceipt, type ReadExpenseResult } from "@/app/actions/expense-ai";
 import { withCleanup } from "@/lib/ui/with-cleanup";
+import { writeFuelHandoff } from "@/lib/fleet/fuel-handoff";
 import { fileToUprightBase64 } from "@/lib/images/upright";
 
 /* My expenses — money you spent on the job, and want back.
@@ -204,6 +205,45 @@ export function MyExpensesFace({
         onOk?.();
         router.refresh();
       } else setError(res.error);
+    });
+  };
+
+  /* FUEL HAS ONE RECORD, AND IT IS THE VEHICLE'S.
+
+     A tank of diesel had two doors that knew nothing about each other: this
+     screen's Fuel category, which wrote a claim with no vehicle, no litres
+     and no odometer, and Log fuel on My vehicle, which writes the row the tax
+     export actually reads. Nothing linked them, so the same docket filed both
+     ways was deducted twice and — on a personal card — paid twice.
+
+     The door stays: a docket in somebody's hand at the end of a job is what
+     this screen is for. What changes is where it lands. Everything Tiff read
+     goes across, the photo with it, so the only things left to add are the
+     two the docket cannot say: the litres and the odometer. */
+  const toVehicle = () => {
+    if (!draft) return;
+    setError(null);
+    start(async () => {
+      let receiptDocumentId: string | null = null;
+      if (file) {
+        // stored as the LOG's paper, which is what it is about to become
+        const up = await uploadFile(file, "fuel_receipt");
+        if (!up.ok) {
+          setError(up.error);
+          return;
+        }
+        receiptDocumentId = up.file.documentId;
+      }
+      writeFuelHandoff({
+        cost: draft.amount,
+        gst: draft.gstAmount,
+        abn: "",
+        station: draft.supplier,
+        purchasedOn: draft.expenseDate,
+        paidWith: draft.paidWith === "company" ? "company" : "own",
+        receiptDocumentId,
+      });
+      router.push("/dashboard/my-vehicle");
     });
   };
 
@@ -585,6 +625,12 @@ export function MyExpensesFace({
               </div>
 
               <div className="xc-act">
+                {draft.category === "fuel" ? (
+                  <button className="pbtn primary" onClick={toVehicle} disabled={busy}>
+                    <Icon name="fuel" size={16} />
+                    {busy ? "Taking it over…" : "Log it on the vehicle"}
+                  </button>
+                ) : (
                 <button className="pbtn primary" onClick={submit} disabled={busy || !!missing}>
                   {busy
                     ? company
@@ -594,10 +640,18 @@ export function MyExpensesFace({
                       ? "Save the receipt"
                       : "Send for approval"}
                 </button>
+                )}
                 <button className="pbtn ghost" onClick={reset} disabled={busy}>
                   Discard
                 </button>
-                {missing && !busy && <span className="xc-need">{missing}</span>}
+                {draft.category === "fuel" ? (
+                  <span className="xc-need">
+                    Fuel is logged on the vehicle — it takes the litres and the odometer with it,
+                    and raises the claim itself if you paid.
+                  </span>
+                ) : (
+                  missing && !busy && <span className="xc-need">{missing}</span>
+                )}
               </div>
             </div>
           )}
@@ -634,7 +688,8 @@ export function MyExpensesFace({
                   <b>No card receipts filed</b>
                   <em>
                     Buy something on the company card and the docket goes here — the bank feed
-                    knows the amount, this is the only place the receipt will ever be.
+                    knows the amount, not what was bought. Fuel is the exception: it goes on the
+                    vehicle, with the litres and the odometer.
                   </em>
                 </div>
               ) : (

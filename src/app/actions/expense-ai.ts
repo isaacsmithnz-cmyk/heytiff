@@ -133,7 +133,7 @@ export async function readExpenseReceipt(
                 "when the receipt is not — the claim is read and approved by somebody " +
                 "else. The supplier's name stays exactly as printed.\n" +
                 `- category: one of ${EXPENSE_CATEGORIES.join(", ")} — materials for parts and ` +
-                "consumables, tools for equipment, travel for fuel/parking/tolls, meals for " +
+                "consumables, tools for equipment, travel for parking, tolls, fares and accommodation; fuel for a tank of fuel, meals for " +
                 "food, other for anything else\n" +
                 "Use null for anything not clearly readable. Never guess an amount.",
             },

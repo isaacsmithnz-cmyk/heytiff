@@ -75,6 +75,47 @@ const log = (n: number): VehicleLog => ({
 
 const nineLogs = Array.from({ length: 9 }, (_, i) => log(i + 1));
 
+beforeEach(() => sessionStorage.clear());
+
+/* A FUEL DOCKET ARRIVING FROM MY EXPENSES. Fuel had two doors that wrote two
+   records for one tank — the tax export counted it twice and a personal card
+   was paid twice. The expenses screen hands the docket here instead, with
+   everything Tiff read and the photo already filed, so the only things left
+   are the two a docket cannot say: the litres and the odometer. */
+it("opens Log fuel on a docket handed over from My expenses", async () => {
+  sessionStorage.setItem(
+    "heytiff.fleet.fuel.v1",
+    JSON.stringify({
+      cost: "158.40",
+      gst: "14.40",
+      abn: "51824753556",
+      station: "BP Kingsford",
+      purchasedOn: "2026-07-31",
+      paidWith: "own",
+      receiptDocumentId: "doc-77",
+    }),
+  );
+  render(
+    <MyVehicleFace warnDays={30}
+      own={{ vehicle: vehicle(), pickable: [], logs: [] }}
+      today="2026-08-22"
+      viewerStaffId="jordan-mills"
+    />,
+  );
+
+  // a number input reads its value back as a number
+  const cost = await screen.findByLabelText(/^Cost/);
+  expect(cost).toHaveValue(158.4);
+  expect(screen.getByLabelText(/^Litres/)).toHaveValue(null);
+  // the payer came across, so nobody is quietly left out of pocket
+  const payer = screen
+    .getAllByRole("button")
+    .find((b) => b.textContent?.startsWith("My own money"));
+  expect(payer).toHaveAttribute("aria-pressed", "true");
+  // and the note is gone: a refresh opens an empty Log fuel, not this one again
+  expect(sessionStorage.getItem("heytiff.fleet.fuel.v1")).toBeNull();
+});
+
 it("opens on the Vehicle face — the truck, not the paperwork", () => {
   render(
     <MyVehicleFace warnDays={30}

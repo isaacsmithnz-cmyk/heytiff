@@ -8,6 +8,7 @@ import { DateField } from "@/components/ui/date-field";
 import { scanInProgress } from "@/components/record-modal/scan-card";
 import { readFuelReceipt, readServiceRecord } from "@/app/actions/fleet-ai";
 import { uploadFile } from "@/lib/documents/upload-client";
+import type { FuelHandoff } from "@/lib/fleet/fuel-handoff";
 import { fileToUprightBase64 } from "@/lib/images/upright";
 import type { LogEdit } from "@/app/actions/fleet";
 import { Plate } from "./plate";
@@ -161,6 +162,7 @@ export function LogModal({
   today,
   vehicle,
   fleetVehicles,
+  seed,
   onSave,
   onClose,
 }: {
@@ -173,26 +175,34 @@ export function LogModal({
   /** Working fleet for the rego picker — lets a driver log against a borrowed
       or pool vehicle instead of their own. Omit to lock to `vehicle`. */
   fleetVehicles?: VehicleIdentity[];
+  /** A docket already read and stored on the way here — My expenses hands
+      fuel to this screen rather than raising a second record for the same
+      tank (lib/fleet/fuel-handoff). The fields open on it, the photo is
+      already filed, and the only thing left to add is what the docket can't
+      say: the litres and the odometer. */
+  seed?: FuelHandoff | null;
   onSave: (log: NewLog) => void;
   onClose: () => void;
 }) {
   const [vehicleId, setVehicleId] = useState(vehicle.id);
   const [litres, setLitres] = useState("");
-  const [cost, setCost] = useState("");
+  const [cost, setCost] = useState(seed?.cost ?? "");
   const [odo, setOdo] = useState("");
   const [note, setNote] = useState("");
   /* Company card is the default because it is the common case AND the one that
-     raises nothing extra — the path with a consequence has to be chosen. */
-  const [paidWith, setPaidWith] = useState<FuelPayer>("company");
-  const [station, setStation] = useState("");
-  const [gst, setGst] = useState("");
-  const [abn, setAbn] = useState("");
-  const [bought, setBought] = useState("");
+     raises nothing extra — the path with a consequence has to be chosen. A
+     docket handed over from My expenses already carries the answer. */
+  const [paidWith, setPaidWith] = useState<FuelPayer>(seed?.paidWith ?? "company");
+  const [station, setStation] = useState(seed?.station ?? "");
+  const [gst, setGst] = useState(seed?.gst ?? "");
+  const [abn, setAbn] = useState(seed?.abn ?? "");
+  const [bought, setBought] = useState(seed?.purchasedOn ?? "");
   /* Service only: the itemised work, one line per item, as the invoice lists
      it. `note` stays the one line the history prints. */
   const [workDone, setWorkDone] = useState("");
   const scans = kind === "fuel" || kind === "service";
-  const [mode, setMode] = useState<CaptureMode>(scans ? "scan" : "manual");
+  // a seeded docket has been read already: the fields, not the scan zone
+  const [mode, setMode] = useState<CaptureMode>(seed ? "confirm" : scans ? "scan" : "manual");
   const [thumb, setThumb] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [scanTag, setScanTag] = useState<"tiff" | null>(null);
@@ -204,7 +214,7 @@ export function LogModal({
      has checked the figures the photo is already in the bucket and Save only
      has to point the log at it. Null means the figures will be saved with
      nothing behind them — allowed, and said out loud on screen. */
-  const [receiptId, setReceiptId] = useState<string | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(seed?.receiptDocumentId ?? null);
   const [receiptWarn, setReceiptWarn] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);

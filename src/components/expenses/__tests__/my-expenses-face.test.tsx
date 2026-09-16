@@ -31,7 +31,8 @@ jest.mock("@/app/actions/expenses", () => ({
 jest.mock("@/lib/documents/upload-client", () => ({
   uploadFile: (...a: unknown[]) => upload(...a),
 }));
-jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn(), refresh }) }));
+const push = jest.fn();
+jest.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 
 const TODAY = "2026-08-05";
 
@@ -63,6 +64,7 @@ const photo = () => new File(["x"], "docket.jpg", { type: "image/jpeg" });
 const pdf = () => new File(["x"], "reece-invoice.pdf", { type: "application/pdf" });
 
 beforeEach(() => {
+  sessionStorage.clear();
   readReceipt.mockReset().mockResolvedValue({ ok: false, reason: "no-key" });
   submit.mockReset().mockResolvedValue({ ok: true });
   cancel.mockReset().mockResolvedValue({ ok: true });
@@ -130,6 +132,64 @@ describe("attaching a receipt", () => {
     await user.upload(picker(), photo());
     await user.click(screen.getByText("Remove"));
     expect(screen.getByText("No receipt attached")).toBeInTheDocument();
+  });
+});
+
+/* ONE TANK, ONE RECORD.
+
+   Fuel had two doors that knew nothing about each other: this screen's Fuel
+   category, which wrote a claim with no vehicle, no litres and no odometer,
+   and Log fuel on My vehicle, which writes the row the tax export reads. The
+   tax screen counts every live fuel log AND every claim carrying no log, so
+   the same docket filed both ways was deducted twice — and on a personal
+   card, paid twice. The door stays; where it lands changes. */
+describe("a fuel docket", () => {
+  const fillFuel = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByText("Enter it myself"));
+    await user.selectOptions(screen.getByLabelText("Category"), "fuel");
+    await user.type(screen.getByPlaceholderText("0.00"), "158.40");
+  };
+
+  it("goes to the vehicle instead of raising a claim of its own", async () => {
+    const user = userEvent.setup();
+    draw();
+    await fillFuel(user);
+
+    await user.click(screen.getByText("Log it on the vehicle"));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard/my-vehicle"));
+    expect(submit).not.toHaveBeenCalled();
+    // and the figures go with it, so nothing is typed twice
+    expect(JSON.parse(sessionStorage.getItem("heytiff.fleet.fuel.v1") ?? "{}")).toMatchObject({
+      cost: "158.40",
+      paidWith: "own",
+    });
+  });
+
+  it("takes the docket across as the log's own paper", async () => {
+    const user = userEvent.setup();
+    draw();
+    await fillFuel(user);
+    await user.upload(picker(), photo());
+
+    await user.click(screen.getByText("Log it on the vehicle"));
+
+    await waitFor(() => expect(upload).toHaveBeenCalledWith(expect.any(File), "fuel_receipt"));
+    expect(JSON.parse(sessionStorage.getItem("heytiff.fleet.fuel.v1") ?? "{}")).toMatchObject({
+      receiptDocumentId: "doc-1",
+    });
+  });
+
+  it("leaves every other category filing a claim as it always did", async () => {
+    const user = userEvent.setup();
+    draw();
+    await user.click(screen.getByText("Enter it myself"));
+    await user.type(screen.getByPlaceholderText("Copper fittings and flux"), "Brazing rods");
+    await user.type(screen.getByPlaceholderText("0.00"), "48.90");
+
+    expect(screen.queryByText("Log it on the vehicle")).toBeNull();
+    await user.click(screen.getByText("Send for approval"));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
   });
 });
 

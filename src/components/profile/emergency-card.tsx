@@ -71,7 +71,10 @@ export function EmergencyCard({
         <IdCard
           variant="light"
           org={org}
-          badge={{ label: "ICE", color: "#2E68FF" }}
+          /* "ICE" — in case of emergency — is the compliance world's
+             acronym, and this card exists to be read off a phone at speed by
+             whoever has to make the call. It says the word. */
+          badge={{ label: "Emergency", color: "#2E68FF" }}
           initials={initialsOf(values.emergency_name)}
           name={values.emergency_name || "—"}
           sub={

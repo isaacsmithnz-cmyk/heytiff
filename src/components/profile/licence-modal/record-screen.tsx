@@ -144,15 +144,14 @@ export function RecordScreen({
 
   const headline = termHeadline(expiry, today, warnDays);
   const loose = looseTermDocuments(documents, records);
-  /* With no term to describe, the line says what IS on file. It used to say
-     "scan the card" beside a photo of the card already listed under Documents. */
-  const docsText = loose.length === 1 ? "1 document" : `${loose.length} documents`;
+  /* With no term to describe, the line says what the headline cannot. It
+     used to count the documents — "1 document filed against this ticket" —
+     directly above the Documents card that lists them, which is the same
+     fact twice; the card itself is the count. */
   const noTermLine = licence.expiryDate
-    ? loose.length > 0
-      ? `Expires ${fmtDay(licence.expiryDate)}`
-      : `Expires ${fmtDay(licence.expiryDate)} — scan the card to start the history.`
+    ? `Expires ${fmtDay(licence.expiryDate)}`
     : loose.length > 0
-      ? `${docsText} filed against this ticket`
+      ? "No expiry on this ticket."
       : "Scan the card or enter the details below.";
   const subline = !recorded
     ? noTermLine

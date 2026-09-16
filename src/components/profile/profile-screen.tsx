@@ -322,6 +322,7 @@ export function ProfileScreen({
                 {active === "workrights" && (
                   <WorkRightsCard
                     checkCount={workRightsChecks.length}
+                    lastChecked={workRightsChecks[0]?.checkedOn ?? null}
                     onOpenChecks={actions.onRecordWorkRightsCheck ? () => setChecksOpen(true) : undefined}
                     profile={profile}
                     mode={mode}

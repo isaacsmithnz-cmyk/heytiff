@@ -195,6 +195,39 @@ describe("derive — demo staff on default settings", () => {
   });
 });
 
+/* A PART-TIMER IS NOT SHORT OF SOMEBODY ELSE'S DAY. Their week is filled in
+   from their own normal hours and was then judged against the workspace's
+   standard day, so every day of every week read "under day: 6h of 8h" and
+   every week of theirs landed in the approver's review pile. */
+describe("short days are measured against the day this person works", () => {
+  const w6 = w("9:00 AM", "3:00 PM", 6);
+  const sixHourWeek: DayEntry[] = [w6, w6, w6, w6, w6, NO, NO];
+
+  it("counts nothing short when the days match their own normal day", () => {
+    const d = derive(staff(sixHourWeek), DEFAULT_SETTINGS, { ...ctx, through: 6, dayHours: 6 });
+    expect(d.under).toBe(0);
+    expect(d.bullets.join(" ")).not.toMatch(/under day/);
+    expect(d.status).toBe("ready");
+  });
+
+  it("still counts a day short of THEIR day, and says so in their hours", () => {
+    const days: DayEntry[] = [w("9:00 AM", "1:00 PM", 4), ...sixHourWeek.slice(1)];
+    const d = derive(staff(days), DEFAULT_SETTINGS, { ...ctx, through: 6, dayHours: 6 });
+    expect(d.under).toBe(1);
+    expect(d.bullets.join(" ")).toMatch(/under day: 4h of 6h/);
+  });
+
+  it("falls back to the workspace's day for anyone who hasn't set their own", () => {
+    const d = derive(staff(sixHourWeek), DEFAULT_SETTINGS, { ...ctx, through: 6 });
+    expect(d.under).toBe(5);
+  });
+
+  it("colours the tile by the same rule", () => {
+    expect(dayClass(w6, 0, DEFAULT_SETTINGS, { ...ctx, through: 6, dayHours: 6 })).toBe("std");
+    expect(dayClass(w6, 0, DEFAULT_SETTINGS, { ...ctx, through: 6 })).toBe("under");
+  });
+});
+
 describe("derive — rules and edge cases", () => {
   it("counts missing entries only on weekdays that are OVER", () => {
     const d = derive(staff([w8, EM, EM, w8, EM, EM, EM]), S(), ctx);

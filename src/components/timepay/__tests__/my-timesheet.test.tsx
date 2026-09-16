@@ -1343,6 +1343,30 @@ describe("when the week is closed to you", () => {
     expect(screen.getByText("Submit again").closest("button")).toBeEnabled();
   });
 
+  /* AND AFTER THE PERIOD ITSELF. A question can arrive after the week ends —
+     it usually does, since the sheet sends itself on the last day — and a
+     closed period was read-only for everything, so the answer had nowhere to
+     go: no editor, no Submit again, and a dashboard chip asking for a reply
+     that could never be given. */
+  it("keeps a sent-back sheet answerable once its period has closed", async () => {
+    const user = userEvent.setup();
+    renderSheet({
+      periodIndex: 1,
+      sheet: SHEET({ status: "sent_back", reviewNote: "Tuesday?" }),
+    });
+    expect(screen.getByText("Tuesday?")).toBeInTheDocument();
+    expect(screen.getByText("Submit again").closest("button")).toBeEnabled();
+    await user.click(tab(/Mon 29 Jun/));
+    expect(within(panel()).getByRole("radio", { name: "Off" })).toBeInTheDocument();
+  });
+
+  it("still closes an ordinary week once its period has gone", async () => {
+    const user = userEvent.setup();
+    renderSheet({ periodIndex: 1, sheet: SHEET({ status: "draft" }) });
+    await user.click(tab(/Mon 29 Jun/));
+    expect(within(panel()).queryByRole("radio", { name: "Off" })).toBeNull();
+  });
+
   /* "STAFF CAN KEEP CORRECTING A SUBMITTED SHEET UNTIL THE PERIOD CLOSES." The
      pay settings have said so with the lock off since the switch existed, and
      a submitted week was read-only either way. */

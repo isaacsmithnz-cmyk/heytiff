@@ -2996,8 +2996,18 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .tpr .rl-step b { font-size:16px; font-weight:700; min-width:42px; text-align:center; }
 .fg .tpr .wz-menu .rl-head { padding:12px 12px; }
 
-/* historical periods are read-only */
-.fg .tpr.locked .capprove, .fg .tpr.locked .cedit, .fg .tpr.locked .allbtn, .fg .tpr.locked .qform { display:none !important; }
+/* THE LOCK ON A CLOSED PERIOD IS GONE (2026-09-16). `.fg .tpr.locked
+   .capprove / .cedit / .allbtn / .qform { display:none !important }` hid the
+   approver's four controls on every period but the current one — so a
+   timesheet that sent itself on Sunday afternoon could not be approved from
+   Monday, and no week could be sent back once it was over. Reading history is
+   not signing it off, and an approved row carries no buttons in the first
+   place, so there was nothing here that needed hiding. */
+
+/* the compact row's own wrapper — it holds the row and, when one is being
+   asked for, the send-back question underneath it */
+.fg .tpr .crowwrap + .crowwrap { margin-top:8px; }
+.fg .tpr .crowwrap.sending .qform { display:block; margin:8px 0 0; }
 
 /* ===== Team directory — tabs, tools, menus, invites (ported from design v3) ===== */
 /* staff directory (Team overview) */

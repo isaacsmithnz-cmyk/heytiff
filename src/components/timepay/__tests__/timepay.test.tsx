@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimePay, type PayPeriod } from "../timepay";
@@ -67,6 +69,50 @@ const CLEAN: StaffWeek = {
   rate: 28,
   days: [w8, w8, w8, w8, w8, EM, EM],
 };
+
+/* THE CLOSED PERIOD USED TO BE A DEAD END, and it is the common case: a sheet
+   sends itself on the last day of the period, so from the next morning the
+   only approver control on screen was gone. `.fg .tpr.locked .capprove /
+   .cedit / .allbtn / .qform { display:none !important }` did it, in CSS, so
+   nothing in jsdom could see it — which is why this guard reads the sheet. */
+describe("a week can still be decided once its period has closed", () => {
+  it("keys no rule off a closed period to hide the approver's controls", () => {
+    const css = fs
+      .readFileSync(path.join(process.cwd(), "src/app/dashboard/shell.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(css).not.toMatch(/\.tpr\.locked/);
+  });
+
+  it("marks the screen no differently when the period is closed", () => {
+    const { container } = renderTimePay({ periodIndex: 1 });
+    expect(container.querySelector(".tpr")?.className).not.toMatch(/locked/);
+    expect(screen.getAllByRole("button", { name: /Approve$/ }).length).toBeGreaterThan(0);
+  });
+});
+
+/* A CLEAN WEEK IS STILL A WEEK YOU CAN QUESTION. Send back lived on the review
+   card only, so an ordinary fortnight — nothing flagged, the shape most weeks
+   take — could only be approved. Approving leave that lands in a submitted
+   period is refused with "send it back first", and this row was where that
+   had to be possible. */
+describe("sending back a week that raised no flags", () => {
+  it("asks the question from the row itself", async () => {
+    const user = userEvent.setup();
+    renderTimePay();
+    const row = screen.getByText("Marcus Webb").closest(".crowwrap") as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: /Send back/ }));
+    await user.type(within(row).getByRole("textbox"), "Did you work the Friday?");
+    await user.click(within(row).getByRole("button", { name: /^Send$/ }));
+    expect(sendBackWeek).toHaveBeenCalledWith("staff-clean", "2026-06-29", "Did you work the Friday?");
+  });
+
+  it("offers nothing to press on a week already approved", () => {
+    renderTimePay({ sheets: { "staff-clean": { status: "approved", submittedAt: null, reviewNote: null, reviewedBy: null } } });
+    const row = screen.getByText("Marcus Webb").closest(".crowwrap") as HTMLElement;
+    expect(within(row).queryByRole("button", { name: /Send back/ })).toBeNull();
+    expect(within(row).queryByRole("button", { name: /Approve/ })).toBeNull();
+  });
+});
 
 function renderTimePay(over: Partial<React.ComponentProps<typeof TimePay>> = {}) {
   return render(
@@ -307,10 +353,16 @@ describe("TimePay screen", () => {
     expect(push).toHaveBeenCalledWith("/dashboard/timepay?period=2026-06-22");
   });
 
-  it("renders a historical period as locked", () => {
+  /* IT USED TO ASSERT THE LOCK — `.tpr.locked`, which hid Approve, Send back,
+     Approve all and the question box on every period but the current one. The
+     lock is gone (2026-09-16): a closed period is still history to READ, but
+     an unapproved week stays decidable, because the sheet that sent itself on
+     the last day of the period cannot be approved before the period ends. */
+  it("names a historical period, and still lets it be decided", () => {
     renderTimePay({ periodIndex: 1 });
     expect(screen.getByText("Historical")).toBeInTheDocument();
-    expect(document.querySelector(".tpr")?.className).toContain("locked");
+    expect(document.querySelector(".tpr")?.className).not.toContain("locked");
+    expect(screen.getAllByRole("button", { name: /Send back/ }).length).toBeGreaterThan(0);
   });
 });
 

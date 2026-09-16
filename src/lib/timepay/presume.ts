@@ -1,5 +1,6 @@
 import { presumesDays } from "@/lib/staff/employment";
 import {
+  derivedDayHours,
   normalHours,
   presumeDays,
   type DaySource,
@@ -149,6 +150,10 @@ export function presumeFor(
   days: StaffWeek["days"];
   sources: DaySource[];
   hours: NormalHours;
+  /** what their normal day comes to once the break is out of it — the length
+      a short day is judged against, resolved here so the screen that fills a
+      day in and the screen that judges it read one number */
+  dayHours: number | undefined;
   workDays: number[];
   presume: boolean;
   /** the absence map the presumption applied — date → covering request, so
@@ -200,5 +205,15 @@ export function presumeFor(
     return out;
   }, []);
 
-  return { days, sources, hours, workDays, presume: live, absences, holidayDays, certMissing };
+  return {
+    days,
+    sources,
+    hours,
+    dayHours: derivedDayHours(hours.start, hours.end, settings) ?? undefined,
+    workDays,
+    presume: live,
+    absences,
+    holidayDays,
+    certMissing,
+  };
 }

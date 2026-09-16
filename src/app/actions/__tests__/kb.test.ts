@@ -259,6 +259,34 @@ describe("editing the details", () => {
     expect(await updateKbDocMeta("doc-1", {})).toEqual({ ok: true });
     expect(updates).toHaveLength(0);
   });
+
+  /* A FIELD NOTE COULD NEVER BE EDITED AT ALL. The rule was "never `field`",
+     and the edit dialog sends every field it is showing — including the note's
+     own, unchanged category — so fixing a typo in one came back "Field notes
+     are written from a note, not uploaded." every time, on a field nobody had
+     touched. The rule is about MOVING between shelves, in both directions. */
+  describe("a field note's shelf", () => {
+    it("lets the rest of a field note be edited, category and all", async () => {
+      rows.kb_documents = { category: "field", storage_ref: null };
+      expect(await updateKbDocMeta("doc-1", { title: "Grille clips on the AP25", category: "field" })).toEqual({
+        ok: true,
+      });
+      expect(patchesTo("kb_documents")[0]).toMatchObject({ title: "Grille clips on the AP25" });
+      expect(patchesTo("kb_documents")[0]).not.toHaveProperty("category");
+    });
+
+    it("still refuses to file a manual as one", async () => {
+      rows.kb_documents = { category: "manual", storage_ref: "org-1/doc-1.pdf" };
+      expect(await updateKbDocMeta("doc-1", { category: "field" })).toMatchObject({ ok: false });
+      expect(updates).toHaveLength(0);
+    });
+
+    it("refuses to make a note into a manual — it has no file to open", async () => {
+      rows.kb_documents = { category: "field", storage_ref: null };
+      expect(await updateKbDocMeta("doc-1", { category: "manual" })).toMatchObject({ ok: false });
+      expect(updates).toHaveLength(0);
+    });
+  });
 });
 
 describe("retrying", () => {

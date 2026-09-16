@@ -21,8 +21,7 @@ import {
   diagnose,
   dutiesFor,
   estimatePressures,
-  type Duty,
-} from "@/lib/toolbox/diagnose";
+  type Duty, CHARGE_TARGET } from "@/lib/toolbox/diagnose";
 import {
   getRefrigerant,
   kpaToPsi,
@@ -418,7 +417,7 @@ export function RunningPressures() {
                 {[
                   "Blue = low side (suction), red = high side (discharge) — the panels match your hoses.",
                   "Purge hoses before reading; measure at the service ports; let it stabilise 10–15 min.",
-                  "Typical AC targets: superheat ~4–10 K, subcooling ~5–8 K. Manufacturer figures override these.",
+                  `Typical AC targets: superheat ~${CHARGE_TARGET.sh[0]}–${CHARGE_TARGET.sh[1]} K, subcooling ~${CHARGE_TARGET.sc[0]}–${CHARGE_TARGET.sc[1]} K. Manufacturer figures override these.`,
                   "R32 (A2L) and R290 (A3) are flammable — no open flame, ventilate, use rated recovery gear.",
                   "Pressures alone don't confirm charge — weigh refrigerant for anything beyond top-up diagnosis.",
                 ].map((n) => (

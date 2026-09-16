@@ -43,8 +43,14 @@ jest.mock("@/app/actions/kb-tags", () => ({
 }));
 
 const start = jest.fn();
+/* What the reading queue was handed, which is the whole of "does a document
+   get read": the hook drives exactly these ids. */
+const queued: string[][] = [];
 jest.mock("@/lib/tiff/use-kb-ingest", () => ({
-  useKbIngest: () => ({ progress: {}, busy: false, start }),
+  useKbIngest: (ids: string[]) => {
+    queued.push(ids);
+    return { progress: {}, busy: false, start };
+  },
 }));
 
 /* Reading scanned pages is mocked for the same reason the ingest loop is: a
@@ -172,6 +178,36 @@ describe("what a row says about itself", () => {
 
     expect(screen.getByText("Out of pages — resumes 1 Sept")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+  });
+
+  /* "RESUMES 1 SEPT" HAD NOTHING BEHIND IT. The reading queue took
+     `processing` rows only, so a manual that ran out of pages mid-read stayed
+     out of every answer until a manager noticed the row and pressed Resume —
+     while three screens, including one staff can see and have no button on,
+     said it would come back by itself. The allowance is the condition the
+     ingest loop itself checks. */
+  it("picks a parked document back up once the allowance has room", () => {
+    queued.length = 0;
+    render(<Library docs={[doc({ id: "d-paused", status: "paused", nextPage: 81 })]} quota={quota()} canManage />);
+    expect(queued.at(-1)).toContain("d-paused");
+  });
+
+  it("leaves it parked while the pages are still spent", () => {
+    queued.length = 0;
+    render(
+      <Library
+        docs={[doc({ id: "d-paused", status: "paused", nextPage: 81 })]}
+        quota={quota({ pagesUsed: 2000 })}
+        canManage
+      />,
+    );
+    expect(queued.at(-1)).toEqual([]);
+  });
+
+  it("queues nothing for somebody who can't manage the library", () => {
+    queued.length = 0;
+    render(<Library docs={[doc({ id: "d-paused", status: "paused" })]} quota={quota()} />);
+    expect(queued.at(-1)).toEqual([]);
   });
 
   it("a failed document carries its reason and a Retry", () => {
@@ -358,6 +394,19 @@ describe("opening a document", () => {
     expect(open).not.toHaveBeenCalled();
     expect(kbDocUrl).not.toHaveBeenCalled();
     open.mockRestore();
+  });
+
+  /* A FIELD NOTE HAS NO PDF. It was written from somebody's note, and the
+     panel offered "Open the PDF" anyway — which answered "That file doesn't
+     belong to this organisation.", the org check's refusal, on the reader's
+     own note. */
+  it("offers no PDF door on a note that never had a file", async () => {
+    render(<Library docs={[doc({ category: "field", title: "Grille clips on the AP25", storageRef: null })]} canManage />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Grille clips on the AP25" }));
+    const panel = screen.getByRole("dialog", { name: /Search inside/ });
+    expect(within(panel).queryByRole("button", { name: /Open the PDF/ })).toBeNull();
+    expect(within(panel).getByText("Search inside it")).toBeInTheDocument();
   });
 
   /* Searching a document is reading it, so this is the one row affordance

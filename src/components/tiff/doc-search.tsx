@@ -29,7 +29,10 @@ export function DocSearch({
   doc,
   onClose,
 }: {
-  doc: { id: string; title: string };
+  /* `storageRef` is the PDF. A field note has none — it was written from
+     somebody's note — and the door below used to be offered anyway, answering
+     "That file doesn't belong to this organisation." */
+  doc: { id: string; title: string; storageRef?: string | null };
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -93,7 +96,7 @@ export function DocSearch({
         <div className="fl-mh">
           <span>
             <b>{doc.title}</b>
-            <em>Search inside it, or open the PDF</em>
+            <em>{doc.storageRef === null ? "Search inside it" : "Search inside it, or open the PDF"}</em>
           </span>
           <button className="fl-x" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={16} />
@@ -188,10 +191,12 @@ export function DocSearch({
             <button className="fl-btn ghost" onClick={onClose}>
               Close
             </button>
-            <button className="fl-btn ghost" onClick={() => open(1)}>
-              <Icon name="arrowUR" size={15} />
-              Open the PDF
-            </button>
+            {doc.storageRef !== null && (
+              <button className="fl-btn ghost" onClick={() => open(1)}>
+                <Icon name="arrowUR" size={15} />
+                Open the PDF
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -31,6 +31,7 @@ import {
   clearVisitPlacement,
   completeVisit,
   createTag,
+  linkVisitJob,
   placeVisit,
   setVisitNotes,
   setVisitPacked,
@@ -38,12 +39,15 @@ import {
   setVisitStatus,
   tagAgreement,
   unassignVisitTech,
+  unlinkVisitJob,
   untagAgreement,
   updateAgreementMeta,
   addPackingItem,
   removePackingItem,
   type MaintenanceResult,
 } from "@/app/actions/workboard-maintenance";
+import { searchAllJobs } from "@/app/actions/workboard";
+import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { TagStrip } from "./tag-strip";
 import type { TagTone } from "@/lib/workboard/tags";
 import {
@@ -146,6 +150,13 @@ export function VisitSheet({
   const [tab, setTab] = useState<TabKey>("visit");
   const [openGate, setOpenGate] = useState<0 | 1 | 2 | null>(null);
   const [pendingDay, setPendingDay] = useState<string>("");
+  /* Linking this visit to the ServiceM8 job that was raised for it. The
+     control only existed on a project TRIP, so a maintenance visit could not
+     be linked at all — see the section below for what that cost. */
+  const [linking, setLinking] = useState(false);
+  const [jobQuery, setJobQuery] = useState("");
+  const [jobHits, setJobHits] = useState<AllJobsMirrorJob[] | null>(null);
+  const [searching, startSearch] = useTransition();
   const [closing, setClosing] = useState(startClosing);
   /* THE DAY IT RAN IS THE DAY IT WAS BOOKED. It used to default to today,
      which is only right if you close a job out the same afternoon — close
@@ -912,6 +923,142 @@ export function VisitSheet({
                   </div>
                 )}
               </div>
+
+              {/* THE JOB THIS VISIT IS. A service is booked in ServiceM8 and
+                  tracked here, and the link between the two is what makes
+                  them one piece of work: it feeds the diary's day onto the
+                  visit, and it closes the visit out when ServiceM8 completes
+                  the job. Nothing could set it. `linkVisitJob` existed and was
+                  called from a project trip only, so every maintenance visit
+                  wore "No ServiceM8 job" with no way to answer it — the same
+                  service sat on Urgent as overdue after it had been done, and
+                  showed twice on All jobs and twice on the Schedule.
+
+                  It picks from the mirror rather than taking a typed number:
+                  the action's `remoteId` path is the one that copies the job's
+                  own number and caches its next diary block, which is the
+                  half a typed number can't do. */}
+              {manage && connected && (
+                <div className="wb2-jcsec">
+                  <div className="wb2-jcdhead">
+                    <b>ServiceM8 job</b>
+                    {visit.remoteId || visit.jobNumber ? (
+                      open && (
+                        <button
+                          className="pbtn ghost"
+                          disabled={busy}
+                          onClick={() => run(() => unlinkVisitJob(visit.id))}
+                        >
+                          Unlink
+                        </button>
+                      )
+                    ) : (
+                      open &&
+                      !linking && (
+                        <button className="pbtn ghost" disabled={busy} onClick={() => setLinking(true)}>
+                          Link a job
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <div className="wb2-sched">
+                    <b className={visit.jobNumber ? undefined : "none"}>
+                      {visit.jobNumber ? `Job ${visit.jobNumber}` : "No job linked"}
+                    </b>
+                    <em>
+                      {visit.jobNumber
+                        ? visit.mirrorStatus
+                          ? `${visit.mirrorStatus} in ServiceM8`
+                          : "raised in ServiceM8"
+                        : "Linking one brings its day across, and closes this visit when the job is completed"}
+                    </em>
+                  </div>
+
+                  {open && linking && (
+                    <>
+                      <div className="wb2-dayrow">
+                        <input
+                          className="wb2-fi"
+                          autoFocus
+                          placeholder="Search jobs — number, client or site"
+                          value={jobQuery}
+                          onChange={(e) => {
+                            const q = e.target.value;
+                            setJobQuery(q);
+                            if (q.trim().length < 2) {
+                              setJobHits(null);
+                              return;
+                            }
+                            startSearch(async () => setJobHits(await searchAllJobs(q)));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              setLinking(false);
+                              setJobQuery("");
+                              setJobHits(null);
+                            }
+                          }}
+                        />
+                        <button
+                          className="pbtn ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setLinking(false);
+                            setJobQuery("");
+                            setJobHits(null);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {jobHits !== null &&
+                        (jobHits.length === 0 ? (
+                          <p className="wb2-hint">
+                            {searching ? "Searching…" : "Nothing in ServiceM8 matches that."}
+                          </p>
+                        ) : (
+                          jobHits.slice(0, 6).map((j) => (
+                            /* The board's own mirror-job row, as a button —
+                               the same shape the universal search lands on,
+                               because it is the same object. */
+                            <button
+                              key={j.remoteId}
+                              type="button"
+                              className="wb2-ajr as-btn"
+                              disabled={busy}
+                              aria-label={`Link job ${j.jobNumber ?? j.remoteId}`}
+                              onClick={() => {
+                                setLinking(false);
+                                setJobQuery("");
+                                setJobHits(null);
+                                run(() => linkVisitJob(visit.id, { remoteId: j.remoteId }));
+                              }}
+                            >
+                              <span className="wb2-ajnum">
+                                {j.jobNumber ? (
+                                  <>
+                                    <b>#{j.jobNumber}</b>
+                                    <em>ServiceM8</em>
+                                  </>
+                                ) : (
+                                  <em>—</em>
+                                )}
+                              </span>
+                              <div className="wb2-trt">
+                                <b>{j.clientName ?? "No client named"}</b>
+                                {/* ONE fact under the name, not a chain of
+                                    them (law 21): where the job is, or what
+                                    it is for. */}
+                                <em>{j.suburb ?? j.description ?? "In the ServiceM8 book"}</em>
+                              </div>
+                            </button>
+                          ))
+                        ))}
+                    </>
+                  )}
+                </div>
+              )}
 
               {equipment.length > 0 && (
                 <div className="wb2-jcsec">

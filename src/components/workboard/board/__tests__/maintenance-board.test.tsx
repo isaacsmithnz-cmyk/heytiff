@@ -9,7 +9,7 @@
    estimates (L3) and earning "done on time" (B12); agreements rows naming
    their client (B22) and calling an overdue date overdue (B10). */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { pickDate } from "@/components/ui/__tests__/fixtures/pick-date";
 import { MaintenanceBoard } from "../maintenance-board";
@@ -45,6 +45,8 @@ const act = {
   addAgreementEquipment: jest.fn(async () => ({ ok: true })),
   removeAgreementEquipment: jest.fn(async () => ({ ok: true })),
   createAgreement: jest.fn(async () => ({ ok: true, id: "a-new" })),
+  linkVisitJob: jest.fn(async () => ({ ok: true })),
+  unlinkVisitJob: jest.fn(async () => ({ ok: true })),
 };
 jest.mock("@/app/actions/workboard-maintenance", () => ({
   setVisitReadiness: (...a: unknown[]) => act.setVisitReadiness(...(a as [])),
@@ -70,11 +72,15 @@ jest.mock("@/app/actions/workboard-maintenance", () => ({
   addAgreementEquipment: (...a: unknown[]) => act.addAgreementEquipment(...(a as [])),
   removeAgreementEquipment: (...a: unknown[]) => act.removeAgreementEquipment(...(a as [])),
   createAgreement: (...a: unknown[]) => act.createAgreement(...(a as [])),
+  linkVisitJob: (...a: unknown[]) => act.linkVisitJob(...(a as [])),
+  unlinkVisitJob: (...a: unknown[]) => act.unlinkVisitJob(...(a as [])),
 }));
 
 const searchJobs = jest.fn(async () => [] as unknown[]);
+const searchAllJobs = jest.fn(async () => [] as unknown[]);
 jest.mock("@/app/actions/workboard", () => ({
   searchJobs: (...a: unknown[]) => searchJobs(...(a as [])),
+  searchAllJobs: (...a: unknown[]) => searchAllJobs(...(a as [])),
 }));
 const analyseSm8JobForAgreement = jest.fn(async () => ({ ok: false, reason: "no-key" }));
 jest.mock("@/app/actions/workboard-ai", () => ({
@@ -1324,6 +1330,68 @@ describe("the day modal — the list behind a day's colour, live (A3/A5/K8)", ()
     expect(modal.getByText("Nothing placed on this day")).toBeInTheDocument();
     expect(modal.getByText("Not placed yet")).toBeInTheDocument();
     expect(modal.getByRole("button", { name: "Place here" })).toBeInTheDocument();
+  });
+});
+
+/* THE JOB A VISIT IS. A service is raised in ServiceM8 and tracked here, and
+   the link between the two is what makes them one piece of work: it carries
+   the diary's day onto the visit, and it closes the visit when ServiceM8
+   completes the job. `linkVisitJob` existed, and only a project TRIP could
+   call it — so every maintenance visit wore "No ServiceM8 job" with nothing
+   to press, the same service sat on Urgent as overdue after it had been done,
+   and one booking showed twice on All jobs and twice on the Schedule. */
+describe("linking a visit to its ServiceM8 job", () => {
+  const openConnected = async (v: BoardVisit, connected = true) => {
+    render(
+      <MaintenanceBoard
+        data={data({ visits: [v] })}
+        flags={[]}
+        today={TODAY}
+        manage
+        connected={connected}
+        sm8={null}
+      />
+    );
+    await toTab(/Upcoming/);
+    await userEvent.click(screen.getByRole("button", { name: `Open ${v.clientName} — ${v.label}` }));
+    return within(screen.getByRole("dialog"));
+  };
+
+  it("finds a job in the mirror and links it by its own id", async () => {
+    searchAllJobs.mockResolvedValue([
+      {
+        remoteId: "sm8-uuid-1",
+        jobNumber: "2380",
+        clientName: "Halston Freight",
+        suburb: "Braeside",
+        status: "Work Order",
+        description: null,
+      },
+    ] as never);
+    const sheet = await openConnected(visit({ id: "v-1", jobNumber: null, remoteId: null }));
+
+    await userEvent.click(sheet.getByRole("button", { name: "Link a job" }));
+    await userEvent.type(sheet.getByPlaceholderText(/Search jobs/), "2380");
+    await waitFor(() => expect(searchAllJobs).toHaveBeenCalledWith("2380"));
+
+    await userEvent.click(await sheet.findByRole("button", { name: "Link job 2380" }));
+    /* By `remoteId`, not the typed number: that is the path that copies the
+       job's own number across and caches its next diary block. A number typed
+       blind does neither. */
+    expect(act.linkVisitJob).toHaveBeenCalledWith("v-1", { remoteId: "sm8-uuid-1" });
+  });
+
+  it("offers Unlink once one is linked, and no picker", async () => {
+    const sheet = await openConnected(visit({ id: "v-1", jobNumber: "1043", remoteId: "sm8-uuid-9" }));
+    expect(sheet.queryByRole("button", { name: "Link a job" })).toBeNull();
+    await userEvent.click(sheet.getByRole("button", { name: "Unlink" }));
+    expect(act.unlinkVisitJob).toHaveBeenCalledWith("v-1");
+  });
+
+  it("says nothing about ServiceM8 on a standalone board", async () => {
+    const sheet = await openConnected(visit({ id: "v-1", jobNumber: null, remoteId: null }), false);
+    expect(sheet.queryByRole("button", { name: "Link a job" })).toBeNull();
+    expect(sheet.queryByText("No job linked")).toBeNull();
   });
 });
 

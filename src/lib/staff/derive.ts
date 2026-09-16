@@ -3,7 +3,7 @@
 
 import { daysUntil as daysBetween, todayInAu } from "@/lib/au-dates";
 import { expiryClause } from "@/lib/format/duration";
-import { isNoVisa } from "./work-rights";
+import { isNoVisa, isNotCleared } from "./work-rights";
 import type { ComplianceState, StaffLicence } from "./types";
 
 /** Whole-ish years of service, one decimal. "—" when there's no start date. */
@@ -147,6 +147,15 @@ export function deriveCompliance(
      `isNoVisa` is the list the FORM already uses to hide the visa fields for
      these two statuses. The form and the chip disagreeing about whether a visa
      exists is what produced the warning; they read the one list now. */
+  /* NOT CLEARED TO WORK IS NOT "COMPLIANT". The check has been done and its
+     answer is no, so the unverified rule below passes them and — with licences
+     in date — this returned "Compliant" for somebody who may not legally be on
+     a job. The staff card's own tile has always said "Not cleared to work";
+     the directory and the bell said nothing at all. */
+  if (isNotCleared(workRights.status)) {
+    return { label: "Not cleared to work", state: "bad", expiresDays: 0 };
+  }
+
   if (workRights.status && !isNoVisa(workRights.status) && !workRights.vevoCheckedAt) {
     return { label: "Work rights unverified", state: "warn", expiresDays: 0 };
   }

@@ -75,7 +75,14 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   const connection: WorkboardConnection =
     view === null ? "none" : view.status === "connected" ? "connected" : "attention";
 
-  if (connection !== "connected") {
+  /* NEEDS-REAUTH IS NOT DISCONNECTED. This read `!== "connected"`, so a grant
+     waiting to be signed in again dropped the entire book of work: the boards
+     went to the standalone shape and every empty list told the reader to
+     "Connect ServiceM8", under a chip saying ServiceM8 needed attention. The
+     mirror is a table in our own database and is still whole — what has
+     expired is the ability to REFRESH it. So the board reads exactly as
+     before, the chip carries the warning, and only the sync is skipped. */
+  if (connection === "none") {
     // Standalone-first: projects and the maintenance radar are native rows
     // and load regardless. The visit horizon still tops itself up — behind
     // the response, so the board never waits on generation.
@@ -135,7 +142,9 @@ export async function loadWorkboardPage(): Promise<WorkboardData | null> {
   // Looking at the board counts as looking — top the mirrors up behind the
   // response when they've gone stale. orgId is closed over; nothing inside
   // the after() callback touches request APIs (Server Component rule).
-  await kickSm8SyncIfStale(orgId);
+  // a grant that needs signing in again cannot sync; asking it to would only
+   // burn the attempt and log a failure nobody reads
+  if (connection === "connected") await kickSm8SyncIfStale(orgId);
 
   return {
     manage,

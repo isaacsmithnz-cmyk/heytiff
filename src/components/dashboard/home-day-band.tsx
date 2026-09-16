@@ -211,8 +211,13 @@ export function HomeDayBand({ rail }: { rail: HomeRail }) {
           Bookings aren’t in this picture: nobody in ServiceM8 is linked to your
           account yet.{" "}
           {/* The door only opens for someone who can walk through it — see the
-              loader, which is where `linkHref` is decided. */}
-          {rail.linkHref && <Link href={rail.linkHref}>Link yourself to the crew</Link>}
+              loader, which is where `linkHref` is decided. Everyone else is
+              told who can, rather than left with a fact and no way out of it. */}
+          {rail.linkHref ? (
+            <Link href={rail.linkHref}>Link yourself to the crew</Link>
+          ) : (
+            "The owner can link you to it."
+          )}
         </p>
       )}
 

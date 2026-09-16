@@ -19,6 +19,14 @@ export const WORK_RIGHTS = [
 /** The two statuses that make every visa field meaningless. */
 export const NO_VISA_STATUSES: readonly string[] = ["Australian citizen", "Permanent resident"];
 
+/** The one status that IS the finding. Recording it is the answer to the
+    check — there is nothing outstanding — so every rule that asks "has the
+    check been done" reads this person as fine, and the directory, Home and
+    the bell all called them Compliant. It is the opposite: a person nobody
+    may roster, said plainly, wherever the others are said. */
+export const NOT_CLEARED = "No working rights";
+export const isNotCleared = (status: string | null | undefined): boolean => status === NOT_CLEARED;
+
 /* THE ONE THING THAT READS THIS OUTSIDE THE FORM IS THE COMPLIANCE CHIP.
 
    A citizen has no visa, so there is no entitlement record to check against —

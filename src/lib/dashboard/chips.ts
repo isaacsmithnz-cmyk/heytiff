@@ -26,7 +26,7 @@ import {
 } from "@/components/fleet/logic";
 import { daysUntil, fmtAuDayMonth } from "@/lib/au-dates";
 import { agoLabel, expiryClause, inLabel } from "@/lib/format/duration";
-import { isNoVisa } from "@/lib/staff/work-rights";
+import { isNoVisa, isNotCleared } from "@/lib/staff/work-rights";
 
 export type ChipKind =
   | "licence"
@@ -199,7 +199,22 @@ export function workRightsChips(
      disagreeing means one of them is telling somebody about a problem the other
      says they don't have. A citizen or permanent resident has no visa in the
      entitlement register, so there is no check to have done. */
-  if (wr.status && !isNoVisa(wr.status) && !wr.vevoCheckedAt) {
+  /* The same rule the directory reads, for the same reason: a person whose
+     recorded answer is "No working rights" is not somebody with paperwork
+     outstanding, they are somebody who cannot be rostered. It outranks the
+     unverified chip rather than joining it — two chips about one person's
+     right to work is the same fact twice. */
+  if (isNotCleared(wr.status)) {
+    chips.push({
+      key: `work-rights-none:${wr.staffId}`,
+      kind: "work-rights",
+      state: "bad",
+      label: "Not cleared to work",
+      subject: ctx.subject,
+      href: ctx.href,
+      urgency: urgency("bad", 0),
+    });
+  } else if (wr.status && !isNoVisa(wr.status) && !wr.vevoCheckedAt) {
     // No date to count down — an unverified record is a standing warn until
     // someone checks it, so it sits mid-warn (0-day urgency within the bucket).
     chips.push({

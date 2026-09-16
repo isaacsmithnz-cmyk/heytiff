@@ -56,14 +56,49 @@ describe("a status with no visa behind it is never 'unverified'", () => {
   });
 });
 
+/* "NO WORKING RIGHTS" IS NOT PAPERWORK OUTSTANDING. Recording it IS the
+   answer to the check, so every rule asking "has the check been done" passed
+   the person — and with licences in date the directory called them
+   "Compliant" while the staff card's own tile said "Not cleared to work".
+   Nothing reached the bell at all. It is its own finding now, on both
+   surfaces, checked or not. */
+describe("a recorded 'no working rights' is a finding in itself", () => {
+  const notCleared = (status: string, checked: string | null = null) =>
+    deriveCompliance([], facts({ status, vevoCheckedAt: checked }), 30, new Date(`${TODAY}T00:00:00`));
+  const chipsFor = (status: string, checked: string | null = null) =>
+    workRightsChips({ staffId: "s1", status, visaType: null, visaExpiry: null, vevoCheckedAt: checked }, ctx);
+
+  it.each([null, "2026-02-14"])("says so in the directory, checked date %s", (checked) => {
+    expect(notCleared("No working rights", checked)).toMatchObject({
+      label: "Not cleared to work",
+      state: "bad",
+    });
+  });
+
+  it.each([null, "2026-02-14"])("raises it on Home and the bell, checked date %s", (checked) => {
+    const chips = chipsFor("No working rights", checked);
+    expect(chips.map((c) => [c.label, c.state])).toContainEqual(["Not cleared to work", "bad"]);
+    // and not twice about one person's right to work
+    expect(chips.some((c) => c.key.startsWith("work-rights-unverified"))).toBe(false);
+  });
+
+  it("leaves every other status alone", () => {
+    for (const status of WORK_RIGHTS.filter((s) => s !== "No working rights")) {
+      expect(notCleared(status).label).not.toBe("Not cleared to work");
+      expect(chipsFor(status).some((c) => c.key.startsWith("work-rights-none"))).toBe(false);
+    }
+  });
+});
+
 describe("a status that DOES have a visa behind it still has to be checked", () => {
-  const visaStatuses = WORK_RIGHTS.filter((s) => !isNoVisa(s));
+  /* "No working rights" leaves this group: its check is answered, and what is
+     recorded is the problem — see the describe above. */
+  const visaStatuses = WORK_RIGHTS.filter((s) => !isNoVisa(s) && s !== "No working rights");
 
   it("covers every remaining status — the exemption is two entries, not a hole", () => {
     expect(visaStatuses).toEqual([
       "Full working rights (visa)",
       "Conditional working rights (visa)",
-      "No working rights",
     ]);
   });
 

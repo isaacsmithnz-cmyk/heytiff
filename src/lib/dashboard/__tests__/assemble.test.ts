@@ -45,6 +45,8 @@ const vehicle = (id: string, assignedTo: string | null): Vehicle => ({
 // A fully-populated source set — every section has something actionable, so a
 // missing chip proves the capability gate, not missing data.
 const FULL: ChipSources = {
+  // the company's own paper is an owner's chip — see the owner gate below
+  isOwner: true,
   today: TODAY,
   warnDays: 30,
   viewerStaffId: "me",
@@ -110,6 +112,18 @@ describe("assembleChips — team gate", () => {
     const people = team.filter((c) => c.kind === "licence");
     expect(people.map((c) => c.subject).sort()).toEqual(["Jordan Mills", "Sam Lee"]);
     expect(team.every((c) => c.subject !== "Me Myself")).toBe(true);
+  });
+
+  /* THE COMPANY'S PAPER NEEDS BOTH: `team` to be in the section at all, and
+     the owner's seat, because the Organisation screen it links to admits the
+     owner alone. An admin was carrying a warning about the company's
+     insurance with no door out of it — the chip opened the screen and the
+     screen sent them back to Home. */
+  it("keeps the business paper from anyone the Organisation screen won't admit", () => {
+    const { team } = assembleChips({ ...FULL, isOwner: false }, caps("team"));
+    expect(team.some((c) => c.kind === "org-insurance" || c.kind === "org-licence")).toBe(false);
+    // the people chips are unaffected — the staff card admits anyone with `team`
+    expect(team.some((c) => c.kind === "licence")).toBe(true);
   });
 
   it("with `team` but not `assets_all`, no fleet chips leak in", () => {

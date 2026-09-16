@@ -187,7 +187,11 @@ export function OverviewScreen({
     void document.documentElement.requestFullscreen?.()?.catch(() => setDisplay(false));
   };
 
-  const connected = data.connection === "connected";
+  /* "Connected" HERE MEANS "there is a mirror to read", which is the question
+     every empty list is really asking — a grant that needs signing in again
+     still has the whole book behind it (see lib/workboard/page-data). The
+     chip is where its health is said. */
+  const connected = data.connection !== "none";
 
   /* ── THE UNIVERSAL SEARCH ──
 

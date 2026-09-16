@@ -26,9 +26,11 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
    SHEET'S: the card's own keydown chain closes the viewer first (innermost
    first), so this component binds only the arrow keys.
 
-   Z-INDEX IS A WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking
-   context. The pair shares the sheet's modal layer and renders after the
-   card, which is what puts it on top; the toasts stay above. */
+   ON TOP BY LAYER AND ORDER. The pair shares the sheet's modal layer and
+   renders after the card, and at an equal z-index the later element paints
+   on top; the toasts stay above. jsdom cannot see a stacking context, so
+   the painting was walked in a browser; the layer is held by
+   sheet-overlay-layers.test.ts and the order by the job card's tests. */
 
 /* THE FLOOR IS THE FIT, NOT A NUMBER (Isaac, 2026-08-29). There is no reason
    to shrink a photo below the size the stage can show it at — the only thing

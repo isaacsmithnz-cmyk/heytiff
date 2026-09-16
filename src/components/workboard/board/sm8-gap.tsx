@@ -27,7 +27,11 @@ import { Icon } from "@/components/shell/icon";
 
    NOT GATED ON `connection === "attention"`. A grant that needs re-auth still
    has a full mirror behind it; that board is not empty and never reaches
-   here. */
+   here. That was a CLAIM, not a fact, until 2026-09-16: the loader treated
+   needs-reauth as never-connected and returned an empty book, so this gap
+   told people to connect an account they had already connected, directly
+   under a chip saying it needed attention. The loader keeps the mirror now
+   and the caller's `connected` asks whether there is one to read. */
 
 export type Sm8GapKind = "connect" | "syncing";
 

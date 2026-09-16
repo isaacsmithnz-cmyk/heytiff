@@ -1,5 +1,6 @@
 import { auth0 } from "@/lib/auth0";
-import { getCapabilities } from "@/lib/permissions-server";
+import { getCapabilities, getDbRole } from "@/lib/permissions-server";
+import { hasMinRole } from "@/lib/roles-shared";
 import { todayInAu } from "@/lib/au-dates";
 import { getOwnVehicle, listFleetStaff, listVehicles, staffProfileIdFor } from "@/lib/fleet/query";
 import type { Vehicle } from "@/components/fleet/logic";
@@ -192,6 +193,11 @@ export async function loadDashboard(): Promise<DashboardData> {
 
   const caps = await getCapabilities();
   const canManage = caps.has("team");
+  /* Two screens on this page's chips admit the OWNER only — the Organisation
+     screen and the ServiceM8 people screen — so the owner question is asked
+     once here and travelled, rather than each chip guessing from a
+     capability that does not gate the page it points at. */
+  const isOwner = hasMinRole(await getDbRole(), "owner");
   const today = todayInAu();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
 
@@ -207,7 +213,7 @@ export async function loadDashboard(): Promise<DashboardData> {
   const railNowMin = nowMinInZone(railTz);
 
   const [chips, calendar, tasks, notices, assignable, journal, jobs, issues, schedule, sm8Links] = await Promise.all([
-    loadChips(orgId, viewerStaffId, caps, today),
+    loadChips(orgId, viewerStaffId, caps, today, isOwner),
     loadCalendar(orgId, today, viewerStaffId, canManage),
     loadTasks(orgId, viewerStaffId, canManage, names),
     listNotices(orgId, viewerStaffId, NOTICE_WINDOW, names).then(sortNotices),
@@ -275,10 +281,12 @@ export async function loadDashboard(): Promise<DashboardData> {
       tz: railTz,
       blocks: railBlocks,
       linked: mineUuid !== null,
-      /* The door only opens for someone who can walk through it — the
-         ServiceM8 people screen is admin-only, and pointing everyone else at
-         a locked room is worse than saying nothing. */
-      linkHref: canManage ? "/dashboard/admin/integrations/servicem8" : null,
+      /* The door only opens for someone who can walk through it. The
+         ServiceM8 people screen admits the OWNER — not `team`, which is what
+         this read and which every admin holds, so an admin was offered "Link
+         yourself to the crew" and bounced back to Home by the page. The band
+         tells everyone else who can do it instead. */
+      linkHref: isOwner ? "/dashboard/admin/integrations/servicem8" : null,
       tasks: railTasksOf(tasks.mine, railDay, railTz, railNowMin),
       nowMin: railNowMin,
       enabled: caps.has("workboard"),
@@ -356,7 +364,7 @@ export async function loadActionRequired(): Promise<DashboardChips> {
 
   const caps = await getCapabilities();
   const viewerStaffId = await staffProfileIdFor(orgId, userId);
-  return loadChips(orgId, viewerStaffId, caps, todayInAu());
+  return loadChips(orgId, viewerStaffId, caps, todayInAu(), hasMinRole(await getDbRole(), "owner"));
 }
 
 async function loadTasks(
@@ -386,6 +394,8 @@ async function loadChips(
   viewerStaffId: string | null,
   caps: ReadonlySet<Capability>,
   today: string,
+  /** the Organisation screen admits the owner only — see `assembleChips` */
+  isOwner: boolean,
 ): Promise<DashboardChips> {
   const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
@@ -405,7 +415,7 @@ async function loadChips(
   const [teamPeople, orgCredentials, fleet, pendingClaims, pendingLeave, expiry] = await Promise.all([
     caps.has("team") ? listStaffCompliance(orgId) : Promise.resolve([] as StaffCompliance[]),
     // every card, not the soonest policy — the bell shows each one inside the window
-    caps.has("team") ? listOrgCredentials(orgId) : Promise.resolve([] as OrgCredential[]),
+    isOwner ? listOrgCredentials(orgId) : Promise.resolve([] as OrgCredential[]),
     caps.has("assets_all") ? listVehicles(orgId).then((r) => r.vehicles) : Promise.resolve([] as Vehicle[]),
     // a head count, not the full claims read — the chip needs one integer
     caps.has("approvals") ? pendingClaimsCount(orgId) : Promise.resolve(0),
@@ -417,6 +427,7 @@ async function loadChips(
 
   return assembleChips(
     {
+      isOwner,
       today,
       warnDays: expiry.warnDays,
       viewerStaffId,

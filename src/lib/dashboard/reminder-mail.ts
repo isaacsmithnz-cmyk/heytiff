@@ -104,8 +104,13 @@ async function expiringByPerson(
   ]);
   type Role = Parameters<typeof resolve>[0];
   const caps = new Map<string, ReturnType<typeof resolve>>();
+  /* The business's own paper is the OWNER's — the screen it lives on admits
+     nobody else, on the dashboard and in this letter alike. The membership
+     row already says who that is; it used to be read for capabilities only. */
+  const owners = new Set<string>();
   for (const m of (members.data ?? []) as Row[]) {
     caps.set(String(m.user_id), resolve((m.role as Role) ?? null, m.permissions));
+    if (m.role === "owner") owners.add(String(m.user_id));
   }
   const userOf = new Map<string, string>();
   for (const c of (cards.data ?? []) as Row[]) {
@@ -119,6 +124,7 @@ async function expiringByPerson(
     if (!c) continue;
     const chips = assembleChips(
       {
+        isOwner: owners.has(userId),
         today,
         warnDays: window.warnDays,
         viewerStaffId: person.staffId,

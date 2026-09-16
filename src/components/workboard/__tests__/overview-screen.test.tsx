@@ -4,6 +4,8 @@
    its per-side counts, the scope it reports to the Tiff button, mirror health reaching
    both rows, and the flag ROUTING that keeps a flag on exactly one board. */
 
+import fs from "node:fs";
+import path from "node:path";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OverviewScreen } from "../overview-screen";
@@ -532,6 +534,35 @@ describe("connected", () => {
   it("drops the standalone line once a mirror exists", () => {
     render(<OverviewScreen data={connected} />);
     expect(screen.queryByText(/Running standalone/)).not.toBeInTheDocument();
+  });
+
+  /* A GRANT THAT NEEDS SIGNING IN AGAIN STILL HAS ITS BOOK. The mirror is a
+     table in our own database; what expired is the ability to refresh it. The
+     loader used to treat that as "not connected" and hand the boards an empty
+     book, so every list told the reader to "Connect ServiceM8" — directly
+     under a chip saying ServiceM8 needed attention. The boards ask this one
+     question: is there a mirror to read. */
+  it("still tells the boards there is a mirror when the grant needs attention", async () => {
+    render(<OverviewScreen data={{ ...connected, connection: "attention" }} />);
+    await toMaintenance();
+    expect(screen.getByTestId("mboard")).toHaveTextContent("connected:true");
+    await toProjects();
+    expect(screen.getByTestId("pboard")).toHaveTextContent("connected:true");
+  });
+
+  it("says there is none only when nothing was ever connected", async () => {
+    render(<OverviewScreen data={base} />);
+    await toMaintenance();
+    expect(screen.getByTestId("mboard")).toHaveTextContent("connected:false");
+  });
+
+  /* The loader's half of the same fact, read as text: jsdom can't run it (it
+     reaches Supabase, ServiceM8 and next/cache), and the whole bug was one
+     comparison. `!== "connected"` is what dropped the book. */
+  it("loads the book for every connection but none", () => {
+    const src = fs.readFileSync(path.join(process.cwd(), "src/lib/workboard/page-data.ts"), "utf8");
+    expect(src).toMatch(/if \(connection === "none"\) \{/);
+    expect(src).not.toMatch(/if \(connection !== "connected"\) \{/);
   });
 });
 

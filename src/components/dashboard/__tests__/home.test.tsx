@@ -358,6 +358,10 @@ describe("the day, across the top", () => {
     draw({ rail: rail({ linked: false, linkHref: null }) });
     expect(screen.queryByRole("link", { name: /link yourself/i })).toBeNull();
     expect(band().textContent).toMatch(/linked to your account/i);
+    /* …and says who can, rather than leaving a person with a fact about their
+       own day and nothing to do about it. The screen behind that link admits
+       the owner alone, so everybody else needs the name of the seat. */
+    expect(band().textContent).toMatch(/owner can link you/i);
   });
 
   it("writes a booking's span on the pill, the meridiem once", () => {

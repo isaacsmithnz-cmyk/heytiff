@@ -42,6 +42,10 @@ export type ChipSources = {
   /** The org's expiry window — lib/expiry.ts. One number for every chip here. */
   warnDays: number;
   viewerStaffId: string | null;
+  /** Whether the viewer can open the Organisation screen. The company's own
+      insurance and licences live behind it, and it admits owners only — so a
+      chip about them is a door for an owner and a bounce for anybody else. */
+  isOwner: boolean;
   /** Your own compliance record (licences + work rights). */
   self: StaffCompliance | null;
   /** The vehicle assigned to you, if any. */
@@ -120,13 +124,20 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
       for (const lic of s.licences) push(team, licenceChip(lic, ctx));
       team.push(...workRightsChips({ staffId: s.staffId, ...s.workRights }, ctx));
     }
-    team.push(
-      ...orgCredentialChips(src.orgCredentials, {
-        href: "/dashboard/admin/organization",
-        today: src.today,
-        warnDays: src.warnDays,
-      }),
-    );
+    /* THE COMPANY'S OWN PAPER IS AN OWNER'S CHIP. It was built for anyone
+       with `team`, which every admin holds by default, and it lands on the
+       Organisation screen, which redirects anybody but the owner back to
+       Home. So an admin carried a warning about the company's insurance that
+       they could neither open nor clear, with no sign why. A door nobody can
+       walk through is not a smaller version of a door. */
+    if (src.isOwner)
+      team.push(
+        ...orgCredentialChips(src.orgCredentials, {
+          href: "/dashboard/admin/organization",
+          today: src.today,
+          warnDays: src.warnDays,
+        }),
+      );
   }
   // A claim queue belongs to whoever can decide it, which is `approvals`,
   // not `team` — same rule as the review screen itself.

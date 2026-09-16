@@ -1286,13 +1286,10 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdlh .jumpb:hover { color:var(--wb2-cy); }
 /* where a panel's facts come from, when the panel isn't a tab */
 .fg .pdlh-q { margin-left:8px; font-weight:600; text-transform:none; color:var(--q); }
-/* An empty value on Summary is a DASH, not the words "Not set". Nothing there
-   is editable, so a blank has no button behind it and nothing to say beyond
-   "nothing" — and eight "Not set"s down one column read as an error state
-   rather than as a card someone hasn't finished. The facts strip and the
-   licence cards already used the dash; this is the screen agreeing with
-   itself. Inside a SECTION the blank stays a button, and keeps its own look. */
-.fg .psec2 .pdnone { font-style:normal; font-size:16px; font-weight:600; color:var(--q); }
+/* A blank is a DASH, everywhere, and `.pdnone` below says it once. This used
+   to be an override scoped to `.psec2` — Summary's old panels — which left the
+   org screens on a 14px italic grey and the staff card's sections on a clean
+   16. One blank, one look. */
 /* ── EDITING IN PLACE ──
    A section used to declare its read view and its edit view separately, and
    separate is how they drifted into different screens: grouped panels of tight
@@ -1384,18 +1381,26 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .pdlh { font-size:12px; font-weight:500; color:var(--gray400); }
 .fg .pdl, .fg .pdlbody { margin:12px 0 0; display:grid; gap:8px; }
 .fg .pdl.split { grid-template-columns:1fr 1fr; column-gap:32px; }
-.fg .pdrow { display:grid; grid-template-columns:112px minmax(0,1fr); gap:12px; align-items:baseline; min-width:0; }
-.fg .pdrow dt { font-size:13px; font-weight:600; color:var(--gray500); }
+/* THE LEDGER, and it is the same one Summary uses: a fixed label column, the
+   answer beside it, the label a tier below what it introduces. It was 112px
+   and 13/600 in --gray500 here while Summary ran 132px and 12/500 in --q, so
+   the same row wore two different labels depending on which tab you were on
+   — and this label was HEAVIER than the value it names. */
+.fg .pdrow { display:grid; grid-template-columns:132px minmax(0,1fr); gap:12px; align-items:baseline; min-width:0; }
+.fg .pdrow dt { font-size:12px; font-weight:500; color:var(--q); }
 .fg .pdrow dd { margin:0; min-width:0; }
 .fg .pdv { font-size:16px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
 .fg .pdv.sm { font-size:14px; }
-.fg .pdsub { display:block; margin-top:2px; font-size:12px; font-weight:600; color:var(--gray400); }
-.fg .pdnone { font-size:14px; font-style:italic; font-weight:500; color:#bcc2cd; }
+.fg .pdsub { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--q); }
+.fg .pdnone { font-size:16px; font-weight:500; color:var(--q); }
 
-.fg .padd { display:inline-flex; align-items:center; gap:8px; font-size:14px; font-weight:600; font-style:italic; color:var(--gray500); transition:color var(--t-fast) var(--ease); }
-.fg .padd span { display:grid; place-items:center; width:18px; height:18px; border-radius:var(--r-control); flex:0 0 auto; border:1px dashed #b6bcc7; font-style:normal; font-size:13px; line-height:1; transition:background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
-.fg .padd:hover { color:var(--ink); }
-.fg .padd:hover span { border-color:var(--ink); color:var(--ink); }
+/* AN ADD IS AN ADD, on every tab. This was 14/600 italic beside a dashed 18px
+   square holding a "+", while Summary's was the plain link token — two
+   vocabularies for the same act, on two halves of the same card. It is the
+   link token now: ink, underlined, at the value's own size, because it stands
+   where the value would. */
+.fg .padd { display:inline-flex; align-items:center; font-size:16px; font-weight:600; color:var(--link); text-decoration:underline; text-underline-offset:3px; border-radius:var(--r-control); cursor:pointer; }
+.fg .padd:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* the licence wall — CR80 cards, not the 230px info tiles .credgrid lays out
    (that grid still serves the company credentials on the Organisation screen).

@@ -58,7 +58,6 @@ export function QualificationsCard({
           </div>
         ) : (
           <button type="button" className="padd" onClick={edit}>
-            <span aria-hidden="true">+</span>
             List qualifications
           </button>
         )

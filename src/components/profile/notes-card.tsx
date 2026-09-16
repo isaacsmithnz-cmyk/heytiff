@@ -47,7 +47,6 @@ export function NotesCard({
                 <p className="ro-note">{values.notes}</p>
               ) : (
                 <button type="button" className="padd" onClick={edit}>
-                  <span aria-hidden="true">+</span>
                   Write
                   <i className="sr-only"> internal notes</i>
                 </button>

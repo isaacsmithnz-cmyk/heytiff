@@ -281,11 +281,16 @@ export function HomeTasks({
     ["Issues", issueRows],
     ["Done", doneRows],
   ];
+  /* A ZERO IS NOT A COUNT. The line read "0 open, 1 issue, 0 done" on a face
+     holding one issue: two thirds of it said nothing, and "0 open" beside a
+     visible row reads as a contradiction. Only what there is some of gets
+     counted, and a face with nothing on it says nothing — its empty state
+     already does. */
   const openCount = overdue.length + openRows.length;
   const counts = [
-    `${openCount} open`,
+    ...(openCount > 0 ? [`${openCount} open`] : []),
     ...(issueRows.length > 0 ? [`${issueRows.length} ${issueRows.length === 1 ? "issue" : "issues"}`] : []),
-    `${doneRows.length} done`,
+    ...(doneRows.length > 0 ? [`${doneRows.length} done`] : []),
   ].join(", ");
 
   const src = sel ? entryForDoor(journal, sel.kind, sel.id) : null;
@@ -461,7 +466,11 @@ export function HomeTasks({
               {sel.issue.occurrences > 1
                 ? `Seen ${issueSeen(sel.issue.occurrences)}, first ${fmtAuWeekdayDayMonth(sel.issue.firstSeen)}, last ${fmtAuWeekdayDayMonth(sel.issue.lastSeen)}.`
                 : `Seen once, on ${fmtAuWeekdayDayMonth(sel.issue.lastSeen)}.`}
-              {src && <> Issue from your {fmtAuWeekdayDayMonth(src.day)} note.</>}
+              {/* NOT "Issue from your Thu 30 July note" — the note is printed
+                  in full under "From the diary" below, with that same date
+                  beneath it. Saying which note this came from is the group's
+                  job; saying it here as well put one date on the page three
+                  times. */}
             </p>
 
             <dl className="hm-facts">
@@ -475,10 +484,9 @@ export function HomeTasks({
                   {sel.issue.equipmentRef ?? "Not named"}
                 </dd>
               </div>
-              <div>
-                <dt>Seen</dt>
-                <dd>{issueSeen(sel.issue.occurrences)}</dd>
-              </div>
+              {/* "Seen: 3 times" was the sentence above it, under a label.
+                  The sentence carries the dates as well, so the row only
+                  repeated it. */}
             </dl>
 
             {src && (
@@ -532,7 +540,8 @@ export function HomeTasks({
               ) : (
                 <b>Open.</b>
               )}
-              {src && <> Task from your {fmtAuWeekdayDayMonth(src.day)} note.</>}
+              {/* same as the issue above: the note and its date are printed
+                  under "From the diary" below */}
               {sel.task.detail && <> {sel.task.detail}</>}
             </p>
 

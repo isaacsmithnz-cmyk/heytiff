@@ -84,7 +84,7 @@ describe("the row", () => {
     draw();
     const labels = [...document.querySelectorAll(".hm-tgrp > span:first-child")].map((s) => s.textContent);
     expect(labels).toEqual(["Open", "Issues"]);
-    expect(screen.getByText("1 open, 1 issue, 0 done")).toBeInTheDocument();
+    expect(screen.getByText("1 open, 1 issue")).toBeInTheDocument();
   });
 
   it("wears a dot where a task wears a checkbox, and says so", () => {
@@ -108,7 +108,7 @@ describe("the row", () => {
   it("is absent, group and count, when there are none", () => {
     draw({ issues: [] });
     expect(screen.queryByText("Issues")).toBeNull();
-    expect(screen.getByText("1 open, 0 done")).toBeInTheDocument();
+    expect(screen.getByText("1 open")).toBeInTheDocument();
   });
 });
 
@@ -122,7 +122,9 @@ describe("the page", () => {
     expect(state.textContent).toBe("Open issue. Seen 3 times, first Thu 30 July, last Mon 14 Sept.");
   });
 
-  it("gives the facts: where, the equipment, how often", async () => {
+  /* "Seen: 3 times" was the sentence above it, under a label — and the
+     sentence carries the dates the row could not. */
+  it("gives the facts the sentence above cannot: where, and the equipment", async () => {
     const user = draw();
     await user.click(within(row("i1")).getByRole("button", { name: /Middle rooftop/ }));
     const facts = [...pane().querySelectorAll(".hm-facts div")].map(
@@ -131,8 +133,8 @@ describe("the page", () => {
     expect(facts).toEqual([
       "Where: Job 1042, Bayview Apartments",
       "Equipment: the middle rooftop one",
-      "Seen: 3 times",
     ]);
+    expect(pane().querySelector(".hm-when")!.textContent).toContain("Seen 3 times");
   });
 
   it("says what it does not know as unset, never as a guess", async () => {
@@ -171,8 +173,12 @@ describe("the page", () => {
     const onOpenEntry = jest.fn();
     const user = draw({ journal, onOpenEntry });
     await user.click(within(row("i1")).getByRole("button", { name: /Middle rooftop/ }));
-    expect(pane().querySelector(".hm-when")!.textContent).toContain("Issue from your Thu 30 July note.");
+    /* The note is printed in full below, with its own date under it — saying
+       which note this came from in the line above put one date on the page
+       three times. */
+    expect(pane().querySelector(".hm-when")!.textContent).not.toContain("note.");
     expect(pane().querySelector(".hm-quote")!.textContent).toContain("tripped again");
+    expect(pane().querySelector(".hm-qm")!.textContent).toContain("Thu 30 July");
     await user.click(screen.getByRole("button", { name: "Open in diary" }));
     expect(onOpenEntry).toHaveBeenCalledWith("e3");
   });

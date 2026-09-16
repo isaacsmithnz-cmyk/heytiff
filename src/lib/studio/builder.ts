@@ -24,6 +24,7 @@ import { OVERSIZE_CAP } from "./select";
 import { SYSTEM_COLOURS } from "./modules";
 import type { SizingBasis } from "./loads";
 import type { RoomObj } from "./loads-room";
+import { boundsOfPoints, pointInPolygon, polygonCentroid } from "./geometry";
 
 export { allocationsOf, hasAllocations, type Allocation } from "./allocations";
 
@@ -140,7 +141,16 @@ export function outdoorsListing(pack: DataPack, heads: IndoorUnit[]): OutdoorUni
     if (findings.some((f) => f.severity === "red" || UNCHECKABLE.has(f.code))) continue;
     out.push(odu);
   }
-  out.sort((a, b) => a.capacity_cool_kw - b.capacity_cool_kw || a.model.localeCompare(b.model));
+  /* two outdoors of one size: the one with more ports, then the longer pipe run */
+  const runM = (o: OutdoorUnit) =>
+    pack.multi_rules.find((r) => r.odu_model_ref === o.model)?.max_total_pipe_m ?? 0;
+  out.sort(
+    (a, b) =>
+      a.capacity_cool_kw - b.capacity_cool_kw ||
+      (b.ports ?? 0) - (a.ports ?? 0) ||
+      runM(b) - runM(a) ||
+      a.model.localeCompare(b.model)
+  );
   return out;
 }
 
@@ -443,6 +453,82 @@ export function placeAllocation(
     },
   };
   return { ...doc, objects: [...doc.objects, obj] };
+}
+
+/** Where "Place in room" puts a unit, with no mode: an indoor unit just inside
+    its room's top wall, an outdoor just outside its room — below it, else
+    above, right or left, never inside another room (a multi's outdoor goes by
+    its first head's room). Either steps sideways past units already placed, so
+    two never land on one spot. Null when the unit has no room to go by. */
+export function placeInRoomSpot(
+  doc: DesignDocument,
+  pack: DataPack,
+  systemId: string,
+  allocationId: string
+): { floorId: string; at: Point } | null {
+  const sys = doc.systems.find((s) => s.id === systemId);
+  const a = sys ? allocationsOf(sys).find((x) => x.id === allocationId) : undefined;
+  if (!sys || !a) return null;
+  const roomId =
+    a.roomId ?? allocationsOf(sys).find((x) => x.role === "idu" && x.roomId)?.roomId ?? null;
+  const room = doc.objects.find((o): o is RoomObj => o.id === roomId && isRoom(o));
+  if (!room) return null;
+  const floorId = room.floorId;
+  const mm = doc.floors.find((f) => f.id === floorId)?.scaleMmPerUnit || 10;
+  const pts = room.geometry.points;
+  const b = boundsOfPoints(pts)!;
+  const c = polygonCentroid(pts);
+  const size = footprint(pack, a);
+  const w = (size.widthMm + 300) / mm;
+  const h = (size.depthMm + 300) / mm;
+
+  const placed = doc.objects.flatMap((o) =>
+    o.type === "unit" && o.id !== a.id && o.floorId === floorId && o.geometry.kind === "point"
+      ? [o.geometry.at]
+      : []
+  );
+  const clear = (p: Point) =>
+    placed.every((q) => Math.abs(q.x - p.x) >= w || Math.abs(q.y - p.y) >= h);
+  /* 0, +1, -1, +2, -2 … steps either side of a start */
+  const steps = [0, 1, -1, 2, -2, 3, -3, 4, -4];
+
+  if (a.role === "idu") {
+    const y = b.minY + (size.depthMm / 2 + 200) / mm;
+    for (const row of [y, c.y]) {
+      for (const n of steps) {
+        const p = { x: c.x + n * w, y: row };
+        if (pointInPolygon(p, pts) && clear(p)) return { floorId, at: p };
+      }
+    }
+    return { floorId, at: c };
+  }
+
+  const outY = (size.depthMm / 2 + 600) / mm;
+  const outX = (size.widthMm / 2 + 600) / mm;
+  const sides: { at: Point; along: "x" | "y" }[] = [
+    { at: { x: c.x, y: b.maxY + outY }, along: "x" },
+    { at: { x: c.x, y: b.minY - outY }, along: "x" },
+    { at: { x: b.maxX + outX, y: c.y }, along: "y" },
+    { at: { x: b.minX - outX, y: c.y }, along: "y" },
+  ];
+  const along = (side: (typeof sides)[number]) =>
+    steps.map((n) =>
+      side.along === "x"
+        ? { x: side.at.x + n * w, y: side.at.y }
+        : { x: side.at.x, y: side.at.y + n * h }
+    );
+  const free = (p: Point) => !roomAtPoint(doc.objects, floorId, p) && clear(p);
+  /* a side that backs straight onto another room is skipped while another is open */
+  for (const side of sides) {
+    if (roomAtPoint(doc.objects, floorId, side.at)) continue;
+    const p = along(side).find(free);
+    if (p) return { floorId, at: p };
+  }
+  for (const side of sides) {
+    const p = along(side).find(free);
+    if (p) return { floorId, at: p };
+  }
+  return { floorId, at: sides[0].at };
 }
 
 function footprint(pack: DataPack, a: Allocation): { widthMm: number; depthMm: number } {

@@ -18,7 +18,8 @@ import { assemblePack, type PackSource } from "../packs/loader";
 import { createDesign, type DesignDocument, type DesignObject } from "../document";
 import { roomLoadKw, type RoomObj } from "../loads-room";
 import { sizingCapacityKw } from "../loads";
-import { roomCoverage } from "../coverage";
+import { roomAtPoint, roomCoverage, systemCover } from "../coverage";
+import { buildSummaryModel } from "../summary";
 import { multiConnection } from "../multi";
 import {
   addMultiHead,
@@ -29,6 +30,7 @@ import {
   moveAllocation,
   outdoorsListing,
   placeAllocation,
+  placeInRoomSpot,
   releaseSystem,
   removeAllocation,
   roomVerdict,
@@ -187,6 +189,15 @@ describe("the outdoor is proposed, not picked (R12)", () => {
     expect(listing).toEqual(["MXZ-4F71VGD", "MXZ-4F80VGD", "MXZ-5F100VGD", "MXZ-6F120VGD"]);
   });
 
+  it("between two outdoors of one size, proposes the one with the longer pipe run", () => {
+    const { doc, room } = house();
+    let r = addMultiHead(doc, pack, basis, { systemId: null, roomId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
+    r = addMultiHead(r.doc, pack, basis, { systemId: r.systemId, roomId: room.bed2.id, iduModel: "MSZ-AP25VGD2" });
+    const sys = r.doc.systems.find((s) => s.id === r.systemId)!;
+    // MXZ-2F52VF and MXZ-2F52VGD are both 5.2 kW; the VGD runs 40 m of pipe, the VF 30 m
+    expect(allocationsOf(sys).find((a) => a.role === "odu")?.model).toBe("MXZ-2F52VGD");
+  });
+
   it("covers each bedroom at its head's rating — diversity is normal", () => {
     const { doc, room } = house();
     let r = addMultiHead(doc, pack, basis, { systemId: null, roomId: room.bed1.id, iduModel: "MSZ-AP25VGD2" });
@@ -274,6 +285,58 @@ describe("placing never changes the room a unit serves", () => {
     // outside every room — the hallway bulkhead — is not flagged
     const hall = placeAllocation(r.doc, pack, r.systemId, idu.id, doc.floors[0].id, { x: 1050, y: 900 });
     expect(wrongRoomPlacements(hall)).toEqual([]);
+  });
+
+  it("Place in room puts a head inside its room and an outdoor below it, never two on one spot", () => {
+    const { doc, room } = house();
+    const floorId = doc.floors[0].id;
+    let d = addSplit(doc, pack, { roomId: room.living.id, iduModel: "MSZ-AP71VGD2", oduModel: "MUZ-AP71VG2" }).doc;
+    d = addSplit(d, pack, { roomId: room.living.id, iduModel: "MSZ-AP71VGD2", oduModel: "MUZ-AP71VG2" }).doc;
+    for (const item of trayItems(d, pack)) {
+      const spot = placeInRoomSpot(d, pack, item.systemId, item.allocationId)!;
+      expect(spot.floorId).toBe(floorId);
+      d = placeAllocation(d, pack, item.systemId, item.allocationId, spot.floorId, spot.at);
+    }
+    expect(trayItems(d, pack)).toEqual([]);
+    const units = d.objects.filter((o) => o.type === "unit");
+    const at = (role: string) =>
+      units.filter((o) => o.props.role === role).map((o) => (o.geometry.kind === "point" ? o.geometry.at : null)!);
+    const heads = at("idu");
+    const outs = at("odu");
+    expect(heads).toHaveLength(2);
+    expect(outs).toHaveLength(2);
+    // both heads inside Living, both outdoors outside it and below it
+    for (const p of heads) expect(roomAtPoint(d.objects, floorId, p)?.id).toBe(room.living.id);
+    for (const p of outs) {
+      expect(roomAtPoint(d.objects, floorId, p)).toBeNull();
+      expect(p.y).toBeGreaterThan(960);
+    }
+    // and never on one spot
+    expect(heads[0].x).not.toBeCloseTo(heads[1].x, 0);
+    expect(outs[0].x).not.toBeCloseTo(outs[1].x, 0);
+    // placing moved nothing between rooms
+    expect(wrongRoomPlacements(d)).toEqual([]);
+  });
+
+  it("an outdoor never lands inside the room next door", () => {
+    const { doc, room } = house();
+    const floorId = doc.floors[0].id;
+    // a hall directly below Master
+    doc.objects.push({
+      id: "hall",
+      type: "room",
+      systemId: null,
+      floorId,
+      plane: "room",
+      geometry: { kind: "polygon", points: rect(2150, 500, 550, 300) },
+      props: { name: "Hall" },
+    } as DesignObject);
+    const r = addSplit(doc, pack, { roomId: room.master.id, iduModel: "MSZ-AP35VGD2", oduModel: "MUZ-AP35VG2" });
+    const odu = allocationsOf(r.doc.systems[0]).find((a) => a.role === "odu")!;
+    const spot = placeInRoomSpot(r.doc, pack, r.systemId, odu.id)!;
+    expect(roomAtPoint(r.doc.objects, floorId, spot.at)).toBeNull();
+    // the side that backs onto the hall is passed over for the open one above
+    expect(spot.at.y).toBeLessThan(0);
   });
 
   it("deleting a placed unit on the plan sends it back to the tray", () => {
@@ -489,5 +552,68 @@ describe("an old design's systems become allocations on first open in the builde
       [room.bed2.id, "MSZ-AP35VGD2"],
     ]);
     expect(allocs.find((a) => a.role === "odu")!.model).toBe("MXZ-4F71VGD");
+  });
+});
+
+/* ── step 9: the panel's ring and the design sheet read one calculation ── */
+
+describe("the panel and the sheet read one calculation", () => {
+  it("shares a room two splits cover, and counts its load once", () => {
+    const { doc, room } = house();
+    let r = addSplit(doc, pack, { roomId: room.living.id, iduModel: "SEZ-M71DA(L)", oduModel: "SUZ-M71VAD-A" });
+    const first = r.systemId;
+    r = addSplit(r.doc, pack, { roomId: room.living.id, iduModel: "SEZ-M71DA(L)", oduModel: "SUZ-M71VAD-A" });
+    const livingLoad = load(r.doc, room.living);
+    const roomPct = roomCoverage(r.doc, pack, room.living, basis).pct;
+
+    const sheet = buildSummaryModel(r.doc, pack);
+    expect(sheet.systems).toHaveLength(2);
+    for (const s of sheet.systems) {
+      const cover = systemCover(r.doc, pack, r.doc.systems.find((x) => x.id === s.systemId)!, basis);
+      const [row] = s.rooms;
+      expect(s.rooms).toHaveLength(1);
+      // each carries half the room's load and only its own pair
+      expect(row.loadKw).toBeCloseTo(livingLoad / 2, 5);
+      expect(row.capacityKw).toBeCloseTo(7.1, 5);
+      expect(row.indoorModel).toBe("SEZ-M71DA(L)");
+      // and reads as the room does, on the sheet and in the ring alike
+      expect(row.pct).toBe(roomPct);
+      expect(s.pct).toBe(cover.pct);
+    }
+    // the job's load is the room's, once
+    const summed = sheet.systems.reduce((a, s) => a + (s.rooms[0].loadKw ?? 0), 0);
+    expect(summed).toBeCloseTo(livingLoad, 5);
+    expect(sheet.systems.map((s) => s.systemId)).toContain(first);
+  });
+
+  it("lists every unit a room has, and counts units not on the plan yet", () => {
+    const { doc, room } = house();
+    let r = addMultiHead(doc, pack, basis, { systemId: null, roomId: room.bed1.id, iduModel: "MSZ-AP25VGD2" });
+    r = addMultiHead(r.doc, pack, basis, { systemId: r.systemId, roomId: room.bed1.id, iduModel: "MSZ-AP20VGD" });
+    r = addMultiHead(r.doc, pack, basis, { systemId: r.systemId, roomId: room.bed2.id, iduModel: "MSZ-AP35VGD2" });
+    const sys = r.doc.systems.find((s) => s.id === r.systemId)!;
+    const oduModel = allocationsOf(sys).find((a) => a.role === "odu")!.model;
+    expect(oduModel).not.toBe("");
+
+    const s = buildSummaryModel(r.doc, pack).systems[0];
+    expect(s.rooms.find((x) => x.roomId === room.bed1.id)!.indoorModel).toBe("MSZ-AP25VGD2, MSZ-AP20VGD");
+    expect(s.kindLabel).toBe("Multi-split, 3 heads on one outdoor");
+    // nothing is placed, and the outdoor and the pick still know the units
+    expect(r.doc.objects.filter((o) => o.type === "unit")).toHaveLength(0);
+    expect(s.outdoorModel).toBe(oduModel);
+    const units = buildSummaryModel(r.doc, pack).picklist.filter((p) => p.group === "units");
+    expect(units.map((p) => [p.name, p.qty])).toEqual(
+      [
+        ["MSZ-AP20VGD", "1"],
+        ["MSZ-AP25VGD2", "1"],
+        ["MSZ-AP35VGD2", "1"],
+        [oduModel, "1"],
+      ].sort(([a], [b]) => a.localeCompare(b))
+    );
+    // placing a unit never counts it twice
+    const head = allocationsOf(sys).find((a) => a.role === "idu")!;
+    const placed = placeAllocation(r.doc, pack, sys.id, head.id, doc.floors[0].id, { x: 1200, y: 100 });
+    const again = buildSummaryModel(placed, pack).picklist.find((p) => p.name === head.model)!;
+    expect(again.qty).toBe("1");
   });
 });

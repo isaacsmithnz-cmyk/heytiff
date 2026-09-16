@@ -8827,3 +8827,574 @@ html[data-ds-display] .dstudio.editing {
 /* the units card carries its own .dstudio wrapper (see room-modal.tsx); keep
    that wrapper from imposing the studio column gap on a single child */
 .ds-rm-units.dstudio { display: block; gap: 0; }
+
+/* ── The system builder (spec: Studio System Builder) ──
+   An overlay on the scrim: the unit browser on top, the schematic underneath,
+   a detail pane beside the schematic when something is selected. Ink and
+   paper; colour only in state words and the systems' own drawing colours. */
+.ds-sb-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-6);
+  font-family: var(--font);
+}
+.ds-sb {
+  width: min(1440px, calc(100vw - 48px));
+  height: min(960px, calc(100vh - 48px));
+  background: var(--paper);
+  border-radius: var(--r-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--ink);
+}
+.ds-sb-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-6);
+  border-bottom: 1px solid var(--line);
+}
+.ds-sb-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.ds-sb-title {
+  margin: 0;
+  font-size: var(--fs-5);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-facts {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-x {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-button);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-x:hover {
+  background: var(--tint);
+}
+.ds-sb-x:focus-visible,
+.ds-sb-btn:focus-visible,
+.ds-sb-style:focus-visible,
+.ds-sb-kind-opt:focus-visible,
+.ds-sb-add:focus-visible,
+.ds-sb-size:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* the browser */
+.ds-sb-browser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-6) var(--s-5);
+  border-bottom: 1px solid var(--line);
+}
+.ds-sb-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+.ds-sb-kind {
+  display: inline-flex;
+  padding: var(--s-1);
+  gap: var(--s-1);
+  background: var(--tint-2);
+  border-radius: var(--r-button);
+}
+.ds-sb-kind-opt {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  background: none;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.ds-sb-kind-opt.on {
+  background: var(--paper);
+  color: var(--ink);
+}
+.ds-sb-forms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+.ds-sb-style {
+  appearance: none;
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  padding: var(--s-2) var(--s-4);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-style:hover {
+  background: var(--tint);
+}
+.ds-sb-style.on {
+  background: var(--tint-2);
+  border-color: var(--ink);
+}
+.ds-sb-target {
+  margin: 0 0 0 auto;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--s-2);
+  display: flex;
+  gap: var(--s-3);
+  overflow-x: auto;
+}
+.ds-sb-card {
+  flex: none;
+  width: 208px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  cursor: grab;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-card:hover {
+  background: var(--tint);
+}
+.ds-sb-card:active {
+  cursor: grabbing;
+}
+.ds-sb-card-model {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-card-fact {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-add {
+  appearance: none;
+  margin-top: var(--s-2);
+  align-self: flex-start;
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-add:hover {
+  background: var(--tint-2);
+}
+.ds-sb-empty {
+  font-size: var(--fs-3);
+  color: var(--q);
+  padding: var(--s-4) 0;
+}
+
+/* state words: a word in the state colour, never a pill */
+.ds-sb-word {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+}
+.ds-sb-word.ok {
+  color: var(--ok-t);
+}
+.ds-sb-word.warn {
+  color: var(--warn-t);
+}
+.ds-sb-word.bad {
+  color: var(--bad-t);
+}
+.ds-sb-word.quiet {
+  color: var(--q);
+}
+
+/* the schematic and the detail pane */
+.ds-sb-work {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ds-sb-schematic {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--ground);
+}
+.ds-sb-none {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-3);
+  color: var(--q);
+}
+.ds-sb-svg {
+  display: block;
+  font-family: var(--font);
+}
+.ds-sb-line {
+  fill: none;
+  stroke-width: 2;
+}
+.ds-sb-room {
+  cursor: pointer;
+}
+.ds-sb-room-box {
+  fill: var(--paper);
+  stroke: var(--line);
+  stroke-width: 1;
+  transition: fill var(--t-fast) var(--ease);
+}
+.ds-sb-room:hover .ds-sb-room-box {
+  fill: var(--tint);
+}
+.ds-sb-room.target .ds-sb-room-box {
+  fill: var(--tint-2);
+  stroke: var(--ink);
+}
+.ds-sb-room.over .ds-sb-room-box {
+  fill: var(--tint-2);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+.ds-sb-room-name {
+  fill: var(--ink);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-room-load,
+.ds-sb-floor {
+  fill: var(--q);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+}
+.ds-sb-room-word {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+}
+.ds-sb-room-word.ok {
+  fill: var(--ok-t);
+}
+.ds-sb-room-word.warn {
+  fill: var(--warn-t);
+}
+.ds-sb-room-word.bad {
+  fill: var(--bad-t);
+}
+.ds-sb-room-word.quiet {
+  fill: var(--q);
+}
+.ds-sb-unit,
+.ds-sb-out {
+  cursor: pointer;
+}
+.ds-sb-unit rect,
+.ds-sb-out rect {
+  fill: var(--paper);
+  stroke-width: 2;
+}
+.ds-sb-unit.sel rect,
+.ds-sb-out.sel rect {
+  fill: var(--tint-2);
+  stroke-width: 3;
+}
+.ds-sb-out.refused rect {
+  stroke-dasharray: 6 4;
+}
+.ds-sb-unit-model,
+.ds-sb-out-model {
+  fill: var(--ink);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-unit-fact {
+  fill: var(--q);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+}
+.ds-sb-detail {
+  width: 344px;
+  flex: none;
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+}
+.ds-sb-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-6);
+}
+.ds-sb-pane-title {
+  margin: 0;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-field select {
+  font: inherit;
+  font-size: var(--fs-3);
+  color: var(--ink);
+  height: 36px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  background: var(--paper);
+}
+.ds-sb-label {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+}
+.ds-sb-sizes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.ds-sb-sizes ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.ds-sb-size {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s-1) var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-size:hover:not(:disabled) {
+  background: var(--tint);
+}
+.ds-sb-size:disabled {
+  cursor: default;
+}
+.ds-sb-size.current {
+  background: var(--tint-2);
+}
+.ds-sb-size-model {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-heading);
+}
+.ds-sb-size-kw {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--q);
+  font-variant-numeric: tabular-nums;
+}
+.ds-sb-size .ds-sb-word {
+  grid-column: 1 / -1;
+}
+
+/* the footer: the one footer, the buttons name the choice */
+.ds-sb-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-6);
+  border-top: 1px solid var(--line);
+}
+.ds-sb-spring {
+  flex: 1;
+}
+.ds-sb-error {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--bad-t);
+}
+.ds-sb-btn {
+  appearance: none;
+  font: inherit;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-label);
+  height: 36px;
+  padding: 0 var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.ds-sb-btn:hover {
+  background: var(--tint);
+}
+.ds-sb-btn.on {
+  background: var(--tint-2);
+  border-color: var(--ink);
+}
+.ds-sb-btn.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.ds-sb-btn.primary:hover {
+  background: var(--ink2);
+}
+
+/* ── the builder's doors on the design screen ── */
+.dstudio .ds-btray {
+  min-width: 340px;
+  align-items: stretch;
+}
+.dstudio .ds-btray-item {
+  grid-template-columns: auto 1fr auto;
+}
+.dstudio .ds-btray-item .ds-tray-model {
+  white-space: nowrap;
+}
+.dstudio .ds-btray-item .ds-tray-room {
+  grid-column: 2;
+}
+.dstudio .ds-btray-place {
+  appearance: none;
+  grid-row: 1 / span 2;
+  grid-column: 3;
+  align-self: center;
+  font: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-button);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-btray-place:hover {
+  background: var(--tint-2);
+}
+.dstudio .ds-btray-place:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.dstudio .ds-btray-flag {
+  margin: 0;
+  padding: var(--s-3);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--bad-t);
+}
+.dstudio .ds-ck-build {
+  display: flex;
+  padding: var(--s-6) var(--s-5);
+}
+.dstudio .ds-ck-buildbtn,
+.dstudio .ds-ck-swap {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  font: inherit;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-label);
+  height: 36px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-button);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+.dstudio .ds-ck-buildbtn {
+  color: var(--paper);
+  background: var(--ink);
+  border: 1px solid var(--ink);
+}
+.dstudio .ds-ck-buildbtn:hover {
+  background: var(--ink2);
+}
+.dstudio .ds-ck-swap {
+  align-self: flex-start;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+.dstudio .ds-ck-swap:hover {
+  background: var(--tint-2);
+}
+.dstudio .ds-ck-buildbtn:focus-visible,
+.dstudio .ds-ck-swap:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ds-sb-roomunits {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.ds-sb-roomunits ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.ds-sb-roomunits li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+}

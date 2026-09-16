@@ -17,7 +17,8 @@ import {
   type SizingBasis,
 } from "./loads";
 import { roomAreaM2, roomLoadKw, type RoomObj } from "./loads-room";
-import { roomCoverage, type CoverageStatus } from "./coverage";
+import { roomCoverage, systemCover, type CoverageStatus } from "./coverage";
+import { allocationsOf, hasAllocations } from "./allocations";
 import { buildSystemGraph, totalPipeLengthM } from "./graph";
 import { systemComponents } from "./components";
 import { describeUnit } from "./materials";
@@ -393,33 +394,60 @@ export function buildSummaryModel(
     ...row
   }: SummaryRoomRow & { systemIds: string[] }): SummaryRoomRow => row;
 
+  const iduStyle = (model: string) =>
+    formFactorLabel(pack?.indoor_units.find((u) => u.model === model)?.form_factor);
+
   const systems: SummarySystem[] = doc.systems.map((sys) => {
-    const mine = [...rows.values()].filter((r) => r.systemIds.includes(sys.id));
+    /* the rooms this system has units in, each credited with only what THIS
+       system gives it — the same figures the panel's ring reads (systemCover).
+       A room two systems cover shows under both, its load shared between them
+       in proportion, so no room is counted twice and no system is flattered
+       by the other's units. */
+    const cover = systemCover(doc, pack, sys, basis);
+    const mine: SummaryRoomRow[] = cover.rooms.map((share) => {
+      const models = share.contributors.map((c) => c.model);
+      const styles = [
+        ...new Set(models.map(iduStyle).filter((x): x is string => x != null)),
+      ];
+      const pct =
+        share.loadKw != null && share.loadKw > 0
+          ? Math.round((share.coverKw / share.loadKw) * 100)
+          : null;
+      return {
+        ...strip(rows.get(share.room.id)!),
+        loadKw: share.loadKw,
+        capacityKw: share.coverKw,
+        pct,
+        status:
+          share.loadKw == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under",
+        // every unit in the room, not the first one found
+        indoorModel: models.join(", "),
+        styleLabel: styles.length ? styles.join(", ") : null,
+      };
+    });
+    const headCount = cover.rooms.reduce((n, r) => n + r.contributors.length, 0);
+
     const odu = doc.objects.find(
       (o) =>
         o.systemId === sys.id && o.type === "unit" && o.props.role === "odu"
     );
-    const outdoorModel = odu ? String(odu.props.model ?? "") || null : null;
+    /* a builder system has its outdoor whether or not it is on the plan yet */
+    const outdoorModel =
+      (odu ? String(odu.props.model ?? "") || null : null) ??
+      (hasAllocations(sys)
+        ? allocationsOf(sys).find((a) => a.role === "odu")?.model || null
+        : null);
     const oduRow = outdoorModel
       ? pack?.outdoor_units.find((u) => u.model === outdoorModel) ?? null
       : null;
-    const iduModel = mine.find((r) => r.indoorModel)?.indoorModel ?? null;
+    const iduModel = cover.rooms[0]?.contributors[0]?.model ?? null;
     const iduRow = iduModel
       ? pack?.indoor_units.find((u) => u.model === iduModel) ?? null
       : null;
 
-    const load = mine.reduce<number | null>(
-      (a, r) => (r.loadKw == null ? a : (a ?? 0) + r.loadKw),
-      null
-    );
-    const cap = mine.reduce<number | null>(
-      (a, r) => (r.capacityKw == null ? a : (a ?? 0) + r.capacityKw),
-      null
-    );
-    const pct =
-      load != null && load > 0 && cap != null
-        ? Math.round((cap / load) * 100)
-        : null;
+    const load = cover.loadKw;
+    const cap = cover.rooms.length ? cover.coverKw : null;
+    const pct = cover.pct;
 
     const compRows = systemComponents(doc, pack, sys, basis);
     const chargeRow = compRows.find((c) => c.kind === "charge") ?? null;
@@ -496,7 +524,7 @@ export function buildSummaryModel(
       name: sys.name,
       colour: sys.colour,
       type: sys.type,
-      kindLabel: systemKindLabel(sys.type, mine.length),
+      kindLabel: systemKindLabel(sys.type, headCount),
       brandLabel:
         pack?.brands.find((b) => b.id === sys.brand)?.name ?? sys.brand,
       styleLabel: formFactorLabel(iduRow?.form_factor),
@@ -511,7 +539,7 @@ export function buildSummaryModel(
       refrigerant: oduRow?.refrigerant ?? null,
       prechargedKg: oduRow?.precharged_kg ?? null,
       totalPipeM,
-      rooms: mine.map(strip),
+      rooms: mine,
       loadKw: load == null ? null : Math.round(load * 10) / 10,
       capacityKw: cap == null ? null : Math.round(cap * 10) / 10,
       pct,
@@ -542,10 +570,19 @@ function buildPicklist(
 ): PicklistRow[] {
   // units, whole job, counted from the placed objects
   const unitCounts = new Map<string, number>();
+  const count = (m: string) => {
+    if (m) unitCounts.set(m, (unitCounts.get(m) ?? 0) + 1);
+  };
   for (const o of doc.objects) {
     if (o.type !== "unit") continue;
-    const m = String(o.props.model ?? "");
-    if (m) unitCounts.set(m, (unitCounts.get(m) ?? 0) + 1);
+    const sys = doc.systems.find((x) => x.id === o.systemId);
+    if (sys && hasAllocations(sys)) continue; // counted from its allocations
+    count(String(o.props.model ?? ""));
+  }
+  /* a builder system's units are on the job whether or not they are on the
+     plan yet */
+  for (const sys of doc.systems) {
+    if (hasAllocations(sys)) for (const a of allocationsOf(sys)) count(a.model);
   }
   const units: PicklistRow[] = [...unitCounts]
     .sort(([a], [b]) => a.localeCompare(b))

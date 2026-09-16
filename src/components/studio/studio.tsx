@@ -69,7 +69,18 @@ import { useHintsOn, setHintsOn } from "./hints";
 import { useArmedInk, setArmedInk } from "./note-ink";
 import { pairPipeSizes } from "@/lib/studio/components";
 import { ComponentPalette, PlenumHud } from "./air-tools";
-import { isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
+import { builderEnabled, isAirCapable, moduleFor, SYSTEM_MODULES } from "@/lib/studio/modules";
+import { SystemBuilder } from "./system-builder";
+import {
+  allocationsOf,
+  hasAllocations,
+  placeAllocation,
+  placeInRoomSpot,
+  releaseSystem,
+  trayItems,
+  wrongRoomPlacements,
+  type TrayItem,
+} from "@/lib/studio/builder";
 import { roomCoverage, roomsServedBy, systemPairKw } from "@/lib/studio/coverage";
 import {
   itemsToPlace,
@@ -1348,6 +1359,20 @@ function Editor({
      pair is a settings write either way, and this keeps the chip's plumbing
      out of four component signatures. */
   const [pairBrowse, setPairBrowse] = useState<string | null>(null);
+  /* the system builder (spec: Studio System Builder) — open, and on which unit
+     when Swap opened it. With the builder flag on, every door that used to
+     open the units window opens this instead. */
+  const builder = builderEnabled();
+  const [builderOpen, setBuilderOpen] = useState<{
+    focus: { systemId: string; allocationId: string } | null;
+  } | null>(null);
+  const openUnits = useCallback(
+    (roomId: string) => {
+      if (builder) setBuilderOpen({ focus: null });
+      else setPairBrowse(roomId);
+    },
+    [builder]
+  );
   /* room being configured in the heat-load modal (Slice 2) */
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
   /* room whose external walls the canvas should re-mark (from the modal) */
@@ -1370,7 +1395,7 @@ function Editor({
      system is later removed. Latched while rendering rather than in an effect,
      so the tools are present in the same paint that first has a system —
      an effect revealed them one render late. */
-  if (effectiveSystemId && !toolsRevealed) setToolsRevealed(true);
+  if ((effectiveSystemId || builder) && !toolsRevealed) setToolsRevealed(true);
 
   useEffect(() => {
     let on = true;
@@ -1469,10 +1494,15 @@ function Editor({
      simming */
   /* ── the Next chip: the split module's first unmet requirement, named.
      Clicking ARMS the move — the chip is a control, not a caption. ── */
-  const next = useMemo(
-    () => nextMove(doc, pack, effectiveSystemId),
-    [doc, pack, effectiveSystemId]
-  );
+  const next = useMemo((): NextMove | null => {
+    if (!builder) return nextMove(doc, pack, effectiveSystemId);
+    /* with the builder: draw the rooms, build the systems, place the units */
+    const rooms = doc.objects.filter((o) => o.type === "room");
+    if (rooms.length === 0) return { key: "draw-room", label: "Draw a room" };
+    if (!doc.systems.some(hasAllocations))
+      return { key: "choose-pair", label: "Build systems", roomId: rooms[0].id };
+    return null;
+  }, [builder, doc, pack, effectiveSystemId]);
 
   /* the chip's pair choice — the same write UnitsSub's picker commits: the
      pair models + the room it serves; a CHANGED pair takes the system's
@@ -1666,7 +1696,7 @@ function Editor({
         changeTool("room-rect");
         break;
       case "choose-pair":
-        setPairBrowse(next.roomId);
+        openUnits(next.roomId);
         break;
       case "place-idu":
       case "place-odu":
@@ -1679,7 +1709,7 @@ function Editor({
         onStep(2);
         break;
     }
-  }, [next, changeTool, armPlace, onStep]);
+  }, [next, changeTool, armPlace, onStep, openUnits]);
 
   /* ── the Units verb (bar, System group): browse → arm IDU → arm ODU →
      browse again as a swap. Pressing it while a unit rides the cursor
@@ -1697,9 +1727,13 @@ function Editor({
       armPlace(null);
       return;
     }
+    if (builder) {
+      setBuilderOpen({ focus: null });
+      return;
+    }
     if (!unitsV || unitsV.kind === "off") return;
     setPairBrowse(unitsV.roomId);
-  }, [placing, unitsV, armPlace]);
+  }, [placing, unitsV, armPlace, builder]);
 
   /* the armed pairing's capacity, for the canvas's room tint: pair-flow
      systems rate the pair; per-room modules rate the armed unit itself */
@@ -1899,7 +1933,7 @@ function Editor({
       // U = the Units verb: browse → arm IDU → arm ODU → browse-as-swap.
       // Inert while the browser is already up (typing there must not re-arm).
       if (e.key.toLowerCase() === "u") {
-        if (!pairBrowse) onUnits();
+        if (!pairBrowse && !builderOpen) onUnits();
         return;
       }
       // C = Component (spec §3a — calibrate stays a top-toolbar pill): re-arm
@@ -1935,10 +1969,10 @@ function Editor({
       )
         return;
 
-      // room/pipe/riser draw all belong to a system — type-first: none without one
+      // room/pipe/riser draw all belong to a system — type-first: none without
+      // one. With the builder a room belongs to the plan and needs none.
       if (
-        (next === "room-rect" ||
-          next === "room-poly" ||
+        (((next === "room-rect" || next === "room-poly") && !builder) ||
           next === "pipe" ||
           next === "riser") &&
         !effectiveSystemId
@@ -1971,6 +2005,8 @@ function Editor({
     armPlace,
     pairBrowse,
     onUnits,
+    builder,
+    builderOpen,
   ]);
 
   return (
@@ -2123,12 +2159,19 @@ function Editor({
             onAirStream={(s) => setAirComp((c) => (c ? { ...c, stream: s } : c))}
             onComponentPlaced={onComponentPlaced}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={(id) => {
+              setSelectedId(id);
+              if (builder && id) {
+                const o = doc.objects.find((x) => x.id === id);
+                if (o?.systemId && o.type !== "room") setActiveSystemId(o.systemId);
+              }
+            }}
             onMutate={mutate}
             planImages={planImages}
             pack={pack}
             activeSystemId={effectiveSystemId}
             revealTools={toolsRevealed}
+            builder={builder}
             placing={placing}
             placingKw={placingKw}
             roomFits={roomFits}
@@ -2197,6 +2240,16 @@ function Editor({
             onAddVariant={onAddVariant}
             onSwitchVariant={onSwitchVariant}
             onRenameVariant={onRenameVariant}
+            builder={
+              builder
+                ? {
+                    onOpen: () => setBuilderOpen({ focus: null }),
+                    onSwap: (systemId, allocationId) =>
+                      setBuilderOpen({ focus: { systemId, allocationId } }),
+                    onDeleteSystem: (id) => mutate((d) => releaseSystem(d, id)),
+                  }
+                : undefined
+            }
           />
         </aside>
       )}
@@ -2233,7 +2286,20 @@ function Editor({
           chip and the cockpit alike. Ranked against the lens room (the chips
           across its top switch the lens), committing the same settings write
           everywhere; choosing arms the indoor unit on the cursor. */}
-      {pairBrowse && pack && (
+      {builderOpen && pack && (
+        <SystemBuilder
+          doc={doc}
+          pack={pack}
+          focus={builderOpen.focus}
+          onCommit={(built) => {
+            mutate(() => built);
+            setBuilderOpen(null);
+          }}
+          onClose={() => setBuilderOpen(null)}
+        />
+      )}
+
+      {pairBrowse && pack && !builder && (
         <LensedUnitBrowser
           doc={doc}
           pack={pack}
@@ -2268,12 +2334,13 @@ function Editor({
               systemId={effectiveSystemId}
               roomId={editingRoomId}
               onMutate={mutate}
+              builder={builder}
               onBrowseUnits={(id) => {
                 /* the units modal replaces this one — two stacked dialogs
                    would leave the room open behind a browser that can re-aim
                    at a different room entirely */
                 setEditingRoomId(null);
-                setPairBrowse(id);
+                openUnits(id);
               }}
             />
           }
@@ -2595,6 +2662,7 @@ function RoomModalUnits({
   roomId,
   onMutate,
   onBrowseUnits,
+  builder = false,
 }: {
   doc: DesignDocument;
   pack: DataPack | null;
@@ -2602,9 +2670,39 @@ function RoomModalUnits({
   roomId: string;
   onMutate: (fn: (d: DesignDocument) => DesignDocument) => void;
   onBrowseUnits: (roomId: string) => void;
+  /** with the builder, the room lists what serves it and opens the builder */
+  builder?: boolean;
 }) {
   const sys = doc.systems.find((s) => s.id === systemId);
   const room = doc.objects.find((o) => o.id === roomId);
+  if (builder) {
+    const units = doc.systems
+      .filter(hasAllocations)
+      .flatMap((x) =>
+        allocationsOf(x)
+          .filter((a) => a.role === "idu" && a.roomId === roomId && a.model)
+          .map((a) => ({ sys: x, a }))
+      );
+    return (
+      <div className="ds-sb-roomunits">
+        {units.length > 0 ? (
+          <ul>
+            {units.map(({ sys: x, a }) => (
+              <li key={a.id}>
+                <span className="ds-sb-size-model">{a.model}</span>
+                <span className="ds-sb-facts">{x.name}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ds-sb-facts">No units serve this room yet.</p>
+        )}
+        <button className="ds-sb-btn" onClick={() => onBrowseUnits(roomId)}>
+          Build systems
+        </button>
+      </div>
+    );
+  }
   if (!sys || !room || room.geometry.kind !== "polygon") return null;
   const summary = SYSTEM_MODULES[sys.type].summary;
   return (
@@ -2726,6 +2824,101 @@ function LensedUnitBrowser({
 
    Both gestures land in the same place: dragging an item arms it and the
    canvas's existing drop handler commits it; clicking arms it for a tap. ── */
+/* The builder's tray (spec: Placing). Every unit the builder allocated and
+   nobody has put on the plan yet, labelled with the room it serves. Nothing
+   here arms on a click: a unit is DRAGGED onto the plan, or Place in room puts
+   it in its room straight away. Where it lands never changes its room — a unit
+   dropped inside another room is listed at the top, flagged, not moved. */
+function BuilderTray({
+  items,
+  wrong,
+  roomName,
+  onArmPlace,
+  onPlaceInRoom,
+}: {
+  items: TrayItem[];
+  wrong: { allocationId: string; roomId: string; inRoomId: string }[];
+  roomName: (id: string) => string;
+  onArmPlace: (p: PlacingUnit | null) => void;
+  onPlaceInRoom: (item: TrayItem) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  if (items.length === 0 && wrong.length === 0) return null;
+
+  return (
+    <div className="ds-pal-wrap" ref={wrapRef}>
+      <button
+        className={`ds-tool ds-tray-btn${open ? " on" : ""}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={
+          items.length ? `Units to place (${items.length})` : `Check rooms (${wrong.length})`
+        }
+        onClick={() => setOpen((v) => !v)}
+      >
+        <Icon name="unit" size={15} />
+        {items.length ? "Units to place" : "Check rooms"}
+        <span className="ds-tray-n">{items.length || wrong.length}</span>
+      </button>
+      {open && (
+        <div
+          className="ds-tray ds-btray"
+          role="dialog"
+          aria-label={items.length ? "Units to place" : "Check rooms"}
+        >
+          {wrong.map((w) => (
+            <p key={w.allocationId} className="ds-btray-flag">
+              {roomName(w.roomId)}&apos;s unit is in {roomName(w.inRoomId)}. It still serves{" "}
+              {roomName(w.roomId)}.
+            </p>
+          ))}
+          {items.map((item) => (
+            <div
+              key={item.key}
+              className={`ds-tray-item ds-btray-item ${item.role}`}
+              draggable
+              onDragStart={(e) => {
+                if (e.dataTransfer) {
+                  e.dataTransfer.setData("text/plain", item.model);
+                  e.dataTransfer.effectAllowed = "copy";
+                }
+                /* the canvas drops whatever is armed; arming on dragstart is
+                   the drag, never a click */
+                onArmPlace(item.placing);
+              }}
+              onDragEnd={() => onArmPlace(null)}
+            >
+              <span className="ds-tray-role">{item.role === "idu" ? "Indoor" : "Outdoor"}</span>
+              <span className="ds-tray-model">{item.model}</span>
+              <span className="ds-tray-room">{item.label}</span>
+              <button className="ds-btray-place" onClick={() => onPlaceInRoom(item)}>
+                Place in room
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ItemsTray({
   items,
   onArmPlace,
@@ -3614,6 +3807,7 @@ function DesignPanel({
   legendOpen,
   onLegend,
   onCalibrated,
+  builder = false,
 }: {
   doc: DesignDocument;
   activeFloorId: string | null;
@@ -3667,6 +3861,8 @@ function DesignPanel({
   legendOpen: boolean;
   onLegend: (v: boolean) => void;
   onCalibrated: () => void;
+  /** the system builder flag: rooms need no system, units come from its tray */
+  builder?: boolean;
 }) {
   const floor = doc.floors.find((f) => f.id === activeFloorId) ?? null;
   const [zoomApi, setZoomApi] = useState<ZoomApi | null>(null);
@@ -3676,6 +3872,28 @@ function DesignPanel({
   const toPlace = useMemo(
     () => itemsToPlace(doc, pack, activeSystemId),
     [doc, pack, activeSystemId]
+  );
+  /* the builder's tray: every system's unplaced units, labelled by room */
+  const builderTray = useMemo(
+    () => (builder && pack ? trayItems(doc, pack) : []),
+    [builder, doc, pack]
+  );
+  const wrongRooms = useMemo(
+    () => (builder ? wrongRoomPlacements(doc) : []),
+    [builder, doc]
+  );
+  /** Place in room: the unit lands in the room it serves, with no mode
+      (where exactly: placeInRoomSpot) */
+  const placeInRoom = useCallback(
+    (item: TrayItem) => {
+      if (!pack) return;
+      onMutate((d) => {
+        const spot = placeInRoomSpot(d, pack, item.systemId, item.allocationId);
+        if (!spot) return d;
+        return placeAllocation(d, pack, item.systemId, item.allocationId, spot.floorId, spot.at);
+      });
+    },
+    [pack, onMutate]
   );
   /* the Draw flyout's armed options (pipe form, drain size, cable kind) —
      view state: what the NEXT line is, never what a drawn one was */
@@ -3778,12 +3996,23 @@ function DesignPanel({
             {toolButton(tb("select"))}
             {toolButton(tb("erase"))}
             <span className="ds-tb-sep" aria-hidden="true" />
-            <RoomTool tool={tool} onTool={onTool} disabled={!activeSystemId} />
+            <RoomTool tool={tool} onTool={onTool} disabled={!builder && !activeSystemId} />
             <span className="ds-tb-sep" aria-hidden="true" />
             {/* Units leads the System group — the workflow places before it
                 connects. One verb, three meanings: browse (nothing chosen),
                 arm the next unplaced unit, browse again as a swap. While a
                 unit rides the cursor the button is lit and a press disarms. */}
+            {builder ? (
+              <button
+                className="ds-tool"
+                aria-label="Build systems"
+                title="Build systems"
+                onClick={onUnits}
+              >
+                <Icon name="unit" size={15} />
+                Systems
+              </button>
+            ) : (
             <button
               className={`ds-tool${tool === "place" ? " on" : ""}`}
               aria-label="Units"
@@ -3804,6 +4033,7 @@ function DesignPanel({
               <Icon name="unit" size={15} />
               Units
             </button>
+            )}
             <DrawTool
               tool={tool}
               onTool={onTool}
@@ -3833,7 +4063,21 @@ function DesignPanel({
             {/* last in the system group: it holds what choosing units left to
                 do, so it reads as the end of that run rather than a second
                 thing next to Units */}
-            <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
+            {builder ? (
+              <BuilderTray
+                /* emptied and refilled, it opens closed */
+                key={builderTray.length + wrongRooms.length > 0 ? "tray" : "empty"}
+                items={builderTray}
+                wrong={wrongRooms}
+                roomName={(id) =>
+                  String(doc.objects.find((o) => o.id === id)?.props.name ?? "a room")
+                }
+                onArmPlace={onArmPlace}
+                onPlaceInRoom={placeInRoom}
+              />
+            ) : (
+              <ItemsTray items={toPlace} onArmPlace={onArmPlace} />
+            )}
             {/* crop + move-plans live in the Calibrate dropdown now (plan-prep) */}
             <span className="ds-tb-sep" aria-hidden="true" />
             {/* Note gets a group of its own, at the end, because it is the one

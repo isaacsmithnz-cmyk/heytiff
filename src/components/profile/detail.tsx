@@ -1,7 +1,6 @@
 "use client";
 
 import { isValidElement, type ReactNode } from "react";
-import { Icon } from "@/components/shell/icon";
 
 /* Read mode's vocabulary: grouped panels of label/value pairs, and an empty
    value that is a BUTTON rather than a dash.
@@ -62,7 +61,6 @@ export function DetailPanel({
           <button type="button" className="jumpb" onClick={onOpen}>
             Open
             <span className="sr-only"> {title}</span>
-            <Icon name="chevR" size={12} />
           </button>
         )}
       </div>

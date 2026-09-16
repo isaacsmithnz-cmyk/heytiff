@@ -365,16 +365,13 @@ export function LogScreen({
         )}
       </div>
 
-      <div className="fl-foot bar">
-        <Btn kind="outline" onClick={onBack}>
-          Cancel
-        </Btn>
-        {showFields && (
+      {showFields && (
+        <div className="fl-foot bar">
           <Btn kind="primary" onClick={save} disabled={!ready}>
             {pending ? "Saving…" : SAVE[kind]}
           </Btn>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

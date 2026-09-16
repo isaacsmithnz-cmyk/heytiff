@@ -29,7 +29,7 @@ import { SubHeader } from "@/components/record-modal/parts";
    the service history, and now logging — that each portalled over the last.
    A door in the compliance list moves the screen, a row in the history opens
    the entry it names, the + menu opens a logging screen, and the back
-   chevron, Cancel and every save move it back. Nothing is fetched here: the
+   chevron and every save move it back. Nothing is fetched here: the
    register hands down everything the vehicle owns (logs, documents,
    policies, valuation) and every write is one of its actions followed by
    router.refresh(), the same as everywhere else in the fleet.

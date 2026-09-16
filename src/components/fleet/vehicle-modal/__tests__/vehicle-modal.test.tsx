@@ -228,7 +228,7 @@ it("keeps logging on the card: the + on History offers fuel, an issue and a serv
   await user.click(screen.getByRole("menuitem", { name: "Log fuel" }));
   expect(screen.getByRole("heading", { name: "Log fuel" })).toBeInTheDocument();
   expect(screen.getByText("Scan or upload the receipt")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  await user.click(screen.getByRole("button", { name: "Back" }));
   expect(screen.getByRole("heading", { name: "WORK TRITON" })).toBeInTheDocument();
 });
 

@@ -311,8 +311,9 @@ describe("insurance with nothing on file", () => {
     const { user, onSave } = mount("insurance", { policies: [greenSlip, rego] });
     expect(screen.getByText("No policy recorded")).toBeInTheDocument();
     expect(screen.getByText("Scan or upload the certificate of insurance")).toBeInTheDocument();
-    // no record to fall back to, so the panel has no Cancel of its own
-    expect(screen.getAllByRole("button", { name: "Cancel" })).toHaveLength(1);
+    // no record to fall back to, so the panel has no Cancel of its own — and
+    // the footer has none either: Back in the header is the way out
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
 
     await user.click(screen.getByText("Enter manually"));
     await user.type(screen.getByPlaceholderText("e.g. NRMA"), "NRMA");

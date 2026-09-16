@@ -482,16 +482,18 @@ export function RenewalScreen({
         </Card>
       </div>
 
-      <div className="fl-foot bar">
-        <Btn kind="outline" onClick={onBack}>
-          Cancel
-        </Btn>
-        {showFields && (
+      {/* THE FOOTER IS THE SAVE (Isaac, 2026-09-16: "drop the cancel button,
+          back is enough"). Cancel sat beside it whether or not anything was
+          being entered, cancelling nothing on a read-only visit and standing
+          as a second Cancel beside the panel's own while one was open. Back
+          is in the header, on every screen of this card. */}
+      {showFields && (
+        <div className="fl-foot bar">
           <Btn kind="primary" onClick={save} disabled={!canSave}>
             {pending ? "Saving…" : SAVE_LABEL[kind]}
           </Btn>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }

@@ -485,6 +485,153 @@ describe("multi coverage", () => {
   });
 });
 
+/* ── a room never gets more than its outdoor can supply ──
+   Heads are sized to their rooms, and a multi connected past its outdoor is
+   normal: the rooms rarely all run at once. What can't work is ONE room whose
+   own heads, which always run together, need more than the outdoor can give —
+   two 7.1 kW heads for a 14 kW living room on an 8.0 kW MXZ-4F80. Per system,
+   the heads in a room are capped at that system's outdoor; then summed. */
+describe("room cover is capped at its outdoor", () => {
+  const kwOf = (m: string) =>
+    sizingCapacityKw(
+      pack.indoor_units.find((u) => u.model === m) ??
+        pack.outdoor_units.find((u) => u.model === m)!,
+      basis
+    );
+
+  it("caps a room whose own heads need more than the outdoor", () => {
+    const { doc, system, rooms } = docWithRooms(1);
+    const floorId = doc.floors[0].id;
+    system.settings = { pairOdu: "MXZ-4F80VGD" };
+    doc.objects.push(
+      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
+      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
+    );
+    const cov = roomCoverage(doc, pack, rooms[0], basis);
+    expect(cov.coveredKw).toBeCloseTo(kwOf("MXZ-4F80VGD"), 5);
+    expect(cov.capped).toEqual([
+      {
+        systemId: system.id,
+        headsKw: expect.closeTo(2 * kwOf("SEZ-M71DA(L)"), 5),
+        oduKw: expect.closeTo(kwOf("MXZ-4F80VGD"), 5),
+      },
+    ]);
+  });
+
+  it("never caps rooms against each other — connecting past the outdoor is normal", () => {
+    const { doc, system, rooms } = docWithRooms(3);
+    const floorId = doc.floors[0].id;
+    system.settings = { pairOdu: "MXZ-3F54VGD" }; // 5.4 kW, heads total 11.0
+    doc.objects.push(
+      placedUnit("h1", system.id, floorId, "idu", "MSZ-AP25VGD2", rooms[0].id),
+      placedUnit("h2", system.id, floorId, "idu", "MSZ-AP35VGD2", rooms[1].id),
+      placedUnit("h3", system.id, floorId, "idu", "MSZ-AP50VGD2", rooms[2].id)
+    );
+    const covers = rooms.map((r) => roomCoverage(doc, pack, r, basis));
+    expect(covers.map((c) => c.coveredKw)).toEqual([
+      expect.closeTo(kwOf("MSZ-AP25VGD2"), 5),
+      expect.closeTo(kwOf("MSZ-AP35VGD2"), 5),
+      expect.closeTo(kwOf("MSZ-AP50VGD2"), 5),
+    ]);
+    expect(covers.every((c) => c.capped.length === 0)).toBe(true);
+  });
+
+  it("caps a single head bigger than its outdoor", () => {
+    const { doc, system, rooms } = docWithRooms(1);
+    system.settings = { pairOdu: "MXZ-3F54VGD" };
+    doc.objects.push(
+      placedUnit("h1", system.id, doc.floors[0].id, "idu", "MSZ-AP60VGD2", rooms[0].id)
+    );
+    expect(roomCoverage(doc, pack, rooms[0], basis).coveredKw).toBeCloseTo(
+      kwOf("MXZ-3F54VGD"),
+      5
+    );
+  });
+
+  it("leaves ratings standing until an outdoor is chosen", () => {
+    const { doc, system, rooms } = docWithRooms(1);
+    const floorId = doc.floors[0].id;
+    doc.objects.push(
+      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
+      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
+    );
+    const cov = roomCoverage(doc, pack, rooms[0], basis);
+    expect(cov.coveredKw).toBeCloseTo(2 * kwOf("SEZ-M71DA(L)"), 5);
+    expect(cov.capped).toEqual([]);
+  });
+
+  it("caps at the placed outdoor when one is placed", () => {
+    const { doc, system, rooms } = docWithRooms(1);
+    const floorId = doc.floors[0].id;
+    system.settings = { pairOdu: "MXZ-4F80VGD" };
+    doc.objects.push(
+      placedUnit("o1", system.id, floorId, "odu", "MXZ-6F120VGD"),
+      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
+      placedUnit("b2", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
+    );
+    expect(roomCoverage(doc, pack, rooms[0], basis).coveredKw).toBeCloseTo(
+      kwOf("MXZ-6F120VGD"),
+      5
+    );
+  });
+
+  it("caps each system on its own, then sums — a room can have two outdoors", () => {
+    const { doc, system, rooms } = docWithRooms(1);
+    const floorId = doc.floors[0].id;
+    system.settings = { pairOdu: "MXZ-4F80VGD" };
+    const second: DesignSystem = {
+      ...system,
+      id: newId("sys"),
+      name: "System 2",
+      settings: { pairOdu: "MXZ-4F80VGD", roomIds: [rooms[0].id] },
+    };
+    doc.systems.push(second);
+    doc.objects.push(
+      placedUnit("b1", system.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id),
+      placedUnit("b2", second.id, floorId, "idu", "SEZ-M71DA(L)", rooms[0].id)
+    );
+    const cov = roomCoverage(doc, pack, rooms[0], basis);
+    expect(cov.coveredKw).toBeCloseTo(2 * kwOf("SEZ-M71DA(L)"), 5);
+    expect(cov.capped).toEqual([]);
+  });
+
+  it("caps a chosen-but-unplaced head the same way", () => {
+    const { doc, system, rooms } = docWithRooms(1);
+    system.settings = { pairOdu: "MXZ-3F54VGD", multiIdus: { [rooms[0].id]: "MSZ-AP60VGD2" } };
+    expect(roomCoverage(doc, pack, rooms[0], basis).pendingKw).toBeCloseTo(
+      kwOf("MXZ-3F54VGD"),
+      5
+    );
+  });
+
+  it("the multi's cover is capped per room; its connected capacity is not", () => {
+    const living = docWithRooms(1);
+    const floorId = living.doc.floors[0].id;
+    living.system.settings = { pairOdu: "MXZ-4F80VGD" };
+    living.doc.objects.push(
+      placedUnit("b1", living.system.id, floorId, "idu", "SEZ-M71DA(L)", living.rooms[0].id),
+      placedUnit("b2", living.system.id, floorId, "idu", "SEZ-M71DA(L)", living.rooms[0].id)
+    );
+    const lc = multiConnection(living.doc, pack, living.system, basis);
+    expect(lc.connectedKw).toBeCloseTo(2 * kwOf("SEZ-M71DA(L)"), 5);
+    expect(lc.coverKw).toBeCloseTo(kwOf("MXZ-4F80VGD"), 5);
+
+    const beds = docWithRooms(3);
+    beds.system.settings = {
+      pairOdu: "MXZ-4F71VGD",
+      multiIdus: {
+        [beds.rooms[0].id]: "MSZ-AP25VGD2",
+        [beds.rooms[1].id]: "MSZ-AP35VGD2",
+        [beds.rooms[2].id]: "MSZ-AP50VGD2",
+      },
+    };
+    const bc = multiConnection(beds.doc, pack, beds.system, basis);
+    const eleven = kwOf("MSZ-AP25VGD2") + kwOf("MSZ-AP35VGD2") + kwOf("MSZ-AP50VGD2");
+    expect(bc.connectedKw).toBeCloseTo(eleven, 5);
+    expect(bc.coverKw).toBeCloseTo(eleven, 5); // no single room outruns the 4F71
+  });
+});
+
 /* ── components integration (shared outdoor, no pairing) ── */
 
 describe("multi systemComponents", () => {

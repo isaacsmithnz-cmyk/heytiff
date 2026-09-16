@@ -18,7 +18,15 @@ import { moduleFor } from "./modules";
    What a placed IDU is WORTH depends on the owning module's unit flow:
    pair/ducted systems rate the IDU via their pair table (systemPairKw);
    per-room systems (multi / VRF) rate each IDU at its own catalogue
-   capacity — there is no 1:1 pair row to read. */
+   capacity — there is no 1:1 pair row to read.
+
+   ONE CAP, and only one. A multi connected past its outdoor is normal: heads
+   are sized to their rooms and the rooms rarely all run at full load together,
+   so rooms are never capped against EACH OTHER. What can't work is one room
+   whose own heads, which always run together, need more than the outdoor can
+   supply — two 7.1 kW heads for a 14 kW living room on an 8.0 kW MXZ-4F80.
+   So per system, the heads in a room are capped at that system's outdoor;
+   then the systems are summed (a room on two outdoors gets both). */
 
 export interface CoverageContributor {
   systemId: string;
@@ -30,6 +38,15 @@ export interface CoverageContributor {
 }
 
 export type CoverageStatus = "covered" | "under" | "unknown";
+
+/** a system whose heads in this room need more than its outdoor supplies */
+export interface CoverageCap {
+  systemId: string;
+  /** Σ the system's head ratings attributed to this room */
+  headsKw: number;
+  /** what the system's outdoor supplies — the room gets this much from it */
+  oduKw: number;
+}
 
 export interface RoomCoverage {
   roomId: string;
@@ -44,7 +61,10 @@ export interface RoomCoverage {
   status: CoverageStatus;
   /** covered beyond the browser's 150% oversize cap */
   oversized: boolean;
+  /** contributors carry their RATINGS; coveredKw is the capped sum */
   contributors: CoverageContributor[];
+  /** systems whose heads here outrun their outdoor (empty almost always) */
+  capped: CoverageCap[];
 }
 
 const isRoom = (o: DesignObject): o is RoomObj =>
@@ -131,6 +151,25 @@ function placedIduKw(
   return systemPairKw(doc, pack, sys.id, basis);
 }
 
+/** what a per-room system's outdoor supplies — the placed outdoor wins, else
+    the chosen one; null for pair systems (their rating IS the pairing) and
+    while no outdoor is chosen (ratings stand until there is one) */
+export function systemOutdoorKw(
+  doc: DesignDocument,
+  pack: DataPack,
+  sys: DesignSystem,
+  basis: SizingBasis
+): number | null {
+  if (moduleFor(sys.type).unitFlow !== "per-room") return null;
+  const placed = doc.objects.find(
+    (o) => o.systemId === sys.id && o.type === "unit" && o.props.role === "odu"
+  );
+  const model = String(placed?.props.model ?? sys.settings.pairOdu ?? "");
+  if (!model) return null;
+  const odu = pack.outdoor_units.find((u) => u.model === model);
+  return odu ? sizingCapacityKw(odu, basis) : null;
+}
+
 /** `settings.multiIdus` (roomId → indoor model) — same key multi.ts owns;
     read inline here so coverage never imports the multi engine (multi.ts
     imports roomsServedBy from this module) */
@@ -168,7 +207,27 @@ export function roomCoverage(
       });
     }
   }
-  const coveredKw = contributors.reduce((a, c) => a + c.kw, 0);
+  /* per system: its heads here, capped at its outdoor; then summed */
+  const bySystem = new Map<string, number>();
+  for (const c of contributors) bySystem.set(c.systemId, (bySystem.get(c.systemId) ?? 0) + c.kw);
+  const capped: CoverageCap[] = [];
+  let coveredKw = 0;
+  const oduKwOf = new Map<string, number | null>();
+  const outdoorOf = (sys: DesignSystem): number | null => {
+    if (!pack) return null;
+    if (!oduKwOf.has(sys.id)) oduKwOf.set(sys.id, systemOutdoorKw(doc, pack, sys, basis));
+    return oduKwOf.get(sys.id) ?? null;
+  };
+  for (const [systemId, headsKw] of bySystem) {
+    const sys = doc.systems.find((s) => s.id === systemId);
+    const oduKw = sys ? outdoorOf(sys) : null;
+    if (oduKw != null && headsKw > oduKw + 1e-9) {
+      capped.push({ systemId, headsKw, oduKw });
+      coveredKw += oduKw;
+    } else {
+      coveredKw += headsKw;
+    }
+  }
 
   /* pending: a chosen-but-unplaced unit sized against this room — drawn on
      the bar as a hollow segment. Split keys off settings.roomId + pairIdu;
@@ -188,7 +247,10 @@ export function roomCoverage(
         );
         if (placedHere) continue;
         const idu = pack.indoor_units.find((u) => u.model === model);
-        if (idu) pendingKw += sizingCapacityKw(idu, basis);
+        if (!idu) continue;
+        const oduKw = outdoorOf(sys);
+        const kw = sizingCapacityKw(idu, basis);
+        pendingKw += oduKw != null ? Math.min(kw, oduKw) : kw;
         continue;
       }
       if (sys.settings.roomId !== room.id || !sys.settings.pairIdu) continue;
@@ -205,5 +267,15 @@ export function roomCoverage(
     loadKw == null ? "unknown" : pct != null && pct >= 100 ? "covered" : "under";
   const oversized = pct != null && pct > 150;
 
-  return { roomId: room.id, loadKw, coveredKw, pendingKw, pct, status, oversized, contributors };
+  return {
+    roomId: room.id,
+    loadKw,
+    coveredKw,
+    pendingKw,
+    pct,
+    status,
+    oversized,
+    contributors,
+    capped,
+  };
 }

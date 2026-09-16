@@ -8,7 +8,8 @@ import type { SaveResult } from "./edit-types";
 /* "Waiting on extraction" — the standing brief for future book uploads.
 
    Auto signals are computed from the pack itself (declared-but-unextracted
-   sources, unmatched rule references) and can't be dismissed — they clear only
+   sources, unmatched rule references, multi rules with no combination rule)
+   and can't be dismissed — they clear only
    when an extraction closes them. Manual items are staff-entered and resolvable.
    Nothing here is ever answered from the internet: unknowns stay visible until
    an uploaded document answers them. */
@@ -25,6 +26,7 @@ const KIND_LABEL: Record<WatchSignal["kind"], string> = {
   "unextracted-source": "book not extracted",
   "unmatched-family": "unmatched family",
   "dangling-part-ref": "missing part",
+  "no-combination-rule": "no combination rule",
 };
 
 export function WatchlistPanel({

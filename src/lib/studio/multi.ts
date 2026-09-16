@@ -78,6 +78,10 @@ function iduEligibleForRule(rule: MultiRule, idu: IndoorUnit): boolean {
         return true;
       case "explicit_combination_table":
         return c.combos.some((combo) => combo.includes(idu.model));
+      case "capacity_combination_table": {
+        const code = idu.capacity_code;
+        return code != null && c.combos.some((combo) => combo.includes(code));
+      }
       case "index_ratio_band":
         if (idu.capacity_index == null) return false;
         if (c.index_min != null && idu.capacity_index < c.index_min) return false;
@@ -167,6 +171,7 @@ export interface MultiFinding {
     | "ratio-under"
     | "ratio-over"
     | "index-unknown"
+    | "capacity-code-unknown"
     | "over-ports"
     | "no-rule";
   message: string;
@@ -231,6 +236,40 @@ function checkBlock(
         return true;
       });
       if (idus.length > 0 && !fitsSome)
+        out.push({
+          severity: "red",
+          code: "not-in-combination-table",
+          message: `This combination isn't in ${odu.model}'s approved table`,
+        });
+      return out;
+    }
+    case "capacity_combination_table": {
+      /* the ME multi-split form: the book approves SETS of size classes, so
+         the check is the same sub-multiset test as the model table, run on
+         capacity_code. A partial selection passes while it can still grow
+         into a listed combo. */
+      const missing = idus.filter((u) => u.capacity_code == null);
+      if (missing.length)
+        out.push({
+          severity: "amber",
+          code: "capacity-code-unknown",
+          message: `No size class recorded for ${missing.length} unit${missing.length === 1 ? "" : "s"} — combination unchecked`,
+        });
+
+      const picked = idus
+        .map((u) => u.capacity_code)
+        .filter((c2): c2 is number => c2 != null);
+      if (picked.length === 0) return out;
+
+      const counts = new Map<number, number>();
+      for (const code of picked) counts.set(code, (counts.get(code) ?? 0) + 1);
+      const fitsSome = c.combos.some((combo) => {
+        const avail = new Map<number, number>();
+        for (const code of combo) avail.set(code, (avail.get(code) ?? 0) + 1);
+        for (const [code, n] of counts) if ((avail.get(code) ?? 0) < n) return false;
+        return true;
+      });
+      if (!fitsSome)
         out.push({
           severity: "red",
           code: "not-in-combination-table",

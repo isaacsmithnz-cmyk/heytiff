@@ -115,6 +115,16 @@ export const ADDITIONAL_CHARGE_METHODS = [
 export type CompatibilityRule =
   | { method: "explicit_combination_table"; combos: string[][] }
   | {
+      /** the book lists approved sets by SIZE CLASS, not by model — the ME
+          multi-split form. Each combo is a sorted list of capacity codes
+          (→ IndoorUnit.capacity_code); a set is approved when it is a
+          sub-multiset of one listed combo. Carries its own provenance: the
+          table often comes from a different book than the rest of the row. */
+      method: "capacity_combination_table";
+      combos: number[][];
+      provenance?: Provenance;
+    }
+  | {
       method: "family_whitelist_with_limits";
       families: string[];
       max_count?: number;
@@ -135,6 +145,7 @@ export type CompatibilityRule =
 
 export const COMPATIBILITY_METHODS = [
   "explicit_combination_table",
+  "capacity_combination_table",
   "family_whitelist_with_limits",
   "index_ratio_band",
 ] as const;
@@ -245,6 +256,11 @@ export interface IndoorUnit {
   capacity_heat_kw: number;
   /** brand index (Mitsubishi P-number). Required for VRF/multi roles. */
   capacity_index?: number;
+  /** the size class printed in the model name — MSZ-AP35VGD2 → 35. NOT a
+      restatement of capacity_cool_kw: three ME models differ (AP80 is 7.8 kW,
+      LN60 is 6.1, SLZ-M60FA is 5.6), so a code derived at runtime would
+      mis-key them silently. Combination tables key on this, never on kW. */
+  capacity_code?: number;
   /** nominal (high) airflow. Required for ducted/vent roles. */
   airflow_ls?: number;
   /** external static, numeric Pa. Required for ducted forms (v1: optional — no ESP check yet). */

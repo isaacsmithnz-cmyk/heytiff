@@ -12,14 +12,28 @@
       indoor model (engine-consistent prefix matching, multi.ts), and
       branch-box part refs that resolve to no part row — extraction typos or
       missing sections to verify against the book pages cited by the rule.
+   3. Multi rules with no combination rule: per-unit limits only, so the pack
+      can't say whether a SET of indoor units is legal. Signals 1 and 2 can't
+      see this — the book IS cited, the families DO match; what went missing is
+      the whole-set bound the book prints (a combination table for ME, a ratio
+      band or total-kW cap for brands that publish one instead).
 
    Manual watch items (staff-entered, pack_watchlist table) are the IO side —
    see hq-watchlist actions. */
 
-import { PACK_SECTIONS, type DataPack, type Provenance } from "@/lib/studio/packs/schema";
+import {
+  PACK_SECTIONS,
+  type CompatibilityRule,
+  type DataPack,
+  type Provenance,
+} from "@/lib/studio/packs/schema";
 
 export interface WatchSignal {
-  kind: "unextracted-source" | "unmatched-family" | "dangling-part-ref";
+  kind:
+    | "unextracted-source"
+    | "unmatched-family"
+    | "dangling-part-ref"
+    | "no-combination-rule";
   title: string;
   detail: string;
 }
@@ -38,6 +52,15 @@ export function unextractedSources(pack: DataPack): WatchSignal[] {
   for (const section of PACK_SECTIONS) {
     for (const row of pack[section] as unknown[]) {
       const p = rowProvenance(row);
+      if (p) cited.add(p.source);
+    }
+  }
+  // a rule block may cite a different book from its row — a combination table
+  // is routinely published apart from the rest of the rule, and that citation
+  // is what makes its book "mined"
+  for (const rule of pack.multi_rules) {
+    for (const block of rule.compatibility ?? []) {
+      const p = "provenance" in block ? rowProvenance(block) : null;
       if (p) cited.add(p.source);
     }
   }
@@ -90,7 +113,57 @@ export function unmatchedRuleReferences(pack: DataPack): WatchSignal[] {
   return out;
 }
 
+/* ── combination rule: does a block bound the SET, or only each unit? ──
+   `family_whitelist_with_limits` never does, `max_count` included: a count is
+   not a capacity. Six 3.5 kW heads on a 12 kW MXZ pass its count and its
+   per-port cap at 175% connected, which is precisely what the book's
+   combination table exists to answer.
+
+   NO `default` arm, deliberately: when a new compatibility method lands
+   (#727 — the kW-based limits other brands publish), TypeScript fails this
+   function until somebody decides which side it falls on. */
+function boundsTheSet(block: CompatibilityRule): boolean {
+  switch (block.method) {
+    case "explicit_combination_table":
+    case "capacity_combination_table":
+      return true; // the book lists the approved sets outright
+    case "index_ratio_band":
+      return true; // connected index vs outdoor, with a max count
+    case "family_whitelist_with_limits":
+      return false; // per-unit family, capacity, index and per-port bounds only
+  }
+}
+
+/** Multi rules whose blocks bound each unit but never the set. */
+export function unboundedMultiRules(pack: DataPack): WatchSignal[] {
+  const out: WatchSignal[] = [];
+
+  for (const rule of pack.multi_rules) {
+    // an EMPTY compatibility is the validator's finding ("compatibility
+    // empty"), not a watch item — this signal is about a rule that looks
+    // complete and isn't
+    const blocks = rule.compatibility ?? [];
+    if (blocks.length === 0 || blocks.some(boundsTheSet)) continue;
+
+    const cite = rowProvenance(rule);
+    const where = cite
+      ? `${cite.source}${cite.page ? ` p.${cite.page}` : ""}`
+      : "its source book";
+
+    out.push({
+      kind: "no-combination-rule",
+      title: rule.odu_model_ref,
+      detail: `Only per-unit limits are encoded, so nothing checks whether a set of indoor units is approved — extract the combination table (or the ratio band, for a book that prints one instead) from ${where}.`,
+    });
+  }
+  return out;
+}
+
 /** All auto signals for a pack. */
 export function packWatchSignals(pack: DataPack): WatchSignal[] {
-  return [...unextractedSources(pack), ...unmatchedRuleReferences(pack)];
+  return [
+    ...unextractedSources(pack),
+    ...unmatchedRuleReferences(pack),
+    ...unboundedMultiRules(pack),
+  ];
 }

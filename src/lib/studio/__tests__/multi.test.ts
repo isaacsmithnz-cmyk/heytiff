@@ -166,11 +166,11 @@ describe("multiCapableIdus", () => {
   const capable = multiCapableIdus(pack);
   const models = capable.map((u) => u.model);
 
-  it("derives capability from both rule shapes (31 whitelisted + 103 index-band)", () => {
+  it("derives capability from both rule shapes (34 whitelisted + 103 index-band)", () => {
     // MXZ rules whitelist families; the PUMY-SP/P rules use index_ratio_band,
     // which admits any indoor carrying a capacity_index inside the band — i.e.
     // the whole City Multi P*FY range, which is what those outdoors connect.
-    expect(capable).toHaveLength(134);
+    expect(capable).toHaveLength(137);
     expect(models).toContain("MSZ-AP20VGD");
     expect(models).toContain("PEAD-M50JAA(D)"); // a ducted IDU among the hi-walls
     expect(models).toContain("PEFY-P40VMHS-E"); // City Multi, via a PUMY index band
@@ -185,7 +185,7 @@ describe("multiCapableIdus", () => {
   it("admits nothing a rule doesn't actually reach", () => {
     // every capable unit is authorised by one of the two mechanisms: an MXZ
     // family prefix, or a capacity_index inside some rule's index band
-    const families = ["MSZ-LN", "MSZ-EF", "MSZ-AP", "MFXZ-KW", "MLZ-KP", "SLZ-M", "SEZ-M", "PEAD-M"];
+    const families = ["MSZ-LN", "MSZ-EF", "MSZ-AP", "MFZ-KW", "MLZ-KP", "SLZ-M", "SEZ-M", "PEAD-M"];
     const bands = pack.multi_rules
       .flatMap((r) => r.compatibility)
       .filter((c) => c.method === "index_ratio_band");
@@ -209,7 +209,7 @@ describe("proposeMultiIdus", () => {
   it("1.74 kW room: the whole capable catalogue, labelled, smallest fit best", () => {
     const props = proposeMultiIdus(pack, 1.74, basis);
     // a load never shortens the list — it only labels it
-    expect(props).toHaveLength(134);
+    expect(props).toHaveLength(137);
     for (const p of props) {
       if (p.fit === "fits") {
         expect(p.capacityKw).toBeGreaterThanOrEqual(1.74);
@@ -234,14 +234,14 @@ describe("proposeMultiIdus", () => {
 
   it("a load nothing can cover leaves every row undersized and no best fit", () => {
     const props = proposeMultiIdus(pack, 999, basis);
-    expect(props).toHaveLength(134);
+    expect(props).toHaveLength(137);
     expect(props.every((p) => p.fit === "undersized")).toBe(true);
     expect(props.some((p) => p.bestFit)).toBe(false);
   });
 
   it("null load = the full capable catalogue, nothing flagged", () => {
     const props = proposeMultiIdus(pack, null, basis);
-    expect(props).toHaveLength(134);
+    expect(props).toHaveLength(137);
     expect(props.some((p) => p.bestFit)).toBe(false);
     expect(props.every((p) => p.fit === "fits")).toBe(true);
   });
@@ -543,5 +543,101 @@ describe("multiUnitOptions / multiFormFactorSummary", () => {
       /* the count must agree with what the table will actually list */
       expect(multiUnitOptions(pack, { loadKw: null, basis, formFactor: t.formFactor })).toHaveLength(t.count);
     }
+  });
+});
+
+/* ── capacity combination tables (ME multi-split) — the real shipped rules ──
+   The book approves SETS by size class, not a ratio: 144%-185% connected is
+   approved depending on the model and the mix, so nothing but the table can
+   answer it. Runs against the 7 MXZ rules, so data drift fails here. */
+describe("capacity_combination_table", () => {
+  const idu = (m: string) => pack.indoor_units.find((u) => u.model === m)!;
+  const odu6 = pack.outdoor_units.find((o) => o.model === "MXZ-6F120VGD")!;
+  const rule6 = pack.multi_rules.find((r) => r.odu_model_ref === odu6.model)!;
+
+  it("refuses six 3.5 kW heads on the 6F120 — 21 kW is not a listed set", () => {
+    const set = Array.from({ length: 6 }, () => idu("MSZ-AP35VGD2"));
+    const findings = checkMultiCompatibility(rule6, odu6, set);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      severity: "red",
+      code: "not-in-combination-table",
+    });
+  });
+
+  it("accepts 25+25+25+35+35+35, which the table lists", () => {
+    const set = [
+      idu("MSZ-AP25VGD2"), idu("MSZ-AP25VGD2"), idu("MSZ-AP25VGD2"),
+      idu("MSZ-AP35VGD2"), idu("MSZ-AP35VGD2"), idu("MSZ-AP35VGD2"),
+    ];
+    expect(checkMultiCompatibility(rule6, odu6, set)).toEqual([]);
+  });
+
+  it("lets a partial selection stand while it can still grow into a combo", () => {
+    const two = [idu("MSZ-AP35VGD2"), idu("MSZ-AP35VGD2")];
+    expect(checkMultiCompatibility(rule6, odu6, two)).toEqual([]);
+  });
+
+  it("keys on the size class, not the kW — AP80 is 7.8 kW and code 80", () => {
+    const ap80 = idu("MSZ-AP80VGD2");
+    expect(ap80.capacity_cool_kw).toBe(7.8); // a kW-derived code would be 78
+    expect(ap80.capacity_code).toBe(80);
+    expect(checkMultiCompatibility(rule6, odu6, [ap80])).toEqual([]);
+  });
+
+  it("says so rather than guessing when a unit has no size class", () => {
+    const noCode = { ...idu("MSZ-AP35VGD2"), capacity_code: undefined };
+    const findings = checkMultiCompatibility(rule6, odu6, [noCode]);
+    expect(findings).toEqual([
+      expect.objectContaining({ severity: "amber", code: "capacity-code-unknown" }),
+    ]);
+  });
+
+  it("every MXZ rule carries its table, cited to the guide", () => {
+    const mxz = pack.multi_rules.filter((r) => r.odu_model_ref.startsWith("MXZ-"));
+    expect(mxz).toHaveLength(7);
+    for (const r of mxz) {
+      const block = r.compatibility.find(
+        (b) => b.method === "capacity_combination_table"
+      );
+      expect(block).toBeDefined();
+      if (block?.method !== "capacity_combination_table") throw new Error("narrowing");
+      expect(block.combos.length).toBeGreaterThan(0);
+      expect(block.provenance?.source).toBe("Multi Split Guide 2021-01");
+      expect(block.provenance?.page).toBeTruthy();
+    }
+  });
+});
+
+/* ── the floor console: three sizes go on a multi, the other two don't ──
+   The guide prints the multi-capable consoles as MFXZ-KW25VG/35VG/50VG; the
+   pack's rows, from the data book, are MFZ-KW25…KW60VG. Owner's call that
+   these are the same unit, so the whitelist names the three approved models
+   by prefix — never the bare family, which would sweep in the 42 and 60. */
+describe("floor consoles on a multi", () => {
+  const odu = pack.outdoor_units.find((o) => o.model === "MXZ-6F120VGD")!;
+  const rule = pack.multi_rules.find((r) => r.odu_model_ref === odu.model)!;
+  const unit = (m: string) => pack.indoor_units.find((u) => u.model === m)!;
+
+  it("offers exactly the 2.5, 3.5 and 5.0", () => {
+    expect(
+      multiCapableIdus(pack)
+        .filter((u) => u.model.startsWith("MFZ-"))
+        .map((u) => u.model)
+    ).toEqual(["MFZ-KW25VG", "MFZ-KW35VG", "MFZ-KW50VG"]);
+  });
+
+  it("takes a console alongside wall units in a listed combination", () => {
+    const set = [
+      unit("MFZ-KW35VG"), unit("MFZ-KW35VG"),
+      unit("MSZ-AP25VGD2"), unit("MSZ-AP25VGD2"),
+    ];
+    expect(checkMultiCompatibility(rule, odu, set)).toEqual([]);
+  });
+
+  it.each(["MFZ-KW42VG", "MFZ-KW60VG"])("refuses %s, which is split-only", (model) => {
+    expect(checkMultiCompatibility(rule, odu, [unit(model)])).toEqual([
+      expect.objectContaining({ severity: "red", code: "not-in-whitelist" }),
+    ]);
   });
 });

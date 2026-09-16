@@ -90,7 +90,8 @@ function setup(
 }
 
 const group = (title: string) => screen.getByRole("region", { name: title });
-const tiles = () => [...document.querySelectorAll(".psum-tile")] as HTMLButtonElement[];
+const rows = () => [...document.querySelectorAll(".psum-tix-r")] as HTMLButtonElement[];
+const standing = () => document.querySelector(".psum-stand") as HTMLElement;
 const isEditing = () => screen.queryByRole("button", { name: /^Save\b/ }) !== null;
 
 describe("what Summary does not repeat", () => {
@@ -140,21 +141,30 @@ describe("what Summary does not repeat", () => {
 });
 
 describe("the groups", () => {
-  it("are three, in the handoff's order, each a hairline group with its own way in", () => {
-    setup();
+  /* The right to work left this row on 2026-09-16 and became the standing
+     line, so the third group holds only things that expire and is named for
+     them. Personal and Emergency sit side by side — Emergency is three fields
+     and never earned a band of its own. */
+  it("are three, each a hairline group with its own way in", () => {
+    const { container } = setup();
     const names = [...document.querySelectorAll(".psum-g .psum-h")].map((h) => h.textContent);
-    expect(names).toEqual(["Personal", "Emergency contact", "Licences, tickets and work rights"]);
+    expect(names).toEqual(["Personal", "Emergency contact", "Licences and tickets"]);
     expect(within(group("Personal")).getByRole("button", { name: "Edit Personal" })).toBeInTheDocument();
     expect(within(group("Emergency contact")).getByRole("button", { name: "Edit Emergency contact" })).toBeInTheDocument();
-    expect(
-      within(group("Licences, tickets and work rights")).getByRole("button", { name: /^Manage/ })
-    ).toBeInTheDocument();
+    expect(within(group("Licences and tickets")).getByRole("button", { name: /^Manage/ })).toBeInTheDocument();
+    // the two short groups share a row; the tickets run the full width below
+    const pair = container.querySelector(".psum-pair")!;
+    expect(pair.querySelectorAll(".psum-g")).toHaveLength(2);
   });
 
-  it("lays the facts out label over value, three to a row", () => {
+  /* A LEDGER, NOT A GRID. Label over value in three columns makes the eye
+     zigzag — read down, jump right, read down — which is the slowest way to
+     look one fact up. The label sits in its own column and the answer beside
+     it, ruled between rows. */
+  it("lays the facts out as a ledger, the label beside its answer", () => {
     setup();
     const personal = group("Personal");
-    const labels = [...personal.querySelectorAll(".psum-grid dt")].map((d) => d.textContent);
+    const labels = [...personal.querySelectorAll(".psum-rows dt")].map((d) => d.textContent);
     expect(labels).toEqual([
       "Date of birth",
       "Mobile",
@@ -191,15 +201,18 @@ describe("blanks", () => {
     expect(screen.queryByText("Not set")).not.toBeInTheDocument();
   });
 
-  /* Required is a word beside the Add, only where payroll or the law needs
-     the detail — a mobile number is wanted, a date of birth is required. */
-  it("marks Required only on what payroll or the law needs", () => {
+  /* ABSENCE IS SAID ONCE. The word Required used to sit beside every required
+     blank AS WELL as in the count above them, which on a card with four gaps
+     made absence the loudest thing on the screen — in the page's only strong
+     colour, while everything on file sat quiet. The record line counts them;
+     a cell just offers the Add, required or wanted alike. */
+  it("does not repeat the count beside each blank", () => {
     setup({ profile: { ...jordan, phone: null, birthday: null } });
     const personal = group("Personal");
-    const dob = within(personal).getByRole("button", { name: "Add Date of birth" }).parentElement!;
-    const mobile = within(personal).getByRole("button", { name: "Add Mobile" }).parentElement!;
-    expect(dob).toHaveTextContent("Required");
-    expect(mobile).not.toHaveTextContent("Required");
+    expect(within(personal).getByRole("button", { name: "Add Date of birth" })).toBeInTheDocument();
+    expect(within(personal).getByRole("button", { name: "Add Mobile" })).toBeInTheDocument();
+    expect(personal).not.toHaveTextContent("Required");
+    expect(document.querySelector(".psum-req")).toBeNull();
   });
 
   it("never offers to add what this card cannot write", () => {
@@ -221,7 +234,8 @@ describe("blanks", () => {
     expect(sub).toHaveTextContent("Lead Installer");
     expect(sub).not.toHaveTextContent("since");
     const add = within(sub).getByRole("button", { name: "Add a start date" });
-    expect(add.parentElement).toHaveTextContent("Required");
+    // the word Required went with the doubling; the record line counts it
+    expect(sub).not.toHaveTextContent("Required");
 
     await user.click(add);
     expect(screen.getByRole("tab", { name: /Personal/ })).toHaveClass("on");
@@ -260,51 +274,68 @@ describe("the holiday state", () => {
   });
 });
 
-describe("the row of tiles", () => {
-  /* The right to work comes first: it is the ticket the others are worthless
-     without. Unset, it is a required blank — the warn tint, the Required word,
-     and a door straight into the form. */
-  it("leads with the right to work, as a required blank while there is none", async () => {
-    const user = userEvent.setup();
+/* THE STANDING LINE — the one thing the screen says out loud.
+
+   The right to work was the first tile in the row of tickets, in the same
+   grey as the White card beside it, which made the thing that decides whether
+   a person can be sent to a job the thing you could not pick out. It is not a
+   ticket: nothing on it expires the way a ticket does, and you do not hold a
+   copy of it in the ute. It is a sentence now, at the reading size, above
+   everything. */
+describe("the standing line", () => {
+  it("says the gap, and offers no clearance, while nothing is recorded", () => {
     setup();
-    const [first] = tiles();
-    expect(first).toHaveClass("req");
-    expect(first).toHaveTextContent("Work rights");
-    expect(first).toHaveTextContent("Required");
-    expect(first).toHaveAccessibleName("Add work rights");
-
-    await user.click(first);
-    expect(screen.getByRole("tab", { name: /Work rights/ })).toHaveClass("on");
-    expect(isEditing()).toBe(true);
+    expect(standing()).toHaveTextContent("Right to work not recorded");
+    expect(standing().querySelector("b")).toHaveClass("warn");
+    // it is a statement, not a door: the tab beside it manages the right to work
+    expect(within(standing()).queryByRole("button")).toBeNull();
   });
 
-  it("reads the right to work as a record once it is set, and opens its tab to read", async () => {
-    const user = userEvent.setup();
+  it("reads the clearance and its evidence once the right to work is set", () => {
     setup({ profile: cleared });
-    const [first] = tiles();
-    expect(first).not.toHaveClass("req");
-    expect(first).toHaveTextContent("Australian citizen");
-    expect(first).toHaveTextContent("No visa required");
-    expect(first.querySelector(".f")).toHaveClass("ok");
-    expect(first.querySelector(".f")).toHaveTextContent("Full working rights");
-
-    await user.click(first);
-    expect(screen.getByRole("tab", { name: /Work rights/ })).toHaveClass("on");
-    expect(isEditing()).toBe(false);
+    expect(standing().querySelector("b")).toHaveClass("ok");
+    expect(standing()).toHaveTextContent("Cleared to work");
+    expect(standing()).toHaveTextContent("Australian citizen, no visa required.");
   });
 
-  it("renders every licence as a tile, with the expiry doing the talking", () => {
+  /* A person on a valid visa IS cleared to work, so the warning goes on the
+     visa and not on the word "cleared" — colouring the clearance amber to
+     mean "but check the visa" is the sentence contradicting itself. */
+  it("puts a warning on the evidence, not on the clearance", () => {
+    setup({
+      profile: {
+        ...jordan,
+        work_rights_status: "Full working rights (visa)",
+        visa_type: "482 TSS",
+        visa_expiry: "2026-08-07",
+      },
+    });
+    expect(standing().querySelector("b")).toHaveClass("ok");
+    expect(standing().querySelector("span.warn")).toHaveTextContent("482 TSS expires in 2 weeks.");
+  });
+
+  it("leaves no work-rights tile behind in the tickets", () => {
     setup({ licences: LICENCES, profile: cleared });
-    const all = tiles();
-    expect(all).toHaveLength(3);
-    const [, arc, white] = all;
+    expect(rows().map((r) => r.querySelector(".t")?.textContent)).not.toContain("Australian citizen");
+  });
+});
+
+/* THE TICKETS — a list, not a row of tiles. Two tiles in a 1000px row look
+   unfinished at any quality, because there are two; a ruled list reads as a
+   record at one row and still reads at twelve. */
+describe("the tickets", () => {
+  it("renders every licence as a row, with the expiry doing the talking", () => {
+    setup({ licences: LICENCES, profile: cleared });
+    const all = rows();
+    expect(all).toHaveLength(2);
+    const [arc, white] = all;
     expect(arc).toHaveTextContent("ARC licence");
     expect(arc).toHaveTextContent("AU41207");
     // in date: when it lapses, quietly, off the ONE law in lib/staff/licence
-    expect(arc.querySelector(".f")).toHaveTextContent("Expires 02/09/2026");
-    expect(arc.querySelector(".f")).toHaveClass("mute");
+    expect(arc.querySelector(".e")).toHaveTextContent("Expires 02/09/2026");
+    expect(arc.querySelector(".e")).toHaveClass("mute");
     expect(white).toHaveTextContent("White card");
-    expect(white.querySelector(".f")).toHaveTextContent("No expiry");
+    expect(white.querySelector(".e")).toHaveTextContent("No expiry");
   });
 
   it("raises the same clause the dashboard's chip raises, in its colour, when a ticket is due", () => {
@@ -312,26 +343,26 @@ describe("the row of tiles", () => {
       licences: [{ ...LICENCES[0], expiryDate: "2026-08-07" }],
       profile: cleared,
     });
-    const [, arc] = tiles();
-    const foot = arc.querySelector(".f")!;
+    const foot = rows()[0].querySelector(".e")!;
     expect(foot).toHaveClass("warn");
     expect(foot).toHaveTextContent("Expires in 2 weeks");
   });
 
-  it("opens Compliance from a licence tile and from Manage", async () => {
+  it("opens Compliance from a licence row and from Manage", async () => {
     const user = userEvent.setup();
     setup({ licences: LICENCES, profile: cleared });
     await user.click(screen.getByRole("button", { name: "Open ARC licence" }));
     expect(screen.getByRole("tab", { name: /Compliance/ })).toHaveClass("on");
   });
 
-  /* The row is never empty — the right to work is always in it — so the empty
-     state is the one action, and it lands on Compliance with the add modal
-     already open. */
-  it("offers the one action when there are no tickets, landing on the add form", async () => {
+  /* A LIST KEEPS ITS ADD. With tiles the row was never empty — the right to
+     work was always in it — so the add line was the empty state and hid once
+     a ticket arrived. A list of tickets still needs the way to add the next
+     one, and an empty one leads with the action (law 12). */
+  it("offers the way to add a ticket, empty or not, landing on the add form", async () => {
     const user = userEvent.setup();
     setup({ licences: [], profile: cleared });
-    expect(tiles()).toHaveLength(1);
+    expect(rows()).toHaveLength(0);
     expect(screen.queryByText("No licences on file")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add a licence or ticket" }));
@@ -339,9 +370,9 @@ describe("the row of tiles", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("does not offer the add line once a ticket is on file", () => {
+  it("keeps that door once tickets are on file", () => {
     setup({ licences: LICENCES, profile: cleared });
-    expect(screen.queryByRole("button", { name: "Add a licence or ticket" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add a licence or ticket" })).toBeInTheDocument();
   });
 });
 

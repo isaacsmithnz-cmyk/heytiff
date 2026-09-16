@@ -1,8 +1,15 @@
 import type { StaffProfile } from "../profile";
-import { workRightsTile } from "../work-rights-summary";
+import { workRightsLine } from "../work-rights-summary";
 
-/* The first tile on Summary's row of tickets. It ranks its state the way the
-   directory's compliance chip does, and a citizen never waits for a check. */
+/* THE STANDING LINE on Summary — the sentence that says whether this person
+   can be sent to a job. It was a tile in the row of tickets until 2026-09-16.
+
+   The lead carries the rank and the rest carries the evidence, each with its
+   own tone, because a person on a valid visa IS cleared to work: the warning
+   belongs on the visa, not on the word "cleared". The ranking is the
+   directory's compliance chip (derive.ts) — a lapsed visa outranks one about
+   to lapse, which outranks a visa nobody has checked — and a citizen never
+   waits for a check that can never come. */
 
 const base: StaffProfile = {
   id: "p1",
@@ -40,24 +47,27 @@ const base: StaffProfile = {
 
 const TODAY = "2026-07-24";
 
-describe("the work-rights tile", () => {
-  it("is a required blank while nothing is recorded", () => {
-    const t = workRightsTile(base, TODAY, 30);
-    expect(t.unset).toBe(true);
-    expect(t.title).toBe("Work rights");
-    expect(t.foot).toEqual({ label: "Required", tone: "warn" });
+describe("the standing line", () => {
+  it("states the gap, and nothing else, while nothing is recorded", () => {
+    const l = workRightsLine(base, TODAY, 30);
+    expect(l.unset).toBe(true);
+    expect(l.lead).toBe("Right to work not recorded");
+    expect(l.leadTone).toBe("warn");
+    // there is no clearance to state and no evidence to give
+    expect(l.rest).toBeNull();
   });
 
   it("reads a citizen as cleared, with no check to wait for", () => {
-    const t = workRightsTile({ ...base, work_rights_status: "Australian citizen" }, TODAY, 30);
-    expect(t.unset).toBe(false);
-    expect(t.title).toBe("Australian citizen");
-    expect(t.sub).toBe("No visa required");
-    expect(t.foot).toEqual({ label: "Full working rights", tone: "ok" });
+    const l = workRightsLine({ ...base, work_rights_status: "Australian citizen" }, TODAY, 30);
+    expect(l.unset).toBe(false);
+    expect(l.lead).toBe("Cleared to work");
+    expect(l.leadTone).toBe("ok");
+    expect(l.rest).toBe("Australian citizen, no visa required.");
+    expect(l.restTone).toBe("mute");
   });
 
   it("names the visa and its expiry, and the check that cleared it", () => {
-    const t = workRightsTile(
+    const l = workRightsLine(
       {
         ...base,
         work_rights_status: "Full working rights (visa)",
@@ -68,25 +78,30 @@ describe("the work-rights tile", () => {
       TODAY,
       30,
     );
-    expect(t.sub).toBe("482 TSS, expires 12/03/2027");
-    expect(t.foot).toEqual({ label: "Checked 01/02/2026", tone: "ok" });
+    expect(l.lead).toBe("Cleared to work");
+    expect(l.rest).toBe("482 TSS, expires 12/03/2027, checked 01/02/2026.");
+    expect(l.restTone).toBe("mute");
   });
 
-  it("warns on a visa nobody has checked", () => {
-    const t = workRightsTile(
+  it("warns on the visa, not on the clearance, when nobody has checked it", () => {
+    const l = workRightsLine(
       { ...base, work_rights_status: "Full working rights (visa)", visa_type: "482 TSS" },
       TODAY,
       30,
     );
-    expect(t.sub).toBe("482 TSS");
-    expect(t.foot).toEqual({ label: "Not checked", tone: "warn" });
+    // they may work today; the missing check is what wants attention
+    expect(l.lead).toBe("Cleared to work");
+    expect(l.leadTone).toBe("ok");
+    expect(l.rest).toBe("482 TSS, not checked.");
+    expect(l.restTone).toBe("warn");
   });
 
   /* The ranking the compliance chip uses: a lapsed visa outranks one about to
      lapse, which outranks the missing check — a check on file does not make an
-     expired visa fine. */
+     expired visa fine. A lapse is also the one case that changes the LEAD:
+     everything else on this branch is somebody who may work today. */
   it("ranks a visa's expiry above its check", () => {
-    const soon = workRightsTile(
+    const soon = workRightsLine(
       {
         ...base,
         work_rights_status: "Full working rights (visa)",
@@ -97,9 +112,11 @@ describe("the work-rights tile", () => {
       TODAY,
       30,
     );
-    expect(soon.foot).toEqual({ label: "Visa expires in 2 weeks", tone: "warn" });
+    expect(soon.lead).toBe("Cleared to work");
+    expect(soon.rest).toBe("482 TSS expires in 2 weeks.");
+    expect(soon.restTone).toBe("warn");
 
-    const gone = workRightsTile(
+    const gone = workRightsLine(
       {
         ...base,
         work_rights_status: "Full working rights (visa)",
@@ -109,14 +126,16 @@ describe("the work-rights tile", () => {
       TODAY,
       30,
     );
-    expect(gone.foot.tone).toBe("bad");
-    expect(gone.foot.label).toMatch(/^Visa expired/);
-    expect(gone.sub).toBe("Visa, expires 10/07/2026");
+    expect(gone.lead).toBe("Not cleared to work");
+    expect(gone.leadTone).toBe("bad");
+    expect(gone.rest).toMatch(/^Visa expired/);
+    expect(gone.restTone).toBe("bad");
   });
 
   it("says plainly when someone may not work", () => {
-    const t = workRightsTile({ ...base, work_rights_status: "No working rights" }, TODAY, 30);
-    expect(t.sub).toBeNull();
-    expect(t.foot).toEqual({ label: "Not cleared to work", tone: "bad" });
+    const l = workRightsLine({ ...base, work_rights_status: "No working rights" }, TODAY, 30);
+    expect(l.lead).toBe("Not cleared to work");
+    expect(l.leadTone).toBe("bad");
+    expect(l.rest).toBe("No working rights on file.");
   });
 });

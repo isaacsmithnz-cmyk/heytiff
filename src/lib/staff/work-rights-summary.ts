@@ -3,70 +3,121 @@ import { expiryClause } from "@/lib/format/duration";
 import { isNoVisa } from "./work-rights";
 import type { StaffProfile } from "./profile";
 
-/* The work-rights tile on Summary — the first tile in the row of tickets, and
-   the one that answers the page's question: is this person cleared to work?
+/* THE STANDING LINE on Summary — the one thing the screen says out loud.
 
-   Three lines, like every tile beside it: what the status is, what visa sits
-   under it, and the state in its colour. The state ranks the way the
-   directory's compliance chip ranks (derive.ts): a lapsed visa outranks one
+   It was a tile, first in the row of tickets, and that was the mistake: a
+   right to work is not a ticket. Nothing on it expires the way a White card
+   does, you do not hold a copy of it in the ute, and it decides whether the
+   person can be sent to a job at all. Drawn as a 220×136 box in the same grey
+   as the ticket beside it, the thing that gates the work was the thing you
+   could not pick out. So it left the row and became a sentence at reading
+   size, above everything, and the tiles kept only what expires.
+
+   TWO PARTS, TWO TONES. The lead is the clearance and carries the rank — is
+   this person cleared, or not. The rest is the evidence, and carries its own
+   state only when the evidence itself wants attention: a visa about to lapse,
+   or one nobody has checked. A person on a valid visa IS cleared to work, so
+   the lead says so in the OK colour and the warning sits where it belongs, on
+   the visa. Colouring "Cleared to work" amber to mean "but check the visa"
+   would be the sentence contradicting itself.
+
+   The ranking is the directory's (derive.ts): a lapsed visa outranks one
    about to lapse, which outranks a visa nobody has checked. A citizen or a
-   permanent resident has no visa to check, so the tile says so rather than
+   permanent resident has no visa to check, so the line says so rather than
    waiting for a check that can never come (see lib/staff/work-rights).
 
-   Pure, so the tile and its test need no DOM. */
+   Pure, so the line and its test need no DOM. */
 
-export type TileTone = "ok" | "warn" | "bad" | "mute";
+export type StateTone = "ok" | "warn" | "bad" | "mute";
 
-export type WorkRightsTile = {
-  /** the status, or "Work rights" while there is none */
-  title: string;
-  /** the visa under it, or null when there is nothing to say */
-  sub: string | null;
-  /** the state, in its colour */
-  foot: { label: string; tone: TileTone };
-  /** nothing recorded: the tile is the way into the form, and the field is required */
+export type WorkRightsLine = {
+  /** the clearance, in its colour — the rank of the whole situation */
+  lead: string;
+  leadTone: StateTone;
+  /** the evidence under it, or null when there is none to give */
+  rest: string | null;
+  /** quiet, unless the evidence is what wants attention */
+  restTone: StateTone;
+  /** nothing recorded: there is no clearance to state, only a gap to fill */
   unset: boolean;
 };
 
-export function workRightsTile(
+export function workRightsLine(
   p: StaffProfile | null,
   today: string,
   warnDays: number,
-): WorkRightsTile {
+): WorkRightsLine {
   const status = (p?.work_rights_status ?? "").trim();
   if (!status) {
     return {
-      title: "Work rights",
-      sub: "Not recorded",
-      foot: { label: "Required", tone: "warn" },
+      lead: "Right to work not recorded",
+      leadTone: "warn",
+      rest: null,
+      restTone: "mute",
       unset: true,
     };
   }
   if (status === "No working rights") {
-    return { title: status, sub: null, foot: { label: "Not cleared to work", tone: "bad" }, unset: false };
+    return {
+      lead: "Not cleared to work",
+      leadTone: "bad",
+      rest: "No working rights on file.",
+      restTone: "mute",
+      unset: false,
+    };
   }
   if (isNoVisa(status)) {
     return {
-      title: status,
-      sub: "No visa required",
-      foot: { label: "Full working rights", tone: "ok" },
+      lead: "Cleared to work",
+      leadTone: "ok",
+      rest: `${status}, no visa required.`,
+      restTone: "mute",
       unset: false,
     };
   }
 
   const visa = (p?.visa_type ?? "").trim() || "Visa";
   const expiry = (p?.visa_expiry ?? "").slice(0, 10) || null;
-  const sub = expiry ? `${visa}, expires ${formatAuDate(expiry)}` : visa;
   const days = expiry ? daysUntil(expiry, today) : null;
+
+  /* A LAPSED VISA IS THE ONE CASE THE LEAD CHANGES FOR. Everything else on
+     this branch is somebody who may work today; only an expired visa means
+     they may not, and that outranks whether anyone has checked it. */
   if (days !== null && days < 0) {
-    return { title: status, sub, foot: { label: `Visa ${expiryClause(days)}`, tone: "bad" }, unset: false };
+    return {
+      lead: "Not cleared to work",
+      leadTone: "bad",
+      rest: `${visa} ${expiryClause(days)}.`,
+      restTone: "bad",
+      unset: false,
+    };
   }
   if (days !== null && days <= warnDays) {
-    return { title: status, sub, foot: { label: `Visa ${expiryClause(days)}`, tone: "warn" }, unset: false };
+    return {
+      lead: "Cleared to work",
+      leadTone: "ok",
+      rest: `${visa} ${expiryClause(days)}.`,
+      restTone: "warn",
+      unset: false,
+    };
   }
+
   const checked = (p?.vevo_checked_at ?? "").slice(0, 10);
+  const held = expiry ? `${visa}, expires ${formatAuDate(expiry)}` : visa;
   if (checked) {
-    return { title: status, sub, foot: { label: `Checked ${formatAuDate(checked)}`, tone: "ok" }, unset: false };
+    return {
+      lead: "Cleared to work",
+      leadTone: "ok",
+      rest: `${held}, checked ${formatAuDate(checked)}.`,
+      restTone: "mute",
+      unset: false,
+    };
   }
-  return { title: status, sub, foot: { label: "Not checked", tone: "warn" }, unset: false };
+  return {
+    lead: "Cleared to work",
+    leadTone: "ok",
+    rest: `${held}, not checked.`,
+    restTone: "warn",
+    unset: false,
+  };
 }

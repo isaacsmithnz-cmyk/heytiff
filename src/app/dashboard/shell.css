@@ -1156,68 +1156,111 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
 .fg .vehjump:focus-visible { outline:none; box-shadow:var(--ring); }
 
 /* ── SUMMARY, THE CHECKLIST THAT FILLS ITSELF IN ──
-   Redrawn 2026-09-15 from the worker-profile handoff, to the laws. The
-   identity row carries the completion line at its right; three groups follow,
-   each a hairline top (a group is something you read — law 9), a quiet label
-   at 13/500 (the eyebrow is retired — law 10) and a three-column grid of
-   facts, label over value; a blank the business is short of is an Add with
-   the Required word beside it where payroll or the law needs it; the tickets
-   and the right to work are one row of tiles on the vehicle modal's sunken
-   card, each a door to its tab. Colour is state only: the warn word and bar
-   while a required detail is missing, the OK word and bar once the card is
-   cleared, the state on a tile. The row's own hairline goes — the first group
-   brings its own, and two lines 24px apart is a ledger. */
+   Redrawn 2026-09-15 from the worker-profile handoff, and REDRAWN AGAIN
+   2026-09-16 because the first draw was correct to the laws and unreadable
+   anyway. Isaac, on it: "it's actually quite hard to scan because everything
+   looks the same — it says name, and then the name underneath it is almost
+   the same." Nine roles were set at 13/500 or 14/400, one pixel apart, with
+   the weight running BACKWARDS: a label heavier than the value under it. Two
+   greys were carrying hierarchy that size should have carried.
+
+   THE TIERS, far enough apart to scan: 32/700 the name, 24/400 the standing
+   line, 20/600 ink a group's title, 12/500 quiet a field's label, 16/600 ink
+   its answer. Four steps of size between the top and the bottom of the page,
+   and a size, weight and colour step between a label and what it introduces.
+
+   THE LEDGER. Label over value in a three-column grid makes the eye zigzag —
+   read down, jump right, read down — the slowest way to look one fact up. A
+   132px label column with the answer beside it gives one column of
+   scaffolding and one of answers, ruled between rows. Personal and Emergency
+   sit side by side: Emergency is three fields and never earned a band.
+
+   COLOUR IS STATE, AND SAID ONCE. The standing line's lead carries the rank;
+   the evidence beside it colours only when the evidence is what wants
+   attention. Absence is counted on the record line and nowhere else — the
+   word Required beside each blank as well was the same fact three times, in
+   the page's only strong colour, which is what made a card with four gaps
+   read as a form nobody had filled in. The one filled object on the page is
+   the record line's action, and it is ink, because ink does the primary
+   action. */
 .fg .psum .pident { padding-bottom:0; margin-bottom:0; border-bottom:0; }
 .fg .ptitle { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+/* the name is the one display size on this screen. At 24 it was the same size
+   as the standing line under it — the same collision as the label and its
+   value, one tier up. */
+.fg .psum .phid h1 { font-size:32px; }
 /* the camera badge stays up while there is no photo: the tile of initials is
    the one blank on Summary with no Add beside it, so the badge is its Add */
 .fg .pident .pphoto.nophoto .cam { opacity:1; }
-.fg .pcompl { display:flex; align-items:center; gap:12px; flex:0 0 auto; margin-left:auto; font-size:13px; font-weight:500; color:var(--q); }
-.fg .pcompl b { font-weight:500; }
-.fg .pcompl b.warn { color:var(--warn-t); }
-.fg .pcompl b.ok { color:var(--ok-t); }
+
+/* ── the standing line — the one thing the screen says out loud ──
+   The reading size, which the scale keeps for the one entry a screen is
+   about. It is a statement, not a door: the tab beside it manages the right
+   to work, and a sentence that is also a link has two jobs. */
+.fg .psum-stand { margin:24px 0 0; max-width:46ch; font-size:24px; font-weight:400; line-height:1.35; }
+.fg .psum-stand b { font-weight:400; }
+.fg .psum-stand .ok { color:var(--ok-t); }
+.fg .psum-stand .warn { color:var(--warn-t); }
+.fg .psum-stand .bad { color:var(--bad-t); }
+.fg .psum-stand .mute { color:var(--q); }
+
+/* ── the record line — the count, and the one action ── */
+.fg .psum-rec { display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap; }
+.fg .psum-count { font-size:13px; font-weight:500; color:var(--q); }
+.fg .psum-count.ok { color:var(--ok-t); }
 /* the proportion has a shape, like the utilisation slider: a 120×4 bar, in
    the state's colour — warn until the required details are in, OK from then */
 .fg .pprog { display:block; width:120px; height:4px; border-radius:var(--r-pill); background:var(--tint-2); overflow:hidden; }
 .fg .pprog i { display:block; height:100%; border-radius:var(--r-pill); background:var(--ink); transition:width var(--t-move) var(--ease); }
 .fg .pprog i.warn { background:var(--warn); }
 .fg .pprog i.ok { background:var(--ok-t); }
-.fg .psum-g { margin-top:24px; padding-top:24px; border-top:1px solid var(--line); }
-.fg .psum-gh { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.fg .psum-h { margin:0; font-size:13px; font-weight:500; color:var(--q); }
+
+/* ── the groups ── */
+.fg .psum-pair { display:grid; grid-template-columns:1.55fr 1fr; gap:48px; align-items:start; }
+.fg .psum-g { margin-top:32px; padding-top:16px; border-top:1px solid var(--line); }
+.fg .psum-gh { display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:8px; }
+.fg .psum-h { margin:0; font-size:20px; font-weight:600; color:var(--ink); }
 .fg .psum-lnk { font-size:13px; font-weight:500; color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; border-radius:var(--r-control); }
 .fg .psum-lnk:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .psum-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px 24px; margin:0; }
-.fg .psum-c { min-width:0; display:flex; flex-direction:column; gap:4px; }
-.fg .psum-c dt { font-size:13px; font-weight:500; color:var(--q); }
-.fg .psum-c dd { margin:0; min-width:0; }
-.fg .psum-v { font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
-.fg .psum-none { font-size:14px; font-weight:500; color:var(--q); }
-.fg .psum-sub { display:block; margin-top:2px; font-size:12px; font-weight:500; color:var(--q); }
-.fg .psum-add { display:inline-flex; align-items:center; gap:8px; }
-.fg .psum-addl { font-size:14px; font-weight:600; color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; border-radius:var(--r-control); }
+
+/* ── the ledger: a label column, an answer column, a rule between rows ── */
+.fg .psum-rows { margin:0; }
+.fg .psum-row { display:grid; grid-template-columns:132px minmax(0,1fr); gap:16px; align-items:baseline; padding:12px 0; border-top:1px solid var(--line); }
+.fg .psum-row:first-child { border-top:0; }
+.fg .psum-row dt { font-size:12px; font-weight:500; color:var(--q); }
+.fg .psum-row dd { margin:0; min-width:0; }
+.fg .psum-v { font-size:16px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; }
+.fg .psum-none { font-size:16px; font-weight:500; color:var(--q); }
+.fg .psum-sub { display:block; margin-top:4px; font-size:12px; font-weight:500; color:var(--q); }
+.fg .psum-addl { font-size:16px; font-weight:600; color:var(--link); text-decoration:underline; text-underline-offset:3px; cursor:pointer; border-radius:var(--r-control); }
 .fg .psum-addl:focus-visible { outline:none; box-shadow:var(--ring); }
-.fg .psum-req { font-size:13px; font-weight:500; color:var(--warn-t); }
-.fg .psum-tiles { display:flex; flex-wrap:wrap; gap:12px; }
-.fg .psum-tile { width:220px; min-height:136px; display:flex; flex-direction:column; gap:8px; padding:12px 16px; border-radius:var(--r-card); background:var(--tint); color:var(--ink); text-align:left; cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
-.fg .psum-tile:hover { background:var(--tint-2); }
-.fg .psum-tile:focus-visible { outline:none; box-shadow:var(--ring); }
-/* a required blank wears the warn tint: the one tile that is a state, not a record */
-.fg .psum-tile.req { background:var(--warn-tint); }
-.fg .psum-tile.req:hover { background:color-mix(in srgb, var(--warn) 20%, var(--paper)); }
-.fg .psum-tile .t { font-size:16px; font-weight:600; line-height:1.2; overflow-wrap:anywhere; }
-.fg .psum-tile .s { font-size:13px; font-weight:500; color:var(--q); overflow-wrap:anywhere; }
-.fg .psum-tile .f { margin-top:auto; font-size:13px; font-weight:500; color:var(--q); }
-.fg .psum-tile .f.ok { color:var(--ok-t); }
-.fg .psum-tile .f.warn { color:var(--warn-t); }
-.fg .psum-tile .f.bad { color:var(--bad-t); }
-.fg .psum-more { margin-top:12px; }
-@media (max-width:920px){
-  .fg .psum-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .fg .pcompl { margin-left:0; flex:1 1 100%; }
+
+/* ── the tickets: a list, not a row of tiles ──
+   Two tiles in a 1000px row look unfinished at any quality, because there are
+   two. A ruled list reads as a record at one row and still reads at twelve,
+   which is what a ticket wall actually holds. Each row is a door to
+   Compliance, and the expiry is the state — quiet while the ticket is in
+   date, and the dashboard chip's own clause in its own colour once it is not. */
+.fg .psum-tix { display:grid; }
+.fg .psum-tix-r { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:24px; align-items:baseline; padding:12px 16px; margin:0 -16px; border-top:1px solid var(--line); border-radius:var(--r-control); text-align:left; color:var(--ink); cursor:pointer; transition:background-color var(--t-fast) var(--ease); }
+.fg .psum-tix-r:first-child { border-top:0; }
+.fg .psum-tix-r:hover { background:var(--tint); }
+.fg .psum-tix-r:focus-visible { outline:none; box-shadow:var(--ring); }
+.fg .psum-tix-r .t { font-size:16px; font-weight:600; overflow-wrap:anywhere; }
+.fg .psum-tix-r .s { font-size:13px; font-weight:500; color:var(--q); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.fg .psum-tix-r .e { font-size:13px; font-weight:500; color:var(--q); }
+.fg .psum-tix-r .e.ok { color:var(--ok-t); }
+.fg .psum-tix-r .e.warn { color:var(--warn-t); }
+.fg .psum-tix-r .e.bad { color:var(--bad-t); }
+.fg .psum-more { margin-top:16px; }
+/* below the pair's width the two groups stack; the ledger keeps its columns
+   until the label column stops earning its place */
+@media (max-width:1100px){
+  .fg .psum-pair { grid-template-columns:minmax(0,1fr); gap:0; }
 }
 @media (max-width:560px){
-  .fg .psum-grid { grid-template-columns:1fr; }
+  .fg .psum-row { grid-template-columns:minmax(0,1fr); gap:2px; }
+  .fg .psum-tix-r { grid-template-columns:minmax(0,1fr); gap:2px; }
 }
 
 /* ── a section, with the card chrome taken off ──
@@ -1434,6 +1477,8 @@ html[data-rail][data-ds-canvas] .fg .railtg:hover svg { }
   .fg .pbar { align-items:flex-start; }
   .fg .pident { gap:12px; }
   .fg .phid h1 { font-size:24px; }
+  /* the display size needs the room; below it the name is a screen title again */
+  .fg .psum .phid h1 { font-size:24px; }
   .fg .ppanel2 { padding:16px 12px 16px; }
   .fg .pcard2 .card2 { padding:16px 16px; }
 }

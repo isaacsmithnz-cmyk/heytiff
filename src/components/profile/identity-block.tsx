@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Plate } from "@/components/fleet/plate";
-import type { Completeness } from "@/lib/staff/completeness";
 import { PhotoBadge } from "./photo-badge";
 import type { AssignedVehicle, ProfileActions, ProfileHeader } from "./types";
 
@@ -16,7 +15,9 @@ import type { AssignedVehicle, ProfileActions, ProfileHeader } from "./types";
 
    The name and the status on one line; under them one sentence — the role,
    and since when — and the plate of the assigned vehicle, which is a door
-   into Fleet. At the row's right, the completion line (see Completion).
+   into Fleet. The completion line left this row on 2026-09-16: it is not a
+   fact about the person, it is the state of their record, and it belongs with
+   the action that fills it (see Record, in summary-tab).
 
    EVERY FACT HERE IS DERIVED and none of it is editable — which is why the
    block carries no Edit button. Editing is per-section, on the tab that owns
@@ -28,13 +29,11 @@ export function IdentityBlock({
   header,
   vehicle,
   actions,
-  completeness,
   onAddStart,
 }: {
   header: ProfileHeader;
   vehicle: AssignedVehicle | null;
   actions: Pick<ProfileActions, "onSetPhoto" | "onClearPhoto">;
-  completeness: Completeness;
   /** opens Personal's form, where the start date is set */
   onAddStart: () => void;
 }) {
@@ -73,48 +72,14 @@ export function IdentityBlock({
         <div className="sub">
           {sentence && <span>{sentence}</span>}
           {!started && (
-            <span className="psum-add">
-              <button type="button" className="psum-addl" onClick={onAddStart}>
-                Add a start date
-              </button>
-              <span className="psum-req">Required</span>
-            </span>
+            <button type="button" className="psum-addl" onClick={onAddStart}>
+              Add a start date
+            </button>
           )}
           <VehiclePlate vehicle={vehicle} />
         </div>
       </div>
 
-      <Completion c={completeness} />
-    </div>
-  );
-}
-
-/* THE COMPLETION LINE — the page's answer, at the row's right.
-
-   How many of the details the business asks for are on file, and a state word
-   only when there is a state: a warn word while a required detail is missing
-   (payroll or the law is blocked on it), the OK word once every detail is in.
-   The bar draws the proportion in the same colour — warn until the required
-   ones are in, OK from then, because "cleared to work" is the question and the
-   optional details do not change the answer. Nothing renders on the other
-   tabs: their counts say which section is short. */
-function Completion({ c }: { c: Completeness }) {
-  const cleared = c.requiredMissing === 0;
-  return (
-    <div className="pcompl">
-      {c.requiredMissing > 0 ? (
-        <b className="warn">
-          {c.requiredMissing} required {c.requiredMissing === 1 ? "detail" : "details"} missing
-        </b>
-      ) : c.complete ? (
-        <b className="ok">Profile complete</b>
-      ) : null}
-      <span>
-        {c.filled} of {c.total} on file
-      </span>
-      <span className="pprog" aria-hidden="true">
-        <i className={cleared ? "ok" : "warn"} style={{ width: `${c.percent}%` }} />
-      </span>
     </div>
   );
 }

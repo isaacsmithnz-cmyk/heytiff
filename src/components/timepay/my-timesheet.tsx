@@ -46,6 +46,7 @@ import {
   dowOf,
   fmtH,
   fmtHval,
+  expectedDay,
   expectsWork,
   isOver,
   isWeekendRate,
@@ -537,7 +538,11 @@ function DayEditor({
     in: start,
     out: end,
   });
-  const short = kind === "work" && expected && derived < settings.standard;
+  /* Short of the day THEY work, not the day the workspace does — see
+     `expectedDay`. The two are the same number for anyone on standard hours,
+     and a part-timer's own six-hour day was reported short of eight. */
+  const ownDay = expectedDay(ctx, settings);
+  const short = kind === "work" && expected && derived < ownDay;
 
   /* Cancel puts the day back to what is stored, which is the only honest
      meaning of the word next to an unsaved edit. */
@@ -598,7 +603,14 @@ function DayEditor({
             type="button"
             className="mts2-ph-worked"
             disabled={busy}
-            onClick={() => setWorkedHoliday(true)}
+            /* It is the edit. The press unlocked the panel and nothing
+               else, so the day sat there priced at double time with no Save
+               to press — the premium was on screen and one navigation away
+               from being lost. Saying you worked it IS the change. */
+            onClick={() => {
+              setWorkedHoliday(true);
+              touch();
+            }}
           >
             I worked this public holiday
           </button>
@@ -737,7 +749,7 @@ function DayEditor({
             <Icon name="clock" size={13} />
             <span>
               <b>{fmtH(derived)}h</b> on this day
-              {short && `, short of your ${fmtHval(settings.standard)} day — your manager will see it`}
+              {short && `, short of your ${fmtHval(ownDay)} day — your manager will see it`}
             </span>
           </div>
         </>
@@ -1162,6 +1174,7 @@ export function MyTimesheet({
     today,
     through,
     workDays,
+    dayHours: me.dayHours,
     holidays: me.holidayDays,
     certMissing: me.certMissing,
   };
@@ -1191,8 +1204,16 @@ export function MyTimesheet({
      and the only thing it opens is itself. */
   const [otDay, setOtDay] = useState<number | null>(null);
   const salariedRest = salaried && otDay !== selected;
-  // a closed period is history: you can read it, you can't rewrite it
-  const locked = frozenSent || !period.live || salariedRest;
+  /* A closed period is history: you can read it, you can't rewrite it — with
+     one exception, and it is the whole point of sending a sheet back. The
+     question can arrive after the period ends, and a sheet the approver
+     reopened has to be answerable wherever it sits. Locked with the rest of
+     history, it could be read and never answered: no editor, no Submit again,
+     and a chip on the dashboard asking for an answer that had nowhere to go.
+     The server has always accepted both writes — `saveDay` and `submitWeek`
+     ask whether the sheet is editable, not whether its period is current. */
+  const reopened = sheet.status === "sent_back";
+  const locked = frozenSent || (!period.live && !reopened) || salariedRest;
   /* The ONE place the period is named, and everything below says it the same
      way — the heading, the status line, the locked note and the submit button
      all used to word this independently, which is how a monthly workspace
@@ -1304,7 +1325,7 @@ export function MyTimesheet({
      workspace's time. For a casual the last day to come is the submit day
      itself, so there is no window to send it sooner and the line does not
      offer one. */
-  const canSend = !sent && period.live && !closedAtSend && !holdForDays && d.entries > 0;
+  const canSend = !sent && (period.live || reopened) && !closedAtSend && !holdForDays && d.entries > 0;
   const lastAhead = lastDayToCome(ctx);
   // the day the sheet sends on — the server's lock reads the same definition
   const submitAt = submitDayIndex(week, settings.submitDay);
@@ -1326,10 +1347,10 @@ export function MyTimesheet({
      left here starts at the card.
 
      `mts2` still has to be an ancestor (two rules key off it), so it rides on
-     the card. The `locked` class went with the rest: every rule reading it is
-     `.fg .tpr.locked .capprove / .cedit / .allbtn / .qform`, and all four of
-     those elements belong to the APPROVER's screen. It has never matched
-     anything here.
+     the card. The `locked` class went with the rest, and there is nothing left
+     for it to do anywhere: the rule that read it on the approver's screen —
+     `.fg .tpr.locked .capprove / .cedit / .allbtn / .qform` — is deleted, for
+     the reason recorded there.
 
      The status chip went too. It sat in the top-right corner saying "Draft"
      while the rail card three inches away said "Draft" against the totals it

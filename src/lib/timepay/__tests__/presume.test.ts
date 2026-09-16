@@ -21,7 +21,9 @@ import { absenceMap, suggestedHours, type LeaveRequest } from "@/lib/timepay/lea
 
      · today is NOT presumed until today is over
      · a weekend is never presumed onto, by anything
-     · a stored entry always wins, including a short one
+     · a stored entry wins, including a short one — except a day marked
+       "Off", which an approved booking replaces, because Off and the booking
+       are the same fact and only one of them pays
      · a public holiday beats booked leave, so entitlement isn't spent on a
        day the business was closed anyway
      · unpaid leave lands as `off`, never as paid hours */
@@ -158,6 +160,37 @@ describe("days the business already knows about", () => {
     });
     expect(days[5]).toEqual({ t: "empty" });
     expect(sources[5]).toBe("none");
+  });
+
+  /* THE DAY THE SCREEN ASKS FOR. The Off switch's own sentence sends people
+     to My leave to book the day "so it pays" — and the booking then landed
+     under a stored Off that paid nothing, drew the balance anyway, and told
+     the approver the day was "not worked, and not booked as leave". */
+  it("an approved sick day replaces a day its owner had marked Off", () => {
+    const off: DayEntry = { t: "off" };
+    const { days, sources } = run([...EMPTY_WEEK.slice(0, 1), off, ...EMPTY_WEEK.slice(2)], {
+      absences: new Map([["2026-06-30", { t: "sick", h: 8, id: "r1" }]]),
+    });
+    expect(days[1]).toEqual({ t: "sick", h: 8 });
+    expect(sources[1]).toBe("leave");
+  });
+
+  it("leaves an Off day alone when the booking is unpaid leave — same day either way", () => {
+    const off: DayEntry = { t: "off" };
+    const { days, sources } = run([...EMPTY_WEEK.slice(0, 1), off, ...EMPTY_WEEK.slice(2)], {
+      absences: new Map([["2026-06-30", { t: "off", id: "r1" }]]),
+    });
+    expect(days[1]).toEqual({ t: "off" });
+    expect(sources[1]).toBe("entered");
+  });
+
+  it("never lets a booking overwrite a day with WORK on it", () => {
+    const worked: DayEntry = { t: "work", in: "7:00 AM", out: "3:00 PM", h: 8 };
+    const { days, sources } = run([...EMPTY_WEEK.slice(0, 1), worked, ...EMPTY_WEEK.slice(2)], {
+      absences: new Map([["2026-06-30", { t: "leave", h: 8, id: "r1" }]]),
+    });
+    expect(days[1]).toEqual(worked);
+    expect(sources[1]).toBe("entered");
   });
 
   it("a person's own entry still beats both calendars", () => {

@@ -117,6 +117,9 @@ export type StaffWeek = {
       screen must derive each person through their OWN pattern — a shared
       Mon–Fri ctx showed every casual five "missing" days a week. */
   workDays?: number[];
+  /** their own normal day in hours, resolved by the loader beside
+      `workDays` — the length a short day is judged against. */
+  dayHours?: number;
   /** how their pay is computed. A salaried week pays the same whatever the
       sheet says; recorded hours stay hours, and overtime pays (or doesn't)
       per the org's salariedOtPaid rule. */
@@ -147,6 +150,12 @@ export type WeekCtx = {
   week: WeekDay[];
   today: number;
   workDays?: number[];
+  /** What this person's own normal day comes to, in hours. A short day is
+      measured against it: somebody on 9:00–3:00 is not short of the
+      workspace's eight-hour day, they are short of their own six. Absent
+      means "use the workspace standard", which is right for anyone who has
+      not set their own hours. */
+  dayHours?: number;
   /** The last index whose day is OVER — the same number the presumption uses.
       Absent means "derive it from `today`", which is only right for a live
       period; a closed one must pass it explicitly (every day of it is over). */
@@ -418,6 +427,18 @@ export const DEFAULT_WORK_DAYS = [0, 1, 2, 3, 4];
 /** Was this person expected at work on this day of the week? Defaults to
     Mon–Fri when a context doesn't carry a roster, so every existing caller
     reads exactly as it did. */
+/** The day this person was expected to work, in hours: their own normal day
+    where they have one, the workspace's standard day otherwise.
+
+    THE TWO USED TO BE THE SAME NUMBER BY ASSUMPTION. The week is filled in
+    from the person's own hours, and then judged against the workspace's — so
+    a part-timer on six-hour days had every day of every week reported "under
+    day: 6h of 8h", and every week of theirs landed in the approver's review
+    pile. The presumption and the judgement read one number now. Overtime is
+    deliberately NOT moved onto it: what counts as a long day is an award
+    question about the workspace, not about one person's roster. */
+export const expectedDay = (ctx: WeekCtx, s: Settings): number => ctx.dayHours ?? s.standard;
+
 export const expectsWork = (ctx: WeekCtx, dow: number): boolean =>
   (ctx.workDays ?? DEFAULT_WORK_DAYS).includes(dow);
 
@@ -684,9 +705,10 @@ export function derive(staff: StaffWeek, s: Settings, ctx: WeekCtx): Derived {
            four-hour Wednesday isn't short of anything — they were rostered for
            four hours — and neither is a part-timer's day off that they picked
            up anyway. */
-        if (expectsWork(ctx, dow) && d.h < s.standard) {
+        const expected = expectedDay(ctx, s);
+        if (expectsWork(ctx, dow) && d.h < expected) {
           under++;
-          bullets.push(dlab(i) + " — under day: " + fmt(d.h) + "h of " + fmt(s.standard) + "h");
+          bullets.push(dlab(i) + " — under day: " + fmt(d.h) + "h of " + fmt(expected) + "h");
         }
       }
     } else if (d.t === "sick") {
@@ -957,6 +979,24 @@ export function presumeDays(
     const dow = dowOf(ctx.week[i]);
 
     if (entry.t !== "empty") {
+      /* AN APPROVED BOOKING OUTRANKS A DAY MARKED "OFF" — and nothing else.
+         "Off" says "I wasn't here"; the booking says why, and pays for it.
+         They are the same fact with the money attached to one of them, and
+         the screen that offers Off is the screen that sends you to My leave
+         to book it — so a saved Off was quietly cancelling the booking it
+         had just asked for. The day paid nothing and the balance was still
+         drawn, on both screens, with the approver told it was "not worked,
+         and not booked as leave".
+
+         A day with WORK on it still wins, always: that is a statement about
+         what happened, and no booking may overwrite it. Unpaid leave arrives
+         as `off` and changes nothing here — it is the same day either way. */
+      const booked = input.absences.get(date);
+      if (entry.t === "off" && booked && booked.t !== "off") {
+        days.push({ t: booked.t, h: booked.h });
+        sources.push("leave");
+        return;
+      }
       days.push(entry);
       sources.push("entered");
       return;
@@ -1035,7 +1075,7 @@ export function dayClass(d: DayEntry, i: number, s: Settings, ctx: WeekCtx): Day
   const sp = splitDay(d.h, dow, s, d.t === "work" ? { in: d.in, out: d.out } : {});
   if (sp.o15 || sp.o2) return "over";
   /* short days apply to EXPECTED days only, matching derive's review flag */
-  return expected && d.h < s.standard ? "under" : "std";
+  return expected && d.h < expectedDay(ctx, s) ? "under" : "std";
 }
 
 export const initials = (n: string): string =>

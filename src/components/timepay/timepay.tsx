@@ -159,6 +159,45 @@ function PerDay({ s, ctx }: { s: StaffWeek; ctx: WeekCtx }) {
   );
 }
 
+/* THE QUESTION, wherever it is asked from. It was written into the review
+   card, which is the shape a week with something flagged takes — so a clean
+   week could only be approved, and "send it back first" (what approving leave
+   into a submitted period tells you to do) was advice with no button behind
+   it anywhere on the screen. */
+function SendBackForm({
+  name,
+  onSend,
+  onCancel,
+}: {
+  name: string;
+  onSend: (question: string) => void;
+  onCancel: () => void;
+}) {
+  const [question, setQuestion] = useState("");
+  return (
+    <div className="qform">
+      <div className="ql">
+        <Icon name="send" size={14} />
+        Send back to {name.split(" ")[0]} — ask them to explain
+      </div>
+      <div className="qrow">
+        <input
+          placeholder="e.g. Confirm the overtime on Tue — what ran late?"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+        />
+        <button className="qsend" disabled={!question.trim()} onClick={() => onSend(question)}>
+          <Icon name="send" size={13} />
+          Send
+        </button>
+        <button className="qcancel" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ReviewCard({
   row,
   settings,
@@ -178,7 +217,6 @@ function ReviewCard({
   const { s, d } = row;
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [question, setQuestion] = useState("");
   const sent = row.status === "sent";
 
   return (
@@ -212,34 +250,14 @@ function ReviewCard({
           )}
         </div>
       </div>
-      <div className="qform">
-        <div className="ql">
-          <Icon name="send" size={14} />
-          Send back to {s.name.split(" ")[0]} — ask them to explain
-        </div>
-        <div className="qrow">
-          <input
-            placeholder="e.g. Confirm the overtime on Tue — what ran late?"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
-          <button
-            className="qsend"
-            disabled={!question.trim()}
-            onClick={() => {
-              setSending(false);
-              onSendBack(s.id, question);
-              setQuestion("");
-            }}
-          >
-            <Icon name="send" size={13} />
-            Send
-          </button>
-          <button className="qcancel" onClick={() => setSending(false)}>
-            Cancel
-          </button>
-        </div>
-      </div>
+      <SendBackForm
+        name={s.name}
+        onSend={(q) => {
+          setSending(false);
+          onSendBack(s.id, q);
+        }}
+        onCancel={() => setSending(false)}
+      />
       <div className="cbody">
         <div className="cleft">
           {d.bullets.length > 0 && (
@@ -316,17 +334,21 @@ function CompactRow({
   settings,
   ctx,
   onApprove,
+  onSendBack,
   canApprove,
 }: {
   row: Row;
   settings: Settings;
   ctx: WeekCtx;
   onApprove: (staffId: string) => void;
+  onSendBack: (staffId: string, question: string) => void;
   canApprove: boolean;
 }) {
   const { s, d } = row;
   const done = row.status === "approved";
+  const [sending, setSending] = useState(false);
   return (
+    <div className={`crowwrap${sending ? " sending" : ""}`}>
     <div className={`crow${done ? " done" : ""}`}>
       <Avatar name={s.name} />
       <div className="who">
@@ -353,7 +375,27 @@ function CompactRow({
             <Icon name="check" size={14} sw={2.6} />
             Approve
           </button>
+          {/* A WEEK WITH NOTHING FLAGGED IS STILL A WEEK YOU CAN QUESTION —
+              and it is the only way back for the person who wrote it. Leave
+              approved into a submitted period is refused until the sheet
+              comes back, and an ordinary fortnight of presumed days is
+              exactly the shape that never carried this button. */}
+          <button className="cedit sendback" onClick={() => setSending(true)}>
+            <Icon name="send" size={14} />
+            Send back
+          </button>
         </>
+      )}
+    </div>
+      {sending && (
+        <SendBackForm
+          name={s.name}
+          onSend={(q) => {
+            setSending(false);
+            onSendBack(s.id, q);
+          }}
+          onCancel={() => setSending(false)}
+        />
       )}
     </div>
   );
@@ -444,6 +486,7 @@ export function TimePay({
         const rowCtx: WeekCtx = {
           ...ctx,
           workDays: s.workDays ?? ctx.workDays,
+          dayHours: s.dayHours,
           holidays: s.holidayDays,
           certMissing: s.certMissing,
         };
@@ -488,19 +531,22 @@ export function TimePay({
      and the tab row all live in `timepay/layout.tsx` now, so they survive a
      switch to Leave or Expenses instead of being rebuilt with it.
 
-     `locked` has to stay on an element that ALSO carries `tpr` — every rule
-     reading it is `.fg .tpr.locked .capprove / .cedit / .allbtn / .qform`, all
-     four of which are on this screen and genuinely hidden by it when a period
-     is closed. So this wrapper re-declares `tpr`, which costs nothing: the
-     class only sets custom properties and tabular numerals, and re-declaring
-     them on a descendant is a no-op.
+     THE LOCK ON A CLOSED PERIOD IS GONE, and the class with it. It hid
+     Approve, Send back, Approve all and the question box on any period that
+     was not the current one — so a sheet that sent itself on Sunday could not
+     be approved from Monday, and a week's send-back could not be asked for
+     once the week was over. Reading history is not the same as signing it
+     off: an unapproved week stays unapproved until somebody decides, whenever
+     that is. An approved row shows no buttons anyway, and the server checks
+     `approvals` on every write, so nothing is loosened by letting the queue
+     stay reachable.
 
      THE GEAR MOVED INTO THE PERIOD BAR. It lived in the page heading, which is
      the layout's now — and it can't go there, because the settings modal is
      client state this component owns. The period row is where the screen's
      other controls already are. */
   return (
-    <div className={`tpr${period.live ? "" : " locked"}`}>
+    <div className="tpr">
           <div className="wb2-card tp-card">
             <div className="wknav">
                 <button
@@ -679,7 +725,7 @@ export function TimePay({
                 </button>
               </div>
               {ready.map((r) => (
-                <CompactRow key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} canApprove={canApprove} />
+                <CompactRow key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
               ))}
             </div>
           )}
@@ -691,7 +737,7 @@ export function TimePay({
                 <span className="ln"></span>
               </div>
               {approved.map((r) => (
-                <CompactRow key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} canApprove={canApprove} />
+                <CompactRow key={r.s.id} row={r} settings={settings} ctx={r.ctx} onApprove={approve} onSendBack={sendBack} canApprove={canApprove} />
               ))}
             </div>
           )}

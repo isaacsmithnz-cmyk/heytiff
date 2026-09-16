@@ -168,6 +168,7 @@ export async function loadMyTimesheet(requested?: string) {
     me: {
       ...me,
       days: presumed.days,
+      dayHours: presumed.dayHours,
       holidayDays: presumed.holidayDays,
       certMissing: presumed.certMissing,
     },
@@ -282,6 +283,7 @@ export async function loadTimepay(opts: { pay: boolean }, requested?: string) {
     return {
       ...s,
       days: r.days,
+      dayHours: r.dayHours,
       workDays: r.workDays,
       holidayDays: r.holidayDays,
       certMissing: r.certMissing,

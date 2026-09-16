@@ -65,7 +65,8 @@ import {
 import { roomLoadKw, type RoomObj } from "@/lib/studio/loads-room";
 import { capacityFit, type UnitFit } from "@/lib/studio/fit";
 import { OVERSIZE_CAP } from "@/lib/studio/select";
-import { isAirCapable } from "@/lib/studio/modules";
+import { builderEnabled, isAirCapable } from "@/lib/studio/modules";
+import { allocationsOf, hasAllocations } from "@/lib/studio/allocations";
 import { attachOf } from "@/lib/studio/graph";
 import { anchorFloating, dodgeSlot, type Size } from "@/lib/studio/anchor";
 import {
@@ -814,10 +815,14 @@ export function StudioCanvas({
 
   /* the canvas is scoped to the ACTIVE system — switching systems re-scopes
      the whole canvas ("System 2 resets the canvas"). Rooms, units, risers and
-     runs all belong to a system now. */
+     runs all belong to a system now.
+     With the system builder on, the plan is one house: every system's units
+     and runs show at once, and rooms belong to the plan, not a system. */
+  const builder = builderEnabled();
   const inScope = useCallback(
-    (o: DesignObject) => o.floorId === floor.id && o.systemId === activeSystemId,
-    [floor.id, activeSystemId]
+    (o: DesignObject) =>
+      o.floorId === floor.id && (builder || o.systemId === activeSystemId),
+    [floor.id, activeSystemId, builder]
   );
 
   /* rooms render FLOOR-WIDE (all systems) so another system's spaces are
@@ -842,13 +847,15 @@ export function StudioCanvas({
 
   /** served by the active system (drawn or adopted) — rendered full-strength */
   const roomServed = useCallback(
-    (r: DesignObject) => r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
-    [activeSystemId, adoptedRoomIds]
+    (r: DesignObject) =>
+      builder || r.systemId === activeSystemId || adoptedRoomIds.has(r.id),
+    [activeSystemId, adoptedRoomIds, builder]
   );
-  /** drawn by the active system — the only rooms it may move/reshape/erase */
+  /** drawn by the active system — the only rooms it may move/reshape/erase
+      (with the builder, a room is the plan's and anyone may edit it) */
   const roomEditable = useCallback(
-    (r: DesignObject) => r.systemId === activeSystemId,
-    [activeSystemId]
+    (r: DesignObject) => builder || r.systemId === activeSystemId,
+    [activeSystemId, builder]
   );
 
   const roomPoints = useCallback(
@@ -1805,15 +1812,17 @@ export function StudioCanvas({
     (points: Point[], shape: "rect" | "poly") => {
       const id = newId("obj");
       onMutate((d) => {
-        // rooms belong to the active system (type-first flow); scoped per system
+        // rooms belong to the active system (type-first flow); scoped per
+        // system. With the builder they belong to the plan: no system, and
+        // numbered across the whole design.
         const n =
           d.objects.filter(
-            (o) => o.type === "room" && o.systemId === activeSystemId
+            (o) => o.type === "room" && (builder || o.systemId === activeSystemId)
           ).length + 1;
         const room: DesignObject = {
           id,
           type: "room",
-          systemId: activeSystemId,
+          systemId: builder ? null : activeSystemId,
           floorId: floor.id,
           geometry: { kind: "polygon", points },
           plane: "room",
@@ -1831,7 +1840,7 @@ export function StudioCanvas({
       onSelect(id);
       onToolDone(); // back to select so the corners and body drag
     },
-    [onMutate, floor.id, activeSystemId, onSelect, onToolDone]
+    [onMutate, floor.id, activeSystemId, onSelect, onToolDone, builder]
   );
 
   /** Save: pin the room to the plan. A fresh room goes on to wall-marking; a
@@ -2218,6 +2227,46 @@ export function StudioCanvas({
   /* ── Stage-4 document intents ── */
   const addUnit = useCallback(
     (at: Point) => {
+      /* a builder unit from the tray: it keeps its own id, system and room —
+         the builder decided the room, so where it lands never changes it */
+      if (placing?.allocationId && placing.systemId) {
+        const p = placing;
+        onMutate((d) => {
+          if (d.objects.some((o) => o.id === p.allocationId)) {
+            return {
+              ...d,
+              objects: d.objects.map((o) =>
+                o.id === p.allocationId
+                  ? { ...o, floorId: floor.id, geometry: { kind: "point" as const, at } }
+                  : o
+              ),
+            };
+          }
+          return {
+            ...d,
+            objects: [
+              ...d.objects,
+              {
+                id: p.allocationId!,
+                type: "unit",
+                systemId: p.systemId!,
+                floorId: floor.id,
+                geometry: { kind: "point", at },
+                plane: p.role === "odu" ? "external-ground" : "room",
+                props: {
+                  role: p.role,
+                  model: p.model,
+                  widthMm: p.widthMm,
+                  depthMm: p.depthMm,
+                  ...(p.roomId ? { roomId: p.roomId } : {}),
+                },
+              } satisfies DesignObject,
+            ],
+          };
+        });
+        onPlaced?.();
+        return;
+      }
       if (!placing || !activeSystemId) return;
       onMutate((d) => {
         /* an IDU dropped inside a room is ATTRIBUTED to it (units → spaces);
@@ -3066,12 +3115,19 @@ export function StudioCanvas({
       if (at.x !== drag.orig.x || at.y !== drag.orig.y) {
         onMutate((d) => {
           const moved = d.objects.find((o) => o.id === id);
+          /* a unit the builder allocated keeps the room it was built for —
+             moving it on the plan only moves it (spec: placing never changes
+             the room) */
+          const movedSys = moved?.systemId ? d.systems.find((s) => s.id === moved.systemId) : undefined;
+          const allocated =
+            movedSys != null && hasAllocations(movedSys) && allocationsOf(movedSys).some((a) => a.id === id);
           /* moving an IDU re-derives its room attribution (unless the user
              pinned it manually via roomLock) — and adopts a foreign room the
              same way a fresh drop does. Outside every room, a split falls
              back to its lens room, so nudging a bulkhead along the hallway
              never silently un-serves the room it was placed for. */
           const restamp =
+            !allocated &&
             moved?.type === "unit" &&
             moved.props.role === "idu" &&
             !moved.props.roomLock;
@@ -3310,7 +3366,9 @@ export function StudioCanvas({
      every room reads how the armed capacity sits against its OWN load —
      the browser's ranking made spatial — and the room that would take the
      drop (containment, else the split's lens room) carries the verdict. ── */
-  const armedIdu = tool === "place" && placing != null && placing.role === "idu";
+  /* a tray unit already has its room, so no room is painted as its target */
+  const armedIdu =
+    tool === "place" && placing != null && placing.role === "idu" && !placing.allocationId;
   const armedLens = useMemo(
     () => (armedIdu ? lensRoom(doc, activeSystemId) : null),
     [armedIdu, doc, activeSystemId]

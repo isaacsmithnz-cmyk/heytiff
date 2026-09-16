@@ -112,11 +112,13 @@ describe("systemComponents — charge with pre-charge + run length", () => {
   const IDU = "PLA-M100EA2-A";
   const ODU = "PUZ-M100VKA-A";
 
-  it("totals pre-charge alone when there is no run drawn", () => {
+  it("totals pre-charge alone when there is no run drawn, and never claims no top-up", () => {
     const { doc, system } = docWith({ pairIdu: IDU, pairOdu: ODU });
     const charge = systemComponents(doc, pack, system, "cooling").find((r) => r.id === "charge")!;
     expect(charge.value).toBe("3.10 kg");
-    expect(charge.sub).toBe("Pre-charged — no top-up");
+    // the top-up turns on the run length (30 m free), and no run is drawn
+    expect(charge.sub).toBe("Pre-charged, pipe not drawn");
+    expect(charge.charge?.topupKg).toBeNull();
   });
 
   it("reports unknown run length when a run is drawn but the floor is uncalibrated", () => {

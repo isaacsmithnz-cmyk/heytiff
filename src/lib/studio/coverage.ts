@@ -300,3 +300,61 @@ export function roomCoverage(
     capped,
   };
 }
+
+/* ── one system over the rooms it covers ──
+   The figure the panel's ring and the design sheet both read, so the two can
+   never disagree. A room that two systems cover (two splits doing one big
+   living room) is carried by both: each gets the part of the room's load in
+   proportion to what it gives the room, so the room's load is counted once
+   across the job and each system reads as the room does. */
+
+export interface SystemRoomShare {
+  room: RoomObj;
+  /** the part of the room's load this system carries: all of it when it covers
+      the room alone; null when the room has no load */
+  loadKw: number | null;
+  /** what this system gives the room: its heads' ratings, capped at its outdoor */
+  coverKw: number;
+  /** this system's units in the room */
+  contributors: CoverageContributor[];
+}
+
+export interface SystemCover {
+  /** the rooms this system has a unit in */
+  rooms: SystemRoomShare[];
+  /** Σ the rooms' shares; null while none of them has a load */
+  loadKw: number | null;
+  coverKw: number;
+  /** cover against load; null when the load is unknown */
+  pct: number | null;
+}
+
+export function systemCover(
+  doc: DesignDocument,
+  pack: DataPack | null,
+  sys: DesignSystem,
+  basis: SizingBasis
+): SystemCover {
+  const rooms: SystemRoomShare[] = [];
+  for (const o of doc.objects) {
+    if (!isRoom(o)) continue;
+    const cov = roomCoverage(doc, pack, o, basis);
+    const mine = cov.contributors.filter((c) => c.systemId === sys.id);
+    if (mine.length === 0) continue;
+    const cap = cov.capped.find((c) => c.systemId === sys.id);
+    const coverKw = cap ? cap.oduKw : mine.reduce((a, c) => a + c.kw, 0);
+    const systemsHere = new Set(cov.contributors.map((c) => c.systemId)).size;
+    const loadKw =
+      cov.loadKw == null
+        ? null
+        : cov.coveredKw > 0
+          ? cov.loadKw * (coverKw / cov.coveredKw)
+          : cov.loadKw / systemsHere;
+    rooms.push({ room: o, loadKw, coverKw, contributors: mine });
+  }
+  const loads = rooms.filter((r) => r.loadKw != null);
+  const loadKw = loads.length ? loads.reduce((a, r) => a + (r.loadKw ?? 0), 0) : null;
+  const coverKw = rooms.reduce((a, r) => a + r.coverKw, 0);
+  const pct = loadKw != null && loadKw > 0 ? Math.round((coverKw / loadKw) * 100) : null;
+  return { rooms, loadKw, coverKw, pct };
+}

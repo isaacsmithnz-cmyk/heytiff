@@ -263,8 +263,11 @@ function chargeRow(
   const lengthM = totalPipeLengthM(buildSystemGraph(doc.objects, doc.floors, system.id));
 
   const precharge = odu.precharged_kg ?? null;
+  /* a top-up that depends on the run can't be known before a run is drawn —
+     only a rule that never needs one can answer with no pipe on the plan */
+  const notDrawn = charge != null && !hasRuns && charge.method !== "none_required";
   let topupKg: number | null = null;
-  if (charge) {
+  if (charge && !notDrawn) {
     const grams = evaluateAdditionalCharge(charge, {
       liquidLengthM: lengthM ?? 0,
       ...(liquidSizeMm != null ? { liquidSizeMm } : {}),
@@ -283,7 +286,9 @@ function chargeRow(
 
   // sub: describe the pre-charge / top-up situation honestly
   let sub: string;
-  if (charge && hasRuns && lengthM == null) {
+  if (notDrawn) {
+    sub = "Pre-charged, pipe not drawn";
+  } else if (charge && hasRuns && lengthM == null) {
     sub = "Pre-charged, run length unknown";
   } else if (topupKg != null && topupKg > 0) {
     sub = `Pre-charged + ${topupKg.toFixed(2)} kg top-up`;

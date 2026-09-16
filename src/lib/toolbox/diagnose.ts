@@ -325,6 +325,20 @@ function pattern(s: Level, d: Level, duty: Duty): Pattern {
   }
 }
 
+/* WHAT "NORMAL" MEANS HERE, IN ONE PLACE.
+
+   The tool carried two answers to the same question: a card saying the typical
+   AC targets are 4–10 K superheat and 5–8 K subcooling, and a quadrant that
+   called anything from 2–12 / 2–10 "the charge looks right". Eleven degrees of
+   superheat against three of subcooling was flagged by the card beside it and
+   cleared by the verdict.
+
+   The quadrant's band stays WIDE on purpose — it is what stops a marginal
+   reading being announced as a leak — so what changes is the claim it makes:
+   nothing in that band is declared right, it is declared not clearly wrong,
+   against the figures this tool prints. */
+export const CHARGE_TARGET = { sh: [4, 10], sc: [5, 8] } as const;
+
 /** SH/SC quadrant — refines the pressure story when line temps are given. */
 function chargePattern(sh: number | null, sc: number | null): string | null {
   if (sh === null || sc === null) return null;
@@ -337,7 +351,7 @@ function chargePattern(sh: number | null, sc: number | null): string | null {
   if (shHigh && scHigh) return "High superheat with high subcooling — consistent with a restriction between condenser and evaporator.";
   if (shLow && scLow) return "Low superheat with low subcooling — the compressor may not be pumping, or the valve is overfeeding.";
   if (!shHigh && !shLow && !scHigh && !scLow)
-    return "Superheat and subcooling both sit in the normal range — the charge looks right.";
+    return `Neither superheat nor subcooling reads clearly high or low. Typical targets are ${CHARGE_TARGET.sh[0]}–${CHARGE_TARGET.sh[1]} K superheat and ${CHARGE_TARGET.sc[0]}–${CHARGE_TARGET.sc[1]} K subcooling; check the manufacturer's figures for this unit before adjusting anything.`;
   return null;
 }
 

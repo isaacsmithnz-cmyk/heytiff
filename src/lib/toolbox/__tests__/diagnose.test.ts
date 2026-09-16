@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 /* Ambient-driven pressure estimation + the pressure-pattern fault matrix. */
 
 import {
@@ -9,8 +11,7 @@ import {
   EVAPORATOR_SPLIT_K,
   HP_EVAP_SPLIT_K,
   REFRIG_EVAP_SPLIT_K,
-  type DiagnoseInput,
-} from "../diagnose";
+  type DiagnoseInput, CHARGE_TARGET } from "../diagnose";
 import { satPressureKpa } from "../refrigerant";
 
 describe("estimatePressures", () => {
@@ -174,10 +175,30 @@ describe("diagnose — superheat / subcool refinement", () => {
     expect(d.chargeNote).toMatch(/overcharge/i);
   });
 
-  it("both normal confirms the charge looks right", () => {
+  /* IT USED TO SAY "the charge looks right", and the card beside it disagreed:
+     the tool prints 4–10 K superheat and 5–8 K subcooling as the typical
+     targets, while this quadrant treats 2–12 / 2–10 as normal. Eleven degrees
+     of superheat against three of subcooling was flagged by one and cleared by
+     the other. The wide band stays — it is what stops a marginal reading being
+     announced as a leak — and the claim narrows to what it can support. */
+  it("says neither reading is clearly wrong, and names the targets it prints", () => {
     const base = readingAt(0, 0);
     const d = diagnose({ ...base, suctionLineC: 14, liquidLineC: 43 });
-    expect(d.chargeNote).toMatch(/charge looks right/i);
+    expect(d.chargeNote).toMatch(/Neither superheat nor subcooling reads clearly high or low/i);
+    expect(d.chargeNote).not.toMatch(/charge looks right/i);
+    expect(d.chargeNote).toContain(`${CHARGE_TARGET.sh[0]}–${CHARGE_TARGET.sh[1]} K superheat`);
+    expect(d.chargeNote).toContain(`${CHARGE_TARGET.sc[0]}–${CHARGE_TARGET.sc[1]} K subcooling`);
+  });
+
+  /* The one number the tool states, stated once: the card and the verdict read
+     the same constant, so they cannot drift apart again. */
+  it("prints the same targets on the tips card", () => {
+    const src = fs.readFileSync(
+      path.join(process.cwd(), "src/components/toolbox/running-pressures.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("CHARGE_TARGET.sh[0]");
+    expect(src).not.toMatch(/superheat ~4–10 K/);
   });
 });
 

@@ -158,9 +158,26 @@ export function Library({
   );
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
+  /* PARKED DOCUMENTS RESUME THEMSELVES, which is what three screens have
+     always said they do ("Out of pages — resumes 1 Oct", "it resumes on its
+     own"). Nothing ever restarted one: the queue took `processing` rows only,
+     the ingest route has always accepted a paused document and re-planned it,
+     and the two never met. So a manual that ran out of pages mid-read sat out
+     of every answer until a manager noticed the row and pressed Resume — and
+     staff, who have no button, were told it would come back by itself.
+
+     The allowance is the condition, not the date: `pagesRemaining` is what the
+     ingest loop itself checks, so queueing on anything else would park them
+     again on the first batch. */
+  const hasPages = quota ? quota.pagesAllowed === null || quota.pagesUsed < quota.pagesAllowed : false;
   const processing = useMemo(
-    () => (canManage ? docs.filter((d) => d.status === "processing").map((d) => d.id) : []),
-    [docs, canManage]
+    () =>
+      canManage
+        ? docs
+            .filter((d) => d.status === "processing" || (d.status === "paused" && hasPages))
+            .map((d) => d.id)
+        : [],
+    [docs, canManage, hasPages]
   );
   const ingest = useKbIngest(processing);
   const ocr = useKbOcr();
@@ -868,6 +885,9 @@ function EditModal({
   const [known, setKnown] = useState<KbTagRef[]>(tags);
   const [error, setError] = useState<string | null>(null);
   const [busy, start] = useTransition();
+  /* Written from somebody's note rather than uploaded: no shelf to move to,
+     and no file behind it. */
+  const isFieldNote = doc.category === "field";
 
   const save = () =>
     start(async () => {
@@ -902,16 +922,24 @@ function EditModal({
               </span>
               <input className="fl-i" value={title} onChange={(e) => setTitle(e.target.value)} />
             </label>
-            <label className="fl-f">
-              <span>Category</span>
-              <select className="fl-i" value={category} onChange={(e) => setCategory(e.target.value)}>
-                {KB_CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* A FIELD NOTE HAS NO SHELF TO MOVE TO. It was written from
+                somebody's note, not uploaded, and the server refuses to file
+                anything else as one — so the picker offered five choices of
+                which four were refusals, and Save resent the unchanged
+                category and was refused by it. Every edit of a field note
+                failed, every time, on a field nobody had touched. */}
+            {!isFieldNote && (
+              <label className="fl-f">
+                <span>Category</span>
+                <select className="fl-i" value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {KB_CATEGORIES.filter((c) => c.key !== "field").map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className="fl-f">
               <span>Source</span>
               <input
@@ -986,8 +1014,9 @@ function DeleteModal({ doc, onClose }: { doc: KbLibraryDoc; onClose: () => void 
         <div className="fl-mb">
           {error && <div className="fl-err">{error}</div>}
           <p className="tk-confirm">
-            The file and everything Tiff read out of it are deleted. Answers that used to cite this
-            document will stop doing so — there is no undo.
+            {doc.category === "field"
+              ? "This note and everything Tiff read out of it are deleted. Answers that used to cite it will stop doing so — there is no undo."
+              : "The file and everything Tiff read out of it are deleted. Answers that used to cite this document will stop doing so — there is no undo."}
           </p>
           <div className="fl-foot">
             <button className="fl-btn ghost" onClick={onClose}>

@@ -119,7 +119,9 @@ export async function kbDocUrl(
   if (!data) return { ok: false, error: GONE };
 
   const ref = String(data.storage_ref ?? "");
-  if (!ref || !kbRefIsOrgs(ref, orgId))
+  // a field note has no file; saying it isn't yours is a different answer
+  if (!ref) return { ok: false, error: "That one was written from a note — there's no file to open." };
+  if (!kbRefIsOrgs(ref, orgId))
     return { ok: false, error: "That file doesn't belong to this organisation." };
 
   const url = await signKbRef(ref);
@@ -287,7 +289,12 @@ export async function confirmKbUpload(documentId: string): Promise<KbResult> {
   if (!data) return { ok: false, error: "That upload no longer exists." };
 
   const ref = String(data.storage_ref ?? "");
-  if (!ref || !kbRefIsOrgs(ref, c.orgId))
+  /* NO FILE IS NOT A SECURITY ANSWER. A field note is written from somebody's
+     note and has no PDF behind it, and every door to one — the library panel,
+     a citation's "Open document" — came back with the org check's refusal,
+     which reads as "this isn't yours". */
+  if (!ref) return { ok: false, error: "That one was written from a note — there's no file to open." };
+  if (!kbRefIsOrgs(ref, c.orgId))
     return { ok: false, error: "That file doesn't belong to this organisation." };
 
   const { error } = await supabaseAdmin
@@ -312,6 +319,18 @@ export async function confirmKbUpload(documentId: string): Promise<KbResult> {
    The edit modal always sends the full list it is showing, so unticking one
    has to take it off; an action that only ever added would make a wrong tag
    permanent. */
+/** What shelf this document is on right now — the question every category
+    rule actually asks. */
+async function currentCategory(orgId: string, documentId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("kb_documents")
+    .select("category")
+    .eq("org_id", orgId)
+    .eq("id", documentId)
+    .maybeSingle();
+  return data ? String(data.category) : null;
+}
+
 export async function updateKbDocMeta(
   documentId: string,
   input: {
@@ -335,10 +354,16 @@ export async function updateKbDocMeta(
   if (input.category !== undefined) {
     const category = asKbCategory(input.category);
     if (!category) return { ok: false, error: "That isn't one of the categories." };
-    // same rule as the create path: a manual can't be re-shelved as a person
-    if (category === "field")
+    /* A FIELD NOTE'S SHELF IS NOT A CHOICE, IN EITHER DIRECTION — and this
+       read as "never `field`", which refused the note's OWN category coming
+       back unchanged from its edit dialog. Every attempt to fix a wrong field
+       note failed on a field nobody had touched. A manual still can't be
+       re-shelved as one, and a note can't be re-shelved as a manual: it has
+       no file, so it would be a manual nobody can open. */
+    const current = await currentCategory(c.orgId, documentId);
+    if (current === "field" ? category !== "field" : category === "field")
       return { ok: false, error: "Field notes are written from a note, not uploaded." };
-    patch.category = category;
+    if (category !== current) patch.category = category;
   }
   // an empty string clears the field; absent leaves it alone
   if (input.source !== undefined) patch.source = trim(input.source, SOURCE_MAX);

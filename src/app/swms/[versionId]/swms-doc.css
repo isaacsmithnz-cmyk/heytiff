@@ -1,0 +1,86 @@
+/* THE SWMS ON PAPER.
+
+   Held to the screen scales like every sheet the ratchets read, which suits
+   a document a crew reads on a phone as often as on A4: 12px is the floor and
+   the tables are 12 and 13. The rules between cells are the ink token mixed
+   down, not the screen's 8% hairline — that one disappears on a laser
+   printer. */
+
+.swd-sheet { --swd-rule:color-mix(in srgb, var(--ink) 22%, transparent);
+  min-height:100vh; background:var(--ground); color:var(--ink);
+  font-family:var(--font-jakarta), system-ui, sans-serif; padding-block:48px; }
+.swd { max-width:960px; margin:0 auto; padding:48px; background:var(--paper); border:1px solid var(--line); border-radius:var(--r-card);
+  font-size:13px; line-height:1.45; }
+.swd-print { position:fixed; top:16px; right:16px; z-index:var(--z-sticky); height:40px; padding:0 16px;
+  border:1px solid var(--line); border-radius:var(--r-button); background:var(--paper); color:var(--ink);
+  font:inherit; font-size:14px; font-weight:600; cursor:pointer; transition:background var(--t-fast) var(--ease); }
+.swd-print:hover { background:var(--tint); }
+.swd-print:focus-visible { outline:none; box-shadow:var(--ring); }
+
+.swd-head { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding-bottom:16px; border-bottom:2px solid var(--ink); }
+.swd-id { margin:0; display:flex; flex-direction:column; align-items:flex-end; gap:2px; font-size:12px; font-weight:500; color:var(--q); text-align:right; }
+.swd-id b { font-size:13px; font-weight:700; color:var(--ink); }
+.swd-replaced { font-weight:600; color:var(--warn-t); }
+.swd h1 { margin:24px 0 0; font-size:24px; font-weight:700; text-wrap:balance; }
+.swd h2 { margin:24px 0 8px; padding-bottom:4px; font-size:16px; font-weight:700; border-bottom:1px solid var(--swd-rule); text-wrap:balance; }
+.swd p { margin:0 0 8px; max-width:88ch; }
+
+.swd table { width:100%; border-collapse:collapse; }
+.swd th, .swd td { padding:4px 8px; border:1px solid var(--swd-rule); vertical-align:top; text-align:left; }
+.swd thead th { background:var(--tint); font-size:12px; font-weight:700; }
+.swd td b { font-weight:600; }
+.swd td em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.swd-kv th { width:28%; background:var(--tint); font-weight:600; color:var(--q); }
+.swd-num { font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+.swd-hrcw { margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); border:1px solid var(--swd-rule); }
+.swd-hrcw li { display:grid; grid-template-columns:16px 24px minmax(0,1fr); gap:8px; padding:4px 8px; border-bottom:1px solid var(--swd-rule); color:var(--q); }
+.swd-hrcw li:nth-child(odd) { border-right:1px solid var(--swd-rule); }
+.swd-hrcw li.on { color:var(--ink); font-weight:600; }
+.swd-hrcw em { display:block; font-style:normal; font-size:12px; font-weight:500; color:var(--q); }
+.swd-box { width:16px; height:16px; display:grid; place-items:center; border:1px solid var(--swd-rule); border-radius:var(--r-control);
+  font-size:12px; font-weight:700; line-height:1; }
+.swd-hrcw li.on .swd-box { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+.swd-n { font-weight:600; font-variant-numeric:tabular-nums; }
+
+/* Tailwind's preflight takes every list's markers away; this keeps its bullets */
+.swd-list { margin:0; padding-left:16px; list-style:disc; }
+.swd-list li { margin:0 0 4px; }
+.swd-cols { columns:2; column-gap:24px; }
+.swd-stop { margin-top:12px; padding:8px 12px; border:2px solid var(--ink); font-weight:600; }
+
+.swd-steps th:first-child { width:24px; }
+.swd-steps td:nth-child(2) { width:20%; }
+.swd-steps td:nth-child(3) { width:18%; }
+.swd-steps td:last-child { width:12%; }
+/* a note, not a state: ink and weight, and a selector that outranks `.swd td em` */
+.swd td em.swd-site { color:var(--ink); font-weight:600; }
+.swd-controls { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
+.swd-controls li { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px; }
+.swd-controls li > span { font-size:12px; font-weight:600; color:var(--q); }
+
+.swd-sig { width:24%; }
+.swd-sig img { display:block; width:100%; max-width:180px; height:48px; object-fit:contain; object-position:left center; }
+.swd-signons td { height:48px; }
+.swd table.swd-key { width:auto; margin-top:8px; }
+.swd-key + p { margin-top:8px; }
+.swd-foot { margin-top:24px; padding-top:8px; border-top:1px solid var(--swd-rule); font-size:12px; color:var(--q); }
+
+@media (max-width:720px) {
+  .swd-sheet { padding-block:0; }
+  .swd { padding:24px 16px; border:0; border-radius:0; }
+  .swd-hrcw { grid-template-columns:minmax(0,1fr); }
+  .swd-hrcw li:nth-child(odd) { border-right:0; }
+  .swd-cols { columns:1; }
+}
+
+@media print {
+  @page { size:A4; margin:12mm; }
+  .swd-sheet { background:none; padding-block:0; min-height:0; }
+  .swd-print { display:none; }
+  .swd { max-width:none; padding:0; border:0; border-radius:0; }
+  .swd .swd-page { break-before:page; }
+  .swd h2 { break-after:avoid; }
+  .swd tr, .swd-hrcw li, .swd-stop { break-inside:avoid; }
+  .swd thead { display:table-header-group; }
+}

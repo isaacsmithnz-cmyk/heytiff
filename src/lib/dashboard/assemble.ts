@@ -9,6 +9,7 @@ import {
   orgCredentialChips,
   profileChip,
   sortChips,
+  swmsSignonChip,
   timesheetChip,
   vehicleChips,
   vehicleLabel,
@@ -86,6 +87,9 @@ export type ChipSources = {
     endDate: string;
     decidedOn: string | null;
   }[];
+  /** SWMS versions naming YOU that you haven't signed on to — latest versions
+      only. Optional so a caller that has not loaded them raises no chip. */
+  ownSwmsSignons?: { versionId: string; version: number; jobNumber: string | null; site: string | null; issuedAt: string }[];
 };
 
 const push = (arr: ActionChip[], chip: ActionChip | null) => {
@@ -122,6 +126,7 @@ export function assembleChips(src: ChipSources, caps: ReadonlySet<Capability>): 
        your leave was refused was to open My leave and find it in history. */
     for (const r of src.ownDeclinedLeave) push(self, declinedLeaveChip(r, { today: src.today }));
     push(self, profileChip(src.selfCompleteness, { subject: src.selfName || "Your details" }));
+    for (const p of src.ownSwmsSignons ?? []) self.push(swmsSignonChip(p, { today: src.today }));
   }
 
   const team: ActionChip[] = [];

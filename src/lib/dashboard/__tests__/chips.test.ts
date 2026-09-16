@@ -17,6 +17,7 @@ import {
   regoChip,
   serviceChip,
   sortChips,
+  swmsSignonChip,
   vehicleChips,
   vehicleLabel,
   workRightsChips,
@@ -260,12 +261,52 @@ describe("chipGroup", () => {
       "leave-queue": true,
       "leave-declined": true,
       profile: true,
+      swms: true,
     };
     for (const k of Object.keys(filed) as ChipKind[]) {
       const g = chipGroup(k);
       expect(g).toBeTruthy();
       expect(ICON_PATHS[GROUP_ICON[g]]).toBeTruthy();
     }
+  });
+});
+
+/* A SWMS TO SIGN ON TO — the bell is the notification, so the chip has to
+   say which job and open the sign-on for that exact version. */
+describe("swmsSignonChip", () => {
+  const pending = {
+    versionId: "v-1",
+    version: 1,
+    jobNumber: "2601",
+    site: "14 Attunga Road, Miranda NSW 2228",
+    issuedAt: `${TODAY}T07:42:00.000Z`,
+  };
+
+  it("names the job and its street, and opens that version's sign-on", () => {
+    const chip = swmsSignonChip(pending, { today: TODAY });
+    expect(chip).toMatchObject({
+      key: "swms:v-1",
+      kind: "swms",
+      state: "warn",
+      label: "Sign on to the SWMS",
+      subject: "Job #2601, 14 Attunga Road",
+      href: "/dashboard/swms/v-1",
+    });
+    expect(chipGroup(chip.kind)).toBe("Workboard");
+  });
+
+  it("says which version when a revision asks again", () => {
+    expect(swmsSignonChip({ ...pending, version: 3 }, { today: TODAY }).label).toBe("Sign on to version 3 of the SWMS");
+  });
+
+  it("sorts an older issue ahead of a newer one", () => {
+    const old = swmsSignonChip({ ...pending, versionId: "old", issuedAt: "2020-01-01T00:00:00.000Z" }, { today: TODAY });
+    const fresh = swmsSignonChip(pending, { today: TODAY });
+    expect(old.urgency).toBeLessThan(fresh.urgency);
+  });
+
+  it("still names something when the job has no number or site", () => {
+    expect(swmsSignonChip({ ...pending, jobNumber: null, site: null }, { today: TODAY }).subject).toBe("A job");
   });
 });
 

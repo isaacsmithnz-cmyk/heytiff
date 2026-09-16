@@ -40,6 +40,9 @@ import {
 import { JobChecklistFace } from "./job-checklist-face";
 import { JobPhotosFace } from "./job-photos-face";
 import { JobDocumentsFace } from "./job-documents-face";
+import { SwmsWizard } from "@/components/swms/swms-wizard";
+import { listSwmsForJob } from "@/app/actions/swms";
+import type { SwmsSummary } from "@/lib/swms/query";
 import { JobMediaViewer } from "./job-media-viewer";
 import {
   listJobPhotoFavourites,
@@ -229,6 +232,11 @@ export function JobSheet({
   const [openClaim, setOpenClaim] = useState<string | null>(null);
   const [numbersOpen, setNumbersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /* THE JOB'S SWMS, and the wizard when it is open — a new one, or the next
+     version of one (`revise` names the version it replaces). Null until the
+     read lands, like the files. */
+  const [swms, setSwms] = useState<SwmsSummary[] | null>(null);
+  const [swmsWizard, setSwmsWizard] = useState<{ revise: string | null } | null>(null);
   /* The shared viewer: a photo (by its place in the photos lens) or one
      PDF's paper. Closing it lands the reader exactly where they were. */
   const [viewer, setViewer] = useState<
@@ -268,7 +276,9 @@ export function JobSheet({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       /* INNERMOST FIRST. Closing the whole card out from under an open claim
-         is the classic nested-dismiss bug. */
+         is the classic nested-dismiss bug. The SWMS wizard answers its own
+         Escape — it asks before throwing choices away. */
+      if (swmsWizard) return;
       if (viewer) {
         setViewer(null);
         return;
@@ -289,7 +299,7 @@ export function JobSheet({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose, numbersOpen, openClaim, menuOpen, viewer]);
+  }, [onClose, numbersOpen, openClaim, menuOpen, viewer, swmsWizard]);
 
   useEffect(() => {
     if (!numbersOpen) return;
@@ -374,6 +384,33 @@ export function JobSheet({
       live = false;
     };
   }, [cardId]);
+
+  /* The job's SWMS — ours, written by the wizard. Its own clock like the
+     files; a read that fails reads as none rather than taking the card down,
+     and the wizard can still be opened. */
+  useEffect(() => {
+    if (!cardId) return;
+    let live = true;
+    void listSwmsForJob(cardId)
+      .then((list) => {
+        if (live) setSwms(list);
+      })
+      .catch(() => {
+        if (live) setSwms([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [cardId]);
+
+  const reloadSwms = () => {
+    if (!cardId) return;
+    void listSwmsForJob(cardId)
+      .then((list) => {
+        if (alive.current) setSwms(list);
+      })
+      .catch(() => {});
+  };
 
   /* Our OWN material picklist — pushed here from a Studio design. On its own
      clock like the files; a job with none renders nothing. */
@@ -1415,9 +1452,13 @@ export function JobSheet({
               documents={media ? media.documents : null}
               elsewhere={media ? media.elsewhere : null}
               designs={detail?.designs ?? []}
+              swms={swms}
+              canCreateSwms={!!cardId}
               loading={media === null}
               truncated={!!media?.truncated}
               onOpen={(item) => setViewer({ kind: "paper", id: item.remoteId })}
+              onCreateSwms={() => setSwmsWizard({ revise: null })}
+              onReviseSwms={(versionId) => setSwmsWizard({ revise: versionId })}
             />
           )}
 
@@ -1464,6 +1505,18 @@ export function JobSheet({
           claim={openClaimRow}
           parentNumber={cardNumber}
           onClose={() => setOpenClaim(null)}
+        />
+      )}
+
+      {/* The SWMS wizard — same portal, over the card. Keyed by what it opened
+          for, so a revision never inherits a new SWMS's half-made choices. */}
+      {swmsWizard && cardId && (
+        <SwmsWizard
+          key={`${cardId}:${swmsWizard.revise ?? "new"}`}
+          jobUuid={cardId}
+          reviseVersionId={swmsWizard.revise}
+          onClose={() => setSwmsWizard(null)}
+          onIssued={reloadSwms}
         />
       )}
 

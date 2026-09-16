@@ -12,6 +12,7 @@ import { assembleChips, type DashboardChips } from "./assemble";
 import { CLAIM_NUDGE_DAYS } from "./chips";
 import { listStaffCompliance, type StaffCompliance } from "./query";
 import { ownDetailsGap } from "@/lib/staff/onboarding";
+import { pendingSignons } from "@/lib/swms/query";
 import { listOrgCredentials, orgExpiryWindow } from "@/lib/org/query";
 import type { OrgCredential } from "@/lib/org/credentials";
 import { ownDeclinedClaims, pendingClaimsCount } from "@/lib/expenses/query";
@@ -398,7 +399,7 @@ async function loadChips(
   /** the Organisation screen admits the owner only — see `assembleChips` */
   isOwner: boolean,
 ): Promise<DashboardChips> {
-  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap] = await Promise.all([
+  const [selfList, selfVehicle, ownSheet, ownDeclined, ownDeclinedLv, detailsGap, swmsSignons] = await Promise.all([
     viewerStaffId ? listStaffCompliance(orgId, viewerStaffId) : Promise.resolve([]),
     viewerStaffId ? getOwnVehicle(orgId, viewerStaffId) : Promise.resolve(null),
     viewerStaffId ? loadOwnSheet(orgId, viewerStaffId) : Promise.resolve(null),
@@ -411,6 +412,9 @@ async function loadChips(
       : Promise.resolve([]),
     // your own card's required gaps — the reminder after a skipped first run
     viewerStaffId ? ownDetailsGap(orgId, viewerStaffId) : Promise.resolve(null),
+    // a SWMS that names you and waits for your sign-on; a read that fails
+    // raises no chip rather than taking the bell down with it
+    viewerStaffId ? pendingSignons(orgId, viewerStaffId).catch(() => []) : Promise.resolve([]),
   ]);
 
   // Team data is only READ when the capability is held — it never reaches here
@@ -446,6 +450,7 @@ async function loadChips(
       ownDeclinedLeave: ownDeclinedLv,
       selfCompleteness: detailsGap,
       selfName: detailsGap?.name || null,
+      ownSwmsSignons: swmsSignons,
     },
     caps,
   );

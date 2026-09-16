@@ -14,7 +14,7 @@ import {
   assignmentsNotAlreadyDue,
   type NewAssignment,
 } from "@/lib/dashboard/assignments";
-import { GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
+import { BELL_REFRESH_EVENT, GROUP_ICON, chipGroup, type ActionChip } from "@/lib/dashboard/chips";
 import {
   SNOOZE,
   SNOOZE_LABEL,
@@ -188,10 +188,15 @@ export function Bell() {
       if (document.visibilityState === "visible") void loadAll();
     };
     document.addEventListener("visibilitychange", onShow);
+    /* A screen that just cleared one of the rows — a SWMS signed on — says
+       so, and the list asks again rather than waiting for the tab to refocus. */
+    const onAsk = () => void loadAll();
+    window.addEventListener(BELL_REFRESH_EVENT, onAsk);
     return () => {
       live.current = false;
       clearInterval(id);
       document.removeEventListener("visibilitychange", onShow);
+      window.removeEventListener(BELL_REFRESH_EVENT, onAsk);
     };
   }, [loadAll, loadRems]);
 

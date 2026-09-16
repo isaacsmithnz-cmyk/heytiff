@@ -801,6 +801,7 @@ function Home({
   );
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const [armedDelete, setArmedDelete] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -837,10 +838,11 @@ function Home({
   /* THE FIVE MOST RECENT, not the archive: the list is newest first from the
      store, and a card of everything ever drawn pushed the screen down by a
      row per job (Isaac, 2026-09-15). Search still reaches the rest — it
-     narrows first and then takes the top five — and the line under the
-     list says how many more there are, so nothing reads as lost. */
-  const visible = matches.slice(0, RECENT_CAP);
-  const beyond = matches.length - visible.length;
+     narrows first and then takes the top five — and the button under the
+     list opens the rest in place. It was a line that only counted them,
+     which read as a door and did nothing when pressed. */
+  const beyond = Math.max(0, matches.length - RECENT_CAP);
+  const visible = showAll ? matches : matches.slice(0, RECENT_CAP);
 
   const trimmed = name.trim();
   const cancel = () => {
@@ -1125,9 +1127,16 @@ function Home({
                 </div>
               ))}
               {beyond > 0 && (
-                <div className="ds-rmore">
-                  {beyond} more {beyond === 1 ? "design" : "designs"}
-                </div>
+                <button
+                  type="button"
+                  className="ds-rmore"
+                  aria-expanded={showAll}
+                  onClick={() => setShowAll((v) => !v)}
+                >
+                  {showAll
+                    ? "Show fewer designs"
+                    : `Show ${beyond} more ${beyond === 1 ? "design" : "designs"}`}
+                </button>
               )}
             </div>
           ) : (

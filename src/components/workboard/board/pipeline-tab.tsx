@@ -8,6 +8,7 @@ import { claimedLine, fmtAud } from "@/lib/workboard/project-money";
 import { projectStateRow } from "@/lib/workboard/project-rules";
 import type { BoardProject } from "@/lib/workboard/projects-board-query";
 import { agoLabel } from "./derive";
+import { Toolbar, ToolbarEnd } from "./toolbar";
 
 /* Pipeline — the stage-grouped list (decision P1): a vertical run of stage
    groups in the trade's order, mirroring Upcoming's week groups. Inside a
@@ -77,24 +78,25 @@ export function PipelineTab({
 
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci blue">
-          <Icon name="activity" size={19} />
-        </span>
-        <div>
-          <b>Down the pipeline</b>
-          <em>{total === 1 ? "1 project" : `${total} projects`}</em>
-        </div>
-        <span className="wb2-chip">
-          {total} {total === 1 ? "project" : "projects"} in flight
-        </span>
-        {manage && (
-          <Link href="/dashboard/workboard/projects" className="pbtn ghost">
-            <Icon name="plus" size={15} />
-            New project
-          </Link>
+      {/* THE HEAD IS THE TOOLBAR. It said the count twice — "12 projects"
+          under the title and "12 projects in flight" in a chip beside it — in
+          an activity icon in a tinted blue square, under a tab that already
+          says Pipeline. Once, as a sentence, and the one action. */}
+      <Toolbar>
+        {total > 0 && (
+          <span className="wb2-tbh2">
+            {total} {total === 1 ? "project" : "projects"} in flight
+          </span>
         )}
-      </div>
+        {manage && (
+          <ToolbarEnd>
+            <Link href="/dashboard/workboard/projects" className="pbtn ghost">
+              <Icon name="plus" size={15} />
+              New project
+            </Link>
+          </ToolbarEnd>
+        )}
+      </Toolbar>
 
       {groups.length === 0 ? (
         <div className="wb2-empty">

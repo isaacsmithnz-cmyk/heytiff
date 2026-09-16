@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/shell/icon";
@@ -8,6 +8,7 @@ import { setProjectStatus } from "@/app/actions/workboard";
 import { claimedLine, fmtAud } from "@/lib/workboard/project-money";
 import type { BoardProject } from "@/lib/workboard/projects-board-query";
 import { agoLabel } from "./derive";
+import { FilterChips, Toolbar, type FilterOption } from "./toolbar";
 
 /* Completed, projects side — two folds that answer different questions:
    "Ready to close" (sitting at the Complete stage but never marked done —
@@ -27,6 +28,7 @@ export function ProjectCompletedTab({
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const [show, setShow] = useState<"all" | "ready" | "done">("all");
 
   const { readyToClose, done } = useMemo(
     () => ({
@@ -105,20 +107,23 @@ export function ProjectCompletedTab({
 
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci ok">
-          <Icon name="check" size={19} />
-        </span>
-        <div>
-          <b>Completed</b>
-          <em>What&apos;s finished, what it claimed, and what&apos;s still owed on it.</em>
-        </div>
-        {readyToClose.length > 0 && (
-          <span className="wb2-chip warn">
-            {readyToClose.length} ready to close
-          </span>
-        )}
-      </div>
+      {/* THE HEAD IS THE TOOLBAR, and the list's own split is its filter:
+          ready to close, and done. The caption ("what's finished, what it
+          claimed, and what's still owed on it") described the rows, which say
+          it themselves. */}
+      {(readyToClose.length > 0 || done.length > 0) && (
+        <Toolbar>
+          <FilterChips
+            value={show}
+            onChange={setShow}
+            options={([
+              { key: "all", label: "All", n: readyToClose.length + done.length },
+              { key: "ready", label: "Ready to close", n: readyToClose.length, tone: "warn" },
+              { key: "done", label: "Done", n: done.length },
+            ] as FilterOption<"all" | "ready" | "done">[]).filter((o) => o.key === "all" || o.n > 0)}
+          />
+        </Toolbar>
+      )}
 
       {readyToClose.length === 0 && done.length === 0 ? (
         <div className="wb2-empty">
@@ -128,18 +133,18 @@ export function ProjectCompletedTab({
         </div>
       ) : (
         <div className="wb2-dnlist">
-          {readyToClose.length > 0 && (
+          {show === "all" && readyToClose.length > 0 && (
             <div className="wb2-wkhd warn">
               At Complete but not closed <em>{readyToClose.length}</em>
             </div>
           )}
-          {readyToClose.map((p) => row(p, true))}
-          {done.length > 0 && (
+          {show !== "done" && readyToClose.map((p) => row(p, true))}
+          {show === "all" && done.length > 0 && (
             <div className="wb2-wkhd">
               Done <em>{done.length}</em>
             </div>
           )}
-          {done.map((p) => row(p, false))}
+          {show !== "ready" && done.map((p) => row(p, false))}
         </div>
       )}
     </>

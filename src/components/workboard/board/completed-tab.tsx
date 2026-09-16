@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
@@ -8,6 +8,7 @@ import { BOARD_DONE_DAYS, completionTiming, daysBetween } from "@/lib/workboard/
 import { setVisitInvoiced } from "@/app/actions/workboard-maintenance";
 import type { BoardVisit } from "@/lib/workboard/board-query";
 import { hoursLabel } from "./derive";
+import { FilterChips, Toolbar, ToolbarEnd, type FilterOption } from "./toolbar";
 
 /* Completed — the review pass whose whole job is invoicing (L3). Hours are
    ACTUALS from the close-out, never the booking estimate wearing an
@@ -39,14 +40,12 @@ function agoWords(doneISO: string, today: string): string {
 
 export function CompletedTab({
   visits,
-  count,
   today,
   manage,
   onOpen,
   onToast,
 }: {
   visits: BoardVisit[];
-  count: number;
   today: string;
   manage: boolean;
   onOpen: (visitId: string) => void;
@@ -54,6 +53,7 @@ export function CompletedTab({
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
+  const [show, setShow] = useState<"all" | "toInvoice" | "invoiced">("all");
 
   const { toInvoice, invoiced } = useMemo(() => {
     const done = visits
@@ -195,26 +195,30 @@ export function CompletedTab({
 
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci ok">
-          <Icon name="check" size={19} />
-        </span>
-        <div>
-          <b>Completed</b>
-          <em>
-            {/* Written as one string: split across JSX lines, the space
-                before "weeks" was eaten and it read "the last 8weeks". */}
-            {`The last ${BOARD_DONE_DAYS / 7} weeks, newest first — what ran, what it took, what's still to bill.`}
-          </em>
-        </div>
-        {toInvoice.length > 0 ? (
-          <span className="wb2-chip warn">
-            {toInvoice.length} to invoice
-          </span>
-        ) : (
-          count > 0 && <span className="wb2-chip ok">All invoiced</span>
-        )}
-      </div>
+      {/* THE HEAD IS THE TOOLBAR. The tab already says Completed; the caption
+          was one fact ("the last 8 weeks") inside a sentence explaining the
+          section, so the fact stays as the window's label and the rest goes.
+          "N to invoice" was a chip that filtered nothing while the list below
+          was already split on exactly that line — so the split is the filter.
+          "All invoiced" went with it: an absent To invoice chip says so. */}
+      {(toInvoice.length > 0 || invoiced.length > 0) && (
+        <Toolbar>
+          <FilterChips
+            value={show}
+            onChange={setShow}
+            options={([
+              { key: "all", label: "All", n: toInvoice.length + invoiced.length },
+              { key: "toInvoice", label: "To invoice", n: toInvoice.length, tone: "warn" },
+              { key: "invoiced", label: "Invoiced", n: invoiced.length },
+            ] as FilterOption<"all" | "toInvoice" | "invoiced">[]).filter(
+              (o) => o.key === "all" || o.n > 0
+            )}
+          />
+          <ToolbarEnd>
+            <span className="wb2-tbwin">{`Last ${BOARD_DONE_DAYS / 7} weeks`}</span>
+          </ToolbarEnd>
+        </Toolbar>
+      )}
 
       {toInvoice.length === 0 && invoiced.length === 0 ? (
         <div className="wb2-empty">
@@ -224,18 +228,19 @@ export function CompletedTab({
         </div>
       ) : (
         <div className="wb2-dnlist">
-          {toInvoice.length > 0 && (
+          {/* the group heads earn their place only while both groups show */}
+          {show === "all" && toInvoice.length > 0 && (
             <div className="wb2-wkhd warn">
               To invoice <em>{toInvoice.length}</em>
             </div>
           )}
-          {toInvoice.map(row)}
-          {invoiced.length > 0 && (
+          {show !== "invoiced" && toInvoice.map(row)}
+          {show === "all" && invoiced.length > 0 && (
             <div className="wb2-wkhd">
               Invoiced <em>{invoiced.length}</em>
             </div>
           )}
-          {invoiced.map(row)}
+          {show !== "toInvoice" && invoiced.map(row)}
         </div>
       )}
     </>

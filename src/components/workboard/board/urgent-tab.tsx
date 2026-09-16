@@ -14,6 +14,7 @@ import {
 import type { BoardTech } from "@/lib/workboard/board-query";
 import type { UrgentRow } from "@/lib/workboard/urgent-rules";
 import { TaskRow, UrgentBody } from "./urgent-layout";
+import { FilterChips, Toolbar, type FilterOption } from "./toolbar";
 
 /* Urgent — the derived queue, now with the actions the fixtures always
    promised (A1/A4). Each row's quick action fixes ITS fact — confirm the
@@ -94,19 +95,16 @@ export function UrgentTab({
     router.refresh();
   };
 
-  const filterChip = (key: UrgentFilter, label: string, tone: "" | "dan" | "warn") =>
-    (key === "all" || counts[key] > 0) && (
-      <button
-        key={key}
-        type="button"
-        className={"wb2-filter" + (tone ? ` ${tone}` : "") + (filter === key ? " on" : "")}
-        aria-pressed={filter === key}
-        onClick={() => setFilter(filter === key ? "all" : key)}
-      >
-        {label}
-        <b>{counts[key]}</b>
-      </button>
-    );
+  /* A filter with nothing in it is not offered, and choosing the one already
+     chosen goes back to everything — the chips' behaviour before they moved
+     onto the board's toolbar, kept. */
+  const filterOptions = ([
+    { key: "all", label: "Everything", n: counts.all },
+    { key: "overdue", label: "Overdue", n: counts.overdue, tone: "dan" },
+    { key: "gaps", label: "To confirm", n: counts.gaps, tone: "warn" },
+    { key: "flags", label: "Flags", n: counts.flags, tone: "warn" },
+    { key: "tasks", label: "Tasks", n: counts.tasks, tone: "warn" },
+  ] as FilterOption<UrgentFilter>[]).filter((o) => o.key === "all" || o.n > 0);
 
   function RowAction({ r }: { r: UrgentRow }) {
     const stop = (e: React.SyntheticEvent) => e.stopPropagation();
@@ -279,30 +277,18 @@ export function UrgentTab({
      the whole component. */
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci dan">
-          <Icon name="zap" size={19} />
-        </span>
-        <div>
-          {/* NOT "needs you". Display mode puts this board on a wall, and
-              anyone walking past can act on a row — the queue belongs to
-              whoever picks it up (Isaac, 2026-08-02). */}
-          <b>Needs attention</b>
-          {/* THE SORT ORDER IS A FACT ABOUT THE LIST; how the list maintains
-              itself is not. This closed with "Rows clear themselves as facts
-              change", which is the app describing its own bookkeeping to
-              somebody who came here to see what needs doing — and describing
-              it in the one place a row disappearing is self-evident. */}
-          <em>Overdue first, then before the week turns.</em>
-        </div>
-        <div className="wb2-filters">
-          {filterChip("all", "Everything", "")}
-          {filterChip("overdue", "Overdue", "dan")}
-          {filterChip("gaps", "To confirm", "warn")}
-          {filterChip("flags", "Flags", "warn")}
-          {filterChip("tasks", "Tasks", "warn")}
-        </div>
-      </div>
+      {/* THE HEAD IS THE TOOLBAR NOW. It said "Needs attention" under a tab
+          that says Urgent, in a zap in a tinted red square, over a caption
+          naming the sort order — which the body's own group heads (Overdue,
+          then the rest) already show. What it carried that the reader uses
+          is the filters, and they are the row. */}
+      <Toolbar>
+        <FilterChips
+          options={filterOptions}
+          value={filter}
+          onChange={(k) => setFilter(filter === k ? "all" : k)}
+        />
+      </Toolbar>
 
       {shown.length === 0 ? (
         <div className="wb2-empty">

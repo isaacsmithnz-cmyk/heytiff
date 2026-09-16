@@ -1410,7 +1410,7 @@ describe("the mirror-health chip (D8)", () => {
         sm8={{ attention: false, syncedAt: new Date(Date.now() - 3 * 60_000).toISOString(), running: false }}
       />
     );
-    expect(screen.getByText("ServiceM8 synced 3 min ago")).toBeInTheDocument();
+    expect(screen.getByText("Synced 3 min ago")).toBeInTheDocument();
 
     rerender(
       <MaintenanceBoard
@@ -1447,9 +1447,16 @@ describe("Completed folds — the money waiting leads (step 4)", () => {
       })
     );
     await toTab(/Completed/);
-    const heads = screen.getAllByText(/^(To invoice|Invoiced)/).map((h) => h.textContent);
+    // the group heads, in order — money waiting leads
+    const heads = [...document.querySelectorAll(".wb2-wkhd")].map((h) => h.textContent);
     expect(heads[0]).toContain("To invoice");
-    expect(screen.getByText("1 to invoice")).toBeInTheDocument();
+    expect(heads[1]).toContain("Invoiced");
+    // the count that sat in a chip beside the title is the filter for it now
+    expect(screen.getAllByText(/Billed Pty/).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: "To invoice 1" }));
+    expect(document.querySelectorAll(".wb2-wkhd")).toHaveLength(0);
+    expect(screen.queryAllByText(/Billed Pty/)).toHaveLength(0);
+    await userEvent.click(screen.getByRole("button", { name: "All 2" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Mark invoiced" }));
     expect(act.setVisitInvoiced).toHaveBeenCalledWith("v-open-bill", true);

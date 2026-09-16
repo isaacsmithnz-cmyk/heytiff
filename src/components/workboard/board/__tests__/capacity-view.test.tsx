@@ -298,7 +298,7 @@ it("draws the gauge from the day's own fill — the level is the percentage", as
   expect(mon.style.getPropertyValue("--capfill")).toBe(capacityCellPaint(25, false).fill);
 });
 
-it("opens a day into its jobs, hours and everyone on them — as a card, not a shelf", async () => {
+it("opens a day into its jobs, hours and everyone on them — in the inspector, beside the grid", async () => {
   await openCapacity();
   // the day is in the board's cache, as it would be after a visit to the rail
   dayCache.current.set(TODAY, dayPayload());
@@ -307,9 +307,10 @@ it("opens a day into its jobs, hours and everyone on them — as a card, not a s
 
   // the panel reads a day the RAIL had already read — one cache, two tabs
   expect(scheduleDay).not.toHaveBeenCalled();
-  const dayCard = await screen.findByRole("dialog", { name: /Jobs on Fri 14 Aug/ });
-  // a card over a scrim is a dialog the keyboard is IN — not a panel in flow
-  expect(dayCard).toHaveFocus();
+  const dayCard = await screen.findByRole("complementary", { name: /Jobs on Fri 14 Aug/ });
+  /* not a dialog: no scrim, and focus stays on the day that was clicked,
+     where the next click or arrow key wants it */
+  expect(fri).toHaveFocus();
   expect(within(dayCard).getByText("2 jobs, 18h")).toBeInTheDocument();
   expect(within(dayCard).getByText("Girgis, Katrina")).toBeInTheDocument();
   expect(within(dayCard).getByText("3171")).toBeInTheDocument();
@@ -331,22 +332,22 @@ it("opens a day into its jobs, hours and everyone on them — as a card, not a s
   await userEvent.click(fri);
   expect(screen.queryByText("2 jobs, 18h")).not.toBeInTheDocument();
 
-  // and the close button is the third door
+  // and the panel's own cross is the third door
   await userEvent.click(fri);
   await screen.findByText("2 jobs, 18h");
-  await userEvent.click(screen.getByRole("button", { name: "Close the day" }));
+  await userEvent.click(screen.getByRole("button", { name: "Close the panel" }));
   expect(screen.queryByText("2 jobs, 18h")).not.toBeInTheDocument();
 });
 
 /* A row in the day is the block it would be on the rail, and it opens the
-   SAME card the rail's blocks open — one law for what a booking is doing.
-   The day steps back while that card is up rather than stacking under it:
-   two scrims is two blurs, and the page gets one. */
-it("brings a job forward out of the day, in the rail's own card", async () => {
+   SAME reading the rail's blocks open — one law for what a booking is doing.
+   The job takes the day's place in the inspector rather than stacking on it,
+   and "Back to the day" puts the day back. */
+it("brings a job forward out of the day, in the rail's own reading", async () => {
   const onOpenJob = jest.fn();
   await openCapacity({ onOpenJob });
   await userEvent.click(screen.getByRole("button", { name: /Fri 14 Aug/ }));
-  const dayCard = await screen.findByRole("dialog", { name: /Jobs on Fri 14 Aug/ });
+  const dayCard = await screen.findByRole("complementary", { name: /Jobs on Fri 14 Aug/ });
 
   // the row wears its category's paint — the cap the rail draws, same hue
   const row = within(dayCard).getByRole("button", { name: /Rifkin, Julian/ });
@@ -355,22 +356,22 @@ it("brings a job forward out of the day, in the rail's own card", async () => {
 
   await userEvent.click(row);
   // the day is gone and the job is on the table, with everyone on it
-  expect(screen.queryByRole("dialog", { name: /Jobs on Fri 14 Aug/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("complementary", { name: /Jobs on Fri 14 Aug/ })).not.toBeInTheDocument();
   expect(screen.getByText("2 people on this job")).toBeInTheDocument();
-  // a card each, in the paint their block wears, with the hours they hold
-  const card = screen.getByRole("dialog", { name: /Rifkin, Julian/ });
+  // a row each, with the hours they hold
+  const card = screen.getByRole("complementary", { name: /Rifkin, Julian/ });
   expect(
-    [...card.querySelectorAll(".wb2-scfcard")].map((c) => c.textContent)
+    [...card.querySelectorAll(".wb2-inspcrew li")].map((c) => c.textContent)
   ).toEqual(["Alex Lorenz3pm–4pm", "David Hann7am–4pm"]);
 
   // "Back to the day" is literally that, and focus lands on the row it left
   await userEvent.click(screen.getByRole("button", { name: "Back to the day" }));
-  const backCard = await screen.findByRole("dialog", { name: /Jobs on Fri 14 Aug/ });
+  const backCard = await screen.findByRole("complementary", { name: /Jobs on Fri 14 Aug/ });
   await waitFor(() =>
     expect(within(backCard).getByRole("button", { name: /Rifkin, Julian/ })).toHaveFocus()
   );
 
-  // and Open job hands the sheet the job, leaving nothing on top of it
+  // and Open job hands the sheet the job, with no dialog of its own left over
   await userEvent.click(within(backCard).getByRole("button", { name: /Rifkin, Julian/ }));
   await userEvent.click(screen.getByRole("button", { name: /Open job/ }));
   expect(onOpenJob).toHaveBeenCalledWith(expect.objectContaining({ remoteId: "j-3145" }), null);

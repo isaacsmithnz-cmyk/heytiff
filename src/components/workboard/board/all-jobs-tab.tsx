@@ -5,15 +5,16 @@ import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { fmtAud } from "@/lib/workboard/project-money";
 import {
-  awaitingPaymentCount,
+  awaitingPaymentRows,
   MONEY_BASIS,
-  completedCountLine,
   quotesCountLine,
-  workCountLine,
   type AllJobRow,
   type AllJobsView,
 } from "@/lib/workboard/all-jobs";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
+import { isAwaitingPayment } from "@/lib/workboard/job-money";
+import { Fact, Inspector, Ledger, Reading, Split } from "./inspector";
+import { FilterChips, Toolbar, type FilterOption } from "./toolbar";
 
 /* The three panels of the All jobs side. Rows, not cards: at 500-plus open
    jobs a card per job is a wall, and this list is read by scanning down one
@@ -39,21 +40,33 @@ type Props = {
 
 const dayOf = (naive: string | null) => (naive ? naive.slice(0, 10) : null);
 
+/* A CLICK SELECTS; IT NO LONGER OPENS. The sheet used to open whole to show
+   a description the row had truncated, and had to be dismissed before the
+   next row could be read. The inspector beside the list shows that and the
+   rest of what the row knows, and the next click replaces it — which is how a
+   list of five hundred is actually read. The sheet is one press further:
+   "Open job" in the inspector, or a double-click here. */
 function Row({
   row,
   moneyVisible,
+  selected,
+  onSelect,
   onOpen,
 }: {
   row: AllJobRow;
   moneyVisible: boolean;
+  selected: boolean;
+  onSelect: (row: AllJobRow) => void;
   onOpen: (row: AllJobRow) => void;
 }) {
   const date = dayOf(row.date);
   return (
     <button
-      className="wb2-ajr as-btn"
-      onClick={() => onOpen(row)}
-      aria-label={`Open ${row.clientName ?? "job"}${row.number ? ` — ${row.number}` : ""}`}
+      className={"wb2-ajr as-btn" + (selected ? " on" : "")}
+      aria-pressed={selected}
+      onClick={() => onSelect(row)}
+      onDoubleClick={() => onOpen(row)}
+      aria-label={`${row.clientName ?? "Unnamed client"}${row.number ? `, #${row.number}` : ""}`}
     >
       <span className="wb2-ajnum">
         {row.number ? (
@@ -155,39 +168,175 @@ function Row({
 function Rows({
   rows,
   moneyVisible,
+  selected,
+  onSelect,
   onOpen,
 }: {
   rows: AllJobRow[];
   moneyVisible: boolean;
+  selected: string | null;
+  onSelect: (row: AllJobRow) => void;
   onOpen: (row: AllJobRow) => void;
 }) {
   return (
     <>
       {rows.map((r) => (
-        <Row key={r.key} row={r} moneyVisible={moneyVisible} onOpen={onOpen} />
+        <Row
+          key={r.key}
+          row={r}
+          moneyVisible={moneyVisible}
+          selected={r.key === selected}
+          onSelect={onSelect}
+          onOpen={onOpen}
+        />
       ))}
     </>
   );
 }
 
-/* THE HEAD NO LONGER CARRIES A SEARCH BOX. It carried one on all three of
-   these panels — the same field, three times, reachable only from a list tab
-   and only able to find what that list already held. The board's one box
-   lives above the card now (see board/work-search), which is why nothing here
-   knows about a query any more: while somebody is searching, this panel isn't
-   on screen at all. */
-function Head({ icon, title, sub }: { icon: string; title: string; sub: string }) {
+/* ── THE LIST'S ONE TOOLBAR ──
+   Each panel opened on a head that restated the tab — an icon in a tinted
+   square, the tab's own name, and a sentence of counts under it — with, on
+   Completed, a second sentence under THAT ("41 of these are invoiced and
+   still awaiting payment"). The tab above already names the list, so the row
+   says only what the counts are, and where a count is a question somebody
+   asks of the list, it is the filter that answers it.
+
+   A chip is for something you tap (law 26), so a count that filters nothing
+   is a sentence, not a chip: Quotes has no split the data can make honestly —
+   "sent this week" needs a sent date, and the sent flag is absent on every
+   quote in the live account — so its row is the sentence alone. */
+/** The list's toolbar: its filters, or — where the data can make no honest
+    split — the one sentence of what it holds. */
+function ListBar<K extends string>({
+  chips,
+  value,
+  onChange,
+  sentence,
+}: {
+  chips?: FilterOption<K>[];
+  value?: K;
+  onChange?: (k: K) => void;
+  sentence?: string;
+}) {
   return (
-    <div className="wb2-chd">
-      <span className="wb2-ci">
-        <Icon name={icon} size={19} />
-      </span>
-      <div>
-        <b>{title}</b>
-        <em>{sub}</em>
-      </div>
-    </div>
+    <Toolbar>
+      {chips && value !== undefined && onChange ? (
+        <FilterChips options={chips} value={value} onChange={onChange} />
+      ) : (
+        sentence && <span className="wb2-tbh2">{sentence}</span>
+      )}
+    </Toolbar>
   );
+}
+
+/* ── THE ROW, IN THE INSPECTOR ──
+   Everything the row knows, set as the staff card's ledger: what state it is
+   in, when, where, what tracks it and what it is worth — and the description
+   the row had to truncate, in full. The state is a WORD in its state colour
+   (law 26); the chip vocabulary stays on the row for now. The one action is
+   the one that exists: the job opens in its sheet, or a native row on the
+   board that owns it. Nothing here offers to write back to ServiceM8, because
+   nothing can — the mirror is read-only by charter. */
+function RowInspector({
+  row,
+  moneyVisible,
+  onOpen,
+  onClose,
+}: {
+  row: AllJobRow;
+  moneyVisible: boolean;
+  onOpen: (row: AllJobRow) => void;
+  onClose: () => void;
+}) {
+  const date = dayOf(row.date);
+  const m = moneyVisible ? row.money : null;
+  const openWord =
+    row.kind === "sm8" ? "Open job" : row.kind === "visit" ? "Open the visit" : "Open the project";
+  const owed = m && isAwaitingPayment(m.collection);
+
+  return (
+    <Inspector
+      label={`${row.clientName ?? "Unnamed client"}${row.number ? `, #${row.number}` : ""}`}
+      kicker={
+        row.number ? (
+          <>
+            <b>#{row.number}</b>
+            {row.numberSystem === "sm8" ? "ServiceM8" : "HeyTiff"}
+          </>
+        ) : undefined
+      }
+      title={row.clientName ?? "Unnamed client"}
+      onClose={onClose}
+      actions={
+        <button type="button" className="pbtn primary" onClick={() => onOpen(row)}>
+          {openWord}
+        </button>
+      }
+    >
+      <Ledger>
+        <Fact label="Status">
+          <span className={"wb2-inspword" + (row.tone ? ` ${row.tone}` : "")}>{row.statusLabel}</span>
+        </Fact>
+        <Fact label={date ? row.dateLabel.charAt(0).toUpperCase() + row.dateLabel.slice(1) : "Date"}>
+          {date ? fmtAuWeekdayDayMonth(date) : <span className="wb2-inspnone">{row.dateLabel}</span>}
+        </Fact>
+        {row.categoryName && (
+          <Fact label="Category">
+            <span className="wb2-inspcat">
+              {row.categoryColour && (
+                <span className="wb2-catdot" style={{ background: row.categoryColour }} aria-hidden />
+              )}
+              {row.categoryName}
+            </span>
+          </Fact>
+        )}
+        {row.suburb && <Fact label="Site">{row.suburb}</Fact>}
+        {row.tracked && (
+          <Fact label="Tracked">
+            {row.tracked.kind === "visit"
+              ? `On the board ${row.tracked.label}`
+              : `Project — ${row.tracked.label}`}
+          </Fact>
+        )}
+        {m && (
+          <Fact label={`Total, ${MONEY_BASIS}`}>
+            {m.valueCents != null ? fmtAud(m.valueCents) : <span className="wb2-inspnone">Not recorded</span>}
+            {m.collection === "part" && m.valueCents != null ? (
+              <small className="wb2-inspword warn">
+                Part paid — {fmtAud(m.valueCents - m.paidCents)} to come
+              </small>
+            ) : owed ? (
+              <small className="wb2-inspword warn">Awaiting payment</small>
+            ) : null}
+          </Fact>
+        )}
+        {m && row.statusLabel === "Quote" && m.quoteSent !== null && (
+          <Fact label="Quote">
+            <span className={"wb2-inspword" + (m.quoteSent ? "" : " warn")}>
+              {m.quoteSent ? "Sent" : "Not sent yet"}
+            </span>
+          </Fact>
+        )}
+      </Ledger>
+
+      <Reading label="Description">
+        {row.title ? <p>{row.title}</p> : <p className="wb2-inspnone">No description</p>}
+      </Reading>
+    </Inspector>
+  );
+}
+
+/** Selection is per panel, and a row that leaves the list takes the panel with it. */
+function useSelection(rows: AllJobRow[]) {
+  const [key, setKey] = useState<string | null>(null);
+  const row = key ? (rows.find((r) => r.key === key) ?? null) : null;
+  return {
+    key: row ? key : null,
+    row,
+    select: (r: AllJobRow) => setKey(r.key),
+    clear: () => setKey(null),
+  };
 }
 
 /** What an empty panel says depends on WHY it's empty — no integration, a
@@ -228,118 +377,186 @@ function Empty({
 export function WorkOrdersTab(props: Props) {
   const v = props.view;
   const total = v.work.booked.length + v.work.unbooked.length;
+  const [show, setShow] = useState<"all" | "booked" | "waiting">("all");
+  const booked = show === "waiting" ? [] : v.work.booked;
+  const unbooked = show === "booked" ? [] : v.work.unbooked;
+  const sel = useSelection([...booked, ...unbooked]);
 
   return (
     <>
-      <Head icon="wrench" title="Work orders" sub={workCountLine(v)} />
-      {props.truncated && (
-        <p className="int-hint">
-          Showing the newest jobs — this account has more open than one screen carries. Search
-          reaches all of them.
-        </p>
-      )}
-
-      {total === 0 ? (
-        <Empty
-          connected={props.connected}
-          syncing={props.syncing}
-          manage={props.manage}
-          icon="wrench"
-          nothing="Nothing on"
-          hint="Every open job in ServiceM8 lands here, plus the work tracked only in HeyTiff."
+      {total > 0 && (
+        <ListBar
+          value={show}
+          onChange={setShow}
+          chips={[
+            { key: "all", label: "All", n: total },
+            { key: "booked", label: "Booked", n: v.work.booked.length },
+            { key: "waiting", label: "Waiting on a day", n: v.work.unbooked.length },
+          ]}
         />
-      ) : (
-        <>
-          {v.work.booked.length > 0 && (
-            <div className="wb2-sect">
-              Booked in<em>Somebody is going</em>
-            </div>
-          )}
-          <Rows rows={v.work.booked} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
-
-          {v.work.unbooked.length > 0 && (
-            <div className="wb2-sect">
-              Waiting on a day<em>Open, with nobody rostered yet</em>
-            </div>
-          )}
-          <Rows rows={v.work.unbooked} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
-        </>
       )}
+      <Split
+        aside={
+          sel.row && (
+            <RowInspector
+              row={sel.row}
+              moneyVisible={props.moneyVisible}
+              onOpen={props.onOpen}
+              onClose={sel.clear}
+            />
+          )
+        }
+      >
+        {props.truncated && (
+          <p className="int-hint">
+            Showing the newest jobs — this account has more open than one screen carries. Search
+            reaches all of them.
+          </p>
+        )}
+
+        {total === 0 ? (
+          <Empty
+            connected={props.connected}
+            syncing={props.syncing}
+            manage={props.manage}
+            icon="wrench"
+            nothing="Nothing on"
+            hint="Every open job in ServiceM8 lands here, plus the work tracked only in HeyTiff."
+          />
+        ) : (
+          <>
+            {/* the group heads only earn their place while both groups show */}
+            {show === "all" && booked.length > 0 && (
+              <div className="wb2-sect">
+                Booked in<em>Somebody is going</em>
+              </div>
+            )}
+            <Rows
+              rows={booked}
+              moneyVisible={props.moneyVisible}
+              selected={sel.key}
+              onSelect={sel.select}
+              onOpen={props.onOpen}
+            />
+
+            {show === "all" && unbooked.length > 0 && (
+              <div className="wb2-sect">
+                Waiting on a day<em>Open, with nobody rostered yet</em>
+              </div>
+            )}
+            <Rows
+              rows={unbooked}
+              moneyVisible={props.moneyVisible}
+              selected={sel.key}
+              onSelect={sel.select}
+              onOpen={props.onOpen}
+            />
+          </>
+        )}
+      </Split>
     </>
   );
 }
 
 export function QuotesTab(props: Props) {
   const v = props.view;
+  const sel = useSelection(v.quotes);
 
   return (
     <>
-      <Head icon="file" title="Quotes" sub={quotesCountLine(v)} />
-      {v.quotes.length === 0 ? (
-        <Empty
-          connected={props.connected}
-          syncing={props.syncing}
-          manage={props.manage}
-          icon="file"
-          nothing="No quotes out"
-          hint="Quotes live in ServiceM8 — anything quoted and unanswered shows here."
-        />
-      ) : (
-        <Rows rows={v.quotes} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
-      )}
+      {v.quotes.length > 0 && <ListBar sentence={quotesCountLine(v)} />}
+      <Split
+        aside={
+          sel.row && (
+            <RowInspector
+              row={sel.row}
+              moneyVisible={props.moneyVisible}
+              onOpen={props.onOpen}
+              onClose={sel.clear}
+            />
+          )
+        }
+      >
+        {v.quotes.length === 0 ? (
+          <Empty
+            connected={props.connected}
+            syncing={props.syncing}
+            manage={props.manage}
+            icon="file"
+            nothing="No quotes out"
+            hint="Quotes live in ServiceM8 — anything quoted and unanswered shows here."
+          />
+        ) : (
+          <Rows
+            rows={v.quotes}
+            moneyVisible={props.moneyVisible}
+            selected={sel.key}
+            onSelect={sel.select}
+            onOpen={props.onOpen}
+          />
+        )}
+      </Split>
     </>
   );
 }
 
 export function CompletedJobsTab(props: Props) {
-  const [showUnsuccessful, setShowUnsuccessful] = useState(false);
   const v = props.view;
-  const owed = props.moneyVisible ? awaitingPaymentCount(v) : null;
+  /* "Didn't go ahead" was a toggle button under the list, and "awaiting
+     payment" a sentence above it. Both are ways of narrowing what is shown,
+     so both are filters — and a filter with nothing in it is not offered.
+
+     THE CHIP'S COUNT IS THE LENGTH OF THE ROWS IT SHOWS — `awaitingPaymentRows`,
+     the one rule (money known, some of it still out) — so the figure on the
+     chip and the rows under it cannot disagree. It rides the money grant. */
+  const owed = props.moneyVisible ? awaitingPaymentRows(v) : [];
+  const [show, setShow] = useState<"all" | "owed" | "unsuccessful">("all");
+  const shown = show === "owed" ? owed : show === "unsuccessful" ? v.unsuccessful : v.completed;
+  const sel = useSelection(shown);
+
+  const chips: FilterOption<"all" | "owed" | "unsuccessful">[] = [
+    { key: "all", label: "All", n: v.completed.length },
+  ];
+  if (owed.length > 0) chips.push({ key: "owed", label: "Awaiting payment", n: owed.length, tone: "warn" });
+  if (v.unsuccessful.length > 0)
+    chips.push({ key: "unsuccessful", label: "Didn't go ahead", n: v.unsuccessful.length });
 
   return (
     <>
-      <Head icon="check" title="Completed" sub={completedCountLine(v, showUnsuccessful)} />
-
-      {owed !== null && owed > 0 && (
-        <p className="int-hint">
-          {owed} of these {owed === 1 ? "is" : "are"} invoiced and still awaiting payment.
-        </p>
+      {(v.completed.length > 0 || v.unsuccessful.length > 0) && (
+        <ListBar value={show} onChange={setShow} chips={chips} />
       )}
-
-      {v.completed.length === 0 ? (
-        <Empty
-          connected={props.connected}
-          syncing={props.syncing}
-          manage={props.manage}
-          icon="check"
-          nothing="Nothing finished recently"
-          hint="The last eight weeks of finished work shows here; search reaches further back."
-        />
-      ) : (
-        <Rows rows={v.completed} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
-      )}
-
-      {v.unsuccessful.length > 0 && (
-        <>
-          <button
-            className="pbtn ghost"
-            style={{ marginTop: 10 }}
-            onClick={() => setShowUnsuccessful((s) => !s)}
-            aria-label={`${showUnsuccessful ? "Hide" : "Show"} ${v.unsuccessful.length} that did not go ahead`}
-          >
-            <Icon name={showUnsuccessful ? "minus" : "plus"} size={15} />
-            {/* `{" "}` or this renders "Show 3that didn't go ahead": a JSX text
-                block that wraps AND carries an entity loses the space it starts
-                with. Caught by lib/format/__tests__/jsx-entity-spacing, which
-                landed in #358 the same morning this shipped. */}
-            {showUnsuccessful ? "Hide" : "Show"} {v.unsuccessful.length}{" "}
-            that didn&apos;t go ahead
-          </button>
-          {showUnsuccessful && (
-            <Rows rows={v.unsuccessful} moneyVisible={props.moneyVisible} onOpen={props.onOpen} />
-          )}
-        </>
-      )}
+      <Split
+        aside={
+          sel.row && (
+            <RowInspector
+              row={sel.row}
+              moneyVisible={props.moneyVisible}
+              onOpen={props.onOpen}
+              onClose={sel.clear}
+            />
+          )
+        }
+      >
+        {shown.length === 0 && show === "all" ? (
+          <Empty
+            connected={props.connected}
+            syncing={props.syncing}
+            manage={props.manage}
+            icon="check"
+            nothing="Nothing finished recently"
+            hint="The last eight weeks of finished work shows here; search reaches further back."
+          />
+        ) : (
+          <Rows
+            rows={shown}
+            moneyVisible={props.moneyVisible}
+            selected={sel.key}
+            onSelect={sel.select}
+            onOpen={props.onOpen}
+          />
+        )}
+      </Split>
     </>
   );
 }

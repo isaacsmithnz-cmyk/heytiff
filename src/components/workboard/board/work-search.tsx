@@ -6,6 +6,7 @@ import { SEARCH_MIN, type WorkHit, type WorkSearchResult } from "@/lib/workboard
 import { searchSummary, snippet } from "@/lib/workboard/photo-search";
 import { subjectColour, subjectLabel } from "@/lib/workboard/photo-subjects";
 import type { PhotoHit } from "@/app/actions/photo-search";
+import { Toolbar, ToolbarEnd } from "./toolbar";
 
 /* THE UNIVERSAL SEARCH — the field, and what it puts on the card.
 
@@ -166,22 +167,23 @@ export function WorkSearchPanel({
 
   return (
     <div className="wb2-panel" role="region" aria-label="Search results" aria-busy={searching || photos.searching}>
-      <div className="wb2-chd">
-        <span className="wb2-ci blue">
-          <Icon name="search" size={19} />
-        </span>
+      {/* The board's toolbar, as on every tab: the search glyph in a tinted
+          square said "search" beside a field that says it. */}
+      <Toolbar>
         {/* THE COUNT IS THE LIVE REGION, not the panel. Announcing the whole
             card would read every row back on every keystroke; the headline is
             the one sentence that has actually changed, and it names both the
             query and how much it found. */}
-        <div aria-live="polite">
-          <b>{short ? "Keep typing" : `${total} ${total === 1 ? "match" : "matches"} for “${typed}”`}</b>
-        </div>
-        <button className="pbtn ghost" onClick={onClear}>
-          <Icon name="x" size={15} />
-          Clear
-        </button>
-      </div>
+        <span className="wb2-tbh2" aria-live="polite">
+          {short ? "Keep typing" : `${total} ${total === 1 ? "match" : "matches"} for “${typed}”`}
+        </span>
+        <ToolbarEnd>
+          <button className="pbtn ghost" onClick={onClear}>
+            <Icon name="x" size={15} />
+            Clear
+          </button>
+        </ToolbarEnd>
+      </Toolbar>
 
       {short ? null : total === 0 && settled ? (
         <div className="wb2-empty">

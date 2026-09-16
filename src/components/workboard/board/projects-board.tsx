@@ -38,6 +38,7 @@ export function ProjectsBoard({
   today,
   manage,
   connected,
+  lead,
   tools,
   sm8,
   searchPanel = null,
@@ -52,6 +53,8 @@ export function ProjectsBoard({
   connected: boolean;
   /** The capture pill's attachment (D15) — a trip while its sheet is open. */
   /** The page-owned capture pill, docked at the tab row's right end. */
+  /** The screen's own h1, rendered at the head of the tab band. */
+  lead?: ReactNode;
   tools?: ReactNode;
   /** Mirror health — the same chip the maintenance row carries (D8). */
   sm8?: Sm8Health | null;
@@ -191,7 +194,14 @@ export function ProjectsBoard({
 
   return (
     <div className="wb2">
-      <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="Projects board">
+      {/* THE TAB ROW IS THE PAGE HEADER. `lead` is the screen's h1 and
+          `tools` the switcher, the search and Display mode: one 48px band
+          instead of a title row above a tab row saying the same thing
+          twice. `role="tablist"` moves to the inner row, because a
+          tablist may only own tabs and the h1 is not one. */}
+      <div className="wb2-vtabs">
+        {lead}
+        <div className="wb2-vtrow" ref={rowRef} role="tablist" aria-label="Projects board">
         {thumb && (
           <span
             className="wb2-vslide"
@@ -212,6 +222,7 @@ export function ProjectsBoard({
             {TAB_LABEL[t]}
           </button>
         ))}
+        </div>
         <Sm8Chip sm8={sm8} />
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>

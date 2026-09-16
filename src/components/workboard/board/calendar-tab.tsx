@@ -6,6 +6,7 @@ import { fmtAuDayMonth } from "@/lib/au-dates";
 import { isWeekendISO, mondayOf } from "@/lib/workboard/board-status";
 import { plusDays } from "@/lib/workboard/dates";
 import { calendarToneForCal, placedDayOfCal, toneOfCal, type CalVisit } from "./derive";
+import { Toolbar } from "./toolbar";
 
 /* Calendar — a ROLLING FOUR WEEKS, read from the same status law as every
    other tab. A cell's colour derives from the visits SITTING on that day
@@ -94,47 +95,48 @@ export function CalendarTab({
 
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci blue">
-          <Icon name="calendar" size={19} />
-        </span>
-        <div>
-          {/* The arrows belong TO the label — a control that changes a value
-              sits with the value, not across the room from it. */}
-          <div className="wb2-mchead">
-            <button
-              className="wb2-mcarrow"
-              aria-label="A week earlier"
-              onClick={() => setWeekShift((w) => w - 1)}
-            >
-              <Icon name="chevL" size={15} />
-            </button>
-            <b>{rangeLabel}</b>
-            <button
-              className="wb2-mcarrow"
-              aria-label="A week later"
-              onClick={() => setWeekShift((w) => w + 1)}
-            >
-              <Icon name="chevR" size={15} />
-            </button>
-            {weekShift !== 0 && (
-              <button className="wb2-mcnow" onClick={() => setWeekShift(0)}>
-                Today
-              </button>
-            )}
-          </div>
+      {/* THE SCHEDULE'S ROW, on the calendar too: step the week, read the
+          range, go back to this week, and what the window holds on the right.
+          The calendar in a tinted blue square went, and the two figure chips
+          are the sentence — nobody taps them. The arrows stay with the label
+          they change. */}
+      <Toolbar>
+        <div className="wb2-tbstep" role="group" aria-label="Week">
+          <button
+            className="wb2-tbarrow"
+            aria-label="A week earlier"
+            onClick={() => setWeekShift((w) => w - 1)}
+          >
+            <Icon name="chevL" size={15} />
+          </button>
+          <button
+            className="wb2-tbarrow"
+            aria-label="A week later"
+            onClick={() => setWeekShift((w) => w + 1)}
+          >
+            <Icon name="chevR" size={15} />
+          </button>
         </div>
-        {/* The status slot, same as every other tab's — and it says what it
-            counted. A bare "2 services" sat mid-header naming neither the
-            window it counted nor the fact that these are the ones with a day
-            on them; the calendar only ever draws placed work. */}
-        <span className="wb2-mcsum">
-          <span className="wb2-chip">
+        <h2 className="wb2-tbh2">{rangeLabel}</h2>
+        {weekShift !== 0 && (
+          <button className="wb2-tbtoday" onClick={() => setWeekShift(0)}>
+            Today
+          </button>
+        )}
+        {/* It says what it counted: these are the services WITH a day, which
+            is all the calendar draws. */}
+        <span className="wb2-tbsum">
+          <span>
             {services} {services === 1 ? "service" : "services"} booked in
           </span>
-          {toConfirm > 0 && <span className="wb2-chip warn">{toConfirm} to confirm</span>}
+          {toConfirm > 0 && (
+            <>
+              {", "}
+              <span className="warn">{toConfirm} to confirm</span>
+            </>
+          )}
         </span>
-      </div>
+      </Toolbar>
 
       <div className="wb2-mckey">
         <span>

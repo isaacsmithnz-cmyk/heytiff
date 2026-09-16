@@ -433,6 +433,38 @@ describe("completed", () => {
     expect(screen.getByText("$50,000 awaiting payment")).toBeInTheDocument();
     expect(screen.getByText("Money settled")).toBeInTheDocument();
   });
+
+  /* The list was already split on this line — ready to close above done — so
+     the split is the toolbar's filter, and the heads go when one group shows. */
+  it("filters to ready-to-close or done, and offers neither when it holds nothing", async () => {
+    mount(
+      data({
+        projects: [
+          projectFix({ id: "p-1", stage: "Complete", name: "Finished-not-closed" }),
+          projectFix({ id: "p-2", status: "done", name: "Closed and gone" }),
+        ],
+      })
+    );
+    await toTab("Completed");
+    expect(screen.getByRole("button", { name: "All 2" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByText(/Closed and gone/).length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Ready to close 1" }));
+    expect(screen.queryAllByText(/Closed and gone/)).toHaveLength(0);
+    expect(screen.getAllByText(/Finished-not-closed/).length).toBeGreaterThan(0);
+    expect(document.querySelectorAll(".wb2-wkhd")).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Done 1" }));
+    expect(screen.queryAllByText(/Finished-not-closed/)).toHaveLength(0);
+    expect(screen.getAllByText(/Closed and gone/).length).toBeGreaterThan(0);
+  });
+
+  it("offers no Ready to close filter when nothing is waiting", async () => {
+    mount(data({ projects: [projectFix({ id: "p-2", status: "done", name: "Closed and gone" })] }));
+    await toTab("Completed");
+    expect(screen.queryByRole("button", { name: /Ready to close/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Done 1" })).toBeInTheDocument();
+  });
 });
 
 describe("calendar (P3 — per-side plus the merged view)", () => {

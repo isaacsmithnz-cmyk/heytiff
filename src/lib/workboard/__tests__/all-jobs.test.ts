@@ -3,7 +3,7 @@ import {
   allJobsRows,
   awaitingPaymentCents,
   awaitingPaymentCount,
-  completedCountLine,
+  awaitingPaymentRows,
   fmtMinutesAsHours,
   groupChecklist,
   quotesCountLine,
@@ -11,7 +11,6 @@ import {
   sm8CategoryColour,
   sm8JobIsOpen,
   sm8MinutesBetween,
-  workCountLine,
   type AllJobsMirrorJob,
   type AllJobsProject,
   type AllJobsVisit,
@@ -345,6 +344,8 @@ describe("money on a row", () => {
       ],
     });
     expect(awaitingPaymentCount(v)).toBe(2);
+    // the count is the filter's rows, read once — the chip and its list agree
+    expect(awaitingPaymentRows(v)).toHaveLength(2);
     expect(awaitingPaymentCents(v)).toBe(10000 + 30000);
   });
 
@@ -371,43 +372,14 @@ describe("money on a row", () => {
 });
 
 describe("the count lines", () => {
-  it("says how the open work splits", () => {
-    const v = view({
-      jobs: [
-        job({ remoteId: "a", nextBooking: "2026-08-14 07:00:00" }),
-        job({ remoteId: "b" }),
-        job({ remoteId: "c" }),
-      ],
-    });
-    expect(workCountLine(v)).toBe("3 jobs on — 1 booked, 2 waiting on a day");
-  });
-
-  it("counts one job in the singular", () => {
-    expect(workCountLine(view({ jobs: [job({ remoteId: "a" })] }))).toBe(
-      "1 job on — 0 booked, 1 waiting on a day"
-    );
-  });
-
-  it("has something to say when there is nothing", () => {
-    const empty = view({});
-    expect(workCountLine(empty)).toBe("Nothing open");
-    expect(quotesCountLine(empty)).toBe("No quotes out");
-    expect(completedCountLine(empty, false)).toBe("Nothing finished recently");
-  });
-
-  it("mentions the unsuccessful tail only while it is showing", () => {
-    const v = view({
-      jobs: [
-        job({ remoteId: "c", status: "Completed", completionDate: "2026-08-01 00:00:00" }),
-        job({ remoteId: "u", status: "Unsuccessful", completionDate: "2026-08-01 00:00:00" }),
-      ],
-    });
-    expect(completedCountLine(v, false)).toBe("1 job finished");
-    expect(completedCountLine(v, true)).toBe("1 job finished, 1 that didn't go ahead");
+  /* The work and completed count sentences went when those lists' toolbars
+     became filter chips: the chips carry the counts, and a sentence restating
+     them was the same figure twice. Quotes has no honest split to filter on,
+     so its sentence is still its toolbar. */
+  it("has something to say when there are no quotes", () => {
+    expect(quotesCountLine(view({ jobs: [] }))).toBe("No quotes out");
   });
 });
-
-/* ── the ServiceM8 field readers ── */
 
 describe("sm8CategoryColour", () => {
   it("accepts the bare hex the live mirror actually sends", () => {

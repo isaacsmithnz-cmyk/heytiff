@@ -24,6 +24,7 @@ import {
   toneOf,
   untilLabel,
 } from "./derive";
+import { Toolbar } from "./toolbar";
 
 /* Upcoming — the triage list, grouped by week (C4, decided): Overdue leads,
    then This week, Next week, then each later week under its Monday. Within
@@ -78,31 +79,29 @@ export function UpcomingTab({
 
   return (
     <>
-      <div className="wb2-chd">
-        <span className="wb2-ci blue">
-          <Icon name="rotate" size={19} />
-        </span>
-        <div>
-          <b>Maintenance services</b>
-          <em>Grouped by week, worst first.</em>
-        </div>
-        {/* NAME THE DAY, not the span. "Fortnight confirmed" was two words
-            doing three jobs; "Next 14 days all confirmed" fixed the wrong
-            half — Isaac: "most of them aren't actually confirmed", and he was
-            reading the LIST, where most rows show empty gates because they
-            are further out than the horizon this chip counts.
+      {/* THE HEAD IS THE TOOLBAR. "Maintenance services" under a tab that
+          says Upcoming, on a side the switcher calls Maintenance, and a
+          caption ("grouped by week, worst first") the week heads below show
+          for themselves. The one line a reader checks the list against stays,
+          as a sentence in the state's colour when there is something to do. */}
+      <Toolbar>
+      {/* NAME THE DAY, not the span. "Fortnight confirmed" was two words
+          doing three jobs; "Next 14 days all confirmed" fixed the wrong
+          half — Isaac: "most of them aren't actually confirmed", and he was
+          reading the LIST, where most rows show empty gates because they
+          are further out than the horizon this chip counts.
 
-            A span the reader has to compute from can't be checked against
-            what's on screen. A DATE can: everything above Mon 17 Aug is
-            clear, everything below it is somebody else's week. Same rule
-            underneath (B8 — gate gaps beyond the horizon are not today's
-            business), said in a way the list can't contradict. */}
-        <span className={"wb2-chip" + (confirm.gaps > 0 ? " warn" : " ok")}>
+          A span the reader has to compute from can't be checked against
+          what's on screen. A DATE can: everything above Mon 17 Aug is
+          clear, everything below it is somebody else's week. Same rule
+          underneath (B8 — gate gaps beyond the horizon are not today's
+          business), said in a way the list can't contradict. */}
+        <span className={"wb2-tbh2" + (confirm.gaps > 0 ? " warn" : "")}>
           {confirm.gaps > 0
             ? `${confirm.gaps} to confirm before ${horizonDay}`
             : `Nothing to confirm before ${horizonDay}`}
         </span>
-      </div>
+      </Toolbar>
 
       {groups.length === 0 ? (
         <div className="wb2-empty">

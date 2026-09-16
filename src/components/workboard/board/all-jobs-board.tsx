@@ -80,6 +80,7 @@ export function AllJobsBoard({
   aiEnabled = false,
   sm8,
   onOpenTracked,
+  lead,
   tools,
   searchPanel = null,
   onExitSearch,
@@ -108,6 +109,8 @@ export function AllJobsBoard({
      project are three different destinations with three different ids. */
   onOpenTracked: (target: { kind: "visit" | "agreement" | "project"; id: string }) => void;
   /** The page-owned universal search, docked at the tab row's right end. */
+  /** The screen's own h1, rendered at the head of the tab band. */
+  lead?: ReactNode;
   tools?: ReactNode;
   /** Its answers — see the maintenance board's note. */
   searchPanel?: ReactNode;
@@ -313,7 +316,14 @@ export function AllJobsBoard({
 
   return (
     <div className="wb2">
-      <div className="wb2-vtabs" ref={rowRef} role="tablist" aria-label="All jobs board">
+      {/* THE TAB ROW IS THE PAGE HEADER. `lead` is the screen's h1 and
+          `tools` the switcher, the search and Display mode: one 48px band
+          instead of a title row above a tab row saying the same thing
+          twice. `role="tablist"` moves to the inner row, because a
+          tablist may only own tabs and the h1 is not one. */}
+      <div className="wb2-vtabs">
+        {lead}
+        <div className="wb2-vtrow" ref={rowRef} role="tablist" aria-label="All jobs board">
         {thumb && (
           <span
             className="wb2-vslide"
@@ -334,6 +344,7 @@ export function AllJobsBoard({
             {TAB_LABEL[t]}
           </button>
         ))}
+        </div>
         <Sm8Chip sm8={sm8} />
         {tools && <div className="wb2-vtcap">{tools}</div>}
       </div>

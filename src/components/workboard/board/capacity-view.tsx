@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
 import { Icon } from "@/components/shell/icon";
 import { fmtAuDayMonth, fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { plusDays } from "@/lib/workboard/dates";
@@ -32,7 +31,8 @@ import {
 import type { AllJobsMirrorJob } from "@/lib/workboard/all-jobs";
 import { capacityCellPaint } from "@/lib/workboard/capacity-paint";
 import { WbModal } from "../wb-modal";
-import { ScheduleFocus } from "./schedule-focus";
+import { FocusInspector } from "./focus-inspector";
+import { Inspector, Split } from "./inspector";
 import { Sm8Gap, sm8Gap } from "./sm8-gap";
 import { useNowMin } from "./use-now-min";
 import type { ScheduleJobState } from "./schedule-tab";
@@ -215,18 +215,6 @@ export function CapacityView({
     }
   };
 
-  /* Escape dismisses the day card and hands focus back to the cell it came
-     from — wired at the document, the WbModal's own pattern. Not while the
-     crew editor or the job card is up: each owns its own Escape. */
-  useEffect(() => {
-    if (openDay === null || editing || focusJob) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeDetail();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  });
-
   const detailNow = openDay !== null && detail && detail.dayISO === openDay ? detail : null;
   /* THE DAY, LAID OUT — the rail's own function over the rail's own payload,
      not a second walk of the activities. It re-applies the `wasScheduled`
@@ -301,7 +289,6 @@ export function CapacityView({
      again on the NEXT render — so the row to return focus to is remembered
      rather than focused on the spot, where the ref still points at a node
      that has just left the document. */
-  const cardRef = useRef<HTMLDivElement>(null);
   const returnTo = useRef<string | null>(null);
   const closeFocus = () => {
     returnTo.current = focusJob;
@@ -313,21 +300,11 @@ export function CapacityView({
     returnTo.current = null;
   });
 
-  /* A DIALOG THE KEYBOARD IS ACTUALLY IN. The panel this replaced sat in
-     flow, so leaving focus on the cell was right; a card over a scrim is
-     not — Escape and Tab have to belong to it. Focus lands on the card
-     ONCE per day opened: coming back from a job card is not a new day, and
-     re-landing here would steal the row the card just handed back. */
-  const landed = useRef<string | null>(null);
-  useEffect(() => {
-    if (openDay === null) {
-      landed.current = null;
-      return;
-    }
-    if (focusJob !== null || landed.current === openDay) return;
-    landed.current = openDay;
-    cardRef.current?.focus();
-  });
+  /* THE DAY IS NOT A DIALOG ANY MORE. The card this replaced sat over a scrim,
+     so Escape and Tab had to belong to it and focus landed on it once per day
+     opened. The inspector sits beside the grid: focus stays on the cell that
+     was clicked, which is where the next arrow key or the next click wants it,
+     and the inspector's own Escape closes it. */
 
   const savedCrew = () => {
     setEditing(false);
@@ -353,63 +330,49 @@ export function CapacityView({
 
   const head = (
     <>
-      {/* THE SAME THREE STATIONS AS THE DAY BOARD, to the pixel — the window
-          name on the left, the stepper locked in the middle with its reset
-          pill in the slot beside it, the chips on the right. Two tabs, one
-          header: the arrows you click through weeks with sit in the same
-          place on either, so moving between them moves nothing. */}
-      <div className="wb2-chd wb2-schhd">
-        <div className="wb2-schhla">
-          <span className="wb2-ci blue">
-            <Icon name="calendar" size={19} />
-          </span>
-          <div className="wb2-mchead">
-            <b>{windowWord}</b>
-          </div>
+      {/* ONE ROW, THE DAY BOARD'S OWN. The two tabs shared a three-station
+          header — window name left, stepper locked in the middle, chips right
+          — so that moving between them moved nothing. They still share it;
+          it is `.wb2-tbar` now, and the day board's note says what the
+          three bands cost and why the calendar in a tinted blue square and
+          the figure chips went with them. */}
+      <div className="wb2-tbar">
+        <div className="wb2-tbstep" role="group" aria-label="Window">
+          <button
+            className="wb2-tbarrow"
+            aria-label="The week before"
+            onClick={() => showWindow(plusDays(start, -7))}
+          >
+            <Icon name="chevL" size={15} />
+          </button>
+          <button
+            className="wb2-tbarrow"
+            aria-label="The week after"
+            onClick={() => showWindow(plusDays(start, 7))}
+          >
+            <Icon name="chevR" size={15} />
+          </button>
         </div>
-        <div className="wb2-schmid">
-          {!anchored && (
-            <button className="wb2-mcnow" onClick={() => showWindow(mondayOf(today))}>
-              This week
-            </button>
-          )}
-          <div className="wb2-schweek" role="group" aria-label="Window">
-            <button
-              className="wb2-mcarrow"
-              aria-label="The week before"
-              onClick={() => showWindow(plusDays(start, -7))}
-            >
-              <Icon name="chevL" size={15} />
-            </button>
-            <b>{rangeLabel}</b>
-            <button
-              className="wb2-mcarrow"
-              aria-label="The week after"
-              onClick={() => showWindow(plusDays(start, 7))}
-            >
-              <Icon name="chevR" size={15} />
-            </button>
-          </div>
-        </div>
-        <div className="wb2-schhrr">
-          <span className="wb2-mcsum">
-            {manage && current && (
-              <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
-                <Icon name="users" size={14} />
-                Crew
-              </button>
-            )}
-            {/* ONE chip. It used to name the window as well ("Next four weeks
-                · 69% full") because a bare percentage beside a month answered
-                a question nobody had asked — the window's name is the left
-                station's job now, so the chip says only the number and the
-                thing it measures. */}
-            {scored && total && <span className="wb2-chip">{total.fillPct}% full</span>}
-            {current && !scored && windowBooked > 0 && (
-              <span className="wb2-chip">{fmtHoursShort(windowBooked)} booked</span>
-            )}
-          </span>
-        </div>
+        <h2 className="wb2-tbh2">{rangeLabel}</h2>
+        <span className="wb2-tbwin">{windowWord}</span>
+        {!anchored && (
+          <button className="wb2-tbtoday" onClick={() => showWindow(mondayOf(today))}>
+            This week
+          </button>
+        )}
+        <span className="wb2-tbsum">
+          {scored && total
+            ? `${total.fillPct}% full`
+            : current && !scored && windowBooked > 0
+              ? `${fmtHoursShort(windowBooked)} booked`
+              : ""}
+        </span>
+        {manage && current && (
+          <button type="button" className="wb2-scmcrew" onClick={() => setEditing(true)}>
+            <Icon name="users" size={14} />
+            Crew
+          </button>
+        )}
       </div>
     </>
   );
@@ -429,220 +392,183 @@ export function CapacityView({
     );
   }
 
+  /* THE INSPECTOR — the day, or one job out of it. It replaces the day card
+     and the focus card that took its place, both of which sat over a scrim:
+     the grid stays in view now, and clicking another day replaces what is
+     here. "Back to the day" is still literally that. */
+  const aside = focus ? (
+    <FocusInspector
+      job={focus}
+      onClose={closeDetail}
+      onBack={closeFocus}
+      onOpen={() => {
+        const job = focusJob ? jobById.get(focusJob) : null;
+        if (job) onOpenJob(job, dayStateOfMarks(focus.marks));
+      }}
+    />
+  ) : openDay !== null ? (
+    <Inspector
+      label={`Jobs on ${fmtAuWeekdayDayMonth(openDay)}`}
+      kicker={
+        detailNow
+          ? `${detailJobs.length} ${detailJobs.length === 1 ? "job" : "jobs"}, ${fmtHoursShort(detailMinutes)}`
+          : undefined
+      }
+      title={fmtAuWeekdayDayMonth(openDay)}
+      onClose={closeDetail}
+    >
+      <div className="wb2-scdlist">
+        {!detailNow && <p className="wb2-hint wb2-schload">Reading the day…</p>}
+        {detailNow && detailJobs.length === 0 && (
+          <p className="wb2-hint wb2-schload">Nothing booked.</p>
+        )}
+        {/* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL: the category's wash,
+            its cap on the leading edge, the number as a chip. Clicking one
+            brings the job forward — every row does it, crew or not, so the
+            next step is always in the same place. */}
+        {detailJobs.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            ref={(el) => {
+              if (el) jobRefs.current.set(row.id, el);
+              else jobRefs.current.delete(row.id);
+            }}
+            className={"wb2-scdjob" + (row.done ? " done" : "")}
+            style={{
+              "--fill": row.done ? row.paint.pale : row.paint.fill,
+              "--bar": row.paint.bar,
+              "--chip": row.done ? "rgba(5,5,5,.06)" : row.paint.chip,
+              "--btext": row.paint.ink,
+            } as CSSProperties}
+            onClick={() => setFocusJob(row.id)}
+          >
+            <span className="wb2-scdjh">
+              <b>{row.clientName ?? "Unnamed client"}</b>
+              {row.jobNumber && <u>{row.jobNumber}</u>}
+              <em>{fmtHoursShort(row.minutes)}</em>
+            </span>
+            <em>{[row.label, row.suburb].filter(Boolean).join(", ")}</em>
+            <i>{row.people.join(", ")}</i>
+          </button>
+        ))}
+      </div>
+    </Inspector>
+  ) : null;
+
   return (
     <>
       {head}
 
-      {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks…</p>}
+      <Split aside={aside}>
+        {loading && !current && <p className="wb2-hint wb2-schload">Reading the weeks…</p>}
 
-      {days && !scored && (
-        <div className="wb2-scmnone">
-          <b>The crew hasn&apos;t been set</b>
-          <em>
-            Nobody counts toward a day yet, so the weeks can&apos;t be scored — what&apos;s booked
-            still shows.
-          </em>
-          {manage && (
-            <button type="button" className="wb2-scmset" onClick={() => setEditing(true)}>
-              Set the crew
-            </button>
-          )}
-        </div>
-      )}
-
-      {days && (
-        <>
-          <div className="wb2-scmdow" aria-hidden="true">
-            {DOW.map((d) => (
-              <span key={d}>{d}</span>
-            ))}
+        {days && !scored && (
+          <div className="wb2-scmnone">
+            <b>The crew hasn&apos;t been set</b>
+            <em>
+              Nobody counts toward a day yet, so the weeks can&apos;t be scored — what&apos;s booked
+              still shows.
+            </em>
+            {manage && (
+              <button type="button" className="wb2-scmset" onClick={() => setEditing(true)}>
+                Set the crew
+              </button>
+            )}
           </div>
-          <div className="wb2-scm" role="group" aria-label="How full each day is">
-            {days.map((d, di) => {
-              const hasPct = d.fillPct !== null;
-              const clickable = d.jobs > 0;
-              const sel = openDay === d.dayISO;
-              const hours = hasPct
-                ? `${fmtHoursShort(d.bookedMinutes)} of ${fmtHoursShort(d.capacityMinutes)}`
-                : d.bookedMinutes > 0
-                  ? `${fmtHoursShort(d.bookedMinutes)} booked`
-                  : "";
-              const title = [hours || null, d.over ? "over capacity" : null]
-                .filter(Boolean)
-                .join(", ");
-              const cls =
-                "wb2-scmc" +
-                (hasPct ? " gauge" : " ns") +
-                (d.over ? " over" : "") +
-                (d.dayISO === today ? " today" : "") +
-                (sel ? " on" : "");
-              /* the gauge rides custom properties so the sheet styles one
-                 class and a test can measure what actually shipped — the
-                 rail's --fill technique */
-              const paint = hasPct ? capacityCellPaint(d.fillPct!, d.over) : null;
-              const style = paint
-                ? ({
-                    "--capfill": paint.fill,
-                    "--caplevel": `${paint.level}%`,
-                    "--capink": paint.ink,
-                    ...(paint.dateInk ? { "--capdate": paint.dateInk } : {}),
-                  } as CSSProperties)
-                : undefined;
-              /* a rolling window has no month around it, so a month TURN is
-                 named on the cell where it happens — and on the first cell,
-                 which is the window's own anchor */
-              const dnum = Number(d.dayISO.slice(8, 10));
-              const dateLabel =
-                dnum === 1 || di === 0 ? `${dnum} ${MON3[Number(d.dayISO.slice(5, 7)) - 1]}` : dnum;
-              const inner = (
-                <>
-                  <span className="wb2-scmd">{dateLabel}</span>
-                  {hasPct ? (
-                    <b className="wb2-scmp">{d.fillPct}%</b>
-                  ) : d.bookedMinutes > 0 ? (
-                    /* no figure and no gauge without a denominator — the dot
-                       only says the day still holds work */
-                    <i className="wb2-scmk" aria-hidden="true" />
-                  ) : null}
-                  {d.over && <em className="wb2-scmo">Over</em>}
-                </>
-              );
-              if (!clickable) {
-                return (
-                  <span key={d.dayISO} className={cls} style={style} title={title || undefined}>
-                    {inner}
-                  </span>
-                );
-              }
-              return (
-                <button
-                  key={d.dayISO}
-                  type="button"
-                  ref={(el) => {
-                    if (el) cellRefs.current.set(d.dayISO, el);
-                    else cellRefs.current.delete(d.dayISO);
-                  }}
-                  className={cls}
-                  style={style}
-                  title={title || undefined}
-                  aria-pressed={sel}
-                  aria-label={`${fmtAuWeekdayDayMonth(d.dayISO)}${
-                    hasPct ? `, ${d.fillPct}% full` : ""
-                  }${hours ? `, ${hours}` : ""}${d.over ? ", over capacity" : ""}, ${d.jobs} ${
-                    d.jobs === 1 ? "job" : "jobs"
-                  }`}
-                  onClick={() => openDetail(d.dayISO)}
-                >
-                  {inner}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* THE DAY, BROUGHT FORWARD. It portals to <body> over `.fl-ov`'s scrim
-          — `.page.in`'s will-change breaks position:fixed and anything left
-          inside `.fg` is unreachable under a body-portalled scrim at any
-          z-index, both documented traps here — and it reuses that ONE scrim
-          rather than growing a second backdrop-filter.
-
-          The focus card takes its place rather than stacking on it: two
-          scrims is two blurs, and a card that came out of the day belongs in
-          the day's slot, not on top of it. Escape and "Back to the day" put
-          this back. */}
-      {openDay !== null &&
-        !focus &&
-        createPortal(
-          <div className="fl-ov wb2-scdov" onClick={closeDetail}>
-            <div
-              ref={cardRef}
-              tabIndex={-1}
-              className="wb2-scd"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Jobs on ${fmtAuWeekdayDayMonth(openDay)}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="wb2-scdh">
-                <span>
-                  <b>{fmtAuWeekdayDayMonth(openDay)}</b>
-                  {detailNow && (
-                    <em>
-                      {detailJobs.length} {detailJobs.length === 1 ? "job" : "jobs"},{" "}
-                      {fmtHoursShort(detailMinutes)}
-                    </em>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  className="wb2-scdx"
-                  aria-label="Close the day"
-                  onClick={closeDetail}
-                >
-                  <Icon name="x" size={15} />
-                </button>
-              </div>
-
-              <div className="wb2-scdlist">
-                {!detailNow && <p className="wb2-hint wb2-schload">Reading the day…</p>}
-                {detailNow && detailJobs.length === 0 && (
-                  <p className="wb2-hint wb2-schload">Nothing booked.</p>
-                )}
-                {/* A ROW IS THE BLOCK IT WOULD BE ON THE RAIL: the category's
-                    wash, its cap on the leading edge, the number as a chip.
-                    Clicking one brings the job forward — every row does it,
-                    crew or not, so the next step is always in the same
-                    place. */}
-                {detailJobs.map((row) => (
-                  <button
-                    key={row.id}
-                    type="button"
-                    ref={(el) => {
-                      if (el) jobRefs.current.set(row.id, el);
-                      else jobRefs.current.delete(row.id);
-                    }}
-                    className={"wb2-scdjob" + (row.done ? " done" : "")}
-                    style={{
-                      "--fill": row.done ? row.paint.pale : row.paint.fill,
-                      "--bar": row.paint.bar,
-                      "--chip": row.done ? "rgba(5,5,5,.06)" : row.paint.chip,
-                      "--btext": row.paint.ink,
-                    } as CSSProperties}
-                    onClick={() => setFocusJob(row.id)}
-                  >
-                    <span className="wb2-scdjh">
-                      <b>{row.clientName ?? "Unnamed client"}</b>
-                      {row.jobNumber && <u>{row.jobNumber}</u>}
-                      <em>{fmtHoursShort(row.minutes)}</em>
-                    </span>
-                    <em>{[row.label, row.suburb].filter(Boolean).join(", ")}</em>
-                    <i>{row.people.join(", ")}</i>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>,
-          document.body
         )}
 
-      {/* ONE JOB OUT OF THAT DAY — the rail's card, unchanged. "Back to the
-          day" is literally that: the day card comes back. */}
-      {focus && (
-        <ScheduleFocus
-          job={focus}
-          onClose={closeFocus}
-          onOpen={() => {
-            const job = focusJob ? jobById.get(focusJob) : null;
-            const dayState = dayStateOfMarks(focus.marks);
-            /* the day closes with it: the sheet is its own surface, and a
-               modal left underneath would be a second scrim behind it */
-            setFocusJob(null);
-            setOpenDay(null);
-            if (job) onOpenJob(job, dayState);
-          }}
-        />
-      )}
+        {days && (
+          <>
+            <div className="wb2-scmdow" aria-hidden="true">
+              {DOW.map((d) => (
+                <span key={d}>{d}</span>
+              ))}
+            </div>
+            <div className="wb2-scm" role="group" aria-label="How full each day is">
+              {days.map((d, di) => {
+                const hasPct = d.fillPct !== null;
+                const clickable = d.jobs > 0;
+                const sel = openDay === d.dayISO;
+                const hours = hasPct
+                  ? `${fmtHoursShort(d.bookedMinutes)} of ${fmtHoursShort(d.capacityMinutes)}`
+                  : d.bookedMinutes > 0
+                    ? `${fmtHoursShort(d.bookedMinutes)} booked`
+                    : "";
+                const title = [hours || null, d.over ? "over capacity" : null]
+                  .filter(Boolean)
+                  .join(", ");
+                const cls =
+                  "wb2-scmc" +
+                  (hasPct ? " gauge" : " ns") +
+                  (d.over ? " over" : "") +
+                  (d.dayISO === today ? " today" : "") +
+                  (sel ? " on" : "");
+                /* the gauge rides custom properties so the sheet styles one
+                   class and a test can measure what actually shipped — the
+                   rail's --fill technique */
+                const paint = hasPct ? capacityCellPaint(d.fillPct!, d.over) : null;
+                const style = paint
+                  ? ({
+                      "--capfill": paint.fill,
+                      "--caplevel": `${paint.level}%`,
+                      "--capink": paint.ink,
+                      ...(paint.dateInk ? { "--capdate": paint.dateInk } : {}),
+                    } as CSSProperties)
+                  : undefined;
+                /* a rolling window has no month around it, so a month TURN is
+                   named on the cell where it happens — and on the first cell,
+                   which is the window's own anchor */
+                const dnum = Number(d.dayISO.slice(8, 10));
+                const dateLabel =
+                  dnum === 1 || di === 0 ? `${dnum} ${MON3[Number(d.dayISO.slice(5, 7)) - 1]}` : dnum;
+                const inner = (
+                  <>
+                    <span className="wb2-scmd">{dateLabel}</span>
+                    {hasPct ? (
+                      <b className="wb2-scmp">{d.fillPct}%</b>
+                    ) : d.bookedMinutes > 0 ? (
+                      /* no figure and no gauge without a denominator — the dot
+                         only says the day still holds work */
+                      <i className="wb2-scmk" aria-hidden="true" />
+                    ) : null}
+                    {d.over && <em className="wb2-scmo">Over</em>}
+                  </>
+                );
+                if (!clickable) {
+                  return (
+                    <span key={d.dayISO} className={cls} style={style} title={title || undefined}>
+                      {inner}
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={d.dayISO}
+                    type="button"
+                    ref={(el) => {
+                      if (el) cellRefs.current.set(d.dayISO, el);
+                      else cellRefs.current.delete(d.dayISO);
+                    }}
+                    className={cls}
+                    style={style}
+                    title={title || undefined}
+                    aria-pressed={sel}
+                    aria-label={`${fmtAuWeekdayDayMonth(d.dayISO)}${
+                      hasPct ? `, ${d.fillPct}% full` : ""
+                    }${hours ? `, ${hours}` : ""}${d.over ? ", over capacity" : ""}, ${d.jobs} ${
+                      d.jobs === 1 ? "job" : "jobs"
+                    }`}
+                    onClick={() => openDetail(d.dayISO)}
+                  >
+                    {inner}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Split>
 
       {editing && current && (
         <CrewEditor

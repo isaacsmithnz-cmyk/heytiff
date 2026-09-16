@@ -441,8 +441,13 @@ export interface MultiConnection {
   idus: IndoorUnit[];
   /** indoor units in the set, including any whose model isn't in the pack */
   iduCount: number;
-  /** Σ connected indoor sizing capacity — null until any unit resolves a kw */
+  /** Σ connected indoor sizing capacity — null until any unit resolves a kw.
+      A fact about the SET; exceeding the outdoor here is normal. */
   connectedKw: number | null;
+  /** what the rooms get: per served room, this system's heads there capped at
+      its outdoor, plus heads in no served room at their rating. Equal to
+      connectedKw unless one room's own heads outrun the outdoor. */
+  coverKw: number | null;
   /** Σ known served-room loads (the outdoor sizing hint) — null until any derive */
   requiredKw: number | null;
   /** served rooms whose load couldn't derive (uncalibrated floor etc.) */
@@ -500,11 +505,18 @@ export function multiConnection(
      checked as 71+25+25+25 (listed) instead of 71+71+25+25+25 (refused).
      Every placed indoor unit counts, wherever it sits; a stored selection
      stands in only for a served room with nothing placed. */
-  const placedModels = mine
-    .filter((o) => o.props.role === "idu")
-    .map((o) => String(o.props.model ?? ""));
-  const pendingModels = rooms.filter((r) => !r.placed && r.model).map((r) => r.model);
-  const setModels = [...placedModels, ...pendingModels].filter((m) => m);
+  const members: { model: string; roomId: string | null }[] = [
+    ...mine
+      .filter((o) => o.props.role === "idu")
+      .map((o) => ({
+        model: String(o.props.model ?? ""),
+        roomId: typeof o.props.roomId === "string" ? o.props.roomId : null,
+      })),
+    ...rooms
+      .filter((r) => !r.placed && r.model)
+      .map((r) => ({ model: r.model, roomId: r.room.id })),
+  ].filter((m) => m.model);
+  const setModels = members.map((m) => m.model);
   const idus = setModels
     .map((m) => pack?.indoor_units.find((u) => u.model === m) ?? null)
     .filter((u): u is IndoorUnit => u != null);
@@ -522,6 +534,23 @@ export function multiConnection(
     : null;
 
   const oduKw = odu ? sizingCapacityKw(odu, basis) : null;
+
+  /* the rooms' cover: one cap per served room, never across rooms */
+  let coverKw: number | null = null;
+  if (idus.length) {
+    const servedIds = new Set(served.map((r) => r.id));
+    const perRoom = new Map<string, number>();
+    let loose = 0;
+    for (const m of members) {
+      const u = pack?.indoor_units.find((x) => x.model === m.model);
+      if (!u) continue;
+      const kw = sizingCapacityKw(u, basis);
+      if (m.roomId && servedIds.has(m.roomId)) perRoom.set(m.roomId, (perRoom.get(m.roomId) ?? 0) + kw);
+      else loose += kw;
+    }
+    coverKw = loose;
+    for (const kw of perRoom.values()) coverKw += oduKw != null ? Math.min(kw, oduKw) : kw;
+  }
   const comboPct =
     connectedKw != null && oduKw != null && oduKw > 0
       ? (connectedKw / oduKw) * 100
@@ -543,6 +572,7 @@ export function multiConnection(
     idus,
     iduCount: setModels.length,
     connectedKw,
+    coverKw,
     requiredKw,
     unknownRooms,
     oduModel,

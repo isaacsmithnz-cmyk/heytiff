@@ -1358,7 +1358,8 @@ function runTouches(o: DesignObject, unitId: string): boolean {
 }
 
 /** multi-split coverage through the same donut: Required = Σ served-room
-    loads, Selected = Σ connected indoor capacity. The ODU-side story — ports,
+    loads, Selected = what the rooms get — the heads' ratings, with a room
+    capped only where its own heads outrun the outdoor (coverKw). The ODU-side story — ports,
     combination %, rule findings — lives in the outdoor section below
     (right-panel spec §3); the hero reads load coverage only. */
 function computeMultiHero(conn: MultiConnection): HeroModel {
@@ -1371,7 +1372,7 @@ function computeMultiHero(conn: MultiConnection): HeroModel {
   return donutModel(
     moduleFor("multi-split").label,
     conn.requiredKw,
-    conn.connectedKw,
+    conn.coverKw,
     emptySumLabel
   );
 }

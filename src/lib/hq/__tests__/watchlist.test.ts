@@ -198,17 +198,36 @@ describe("unboundedMultiRules — the shipped Mitsubishi pack", () => {
     expect(signals.filter((s) => s.title.startsWith("PUMY"))).toEqual([]);
   });
 
-  it("flags all 7 MXZ rules today — combination tables never transcribed (#726)", () => {
-    // this is the gap, not the spec: when #726 lands the tables, this
-    // expectation becomes zero and the assertion below moves with it
-    expect(signals.map((s) => s.title).sort()).toEqual([
-      "MXZ-2F52VF",
-      "MXZ-2F52VGD",
-      "MXZ-3F54VGD",
-      "MXZ-4F71VGD",
-      "MXZ-4F80VGD",
-      "MXZ-5F100VGD",
-      "MXZ-6F120VGD",
-    ]);
+  it("is silent on the whole pack — every multi rule bounds its set", () => {
+    // the 7 MXZ rules were the gap this signal was written for (#726); their
+    // combination tables landed, so the shipped pack is now clean. A rule
+    // added without a combination table or a ratio band lands back here.
+    expect(signals).toEqual([]);
+  });
+});
+
+describe("unextractedSources — provenance carried on a rule block", () => {
+  it("counts a book cited only by a compatibility block as mined", () => {
+    const p = pack();
+    p.meta.sources = [
+      ...(p.meta.sources ?? []),
+      { title: "Multi Split Guide 2021-01" },
+    ];
+    expect(unextractedSources(p).map((s) => s.title)).toContain(
+      "Multi Split Guide 2021-01"
+    );
+
+    p.multi_rules[0].compatibility.push({
+      method: "capacity_combination_table",
+      combos: [[25, 35]],
+      provenance: {
+        kind: "extracted",
+        source: "Multi Split Guide 2021-01",
+        page: "18",
+      },
+    });
+    expect(unextractedSources(p).map((s) => s.title)).not.toContain(
+      "Multi Split Guide 2021-01"
+    );
   });
 });

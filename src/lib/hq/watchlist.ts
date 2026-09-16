@@ -55,6 +55,15 @@ export function unextractedSources(pack: DataPack): WatchSignal[] {
       if (p) cited.add(p.source);
     }
   }
+  // a rule block may cite a different book from its row — a combination table
+  // is routinely published apart from the rest of the rule, and that citation
+  // is what makes its book "mined"
+  for (const rule of pack.multi_rules) {
+    for (const block of rule.compatibility ?? []) {
+      const p = "provenance" in block ? rowProvenance(block) : null;
+      if (p) cited.add(p.source);
+    }
+  }
 
   return sources
     .filter((s) => !cited.has(s.title))
@@ -116,6 +125,7 @@ export function unmatchedRuleReferences(pack: DataPack): WatchSignal[] {
 function boundsTheSet(block: CompatibilityRule): boolean {
   switch (block.method) {
     case "explicit_combination_table":
+    case "capacity_combination_table":
       return true; // the book lists the approved sets outright
     case "index_ratio_band":
       return true; // connected index vs outdoor, with a max count

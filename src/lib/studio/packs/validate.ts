@@ -116,6 +116,16 @@ function checkCompatibility(
   blocks.forEach((b, i) => {
     if (!(COMPATIBILITY_METHODS as readonly string[]).includes(b.method))
       push(`compatibility[${i}].method unknown: ${(b as { method: string }).method}`);
+    if (b.method === "capacity_combination_table") {
+      if (!Array.isArray(b.combos) || b.combos.length === 0)
+        push(`compatibility[${i}] capacity combination table empty`);
+      else if (
+        b.combos.some(
+          (combo) => combo.length === 0 || combo.some((code) => !pos(code))
+        )
+      )
+        push(`compatibility[${i}] capacity combination table has a bad combo`);
+    }
     if (b.method === "index_ratio_band") {
       if (!pos(b.ratio_min_pct) || !pos(b.ratio_max_pct))
         push(`compatibility[${i}] ratio band incomplete`);

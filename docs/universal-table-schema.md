@@ -24,7 +24,8 @@ Data books agree on *what* must be answered (how much extra refrigerant? which I
 - `{ method: "none_required" }` — explicit, distinct from "not entered"
 
 **`compatibility` rule block** (which IDUs a given ODU accepts — §5 multi rules, §3 VRF ODUs):
-- `{ method: "explicit_combination_table", combos: [...] }` — the book lists every approved combination (small multis often do)
+- `{ method: "explicit_combination_table", combos: [...] }` — the book lists every approved combination by MODEL
+- `{ method: "capacity_combination_table", combos: [[25, 35], ...], provenance }` — the book lists approved combinations by SIZE CLASS (the ME multi-split form: `25+35` means any 2.5 kW head with any 3.5 kW head). Codes key on `IndoorUnit.capacity_code`, the number printed in the model name — **never** on `capacity_cool_kw`, which differs from the class on some models (AP80 is 7.8 kW, LN60 is 6.1, SLZ-M60FA is 5.6). Carries its own provenance: the table is often in a different book from the rest of the row
 - `{ method: "family_whitelist_with_limits", families: [...], max_count, capacity_or_index_min/max, per_port_max }` — rule-based ranges
 - `{ method: "index_ratio_band", ratio_min_pct, ratio_max_pct, max_idus }` — the VRF norm
 - Methods can compose (a whitelist *and* a ratio band) — the engine applies all blocks present; all must pass.

@@ -545,3 +545,66 @@ describe("multiUnitOptions / multiFormFactorSummary", () => {
     }
   });
 });
+
+/* ── capacity combination tables (ME multi-split) — the real shipped rules ──
+   The book approves SETS by size class, not a ratio: 144%-185% connected is
+   approved depending on the model and the mix, so nothing but the table can
+   answer it. Runs against the 7 MXZ rules, so data drift fails here. */
+describe("capacity_combination_table", () => {
+  const idu = (m: string) => pack.indoor_units.find((u) => u.model === m)!;
+  const odu6 = pack.outdoor_units.find((o) => o.model === "MXZ-6F120VGD")!;
+  const rule6 = pack.multi_rules.find((r) => r.odu_model_ref === odu6.model)!;
+
+  it("refuses six 3.5 kW heads on the 6F120 — 21 kW is not a listed set", () => {
+    const set = Array.from({ length: 6 }, () => idu("MSZ-AP35VGD2"));
+    const findings = checkMultiCompatibility(rule6, odu6, set);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({
+      severity: "red",
+      code: "not-in-combination-table",
+    });
+  });
+
+  it("accepts 25+25+25+35+35+35, which the table lists", () => {
+    const set = [
+      idu("MSZ-AP25VGD2"), idu("MSZ-AP25VGD2"), idu("MSZ-AP25VGD2"),
+      idu("MSZ-AP35VGD2"), idu("MSZ-AP35VGD2"), idu("MSZ-AP35VGD2"),
+    ];
+    expect(checkMultiCompatibility(rule6, odu6, set)).toEqual([]);
+  });
+
+  it("lets a partial selection stand while it can still grow into a combo", () => {
+    const two = [idu("MSZ-AP35VGD2"), idu("MSZ-AP35VGD2")];
+    expect(checkMultiCompatibility(rule6, odu6, two)).toEqual([]);
+  });
+
+  it("keys on the size class, not the kW — AP80 is 7.8 kW and code 80", () => {
+    const ap80 = idu("MSZ-AP80VGD2");
+    expect(ap80.capacity_cool_kw).toBe(7.8); // a kW-derived code would be 78
+    expect(ap80.capacity_code).toBe(80);
+    expect(checkMultiCompatibility(rule6, odu6, [ap80])).toEqual([]);
+  });
+
+  it("says so rather than guessing when a unit has no size class", () => {
+    const noCode = { ...idu("MSZ-AP35VGD2"), capacity_code: undefined };
+    const findings = checkMultiCompatibility(rule6, odu6, [noCode]);
+    expect(findings).toEqual([
+      expect.objectContaining({ severity: "amber", code: "capacity-code-unknown" }),
+    ]);
+  });
+
+  it("every MXZ rule carries its table, cited to the guide", () => {
+    const mxz = pack.multi_rules.filter((r) => r.odu_model_ref.startsWith("MXZ-"));
+    expect(mxz).toHaveLength(7);
+    for (const r of mxz) {
+      const block = r.compatibility.find(
+        (b) => b.method === "capacity_combination_table"
+      );
+      expect(block).toBeDefined();
+      if (block?.method !== "capacity_combination_table") throw new Error("narrowing");
+      expect(block.combos.length).toBeGreaterThan(0);
+      expect(block.provenance?.source).toBe("Multi Split Guide 2021-01");
+      expect(block.provenance?.page).toBeTruthy();
+    }
+  });
+});

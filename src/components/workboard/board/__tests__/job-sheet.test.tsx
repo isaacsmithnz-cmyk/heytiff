@@ -300,6 +300,16 @@ const openTab = async (name: string) => {
 const face = (key: string) =>
   within(document.querySelector(`#jcsec-${key}`) as HTMLElement);
 
+/** The layers in <body>, in document order. What opens over the card shares
+    the card's layer (src/app/dashboard/__tests__/sheet-overlay-layers.test.ts),
+    and at an equal z-index the LATER element paints on top — so it has to
+    render after the card, beside it, never inside it or ahead of it. jsdom
+    cannot see a stacking context; this order is the half of it that it can. */
+const bodyLayers = () =>
+  [...document.body.children]
+    .map((el) => (el.getAttribute("class") ?? "").split(" ")[0])
+    .filter((c) => c.startsWith("wb2-"));
+
 /* ── the anatomy ── */
 
 describe("the card is tabs", () => {
@@ -2090,6 +2100,18 @@ describe("one claim, opened", () => {
     expect(screen.queryByRole("dialog", { name: /Payment 2/ })).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("renders after the card, beside it in the body, which is what paints it on top", async () => {
+    readClaim.mockResolvedValue({
+      ledger: { materials: [], payments: [] },
+      notes: [],
+      media: { photos: [], documents: [], elsewhere: [], truncated: false },
+    });
+    await openFirstClaim();
+    await screen.findByRole("dialog", { name: /Payment 1 — Deposit/ });
+
+    expect(bodyLayers()).toEqual(["wb2-scrim", "wb2-sheet", "wb2-clscrim", "wb2-claim"]);
+  });
 });
 
 /* ── the ⋯ menu and the tracked chip — the Actions face retired ── */
@@ -2502,6 +2524,20 @@ describe("files on the job", () => {
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "IMG_4021.jpg" })).toBeNull();
     expect(face("photos").getByAltText("IMG_4021.jpg")).toBeInTheDocument();
+  });
+
+  it("opens the viewer after the card, beside it in the body, which is what paints it on top", async () => {
+    readMirrorJob.mockResolvedValueOnce(card(detail()));
+    readJobFiles.mockResolvedValueOnce(
+      files({ photos: [file({ remoteId: "p-1", url: "https://signed/p-1.jpg" })] })
+    );
+    render(<JobSheet row={row()} {...props} />);
+    await detailLanded();
+    await openTab("Photos");
+    await userEvent.click((await face("photos").findByAltText("IMG_4021.jpg")).closest("button")!);
+    await screen.findByRole("dialog", { name: "IMG_4021.jpg" });
+
+    expect(bodyLayers()).toEqual(["wb2-scrim", "wb2-sheet", "wb2-mvscrim", "wb2-mv"]);
   });
 
   it("shows a placeholder tile for a photo whose bytes aren't cached", async () => {

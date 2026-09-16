@@ -27,8 +27,8 @@ import type { JobMediaItem } from "@/lib/workboard/job-media";
    first), so this component binds only the arrow keys.
 
    Z-INDEX IS A WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking
-   context. The pair sits at 114/115: above the claim modal's 110/111,
-   under the toasts at 130. */
+   context. The pair shares the sheet's modal layer and renders after the
+   card, which is what puts it on top; the toasts stay above. */
 
 /* THE FLOOR IS THE FIT, NOT A NUMBER (Isaac, 2026-08-29). There is no reason
    to shrink a photo below the size the stage can show it at — the only thing

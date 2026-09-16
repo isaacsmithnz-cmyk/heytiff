@@ -7275,14 +7275,19 @@ button.wb2-jmclaim:focus-visible { outline:none; box-shadow:var(--ring);; border
   padding-left:12px; }
 .wb2-jmclaim.here > b { color:var(--ink); }
 /* ── ONE CLAIM, over the card it belongs to ──────────────────────────────
-   Its own scrim so the card dims behind it, and a z-index above the sheet
-   because it renders inside the sheet's portal rather than a second one. */
-/* ABOVE THE SHEET'S OWN PAIR (scrim 100 / sheet 101) — jsdom cannot see a
-   stacking context, so this number is walked, not tested: at 61 the modal
-   opened invisibly UNDER the card. */
-.wb2-clscrim { position:fixed; inset:0; z-index:var(--z-overlay); background:var(--scrim);
+   Its own scrim so the card dims behind it, and in the sheet's portal
+   rather than a second one. */
+/* ON THE SHEET'S LAYER, AFTER THE SHEET. The card's scrim is on the overlay
+   layer and the card on the modal layer; this pair shares the modal layer
+   and renders after the card in the same portal, and at an equal z-index
+   the later element paints on top. Any lower layer opens the modal
+   invisibly UNDER the card: at 61 once, and on the overlay layer when the
+   layers were named. jsdom cannot see a stacking context, so this was
+   walked; __tests__/sheet-overlay-layers.test.ts holds the layer and the
+   job card's tests hold the order. */
+.wb2-clscrim { position:fixed; inset:0; z-index:var(--z-modal); background:var(--scrim);
   animation:wb2ClIn .2s ease both; }
-.wb2-claim { position:fixed; z-index:var(--z-overlay); left:50%; top:50%; transform:translate(-50%,-50%);
+.wb2-claim { position:fixed; z-index:var(--z-modal); left:50%; top:50%; transform:translate(-50%,-50%);
   width:min(440px, calc(100vw - 32px)); max-height:min(78vh, 720px); overflow:auto;
   display:flex; flex-direction:column; background:var(--paper); border-radius:var(--r-card);
   border:1px solid var(--wb2-line, var(--line));
@@ -7426,16 +7431,16 @@ button.wb2-mtile:focus-visible { outline:none; box-shadow:var(--ring);; }
 .wb2-chip.cat { color:var(--ink); }
 
 /* ── the shared media viewer ───────────────────────────────────────────
-   Same portal as the sheet, same law as the claim modal. THE PAIR IS A
-   WALKED FACT, NOT A TESTED ONE — jsdom cannot see a stacking context:
-   114/115 sits above the claim modal's 110/111 and under the toasts' 130. */
-.wb2-mvscrim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(8,10,16,.62); cursor:zoom-out; }
+   Same portal as the sheet, same law as the claim modal: the pair is on the
+   sheet's modal layer and renders after the card, so it paints over it, and
+   the toasts stay above. On the overlay layer it opened under the card. */
+.wb2-mvscrim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(8,10,16,.62); cursor:zoom-out; }
 /* THE VIEWER TAKES THE SCREEN (Isaac, 2026-08-29 — it replaces the card
    frame it used to wear). Boxed to the card's 920px the photo was a stamp
    in the middle of a wide monitor: the reader's place was kept at the cost
    of the thing they opened it to see. The inset keeps the scrim visible on
    every edge, so it still reads as a layer over the card, not a new page. */
-.wb2-mv { position:fixed; z-index:var(--z-overlay); display:flex; flex-direction:column;
+.wb2-mv { position:fixed; z-index:var(--z-modal); display:flex; flex-direction:column;
   inset:24px; width:auto; height:auto; margin:0;
   border-radius:var(--r-card); overflow:hidden; background:var(--ink2); }
 .wb2-mvtop { display:flex; align-items:center; gap:8px; padding:12px 16px;
@@ -8330,7 +8335,11 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
    plain dim — they are workaday covers, not an arrival. UNPREFIXED ONLY: a
    -webkit- twin makes the build ship the prefixed one alone and the blur
    dies (see the backdrop-filter trap). */
-.wb2-capdim { position:fixed; inset:0; z-index:var(--z-overlay); background:rgba(4,6,10,.62);
+/* ON THE MODAL LAYER, WITH THE SHEETS IT OPENS OVER. A note field on the
+   visit or agreement sheet hands over to this card in a portal of its own,
+   added after the sheet, so the equal layer puts it on top. On the overlay
+   layer it opened under the sheet. */
+.wb2-capdim { position:fixed; inset:0; z-index:var(--z-modal); background:rgba(4,6,10,.62);
   backdrop-filter:blur(10px) saturate(120%); animation:wb2Fade .3s both; }
 /* the halo, pooled under where the card rests — the button's glow arriving
    with the sheet. On the dim, not the card: the card scrolls (overflow-y),
@@ -8347,7 +8356,7 @@ html[data-wb-display] .fg .wb2-money { visibility:hidden; }
   .wb2-capdim::after { top:50%; bottom:auto; height:260px;
     transform:translate(-50%,-50%); }
 }
-.wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:var(--z-overlay);
+.wb2-capcard { position:fixed; top:9vh; left:50%; transform:translateX(-50%); z-index:var(--z-modal);
   width:min(680px, calc(100vw - 32px)); max-height:80vh; overflow-y:auto; overscroll-behavior:contain;
   background:#fff; border:1px solid rgba(5,5,5,.08); border-radius:var(--r-card);
   box-shadow:0 30px 80px -30px rgba(10,12,20,.6); padding:16px 16px 16px;

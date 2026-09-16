@@ -548,14 +548,21 @@ describe("asking Tiff about a row", () => {
     ).toBeInTheDocument();
   });
 
-  it("leaves the document as the opening of a sentence and goes to Tiff", async () => {
+  /* IT HANDS OVER THE DOCUMENT, not a sentence about it. It used to leave the
+     opener `In “City Multi fault codes”, ` in the composer and the search then
+     read the whole library, so an answer could be quoted out of a different
+     manual than the one this button names. The composer turns this into a
+     scope it can show and clear, and the search reads that document alone. */
+  it("hands the document itself to Tiff, and goes there", async () => {
     render(<Library docs={[doc()]} canManage />);
 
     await userEvent.click(
       screen.getByRole("button", { name: "Ask Tiff about City Multi fault codes" })
     );
 
-    expect(sessionStorage.getItem(ASK_KEY)).toBe("In “City Multi fault codes”, ");
+    expect(JSON.parse(sessionStorage.getItem(ASK_KEY) ?? "{}")).toEqual({
+      doc: { docId: "d-1", title: "City Multi fault codes" },
+    });
     expect(push).toHaveBeenCalledWith("/dashboard/tiff");
   });
 

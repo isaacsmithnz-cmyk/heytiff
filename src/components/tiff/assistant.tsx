@@ -9,7 +9,7 @@ import { Chevron } from "@/components/logo";
 import { useHydrated } from "@/lib/use-hydrated";
 import { kbDocUrl } from "@/app/actions/kb";
 import { askTiff, type AskSourceItem, type AskTurn } from "@/lib/tiff/ask-client";
-import { askPrefill, consumeAskHandoff } from "@/lib/tiff/ask-handoff";
+import { askPrefill, consumeAskHandoff, type AskHandoff, type AskScope } from "@/lib/tiff/ask-handoff";
 
 /* THE HANDOFF IS READ ONCE PER MOUNT, as a store rather than in an effect.
 
@@ -25,7 +25,9 @@ import { askPrefill, consumeAskHandoff } from "@/lib/tiff/ask-handoff";
    client snapshot once hydration is done, which is where the note is eaten;
    the latch is dropped on unmount so a remount finds an empty box, which is
    the behaviour the "eats the note" test walks. */
-let latchedHandoff: string | null | undefined;
+let latchedHandoff: AskHandoff | undefined;
+
+const NO_HANDOFF: AskHandoff = { text: null, doc: null };
 
 const askHandoffAtMount = () => {
   if (latchedHandoff === undefined) latchedHandoff = consumeAskHandoff();
@@ -34,7 +36,7 @@ const askHandoffAtMount = () => {
 const forgetAskHandoff = () => {
   latchedHandoff = undefined;
 };
-const noAskHandoff = () => null;
+const noAskHandoff = () => NO_HANDOFF;
 const noHandoffSubscription = () => () => {};
 import type { KbRecentDoc } from "@/lib/tiff/query";
 import {
@@ -96,6 +98,10 @@ type Msg = {
   researched?: boolean;
   /** True when research found nothing and the answer is general knowledge anyway. */
   missed?: boolean;
+  /** Set when a document was named, covered nothing, and the search widened
+      to the rest of the library — the document's title, so an answer read
+      back tomorrow still says which manual it wasn't in. */
+  widenedFrom?: string;
   /** True when the answer hit the token ceiling and stops mid-thought. */
   truncated?: boolean;
   sources?: AskSourceItem[];
@@ -346,7 +352,14 @@ export function TiffAssistant({
   // null = "not touched yet": until the first send, render straight from storage
   const [threadState, setThreadState] = useState<Thread[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const prefill = useSyncExternalStore(noHandoffSubscription, askHandoffAtMount, noAskHandoff);
+  const handoff = useSyncExternalStore(noHandoffSubscription, askHandoffAtMount, noAskHandoff);
+  const prefill = handoff.text;
+  /* THE DOCUMENT THIS CONVERSATION IS ABOUT, when a library row sent us here.
+     It is a control, not a sentence: the row used to type `In “…”, ` into the
+     box and the search read the whole library anyway, so the only trace of
+     the choice was words that filtered nothing. Shown as a chip you can
+     clear, and cleared is the whole library again. */
+  const [scope, setScope] = useState<AskScope | null>(() => handoff.doc);
   /* null until the box is touched: until then the handoff's opener IS the box,
      and with no handoff that is the empty string it always was. */
   const [typed, setTyped] = useState<string | null>(null);
@@ -357,7 +370,9 @@ export function TiffAssistant({
      the headline's promise sold as an upsell. Library whenever it has anything
      in it; at zero the option is disabled and General is all there is. */
   const [researchPick, setResearchPick] = useState<boolean | null>(null);
-  const research = researchPick ?? readyCount > 0;
+  /* Naming a document IS choosing the library — there is nothing to search in
+     general knowledge — so the scope decides the switch while it stands. */
+  const research = scope ? true : (researchPick ?? readyCount > 0);
   const [peek, setPeek] = useState<SourceDoc | null>(null);
 
   /* The thread being renamed, and the one being removed. Held as the row
@@ -391,6 +406,8 @@ export function TiffAssistant({
     research: boolean;
     text: string;
     missed: boolean;
+  /** the title of the document that covered nothing, once the search widened */
+  widenedFrom: string | null;
     truncated: boolean;
     sources: AskSourceItem[];
   };
@@ -603,6 +620,7 @@ export function TiffAssistant({
       at: nowMs(),
       researched: state.research && !state.missed,
       ...(state.missed ? { missed: true } : {}),
+      ...(state.widenedFrom !== null ? { widenedFrom: state.widenedFrom } : {}),
       ...(state.truncated ? { truncated: true } : {}),
       ...(state.sources.length ? { sources: state.sources } : {}),
     });
@@ -627,6 +645,7 @@ export function TiffAssistant({
       research: researchMode,
       text: "",
       missed: false,
+      widenedFrom: null,
       truncated: false,
       sources: [],
     });
@@ -635,6 +654,7 @@ export function TiffAssistant({
       question,
       research: researchMode,
       history,
+      documentId: scope?.docId ?? null,
       signal: controller.signal,
       onEvent: (event) => {
         if (controller.signal.aborted) return;
@@ -666,6 +686,13 @@ export function TiffAssistant({
             patchLive((prev) => ({ ...prev, missed: true }));
             // the banner explaining the miss belongs in the thread, not here
             openHeld();
+            break;
+          case "widened":
+            /* The named document covered nothing, so the search read the rest
+               of the library. Said on the answer, because an answer quoted
+               from somewhere other than the manual you asked about is a
+               different answer. */
+            patchLive((prev) => ({ ...prev, widenedFrom: scope?.title ?? "" }));
             break;
           case "delta":
             // the first word is when the search stops and the answer starts —
@@ -952,6 +979,7 @@ export function TiffAssistant({
                   <div key={i} className={`tmsg ${m.role === "user" ? "user" : "bot"}`}>
                     <div className="tmw">
                       {m.missed && <MissBanner canManage={canManage} />}
+                      {m.widenedFrom !== undefined && <WidenedNote title={m.widenedFrom} />}
                       {/* The citations and the truncation note live INSIDE the
                           sheet. Both are statements about this answer — where
                           it came from, where it stopped — and underneath it on
@@ -976,6 +1004,7 @@ export function TiffAssistant({
                   <div className="tmsg bot">
                     <div className="tmw">
                       {live.missed && <MissBanner canManage={canManage} />}
+                      {live.widenedFrom !== null && <WidenedNote title={live.widenedFrom} />}
                       {/* One sheet across thinking and streaming: the container
                           is already on screen when the first token lands, so
                           the answer fills a space instead of shoving the
@@ -1208,6 +1237,27 @@ export function TiffAssistant({
               <span className="tk-clbl" id="tk-modelbl">
                 Answer from
               </span>
+              {/* ONE DOCUMENT, SAID AS A CONTROL. A library row's Ask used to
+                  type `In “…”, ` into the box and search the whole library
+                  anyway: the words were the only sign of the choice and they
+                  filtered nothing. The choice is this chip now — the search
+                  reads that document alone — and clearing it is how you widen
+                  back to everything. It stands in place of the two-way switch
+                  because naming a document has already answered it. */}
+              {scope ? (
+                <span className="tk-scope">
+                  <Icon name="library" size={15} />
+                  {scope.title.trim() || "One document"}
+                  <button
+                    type="button"
+                    className="tk-scopex"
+                    aria-label="Clear the document — ask the whole library"
+                    onClick={() => setScope(null)}
+                  >
+                    <Icon name="x" size={13} />
+                  </button>
+                </span>
+              ) : (
               <div className="tk-mode" role="group" aria-labelledby="tk-modelbl">
                 <button
                   type="button"
@@ -1231,6 +1281,7 @@ export function TiffAssistant({
                   General knowledge
                 </button>
               </div>
+              )}
               {/* IT ONLY SPEAKS WHEN A CONTROL CANNOT. Two of the three
                   branches here restated the buttons an inch to the left —
                   "Your documents only, with the page it came from" under a
@@ -1689,6 +1740,24 @@ function Rail({
 }
 
 /* ── the honest miss ─────────────────────────────────────────────────────── */
+
+/** The named document covered nothing, so the answer came from the rest of
+    the library. Said where the miss is said — an answer quoted from another
+    manual than the one you asked about is a different answer. */
+function WidenedNote({ title }: { title: string }) {
+  return (
+    <div className="tk-miss">
+      <Icon name="library" size={15} />
+      <div>
+        <b>
+          {title.trim()
+            ? `Nothing in “${title.trim()}” covered this — the answer is from the rest of your library.`
+            : "Nothing in that document covered this — the answer is from the rest of your library."}
+        </b>
+      </div>
+    </div>
+  );
+}
 
 function MissBanner({ canManage }: { canManage: boolean }) {
   return (

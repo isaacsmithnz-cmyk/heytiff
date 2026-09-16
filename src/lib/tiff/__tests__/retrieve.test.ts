@@ -102,7 +102,22 @@ describe("asking the two legs", () => {
       // every shelf is asked, because the trace's job is to say which answered
       p_cats: null,
       p_k: LEG_LIMIT,
+      // and every document, until somebody names one
+      p_doc: null,
     });
+  });
+
+  /* ASKING ONE DOCUMENT, AND MEANING IT. The library row's "Ask Tiff about
+     this document" typed `In “…”, ` into the composer and then searched the
+     whole library, so the answer could be quoted out of a different manual
+     than the one the reader pressed Ask on. Words in a box are not a filter;
+     `p_doc` is. */
+  it("reads one document alone when the asker named one", async () => {
+    semantic = true;
+    await retrieveForQuestion("org-1", "why P8?", [], "d-9");
+
+    expect(call("kb_fts")).toMatchObject({ p_org: "org-1", p_doc: "d-9" });
+    expect(call("kb_vec")).toMatchObject({ p_org: "org-1", p_doc: "d-9" });
   });
 
   /* Without VOYAGE_API_KEY there are no stored vectors either — the leg is

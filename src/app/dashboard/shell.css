@@ -9363,6 +9363,16 @@ html[data-wb-display] .wb2-mcdone { margin-top:8px; }
    Two classes deep on every control, per the `.fg button` (0,1,1) reset. */
 .fg .tk-composer { flex:0 0 auto; }
 .fg .tk-crow { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin-top:12px; padding:0 4px; }
+/* THE ONE DOCUMENT THIS CONVERSATION IS ABOUT — a fact with a way out of it,
+   not a box. It stands where the two-way switch stands, because naming a
+   document has already answered that question; the cross clears it and the
+   switch comes back. Words and a cross: no fill, no rim, nothing that would
+   make it a second kind of chip. */
+.fg .tk-scope { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--ink); min-width:0; }
+.fg .tk-scope > svg { color:var(--q); flex:none; }
+.fg .tk-scopex { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex:none; color:var(--q); }
+.fg .tk-scopex:hover { color:var(--ink); }
+.fg .tk-scopex:focus-visible { outline:none; box-shadow:var(--ring); }
 .fg .tk-clbl { font-size:13px; font-weight:700; color:var(--gray500); }
 
 /* the track has to be darker than the well it sits in (#F0F2F5) or the two lit

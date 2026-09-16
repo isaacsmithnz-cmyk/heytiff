@@ -78,6 +78,22 @@ beforeEach(() => {
 });
 
 describe("asking", () => {
+  it("posts the document when the asker named one", async () => {
+    const fetchMock = jest.fn(async () => streaming(['{"t":"done"}\n']));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await askTiff({
+      question: "why P8?",
+      research: true,
+      history: [],
+      documentId: "d-9",
+      onEvent: () => {},
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({ documentId: "d-9" });
+  });
+
   it("posts the question, the mode and the history to the ask route", async () => {
     const fetchMock = jest.fn(async () => streaming(['{"t":"done"}\n']));
     global.fetch = fetchMock as unknown as typeof fetch;
@@ -92,6 +108,8 @@ describe("asking", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/tiff/ask");
     expect(JSON.parse(String(init.body))).toEqual({
+      // nobody named a document, so the search reads the whole library
+      documentId: null,
       question: "why P8?",
       research: true,
       history: [{ role: "user", text: "earlier" }],

@@ -134,6 +134,8 @@ async function profilesOf(orgId: string, ids: (string | null)[]): Promise<Map<st
   return new Map(((data ?? []) as ProfileRow[]).map((p) => [p.id, { name: displayNameOf(p), role: p.job_title?.trim() || "" }]));
 }
 const nameIn = (m: Map<string, { name: string }>, id: string | null): string => (id ? m.get(id)?.name ?? "—" : "—");
+const nameOrOutside = (m: Map<string, { name: string }>, p: { staff_profile_id: string | null; outside_name: string | null }): string =>
+  p.staff_profile_id ? nameIn(m, p.staff_profile_id) : p.outside_name ?? "—";
 
 /* ── one version, as the document and the sign-on screen read it ────────── */
 
@@ -191,6 +193,17 @@ type VersionRow = {
 };
 const VERSION_COLUMNS =
   "id, swms_id, version, jurisdiction, answers, content, library_version, reason, material, responsible_staff_id, site_checked_by_staff_id, site_checked_at, issued_by_staff_id, issued_at";
+
+/* ONE ORDER FOR THE CREW, decided here. The rows of one issue are inserted in
+   one statement, so they share `created_at` and the database hands them back
+   in whatever order it likes: the person responsible, then the team, then
+   anyone from outside the business, each by name. */
+const byCrewOrder =
+  (responsibleId: string) =>
+  (a: { staffProfileId: string | null; team: boolean; name: string }, b: typeof a): number =>
+    Number(b.staffProfileId === responsibleId) - Number(a.staffProfileId === responsibleId) ||
+    Number(b.team) - Number(a.team) ||
+    a.name.localeCompare(b.name);
 
 export async function loadSwmsDocument(orgId: string, versionId: string): Promise<SwmsDocument | null> {
   const { data } = await supabaseAdmin
@@ -272,7 +285,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
             }
           : null,
       };
-    }),
+    }).sort(byCrewOrder(v.responsible_staff_id)),
     versions: versions.map((x) => ({
       version: x.version,
       issuedAt: x.issued_at,
@@ -333,7 +346,10 @@ export async function listJobSwms(orgId: string, jobUuid: string): Promise<SwmsS
     .filter((v): v is NonNullable<typeof v> => !!v)
     .map((v) => {
       const mine = people.filter((p) => p.version_id === v.id);
-      const waiting = mine.filter((p) => !signed.has(p.id));
+      /* team first, then outsiders, each by name — see byCrewOrder */
+      const waiting = mine
+        .filter((p) => !signed.has(p.id))
+        .sort((x, y) => Number(!!y.staff_profile_id) - Number(!!x.staff_profile_id) || nameOrOutside(names, x).localeCompare(nameOrOutside(names, y)));
       return {
         swmsId: v.swms_id,
         versionId: v.id,
@@ -342,7 +358,7 @@ export async function listJobSwms(orgId: string, jobUuid: string): Promise<SwmsS
         responsible: nameIn(names, v.responsible_staff_id),
         signed: mine.length - waiting.length,
         total: mine.length,
-        waitingOn: waiting.map((p) => (p.staff_profile_id ? nameIn(names, p.staff_profile_id) : p.outside_name ?? "—")),
+        waitingOn: waiting.map((p) => nameOrOutside(names, p)),
       };
     });
 }

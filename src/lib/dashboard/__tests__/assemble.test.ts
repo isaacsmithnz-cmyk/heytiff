@@ -220,3 +220,48 @@ describe("assembleChips — leave", () => {
     }
   });
 });
+
+/* THE REMINDER A SKIPPED FIRST RUN LEAVES BEHIND — your own details, while the
+   business is short of one it must hold. It rides the same list as your
+   expiring licence, so it counts in Home's one attention number and the bell,
+   and clears itself when the details are in. */
+describe("assembleChips — your own details", () => {
+  it("reminds you, among your own chips, while a required detail is missing", () => {
+    const { self, team } = assembleChips(
+      { ...FULL, selfCompleteness: { requiredMissing: 2, firstLabel: "Last name" }, selfName: "luke" },
+      caps("team"),
+    );
+    const chip = self.find((c) => c.kind === "profile");
+    expect(chip).toMatchObject({
+      state: "warn",
+      label: "2 details missing",
+      subject: "luke",
+      href: "/dashboard/profile",
+    });
+    expect(chipGroup("profile")).toBe("People");
+    // yours, never the team list — nobody else's reminder is yours to carry
+    expect(team.some((c) => c.kind === "profile")).toBe(false);
+  });
+
+  it("goes quiet once the required details are in", () => {
+    const { self } = assembleChips(
+      { ...FULL, selfCompleteness: { requiredMissing: 0, firstLabel: null } },
+      caps(),
+    );
+    expect(self.some((c) => c.kind === "profile")).toBe(false);
+  });
+
+  it("has nobody to remind without a staff record", () => {
+    const { self } = assembleChips(
+      {
+        ...FULL,
+        viewerStaffId: null,
+        self: null,
+        selfVehicle: null,
+        selfCompleteness: { requiredMissing: 3, firstLabel: "Date of birth" },
+      },
+      caps(),
+    );
+    expect(self).toEqual([]);
+  });
+});

@@ -41,7 +41,8 @@ export type ChipKind =
   | "timesheet"
   | "claim"
   | "leave-queue"
-  | "leave-declined";
+  | "leave-declined"
+  | "profile";
 
 /** Only actionable states surface as chips; a compliant thing produces none. */
 export type ActionState = Exclude<ChipState, "ok">; // "bad" | "warn"
@@ -92,6 +93,9 @@ const GROUP_OF: Record<ChipKind, ChipGroup> = {
      People, where the licence expiries live. */
   "leave-queue": "Pay",
   "leave-declined": "Pay",
+  /* Your own details — the same card the licence and work-rights chips open,
+     so it files with them. */
+  profile: "People",
 };
 
 export const GROUP_ICON: Record<ChipGroup, string> = {
@@ -447,6 +451,37 @@ export function timesheetChip(
     // the period the question is about, not whichever one is current
     href: `/dashboard/my-timesheet?period=${sheet.periodStart}`,
     urgency: urgency("bad", 0),
+  };
+}
+
+/** YOUR DETAILS, while the business is still short of one it must hold.
+
+    The reminder a new staff member gets after skipping their first run, and
+    the one everybody gets while a required detail is missing — it is not
+    about the first run at all, which is why it reads the completeness model
+    and not the first run's stamp. Required details only: a wanted one (a
+    mobile, a photo) is somebody's choice to leave blank, and a chip that
+    can never clear teaches people to read past the whole board.
+
+    Always `warn`, never `bad` — nothing here has passed a date. One gap names
+    itself; several are counted, the way the record line on Summary counts
+    them, and the chip opens the card whose record line opens the first gap. */
+export function profileChip(
+  c: { requiredMissing: number; firstLabel: string | null } | null | undefined,
+  ctx: { subject: string },
+): ActionChip | null {
+  if (!c || c.requiredMissing <= 0) return null;
+  return {
+    key: "profile",
+    kind: "profile",
+    state: "warn",
+    label:
+      c.requiredMissing === 1 && c.firstLabel
+        ? `${c.firstLabel} missing`
+        : `${c.requiredMissing} details missing`,
+    subject: ctx.subject,
+    href: "/dashboard/profile",
+    urgency: urgency("warn", 0),
   };
 }
 

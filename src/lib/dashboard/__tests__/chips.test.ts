@@ -13,6 +13,7 @@ import {
   insuranceChip,
   licenceChip,
   orgCredentialChips,
+  profileChip,
   regoChip,
   serviceChip,
   sortChips,
@@ -258,6 +259,7 @@ describe("chipGroup", () => {
       claim: true,
       "leave-queue": true,
       "leave-declined": true,
+      profile: true,
     };
     for (const k of Object.keys(filed) as ChipKind[]) {
       const g = chipGroup(k);
@@ -551,3 +553,32 @@ describe("honours the org's window", () => {
     expect(serviceChip(vehicle({ serviceDays: 20 }), { ...vCtx, warnDays: 30 })).toMatchObject({ state: "warn" });
   });
 });
+
+describe("profileChip", () => {
+  it("raises nothing when nothing required is missing, or nothing was read", () => {
+    expect(profileChip({ requiredMissing: 0, firstLabel: null }, { subject: "Luke" })).toBeNull();
+    expect(profileChip(null, { subject: "Luke" })).toBeNull();
+    expect(profileChip(undefined, { subject: "Luke" })).toBeNull();
+  });
+
+  /* One gap names itself; several are counted — the way Summary's record line
+     says it, so the chip and the button it leads to agree. */
+  it("names a single gap, and counts several", () => {
+    expect(profileChip({ requiredMissing: 1, firstLabel: "Date of birth" }, { subject: "Luke" })?.label).toBe(
+      "Date of birth missing"
+    );
+    expect(profileChip({ requiredMissing: 3, firstLabel: "Last name" }, { subject: "Luke" })?.label).toBe(
+      "3 details missing"
+    );
+  });
+
+  /* Nothing here has passed a date, so it can never outrank something that has. */
+  it("is a warning, never overdue, and ranks behind anything bad", () => {
+    const chip = profileChip({ requiredMissing: 4, firstLabel: "First name" }, { subject: "Luke" })!;
+    expect(chip.state).toBe("warn");
+    expect(chip.href).toBe("/dashboard/profile");
+    const bad = timesheetChip({ status: "sent_back", periodStart: "2026-07-13", periodLabel: "13 – 19 Jul" })!;
+    expect(sortChips([chip, bad]).map((c) => c.kind)).toEqual(["timesheet", "profile"]);
+  });
+});
+

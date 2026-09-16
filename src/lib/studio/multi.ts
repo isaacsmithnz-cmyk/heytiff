@@ -19,6 +19,7 @@ import type {
   OutdoorUnit,
 } from "./packs/schema";
 import { outdoorReadiness } from "./packs/ready";
+import { allocationsOf, hasAllocations } from "./allocations";
 import { capacityFit, type UnitFit } from "./fit";
 import { roomLoadKw, type RoomObj } from "./loads-room";
 import { roomsServedBy } from "./coverage";
@@ -476,6 +477,8 @@ export function multiConnection(
   const served = roomsServedBy(doc, system.id);
   const selections = multiIduSelections(system);
   const mine = doc.objects.filter((o) => o.systemId === system.id && o.type === "unit");
+  /* a builder system's allocations ARE its units, placed or not */
+  const allocated = hasAllocations(system) ? allocationsOf(system) : null;
 
   let requiredKw: number | null = null;
   let unknownRooms = 0;
@@ -484,9 +487,15 @@ export function multiConnection(
     if (load == null) unknownRooms++;
     else requiredKw = (requiredKw ?? 0) + load;
 
-    const placedIdu =
-      mine.find((o) => o.props.role === "idu" && o.props.roomId === room.id) ?? null;
-    const model = String(placedIdu?.props.model ?? selections[room.id] ?? "");
+    const allocatedHere = allocated?.find(
+      (a) => a.role === "idu" && a.roomId === room.id && a.model
+    );
+    const placedIdu = allocated
+      ? (allocatedHere ? (mine.find((o) => o.id === allocatedHere.id) ?? null) : null)
+      : (mine.find((o) => o.props.role === "idu" && o.props.roomId === room.id) ?? null);
+    const model = allocated
+      ? (allocatedHere?.model ?? "")
+      : String(placedIdu?.props.model ?? selections[room.id] ?? "");
     const idu = model ? (pack?.indoor_units.find((u) => u.model === model) ?? null) : null;
     return {
       room,
@@ -505,7 +514,11 @@ export function multiConnection(
      checked as 71+25+25+25 (listed) instead of 71+71+25+25+25 (refused).
      Every placed indoor unit counts, wherever it sits; a stored selection
      stands in only for a served room with nothing placed. */
-  const members: { model: string; roomId: string | null }[] = [
+  const members: { model: string; roomId: string | null }[] = allocated
+    ? allocated
+        .filter((a) => a.role === "idu" && a.model)
+        .map((a) => ({ model: a.model, roomId: a.roomId }))
+    : [
     ...mine
       .filter((o) => o.props.role === "idu")
       .map((o) => ({
@@ -524,8 +537,13 @@ export function multiConnection(
     ? idus.reduce((a, u) => a + sizingCapacityKw(u, basis), 0)
     : null;
 
-  const placedOdu = mine.find((o) => o.props.role === "odu") ?? null;
-  const oduModel = String(placedOdu?.props.model ?? system.settings.pairOdu ?? "");
+  const allocatedOdu = allocated?.find((a) => a.role === "odu") ?? null;
+  const placedOdu = allocated
+    ? (allocatedOdu ? (mine.find((o) => o.id === allocatedOdu.id) ?? null) : null)
+    : (mine.find((o) => o.props.role === "odu") ?? null);
+  const oduModel = allocated
+    ? (allocatedOdu?.model ?? "")
+    : String(placedOdu?.props.model ?? system.settings.pairOdu ?? "");
   const odu = oduModel
     ? (pack?.outdoor_units.find((o) => o.model === oduModel) ?? null)
     : null;

@@ -49,7 +49,7 @@ import { roomAreaM2, type RoomObj } from "@/lib/studio/loads-room";
 import { roomsServedBy, roomCoverage, systemPairKw } from "@/lib/studio/coverage";
 import type { PairProposal } from "@/lib/studio/split";
 import { formFactorLabel } from "@/lib/studio/unit-specs";
-import { isAirCapable, moduleFor } from "@/lib/studio/modules";
+import { SYSTEM_COLOURS, isAirCapable, moduleFor } from "@/lib/studio/modules";
 import {
   pruneObjects,
   releaseRoomsFromSystems,
@@ -87,7 +87,6 @@ import { UnitBrowser } from "./unit-browser";
 import { MultiOduPicker } from "./multi-browser";
 
 /* one colour per system, cycled on creation (kept from the old SystemsPanel) */
-const SYSTEM_COLOURS = ["#2E68FF", "#E4572E", "#17A398", "#9B5DE5", "#F5A623", "#D63384"];
 
 /* objects dropped when a system changes type — everything type-specific; the
    rooms it serves stay. Covers the five ducted palette types up front (ducted

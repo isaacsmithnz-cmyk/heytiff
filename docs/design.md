@@ -125,6 +125,18 @@ Every decision below is made once, here, and a guard test holds each number.
   is that the page stopped spending its whole budget on the bottom two rungs
   of the scale.
 
+  **And the other eight tabs took the same ledger the same day.** They already
+  had its shape — `.pdrow` has been a fixed label column with the answer
+  beside it since edit-in-place — but wore a different dress on it: the label
+  13/600 in `--gray500` against Summary's 12/500 in `--q`, a 112px column
+  against 132, a blank as 14px italic in a literal `#bcc2cd`, and an Add as
+  14/600 italic beside a dashed square holding a "+" where Summary drew the
+  plain link token. One card, two vocabularies, decided by which tab you were
+  on. The dress is Summary's now, on every tab and on the Organisation screen,
+  which shares the same rows. The blank is a dash everywhere: `.pdnone` had
+  two declarations, one scoped to `.psec2`, so the same absence read as
+  italic grey on one screen and clean ink-quiet on another.
+
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ keeps its night ground and its KPI tiles**, and takes everything else.

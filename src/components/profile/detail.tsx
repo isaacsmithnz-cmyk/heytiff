@@ -172,12 +172,17 @@ export function Detail({
           </>
         ) : onAdd ? (
           <button type="button" className="padd" onClick={onAdd}>
-            <span aria-hidden="true">+</span>
             {addLabel}
             <i className="sr-only"> {label}</i>
           </button>
         ) : (
-          <span className="pdnone">Not set</span>
+          /* A BLANK IS A DASH, and it says so once: the org screens and
+             Summary already drew one here while this branch printed the words
+             "Not set". Eight of those down a column read as an error state
+             rather than as a card somebody has not finished. */
+          <span className="pdnone" aria-label="not recorded">
+            —
+          </span>
         )}
         {/* outside the branches on purpose: the qualifier is often ABOUT the
             blank — "Using the org default" is exactly what an unset override

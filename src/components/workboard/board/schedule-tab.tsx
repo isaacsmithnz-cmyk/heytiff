@@ -307,7 +307,6 @@ export function ScheduleTab({
      stepper at the right-hand edge exactly while you were clicking through
      empty weeks. The three stations are grid columns now, and the middle one
      is centred on the CARD. The Today pill sits in a reserved slot beside the
-     stepper for the same reason — see the notes over .wb2-schhd.
 
      The capacity window wears this header too, from its own tab. */
   /* ── ONE TOOLBAR ─────────────────────────────────────────────────────

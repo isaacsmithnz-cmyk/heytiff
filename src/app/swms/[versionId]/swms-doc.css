@@ -43,7 +43,8 @@
 .swd-hrcw li.on .swd-box { background:var(--ink); border-color:var(--ink); color:var(--paper); }
 .swd-n { font-weight:600; font-variant-numeric:tabular-nums; }
 
-.swd-list { margin:0; padding-left:16px; }
+/* Tailwind's preflight takes every list's markers away; this keeps its bullets */
+.swd-list { margin:0; padding-left:16px; list-style:disc; }
 .swd-list li { margin:0 0 4px; }
 .swd-cols { columns:2; column-gap:24px; }
 .swd-stop { margin-top:12px; padding:8px 12px; border:2px solid var(--ink); font-weight:600; }
@@ -52,7 +53,8 @@
 .swd-steps td:nth-child(2) { width:20%; }
 .swd-steps td:nth-child(3) { width:18%; }
 .swd-steps td:last-child { width:12%; }
-.swd-site { color:var(--warn-t); font-weight:600; }
+/* a note, not a state: ink and weight, and a selector that outranks `.swd td em` */
+.swd td em.swd-site { color:var(--ink); font-weight:600; }
 .swd-controls { margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:4px; }
 .swd-controls li { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px; }
 .swd-controls li > span { font-size:12px; font-weight:600; color:var(--q); }
@@ -60,7 +62,8 @@
 .swd-sig { width:24%; }
 .swd-sig img { display:block; width:100%; max-width:180px; height:48px; object-fit:contain; object-position:left center; }
 .swd-signons td { height:48px; }
-.swd-key { width:auto; margin-top:8px; }
+.swd table.swd-key { width:auto; margin-top:8px; }
+.swd-key + p { margin-top:8px; }
 .swd-foot { margin-top:24px; padding-top:8px; border-top:1px solid var(--swd-rule); font-size:12px; color:var(--q); }
 
 @media (max-width:720px) {

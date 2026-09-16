@@ -535,7 +535,7 @@ export function SwmsWizard({
                 <input type="checkbox" checked={on} onChange={(e) => toggleCover(t.id, e.target.checked)} />
                 <span className="sw-who">
                   <b>{t.name}</b>
-                  <em>{[t.role, t.booked ? "Booked on this job" : null].filter(Boolean).join(", ") || "Team member"}</em>
+                  <em>{t.booked ? (t.role ? `${t.role}, booked on this job` : "Booked on this job") : t.role || "Team member"}</em>
                   {on && (
                     <span className="sw-tickets">
                       {t.tickets.length === 0 ? (

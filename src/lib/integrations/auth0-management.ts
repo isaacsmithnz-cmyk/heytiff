@@ -23,6 +23,7 @@
    be an account-takeover endpoint. */
 
 import "server-only";
+import { randomBytes } from "node:crypto";
 import { resolveTenantDomain } from "./auth0-tenant-domain";
 
 /* NOT `AUTH0_DOMAIN`, and the difference only appears the day a custom domain
@@ -191,6 +192,167 @@ export async function sendVerificationEmail(userId: string): Promise<MgmtResult<
   } catch {
     return { ok: false, error: "UNAVAILABLE" };
   }
+}
+
+/* ── AN INVITATION'S OWN DOOR: "set your password" ─────────────────────────
+
+   WHY THESE THREE EXIST. An invitation used to open Auth0's SIGN-UP screen,
+   which is one screen serving two people: the founder of a new company, and
+   somebody joining one. On this tenant its words are one global string, it
+   has one password box, and it read either as a login or as founding an
+   account — never as "you have been invited, choose a password". Auth0's
+   password-reset screen already has what an invitee needs (a title that can
+   say "Set your password", a New and a Re-enter box), and a password-change
+   ticket opens it for exactly one user. So the invite route creates the
+   invitee's login and hands them that ticket. See app/invite/accept/route.ts.
+
+   THE SCOPES, AND WHAT THEY ARE ALLOWED TO BE USED FOR. `read:users`,
+   `create:users` and `create:user_tickets`, ticked 2026-09-16 on the same
+   grant as `update:users`. `create:user_tickets` can mint a password reset for
+   ANY account in the tenant, so — exactly as with setUserEmail — nothing here
+   decides WHOSE. The one caller passes the address off the invitation row it
+   looked up by token, never a value from the request, and only ever asks for a
+   ticket for a login that has never been used. */
+
+/** A login in the tenant, reduced to the two facts the invite route decides on. */
+export type Auth0UserSummary = { userId: string; loginsCount: number };
+
+/** Every login in the tenant holding this address, across connections — a
+    password account and a Google one are two users with one email. */
+export async function findUsersByEmail(email: string): Promise<MgmtResult<Auth0UserSummary[]>> {
+  const t = await token();
+  if (!t.ok) return t;
+
+  let res: Response;
+  try {
+    res = await fetch(`https://${DOMAIN}/api/v2/users-by-email?email=${encodeURIComponent(email)}`, {
+      headers: { authorization: `Bearer ${t.value}` },
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "UNAVAILABLE" };
+  }
+  if (res.status === 401 || res.status === 403) return { ok: false, error: "NO_GRANT" };
+  if (!res.ok) return { ok: false, error: "UNAVAILABLE" };
+
+  const body = (await res.json().catch(() => null)) as unknown;
+  if (!Array.isArray(body)) return { ok: false, error: "UNAVAILABLE" };
+  return {
+    ok: true,
+    value: body
+      .filter((u): u is { user_id: string; logins_count?: unknown } => typeof u?.user_id === "string")
+      /* A login that has never been used carries no count at all rather than a
+         zero, so absence IS zero here — and zero is the fact that decides
+         whether an invitee is handed a password to choose or a screen to sign
+         in on. */
+      .map((u) => ({ userId: u.user_id, loginsCount: typeof u.logins_count === "number" ? u.logins_count : 0 })),
+  };
+}
+
+/** The tenant's password database, read off a real user in production on
+    2026-09-16 (`identities[].connection`), not assumed. Every `auth0|` login
+    this app has ever made lives in it. */
+export const PASSWORD_CONNECTION = "Username-Password-Authentication";
+
+/* A password nobody will ever know, because a database user cannot be created
+   without one and the person chooses the real one on the next screen. 32 random
+   bytes, plus one of each character class so a tenant password policy of any
+   strength accepts it. Never stored, never logged, never returned. */
+function unusablePassword(): string {
+  return `${randomBytes(32).toString("base64url")}Aa1!`;
+}
+
+/** Create the login an invitation will set a password for.
+
+    `email_verified: false` and NO verification mail: the address is proved by
+    the ticket instead (`mark_email_as_verified` below), which only verifies it
+    if the person actually opens the link that went to that inbox and finishes.
+
+    `name` only when it is a name. Auth0 defaults a database user's `name` to
+    its email, which is how `profiles.name` came to hold addresses; the org's
+    own word for the person, from the invitation, is the better seed. */
+export async function createPasswordUser(input: {
+  email: string;
+  name?: string | null;
+}): Promise<MgmtResult<{ userId: string }>> {
+  const t = await token();
+  if (!t.ok) return t;
+
+  const name = (input.name ?? "").trim();
+  let res: Response;
+  try {
+    res = await fetch(`https://${DOMAIN}/api/v2/users`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${t.value}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        connection: PASSWORD_CONNECTION,
+        email: input.email,
+        password: unusablePassword(),
+        email_verified: false,
+        verify_email: false,
+        ...(name && !name.includes("@") ? { name } : {}),
+      }),
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "UNAVAILABLE" };
+  }
+
+  if (res.status === 401 || res.status === 403) return { ok: false, error: "NO_GRANT" };
+  // two clicks on one invitation at once: the second finds the first's login
+  if (res.status === 409) return { ok: false, error: "EMAIL_IN_USE" };
+  if (res.status === 400 || res.status === 422) {
+    const detail = await res.text().catch(() => "");
+    return { ok: false, error: "REJECTED", detail: detail.slice(0, 300) };
+  }
+  if (!res.ok) return { ok: false, error: "UNAVAILABLE" };
+
+  const body = (await res.json().catch(() => null)) as { user_id?: unknown } | null;
+  if (typeof body?.user_id !== "string") return { ok: false, error: "UNAVAILABLE" };
+  return { ok: true, value: { userId: body.user_id } };
+}
+
+/** How long the "set your password" link lives. It is minted the moment the
+    invitee clicks their invitation and opened in the same redirect, so an hour
+    is generous; clicking the invitation again mints a fresh one. Auth0's
+    default is five days, which is five days of a reset link in a browser
+    history. */
+export const PASSWORD_TICKET_TTL_SEC = 3600;
+
+/** A one-user link to Auth0's password screen, returned as its URL.
+
+    `client_id` is what makes the finished screen offer the way back: on the
+    New Universal Login, `result_url` is ignored and the success screen's
+    button goes to this application's Application Login URI instead (set to
+    /auth/login on 2026-09-16). */
+export async function createPasswordTicket(userId: string): Promise<MgmtResult<string>> {
+  const t = await token();
+  if (!t.ok) return t;
+
+  let res: Response;
+  try {
+    res = await fetch(`https://${DOMAIN}/api/v2/tickets/password-change`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${t.value}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        client_id: CLIENT_ID,
+        ttl_sec: PASSWORD_TICKET_TTL_SEC,
+        mark_email_as_verified: true,
+      }),
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "UNAVAILABLE" };
+  }
+  if (res.status === 401 || res.status === 403) return { ok: false, error: "NO_GRANT" };
+  if (!res.ok) return { ok: false, error: "UNAVAILABLE" };
+
+  const body = (await res.json().catch(() => null)) as { ticket?: unknown } | null;
+  if (typeof body?.ticket !== "string" || !body.ticket.startsWith("https://")) {
+    return { ok: false, error: "UNAVAILABLE" };
+  }
+  return { ok: true, value: body.ticket };
 }
 
 /** Test seam — the module-level token cache would otherwise leak between

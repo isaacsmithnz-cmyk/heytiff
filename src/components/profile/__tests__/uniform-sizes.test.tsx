@@ -211,13 +211,13 @@ describe("on Summary", () => {
 
   it("answers in one labelled line, under Personal", () => {
     summary();
-    const row = screen.getByText("Uniform").closest(".psum-c") as HTMLElement;
+    const row = screen.getByText("Uniform").closest(".psum-row") as HTMLElement;
     expect(row.textContent).toBe("UniformShirt L, Jacket XL, Trousers 92, Boots 10.5 AU/UK");
   });
 
   it("shows the dash when we hold no sizes — nothing to order from", () => {
     summary(jordan);
-    const row = screen.getByText("Uniform").closest(".psum-c") as HTMLElement;
+    const row = screen.getByText("Uniform").closest(".psum-row") as HTMLElement;
     expect(within(row).getByLabelText("not recorded")).toBeInTheDocument();
   });
 });

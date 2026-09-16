@@ -50,6 +50,11 @@ const NOT_A_PAGE_TITLE = new Set([
   // the staff profile's identity card, which is a card header inside a page
   ".fg .phid h1",
   ".fg .phid h1 em",
+  /* the same heading, sized up on Summary (2026-09-16): the person's name is
+     the one display item on a screen that is about that person, and at 24 it
+     was the same size as the standing line under it. The org card's own
+     identity heading has been 32 since it was written (`.fg .phid h2`). */
+  ".fg .psum .phid h1",
 ]);
 
 function files(dir: string, ext: RegExp, out: string[] = []): string[] {

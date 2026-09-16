@@ -64,22 +64,67 @@ Every decision below is made once, here, and a guard test holds each number.
   wearing the same day-state; the card's agreement door lands on the board
   with the job open (`/dashboard/workboard?job=`), where the modal lives.
 - **The staff card's Summary is the checklist that fills itself in** (decided
-  2026-09-15, from the worker-profile handoff): the identity row carries the
-  person — name and status on one line, one sentence under them for the role
-  and the start, the plate as a door into Fleet — and, at its right, the
-  completion line: how many details are on file, a warn word and bar while a
-  required one is missing, the OK word and bar once the card is cleared. Three
-  groups follow, each a hairline top, a quiet label and a three-column grid of
-  facts, label over value. A blank the business is short of is an Add that
-  opens its section's form, with the word Required beside it where payroll or
-  the law needs the detail; a blank nobody is short of is a dash. The tickets
-  and the right to work are one row of tiles on the sunken card, the right to
-  work first and a required blank in the warn tint until it is set; every tile
-  is a door to the tab that manages it, and the state on each is a word in its
-  colour. Colour is state only, and kept where it means something ("keep colour
-  where it makes sense"): the completion line, the tiles' states, the status
-  dot. The completion strip left the breadcrumb row; the tabs' counts carry
-  the gaps to the other tabs.
+  2026-09-15 from the worker-profile handoff; **redrawn 2026-09-16 and the
+  second draw is the one to build to**). The first draw kept every law on this
+  page and was still hard to read. Isaac, on it: *"it's actually quite hard to
+  scan because everything looks the same — it says name, and then the name
+  underneath it is almost the same."* That is arithmetic, not taste. Nine
+  roles — group title, field label, field value, ticket number, expiry, count,
+  link, tab, sentence — were all set at 13/500 or 14/400: one pixel apart, and
+  the weight ran BACKWARDS, so a label was heavier than the value it
+  introduced. Two greys were being asked to carry hierarchy that size should
+  have carried, and the scale has eight sizes while that screen used three.
+  What the page is now:
+  - **Tiers far enough apart to scan.** 32/700 the name — the one display size
+    on the screen, and at 24 it was the same size as the line under it; 24/400
+    the standing line; 20/600 in ink a group's title; 12/500 quiet a field's
+    label; 16/600 in ink its answer. A label and its answer differ by size,
+    weight and colour, not by colour alone.
+  - **The right to work is the standing line, not a tile.** It was the first
+    tile in the row of tickets, in the same grey as the White card beside it,
+    which made the thing that decides whether a person can be sent to a job
+    the thing you could not pick out. It is not a ticket: nothing on it
+    expires the way a ticket does. It reads as a sentence at the reading size
+    — the lead carries the rank in its colour ("Cleared to work" / "Not
+    cleared to work" / "Right to work not recorded"), the evidence follows and
+    colours only when the evidence itself wants attention. A person on a valid
+    visa IS cleared, so a visa about to lapse warns on the visa and not on the
+    word "cleared". One rule, `lib/staff/work-rights-summary`.
+  - **The facts are a ledger.** Label over value in a three-column grid makes
+    the eye zigzag — read down, jump right, read down — the slowest way to
+    look one fact up. A 132px label column with the answer beside it and a
+    hairline between rows gives one column of scaffolding and one of answers.
+    Personal and Emergency sit side by side: Emergency is three fields and
+    never earned a band of its own, and the pair is what closed the dead third
+    column the grid left at every width.
+  - **Absence is said once, and comes with the way to fix it.** Every required
+    blank used to be announced twice — the word Required beside the field and
+    again in the count above it. On a card with four gaps that made absence
+    the loudest thing on the screen, in the page's only strong colour, while
+    everything on file sat quiet: the look of a form nobody had filled in. The
+    record line counts them now and nothing else does, and the count carries
+    the page's one filled object — an ink button onto the first required gap,
+    in its form, with the cursor in the field. Ink doing the primary action is
+    the job this file already gives it. A blank in a cell is a plain Add, or a
+    dash where nobody is short of it. "Profile complete" went the same way:
+    11 of 11 in the OK colour is the same sentence with one fact instead of
+    two.
+  - **The tickets are a list.** Two tiles in a 1000px row look unfinished at
+    any quality, because there are two. A ruled list reads as a record at one
+    row and still reads at twelve, which is what a ticket wall holds. Each row
+    is a door to the tab that manages it, the expiry is the state in its
+    colour, and the list keeps its Add whether or not it has rows — with tiles
+    the Add was the empty state, and a list needs the way to add the next one.
+  - Unchanged from the first draw: colour is state only and kept where it
+    means something ("keep colour where it makes sense"); the completion strip
+    stays out of the breadcrumb row; the tabs' counts carry the gaps to the
+    other tabs; and if the identity row says it, a group doesn't.
+
+  No law in this file changes — a 12/500 quiet field label is what law 10
+  asks for, and a group's title is a title, which stands alone. What changed
+  is that the page stopped spending its whole budget on the bottom two rungs
+  of the scale.
+
 - **No texture.** Grain and paper noise are the third generated look. The paper
   idea comes from structure and type.
 - **HQ keeps its night ground and its KPI tiles**, and takes everything else.

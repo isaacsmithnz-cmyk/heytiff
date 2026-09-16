@@ -50,14 +50,23 @@ const isEditing = () => screen.queryByRole("button", { name: /^Save\b/ }) !== nu
 const countOn = (name: RegExp) =>
   screen.getByRole("tab", { name }).querySelector(".wb2-vtn")?.textContent ?? null;
 
-const line = () => document.querySelector(".pcompl") as HTMLElement;
+const line = () => document.querySelector(".psum-rec") as HTMLElement;
+const action = () => line().querySelector("button");
 
-describe("the completion line", () => {
-  it("counts what is on file and names the required gaps, in the warn colour", () => {
+/* THE RECORD LINE — how much of the card is on file, and the one action.
+
+   It was the completion line at the identity row's right, and it said the
+   same thing the blanks below it were already saying: a warn word counting
+   the gaps, and then the word Required beside each gap. On a card with four
+   of them that made absence the loudest thing on the screen. Absence is
+   counted HERE now and nowhere else, and the count comes with the way to fix
+   it — an ink button onto the first required gap, in its own form, with the
+   cursor in the field. */
+describe("the record line", () => {
+  it("counts what is on file, and offers the gaps as one action", () => {
     setup(blankProfile);
-    expect(line()).toHaveTextContent("7 required details missing");
     expect(line()).toHaveTextContent("0 of 11 on file");
-    expect(line().querySelector("b")).toHaveClass("warn");
+    expect(action()).toHaveTextContent("Add the 7 missing details");
     expect(line().querySelector(".pprog i")).toHaveClass("warn");
   });
 
@@ -69,25 +78,30 @@ describe("the completion line", () => {
   });
 
   /* Work rights is the one required detail jordan lacks; the photo is wanted.
-     One required gap is a warn state; a card short of only wanted details is
-     cleared, and the bar goes to the OK colour with no word beside it. */
-  it("clears — the OK bar, no word — once every required detail is in", () => {
+     One required gap names itself rather than counting to one. */
+  it("names the gap when there is only one", () => {
+    setup(jordan);
+    expect(action()).toHaveTextContent("Add work rights");
+  });
+
+  /* A card short of only WANTED details is cleared: the bar goes OK and the
+     action goes, because there is nothing the business is obliged to chase. */
+  it("clears — the OK bar, no action — once every required detail is in", () => {
     setup({ ...jordan, work_rights_status: "Australian citizen" });
     expect(line()).toHaveTextContent("10 of 11 on file");
-    expect(line().querySelector("b")).toBeNull();
+    expect(action()).toBeNull();
     expect(line().querySelector(".pprog i")).toHaveClass("ok");
+    // not complete, so the count stays quiet — 10 of 11 is not a finished card
+    expect(line().querySelector(".psum-count")).not.toHaveClass("ok");
   });
 
-  it("says the card is complete, in the OK colour, when nothing is left to ask for", () => {
+  /* "Profile complete" went with the doubling: 11 of 11 in the OK colour is
+     the same sentence with one fact instead of two. */
+  it("says a finished card with the count itself, in the OK colour", () => {
     setup(done);
-    expect(line()).toHaveTextContent("Profile complete");
-    expect(line().querySelector("b")).toHaveClass("ok");
     expect(line()).toHaveTextContent("11 of 11 on file");
-  });
-
-  it("singular when one is missing", () => {
-    setup(jordan);
-    expect(line()).toHaveTextContent("1 required detail missing");
+    expect(line().querySelector(".psum-count")).toHaveClass("ok");
+    expect(action()).toBeNull();
   });
 
   /* Summary's row, not the breadcrumb's: on the other tabs the count badge is
@@ -96,7 +110,7 @@ describe("the completion line", () => {
     const user = userEvent.setup();
     setup(jordan);
     await user.click(screen.getByRole("tab", { name: /Emergency/ }));
-    expect(document.querySelector(".pcompl")).toBeNull();
+    expect(document.querySelector(".psum-rec")).toBeNull();
     expect(countOn(/Work rights/)).toBe("1");
   });
 });
@@ -161,10 +175,14 @@ describe("answering a blank", () => {
     expect(document.getElementById("emergency_phone")).toHaveFocus();
   });
 
-  it("opens the work-rights form on the status, from the tile", async () => {
+  /* The record line's action opens the FIRST required gap in the model's
+     order, on whichever tab owns it — so on a card short of only the right to
+     work it lands in the work-rights form, on the status. */
+  it("opens the work-rights form on the status, from the record line", async () => {
     const user = userEvent.setup();
-    setup(blankProfile);
+    setup(jordan);
     await user.click(screen.getByRole("button", { name: "Add work rights" }));
+    expect(screen.getByRole("tab", { name: /Work rights/ })).toHaveClass("on");
     expect(document.getElementById("work_rights_status")).toHaveFocus();
   });
 
@@ -220,24 +238,25 @@ describe("answering a blank", () => {
   });
 });
 
-/* ONE LIST. The star on a form's label and the word Required on Summary say
-   the same thing — the business is obliged to hold this — and used to come
-   from two lists. A mobile number wore a star the model called wanted; a
-   date of birth wore none and the model called it required. Both read
-   lib/staff/completeness now, so they cannot disagree. */
+/* ONE LIST, and now one PLACE. The star on a form's label and the count on
+   Summary's record line say the same thing — the business is obliged to hold
+   this — and used to come from two lists: a mobile number wore a star the
+   model called wanted, a date of birth wore none and the model called it
+   required. Both read lib/staff/completeness now. Summary's own blanks stopped
+   repeating the word: the record line counts them, and a cell just offers the
+   Add. */
 describe("the forms' stars", () => {
   const starred = () =>
     [...document.querySelectorAll(".psec2 .pdrow dt")]
       .filter((dt) => dt.querySelector(".req"))
       .map((dt) => (dt.textContent ?? "").replace("*", "").trim());
 
-  it("agree with Summary's Required words", async () => {
+  it("agree with the model, and Summary says it once", async () => {
     const user = userEvent.setup();
     setup(blankProfile);
-    const required = [...document.querySelectorAll(".psum-c")]
-      .filter((c) => c.querySelector(".psum-req"))
-      .map((c) => c.querySelector("dt")?.textContent);
-    expect(required).toEqual(["Date of birth", "Address", "Employment"]);
+    // the cells carry Adds, not a second copy of the count above them
+    expect(document.querySelector(".psum-req")).toBeNull();
+    expect(line()).toHaveTextContent("Add the 7 missing details");
 
     await user.click(screen.getByRole("button", { name: "Edit Personal" }));
     expect(starred()).toEqual(["First name", "Last name", "Date of birth", "Address", "Start date", "Type"]);

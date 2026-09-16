@@ -132,14 +132,42 @@ async function attachFuelSource<T extends Claim>(orgId: string, claims: T[]): Pr
 async function attachReceipts(orgId: string, claims: Claim[]): Promise<Claim[]> {
   if (claims.length === 0) return claims;
 
-  const { data } = await supabaseAdmin
-    .from("documents")
-    .select("expense_claim_id, storage_ref, mime_type")
-    .eq("org_id", orgId)
-    .in("expense_claim_id", claims.map((c) => c.id))
-    .not("uploaded_at", "is", null);
+  /* TWO PLACES A CLAIM'S PAPER CAN BE FILED, and for years this read only
+     one of them. A fuel claim raised by "Log fuel · my own money" never owns
+     its docket: the photo is filed against the VEHICLE LOG, which is the
+     fuller record and the one the tax export reads. So every personal-card
+     fill showed "No receipt" to the person who kept the docket and to the
+     approver deciding whether to pay them — the one fact that decides it,
+     reported as missing. The docket is the claim's receipt when the claim is
+     the fill's reimbursement. */
+  const logIds = claims.map((c) => c.fuelLog?.vehicleLogId).filter((v): v is string => !!v);
+  const [own, onLogs] = await Promise.all([
+    supabaseAdmin
+      .from("documents")
+      .select("expense_claim_id, storage_ref, mime_type")
+      .eq("org_id", orgId)
+      .in("expense_claim_id", claims.map((c) => c.id))
+      .not("uploaded_at", "is", null),
+    logIds.length > 0
+      ? supabaseAdmin
+          .from("documents")
+          .select("vehicle_log_id, storage_ref, mime_type")
+          .eq("org_id", orgId)
+          .in("vehicle_log_id", logIds)
+          .not("uploaded_at", "is", null)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+  ]);
 
-  const rows = (data ?? []) as Record<string, unknown>[];
+  const claimByLog = new Map(
+    claims.filter((c) => c.fuelLog).map((c) => [c.fuelLog!.vehicleLogId, c.id]),
+  );
+  const rows: Record<string, unknown>[] = [
+    ...((own.data ?? []) as Record<string, unknown>[]),
+    ...((onLogs.data ?? []) as Record<string, unknown>[]).map((r) => ({
+      ...r,
+      expense_claim_id: claimByLog.get(String(r.vehicle_log_id)) ?? null,
+    })),
+  ].filter((r) => !!r.expense_claim_id);
   if (rows.length === 0) return claims;
 
   const refs = rows.map((r) => String(r.storage_ref)).filter(Boolean);

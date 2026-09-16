@@ -224,6 +224,10 @@ export type VehicleLog = {
       service record — the difference between a figure somebody typed and one
       you can produce at audit. */
   hasReceipt?: boolean;
+  /** Fuel only: whose money paid for it. A fill on somebody's own card has a
+      reimbursement claim behind it, which outlives the log and changes what
+      removing the entry does. */
+  paidWith?: FuelPayer;
   /** True once somebody has corrected this entry. Said on the row rather than
       hidden: a figure that has been changed is a different kind of fact from
       one nobody has touched. */
@@ -717,30 +721,13 @@ export function openIssueCount(logs: VehicleLog[], vehicleId: string): number {
   return logs.filter((l) => l.vehicleId === vehicleId && l.kind === "issue" && l.status === "open").length;
 }
 
-/* ---- offline receipt fallback (deterministic — no Tiff needed) ----
-   When the readFuelReceipt action can't run (no API key, offline dev), derive
-   a plausible AU fill from the image's file size so the scan flow still demos:
-   same file, same reading. */
-
-export const RECEIPT_STATIONS = [
-  "Shell Coburg",
-  "BP Ringwood",
-  "Ampol Dandenong",
-  "7-Eleven Preston",
-  "United Braeside",
-];
-
-export function readReceiptOffline(fileSizeBytes: number): {
-  litres: number;
-  cost: number;
-  station: string;
-} {
-  const size = Math.max(0, Math.floor(fileSizeBytes));
-  const litres = Math.round((45 + (size % 300) / 10) * 10) / 10; // 45.0–74.9 L
-  const perLitre = 1.75 + (size % 40) / 100; // $1.75–$2.14
-  const cost = Math.round(litres * perLitre * 100) / 100;
-  return { litres, cost, station: RECEIPT_STATIONS[size % RECEIPT_STATIONS.length] };
-}
+/* THE OFFLINE FALLBACK IS GONE (2026-09-16). `readReceiptOffline` derived a
+   plausible Australian fill from the image's FILE SIZE — litres, a price per
+   litre and one of five servo names — so a docket Tiff couldn't read still
+   filled the form in. It ran on every failure, and on "My own money" those
+   invented figures became a reimbursement claim and a line on the tax export.
+   A fill nobody can read now opens empty and says so, which is what the
+   vehicle card's own screen has always done. */
 
 /** L/100km per fuel log, from the odo delta since the previous fill. */
 export function fuelEconomy(logs: VehicleLog[]): Record<string, number> {

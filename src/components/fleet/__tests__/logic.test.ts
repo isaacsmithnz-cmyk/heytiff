@@ -1,5 +1,4 @@
 import {
-  RECEIPT_STATIONS,
   type Vehicle,
   type VehicleLog,
   daysUntil,
@@ -15,7 +14,6 @@ import {
   odoEffect,
   odoRejection,
   parseValuations,
-  readReceiptOffline,
   serviceDueKm,
   serviceKmLeft,
   sortVehicles,
@@ -174,18 +172,12 @@ describe("Tiff valuations", () => {
   });
 });
 
-describe("readReceiptOffline (demo fallback)", () => {
-  it("is deterministic per file size with plausible AU numbers", () => {
-    const a = readReceiptOffline(123456);
-    expect(readReceiptOffline(123456)).toEqual(a);
-    expect(a.litres).toBeGreaterThanOrEqual(45);
-    expect(a.litres).toBeLessThan(75);
-    expect(a.cost).toBeGreaterThan(a.litres * 1.7);
-    expect(a.cost).toBeLessThan(a.litres * 2.2);
-    expect(Math.round(a.cost * 100)).toBe(a.cost * 100); // cents precision
-    expect(RECEIPT_STATIONS).toContain(a.station);
-  });
-});
+/* `readReceiptOffline` WAS TESTED HERE, and the test was right about what it
+   did: a deterministic Australian-looking fill derived from the image's file
+   size. That was the problem. It ran on every failed read, and on a personal
+   card the invented cost became a reimbursement and a tax line. Both the
+   function and its test are deleted; what a failed read does now is asserted
+   where a person meets it, in fuel-receipt-scan.test.tsx. */
 
 describe("odometer guardrail", () => {
   it("rejects a reading below the current one and accepts one at or above", () => {

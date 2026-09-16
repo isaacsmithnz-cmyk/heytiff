@@ -24,7 +24,6 @@ import {
   fmtCost,
   fmtKm,
   modelLabel,
-  readReceiptOffline,
 } from "./logic";
 
 /* What is left here: the log modals (fuel / odometer / issue / service), the
@@ -196,7 +195,7 @@ export function LogModal({
   const [mode, setMode] = useState<CaptureMode>(scans ? "scan" : "manual");
   const [thumb, setThumb] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [scanTag, setScanTag] = useState<"tiff" | "offline" | null>(null);
+  const [scanTag, setScanTag] = useState<"tiff" | null>(null);
   /* A record Tiff could not read is still kept; the fields open empty and
      this says why. Fuel has no such state — its offline fallback is a demo
      read, tagged as one. */
@@ -316,11 +315,16 @@ export function LogModal({
       filled = true;
     }
     if (!filled) {
-      const off = readReceiptOffline(file.size);
-      setLitres(String(off.litres));
-      setCost(off.cost.toFixed(2));
-      setStation(off.station);
-      setScanTag("offline");
+      /* NOTHING READ, NOTHING INVENTED. This filled the fill in from the
+         image's FILE SIZE — 45 to 75 litres, a price per litre, and a servo
+         off a list of five — and labelled it "Demo read — Tiff offline". It
+         ran on every failure, not just a missing key: a refusal, a file too
+         large, a dropped connection. On "My own money" those invented
+         figures became a reimbursement and a tax line, off a docket that
+         says something else. The card's own screen already answers this way,
+         and the docket is still kept either way. */
+      setScanTag(null);
+      setReadWarn("Tiff couldn't read that one — enter the details below.");
     }
     setMode("confirm");
   };
@@ -590,9 +594,9 @@ export function LogModal({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {thumb && <img className="fl-scanthumb small" src={thumb} alt="Receipt" />}
             {scanTag ? (
-              <span className={`dchip2 ${scanTag === "tiff" ? "ok" : "mute"}`}>
+              <span className="dchip2 ok">
                 <Chevron size={15} gradient decorative />
-                {scanTag === "tiff" ? "Read by Tiff — check & save" : "Demo read — Tiff offline"}
+                Read by Tiff — check &amp; save
               </span>
             ) : (
               <span className="dchip2 warn">{readWarn ?? fileName}</span>
@@ -745,8 +749,16 @@ export function EditLogModal({
         <div className="fl-danger">
           <b>Remove this entry?</b>
           <em>
-            It disappears from the history, the vehicle&rsquo;s odometer is recalculated from what
-            is left, and it stops counting towards tax.
+            It disappears from the history and the vehicle&rsquo;s odometer is recalculated from
+            what is left.{" "}
+            {log.kind === "fuel" && log.paidWith === "own"
+              ? /* The claim outlives the log on purpose — the money still left
+                   somebody's account — and the tax screen reads it instead
+                   from that moment. Saying "it stops counting towards tax"
+                   here was false for exactly the fills that cost a person
+                   their own money. */
+                "The reimbursement it raised stays, and becomes this purchase's tax line."
+              : "It stops counting towards tax."}
             {log.hasReceipt && ` The ${paper} stays on file.`} The entry is kept, hidden, so a
             figure that has already gone to your accountant can still be accounted for.
           </em>

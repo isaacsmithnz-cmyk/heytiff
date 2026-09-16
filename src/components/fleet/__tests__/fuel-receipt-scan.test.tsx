@@ -78,6 +78,43 @@ beforeEach(() => {
   URL.revokeObjectURL = jest.fn();
 });
 
+/* NOTHING READ, NOTHING INVENTED. A failed read used to fill the form in from
+   the image's FILE SIZE — 45 to 75 litres, a price per litre and a servo off a
+   list of five — under the label "Demo read — Tiff offline". It ran on every
+   failure, not just a missing key, and on "My own money" those figures became
+   a reimbursement claim and a line on the tax export. */
+describe("a docket Tiff cannot read", () => {
+  it("opens the fields empty, keeps the photo, and says so", async () => {
+    readFuelReceipt.mockResolvedValue({ ok: false, reason: "unreadable" });
+    const { user } = setup();
+    const file = new File(["docket"], "receipt.jpg", { type: "image/jpeg" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+
+    await waitFor(() =>
+      expect(screen.getByText("Tiff couldn't read that one — enter the details below.")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Demo read/)).toBeNull();
+    // the photo is the record, and it is still filed against the entry
+    expect(uploadFile).toHaveBeenCalledWith(file, "fuel_receipt");
+    for (const label of [/^Litres/, /^Cost/]) {
+      const field = screen.getByLabelText(label) as HTMLInputElement;
+      expect(field.value).toBe("");
+    }
+  });
+
+  it("invents nothing when the reader itself throws", async () => {
+    readFuelReceipt.mockRejectedValue(new Error("network"));
+    const { user } = setup();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, new File(["docket"], "receipt.jpg", { type: "image/jpeg" }));
+    await waitFor(() =>
+      expect(screen.getByText("Tiff couldn't read that one — enter the details below.")).toBeInTheDocument(),
+    );
+    expect((screen.getByLabelText(/^Litres/) as HTMLInputElement).value).toBe("");
+  });
+});
+
 describe("scanning a fuel docket", () => {
   it("stores the photo as a fuel receipt, not as an expense receipt", async () => {
     const { user } = setup();
@@ -110,14 +147,21 @@ describe("scanning a fuel docket", () => {
   });
 
   it("still keeps the photo when Tiff can't read it", async () => {
-    // The two jobs are independent: a failed read must not cost the document.
+    /* The two jobs are independent: a failed read must not cost the document.
+       The fields open EMPTY now — the old fallback filled them in from the
+       file's size — so the person types what the docket says and the photo is
+       still the thing filed against the entry. */
     readFuelReceipt.mockResolvedValue({ ok: false, reason: "no-key" });
     const { onSave, user } = setup();
     await scan(user);
     expect(screen.getByText(/Receipt saved/)).toBeInTheDocument();
 
+    await user.type(screen.getByLabelText(/^Litres/), "62.4");
+    await user.type(screen.getByLabelText(/^Cost/), "158.40");
     await user.click(saveButton());
-    expect((onSave.mock.calls[0][0] as NewLog).receiptDocumentId).toBe("doc-77");
+    const log = onSave.mock.calls[0][0] as NewLog;
+    expect(log.receiptDocumentId).toBe("doc-77");
+    expect([log.litres, log.cost]).toEqual([62.4, 158.4]);
   });
 
   it("says so, and still saves the entry, when the photo can't be stored", async () => {

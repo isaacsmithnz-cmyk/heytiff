@@ -14,7 +14,7 @@ import { DocSearch } from "./doc-search";
 import { auDayOf, fmtAuDayMonth } from "@/lib/au-dates";
 import { deleteKbDoc, retryKbDoc, updateKbDocMeta } from "@/app/actions/kb";
 import { filterByTags, KB_TAG_PILLS_SHOWN, type KbTagRef } from "@/lib/tiff/tags";
-import { writeAskHandoff } from "@/lib/tiff/ask-handoff";
+import { writeAskScope } from "@/lib/tiff/ask-handoff";
 import { useKbIngest, type KbIngestProgress } from "@/lib/tiff/use-kb-ingest";
 import { useKbOcr, type KbOcrProgress } from "@/lib/tiff/use-kb-ocr";
 import { useKbBackfill } from "@/lib/tiff/use-kb-backfill";
@@ -244,7 +244,7 @@ export function Library({
      is offered to anyone who can see the row: reading the library and asking
      about it are the same permission, and `tiff_manage` is about changing it. */
   const askAbout = (d: KbLibraryDoc) => {
-    writeAskHandoff(d.title);
+    writeAskScope({ docId: d.id, title: d.title });
     router.push("/dashboard/tiff");
   };
 

@@ -88,7 +88,15 @@ export async function retrieveForQuestion(
      that says "can you give me step by step?" has to be turned back into the
      question it means before either leg goes looking, or the library is asked
      for pages about stepping. */
-  history: readonly { role: string; text: string }[] = []
+  history: readonly { role: string; text: string }[] = [],
+  /* THE DOCUMENT THE ASKER NAMED, when they named one. Both legs take it as
+     `p_doc` and search that document alone — which is what the library row's
+     "Ask Tiff about this document" has always promised and never did: the
+     opener typed `In “City Multi fault codes”, ` into the composer and the
+     search then read the whole library, so the answer could be quoted out of
+     a different manual than the one the reader picked. Words in a box are
+     not a filter. */
+  documentId: string | null = null
 ): Promise<Retrieval> {
   const embedFor = (text: string): Promise<EmbedResult> =>
     isSemanticConfigured()
@@ -124,6 +132,7 @@ export async function retrieveForQuestion(
       // shelf answered, which means every shelf has to have been asked
       p_cats: null,
       p_k: LEG_LIMIT,
+      p_doc: documentId,
     }),
     qvec
       ? supabaseAdmin.rpc("kb_vec", {
@@ -132,6 +141,7 @@ export async function retrieveForQuestion(
           p_qvec: JSON.stringify(qvec),
           p_cats: null,
           p_k: LEG_LIMIT,
+          p_doc: documentId,
         })
       : Promise.resolve({ data: null }),
   ]);

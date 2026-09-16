@@ -735,46 +735,87 @@ describe("asked about a document", () => {
     ...over,
   });
 
-  it("opens with the document already in the box, answering from the library", () => {
-    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
+  const scope = (docId = "d-1", title = "City Multi fault codes") =>
+    sessionStorage.setItem(ASK_KEY, JSON.stringify({ doc: { docId, title } }));
+
+  /* THE DOCUMENT IS A CONTROL, NOT A SENTENCE. A library row used to type
+     `In “City Multi fault codes”, ` into the box and the search then read the
+     whole library — so the only trace of the choice was words, and words
+     filter nothing. The chip is the choice now, and the search reads that
+     document alone. */
+  it("names the document, and leaves the box empty for the question", () => {
+    scope();
+    render(<TiffAssistant readyCount={3} />);
+
+    expect(screen.getByText("City Multi fault codes")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("");
+  });
+
+  it("sends nothing on its own", () => {
+    scope();
+    render(<TiffAssistant readyCount={3} />);
+    expect(asks).toHaveLength(0);
+  });
+
+  it("carries the document with the question", async () => {
+    scope();
+    render(<TiffAssistant readyCount={3} />);
+    await ask("what does P8 mean?");
+
+    expect(asks[0]).toMatchObject({ question: "what does P8 mean?", research: true, documentId: "d-1" });
+  });
+
+  it("clears back to the whole library, and the switch comes back with it", async () => {
+    scope();
+    render(<TiffAssistant readyCount={3} />);
+
+    await userEvent.click(screen.getByLabelText(/^Clear the document/));
+    expect(screen.queryByText("City Multi fault codes")).toBeNull();
+    expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
+
+    await ask("what does P8 mean?");
+    expect(asks[0]).toMatchObject({ documentId: null });
+  });
+
+  /* Naming a document that turns out to hold nothing is a narrowing, not a
+     dead end: the server widens once and says so, and the answer carries
+     which manual it wasn't in. */
+  it("says when the answer came from the rest of the library instead", async () => {
+    scope();
+    script = (emit) => {
+      emit({ t: "widened" });
+      emit({ t: "delta", text: "P8 is a piping temperature fault." });
+      emit({ t: "done" });
+    };
+    render(<TiffAssistant readyCount={3} />);
+    await ask("what does P8 mean?");
+
+    expect(
+      await screen.findByText(/Nothing in “City Multi fault codes” covered this/)
+    ).toBeInTheDocument();
+  });
+
+  /* The Fault Finder leaves WORDS, not a document — the code it just
+     diagnosed, written as a question. That note still fills the box. */
+  it("still opens with a fault code's question typed out", () => {
+    sessionStorage.setItem(ASK_KEY, "The unit is showing “E5”. What does that fault code mean? ");
     render(<TiffAssistant readyCount={3} />);
 
     const box = screen.getByLabelText("Ask Tiff") as HTMLInputElement;
-    expect(box).toHaveValue("In “City Multi fault codes”, ");
+    expect(box.value).toContain("“E5”");
     expect(box).toHaveFocus();
     expect(libraryMode()).toHaveAttribute("aria-pressed", "true");
   });
 
-  /* The prefill is scaffolding. Sending it would spend a question nobody
-     asked, on half a sentence. */
-  it("sends nothing on its own", () => {
-    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
-    render(<TiffAssistant readyCount={3} />);
-
-    expect(asks).toHaveLength(0);
-  });
-
   it("eats the note, so a refresh comes back to an empty box", () => {
-    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
+    scope();
     const first = render(<TiffAssistant readyCount={3} />);
     expect(sessionStorage.getItem(ASK_KEY)).toBeNull();
 
     first.unmount();
     render(<TiffAssistant readyCount={3} />);
+    expect(screen.queryByText("City Multi fault codes")).toBeNull();
     expect(screen.getByLabelText("Ask Tiff")).toHaveValue("");
-  });
-
-  /* A document was named, so the library HAS documents — but if the counts
-     say otherwise the toggle stays where it is rather than being forced into
-     a state it is disabled in. */
-  it("leaves the toggle alone when there is nothing ready to search", () => {
-    sessionStorage.setItem(ASK_KEY, "In “City Multi fault codes”, ");
-    render(<TiffAssistant readyCount={0} />);
-
-    const toggle = libraryMode();
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-    expect(toggle).toBeDisabled();
-    expect(screen.getByLabelText("Ask Tiff")).toHaveValue("In “City Multi fault codes”, ");
   });
 
   it("leaves the composer alone when no document sent anyone here", () => {

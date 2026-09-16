@@ -5,7 +5,7 @@ import {
   askPrefill,
   consumeAskHandoff,
   faultCodePrefill,
-  writeAskHandoff,
+  writeAskScope,
   writeAskText,
 } from "../ask-handoff";
 
@@ -90,44 +90,74 @@ describe("the opener a fault code leaves", () => {
 
   it("lands in the same box the library rows use, and is read once", () => {
     expect(writeAskText(faultCodePrefill("E5"))).toBe(true);
-    expect(consumeAskHandoff()).toContain("“E5”");
-    expect(consumeAskHandoff()).toBeNull();
+    // words, not a document: the Fault Finder knows the question, not the manual
+    expect(consumeAskHandoff().text).toContain("“E5”");
+    expect(consumeAskHandoff()).toEqual({ text: null, doc: null });
   });
 });
 
 describe("leaving the note", () => {
-  it("stores the opener under the one key the composer reads", () => {
-    expect(writeAskHandoff("City Multi fault codes")).toBe(true);
-    expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toBe("In “City Multi fault codes”, ");
+  /* IT CARRIES THE DOCUMENT NOW, not a sentence about it. The opener typed
+     `In “City Multi fault codes”, ` into the composer and the search that
+     followed read the whole library — so the choice of document was words in
+     a box, and words in a box filter nothing. */
+  it("leaves the document itself", () => {
+    expect(writeAskScope({ docId: "d-1", title: "City Multi fault codes" })).toBe(true);
+    expect(JSON.parse(sessionStorage.getItem(ASK_HANDOFF_KEY) ?? "{}")).toEqual({
+      doc: { docId: "d-1", title: "City Multi fault codes" },
+    });
   });
 
-  it("writes nothing for a document with no title", () => {
-    expect(writeAskHandoff("")).toBe(false);
+  it("writes nothing without a document to name", () => {
+    expect(writeAskScope({ docId: "", title: "City Multi fault codes" })).toBe(false);
     expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toBeNull();
+  });
+
+  it("still leaves plain words for the Fault Finder", () => {
+    expect(writeAskText(faultCodePrefill("E5"))).toBe(true);
+    expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toContain("“E5”");
   });
 });
 
 describe("reading the note", () => {
-  it("hands it over once and tears it up", () => {
-    writeAskHandoff("City Multi fault codes");
+  it("hands the document over once and tears it up", () => {
+    writeAskScope({ docId: "d-1", title: "City Multi fault codes" });
 
-    expect(consumeAskHandoff()).toBe("In “City Multi fault codes”, ");
-    expect(consumeAskHandoff()).toBeNull();
+    expect(consumeAskHandoff()).toEqual({
+      text: null,
+      doc: { docId: "d-1", title: "City Multi fault codes" },
+    });
+    expect(consumeAskHandoff()).toEqual({ text: null, doc: null });
     expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toBeNull();
   });
 
-  it("keeps the trailing space — the question continues from there", () => {
-    writeAskHandoff("SOP-14 Warranty claims");
-    expect(consumeAskHandoff()?.endsWith(", ")).toBe(true);
+  /* The Fault Finder's note is WORDS, and always was: the code it just
+     diagnosed, written as a question. A note that isn't JSON is that kind —
+     which also covers one left by a tab still running the older bundle. */
+  it("hands plain words back as words, trailing space and all", () => {
+    writeAskText("The unit is showing “E5”. What does that fault code mean, and what causes it? ");
+    const note = consumeAskHandoff();
+    expect(note.doc).toBeNull();
+    expect(note.text?.endsWith("? ")).toBe(true);
   });
 
   it("reads nothing when nothing was left", () => {
-    expect(consumeAskHandoff()).toBeNull();
+    expect(consumeAskHandoff()).toEqual({ text: null, doc: null });
   });
 
   it("treats a whitespace-only note as no note, and still clears it", () => {
     sessionStorage.setItem(ASK_HANDOFF_KEY, "   ");
-    expect(consumeAskHandoff()).toBeNull();
+    expect(consumeAskHandoff()).toEqual({ text: null, doc: null });
     expect(sessionStorage.getItem(ASK_HANDOFF_KEY)).toBeNull();
+  });
+
+  it("treats a note with no document id as no note", () => {
+    sessionStorage.setItem(ASK_HANDOFF_KEY, JSON.stringify({ doc: { title: "No id" } }));
+    expect(consumeAskHandoff()).toEqual({ text: null, doc: null });
+  });
+
+  it("survives a note that isn't the JSON it looks like", () => {
+    sessionStorage.setItem(ASK_HANDOFF_KEY, "{not json");
+    expect(consumeAskHandoff()).toEqual({ text: null, doc: null });
   });
 });

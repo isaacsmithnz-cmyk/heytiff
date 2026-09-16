@@ -207,7 +207,8 @@ describe("research mode", () => {
   it("searches the caller's own org, with the question as sent", async () => {
     withHits();
     await POST(req({ question: "  why P8?  ", research: true }));
-    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "why P8?", []);
+    // …and no document, because nobody named one
+    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "why P8?", [], null);
   });
 
   /* Retrieval reads the conversation now, not just the writer. A follow-up
@@ -221,7 +222,7 @@ describe("research mode", () => {
     ];
     await POST(req({ question: "step by step?", research: true, history }));
 
-    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "step by step?", history);
+    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "step by step?", history, null);
   });
 
   it("hands the excerpts over as titled documents in ranking order", async () => {
@@ -279,6 +280,54 @@ describe("the honest miss", () => {
   it("still counts as a question — the library was searched", async () => {
     await POST(req({ question: "why P8?", research: true }));
     expect(recordQuestion).toHaveBeenCalledWith("org-1");
+  });
+});
+
+/* ASKING ONE DOCUMENT. The library row's Ask hands the composer a document,
+   and the search reads that document alone — which is what the button always
+   promised and never did. Naming one is a narrowing, not a cage: if it covers
+   nothing, the search widens to the rest of the library and the screen says
+   it widened, rather than reporting an empty library that holds the answer. */
+describe("a question aimed at one document", () => {
+  const hits = [{ content: "P8 = piping temperature", title: "Fault book", pageFrom: 41, pageTo: 41 }];
+
+  it("hands the document to the search", async () => {
+    retrieval.chunks = hits;
+    await POST(req({ question: "why P8?", research: true, documentId: "11111111-2222-3333-4444-555555555555" }));
+
+    expect(retrieveForQuestion).toHaveBeenCalledWith(
+      "org-1",
+      "why P8?",
+      [],
+      "11111111-2222-3333-4444-555555555555",
+    );
+  });
+
+  it("widens to the rest of the library when that document covers nothing, and says so", async () => {
+    retrieval.chunks = [];
+    retrieveForQuestion.mockImplementationOnce(async () => retrieval);
+    retrieveForQuestion.mockImplementationOnce(async () => ({ ...retrieval, chunks: hits }));
+
+    const res = await POST(
+      req({ question: "why P8?", research: true, documentId: "11111111-2222-3333-4444-555555555555" }),
+    );
+    expect(await kinds(res)).toEqual(["widened", "trace", "delta", "done"]);
+    // the second look asked the WHOLE library — no document on it
+    expect(retrieveForQuestion).toHaveBeenLastCalledWith("org-1", "why P8?", []);
+  });
+
+  it("is a miss only when the library has nothing either", async () => {
+    retrieval.chunks = [];
+    const res = await POST(
+      req({ question: "why P8?", research: true, documentId: "11111111-2222-3333-4444-555555555555" }),
+    );
+    expect(await kinds(res)).toEqual(["trace", "miss", "delta", "done"]);
+  });
+
+  it("ignores anything that isn't a document id", async () => {
+    retrieval.chunks = hits;
+    await POST(req({ question: "why P8?", research: true, documentId: "'; drop table kb_chunks;--" }));
+    expect(retrieveForQuestion).toHaveBeenCalledWith("org-1", "why P8?", [], null);
   });
 });
 

@@ -43,7 +43,18 @@ const NO_ACCESS = "You don't have access to Tiff.";
 const UNREADABLE = "That question couldn't be read.";
 const FAILED = "Tiff couldn't answer that just now. Try again.";
 
-type AskBody = { question: string; research: boolean; history: AskTurn[] };
+type AskBody = {
+  question: string;
+  research: boolean;
+  history: AskTurn[];
+  /** The one document to read, when the asker named one. */
+  documentId: string | null;
+};
+
+/** A document id or nothing. Shaped, not trusted: both search legs filter on
+    the org as well, so a stranger's id finds nothing rather than something. */
+const shapeDocumentId = (value: unknown): string | null =>
+  typeof value === "string" && /^[0-9a-f-]{36}$/i.test(value.trim()) ? value.trim() : null;
 
 /* Everything the browser sent, clamped. The history especially: it is replayed
    into the model as prior turns, so it is the one input a caller could use to
@@ -64,7 +75,12 @@ function shapeBody(raw: unknown): AskBody | null {
     history.push({ role: row.role === "assistant" ? "assistant" : "user", text });
   }
 
-  return { question, research: body.research === true, history };
+  return {
+    question,
+    research: body.research === true,
+    history,
+    documentId: shapeDocumentId(body.documentId),
+  };
 }
 
 export async function POST(request: Request) {
@@ -81,7 +97,7 @@ export async function POST(request: Request) {
   }
   if (!body) return Response.json({ error: UNREADABLE }, { status: 400 });
 
-  const { question, research, history } = body;
+  const { question, research, history, documentId } = body;
 
   /* The client going away has to reach the model call, or a closed tab leaves
      Opus writing an answer nobody will read for the rest of the invocation. */
@@ -112,7 +128,21 @@ export async function POST(request: Request) {
         if (research) {
           // the history goes to retrieval as well as to the writer now: a
           // follow-up has to be read in context before it can be searched for
-          const found = await retrieveForQuestion(orgId, question, history);
+          let found = await retrieveForQuestion(orgId, question, history, documentId);
+
+          /* THE NAMED DOCUMENT DIDN'T COVER IT. Asking one manual is a
+             narrowing, not a cage: a tech who pressed Ask on the indoor unit's
+             manual and asked about the outdoor unit's error should get the
+             answer and be told where it came from, not "nothing in your
+             library covered this" about a library that holds it. So the
+             search widens once, and the screen says it widened. */
+          let widened = false;
+          if (documentId && found.chunks.length === 0) {
+            found = await retrieveForQuestion(orgId, question, history);
+            widened = found.chunks.length > 0;
+            if (widened) write({ t: "widened" });
+          }
+
           write({
             t: "trace",
             categories: found.trace.categories,

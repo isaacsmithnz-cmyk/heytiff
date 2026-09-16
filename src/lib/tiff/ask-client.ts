@@ -44,6 +44,9 @@ export type AskEvent =
     }
   /** Research mode, zero hits — the answer that follows is general knowledge. */
   | { t: "miss" }
+  /** The asker named a document, it covered nothing, and the search widened to
+      the rest of the library rather than dead-ending on one manual. */
+  | { t: "widened" }
   | { t: "delta"; text: string }
   /** After the final message, citation-ordered. Uncited documents are absent. */
   | { t: "sources"; items: AskSourceItem[] }
@@ -75,6 +78,9 @@ export type AskInput = {
   question: string;
   research: boolean;
   history: AskTurn[];
+  /** The document the asker named, when they named one — the search reads it
+      alone, and widens only if it covered nothing. */
+  documentId?: string | null;
   onEvent: (event: AskEvent) => void;
   signal?: AbortSignal;
 };
@@ -89,14 +95,14 @@ export type AskInput = {
    The stream is not closed early on `done`/`err`: the server closes after
    either, and draining is what releases the connection. */
 export async function askTiff(input: AskInput): Promise<void> {
-  const { question, research, history, onEvent, signal } = input;
+  const { question, research, history, documentId = null, onEvent, signal } = input;
 
   let response: Response;
   try {
     response = await fetch(ASK_ENDPOINT, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question, research, history }),
+      body: JSON.stringify({ question, research, history, documentId }),
       signal,
     });
   } catch (err) {

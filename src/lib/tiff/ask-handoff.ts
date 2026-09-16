@@ -77,19 +77,59 @@ export function writeAskText(prefill: string): boolean {
   }
 }
 
-export function writeAskHandoff(title: string): boolean {
-  return writeAskText(askPrefill(title));
+/** What a library row hands over: the document itself, not a sentence about
+    it. The composer turns this into a scope it can show and clear, and the
+    search reads that document alone.
+
+    IT USED TO BE THE OPENER ALONE — `In “City Multi fault codes”, ` typed
+    into the box — and the search that followed read the whole library. The
+    words were the only trace of the choice and they filtered nothing, so an
+    answer could be quoted out of a different manual than the one the reader
+    pressed Ask on, under a button whose whole promise was the opposite. */
+export type AskScope = { docId: string; title: string };
+
+export function writeAskScope(scope: AskScope): boolean {
+  if (!scope.docId) return false;
+  try {
+    sessionStorage.setItem(ASK_HANDOFF_KEY, JSON.stringify({ doc: scope }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-/** Read the note and tear it up. Null when there wasn't one. */
-export function consumeAskHandoff(): string | null {
+/** What was left on the way here: words to open the box with, a document to
+    search, or neither. */
+export type AskHandoff = { text: string | null; doc: AskScope | null };
+
+const NOTHING: AskHandoff = { text: null, doc: null };
+
+/** Read the note and tear it up. Empty when there wasn't one. */
+export function consumeAskHandoff(): AskHandoff {
+  let raw: string | null = null;
   try {
-    const raw = sessionStorage.getItem(ASK_HANDOFF_KEY);
+    raw = sessionStorage.getItem(ASK_HANDOFF_KEY);
     sessionStorage.removeItem(ASK_HANDOFF_KEY);
-    // a value that is only whitespace is not a prefill; the trailing space of
-    // a real one is load-bearing and is kept
-    return raw && raw.trim() ? raw : null;
   } catch {
-    return null;
+    return NOTHING;
   }
+  if (!raw || !raw.trim()) return NOTHING;
+
+  /* TWO SHAPES, AND THE PLAIN ONE IS NOT LEGACY: the Fault Finder leaves
+     WORDS (the code it just diagnosed, written as a question), and a library
+     row leaves a DOCUMENT. A note that isn't JSON is the first kind — which
+     also covers one written by a tab still running the older bundle. */
+  if (raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw) as { doc?: { docId?: unknown; title?: unknown } };
+      const docId = typeof parsed.doc?.docId === "string" ? parsed.doc.docId : "";
+      if (!docId) return NOTHING;
+      const title = typeof parsed.doc?.title === "string" ? parsed.doc.title : "";
+      return { text: null, doc: { docId, title } };
+    } catch {
+      return NOTHING;
+    }
+  }
+  // the trailing space of a real opener is load-bearing and is kept
+  return { text: raw, doc: null };
 }

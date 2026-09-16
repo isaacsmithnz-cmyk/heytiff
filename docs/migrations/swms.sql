@@ -7,7 +7,7 @@
 -- regulation 303 keeps a SWMS until the work is done, and for two years after
 -- a notifiable incident, so there is no delete path to get wrong.
 --
--- ADDITIVE, and safe to apply BEFORE the deploy: four new tables nothing reads
+-- ADDITIVE, and safe to apply BEFORE the deploy: five new tables nothing reads
 -- yet. RLS on with no policies, like every table here — the app reads and
 -- writes through the service role and scopes every query by org_id.
 

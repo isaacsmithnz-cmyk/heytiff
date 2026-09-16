@@ -74,6 +74,20 @@ jest.mock('@/app/actions/work-rights-ai', () => ({
   readWorkRightsDocument: jest.fn(async () => ({ ok: false, reason: 'no-key' })),
 }))
 
+/* THE SWMS ACTIONS, for the same reason: the job card imports them at module
+   scope to list a job's SWMS and open the wizard, and the job card is inside
+   the board, the Home day band and the gallery. The defaults are the empty
+   answers — no SWMS on the job, a wizard with nothing to open. The SWMS
+   suites that test the real actions `jest.unmock` it. */
+jest.mock('@/app/actions/swms', () => ({
+  listSwmsForJob: jest.fn(async () => []),
+  swmsWizardContext: jest.fn(async () => null),
+  swmsPrevious: jest.fn(async () => null),
+  approveSwmsLibrary: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+  issueSwms: jest.fn(async () => ({ ok: false, problems: ['Not in a test.'] })),
+  signOnSwms: jest.fn(async () => ({ ok: false, error: 'Not in a test.' })),
+}))
+
 /* The uploader's browser half, for the same reason and by the same route: it
    imports `@/app/actions/documents` to ask for a signed slot, which is a
    `"use server"` module, and every scan panel imports the uploader. Its job is

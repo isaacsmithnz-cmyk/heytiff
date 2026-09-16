@@ -5,12 +5,16 @@ import { Icon } from "@/components/shell/icon";
 import { fmtAuWeekdayDayMonth } from "@/lib/au-dates";
 import { documentGroupOf, type JobMediaItem } from "@/lib/workboard/job-media";
 import type { MirrorJobDetail } from "@/lib/workboard/all-jobs-query";
+import type { SwmsSummary } from "@/lib/swms/query";
+import "@/components/swms/swms.css";
 
 /* THE DOCUMENTS FACE — the job's paper, grouped by what a document IS,
    never by which system made it: Drawings (the Studio's designs — ours),
    Money (invoices, quotes, work orders), From the client (emailed in),
-   Video, then the rest. An empty group doesn't render; Compliance joins
-   the day HeyTiff generates its first document worth the name.
+   Video, then the rest. An empty group doesn't render. COMPLIANCE LEADS:
+   the SWMS is the one paper HeyTiff writes itself, and the one the crew
+   needs before the work starts, so it is created from this face's head and
+   filed first.
 
    A PDF opens IN THE CARD, in the shared viewer's iframe — today every
    file was a new browser tab that lost the job. Files whose bytes aren't
@@ -86,21 +90,42 @@ const GROUPS: { key: "money" | "client" | "files"; label: string }[] = [
   { key: "files", label: "Files" },
 ];
 
+/** "1 of 3 signed on, waiting on Dane Whitmore and Kai Lindqvist" */
+function signedLine(s: SwmsSummary): string {
+  const count = `${s.signed} of ${s.total} signed on`;
+  if (s.waitingOn.length === 0) return count;
+  const names =
+    s.waitingOn.length === 1
+      ? s.waitingOn[0]
+      : `${s.waitingOn.slice(0, -1).join(", ")} and ${s.waitingOn[s.waitingOn.length - 1]}`;
+  return `${count}, waiting on ${names}`;
+}
+
 export function JobDocumentsFace({
   documents,
   elsewhere,
   designs,
+  swms = null,
+  canCreateSwms = false,
   loading,
   truncated,
   onOpen,
+  onCreateSwms,
+  onReviseSwms,
 }: {
   documents: readonly JobMediaItem[] | null;
   elsewhere: readonly JobMediaItem[] | null;
   /** Absent for a reader without `studio` — the action doesn't fetch it. */
   designs: MirrorJobDetail["designs"];
+  /** The job's SWMS at their latest versions; null until the read lands. */
+  swms?: readonly SwmsSummary[] | null;
+  /** False until the card knows which job it is. */
+  canCreateSwms?: boolean;
   loading: boolean;
   truncated: boolean;
   onOpen: (item: JobMediaItem) => void;
+  onCreateSwms?: () => void;
+  onReviseSwms?: (versionId: string) => void;
 }) {
   const docs = documents ?? [];
   /* Video went where it belongs — the Photos face, with the rest of what
@@ -111,14 +136,49 @@ export function JobDocumentsFace({
     const g = documentGroupOf(d);
     byGroup.set(g, [...(byGroup.get(g) ?? []), d]);
   }
-  const total = docs.length + designs.length;
+  const statements = swms ?? [];
+  const total = docs.length + designs.length + statements.length;
 
   return (
     <div className="wb2-jcdoc">
       <div className="wb2-jcdhead">
         <b>Documents</b>
         {total > 0 && <em>{total === 1 ? "1 file" : `${total} files`}</em>}
+        {onCreateSwms && (
+          <button type="button" className="sw-btn sm" disabled={!canCreateSwms} onClick={onCreateSwms}>
+            Create SWMS
+          </button>
+        )}
       </div>
+
+      {statements.length > 0 && (
+        <div className="wb2-jcsec">
+          <span className="wb2-sect">{`Compliance — ${statements.length}`}</span>
+          {statements.map((s) => (
+            <div key={s.swmsId} className="sw-docrow">
+              <span>
+                <b>{`Safe Work Method Statement, version ${s.version}`}</b>
+                <em>{`Issued ${editedOn(s.issuedAt)}, ${s.responsible} responsible. ${signedLine(s)}`}</em>
+              </span>
+              <span className="sw-docact">
+                <a className="sw-btn sm" href={`/swms/${s.versionId}`} target="_blank" rel="noreferrer">
+                  Open
+                </a>
+                {s.waitingOn.length > 0 && (
+                  <Link className="sw-btn sm" href={`/dashboard/swms/${s.versionId}`}>
+                    Sign on
+                  </Link>
+                )}
+                {onReviseSwms && (
+                  <button type="button" className="sw-btn sm" onClick={() => onReviseSwms(s.versionId)}>
+                    Revise
+                  </button>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {designs.length > 0 && (
         <div className="wb2-jcsec">

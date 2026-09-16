@@ -7,6 +7,10 @@
 import { fakeDb, type FakeDb } from "@/lib/swms/__tests__/fixtures/fake-db";
 import { DEFAULT_ANSWERS, LIBRARY_VERSION, type SwmsContent } from "@/lib/swms/library";
 
+/* jest.setup stubs this module for every screen that contains the job card;
+   this suite is the one that wants it real. */
+jest.unmock("../swms");
+
 let mockDb: FakeDb;
 let mockCaps = new Set<string>(["workboard"]);
 let mockRole: string | null = "staff";

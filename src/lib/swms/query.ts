@@ -155,7 +155,7 @@ export type SwmsPerson = {
   team: boolean;
   signon: SwmsSignon | null;
 };
-export type SwmsVersionRow = { version: number; issuedAt: string; reason: string; material: boolean; issuedBy: string };
+export type SwmsVersionRow = { id: string; version: number; issuedAt: string; reason: string; material: boolean; issuedBy: string };
 export type SwmsDocument = {
   swmsId: string;
   versionId: string;
@@ -219,7 +219,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
     supabaseAdmin.from("swms").select("sm8_job_uuid").eq("org_id", orgId).eq("id", v.swms_id).maybeSingle(),
     supabaseAdmin
       .from("swms_versions")
-      .select("version, issued_at, reason, material, issued_by_staff_id")
+      .select("id, version, issued_at, reason, material, issued_by_staff_id")
       .eq("org_id", orgId)
       .eq("swms_id", v.swms_id)
       .order("version", { ascending: true }),
@@ -236,7 +236,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
       .eq("version_id", v.id),
   ]);
 
-  const versions = (all ?? []) as { version: number; issued_at: string; reason: string; material: boolean; issued_by_staff_id: string }[];
+  const versions = (all ?? []) as { id: string; version: number; issued_at: string; reason: string; material: boolean; issued_by_staff_id: string }[];
   const people = (peopleRows ?? []) as { id: string; staff_profile_id: string | null; outside_name: string | null; outside_company: string | null }[];
   const signons = (signonRows ?? []) as { person_id: string; signed_by_staff_id: string | null; briefed_by_staff_id: string | null; signature_svg: string; issue_raised: string | null; signed_at: string }[];
   const bySigned = new Map(signons.map((s) => [s.person_id, s]));
@@ -287,6 +287,7 @@ export async function loadSwmsDocument(orgId: string, versionId: string): Promis
       };
     }).sort(byCrewOrder(v.responsible_staff_id)),
     versions: versions.map((x) => ({
+      id: x.id,
       version: x.version,
       issuedAt: x.issued_at,
       reason: x.reason,
